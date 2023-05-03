@@ -4,14 +4,10 @@
 :host {
   --color: var(--s-color-neutral-30);
   --sheen-color: var(--s-color-neutral-40);
-  --min-width: 40px;
+  --width-min: 40px;
   --width: 100%;
   --height: 1em;
   --expand: 1;
-  --corner-tl: 9999px;
-  --corner-tr: 9999px;
-  --corner-br: 9999px;
-  --corner-bl: 9999px;
   --bg-fit: 400% 100%;
   --bg-gradient: linear-gradient(
     270deg,
@@ -20,11 +16,20 @@
     var(--color),
     var(--sheen-color)
   );
+  --corner: 9999px;
+  --corner-t: var(--corner);
+  --corner-l: var(--corner);
+  --corner-r: var(--corner);
+  --corner-b: var(--corner);
+  --corner-tl: var(--corner);
+  --corner-tr: var(--corner);
+  --corner-br: var(--corner);
+  --corner-bl: var(--corner);
 }
 
-.skeleton {
+.root {
   display: flex;
-  min-width: var(--min-width);
+  min-width: var(--width-min);
   width: var(--width);
   height: var(--height);
   flex: var(--expand);

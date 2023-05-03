@@ -40,8 +40,16 @@
 .overflow-x {
   overflow-x: var(--overflow-x, scroll);
 }
+.overflow-x--scroll {
+  pointer-events: var(--interactable, auto);
+  min-width: var(--width-min, 100%);
+}
 .overflow-y {
   overflow-y: var(--overflow-y, scroll);
+}
+.overflow-y--scroll {
+  pointer-events: var(--interactable, auto);
+  min-height: var(--height-min, 100%);
 }
 
 .z {
@@ -398,7 +406,7 @@
   content: "";
   z-index: -1;
   border-radius: inherit;
-  outline: var(--s-focus-ring-color) var(--s-focus-ring-style)
+  outline: var(--s-color-focus) var(--s-focus-ring-style)
     var(--s-focus-ring-width);
   outline-offset: calc(
     -1 * var(--s-focus-ring-width) - var(--s-focus-ring-offset)

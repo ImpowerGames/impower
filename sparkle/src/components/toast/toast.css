@@ -1,0 +1,144 @@
+:host {
+  display: contents;
+}
+:host {
+  --icon-size: var(--s-text-lg-font-size);
+  --interactable: auto;
+  --position: relative;
+  --child-layout: row;
+  --child-align: center;
+  --child-justify: center;
+  --shadow: var(--s-shadow-drop-2);
+  --border-width: 1px;
+  --border-color: var(--s-color-surface-border);
+  --bg-color: var(--s-color-surface);
+  --text-color: var(--s-color-neutral-80);
+  --text-font: var(--s-font-sans);
+  --text-size: var(--s-text-sm-font-size);
+  --text-leading: 1.6;
+  --text-weight: 400;
+  --spacing: 20px;
+  --margin: 4px;
+  --padding: 16px;
+  --padding-tb: var(--padding);
+  --padding-lr: var(--padding);
+  --padding-t: var(--padding);
+  --padding-b: var(--padding);
+  --padding-l: var(--padding);
+  --padding-r: var(--padding);
+  --margin-tb: var(--margin);
+  --margin-lr: var(--margin);
+  --margin-t: var(--margin);
+  --margin-b: var(--margin);
+  --margin-l: var(--margin);
+  --margin-r: var(--margin);
+  --corner: 4px;
+  --corner-t: var(--corner);
+  --corner-l: var(--corner);
+  --corner-r: var(--corner);
+  --corner-b: var(--corner);
+  --corner-tl: var(--corner);
+  --corner-tr: var(--corner);
+  --corner-br: var(--corner);
+  --corner-bl: var(--corner);
+}
+
+.root {
+  pointer-events: var(--interactable);
+  position: var(--position);
+  display: flex;
+  flex-direction: var(--child-layout);
+  align-items: var(--child-align);
+  filter: var(--shadow);
+  border-style: solid;
+  border-color: var(--border-color);
+  border-width: var(--border-width);
+  border-top-width: calc(var(--border-width) * 3);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: var(--text-font);
+  font-size: var(--text-size);
+  font-weight: var(--text-weight);
+  line-height: var(--text-leading);
+  padding-top: var(--padding-t, var(--padding-tb, var(--padding)));
+  padding-right: var(--padding-r, var(--padding-lr, var(--padding)));
+  padding-bottom: var(--padding-b, var(--padding-tb, var(--padding)));
+  padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
+  margin-top: var(--margin-t, var(--margin-tb, var(--margin)));
+  margin-right: var(--margin-r, var(--margin-lr, var(--margin)));
+  margin-bottom: var(--margin-b, var(--margin-tb, var(--margin)));
+  margin-left: var(--margin-l, var(--margin-lr, var(--margin)));
+  border-top-left-radius: var(
+    --corner-tl,
+    var(--corner-t, var(--corner-l, var(--corner)))
+  );
+  border-top-right-radius: var(
+    --corner-tr,
+    var(--corner-t, var(--corner-r, var(--corner)))
+  );
+  border-bottom-right-radius: var(
+    --corner-br,
+    var(--corner-b, var(--corner-r, var(--corner)))
+  );
+  border-bottom-left-radius: var(
+    --corner-bl,
+    var(--corner-b, var(--corner-l, var(--corner)))
+  );
+}
+
+:host(:not([closable])) .close-button {
+  display: none;
+}
+
+:host([variant="primary"]) {
+  --color: var(--s-color-primary-70);
+}
+
+:host([variant="success"]) {
+  --color: var(--s-color-success-70);
+}
+
+:host([variant="neutral"]) {
+  --color: var(--s-color-neutral-70);
+}
+
+:host([variant="warning"]) {
+  --color: var(--s-color-warning-70);
+}
+
+:host([variant="danger"]) {
+  --color: var(--s-color-danger-70);
+}
+
+.root {
+  border-top-color: var(--color);
+}
+
+.message {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.close-button {
+  display: flex;
+  flex-direction: row;
+  flex: 0 0 auto;
+  align-items: center;
+  font-size: var(--s-text-md-font-size);
+  line-height: var(--s-text-md-line-height);
+}
+
+:host([icon]) .icon {
+  color: var(--color);
+  font-size: var(--icon-size);
+}
+
+:host([icon]) .message {
+  padding-left: var(--spacing);
+}
+
+:host(:not([closable])) .close-button {
+  display: none;
+}

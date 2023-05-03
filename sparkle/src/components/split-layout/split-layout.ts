@@ -80,18 +80,21 @@ export default class SplitLayout extends SparkleElement {
   /**
    * Flips the orientation of the panels.
    */
-  get flip(): boolean {
-    return this.getBooleanAttribute("flip");
+  get flip(): string | null {
+    return this.getStringAttribute("flip");
   }
-  set flip(value: boolean) {
-    this.setBooleanAttribute("flip", value);
+  set flip(value: string | null) {
+    this.setStringAttribute("flip", value);
   }
 
   /**
    * Automatically flip the orientation of the panels when they cannot fit side-by-side.
+   *
+   * Set to `reverse`, to reverse order of panels when orientation is flipped.
+   *
    */
-  get responsive(): boolean {
-    return this.getBooleanAttribute("responsive");
+  get responsive(): "" | "reverse" | null {
+    return this.getStringAttribute("responsive");
   }
 
   /**
@@ -160,6 +163,8 @@ export default class SplitLayout extends SparkleElement {
 
   protected _startVertical = false;
 
+  protected _startReversed = false;
+
   protected _startRtl = false;
 
   protected _startX: number = 0;
@@ -175,6 +180,7 @@ export default class SplitLayout extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
+    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "disabled") {
       const dividerEl = this.dividerEl;
       if (dividerEl) {
@@ -203,20 +209,24 @@ export default class SplitLayout extends SparkleElement {
             dividerEl.removeAttribute("aria-valuenow");
           }
         }
-        this.updateSplit(newValue);
+        this.positionPrimaryPanel(newValue);
       }
     }
+    if (name === "primary") {
+      this.resetSecondaryPanel(newValue);
+      this.positionPrimaryPanel(this.split);
+    }
     if (name === "vertical" || name === "flip") {
-      this.updateSplit(this.split);
+      this.positionPrimaryPanel(this.split);
     }
     if (name === "min-panel-width" || name === "min-panel-height") {
-      this.updateSplit(this.split);
+      this.positionPrimaryPanel(this.split);
     }
     if (name === "divider-width") {
-      this.updateRootStyle("--divider-width", newValue);
+      this.updateRootStyle("--divider-width", getCssSize(newValue));
     }
     if (name === "divider-hit-area") {
-      this.updateRootStyle("--divider-hit-area", newValue);
+      this.updateRootStyle("--divider-hit-area", getCssSize(newValue));
     }
   }
 
@@ -258,10 +268,15 @@ export default class SplitLayout extends SparkleElement {
 
   protected isVertical(): boolean {
     const vertical = this.vertical;
-    return (this.flip && !vertical) || (vertical && !this.flip);
+    const isFlipped = this.flip != null;
+    return (isFlipped && !vertical) || (vertical && !isFlipped);
   }
 
-  private updateSplit(split: string | null): void {
+  protected isReversed(): boolean {
+    return this.primary === "end" || this.flip === "reverse";
+  }
+
+  private positionPrimaryPanel(split: string | null): void {
     if (this._cachedRootWidth != null && this._cachedRootHeight != null) {
       const isVertical = this.isVertical();
       const rootSize = isVertical
@@ -270,25 +285,36 @@ export default class SplitLayout extends SparkleElement {
       const sizeMin = isVertical
         ? getCssSize(this.minPanelHeight || "0")
         : getCssSize(this.minPanelWidth || "0");
-      const startEl = this.startEl;
-      if (startEl && rootSize != null) {
+      const primary = this.primary;
+      const primaryEl = primary === "end" ? this.endEl : this.startEl;
+      if (primaryEl && rootSize != null) {
         const splitValue = this.getSplitPixelValue(split, rootSize);
         const splitPercentage = this.pixelsToPercentage(splitValue, rootSize);
         const min = `min(calc(100% - ${sizeMin}), max(${sizeMin}, ${splitPercentage}))`;
         const max = splitPercentage;
         if (isVertical) {
-          startEl.style.setProperty("min-height", min);
-          startEl.style.setProperty("max-height", max);
-          startEl.style.setProperty("min-width", null);
-          startEl.style.setProperty("max-width", null);
+          primaryEl.style.setProperty("min-height", min);
+          primaryEl.style.setProperty("max-height", max);
+          primaryEl.style.setProperty("min-width", null);
+          primaryEl.style.setProperty("max-width", null);
         } else {
-          startEl.style.setProperty("min-width", min);
-          startEl.style.setProperty("max-width", max);
-          startEl.style.setProperty("min-height", null);
-          startEl.style.setProperty("max-height", null);
+          primaryEl.style.setProperty("min-width", min);
+          primaryEl.style.setProperty("max-width", max);
+          primaryEl.style.setProperty("min-height", null);
+          primaryEl.style.setProperty("max-height", null);
         }
       }
       this.emit("s-reposition");
+    }
+  }
+
+  private resetSecondaryPanel(primary: string | null): void {
+    const secondaryEl = primary === "end" ? this.startEl : this.endEl;
+    if (secondaryEl) {
+      secondaryEl.style.setProperty("min-width", null);
+      secondaryEl.style.setProperty("max-width", null);
+      secondaryEl.style.setProperty("min-height", null);
+      secondaryEl.style.setProperty("max-height", null);
     }
   }
 
@@ -343,17 +369,18 @@ export default class SplitLayout extends SparkleElement {
     this._cachedRootWidth = width;
     this._cachedRootHeight = height;
     this._startVertical = this.isVertical();
+    this._startReversed = this.isReversed();
     this._startRtl = this.rtl;
     this._startX = event.screenX;
     this._startY = event.screenY;
-    this._startSplitX = this.getSplitPixelValue(
-      this.split,
-      this._cachedRootWidth
-    );
-    this._startSplitY = this.getSplitPixelValue(
-      this.split,
-      this._cachedRootHeight
-    );
+    const splitX = this.getSplitPixelValue(this.split, this._cachedRootWidth);
+    const splitY = this.getSplitPixelValue(this.split, this._cachedRootHeight);
+    this._startSplitX = this._startReversed
+      ? this._cachedRootWidth - splitX
+      : splitX;
+    this._startSplitY = this._startReversed
+      ? this._cachedRootHeight - splitY
+      : splitY;
     this._dragging = true;
   };
 
@@ -381,6 +408,7 @@ export default class SplitLayout extends SparkleElement {
 
     const startRtl = this._startRtl;
     const startVertical = this._startVertical;
+    const startReversed = this._startReversed;
 
     const startSplit = startVertical ? this._startSplitY : this._startSplitX;
     const rootSize = startVertical
@@ -394,7 +422,7 @@ export default class SplitLayout extends SparkleElement {
     let newPositionInPixels = startSplit + delta;
 
     // Flip for end panels
-    if (this.primary === "end") {
+    if (startReversed) {
       newPositionInPixels = rootSize - newPositionInPixels;
     }
 
@@ -456,13 +484,13 @@ export default class SplitLayout extends SparkleElement {
       this._cachedRootWidth = width;
       this._cachedRootHeight = height;
       const isVertical = this.isVertical();
+      const isReversed = this.isReversed();
       const rootSize = isVertical
         ? this._cachedRootHeight
         : this._cachedRootWidth;
 
       let newPercentageValue = this.getSplitPixelValue(this.split, rootSize);
-      const incr =
-        (event.shiftKey ? 10 : 1) * (this.primary === "end" ? -1 : 1);
+      const incr = (event.shiftKey ? 10 : 1) * (isReversed ? -1 : 1);
 
       event.preventDefault();
 
@@ -481,11 +509,11 @@ export default class SplitLayout extends SparkleElement {
       }
 
       if (event.key === "Home") {
-        newPercentageValue = this.primary === "end" ? 100 : 0;
+        newPercentageValue = isReversed ? 100 : 0;
       }
 
       if (event.key === "End") {
-        newPercentageValue = this.primary === "end" ? 0 : 100;
+        newPercentageValue = isReversed ? 0 : 100;
       }
 
       const sizeMin = isVertical
@@ -520,9 +548,14 @@ export default class SplitLayout extends SparkleElement {
             this._cachedRootWidth
           );
       const currentRootSize = initiallyVertical ? height : width;
-      const newFlip = currentRootSize < minPanelSize * 2;
-      if (newFlip !== this.flip && this.responsive) {
-        this.flip = newFlip;
+      const isFlipped = this.flip != null;
+      const shouldFlip = currentRootSize < minPanelSize * 2;
+      if (shouldFlip !== isFlipped && this.responsive) {
+        if (shouldFlip) {
+          this.flip = this.responsive;
+        } else {
+          this.flip = null;
+        }
       }
       if (this.primary) {
         const isVertical = this.isVertical();

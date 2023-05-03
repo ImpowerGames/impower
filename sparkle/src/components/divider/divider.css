@@ -10,18 +10,18 @@
   --spacing: var(--s-spacing-md);
 }
 
-.divider {
+.root {
   background-color: var(--bg-color);
   opacity: var(--opacity);
 }
 
-:host(:not([vertical])) .divider {
+:host(:not([vertical])) .root {
   display: block;
   width: var(--width);
   height: var(--size);
 }
 
-:host([vertical]) .divider {
+:host([vertical]) .root {
   display: inline-block;
   width: var(--size);
   height: var(--height);

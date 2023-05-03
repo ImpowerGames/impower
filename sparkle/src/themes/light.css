@@ -5,12 +5,6 @@
    * Color Primitives
    */
 
-  /* Foreground */
-  --s-color-fg: hsl(0 0% 0%);
-
-  /* Background */
-  --s-color-bg: hsl(0 0% 100%);
-
   /* Gray */
   --s-color-gray-10: hsl(0 0% 97.5%);
   --s-color-gray-20: hsl(240 4.8% 95.9%);
@@ -246,8 +240,27 @@
   --s-color-rose-99: hsl(341.3 70.1% 17.1%);
 
   /* Neutral one-offs */
-  --s-color-neutral-0: hsl(0, 0%, 100%);
-  --s-color-neutral-100: hsl(0, 0%, 0%);
+  --s-color-neutral-0: hsl(0 0% 100%);
+  --s-color-neutral-100: hsl(0 0% 0%);
+
+  /* Elements */
+  --s-color-bg: hsl(0 0% 100%);
+  --s-color-fg: hsl(0 0% 0%);
+  --s-color-focus: var(--s-color-primary-70);
+  --s-color-surface: var(--s-color-neutral-10);
+  --s-color-surface-border: var(--s-color-neutral-30);
+  --s-color-overlay: var(--s-color-neutral-10);
+
+  /* Scrollbars */
+  --s-scrollbar-thumb: #00000040;
+  --s-scrollbar-thumb-hover: #00000080;
+  --s-scrollbar-track: #0000001a;
+
+  /*
+   * Opacities
+   */
+
+  --s-opacity-overlay: 0.25;
 
   /*
    * Elevations
@@ -266,22 +279,6 @@
   --s-shadow-ambient-3: 0 4px 8px hsl(0 0% 0% / 15%);
   --s-shadow-ambient-4: 0 6px 10px hsl(0 0% 0% / 15%);
   --s-shadow-ambient-5: 0 8px 12px hsl(0 0% 0% / 15%);
-
-  /* Focus rings */
-  --s-focus-ring-color: var(--s-color-primary-70);
-
-  /*
-   * Overlays
-   */
-
-  --s-overlay-background-color: hsl(240 3.8% 46.1% / 33%);
-  --s-overlay-opacity: 0.25;
-
-  /*
-    * Panels
-    */
-
-  --s-panel-background-color: var(--s-color-neutral-0);
 }
 
 /* _utility.css */

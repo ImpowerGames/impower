@@ -2,13 +2,18 @@
   display: contents;
 }
 :host {
-  --corner-tl: 8px;
-  --corner-tr: 8px;
-  --corner-br: 8px;
-  --corner-bl: 8px;
+  --corner: 8px;
+  --corner-t: var(--corner);
+  --corner-l: var(--corner);
+  --corner-r: var(--corner);
+  --corner-b: var(--corner);
+  --corner-tl: var(--corner);
+  --corner-tr: var(--corner);
+  --corner-br: var(--corner);
+  --corner-bl: var(--corner);
 }
 
-.content {
+.root {
   display: flex;
   clip-path: polygon(
     0 var(--corner-tl, var(--corner)),

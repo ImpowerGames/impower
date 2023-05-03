@@ -5,12 +5,6 @@
    * Color Primitives
    */
 
-  /* Foreground */
-  --s-color-fg: hsl(0 0% 100%);
-
-  /* Background */
-  --s-color-bg: hsl(0 0% 0%);
-
   /* Gray */
   --s-color-gray-10: hsl(240 5.1% 15%);
   --s-color-gray-20: hsl(240 5.7% 18.2%);
@@ -247,24 +241,27 @@
   --s-color-rose-99: hsl(353.3 100% 95.7%);
 
   /* Neutral one-offs */
-  --s-color-neutral-0: hsl(0, 0%, 0%);
-  --s-color-neutral-100: hsl(0, 0%, 100%);
+  --s-color-neutral-0: hsl(0 0% 0%);
+  --s-color-neutral-100: hsl(0 0% 100%);
 
-  /* Focus rings */
-  --s-focus-ring-color: var(--s-color-primary-80);
+  /* Elements */
+  --s-color-bg: hsl(0 0% 0%);
+  --s-color-fg: hsl(0 0% 100%);
+  --s-color-focus: var(--s-color-primary-80);
+  --s-color-surface: var(--s-color-neutral-10);
+  --s-color-surface-border: var(--s-color-neutral-30);
+  --s-color-overlay: var(--s-color-neutral-0);
+
+  /* Scrollbars */
+  --s-scrollbar-thumb: #ffffff40;
+  --s-scrollbar-thumb-hover: #ffffff80;
+  --s-scrollbar-track: #ffffff1a;
 
   /*
-   * Overlays
+   * Opacities
    */
 
-  --s-overlay-background-color: hsl(0 0% 0% / 43%);
-  --s-overlay-opacity: 0.5;
-
-  /*
-    * Panels
-    */
-
-  --s-panel-background-color: var(--s-color-neutral-10);
+  --s-opacity-overlay: 0.5;
 
   /*
    * Elevations
@@ -283,6 +280,12 @@
   --s-shadow-ambient-3: 0 4px 8px hsl(0 0% 0% / 45%);
   --s-shadow-ambient-4: 0 6px 10px hsl(0 0% 0% / 45%);
   --s-shadow-ambient-5: 0 8px 12px hsl(0 0% 0% / 45%);
+
+  /*
+   * Opacities
+   */
+
+  --s-opacity-overlay: 0.5;
 }
 
 /* _utility.css */

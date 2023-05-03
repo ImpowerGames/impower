@@ -255,8 +255,8 @@ export default class Popup extends SparkleElement {
     return this.getElementByClass("anchor");
   }
 
-  get popupEl(): HTMLElement | null {
-    return this.getElementByClass("popup");
+  get rootEl(): HTMLElement | null {
+    return this.getElementByClass("root");
   }
 
   get arrowEl(): HTMLElement | null {
@@ -371,7 +371,7 @@ export default class Popup extends SparkleElement {
 
   private start() {
     const anchorEl = this._anchorEl;
-    const popupEl = this.popupEl;
+    const popupEl = this.rootEl;
 
     if (!anchorEl || !popupEl) {
       // We can't start the positioner without an anchor or popup
@@ -401,7 +401,7 @@ export default class Popup extends SparkleElement {
   /** Forces the popup to recalculate and reposition itself. */
   reposition() {
     const anchorEl = this._anchorEl;
-    const popupEl = this.popupEl;
+    const popupEl = this.rootEl;
     // Nothing to do if the popup is inactive or the anchor doesn't exist
     if (!this.active || !anchorEl || !popupEl) {
       return;

@@ -14,6 +14,8 @@ import Skeleton from "./src/components/skeleton/skeleton";
 import SplitLayout from "./src/components/split-layout/split-layout";
 import Tab from "./src/components/tab/tab";
 import Tabs from "./src/components/tabs/tabs";
+import ToastStack from "./src/components/toast-stack/toast-stack";
+import Toast from "./src/components/toast/toast";
 import Tooltip from "./src/components/tooltip/tooltip";
 import darkCSS from "./src/themes/dark.css";
 import fontsCSS from "./src/themes/fonts.css";
@@ -74,6 +76,8 @@ export const DEFAULT_SPARKLE_TAGS = {
   "s-tab": "s-tab",
   "s-tabs": "s-tabs",
   "s-tooltip": "s-tooltip",
+  "s-toast-stack": "s-toast-stack",
+  "s-toast": "s-toast",
   "s-split-layout": "s-split-layout",
   "s-router": "s-router",
 };
@@ -98,6 +102,8 @@ export default class Sparkle {
       Tab.define(tags["s-tab"], tags),
       Tabs.define(tags["s-tabs"], tags),
       Tooltip.define(tags["s-tooltip"], tags),
+      ToastStack.define(tags["s-toast-stack"], tags),
+      Toast.define(tags["s-toast"], tags),
       SplitLayout.define(tags["s-split-layout"], tags),
       Router.define(tags["s-router"], tags),
     ]);

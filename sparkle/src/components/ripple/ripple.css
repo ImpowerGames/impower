@@ -19,7 +19,7 @@
   opacity: 0;
 }
 
-.ripple {
+.root {
   pointer-events: none;
   border-radius: inherit;
   position: absolute;
@@ -30,15 +30,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.ripple::before,
-.ripple::after {
+.root::before,
+.root::after {
   position: absolute;
   opacity: 0;
   pointer-events: none;
   content: "";
 }
 
-.ripple::before {
+.root::before {
   background-color: var(--hover-color);
   transition-property: opacity, background-color;
   transition-duration: var(--hover-duration), var(--hover-duration);
@@ -46,7 +46,7 @@
   inset: 0;
 }
 
-.ripple::after {
+.root::after {
   background: radial-gradient(
     closest-side,
     var(--press-color) max(calc(100% - 70px), var(--min-color-stop-length)),

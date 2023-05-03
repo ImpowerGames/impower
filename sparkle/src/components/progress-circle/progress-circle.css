@@ -18,15 +18,19 @@
   --text-leading: var(--s-text-xs-line-height);
 }
 
-.progress-circle {
+.root {
+  --width-min: var(--size);
+  --height-min: var(--size);
   --width: var(--size);
   --height: var(--size);
   --radius: calc(var(--width) / 2);
   --circumference: calc(var(--width) * 3.141592654);
 }
 
-.progress-circle {
+.root {
   position: var(--position);
+  min-width: var(--width-min);
+  min-height: var(--height-min);
   width: var(--width);
   height: var(--height);
   display: flex;

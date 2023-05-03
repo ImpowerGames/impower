@@ -1,19 +1,7 @@
 :host {
   display: contents;
 }
-:host {
-  --child-layout: column;
-  --expand: 1;
-}
-
-.router {
-  display: flex;
-  flex-direction: var(--child-layout);
-  flex: var(--expand);
-}
 
 .content {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
+  display: contents;
 }

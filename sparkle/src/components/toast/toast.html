@@ -1,0 +1,15 @@
+<div class="root" part="root" role="alert">
+  <s-icon class="icon" part="icon"></s-icon>
+  <slot class="message" part="message" aria-live="polite"></slot>
+  <s-button
+    class="close-button"
+    part="close-button"
+    exportparts="root"
+    variant="icon"
+    size="xs"
+    color="neutral-80"
+    label="close"
+  >
+    <s-icon class="close-icon" part="close-icon" icon="x-lg"></s-icon>
+  </s-button>
+</div>

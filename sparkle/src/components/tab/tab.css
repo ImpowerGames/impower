@@ -11,7 +11,7 @@
   --expand: 1;
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-sm-font-size);
-  --text-weight: var(--s-font-weight-semibold);
+  --text-weight: 600;
   --text-wrap: nowrap;
   --transition: opacity, transform, filter, color;
   --duration: 100ms;
@@ -19,13 +19,16 @@
   --text-color: var(--s-color-neutral-70);
   --hover-color: var(--s-color-neutral-90);
   --border-width: 0;
-  --padding-t: 16px;
-  --padding-r: 20px;
-  --padding-b: 16px;
-  --padding-l: 20px;
+  --padding: 0;
+  --padding-tb: 16px;
+  --padding-lr: 20px;
+  --padding-t: var(--padding-tb);
+  --padding-b: var(--padding-tb);
+  --padding-l: var(--padding-lr);
+  --padding-r: var(--padding-lr);
 }
 
-.tab {
+.root {
   cursor: pointer;
   pointer-events: var(--interactable);
   user-select: var(--selectable);
@@ -50,18 +53,18 @@
   padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
 }
 
-:host([disabled]) .tab {
+:host([disabled]) .root {
   cursor: default;
   opacity: 0.5;
 }
 
 @media (hover: hover) and (pointer: fine) {
-  :host(:not([disabled])) .tab:hover {
+  :host(:not([disabled])) .root:hover {
     color: var(--hover-color);
   }
 }
 
-:host([active]:not([disabled])) .tab {
+:host([active]:not([disabled])) .root {
   color: var(--color);
 }
 

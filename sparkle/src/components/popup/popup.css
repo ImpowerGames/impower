@@ -14,8 +14,24 @@
   --shadow: var(--s-shadow-drop-2);
 }
 
-.popup {
+.root {
   display: flex;
+}
+
+.root {
+  position: absolute;
+  isolation: isolate;
+  max-width: var(--auto-size-available-width, none);
+  max-height: var(--auto-size-available-height, none);
+  filter: var(--shadow);
+}
+
+.root:not(.active) {
+  display: none;
+}
+
+.fixed {
+  position: fixed;
 }
 
 .anchor {
@@ -24,22 +40,6 @@
 
 .content {
   display: contents;
-}
-
-.popup {
-  position: absolute;
-  isolation: isolate;
-  max-width: var(--auto-size-available-width, none);
-  max-height: var(--auto-size-available-height, none);
-  filter: var(--shadow);
-}
-
-.fixed {
-  position: fixed;
-}
-
-.popup:not(.active) {
-  display: none;
 }
 
 .arrow {

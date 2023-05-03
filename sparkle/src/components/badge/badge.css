@@ -13,19 +13,27 @@
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-2xs-font-size);
   --text-leading: var(--s-text-2xs-line-height);
-  --text-weight: var(--s-font-weight-medium);
+  --text-weight: 500;
   --text-kerning: var(--s-letter-spacing-md);
   --text-wrap: nowrap;
   --height: 24px;
-  --padding-l: 8px;
-  --padding-r: 8px;
-  --corner-tl: 9999px;
-  --corner-tr: 9999px;
-  --corner-br: 9999px;
-  --corner-bl: 9999px;
+  --height-min: var(--height);
+  --padding: 0;
+  --padding-lr: 8px;
+  --padding-l: var(--padding-lr);
+  --padding-r: var(--padding-lr);
+  --corner: 9999px;
+  --corner-t: var(--corner);
+  --corner-l: var(--corner);
+  --corner-r: var(--corner);
+  --corner-b: var(--corner);
+  --corner-tl: var(--corner);
+  --corner-tr: var(--corner);
+  --corner-br: var(--corner);
+  --corner-bl: var(--corner);
 }
 
-.badge {
+.root {
   display: flex;
   cursor: inherit;
   overflow-x: var(--overflow-x);
@@ -34,6 +42,7 @@
   color: var(--text-color);
   align-items: var(--child-align);
   justify-content: var(--child-justify);
+  min-height: var(--height-min);
   height: var(--height);
   font-family: var(--text-font);
   font-size: var(--text-size);
@@ -67,14 +76,14 @@
 }
 
 :host([float=""]),
-:host([float="right"]) .badge {
+:host([float="right"]) .root {
   position: absolute;
   top: 0;
   right: 0;
   transform: translate(50%, -50%);
   pointer-events: none;
 }
-:host([float="left"]) .badge {
+:host([float="left"]) .root {
   position: absolute;
   top: 0;
   left: 0;

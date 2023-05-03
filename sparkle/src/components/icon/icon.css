@@ -4,20 +4,22 @@
 :host {
   --child-justify: center;
   --child-align: center;
-  --width: 1em;
-  --height: 1em;
+  --size: 1em;
+  --width: var(--size);
+  --height: var(--size);
+  --width-min: var(--size);
+  --height-min: var(--size);
   --fill: currentColor;
 }
 
-.icon {
+.root {
   display: flex;
   justify-content: var(--child-justify);
   align-items: var(--child-align);
-  width: var(--size, var(--width));
-  height: var(--size, var(--height));
-}
-
-.icon-mask {
+  width: var(--width);
+  height: var(--height);
+  min-width: var(--width-min);
+  min-height: var(--height-min);
   -webkit-mask-image: var(--icon, none);
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
@@ -27,8 +29,6 @@
   background-color: currentColor;
 }
 
-* {
-  width: var(--size, var(--width));
-  height: var(--size, var(--height));
-  fill: var(--fill);
+:host(:not([icon])) .root {
+  display: none;
 }

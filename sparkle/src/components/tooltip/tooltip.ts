@@ -284,7 +284,7 @@ export default class Tooltip extends SparkleElement {
   }
 
   async handleOpenChange(): Promise<void> {
-    const popupEl = this.popup?.popupEl;
+    const popupEl = this.popup?.rootEl;
     const bodyEl = this.bodyEl;
     const popup = this.popup;
     if (this.open) {

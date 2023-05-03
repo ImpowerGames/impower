@@ -2,7 +2,7 @@
   display: contents;
 }
 :host {
-  --max-width: 20rem;
+  --width-max: 20rem;
   --hide-delay: 0ms;
   --show-delay: 75ms;
   --interactable: none;
@@ -15,7 +15,21 @@
   --text-leading: var(--s-tooltip-line-height);
   --text-color: var(--s-tooltip-color);
   --padding: var(--s-tooltip-padding);
+  --padding-tb: var(--padding);
+  --padding-lr: var(--padding);
+  --padding-t: var(--padding);
+  --padding-b: var(--padding);
+  --padding-l: var(--padding);
+  --padding-r: var(--padding);
   --corner: var(--s-tooltip-border-radius);
+  --corner-t: var(--corner);
+  --corner-l: var(--corner);
+  --corner-r: var(--corner);
+  --corner-b: var(--corner);
+  --corner-tl: var(--corner);
+  --corner-tr: var(--corner);
+  --corner-br: var(--corner);
+  --corner-bl: var(--corner);
 }
 
 .anchor {
@@ -26,39 +40,57 @@
   display: flex;
   pointer-events: var(--interactable);
   width: var(--width);
-  max-width: var(--max-width);
+  max-width: var(--width-max);
   background-color: var(--bg-color);
   font-family: var(--text-font);
   font-size: var(--text-size);
   font-weight: var(--text-weight);
   line-height: var(--text-leading);
   color: var(--text-color);
-  padding: var(--padding);
-  border-radius: var(--corner);
+  padding-top: var(--padding-t, var(--padding-tb, var(--padding)));
+  padding-right: var(--padding-r, var(--padding-lr, var(--padding)));
+  padding-bottom: var(--padding-b, var(--padding-tb, var(--padding)));
+  padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
+  border-top-left-radius: var(
+    --corner-tl,
+    var(--corner-t, var(--corner-l, var(--corner)))
+  );
+  border-top-right-radius: var(
+    --corner-tr,
+    var(--corner-t, var(--corner-r, var(--corner)))
+  );
+  border-bottom-right-radius: var(
+    --corner-br,
+    var(--corner-b, var(--corner-r, var(--corner)))
+  );
+  border-bottom-left-radius: var(
+    --corner-bl,
+    var(--corner-b, var(--corner-l, var(--corner)))
+  );
 }
 
-.tooltip {
+.root {
   --arrow-size: var(--s-tooltip-arrow-size);
   --arrow-color: var(--s-tooltip-background-color);
 }
 
-.tooltip::part(popup) {
+.root::part(popup) {
   pointer-events: none;
   z-index: var(--z);
 }
 
-:host([placement^="top"]) .tooltip::part(popup) {
+:host([placement^="top"]) .root::part(popup) {
   transform-origin: bottom;
 }
 
-:host([placement^="bottom"]) .tooltip::part(popup) {
+:host([placement^="bottom"]) .root::part(popup) {
   transform-origin: top;
 }
 
-:host([placement^="left"]) .tooltip::part(popup) {
+:host([placement^="left"]) .root::part(popup) {
   transform-origin: right;
 }
 
-:host([placement^="right"]) .tooltip::part(popup) {
+:host([placement^="right"]) .root::part(popup) {
   transform-origin: left;
 }

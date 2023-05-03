@@ -5,11 +5,12 @@
   --position: relative;
   --overflow-x: clip;
   --overflow-y: clip;
-  --height: 0.25rem;
-  --shadow-inset: inset var(--s-shadow-sm);
+  --height: 2px;
+  --height-min: var(--height);
+  --shadow-inset: var(--s-shadow-inset-1);
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-xs-font-size);
-  --text-weight: var(--s-font-weight-normal);
+  --text-weight: 400;
   --text-color: var(--s-color-neutral-0);
   --bg-color: var(--s-color-neutral-30);
   --color: var(--s-color-primary-70);
@@ -17,10 +18,11 @@
   --duration: 400ms;
 }
 
-.progress-bar {
+.root {
   position: var(--position);
   overflow-x: var(--overflow-x);
   overflow-y: var(--overflow-y);
+  min-height: var(--height-min);
   height: var(--height);
   box-shadow: var(--shadow-inset);
   font-family: var(--text-font);

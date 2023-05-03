@@ -4,11 +4,11 @@
 :host {
   --interactable: auto;
   --expand: 1;
-  --divider-width: 4px;
+  --divider-width: 1px;
   --divider-hit-area: 16px;
 }
 
-.split-layout {
+.root {
   display: flex;
   flex-direction: row;
   flex: var(--expand);
@@ -65,9 +65,12 @@
 }
 
 /* Vertical */
-:host([vertical]) .split-layout,
-:host([flip]:not([vertical])) .split-layout {
+:host([vertical]) .root,
+:host([flip]:not([vertical])) .root {
   flex-direction: column;
+}
+:host([flip="reverse"]:not([vertical])) .root {
+  flex-direction: column-reverse;
 }
 
 :host([vertical]:not([disabled])) .divider,

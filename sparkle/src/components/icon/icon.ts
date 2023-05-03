@@ -82,9 +82,6 @@ export default class Icon extends SparkleElement {
     }
     if (name === "icon") {
       this.updateRootStyle("--icon", getCssIcon(newValue));
-      if (newValue) {
-        this.updateRootClass("icon-mask", true);
-      }
     }
     if (name === "size") {
       this.updateRootStyle("--size", getCssSize(newValue));

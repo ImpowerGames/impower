@@ -1317,6 +1317,12 @@ export default class SparkleElement extends HTMLElement {
             this.updateStyleAttribute("interactable--cursor", null);
           }
         }
+        if (className === "overflow-x") {
+          this.updateRootClass("overflow-x--scroll", newValue === "scroll");
+        }
+        if (className === "overflow-y") {
+          this.updateRootClass("overflow-y--scroll", newValue === "scroll");
+        }
         if (
           className === "text-stroke-width" ||
           className === "text-stroke-color"

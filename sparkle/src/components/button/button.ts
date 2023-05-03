@@ -1,5 +1,4 @@
 import SparkleElement from "../../core/sparkle-element";
-import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
@@ -13,6 +12,7 @@ export const DEFAULT_BUTTON_DEPENDENCIES = {
   "s-badge": "s-badge",
   "s-progress-circle": "s-progress-circle",
   "s-ripple": "s-ripple",
+  "s-icon": "s-icon",
 };
 
 /**
@@ -99,6 +99,10 @@ export default class Button extends SparkleElement {
     return this.getStringAttribute("icon");
   }
 
+  get iconEl(): HTMLElement | null {
+    return this.getElementByClass("icon");
+  }
+
   get labelSlot(): HTMLSlotElement | null {
     return this.getElementByClass("label");
   }
@@ -139,7 +143,14 @@ export default class Button extends SparkleElement {
       this.updateRootAttribute("target", newValue);
     }
     if (name === "icon") {
-      this.updateRootStyle("--icon", getCssIcon(newValue));
+      const iconEl = this.iconEl;
+      if (iconEl) {
+        if (newValue != null) {
+          iconEl.setAttribute("icon", newValue);
+        } else {
+          iconEl.removeAttribute("icon");
+        }
+      }
     }
     if (name === "spacing") {
       this.updateRootStyle("--spacing", getCssSize(newValue));

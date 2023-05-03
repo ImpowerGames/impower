@@ -9,12 +9,12 @@
   --track-width: 2px;
 }
 
-.tabs {
+.root {
   display: flex;
   flex-direction: var(--child-layout);
   position: var(--position);
 }
-:host([vertical]) .tabs {
+:host([vertical]) .root {
   flex-direction: row;
 }
 
