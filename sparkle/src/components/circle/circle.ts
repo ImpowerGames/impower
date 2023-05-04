@@ -1,16 +1,17 @@
 import SparkleElement from "../../core/sparkle-element";
-import css from "./badge.css";
-import html from "./badge.html";
+import { getCssSize } from "../../utils/getCssSize";
+import css from "./circle.css";
+import html from "./circle.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
 /**
- * Badges are used to draw attention and display statuses or counts.
+ * Cutters clip the corners of their content.
  */
-export default class Badge extends SparkleElement {
+export default class Circle extends SparkleElement {
   static override async define(
-    tag = "s-badge",
+    tag = "s-circle",
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     return super.define(tag, dependencies);
@@ -25,14 +26,14 @@ export default class Badge extends SparkleElement {
   }
 
   static override get observedAttributes() {
-    return [...super.observedAttributes, "float"];
+    return [...super.observedAttributes, "size"];
   }
 
   /**
-   * Determines if the badge should be floated over the left or right corner.
+   * The size of the circle.
    */
-  get float(): "left" | "right" | null {
-    return this.getStringAttribute("float");
+  get size(): string | null {
+    return this.getStringAttribute("size");
   }
 
   protected override attributeChangedCallback(
@@ -41,14 +42,14 @@ export default class Badge extends SparkleElement {
     newValue: string
   ): void {
     super.attributeChangedCallback(name, oldValue, newValue);
-    if (name === "float") {
-      this.updateRootCssVariable(name, newValue);
+    if (name === "size") {
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    "s-badge": Badge;
+    "s-circle": Circle;
   }
 }

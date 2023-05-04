@@ -1,6 +1,7 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssColor } from "../../utils/getCssColor";
 import { getCssDuration } from "../../utils/getCssDuration";
+import { getCssProportion } from "../../utils/getCssProportion";
 import { getCssSize } from "../../utils/getCssSize";
 import css from "./progress-circle.css";
 import html from "./progress-circle.html";
@@ -39,7 +40,7 @@ export default class ProgressCircle extends SparkleElement {
   }
 
   /**
-   * The current progress as a percentage, 0 to 100.
+   * The current progress as a percentage from 0 to 1, or 0% to 100%.
    */
   get value(): string | null {
     return this.getStringAttribute("value");
@@ -88,31 +89,29 @@ export default class ProgressCircle extends SparkleElement {
   ): void {
     super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "value") {
+      const proportion = getCssProportion(newValue, 0);
+      this.updateRootCssVariable(name, String(proportion));
       this.updateRootAttribute("aria-valuenow", newValue);
-      const numberValue = newValue.endsWith("%")
-        ? Number(newValue.replace("%", ""))
-        : Number(newValue);
-      this.updateRootStyle("--percentage", String(numberValue / 100));
       const labelEl = this.labelEl;
       if (labelEl) {
         if (newValue != null) {
-          labelEl.textContent = `${numberValue}%`;
+          labelEl.textContent = `${proportion * 100}%`;
         } else {
           labelEl.textContent = "";
         }
       }
     }
     if (name === "size") {
-      this.updateRootStyle("--size", getCssSize(newValue));
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
     if (name === "track-width") {
-      this.updateRootStyle("--track-width", getCssSize(newValue));
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
     if (name === "track-color") {
-      this.updateRootStyle("--track-color", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
     if (name === "speed") {
-      this.updateRootStyle("--speed", getCssDuration(newValue));
+      this.updateRootCssVariable(name, getCssDuration(newValue));
     }
   }
 }

@@ -83,12 +83,14 @@ export default class Router extends SparkleElement {
   ): void {
     super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "observe") {
+      this.observeValue();
     }
   }
 
   protected override connectedCallback(): void {
     super.connectedCallback();
     this.templatesSlot?.addEventListener("slotchange", this.handleSlotChange);
+    this._valueObserver = new MutationObserver(this.handleValueMutation);
   }
 
   protected override parsedCallback(): void {
@@ -103,6 +105,7 @@ export default class Router extends SparkleElement {
       "slotchange",
       this.handleSlotChange
     );
+    this._valueObserver?.disconnect();
   }
 
   loadTemplates() {
@@ -128,11 +131,12 @@ export default class Router extends SparkleElement {
     }
     const observedEl = this.observedEl;
     if (observedEl) {
-      this._valueObserver = new MutationObserver(this.onValueMutation);
-      this._valueObserver.observe(observedEl, {
-        attributes: true,
-        attributeFilter: ["value"],
-      });
+      if (this._valueObserver) {
+        this._valueObserver.observe(observedEl, {
+          attributes: true,
+          attributeFilter: ["value"],
+        });
+      }
     }
   }
 
@@ -145,7 +149,7 @@ export default class Router extends SparkleElement {
       ) as HTMLTemplateElement[];
   };
 
-  protected onValueMutation = (mutations: MutationRecord[]) => {
+  protected handleValueMutation = (mutations: MutationRecord[]) => {
     this.loadTemplates();
   };
 }

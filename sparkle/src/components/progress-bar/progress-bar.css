@@ -27,22 +27,6 @@
   font-size: var(--text-size);
   font-weight: var(--text-weight);
   background-color: var(--bg-color);
-  border-top-left-radius: var(
-    --corner-tl,
-    var(--corner-t, var(--corner-l, var(--corner, 8px)))
-  );
-  border-top-right-radius: var(
-    --corner-tr,
-    var(--corner-t, var(--corner-r, var(--corner, 8px)))
-  );
-  border-bottom-right-radius: var(
-    --corner-br,
-    var(--corner-b, var(--corner-r, var(--corner, 8px)))
-  );
-  border-bottom-left-radius: var(
-    --corner-bl,
-    var(--corner-b, var(--corner-l, var(--corner, 8px)))
-  );
 }
 
 .indicator {
@@ -56,6 +40,7 @@
   transition-property: width, background-color;
   transition-duration: var(--duration), var(--duration);
   user-select: none;
+  width: var(--value);
 }
 
 :host(:not([value])) .indicator {

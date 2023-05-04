@@ -7,9 +7,6 @@ export const getCssUnit = (
   if (typeof value === "number") {
     return `${value}${defaultUnit}`;
   }
-  if (value.startsWith("var(")) {
-    return value;
-  }
   return value
     .split(" ")
     .map((part) => (isValidNumber(part) ? `${part}${defaultUnit}` : part))

@@ -153,13 +153,13 @@ export default class Ripple extends SparkleElement {
       }
     }
     if (name === "focus-color") {
-      this.updateRootStyle("--focus-color", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
     if (name === "hover-color") {
-      this.updateRootStyle("--hover-color", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
     if (name === "press-color") {
-      this.updateRootStyle("--press-color", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
   }
 

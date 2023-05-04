@@ -81,19 +81,19 @@ export default class Icon extends SparkleElement {
       this.updateRootAttribute("role", newValue ? "img" : null);
     }
     if (name === "icon") {
-      this.updateRootStyle("--icon", getCssIcon(newValue));
+      this.updateRootCssVariable(name, getCssIcon(newValue));
     }
     if (name === "size") {
-      this.updateRootStyle("--size", getCssSize(newValue));
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
     if (name === "fill") {
-      this.updateRootStyle("--fill", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
     if (name === "stroke") {
-      this.updateRootStyle("--stroke", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
     if (name === "stroke-width") {
-      this.updateRootStyle("--stroke-width", newValue);
+      this.updateRootCssVariable(name, newValue);
     }
   }
 }

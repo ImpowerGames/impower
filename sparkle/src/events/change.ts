@@ -1,9 +1,11 @@
-type SpChangeEvent = CustomEvent<Record<PropertyKey, never>>;
+interface ChangeEvent extends CustomEvent<Record<PropertyKey, never>> {
+  target: HTMLElement & { value: string | null };
+}
 
 declare global {
   interface GlobalEventHandlersEventMap {
-    "s-change": SpChangeEvent;
+    onchange: ChangeEvent;
   }
 }
 
-export default SpChangeEvent;
+export default ChangeEvent;

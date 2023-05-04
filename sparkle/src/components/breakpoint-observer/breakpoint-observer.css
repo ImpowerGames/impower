@@ -1,0 +1,11 @@
+:host {
+  display: contents;
+}
+
+.root {
+  display: flex;
+  width: 100%;
+  flex: 1;
+  height: 0;
+  max-height: 0;
+}

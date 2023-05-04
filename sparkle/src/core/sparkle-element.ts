@@ -1,12 +1,5 @@
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS";
-import { dispatchActivationClick, isActivationClick } from "../utils/events";
-import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
-import { getCssTextSizeHeight } from "../utils/getCssTextSizeHeight";
-import { getCssTextStroke } from "../utils/getCssTextStroke";
-import { getCssTextWhiteSpace } from "../utils/getCssTextWhiteSpace";
-import { isServer } from "../utils/isServer";
-import { updateAttribute } from "../utils/updates";
 import {
   EventTypeDoesNotRequireDetail,
   EventTypeRequiresDetail,
@@ -15,7 +8,15 @@ import {
   GetCustomEventType,
   SpEventInit,
   ValidEventTypeMap,
-} from "./event";
+} from "../types/event";
+import { dispatchActivationClick, isActivationClick } from "../utils/events";
+import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
+import { getCssTextSizeHeight } from "../utils/getCssTextSizeHeight";
+import { getCssTextStroke } from "../utils/getCssTextStroke";
+import { getCssTextWhiteSpace } from "../utils/getCssTextWhiteSpace";
+import { getUnitlessValue } from "../utils/getUnitlessValue";
+import { isServer } from "../utils/isServer";
+import { updateAttribute } from "../utils/updates";
 import { RESET_STYLES } from "./reset";
 import css from "./sparkle-element.css";
 import html from "./sparkle-element.html";
@@ -1328,7 +1329,7 @@ export default class SparkleElement extends HTMLElement {
           className === "text-stroke-color"
         ) {
           const width = this._textStrokeWidth || "1";
-          this.updateRootStyle("--text-stroke", getCssTextStroke(width));
+          this.updateRootCssVariable("--text-stroke", getCssTextStroke(width));
         }
       }
     }
@@ -1410,8 +1411,9 @@ export default class SparkleElement extends HTMLElement {
     updateAttribute<T>(this.root, name, value);
   }
 
-  updateRootStyle(name: string, value: string | null) {
-    this.root.style.setProperty(name, value ?? null);
+  updateRootCssVariable(name: string, value: string | null) {
+    const varName = name.startsWith("--") ? name : `--${name}`;
+    this.root.style.setProperty(varName, value ?? null);
   }
 
   private updateStyleAttribute(
@@ -1424,9 +1426,9 @@ export default class SparkleElement extends HTMLElement {
       valueFormatter && newValue != null ? valueFormatter(newValue) : newValue;
     const classActive = this.updateRootClass(name, newValue);
     if (classActive && formattedValue) {
-      this.updateRootStyle(varName, formattedValue);
+      this.updateRootCssVariable(varName, formattedValue);
     } else {
-      this.updateRootStyle(varName, null);
+      this.updateRootCssVariable(varName, null);
     }
   }
 
@@ -1456,9 +1458,9 @@ export default class SparkleElement extends HTMLElement {
     }
   }
 
-  getNumberAttribute(name: string): number | null {
+  getNumberAttribute(name: string, emptyValue = 0): number | null {
     const value = this.getAttribute(name);
-    return value != null ? Number(value) : null;
+    return value != null ? getUnitlessValue(value, emptyValue) : null;
   }
 
   setNumberAttribute(name: string, value: number | null): void | null {

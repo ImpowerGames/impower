@@ -1,6 +1,12 @@
 import SparkleElement from "../../core/sparkle-element";
 import { clamp } from "../../utils/clamp";
+import { getCssProportion } from "../../utils/getCssProportion";
 import { getCssSize } from "../../utils/getCssSize";
+import { getUnitlessValue } from "../../utils/getUnitlessValue";
+import { percentToPercentage } from "../../utils/percentToPercentage";
+import { percentToPixels } from "../../utils/percentToPixels";
+import { pixelsToPercent } from "../../utils/pixelsToPercent";
+import { pixelsToPercentage } from "../../utils/pixelsToPercentage";
 import css from "./split-layout.css";
 import html from "./split-layout.html";
 
@@ -33,7 +39,11 @@ export default class SplitLayout extends SparkleElement {
       "min-panel-width",
       "min-panel-height",
       "vertical",
-      "flip",
+      "flipped",
+      "collapsed",
+      "solo",
+      "collapsible",
+      "responsive",
       "primary",
       "snap",
       "snap-threshold",
@@ -45,9 +55,9 @@ export default class SplitLayout extends SparkleElement {
   /**
    * The current position of the divider from the primary panel's edge.
    *
-   * Value can be in pixels or a percentage, e.g. `"100px"` or `"50%"`.
+   * Value can be in pixels, percentage, or proportion (e.g. `100px` or `50%` or `0.5`).
    *
-   * Defaults to 50% of the container's initial size.
+   * Defaults to `50%` of the container's size.
    */
   get split(): string | null {
     return this.getStringAttribute("split");
@@ -80,27 +90,55 @@ export default class SplitLayout extends SparkleElement {
   /**
    * Flips the orientation of the panels.
    */
-  get flip(): string | null {
-    return this.getStringAttribute("flip");
+  get flipped(): string | null {
+    return this.getStringAttribute("flipped");
   }
-  set flip(value: string | null) {
-    this.setStringAttribute("flip", value);
+  set flipped(value: string | null) {
+    this.setStringAttribute("flipped", value);
   }
 
   /**
-   * Automatically flip the orientation of the panels when they cannot fit side-by-side.
-   *
-   * Set to `reverse`, to reverse order of panels when orientation is flipped.
-   *
+   * Hides the start or end panel.
    */
-  get responsive(): "" | "reverse" | null {
+  get collapsed(): "start" | "end" | null {
+    return this.getStringAttribute("collapsed");
+  }
+  set collapsed(value: "start" | "end" | null) {
+    this.setStringAttribute("collapsed", value);
+  }
+
+  /**
+   * Hides the start or end panel and the resize divider.
+   */
+  get solo(): "start" | "end" | null {
+    return this.getStringAttribute("solo");
+  }
+  set solo(value: "start" | "end" | null) {
+    this.setStringAttribute("solo", value);
+  }
+
+  /**
+   * Hide a panel when dragged the specified percentage past its minimum size.
+   *
+   * If not provided a value, defaults to `50%`.
+   */
+  get collapsible(): string | null {
+    return this.getStringAttribute("collapsible");
+  }
+
+  /**
+   * Automatically change layout of panels when they cannot fit side-by-side.
+   *
+   * Set to `flip`, to flip the orientation of the panels, when out of space.
+   * Set to `flip-reverse`, to flip the orientation and order of the panels, when out of space.
+   * Set to `hide`, to hide the non-primary panel, when out of space.
+   */
+  get responsive(): "flip" | "flip-reverse" | "hide-end" | "hide-start" | null {
     return this.getStringAttribute("responsive");
   }
 
   /**
-   * If no primary panel is designated, both panels will resize proportionally when the host element is resized. If a
-   * primary panel is designated, it will maintain its size and the other panel will grow or shrink as needed when the
-   * host element is resized.
+   * The primary panel.
    */
   get primary(): "start" | "end" | null {
     return this.getStringAttribute("primary");
@@ -112,6 +150,15 @@ export default class SplitLayout extends SparkleElement {
    */
   get snap(): string | null {
     return this.getStringAttribute("snap");
+  }
+
+  /**
+   * How close the divider must be to a snap point until snapping occurs.
+   *
+   * Defaults to `12`.
+   * */
+  get snapThreshold(): string | null {
+    return this.getStringAttribute("snap-threshold");
   }
 
   /**
@@ -128,15 +175,6 @@ export default class SplitLayout extends SparkleElement {
     return this.getStringAttribute("divider-hit-area");
   }
 
-  /**
-   * How close the divider must be to a snap point until snapping occurs.
-   *
-   * Defaults to `12`.
-   * */
-  get snapThreshold(): string | null {
-    return this.getStringAttribute("snap-threshold");
-  }
-
   get dividerEl(): HTMLElement | null {
     return this.getElementByClass("divider");
   }
@@ -151,13 +189,13 @@ export default class SplitLayout extends SparkleElement {
 
   protected _resizeObserver?: ResizeObserver;
 
-  protected _cachedRootWidth?: number;
+  protected _cachedMinPanelWidth = 0;
 
-  protected _cachedRootHeight?: number;
+  protected _cachedMinPanelHeight = 0;
 
-  protected _cachedSplitX = 0;
+  protected _cachedSnaps: string[] = [];
 
-  protected _cachedSplitY = 0;
+  protected _cachedSnapThreshold = 0;
 
   protected _dragging = false;
 
@@ -165,11 +203,17 @@ export default class SplitLayout extends SparkleElement {
 
   protected _startReversed = false;
 
+  protected _startCollapsible: string | null = null;
+
   protected _startRtl = false;
 
-  protected _startX: number = 0;
+  protected _startRootWidth = 0;
 
-  protected _startY: number = 0;
+  protected _startRootHeight = 0;
+
+  protected _startScreenX: number = 0;
+
+  protected _startScreenY: number = 0;
 
   protected _startSplitX: number = 0;
 
@@ -191,42 +235,48 @@ export default class SplitLayout extends SparkleElement {
         }
       }
     }
-    if (name === "split") {
-      if (this._cachedRootWidth != null && this._cachedRootHeight != null) {
-        this._cachedSplitX = this.getSplitPixelValue(
-          this.split,
-          this._cachedRootWidth
-        );
-        this._cachedSplitY = this.getSplitPixelValue(
-          this.split,
-          this._cachedRootHeight
-        );
-        const dividerEl = this.dividerEl;
-        if (dividerEl) {
-          if (newValue != null) {
-            dividerEl.setAttribute("aria-valuenow", newValue);
-          } else {
-            dividerEl.removeAttribute("aria-valuenow");
-          }
-        }
-        this.positionPrimaryPanel(newValue);
+    if (name === "collapsed") {
+      const startEl = this.startEl;
+      if (startEl) {
+        startEl.hidden = newValue === "start";
+      }
+      const endEl = this.endEl;
+      if (endEl) {
+        endEl.hidden = newValue === "end";
       }
     }
-    if (name === "primary") {
-      this.resetSecondaryPanel(newValue);
-      this.positionPrimaryPanel(this.split);
+    if (name === "split") {
+      const dividerEl = this.dividerEl;
+      if (dividerEl) {
+        if (newValue != null) {
+          dividerEl.setAttribute("aria-valuenow", newValue);
+        } else {
+          dividerEl.removeAttribute("aria-valuenow");
+        }
+      }
+      this.updateRootCssVariable(name, newValue);
     }
-    if (name === "vertical" || name === "flip") {
-      this.positionPrimaryPanel(this.split);
+    if (name === "min-panel-width") {
+      const size = getCssSize(newValue);
+      this.updateRootCssVariable(name, size);
+      this._cachedMinPanelWidth = getUnitlessValue(size, 0);
     }
-    if (name === "min-panel-width" || name === "min-panel-height") {
-      this.positionPrimaryPanel(this.split);
+    if (name === "min-panel-height") {
+      const size = getCssSize(newValue);
+      this.updateRootCssVariable(name, size);
+      this._cachedMinPanelHeight = getUnitlessValue(size, 0);
+    }
+    if (name === "snap") {
+      this._cachedSnaps = this.snap?.split(" ") || [];
+    }
+    if (name === "snap-threshold") {
+      this._cachedSnapThreshold = getUnitlessValue(this.snapThreshold, 12);
     }
     if (name === "divider-width") {
-      this.updateRootStyle("--divider-width", getCssSize(newValue));
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
     if (name === "divider-hit-area") {
-      this.updateRootStyle("--divider-hit-area", getCssSize(newValue));
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }
 
@@ -243,17 +293,6 @@ export default class SplitLayout extends SparkleElement {
   override parsedCallback(): void {
     super.parsedCallback();
     this._resizeObserver?.observe(this.root);
-    const { width, height } = this.root.getBoundingClientRect();
-    this._cachedRootWidth = width;
-    this._cachedRootHeight = height;
-    this._cachedSplitX = this.getSplitPixelValue(
-      this.split,
-      this._cachedRootWidth
-    );
-    this._cachedSplitY = this.getSplitPixelValue(
-      this.split,
-      this._cachedRootHeight
-    );
   }
 
   override disconnectedCallback(): void {
@@ -268,119 +307,44 @@ export default class SplitLayout extends SparkleElement {
 
   protected isVertical(): boolean {
     const vertical = this.vertical;
-    const isFlipped = this.flip != null;
+    const flip = this.flipped;
+    const isFlipped = flip === "flip" || flip === "flip-reverse";
     return (isFlipped && !vertical) || (vertical && !isFlipped);
   }
 
   protected isReversed(): boolean {
-    return this.primary === "end" || this.flip === "reverse";
-  }
-
-  private positionPrimaryPanel(split: string | null): void {
-    if (this._cachedRootWidth != null && this._cachedRootHeight != null) {
-      const isVertical = this.isVertical();
-      const rootSize = isVertical
-        ? this._cachedRootHeight
-        : this._cachedRootWidth;
-      const sizeMin = isVertical
-        ? getCssSize(this.minPanelHeight || "0")
-        : getCssSize(this.minPanelWidth || "0");
-      const primary = this.primary;
-      const primaryEl = primary === "end" ? this.endEl : this.startEl;
-      if (primaryEl && rootSize != null) {
-        const splitValue = this.getSplitPixelValue(split, rootSize);
-        const splitPercentage = this.pixelsToPercentage(splitValue, rootSize);
-        const min = `min(calc(100% - ${sizeMin}), max(${sizeMin}, ${splitPercentage}))`;
-        const max = splitPercentage;
-        if (isVertical) {
-          primaryEl.style.setProperty("min-height", min);
-          primaryEl.style.setProperty("max-height", max);
-          primaryEl.style.setProperty("min-width", null);
-          primaryEl.style.setProperty("max-width", null);
-        } else {
-          primaryEl.style.setProperty("min-width", min);
-          primaryEl.style.setProperty("max-width", max);
-          primaryEl.style.setProperty("min-height", null);
-          primaryEl.style.setProperty("max-height", null);
-        }
-      }
-      this.emit("s-reposition");
-    }
-  }
-
-  private resetSecondaryPanel(primary: string | null): void {
-    const secondaryEl = primary === "end" ? this.startEl : this.endEl;
-    if (secondaryEl) {
-      secondaryEl.style.setProperty("min-width", null);
-      secondaryEl.style.setProperty("max-width", null);
-      secondaryEl.style.setProperty("min-height", null);
-      secondaryEl.style.setProperty("max-height", null);
-    }
+    return this.primary === "end" || this.flipped === "flip-reverse";
   }
 
   protected getSplitPixelValue(value: string | null, rootSize: number): number {
-    return this.getPixelValue(
-      value,
-      this.percentageToPixelValue(50, rootSize),
-      rootSize
-    );
-  }
-
-  private getPixelValue(
-    value: string | null,
-    defaultValue: number,
-    rootSize: number
-  ): number {
     if (!value) {
-      return defaultValue;
+      return percentToPixels(50, rootSize);
     }
-    value = value?.trim();
-    if (value.endsWith("%")) {
-      return this.percentageToPixelValue(
-        Number(value.replace("%", "")),
-        rootSize
-      );
+    const v = value?.trim();
+    if (v.endsWith("%")) {
+      return percentToPixels(Number(v.slice(0, -1)), rootSize);
     }
-    if (value.endsWith("px")) {
-      return Number(value.replace("px", ""));
+    if (v.endsWith("px")) {
+      return Number(v.slice(0, -2));
     }
-    return Number(value);
-  }
-
-  private percentageToPixelValue(
-    percentageValue: number,
-    rootSize: number
-  ): number {
-    return rootSize * (percentageValue / 100);
-  }
-
-  private formatPercentage(percentageValue: number): string {
-    const percentage = clamp(percentageValue, 0, 100);
-    return `${percentage}%`;
-  }
-
-  private pixelsToPercentage(pixelValue: number, rootSize: number): string {
-    const percentageValue = (pixelValue / rootSize) * 100;
-    return this.formatPercentage(percentageValue);
+    return Number(v) * rootSize;
   }
 
   private handlePointerDown = (event: PointerEvent): void => {
     const { width, height } = this.root.getBoundingClientRect();
-    this._cachedRootWidth = width;
-    this._cachedRootHeight = height;
+    this._startRootWidth = width;
+    this._startRootHeight = height;
     this._startVertical = this.isVertical();
     this._startReversed = this.isReversed();
+    this._startCollapsible = this.collapsible;
     this._startRtl = this.rtl;
-    this._startX = event.screenX;
-    this._startY = event.screenY;
-    const splitX = this.getSplitPixelValue(this.split, this._cachedRootWidth);
-    const splitY = this.getSplitPixelValue(this.split, this._cachedRootHeight);
-    this._startSplitX = this._startReversed
-      ? this._cachedRootWidth - splitX
-      : splitX;
-    this._startSplitY = this._startReversed
-      ? this._cachedRootHeight - splitY
-      : splitY;
+    this._startScreenX = event.screenX;
+    this._startScreenY = event.screenY;
+    const split = this.split;
+    const splitX = this.getSplitPixelValue(split, width);
+    const splitY = this.getSplitPixelValue(split, height);
+    this._startSplitX = this._startReversed ? width - splitX : splitX;
+    this._startSplitY = this._startReversed ? height - splitY : splitY;
     this._dragging = true;
   };
 
@@ -392,73 +356,86 @@ export default class SplitLayout extends SparkleElement {
       this._dragging = false;
       return;
     }
-    if (this._cachedRootWidth == null || this._cachedRootHeight == null) {
-      return;
-    }
     if (this.disabled) {
       return;
     }
+
+    const minPanelWidth = this._cachedMinPanelWidth;
+    const minPanelHeight = this._cachedMinPanelHeight;
+    const snaps = this._cachedSnaps;
+    const snapThreshold = this._cachedSnapThreshold;
+    const isRtl = this._startRtl;
+    const isVertical = this._startVertical;
+    const isReversed = this._startReversed;
+    const isCollapsible = this._startCollapsible;
+    const rootWidth = this._startRootWidth;
+    const rootHeight = this._startRootHeight;
+    const splitX = this._startSplitX;
+    const splitY = this._startSplitY;
+    const startScreenX = this._startScreenX;
+    const startScreenY = this._startScreenY;
 
     // Prevent text selection when dragging
     if (event.cancelable) {
       event.preventDefault();
     }
-    const deltaX = event.screenX - this._startX;
-    const deltaY = event.screenY - this._startY;
+    const deltaX = event.screenX - startScreenX;
+    const deltaY = event.screenY - startScreenY;
 
-    const startRtl = this._startRtl;
-    const startVertical = this._startVertical;
-    const startReversed = this._startReversed;
-
-    const startSplit = startVertical ? this._startSplitY : this._startSplitX;
-    const rootSize = startVertical
-      ? this._cachedRootHeight
-      : this._cachedRootWidth;
-    const sizeMin = startVertical
-      ? getCssSize(this.minPanelHeight || "0")
-      : getCssSize(this.minPanelWidth || "0");
-    const delta = startVertical ? deltaY : deltaX;
+    const startSplit = isVertical ? splitY : splitX;
+    const rootSize = isVertical ? rootHeight : rootWidth;
+    const min = isVertical ? minPanelHeight : minPanelWidth;
+    const max = rootSize - min;
+    const delta = isVertical ? deltaY : deltaX;
 
     let newPositionInPixels = startSplit + delta;
 
     // Flip for end panels
-    if (startReversed) {
+    if (isReversed) {
       newPositionInPixels = rootSize - newPositionInPixels;
     }
 
     // Check snap points
-    const snap = this.snap || "";
-    if (snap) {
-      const snaps = snap.split(" ");
-      const snapThreshold = this.getPixelValue(
-        this.snapThreshold,
-        12,
-        rootSize
-      );
-      snaps.forEach((value) => {
-        let snapPoint: number;
+    snaps.forEach((value) => {
+      let snapPoint: number;
 
-        if (value.endsWith("%")) {
-          snapPoint = rootSize * (parseFloat(value) / 100);
-        } else {
-          snapPoint = parseFloat(value);
-        }
+      if (value.endsWith("%")) {
+        snapPoint = rootSize * (parseFloat(value) / 100);
+      } else {
+        snapPoint = parseFloat(value);
+      }
 
-        if (startRtl && !startVertical) {
-          snapPoint = rootSize - snapPoint;
-        }
+      if (isRtl && !isVertical) {
+        snapPoint = rootSize - snapPoint;
+      }
 
-        if (
-          newPositionInPixels >= snapPoint - snapThreshold &&
-          newPositionInPixels <= snapPoint + snapThreshold
-        ) {
-          newPositionInPixels = snapPoint;
-        }
-      });
+      if (
+        newPositionInPixels >= snapPoint - snapThreshold &&
+        newPositionInPixels <= snapPoint + snapThreshold
+      ) {
+        newPositionInPixels = snapPoint;
+      }
+    });
+
+    if (isCollapsible != null) {
+      const collapseThreshold = getCssProportion(isCollapsible, 0.5);
+      if (newPositionInPixels <= min * collapseThreshold) {
+        this.collapsed = "start";
+        newPositionInPixels = 0;
+      } else if (newPositionInPixels >= max + min * (1 - collapseThreshold)) {
+        this.collapsed = "end";
+        newPositionInPixels = rootSize;
+      } else {
+        this.collapsed = null;
+      }
     }
-    const min = this.getPixelValue(sizeMin, 0, rootSize);
-    const splitValue = clamp(newPositionInPixels, min, rootSize - min);
-    this.split = this.pixelsToPercentage(splitValue, rootSize);
+
+    this.split = pixelsToPercentage(
+      this.collapsed
+        ? newPositionInPixels
+        : clamp(newPositionInPixels, min, max),
+      rootSize
+    );
   };
 
   private handlePointerUp = (): void => {
@@ -480,16 +457,17 @@ export default class SplitLayout extends SparkleElement {
         "End",
       ].includes(event.key)
     ) {
+      const minPanelWidth = this._cachedMinPanelWidth;
+      const minPanelHeight = this._cachedMinPanelHeight;
+
       const { width, height } = this.root.getBoundingClientRect();
-      this._cachedRootWidth = width;
-      this._cachedRootHeight = height;
       const isVertical = this.isVertical();
       const isReversed = this.isReversed();
-      const rootSize = isVertical
-        ? this._cachedRootHeight
-        : this._cachedRootWidth;
+      const rootSize = isVertical ? height : width;
 
-      let newPercentageValue = this.getSplitPixelValue(this.split, rootSize);
+      const split = this.split;
+      const positionInPixels = this.getSplitPixelValue(split, rootSize);
+      let newPercent = pixelsToPercent(positionInPixels, rootSize);
       const incr = (event.shiftKey ? 10 : 1) * (isReversed ? -1 : 1);
 
       event.preventDefault();
@@ -498,34 +476,31 @@ export default class SplitLayout extends SparkleElement {
         (event.key === "ArrowLeft" && !isVertical) ||
         (event.key === "ArrowUp" && isVertical)
       ) {
-        newPercentageValue -= incr;
+        newPercent -= incr;
       }
 
       if (
         (event.key === "ArrowRight" && !isVertical) ||
         (event.key === "ArrowDown" && isVertical)
       ) {
-        newPercentageValue += incr;
+        newPercent += incr;
       }
 
       if (event.key === "Home") {
-        newPercentageValue = isReversed ? 100 : 0;
+        newPercent = isReversed ? 100 : 0;
       }
 
       if (event.key === "End") {
-        newPercentageValue = isReversed ? 0 : 100;
+        newPercent = isReversed ? 0 : 100;
       }
 
-      const sizeMin = isVertical
-        ? getCssSize(this.minPanelHeight || "0")
-        : getCssSize(this.minPanelWidth || "0");
-      const min = this.getPixelValue(sizeMin, 0, rootSize);
+      const min = isVertical ? minPanelHeight : minPanelWidth;
       const splitValue = clamp(
-        this.percentageToPixelValue(newPercentageValue, rootSize),
+        percentToPixels(newPercent, rootSize),
         min,
         rootSize - min
       );
-      this.split = this.formatPercentage(splitValue);
+      this.split = percentToPercentage(splitValue);
     }
   };
 
@@ -533,42 +508,24 @@ export default class SplitLayout extends SparkleElement {
     const entry = entries[0];
     if (entry) {
       const { width, height } = entry.contentRect;
-      this._cachedRootWidth = width;
-      this._cachedRootHeight = height;
-      const initiallyVertical = this.vertical;
-      const minPanelSize = initiallyVertical
-        ? this.getPixelValue(
-            getCssSize(this.minPanelHeight || "0"),
-            0,
-            this._cachedRootHeight
-          )
-        : this.getPixelValue(
-            getCssSize(this.minPanelWidth || "0"),
-            0,
-            this._cachedRootWidth
-          );
-      const currentRootSize = initiallyVertical ? height : width;
-      const isFlipped = this.flip != null;
-      const shouldFlip = currentRootSize < minPanelSize * 2;
-      if (shouldFlip !== isFlipped && this.responsive) {
-        if (shouldFlip) {
-          this.flip = this.responsive;
-        } else {
-          this.flip = null;
+      const verticalByDefault = this.vertical;
+      const responsive = this.responsive;
+      const minPanelSize = verticalByDefault
+        ? this._cachedMinPanelHeight
+        : this._cachedMinPanelWidth;
+      const currentRootSize = verticalByDefault ? height : width;
+      const belowBreakpoint = currentRootSize < minPanelSize * 2;
+      if (responsive === "flip" || responsive === "flip-reverse") {
+        const newFlipped = belowBreakpoint ? responsive : null;
+        if (this.flipped !== newFlipped) {
+          this.flipped = newFlipped;
         }
-      }
-      if (this.primary) {
-        const isVertical = this.isVertical();
-        const cachedSplitPosition = isVertical
-          ? this._cachedSplitY
-          : this._cachedSplitX;
-        const rootSize = isVertical ? height : width;
-        const sizeMin = isVertical
-          ? getCssSize(this.minPanelHeight || "0")
-          : getCssSize(this.minPanelWidth || "0");
-        const min = this.getPixelValue(sizeMin, 0, rootSize);
-        const splitValue = clamp(cachedSplitPosition, min, rootSize - min);
-        this.split = this.pixelsToPercentage(splitValue, rootSize);
+      } else if (responsive === "hide-end" || responsive === "hide-start") {
+        const soloTarget = responsive === "hide-start" ? "end" : "start";
+        const newSolo = belowBreakpoint ? soloTarget : null;
+        if (this.solo !== newSolo) {
+          this.solo = newSolo;
+        }
       }
     }
   };

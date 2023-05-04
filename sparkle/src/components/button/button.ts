@@ -153,7 +153,7 @@ export default class Button extends SparkleElement {
       }
     }
     if (name === "spacing") {
-      this.updateRootStyle("--spacing", getCssSize(newValue));
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }
 

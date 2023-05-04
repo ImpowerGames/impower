@@ -5,7 +5,7 @@ import {
   setDefaultAnimation,
 } from "../../utils/animation-registry";
 import { waitForEvent } from "../../utils/events";
-import { getDurationMS } from "../../utils/getDurationMS";
+import { getCssDurationMS } from "../../utils/getCssDurationMS";
 import css from "./toast.css";
 import html from "./toast.html";
 
@@ -89,7 +89,7 @@ export default class Toast extends SparkleElement {
    */
   get autoClose(): number {
     const value = this.getStringAttribute("auto-close");
-    return getDurationMS(value, Infinity, 3000);
+    return getCssDurationMS(value, Infinity, 3000);
   }
 
   /**
@@ -142,7 +142,7 @@ export default class Toast extends SparkleElement {
     }
     if (name === "auto-close") {
       const open = this.open;
-      const durationMS = getDurationMS(newValue, Infinity, 3000);
+      const durationMS = getCssDurationMS(newValue, Infinity, 3000);
       this.restartAutoClose(open, durationMS);
     }
     if (name === "icon") {

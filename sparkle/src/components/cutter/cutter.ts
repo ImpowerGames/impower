@@ -6,7 +6,7 @@ const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
 /**
- * Cutters clip the corners of its content.
+ * Cutters clip the corners of their content.
  */
 export default class Cutter extends SparkleElement {
   static override async define(

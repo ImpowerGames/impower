@@ -1,0 +1,22 @@
+:host {
+  display: contents;
+}
+:host {
+  --aspect: 1/1;
+  --child-layout: column;
+  --child-justify: center;
+  --child-align: center;
+  --size: 40px;
+  --width: var(--size);
+  --height: var(--size);
+}
+
+.root {
+  display: flex;
+  flex-direction: var(--child-layout);
+  justify-content: var(--child-justify);
+  align-items: var(--child-align);
+  border-radius: 50%;
+  width: var(--width);
+  height: var(--height);
+}

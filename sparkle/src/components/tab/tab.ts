@@ -91,24 +91,24 @@ export default class Tab extends SparkleElement {
         newValue != null ? "true" : "false"
       );
     }
+    if (name === "spacing") {
+      this.updateRootCssVariable(name, getCssSize(newValue));
+    }
     if (name === "icon") {
       if (this.active) {
-        this.updateRootStyle("--icon", getCssIcon(newValue, "-fill"));
+        this.updateRootCssVariable(name, getCssIcon(newValue, "-fill"));
       } else {
-        this.updateRootStyle("--icon", getCssIcon(newValue));
+        this.updateRootCssVariable(name, getCssIcon(newValue));
       }
     }
     if (name === "active") {
       if (this.icon != null) {
         if (this.active) {
-          this.updateRootStyle("--icon", getCssIcon(this.icon, "-fill"));
+          this.updateRootCssVariable("--icon", getCssIcon(this.icon, "-fill"));
         } else {
-          this.updateRootStyle("--icon", getCssIcon(this.icon));
+          this.updateRootCssVariable("--icon", getCssIcon(this.icon));
         }
       }
-    }
-    if (name === "spacing") {
-      this.updateRootStyle("--spacing", getCssSize(newValue));
     }
   }
 

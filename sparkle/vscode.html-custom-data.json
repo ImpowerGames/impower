@@ -8123,12 +8123,74 @@
       ]
     },
     {
-      "name": "s-divider",
-      "description": "Dividers are used to visually separate or group elements.",
+      "name": "s-icon",
+      "description": "Icons are symbols that can be used to represent various options within an application.",
       "attributes": [
         {
-          "name": "vertical",
-          "description": "Whether or not the divider is vertical instead of horizontal."
+          "name": "size",
+          "description": "Sets the size of an icon.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
+        },
+        {
+          "name": "fill",
+          "description": "Sets the fill of an icon.\r\n\r\nIf not provided a value, it will use \"currentColor\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "stroke",
+          "description": "Sets the stroke of an icon.\r\n\r\nIf not provided a value, it will use \"currentColor\".",
+          "values": [
+            {
+              "name": " | "
+            },
+            {
+              "name": " | "
+            }
+          ]
+        },
+        {
+          "name": "stroke-width",
+          "description": "Sets the stroke width of an icon.",
+          "values": [
+            {
+              "name": "xs"
+            },
+            {
+              "name": "sm"
+            },
+            {
+              "name": "md"
+            },
+            {
+              "name": "lg"
+            },
+            {
+              "name": "xl"
+            }
+          ]
         },
         {
           "name": "rtl",
@@ -10830,74 +10892,12 @@
       ]
     },
     {
-      "name": "s-icon",
-      "description": "Icons are symbols that can be used to represent various options within an application.",
+      "name": "s-divider",
+      "description": "Dividers are used to visually separate or group elements.",
       "attributes": [
         {
-          "name": "size",
-          "description": "Sets the size of an icon.",
-          "values": [
-            {
-              "name": "xs"
-            },
-            {
-              "name": "sm"
-            },
-            {
-              "name": "md"
-            },
-            {
-              "name": "lg"
-            },
-            {
-              "name": "xl"
-            }
-          ]
-        },
-        {
-          "name": "fill",
-          "description": "Sets the fill of an icon.\r\n\r\nIf not provided a value, it will use \"currentColor\".",
-          "values": [
-            {
-              "name": " | "
-            },
-            {
-              "name": " | "
-            }
-          ]
-        },
-        {
-          "name": "stroke",
-          "description": "Sets the stroke of an icon.\r\n\r\nIf not provided a value, it will use \"currentColor\".",
-          "values": [
-            {
-              "name": " | "
-            },
-            {
-              "name": " | "
-            }
-          ]
-        },
-        {
-          "name": "stroke-width",
-          "description": "Sets the stroke width of an icon.",
-          "values": [
-            {
-              "name": "xs"
-            },
-            {
-              "name": "sm"
-            },
-            {
-              "name": "md"
-            },
-            {
-              "name": "lg"
-            },
-            {
-              "name": "xl"
-            }
-          ]
+          "name": "vertical",
+          "description": "Whether or not the divider is vertical instead of horizontal."
         },
         {
           "name": "rtl",
@@ -29955,16 +29955,50 @@
           "description": "Draws the split panel in a vertical orientation with the start and end panels stacked."
         },
         {
-          "name": "flip",
-          "description": "Flips the orientation of the panels."
+          "name": "collapsed",
+          "description": "Hides the start or end panel.",
+          "values": [
+            {
+              "name": "start"
+            },
+            {
+              "name": "end"
+            }
+          ]
+        },
+        {
+          "name": "solo",
+          "description": "Hides the start or end panel and the resize divider.",
+          "values": [
+            {
+              "name": "start"
+            },
+            {
+              "name": "end"
+            }
+          ]
         },
         {
           "name": "responsive",
-          "description": "Automatically flip the orientation of the panels when they cannot fit side-by-side."
+          "description": "Automatically change layout of panels when they cannot fit side-by-side.\r\n\r\nSet to `flip`, to flip the orientation of the panels, when out of space.\r\nSet to `flip-reverse`, to flip the orientation and order of the panels, when out of space.\r\nSet to `hide`, to hide the non-primary panel, when out of space.",
+          "values": [
+            {
+              "name": "flip"
+            },
+            {
+              "name": "flip-reverse"
+            },
+            {
+              "name": "hide-end"
+            },
+            {
+              "name": "hide-start"
+            }
+          ]
         },
         {
           "name": "primary",
-          "description": "If no primary panel is designated, both panels will resize proportionally when the host element is resized. If a\r\nprimary panel is designated, it will maintain its size and the other panel will grow or shrink as needed when the\r\nhost element is resized.",
+          "description": "The primary panel.",
           "values": [
             {
               "name": "start"

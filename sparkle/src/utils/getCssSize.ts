@@ -22,5 +22,5 @@ export const getCssSize = (value: string | number): string => {
   if (value === "xl") {
     return "24px";
   }
-  return getCssUnit(`${value}`, "px");
+  return getCssUnit(value, "px");
 };

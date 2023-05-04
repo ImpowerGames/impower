@@ -54,13 +54,13 @@ export default class ProgressBar extends SparkleElement {
     }
     if (name === "value") {
       this.updateRootAttribute("aria-valuenow", newValue);
-      const indicator = this.getElementByClass("indicator");
-      if (indicator) {
-        indicator.style.width = `${newValue}%`;
-      }
+      this.updateRootCssVariable(
+        name,
+        newValue.endsWith("%") ? newValue : `${newValue}%`
+      );
     }
     if (name === "label-color") {
-      this.updateRootStyle("--label-color", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
   }
 }

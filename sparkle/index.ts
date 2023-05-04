@@ -1,6 +1,8 @@
 import Badge from "./src/components/badge/badge";
 import Box from "./src/components/box/box";
+import BreakpointObserver from "./src/components/breakpoint-observer/breakpoint-observer";
 import Button from "./src/components/button/button";
+import Circle from "./src/components/circle/circle";
 import Collapsible from "./src/components/collapsible/collapsible";
 import Cutter from "./src/components/cutter/cutter";
 import Divider from "./src/components/divider/divider";
@@ -62,6 +64,7 @@ export { default as SpTabShowEvent } from "./src/events/tab-show";
 
 export const DEFAULT_SPARKLE_TAGS = {
   "s-box": "s-box",
+  "s-circle": "s-circle",
   "s-icon": "s-icon",
   "s-popup": "s-popup",
   "s-divider": "s-divider",
@@ -80,6 +83,7 @@ export const DEFAULT_SPARKLE_TAGS = {
   "s-toast": "s-toast",
   "s-split-layout": "s-split-layout",
   "s-router": "s-router",
+  "s-breakpoint-observer": "s-breakpoint-observer",
 };
 
 export default class Sparkle {
@@ -88,6 +92,7 @@ export default class Sparkle {
   ): Promise<CustomElementConstructor[]> {
     return Promise.all([
       Box.define(tags["s-box"], tags),
+      Circle.define(tags["s-circle"], tags),
       Icon.define(tags["s-icon"], tags),
       Popup.define(tags["s-popup"], tags),
       Divider.define(tags["s-divider"], tags),
@@ -106,6 +111,7 @@ export default class Sparkle {
       Toast.define(tags["s-toast"], tags),
       SplitLayout.define(tags["s-split-layout"], tags),
       Router.define(tags["s-router"], tags),
+      BreakpointObserver.define(tags["s-breakpoint-observer"], tags),
     ]);
   }
 

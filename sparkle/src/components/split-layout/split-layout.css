@@ -2,6 +2,7 @@
   display: contents;
 }
 :host {
+  --split: 50%;
   --interactable: auto;
   --expand: 1;
   --divider-width: 1px;
@@ -13,14 +14,6 @@
   flex-direction: row;
   flex: var(--expand);
   pointer-events: inherit;
-}
-
-.start,
-.end {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  flex: 1;
 }
 
 .divider {
@@ -66,26 +59,94 @@
 
 /* Vertical */
 :host([vertical]) .root,
-:host([flip]:not([vertical])) .root {
+:host([flipped="flip"]:not([vertical])) .root {
   flex-direction: column;
 }
-:host([flip="reverse"]:not([vertical])) .root {
+:host([flipped="flip-reverse"]:not([vertical])) .root {
   flex-direction: column-reverse;
 }
 
 :host([vertical]:not([disabled])) .divider,
-:host([flip]:not([vertical], [disabled])) .divider {
+:host([flipped="flip"]:not([vertical], [disabled])) .divider,
+:host([flipped="flip-reverse"]:not([vertical], [disabled])) .divider {
   cursor: row-resize;
+}
+:host([solo]) .divider {
+  display: none;
 }
 
 :host([vertical]) .divider::after,
-:host([flip]:not([vertical])) .divider::after {
+:host([flipped="flip"]:not([vertical])) .divider::after,
+:host([flipped="flip-reverse"]:not([vertical])) .divider::after {
   content: "";
   position: absolute;
-  display: flex;
+  display: block;
   flex-direction: column;
   width: 100%;
   height: var(--divider-hit-area);
   top: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
   left: auto;
+}
+
+.start {
+  position: relative;
+  display: block;
+  overflow: hidden;
+}
+:host(:not([vertical], [flipped="flip"], [flipped="flip-reverse"])) .start {
+  min-width: var(--min-panel-width);
+  max-width: calc(100% - var(--min-panel-width));
+  width: var(--split);
+  height: 100%;
+}
+:host(
+    [collapsed="end"]:not(
+        [vertical],
+        [flipped="flip"],
+        [flipped="flip-reverse"]
+      )
+  )
+  .start,
+:host(
+    [solo="start"]:not([vertical], [flipped="flip"], [flipped="flip-reverse"])
+  )
+  .start {
+  width: 100%;
+  max-width: none;
+}
+:host([vertical]) .start,
+:host([flipped="flip"]:not([vertical])) .start,
+:host([flipped="flip-reverse"]:not([vertical])) .start {
+  min-height: var(--min-panel-height);
+  max-height: calc(100% - var(--min-panel-height));
+  width: 100%;
+  height: var(--split);
+}
+:host([collapsed="end"][vertical]) .start,
+:host([collapsed="end"][flipped="flip"]:not([vertical])) .start,
+:host([collapsed="end"][flipped="flip-reverse"]:not([vertical])) .start {
+  max-height: none;
+}
+:host([collapsed="start"]) .start,
+:host([solo="end"]) .start {
+  display: none;
+}
+
+.end {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  flex: 1;
+}
+:host(:not([vertical], [flipped="flip"], [flipped="flip-reverse"])) .end {
+  min-width: 0;
+}
+:host([vertical]) .end,
+:host([flipped="flip"]:not([vertical])) .end,
+:host([flipped="flip-reverse"]:not([vertical])) .end {
+  min-height: 0;
+}
+:host([collapsed="end"]) .end,
+:host([solo="start"]) .end {
+  display: none;
 }

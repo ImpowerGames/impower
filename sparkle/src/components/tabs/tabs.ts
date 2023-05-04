@@ -57,6 +57,9 @@ export default class Tabs extends SparkleElement {
   get value(): string | null {
     return this.getStringAttribute("value");
   }
+  set value(value: string | null) {
+    this.setStringAttribute("value", value);
+  }
 
   protected _tabs: Tab[] = [];
   get tabs(): Tab[] {
@@ -157,12 +160,10 @@ export default class Tabs extends SparkleElement {
   }
 
   activateTab(tab: Tab): void {
-    if (tab.value != null) {
-      this.setAttribute("value", tab.value);
-    } else {
-      this.removeAttribute("value");
-    }
+    const value = tab.value;
+    this.value = value;
     this.updateTabs();
+    this.emit("onchange");
   }
 
   onPointerDownTab = (e: MouseEvent): void => {

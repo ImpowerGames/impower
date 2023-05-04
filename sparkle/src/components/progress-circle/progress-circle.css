@@ -2,7 +2,7 @@
   display: contents;
 }
 :host {
-  --percentage: 0;
+  --value: 0;
   --size: 1em;
   --bg-color: var(--s-color-neutral-30);
   --color: var(--s-color-primary-70);
@@ -83,7 +83,7 @@
   transition-duration: var(--duration);
   stroke-dasharray: var(--circumference) var(--circumference);
   stroke-dashoffset: calc(
-    var(--circumference) - var(--percentage) * var(--circumference)
+    var(--circumference) - var(--value) * var(--circumference)
   );
 }
 

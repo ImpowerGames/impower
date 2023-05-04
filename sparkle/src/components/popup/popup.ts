@@ -291,11 +291,11 @@ export default class Popup extends SparkleElement {
     }
 
     if (name === "arrow-color") {
-      this.updateRootStyle("--arrow-color", getCssColor(newValue));
+      this.updateRootCssVariable(name, getCssColor(newValue));
     }
 
     if (name === "arrow-size") {
-      this.updateRootStyle("--arrow-size", getCssSize(newValue));
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
 
     // Update the anchorEl when anchor changes
@@ -389,8 +389,8 @@ export default class Popup extends SparkleElement {
         this.cleanup();
         this.cleanup = undefined;
         this.removeAttribute("data-current-placement");
-        this.style.removeProperty("--auto-size-available-width");
-        this.style.removeProperty("--auto-size-available-height");
+        this.updateRootCssVariable("--auto-size-available-width", null);
+        this.updateRootCssVariable("--auto-size-available-height", null);
         requestAnimationFrame(() => resolve());
       } else {
         resolve();
@@ -475,30 +475,29 @@ export default class Popup extends SparkleElement {
             availableHeight: number;
           }) => {
             const { availableWidth, availableHeight } = args;
-            if (this.autoSize === "vertical" || this.autoSize === "both") {
-              this.style.setProperty(
-                "--auto-size-available-height",
-                `${availableHeight}px`
-              );
-            } else {
-              this.style.removeProperty("--auto-size-available-height");
-            }
-
-            if (this.autoSize === "horizontal" || this.autoSize === "both") {
-              this.style.setProperty(
-                "--auto-size-available-width",
-                `${availableWidth}px`
-              );
-            } else {
-              this.style.removeProperty("--auto-size-available-width");
-            }
+            const autoSizeAvailableHeight =
+              this.autoSize === "vertical" || this.autoSize === "both"
+                ? `${availableHeight}px`
+                : null;
+            const autoSizeAvailableWidth =
+              this.autoSize === "horizontal" || this.autoSize === "both"
+                ? `${availableWidth}px`
+                : null;
+            this.updateRootCssVariable(
+              "--auto-size-available-height",
+              autoSizeAvailableHeight
+            );
+            this.updateRootCssVariable(
+              "--auto-size-available-width",
+              autoSizeAvailableWidth
+            );
           },
         })
       );
     } else {
       // Cleanup styles if we're no longer using auto-size
-      this.style.removeProperty("--auto-size-available-width");
-      this.style.removeProperty("--auto-size-available-height");
+      this.updateRootCssVariable("--auto-size-available-height", null);
+      this.updateRootCssVariable("--auto-size-available-width", null);
     }
 
     // Finally, we add an arrow
