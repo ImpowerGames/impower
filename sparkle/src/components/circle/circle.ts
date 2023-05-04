@@ -36,12 +36,11 @@ export default class Circle extends SparkleElement {
     return this.getStringAttribute("size");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "size") {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }

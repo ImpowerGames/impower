@@ -1,4 +1,7 @@
-export const getCssExpand = (value: boolean | string): string => {
+export const getCssGrow = (value: boolean | string): string => {
+  if (value === "") {
+    return "1";
+  }
   if (value === true) {
     return "1";
   }

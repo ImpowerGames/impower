@@ -265,13 +265,11 @@ export default class Popup extends SparkleElement {
 
   private cleanup: ReturnType<typeof autoUpdate> | undefined;
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
-
     // Start or stop the positioner when active changes
     if (name === "active") {
       if (this.active) {
@@ -311,21 +309,18 @@ export default class Popup extends SparkleElement {
     }
   }
 
-  override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this.anchorSlot?.addEventListener(
       "slotchange",
       this.handleAnchorSlotChange
     );
   }
 
-  override parsedCallback(): void {
-    super.parsedCallback();
+  protected override onParsed(): void {
     this.start();
   }
 
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.stop();
     this.anchorSlot?.removeEventListener(
       "slotchange",

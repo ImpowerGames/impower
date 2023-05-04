@@ -9,6 +9,7 @@
   user-select: none;
   flex-direction: column;
   flex-wrap: nowrap;
+  flex-shrink: 0;
   text-underline-offset: 3px;
   background-size: cover;
   overflow-x: visible;

@@ -15,9 +15,9 @@ import { getCssCorner } from "../utils/getCssCorner";
 import { getCssDimension } from "../utils/getCssDimension";
 import { getCssDuration } from "../utils/getCssDuration";
 import { getCssEase } from "../utils/getCssEase";
-import { getCssExpand } from "../utils/getCssExpand";
 import { getCssGradient } from "../utils/getCssGradient";
 import { getCssGrayscale } from "../utils/getCssGrayscale";
+import { getCssGrow } from "../utils/getCssGrow";
 import { getCssHue } from "../utils/getCssHue";
 import { getCssImage } from "../utils/getCssImage";
 import { getCssInteractable } from "../utils/getCssInteractable";
@@ -35,6 +35,7 @@ import { getCssSelectable } from "../utils/getCssSelectable";
 import { getCssSepia } from "../utils/getCssSepia";
 import { getCssShadow } from "../utils/getCssShadow";
 import { getCssShadowInset } from "../utils/getCssShadowInset";
+import { getCssShrink } from "../utils/getCssShrink";
 import { getCssSize } from "../utils/getCssSize";
 import { getCssSkew } from "../utils/getCssSkew";
 import { getCssTextAlign } from "../utils/getCssTextAlign";
@@ -109,7 +110,8 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   "child-overflow": getCssChildOverflow,
   "self-align": getCssChildAlign,
 
-  expand: getCssExpand,
+  grow: getCssGrow,
+  shrink: getCssShrink,
 
   invisible: getCssInvisible,
   interactable: getCssInteractable,

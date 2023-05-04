@@ -13,7 +13,10 @@ export const getCssDurationMS = (
   if (value == null) {
     return defaultValue;
   }
-  const v = value.trim();
+  const v = value.trim().toLowerCase();
+  if (v === "none" || v === "infinity") {
+    return Infinity;
+  }
   const ms = v.endsWith("ms")
     ? Number(trimEnd(v, "ms".length))
     : v.endsWith("s")
@@ -22,6 +25,6 @@ export const getCssDurationMS = (
     ? Number(trimEnd(v, "min".length)) * 1000 * 60
     : v.endsWith("h")
     ? Number(trimEnd(v, "h".length)) * 1000 * 60 * 60
-    : 0;
+    : Number(v);
   return ms;
 };

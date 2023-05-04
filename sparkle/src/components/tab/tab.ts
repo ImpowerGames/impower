@@ -65,12 +65,11 @@ export default class Tab extends SparkleElement {
     return this.getElementByTag<Ripple>(Tab.dependencies["s-ripple"]);
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "disabled") {
       this.updateRootAttribute("tabindex", newValue != null ? "-1" : "0");
       this.updateRootAttribute(
@@ -112,13 +111,11 @@ export default class Tab extends SparkleElement {
     }
   }
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this.ripple?.bind?.(this.root);
   }
 
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.ripple?.unbind?.(this.root);
   }
 }

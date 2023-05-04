@@ -70,12 +70,11 @@ export default class Icon extends SparkleElement {
     return this.getStringAttribute("stroke-width");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "aria-label") {
       this.updateRootAttribute("aria-hidden", Boolean(newValue));
       this.updateRootAttribute("role", newValue ? "img" : null);

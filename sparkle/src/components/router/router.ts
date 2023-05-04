@@ -40,6 +40,32 @@ export default class Router extends SparkleElement {
     return this.getStringAttribute("observe");
   }
 
+  /**
+   * Allow panels to be swiped.
+   *
+   * Set to `touch` to limit swipe detection to touch devices.
+   * Set to `mouse` to limit swipe detection to mouse devices.
+   * Set to `pointer` to support swipe detection for any device.
+   *
+   * If not provided a value, defaults to `pointer`.
+   */
+  get transition(): "pointer" | "touch" | "mouse" | null {
+    return this.getStringAttribute("observe");
+  }
+
+  /**
+   * Allow panels to be swiped.
+   *
+   * Set to `touch` to limit swipe detection to touch devices.
+   * Set to `mouse` to limit swipe detection to mouse devices.
+   * Set to `pointer` to support swipe detection for any device.
+   *
+   * If not provided a value, defaults to `pointer`.
+   */
+  get swipeable(): "pointer" | "touch" | "mouse" | null {
+    return this.getStringAttribute("observe");
+  }
+
   get observedEl(): HTMLElement | null {
     const observedElId = this.observe;
     const siblings = this.parentElement?.childNodes;
@@ -76,31 +102,27 @@ export default class Router extends SparkleElement {
 
   protected _valueObserver?: MutationObserver;
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "observe") {
       this.observeValue();
     }
   }
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this.templatesSlot?.addEventListener("slotchange", this.handleSlotChange);
     this._valueObserver = new MutationObserver(this.handleValueMutation);
   }
 
-  protected override parsedCallback(): void {
-    super.parsedCallback();
+  protected override onParsed(): void {
     this.observeValue();
     this.loadTemplates();
   }
 
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.templatesSlot?.removeEventListener(
       "slotchange",
       this.handleSlotChange

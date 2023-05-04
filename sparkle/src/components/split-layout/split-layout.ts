@@ -197,8 +197,6 @@ export default class SplitLayout extends SparkleElement {
 
   protected _cachedSnapThreshold = 0;
 
-  protected _dragging = false;
-
   protected _startVertical = false;
 
   protected _startReversed = false;
@@ -219,12 +217,11 @@ export default class SplitLayout extends SparkleElement {
 
   protected _startSplitY: number = 0;
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "disabled") {
       const dividerEl = this.dividerEl;
       if (dividerEl) {
@@ -280,29 +277,24 @@ export default class SplitLayout extends SparkleElement {
     }
   }
 
-  override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this._resizeObserver = new ResizeObserver(this.handleResize);
     const dividerEl = this.dividerEl;
     dividerEl?.addEventListener("keydown", this.handleKeyDown);
     dividerEl?.addEventListener("pointerdown", this.handlePointerDown);
-    window?.addEventListener("pointermove", this.handlePointerMove);
-    window?.addEventListener("pointerup", this.handlePointerUp);
+    dividerEl?.addEventListener("pointermove", this.handlePointerMove);
   }
 
-  override parsedCallback(): void {
-    super.parsedCallback();
+  protected override onParsed(): void {
     this._resizeObserver?.observe(this.root);
   }
 
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this._resizeObserver?.disconnect();
     const dividerEl = this.dividerEl;
     dividerEl?.removeEventListener("keydown", this.handleKeyDown);
     dividerEl?.removeEventListener("pointerdown", this.handlePointerDown);
-    window?.removeEventListener("pointermove", this.handlePointerMove);
-    window?.removeEventListener("pointerup", this.handlePointerUp);
+    dividerEl?.removeEventListener("pointermove", this.handlePointerMove);
   }
 
   protected isVertical(): boolean {
@@ -330,7 +322,9 @@ export default class SplitLayout extends SparkleElement {
     return Number(v) * rootSize;
   }
 
-  private handlePointerDown = (event: PointerEvent): void => {
+  private handlePointerDown = (e: PointerEvent): void => {
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
     const { width, height } = this.root.getBoundingClientRect();
     this._startRootWidth = width;
     this._startRootHeight = height;
@@ -338,22 +332,18 @@ export default class SplitLayout extends SparkleElement {
     this._startReversed = this.isReversed();
     this._startCollapsible = this.collapsible;
     this._startRtl = this.rtl;
-    this._startScreenX = event.screenX;
-    this._startScreenY = event.screenY;
+    this._startScreenX = e.screenX;
+    this._startScreenY = e.screenY;
     const split = this.split;
     const splitX = this.getSplitPixelValue(split, width);
     const splitY = this.getSplitPixelValue(split, height);
     this._startSplitX = this._startReversed ? width - splitX : splitX;
     this._startSplitY = this._startReversed ? height - splitY : splitY;
-    this._dragging = true;
   };
 
-  private handlePointerMove = (event: PointerEvent): void => {
-    if (!this._dragging) {
-      return;
-    }
-    if (event.pressure === 0) {
-      this._dragging = false;
+  private handlePointerMove = (e: PointerEvent): void => {
+    const el = e.currentTarget as HTMLElement;
+    if (!el.hasPointerCapture(e.pointerId)) {
       return;
     }
     if (this.disabled) {
@@ -376,11 +366,11 @@ export default class SplitLayout extends SparkleElement {
     const startScreenY = this._startScreenY;
 
     // Prevent text selection when dragging
-    if (event.cancelable) {
-      event.preventDefault();
+    if (e.cancelable) {
+      e.preventDefault();
     }
-    const deltaX = event.screenX - startScreenX;
-    const deltaY = event.screenY - startScreenY;
+    const deltaX = e.screenX - startScreenX;
+    const deltaY = e.screenY - startScreenY;
 
     const startSplit = isVertical ? splitY : splitX;
     const rootSize = isVertical ? rootHeight : rootWidth;
@@ -438,11 +428,7 @@ export default class SplitLayout extends SparkleElement {
     );
   };
 
-  private handlePointerUp = (): void => {
-    this._dragging = false;
-  };
-
-  private handleKeyDown = (event: KeyboardEvent): void => {
+  private handleKeyDown = (e: KeyboardEvent): void => {
     if (this.disabled) {
       return;
     }
@@ -455,7 +441,7 @@ export default class SplitLayout extends SparkleElement {
         "ArrowDown",
         "Home",
         "End",
-      ].includes(event.key)
+      ].includes(e.key)
     ) {
       const minPanelWidth = this._cachedMinPanelWidth;
       const minPanelHeight = this._cachedMinPanelHeight;
@@ -468,29 +454,29 @@ export default class SplitLayout extends SparkleElement {
       const split = this.split;
       const positionInPixels = this.getSplitPixelValue(split, rootSize);
       let newPercent = pixelsToPercent(positionInPixels, rootSize);
-      const incr = (event.shiftKey ? 10 : 1) * (isReversed ? -1 : 1);
+      const incr = (e.shiftKey ? 10 : 1) * (isReversed ? -1 : 1);
 
-      event.preventDefault();
+      e.preventDefault();
 
       if (
-        (event.key === "ArrowLeft" && !isVertical) ||
-        (event.key === "ArrowUp" && isVertical)
+        (e.key === "ArrowLeft" && !isVertical) ||
+        (e.key === "ArrowUp" && isVertical)
       ) {
         newPercent -= incr;
       }
 
       if (
-        (event.key === "ArrowRight" && !isVertical) ||
-        (event.key === "ArrowDown" && isVertical)
+        (e.key === "ArrowRight" && !isVertical) ||
+        (e.key === "ArrowDown" && isVertical)
       ) {
         newPercent += incr;
       }
 
-      if (event.key === "Home") {
+      if (e.key === "Home") {
         newPercent = isReversed ? 100 : 0;
       }
 
-      if (event.key === "End") {
+      if (e.key === "End") {
         newPercent = isReversed ? 0 : 100;
       }
 

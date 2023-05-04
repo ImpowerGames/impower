@@ -28,7 +28,3 @@
   mask-position: center;
   background-color: currentColor;
 }
-
-:host(:not([icon])) .root {
-  display: none;
-}

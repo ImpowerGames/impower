@@ -26,13 +26,11 @@ export default class Cutter extends SparkleElement {
 
   protected _targetEl?: HTMLElement;
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this.root.addEventListener("slotchange", this.handleContentSlotChange);
   }
 
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.root.removeEventListener("slotchange", this.handleContentSlotChange);
   }
 

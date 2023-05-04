@@ -222,8 +222,8 @@
   align-self: var(--self-align, center);
 }
 
-.expand {
-  flex: var(--expand, 1);
+.grow {
+  flex-grow: var(--grow, 1);
 }
 
 .fill {

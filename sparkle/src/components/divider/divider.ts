@@ -35,12 +35,11 @@ export default class Divider extends SparkleElement {
     return this.getBooleanAttribute("vertical");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "vertical") {
       this.updateRootAttribute(
         "aria-orientation",

@@ -82,12 +82,11 @@ export default class ProgressCircle extends SparkleElement {
     return this.getElementByClass("label");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "value") {
       const proportion = getCssProportion(newValue, 0);
       this.updateRootCssVariable(name, String(proportion));

@@ -1,10 +1,4 @@
-const setAttribute = (el: Element, name: string, value: string | null) => {
-  if (value == null) {
-    el.removeAttribute(name);
-  } else {
-    el.setAttribute(name, value);
-  }
-};
+import { setAttribute } from "./setAttribute";
 
 export const updateAttribute = <T>(el: Element, name: string, value: T) => {
   if (typeof value === "boolean") {

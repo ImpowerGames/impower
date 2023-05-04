@@ -44,8 +44,8 @@
 :host([size="sm"]) .root {
   --height: 32px;
   --height-min: 32px;
-  --text-size: var(--s-text-xs-font-size);
-  --text-leading: var(--s-text-xs-line-height);
+  --text-size: var(--s-text-sm-font-size);
+  --text-leading: var(--s-text-sm-line-height);
   --padding: 0;
   --padding-lr: 10px;
   --padding-l: var(--padding-lr);
@@ -133,22 +133,24 @@
 .root,
 :host([variant="filled"]) .root {
   --text-weight: 500;
-  filter: var(--shadow);
   color: var(--text-color);
   background-color: var(--color);
   font-weight: var(--text-weight);
+  filter: var(--shadow);
 }
 
 /* Tonal */
 :host([variant="tonal"]) .root {
   --text-weight: 400;
   --text-color: white;
+  --shadow: none;
   color: var(--text-color);
   background-color: var(--color);
   border-color: var(--color);
   border-width: var(--border-width);
   border-style: solid;
   font-weight: var(--text-weight);
+  filter: var(--shadow);
 }
 :host([variant="tonal"]) .root::after {
   position: absolute;
@@ -162,6 +164,7 @@
 /* Outlined */
 :host([variant="outlined"]) .root {
   --text-weight: 500;
+  --shadow: none;
   filter: none;
   background-color: transparent;
   border-color: var(--color);
@@ -169,6 +172,7 @@
   border-style: solid;
   color: var(--color);
   font-weight: var(--text-weight);
+  filter: var(--shadow);
 }
 @media (hover: hover) and (pointer: fine) {
   :host([variant="outlined"]:not([disabled])) .root:hover,
@@ -185,18 +189,27 @@
 /* Text */
 :host([variant="text"]) .root {
   --text-weight: 500;
+  --shadow: none;
+  --text-color: var(--color);
   background-color: transparent;
-  color: var(--text-color, var(--color));
+  color: var(--color);
   font-weight: var(--text-weight);
+  filter: var(--shadow);
 }
 
 /* Icon */
 :host([variant="icon"]) .root {
+  --shadow: none;
   background-color: transparent;
   border-radius: 50%;
   aspect-ratio: 1/1;
   color: var(--color);
   padding: 0;
+  filter: var(--shadow);
+}
+
+:host(:not([icon])) .icon {
+  display: none;
 }
 
 /* Loading */

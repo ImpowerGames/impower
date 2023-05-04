@@ -250,7 +250,6 @@
   --s-color-focus: var(--s-color-primary-80);
   --s-color-surface: var(--s-color-neutral-10);
   --s-color-surface-border: var(--s-color-neutral-30);
-  --s-color-overlay: var(--s-color-neutral-0);
 
   /* Scrollbars */
   --s-scrollbar-thumb: #ffffff40;

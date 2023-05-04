@@ -4,7 +4,8 @@
 :host {
   --split: 50%;
   --interactable: auto;
-  --expand: 1;
+  --grow: 1;
+  --shrink: 0;
   --divider-width: 1px;
   --divider-hit-area: 16px;
 }
@@ -12,7 +13,8 @@
 .root {
   display: flex;
   flex-direction: row;
-  flex: var(--expand);
+  flex-grow: var(--grow);
+  flex-shrink: var(--shrink);
   pointer-events: inherit;
 }
 

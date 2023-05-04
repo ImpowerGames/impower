@@ -36,12 +36,11 @@ export default class Skeleton extends SparkleElement {
     return this.getStringAttribute("sheen-color");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "sheen-color") {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }

@@ -43,12 +43,11 @@ export default class ProgressBar extends SparkleElement {
     return this.getStringAttribute("label-color");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "title") {
       this.updateRootAttribute("title", newValue);
     }

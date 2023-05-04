@@ -1,4 +1,4 @@
-import { getOffset } from "./offset";
+import { getOffset } from "./getOffset";
 
 const locks = new Set();
 

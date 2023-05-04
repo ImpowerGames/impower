@@ -1,9 +1,9 @@
 import SparkleElement from "../../core/sparkle-element";
-import { animateTo, stopAnimations } from "../../utils/animate";
 import {
   getAnimation,
   setDefaultAnimation,
-} from "../../utils/animation-registry";
+} from "../../helpers/animation-registry";
+import { animateTo, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
 import { getCssDurationMS } from "../../utils/getCssDurationMS";
 import css from "./toast.css";
@@ -14,7 +14,6 @@ styles.replaceSync(css);
 
 export const DEFAULT_TOAST_DEPENDENCIES = {
   "s-button": "s-button",
-  "s-icon": "s-icon",
 };
 
 /**
@@ -41,12 +40,11 @@ export default class Toast extends SparkleElement {
   static override get observedAttributes() {
     return [
       ...super.observedAttributes,
+      "color",
       "open",
-      "variant",
-      "closable",
-      "auto-close",
-      "icon",
       "message",
+      "action",
+      "auto-close",
     ];
   }
 
@@ -62,47 +60,6 @@ export default class Toast extends SparkleElement {
   }
 
   /**
-   * The toast's theme variant.
-   */
-  get variant():
-    | "primary"
-    | "success"
-    | "neutral"
-    | "warning"
-    | "danger"
-    | null {
-    return this.getStringAttribute("variant");
-  }
-
-  /**
-   * Enables a close button that allows the user to dismiss the toast.
-   */
-  get closable(): boolean {
-    return this.getBooleanAttribute("closable");
-  }
-
-  /**
-   * The length of time, in milliseconds, the toast will show before closing itself. If the user interacts with
-   * the toast before it closes (e.g. moves the mouse over it), the timer will restart.
-   *
-   * If not provided a value, defaults to `3000`.
-   */
-  get autoClose(): number {
-    const value = this.getStringAttribute("auto-close");
-    return getCssDurationMS(value, Infinity, 3000);
-  }
-
-  /**
-   * The icon to display next to the message.
-   */
-  get icon(): string | null {
-    return this.getStringAttribute("icon");
-  }
-  set icon(value: string | null) {
-    this.setStringAttribute("icon", value);
-  }
-
-  /**
    * The message to display inside the toast.
    */
   get message(): string | null {
@@ -112,67 +69,117 @@ export default class Toast extends SparkleElement {
     this.setStringAttribute("message", value);
   }
 
-  get iconEl(): HTMLElement | null {
-    return this.getElementByClass("icon");
+  /**
+   * The label for the action button.
+   *
+   * (Clicking this button will dismiss the toast.)
+   */
+  get action(): string | null {
+    return this.getStringAttribute("action");
+  }
+  set action(value: string | null) {
+    this.setStringAttribute("action", value);
   }
 
-  get messageEl(): HTMLElement | null {
+  /**
+   * The length of time, in milliseconds, the toast will show before closing itself.
+   * If the user interacts with the toast before it closes (e.g. moves the mouse over it),
+   * the timer will restart.
+   *
+   * Set to `none`, to make it so toast will remain indefinitely (or until the user dismisses it).
+   *
+   * Defaults to `4000`.
+   */
+  get timeout(): string | null {
+    return this.getStringAttribute("timeout");
+  }
+  set timeout(value: string | null) {
+    this.setStringAttribute("timeout", value);
+  }
+
+  get messageSlot(): HTMLSlotElement | null {
     return this.getElementByClass("message");
   }
 
-  get buttonEl(): HTMLElement | null {
-    return this.getElementByClass("close-button");
+  get buttonEl(): HTMLButtonElement | null {
+    return this.getElementByClass("button");
+  }
+
+  get actionSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("action");
   }
 
   private _setup = false;
 
   private _autoHideTimeout?: number;
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
-    if (name === "open") {
-      const open = newValue != null;
-      this.ariaHidden = open ? "false" : "true";
-      const durationMS = this.autoClose;
-      this.changeState(open, durationMS);
-    }
-    if (name === "auto-close") {
-      const open = this.open;
-      const durationMS = getCssDurationMS(newValue, Infinity, 3000);
-      this.restartAutoClose(open, durationMS);
-    }
-    if (name === "icon") {
-      const iconEl = this.iconEl;
-      if (iconEl) {
+    if (name === "color") {
+      const buttonEl = this.buttonEl;
+      if (buttonEl) {
         if (newValue != null) {
-          iconEl.setAttribute("icon", newValue);
+          buttonEl.setAttribute("color", newValue);
         } else {
-          iconEl.removeAttribute("icon");
+          buttonEl.removeAttribute("color");
         }
       }
     }
+    if (name === "open") {
+      const open = newValue != null;
+      this.ariaHidden = open ? "false" : "true";
+      const durationMS = getCssDurationMS(this.timeout, 4000);
+      this.changeState(open, durationMS);
+    }
+    if (name === "timeout") {
+      const open = this.open;
+      const durationMS = getCssDurationMS(newValue, 4000);
+      this.restartAutoClose(open, durationMS);
+    }
     if (name === "message") {
-      this.textContent = newValue;
+      const message = newValue;
+      if (message) {
+        this.setAssignedToSlot(message);
+      }
+    }
+    if (name === "action") {
+      const action = newValue;
+      if (action) {
+        this.setAssignedToSlot(action, "action");
+      }
     }
   }
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     const open = this.open;
-    const durationMS = this.autoClose;
+    const durationMS = getCssDurationMS(this.timeout, 4000);
     this.changeState(open, durationMS);
+    const message = this.message;
+    if (message) {
+      this.setAssignedToSlot(message);
+    }
+    const action = this.action;
+    if (action) {
+      this.setAssignedToSlot(action, "action");
+    }
     this.root.addEventListener("mousemove", this.handleHover);
-    this.buttonEl?.addEventListener("click", this.handleCloseClick);
+    this.buttonEl?.addEventListener("click", this.handleButtonClick);
+    this.actionSlot?.addEventListener(
+      "slotchange",
+      this.handleActionSlotChange
+    );
   }
 
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.root.removeEventListener("mousemove", this.handleHover);
-    this.buttonEl?.removeEventListener("click", this.handleCloseClick);
+    this.buttonEl?.removeEventListener("click", this.handleButtonClick);
+    this.actionSlot?.removeEventListener(
+      "slotchange",
+      this.handleActionSlotChange
+    );
   }
 
   private restartAutoClose(open: boolean, autoCloseDuration: number): void {
@@ -185,14 +192,24 @@ export default class Toast extends SparkleElement {
     }
   }
 
-  private handleCloseClick = (): void => {
+  private handleButtonClick = (): void => {
     this.hide();
   };
 
   private handleHover = (): void => {
     const open = this.open;
-    const durationMS = this.autoClose;
+    const durationMS = getCssDurationMS(this.timeout, 4000);
     this.restartAutoClose(open, durationMS);
+  };
+
+  protected handleActionSlotChange = (e: Event) => {
+    const slot = e.currentTarget as HTMLSlotElement;
+    const assignedElement = slot?.assignedElements?.()?.[0];
+    if (assignedElement) {
+      if (this.action == null) {
+        this.setAttribute("action", "");
+      }
+    }
   };
 
   protected async changeState(
@@ -200,13 +217,13 @@ export default class Toast extends SparkleElement {
     autoCloseDuration: number
   ): Promise<void> {
     if (!this._setup) {
+      this._setup = true;
       if (!open) {
         // Don't show close animation if starts closed.
         this.root.hidden = true;
         this.root.style.display = "none";
         return;
       }
-      this._setup = true;
     }
     if (open) {
       // Show
@@ -275,13 +292,7 @@ export default class Toast extends SparkleElement {
    */
   async alert(container: HTMLElement): Promise<void> {
     return new Promise<void>((resolve) => {
-      // Wait for the toast stack to render
-      requestAnimationFrame(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-expressions -- force a reflow for the initial transition
-        this.clientWidth;
-        this.show();
-      });
-
+      this.show();
       this.addEventListener(
         "s-after-hide",
         () => {
@@ -296,18 +307,18 @@ export default class Toast extends SparkleElement {
 
 setDefaultAnimation("toast.show", {
   keyframes: [
-    { opacity: 0, scale: 0.8 },
-    { opacity: 1, scale: 1 },
+    { opacity: 0, transform: "scale(0.98)" },
+    { opacity: 1, transform: "scale(1)" },
   ],
-  options: { duration: 250, easing: "ease" },
+  options: { duration: 100, easing: "ease" },
 });
 
 setDefaultAnimation("toast.hide", {
   keyframes: [
-    { opacity: 1, scale: 1 },
-    { opacity: 0, scale: 0.8 },
+    { opacity: 1, transform: "scale(1)" },
+    { opacity: 0, transform: "scale(0.98)" },
   ],
-  options: { duration: 250, easing: "ease" },
+  options: { duration: 100, easing: "ease" },
 });
 
 declare global {

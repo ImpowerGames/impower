@@ -78,29 +78,26 @@ export default class Tabs extends SparkleElement {
 
   protected _pointerDown?: boolean;
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "indicator" || name === "vertical") {
       this.updateTabs();
     }
   }
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this._resizeObserver = new ResizeObserver(this.handleResize);
     this.navSlot?.addEventListener("slotchange", this.handleNavSlotChange);
   }
 
-  protected override parsedCallback(): void {
-    super.parsedCallback();
+  protected override onParsed(): void {
     this._resizeObserver?.observe(this.root);
   }
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+
+  protected override onDisconnected(): void {
     this._resizeObserver?.disconnect();
     this.navSlot?.removeEventListener("slotchange", this.handleNavSlotChange);
     this.unbindTabs();
@@ -166,18 +163,18 @@ export default class Tabs extends SparkleElement {
     this.emit("onchange");
   }
 
-  onPointerDownTab = (e: MouseEvent): void => {
+  onPointerDownTab = (e: PointerEvent): void => {
     this._pointerDown = true;
   };
 
-  onPointerEnterTab = (e: MouseEvent): void => {
+  onPointerEnterTab = (e: PointerEvent): void => {
     const tab = e.currentTarget as Tab;
     if (this._pointerDown) {
       this.activateTab(tab);
     }
   };
 
-  onPointerUp = (e: MouseEvent): void => {
+  onPointerUp = (e: PointerEvent): void => {
     this._pointerDown = false;
   };
 

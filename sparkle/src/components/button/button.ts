@@ -1,4 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
@@ -51,6 +52,7 @@ export default class Button extends SparkleElement {
       "disabled",
       "variant",
       "icon",
+      "label",
     ];
   }
 
@@ -86,10 +88,17 @@ export default class Button extends SparkleElement {
   }
 
   /**
-   * The spacing between the icon and the label
+   * The spacing between the icon and the label.
    */
   get spacing(): string | null {
     return this.getStringAttribute("spacing");
+  }
+
+  /**
+   * The button label.
+   */
+  get label(): string | null {
+    return this.getStringAttribute("label");
   }
 
   /**
@@ -117,12 +126,11 @@ export default class Button extends SparkleElement {
     return this.getElementByTag<Ripple>(Button.dependencies["s-ripple"]);
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "disabled" || name === "loading") {
       if (newValue != null) {
         this.ripple?.setAttribute("disabled", "");
@@ -143,28 +151,29 @@ export default class Button extends SparkleElement {
       this.updateRootAttribute("target", newValue);
     }
     if (name === "icon") {
-      const iconEl = this.iconEl;
-      if (iconEl) {
-        if (newValue != null) {
-          iconEl.setAttribute("icon", newValue);
-        } else {
-          iconEl.removeAttribute("icon");
-        }
-      }
+      this.updateRootCssVariable(name, getCssIcon(newValue));
     }
     if (name === "spacing") {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
+    if (name === "label") {
+      const label = newValue;
+      if (label) {
+        this.setAssignedToSlot(label);
+      }
+    }
   }
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
+    const label = this.label;
+    if (label) {
+      this.setAssignedToSlot(label);
+    }
     this.ripple?.bind?.(this.root);
     this.labelSlot?.addEventListener("slotchange", this.handleLabelSlotChange);
   }
 
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.ripple?.unbind?.(this.root);
     this.labelSlot?.removeEventListener(
       "slotchange",

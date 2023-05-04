@@ -10,7 +10,7 @@ export const DEFAULT_COLLAPSIBLE_DEPENDENCIES = {
 };
 
 /**
- * Collapsibles can be used to expand or collapse child buttons.
+ * Collapsibles can be used to collapse child buttons so that only their icon is visible.
  */
 export default class Collapsible extends SparkleElement {
   static override dependencies = DEFAULT_COLLAPSIBLE_DEPENDENCIES;
@@ -43,24 +43,21 @@ export default class Collapsible extends SparkleElement {
 
   protected _buttonEl?: HTMLElement;
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "collapsed") {
       this.updateCollapsed();
     }
   }
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this.root.addEventListener("slotchange", this.handleContentSlotChange);
   }
 
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.root.removeEventListener("slotchange", this.handleContentSlotChange);
   }
 

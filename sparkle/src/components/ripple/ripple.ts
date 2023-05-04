@@ -139,12 +139,11 @@ export default class Ripple extends SparkleElement {
   private rippleStartEvent?: PointerEvent;
   private checkBoundsAfterContextMenu = false;
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "disabled") {
       if (newValue != null) {
         this.hovered = false;

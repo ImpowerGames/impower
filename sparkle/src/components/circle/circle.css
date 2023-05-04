@@ -6,6 +6,7 @@
   --child-layout: column;
   --child-justify: center;
   --child-align: center;
+  --shrink: 0;
   --size: 40px;
   --width: var(--size);
   --height: var(--size);
@@ -16,7 +17,8 @@
   flex-direction: var(--child-layout);
   justify-content: var(--child-justify);
   align-items: var(--child-align);
-  border-radius: 50%;
+  flex-shrink: var(--shrink);
   width: var(--width);
   height: var(--height);
+  border-radius: 50%;
 }

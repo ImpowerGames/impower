@@ -87,16 +87,14 @@ export default class BreakpointObserver extends SparkleElement {
 
   protected _resizeObserver?: ResizeObserver;
 
-  override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this._resizeObserver = new ResizeObserver(this.handleElementResize);
     window.addEventListener("resize", this.handleWindowResize, {
       passive: true,
     });
   }
 
-  override parsedCallback(): void {
-    super.parsedCallback();
+  protected override onParsed(): void {
     const observedEl = this.root;
     if (observedEl) {
       this._resizeObserver?.observe(observedEl);
@@ -112,8 +110,7 @@ export default class BreakpointObserver extends SparkleElement {
     }
   }
 
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this._resizeObserver?.disconnect();
     window.removeEventListener("resize", this.handleWindowResize);
   }

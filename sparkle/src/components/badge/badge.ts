@@ -35,12 +35,11 @@ export default class Badge extends SparkleElement {
     return this.getStringAttribute("float");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "float") {
       this.updateRootCssVariable(name, newValue);
     }

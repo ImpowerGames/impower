@@ -1,9 +1,9 @@
 import SparkleElement from "../../core/sparkle-element";
-import { animateTo, parseDuration, stopAnimations } from "../../utils/animate";
 import {
   getAnimation,
   setDefaultAnimation,
-} from "../../utils/animation-registry";
+} from "../../helpers/animation-registry";
+import { animateTo, parseDuration, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
 import type Popup from "../popup/popup";
 import css from "./tooltip.css";
@@ -138,12 +138,11 @@ export default class Tooltip extends SparkleElement {
     return this.getBooleanAttribute("hoist");
   }
 
-  protected override attributeChangedCallback(
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     const bodyEl = this.bodyEl;
     if (name === "content") {
       if (bodyEl) {
@@ -188,8 +187,7 @@ export default class Tooltip extends SparkleElement {
     }
   }
 
-  override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this.addEventListener("blur", this.handleBlur, true);
     this.addEventListener("focus", this.handleFocus, true);
     this.addEventListener("click", this.handleClick);
@@ -198,8 +196,7 @@ export default class Tooltip extends SparkleElement {
     this.addEventListener("mouseout", this.handleMouseOut);
   }
 
-  override parsedCallback(): void {
-    super.parsedCallback();
+  protected override onParsed(): void {
     const bodyEl = this.bodyEl;
     if (bodyEl) {
       bodyEl.hidden = !this.open;
@@ -214,8 +211,7 @@ export default class Tooltip extends SparkleElement {
     }
   }
 
-  override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.removeEventListener("blur", this.handleBlur, true);
     this.removeEventListener("focus", this.handleFocus, true);
     this.removeEventListener("click", this.handleClick);

@@ -1,4 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
+import Queue from "../../helpers/queue";
 import Toast from "../toast/toast";
 import css from "./toast-stack.css";
 import html from "./toast-stack.html";
@@ -38,8 +39,8 @@ export default class ToastStack extends SparkleElement {
   /**
    * The alert to display inside the toast stack.
    *
-   * To specify an icon, follow the message with a semi-colon and the icon name.
-   * e.g. `Someone liked this!;heart`
+   * Alerts are of the format `<label>;<action>;<timeout>`
+   * (e.g. `Photo deleted.;Undo;5000`)
    *
    */
   get alert(): string | null {
@@ -59,29 +60,28 @@ export default class ToastStack extends SparkleElement {
 
   protected _templates: HTMLTemplateElement[] = [];
 
-  protected override attributeChangedCallback(
+  protected _queue = new Queue();
+
+  protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    super.attributeChangedCallback(name, oldValue, newValue);
     if (name === "alert") {
       if (newValue != null) {
-        const [message, icon, type] = newValue.split(";");
+        const [message, action, timeout, type] = newValue.split(";");
         if (message) {
-          this.createAlert(message, icon, type);
+          this.queueAlert(message, action, timeout, type);
         }
       }
     }
   }
 
-  protected override connectedCallback(): void {
-    super.connectedCallback();
+  protected override onConnected(): void {
     this.templatesSlot?.addEventListener("slotchange", this.handleSlotChange);
   }
 
-  protected override disconnectedCallback(): void {
-    super.disconnectedCallback();
+  protected override onDisconnected(): void {
     this.templatesSlot?.removeEventListener(
       "slotchange",
       this.handleSlotChange
@@ -108,9 +108,10 @@ export default class ToastStack extends SparkleElement {
     );
   }
 
-  async createAlert(
+  async showAlert(
     message: string,
-    icon?: string,
+    action?: string,
+    timeout?: string,
     type?: string
   ): Promise<void> {
     const contentEl = this.contentEl;
@@ -120,28 +121,39 @@ export default class ToastStack extends SparkleElement {
     const template = this.getTemplate(type);
     const templateContent =
       template?.content?.cloneNode?.(true) ||
-      this.getElementByTag<Toast>(ToastStack.dependencies["s-toast"]);
-    if (templateContent) {
-      contentEl.appendChild(templateContent);
-    }
-    const toastList = contentEl.querySelectorAll<Toast>(
-      ToastStack.dependencies["s-toast"]
-    );
-    const toast = toastList?.item(toastList.length - 1);
+      this.getElementByTag<Toast>(ToastStack.dependencies["s-toast"]) ||
+      new Toast();
+    const toast = contentEl.appendChild(templateContent) as Toast;
     if (!toast) {
       return;
-    }
-    if (icon != null) {
-      toast.setAttribute("icon", icon);
-    } else {
-      toast.removeAttribute("icon");
     }
     if (message != null) {
       toast.setAttribute("message", message);
     } else {
       toast.removeAttribute("message");
     }
-    return toast.alert?.(contentEl);
+    if (action != null) {
+      toast.setAttribute("action", action);
+    } else {
+      toast.removeAttribute("action");
+    }
+    if (timeout != null) {
+      toast.setAttribute("timeout", timeout);
+    } else {
+      toast.removeAttribute("timeout");
+    }
+    await toast.alert?.(contentEl);
+  }
+
+  async queueAlert(
+    message: string,
+    action?: string,
+    timeout?: string,
+    type?: string
+  ): Promise<void> {
+    return this._queue.enqueue(() =>
+      this.showAlert(message, action, timeout, type)
+    );
   }
 }
 

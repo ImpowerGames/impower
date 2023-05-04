@@ -17,15 +17,15 @@
   --text-size: var(--s-text-sm-font-size);
   --text-leading: 1.6;
   --text-weight: 400;
-  --spacing: 20px;
+  --spacing: 16px;
   --margin: 4px;
-  --padding: 16px;
-  --padding-tb: var(--padding);
-  --padding-lr: var(--padding);
-  --padding-t: var(--padding);
-  --padding-b: var(--padding);
-  --padding-l: var(--padding);
-  --padding-r: var(--padding);
+  --padding: 0;
+  --padding-tb: 12px;
+  --padding-lr: 16px;
+  --padding-t: var(--padding-tb);
+  --padding-b: var(--padding-tb);
+  --padding-l: var(--padding-lr);
+  --padding-r: var(--padding-lr);
   --margin-tb: var(--margin);
   --margin-lr: var(--margin);
   --margin-t: var(--margin);
@@ -53,7 +53,6 @@
   border-style: solid;
   border-color: var(--border-color);
   border-width: var(--border-width);
-  border-top-width: calc(var(--border-width) * 3);
   background-color: var(--bg-color);
   color: var(--text-color);
   font-family: var(--text-font);
@@ -85,33 +84,10 @@
     var(--corner-b, var(--corner-l, var(--corner)))
   );
 }
-
-:host(:not([closable])) .close-button {
-  display: none;
-}
-
-:host([variant="primary"]) {
-  --color: var(--s-color-primary-70);
-}
-
-:host([variant="success"]) {
-  --color: var(--s-color-success-70);
-}
-
-:host([variant="neutral"]) {
-  --color: var(--s-color-neutral-70);
-}
-
-:host([variant="warning"]) {
-  --color: var(--s-color-warning-70);
-}
-
-:host([variant="danger"]) {
-  --color: var(--s-color-danger-70);
-}
-
-.root {
-  border-top-color: var(--color);
+:host([action]) .root {
+  padding-right: calc(
+    var(--padding-r, var(--padding-lr, var(--padding))) - 8px
+  );
 }
 
 .message {
@@ -121,24 +97,20 @@
   overflow: hidden;
 }
 
-.close-button {
+:host([action]) .message {
+  padding-right: var(--spacing);
+}
+
+.close {
+  pointer-events: auto;
   display: flex;
   flex-direction: row;
   flex: 0 0 auto;
   align-items: center;
-  font-size: var(--s-text-md-font-size);
-  line-height: var(--s-text-md-line-height);
-}
-
-:host([icon]) .icon {
+  justify-content: flex-end;
   color: var(--color);
   font-size: var(--icon-size);
 }
-
-:host([icon]) .message {
-  padding-left: var(--spacing);
-}
-
-:host(:not([closable])) .close-button {
+:host(:not([action])) .close {
   display: none;
 }

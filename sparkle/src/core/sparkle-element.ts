@@ -15,8 +15,9 @@ import { getCssTextSizeHeight } from "../utils/getCssTextSizeHeight";
 import { getCssTextStroke } from "../utils/getCssTextStroke";
 import { getCssTextWhiteSpace } from "../utils/getCssTextWhiteSpace";
 import { getUnitlessValue } from "../utils/getUnitlessValue";
+import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isServer } from "../utils/isServer";
-import { updateAttribute } from "../utils/updates";
+import { updateAttribute } from "../utils/updateAttribute";
 import { RESET_STYLES } from "./reset";
 import css from "./sparkle-element.css";
 import html from "./sparkle-element.html";
@@ -545,16 +546,28 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
-   * Sets how much `flex` this element has. This controls how much the element will expand to fill the space available in its parent container.
+   * Uses `flex-grow` to control how much the element will grow to fill the space available in its parent container.
    *
-   * If 0, the element will not expand.
-   * If 1, the element will expand to fill all available space.
-   * If 2, the element will expand twice as much as all elements with 1 flex.
+   * If 0, the element will not grow.
+   * If 1, the element will grow to fill all available space.
+   * If 2, the element will grow twice as much as all elements with 1 flex.
    *
    * If not provided a value, defaults to `1`.
    */
-  get _expand(): "" | "0" | "1" | "2" | null {
-    return this.getStringAttribute("expand");
+  get _grow(): "" | "0" | "1" | "2" | null {
+    return this.getStringAttribute("grow");
+  }
+
+  /**
+   * Uses `flex-shrink` to control how much the element will shrink when there is not enough space available in its parent container.
+   *
+   * If 0, the element will not shrink.
+   * If 1, the element will shrink as much as possible.
+   *
+   * If not provided a value, defaults to `0`.
+   */
+  get _shrink(): "" | "0" | "1" | null {
+    return this.getStringAttribute("shrink");
   }
 
   /**
@@ -1380,11 +1393,27 @@ export default class SparkleElement extends HTMLElement {
     return this.shadowRoot?.querySelector<T>(`.${name}`) || null;
   }
 
-  getSlotByName(name: string): HTMLSlotElement | null {
-    return (
-      this.shadowRoot?.querySelector<HTMLSlotElement>(`slot[name=${name}]`) ??
-      null
-    );
+  getAssignedToSlot<T extends ChildNode>(name?: string): T[] {
+    return Array.from(this.childNodes).filter((n) =>
+      isAssignedToSlot(n, name)
+    ) as T[];
+  }
+
+  setAssignedToSlot(textContent: string, name?: string): void {
+    const assigned = this.getAssignedToSlot(name);
+    assigned.forEach((n) => {
+      this.removeChild(n);
+    });
+    if (name) {
+      const newNode = document.createElement("div");
+      newNode.setAttribute("slot", name);
+      newNode.textContent = textContent;
+      newNode.style.display = "contents";
+      this.appendChild(newNode);
+    } else {
+      const newNode = document.createTextNode(textContent);
+      this.appendChild(newNode);
+    }
   }
 
   updateRootClass(name: string, active: boolean | string | null): boolean {
