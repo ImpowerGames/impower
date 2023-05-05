@@ -1195,7 +1195,16 @@ export default class SparkleElement extends HTMLElement {
   /**
    * Applies an `animation` to this element.
    */
-  get _animate(): "spin" | "ping" | "bounce" | "pulse" | "sheen" | null {
+  get _animate():
+    | "spin"
+    | "ping"
+    | "bounce"
+    | "fade"
+    | "pulse"
+    | "sheen"
+    | "enter"
+    | "exit"
+    | null {
     return this.getStringAttribute("animate");
   }
 
@@ -1361,10 +1370,10 @@ export default class SparkleElement extends HTMLElement {
    */
   protected connectedCallback(): void {
     this.bindFocus(this.root);
+    this.onConnected();
     window.setTimeout(() => {
       this.parsedCallback();
     });
-    this.onConnected();
   }
 
   protected onConnected(): void {}

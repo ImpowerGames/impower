@@ -3,21 +3,31 @@
  */
 export const animateTo = (
   el: HTMLElement,
-  keyframes: Keyframe[],
-  options?: KeyframeAnimationOptions
+  animation:
+    | {
+        keyframes: Keyframe[];
+        options?: KeyframeAnimationOptions;
+      }
+    | undefined
 ) => {
   return new Promise((resolve) => {
+    const keyframes = animation?.keyframes;
+    const options = animation?.options;
+    if (!keyframes) {
+      resolve(undefined);
+      return;
+    }
     if (options?.duration === Infinity) {
       throw new Error("Promise-based animations must be finite.");
     }
 
-    const animation = el.animate(keyframes, {
+    const anim = el.animate(keyframes, {
       ...options,
-      duration: prefersReducedMotion() ? 0 : options!.duration,
+      duration: prefersReducedMotion() ? 0 : options?.duration,
     });
 
-    animation.addEventListener("cancel", resolve, { once: true });
-    animation.addEventListener("finish", resolve, { once: true });
+    anim.addEventListener("cancel", resolve, { once: true });
+    anim.addEventListener("finish", resolve, { once: true });
   });
 };
 

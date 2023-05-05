@@ -10,7 +10,7 @@ interface ScrollHost extends HTMLElement {
 /**
  * A controller for handling scrolling and mouse dragging.
  */
-export class ScrollController<T extends ScrollHost> {
+export default class ScrollController<T extends ScrollHost> {
   private host: T;
   private pointers = new Set();
 

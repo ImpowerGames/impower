@@ -8,7 +8,7 @@
  * Global Tokens
  */
 
-:host,
+:root,
 .s-theme-dark,
 .s-theme-light {
   /* Primary */
@@ -293,16 +293,6 @@
   --s-press-state-layer-opacity: 0.12;
   --s-focus-state-layer-opacity: 0.12;
   --s-hover-state-layer-opacity: 0.08;
-
-  /*
-   * Animations
-   */
-
-  --s-animation-spin: spin 1s linear infinite;
-  --s-animation-ping: ping 1.5s infinite;
-  --s-animation-bounce: bounce 1s infinite;
-  --s-animation-pulse: pulse 2s ease-in-out 0.5s infinite;
-  --s-animation-sheen: sheen 8s ease-in-out infinite;
 
   /*
    * Scrollbars

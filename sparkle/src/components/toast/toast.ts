@@ -1,8 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
-import {
-  getAnimation,
-  setDefaultAnimation,
-} from "../../helpers/animation-registry";
+import Animations from "../../helpers/animations";
 import { animateTo, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
 import { getCssDurationMS } from "../../utils/getCssDurationMS";
@@ -236,10 +233,7 @@ export default class Toast extends SparkleElement {
       await stopAnimations(this.root);
       this.root.hidden = false;
       this.root.style.display = "flex";
-      const { keyframes, options } = getAnimation(this, "toast.show", {
-        rtl: this.rtl,
-      });
-      await animateTo(this.root, keyframes, options);
+      await animateTo(this.root, Animations.get("enter"));
 
       this.emit("s-after-show");
     } else {
@@ -249,10 +243,7 @@ export default class Toast extends SparkleElement {
       clearTimeout(this._autoHideTimeout);
 
       await stopAnimations(this.root);
-      const { keyframes, options } = getAnimation(this, "toast.hide", {
-        rtl: this.rtl,
-      });
-      await animateTo(this.root, keyframes, options);
+      await animateTo(this.root, Animations.get("exit"));
       this.root.hidden = true;
       this.root.style.display = "none";
 
@@ -304,22 +295,6 @@ export default class Toast extends SparkleElement {
     });
   }
 }
-
-setDefaultAnimation("toast.show", {
-  keyframes: [
-    { opacity: 0, transform: "scale(0.98)" },
-    { opacity: 1, transform: "scale(1)" },
-  ],
-  options: { duration: 100, easing: "ease" },
-});
-
-setDefaultAnimation("toast.hide", {
-  keyframes: [
-    { opacity: 1, transform: "scale(1)" },
-    { opacity: 0, transform: "scale(0.98)" },
-  ],
-  options: { duration: 100, easing: "ease" },
-});
 
 declare global {
   interface HTMLElementTagNameMap {

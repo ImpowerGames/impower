@@ -19,13 +19,14 @@ import Tabs from "./src/components/tabs/tabs";
 import ToastStack from "./src/components/toast-stack/toast-stack";
 import Toast from "./src/components/toast/toast";
 import Tooltip from "./src/components/tooltip/tooltip";
+import Animations from "./src/helpers/animations";
+import animationsCSS from "./src/themes/animations.css";
 import darkCSS from "./src/themes/dark.css";
 import fontsCSS from "./src/themes/fonts.css";
 import globalCSS from "./src/themes/global.css";
 import lightCSS from "./src/themes/light.css";
+import { getAllAnimations } from "./src/utils/getAllAnimations";
 
-export { getAnimationNames } from "./src/animations/getAnimationNames";
-export { getEasingNames } from "./src/animations/getEasingNames";
 /* Events */
 export { default as SpAfterCollapseEvent } from "./src/events/after-collapse";
 export { default as SpAfterExpandEvent } from "./src/events/after-expand";
@@ -86,7 +87,26 @@ export const DEFAULT_SPARKLE_TAGS = {
   "s-breakpoint-observer": "s-breakpoint-observer",
 };
 
-export default class Sparkle {
+const animateSheet = new CSSStyleSheet();
+animateSheet.replaceSync(animationsCSS);
+const fontsSheet = new CSSStyleSheet();
+fontsSheet.replaceSync(fontsCSS);
+const globalSheet = new CSSStyleSheet();
+globalSheet.replaceSync(globalCSS);
+const lightSheet = new CSSStyleSheet();
+lightSheet.replaceSync(lightCSS);
+const darkSheet = new CSSStyleSheet();
+darkSheet.replaceSync(darkCSS);
+
+export const DEFAULT_SPARKLE_STYLESHEETS = {
+  fonts: fontsSheet,
+  animations: animateSheet,
+  global: globalSheet,
+  light: lightSheet,
+  dark: darkSheet,
+};
+
+export default abstract class Sparkle {
   static async define(
     tags = DEFAULT_SPARKLE_TAGS
   ): Promise<CustomElementConstructor[]> {
@@ -115,23 +135,11 @@ export default class Sparkle {
     ]);
   }
 
-  static adopt(): void {
-    const fontsTheme = new CSSStyleSheet();
-    fontsTheme.replaceSync(fontsCSS);
-    const globalTheme = new CSSStyleSheet();
-    globalTheme.replaceSync(globalCSS);
-    const lightTheme = new CSSStyleSheet();
-    lightTheme.replaceSync(lightCSS);
-    const darkTheme = new CSSStyleSheet();
-    darkTheme.replaceSync(darkCSS);
+  static adopt(styleSheets = DEFAULT_SPARKLE_STYLESHEETS): void {
     if (!document.adoptedStyleSheets) {
       document.adoptedStyleSheets = [];
     }
-    document.adoptedStyleSheets.push(
-      fontsTheme,
-      globalTheme,
-      lightTheme,
-      darkTheme
-    );
+    document.adoptedStyleSheets.push(...Object.values(styleSheets));
+    Animations.init(getAllAnimations(styleSheets.animations));
   }
 }

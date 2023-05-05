@@ -1,8 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
-import {
-  getAnimation,
-  setDefaultAnimation,
-} from "../../helpers/animation-registry";
+import Animations from "../../helpers/animations";
 import { animateTo, parseDuration, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
 import type Popup from "../popup/popup";
@@ -298,11 +295,8 @@ export default class Tooltip extends SparkleElement {
       if (popup) {
         popup.active = true;
       }
-      const { keyframes, options } = getAnimation(this, "tooltip.show", {
-        rtl: this.rtl,
-      });
       if (popupEl) {
-        await animateTo(popupEl, keyframes, options);
+        await animateTo(popupEl, Animations.get("enter"));
       }
 
       this.emit("s-after-show");
@@ -313,11 +307,8 @@ export default class Tooltip extends SparkleElement {
       if (bodyEl) {
         await stopAnimations(bodyEl);
       }
-      const { keyframes, options } = getAnimation(this, "tooltip.hide", {
-        rtl: this.rtl,
-      });
       if (popupEl) {
-        await animateTo(popupEl, keyframes, options);
+        await animateTo(popupEl, Animations.get("exit"));
       }
       if (popup) {
         popup.active = false;
@@ -350,22 +341,6 @@ export default class Tooltip extends SparkleElement {
     return waitForEvent(this, "s-after-hide");
   }
 }
-
-setDefaultAnimation("tooltip.show", {
-  keyframes: [
-    { opacity: 0, transform: "scale(0.8)" },
-    { opacity: 1, transform: "scale(1)" },
-  ],
-  options: { duration: 100, easing: "ease" },
-});
-
-setDefaultAnimation("tooltip.hide", {
-  keyframes: [
-    { opacity: 1, transform: "scale(1)" },
-    { opacity: 0, transform: "scale(0.8)" },
-  ],
-  options: { duration: 100, easing: "ease" },
-});
 
 declare global {
   interface HTMLElementTagNameMap {
