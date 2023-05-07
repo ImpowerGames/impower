@@ -1,5 +1,11 @@
 <button class="root" part="root" role="tab">
   <s-ripple hover-color="transparent"></s-ripple>
-  <slot class="icon" part="icon" name="icon"></slot>
-  <slot class="label" part="label"></slot>
+  <div class="icon" part="icon">
+    <slot name="icon">
+      <s-icon></s-icon>
+    </slot>
+  </div>
+  <div class="label" part="label">
+    <slot class="content"></slot>
+  </div>
 </button>

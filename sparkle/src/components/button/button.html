@@ -1,8 +1,22 @@
 <button class="root" part="root">
   <s-ripple></s-ripple>
-  <s-icon class="icon" part="icon"></s-icon>
-  <slot class="label" part="label"></slot>
-  <slot class="spinner" part="spinner" name="spinner">
-    <s-progress-circle position="absolute"></s-progress-circle>
-  </slot>
+  <div class="icon" part="icon" hidden>
+    <slot name="icon">
+      <s-icon></s-icon>
+    </slot>
+  </div>
+  <div class="label" part="label">
+    <slot class="content"></slot>
+  </div>
+  <div
+    class="spinner"
+    part="spinner"
+    aria-busy="true"
+    aria-live="polite"
+    hidden
+  >
+    <slot name="spinner">
+      <s-progress-circle position="absolute"></s-progress-circle>
+    </slot>
+  </div>
 </button>

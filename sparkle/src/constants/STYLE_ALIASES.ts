@@ -8,6 +8,23 @@ export const STYLE_ALIASES: Record<string, string> = {
   "c-tr": "corner-tr",
   "c-br": "corner-br",
   "c-bl": "corner-bl",
+
+  "b-width": "border-width",
+  "b-width-t": "border-width-t",
+  "b-width-r": "border-width-r",
+  "b-width-b": "border-width-b",
+  "b-width-l": "border-width-l",
+  "b-width-lr": "border-width-lr",
+  "b-width-tb": "border-width-tb",
+
+  "b-color": "border-color",
+  "b-color-t": "border-color-t",
+  "b-color-r": "border-color-r",
+  "b-color-b": "border-color-b",
+  "b-color-l": "border-color-l",
+  "b-color-lr": "border-color-lr",
+  "b-color-tb": "border-color-tb",
+
   i: "inset",
   "i-t": "inset-t",
   "i-r": "inset-r",
@@ -15,6 +32,7 @@ export const STYLE_ALIASES: Record<string, string> = {
   "i-l": "inset-l",
   "i-lr": "inset-lr",
   "i-tb": "inset-tb",
+
   m: "margin",
   "m-t": "margin-t",
   "m-r": "margin-r",
@@ -22,6 +40,7 @@ export const STYLE_ALIASES: Record<string, string> = {
   "m-l": "margin-l",
   "m-lr": "margin-lr",
   "m-tb": "margin-tb",
+
   p: "padding",
   "p-t": "padding-t",
   "p-r": "padding-r",
@@ -29,4 +48,12 @@ export const STYLE_ALIASES: Record<string, string> = {
   "p-l": "padding-l",
   "p-lr": "padding-lr",
   "p-tb": "padding-tb",
+
+  "bg-color": "background-color",
+  "bg-gradient": "background-gradient",
+  "bg-pattern": "background-pattern",
+  "bg-image": "background-image",
+  "bg-repeat": "background-repeat",
+  "bg-align": "background-align",
+  "bg-fit": "background-fit",
 };

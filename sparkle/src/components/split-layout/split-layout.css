@@ -7,45 +7,71 @@
   --grow: 1;
   --shrink: 0;
   --divider-width: 1px;
+  --divider-color: var(--s-color-fg);
+  --divider-text-color: var(--s-color-neutral-95);
+  --divider-opacity: 0.13;
+  --focus-color: var(--s-color-primary-70);
+  --focus-text-color: var(--s-color-neutral-0);
   --divider-hit-area: 16px;
+}
+/* Make hit area smaller for pointers that can be more precise */
+@media (hover: hover) and (pointer: fine) {
+  :host {
+    --divider-hit-area: 4px;
+  }
 }
 
 .root {
+  pointer-events: inherit;
   display: flex;
   flex-direction: row;
   flex-grow: var(--grow);
   flex-shrink: var(--shrink);
-  pointer-events: inherit;
+}
+:host(:not(vertical)[flipped="flip"]) .root {
+  flex-direction: column;
+}
+:host(:not(vertical)[flipped="flip-reverse"]) .root {
+  flex-direction: column-reverse;
+}
+:host(:is([vertical])[flipped="flip-reverse"]) .root {
+  flex-direction: row-reverse;
 }
 
 .divider {
   pointer-events: var(--interactable);
   flex: 0 0 var(--divider-width);
+  background-color: var(--divider-color);
+  color: var(--divider-text-color);
+  opacity: var(--divider-opacity);
   display: flex;
   position: relative;
   align-items: center;
   justify-content: center;
-  background-color: var(--s-color-neutral-30);
-  color: var(--s-color-neutral-95);
   z-index: 1;
+  border-radius: 9999px;
+  transition-property: box-shadow;
+  transition-duration: 150ms;
+  box-shadow: 0 0 0 1px transparent;
 }
-
+:host(:not([disabled])) .divider {
+  cursor: col-resize;
+}
+:host(:not([disabled]):is([vertical], [flipped])) .divider {
+  cursor: row-resize;
+}
 .divider:focus {
   outline: none;
 }
-
 :host(:not([disabled])) .divider:focus-visible {
-  background-color: var(--s-color-primary-70);
-  color: var(--s-color-neutral-0);
+  background-color: var(--focus-color);
+  color: var(--focus-text-color);
 }
-
-:host([disabled]) .divider {
-  cursor: not-allowed;
-}
-
-/* Horizontal */
-:host(:not([disabled])) .divider {
-  cursor: col-resize;
+@media (hover: hover) and (pointer: fine) {
+  :host(:not([disabled])) .divider:hover,
+  :host(:not([disabled])) .divider:active {
+    box-shadow: 0 0 0 1px var(--divider-color);
+  }
 }
 
 .divider::after {
@@ -58,28 +84,7 @@
   top: auto;
   left: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
 }
-
-/* Vertical */
-:host([vertical]) .root,
-:host([flipped="flip"]:not([vertical])) .root {
-  flex-direction: column;
-}
-:host([flipped="flip-reverse"]:not([vertical])) .root {
-  flex-direction: column-reverse;
-}
-
-:host([vertical]:not([disabled])) .divider,
-:host([flipped="flip"]:not([vertical], [disabled])) .divider,
-:host([flipped="flip-reverse"]:not([vertical], [disabled])) .divider {
-  cursor: row-resize;
-}
-:host([solo]) .divider {
-  display: none;
-}
-
-:host([vertical]) .divider::after,
-:host([flipped="flip"]:not([vertical])) .divider::after,
-:host([flipped="flip-reverse"]:not([vertical])) .divider::after {
+:host(:is([vertical], [flipped])) .divider::after {
   content: "";
   position: absolute;
   display: block;
@@ -95,43 +100,25 @@
   display: block;
   overflow: hidden;
 }
-:host(:not([vertical], [flipped="flip"], [flipped="flip-reverse"])) .start {
+:host(:not([vertical], [flipped])) .start {
   min-width: var(--min-panel-width);
   max-width: calc(100% - var(--min-panel-width));
   width: var(--split);
   height: 100%;
 }
-:host(
-    [collapsed="end"]:not(
-        [vertical],
-        [flipped="flip"],
-        [flipped="flip-reverse"]
-      )
-  )
-  .start,
-:host(
-    [solo="start"]:not([vertical], [flipped="flip"], [flipped="flip-reverse"])
-  )
+:host(:not([vertical], [flipped]):is([collapsed="end"], [solo="start"]))
   .start {
   width: 100%;
   max-width: none;
 }
-:host([vertical]) .start,
-:host([flipped="flip"]:not([vertical])) .start,
-:host([flipped="flip-reverse"]:not([vertical])) .start {
+:host(:is([vertical], [flipped])) .start {
   min-height: var(--min-panel-height);
   max-height: calc(100% - var(--min-panel-height));
   width: 100%;
   height: var(--split);
 }
-:host([collapsed="end"][vertical]) .start,
-:host([collapsed="end"][flipped="flip"]:not([vertical])) .start,
-:host([collapsed="end"][flipped="flip-reverse"]:not([vertical])) .start {
+:host(:is([vertical], [flipped]):is([collapsed="end"], [solo="start"])) .start {
   max-height: none;
-}
-:host([collapsed="start"]) .start,
-:host([solo="end"]) .start {
-  display: none;
 }
 
 .end {
@@ -140,15 +127,9 @@
   overflow: hidden;
   flex: 1;
 }
-:host(:not([vertical], [flipped="flip"], [flipped="flip-reverse"])) .end {
+:host(:not([vertical], [flipped])) .end {
   min-width: 0;
 }
-:host([vertical]) .end,
-:host([flipped="flip"]:not([vertical])) .end,
-:host([flipped="flip-reverse"]:not([vertical])) .end {
+:host(:is([vertical], [flipped])) .end {
   min-height: 0;
-}
-:host([collapsed="end"]) .end,
-:host([solo="start"]) .end {
-  display: none;
 }

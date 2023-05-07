@@ -8,6 +8,7 @@ import {
   shift,
   size,
 } from "@floating-ui/dom";
+import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { getCssColor } from "../../utils/getCssColor";
 import { getCssSize } from "../../utils/getCssSize";
@@ -17,6 +18,8 @@ import html from "./popup.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
+
+const repositionEvent = new SparkleEvent("reposition");
 
 /**
  * Popup is a utility that lets you declaratively anchor "popup" containers to another element.
@@ -272,12 +275,13 @@ export default class Popup extends SparkleElement {
   ): void {
     // Start or stop the positioner when active changes
     if (name === "active") {
-      if (this.active) {
+      const active = newValue != null;
+      if (active) {
         this.start();
       } else {
         this.stop();
       }
-      this.updateRootClass("active", newValue);
+      this.root.hidden = !active;
     }
 
     if (name === "strategy") {
@@ -285,7 +289,11 @@ export default class Popup extends SparkleElement {
     }
 
     if (name === "arrow") {
-      this.updateRootClass("has-arrow", newValue);
+      const arrow = newValue != null;
+      const arrowEl = this.arrowEl;
+      if (arrowEl) {
+        arrowEl.hidden = !arrow;
+      }
     }
 
     if (name === "arrow-color") {
@@ -310,6 +318,11 @@ export default class Popup extends SparkleElement {
   }
 
   protected override onConnected(): void {
+    const arrow = this.arrow;
+    const arrowEl = this.arrowEl;
+    if (arrowEl) {
+      arrowEl.hidden = !arrow;
+    }
     this.anchorSlot?.addEventListener(
       "slotchange",
       this.handleAnchorSlotChange
@@ -613,12 +626,15 @@ export default class Popup extends SparkleElement {
       }
     });
 
-    this.emit("s-reposition");
+    this.dispatchEvent(repositionEvent);
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
     "s-popup": Popup;
+  }
+  interface HTMLElementEventMap {
+    reposition: SparkleEvent;
   }
 }

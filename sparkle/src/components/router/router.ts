@@ -90,17 +90,11 @@ export default class Router extends SparkleElement {
     return found;
   }
 
-  get contentEl(): HTMLElement | null {
-    return this.getElementByClass("content");
-  }
-
-  get templatesSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("templates");
-  }
-
   protected _templates: HTMLTemplateElement[] = [];
 
   protected _valueObserver?: MutationObserver;
+
+  protected _loadedValue: string | null = null;
 
   protected override onAttributeChanged(
     name: string,
@@ -113,41 +107,42 @@ export default class Router extends SparkleElement {
   }
 
   protected override onConnected(): void {
-    this.templatesSlot?.addEventListener("slotchange", this.handleSlotChange);
     this._valueObserver = new MutationObserver(this.handleValueMutation);
   }
 
   protected override onParsed(): void {
     this.observeValue();
-    this.loadTemplates();
+    this.loadTemplates(this.observedEl?.getAttribute("value") ?? null);
   }
 
   protected override onDisconnected(): void {
-    this.templatesSlot?.removeEventListener(
-      "slotchange",
-      this.handleSlotChange
-    );
     this._valueObserver?.disconnect();
   }
 
-  loadTemplates() {
-    const observedEl = this.observedEl;
-    const contentEl = this.contentEl;
-    // Unload all existing content
-    contentEl?.replaceChildren();
-    this._templates.forEach((el) => {
-      if (observedEl && contentEl) {
-        const observedValue = observedEl.getAttribute("value");
-        const value = el.getAttribute("value");
-        if (observedValue === value) {
-          // Load template content
-          contentEl.appendChild(el.content.cloneNode(true));
-        }
-      }
-    });
+  protected override onContentAssigned(slot: HTMLSlotElement): void {
+    this._templates = slot
+      ?.assignedElements?.()
+      .filter(
+        (el) => el.tagName.toLowerCase() === "template"
+      ) as HTMLTemplateElement[];
   }
 
-  observeValue() {
+  loadTemplates(newValue: string | null): void {
+    if (newValue !== this._loadedValue) {
+      this._loadedValue = newValue;
+      // Unload all existing content
+      this.root?.replaceChildren();
+      this._templates.forEach((el) => {
+        const value = el.getAttribute("value");
+        if (newValue === value) {
+          // Load template content
+          this.root.appendChild(el.content.cloneNode(true));
+        }
+      });
+    }
+  }
+
+  observeValue(): void {
     if (this._valueObserver) {
       this._valueObserver.disconnect();
     }
@@ -162,17 +157,14 @@ export default class Router extends SparkleElement {
     }
   }
 
-  protected handleSlotChange = (e: Event) => {
-    const slot = e.currentTarget as HTMLSlotElement;
-    this._templates = slot
-      ?.assignedElements?.()
-      .filter(
-        (el) => el.tagName.toLowerCase() === "template"
-      ) as HTMLTemplateElement[];
-  };
-
-  protected handleValueMutation = (mutations: MutationRecord[]) => {
-    this.loadTemplates();
+  protected handleValueMutation = (mutations: MutationRecord[]): void => {
+    const mutation = mutations?.[0];
+    const observedEl = mutation?.target as HTMLElement;
+    const attributeName = mutation?.attributeName;
+    if (attributeName) {
+      const newValue = observedEl.getAttribute(attributeName);
+      this.loadTemplates(newValue);
+    }
   };
 }
 

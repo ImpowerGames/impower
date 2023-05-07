@@ -4,7 +4,7 @@
 :host {
   --value: 0;
   --size: 1em;
-  --bg-color: var(--s-color-neutral-30);
+  --background-color: var(--s-color-neutral-30);
   --color: var(--s-color-primary-70);
   --position: relative;
   --child-justify: center;
@@ -68,7 +68,7 @@
 }
 
 .track {
-  stroke: var(--bg-color);
+  stroke: var(--background-color);
   transform-origin: 0% 0%;
 }
 

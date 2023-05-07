@@ -7,7 +7,7 @@
     "compile": "node ./esbuild.js && npm run extract",
     "package": "NODE_ENV=production node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
-    "extract": "ts-node scripts/extract.ts"
+    "extract": "ts-node scripts/extract.ts --Color fg bg neutral primary success warning danger gray red orange amber yellow lime green emerald teal cyan sky blue indigo violet purple fuchsia pink rose"
   },
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "^0.8.0",
@@ -17,6 +17,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.2.6"
+    "@floating-ui/dom": "^1.2.6",
+    "colord": "^2.9.3"
   }
 }

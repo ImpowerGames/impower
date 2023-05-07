@@ -1,4 +1,5 @@
 import { getCssAnimation } from "../utils/getCssAnimation";
+import { getCssAspectRatio } from "../utils/getCssAspectRatio";
 import { getCssBgAlign } from "../utils/getCssBgAlign";
 import { getCssBgFit } from "../utils/getCssBgFit";
 import { getCssBlend } from "../utils/getCssBlend";
@@ -8,7 +9,6 @@ import { getCssChildAlign } from "../utils/getCssChildAlign";
 import { getCssChildJustify } from "../utils/getCssChildJustify";
 import { getCssChildLayout } from "../utils/getCssChildLayout";
 import { getCssChildOverflow } from "../utils/getCssChildOverflow";
-import { getCssClip } from "../utils/getCssClip";
 import { getCssColor } from "../utils/getCssColor";
 import { getCssContrast } from "../utils/getCssContrast";
 import { getCssCorner } from "../utils/getCssCorner";
@@ -23,10 +23,10 @@ import { getCssImage } from "../utils/getCssImage";
 import { getCssInteractable } from "../utils/getCssInteractable";
 import { getCssInvert } from "../utils/getCssInvert";
 import { getCssInvisible } from "../utils/getCssInvisible";
+import { getCssMask } from "../utils/getCssMask";
 import { getCssOverflow } from "../utils/getCssOverflow";
 import { getCssPattern } from "../utils/getCssPattern";
 import { getCssPosition } from "../utils/getCssPosition";
-import { getCssRatio } from "../utils/getCssRatio";
 import { getCssRepeat } from "../utils/getCssRepeat";
 import { getCssRotate } from "../utils/getCssRotate";
 import { getCssSaturate } from "../utils/getCssSaturate";
@@ -55,7 +55,7 @@ const get = (v: string) => v;
 export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   position: getCssPosition,
 
-  aspect: getCssRatio,
+  aspect: getCssAspectRatio,
 
   "overflow-x": getCssOverflow,
   "overflow-y": getCssOverflow,
@@ -88,6 +88,36 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   "inset-lr": getCssSize,
   "inset-tb": getCssSize,
 
+  "outline-width": getCssSize,
+  "outline-width-t": getCssSize,
+  "outline-width-r": getCssSize,
+  "outline-width-b": getCssSize,
+  "outline-width-l": getCssSize,
+  "outline-width-lr": getCssSize,
+  "outline-width-tb": getCssSize,
+  "outline-color": getCssColor,
+  "outline-color-t": getCssColor,
+  "outline-color-r": getCssColor,
+  "outline-color-b": getCssColor,
+  "outline-color-l": getCssColor,
+  "outline-color-lr": getCssColor,
+  "outline-color-tb": getCssColor,
+
+  "border-width": getCssSize,
+  "border-width-t": getCssSize,
+  "border-width-r": getCssSize,
+  "border-width-b": getCssSize,
+  "border-width-l": getCssSize,
+  "border-width-lr": getCssSize,
+  "border-width-tb": getCssSize,
+  "border-color": getCssColor,
+  "border-color-t": getCssColor,
+  "border-color-r": getCssColor,
+  "border-color-b": getCssColor,
+  "border-color-l": getCssColor,
+  "border-color-lr": getCssColor,
+  "border-color-tb": getCssColor,
+
   margin: getCssSize,
   "margin-t": getCssSize,
   "margin-r": getCssSize,
@@ -105,6 +135,7 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   "padding-tb": getCssSize,
 
   "child-layout": getCssChildLayout,
+  "child-gap": getCssSize,
   "child-align": getCssChildAlign,
   "child-justify": getCssChildJustify,
   "child-overflow": getCssChildOverflow,
@@ -136,18 +167,15 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   "text-underline-offset": getCssSize,
   "text-decoration-thickness": getCssSize,
 
-  "bg-color": getCssColor,
-  "bg-gradient": getCssGradient,
-  "bg-pattern": getCssPattern,
-  "bg-image": getCssImage,
-  "bg-repeat": getCssRepeat,
-  "bg-align": getCssBgAlign,
-  "bg-fit": getCssBgFit,
+  "background-color": getCssColor,
+  "background-gradient": getCssGradient,
+  "background-pattern": getCssPattern,
+  "background-image": getCssImage,
+  "background-repeat": getCssRepeat,
+  "background-align": getCssBgAlign,
+  "background-fit": getCssBgFit,
 
-  clip: getCssClip,
-
-  "border-color": getCssColor,
-  "border-width": getCssSize,
+  mask: getCssMask,
 
   shadow: getCssShadow,
   "shadow-inset": getCssShadowInset,

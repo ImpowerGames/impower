@@ -1,8 +1,10 @@
 <div class="root" part="root" role="alert">
-  <slot class="message" part="message" aria-live="polite"></slot>
-  <slot class="close" part="close" name="close">
+  <div class="message" part="message">
+    <slot class="content"></slot>
+  </div>
+  <div class="close" part="close">
     <s-button class="button" part="button" variant="text" size="sm" m-tb="-5">
-      <slot class="action" part="action" name="action">OK</slot>
+      <slot class="action" name="action">OK</slot>
     </s-button>
-  </slot>
+  </div>
 </div>

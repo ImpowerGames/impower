@@ -232,14 +232,18 @@ export default class SplitLayout extends SparkleElement {
         }
       }
     }
-    if (name === "collapsed") {
+    if (name === "collapsed" || name === "solo") {
       const startEl = this.startEl;
       if (startEl) {
-        startEl.hidden = newValue === "start";
+        startEl.hidden = this.collapsed === "start" || this.solo === "end";
       }
       const endEl = this.endEl;
       if (endEl) {
-        endEl.hidden = newValue === "end";
+        endEl.hidden = this.collapsed === "end" || this.solo === "start";
+      }
+      const dividerEl = this.dividerEl;
+      if (dividerEl) {
+        dividerEl.hidden = this.solo != null;
       }
     }
     if (name === "split") {
@@ -324,6 +328,7 @@ export default class SplitLayout extends SparkleElement {
 
   private handlePointerDown = (e: PointerEvent): void => {
     const el = e.currentTarget as HTMLElement;
+    e.preventDefault();
     el.setPointerCapture(e.pointerId);
     const { width, height } = this.root.getBoundingClientRect();
     this._startRootWidth = width;

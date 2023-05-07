@@ -1,13 +1,12 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssSize } from "../../utils/getCssSize";
 import css from "./circle.css";
-import html from "./circle.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
 /**
- * Cutters clip the corners of their content.
+ * Circles are basic surfaces for styling and laying out content.
  */
 export default class Circle extends SparkleElement {
   static override async define(
@@ -15,10 +14,6 @@ export default class Circle extends SparkleElement {
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     return super.define(tag, dependencies);
-  }
-
-  override get html(): string {
-    return html;
   }
 
   override get styles(): CSSStyleSheet[] {

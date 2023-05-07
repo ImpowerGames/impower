@@ -8,28 +8,15 @@
   --interactable: none;
   --width: max-content;
   --z: var(--s-z-index-tooltip);
-  --bg-color: var(--s-tooltip-background-color);
+  --background-color: var(--s-tooltip-background-color);
   --text-font: var(--s-tooltip-font-family);
   --text-size: var(--s-tooltip-font-size);
   --text-weight: var(--s-tooltip-font-weight);
   --text-leading: var(--s-tooltip-line-height);
   --text-color: var(--s-tooltip-color);
-  --padding: 0;
+  --corner: var(--s-tooltip-border-radius);
   --padding-tb: 4px;
   --padding-lr: 8px;
-  --padding-t: var(--padding-tb);
-  --padding-b: var(--padding-tb);
-  --padding-l: var(--padding-lr);
-  --padding-r: var(--padding-lr);
-  --corner: var(--s-tooltip-border-radius);
-  --corner-t: var(--corner);
-  --corner-l: var(--corner);
-  --corner-r: var(--corner);
-  --corner-b: var(--corner);
-  --corner-tl: var(--corner);
-  --corner-tr: var(--corner);
-  --corner-br: var(--corner);
-  --corner-bl: var(--corner);
 }
 
 .anchor {
@@ -41,32 +28,20 @@
   pointer-events: var(--interactable);
   width: var(--width);
   max-width: var(--width-max);
-  background-color: var(--bg-color);
+  background-color: var(--background-color);
   font-family: var(--text-font);
   font-size: var(--text-size);
   font-weight: var(--text-weight);
   line-height: var(--text-leading);
   color: var(--text-color);
-  padding-top: var(--padding-t, var(--padding-tb, var(--padding)));
-  padding-right: var(--padding-r, var(--padding-lr, var(--padding)));
-  padding-bottom: var(--padding-b, var(--padding-tb, var(--padding)));
-  padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
-  border-top-left-radius: var(
-    --corner-tl,
-    var(--corner-t, var(--corner-l, var(--corner)))
-  );
-  border-top-right-radius: var(
-    --corner-tr,
-    var(--corner-t, var(--corner-r, var(--corner)))
-  );
-  border-bottom-right-radius: var(
-    --corner-br,
-    var(--corner-b, var(--corner-r, var(--corner)))
-  );
-  border-bottom-left-radius: var(
-    --corner-bl,
-    var(--corner-b, var(--corner-l, var(--corner)))
-  );
+  border-start-start-radius: var(--border-start-start-radius);
+  border-start-end-radius: var(--border-start-end-radius);
+  border-end-start-radius: var(--border-end-start-radius);
+  border-end-end-radius: var(--border-end-end-radius);
+  padding-block-start: var(--padding-block-start);
+  padding-block-end: var(--padding-block-end);
+  padding-inline-start: var(--padding-inline-start);
+  padding-inline-end: var(--padding-inline-end);
 }
 
 .root {

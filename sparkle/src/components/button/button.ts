@@ -1,5 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssIcon } from "../../utils/getCssIcon";
+import { getCssMask } from "../../utils/getCssMask";
 import { getCssSize } from "../../utils/getCssSize";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
@@ -49,6 +50,8 @@ export default class Button extends SparkleElement {
       "aria-haspopup",
       "href",
       "target",
+      "type",
+      "autofocus",
       "disabled",
       "variant",
       "icon",
@@ -108,12 +111,16 @@ export default class Button extends SparkleElement {
     return this.getStringAttribute("icon");
   }
 
+  get labelEl(): HTMLElement | null {
+    return this.getElementByClass("label");
+  }
+
   get iconEl(): HTMLElement | null {
     return this.getElementByClass("icon");
   }
 
-  get labelSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("label");
+  get spinnerEl(): HTMLElement | null {
+    return this.getElementByClass("spinner");
   }
 
   get progressCircle(): ProgressCircle | null {
@@ -131,30 +138,66 @@ export default class Button extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "disabled" || name === "loading") {
-      if (newValue != null) {
-        this.ripple?.setAttribute("disabled", "");
-      } else {
-        this.ripple?.removeAttribute("disabled");
+    if (
+      name === "aria-haspopup" ||
+      name === "aria-expanded" ||
+      name === "href" ||
+      name === "target" ||
+      name === "type" ||
+      name === "autofocus"
+    ) {
+      this.updateRootAttribute(name, newValue);
+    }
+    if (name === "disabled") {
+      const ripple = this.ripple;
+      if (ripple) {
+        ripple.hidden = newValue != null;
       }
     }
-    if (name === "aria-haspopup") {
-      this.updateRootAttribute("aria-haspopup", newValue);
+    if (name === "loading") {
+      const ripple = this.ripple;
+      if (ripple) {
+        ripple.hidden = newValue != null;
+      }
     }
-    if (name === "aria-expanded") {
-      this.updateRootAttribute("aria-expanded", newValue);
-    }
-    if (name === "href") {
-      this.updateRootAttribute("href", newValue);
-    }
-    if (name === "target") {
-      this.updateRootAttribute("target", newValue);
-    }
-    if (name === "icon") {
-      this.updateRootCssVariable(name, getCssIcon(newValue));
+    if (name === "mask") {
+      const ripple = this.ripple;
+      if (ripple) {
+        if (newValue) {
+          const mask = getCssMask(newValue);
+          ripple.root.style.webkitMask = mask;
+          ripple.root.style.mask = mask;
+        }
+      }
     }
     if (name === "spacing") {
       this.updateRootCssVariable(name, getCssSize(newValue));
+    }
+    if (name === "icon") {
+      this.updateRootCssVariable(name, getCssIcon(newValue));
+      const iconEl = this.iconEl;
+      if (iconEl) {
+        iconEl.hidden = newValue == null;
+      }
+    }
+    if (name === "loading") {
+      const loading = newValue != null;
+      const ripple = this.ripple;
+      const labelEl = this.labelEl;
+      const iconEl = this.iconEl;
+      const spinnerEl = this.spinnerEl;
+      if (ripple) {
+        ripple.hidden = loading;
+      }
+      if (labelEl) {
+        labelEl.ariaHidden = loading ? "true" : null;
+      }
+      if (iconEl) {
+        iconEl.ariaHidden = loading ? "true" : null;
+      }
+      if (spinnerEl) {
+        spinnerEl.hidden = !loading;
+      }
     }
     if (name === "label") {
       const label = newValue;
@@ -169,20 +212,19 @@ export default class Button extends SparkleElement {
     if (label) {
       this.setAssignedToSlot(label);
     }
+    const icon = this.icon;
+    const iconEl = this.iconEl;
+    if (iconEl) {
+      iconEl.hidden = icon == null;
+    }
     this.ripple?.bind?.(this.root);
-    this.labelSlot?.addEventListener("slotchange", this.handleLabelSlotChange);
   }
 
   protected override onDisconnected(): void {
     this.ripple?.unbind?.(this.root);
-    this.labelSlot?.removeEventListener(
-      "slotchange",
-      this.handleLabelSlotChange
-    );
   }
 
-  protected handleLabelSlotChange = (e: Event) => {
-    const slot = e.currentTarget as HTMLSlotElement;
+  protected override onContentAssigned(slot: HTMLSlotElement): void {
     const nodes = slot?.assignedNodes?.();
     nodes.forEach((node) => {
       if (node.nodeName.toLowerCase() === Button.dependencies["s-badge"]) {
@@ -190,7 +232,7 @@ export default class Button extends SparkleElement {
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }
     });
-  };
+  }
 }
 
 declare global {

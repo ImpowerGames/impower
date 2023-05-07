@@ -5,12 +5,10 @@
  * Released under the Apache-2.0 license.
  */
 
-import { EASINGS } from "../../constants/EASINGS.js";
 import SparkleElement from "../../core/sparkle-element.js";
 import { getCssColor } from "../../utils/getCssColor.js";
 import { getDimensions } from "../../utils/getDimensions.js";
 import css from "./ripple.css";
-import html from "./ripple.html";
 
 const PRESS_GROW_MS = 450;
 const MINIMUM_PRESS_MS = 225;
@@ -19,6 +17,7 @@ const PADDING = 10;
 const SOFT_EDGE_MINIMUM_SIZE = 75;
 const SOFT_EDGE_CONTAINER_RATIO = 0.35;
 const PRESS_PSEUDO = "::after";
+const PRESS_EASE = "cubic-bezier(0.2, 0, 0, 1)";
 const ANIMATION_FILL = "forwards";
 
 /**
@@ -86,10 +85,6 @@ export default class Ripple extends SparkleElement {
     return super.define(tag, dependencies);
   }
 
-  override get html(): string {
-    return html;
-  }
-
   override get styles(): CSSStyleSheet[] {
     return [styles];
   }
@@ -97,7 +92,7 @@ export default class Ripple extends SparkleElement {
   static override get observedAttributes() {
     return [
       ...super.observedAttributes,
-      "disabled",
+      "hidden",
       "focus-color",
       "hover-color",
       "press-color",
@@ -144,7 +139,7 @@ export default class Ripple extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "disabled") {
+    if (name === "hidden") {
       if (newValue != null) {
         this.hovered = false;
         this.focused = false;
@@ -252,10 +247,6 @@ export default class Ripple extends SparkleElement {
   handleClick = () => {
     // Click is a MouseEvent in Firefox and Safari, so we cannot use
     // `shouldReactToEvent`
-    if (this.disabled) {
-      return;
-    }
-
     if (this.state === State.WAITING_FOR_CLICK) {
       this.endPressAnimation();
       return;
@@ -277,10 +268,6 @@ export default class Ripple extends SparkleElement {
   };
 
   handleContextMenu = () => {
-    if (this.disabled) {
-      return;
-    }
-
     this.checkBoundsAfterContextMenu = true;
     this.endPressAnimation();
   };
@@ -386,7 +373,7 @@ export default class Ripple extends SparkleElement {
       {
         pseudoElement: PRESS_PSEUDO,
         duration: PRESS_GROW_MS,
-        easing: EASINGS.standard,
+        easing: PRESS_EASE,
         fill: ANIMATION_FILL,
       }
     );
@@ -423,7 +410,7 @@ export default class Ripple extends SparkleElement {
    * held, or the pointer is hovering
    */
   private shouldReactToEvent(event: PointerEvent) {
-    if (this.disabled || !event.isPrimary) {
+    if (!event.isPrimary) {
       return false;
     }
 

@@ -6,17 +6,10 @@
   flip
   shift
 >
-  <slot
-    class="anchor"
-    part="anchor"
-    slot="anchor"
-    aria-describedby="tooltip"
-  ></slot>
-  <slot
-    class="body"
-    part="body"
-    name="content"
-    id="tooltip"
-    role="tooltip"
-  ></slot>
+  <div class="anchor" part="anchor" slot="anchor" aria-describedby="tooltip">
+    <slot></slot>
+  </div>
+  <div class="body" part="body" id="tooltip" role="tooltip">
+    <slot class="content" name="content"></slot>
+  </div>
 </s-popup>

@@ -40,9 +40,6 @@
   overflow-y: auto;
 }
 
-:host([indicator="none"]) .indicator {
-  display: none;
-}
 .indicator {
   background-color: var(--color);
   transition-duration: var(--duration);

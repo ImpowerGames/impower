@@ -1,14 +1,6 @@
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS";
-import {
-  EventTypeDoesNotRequireDetail,
-  EventTypeRequiresDetail,
-  EventTypesWithRequiredDetail,
-  EventTypesWithoutRequiredDetail,
-  GetCustomEventType,
-  SpEventInit,
-  ValidEventTypeMap,
-} from "../types/event";
+import { Color } from "../types/color";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { getCssTextSizeHeight } from "../utils/getCssTextSizeHeight";
@@ -18,7 +10,7 @@ import { getUnitlessValue } from "../utils/getUnitlessValue";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isServer } from "../utils/isServer";
 import { updateAttribute } from "../utils/updateAttribute";
-import { RESET_STYLES } from "./reset";
+import { NORMALIZE_STYLES } from "./normalize";
 import css from "./sparkle-element.css";
 import html from "./sparkle-element.html";
 
@@ -46,7 +38,7 @@ export default class SparkleElement extends HTMLElement {
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     if (dependencies) {
-      this.dependencies = dependencies;
+      this.dependencies = { ...this.dependencies, ...dependencies };
     }
     customElements.define(tag, this);
     return customElements.whenDefined(tag);
@@ -77,6 +69,10 @@ export default class SparkleElement extends HTMLElement {
 
   get root(): HTMLElement {
     return this.shadowRoot?.firstElementChild as HTMLElement;
+  }
+
+  get contentSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("content");
   }
 
   /**
@@ -116,7 +112,15 @@ export default class SparkleElement extends HTMLElement {
   /**
    * Sets a preferred `aspect-ratio` for the box.
    */
-  get _aspect(): "1/1" | "16/9" | "9/16" | "4/5" | "2/3" | "2/1" | null {
+  get _aspect():
+    | "square"
+    | "landscape"
+    | "portrait"
+    | "widescreen"
+    | "ultrawide"
+    | "golden"
+    | string
+    | null {
     return this.getStringAttribute("aspect");
   }
 
@@ -340,6 +344,130 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
+   * Sets the `border-width` of this element.
+   *
+   * @summary b-width
+   */
+  get _borderWidth(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("border-width");
+  }
+
+  /**
+   * Sets the `border-top-width` of this element.
+   *
+   * @summary b-width-t
+   */
+  get _borderWidthT(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("border-width-t");
+  }
+
+  /**
+   * Sets the `border-right-width` of this element.
+   *
+   * @summary b-width-r
+   */
+  get _borderWidthR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("border-width-r");
+  }
+
+  /**
+   * Sets the `border-bottom-width` of this element.
+   *
+   * @summary b-width-b
+   */
+  get _borderWidthB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("border-width-b");
+  }
+
+  /**
+   * Sets the `border-left-width` of this element.
+   *
+   * @summary b-width-l
+   */
+  get _borderWidthL(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("border-width-l");
+  }
+
+  /**
+   * Sets the `border-left-width` and `border-right-width` of this element.
+   *
+   * @summary b-width-lr
+   */
+  get _borderWidthLR(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("border-width-lr");
+  }
+
+  /**
+   * Sets the `border-top-width` and `border-bottom-width` of this element.
+   *
+   * @summary b-width-tb
+   */
+  get _borderWidthTB(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("border-width-tb");
+  }
+
+  /**
+   * Sets the `border-color` of this element.
+   */
+  get _borderColor(): Color | null {
+    return this.getStringAttribute("border-color");
+  }
+
+  /**
+   * Sets the `border-top-color` of this element.
+   *
+   * @summary b-color-t
+   */
+  get _borderColorT(): Color | null {
+    return this.getStringAttribute("border-color-t");
+  }
+
+  /**
+   * Sets the `border-right-color` of this element.
+   *
+   * @summary b-color-r
+   */
+  get _borderColorR(): Color | null {
+    return this.getStringAttribute("border-color-r");
+  }
+
+  /**
+   * Sets the `border-bottom-color` of this element.
+   *
+   * @summary b-color-b
+   */
+  get _borderColorB(): Color | null {
+    return this.getStringAttribute("border-color-b");
+  }
+
+  /**
+   * Sets the `border-left-color` of this element.
+   *
+   * @summary b-color-l
+   */
+  get _borderColorL(): Color | null {
+    return this.getStringAttribute("border-color-l");
+  }
+
+  /**
+   * Sets the `border-top-color` and `border-bottom-color` of this element.
+   *
+   * @summary b-color-tb
+   */
+  get _borderColorTB(): Color | null {
+    return this.getStringAttribute("border-color-tb");
+  }
+
+  /**
+   * Sets the `border-left-color` and `border-right-color` of this element.
+   *
+   * @summary b-color-lr
+   */
+  get _borderColorLR(): Color | null {
+    return this.getStringAttribute("border-color-lr");
+  }
+
+  /**
    * Sets the `margin` area around this element.
    *
    * A positive value places it farther from its neighbors, while a negative value places it closer.
@@ -492,6 +620,13 @@ export default class SparkleElement extends HTMLElement {
   }
 
   /**
+   * Sets the `gap` between children.
+   */
+  get _childGap(): "" | "xs" | "sm" | "md" | "lg" | "xl" | null {
+    return this.getStringAttribute("child-gap");
+  }
+
+  /**
    * Uses `align-items` to align children along the cross axis.
    *
    * When layout is `column`, this controls all children's horizontal alignment.
@@ -594,34 +729,7 @@ export default class SparkleElement extends HTMLElement {
   /**
    * Sets the `color` of content rendered inside this element.
    */
-  get _color():
-    | "none"
-    | "fg"
-    | "bg"
-    | "neutral"
-    | "primary"
-    | "success"
-    | "warning"
-    | "danger"
-    | "gray"
-    | "red"
-    | "orange"
-    | "amber"
-    | "yellow"
-    | "lime"
-    | "green"
-    | "emerald"
-    | "teal"
-    | "cyan"
-    | "sky"
-    | "blue"
-    | "indigo"
-    | "violet"
-    | "purple"
-    | "fuchsia"
-    | "pink"
-    | "rose"
-    | null {
+  get _color(): Color | null {
     return this.getStringAttribute("color");
   }
 
@@ -748,34 +856,7 @@ export default class SparkleElement extends HTMLElement {
   /**
    * Uses `text-shadow` to create a colored stroke around the text.
    */
-  get _textStrokeColor():
-    | "none"
-    | "fg"
-    | "bg"
-    | "neutral"
-    | "primary"
-    | "success"
-    | "warning"
-    | "danger"
-    | "gray"
-    | "red"
-    | "orange"
-    | "amber"
-    | "yellow"
-    | "lime"
-    | "green"
-    | "emerald"
-    | "teal"
-    | "cyan"
-    | "sky"
-    | "blue"
-    | "indigo"
-    | "violet"
-    | "purple"
-    | "fuchsia"
-    | "pink"
-    | "rose"
-    | null {
+  get _textStrokeColor(): Color | null {
     return this.getStringAttribute("text-stroke-color");
   }
 
@@ -814,75 +895,67 @@ export default class SparkleElement extends HTMLElement {
 
   /**
    * Sets the `background-color` of this element.
+   *
+   * @summary bg-color
    */
-  get _bgColor():
-    | "none"
-    | "fg"
-    | "bg"
-    | "neutral"
-    | "primary"
-    | "success"
-    | "warning"
-    | "danger"
-    | "gray"
-    | "red"
-    | "orange"
-    | "amber"
-    | "yellow"
-    | "lime"
-    | "green"
-    | "emerald"
-    | "teal"
-    | "cyan"
-    | "sky"
-    | "blue"
-    | "indigo"
-    | "violet"
-    | "purple"
-    | "fuchsia"
-    | "pink"
-    | "rose"
-    | null {
-    return this.getStringAttribute("bg-color");
+  get _backgroundColor(): Color | null {
+    return this.getStringAttribute("background-color");
   }
 
   /**
    * Uses `background-image` to display a color gradient inside this element.
+   *
+   * @summary bg-gradient
    */
-  get _bgGradient(): string | null {
-    return this.getStringAttribute("bg-gradient");
+  get _backgroundGradient(): "gloss" | string | null {
+    return this.getStringAttribute("background-gradient");
   }
 
   /**
    * Uses `background-image` to display a pattern inside this element.
+   *
+   * @summary bg-pattern
    */
-  get _bgPattern(): string | null {
-    return this.getStringAttribute("bg-pattern");
+  get _backgroundPattern(): string | null {
+    return this.getStringAttribute("background-pattern");
   }
 
   /**
    * Uses `background-image` to display an image inside this element.
+   *
+   * @summary bg-image
    */
-  get _bgImage(): string | null {
-    return this.getStringAttribute("bg-image");
+  get _backgroundImage(): string | null {
+    return this.getStringAttribute("background-image");
   }
 
   /**
    * Sets `background-repeat` to determine if background images are repeated in a tiling pattern.
    *
    * If not provided a value, defaults to `repeat`.
+   *
+   * @summary bg-repeat
    */
-  get _bgRepeat(): "" | "repeat" | "x" | "y" | "none" | null {
-    return this.getStringAttribute("bg-repeat");
+  get _backgroundRepeat(): "" | "repeat" | "x" | "y" | "none" | null {
+    return this.getStringAttribute("background-repeat");
   }
 
   /**
    * Sets `background-position` to align background images to the center, top, bottom, left, or right edge of this element.
    *
    * If not provided a value, defaults to `center`.
+   *
+   * @summary bg-align
    */
-  get _bgAlign(): "" | "center" | "top" | "bottom" | "left" | "right" | null {
-    return this.getStringAttribute("bg-align");
+  get _backgroundAlign():
+    | ""
+    | "center"
+    | "top"
+    | "bottom"
+    | "left"
+    | "right"
+    | null {
+    return this.getStringAttribute("background-align");
   }
 
   /**
@@ -891,60 +964,52 @@ export default class SparkleElement extends HTMLElement {
    * The image can be stretched, or constrained to fit the available space.
    *
    * If not provided a value, defaults to `contain`.
+   *
+   * @summary bg-fit
    */
-  get _bgFit(): "" | "contain" | "cover" | null {
-    return this.getStringAttribute("bg-fit");
+  get _backgroundFit(): "" | "contain" | "cover" | null {
+    return this.getStringAttribute("background-fit");
   }
 
   /**
-   * Creates a `clip-path` region that determines what part of an element should be shown.
-   * Parts that are inside the region are shown, while those outside are hidden.
+   * Sets the `mask-image` of this element to change the visual shape of this element.
+   * Parts that are inside the mask region are shown, while those outside are hidden.
    *
    * If not provided a value, defaults to `circle`.
    */
-  get _clip(): "" | "circle" | null {
-    return this.getStringAttribute("bg-fit");
-  }
-
-  /**
-   * Sets the `border-color` of this element's border.
-   */
-  get _borderColor():
-    | "none"
-    | "fg"
-    | "bg"
-    | "neutral"
-    | "primary"
-    | "success"
-    | "warning"
-    | "danger"
-    | "gray"
-    | "red"
-    | "orange"
-    | "amber"
-    | "yellow"
-    | "lime"
-    | "green"
-    | "emerald"
-    | "teal"
-    | "cyan"
-    | "sky"
-    | "blue"
-    | "indigo"
-    | "violet"
-    | "purple"
-    | "fuchsia"
-    | "pink"
-    | "rose"
+  get _mask():
+    | ""
+    | "angled-corner"
+    | "scooped-corner"
+    | "notched-corner"
+    | "scooped-edge-tb"
+    | "scooped-edge-lr"
+    | "scooped-edge-t"
+    | "scooped-edge-b"
+    | "scooped-edge-l"
+    | "scooped-edge-r"
+    | "scalloped-edge"
+    | "scalloped-edge-tb"
+    | "scalloped-edge-lr"
+    | "scalloped-edge-t"
+    | "scalloped-edge-b"
+    | "scalloped-edge-l"
+    | "scalloped-edge-r"
+    | "drip-edge"
+    | "drip-edge-tb"
+    | "drip-edge-lr"
+    | "drip-edge-t"
+    | "drip-edge-b"
+    | "drip-edge-l"
+    | "drip-edge-r"
+    | "zigzag-edge-tb"
+    | "zigzag-edge-lr"
+    | "zigzag-edge-t"
+    | "zigzag-edge-b"
+    | "zigzag-edge-l"
+    | "zigzag-edge-r"
     | null {
-    return this.getStringAttribute("border-color");
-  }
-
-  /**
-   * Sets the `border-width` of this element's border.
-   */
-  get _borderWidth(): "xs" | "sm" | "md" | "lg" | "xl" | null {
-    return this.getStringAttribute("border-width");
+    return this.getStringAttribute("mask");
   }
 
   /**
@@ -1198,12 +1263,27 @@ export default class SparkleElement extends HTMLElement {
   get _animate():
     | "spin"
     | "ping"
-    | "bounce"
-    | "fade"
-    | "pulse"
     | "sheen"
+    | "blink"
+    | "float"
+    | "bounce"
+    | "fade-in"
+    | "fade-out"
+    | "scale-up"
+    | "scale-down"
+    | "slide-out-up"
+    | "slide-out-down"
+    | "slide-out-right"
+    | "slide-out-left"
+    | "slide-in-up"
+    | "slide-in-down"
+    | "slide-in-right"
+    | "slide-in-left"
+    | "shake-x"
+    | "shake-y"
     | "enter"
     | "exit"
+    | "pulse"
     | null {
     return this.getStringAttribute("animate");
   }
@@ -1212,7 +1292,7 @@ export default class SparkleElement extends HTMLElement {
     super();
     const shadowRoot = this.attachShadow(init);
     shadowRoot.innerHTML = this.html;
-    shadowRoot.adoptedStyleSheets = [RESET_STYLES, styles, ...this.styles];
+    shadowRoot.adoptedStyleSheets = [NORMALIZE_STYLES, styles, ...this.styles];
   }
 
   /**
@@ -1370,6 +1450,10 @@ export default class SparkleElement extends HTMLElement {
    */
   protected connectedCallback(): void {
     this.bindFocus(this.root);
+    this.contentSlot?.addEventListener(
+      "slotchange",
+      this.handleContentSlotChange
+    );
     this.onConnected();
     window.setTimeout(() => {
       this.parsedCallback();
@@ -1389,10 +1473,21 @@ export default class SparkleElement extends HTMLElement {
    */
   protected disconnectedCallback(): void {
     this.unbindFocus(this.root);
+    this.contentSlot?.removeEventListener(
+      "slotchange",
+      this.handleContentSlotChange
+    );
     this.onDisconnected();
   }
 
   protected onDisconnected(): void {}
+
+  protected handleContentSlotChange = (e: Event) => {
+    const slot = e.currentTarget as HTMLSlotElement;
+    this.onContentAssigned(slot);
+  };
+
+  protected onContentAssigned(slot: HTMLSlotElement): void {}
 
   getElementByTag<T extends HTMLElement>(name: string): T | null {
     return this.shadowRoot?.querySelector<T>(name) || null;
@@ -1400,6 +1495,10 @@ export default class SparkleElement extends HTMLElement {
 
   getElementByClass<T extends HTMLElement>(name: string): T | null {
     return this.shadowRoot?.querySelector<T>(`.${name}`) || null;
+  }
+
+  getSlotByName<T extends HTMLElement>(name: string): T | null {
+    return this.shadowRoot?.querySelector<T>(`slot[name=${name}]`) || null;
   }
 
   getAssignedToSlot<T extends ChildNode>(name?: string): T[] {
@@ -1524,28 +1623,5 @@ export default class SparkleElement extends HTMLElement {
       targetEl.style.boxShadow = "none";
       targetEl.style.filter = "none";
     }
-  }
-
-  emit<T extends string & keyof EventTypesWithoutRequiredDetail>(
-    name: EventTypeDoesNotRequireDetail<T>,
-    options?: SpEventInit<T> | undefined
-  ): GetCustomEventType<T>;
-  emit<T extends string & keyof EventTypesWithRequiredDetail>(
-    name: EventTypeRequiresDetail<T>,
-    options: SpEventInit<T>
-  ): GetCustomEventType<T>;
-  emit<T extends string & keyof ValidEventTypeMap>(
-    name: T,
-    options?: SpEventInit<T> | undefined
-  ): GetCustomEventType<T> {
-    const event = new CustomEvent(name, {
-      bubbles: true,
-      cancelable: false,
-      composed: true,
-      detail: {},
-      ...options,
-    });
-    this.dispatchEvent(event);
-    return event as GetCustomEventType<T>;
   }
 }

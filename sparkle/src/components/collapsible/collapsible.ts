@@ -1,6 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
 import css from "./collapsible.css";
-import html from "./collapsible.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -20,10 +19,6 @@ export default class Collapsible extends SparkleElement {
     dependencies = DEFAULT_COLLAPSIBLE_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tag, dependencies);
-  }
-
-  override get html(): string {
-    return Collapsible.augment(html, DEFAULT_COLLAPSIBLE_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
@@ -53,14 +48,6 @@ export default class Collapsible extends SparkleElement {
     }
   }
 
-  protected override onConnected(): void {
-    this.root.addEventListener("slotchange", this.handleContentSlotChange);
-  }
-
-  protected override onDisconnected(): void {
-    this.root.removeEventListener("slotchange", this.handleContentSlotChange);
-  }
-
   protected updateCollapsed(): void {
     const rootEl = this._buttonEl;
     const labelEl = rootEl?.querySelector<HTMLElement>(`.label`);
@@ -81,8 +68,7 @@ export default class Collapsible extends SparkleElement {
     }
   }
 
-  protected handleContentSlotChange = (e: Event) => {
-    const slot = e.currentTarget as HTMLSlotElement;
+  protected override onContentAssigned(slot: HTMLSlotElement): void {
     const elements = slot?.assignedElements?.();
     const buttons = elements.filter(
       (el) => el.tagName.toLowerCase() === Collapsible.dependencies["s-button"]
@@ -93,7 +79,7 @@ export default class Collapsible extends SparkleElement {
       this.transferBorderStyle(targetEl);
       this.updateCollapsed();
     }
-  };
+  }
 }
 
 declare global {

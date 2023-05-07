@@ -26,6 +26,5 @@ export default abstract class Animations {
     >
   ): void {
     this._map = animations;
-    console.log(animations);
   }
 }

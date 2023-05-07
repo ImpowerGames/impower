@@ -9,8 +9,8 @@
   --height: 1em;
   --grow: 1;
   --shrink: 0;
-  --bg-fit: 400% 100%;
-  --bg-gradient: linear-gradient(
+  --background-fit: 400% 100%;
+  --background-gradient: linear-gradient(
     270deg,
     var(--sheen-color),
     var(--color),
@@ -35,8 +35,8 @@
   height: var(--height);
   flex-grow: var(--grow);
   flex-shrink: var(--shrink);
-  background-size: var(--bg-fit);
-  background-image: var(--bg-gradient);
+  background-size: var(--background-fit);
+  background-image: var(--background-gradient);
   border-top-left-radius: var(
     --corner-tl,
     var(--corner-t, var(--corner-l, var(--corner)))

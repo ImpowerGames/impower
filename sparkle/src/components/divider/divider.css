@@ -2,16 +2,15 @@
   display: contents;
 }
 :host {
-  --bg-color: var(--s-color-fg);
+  --background-color: var(--s-color-fg);
   --size: 1px;
   --opacity: 0.13;
   --width: 100%;
   --height: 100%;
-  --spacing: var(--s-spacing-md);
 }
 
 .root {
-  background-color: var(--bg-color);
+  background-color: var(--background-color);
   opacity: var(--opacity);
 }
 

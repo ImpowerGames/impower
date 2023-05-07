@@ -10,6 +10,8 @@
   --size: 40px;
   --width: var(--size);
   --height: var(--size);
+  --corner: 50%;
+  --aspect: 1;
 }
 
 .root {
@@ -20,5 +22,6 @@
   flex-shrink: var(--shrink);
   width: var(--width);
   height: var(--height);
-  border-radius: 50%;
+  border-radius: var(--corner);
+  aspect-ratio: var(--aspect);
 }

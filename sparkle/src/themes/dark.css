@@ -252,33 +252,9 @@
   --s-color-surface-border: var(--s-color-neutral-30);
 
   /* Scrollbars */
-  --s-scrollbar-thumb: #ffffff40;
-  --s-scrollbar-thumb-hover: #ffffff80;
-  --s-scrollbar-track: #ffffff1a;
-
-  /*
-   * Opacities
-   */
-
-  --s-opacity-overlay: 0.5;
-
-  /*
-   * Elevations
-   */
-
-  --s-shadow-key-0: 0 0 0 hsl(0 0% 0% / 0%);
-  --s-shadow-key-1: 0 1px 2px hsl(0 0% 0% / 90%);
-  --s-shadow-key-2: 0 1px 2px hsl(0 0% 0% / 90%);
-  --s-shadow-key-3: 0 1px 3px hsl(0 0% 0% / 90%);
-  --s-shadow-key-4: 0 2px 3px hsl(0 0% 0% / 90%);
-  --s-shadow-key-5: 0 4px 4px hsl(0 0% 0% / 90%);
-
-  --s-shadow-ambient-0: 0 0 0 hsl(0 0% 0% / 0%);
-  --s-shadow-ambient-1: 0 1px 3px hsl(0 0% 0% / 45%);
-  --s-shadow-ambient-2: 0 2px 6px hsl(0 0% 0% / 45%);
-  --s-shadow-ambient-3: 0 4px 8px hsl(0 0% 0% / 45%);
-  --s-shadow-ambient-4: 0 6px 10px hsl(0 0% 0% / 45%);
-  --s-shadow-ambient-5: 0 8px 12px hsl(0 0% 0% / 45%);
+  --s-color-scrollbar-thumb: hsl(0 0% 100% / 25%);
+  --s-color-scrollbar-thumb-hover: hsl(0 0% 100% / 50%);
+  --s-color-scrollbar-track: hsl(0 0% 100% / 2%);
 
   /*
    * Opacities
@@ -286,5 +262,3 @@
 
   --s-opacity-overlay: 0.5;
 }
-
-/* _utility.css */

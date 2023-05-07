@@ -1,3 +1,4 @@
+import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import Animations from "../../helpers/animations";
 import { animateTo, parseDuration, stopAnimations } from "../../utils/animate";
@@ -8,6 +9,11 @@ import html from "./tooltip.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
+
+const closingEvent = new SparkleEvent("closing");
+const closedEvent = new SparkleEvent("closed");
+const openingEvent = new SparkleEvent("opening");
+const openedEvent = new SparkleEvent("opened");
 
 export const DEFAULT_TOOLTIP_DEPENDENCIES = {
   "s-popup": "s-popup",
@@ -179,7 +185,7 @@ export default class Tooltip extends SparkleElement {
     }
     if (name === "disabled") {
       if (this.disabled && this.open) {
-        this.hide();
+        this.close();
       }
     }
   }
@@ -219,14 +225,14 @@ export default class Tooltip extends SparkleElement {
 
   private handleBlur = (): void => {
     if (this.hasTrigger("focus")) {
-      this.hide();
+      this.close();
     }
   };
 
   private handleClick = (): void => {
     if (this.hasTrigger("click")) {
       if (this.open) {
-        this.hide();
+        this.close();
       } else {
         this.show();
       }
@@ -243,7 +249,7 @@ export default class Tooltip extends SparkleElement {
     // Pressing escape when the target element has focus should dismiss the tooltip
     if (this.open && event.key === "Escape") {
       event.stopPropagation();
-      this.hide();
+      this.close();
     }
   };
 
@@ -263,7 +269,7 @@ export default class Tooltip extends SparkleElement {
         getComputedStyle(this).getPropertyValue("--hide-delay")
       );
       clearTimeout(this.hoverTimeout);
-      this.hoverTimeout = window.setTimeout(() => this.hide(), delay);
+      this.hoverTimeout = window.setTimeout(() => this.close(), delay);
     }
   };
 
@@ -286,7 +292,7 @@ export default class Tooltip extends SparkleElement {
       }
 
       // Show
-      this.emit("s-show");
+      this.dispatchEvent(openingEvent);
 
       if (bodyEl) {
         await stopAnimations(bodyEl);
@@ -299,10 +305,10 @@ export default class Tooltip extends SparkleElement {
         await animateTo(popupEl, Animations.get("enter"));
       }
 
-      this.emit("s-after-show");
+      this.dispatchEvent(openedEvent);
     } else {
       // Hide
-      this.emit("s-hide");
+      this.dispatchEvent(closingEvent);
 
       if (bodyEl) {
         await stopAnimations(bodyEl);
@@ -317,7 +323,7 @@ export default class Tooltip extends SparkleElement {
         bodyEl.hidden = true;
       }
 
-      this.emit("s-after-hide");
+      this.dispatchEvent(closedEvent);
     }
   }
 
@@ -328,22 +334,28 @@ export default class Tooltip extends SparkleElement {
     }
 
     this.open = true;
-    return waitForEvent(this, "s-after-show");
+    return waitForEvent(this, "opened");
   }
 
   /** Hides the tooltip */
-  async hide() {
+  async close() {
     if (!this.open) {
       return undefined;
     }
 
     this.open = false;
-    return waitForEvent(this, "s-after-hide");
+    return waitForEvent(this, "closed");
   }
 }
 
 declare global {
   interface HTMLElementTagNameMap {
     "s-tooltip": Tooltip;
+  }
+  interface HTMLElementEventMap {
+    closing: SparkleEvent;
+    closed: SparkleEvent;
+    opening: SparkleEvent;
+    opened: SparkleEvent;
   }
 }

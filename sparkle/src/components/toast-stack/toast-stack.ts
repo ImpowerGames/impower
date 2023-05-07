@@ -50,14 +50,6 @@ export default class ToastStack extends SparkleElement {
     this.setStringAttribute("alert", value);
   }
 
-  get contentEl(): HTMLElement | null {
-    return this.getElementByClass("content");
-  }
-
-  get templatesSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("templates");
-  }
-
   protected _templates: HTMLTemplateElement[] = [];
 
   protected _queue = new Queue();
@@ -77,25 +69,13 @@ export default class ToastStack extends SparkleElement {
     }
   }
 
-  protected override onConnected(): void {
-    this.templatesSlot?.addEventListener("slotchange", this.handleSlotChange);
-  }
-
-  protected override onDisconnected(): void {
-    this.templatesSlot?.removeEventListener(
-      "slotchange",
-      this.handleSlotChange
-    );
-  }
-
-  protected handleSlotChange = (e: Event) => {
-    const slot = e.currentTarget as HTMLSlotElement;
+  protected override onContentAssigned(slot: HTMLSlotElement): void {
     this._templates = slot
       ?.assignedElements?.()
       .filter(
         (el) => el.tagName.toLowerCase() === "template"
       ) as HTMLTemplateElement[];
-  };
+  }
 
   getTemplate(type?: string): HTMLTemplateElement | null {
     if (!type) {
@@ -114,16 +94,12 @@ export default class ToastStack extends SparkleElement {
     timeout?: string,
     type?: string
   ): Promise<void> {
-    const contentEl = this.contentEl;
-    if (!contentEl) {
-      return;
-    }
     const template = this.getTemplate(type);
     const templateContent =
       template?.content?.cloneNode?.(true) ||
       this.getElementByTag<Toast>(ToastStack.dependencies["s-toast"]) ||
       new Toast();
-    const toast = contentEl.appendChild(templateContent) as Toast;
+    const toast = this.root.appendChild(templateContent) as Toast;
     if (!toast) {
       return;
     }
@@ -142,7 +118,7 @@ export default class ToastStack extends SparkleElement {
     } else {
       toast.removeAttribute("timeout");
     }
-    await toast.alert?.(contentEl);
+    await toast.alert?.(this.root);
   }
 
   async queueAlert(

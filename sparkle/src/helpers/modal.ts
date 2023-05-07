@@ -8,9 +8,6 @@ export default class Modal {
 
   constructor(element: HTMLElement) {
     this.element = element;
-    this.handleFocusIn = this.handleFocusIn.bind(this);
-    this.handleKeyDown = this.handleKeyDown.bind(this);
-    this.handleKeyUp = this.handleKeyUp.bind(this);
   }
 
   activate() {
@@ -45,20 +42,20 @@ export default class Modal {
     }
   }
 
-  handleFocusIn() {
+  handleFocusIn = () => {
     this.checkFocus();
-  }
+  };
 
-  handleKeyDown(event: KeyboardEvent) {
+  handleKeyDown = (event: KeyboardEvent) => {
     if (event.key === "Tab" && event.shiftKey) {
       this.tabDirection = "backward";
 
       // Ensure focus remains trapped after the key is pressed
       requestAnimationFrame(() => this.checkFocus());
     }
-  }
+  };
 
-  handleKeyUp() {
+  handleKeyUp = () => {
     this.tabDirection = "forward";
-  }
+  };
 }

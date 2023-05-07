@@ -5,23 +5,24 @@
   --overflow-y: visible;
   --child-layout: column-reverse;
   --position: absolute;
-  --inset-r: 16px;
-  --inset-b: 16px;
-  --inset-l: 16px;
   --z: var(--s-z-index-toast);
   --width-max: 100%;
   --height-max: 100%;
+  --inset-r: 16px;
+  --inset-b: 16px;
+  --inset-l: 16px;
 }
 
-.content {
+.root {
   display: flex;
   flex-direction: var(--child-layout);
   overflow-y: var(--overflow-y);
   position: var(--position);
-  right: var(--inset-r, var(--inset-lr, var(--inset)));
-  bottom: var(--inset-b, var(--inset-tb, var(--inset)));
-  left: var(--inset-l, var(--inset-lr, var(--inset)));
   z-index: var(--z);
   max-width: var(--width-max);
   max-height: var(--height-max);
+  inset-block-start: var(--inset-block-start);
+  inset-block-end: var(--inset-block-end);
+  inset-inline-start: var(--inset-inline-start);
+  inset-inline-end: var(--inset-inline-end);
 }

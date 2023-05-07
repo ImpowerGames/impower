@@ -1,7 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssColor } from "../../utils/getCssColor";
 import css from "./skeleton.css";
-import html from "./skeleton.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -15,10 +14,6 @@ export default class Skeleton extends SparkleElement {
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     return super.define(tag, dependencies);
-  }
-
-  override get html(): string {
-    return html;
   }
 
   override get styles(): CSSStyleSheet[] {

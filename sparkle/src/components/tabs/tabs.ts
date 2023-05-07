@@ -1,3 +1,4 @@
+import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import type Tab from "../tab/tab";
 import css from "./tabs.css";
@@ -5,6 +6,8 @@ import html from "./tabs.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
+
+const onchangeEvent = new SparkleEvent("onchange");
 
 export const DEFAULT_TABS_DEPENDENCIES = {
   "s-tab": "s-tab",
@@ -66,12 +69,12 @@ export default class Tabs extends SparkleElement {
     return this._tabs;
   }
 
-  get navSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("nav");
-  }
-
   get indicatorEl(): HTMLElement | null {
     return this.getElementByClass("indicator");
+  }
+
+  get navEl(): HTMLElement | null {
+    return this.getElementByClass("nav");
   }
 
   protected _resizeObserver?: ResizeObserver;
@@ -83,14 +86,25 @@ export default class Tabs extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "indicator" || name === "vertical") {
+    if (name === "indicator") {
+      this.updateTabs();
+      const indicatorEl = this.indicatorEl;
+      if (indicatorEl) {
+        indicatorEl.hidden = newValue === "none";
+      }
+    }
+    if (name === "vertical") {
       this.updateTabs();
     }
   }
 
   protected override onConnected(): void {
+    const indicator = this.indicator;
+    const indicatorEl = this.indicatorEl;
+    if (indicatorEl) {
+      indicatorEl.hidden = indicator === "none";
+    }
     this._resizeObserver = new ResizeObserver(this.handleResize);
-    this.navSlot?.addEventListener("slotchange", this.handleNavSlotChange);
   }
 
   protected override onParsed(): void {
@@ -99,15 +113,15 @@ export default class Tabs extends SparkleElement {
 
   protected override onDisconnected(): void {
     this._resizeObserver?.disconnect();
-    this.navSlot?.removeEventListener("slotchange", this.handleNavSlotChange);
     this.unbindTabs();
   }
 
   updateIndicator = (tabElement: HTMLElement): void => {
     if (tabElement && this.indicator !== "none") {
       const indicator = this.indicatorEl;
+      const navEl = this.navEl;
       const vertical = this.vertical;
-      const navRect = this.navSlot?.getBoundingClientRect();
+      const navRect = navEl?.getBoundingClientRect();
       const tabRect = tabElement?.getBoundingClientRect();
       if (navRect && tabRect) {
         const size = vertical ? tabRect.height : tabRect.width;
@@ -160,7 +174,7 @@ export default class Tabs extends SparkleElement {
     const value = tab.value;
     this.value = value;
     this.updateTabs();
-    this.emit("onchange");
+    this.dispatchEvent(onchangeEvent);
   }
 
   onPointerDownTab = (e: PointerEvent): void => {
@@ -187,8 +201,7 @@ export default class Tabs extends SparkleElement {
     this.updateTabs();
   };
 
-  protected handleNavSlotChange = (e: Event): void => {
-    const slot = e.currentTarget as HTMLSlotElement;
+  protected override onContentAssigned = (slot: HTMLSlotElement): void => {
     this.unbindTabs();
     this._tabs = slot
       ?.assignedElements?.()
@@ -203,5 +216,8 @@ export default class Tabs extends SparkleElement {
 declare global {
   interface HTMLElementTagNameMap {
     "s-tabs": Tabs;
+  }
+  interface HTMLElementEventMap {
+    onchange: SparkleEvent;
   }
 }

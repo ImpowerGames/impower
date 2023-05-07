@@ -5,15 +5,56 @@ const STRING_LITERAL_REGEX = /(["][^"]+["]|['][^']+[']|[`][^`]+[`])/g;
 const QUOTE_REGEX = /(["'`])/g;
 const CAMEL_CASE_REGEX = /([a-z](?=[A-Z]))/g;
 
+const args = process.argv.slice(2);
+const getTypeValues = (type: string): string[] | undefined => {
+  let values: string[] | undefined;
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg) {
+      if (arg === `--${type}`) {
+        values = [];
+      } else {
+        if (values) {
+          if (arg?.startsWith("--")) {
+            break;
+          }
+          values.push(arg);
+        }
+      }
+    }
+  }
+  return values;
+};
+
 export const camelCaseToKebabCase = (str: string): string => {
   return str.replace(CAMEL_CASE_REGEX, `$1-`).toLowerCase();
+};
+
+export const getValues = (str: string): string[] | undefined => {
+  const s = str.trim();
+  if (
+    s === "" ||
+    s === "null" ||
+    s === "undefined" ||
+    s === "boolean" ||
+    s === "number" ||
+    s === "string" ||
+    s === `""`
+  ) {
+    return undefined;
+  }
+  const matches = s.match(STRING_LITERAL_REGEX);
+  if (matches) {
+    return matches;
+  }
+  return getTypeValues(s);
 };
 
 export const normalize = (str: string): string => {
   if (!str) {
     return str;
   }
-  const strippedStr = str.startsWith("_") ? str.slice(1) : str;
+  const strippedStr = str.trim().startsWith("_") ? str.slice(1) : str;
   return camelCaseToKebabCase(strippedStr.replace(QUOTE_REGEX, ""));
 };
 
@@ -22,7 +63,7 @@ try {
   const obj = JSON.parse(json);
 
   interface Value {
-    name: string;
+    name?: string;
   }
 
   interface Attribute {
@@ -71,24 +112,19 @@ try {
           }
           if (member.kind === "field" && member.description && member.name) {
             const typeText = (member?.type?.text as string) || "";
-            const attr: {
-              name: string;
-              description: string;
-              values?: {
-                name: string;
-              }[];
-            } = {
+            const attr: Attribute = {
               name: normalize(member.name),
               description: member.description,
             };
             if (typeText === "boolean") {
               attributes.push(attr);
             } else {
-              const matches = typeText.match(STRING_LITERAL_REGEX);
-              if (matches) {
-                const values = matches.map((name: string) => ({
-                  name: normalize(name),
-                }));
+              const types = typeText.split("|");
+              if (types) {
+                const values = types
+                  .flatMap((t) => getValues(t))
+                  .filter((v) => v != null)
+                  .map((name) => ({ name }));
                 if (values.length > 0) {
                   attr.values = values;
                 }

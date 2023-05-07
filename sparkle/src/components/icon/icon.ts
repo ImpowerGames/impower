@@ -3,7 +3,6 @@ import { getCssColor } from "../../utils/getCssColor";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
 import css from "./icon.css";
-import html from "./icon.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -19,10 +18,6 @@ export default class Icon extends SparkleElement {
     return super.define(tag, dependencies);
   }
 
-  override get html(): string {
-    return html;
-  }
-
   override get styles(): CSSStyleSheet[] {
     return [styles];
   }
@@ -36,6 +31,13 @@ export default class Icon extends SparkleElement {
       "stroke",
       "stroke-width",
     ];
+  }
+
+  /**
+   * The name of the icon to display.
+   */
+  get icon(): string | null {
+    return this.getStringAttribute("icon");
   }
 
   /**
@@ -93,6 +95,14 @@ export default class Icon extends SparkleElement {
     }
     if (name === "stroke-width") {
       this.updateRootCssVariable(name, newValue);
+    }
+  }
+
+  protected override onContentAssigned(slot: HTMLSlotElement): void {
+    if (slot.assignedNodes().length > 0) {
+      if (this.icon == null) {
+        this.setAttribute("icon", "");
+      }
     }
   }
 }

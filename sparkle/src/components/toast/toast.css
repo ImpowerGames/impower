@@ -9,38 +9,19 @@
   --child-align: center;
   --child-justify: center;
   --shadow: var(--s-shadow-drop-2);
-  --border-width: 1px;
-  --border-color: var(--s-color-surface-border);
-  --bg-color: var(--s-color-surface);
+  --background-color: var(--s-color-surface);
   --text-color: var(--s-color-neutral-80);
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-sm-font-size);
   --text-leading: 1.6;
   --text-weight: 400;
   --spacing: 16px;
+  --border-color: var(--s-color-surface-border);
+  --border-width: 1px;
+  --corner: 4px;
   --margin: 4px;
-  --padding: 0;
   --padding-tb: 12px;
   --padding-lr: 16px;
-  --padding-t: var(--padding-tb);
-  --padding-b: var(--padding-tb);
-  --padding-l: var(--padding-lr);
-  --padding-r: var(--padding-lr);
-  --margin-tb: var(--margin);
-  --margin-lr: var(--margin);
-  --margin-t: var(--margin);
-  --margin-b: var(--margin);
-  --margin-l: var(--margin);
-  --margin-r: var(--margin);
-  --corner: 4px;
-  --corner-t: var(--corner);
-  --corner-l: var(--corner);
-  --corner-r: var(--corner);
-  --corner-b: var(--corner);
-  --corner-tl: var(--corner);
-  --corner-tr: var(--corner);
-  --corner-br: var(--corner);
-  --corner-bl: var(--corner);
 }
 
 .root {
@@ -51,38 +32,32 @@
   align-items: var(--child-align);
   filter: var(--shadow);
   border-style: solid;
-  border-color: var(--border-color);
-  border-width: var(--border-width);
-  background-color: var(--bg-color);
+  background-color: var(--background-color);
   color: var(--text-color);
   font-family: var(--text-font);
   font-size: var(--text-size);
   font-weight: var(--text-weight);
   line-height: var(--text-leading);
-  padding-top: var(--padding-t, var(--padding-tb, var(--padding)));
-  padding-right: var(--padding-r, var(--padding-lr, var(--padding)));
-  padding-bottom: var(--padding-b, var(--padding-tb, var(--padding)));
-  padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
-  margin-top: var(--margin-t, var(--margin-tb, var(--margin)));
-  margin-right: var(--margin-r, var(--margin-lr, var(--margin)));
-  margin-bottom: var(--margin-b, var(--margin-tb, var(--margin)));
-  margin-left: var(--margin-l, var(--margin-lr, var(--margin)));
-  border-top-left-radius: var(
-    --corner-tl,
-    var(--corner-t, var(--corner-l, var(--corner)))
-  );
-  border-top-right-radius: var(
-    --corner-tr,
-    var(--corner-t, var(--corner-r, var(--corner)))
-  );
-  border-bottom-right-radius: var(
-    --corner-br,
-    var(--corner-b, var(--corner-r, var(--corner)))
-  );
-  border-bottom-left-radius: var(
-    --corner-bl,
-    var(--corner-b, var(--corner-l, var(--corner)))
-  );
+  border-block-start-color: var(--border-block-start-color);
+  border-block-end-color: var(--border-block-end-color);
+  border-inline-start-color: var(--border-inline-start-color);
+  border-inline-end-color: var(--border-inline-end-color);
+  border-block-start-width: var(--border-block-start-width);
+  border-block-end-width: var(--border-block-end-width);
+  border-inline-start-width: var(--border-inline-start-width);
+  border-inline-end-width: var(--border-inline-end-width);
+  border-start-start-radius: var(--border-start-start-radius);
+  border-start-end-radius: var(--border-start-end-radius);
+  border-end-start-radius: var(--border-end-start-radius);
+  border-end-end-radius: var(--border-end-end-radius);
+  margin-block-start: var(--margin-block-start);
+  margin-block-end: var(--margin-block-end);
+  margin-inline-start: var(--margin-inline-start);
+  margin-inline-end: var(--margin-inline-end);
+  padding-block-start: var(--padding-block-start);
+  padding-block-end: var(--padding-block-end);
+  padding-inline-start: var(--padding-inline-start);
+  padding-inline-end: var(--padding-inline-end);
 }
 :host([action]) .root {
   padding-right: calc(
@@ -96,7 +71,6 @@
   flex-direction: column;
   overflow: hidden;
 }
-
 :host([action]) .message {
   padding-right: var(--spacing);
 }
@@ -110,7 +84,4 @@
   justify-content: flex-end;
   color: var(--color);
   font-size: var(--icon-size);
-}
-:host(:not([action])) .close {
-  display: none;
 }

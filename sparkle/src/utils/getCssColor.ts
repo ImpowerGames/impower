@@ -6,7 +6,11 @@ export const getCssColor = (color: string): string => {
     color === "none" ||
     color === "transparent" ||
     color === "black" ||
-    color === "white"
+    color === "white" ||
+    color.startsWith("#") ||
+    color.startsWith("rgb") ||
+    color.startsWith("hsl") ||
+    color.startsWith("lch")
   ) {
     return color;
   }

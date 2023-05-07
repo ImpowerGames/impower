@@ -2,6 +2,7 @@
   display: contents;
 }
 :host {
+  --spacing: 8px;
   --interactable: auto;
   --selectable: none;
   --child-layout: column;
@@ -14,19 +15,13 @@
   --text-size: var(--s-text-sm-font-size);
   --text-weight: 600;
   --text-wrap: nowrap;
-  --transition: opacity, transform, filter, color;
+  --transition-property: opacity, transform, filter, color;
   --duration: 100ms;
   --color: var(--s-color-primary-70);
   --text-color: var(--s-color-neutral-70);
   --hover-color: var(--s-color-neutral-90);
-  --border-width: 0;
-  --padding: 0;
   --padding-tb: 16px;
   --padding-lr: 20px;
-  --padding-t: var(--padding-tb);
-  --padding-b: var(--padding-tb);
-  --padding-l: var(--padding-lr);
-  --padding-r: var(--padding-lr);
 }
 
 .root {
@@ -45,27 +40,23 @@
   font-weight: var(--text-weight);
   color: var(--text-color);
   background-color: transparent;
-  border-width: var(--border-width);
   white-space: var(--text-wrap);
-  transition-property: var(--transition);
+  transition-property: var(--transition-property);
   transition-duration: var(--duration);
-  padding-top: var(--padding-t, var(--padding-tb, var(--padding)));
-  padding-right: var(--padding-r, var(--padding-lr, var(--padding)));
-  padding-bottom: var(--padding-b, var(--padding-tb, var(--padding)));
-  padding-left: var(--padding-l, var(--padding-lr, var(--padding)));
+  padding-block-start: var(--padding-block-start);
+  padding-block-end: var(--padding-block-end);
+  padding-inline-start: var(--padding-inline-start);
+  padding-inline-end: var(--padding-inline-end);
 }
-
 :host([disabled]) .root {
   cursor: default;
   opacity: 0.5;
 }
-
 @media (hover: hover) and (pointer: fine) {
   :host(:not([disabled])) .root:hover {
     color: var(--hover-color);
   }
 }
-
 :host([active]:not([disabled])) .root {
   color: var(--color);
 }
@@ -78,39 +69,21 @@
   transition-duration: var(--duration);
 }
 
-:host([icon]) .label,
-:host([spacing]) .label {
-  padding-top: var(--spacing, 6px);
-}
-
 :host([icon]) .label {
+  margin-top: var(--spacing);
+  line-height: 1;
   transform: translateY(0) scale(0.8);
 }
 :host([icon][active]:not([disabled])) .label {
   transform: translateY(-2px) scale(0.95);
 }
 
-:host([icon]) .icon {
+.icon {
+  margin-top: 4px;
+  line-height: 1;
+  font-size: 20px;
   transform: translateY(0);
 }
 :host([icon][active]:not([disabled])) .icon {
   transform: translateY(-2px);
-}
-
-.icon {
-  display: none;
-}
-:host([icon]) .icon {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 1.25em;
-  height: 1.25em;
-  -webkit-mask-image: var(--icon, none);
-  mask-image: var(--icon, none);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  background-color: currentColor;
 }

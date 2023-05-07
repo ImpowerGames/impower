@@ -31,6 +31,11 @@ export const animateTo = (
   });
 };
 
+export const animationsComplete = (element: Element) =>
+  Promise.allSettled(
+    element.getAnimations().map((animation) => animation.finished)
+  );
+
 /** Parses a CSS duration and returns the number of milliseconds. */
 export const parseDuration = (delay: number | string) => {
   delay = delay.toString().toLowerCase();

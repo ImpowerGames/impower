@@ -1,3 +1,4 @@
+import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import Animations from "../../helpers/animations";
 import { animateTo, stopAnimations } from "../../utils/animate";
@@ -8,6 +9,11 @@ import html from "./toast.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
+
+const closingEvent = new SparkleEvent("closing");
+const closedEvent = new SparkleEvent("closed");
+const openingEvent = new SparkleEvent("opening");
+const openedEvent = new SparkleEvent("opened");
 
 export const DEFAULT_TOAST_DEPENDENCIES = {
   "s-button": "s-button",
@@ -94,12 +100,12 @@ export default class Toast extends SparkleElement {
     this.setStringAttribute("timeout", value);
   }
 
-  get messageSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("message");
-  }
-
   get buttonEl(): HTMLButtonElement | null {
     return this.getElementByClass("button");
+  }
+
+  get closeEl(): HTMLElement | null {
+    return this.getElementByClass("close");
   }
 
   get actionSlot(): HTMLSlotElement | null {
@@ -147,6 +153,10 @@ export default class Toast extends SparkleElement {
       if (action) {
         this.setAssignedToSlot(action, "action");
       }
+      const closeEl = this.closeEl;
+      if (closeEl) {
+        closeEl.hidden = action == null;
+      }
     }
   }
 
@@ -161,6 +171,10 @@ export default class Toast extends SparkleElement {
     const action = this.action;
     if (action) {
       this.setAssignedToSlot(action, "action");
+    }
+    const closeEl = this.closeEl;
+    if (closeEl) {
+      closeEl.hidden = action == null;
     }
     this.root.addEventListener("mousemove", this.handleHover);
     this.buttonEl?.addEventListener("click", this.handleButtonClick);
@@ -179,25 +193,14 @@ export default class Toast extends SparkleElement {
     );
   }
 
-  private restartAutoClose(open: boolean, autoCloseDuration: number): void {
-    clearTimeout(this._autoHideTimeout);
-    if (open && autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
-      this._autoHideTimeout = window.setTimeout(
-        () => this.hide(),
-        autoCloseDuration
-      );
+  protected override onContentAssigned(slot: HTMLSlotElement) {
+    const assignedElement = slot?.assignedElements?.()?.[0];
+    if (assignedElement) {
+      if (this.message == null) {
+        this.setAttribute("message", "");
+      }
     }
   }
-
-  private handleButtonClick = (): void => {
-    this.hide();
-  };
-
-  private handleHover = (): void => {
-    const open = this.open;
-    const durationMS = getCssDurationMS(this.timeout, 4000);
-    this.restartAutoClose(open, durationMS);
-  };
 
   protected handleActionSlotChange = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
@@ -207,6 +210,26 @@ export default class Toast extends SparkleElement {
         this.setAttribute("action", "");
       }
     }
+  };
+
+  private restartAutoClose(open: boolean, autoCloseDuration: number): void {
+    clearTimeout(this._autoHideTimeout);
+    if (open && autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
+      this._autoHideTimeout = window.setTimeout(
+        () => this.close(),
+        autoCloseDuration
+      );
+    }
+  }
+
+  private handleButtonClick = (): void => {
+    this.close();
+  };
+
+  private handleHover = (): void => {
+    const open = this.open;
+    const durationMS = getCssDurationMS(this.timeout, 4000);
+    this.restartAutoClose(open, durationMS);
   };
 
   protected async changeState(
@@ -224,7 +247,7 @@ export default class Toast extends SparkleElement {
     }
     if (open) {
       // Show
-      this.emit("s-show");
+      this.dispatchEvent(openingEvent);
 
       if (autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
         this.restartAutoClose(open, autoCloseDuration);
@@ -235,10 +258,10 @@ export default class Toast extends SparkleElement {
       this.root.style.display = "flex";
       await animateTo(this.root, Animations.get("enter"));
 
-      this.emit("s-after-show");
+      this.dispatchEvent(openedEvent);
     } else {
       // Hide
-      this.emit("s-hide");
+      this.dispatchEvent(closingEvent);
 
       clearTimeout(this._autoHideTimeout);
 
@@ -247,7 +270,7 @@ export default class Toast extends SparkleElement {
       this.root.hidden = true;
       this.root.style.display = "none";
 
-      this.emit("s-after-hide");
+      this.dispatchEvent(closedEvent);
     }
   }
 
@@ -260,19 +283,19 @@ export default class Toast extends SparkleElement {
     }
 
     this.open = true;
-    return waitForEvent(this, "s-after-show");
+    return waitForEvent(this, "opened");
   }
 
   /**
    * Hides the toast
    */
-  async hide(): Promise<void> {
+  async close(): Promise<void> {
     if (!this.open) {
       return undefined;
     }
 
     this.open = false;
-    return waitForEvent(this, "s-after-hide");
+    return waitForEvent(this, "closed");
   }
 
   /**
@@ -285,7 +308,7 @@ export default class Toast extends SparkleElement {
     return new Promise<void>((resolve) => {
       this.show();
       this.addEventListener(
-        "s-after-hide",
+        "closed",
         () => {
           container.removeChild(this);
           resolve();
@@ -299,5 +322,12 @@ export default class Toast extends SparkleElement {
 declare global {
   interface HTMLElementTagNameMap {
     "s-toast": Toast;
+  }
+  interface HTMLElementEventMap {
+    closing: SparkleEvent;
+    closed: SparkleEvent;
+    opening: SparkleEvent;
+    opened: SparkleEvent;
+    removed: SparkleEvent;
   }
 }

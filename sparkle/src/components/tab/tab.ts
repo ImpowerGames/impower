@@ -1,5 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
 import { getCssIcon } from "../../utils/getCssIcon";
+import { getCssMask } from "../../utils/getCssMask";
 import { getCssSize } from "../../utils/getCssSize";
 import type Ripple from "../ripple/ripple";
 import css from "./tab.css";
@@ -65,6 +66,10 @@ export default class Tab extends SparkleElement {
     return this.getElementByTag<Ripple>(Tab.dependencies["s-ripple"]);
   }
 
+  get iconEl(): HTMLElement | null {
+    return this.getElementByClass("icon");
+  }
+
   protected override onAttributeChanged(
     name: string,
     oldValue: string,
@@ -77,11 +82,20 @@ export default class Tab extends SparkleElement {
         newValue != null ? "true" : "false"
       );
     }
-    if (name === "disabled" || name === "loading") {
-      if (newValue != null) {
-        this.ripple?.setAttribute("disabled", "");
-      } else {
-        this.ripple?.removeAttribute("disabled");
+    if (name === "disabled") {
+      const ripple = this.ripple;
+      if (ripple) {
+        ripple.hidden = newValue != null;
+      }
+    }
+    if (name === "mask") {
+      const ripple = this.ripple;
+      if (ripple) {
+        if (newValue) {
+          const mask = getCssMask(newValue);
+          ripple.root.style.webkitMask = mask;
+          ripple.root.style.mask = mask;
+        }
       }
     }
     if (name === "active") {
@@ -94,6 +108,10 @@ export default class Tab extends SparkleElement {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
     if (name === "icon") {
+      const iconEl = this.iconEl;
+      if (iconEl) {
+        iconEl.hidden = name == null;
+      }
       if (this.active) {
         this.updateRootCssVariable(name, getCssIcon(newValue, "-fill"));
       } else {
@@ -113,6 +131,11 @@ export default class Tab extends SparkleElement {
 
   protected override onConnected(): void {
     this.ripple?.bind?.(this.root);
+    const icon = this.icon;
+    const iconEl = this.iconEl;
+    if (iconEl) {
+      iconEl.hidden = icon == null;
+    }
   }
 
   protected override onDisconnected(): void {

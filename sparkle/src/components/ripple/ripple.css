@@ -1,11 +1,14 @@
 :host {
   display: contents;
+  border-radius: inherit;
+  -webkit-mask: inherit;
+  mask: inherit;
 }
 :host {
   --ripple-color: var(--text-color);
-  --focus-opacity: var(--s-focus-state-layer-opacity);
-  --hover-opacity: var(--s-hover-state-layer-opacity);
-  --press-opacity: var(--s-press-state-layer-opacity);
+  --focus-opacity: var(--s-opacity-focus);
+  --hover-opacity: var(--s-opacity-hover);
+  --press-opacity: var(--s-opacity-press);
   --ripple-duration: 150ms;
   --hover-duration: 15ms;
   --focus-duration: 75ms;
@@ -26,6 +29,8 @@
   will-change: transform;
   outline: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-mask: inherit;
+  mask: inherit;
 }
 
 .root::before,
@@ -34,6 +39,8 @@
   opacity: 0;
   pointer-events: none;
   content: "";
+  -webkit-mask: inherit;
+  mask: inherit;
 }
 
 .root::before {

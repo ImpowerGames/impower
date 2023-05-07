@@ -1,0 +1,38 @@
+<dialog class="root" part="root" inert connecting>
+  <form class="form" part="form" method="dialog">
+    <header class="header" part="header">
+      <div class="icon" part="icon">
+        <slot name="icon">
+          <s-icon></s-icon>
+        </slot>
+      </div>
+      <h3 class="label" part="label">
+        <slot name="label"></slot>
+      </h3>
+    </header>
+    <article class="article" part="article">
+      <slot class="content"></slot>
+    </article>
+    <footer class="footer" part="footer">
+      <menu class="menu" part="menu">
+        <s-button
+          class="cancel-button"
+          part="cancel-button"
+          variant="text"
+          type="button"
+        >
+          <slot name="cancel"></slot>
+        </s-button>
+        <s-button
+          class="confirm-button"
+          part="confirm-button"
+          variant="text"
+          type="submit"
+          value="confirm"
+        >
+          <slot name="confirm">Confirm</slot>
+        </s-button>
+      </menu>
+    </footer>
+  </form>
+</dialog>

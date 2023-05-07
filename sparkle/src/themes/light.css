@@ -251,33 +251,13 @@
   --s-color-surface-border: var(--s-color-neutral-30);
 
   /* Scrollbars */
-  --s-scrollbar-thumb: #00000040;
-  --s-scrollbar-thumb-hover: #00000080;
-  --s-scrollbar-track: #0000001a;
+  --s-color-scrollbar-thumb: #00000040;
+  --s-color-scrollbar-thumb-hover: #00000080;
+  --s-color-scrollbar-track: #0000001a;
 
   /*
    * Opacities
    */
 
   --s-opacity-overlay: 0.25;
-
-  /*
-   * Elevations
-   */
-
-  --s-shadow-key-0: 0 0 0 hsl(0 0% 0% / 0%);
-  --s-shadow-key-1: 0 1px 2px hsl(0 0% 0% / 30%);
-  --s-shadow-key-2: 0 1px 2px hsl(0 0% 0% / 30%);
-  --s-shadow-key-3: 0 1px 3px hsl(0 0% 0% / 30%);
-  --s-shadow-key-4: 0 2px 3px hsl(0 0% 0% / 30%);
-  --s-shadow-key-5: 0 4px 4px hsl(0 0% 0% / 30%);
-
-  --s-shadow-ambient-0: 0 0 0 hsl(0 0% 0% / 0%);
-  --s-shadow-ambient-1: 0 1px 3px hsl(0 0% 0% / 15%);
-  --s-shadow-ambient-2: 0 2px 6px hsl(0 0% 0% / 15%);
-  --s-shadow-ambient-3: 0 4px 8px hsl(0 0% 0% / 15%);
-  --s-shadow-ambient-4: 0 6px 10px hsl(0 0% 0% / 15%);
-  --s-shadow-ambient-5: 0 8px 12px hsl(0 0% 0% / 15%);
 }
-
-/* _utility.css */

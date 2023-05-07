@@ -26,10 +26,6 @@
   filter: var(--shadow);
 }
 
-.root:not(.active) {
-  display: none;
-}
-
 .fixed {
   position: fixed;
 }
@@ -38,15 +34,7 @@
   display: flex;
 }
 
-.content {
-  display: contents;
-}
-
-.arrow {
-  display: none;
-}
-
-.has-arrow .arrow {
+:host([arrow]) .arrow {
   display: block;
   position: absolute;
   width: calc(var(--arrow-size-diagonal) * 2);
