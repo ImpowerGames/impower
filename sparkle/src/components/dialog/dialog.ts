@@ -286,7 +286,8 @@ export default class Dialog extends SparkleElement {
       return;
     }
 
-    this.root.removeAttribute("inert");
+    this.root.hidden = false;
+    this.root.inert = false;
 
     const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
 

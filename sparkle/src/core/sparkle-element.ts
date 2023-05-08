@@ -1,5 +1,6 @@
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES";
 import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS";
+import Styles from "../helpers/styles";
 import { Color } from "../types/color";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
@@ -1292,7 +1293,17 @@ export default class SparkleElement extends HTMLElement {
     super();
     const shadowRoot = this.attachShadow(init);
     shadowRoot.innerHTML = this.html;
-    shadowRoot.adoptedStyleSheets = [NORMALIZE_STYLES, styles, ...this.styles];
+    shadowRoot.adoptedStyleSheets = [NORMALIZE_STYLES];
+    const fonts = Styles.get("fonts");
+    const keyframes = Styles.get("keyframes");
+    if (fonts) {
+      shadowRoot.adoptedStyleSheets.push(fonts);
+    }
+    if (keyframes) {
+      shadowRoot.adoptedStyleSheets.push(keyframes);
+    }
+    shadowRoot.adoptedStyleSheets.push(styles);
+    shadowRoot.adoptedStyleSheets.push(...this.styles);
   }
 
   /**

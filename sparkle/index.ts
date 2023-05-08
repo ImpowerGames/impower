@@ -28,6 +28,7 @@ import fontsCSS from "./src/themes/fonts.css";
 import globalCSS from "./src/themes/global.css";
 import gradientsCSS from "./src/themes/gradients.css";
 import iconsCSS from "./src/themes/icons.css";
+import keyframesCSS from "./src/themes/keyframes.css";
 import lightCSS from "./src/themes/light.css";
 import masksCSS from "./src/themes/masks.css";
 import patternsCSS from "./src/themes/patterns.css";
@@ -80,6 +81,8 @@ const masksSheet = new CSSStyleSheet();
 masksSheet.replaceSync(masksCSS);
 const easingsSheet = new CSSStyleSheet();
 easingsSheet.replaceSync(easingsCSS);
+const keyframesSheet = new CSSStyleSheet();
+keyframesSheet.replaceSync(keyframesCSS);
 const animationsSheet = new CSSStyleSheet();
 animationsSheet.replaceSync(animationsCSS);
 const patternsSheet = new CSSStyleSheet();
@@ -95,6 +98,7 @@ export const DEFAULT_SPARKLE_STYLES: Record<SparkleStyleType, CSSStyleSheet> = {
   gradients: gradientsSheet,
   masks: masksSheet,
   easings: easingsSheet,
+  keyframes: keyframesSheet,
   animations: animationsSheet,
   patterns: patternsSheet,
 };

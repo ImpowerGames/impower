@@ -8,5 +8,6 @@ export type SparkleStyleType =
   | "gradients"
   | "masks"
   | "easings"
+  | "keyframes"
   | "animations"
   | "patterns";

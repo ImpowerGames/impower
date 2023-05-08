@@ -21,9 +21,8 @@
   --corner: 8px;
   --margin: auto;
   --padding: 24px;
-  --animation-ease: var(--s-easing-ease-squish-3);
-  --animation-enter: var(--s-animation-scale-up);
-  --animation-exit: var(--s-animation-scale-down);
+  --animation-enter: var(--s-animation-enter);
+  --animation-exit: var(--s-animation-exit);
   --animation-enter-mobile: var(--s-animation-slide-in-up);
   --animation-exit-mobile: var(--s-animation-slide-out-down);
 }
@@ -65,7 +64,6 @@
   padding-inline-end: var(--padding-inline-end);
   max-inline-size: min(90vw, 60ch);
   animation: var(--animation-exit) forwards;
-  animation-timing-function: var(--animation-ease);
 }
 :host([open]) .root {
   animation: var(--animation-enter) forwards;
@@ -76,7 +74,7 @@
     border-end-end-radius: 0;
     border-end-start-radius: 0;
     animation: var(--animation-exit-mobile) forwards;
-    animation-timing-function: var(--animation-ease);
+    max-inline-size: 100vw;
   }
   :host([open]) .root {
     animation: var(--animation-enter-mobile) forwards;
