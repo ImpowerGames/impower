@@ -1,38 +1,27 @@
-import { DEFAULT_PATTERNS } from "../constants/DEFAULT_PATTERNS";
 import { generatePatternUrl } from "./generatePatternUrl";
 
-const ANGLES: Record<string, number> = {
-  w: 0,
-  nw: 45,
-  n: 90,
-  ne: 135,
-  e: 180,
-};
-const WEIGHTS = [1, 2, 3, 4, 5];
-
-export const generatePatternUrls = (): Record<string, string> => {
+export const generatePatternUrls = (
+  patterns: Record<string, string[]>,
+  width = 32,
+  height = 32
+): Record<string, string> => {
   const patternUrls: Record<string, string> = {};
-  Object.entries(DEFAULT_PATTERNS).forEach(([name, paths]) => {
-    Object.entries(ANGLES).forEach(([angleName, angle]) => {
-      WEIGHTS.forEach((strokeWeight) => {
-        const angleSuffix = angleName ? `-${angleName}` : "";
-        const weightSuffix = `-${strokeWeight}`;
-        patternUrls[`${name}${angleSuffix}${weightSuffix}`] =
-          generatePatternUrl(
-            paths.map((d) => ({ d, strokeWeight })),
-            angle
-          );
-      });
-    });
+  Object.entries(patterns).forEach(([name, paths]) => {
+    patternUrls[name] = generatePatternUrl(
+      { width, height, shapes: paths.map((d) => ({ d })) },
+      false
+    );
   });
   return patternUrls;
 };
 
-export const generatePatternsCSS = (): string => {
+export const generatePatternsCSS = (
+  patterns: Record<string, string[]>
+): string => {
   return `:root,
 .s-theme-light,
 .s-theme-dark {
-  ${Object.entries(generatePatternUrls())
+  ${Object.entries(generatePatternUrls(patterns))
     .map(([name, pattern]) => `--s-pattern-${name}: ${pattern};`)
     .join("\n  ")}
 }`;

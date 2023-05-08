@@ -1,6 +1,6 @@
 import { getCssDurationMS } from "./getCssDurationMS";
 
-export const getAllAnimations = (
+export const extractAllAnimationKeyframes = (
   ...sheets: CSSStyleSheet[]
 ): Record<
   string,

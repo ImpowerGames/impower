@@ -1,30 +1,13 @@
-export default abstract class Animations {
-  protected static _map: Record<
-    string,
-    {
-      keyframes: Keyframe[];
-      options?: KeyframeAnimationOptions;
-    }
-  > = {};
+import { Animation } from "../types/animation";
 
-  static get(name: string):
-    | {
-        keyframes: Keyframe[];
-        options?: KeyframeAnimationOptions;
-      }
-    | undefined {
+export default abstract class Animations {
+  protected static _map: Record<string, Animation> = {};
+
+  static get(name: string): Animation | undefined {
     return this._map[name];
   }
 
-  static init(
-    animations: Record<
-      string,
-      {
-        keyframes: Keyframe[];
-        options?: KeyframeAnimationOptions;
-      }
-    >
-  ): void {
-    this._map = animations;
+  static init(animationKeyframes: Record<string, Animation>): void {
+    this._map = animationKeyframes;
   }
 }

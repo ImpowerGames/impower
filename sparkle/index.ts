@@ -30,10 +30,10 @@ import gradientsCSS from "./src/themes/gradients.css";
 import iconsCSS from "./src/themes/icons.css";
 import lightCSS from "./src/themes/light.css";
 import masksCSS from "./src/themes/masks.css";
+import patternsCSS from "./src/themes/patterns.css";
 import shadowsCSS from "./src/themes/shadows.css";
 import { SparkleElementTag } from "./src/types/sparkleElementTag";
 import { SparkleStyleType } from "./src/types/sparkleStyleType";
-import { generatePatternsCSS } from "./src/utils/generatePatternsCSS";
 
 export const DEFAULT_SPARKLE_CONSTRUCTORS: Record<
   SparkleElementTag,
@@ -61,9 +61,6 @@ export const DEFAULT_SPARKLE_CONSTRUCTORS: Record<
   "s-router": Router,
   "s-breakpoint-observer": BreakpointObserver,
 };
-
-const patternsCSS = generatePatternsCSS();
-console.log(patternsCSS);
 
 const globalSheet = new CSSStyleSheet();
 globalSheet.replaceSync(globalCSS);
