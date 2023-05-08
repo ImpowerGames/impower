@@ -21,8 +21,8 @@
 .nav {
   display: flex;
   flex-direction: row;
-  overflow-x: auto;
-  overflow-y: clip;
+  overflow-x: visible;
+  overflow-y: visible;
   /* Hide scrollbar in Firefox */
   scrollbar-width: none;
 }
@@ -36,8 +36,6 @@
 }
 :host([vertical]) .nav {
   flex-direction: column;
-  overflow-x: clip;
-  overflow-y: auto;
 }
 
 .indicator {

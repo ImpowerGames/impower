@@ -30,6 +30,9 @@
 }
 
 .indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   height: 100%;
   background-color: var(--color);
   color: var(--text-color);
@@ -37,41 +40,43 @@
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
-  transition-property: width, background-color;
-  transition-duration: var(--duration), var(--duration);
   user-select: none;
-  width: var(--value);
+  transform-origin: left;
+  transition-property: transform, background-color;
+  transition-duration: var(--duration);
+  transform: scaleX(var(--value));
 }
-
 :host(:not([value])) .indicator {
-  position: absolute;
   animation: indeterminate var(--speed) infinite cubic-bezier(0.37, 0, 0.63, 1);
 }
-
+:host([rtl]) .indicator {
+  transform-origin: right;
+}
 :host([rtl]:not([value])) .indicator {
   animation-name: indeterminate-rtl;
 }
 
+.label {
+  position: absolute;
+  inset: 0;
+}
+
 @keyframes indeterminate {
   0% {
-    left: -50%;
-    width: 50%;
+    transform: translateX(-50%) scaleX(50%);
   }
   75%,
   100% {
-    left: 100%;
-    width: 50%;
+    transform: translateX(100%) scaleX(50%);
   }
 }
 
 @keyframes indeterminate-rtl {
   0% {
-    right: -50%;
-    width: 50%;
+    transform: translateX(50%) scaleX(50%);
   }
   75%,
   100% {
-    right: 100%;
-    width: 50%;
+    transform: translateX(-100%) scaleX(50%);
   }
 }

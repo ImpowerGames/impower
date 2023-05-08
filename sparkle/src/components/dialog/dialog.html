@@ -1,4 +1,4 @@
-<dialog class="root" part="root" inert connecting>
+<dialog class="root" part="root" inert>
   <form class="form" part="form" method="dialog">
     <header class="header" part="header">
       <div class="icon" part="icon">
@@ -16,16 +16,18 @@
     <footer class="footer" part="footer">
       <menu class="menu" part="menu">
         <s-button
-          class="cancel-button"
-          part="cancel-button"
+          id="cancel"
+          class="cancel"
+          part="cancel"
           variant="text"
           type="button"
         >
           <slot name="cancel"></slot>
         </s-button>
         <s-button
-          class="confirm-button"
-          part="confirm-button"
+          id="confirm"
+          class="confirm"
+          part="confirm"
           variant="text"
           type="submit"
           value="confirm"

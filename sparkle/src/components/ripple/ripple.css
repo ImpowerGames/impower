@@ -5,7 +5,6 @@
   mask: inherit;
 }
 :host {
-  --ripple-color: var(--text-color);
   --focus-opacity: var(--s-opacity-focus);
   --hover-opacity: var(--s-opacity-hover);
   --press-opacity: var(--s-opacity-press);
@@ -27,7 +26,6 @@
   inset: 0;
   overflow: hidden;
   will-change: transform;
-  outline: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-mask: inherit;
   mask: inherit;
@@ -44,7 +42,7 @@
 }
 
 .root::before {
-  background-color: var(--ripple-color);
+  background-color: currentColor;
   transition-property: opacity, background-color;
   transition-timing-function: linear;
   inset: 0;
@@ -53,7 +51,7 @@
 .root::after {
   background: radial-gradient(
     closest-side,
-    var(--ripple-color) max(calc(100% - 70px), var(--min-color-stop-length)),
+    currentColor max(calc(100% - 70px), var(--min-color-stop-length)),
     transparent 100%
   );
   transition-property: opacity;
@@ -63,14 +61,14 @@
 }
 
 .hovered::before {
-  background-color: var(--ripple-color);
+  background-color: currentColor;
   opacity: var(--hover-opacity);
   transition-property: opacity;
   transition-duration: var(--hover-duration);
 }
 
 .focused::before {
-  background-color: var(--ripple-color);
+  background-color: currentColor;
   opacity: var(--focus-opacity);
   transition-property: opacity;
   transition-duration: var(--focus-duration);

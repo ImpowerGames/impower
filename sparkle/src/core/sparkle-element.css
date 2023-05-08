@@ -579,11 +579,10 @@
   position: absolute;
   inset: 0;
   content: "";
-  z-index: -1;
   border-radius: inherit;
   outline: var(--s-color-focus) var(--s-focus-ring-style)
     var(--s-focus-ring-width);
-  outline-offset: calc(
-    -1 * var(--s-focus-ring-width) - var(--s-focus-ring-offset)
-  );
+  outline-offset: var(--s-focus-ring-offset);
+  -webkit-mask: none !important;
+  mask: none !important;
 }

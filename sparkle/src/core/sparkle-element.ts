@@ -1618,21 +1618,4 @@ export default class SparkleElement extends HTMLElement {
       this.removeAttribute(name);
     }
   }
-
-  transferBorderStyle(targetEl: HTMLElement) {
-    const needsTransfer =
-      targetEl.style.margin !== "0" ||
-      targetEl.style.boxShadow !== "none" ||
-      targetEl.style.filter !== "none";
-    if (needsTransfer) {
-      this.root.style.borderRadius =
-        window.getComputedStyle(targetEl).borderRadius;
-      this.root.style.margin = window.getComputedStyle(targetEl).margin;
-      this.root.style.boxShadow = window.getComputedStyle(targetEl).boxShadow;
-      this.root.style.filter = window.getComputedStyle(targetEl).filter;
-      targetEl.style.margin = "0";
-      targetEl.style.boxShadow = "none";
-      targetEl.style.filter = "none";
-    }
-  }
 }

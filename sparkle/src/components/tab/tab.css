@@ -87,3 +87,7 @@
 :host([icon][active]:not([disabled])) .icon {
   transform: translateY(-2px);
 }
+
+.focused::before {
+  outline-offset: calc(-1 * var(--s-focus-ring-width));
+}

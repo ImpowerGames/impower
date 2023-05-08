@@ -1,16 +1,10 @@
 :host {
   display: contents;
 }
-:host {
-  --overflow-x: clip;
-  --overflow-y: clip;
-}
 
 .root {
   display: flex;
   flex-shrink: 0;
-  overflow-x: var(--overflow-x);
-  overflow-y: var(--overflow-y);
 }
 
 .root * {

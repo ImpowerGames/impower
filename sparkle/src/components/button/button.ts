@@ -56,6 +56,7 @@ export default class Button extends SparkleElement {
       "variant",
       "icon",
       "label",
+      "action",
     ];
   }
 
@@ -109,6 +110,13 @@ export default class Button extends SparkleElement {
    */
   get icon(): string | null {
     return this.getStringAttribute("icon");
+  }
+
+  /**
+   * The action to perform when clicking this button.
+   */
+  get action(): string | null {
+    return this.getStringAttribute("action");
   }
 
   get labelEl(): HTMLElement | null {
@@ -218,11 +226,47 @@ export default class Button extends SparkleElement {
       iconEl.hidden = icon == null;
     }
     this.ripple?.bind?.(this.root);
+    this.root.addEventListener("click", this.handleClick);
   }
 
   protected override onDisconnected(): void {
     this.ripple?.unbind?.(this.root);
+    this.root.removeEventListener("click", this.handleClick);
   }
+
+  protected handleClick = (): void => {
+    const action = this.action;
+    if (action) {
+      const [id, attr] = action.split(":");
+      if (id && attr) {
+        const siblings =
+          (this.parentElement?.childNodes as NodeListOf<HTMLElement>) || [];
+        const element = [this.parentElement, ...Array.from(siblings)].find(
+          (sibling) =>
+            (sibling as HTMLElement)?.getAttribute?.("id") === id.trim()
+        );
+        if (element) {
+          const [attrName, attrValue] = attr.split("=");
+          if (attrName) {
+            if (attrName.startsWith("!") && !attrValue) {
+              const attr = attrName.slice(1);
+              if (element.getAttribute(attr) != null) {
+                element.removeAttribute(attr);
+              } else {
+                element.setAttribute(attr, attrValue || "");
+              }
+            } else {
+              if (attrValue === "null") {
+                element.removeAttribute(attrName);
+              } else {
+                element.setAttribute(attrName, attrValue || "");
+              }
+            }
+          }
+        }
+      }
+    }
+  };
 
   protected override onContentAssigned(slot: HTMLSlotElement): void {
     const nodes = slot?.assignedNodes?.();

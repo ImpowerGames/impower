@@ -103,11 +103,11 @@ export default class Dialog extends SparkleElement {
   }
 
   get cancelButton(): HTMLButtonElement | null {
-    return this.getElementByClass("cancel-button");
+    return this.getElementByClass("cancel");
   }
 
   get confirmButton(): HTMLButtonElement | null {
-    return this.getElementByClass("confirm-button");
+    return this.getElementByClass("confirm");
   }
 
   get labelSlot(): HTMLSlotElement | null {
@@ -128,7 +128,9 @@ export default class Dialog extends SparkleElement {
     newValue: string
   ): void {
     if (name === "open") {
-      this.handleOpenChange(newValue != null);
+      if (newValue != null) {
+        this.handleOpen(true);
+      }
     }
     if (name === "icon") {
       this.updateRootCssVariable(name, getCssIcon(newValue));
@@ -192,12 +194,9 @@ export default class Dialog extends SparkleElement {
       confirmButton.hidden = confirm == null;
     }
     this.dialog.addEventListener("click", this.handleLightDismiss);
-    this.dialog.addEventListener("close", this.handleClose);
-    // remove connecting attribute
-    // prevent page load @keyframes playing
-    animationsComplete(this.root).then(() => {
-      this.root.removeAttribute("connecting");
-    });
+    this.dialog.addEventListener("close", this.handleLightDismiss);
+    this.cancelButton?.addEventListener("click", this.handleClickClose);
+    this.confirmButton?.addEventListener("click", this.handleClickClose);
     this.labelSlot?.addEventListener("slotchange", this.handleLabelSlotChange);
     this.cancelSlot?.addEventListener(
       "slotchange",
@@ -218,9 +217,10 @@ export default class Dialog extends SparkleElement {
 
   protected override onDisconnected(): void {
     unlockBodyScrolling(this);
-
     this.dialog.removeEventListener("click", this.handleLightDismiss);
-    this.dialog.removeEventListener("close", this.handleClose);
+    this.dialog.removeEventListener("close", this.handleLightDismiss);
+    this.cancelButton?.removeEventListener("click", this.handleClickClose);
+    this.confirmButton?.removeEventListener("click", this.handleClickClose);
     this.labelSlot?.removeEventListener(
       "slotchange",
       this.handleLabelSlotChange
@@ -267,27 +267,22 @@ export default class Dialog extends SparkleElement {
   };
 
   protected handleLightDismiss = (e: Event) => {
-    const dialog = e.currentTarget as HTMLDialogElement;
-    dialog.close("dismiss");
-  };
-
-  protected handleClose = async (e: Event) => {
-    const dialog = e.currentTarget as HTMLDialogElement;
-    dialog.setAttribute("inert", "");
-    this.dispatchEvent(closingEvent);
-
-    await animationsComplete(this.root);
-
-    this.dispatchEvent(closedEvent);
-  };
-
-  protected async handleOpenChange(isOpen: boolean): Promise<void> {
-    if (!isOpen) {
-      return;
+    const el = e.target as HTMLElement;
+    if (el === this.dialog) {
+      this.close("dismiss");
     }
+  };
 
+  protected async handleOpen(modal: boolean): Promise<void> {
     this.root.hidden = false;
     this.root.inert = false;
+    this.setAttribute("loaded", "");
+    if (modal) {
+      this.dialog.showModal();
+      lockBodyScrolling(this);
+    } else {
+      this.dialog.show();
+    }
 
     const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
 
@@ -309,7 +304,28 @@ export default class Dialog extends SparkleElement {
     this.dispatchEvent(openedEvent);
   }
 
-  private requestClose(source: "close-button" | "keyboard" | "overlay") {}
+  protected handleClose = async (
+    returnValue?: string
+  ): Promise<string | undefined> => {
+    this.dialog.inert = true;
+    this.open = false;
+    this.dispatchEvent(closingEvent);
+
+    await animationsComplete(this.root);
+
+    this.dialog.close();
+
+    this.dispatchEvent(closedEvent);
+    return returnValue;
+  };
+
+  protected handleClickClose = async (
+    e: Event
+  ): Promise<string | undefined> => {
+    const button = e.currentTarget as HTMLButtonElement;
+    const returnValue = button.getAttribute("id") ?? "";
+    return this.handleClose(returnValue);
+  };
 
   /**
    * Closes the dialog element.
@@ -317,19 +333,21 @@ export default class Dialog extends SparkleElement {
    * The argument, if provided, provides a return value.
    */
   async close(returnValue?: string): Promise<string | undefined> {
-    return returnValue;
+    return this.handleClose(returnValue);
   }
 
   /**
    * Displays the dialog element.
    */
-  async show(): Promise<void> {}
+  async show(): Promise<void> {
+    return this.handleOpen(false);
+  }
 
   /**
    * Displays the dialog element and prevents the user from interacting with anything behind the element.
    */
-  showModal(): void {
-    this.show();
+  async showModal(): Promise<void> {
+    return this.handleOpen(true);
   }
 }
 

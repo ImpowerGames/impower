@@ -1,4 +1,10 @@
-export const getCssEase = (value: string): string => {
+export const getCssEase = (
+  value: string | null,
+  defaultValue = "linear"
+): string => {
+  if (!value) {
+    return defaultValue;
+  }
   if (
     value === "none" ||
     value === "linear" ||

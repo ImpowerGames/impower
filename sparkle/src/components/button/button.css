@@ -163,9 +163,10 @@
   --shadow: none;
   --background-color: transparent;
   --border-color: var(--color);
+  --text-color: var(--color);
 
   font-weight: var(--text-weight);
-  color: var(--color);
+  color: var(--text-color);
   filter: var(--shadow);
   background-color: var(--background-color);
   border-style: solid;
@@ -181,11 +182,13 @@
 @media (hover: hover) and (pointer: fine) {
   :host([variant="outlined"]:not([disabled])) .root:hover,
   :host([variant="outlined"][checked]:not([disabled])) .root {
+    --text-color: var(--s-color-neutral-0);
     background-color: var(--color);
     color: var(--text-color);
   }
 }
 :host([variant="outlined"]:not([disabled])) .root:active {
+  --text-color: var(--s-color-neutral-0);
   background-color: var(--color);
   color: var(--text-color);
 }
