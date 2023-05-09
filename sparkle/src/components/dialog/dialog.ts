@@ -63,6 +63,13 @@ export default class Dialog extends SparkleElement {
   }
 
   /**
+   * Indicates whether or not the dialog can be dismissed by clicking the backdrop behind it.
+   */
+  get dismissable(): boolean {
+    return this.getBooleanAttribute("dismissable");
+  }
+
+  /**
    * The icon to display above the title.
    */
   get icon(): string | null {
@@ -268,7 +275,7 @@ export default class Dialog extends SparkleElement {
 
   protected handleLightDismiss = (e: Event) => {
     const el = e.target as HTMLElement;
-    if (el === this.dialog) {
+    if (el === this.dialog && this.dismissable) {
       this.close("dismiss");
     }
   };
