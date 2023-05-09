@@ -10,6 +10,10 @@ import { getCssTextWhiteSpace } from "../utils/getCssTextWhiteSpace";
 import { getUnitlessValue } from "../utils/getUnitlessValue";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isServer } from "../utils/isServer";
+import { navEndKey } from "../utils/navEndKey";
+import { navNextKey } from "../utils/navNextKey";
+import { navPrevKey } from "../utils/navPrevKey";
+import { navStartKey } from "../utils/navStartKey";
 import { updateAttribute } from "../utils/updateAttribute";
 import { NORMALIZE_STYLES } from "./normalize";
 import css from "./sparkle-element.css";
@@ -1258,6 +1262,7 @@ export default class SparkleElement extends HTMLElement {
     | null {
     return this.getStringAttribute("ease");
   }
+
   /**
    * Applies an `animation` to this element.
    */
@@ -1287,6 +1292,18 @@ export default class SparkleElement extends HTMLElement {
     | "pulse"
     | null {
     return this.getStringAttribute("animate");
+  }
+
+  /**
+   * Allows keyboard navigation between the children of this element.
+   */
+  get _navigation(): "keyboard" | null {
+    return this.getStringAttribute("navigation");
+  }
+
+  protected _items: HTMLElement[] = [];
+  get items(): HTMLElement[] {
+    return this._items;
   }
 
   constructor(init: ShadowRootInit = { mode: "open", delegatesFocus: true }) {
@@ -1500,6 +1517,7 @@ export default class SparkleElement extends HTMLElement {
       "slotchange",
       this.handleContentSlotChange
     );
+    this.unbindItems();
     this.onDisconnected();
   }
 
@@ -1507,10 +1525,111 @@ export default class SparkleElement extends HTMLElement {
 
   protected handleContentSlotChange = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
+    this.unbindItems();
+    this._items = slot
+      ?.assignedElements?.()
+      .filter(
+        (el) =>
+          el instanceof HTMLElement &&
+          !(
+            el.inert ||
+            el.hidden ||
+            (el.shadowRoot?.firstElementChild as HTMLElement)?.inert ||
+            (el.shadowRoot?.firstElementChild as HTMLElement)?.hidden
+          )
+      ) as HTMLElement[];
+    this.bindItems();
     this.onContentAssigned(slot);
   };
 
   protected onContentAssigned(slot: HTMLSlotElement): void {}
+
+  bindItems(): void {
+    this._items.forEach((item) => {
+      item.addEventListener("keydown", this.onKeyDown);
+    });
+  }
+
+  unbindItems(): void {
+    this._items.forEach((item) => {
+      item.removeEventListener("keydown", this.onKeyDown);
+    });
+  }
+
+  onKeyDown = (e: KeyboardEvent): void => {
+    const target = e.currentTarget;
+    if (this._navigation === "keyboard") {
+      if (target instanceof HTMLElement) {
+        const dir = this._childLayout;
+        switch (e.key) {
+          case navPrevKey(dir):
+            {
+              e.preventDefault();
+              this.focusPreviousItem(target);
+            }
+            break;
+          case navNextKey(dir):
+            {
+              e.preventDefault();
+              this.focusNextItem(target);
+            }
+            break;
+          case navStartKey():
+            {
+              const firstItem = this.items[0];
+              if (firstItem) {
+                e.preventDefault();
+                firstItem.focus();
+              }
+            }
+            break;
+          case navEndKey():
+            {
+              const lastItem = this.items[this.items.length - 1];
+              if (lastItem) {
+                e.preventDefault();
+                lastItem.focus();
+              }
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    }
+  };
+
+  focusPreviousItem(item: HTMLElement) {
+    const firstItem = this.items[0];
+    const lastItem = this.items[this.items.length - 1];
+    if (item === firstItem) {
+      if (lastItem) {
+        lastItem.focus();
+      }
+    } else {
+      const index = this.items.indexOf(item);
+      const prevItem = this.items[index - 1];
+      if (prevItem) {
+        prevItem.focus();
+      }
+    }
+  }
+
+  focusNextItem(item: HTMLElement) {
+    const firstItem = this.items[0];
+    const lastItem = this.items[this.items.length - 1];
+    if (item === lastItem) {
+      if (firstItem) {
+        firstItem.focus();
+      }
+    } else {
+      const index = this.items.indexOf(item);
+      const nextItem = this.items[index + 1];
+      if (nextItem) {
+        nextItem.focus();
+      }
+    }
+  }
 
   getElementByTag<T extends HTMLElement>(name: string): T | null {
     return this.shadowRoot?.querySelector<T>(name) || null;

@@ -1,5 +1,9 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { navEndKey } from "../../utils/navEndKey";
+import { navNextKey } from "../../utils/navNextKey";
+import { navPrevKey } from "../../utils/navPrevKey";
+import { navStartKey } from "../../utils/navStartKey";
 import type Tab from "../tab/tab";
 import css from "./tabs.css";
 import html from "./tabs.html";
@@ -94,6 +98,11 @@ export default class Tabs extends SparkleElement {
       }
     }
     if (name === "vertical") {
+      const vertical = newValue != null;
+      this.updateRootAttribute(
+        "aria-orientation",
+        vertical ? "vertical" : "horizontal"
+      );
       this.updateTabs();
     }
   }
@@ -104,6 +113,11 @@ export default class Tabs extends SparkleElement {
     if (indicatorEl) {
       indicatorEl.hidden = indicator === "none";
     }
+    const vertical = this.vertical;
+    this.updateRootAttribute(
+      "aria-orientation",
+      vertical ? "vertical" : "horizontal"
+    );
     this._resizeObserver = new ResizeObserver(this.handleResize);
   }
 
@@ -142,7 +156,7 @@ export default class Tabs extends SparkleElement {
   };
 
   updateTabs(): void {
-    this._tabs.forEach((tab) => {
+    this.tabs.forEach((tab) => {
       if (this.value === tab.value) {
         tab.active = true;
         this.updateIndicator(tab.root);
@@ -153,18 +167,20 @@ export default class Tabs extends SparkleElement {
   }
 
   bindTabs(): void {
-    this._tabs.forEach((tab) => {
+    this.tabs.forEach((tab) => {
       tab.addEventListener("pointerdown", this.onPointerDownTab);
       tab.addEventListener("pointerenter", this.onPointerEnterTab);
+      tab.addEventListener("keydown", this.onKeyDown);
       tab.addEventListener("click", this.onClickTab);
       window.addEventListener("pointerup", this.onPointerUp);
     });
   }
 
   unbindTabs(): void {
-    this._tabs.forEach((tab) => {
+    this.tabs.forEach((tab) => {
       tab.removeEventListener("pointerdown", this.onPointerDownTab);
       tab.removeEventListener("pointerenter", this.onPointerEnterTab);
+      tab.removeEventListener("keydown", this.onKeyDown);
       tab.removeEventListener("click", this.onClickTab);
       window.removeEventListener("pointerup", this.onPointerUp);
     });
@@ -175,6 +191,50 @@ export default class Tabs extends SparkleElement {
     this.value = value;
     this.updateTabs();
     this.dispatchEvent(onchangeEvent);
+  }
+
+  focusTab(tab: Tab, activate: boolean) {
+    for (var i = 0; i < this.tabs.length; i += 1) {
+      var t = this.tabs[i];
+      if (t === tab) {
+        tab.focus();
+        if (activate) {
+          this.activateTab(tab);
+        }
+      }
+    }
+  }
+
+  focusPreviousTab(tab: Tab, activate: boolean) {
+    const firstTab = this.tabs[0];
+    const lastTab = this.tabs[this.tabs.length - 1];
+    if (tab === firstTab) {
+      if (lastTab) {
+        this.focusTab(lastTab, activate);
+      }
+    } else {
+      const index = this.tabs.indexOf(tab);
+      const prevTab = this.tabs[index - 1];
+      if (prevTab) {
+        this.focusTab(prevTab, activate);
+      }
+    }
+  }
+
+  focusNextTab(tab: Tab, activate: boolean) {
+    const firstTab = this.tabs[0];
+    const lastTab = this.tabs[this.tabs.length - 1];
+    if (tab === lastTab) {
+      if (firstTab) {
+        this.focusTab(firstTab, activate);
+      }
+    } else {
+      const index = this.tabs.indexOf(tab);
+      const nextTab = this.tabs[index + 1];
+      if (nextTab) {
+        this.focusTab(nextTab, activate);
+      }
+    }
   }
 
   onPointerDownTab = (e: PointerEvent): void => {
@@ -190,6 +250,42 @@ export default class Tabs extends SparkleElement {
 
   onPointerUp = (e: PointerEvent): void => {
     this._pointerDown = false;
+  };
+
+  onKeyDown = (e: KeyboardEvent): void => {
+    const tgt = e.currentTarget as Tab;
+    const vertical = this.vertical;
+    const dir = vertical ? "column" : "row";
+    switch (e.key) {
+      case navPrevKey(dir):
+        {
+          this.focusPreviousTab(tgt, true);
+        }
+        break;
+      case navNextKey(dir):
+        {
+          this.focusNextTab(tgt, true);
+        }
+        break;
+      case navStartKey():
+        {
+          const firstTab = this.tabs[0];
+          if (firstTab) {
+            this.focusTab(firstTab, true);
+          }
+        }
+        break;
+      case navEndKey():
+        {
+          const lastTab = this.tabs[this.tabs.length - 1];
+          if (lastTab) {
+            this.focusTab(lastTab, true);
+          }
+        }
+        break;
+      default:
+        break;
+    }
   };
 
   onClickTab = (e: MouseEvent): void => {

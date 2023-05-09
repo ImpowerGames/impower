@@ -3,7 +3,6 @@ import { clamp } from "../../utils/clamp";
 import { getCssProportion } from "../../utils/getCssProportion";
 import { getCssSize } from "../../utils/getCssSize";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
-import { percentToPercentage } from "../../utils/percentToPercentage";
 import { percentToPixels } from "../../utils/percentToPixels";
 import { pixelsToPercent } from "../../utils/pixelsToPercent";
 import { pixelsToPercentage } from "../../utils/pixelsToPercentage";
@@ -179,11 +178,19 @@ export default class SplitLayout extends SparkleElement {
     return this.getElementByClass("divider");
   }
 
-  get startEl(): HTMLElement | null {
+  get startPanelEl(): HTMLElement | null {
+    return this.getElementByClass("start-panel");
+  }
+
+  get endPanelEl(): HTMLElement | null {
+    return this.getElementByClass("end-panel");
+  }
+
+  get startSlot(): HTMLSlotElement | null {
     return this.getElementByClass("start");
   }
 
-  get endEl(): HTMLElement | null {
+  get endSlot(): HTMLSlotElement | null {
     return this.getElementByClass("end");
   }
 
@@ -233,11 +240,11 @@ export default class SplitLayout extends SparkleElement {
       }
     }
     if (name === "collapsed" || name === "solo") {
-      const startEl = this.startEl;
+      const startEl = this.startPanelEl;
       if (startEl) {
         startEl.hidden = this.collapsed === "start" || this.solo === "end";
       }
-      const endEl = this.endEl;
+      const endEl = this.endPanelEl;
       if (endEl) {
         endEl.hidden = this.collapsed === "end" || this.solo === "start";
       }
@@ -284,9 +291,9 @@ export default class SplitLayout extends SparkleElement {
   protected override onConnected(): void {
     this._resizeObserver = new ResizeObserver(this.handleResize);
     const dividerEl = this.dividerEl;
-    dividerEl?.addEventListener("keydown", this.handleKeyDown);
-    dividerEl?.addEventListener("pointerdown", this.handlePointerDown);
-    dividerEl?.addEventListener("pointermove", this.handlePointerMove);
+    dividerEl?.addEventListener("keydown", this.handleKeyDownDivider);
+    dividerEl?.addEventListener("pointerdown", this.handlePointerDownDivider);
+    dividerEl?.addEventListener("pointermove", this.handlePointerMoveDivider);
   }
 
   protected override onParsed(): void {
@@ -296,9 +303,15 @@ export default class SplitLayout extends SparkleElement {
   protected override onDisconnected(): void {
     this._resizeObserver?.disconnect();
     const dividerEl = this.dividerEl;
-    dividerEl?.removeEventListener("keydown", this.handleKeyDown);
-    dividerEl?.removeEventListener("pointerdown", this.handlePointerDown);
-    dividerEl?.removeEventListener("pointermove", this.handlePointerMove);
+    dividerEl?.removeEventListener("keydown", this.handleKeyDownDivider);
+    dividerEl?.removeEventListener(
+      "pointerdown",
+      this.handlePointerDownDivider
+    );
+    dividerEl?.removeEventListener(
+      "pointermove",
+      this.handlePointerMoveDivider
+    );
   }
 
   protected isVertical(): boolean {
@@ -326,7 +339,7 @@ export default class SplitLayout extends SparkleElement {
     return Number(v) * rootSize;
   }
 
-  private handlePointerDown = (e: PointerEvent): void => {
+  private handlePointerDownDivider = (e: PointerEvent): void => {
     const el = e.currentTarget as HTMLElement;
     e.preventDefault();
     el.setPointerCapture(e.pointerId);
@@ -346,7 +359,7 @@ export default class SplitLayout extends SparkleElement {
     this._startSplitY = this._startReversed ? height - splitY : splitY;
   };
 
-  private handlePointerMove = (e: PointerEvent): void => {
+  private handlePointerMoveDivider = (e: PointerEvent): void => {
     const el = e.currentTarget as HTMLElement;
     if (!el.hasPointerCapture(e.pointerId)) {
       return;
@@ -433,7 +446,7 @@ export default class SplitLayout extends SparkleElement {
     );
   };
 
-  private handleKeyDown = (e: KeyboardEvent): void => {
+  private handleKeyDownDivider = (e: KeyboardEvent): void => {
     if (this.disabled) {
       return;
     }
@@ -491,7 +504,7 @@ export default class SplitLayout extends SparkleElement {
         min,
         rootSize - min
       );
-      this.split = percentToPercentage(splitValue);
+      this.split = pixelsToPercentage(splitValue, rootSize);
     }
   };
 

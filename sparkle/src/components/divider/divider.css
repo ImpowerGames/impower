@@ -2,9 +2,8 @@
   display: contents;
 }
 :host {
-  --background-color: var(--s-color-fg);
+  --background-color: var(--s-color-divider);
   --size: 1px;
-  --opacity: 0.13;
   --width: 100%;
   --height: 100%;
 }

@@ -402,6 +402,20 @@ export default class Collapsible extends SparkleElement {
       this.update(false);
     }
   }
+
+  override focus(options?: FocusOptions): void {
+    const buttonEl = this._buttonEl;
+    if (buttonEl) {
+      buttonEl.focus(options);
+    }
+  }
+
+  override blur(): void {
+    const buttonEl = this._buttonEl;
+    if (buttonEl) {
+      buttonEl.blur();
+    }
+  }
 }
 
 declare global {

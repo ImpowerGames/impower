@@ -43,7 +43,7 @@ export default class Tooltip extends SparkleElement {
   static override get observedAttributes() {
     return [
       ...super.observedAttributes,
-      "content",
+      "label",
       "placement",
       "open",
       "distance",
@@ -68,10 +68,10 @@ export default class Tooltip extends SparkleElement {
   }
 
   /**
-   * The tooltip's content. If you need to display HTML, use the `content` slot instead.
+   * The tooltip's label. If you need to display HTML, use the `label` slot instead.
    */
-  get content(): string | null {
-    return this.getStringAttribute("content");
+  get label(): string | null {
+    return this.getStringAttribute("label");
   }
 
   /**
@@ -147,7 +147,7 @@ export default class Tooltip extends SparkleElement {
     newValue: string
   ): void {
     const bodyEl = this.bodyEl;
-    if (name === "content") {
+    if (name === "label") {
       if (bodyEl) {
         bodyEl.textContent = newValue;
       }
@@ -175,7 +175,7 @@ export default class Tooltip extends SparkleElement {
       );
     }
     if (
-      name === "content" ||
+      name === "label" ||
       name === "distance" ||
       name === "hoist" ||
       name === "placement" ||
@@ -273,7 +273,7 @@ export default class Tooltip extends SparkleElement {
     }
   };
 
-  private hasTrigger(triggerType: string) {
+  private hasTrigger(triggerType: string): boolean {
     const trigger = this.trigger;
     if (!trigger) {
       return false;
@@ -328,7 +328,7 @@ export default class Tooltip extends SparkleElement {
   }
 
   /** Shows the tooltip. */
-  async show() {
+  async show(): Promise<void> {
     if (this.open) {
       return undefined;
     }
@@ -338,13 +338,27 @@ export default class Tooltip extends SparkleElement {
   }
 
   /** Hides the tooltip */
-  async close() {
+  async close(): Promise<void> {
     if (!this.open) {
       return undefined;
     }
 
     this.open = false;
     return waitForEvent(this, "closed");
+  }
+
+  override focus(options?: FocusOptions): void {
+    const content = this.contentSlot?.assignedElements()?.[0];
+    if (content instanceof HTMLElement) {
+      content.focus(options);
+    }
+  }
+
+  override blur(): void {
+    const content = this.contentSlot?.assignedElements()?.[0];
+    if (content instanceof HTMLElement) {
+      content.blur();
+    }
   }
 }
 

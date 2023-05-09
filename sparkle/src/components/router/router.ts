@@ -136,7 +136,22 @@ export default class Router extends SparkleElement {
         const value = el.getAttribute("value");
         if (newValue === value) {
           // Load template content
-          this.root.appendChild(el.content.cloneNode(true));
+          const templateContent = this.root.appendChild(
+            el.content.cloneNode(true)
+          );
+          if (templateContent instanceof HTMLElement) {
+            if (templateContent.getAttribute("role") == null) {
+              templateContent.setAttribute("role", `tabpanel`);
+            }
+            if (templateContent.getAttribute("tabindex") == null) {
+              templateContent.setAttribute("tabindex", "0");
+            }
+            if (value) {
+              if (templateContent.getAttribute("aria-label") == null) {
+                templateContent.setAttribute("aria-label", value);
+              }
+            }
+          }
         }
       });
     }

@@ -98,12 +98,6 @@ export default class Tab extends SparkleElement {
         }
       }
     }
-    if (name === "active") {
-      this.updateRootAttribute(
-        "aria-selected",
-        newValue != null ? "true" : "false"
-      );
-    }
     if (name === "spacing") {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
@@ -119,11 +113,15 @@ export default class Tab extends SparkleElement {
       }
     }
     if (name === "active") {
-      if (this.icon != null) {
-        if (this.active) {
-          this.updateRootCssVariable("--icon", getCssIcon(this.icon, "-fill"));
+      const active = newValue != null;
+      this.updateRootAttribute("aria-selected", active ? "true" : "false");
+      this.updateRootAttribute("tabindex", active ? "0" : "-1");
+      const icon = this.icon;
+      if (icon != null) {
+        if (active) {
+          this.updateRootCssVariable("--icon", getCssIcon(icon, "-fill"));
         } else {
-          this.updateRootCssVariable("--icon", getCssIcon(this.icon));
+          this.updateRootCssVariable("--icon", getCssIcon(icon));
         }
       }
     }
@@ -136,6 +134,9 @@ export default class Tab extends SparkleElement {
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
+    const active = this.active;
+    this.updateRootAttribute("aria-selected", active ? "true" : "false");
+    this.updateRootAttribute("tabindex", active ? "0" : "-1");
   }
 
   protected override onDisconnected(): void {

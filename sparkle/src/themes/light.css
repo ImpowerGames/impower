@@ -246,6 +246,7 @@
   /* Elements */
   --s-color-bg: hsl(0 0% 100%);
   --s-color-fg: hsl(0 0% 0%);
+  --s-color-divider: hsl(0 0% 0% / 13%);
   --s-color-focus: var(--s-color-primary-70);
   --s-color-surface: var(--s-color-neutral-10);
   --s-color-surface-border: var(--s-color-neutral-30);

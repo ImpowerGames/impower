@@ -7,9 +7,9 @@
   shift
 >
   <div class="anchor" part="anchor" slot="anchor" aria-describedby="tooltip">
-    <slot></slot>
+    <slot class="content"></slot>
   </div>
   <div class="body" part="body" id="tooltip" role="tooltip" inert>
-    <slot class="content" name="content"></slot>
+    <slot class="label" name="label"></slot>
   </div>
 </s-popup>

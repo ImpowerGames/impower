@@ -1,5 +1,7 @@
 <div class="root" part="root">
-  <slot class="start" part="panel start" name="start"></slot>
+  <div class="start-panel" part="panel start-panel">
+    <slot class="start" name="start"></slot>
+  </div>
   <div
     class="divider"
     part="divider"
@@ -7,8 +9,11 @@
     aria-label="resize"
     aria-valuemin="0"
     aria-valuemax="100"
+    tabindex="0"
   >
     <slot class="content"></slot>
   </div>
-  <slot class="end" part="panel end" name="end"></slot>
+  <div class="end-panel" part="panel end-panel">
+    <slot class="end" name="end"></slot>
+  </div>
 </div>
