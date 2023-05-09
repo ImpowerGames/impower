@@ -575,14 +575,24 @@
   mask: var(--mask, none);
 }
 
-.focused::before {
+button::before {
+  --focus-duration: 50ms;
   position: absolute;
   inset: 0;
   content: "";
   border-radius: inherit;
+  transition-property: outline-offset, opacity;
+  transition-duration: var(--focus-duration);
+  transition-timing-function: ease;
+  outline-offset: calc(-1 * var(--s-focus-ring-width));
+}
+button.focused::before {
   outline: var(--s-color-focus) var(--s-focus-ring-style)
     var(--s-focus-ring-width);
   outline-offset: var(--s-focus-ring-offset);
   -webkit-mask: none !important;
   mask: none !important;
+}
+button.focused.pressed::before {
+  outline-offset: calc((-1 * var(--s-focus-ring-width)) + 1px);
 }

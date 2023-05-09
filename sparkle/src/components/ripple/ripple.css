@@ -37,6 +37,7 @@
   opacity: 0;
   pointer-events: none;
   content: "";
+  border-radius: inherit;
   -webkit-mask: inherit;
   mask: inherit;
 }
@@ -46,6 +47,18 @@
   transition-property: opacity, background-color;
   transition-timing-function: linear;
   inset: 0;
+}
+.hovered::before {
+  background-color: currentColor;
+  opacity: var(--hover-opacity);
+  transition-property: opacity;
+  transition-duration: var(--hover-duration);
+}
+.focused::before {
+  background-color: currentColor;
+  opacity: var(--focus-opacity);
+  transition-property: opacity, outline;
+  transition-duration: var(--focus-duration);
 }
 
 .root::after {
@@ -59,21 +72,6 @@
   transition-timing-function: linear;
   transform-origin: center center;
 }
-
-.hovered::before {
-  background-color: currentColor;
-  opacity: var(--hover-opacity);
-  transition-property: opacity;
-  transition-duration: var(--hover-duration);
-}
-
-.focused::before {
-  background-color: currentColor;
-  opacity: var(--focus-opacity);
-  transition-property: opacity;
-  transition-duration: var(--focus-duration);
-}
-
 .pressed::after {
   opacity: var(--press-opacity);
   transition-property: opacity;

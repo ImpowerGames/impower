@@ -1366,7 +1366,17 @@ export default class SparkleElement extends HTMLElement {
     dispatchActivationClick(this.root);
   };
 
+  protected onPressed = () => {
+    this.updateRootClass("pressed", true);
+  };
+
+  protected onUnpressed = () => {
+    this.updateRootClass("pressed", false);
+  };
+
   protected bindFocus(el: HTMLElement) {
+    el.addEventListener("pressed", this.onPressed);
+    el.addEventListener("unpressed", this.onUnpressed);
     el.addEventListener("pointerdown", this.onPointerDown);
     el.addEventListener("focus", this.onFocus);
     el.addEventListener("blur", this.onBlur);
@@ -1376,6 +1386,8 @@ export default class SparkleElement extends HTMLElement {
   }
 
   protected unbindFocus(el: HTMLElement) {
+    el.removeEventListener("pressed", this.onPressed);
+    el.removeEventListener("unpressed", this.onUnpressed);
     el.removeEventListener("pointerdown", this.onPointerDown);
     el.removeEventListener("focus", this.onFocus);
     el.removeEventListener("blur", this.onBlur);

@@ -5,6 +5,7 @@
  * Released under the Apache-2.0 license.
  */
 
+import SparkleEvent from "../../core/SparkleEvent.js";
 import SparkleElement from "../../core/sparkle-element.js";
 import { getCssColor } from "../../utils/getCssColor.js";
 import { getDimensions } from "../../utils/getDimensions.js";
@@ -74,6 +75,13 @@ const TOUCH_DELAY_MS = 150;
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+const focusedEvent = new SparkleEvent("focused");
+const unfocusedEvent = new SparkleEvent("unfocused");
+const hovered = new SparkleEvent("hovered");
+const unhoveredEvent = new SparkleEvent("unhovered");
+const pressedEvent = new SparkleEvent("pressed");
+const unpressedEvent = new SparkleEvent("unpressed");
+
 /**
  * A ripple component.
  */
@@ -106,6 +114,11 @@ export default class Ripple extends SparkleElement {
   set hovered(value: boolean) {
     this._hovered = value;
     this.updateState();
+    if (value) {
+      this.dispatchEvent(hovered);
+    } else {
+      this.dispatchEvent(unhoveredEvent);
+    }
   }
 
   private _focused = false;
@@ -115,6 +128,11 @@ export default class Ripple extends SparkleElement {
   set focused(value: boolean) {
     this._focused = value;
     this.updateState();
+    if (value) {
+      this.dispatchEvent(focusedEvent);
+    } else {
+      this.dispatchEvent(unfocusedEvent);
+    }
   }
 
   private _pressed = false;
@@ -124,6 +142,11 @@ export default class Ripple extends SparkleElement {
   set pressed(value: boolean) {
     this._pressed = value;
     this.updateState();
+    if (value) {
+      this.dispatchEvent(pressedEvent);
+    } else {
+      this.dispatchEvent(unpressedEvent);
+    }
   }
 
   private rippleSize = "";
@@ -249,6 +272,7 @@ export default class Ripple extends SparkleElement {
     // `shouldReactToEvent`
     if (this.state === State.WAITING_FOR_CLICK) {
       this.endPressAnimation();
+      this.state = State.INACTIVE;
       return;
     }
 
@@ -447,5 +471,13 @@ export default class Ripple extends SparkleElement {
 declare global {
   interface HTMLElementTagNameMap {
     "s-ripple": Ripple;
+  }
+  interface HTMLElementEventMap {
+    focused: SparkleEvent;
+    unfocused: SparkleEvent;
+    hovered: SparkleEvent;
+    unhovered: SparkleEvent;
+    pressed: SparkleEvent;
+    unpressed: SparkleEvent;
   }
 }

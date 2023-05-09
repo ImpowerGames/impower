@@ -88,6 +88,12 @@
   transform: translateY(-2px);
 }
 
-.focused::before {
+button::before {
+  outline-offset: calc(-2 * var(--s-focus-ring-width));
+}
+button.focused::before {
   outline-offset: calc(-1 * var(--s-focus-ring-width));
+}
+button.focused.pressed::before {
+  outline-offset: calc((-2 * var(--s-focus-ring-width)) + 1px);
 }

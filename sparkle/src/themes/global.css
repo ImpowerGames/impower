@@ -190,7 +190,7 @@
   /* Focus rings */
   --s-focus-ring-style: solid;
   --s-focus-ring-width: 3px;
-  --s-focus-ring-offset: 1px;
+  --s-focus-ring-offset: 2px;
 
   /* Tooltips */
   --s-tooltip-font-size: var(--s-font-size-sm);
