@@ -4,6 +4,7 @@ import { getCssDuration } from "../../utils/getCssDuration";
 import { getCssEase } from "../../utils/getCssEase";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
 import css from "./collapsible.css";
+import html from "./collapsible.html";
 
 const getCollapsedButtonOffset = (
   buttonWidth: number,
@@ -42,6 +43,10 @@ export default class Collapsible extends SparkleElement {
     return super.define(tag, dependencies);
   }
 
+  override get html(): string {
+    return html;
+  }
+
   override get styles(): CSSStyleSheet[] {
     return [styles];
   }
@@ -53,8 +58,8 @@ export default class Collapsible extends SparkleElement {
   /**
    * Collapses any child labels.
    */
-  get collapsed(): boolean {
-    return this.getBooleanAttribute("collapsed");
+  get collapsed(): "" | "scrolled" | null {
+    return this.getStringAttribute("collapsed");
   }
 
   protected _buttonEl: HTMLElement | null = null;
@@ -71,6 +76,10 @@ export default class Collapsible extends SparkleElement {
     return this.buttonEl?.querySelector<HTMLElement>(`.icon`) ?? null;
   }
 
+  get sentinelEl(): HTMLElement | null {
+    return this.getElementByClass("sentinel");
+  }
+
   protected _buttonX: number = 0;
 
   protected _buttonWidth: number = 0;
@@ -83,9 +92,10 @@ export default class Collapsible extends SparkleElement {
 
   protected _iconWidth: number = 0;
 
-  protected _collapsing: boolean = false;
+  protected _state: "collapsing" | "collapsed" | "expanding" | "expanded" =
+    "expanded";
 
-  protected _expanding: boolean = false;
+  protected _intersectionObserver?: IntersectionObserver;
 
   protected override onAttributeChanged(
     name: string,
@@ -94,15 +104,81 @@ export default class Collapsible extends SparkleElement {
   ): void {
     if (name === "collapsed") {
       this.update(true);
+      if (newValue === "scrolled") {
+        const sentinelEl = this.sentinelEl;
+        if (sentinelEl) {
+          this._intersectionObserver?.disconnect();
+          this._intersectionObserver?.observe(sentinelEl);
+        }
+      }
     }
   }
 
+  protected override onConnected(): void {
+    this._intersectionObserver = new IntersectionObserver(this.handleScroll);
+  }
   protected override onParsed(): void {
     this.update(false);
+    if (this.collapsed === "scrolled") {
+      const sentinelEl = this.sentinelEl;
+      if (sentinelEl) {
+        this._intersectionObserver?.disconnect();
+        this._intersectionObserver?.observe(sentinelEl);
+      }
+    }
+    const buttonEl = this.buttonEl;
+    const iconEl = this.iconEl;
+    const labelEl = this.labelEl;
+    if (buttonEl && iconEl && labelEl) {
+      buttonEl.style.setProperty("min-width", null);
+      buttonEl.style.setProperty("max-width", null);
+      buttonEl.style.setProperty("transform", null);
+      buttonEl.style.setProperty("margin", null);
+      iconEl.style.setProperty("transform", null);
+      const buttonRect = buttonEl.getBoundingClientRect();
+      const iconRect = iconEl.getBoundingClientRect();
+      const buttonX = buttonRect.x;
+      const buttonWidth = buttonRect.width;
+      const buttonPaddingLeft = buttonEl
+        ? getUnitlessValue(window.getComputedStyle(buttonEl).paddingLeft, 0)
+        : 0;
+      const buttonPaddingRight = buttonEl
+        ? getUnitlessValue(window.getComputedStyle(buttonEl).paddingRight, 0)
+        : 0;
+      const iconX = iconRect.x;
+      const iconWidth = iconRect.width;
+      this._buttonX = buttonX;
+      this._buttonWidth = buttonWidth;
+      this._buttonPaddingLeft = buttonPaddingLeft;
+      this._buttonPaddingRight = buttonPaddingRight;
+      this._iconX = iconX;
+      this._iconWidth = iconWidth;
+    }
   }
 
+  protected override onDisconnected(): void {
+    this._intersectionObserver?.disconnect();
+  }
+
+  handleScroll = (entries: IntersectionObserverEntry[]): void => {
+    const entry = entries?.[0];
+    if (
+      entry &&
+      (entry.boundingClientRect.width > 0 ||
+        entry.boundingClientRect.height > 0)
+    ) {
+      const sentinelOnScreen =
+        entry.isIntersecting || entry.intersectionRatio > 0;
+      if (sentinelOnScreen) {
+        this.expand(true);
+      } else {
+        this.collapse(true);
+      }
+    }
+  };
+
   protected update(animated: boolean): void {
-    if (this.collapsed) {
+    if (this.collapsed === "") {
       this.collapse(animated);
     } else {
       this.expand(animated);
@@ -236,50 +312,28 @@ export default class Collapsible extends SparkleElement {
   }
 
   protected async collapse(animated: boolean): Promise<void> {
-    if (this._collapsing) {
+    if (this._state === "collapsing" || this._state === "collapsed") {
       return;
     }
-    this._collapsing = true;
-    this._expanding = false;
+    this._state = "collapsing";
+
     this.updateTransition(animated);
+
     if (animated) {
       const buttonEl = this.buttonEl;
       const iconEl = this.iconEl;
       const labelEl = this.labelEl;
       if (buttonEl && iconEl && labelEl) {
-        buttonEl.style.setProperty("min-width", null);
-        buttonEl.style.setProperty("max-width", null);
-        buttonEl.style.setProperty("transform", null);
-        buttonEl.style.setProperty("margin", null);
-        iconEl.style.setProperty("transform", null);
-        const buttonRect = buttonEl.getBoundingClientRect();
-        const iconRect = iconEl.getBoundingClientRect();
-        const buttonX = buttonRect.x;
-        const buttonWidth = buttonRect.width;
-        const buttonPaddingLeft = buttonEl
-          ? getUnitlessValue(window.getComputedStyle(buttonEl).paddingLeft, 0)
-          : 0;
-        const buttonPaddingRight = buttonEl
-          ? getUnitlessValue(window.getComputedStyle(buttonEl).paddingRight, 0)
-          : 0;
-        const iconX = iconRect.x;
-        const iconWidth = iconRect.width;
-        this._buttonX = buttonX;
-        this._buttonWidth = buttonWidth;
-        this._buttonPaddingLeft = buttonPaddingLeft;
-        this._buttonPaddingRight = buttonPaddingRight;
-        this._iconX = iconX;
-        this._iconWidth = iconWidth;
         const buttonTranslateX = getCollapsedButtonOffset(
-          buttonWidth,
-          iconWidth,
-          buttonPaddingLeft,
-          buttonPaddingRight
+          this._buttonWidth,
+          this._iconWidth,
+          this._buttonPaddingLeft,
+          this._buttonPaddingRight
         );
         const iconTranslateX = getCollapsedIconOffset(
-          buttonX,
-          iconX,
-          buttonPaddingLeft
+          this._buttonX,
+          this._iconX,
+          this._buttonPaddingLeft
         );
         buttonEl.style.transform = `translateX(${buttonTranslateX}px)`;
         iconEl.style.transform = `translateX(${iconTranslateX}px)`;
@@ -289,7 +343,7 @@ export default class Collapsible extends SparkleElement {
         this.loadBorderStyle(buttonEl);
 
         await animationsComplete(buttonEl);
-        if (!this._collapsing) {
+        if (this._state !== "collapsing") {
           return;
         }
 
@@ -298,20 +352,22 @@ export default class Collapsible extends SparkleElement {
         this.loadCollapsedLayout();
       }
     }
-    this._collapsing = false;
+    this._state = "collapsed";
   }
 
   protected async expand(animated: boolean): Promise<void> {
-    if (this._expanding) {
+    if (this._state === "expanding" || this._state === "expanded") {
       return;
     }
-    this._expanding = true;
-    this._collapsing = false;
+    this._state = "expanding";
+
     this.unloadCollapsedLayout();
+
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    if (!this._expanding) {
+    if (this._state !== "expanding") {
       return;
     }
+
     this.updateTransition(animated);
     if (animated) {
       const buttonEl = this.buttonEl;
@@ -325,14 +381,14 @@ export default class Collapsible extends SparkleElement {
         this.loadBorderStyle(buttonEl);
 
         await animationsComplete(buttonEl);
-        if (!this._expanding) {
+        if (this._state !== "expanding") {
           return;
         }
 
         this.unloadBorderStyle(buttonEl);
       }
     }
-    this._expanding = false;
+    this._state = "expanded";
   }
 
   protected override onContentAssigned(slot: HTMLSlotElement): void {
