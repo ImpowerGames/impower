@@ -201,7 +201,7 @@ export default class Dialog extends SparkleElement {
       confirmButton.hidden = confirm == null;
     }
     this.dialog.addEventListener("click", this.handleLightDismiss);
-    this.dialog.addEventListener("close", this.handleLightDismiss);
+    this.dialog.addEventListener("close", this.handleEscapeClose);
     this.cancelButton?.addEventListener("click", this.handleClickClose);
     this.confirmButton?.addEventListener("click", this.handleClickClose);
     this.labelSlot?.addEventListener("slotchange", this.handleLabelSlotChange);
@@ -225,7 +225,7 @@ export default class Dialog extends SparkleElement {
   protected override onDisconnected(): void {
     unlockBodyScrolling(this);
     this.dialog.removeEventListener("click", this.handleLightDismiss);
-    this.dialog.removeEventListener("close", this.handleLightDismiss);
+    this.dialog.removeEventListener("close", this.handleEscapeClose);
     this.cancelButton?.removeEventListener("click", this.handleClickClose);
     this.confirmButton?.removeEventListener("click", this.handleClickClose);
     this.labelSlot?.removeEventListener(
@@ -326,11 +326,17 @@ export default class Dialog extends SparkleElement {
     return returnValue;
   };
 
+  protected handleEscapeClose = async (
+    e: Event
+  ): Promise<string | undefined> => {
+    return this.handleClose("escape");
+  };
+
   protected handleClickClose = async (
     e: Event
   ): Promise<string | undefined> => {
     const button = e.currentTarget as HTMLButtonElement;
-    const returnValue = button.getAttribute("id") ?? "";
+    const returnValue = button?.getAttribute?.("id") ?? "";
     return this.handleClose(returnValue);
   };
 
