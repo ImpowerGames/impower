@@ -1,4 +1,3 @@
-import cliProgress from "cli-progress";
 import { vectorizeTag } from "./getTagVectors";
 import { unpackTag } from "./getTerms";
 import { similarity } from "./math";
@@ -33,39 +32,39 @@ export const getRelatedTerms = async (
   words: string[],
   threshold = 0.3,
   depth = 5,
-  ...tags: string[]
+  tags: string[],
+  onProgress?: (current: number, total: number) => void
 ): Promise<{
   [tag: string]: string[];
 }> => {
   const termTags: { [tag: string]: [string, number][] } = {};
 
-  const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-
   const targetTags = tags?.length > 0 ? ["<>"] : Object.keys(concepts);
-  const targetconcepts =
+  const targetConcepts =
     tags?.length > 0 ? { "<>": tags, ...concepts } : concepts;
 
-  bar.start(targetTags.length * 2 + words.length, 0);
+  const total = targetTags.length * 2 + words.length;
+
+  onProgress?.(-1, total);
 
   const conceptVecs: { [tag: string]: number[] } = {};
   targetTags.forEach((tag, index) => {
-    bar.update(index);
+    onProgress?.(index, total);
     // Get all existing related terms to this tag,
     // making sure to unpack any referential tags (i.e. tags that start with "^")
-    conceptVecs[tag] = vectorizeTag(tag, targetconcepts, wordVecs);
+    conceptVecs[tag] = vectorizeTag(tag, targetConcepts, wordVecs);
   });
 
-  const unpackedconcepts: { [tag: string]: string[] } = {};
+  const unpackedConcepts: { [tag: string]: string[] } = {};
   targetTags.forEach((tag, index) => {
-    bar.update(targetTags.length + index);
+    onProgress?.(targetTags.length + index, total);
     // Get all existing related terms to this tag in all it's possible forms
     // (past/present/future tenses, possessive, negated, etc.)
-    unpackedconcepts[tag] = unpackTag(tag, targetconcepts, true);
+    unpackedConcepts[tag] = unpackTag(tag, targetConcepts, true);
   });
 
   words.forEach((word, index) => {
-    bar.update(targetTags.length * 2 + index);
-
+    onProgress?.(targetTags.length * 2 + index, total);
     const pairs: [string, number][] = [];
     targetTags.forEach((tag) => {
       const wordVec = wordVecs[word];
@@ -92,7 +91,7 @@ export const getRelatedTerms = async (
     pairs
       .sort(([, aSim], [, bSim]) => bSim - aSim)
       .forEach(([tag, sim]) => {
-        const existingTerms = unpackedconcepts[tag] || [];
+        const existingTerms = unpackedConcepts[tag] || [];
         if (
           relatedTags.length < depth &&
           sim > threshold &&
@@ -107,22 +106,23 @@ export const getRelatedTerms = async (
     }
   });
 
-  bar.stop();
-
   const getReferencesCount = (tag: string) =>
-    targetconcepts[tag]?.filter((term) => term.startsWith("^")).length || 0;
+    targetConcepts[tag]?.filter((term) => term.startsWith("^")).length || 0;
 
-  const suggestedconcepts = getReversedOccuranceMap(termTags);
+  const suggestedConcepts = getReversedOccuranceMap(termTags);
 
-  const sortedSuggestedconcepts: {
+  const sortedSuggestedConcepts: {
     [tag: string]: string[];
   } = {};
-  Object.entries(suggestedconcepts)
+  Object.entries(suggestedConcepts)
     .sort(
       ([tagA], [tagB]) => getReferencesCount(tagA) - getReferencesCount(tagB)
     )
     .forEach(([tag, suggestedTerms]) => {
-      sortedSuggestedconcepts[tag] = suggestedTerms;
+      sortedSuggestedConcepts[tag] = suggestedTerms;
     });
-  return sortedSuggestedconcepts;
+
+  onProgress?.(total, total);
+
+  return sortedSuggestedConcepts;
 };

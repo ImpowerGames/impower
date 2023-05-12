@@ -23,12 +23,13 @@ const getPhraseTagsMap = (
         if (!phraseTagsMap[phrase]) {
           phraseTagsMap[phrase] = [];
         }
-        if (!phraseTagsMap[phrase].includes(term)) {
-          phraseTagsMap[phrase].push(term);
+        const tags = phraseTagsMap[phrase];
+        if (tags) {
+          if (!tags.includes(term)) {
+            tags.push(term);
+          }
+          tags.push(...termTags.filter((tag) => !tags.includes(tag)));
         }
-        phraseTagsMap[phrase].push(
-          ...termTags.filter((tag) => !phraseTagsMap[phrase].includes(tag))
-        );
       }
     });
   });

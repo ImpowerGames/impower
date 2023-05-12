@@ -3,16 +3,17 @@ import { getSortedMap } from "./getSortedMap";
 
 export const getCuratedPhrases = (
   phrases: string[],
-  termTags: { [tag: string]: string[] },
-  consoleOutputPhrase = ""
-) => {
+  termTags: Record<string, string[]>,
+  consoleOutputPhrase = "",
+  onLog?: (message: string) => void
+): Record<string, string[]> => {
   const associatedTags: { [phrase: string]: string[] } = {};
 
   const validConsoleOutputPhrase =
     consoleOutputPhrase ||
     phrases[Math.floor(Math.random() * (phrases.length - 1))];
 
-  console.log(`"${validConsoleOutputPhrase}"`);
+  onLog?.(`"${validConsoleOutputPhrase}"`);
 
   phrases.forEach((phrase) => {
     const words = getCleanedWords(phrase);
@@ -29,7 +30,7 @@ export const getCuratedPhrases = (
     subphrases.forEach((subphrase) => {
       const tagMatches = termTags[subphrase] || [];
       if (phrase === validConsoleOutputPhrase && tagMatches.length > 0) {
-        console.log(subphrase, tagMatches);
+        onLog?.(`${subphrase}: ${JSON.stringify(tagMatches)}`);
       }
       phraseTags.push(...tagMatches);
     });

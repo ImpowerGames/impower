@@ -1,4 +1,4 @@
-import getCleanedWords from "./getCleanedWords";
+import { getCleanedWords } from "../utils/getCleanedWords";
 
 /**
  * Break a phrase into subphrases

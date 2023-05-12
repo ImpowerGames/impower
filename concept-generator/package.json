@@ -32,9 +32,7 @@
     "@types/node": "^16.11.4",
     "ts-node": "^9.1.1",
     "typescript": "^4.2.4",
-    "cli-progress": "^3.9.0"
-  },
-  "dependencies": {
+    "cli-progress": "^3.9.0",
     "fastest-levenshtein": "^1.0.12",
     "yaml": "^2.2.2"
   }

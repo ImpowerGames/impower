@@ -1,4 +1,4 @@
-const sortPhrases = (phrases: string[]): string[] => {
+export const getPhrasesSortedByLength = (phrases: string[]): string[] => {
   if (!phrases) {
     return phrases;
   }
@@ -8,5 +8,3 @@ const sortPhrases = (phrases: string[]): string[] => {
     .sort((a, b) => (a.length < b.length ? -1 : 1));
   return result;
 };
-
-export default sortPhrases;

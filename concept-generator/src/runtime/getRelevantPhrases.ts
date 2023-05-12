@@ -1,4 +1,4 @@
-import getCleanedWords from "./getCleanedWords";
+import { getCleanedWords } from "../utils/getCleanedWords";
 import getSubphrases from "./getSubphrases";
 
 /**
@@ -28,10 +28,13 @@ export const getTermRelevancyScore = (
           (tagsSortedBySpecificity.length === 1 || !matchedTags.includes(tag))
       );
       if (tagMatchIndex >= 0) {
-        matchedTags.push(tagsSortedBySpecificity[tagMatchIndex]);
-        const max = tagsSortedBySpecificity.length;
-        const weight = (max - tagMatchIndex) / max;
-        relevantTermWeight += weight;
+        const match = tagsSortedBySpecificity[tagMatchIndex];
+        if (match) {
+          matchedTags.push(match);
+          const max = tagsSortedBySpecificity.length;
+          const weight = (max - tagMatchIndex) / max;
+          relevantTermWeight += weight;
+        }
       }
     }
   });
@@ -70,10 +73,10 @@ const getRelevantPhrases = (
   }
 
   const primaryTagIndex = tagsSortedBySpecificity.findIndex(
-    (tag) => tagPhrasesMap[tag]?.length > 0
+    (tag) => tagPhrasesMap[tag]?.length || 0 > 0
   );
   if (primaryTagIndex >= 0) {
-    const primaryTag = tagsSortedBySpecificity[primaryTagIndex];
+    const primaryTag = tagsSortedBySpecificity[primaryTagIndex] || "";
     const primaryTagPhrases = tagPhrasesMap[primaryTag];
 
     tagsSortedBySpecificity.forEach((tag, index) => {

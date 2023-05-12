@@ -1,10 +1,20 @@
-import phrases from "../input/phrases.json";
-import terms from "../output/terms.json";
+import fs from "fs";
 import { getCuratedPhrases } from "../utils/getCuratedPhrases";
+
+const phrasesPath = "./src/input/phrases.txt";
+const termsPath = "./output/terms.json";
+
+const phrases = fs.readFileSync(phrasesPath, "utf8").split(/\r?\n/);
+const terms = JSON.parse(fs.readFileSync(termsPath, "utf8"));
 
 const randomTestPhrase = process.argv[2] ? process.argv[2] : undefined;
 
-const curatedPhrases = getCuratedPhrases(phrases, terms, randomTestPhrase);
+const curatedPhrases = getCuratedPhrases(
+  phrases,
+  terms,
+  randomTestPhrase,
+  console.log
+);
 
 const incompatibleTags = [
   [

@@ -1,17 +1,15 @@
-import cliProgress from "cli-progress";
 import { average, similarity } from "./math";
 
 export const getConceptualExamples = (
   wordVecs: {
     [word: string]: number[];
   },
-  ...targetWords: string[]
+  targetWords: string[],
+  onProgress?: (current: number, total: number) => void
 ): string[] => {
-  const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-
   const words = Object.keys(wordVecs);
 
-  bar.start(words.length, 0);
+  onProgress?.(-1, words.length);
 
   const conceptVecs = targetWords.map((word) => wordVecs[word] || []);
   const targetConcept = average(conceptVecs);
@@ -23,16 +21,18 @@ export const getConceptualExamples = (
   const pairs: [string, number][] = [];
 
   words.forEach((word, index) => {
-    bar.update(index);
+    onProgress?.(index, words.length);
     const conceptWord = wordVecs[word] || [];
     const sim = similarity(targetConcept, conceptWord);
     pairs.push([word, sim]);
   });
 
-  bar.stop();
-
-  return pairs
+  const result = pairs
     .sort(([, aSim], [, bSim]) => bSim - aSim)
     .slice(0, 30)
     .map(([w]) => w);
+
+  onProgress?.(words.length, words.length);
+
+  return result;
 };

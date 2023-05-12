@@ -1,4 +1,3 @@
-import cliProgress from "cli-progress";
 import { difference, similarity } from "./math";
 
 export const getConceptualDifference = (
@@ -7,13 +6,12 @@ export const getConceptualDifference = (
   wordVecs: {
     [word: string]: number[];
   },
-  depth = 30
+  depth = 30,
+  onProgress?: (current: number, total: number) => void
 ): string[] => {
-  const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-
   const words = Object.keys(wordVecs);
 
-  bar.start(words.length, 0);
+  onProgress?.(-1, words.length);
 
   const targetConcept = wordVecs[targetWord];
   const otherConcept = wordVecs[otherWord];
@@ -30,16 +28,18 @@ export const getConceptualDifference = (
   const pairs: [string, number][] = [];
 
   words.forEach((word, index) => {
-    bar.update(index);
+    onProgress?.(index, words.length);
     const conceptWord = wordVecs[word];
     const sim = similarity(diff, conceptWord || []);
     pairs.push([word, sim]);
   });
 
-  bar.stop();
-
-  return pairs
+  const result = pairs
     .sort(([, aSim], [, bSim]) => bSim - aSim)
     .slice(0, depth)
     .map(([w]) => w);
+
+  onProgress?.(words.length, words.length);
+
+  return result;
 };

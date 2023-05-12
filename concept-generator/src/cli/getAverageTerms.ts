@@ -1,7 +1,7 @@
 import cliProgress from "cli-progress";
 import fs from "fs";
 import readline from "readline";
-import { average, similarity } from "./math";
+import { average, similarity } from "../utils/math";
 
 export const getAverageTerms = async (
   threshold = 0.4,

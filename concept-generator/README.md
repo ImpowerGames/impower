@@ -11,7 +11,7 @@ These are the generator scripts that we use for our random concept generators.
 3. Scans `phrases.txt` for any common English phrases that contain any of those related terms (e.g. "Devil's Advocate")
 4. And finally, suggests these phrases to the user!
 
-Phrases are ranked by a basic relevancy algorithm (more info on this algorithm can be found in the section titled `Impower Relevancy Algorithm`)
+Phrases are ranked by a basic relevancy algorithm (more info on this algorithm can be found in the section titled `Impower Relevancy Ranking`)
 
 In general terms, relevancy is determined by...
 
@@ -212,7 +212,7 @@ But any word2vec model with a reasonably large vocabulary should suffice for thi
 
 ---
 
-## Impower Relevancy Algorithm
+## Impower Relevancy Ranking
 
 Using `phrases.txt` and `terms.json` as input files, our generators create a map of phrases that relate to a concept. To do so, we simply:
 
@@ -223,4 +223,4 @@ Using `phrases.txt` and `terms.json` as input files, our generators create a map
 
 We then pass this `relatedPhrasesSortedByLength` map along with an array of `tagsSortedBySpecificity` into a ranking algorithm. This algorithm uses these inputs to rank and select the most relevant phrases to suggest to the user.
 
-You can view the code for our relevancy algorithm in `./client/modules/impower-terms`.
+You can view an exact implementation of the relevancy ranking procedure described above by studying the various functions in `./src/runtime`.

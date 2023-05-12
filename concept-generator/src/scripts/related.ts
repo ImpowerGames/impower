@@ -1,15 +1,29 @@
+import cliProgress from "cli-progress";
 import fs from "fs";
 import { parse } from "yaml";
 import { getKeywords } from "../utils/getKeywords";
 import { getRelatedTerms } from "../utils/getRelatedTerms";
 
-const concepts = parse(fs.readFileSync("./input/concepts.yaml", "utf8"));
-const phrases = fs.readFileSync("./input/phrases.txt", "utf8").split(/\r?\n/);
-const archetypes = fs
-  .readFileSync("./input/archetypes.txt", "utf8")
-  .split(/\r?\n/);
-const json = fs.readFileSync("./tmp/termVectors.json", "utf8");
-const termVectors = JSON.parse(json);
+const conceptsPath = "./input/concepts.yaml";
+const phrasesPath = "./src/input/phrases.txt";
+const archetypesPath = "./src/input/archetypes.txt";
+const termVectorsPath = "./tmp/termVectors.json";
+const relatedTermsPath = "./tmp/relatedTerms.json";
+
+const concepts = parse(fs.readFileSync(conceptsPath, "utf8"));
+const phrases = fs.readFileSync(phrasesPath, "utf8").split(/\r?\n/);
+const archetypes = fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/);
+const termVectors = JSON.parse(fs.readFileSync(termVectorsPath, "utf8"));
+
+const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
+const onProgress = (current: number, total: number) => {
+  if (current < 0) {
+    bar.start(total, 0);
+  }
+  if (current === total) {
+    bar.stop();
+  }
+};
 
 getRelatedTerms(
   concepts,
@@ -17,15 +31,14 @@ getRelatedTerms(
   Object.keys(getKeywords([...phrases, ...archetypes])),
   0.4,
   4,
-  ...process.argv.slice(2)
+  process.argv.slice(2),
+  onProgress
 ).then((result) => {
-  const path = "./tmp/relatedTerms.json";
-
-  fs.writeFile(path, JSON.stringify(result), (err) => {
+  fs.writeFile(relatedTermsPath, JSON.stringify(result), (err) => {
     if (err) {
       console.log("FAILED!", err);
     } else {
-      console.log("EXPORTED TO: ", path);
+      console.log("EXPORTED TO: ", relatedTermsPath);
     }
   });
 });

@@ -1,4 +1,4 @@
-import sortPhrases from "./sortPhrases";
+import { getPhrasesSortedByLength } from "../utils/getPhrasesSortedByLength";
 
 const getPersonalizedPhraseTagsMap = (
   phraseTagsMap: { [phrase: string]: string[] },
@@ -18,7 +18,7 @@ const getPersonalizedPhraseTagsMap = (
     : [];
 
   const personalizedPhrases = [...addedPhrases, ...phrases];
-  const sortedPersonalizedPhrases = sortPhrases(
+  const sortedPersonalizedPhrases = getPhrasesSortedByLength(
     personalizedPhrases.filter((p) => !deletedPhrases.includes(p))
   );
 
@@ -36,7 +36,7 @@ const getPersonalizedPhraseTagsMap = (
       personalizedTags[phrase] = [];
     }
     if (tags) {
-      personalizedTags[phrase].push(...tags);
+      personalizedTags[phrase]?.push(...tags);
     }
   });
 

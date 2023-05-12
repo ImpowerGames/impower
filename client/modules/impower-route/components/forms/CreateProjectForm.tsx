@@ -9,6 +9,12 @@ import React, {
   useState,
 } from "react";
 import {
+  getPersonalizedPhraseTagsMap,
+  getRelevantPhrases,
+  getReversedMap,
+  getSubphrases,
+} from "../../../../../concept-generator";
+import {
   ConfigContext,
   getRandomizedTags,
   getTagsSortedBySpecificity,
@@ -22,12 +28,6 @@ import {
   ProjectDocumentInspector,
 } from "../../../impower-data-store";
 import { useDialogNavigation } from "../../../impower-dialog";
-import {
-  getPersonalizedPhraseTagsMap,
-  getRelevantPhrases,
-  getReversedMap,
-  getSubphrases,
-} from "../../../impower-terms";
 import { ToastContext, toastTop } from "../../../impower-toast";
 import {
   UserContext,
@@ -254,7 +254,9 @@ const CreateProjectForm = React.memo(
         setArchetypes(shuffledArchetypes);
         const termTagsMap = latestConfigState?.terms;
         const getPhraseTagsMap = (
-          await import("../../../impower-terms/utils/getPhraseTagsMap")
+          await import(
+            "../../../../../concept-generator/src/runtime/getPhraseTagsMap"
+          )
         ).default;
         setTermTagsMap(termTagsMap);
         const phraseTagsMap = getPhraseTagsMap(shuffledPhrases, termTagsMap);

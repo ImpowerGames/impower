@@ -1,7 +1,12 @@
 import fs from "fs";
-import archetypes from "../input/archetypes.json";
-import terms from "../output/terms.json";
 import { getKeywords } from "../utils/getKeywords";
+
+const archetypesPath = "./src/input/archetypes.txt";
+const termsPath = "./output/terms.json";
+const missingPath = "./tmp/missing.json";
+
+const archetypes = fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/);
+const terms = JSON.parse(fs.readFileSync(termsPath, "utf8"));
 
 const result = getKeywords(archetypes, true);
 const missingTerms: string[] = [];
@@ -10,11 +15,10 @@ Object.entries(result).forEach(([word]) => {
     missingTerms.push(word);
   }
 });
-const path = "./tmp/missing.json";
-fs.writeFile(path, JSON.stringify(missingTerms.sort()), (err) => {
+fs.writeFile(missingPath, JSON.stringify(missingTerms.sort()), (err) => {
   if (err) {
     console.log("FAILED!", err);
   } else {
-    console.log("EXPORTED TO: ", path);
+    console.log("EXPORTED TO: ", missingPath);
   }
 });

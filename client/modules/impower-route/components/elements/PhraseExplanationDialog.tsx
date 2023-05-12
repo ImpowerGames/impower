@@ -2,8 +2,8 @@ import styled from "@emotion/styled";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import React, { useContext, useMemo } from "react";
-import { capitalize, ConfigContext } from "../../../impower-config";
-import { getSubphrases } from "../../../impower-terms";
+import { getSubphrases } from "../../../../../concept-generator";
+import { ConfigContext, capitalize } from "../../../impower-config";
 import PhraseDialog from "./PhraseDialog";
 
 const StyledDialogButton = styled(Button)``;

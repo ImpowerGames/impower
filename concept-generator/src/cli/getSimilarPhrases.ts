@@ -1,6 +1,5 @@
-import cliProgress from "cli-progress";
 import { distance } from "fastest-levenshtein";
-import { getCleanedWords } from "./getCleanedWords";
+import { getCleanedWords } from "../utils/getCleanedWords";
 
 const findLongestCommonSubstring = (str1 = "", str2 = ""): string => {
   const s1 = [...str1];
@@ -57,15 +56,15 @@ const findLongestCommonSubstring = (str1 = "", str2 = ""): string => {
 
 export const getSimilarPhrases = (
   phrases: string[],
-  keywords: { [word: string]: number }
+  keywords: { [word: string]: number },
+  onProgress?: (current: number, total: number) => void
 ): { [phrase: string]: [string, number][] } => {
   const similarPhrases: {
     [phrase: string]: [string, number][];
   } = {};
-  const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
-  bar.start(phrases.length, 0);
+  onProgress?.(-1, phrases.length);
   phrases.forEach((aPhrase, index) => {
-    bar.update(index);
+    onProgress?.(index, phrases.length);
     const pairs: [string, number][] = [];
     phrases.forEach((bPhrase) => {
       if (aPhrase !== bPhrase) {
@@ -118,6 +117,6 @@ export const getSimilarPhrases = (
     .forEach(([key, value]) => {
       sortedSimilarPhrases[key] = value;
     });
-  bar.stop();
+  onProgress?.(phrases.length, phrases.length);
   return sortedSimilarPhrases;
 };
