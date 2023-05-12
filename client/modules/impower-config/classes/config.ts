@@ -5,9 +5,8 @@ import {
   getValue as _getValue,
   getRemoteConfig,
 } from "@firebase/remote-config";
-import { parse } from "yaml";
-import archetypes from "../../../../concept-generator/src/input/archetypes.yaml";
-import phrases from "../../../../concept-generator/src/input/phrases.yaml";
+import archetypes from "../../../../concept-generator/src/input/archetypes.txt";
+import phrases from "../../../../concept-generator/src/input/phrases.txt";
 import terms from "../../../../concept-generator/src/output/terms.json";
 import colors from "../../../resources/json/colors.json";
 import abbreviations from "../../../resources/json/en/abbreviations.json";
@@ -148,8 +147,8 @@ class Config {
       messages: this.getValue("messages", messages),
       moods: this.getValue("moods", moods),
       catalysts: this.getValue("catalysts", catalysts),
-      archetypes: parse(this.getValue("archetypes", archetypes)),
-      phrases: parse(this.getValue("phrases", phrases)),
+      archetypes: this.getValue("archetypes", archetypes.split(/\r?\n/)),
+      phrases: this.getValue("phrases", phrases.split(/\r?\n/)),
       regexes: this.getValue("regexes", regexes),
       resourceTags: this.getValue("resourceTags", resourceTags),
       roleTags: this.getValue("roleTags", roleTags),

@@ -8,7 +8,7 @@ These are the generator scripts that we use for our A.I.-powered random concept 
 
 1. A concept generator takes a list of tags that represent a concept (e.g. ["legal", "demon"])
 2. Checks a `terms.json` file for any terms that are related to those tags (e.g. ["advocate", "devil"])
-3. Scans `phrases.yaml` for any common English phrases that contain any of those related terms (e.g. "Devil's Advocate")
+3. Scans `phrases.txt` for any common English phrases that contain any of those related terms (e.g. "Devil's Advocate")
 4. And finally, suggests these phrases to the user!
 
 Phrases are ranked by a basic relevancy algorithm (more info on this algorithm can be found in the section titled `Impower Relevancy Algorithm`)
@@ -23,9 +23,9 @@ In general terms, relevancy is determined by...
 
 ## Important Files
 
-The scripts in this repo take user-created configuration files (`phrases.yaml` and `concepts.yaml`) and output a condensed json file (`terms.json`) that can be used by a concept generator. 
+The scripts in this repo take the user-created configuration files (`concepts.yaml` and `phrases.txt`) and use them to output a condensed json file (`terms.json`) that can be used by a concept generator. 
 
-- The `phrases.yaml` file is a list of common english phrases (idioms, catchphrases, slogans, etc.)
+- The `phrases.txt` file contains a list of common english phrases (idioms, catchphrases, slogans, etc.)
 
   ```yaml
   - An Axe to Grind
@@ -35,7 +35,7 @@ The scripts in this repo take user-created configuration files (`phrases.yaml` a
   - Exposure Therapy
   ```
 
-- The `concepts.yaml` file is a map of concepts (genres, aesthetics, subjects, etc.) and terms related to those concepts.
+- The `concepts.yaml` file contains a map of concepts (genres, aesthetics, subjects, etc.) and terms related to those concepts.
 
   ```yaml
   vampire:
@@ -68,7 +68,7 @@ The scripts in this repo take user-created configuration files (`phrases.yaml` a
   - zeppelin
   ```
 
-- The `terms.json` file is a map of subphrases extracted from the `phrases.yaml` list and words related to each subphrase according to the `concepts.yaml` map.
+- The `terms.json` file contains a map of subphrases extracted from the `phrases.txt` list and words related to each subphrase according to the `concepts.yaml` map.
 
   ```json
   {
@@ -87,7 +87,7 @@ The scripts in this repo take user-created configuration files (`phrases.yaml` a
   }
   ```
 
-Impower loads the `phrases.yaml` and `terms.json` files as remote configs in our Firebase app to populate our various concept generators.
+Impower loads the `phrases.txt` and `terms.json` files as remote configs in our Firebase app to populate our various concept generators.
 
 ---
 
@@ -105,9 +105,9 @@ To adjust the "brain" of a concept generator, edit the `concepts.yaml` file.
 1. Open `src/input/concepts.yaml`
 2. Edit the terms list for any concept.
 
-To change which phrases can be suggested to the user, edit the `phrases.yaml` list:
+To change which phrases can be suggested to the user, edit the `phrases.txt` list:
 
-1. Open `src/input/phrases.yaml`
+1. Open `src/input/phrases.txt`
 2. Add, remove, or edit any phrases in the phrase list.
 
 ---
@@ -174,7 +174,7 @@ You can use several special characters in `concepts.yaml` to make the process of
 
    For some concepts, it important for the generator to take contextual use into account.
 
-   For example, for the concept `rival`, we only want to include the word `like` if it is used in a way in which carries a negative connotation. (e.g. `I don't like you.`). To do this you can prefix the term with the sentiment prefix `*NEG `.
+   For example, for the concept `rival`, we only want to include the word `like` if it is used in a way in which carries a negative connotation. (e.g. `I don't like you`). To do this you can prefix the term with the sentiment prefix `*NEG `.
 
     ```yaml
     rival:
@@ -192,7 +192,7 @@ You can use several special characters in `concepts.yaml` to make the process of
     - _*NEG say no
     ```
 
-    (The above configuration will match phrases like `As you like it` and `Can't say no`.)
+    (The above configuration will match phrases like `They really like me` and `Can't say no`.)
 ---
 
 ## Using Word2Vec To Discover Even More Related Terms
@@ -206,7 +206,7 @@ But any word2vec model with a reasonably large vocabulary should suffice for thi
 
 1. Download an [English pre-trained word2vec text model](https://fasttext.cc/docs/en/pretrained-vectors.html)
 2. Save the model in `models/wiki.en.vec`
-3. Use `npm run keywords` to generate a list of keywords found in the `phrases.yaml` file
+3. Use `npm run keywords` to generate a list of keywords found in the `phrases.txt` file
 4. Use `npm run vector` to generate a map of vectors for those keywords.
 5. Use `npm run related` to generate a list of terms that you may want to add to your `concepts.yaml` file
 
@@ -214,9 +214,9 @@ But any word2vec model with a reasonably large vocabulary should suffice for thi
 
 ## Impower Relevancy Algorithm
 
-Using `phrases.yaml` and `terms.json` as input files, our generators create a map of phrases that relate to a concept. To do so, we simply:
+Using `phrases.txt` and `terms.json` as input files, our generators create a map of phrases that relate to a concept. To do so, we simply:
 
-1. Break down each phrase in `phrases.yaml` into all possible subphrases.
+1. Break down each phrase in `phrases.txt` into all possible subphrases.
 2. Use `terms.json` to check if any of those subphrases appear in a tag's related terms.
 3. If so, add the original phrase to a map of (tags) -> (phrases related to this tag).
 4. Sort each tag's related phrase list by length in ascending order (shortest to longest).

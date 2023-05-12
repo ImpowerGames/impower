@@ -4,8 +4,10 @@ import { getKeywords } from "../utils/getKeywords";
 import { getRelatedTerms } from "../utils/getRelatedTerms";
 
 const concepts = parse(fs.readFileSync("./input/concepts.yaml", "utf8"));
-const phrases = parse(fs.readFileSync("./input/phrases.yaml", "utf8"));
-const archetypes = parse(fs.readFileSync("./input/archetypes.yaml", "utf8"));
+const phrases = fs.readFileSync("./input/phrases.txt", "utf8").split(/\r?\n/);
+const archetypes = fs
+  .readFileSync("./input/archetypes.txt", "utf8")
+  .split(/\r?\n/);
 const json = fs.readFileSync("./tmp/termVectors.json", "utf8");
 const termVectors = JSON.parse(json);
 

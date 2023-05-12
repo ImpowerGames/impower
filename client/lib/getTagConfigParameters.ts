@@ -1,5 +1,5 @@
 import { parse } from "yaml";
-import archetypes from "../../concept-generator/src/input/archetypes.yaml";
+import archetypes from "../../concept-generator/src/input/archetypes.txt";
 import { TagConfigParameters } from "../modules/impower-config";
 import colors from "../resources/json/colors.json";
 import atmospheres from "../resources/json/en/atmospheres.json";
