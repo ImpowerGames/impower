@@ -199,7 +199,7 @@ You can use several special characters in `concepts.yaml` to make the process of
 
 [Word2Vec](https://en.wikipedia.org/wiki/Word2vec) is a technique for natural language processing published by Google. The word2vec algorithm uses a neural network model to learn word associations from a large corpus of text.
 
-We utilized this pre-trained word2vec model to help populate and train our original related term lists:
+We utilized this pre-trained word2vec model to help populate and curate our original related term lists:
 https://dl.fbaipublicfiles.com/fasttext/vectors-wiki/wiki.en.vec
 
 But any word2vec model with a reasonably large vocabulary should suffice for this purpose.
