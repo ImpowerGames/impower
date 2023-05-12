@@ -1,5 +1,5 @@
 import fs from "fs";
-import { getKeywords } from "../utils/getKeywords";
+import { getKeywords } from "./utils/getKeywords";
 
 const archetypesPath = "./src/input/archetypes.txt";
 const termsPath = "./output/terms.json";

@@ -1,4 +1,4 @@
-import { getCleanedTerm } from "./getCleanedTerm";
+import { getCleanedTerm } from "../../src/utils/getCleanedTerm";
 import { getTermVariants } from "./getTermVariants";
 
 export const transformTerms = (terms: string[]): string[] =>

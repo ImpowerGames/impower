@@ -1,8 +1,8 @@
 import cliProgress from "cli-progress";
 import fs from "fs";
 import { parse } from "yaml";
-import { getKeywords } from "../utils/getKeywords";
-import { getRelatedTerms } from "../utils/getRelatedTerms";
+import { getKeywords } from "./utils/getKeywords";
+import { getRelatedTerms } from "./utils/getRelatedTerms";
 
 const conceptsPath = "./input/concepts.yaml";
 const phrasesPath = "./src/input/phrases.txt";

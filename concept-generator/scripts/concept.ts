@@ -1,6 +1,6 @@
 import cliProgress from "cli-progress";
 import fs from "fs";
-import { getConceptualDifference } from "../utils/getConceptualDifference";
+import { getConceptualExamples } from "./utils/getConceptualExamples";
 
 const termVectorsPath = "./tmp/termVectors.json";
 
@@ -16,11 +16,9 @@ const onProgress = (current: number, total: number) => {
   }
 };
 
-const result = getConceptualDifference(
-  process.argv[2] || "",
-  process.argv[3] || "",
+const result = getConceptualExamples(
   termVectors,
-  process.argv[4] ? Number.parseInt(process.argv[4] || "30") : undefined,
+  process.argv.slice(2),
   onProgress
 );
 console.log(result);

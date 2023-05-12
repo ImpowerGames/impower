@@ -1,5 +1,5 @@
 import fs from "fs";
-import { getCuratedPhrases } from "../utils/getCuratedPhrases";
+import { getCuratedPhrases } from "./utils/getCuratedPhrases";
 
 const phrasesPath = "./input/phrases.txt";
 const termsPath = "./output/terms.json";

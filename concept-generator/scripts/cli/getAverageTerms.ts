@@ -4,6 +4,7 @@ import readline from "readline";
 import { average, similarity } from "../utils/math";
 
 export const getAverageTerms = async (
+  modelPath: string,
   threshold = 0.4,
   limit = 100,
   words: string[],
@@ -26,12 +27,10 @@ export const getAverageTerms = async (
   const bar1 = multibar.create(progressTotal, vector ? progressTotal : 0);
   const bar2 = multibar.create(progressTotal, 0);
 
-  const path = "./models/wiki.en.vec";
-
   let wordVecs: { [word: string]: number[] } = {};
 
   if (!vector) {
-    const fs1 = fs.createReadStream(path);
+    const fs1 = fs.createReadStream(modelPath);
     const rl1 = readline.createInterface({
       input: fs1,
       crlfDelay: Infinity,
@@ -77,7 +76,7 @@ export const getAverageTerms = async (
       .slice(0, limit)
       .map(([word]) => word);
   } else {
-    const fs2 = fs.createReadStream(path);
+    const fs2 = fs.createReadStream(modelPath);
     const rl2 = readline.createInterface({
       input: fs2,
       crlfDelay: Infinity,

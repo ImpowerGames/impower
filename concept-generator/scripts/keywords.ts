@@ -1,5 +1,5 @@
 import fs from "fs";
-import { getKeywords } from "../utils/getKeywords";
+import { getKeywords } from "./utils/getKeywords";
 
 const phrasesPath = "./input/phrases.txt";
 const keywordsPath = "./tmp/keywords.ts";

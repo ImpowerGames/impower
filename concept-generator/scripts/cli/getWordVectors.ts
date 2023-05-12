@@ -2,11 +2,13 @@ import cliProgress from "cli-progress";
 import fs from "fs";
 import readline from "readline";
 
-export const getWordVectors = async (include?: (word: string) => boolean) => {
+export const getWordVectors = async (
+  modelPath: string,
+  include?: (word: string) => boolean
+) => {
   const bar = new cliProgress.SingleBar({}, cliProgress.Presets.shades_classic);
 
-  const path = "./models/wiki.en.vec";
-  const fileStream = fs.createReadStream(path);
+  const fileStream = fs.createReadStream(modelPath);
 
   const wordVecs: { [word: string]: number[] } = {};
 

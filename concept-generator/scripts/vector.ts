@@ -1,7 +1,8 @@
 import fs from "fs";
 import { parse } from "yaml";
-import { getWordVectors } from "../cli/getWordVectors";
+import { getWordVectors } from "./cli/getWordVectors";
 
+const modelPath = "./models/wiki.en.vec";
 const conceptsPath = "./input/concepts.yaml";
 const termsPath = "./output/terms.json";
 const termVectorsPath = "./tmp/termVectors.ts";
@@ -15,7 +16,7 @@ const include = (word: string) =>
       (terms as Record<string, string[]>)[word]
   );
 
-getWordVectors(include).then((result) => {
+getWordVectors(modelPath, include).then((result) => {
   const definition = "export const termVectors = ";
   fs.writeFile(termVectorsPath, definition + JSON.stringify(result), (err) => {
     if (err) {

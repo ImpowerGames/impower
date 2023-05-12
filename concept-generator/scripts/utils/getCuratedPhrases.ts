@@ -1,4 +1,4 @@
-import { getCleanedWords } from "./getCleanedWords";
+import { getCleanedWords } from "../../src/utils/getCleanedWords";
 import { getSortedMap } from "./getSortedMap";
 
 export const getCuratedPhrases = (

@@ -1,4 +1,4 @@
-import { getCleanedTerm } from "./getCleanedTerm";
+import { getCleanedTerm } from "../../src/utils/getCleanedTerm";
 
 const getSuffixedVariants = (word: string): string[] => {
   if (word.endsWith("_")) {

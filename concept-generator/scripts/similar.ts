@@ -1,6 +1,6 @@
 import cliProgress from "cli-progress";
 import fs from "fs";
-import { getSimilarPhrases } from "../cli/getSimilarPhrases";
+import { getSimilarPhrases } from "./cli/getSimilarPhrases";
 
 const phrasesPath = "./input/phrases.txt";
 const keywordsPath = "./tmp/keywords.json";

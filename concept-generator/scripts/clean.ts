@@ -1,6 +1,6 @@
 import fs from "fs";
 import { parse } from "yaml";
-import { getCleanedConcepts } from "../utils/getCleanedConcepts";
+import { getCleanedConcepts } from "./utils/getCleanedConcepts";
 
 const conceptsPath = "./src/input/concepts.yaml";
 

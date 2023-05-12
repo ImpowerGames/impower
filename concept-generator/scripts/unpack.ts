@@ -1,6 +1,6 @@
 import fs from "fs";
 import { parse } from "yaml";
-import { getTermTags } from "../utils/getTermTags";
+import { getTermTags } from "./utils/getTermTags";
 
 const conceptsPath = "./input/concepts.yaml";
 const phrasesPath = "./input/phrases.txt";

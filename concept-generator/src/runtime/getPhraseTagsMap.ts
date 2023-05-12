@@ -1,4 +1,4 @@
-import getSubphrases from "./getSubphrases";
+import { getSubphrases } from "../utils/getSubphrases";
 
 /**
  * Get all tags associated with a phrase

@@ -1,6 +1,6 @@
 import fs from "fs";
 import { parse } from "yaml";
-import { getClosestTags } from "../utils/getClosestTags";
+import { getClosestTags } from "./utils/getClosestTags";
 
 const conceptsPath = "./src/input/concepts.yaml";
 const termVectorsPath = "./tmp/termVectors.json";

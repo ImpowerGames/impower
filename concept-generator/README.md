@@ -1,6 +1,6 @@
 # Impower Concept Generator
 
-These are the generator scripts that we use for our random concept generators.
+These are the scripts and relevancy algorithms we use for our random concept generators.
 
 ---
 

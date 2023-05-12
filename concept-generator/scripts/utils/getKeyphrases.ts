@@ -1,4 +1,4 @@
-import { getCleanedWords } from "./getCleanedWords";
+import { getCleanedWords } from "../../src/utils/getCleanedWords";
 
 export const getKeyphrases = (
   phrases: string[],

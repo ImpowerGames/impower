@@ -1,4 +1,4 @@
-import { getCleanedWords } from "../utils/getCleanedWords";
+import { getCleanedWords } from "./getCleanedWords";
 
 /**
  * Break a phrase into subphrases
@@ -7,7 +7,7 @@ import { getCleanedWords } from "../utils/getCleanedWords";
  *
  * @returns An array of subphrases
  */
-const getSubphrases = (phrase: string | string[]): string[] => {
+export const getSubphrases = (phrase: string | string[]): string[] => {
   const words = Array.isArray(phrase) ? phrase : getCleanedWords(phrase);
   const subphrases = new Set<string>();
   for (let i = 0; i <= words.length; i += 1) {
@@ -20,5 +20,3 @@ const getSubphrases = (phrase: string | string[]): string[] => {
   }
   return Array.from(subphrases);
 };
-
-export default getSubphrases;

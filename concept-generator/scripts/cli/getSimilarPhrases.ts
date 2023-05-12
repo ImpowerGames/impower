@@ -1,5 +1,5 @@
 import { distance } from "fastest-levenshtein";
-import { getCleanedWords } from "../utils/getCleanedWords";
+import { getCleanedWords } from "../../src/utils/getCleanedWords";
 
 const findLongestCommonSubstring = (str1 = "", str2 = ""): string => {
   const s1 = [...str1];

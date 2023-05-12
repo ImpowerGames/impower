@@ -1,5 +1,5 @@
 import { getCleanedWords } from "../utils/getCleanedWords";
-import getSubphrases from "./getSubphrases";
+import { getSubphrases } from "../utils/getSubphrases";
 
 /**
  * Get a score that represents the proportion of terms in the phrase that are relevant

@@ -1,10 +1,11 @@
 import fs from "fs";
-import musicalStyles from "../../../client/resources/json/en/musicalStyles.json";
-import { getAverageTerms } from "../cli/getAverageTerms";
+import musicalStyles from "../../client/resources/json/en/musicalStyles.json";
+import { getAverageTerms } from "./cli/getAverageTerms";
 
+const modelPath = "./models/wiki.en.vec";
 const averagePath = "./tmp/average.json";
 
-getAverageTerms(0.4, 5000, musicalStyles).then((result) => {
+getAverageTerms(modelPath, 0.4, 5000, musicalStyles).then((result) => {
   fs.writeFile(averagePath, JSON.stringify(result), (err) => {
     if (err) {
       console.log("FAILED!", err);
