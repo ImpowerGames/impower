@@ -800,8 +800,8 @@ assassination:
   - violent
   - wound
 atompunk:
-  - _1950_
-  - 50s
+  - _1950
+  - _50s_
   - america
   - americana
   - atom
@@ -3285,8 +3285,8 @@ deconstruction:
   - discourse
   - paradigm
 decopunk:
-  - _1920_
-  - 20s
+  - _1920
+  - _20s_
   - _fois gras_
   - _pate de_
   - affluence
@@ -3642,8 +3642,8 @@ detective:
   - unturned
   - warrant
 dieselpunk:
-  - _1930_
-  - _1940_
+  - _1930
+  - _1940
   - _30s_
   - _40s_
   - _bumper_
