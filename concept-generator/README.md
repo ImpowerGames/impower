@@ -170,26 +170,26 @@ You can use several special characters in `concepts.yaml` to make the process of
 
     (The above configuration will implicitly include phrases like `breaking and entering` and `breaking in`. Notice that the past tense for `take` does not follow typical english suffix rules (`taked` is not a valid word). So `_took that_` and `_took this_` must be manually included inside the term list. See `./src/utils/getTermVariants.ts` for a list of common suffixes and prefixes that the parser will attempt to add to a word.)
 
-4. Sentiment: `*NEG` and `*POS`
+4. Sentiment: `<NEG>` and `<POS>`
 
    For some concepts, it important for the generator to take contextual use into account.
 
-   For example, for the concept `rival`, we only want to include the word `like` if it is used in a way in which carries a negative connotation. (e.g. `I don't like you`). To do this you can prefix the term with the sentiment prefix `*NEG `.
+   For example, for the concept `rival`, we only want to include the word `like` if it is used in a way in which carries a negative connotation. (e.g. `I don't like you`). To do this you can prefix the term with the sentiment token `<NEG>`.
 
     ```yaml
     rival:
-    - _*NEG like
+    - _<NEG> like
     - _not to like_
     ```
 
     (With the above configuration, the concept generator will only match phrases including the term `like` if the term is negated with another word: e.g. "don't like", "won't like", "can't like" etc. This is mostly useful for negative relationship tags like "Rivals" or "Revenge")
 
-    Conversely, you can use the `*POS` sentiment prefix to match phrases containing a term, only if the term in the phrase has NOT been negated with another word: e.g. "i like", "do like", "i really like" etc. This is mostly useful for positive relationship tags like "Dating", "Friendship", or "Romance"
+    Conversely, you can use the `<POS>` sentiment token to match phrases containing a term, only if the term in the phrase has NOT been negated with another word: e.g. "i like", "do like", "i really like" etc. This is mostly useful for positive relationship tags like "Dating", "Friendship", or "Romance"
 
     ```yaml
     love:
-    - _*POS like
-    - _*NEG say no
+    - _<POS> like
+    - _<NEG> say no
     ```
 
     (The above configuration will match phrases like `They really like me` and `Can't say no`.)

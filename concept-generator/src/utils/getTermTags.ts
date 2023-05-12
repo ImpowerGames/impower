@@ -40,9 +40,9 @@ export const intensityModifiers = ["really", "very", "too", "extremely", "so"];
 const getPositive = (term: string): string[] => {
   const modded = new Set<string>();
   positiveModifiers.forEach((pos) => {
-    modded.add(term.replace(/\*pos/g, pos));
+    modded.add(term.replace(/<pos>/g, pos));
     intensityModifiers.forEach((int) => {
-      modded.add(term.replace(/\*pos/g, `${pos} ${int}`));
+      modded.add(term.replace(/<pos>/g, `${pos} ${int}`));
     });
   });
   return Array.from(modded);
@@ -51,9 +51,9 @@ const getPositive = (term: string): string[] => {
 const getNegative = (term: string): string[] => {
   const modded = new Set<string>();
   negativeModifiers.forEach((neg) => {
-    modded.add(term.replace(/\*neg/g, neg));
+    modded.add(term.replace(/<neg>/g, neg));
     intensityModifiers.forEach((int) => {
-      modded.add(term.replace(/\*neg/g, `${neg} ${int}`));
+      modded.add(term.replace(/<neg>/g, `${neg} ${int}`));
     });
   });
   return Array.from(modded);
