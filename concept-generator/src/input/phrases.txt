@@ -219,7 +219,7 @@ Rip Off
 Rise Up
 Rock On
 Rug Rat
-"Rule #1"
+Rule #1
 Save It
 Scrappy
 Show Up
@@ -557,7 +557,7 @@ Pot Head
 Pot Luck
 Power Up
 Press On
-"Pro Tip:"
+Pro Tip:
 Pug Ugly
 Push Off
 Put Upon
@@ -3153,7 +3153,7 @@ Easy Way Out
 Eat The Rich
 Ebb And Flow
 Eco Friendly
-"Edit: A Word"
+Edit: A Word
 Elbow Grease
 Emerald Isle
 Empty Handed
@@ -8577,7 +8577,7 @@ On Your Death Bed
 On Your Hind Legs
 One Day At A Time
 One For The Books
-"One Man: One Vote"
+One Man: One Vote
 One Moment Please
 One Of Everything
 One Of These Days
@@ -11196,7 +11196,7 @@ March Of The Penguins
 Means The World To Me
 Mind Your Own Beeswax
 Mind Your P's And Q's
-"Monkey See: Monkey Do"
+Monkey See: Monkey Do
 Morally Reprehensible
 Morbid Sense Of Humor
 More Money Than Sense
@@ -11403,7 +11403,7 @@ Walk On The Wild Side
 Walking Encyclopaedia
 Wallpaper The Meeting
 Want A Piece Of This?
-"Wanted: Dead Or Alive"
+Wanted: Dead Or Alive
 We Were Good Together
 We've Got You Covered
 Welcome To The Jungle
@@ -11446,7 +11446,7 @@ You're In Trouble Now
 You've Got Some Nerve
 Your Hand In Marriage
 Your Politics Bore Me
-"[ Music Intensifies ]"
+[ Music Intensifies ]
 A Bull In A China Shop
 A Chip On His Shoulder
 A Day in the Limelight
@@ -11676,7 +11676,7 @@ Nine Tenths Of The Law
 No Challenge Too Great
 No Logical Explanation
 No More Cakes And Ale?
-"No Names: No Packdrill"
+No Names: No Packdrill
 No Pockets In A Shroud
 No Rest For The Wicked
 No Room To Swing A Cat
@@ -12113,7 +12113,7 @@ On Nodding Acquaintance
 On The Tip Of My Tongue
 One Percent Inspiration
 Only Hurts When I Laugh
-"Open Mouth: Closed Mind"
+Open Mouth: Closed Mind
 Or A Hell Out Of Heaven
 Paints A Thousand Words
 Penny For Your Thoughts
@@ -12178,7 +12178,7 @@ Speculate To Accumulate
 Stand Before Your Maker
 Stand Up And Be Counted
 Stay Ahead Of The Curve
-"Step One: Be Attractive"
+Step One: Be Attractive
 Stir Up A Hornet's Nest
 Subverting Expectations
 Suits You Down To A Tee
@@ -12276,7 +12276,7 @@ You Served Your Purpose
 You've Got Till Sundown
 Your Money Or Your Life
 Your Wish Is My Command
-".exe Has Stopped Working"
+.exe Has Stopped Working
 A Cat May Look At A King
 A Fish Without A Bicycle
 A Hand In The Cookie Jar
@@ -12438,7 +12438,7 @@ Least Common Denominator
 Left To Your Own Devices
 Let Me Get This Straight
 Let's Play A Little Game
-"Liar Liar: Pants On Fire"
+Liar Liar: Pants On Fire
 Life Changing Experience
 Life Is What You Make It
 Like A Box Of Chocolates
@@ -13482,7 +13482,7 @@ They Walked, So We Could Run
 This Is No Time For Knitting
 Three Strikes And You're Out
 Through The Eye Of The Storm
-"To Sleep: Perchance To Dream"
+To Sleep: Perchance To Dream
 Turkeys Voting For Christmas
 Waiting For The Shoe To Drop
 Walk The Walk, Talk The Talk
@@ -14003,7 +14003,7 @@ That Is Not The Intended Use, Sir
 The Boy Stood On The Burning Deck
 The Cat That Swallowed The Canary
 The Clocks Were Striking Thirteen
-"The Old Lie: Dulce Et Decorum Est"
+The Old Lie: Dulce Et Decorum Est
 The Organ Grinder, Not The Monkey
 The Squeaky Wheel Gets The Grease
 There's Something I'd Like To Say
@@ -14290,7 +14290,7 @@ The Truth, The Whole Truth, And Nothing But The Truth
 Took My Harp To The Party But No One Asked Me To Play
 Cleared My Skin, Watered My Crops, Cured My Depression
 Everyone Wants To Go To Heaven But No One Wants To Die
-"A Camera With Its Shutter Open: Recording, Not Thinking"
+A Camera With Its Shutter Open: Recording, Not Thinking
 Some Days You're The Pigeon, Some Days You're The Statue
 Why Would You Say Something So Controversial Yet So Brave?
 I Am Not A Computer Person, And You Are Refusing To Help Me
