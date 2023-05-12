@@ -1,4 +1,5 @@
-import archetypes from "../../title-generator/src/input/archetypes.json";
+import { parse } from "yaml";
+import archetypes from "../../concept-generator/src/input/archetypes.yaml";
 import { TagConfigParameters } from "../modules/impower-config";
 import colors from "../resources/json/colors.json";
 import atmospheres from "../resources/json/en/atmospheres.json";
@@ -17,7 +18,7 @@ import tagPatterns from "../resources/json/tagPatterns.json";
 
 const getTagConfigParameters = (): TagConfigParameters => {
   return {
-    archetypes,
+    archetypes: parse(archetypes),
     atmospheres,
     catalysts,
     colors,

@@ -77,7 +77,7 @@ export const ProjectGeneratorTagsSelector = (
     [filteredTags, onFilterTags]
   );
 
-  const tagTerms = useMemo(() => {
+  const concepts = useMemo(() => {
     if (!phrases || !termTagsMap) {
       return {};
     }
@@ -109,19 +109,19 @@ export const ProjectGeneratorTagsSelector = (
         {tags.map((tag) => (
           <StyledChip
             key={tag}
-            disabled={!tagTerms[tag]}
+            disabled={!concepts[tag]}
             variant={
-              filteredTags.includes(tag) || !tagTerms[tag]
+              filteredTags.includes(tag) || !concepts[tag]
                 ? "outlined"
                 : "filled"
             }
             color="secondary"
             label={
-              tagTerms[tag] ? (
+              concepts[tag] ? (
                 <StyledLabelArea>
                   <StyledLabel>{tag}</StyledLabel>
                   {debug && (
-                    <StyledDetail>{`(${tagTerms[tag]?.length})`}</StyledDetail>
+                    <StyledDetail>{`(${concepts[tag]?.length})`}</StyledDetail>
                   )}
                 </StyledLabelArea>
               ) : (
@@ -130,7 +130,7 @@ export const ProjectGeneratorTagsSelector = (
             }
             onClick={(e: React.MouseEvent): void => handleClickTag(e, tag)}
             style={{
-              opacity: !tagTerms[tag]
+              opacity: !concepts[tag]
                 ? 0.5
                 : filteredTags.includes(tag)
                 ? 0.9

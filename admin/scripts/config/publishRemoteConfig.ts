@@ -5,6 +5,8 @@ import {
   ServiceAccount,
 } from "firebase-admin/app";
 import { getRemoteConfig } from "firebase-admin/remote-config";
+import fs from "fs";
+import { parse } from "yaml";
 
 export const publishRemoteConfig = async (credentials: ServiceAccount) => {
   const app =
@@ -14,12 +16,14 @@ export const publishRemoteConfig = async (credentials: ServiceAccount) => {
     });
   const config = getRemoteConfig(app);
   const template = await config.getTemplate();
-  const phrasesPath = "../../../title-generator/src/input/phrases.json";
-  const phrases = JSON.stringify((await import(phrasesPath)).default);
-  const archetypesPath = "../../../title-generator/src/input/archetypes.json";
-  const archetypes = JSON.stringify((await import(archetypesPath)).default);
-  const termsPath = "../../../title-generator/src/output/terms.json";
-  const terms = JSON.stringify((await import(termsPath)).default);
+  const phrasesPath = "../../../concept-generator/src/input/phrases.yaml";
+  const phrases = JSON.stringify(parse(fs.readFileSync(phrasesPath, "utf8")));
+  const archetypesPath = "../../../concept-generator/src/input/archetypes.yaml";
+  const archetypes = JSON.stringify(
+    parse(fs.readFileSync(archetypesPath, "utf8"))
+  );
+  const termsPath = "../../../concept-generator/src/output/terms.json";
+  const terms = fs.readFileSync(termsPath, "utf8");
   const colors = JSON.stringify(
     (await import("../../../client/resources/json/colors.json")).default
   );

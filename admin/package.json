@@ -3,11 +3,11 @@
   "scripts": {
     "lint": "eslint \"src/**/*\"",
     "build": "tsc",
-    "sort": "cd ../title-generator && npm run sort && cd ../admin",
-    "clean": "cd ../title-generator && npm run clean && cd ../admin",
-    "unpack": "cd ../title-generator && npm run unpack && cd ../admin",
-    "prep": "cd ../title-generator && npm run prep && cd ../admin",
-    "average": "cd ../title-generator && npm run average && cd ../admin",
+    "sort": "cd ../concept-generator && npm run sort && cd ../admin",
+    "clean": "cd ../concept-generator && npm run clean && cd ../admin",
+    "unpack": "cd ../concept-generator && npm run unpack && cd ../admin",
+    "prep": "cd ../concept-generator && npm run prep && cd ../admin",
+    "average": "cd ../concept-generator && npm run average && cd ../admin",
     "config": "npm run config-dev",
     "config-dev": "ts-node scripts/config/config.ts dev",
     "config-test": "ts-node scripts/config/config.ts test",
@@ -32,7 +32,8 @@
   },
   "main": "lib/index.js",
   "dependencies": {
-    "firebase-admin": "^11.2.0"
+    "firebase-admin": "^11.2.0",
+    "yaml": "^2.2.2"
   },
   "devDependencies": {
     "typescript": "^4.8.4"

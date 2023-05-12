@@ -143,6 +143,7 @@
     "textbox-for-pdfkit": "^0.2.1",
     "tinycolor2": "^1.5.2",
     "wavesurfer.js": "^6.4.0",
-    "workbox-window": "^6.5.4"
+    "workbox-window": "^6.5.4",
+    "yaml": "^2.2.2"
   }
 }
