@@ -1,6 +1,6 @@
 # Impower Concept Generator
 
-These are the generator scripts that we use for our A.I.-powered random concept generators.
+These are the generator scripts that we use for our random concept generators.
 
 ---
 
@@ -98,7 +98,7 @@ Impower loads the `phrases.txt` and `terms.json` files as remote configs in our 
 
 ---
 
-## Configuring the A.I.
+## Configuring the Procedural Generation Logic
 
 To adjust the "brain" of a concept generator, edit the `concepts.yaml` file. 
 
