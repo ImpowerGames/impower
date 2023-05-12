@@ -1,4 +1,3 @@
-import { parse } from "yaml";
 import archetypes from "../../concept-generator/src/input/archetypes.txt";
 import { TagConfigParameters } from "../modules/impower-config";
 import colors from "../resources/json/colors.json";
@@ -18,7 +17,7 @@ import tagPatterns from "../resources/json/tagPatterns.json";
 
 const getTagConfigParameters = (): TagConfigParameters => {
   return {
-    archetypes: parse(archetypes),
+    archetypes: archetypes.split(/\r?\n/),
     atmospheres,
     catalysts,
     colors,

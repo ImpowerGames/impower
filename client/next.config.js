@@ -47,7 +47,7 @@ module.exports = withBundleAnalyzer({
         use: ["@svgr/webpack"],
       },
       {
-        test: /\.(md|txt|yaml)$/,
+        test: /\.(md|txt)$/,
         loader: "raw-loader",
       },
       { test: /\.afm$/, type: "asset/source" },
