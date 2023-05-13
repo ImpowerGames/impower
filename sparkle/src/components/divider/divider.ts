@@ -1,19 +1,28 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./divider.css";
 import html from "./divider.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_DIVIDER_ATTRIBUTES = getAttributeNameMap(["vertical"]);
+
 /**
  * Dividers are used to visually separate or group elements.
  */
 export default class Divider extends SparkleElement {
+  static override tagName = "s-divider";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_DIVIDER_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-divider",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -24,15 +33,14 @@ export default class Divider extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "vertical"];
-  }
-
   /**
    * Whether or not the divider is vertical instead of horizontal.
    */
   get vertical(): boolean {
-    return this.getBooleanAttribute("vertical");
+    return this.getBooleanAttribute(Divider.attributes.vertical);
+  }
+  set vertical(value) {
+    this.setStringAttribute(Divider.attributes.vertical, value);
   }
 
   protected override onAttributeChanged(
@@ -40,7 +48,7 @@ export default class Divider extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "vertical") {
+    if (name === Divider.attributes.vertical) {
       this.updateRootAttribute(
         "aria-orientation",
         newValue != null ? "vertical" : "horizontal"

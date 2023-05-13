@@ -10,6 +10,7 @@ import {
 } from "@floating-ui/dom";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssColor } from "../../utils/getCssColor";
 import { getCssSize } from "../../utils/getCssSize";
 import { offsetParent } from "./composed-offset-position";
@@ -21,15 +22,47 @@ styles.replaceSync(css);
 
 const repositionEvent = new SparkleEvent("reposition");
 
+export const DEFAULT_POPUP_ATTRIBUTES = getAttributeNameMap([
+  "anchor",
+  "active",
+  "placement",
+  "strategy",
+  "distance",
+  "skidding",
+  "arrow",
+  "arrow-placement",
+  "arrow-padding",
+  "flip",
+  "flip-fallback-placements",
+  "flip-fallback-strategy",
+  "flip-boundary",
+  "flip-padding",
+  "shift",
+  "shift-boundary",
+  "shift-padding",
+  "auto-size",
+  "sync",
+  "auto-size-boundary",
+  "auto-size-padding",
+  "arrow-color",
+  "arrow-size",
+]);
+
 /**
  * Popup is a utility that lets you declaratively anchor "popup" containers to another element.
  */
 export default class Popup extends SparkleElement {
+  static override tagName = "s-popup";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_POPUP_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-popup",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -40,41 +73,15 @@ export default class Popup extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "anchor",
-      "active",
-      "placement",
-      "strategy",
-      "distance",
-      "skidding",
-      "arrow",
-      "arrow-placement",
-      "arrow-padding",
-      "flip",
-      "flip-fallback-placements",
-      "flip-fallback-strategy",
-      "flip-boundary",
-      "flip-padding",
-      "shift",
-      "shift-boundary",
-      "shift-padding",
-      "auto-size",
-      "sync",
-      "auto-size-boundary",
-      "auto-size-padding",
-      "arrow-color",
-      "arrow-size",
-    ];
-  }
-
   /**
    * The element the popup will be anchored to. If the anchor lives outside of the popup, you can provide its `id` or a
    * reference to it here. If the anchor lives inside the popup, use the `anchor` slot instead.
    */
   get anchor(): string | null {
-    return this.getStringAttribute("anchor");
+    return this.getStringAttribute(Popup.attributes.anchor);
+  }
+  set anchor(value) {
+    this.setStringAttribute(Popup.attributes.anchor, value);
   }
 
   /**
@@ -82,10 +89,10 @@ export default class Popup extends SparkleElement {
    * down and the popup will be hidden.
    */
   get active(): boolean {
-    return this.getBooleanAttribute("active");
+    return this.getBooleanAttribute(Popup.attributes.active);
   }
   set active(value: boolean) {
-    this.setBooleanAttribute("active", value);
+    this.setBooleanAttribute(Popup.attributes.active, value);
   }
 
   /**
@@ -106,7 +113,10 @@ export default class Popup extends SparkleElement {
     | "left-start"
     | "left-end"
     | null {
-    return this.getStringAttribute("placement");
+    return this.getStringAttribute(Popup.attributes.placement);
+  }
+  set placement(value) {
+    this.setStringAttribute(Popup.attributes.placement, value);
   }
 
   /**
@@ -114,21 +124,30 @@ export default class Popup extends SparkleElement {
    * clipped, using a `fixed` position strategy can often workaround it.
    */
   get strategy(): "absolute" | "fixed" | null {
-    return this.getStringAttribute("strategy");
+    return this.getStringAttribute(Popup.attributes.strategy);
+  }
+  set strategy(value) {
+    this.setStringAttribute(Popup.attributes.strategy, value);
   }
 
   /**
    * The distance in pixels from which to offset the panel away from its anchor.
    */
   get distance(): number | null {
-    return this.getNumberAttribute("distance");
+    return this.getNumberAttribute(Popup.attributes.distance);
+  }
+  set distance(value) {
+    this.setStringAttribute(Popup.attributes.distance, value);
   }
 
   /**
    * The distance in pixels from which to offset the panel along its anchor.
    */
   get skidding(): number | null {
-    return this.getNumberAttribute("skidding");
+    return this.getNumberAttribute(Popup.attributes.skidding);
+  }
+  set skidding(value) {
+    this.setStringAttribute(Popup.attributes.skidding, value);
   }
 
   /**
@@ -137,7 +156,10 @@ export default class Popup extends SparkleElement {
    * `::part(arrow)` in your stylesheet.
    */
   get arrow(): boolean {
-    return this.getBooleanAttribute("arrow");
+    return this.getBooleanAttribute(Popup.attributes.arrow);
+  }
+  set arrow(value) {
+    this.setStringAttribute(Popup.attributes.arrow, value);
   }
 
   /**
@@ -146,7 +168,10 @@ export default class Popup extends SparkleElement {
    * align the arrow to the start, end, or center of the popover instead.
    */
   get arrowPlacement(): "anchor" | "start" | "end" | "center" | null {
-    return this.getStringAttribute("arrow-placement");
+    return this.getStringAttribute(Popup.attributes.arrowPlacement);
+  }
+  set arrowPlacement(value) {
+    this.setStringAttribute(Popup.attributes.arrowPlacement, value);
   }
 
   /**
@@ -154,7 +179,10 @@ export default class Popup extends SparkleElement {
    * this will prevent it from overflowing the corners.
    */
   get arrowPadding(): number | null {
-    return this.getNumberAttribute("arrow-padding");
+    return this.getNumberAttribute(Popup.attributes.arrowPadding);
+  }
+  set arrowPadding(value) {
+    this.setStringAttribute(Popup.attributes.arrowPadding, value);
   }
 
   /**
@@ -162,7 +190,10 @@ export default class Popup extends SparkleElement {
    * `flipFallbackPlacements` to further configure how the fallback placement is determined.
    */
   get flip(): boolean {
-    return this.getBooleanAttribute("flip");
+    return this.getBooleanAttribute(Popup.attributes.flip);
+  }
+  set flip(value) {
+    this.setStringAttribute(Popup.attributes.flip, value);
   }
 
   /**
@@ -171,7 +202,10 @@ export default class Popup extends SparkleElement {
    * fallback strategy will be used instead.
    * */
   get flipFallbackPlacements(): string | null {
-    return this.getStringAttribute("flip-fallback-placements");
+    return this.getStringAttribute(Popup.attributes.flipFallbackPlacements);
+  }
+  set flipFallbackPlacements(value) {
+    this.setStringAttribute(Popup.attributes.flipFallbackPlacements, value);
   }
 
   /**
@@ -180,7 +214,10 @@ export default class Popup extends SparkleElement {
    * preferred.
    */
   get flipFallbackStrategy(): "best-fit" | "initial" | null {
-    return this.getStringAttribute("flip-fallback-strategy");
+    return this.getStringAttribute(Popup.attributes.flipFallbackStrategy);
+  }
+  set flipFallbackStrategy(value) {
+    this.setStringAttribute(Popup.attributes.flipFallbackStrategy, value);
   }
 
   /**
@@ -189,21 +226,30 @@ export default class Popup extends SparkleElement {
    * change the boundary by passing a reference to one or more elements to this property.
    */
   get flipBoundary(): string | null {
-    return this.getStringAttribute("flip-boundary");
+    return this.getStringAttribute(Popup.attributes.flipBoundary);
+  }
+  set flipBoundary(value) {
+    this.setStringAttribute(Popup.attributes.flipBoundary, value);
   }
 
   /**
    * The amount of padding, in pixels, to exceed before the flip behavior will occur.
    */
   get flipPadding(): number | null {
-    return this.getNumberAttribute("flip-padding");
+    return this.getNumberAttribute(Popup.attributes.flipPadding);
+  }
+  set flipPadding(value) {
+    this.setStringAttribute(Popup.attributes.flipPadding, value);
   }
 
   /**
    * Moves the popup along the axis to keep it in view when clipped.
    */
   get shift(): boolean {
-    return this.getBooleanAttribute("shift");
+    return this.getBooleanAttribute(Popup.attributes.shift);
+  }
+  set shift(value) {
+    this.setStringAttribute(Popup.attributes.shift, value);
   }
 
   /**
@@ -212,28 +258,40 @@ export default class Popup extends SparkleElement {
    * change the boundary by passing a reference to one or more elements to this property.
    */
   get shiftBoundary(): string | null {
-    return this.getStringAttribute("shift-boundary");
+    return this.getStringAttribute(Popup.attributes.shiftBoundary);
+  }
+  set shiftBoundary(value) {
+    this.setStringAttribute(Popup.attributes.shiftBoundary, value);
   }
 
   /**
    * The amount of padding, in pixels, to exceed before the shift behavior will occur.
    */
   get shiftPadding(): number | null {
-    return this.getNumberAttribute("shift-padding");
+    return this.getNumberAttribute(Popup.attributes.shiftPadding);
+  }
+  set shiftPadding(value) {
+    this.setStringAttribute(Popup.attributes.shiftPadding, value);
   }
 
   /**
    * When set, this will cause the popup to automatically resize itself to prevent it from overflowing.
    */
   get autoSize(): "horizontal" | "vertical" | "both" | null {
-    return this.getStringAttribute("auto-size");
+    return this.getStringAttribute(Popup.attributes.autoSize);
+  }
+  set autoSize(value) {
+    this.setStringAttribute(Popup.attributes.autoSize, value);
   }
 
   /**
    * Syncs the popup's width or height to that of the anchor element.
    */
   get sync(): "width" | "height" | "both" | null {
-    return this.getStringAttribute("sync");
+    return this.getStringAttribute(Popup.attributes.sync);
+  }
+  set sync(value) {
+    this.setStringAttribute(Popup.attributes.sync, value);
   }
 
   /**
@@ -242,14 +300,20 @@ export default class Popup extends SparkleElement {
    * change the boundary by passing a reference to one or more elements to this property.
    */
   get autoSizeBoundary(): string | null {
-    return this.getStringAttribute("auto-size-boundary");
+    return this.getStringAttribute(Popup.attributes.autoSizeBoundary);
+  }
+  set autoSizeBoundary(value) {
+    this.setStringAttribute(Popup.attributes.autoSizeBoundary, value);
   }
 
   /**
    * The amount of padding, in pixels, to exceed before the auto-size behavior will occur.
    */
   get autoSizePadding(): number | null {
-    return this.getNumberAttribute("auto-size-padding");
+    return this.getNumberAttribute(Popup.attributes.autoSizePadding);
+  }
+  set autoSizePadding(value) {
+    this.setStringAttribute(Popup.attributes.autoSizePadding, value);
   }
 
   protected _anchorEl?: HTMLElement | null;
@@ -274,7 +338,7 @@ export default class Popup extends SparkleElement {
     newValue: string
   ): void {
     // Start or stop the positioner when active changes
-    if (name === "active") {
+    if (name === Popup.attributes.active) {
       const active = newValue != null;
       if (active) {
         this.start();
@@ -284,11 +348,11 @@ export default class Popup extends SparkleElement {
       this.root.hidden = !active;
     }
 
-    if (name === "strategy") {
+    if (name === Popup.attributes.strategy) {
       this.updateRootClass("fixed", newValue === "fixed");
     }
 
-    if (name === "arrow") {
+    if (name === Popup.attributes.arrow) {
       const arrow = newValue != null;
       const arrowEl = this.arrowEl;
       if (arrowEl) {
@@ -296,16 +360,16 @@ export default class Popup extends SparkleElement {
       }
     }
 
-    if (name === "arrow-color") {
+    if (name === Popup.attributes.arrowColor) {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }
 
-    if (name === "arrow-size") {
+    if (name === Popup.attributes.arrowSize) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
 
     // Update the anchorEl when anchor changes
-    if (name === "anchor") {
+    if (name === Popup.attributes.anchor) {
       this.handleAnchorSlotChange();
     }
 

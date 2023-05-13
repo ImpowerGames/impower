@@ -1,7 +1,9 @@
 import SparkleElement from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animate";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssDuration } from "../../utils/getCssDuration";
 import { getCssEase } from "../../utils/getCssEase";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
 import css from "./collapsible.css";
 import html from "./collapsible.html";
@@ -26,21 +28,31 @@ const getCollapsedIconOffset = (
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_COLLAPSIBLE_DEPENDENCIES = {
-  "s-button": "s-button",
-};
+export const DEFAULT_COLLAPSIBLE_DEPENDENCIES = getDependencyNameMap([
+  "s-button",
+]);
+
+export const DEFAULT_COLLAPSIBLE_ATTRIBUTES = getAttributeNameMap([
+  "collapsed",
+]);
 
 /**
  * Collapsibles can be used to collapse child buttons so that only their icon is visible.
  */
 export default class Collapsible extends SparkleElement {
-  static override dependencies = DEFAULT_COLLAPSIBLE_DEPENDENCIES;
+  static override tagName = "s-collapsible";
+
+  static override dependencies = { ...DEFAULT_COLLAPSIBLE_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_COLLAPSIBLE_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-collapsible",
+    tagName?: string,
     dependencies = DEFAULT_COLLAPSIBLE_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -51,15 +63,14 @@ export default class Collapsible extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "collapsed"];
-  }
-
   /**
    * Collapses any child labels.
    */
   get collapsed(): "" | "scrolled" | null {
-    return this.getStringAttribute("collapsed");
+    return this.getStringAttribute(Collapsible.attributes.collapsed);
+  }
+  set collapsed(value) {
+    this.setStringAttribute(Collapsible.attributes.collapsed, value);
   }
 
   protected _buttonEl: HTMLElement | null = null;
@@ -102,7 +113,7 @@ export default class Collapsible extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "collapsed") {
+    if (name === Collapsible.attributes.collapsed) {
       this.update(true);
       if (newValue === "scrolled") {
         const sentinelEl = this.sentinelEl;
@@ -394,7 +405,7 @@ export default class Collapsible extends SparkleElement {
   protected override onContentAssigned(slot: HTMLSlotElement): void {
     const elements = slot?.assignedElements?.();
     const buttons = elements.filter(
-      (el) => el.tagName.toLowerCase() === Collapsible.dependencies["s-button"]
+      (el) => el.tagName.toLowerCase() === Collapsible.dependencies.button
     );
     const targetEl = buttons?.[0]?.shadowRoot?.firstElementChild as HTMLElement;
     if (this._buttonEl !== targetEl) {

@@ -7,6 +7,7 @@
 
 import SparkleEvent from "../../core/SparkleEvent.js";
 import SparkleElement from "../../core/sparkle-element.js";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap.js";
 import { getCssColor } from "../../utils/getCssColor.js";
 import { getDimensions } from "../../utils/getDimensions.js";
 import css from "./ripple.css";
@@ -82,29 +83,32 @@ const unhoveredEvent = new SparkleEvent("unhovered");
 const pressedEvent = new SparkleEvent("pressed");
 const unpressedEvent = new SparkleEvent("unpressed");
 
+export const DEFAULT_RIPPLE_ATTRIBUTES = getAttributeNameMap([
+  "hidden",
+  "focus-color",
+  "hover-color",
+  "press-color",
+]);
+
 /**
  * A ripple component.
  */
 export default class Ripple extends SparkleElement {
+  static override tagName = "s-ripple";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_RIPPLE_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-ripple",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
-  }
-
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "hidden",
-      "focus-color",
-      "hover-color",
-      "press-color",
-    ];
   }
 
   private _hovered = false;
@@ -162,20 +166,20 @@ export default class Ripple extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "hidden") {
+    if (name === Ripple.attributes.hidden) {
       if (newValue != null) {
         this.hovered = false;
         this.focused = false;
         this.pressed = false;
       }
     }
-    if (name === "focus-color") {
+    if (name === Ripple.attributes.focusColor) {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }
-    if (name === "hover-color") {
+    if (name === Ripple.attributes.hoverColor) {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }
-    if (name === "press-color") {
+    if (name === Ripple.attributes.pressColor) {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }
   }

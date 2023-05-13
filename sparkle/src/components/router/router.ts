@@ -1,9 +1,15 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./router.css";
 import html from "./router.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
+
+export const DEFAULT_ROUTER_ATTRIBUTES = getAttributeNameMap([
+  "observe",
+  "swipeable",
+]);
 
 /**
  * Routers are used to lazy-load templates when their value matches an observed value.
@@ -12,11 +18,17 @@ styles.replaceSync(css);
  * All other children are unloaded.
  */
 export default class Router extends SparkleElement {
+  static override tagName = "s-router";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_ROUTER_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-router",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -27,30 +39,16 @@ export default class Router extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "observe"];
-  }
-
   /**
    * The id of the sibling element to observe.
    *
    * If not specified, this element will observe any sibling with a value attribute.
    */
   get observe(): string | null {
-    return this.getStringAttribute("observe");
+    return this.getStringAttribute(Router.attributes.observe);
   }
-
-  /**
-   * Allow panels to be swiped.
-   *
-   * Set to `touch` to limit swipe detection to touch devices.
-   * Set to `mouse` to limit swipe detection to mouse devices.
-   * Set to `pointer` to support swipe detection for any device.
-   *
-   * If not provided a value, defaults to `pointer`.
-   */
-  get transition(): "pointer" | "touch" | "mouse" | null {
-    return this.getStringAttribute("observe");
+  set observe(value) {
+    this.setStringAttribute(Router.attributes.observe, value);
   }
 
   /**
@@ -63,7 +61,10 @@ export default class Router extends SparkleElement {
    * If not provided a value, defaults to `pointer`.
    */
   get swipeable(): "pointer" | "touch" | "mouse" | null {
-    return this.getStringAttribute("observe");
+    return this.getStringAttribute(Router.attributes.swipeable);
+  }
+  set swipeable(value) {
+    this.setStringAttribute(Router.attributes.swipeable, value);
   }
 
   get observedEl(): HTMLElement | null {
@@ -101,7 +102,7 @@ export default class Router extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "observe") {
+    if (name === Router.attributes.observe) {
       this.observeValue();
     }
   }

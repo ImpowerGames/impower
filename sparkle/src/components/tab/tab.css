@@ -2,7 +2,7 @@
   display: contents;
 }
 :host {
-  --spacing: 8px;
+  --spacing: 6px;
   --interactable: auto;
   --selectable: none;
   --child-layout: column;
@@ -22,6 +22,7 @@
   --hover-color: var(--s-color-neutral-90);
   --padding-tb: 16px;
   --padding-lr: 20px;
+  --icon-size: 24px;
 }
 
 .root {
@@ -81,7 +82,7 @@
 .icon {
   margin-top: 4px;
   line-height: 1;
-  font-size: 20px;
+  font-size: var(--icon-size);
   transform: translateY(0);
 }
 :host([icon][active]:not([disabled])) .icon {

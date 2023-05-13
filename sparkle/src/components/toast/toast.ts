@@ -3,7 +3,9 @@ import SparkleElement from "../../core/sparkle-element";
 import Animations from "../../helpers/animations";
 import { animateTo, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssDurationMS } from "../../utils/getCssDurationMS";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import css from "./toast.css";
 import html from "./toast.html";
 
@@ -15,21 +17,33 @@ const closedEvent = new SparkleEvent("closed");
 const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
 
-export const DEFAULT_TOAST_DEPENDENCIES = {
-  "s-button": "s-button",
-};
+export const DEFAULT_TOAST_DEPENDENCIES = getDependencyNameMap(["s-button"]);
+
+export const DEFAULT_TOAST_ATTRIBUTES = getAttributeNameMap([
+  "open",
+  "message",
+  "action",
+  "timeout",
+  "auto-close",
+]);
 
 /**
  * Toasts are used to display important messages inline or as alert notifications.
  */
 export default class Toast extends SparkleElement {
-  static override dependencies = DEFAULT_TOAST_DEPENDENCIES;
+  static override tagName = "s-toast";
+
+  static override dependencies = { ...DEFAULT_TOAST_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_TOAST_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-toast",
+    tagName?: string,
     dependencies = DEFAULT_TOAST_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -40,36 +54,25 @@ export default class Toast extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "color",
-      "open",
-      "message",
-      "action",
-      "auto-close",
-    ];
-  }
-
   /**
    * Indicates whether or not the toast is open. You can toggle this attribute to show and hide the toast, or you can
    * use the `show()` and `hide()` methods and this attribute will reflect the toast's open state.
    */
   get open(): boolean {
-    return this.getBooleanAttribute("open");
+    return this.getBooleanAttribute(Toast.attributes.open);
   }
   set open(value: boolean) {
-    this.setBooleanAttribute("open", value);
+    this.setBooleanAttribute(Toast.attributes.open, value);
   }
 
   /**
    * The message to display inside the toast.
    */
   get message(): string | null {
-    return this.getStringAttribute("message");
+    return this.getStringAttribute(Toast.attributes.message);
   }
   set message(value: string | null) {
-    this.setStringAttribute("message", value);
+    this.setStringAttribute(Toast.attributes.message, value);
   }
 
   /**
@@ -78,10 +81,10 @@ export default class Toast extends SparkleElement {
    * (Clicking this button will dismiss the toast.)
    */
   get action(): string | null {
-    return this.getStringAttribute("action");
+    return this.getStringAttribute(Toast.attributes.action);
   }
   set action(value: string | null) {
-    this.setStringAttribute("action", value);
+    this.setStringAttribute(Toast.attributes.action, value);
   }
 
   /**
@@ -94,10 +97,10 @@ export default class Toast extends SparkleElement {
    * Defaults to `4000`.
    */
   get timeout(): string | null {
-    return this.getStringAttribute("timeout");
+    return this.getStringAttribute(Toast.attributes.timeout);
   }
   set timeout(value: string | null) {
-    this.setStringAttribute("timeout", value);
+    this.setStringAttribute(Toast.attributes.timeout, value);
   }
 
   get buttonEl(): HTMLButtonElement | null {
@@ -121,34 +124,34 @@ export default class Toast extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "color") {
+    if (name === Toast.attributes.color) {
       const buttonEl = this.buttonEl;
       if (buttonEl) {
         if (newValue != null) {
-          buttonEl.setAttribute("color", newValue);
+          buttonEl.setAttribute(name, newValue);
         } else {
-          buttonEl.removeAttribute("color");
+          buttonEl.removeAttribute(name);
         }
       }
     }
-    if (name === "open") {
+    if (name === Toast.attributes.open) {
       const open = newValue != null;
       this.ariaHidden = open ? "false" : "true";
       const durationMS = getCssDurationMS(this.timeout, 4000);
       this.changeState(open, durationMS);
     }
-    if (name === "timeout") {
+    if (name === Toast.attributes.timeout) {
       const open = this.open;
       const durationMS = getCssDurationMS(newValue, 4000);
       this.restartAutoClose(open, durationMS);
     }
-    if (name === "message") {
+    if (name === Toast.attributes.message) {
       const message = newValue;
       if (message) {
         this.setAssignedToSlot(message);
       }
     }
-    if (name === "action") {
+    if (name === Toast.attributes.action) {
       const action = newValue;
       if (action) {
         this.setAssignedToSlot(action, "action");

@@ -1,4 +1,4 @@
-export const STYLE_ALIASES: Record<string, string> = {
+export const STYLE_ALIASES = {
   c: "corner",
   "c-t": "corner-t",
   "c-r": "corner-r",
@@ -57,3 +57,5 @@ export const STYLE_ALIASES: Record<string, string> = {
   "bg-align": "background-align",
   "bg-fit": "background-fit",
 };
+
+export type StyleAliases = typeof STYLE_ALIASES;

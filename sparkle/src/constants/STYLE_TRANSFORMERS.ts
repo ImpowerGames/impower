@@ -3,25 +3,20 @@ import { getCssAspectRatio } from "../utils/getCssAspectRatio";
 import { getCssBgAlign } from "../utils/getCssBgAlign";
 import { getCssBgFit } from "../utils/getCssBgFit";
 import { getCssBlend } from "../utils/getCssBlend";
-import { getCssBlur } from "../utils/getCssBlur";
-import { getCssBrightness } from "../utils/getCssBrightness";
 import { getCssChildAlign } from "../utils/getCssChildAlign";
 import { getCssChildJustify } from "../utils/getCssChildJustify";
 import { getCssChildLayout } from "../utils/getCssChildLayout";
 import { getCssChildOverflow } from "../utils/getCssChildOverflow";
 import { getCssColor } from "../utils/getCssColor";
-import { getCssContrast } from "../utils/getCssContrast";
 import { getCssCorner } from "../utils/getCssCorner";
 import { getCssDimension } from "../utils/getCssDimension";
 import { getCssDuration } from "../utils/getCssDuration";
 import { getCssEase } from "../utils/getCssEase";
+import { getCssFilter } from "../utils/getCssFilter";
 import { getCssGradient } from "../utils/getCssGradient";
-import { getCssGrayscale } from "../utils/getCssGrayscale";
 import { getCssGrow } from "../utils/getCssGrow";
-import { getCssHue } from "../utils/getCssHue";
 import { getCssImage } from "../utils/getCssImage";
 import { getCssInteractable } from "../utils/getCssInteractable";
-import { getCssInvert } from "../utils/getCssInvert";
 import { getCssInvisible } from "../utils/getCssInvisible";
 import { getCssMask } from "../utils/getCssMask";
 import { getCssOverflow } from "../utils/getCssOverflow";
@@ -29,10 +24,8 @@ import { getCssPattern } from "../utils/getCssPattern";
 import { getCssPosition } from "../utils/getCssPosition";
 import { getCssRepeat } from "../utils/getCssRepeat";
 import { getCssRotate } from "../utils/getCssRotate";
-import { getCssSaturate } from "../utils/getCssSaturate";
 import { getCssScale } from "../utils/getCssScale";
 import { getCssSelectable } from "../utils/getCssSelectable";
-import { getCssSepia } from "../utils/getCssSepia";
 import { getCssShadow } from "../utils/getCssShadow";
 import { getCssShadowInset } from "../utils/getCssShadowInset";
 import { getCssShrink } from "../utils/getCssShrink";
@@ -52,7 +45,7 @@ import { getCssZ } from "../utils/getCssZ";
 
 const get = (v: string) => v;
 
-export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
+export const STYLE_TRANSFORMERS = {
   position: getCssPosition,
 
   aspect: getCssAspectRatio,
@@ -180,14 +173,7 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   shadow: getCssShadow,
   "shadow-inset": getCssShadowInset,
 
-  blur: getCssBlur,
-  brightness: getCssBrightness,
-  contrast: getCssContrast,
-  grayscale: getCssGrayscale,
-  hue: getCssHue,
-  invert: getCssInvert,
-  sepia: getCssSepia,
-  saturate: getCssSaturate,
+  filter: getCssFilter,
 
   blend: getCssBlend,
 
@@ -211,5 +197,7 @@ export const STYLE_TRANSFORMERS: Record<string, (v: string) => string> = {
   duration: getCssDuration,
   ease: getCssEase,
 
-  animate: getCssAnimation,
+  animation: getCssAnimation,
 };
+
+export type StyleTransformers = typeof STYLE_TRANSFORMERS;

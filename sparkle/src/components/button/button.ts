@@ -1,7 +1,9 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssMask } from "../../utils/getCssMask";
 import { getCssSize } from "../../utils/getCssSize";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
 import css from "./button.css";
@@ -10,24 +12,46 @@ import html from "./button.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_BUTTON_DEPENDENCIES = {
-  "s-badge": "s-badge",
-  "s-progress-circle": "s-progress-circle",
-  "s-ripple": "s-ripple",
-  "s-icon": "s-icon",
-};
+export const DEFAULT_BUTTON_DEPENDENCIES = getDependencyNameMap([
+  "s-badge",
+  "s-progress-circle",
+  "s-ripple",
+  "s-icon",
+]);
+
+export const DEFAULT_BUTTON_ATTRIBUTES = getAttributeNameMap([
+  "aria-expanded",
+  "aria-haspopup",
+  "href",
+  "target",
+  "type",
+  "autofocus",
+  "disabled",
+  "variant",
+  "icon",
+  "label",
+  "action",
+  "size",
+  "spacing",
+]);
 
 /**
  * Buttons represent actions that are available to the user.
  */
 export default class Button extends SparkleElement {
-  static override dependencies = DEFAULT_BUTTON_DEPENDENCIES;
+  static override tagName = "s-button";
+
+  static override dependencies = { ...DEFAULT_BUTTON_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_BUTTON_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-button",
+    tagName?: string,
     dependencies = DEFAULT_BUTTON_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -43,28 +67,14 @@ export default class Button extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "aria-expanded",
-      "aria-haspopup",
-      "href",
-      "target",
-      "type",
-      "autofocus",
-      "disabled",
-      "variant",
-      "icon",
-      "label",
-      "action",
-    ];
-  }
-
   /**
    * The URL that the link button points to.
    */
   get href(): string | null {
-    return this.getStringAttribute("href");
+    return this.getStringAttribute(Button.attributes.href);
+  }
+  set href(value) {
+    this.setStringAttribute(Button.attributes.href, value);
   }
 
   /**
@@ -72,14 +82,20 @@ export default class Button extends SparkleElement {
    * include `_blank` to open in a new tab.
    */
   get target(): string | null {
-    return this.getStringAttribute("target");
+    return this.getStringAttribute(Button.attributes.target);
+  }
+  set target(value) {
+    this.setStringAttribute(Button.attributes.target, value);
   }
 
   /**
    * Determines the overall look of the button.
    */
   get variant(): "filled" | "tonal" | "outlined" | "text" | null {
-    return this.getStringAttribute("variant");
+    return this.getStringAttribute(Button.attributes.variant);
+  }
+  set variant(value) {
+    this.setStringAttribute(Button.attributes.variant, value);
   }
 
   /**
@@ -88,35 +104,50 @@ export default class Button extends SparkleElement {
    * Default is `md`.
    */
   get size(): "xs" | "sm" | "md" | "lg" | null {
-    return this.getStringAttribute("size");
+    return this.getStringAttribute(Button.attributes.size);
+  }
+  set size(value) {
+    this.setStringAttribute(Button.attributes.size, value);
   }
 
   /**
    * The spacing between the icon and the label.
    */
   get spacing(): string | null {
-    return this.getStringAttribute("spacing");
+    return this.getStringAttribute(Button.attributes.spacing);
+  }
+  set spacing(value) {
+    this.setStringAttribute(Button.attributes.spacing, value);
   }
 
   /**
    * The button label.
    */
   get label(): string | null {
-    return this.getStringAttribute("label");
+    return this.getStringAttribute(Button.attributes.label);
+  }
+  set label(value) {
+    this.setStringAttribute(Button.attributes.label, value);
   }
 
   /**
    * The icon to display next to the label.
    */
   get icon(): string | null {
-    return this.getStringAttribute("icon");
+    return this.getStringAttribute(Button.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Button.attributes.icon, value);
   }
 
   /**
    * The action to perform when clicking this button.
    */
   get action(): string | null {
-    return this.getStringAttribute("action");
+    return this.getStringAttribute(Button.attributes.action);
+  }
+  set action(value) {
+    this.setStringAttribute(Button.attributes.action, value);
   }
 
   get labelEl(): HTMLElement | null {
@@ -133,12 +164,12 @@ export default class Button extends SparkleElement {
 
   get progressCircle(): ProgressCircle | null {
     return this.getElementByTag<ProgressCircle>(
-      Button.dependencies["s-progress-circle"]
+      Button.dependencies.progressCircle
     );
   }
 
   get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Button.dependencies["s-ripple"]);
+    return this.getElementByTag<Ripple>(Button.dependencies.ripple);
   }
 
   protected override onAttributeChanged(
@@ -149,26 +180,26 @@ export default class Button extends SparkleElement {
     if (
       name === "aria-haspopup" ||
       name === "aria-expanded" ||
-      name === "href" ||
-      name === "target" ||
-      name === "type" ||
-      name === "autofocus"
+      name === Button.attributes.href ||
+      name === Button.attributes.target ||
+      name === Button.attributes.type ||
+      name === Button.attributes.autofocus
     ) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === "disabled") {
+    if (name === Button.attributes.disabled) {
       const ripple = this.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === "loading") {
+    if (name === Button.attributes.loading) {
       const ripple = this.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === "mask") {
+    if (name === Button.attributes.mask) {
       const ripple = this.ripple;
       if (ripple) {
         if (newValue) {
@@ -178,17 +209,17 @@ export default class Button extends SparkleElement {
         }
       }
     }
-    if (name === "spacing") {
+    if (name === Button.attributes.spacing) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
-    if (name === "icon") {
+    if (name === Button.attributes.icon) {
       this.updateRootCssVariable(name, getCssIcon(newValue));
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
     }
-    if (name === "loading") {
+    if (name === Button.attributes.loading) {
       const loading = newValue != null;
       const ripple = this.ripple;
       const labelEl = this.labelEl;
@@ -207,7 +238,7 @@ export default class Button extends SparkleElement {
         spinnerEl.hidden = !loading;
       }
     }
-    if (name === "label") {
+    if (name === Button.attributes.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label);
@@ -271,7 +302,7 @@ export default class Button extends SparkleElement {
   protected override onContentAssigned(slot: HTMLSlotElement): void {
     const nodes = slot?.assignedNodes?.();
     nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === Button.dependencies["s-badge"]) {
+      if (node.nodeName.toLowerCase() === Button.dependencies.badge) {
         const el = node as HTMLElement;
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }

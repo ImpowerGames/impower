@@ -1,4 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssColor } from "../../utils/getCssColor";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssSize } from "../../utils/getCssSize";
@@ -7,44 +8,53 @@ import css from "./icon.css";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_ICON_ATTRIBUTES = getAttributeNameMap([
+  "icon",
+  "fill",
+  "size",
+  "stroke",
+  "stroke-width",
+]);
+
 /**
  * Icons are symbols that can be used to represent various options within an application.
  */
 export default class Icon extends SparkleElement {
+  static override tagName = "s-icon";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_ICON_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-icon",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "icon",
-      "fill",
-      "size",
-      "stroke",
-      "stroke-width",
-    ];
-  }
-
   /**
    * The name of the icon to display.
    */
   get icon(): string | null {
-    return this.getStringAttribute("icon");
+    return this.getStringAttribute(Icon.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Icon.attributes.icon, value);
   }
 
   /**
    * Sets the size of an icon.
    */
   get size(): "xs" | "sm" | "md" | "lg" | "xl" | null {
-    return this.getStringAttribute("size");
+    return this.getStringAttribute(Icon.attributes.size);
+  }
+  set size(value) {
+    this.setStringAttribute(Icon.attributes.size, value);
   }
 
   /**
@@ -53,7 +63,10 @@ export default class Icon extends SparkleElement {
    * If not provided a value, it will use "currentColor".
    */
   get fill(): "" | "currentColor" | "none" | null {
-    return this.getStringAttribute("fill");
+    return this.getStringAttribute(Icon.attributes.fill);
+  }
+  set fill(value) {
+    this.setStringAttribute(Icon.attributes.fill, value);
   }
 
   /**
@@ -62,14 +75,20 @@ export default class Icon extends SparkleElement {
    * If not provided a value, it will use "currentColor".
    */
   get stroke(): "" | "currentColor" | "none" | null {
-    return this.getStringAttribute("stroke");
+    return this.getStringAttribute(Icon.attributes.stroke);
+  }
+  set stroke(value) {
+    this.setStringAttribute(Icon.attributes.stroke, value);
   }
 
   /**
    * Sets the stroke width of an icon.
    */
   get strokeWidth(): "xs" | "sm" | "md" | "lg" | "xl" | null {
-    return this.getStringAttribute("stroke-width");
+    return this.getStringAttribute(Icon.attributes.strokeWidth);
+  }
+  set strokeWidth(value) {
+    this.setStringAttribute(Icon.attributes.strokeWidth, value);
   }
 
   protected override onAttributeChanged(
@@ -81,19 +100,19 @@ export default class Icon extends SparkleElement {
       this.updateRootAttribute("aria-hidden", Boolean(newValue));
       this.updateRootAttribute("role", newValue ? "img" : null);
     }
-    if (name === "icon") {
+    if (name === Icon.attributes.icon) {
       this.updateRootCssVariable(name, getCssIcon(newValue));
     }
-    if (name === "size") {
+    if (name === Icon.attributes.size) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
-    if (name === "fill") {
+    if (name === Icon.attributes.fill) {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }
-    if (name === "stroke") {
+    if (name === Icon.attributes.stroke) {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }
-    if (name === "stroke-width") {
+    if (name === Icon.attributes.strokeWidth) {
       this.updateRootCssVariable(name, newValue);
     }
   }

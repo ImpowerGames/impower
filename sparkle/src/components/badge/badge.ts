@@ -1,19 +1,28 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./badge.css";
 import html from "./badge.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_BADGE_ATTRIBUTES = getAttributeNameMap(["float"]);
+
 /**
  * Badges are used to draw attention and display statuses or counts.
  */
 export default class Badge extends SparkleElement {
+  static override tagName = "s-badge";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_BADGE_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-badge",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -24,15 +33,14 @@ export default class Badge extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "float"];
-  }
-
   /**
    * Determines if the badge should be floated over the left or right corner.
    */
   get float(): "left" | "right" | null {
-    return this.getStringAttribute("float");
+    return this.getStringAttribute(Badge.attributes.float);
+  }
+  set float(value) {
+    this.setStringAttribute(Badge.attributes.float, value);
   }
 
   protected override onAttributeChanged(
@@ -40,7 +48,7 @@ export default class Badge extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "float") {
+    if (name === Badge.attributes.float) {
       this.updateRootCssVariable(name, newValue);
     }
   }

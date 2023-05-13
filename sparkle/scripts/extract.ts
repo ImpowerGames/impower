@@ -98,17 +98,8 @@ try {
       const attributes: Attribute[] = [];
       if (declaration.members) {
         declaration.members.forEach((member: any) => {
-          if (member.kind === "method" && member.name === "define") {
-            if (member.parameters) {
-              member.parameters.forEach((parameter: any) => {
-                if (
-                  (parameter.name === "tag" || parameter.name === "tagName") &&
-                  parameter.default
-                ) {
-                  name = normalize(parameter.default);
-                }
-              });
-            }
+          if (member.kind === "field" && member.name === "tagName") {
+            name = normalize(member.default);
           }
           if (member.kind === "field" && member.description && member.name) {
             const typeText = (member?.type?.text as string) || "";

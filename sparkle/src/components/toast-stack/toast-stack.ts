@@ -1,5 +1,7 @@
 import SparkleElement from "../../core/sparkle-element";
 import Queue from "../../helpers/queue";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import Toast from "../toast/toast";
 import css from "./toast-stack.css";
 import html from "./toast-stack.html";
@@ -7,21 +9,29 @@ import html from "./toast-stack.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_TOAST_STACK_DEPENDENCIES = {
-  "s-toast": "s-toast",
-};
+export const DEFAULT_TOAST_STACK_DEPENDENCIES = getDependencyNameMap([
+  "s-toast",
+]);
+
+export const DEFAULT_TOAST_STACK_ATTRIBUTES = getAttributeNameMap(["alert"]);
 
 /**
  * Toast Stacks are used to display alert notifications in a stack.
  */
 export default class ToastStack extends SparkleElement {
-  static override dependencies = DEFAULT_TOAST_STACK_DEPENDENCIES;
+  static override tagName = "s-toast-stack";
+
+  static override dependencies = { ...DEFAULT_TOAST_STACK_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_TOAST_STACK_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-toast-stack",
+    tagName?: string,
     dependencies = DEFAULT_TOAST_STACK_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -32,10 +42,6 @@ export default class ToastStack extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "alert"];
-  }
-
   /**
    * The alert to display inside the toast stack.
    *
@@ -44,10 +50,10 @@ export default class ToastStack extends SparkleElement {
    *
    */
   get alert(): string | null {
-    return this.getStringAttribute("alert");
+    return this.getStringAttribute(ToastStack.attributes.alert);
   }
   set alert(value: string | null) {
-    this.setStringAttribute("alert", value);
+    this.setStringAttribute(ToastStack.attributes.alert, value);
   }
 
   protected _templates: HTMLTemplateElement[] = [];
@@ -59,7 +65,7 @@ export default class ToastStack extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "alert") {
+    if (name === ToastStack.attributes.alert) {
       if (newValue != null) {
         const [message, action, timeout, type] = newValue.split(";");
         if (message) {
@@ -97,7 +103,7 @@ export default class ToastStack extends SparkleElement {
     const template = this.getTemplate(type);
     const templateContent =
       template?.content?.cloneNode?.(true) ||
-      this.getElementByTag<Toast>(ToastStack.dependencies["s-toast"]) ||
+      this.getElementByTag<Toast>(ToastStack.dependencies.toast) ||
       new Toast();
     const toast = this.root.appendChild(templateContent) as Toast;
     if (!toast) {

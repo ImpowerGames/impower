@@ -8,11 +8,13 @@ styles.replaceSync(css);
  * Boxes are basic surfaces for styling and laying out content.
  */
 export default class Box extends SparkleElement {
+  static override tagName = "s-box";
+
   static override async define(
-    tag = "s-box",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get styles(): CSSStyleSheet[] {

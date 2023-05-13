@@ -468,14 +468,7 @@
   );
 }
 
-.blur,
-.brightness,
-.contrast,
-.grayscale,
-.hue,
-.invert,
-.sepia,
-.saturate {
+.filter {
   /* must preserve trailing comma for empty fallback */
   /* prettier-ignore */
   backdrop-filter: var(--brightness,) var(--contrast,)

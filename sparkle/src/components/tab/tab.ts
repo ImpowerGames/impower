@@ -1,7 +1,9 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssMask } from "../../utils/getCssMask";
 import { getCssSize } from "../../utils/getCssSize";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import type Ripple from "../ripple/ripple";
 import css from "./tab.css";
 import html from "./tab.html";
@@ -9,21 +11,33 @@ import html from "./tab.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_TAB_DEPENDENCIES = {
-  "s-ripple": "s-ripple",
-};
+export const DEFAULT_TAB_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
+
+export const DEFAULT_TAB_ATTRIBUTES = getAttributeNameMap([
+  "active",
+  "value",
+  "disabled",
+  "icon",
+  "spacing",
+]);
 
 /**
  * Tabs are used to represent and activate panels.
  */
 export default class Tab extends SparkleElement {
-  static override dependencies = DEFAULT_TAB_DEPENDENCIES;
+  static override tagName = "s-tab";
+
+  static override dependencies = { ...DEFAULT_TAB_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_TAB_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-tab",
+    tagName?: string,
     dependencies = DEFAULT_TAB_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -34,36 +48,38 @@ export default class Tab extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "active", "value", "disabled", "icon"];
-  }
-
   /**
    * Draws the tab in an active state.
    */
   get active(): boolean {
-    return this.getBooleanAttribute("active");
+    return this.getBooleanAttribute(Tab.attributes.active);
   }
   set active(value: boolean) {
-    this.setBooleanAttribute("active", value);
+    this.setBooleanAttribute(Tab.attributes.active, value);
   }
 
   /**
    * The value this tab is associated with.
    */
   get value(): string | null {
-    return this.getStringAttribute("value");
+    return this.getStringAttribute(Tab.attributes.value);
+  }
+  set value(value) {
+    this.setStringAttribute(Tab.attributes.value, value);
   }
 
   /**
    * The icon to display next to the label.
    */
   get icon(): string | null {
-    return this.getStringAttribute("icon");
+    return this.getStringAttribute(Tab.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Tab.attributes.icon, value);
   }
 
   get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Tab.dependencies["s-ripple"]);
+    return this.getElementByTag<Ripple>(Tab.dependencies.ripple);
   }
 
   get iconEl(): HTMLElement | null {
@@ -75,20 +91,20 @@ export default class Tab extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "disabled") {
+    if (name === Tab.attributes.disabled) {
       this.updateRootAttribute("tabindex", newValue != null ? "-1" : "0");
       this.updateRootAttribute(
         "aria-disabled",
         newValue != null ? "true" : "false"
       );
     }
-    if (name === "disabled") {
+    if (name === Tab.attributes.disabled) {
       const ripple = this.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === "mask") {
+    if (name === Tab.attributes.mask) {
       const ripple = this.ripple;
       if (ripple) {
         if (newValue) {
@@ -98,10 +114,10 @@ export default class Tab extends SparkleElement {
         }
       }
     }
-    if (name === "spacing") {
+    if (name === Tab.attributes.spacing) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
-    if (name === "icon") {
+    if (name === Tab.attributes.icon) {
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = name == null;
@@ -112,7 +128,7 @@ export default class Tab extends SparkleElement {
         this.updateRootCssVariable(name, getCssIcon(newValue));
       }
     }
-    if (name === "active") {
+    if (name === Tab.attributes.active) {
       const active = newValue != null;
       this.updateRootAttribute("aria-selected", active ? "true" : "false");
       this.updateRootAttribute("tabindex", active ? "0" : "-1");

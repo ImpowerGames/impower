@@ -3,6 +3,8 @@ import SparkleElement from "../../core/sparkle-element";
 import Animations from "../../helpers/animations";
 import { animateTo, parseDuration, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import type Popup from "../popup/popup";
 import css from "./tooltip.css";
 import html from "./tooltip.html";
@@ -15,21 +17,35 @@ const closedEvent = new SparkleEvent("closed");
 const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
 
-export const DEFAULT_TOOLTIP_DEPENDENCIES = {
-  "s-popup": "s-popup",
-};
+export const DEFAULT_TOOLTIP_DEPENDENCIES = getDependencyNameMap(["s-popup"]);
+
+export const DEFAULT_TOOLTIP_ATTRIBUTES = getAttributeNameMap([
+  "label",
+  "placement",
+  "open",
+  "distance",
+  "skidding",
+  "trigger",
+  "hoist",
+]);
 
 /**
  * Tooltips display additional information based on a specific action.
  */
 export default class Tooltip extends SparkleElement {
-  static override dependencies = DEFAULT_TOOLTIP_DEPENDENCIES;
+  static override tagName = "s-tooltip";
+
+  static override dependencies = { ...DEFAULT_TOOLTIP_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_TOOLTIP_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-tooltip",
+    tagName?: string,
     dependencies = DEFAULT_TOOLTIP_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -38,19 +54,6 @@ export default class Tooltip extends SparkleElement {
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
-  }
-
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "label",
-      "placement",
-      "open",
-      "distance",
-      "skidding",
-      "trigger",
-      "hoist",
-    ];
   }
 
   private hoverTimeout?: number;
@@ -71,7 +74,10 @@ export default class Tooltip extends SparkleElement {
    * The tooltip's label. If you need to display HTML, use the `label` slot instead.
    */
   get label(): string | null {
-    return this.getStringAttribute("label");
+    return this.getStringAttribute(Tooltip.attributes.label);
+  }
+  set label(value) {
+    this.setStringAttribute(Tooltip.attributes.label, value);
   }
 
   /**
@@ -92,17 +98,20 @@ export default class Tooltip extends SparkleElement {
     | "left-start"
     | "left-end"
     | null {
-    return this.getStringAttribute("placement");
+    return this.getStringAttribute(Tooltip.attributes.placement);
+  }
+  set placement(value) {
+    this.setStringAttribute(Tooltip.attributes.placement, value);
   }
 
   /**
    * Indicates whether or not the tooltip is open. You can use this in lieu of the show/hide methods.
    */
   get open(): boolean {
-    return this.getBooleanAttribute("open");
+    return this.getBooleanAttribute(Tooltip.attributes.open);
   }
   set open(value: boolean) {
-    this.setBooleanAttribute("open", value);
+    this.setBooleanAttribute(Tooltip.attributes.open, value);
   }
 
   /**
@@ -111,14 +120,20 @@ export default class Tooltip extends SparkleElement {
    * Default is `8`.
    */
   get distance(): number | null {
-    return this.getNumberAttribute("distance");
+    return this.getNumberAttribute(Tooltip.attributes.distance);
+  }
+  set distance(value) {
+    this.setStringAttribute(Tooltip.attributes.distance, value);
   }
 
   /**
    * The distance in pixels from which to offset the tooltip along its target.
    */
   get skidding(): number | null {
-    return this.getNumberAttribute("skidding");
+    return this.getNumberAttribute(Tooltip.attributes.skidding);
+  }
+  set skidding(value) {
+    this.setStringAttribute(Tooltip.attributes.skidding, value);
   }
 
   /**
@@ -129,7 +144,10 @@ export default class Tooltip extends SparkleElement {
    * Default is `hover focus`.
    */
   get trigger(): string | null {
-    return this.getStringAttribute("trigger") || "hover focus";
+    return this.getStringAttribute(Tooltip.attributes.trigger) || "hover focus";
+  }
+  set trigger(value) {
+    this.setStringAttribute(Tooltip.attributes.trigger, value);
   }
 
   /**
@@ -138,7 +156,10 @@ export default class Tooltip extends SparkleElement {
    * scenarios.
    */
   get hoist(): boolean {
-    return this.getBooleanAttribute("hoist");
+    return this.getBooleanAttribute(Tooltip.attributes.hoist);
+  }
+  set hoist(value) {
+    this.setStringAttribute(Tooltip.attributes.hoist, value);
   }
 
   protected override onAttributeChanged(
@@ -147,43 +168,43 @@ export default class Tooltip extends SparkleElement {
     newValue: string
   ): void {
     const bodyEl = this.bodyEl;
-    if (name === "label") {
+    if (name === Tooltip.attributes.label) {
       if (bodyEl) {
         bodyEl.textContent = newValue;
       }
     }
-    if (name === "open") {
+    if (name === Tooltip.attributes.open) {
       this.updateRootClass("open", newValue);
       if (bodyEl) {
         bodyEl.setAttribute("aria-live", newValue != null ? "polite" : "off");
       }
       this.handleOpenChange();
     }
-    if (name === "placement") {
+    if (name === Tooltip.attributes.placement) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === "distance") {
+    if (name === Tooltip.attributes.distance) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === "skidding") {
+    if (name === Tooltip.attributes.skidding) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === "hoist") {
+    if (name === Tooltip.attributes.hoist) {
       this.updateRootAttribute(
         "strategy",
         newValue != null ? "fixed" : "absolute"
       );
     }
     if (
-      name === "label" ||
-      name === "distance" ||
-      name === "hoist" ||
-      name === "placement" ||
-      name === "skidding"
+      name === Tooltip.attributes.label ||
+      name === Tooltip.attributes.distance ||
+      name === Tooltip.attributes.hoist ||
+      name === Tooltip.attributes.placement ||
+      name === Tooltip.attributes.skidding
     ) {
       this.popup?.reposition();
     }
-    if (name === "disabled") {
+    if (name === Tooltip.attributes.disabled) {
       if (this.disabled && this.open) {
         this.close();
       }

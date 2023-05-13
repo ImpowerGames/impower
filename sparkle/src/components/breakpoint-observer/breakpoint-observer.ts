@@ -1,18 +1,35 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./breakpoint-observer.css";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_BREAKPOINT_OBSERVER_ATTRIBUTES = getAttributeNameMap([
+  "measure",
+  "xs",
+  "sm",
+  "md",
+  "lg",
+  "xl",
+  "value",
+]);
+
 /**
  * Breakpoint observers automatically update their value attribute to match the currently active breakpoint.
  */
 export default class BreakpointObserver extends SparkleElement {
+  static override tagName = "s-breakpoint-observer";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_BREAKPOINT_OBSERVER_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-breakpoint-observer",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get styles(): CSSStyleSheet[] {
@@ -25,7 +42,12 @@ export default class BreakpointObserver extends SparkleElement {
    * Defaults to `self`.
    */
   get measure(): "self" | "window" | "screen" {
-    return this.getStringAttribute("measure") || "self";
+    return (
+      this.getStringAttribute(BreakpointObserver.attributes.measure) || "self"
+    );
+  }
+  set measure(value) {
+    this.setStringAttribute(BreakpointObserver.attributes.measure, value);
   }
 
   /**
@@ -34,7 +56,10 @@ export default class BreakpointObserver extends SparkleElement {
    * Defaults to `400px`.
    */
   get xs(): number {
-    return this.getNumberAttribute("xs") ?? 400;
+    return this.getNumberAttribute(BreakpointObserver.attributes.xs) ?? 400;
+  }
+  set xs(value) {
+    this.setStringAttribute(BreakpointObserver.attributes.xs, value);
   }
 
   /**
@@ -43,7 +68,10 @@ export default class BreakpointObserver extends SparkleElement {
    * Defaults to `600px`.
    */
   get sm(): number {
-    return this.getNumberAttribute("sm") ?? 600;
+    return this.getNumberAttribute(BreakpointObserver.attributes.sm) ?? 600;
+  }
+  set sm(value) {
+    this.setStringAttribute(BreakpointObserver.attributes.sm, value);
   }
 
   /**
@@ -52,7 +80,10 @@ export default class BreakpointObserver extends SparkleElement {
    * Defaults to `960px`.
    */
   get md(): number {
-    return this.getNumberAttribute("md") ?? 960;
+    return this.getNumberAttribute(BreakpointObserver.attributes.md) ?? 960;
+  }
+  set md(value) {
+    this.setStringAttribute(BreakpointObserver.attributes.md, value);
   }
 
   /**
@@ -61,7 +92,10 @@ export default class BreakpointObserver extends SparkleElement {
    * Defaults to `1280px`.
    */
   get lg(): number {
-    return this.getNumberAttribute("lg") ?? 1280;
+    return this.getNumberAttribute(BreakpointObserver.attributes.lg) ?? 1280;
+  }
+  set lg(value) {
+    this.setStringAttribute(BreakpointObserver.attributes.lg, value);
   }
 
   /**
@@ -70,14 +104,17 @@ export default class BreakpointObserver extends SparkleElement {
    * Defaults to `1920px`.
    */
   get xl(): number {
-    return this.getNumberAttribute("xl") ?? 1920;
+    return this.getNumberAttribute(BreakpointObserver.attributes.xl) ?? 1920;
+  }
+  set xl(value) {
+    this.setStringAttribute(BreakpointObserver.attributes.xl, value);
   }
 
   get value(): string | null {
-    return this.getStringAttribute("value");
+    return this.getStringAttribute(BreakpointObserver.attributes.value);
   }
   set value(value: string | null) {
-    this.setStringAttribute("value", value);
+    this.setStringAttribute(BreakpointObserver.attributes.value, value);
   }
 
   protected _resizeObserver?: ResizeObserver;

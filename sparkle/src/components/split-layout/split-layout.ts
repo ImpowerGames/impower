@@ -1,5 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
 import { clamp } from "../../utils/clamp";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssProportion } from "../../utils/getCssProportion";
 import { getCssSize } from "../../utils/getCssSize";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
@@ -12,15 +13,38 @@ import html from "./split-layout.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_SPLIT_LAYOUT_ATTRIBUTES = getAttributeNameMap([
+  "split",
+  "min-panel-width",
+  "min-panel-height",
+  "vertical",
+  "flipped",
+  "collapsed",
+  "solo",
+  "collapsible",
+  "responsive",
+  "primary",
+  "snap",
+  "snap-threshold",
+  "divider-width",
+  "divider-hit-area",
+]);
+
 /**
  * Split Layouts display two panels side-by-side and allows the user to adjust their size relative to one another.
  */
 export default class SplitLayout extends SparkleElement {
+  static override tagName = "s-split-layout";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_SPLIT_LAYOUT_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-split-layout",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -31,26 +55,6 @@ export default class SplitLayout extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "split",
-      "min-panel-width",
-      "min-panel-height",
-      "vertical",
-      "flipped",
-      "collapsed",
-      "solo",
-      "collapsible",
-      "responsive",
-      "primary",
-      "snap",
-      "snap-threshold",
-      "divider-width",
-      "divider-hit-area",
-    ];
-  }
-
   /**
    * The current position of the divider from the primary panel's edge.
    *
@@ -59,61 +63,70 @@ export default class SplitLayout extends SparkleElement {
    * Defaults to `50%` of the container's size.
    */
   get split(): string | null {
-    return this.getStringAttribute("split");
+    return this.getStringAttribute(SplitLayout.attributes.split);
   }
   set split(value: string | null) {
-    this.setStringAttribute("split", value);
+    this.setStringAttribute(SplitLayout.attributes.split, value);
   }
 
   /**
    * The smallest width that the panels can be.
    */
   get minPanelWidth(): string | null {
-    return this.getStringAttribute("min-panel-width");
+    return this.getStringAttribute(SplitLayout.attributes.minPanelWidth);
+  }
+  set minPanelWidth(value) {
+    this.setStringAttribute(SplitLayout.attributes.minPanelWidth, value);
   }
 
   /**
    * The smallest height that the panels can be.
    */
   get minPanelHeight(): string | null {
-    return this.getStringAttribute("min-panel-height");
+    return this.getStringAttribute(SplitLayout.attributes.minPanelHeight);
+  }
+  set minPanelHeight(value) {
+    this.setStringAttribute(SplitLayout.attributes.minPanelHeight, value);
   }
 
   /**
    * Draws the split panel in a vertical orientation with the start and end panels stacked.
    */
   get vertical(): boolean {
-    return this.getBooleanAttribute("vertical");
+    return this.getBooleanAttribute(SplitLayout.attributes.vertical);
+  }
+  set vertical(value) {
+    this.setStringAttribute(SplitLayout.attributes.vertical, value);
   }
 
   /**
    * Flips the orientation of the panels.
    */
   get flipped(): string | null {
-    return this.getStringAttribute("flipped");
+    return this.getStringAttribute(SplitLayout.attributes.flipped);
   }
   set flipped(value: string | null) {
-    this.setStringAttribute("flipped", value);
+    this.setStringAttribute(SplitLayout.attributes.flipped, value);
   }
 
   /**
    * Hides the start or end panel.
    */
   get collapsed(): "start" | "end" | null {
-    return this.getStringAttribute("collapsed");
+    return this.getStringAttribute(SplitLayout.attributes.collapsed);
   }
   set collapsed(value: "start" | "end" | null) {
-    this.setStringAttribute("collapsed", value);
+    this.setStringAttribute(SplitLayout.attributes.collapsed, value);
   }
 
   /**
    * Hides the start or end panel and the resize divider.
    */
   get solo(): "start" | "end" | null {
-    return this.getStringAttribute("solo");
+    return this.getStringAttribute(SplitLayout.attributes.solo);
   }
   set solo(value: "start" | "end" | null) {
-    this.setStringAttribute("solo", value);
+    this.setStringAttribute(SplitLayout.attributes.solo, value);
   }
 
   /**
@@ -122,7 +135,10 @@ export default class SplitLayout extends SparkleElement {
    * If not provided a value, defaults to `50%`.
    */
   get collapsible(): string | null {
-    return this.getStringAttribute("collapsible");
+    return this.getStringAttribute(SplitLayout.attributes.collapsible);
+  }
+  set collapsible(value) {
+    this.setStringAttribute(SplitLayout.attributes.collapsible, value);
   }
 
   /**
@@ -133,14 +149,20 @@ export default class SplitLayout extends SparkleElement {
    * Set to `hide`, to hide the non-primary panel, when out of space.
    */
   get responsive(): "flip" | "flip-reverse" | "hide-end" | "hide-start" | null {
-    return this.getStringAttribute("responsive");
+    return this.getStringAttribute(SplitLayout.attributes.responsive);
+  }
+  set responsive(value) {
+    this.setStringAttribute(SplitLayout.attributes.responsive, value);
   }
 
   /**
    * The primary panel.
    */
   get primary(): "start" | "end" | null {
-    return this.getStringAttribute("primary");
+    return this.getStringAttribute(SplitLayout.attributes.primary);
+  }
+  set primary(value) {
+    this.setStringAttribute(SplitLayout.attributes.primary, value);
   }
 
   /**
@@ -148,7 +170,10 @@ export default class SplitLayout extends SparkleElement {
    * Values can be in pixels or percentages, e.g. `"100px 50%"`.
    */
   get snap(): string | null {
-    return this.getStringAttribute("snap");
+    return this.getStringAttribute(SplitLayout.attributes.snap);
+  }
+  set snap(value) {
+    this.setStringAttribute(SplitLayout.attributes.snap, value);
   }
 
   /**
@@ -157,21 +182,30 @@ export default class SplitLayout extends SparkleElement {
    * Defaults to `12`.
    * */
   get snapThreshold(): string | null {
-    return this.getStringAttribute("snap-threshold");
+    return this.getStringAttribute(SplitLayout.attributes.snapThreshold);
+  }
+  set snapThreshold(value) {
+    this.setStringAttribute(SplitLayout.attributes.snapThreshold, value);
   }
 
   /**
    * The width of the divider.
    */
   get dividerWidth(): string | null {
-    return this.getStringAttribute("divider-width");
+    return this.getStringAttribute(SplitLayout.attributes.dividerWidth);
+  }
+  set dividerWidth(value) {
+    this.setStringAttribute(SplitLayout.attributes.dividerWidth, value);
   }
 
   /**
    * The width of the area in which drag events will be detected.
    */
   get dividerHitArea(): string | null {
-    return this.getStringAttribute("divider-hit-area");
+    return this.getStringAttribute(SplitLayout.attributes.dividerHitArea);
+  }
+  set dividerHitArea(value) {
+    this.setStringAttribute(SplitLayout.attributes.dividerHitArea, value);
   }
 
   get dividerEl(): HTMLElement | null {
@@ -229,7 +263,7 @@ export default class SplitLayout extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "disabled") {
+    if (name === SplitLayout.attributes.disabled) {
       const dividerEl = this.dividerEl;
       if (dividerEl) {
         if (newValue != null) {
@@ -239,7 +273,10 @@ export default class SplitLayout extends SparkleElement {
         }
       }
     }
-    if (name === "collapsed" || name === "solo") {
+    if (
+      name === SplitLayout.attributes.collapsed ||
+      name === SplitLayout.attributes.solo
+    ) {
       const startEl = this.startPanelEl;
       if (startEl) {
         startEl.hidden = this.collapsed === "start" || this.solo === "end";
@@ -253,7 +290,7 @@ export default class SplitLayout extends SparkleElement {
         dividerEl.hidden = this.solo != null;
       }
     }
-    if (name === "split") {
+    if (name === SplitLayout.attributes.split) {
       const dividerEl = this.dividerEl;
       if (dividerEl) {
         if (newValue != null) {
@@ -264,26 +301,26 @@ export default class SplitLayout extends SparkleElement {
       }
       this.updateRootCssVariable(name, newValue);
     }
-    if (name === "min-panel-width") {
+    if (name === SplitLayout.attributes.minPanelWidth) {
       const size = getCssSize(newValue);
       this.updateRootCssVariable(name, size);
       this._cachedMinPanelWidth = getUnitlessValue(size, 0);
     }
-    if (name === "min-panel-height") {
+    if (name === SplitLayout.attributes.minPanelHeight) {
       const size = getCssSize(newValue);
       this.updateRootCssVariable(name, size);
       this._cachedMinPanelHeight = getUnitlessValue(size, 0);
     }
-    if (name === "snap") {
+    if (name === SplitLayout.attributes.snap) {
       this._cachedSnaps = this.snap?.split(" ") || [];
     }
-    if (name === "snap-threshold") {
+    if (name === SplitLayout.attributes.snapThreshold) {
       this._cachedSnapThreshold = getUnitlessValue(this.snapThreshold, 12);
     }
-    if (name === "divider-width") {
+    if (name === SplitLayout.attributes.dividerWidth) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
-    if (name === "divider-hit-area") {
+    if (name === SplitLayout.attributes.dividerHitArea) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }

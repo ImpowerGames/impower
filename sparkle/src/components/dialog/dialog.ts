@@ -1,7 +1,9 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animate";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssIcon } from "../../utils/getCssIcon";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { lockBodyScrolling, unlockBodyScrolling } from "../../utils/scroll";
 import css from "./dialog.css";
 import html from "./dialog.html";
@@ -15,21 +17,34 @@ const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
 const removedEvent = new SparkleEvent("removed");
 
-export const DEFAULT_DIALOG_DEPENDENCIES = {
-  "s-icon": "s-icon",
-};
+export const DEFAULT_DIALOG_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
+
+export const DEFAULT_DIALOG_ATTRIBUTES = getAttributeNameMap([
+  "open",
+  "dismissable",
+  "icon",
+  "label",
+  "cancel",
+  "confirm",
+]);
 
 /**
  * Dialogs, sometimes called "modals", appear above the page and require the user's immediate attention.
  */
 export default class Dialog extends SparkleElement {
-  static override dependencies = DEFAULT_DIALOG_DEPENDENCIES;
+  static override tagName = "s-dialog";
+
+  static override dependencies = { ...DEFAULT_DIALOG_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_DIALOG_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-dialog",
+    tagName?: string,
     dependencies = DEFAULT_DIALOG_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -40,61 +55,65 @@ export default class Dialog extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [
-      ...super.observedAttributes,
-      "open",
-      "icon",
-      "label",
-      "cancel",
-      "confirm",
-    ];
-  }
-
   /**
    * Indicates whether or not the dialog is open. You can toggle this attribute to show and hide the dialog, or you can
    * use the `show()` and `hide()` methods and this attribute will reflect the dialog's open state.
    */
   get open(): boolean {
-    return this.getBooleanAttribute("open");
+    return this.getBooleanAttribute(Dialog.attributes.open);
   }
   set open(value: boolean) {
-    this.setBooleanAttribute("open", value);
+    this.setBooleanAttribute(Dialog.attributes.open, value);
   }
 
   /**
    * Indicates whether or not the dialog can be dismissed by clicking the backdrop behind it.
    */
   get dismissable(): boolean {
-    return this.getBooleanAttribute("dismissable");
+    return this.getBooleanAttribute(Dialog.attributes.dismissable);
+  }
+  set dismissable(value) {
+    this.setStringAttribute(Dialog.attributes.dismissable, value);
   }
 
   /**
    * The icon to display above the title.
    */
   get icon(): string | null {
-    return this.getStringAttribute("icon");
+    return this.getStringAttribute(Dialog.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Dialog.attributes.icon, value);
   }
 
   /**
    * The title text.
    */
   get label(): string | null {
-    return this.getStringAttribute("label");
+    return this.getStringAttribute(Dialog.attributes.label);
+  }
+  set label(value) {
+    this.setStringAttribute(Dialog.attributes.label, value);
   }
 
   /**
    * The cancel text.
    */
   get cancel(): string | null {
-    return this.getStringAttribute("cancel");
+    return this.getStringAttribute(Dialog.attributes.cancel);
+  }
+  set cancel(value) {
+    this.setStringAttribute(Dialog.attributes.cancel, value);
   }
 
   /**
    * The confirm text.
    */
   get confirm(): string | null {
-    return this.getStringAttribute("confirm");
+    return this.getStringAttribute(Dialog.attributes.confirm);
+  }
+  set confirm(value) {
+    this.setStringAttribute(Dialog.attributes.confirm, value);
   }
 
   get dialog(): HTMLDialogElement {
@@ -134,12 +153,12 @@ export default class Dialog extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "open") {
+    if (name === Dialog.attributes.open) {
       if (newValue != null) {
         this.handleOpen(true);
       }
     }
-    if (name === "icon") {
+    if (name === Dialog.attributes.icon) {
       this.updateRootCssVariable(name, getCssIcon(newValue));
       const icon = newValue;
       const iconEl = this.iconEl;
@@ -147,7 +166,7 @@ export default class Dialog extends SparkleElement {
         iconEl.hidden = icon == null;
       }
     }
-    if (name === "label") {
+    if (name === Dialog.attributes.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label, "label");
@@ -157,7 +176,7 @@ export default class Dialog extends SparkleElement {
         labelEl.hidden = label == null;
       }
     }
-    if (name === "cancel") {
+    if (name === Dialog.attributes.cancel) {
       const cancel = newValue;
       if (cancel) {
         this.setAssignedToSlot(cancel, "cancel");
@@ -167,7 +186,7 @@ export default class Dialog extends SparkleElement {
         cancelButton.hidden = cancel == null;
       }
     }
-    if (name === "confirm") {
+    if (name === Dialog.attributes.confirm) {
       const confirm = newValue;
       if (confirm) {
         this.setAssignedToSlot(confirm, "confirm");

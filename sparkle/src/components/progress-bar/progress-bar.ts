@@ -1,4 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssColor } from "../../utils/getCssColor";
 import css from "./progress-bar.css";
 import html from "./progress-bar.html";
@@ -6,15 +7,26 @@ import html from "./progress-bar.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_PROGRESS_BAR_ATTRIBUTES = getAttributeNameMap([
+  "value",
+  "label-color",
+]);
+
 /**
  * Progress bars are used to show the status of an ongoing operation.
  */
 export default class ProgressBar extends SparkleElement {
+  static override tagName = "s-progress-bar";
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_PROGRESS_BAR_ATTRIBUTES };
+  }
+
   static override async define(
-    tag = "s-progress-bar",
+    tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -25,22 +37,24 @@ export default class ProgressBar extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "value", "label-color"];
-  }
-
   /**
    * The current progress as a percentage, 0 to 100.
    */
   get value(): string | null {
-    return this.getStringAttribute("value");
+    return this.getStringAttribute(ProgressBar.attributes.value);
+  }
+  set value(value) {
+    this.setStringAttribute(ProgressBar.attributes.value, value);
   }
 
   /**
    * The color of the label.
    */
   get labelColor(): string | null {
-    return this.getStringAttribute("label-color");
+    return this.getStringAttribute(ProgressBar.attributes.labelColor);
+  }
+  set labelColor(value) {
+    this.setStringAttribute(ProgressBar.attributes.labelColor, value);
   }
 
   protected override onAttributeChanged(
@@ -48,17 +62,14 @@ export default class ProgressBar extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "title") {
-      this.updateRootAttribute("title", newValue);
-    }
-    if (name === "value") {
+    if (name === ProgressBar.attributes.value) {
       this.updateRootAttribute("aria-valuenow", newValue);
       this.updateRootCssVariable(
         name,
         newValue.endsWith("%") ? newValue : `${newValue}%`
       );
     }
-    if (name === "label-color") {
+    if (name === ProgressBar.attributes.labelColor) {
       this.updateRootCssVariable(name, getCssColor(newValue));
     }
   }

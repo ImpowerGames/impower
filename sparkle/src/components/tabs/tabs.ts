@@ -1,5 +1,7 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";
 import { navPrevKey } from "../../utils/navPrevKey";
@@ -13,21 +15,31 @@ styles.replaceSync(css);
 
 const onchangeEvent = new SparkleEvent("onchange");
 
-export const DEFAULT_TABS_DEPENDENCIES = {
-  "s-tab": "s-tab",
-};
+export const DEFAULT_TABS_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
+
+export const DEFAULT_TABS_ATTRIBUTES = getAttributeNameMap([
+  "indicator",
+  "vertical",
+  "value",
+]);
 
 /**
  * Tabs indicate which child tab is currently active.
  */
 export default class Tabs extends SparkleElement {
-  static override dependencies = DEFAULT_TABS_DEPENDENCIES;
+  static override tagName = "s-tabs";
+
+  static override dependencies = { ...DEFAULT_TABS_DEPENDENCIES };
+
+  static override get attributes() {
+    return { ...super.attributes, ...DEFAULT_TABS_ATTRIBUTES };
+  }
 
   static override async define(
-    tag = "s-tabs",
+    tagName?: string,
     dependencies = DEFAULT_TABS_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
-    return super.define(tag, dependencies);
+    return super.define(tagName, dependencies);
   }
 
   override get html(): string {
@@ -38,34 +50,36 @@ export default class Tabs extends SparkleElement {
     return [styles];
   }
 
-  static override get observedAttributes() {
-    return [...super.observedAttributes, "indicator", "vertical"];
-  }
-
   /**
    * The placement of the indicator relative to the tabs.
    *
    * Defaults to "after".
    */
   get indicator(): "" | "before" | "after" | "none" | null {
-    return this.getStringAttribute("indicator");
+    return this.getStringAttribute(Tabs.attributes.indicator);
+  }
+  set indicator(value) {
+    this.setStringAttribute(Tabs.attributes.indicator, value);
   }
 
   /**
    * Orients the tabs vertically.
    */
   get vertical(): boolean {
-    return this.getBooleanAttribute("vertical");
+    return this.getBooleanAttribute(Tabs.attributes.vertical);
+  }
+  set vertical(value) {
+    this.setStringAttribute(Tabs.attributes.vertical, value);
   }
 
   /**
    * The value of the active tab.
    */
   get value(): string | null {
-    return this.getStringAttribute("value");
+    return this.getStringAttribute(Tabs.attributes.value);
   }
-  set value(value: string | null) {
-    this.setStringAttribute("value", value);
+  set value(value) {
+    this.setStringAttribute(Tabs.attributes.value, value);
   }
 
   protected _tabs: Tab[] = [];
@@ -90,14 +104,14 @@ export default class Tabs extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "indicator") {
+    if (name === Tabs.attributes.indicator) {
       this.updateTabs();
       const indicatorEl = this.indicatorEl;
       if (indicatorEl) {
         indicatorEl.hidden = newValue === "none";
       }
     }
-    if (name === "vertical") {
+    if (name === Tabs.attributes.vertical) {
       const vertical = newValue != null;
       this.updateRootAttribute(
         "aria-orientation",
@@ -168,21 +182,21 @@ export default class Tabs extends SparkleElement {
 
   bindTabs(): void {
     this.tabs.forEach((tab) => {
-      tab.addEventListener("pointerdown", this.onPointerDownTab);
-      tab.addEventListener("pointerenter", this.onPointerEnterTab);
-      tab.addEventListener("keydown", this.onKeyDown);
-      tab.addEventListener("click", this.onClickTab);
-      window.addEventListener("pointerup", this.onPointerUp);
+      tab.addEventListener("pointerdown", this.handlePointerDownTab);
+      tab.addEventListener("pointerenter", this.handlePointerEnterTab);
+      tab.addEventListener("keydown", this.handleKeyDownTab);
+      tab.addEventListener("click", this.handleClickTab);
+      window.addEventListener("pointerup", this.handlePointerUp);
     });
   }
 
   unbindTabs(): void {
     this.tabs.forEach((tab) => {
-      tab.removeEventListener("pointerdown", this.onPointerDownTab);
-      tab.removeEventListener("pointerenter", this.onPointerEnterTab);
-      tab.removeEventListener("keydown", this.onKeyDown);
-      tab.removeEventListener("click", this.onClickTab);
-      window.removeEventListener("pointerup", this.onPointerUp);
+      tab.removeEventListener("pointerdown", this.handlePointerDownTab);
+      tab.removeEventListener("pointerenter", this.handlePointerEnterTab);
+      tab.removeEventListener("keydown", this.handleKeyDownTab);
+      tab.removeEventListener("click", this.handleClickTab);
+      window.removeEventListener("pointerup", this.handlePointerUp);
     });
   }
 
@@ -237,22 +251,22 @@ export default class Tabs extends SparkleElement {
     }
   }
 
-  onPointerDownTab = (e: PointerEvent): void => {
+  handlePointerDownTab = (e: PointerEvent): void => {
     this._pointerDown = true;
   };
 
-  onPointerEnterTab = (e: PointerEvent): void => {
+  handlePointerEnterTab = (e: PointerEvent): void => {
     const tab = e.currentTarget as Tab;
     if (this._pointerDown) {
       this.activateTab(tab);
     }
   };
 
-  onPointerUp = (e: PointerEvent): void => {
+  handlePointerUp = (e: PointerEvent): void => {
     this._pointerDown = false;
   };
 
-  onKeyDown = (e: KeyboardEvent): void => {
+  handleKeyDownTab = (e: KeyboardEvent): void => {
     const tgt = e.currentTarget as Tab;
     const vertical = this.vertical;
     const dir = vertical ? "column" : "row";
@@ -288,7 +302,7 @@ export default class Tabs extends SparkleElement {
     }
   };
 
-  onClickTab = (e: MouseEvent): void => {
+  handleClickTab = (e: MouseEvent): void => {
     const tab = e.currentTarget as Tab;
     this.activateTab(tab);
   };
@@ -302,7 +316,7 @@ export default class Tabs extends SparkleElement {
     this._tabs = slot
       ?.assignedElements?.()
       .filter(
-        (el) => el.tagName.toLowerCase() === Tabs.dependencies["s-tab"]
+        (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
       ) as Tab[];
     this.bindTabs();
     this.updateTabs();
