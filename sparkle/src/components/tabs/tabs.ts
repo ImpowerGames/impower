@@ -1,5 +1,6 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { navEndKey } from "../../utils/navEndKey";
@@ -15,9 +16,9 @@ styles.replaceSync(css);
 
 const onchangeEvent = new SparkleEvent("onchange");
 
-export const DEFAULT_TABS_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
-export const DEFAULT_TABS_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "indicator",
   "vertical",
   "value",
@@ -26,24 +27,27 @@ export const DEFAULT_TABS_ATTRIBUTES = getAttributeNameMap([
 /**
  * Tabs indicate which child tab is currently active.
  */
-export default class Tabs extends SparkleElement {
+export default class Tabs
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-tabs";
 
-  static override dependencies = { ...DEFAULT_TABS_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_TABS_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_TABS_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }
 
   override get html(): string {
-    return Tabs.augment(html, DEFAULT_TABS_DEPENDENCIES);
+    return Tabs.augment(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
@@ -114,7 +118,7 @@ export default class Tabs extends SparkleElement {
     if (name === Tabs.attributes.vertical) {
       const vertical = newValue != null;
       this.updateRootAttribute(
-        "aria-orientation",
+        Tabs.attributes.ariaOrientation,
         vertical ? "vertical" : "horizontal"
       );
       this.updateTabs();
@@ -129,7 +133,7 @@ export default class Tabs extends SparkleElement {
     }
     const vertical = this.vertical;
     this.updateRootAttribute(
-      "aria-orientation",
+      Tabs.attributes.ariaOrientation,
       vertical ? "vertical" : "horizontal"
     );
     this._resizeObserver = new ResizeObserver(this.handleResize);

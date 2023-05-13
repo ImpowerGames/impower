@@ -1,5 +1,6 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
@@ -16,34 +17,34 @@ const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
 const removedEvent = new SparkleEvent("removed");
 
-export const DEFAULT_DRAWER_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
-export const DEFAULT_DRAWER_ATTRIBUTES = getAttributeNameMap([
-  "open",
-  "dismissable",
-]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap(["open", "dismissable"]);
 
 /**
  * Drawers slide in from a container to expose additional options and information.
  */
-export default class Drawer extends SparkleElement {
+export default class Drawer
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-drawer";
 
-  static override dependencies = { ...DEFAULT_DRAWER_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_DRAWER_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DRAWER_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }
 
   override get html(): string {
-    return Drawer.augment(html, DEFAULT_DRAWER_DEPENDENCIES);
+    return Drawer.augment(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {

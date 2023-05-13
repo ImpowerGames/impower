@@ -1,6 +1,7 @@
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssColor } from "../../utils/getCssColor";
 import { getCssDuration } from "../../utils/getCssDuration";
 import { getCssProportion } from "../../utils/getCssProportion";
 import { getCssSize } from "../../utils/getCssSize";
@@ -10,22 +11,25 @@ import html from "./progress-circle.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_PROGRESS_CIRCLE_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "value",
-  "size",
   "track-width",
-  "track-color",
+  "indicator-width",
   "speed",
+  "size",
 ]);
 
 /**
  * Progress circles are used to show the progress of an operation in a circular fashion.
  */
-export default class ProgressCircle extends SparkleElement {
+export default class ProgressCircle
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-progress-circle";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_PROGRESS_CIRCLE_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -56,7 +60,7 @@ export default class ProgressCircle extends SparkleElement {
   /**
    * The size of the circle.
    */
-  get size(): string | null {
+  get size(): SizeName | string | null {
     return this.getStringAttribute(ProgressCircle.attributes.size);
   }
   set size(value) {
@@ -66,7 +70,7 @@ export default class ProgressCircle extends SparkleElement {
   /**
    * The width of the track.
    */
-  get trackWidth(): string | null {
+  get trackWidth(): SizeName | string | null {
     return this.getStringAttribute(ProgressCircle.attributes.trackWidth);
   }
   set trackWidth(value) {
@@ -74,17 +78,17 @@ export default class ProgressCircle extends SparkleElement {
   }
 
   /**
-   * The color of the track.
+   * The width of the indicator.
    */
-  get trackColor(): string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.trackColor);
+  get indicatorWidth(): SizeName | string | null {
+    return this.getStringAttribute(ProgressCircle.attributes.indicatorWidth);
   }
-  set trackColor(value) {
-    this.setStringAttribute(ProgressCircle.attributes.trackColor, value);
+  set indicatorWidth(value) {
+    this.setStringAttribute(ProgressCircle.attributes.indicatorWidth, value);
   }
 
   /**
-   * The speed of the animation.
+   * The speed of the indeterminate animation.
    */
   get speed(): string | null {
     return this.getStringAttribute(ProgressCircle.attributes.speed);
@@ -109,7 +113,10 @@ export default class ProgressCircle extends SparkleElement {
     if (name === ProgressCircle.attributes.value) {
       const proportion = getCssProportion(newValue, 0);
       this.updateRootCssVariable(name, String(proportion));
-      this.updateRootAttribute("aria-valuenow", newValue);
+      this.updateRootAttribute(
+        ProgressCircle.attributes.ariaValueNow,
+        newValue
+      );
       const labelEl = this.labelEl;
       if (labelEl) {
         if (newValue != null) {
@@ -119,17 +126,17 @@ export default class ProgressCircle extends SparkleElement {
         }
       }
     }
-    if (name === ProgressCircle.attributes.size) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
     if (name === ProgressCircle.attributes.trackWidth) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
-    if (name === ProgressCircle.attributes.trackColor) {
-      this.updateRootCssVariable(name, getCssColor(newValue));
+    if (name === ProgressCircle.attributes.indicatorWidth) {
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
     if (name === ProgressCircle.attributes.speed) {
       this.updateRootCssVariable(name, getCssDuration(newValue));
+    }
+    if (name === ProgressCircle.attributes.size) {
+      this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }
 }

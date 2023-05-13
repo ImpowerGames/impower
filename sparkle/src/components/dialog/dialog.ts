@@ -1,5 +1,7 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
+import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssIcon } from "../../utils/getCssIcon";
@@ -17,9 +19,9 @@ const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
 const removedEvent = new SparkleEvent("removed");
 
-export const DEFAULT_DIALOG_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
-export const DEFAULT_DIALOG_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "open",
   "dismissable",
   "icon",
@@ -31,24 +33,27 @@ export const DEFAULT_DIALOG_ATTRIBUTES = getAttributeNameMap([
 /**
  * Dialogs, sometimes called "modals", appear above the page and require the user's immediate attention.
  */
-export default class Dialog extends SparkleElement {
+export default class Dialog
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-dialog";
 
-  static override dependencies = { ...DEFAULT_DIALOG_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_DIALOG_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DIALOG_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }
 
   override get html(): string {
-    return Dialog.augment(html, DEFAULT_DIALOG_DEPENDENCIES);
+    return Dialog.augment(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
@@ -79,7 +84,7 @@ export default class Dialog extends SparkleElement {
   /**
    * The icon to display above the title.
    */
-  get icon(): string | null {
+  get icon(): IconName | string | null {
     return this.getStringAttribute(Dialog.attributes.icon);
   }
   set icon(value) {

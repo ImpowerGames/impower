@@ -1,4 +1,4 @@
-export interface Pattern {
+export interface Graphic {
   width?: number | string;
   height?: number | string;
   shapes?: {

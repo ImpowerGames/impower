@@ -1,18 +1,17 @@
-import { ARIA_ATTRIBUTES } from "../constants/ARIA_ATTRIBUTES";
-import { STYLE_ALIASES, StyleAliases } from "../constants/STYLE_ALIASES";
-import {
-  STYLE_TRANSFORMERS,
-  StyleTransformers,
-} from "../constants/STYLE_TRANSFORMERS";
+import { ARIA_ATTRIBUTE_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
+import { STYLE_ALIASES } from "../constants/STYLE_ALIASES";
+import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS";
 import Styles from "../helpers/styles";
-import { CamelCasedProperties } from "../types/camelCase";
-import { Color } from "../types/color";
+import { ColorName } from "../types/colorName";
+import { Properties } from "../types/properties";
+import { SizeName } from "../types/sizeName";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { getAttributeNameMap } from "../utils/getAttributeNameMap";
 import { getCssTextSizeHeight } from "../utils/getCssTextSizeHeight";
 import { getCssTextStroke } from "../utils/getCssTextStroke";
 import { getCssTextWhiteSpace } from "../utils/getCssTextWhiteSpace";
+import { getKeys } from "../utils/getKeys";
 import { getUnitlessValue } from "../utils/getUnitlessValue";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isServer } from "../utils/isServer";
@@ -30,7 +29,7 @@ styles.replaceSync(css);
 
 export default class SparkleElement
   extends HTMLElement
-  implements CamelCasedProperties<StyleTransformers>
+  implements Properties<typeof STYLE_TRANSFORMERS>
 {
   private static _tagName = "";
   static get tagName() {
@@ -53,7 +52,7 @@ export default class SparkleElement
     disabled: "disabled",
     loading: "loading",
     navigation: "navigation",
-    ...getAttributeNameMap(ARIA_ATTRIBUTES),
+    ...ARIA_ATTRIBUTE_NAME_MAP,
     ...getAttributeNameMap(getKeys(STYLE_TRANSFORMERS)),
     ...getAttributeNameMap(getKeys(STYLE_ALIASES)),
   };
@@ -94,11 +93,11 @@ export default class SparkleElement
     return Object.values(this.attributes);
   }
 
-  get transformers(): StyleTransformers {
+  get transformers() {
     return STYLE_TRANSFORMERS;
   }
 
-  get aliases(): StyleAliases {
+  get aliases() {
     return STYLE_ALIASES;
   }
 
@@ -314,17 +313,7 @@ export default class SparkleElement
    *
    * @summary c
    */
-  get corner():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get corner(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.corner);
   }
   set corner(value) {
@@ -336,17 +325,7 @@ export default class SparkleElement
    *
    * @summary c-t
    */
-  get cornerT():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerT(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerT);
   }
   set cornerT(value) {
@@ -358,17 +337,7 @@ export default class SparkleElement
    *
    * @summary c-r
    */
-  get cornerR():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerR(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerR);
   }
   set cornerR(value) {
@@ -380,17 +349,7 @@ export default class SparkleElement
    *
    * @summary c-b
    */
-  get cornerB():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerB(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerB);
   }
   set cornerB(value) {
@@ -402,17 +361,7 @@ export default class SparkleElement
    *
    * @summary c-l
    */
-  get cornerL():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerL(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerL);
   }
   set cornerL(value) {
@@ -424,17 +373,7 @@ export default class SparkleElement
    *
    * @summary c-tl
    */
-  get cornerTL():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerTL(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerTL);
   }
   set cornerTL(value) {
@@ -446,17 +385,7 @@ export default class SparkleElement
    *
    * @summary c-tr
    */
-  get cornerTR():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerTR(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerTR);
   }
   set cornerTR(value) {
@@ -468,17 +397,7 @@ export default class SparkleElement
    *
    * @summary c-br
    */
-  get cornerBR():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerBR(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerBR);
   }
   set cornerBR(value) {
@@ -490,17 +409,7 @@ export default class SparkleElement
    *
    * @summary c-bl
    */
-  get cornerBL():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "full"
-    | "circle"
-    | string
-    | null {
+  get cornerBL(): "" | SizeName | "full" | "circle" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.cornerBL);
   }
   set cornerBL(value) {
@@ -512,7 +421,7 @@ export default class SparkleElement
    *
    * @summary i
    */
-  get inset(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get inset(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.inset);
   }
   set inset(value) {
@@ -524,7 +433,7 @@ export default class SparkleElement
    *
    * @summary i-t
    */
-  get insetT(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get insetT(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.insetT);
   }
   set insetT(value) {
@@ -536,7 +445,7 @@ export default class SparkleElement
    *
    * @summary i-r
    */
-  get insetR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get insetR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.insetR);
   }
   set insetR(value) {
@@ -548,7 +457,7 @@ export default class SparkleElement
    *
    * @summary i-b
    */
-  get insetB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get insetB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.insetB);
   }
   set insetB(value) {
@@ -560,7 +469,7 @@ export default class SparkleElement
    *
    * @summary i-l
    */
-  get insetL(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get insetL(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.insetL);
   }
   set insetL(value) {
@@ -572,7 +481,7 @@ export default class SparkleElement
    *
    * @summary i-lr
    */
-  get insetLR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get insetLR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.insetLR);
   }
   set insetLR(value) {
@@ -584,7 +493,7 @@ export default class SparkleElement
    *
    * @summary i-tb
    */
-  get insetTB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get insetTB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.insetTB);
   }
   set insetTB(value) {
@@ -596,7 +505,7 @@ export default class SparkleElement
    *
    * @summary o-width
    */
-  get outlineWidth(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get outlineWidth(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineWidth);
   }
   set outlineWidth(value) {
@@ -608,7 +517,7 @@ export default class SparkleElement
    *
    * @summary o-width-t
    */
-  get outlineWidthT(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get outlineWidthT(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineWidthT);
   }
   set outlineWidthT(value) {
@@ -620,7 +529,7 @@ export default class SparkleElement
    *
    * @summary o-width-r
    */
-  get outlineWidthR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get outlineWidthR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineWidthR);
   }
   set outlineWidthR(value) {
@@ -632,7 +541,7 @@ export default class SparkleElement
    *
    * @summary o-width-b
    */
-  get outlineWidthB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get outlineWidthB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineWidthB);
   }
   set outlineWidthB(value) {
@@ -644,7 +553,7 @@ export default class SparkleElement
    *
    * @summary o-width-l
    */
-  get outlineWidthL(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get outlineWidthL(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineWidthL);
   }
   set outlineWidthL(value) {
@@ -656,7 +565,7 @@ export default class SparkleElement
    *
    * @summary o-width-lr
    */
-  get outlineWidthLR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get outlineWidthLR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineWidthLR);
   }
   set outlineWidthLR(value) {
@@ -668,7 +577,7 @@ export default class SparkleElement
    *
    * @summary o-width-tb
    */
-  get outlineWidthTB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get outlineWidthTB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineWidthTB);
   }
   set outlineWidthTB(value) {
@@ -678,7 +587,7 @@ export default class SparkleElement
   /**
    * Sets the `outline-color` of this element.
    */
-  get outlineColor(): "" | Color | string | null {
+  get outlineColor(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineColor);
   }
   set outlineColor(value) {
@@ -690,7 +599,7 @@ export default class SparkleElement
    *
    * @summary o-color-t
    */
-  get outlineColorT(): "" | Color | string | null {
+  get outlineColorT(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineColorT);
   }
   set outlineColorT(value) {
@@ -702,7 +611,7 @@ export default class SparkleElement
    *
    * @summary o-color-r
    */
-  get outlineColorR(): "" | Color | string | null {
+  get outlineColorR(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineColorR);
   }
   set outlineColorR(value) {
@@ -714,7 +623,7 @@ export default class SparkleElement
    *
    * @summary o-color-b
    */
-  get outlineColorB(): "" | Color | string | null {
+  get outlineColorB(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineColorB);
   }
   set outlineColorB(value) {
@@ -726,7 +635,7 @@ export default class SparkleElement
    *
    * @summary o-color-l
    */
-  get outlineColorL(): "" | Color | string | null {
+  get outlineColorL(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineColorL);
   }
   set outlineColorL(value) {
@@ -738,7 +647,7 @@ export default class SparkleElement
    *
    * @summary o-color-tb
    */
-  get outlineColorTB(): "" | Color | string | null {
+  get outlineColorTB(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineColorTB);
   }
   set outlineColorTB(value) {
@@ -750,7 +659,7 @@ export default class SparkleElement
    *
    * @summary o-color-lr
    */
-  get outlineColorLR(): "" | Color | string | null {
+  get outlineColorLR(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.outlineColorLR);
   }
   set outlineColorLR(value) {
@@ -762,7 +671,7 @@ export default class SparkleElement
    *
    * @summary b-width
    */
-  get borderWidth(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get borderWidth(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderWidth);
   }
   set borderWidth(value) {
@@ -774,7 +683,7 @@ export default class SparkleElement
    *
    * @summary b-width-t
    */
-  get borderWidthT(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get borderWidthT(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderWidthT);
   }
   set borderWidthT(value) {
@@ -786,7 +695,7 @@ export default class SparkleElement
    *
    * @summary b-width-r
    */
-  get borderWidthR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get borderWidthR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderWidthR);
   }
   set borderWidthR(value) {
@@ -798,7 +707,7 @@ export default class SparkleElement
    *
    * @summary b-width-b
    */
-  get borderWidthB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get borderWidthB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderWidthB);
   }
   set borderWidthB(value) {
@@ -810,7 +719,7 @@ export default class SparkleElement
    *
    * @summary b-width-l
    */
-  get borderWidthL(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get borderWidthL(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderWidthL);
   }
   set borderWidthL(value) {
@@ -822,7 +731,7 @@ export default class SparkleElement
    *
    * @summary b-width-lr
    */
-  get borderWidthLR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get borderWidthLR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderWidthLR);
   }
   set borderWidthLR(value) {
@@ -834,7 +743,7 @@ export default class SparkleElement
    *
    * @summary b-width-tb
    */
-  get borderWidthTB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get borderWidthTB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderWidthTB);
   }
   set borderWidthTB(value) {
@@ -844,7 +753,7 @@ export default class SparkleElement
   /**
    * Sets the `border-color` of this element.
    */
-  get borderColor(): "" | Color | string | null {
+  get borderColor(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderColor);
   }
   set borderColor(value) {
@@ -856,7 +765,7 @@ export default class SparkleElement
    *
    * @summary b-color-t
    */
-  get borderColorT(): "" | Color | string | null {
+  get borderColorT(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderColorT);
   }
   set borderColorT(value) {
@@ -868,7 +777,7 @@ export default class SparkleElement
    *
    * @summary b-color-r
    */
-  get borderColorR(): "" | Color | string | null {
+  get borderColorR(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderColorR);
   }
   set borderColorR(value) {
@@ -880,7 +789,7 @@ export default class SparkleElement
    *
    * @summary b-color-b
    */
-  get borderColorB(): "" | Color | string | null {
+  get borderColorB(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderColorB);
   }
   set borderColorB(value) {
@@ -892,7 +801,7 @@ export default class SparkleElement
    *
    * @summary b-color-l
    */
-  get borderColorL(): "" | Color | string | null {
+  get borderColorL(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderColorL);
   }
   set borderColorL(value) {
@@ -904,7 +813,7 @@ export default class SparkleElement
    *
    * @summary b-color-tb
    */
-  get borderColorTB(): "" | Color | string | null {
+  get borderColorTB(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderColorTB);
   }
   set borderColorTB(value) {
@@ -916,7 +825,7 @@ export default class SparkleElement
    *
    * @summary b-color-lr
    */
-  get borderColorLR(): "" | Color | string | null {
+  get borderColorLR(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.borderColorLR);
   }
   set borderColorLR(value) {
@@ -930,7 +839,7 @@ export default class SparkleElement
    *
    * @summary m
    */
-  get margin(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get margin(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.margin);
   }
   set margin(value) {
@@ -944,7 +853,7 @@ export default class SparkleElement
    *
    * @summary m-t
    */
-  get marginT(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get marginT(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.marginT);
   }
   set marginT(value) {
@@ -958,7 +867,7 @@ export default class SparkleElement
    *
    * @summary m-r
    */
-  get marginR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get marginR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.marginR);
   }
   set marginR(value) {
@@ -972,7 +881,7 @@ export default class SparkleElement
    *
    * @summary m-b
    */
-  get marginB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get marginB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.marginB);
   }
   set marginB(value) {
@@ -986,7 +895,7 @@ export default class SparkleElement
    *
    * @summary m-l
    */
-  get marginL(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get marginL(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.marginL);
   }
   set marginL(value) {
@@ -1000,7 +909,7 @@ export default class SparkleElement
    *
    * @summary m-lr
    */
-  get marginLR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get marginLR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.marginLR);
   }
   set marginLR(value) {
@@ -1014,7 +923,7 @@ export default class SparkleElement
    *
    * @summary m-tb
    */
-  get marginTB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get marginTB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.marginTB);
   }
   set marginTB(value) {
@@ -1026,7 +935,7 @@ export default class SparkleElement
    *
    * @summary p
    */
-  get padding(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get padding(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.padding);
   }
   set padding(value) {
@@ -1038,7 +947,7 @@ export default class SparkleElement
    *
    * @summary p-t
    */
-  get paddingT(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get paddingT(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.paddingT);
   }
   set paddingT(value) {
@@ -1050,7 +959,7 @@ export default class SparkleElement
    *
    * @summary p-r
    */
-  get paddingR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get paddingR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.paddingR);
   }
   set paddingR(value) {
@@ -1062,7 +971,7 @@ export default class SparkleElement
    *
    * @summary p-b
    */
-  get paddingB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get paddingB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.paddingB);
   }
   set paddingB(value) {
@@ -1074,7 +983,7 @@ export default class SparkleElement
    *
    * @summary p-l
    */
-  get paddingL(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get paddingL(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.paddingL);
   }
   set paddingL(value) {
@@ -1086,7 +995,7 @@ export default class SparkleElement
    *
    * @summary p-lr
    */
-  get paddingLR(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get paddingLR(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.paddingLR);
   }
   set paddingLR(value) {
@@ -1098,7 +1007,7 @@ export default class SparkleElement
    *
    * @summary p-tb
    */
-  get paddingTB(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get paddingTB(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.paddingTB);
   }
   set paddingTB(value) {
@@ -1123,7 +1032,7 @@ export default class SparkleElement
   /**
    * Sets the `gap` between children.
    */
-  get childGap(): "" | "xs" | "sm" | "md" | "lg" | "xl" | string | null {
+  get childGap(): "" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.childGap);
   }
   set childGap(value) {
@@ -1244,7 +1153,7 @@ export default class SparkleElement
   /**
    * Sets the `color` of content rendered inside this element.
    */
-  get color(): "" | Color | string | null {
+  get color(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.color);
   }
   set color(value) {
@@ -1267,11 +1176,7 @@ export default class SparkleElement
   get textSize():
     | ""
     | "2xs"
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
+    | SizeName
     | "2xl"
     | "3xl"
     | "4xl"
@@ -1293,16 +1198,7 @@ export default class SparkleElement
    *
    * This is commonly used to increase or decrease the distance between lines of text.
    */
-  get textLeading():
-    | ""
-    | "none"
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | string
-    | null {
+  get textLeading(): "" | "none" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.textLeading);
   }
   set textLeading(value) {
@@ -1315,17 +1211,7 @@ export default class SparkleElement
    * This value is added to the font's natural letter spacing.
    * Positive values cause letters to spread farther apart, while negative values bring letters closer together.
    */
-  get textKerning():
-    | ""
-    | "none"
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | "2xl"
-    | string
-    | null {
+  get textKerning(): "" | "none" | SizeName | "2xl" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.textKerning);
   }
   set textKerning(value) {
@@ -1446,7 +1332,7 @@ export default class SparkleElement
   /**
    * Uses `text-shadow` to create a colored stroke around the text.
    */
-  get textStrokeColor(): "" | Color | string | null {
+  get textStrokeColor(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.textStrokeColor);
   }
   set textStrokeColor(value) {
@@ -1480,15 +1366,7 @@ export default class SparkleElement
   /**
    * Sets the `text-underline-offset` of all underlined text inside this element.
    */
-  get textUnderlineOffset():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | string
-    | null {
+  get textUnderlineOffset(): "" | SizeName | string | null {
     return this.getStringAttribute(
       SparkleElement.attributes.textUnderlineOffset
     );
@@ -1503,15 +1381,7 @@ export default class SparkleElement
   /**
    * Sets the `text-decoration-thickness` of all underline or strikethrough lines.
    */
-  get textDecorationThickness():
-    | ""
-    | "xs"
-    | "sm"
-    | "md"
-    | "lg"
-    | "xl"
-    | string
-    | null {
+  get textDecorationThickness(): "" | SizeName | string | null {
     return this.getStringAttribute(
       SparkleElement.attributes.textDecorationThickness
     );
@@ -1528,7 +1398,7 @@ export default class SparkleElement
    *
    * @summary bg-color
    */
-  get backgroundColor(): "" | Color | string | null {
+  get backgroundColor(): "" | ColorName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.backgroundColor);
   }
   set backgroundColor(value) {
@@ -1536,7 +1406,7 @@ export default class SparkleElement
   }
 
   /**
-   * Uses `background-image` to display a color gradient inside this element.
+   * Uses `background-image` to display a color gradient as the background of this element.
    *
    * @summary bg-gradient
    */
@@ -1553,11 +1423,34 @@ export default class SparkleElement
   }
 
   /**
-   * Uses `background-image` to display a pattern inside this element.
+   * Uses `background-image` to display a pattern as the background of this element.
    *
    * @summary bg-pattern
    */
-  get backgroundPattern(): "" | string | null {
+  get backgroundPattern():
+    | ""
+    | "brick"
+    | "bubbles"
+    | "chainlink"
+    | "chevron"
+    | "circles"
+    | "crosses"
+    | "equals"
+    | "flowers"
+    | "grid"
+    | "herringbone"
+    | "memphis"
+    | "net"
+    | "octagon"
+    | "parquet"
+    | "scales"
+    | "shine"
+    | "tile"
+    | "wave"
+    | "weave"
+    | "zigzag"
+    | string
+    | null {
     return this.getStringAttribute(SparkleElement.attributes.backgroundPattern);
   }
   set backgroundPattern(value) {
@@ -1577,7 +1470,7 @@ export default class SparkleElement
   }
 
   /**
-   * Sets `background-repeat` to determine if background images are repeated in a tiling pattern.
+   * Sets `background-repeat` to determine if images are repeated in a tiling pattern.
    *
    * If not provided a value, defaults to `repeat`.
    *
@@ -1591,7 +1484,7 @@ export default class SparkleElement
   }
 
   /**
-   * Sets `background-position` to align background images to the center, top, bottom, left, or right edge of this element.
+   * Sets `background-position` to align images to the center, top, bottom, left, or right edge of this element.
    *
    * If not provided a value, defaults to `center`.
    *
@@ -1630,7 +1523,7 @@ export default class SparkleElement
 
   /**
    * Sets the `mask-image` of this element to change the visual shape of this element.
-   * Parts that are inside the mask region are shown, while those outside are hidden.
+   * Parts that are inside the mask region are visible, while those outside are clipped.
    *
    * If not provided a value, defaults to `circle`.
    */
@@ -1877,12 +1770,19 @@ export default class SparkleElement
   get delay():
     | ""
     | "0"
-    | "0.1"
-    | "0.2"
-    | "0.3"
-    | "0.4"
-    | "0.5"
-    | "1"
+    | "25ms"
+    | "50ms"
+    | "75ms"
+    | "100ms"
+    | "150ms"
+    | "200ms"
+    | "250ms"
+    | "300ms"
+    | "350ms"
+    | "400ms"
+    | "450ms"
+    | "500ms"
+    | "1s"
     | string
     | null {
     return this.getStringAttribute(SparkleElement.attributes.delay);
@@ -1897,11 +1797,19 @@ export default class SparkleElement
   get duration():
     | ""
     | "0"
+    | "25ms"
+    | "50ms"
+    | "75ms"
     | "100ms"
+    | "150ms"
     | "200ms"
+    | "250ms"
     | "300ms"
+    | "350ms"
     | "400ms"
+    | "450ms"
     | "500ms"
+    | "1s"
     | string
     | null {
     return this.getStringAttribute(SparkleElement.attributes.duration);
@@ -1920,31 +1828,41 @@ export default class SparkleElement
     | "ease-in"
     | "ease-out"
     | "ease-in-out"
-    | "ease-in-sine"
-    | "ease-in-sine"
-    | "ease-out-sine"
-    | "ease-in-out-sine"
-    | "ease-in-quad"
-    | "ease-out-quad"
-    | "ease-in-out-quad"
-    | "ease-in-cubic"
-    | "ease-out-cubic"
-    | "ease-in-out-cubic"
-    | "ease-in-quart"
-    | "ease-out-quart"
-    | "ease-in-out-quart"
-    | "ease-in-quint"
-    | "ease-out-quint"
-    | "ease-in-out-quint"
-    | "ease-in-expo"
-    | "ease-out-expo"
-    | "ease-in-out-expo"
-    | "ease-in-circ"
-    | "ease-out-circ"
-    | "ease-in-out-circ"
-    | "ease-in-back"
-    | "ease-out-back"
-    | "ease-in-out-back"
+    | "ease-1"
+    | "ease-2"
+    | "ease-3"
+    | "ease-4"
+    | "ease-5"
+    | "ease-in-1"
+    | "ease-in-2"
+    | "ease-in-3"
+    | "ease-in-4"
+    | "ease-in-5"
+    | "ease-out-1"
+    | "ease-out-2"
+    | "ease-out-3"
+    | "ease-out-4"
+    | "ease-out-5"
+    | "ease-in-out-1"
+    | "ease-in-out-2"
+    | "ease-in-out-3"
+    | "ease-in-out-4"
+    | "ease-in-out-5"
+    | "ease-elastic-1"
+    | "ease-elastic-2"
+    | "ease-elastic-3"
+    | "ease-elastic-4"
+    | "ease-elastic-5"
+    | "ease-squish-1"
+    | "ease-squish-2"
+    | "ease-squish-3"
+    | "ease-squish-4"
+    | "ease-squish-5"
+    | "ease-step-1"
+    | "ease-step-2"
+    | "ease-step-3"
+    | "ease-step-4"
+    | "ease-step-5"
     | string
     | null {
     return this.getStringAttribute(SparkleElement.attributes.ease);
@@ -2124,13 +2042,18 @@ export default class SparkleElement
     oldValue: string,
     newValue: string
   ): void {
-    const className = this.aliases[name as keyof StyleAliases] ?? name;
-    if (className === "role" || className.startsWith("aria-")) {
+    const className: string =
+      this.aliases[name as keyof typeof STYLE_ALIASES] ?? name;
+    if (
+      className === "role" ||
+      className === "tabindex" ||
+      className.startsWith("aria-")
+    ) {
       // Forward all aria attributes to root element
       this.updateRootAttribute(className, newValue);
     } else {
       const transformer =
-        this.transformers[className as keyof StyleTransformers];
+        this.transformers[className as keyof typeof STYLE_TRANSFORMERS];
       if (transformer) {
         this.updateStyleAttribute(className, newValue, transformer);
         if (className === SparkleElement.attributes.textSize) {
@@ -2354,7 +2277,7 @@ export default class SparkleElement
     ) as T[];
   }
 
-  setAssignedToSlot(textContent: string, name?: string): void {
+  setAssignedToSlot(content: string | Node, name?: string): void {
     const assigned = this.getAssignedToSlot(name);
     assigned.forEach((n) => {
       this.removeChild(n);
@@ -2362,11 +2285,18 @@ export default class SparkleElement
     if (name) {
       const newNode = document.createElement("div");
       newNode.setAttribute("slot", name);
-      newNode.textContent = textContent;
       newNode.style.display = "contents";
+      if (typeof content === "string") {
+        newNode.textContent = content;
+      } else {
+        newNode.appendChild(content);
+      }
       this.appendChild(newNode);
     } else {
-      const newNode = document.createTextNode(textContent);
+      const newNode =
+        typeof content === "string"
+          ? document.createTextNode(content)
+          : content;
       this.appendChild(newNode);
     }
   }

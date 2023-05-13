@@ -8,6 +8,6 @@ export const getDependencyNameMap = <T extends string, P extends string>(
   Object.values(obj).reduce((p, c) => {
     const key = c.replace(`${prefix}-`, "");
     const propName = convertToCamelCase(key) as unknown as keyof typeof p;
-    p[propName] = key as never;
+    p[propName] = c as never;
     return p;
   }, {} as UnprefixedCamelCasedArrayMap<T, P>);

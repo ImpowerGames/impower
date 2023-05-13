@@ -1,4 +1,7 @@
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssColor } from "../../utils/getCssColor";
 import { getCssIcon } from "../../utils/getCssIcon";
@@ -8,7 +11,7 @@ import css from "./icon.css";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_ICON_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "icon",
   "fill",
   "size",
@@ -19,11 +22,14 @@ export const DEFAULT_ICON_ATTRIBUTES = getAttributeNameMap([
 /**
  * Icons are symbols that can be used to represent various options within an application.
  */
-export default class Icon extends SparkleElement {
+export default class Icon
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-icon";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ICON_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -40,7 +46,7 @@ export default class Icon extends SparkleElement {
   /**
    * The name of the icon to display.
    */
-  get icon(): string | null {
+  get icon(): IconName | string | null {
     return this.getStringAttribute(Icon.attributes.icon);
   }
   set icon(value) {
@@ -50,7 +56,7 @@ export default class Icon extends SparkleElement {
   /**
    * Sets the size of an icon.
    */
-  get size(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get size(): SizeName | null {
     return this.getStringAttribute(Icon.attributes.size);
   }
   set size(value) {
@@ -84,7 +90,7 @@ export default class Icon extends SparkleElement {
   /**
    * Sets the stroke width of an icon.
    */
-  get strokeWidth(): "xs" | "sm" | "md" | "lg" | "xl" | null {
+  get strokeWidth(): SizeName | null {
     return this.getStringAttribute(Icon.attributes.strokeWidth);
   }
   set strokeWidth(value) {
@@ -96,9 +102,9 @@ export default class Icon extends SparkleElement {
     oldValue: string,
     newValue: string
   ): void {
-    if (name === "aria-label") {
-      this.updateRootAttribute("aria-hidden", Boolean(newValue));
-      this.updateRootAttribute("role", newValue ? "img" : null);
+    if (name === Icon.attributes.ariaLabel) {
+      this.updateRootAttribute(Icon.attributes.ariaHidden, Boolean(newValue));
+      this.updateRootAttribute(Icon.attributes.role, newValue ? "img" : null);
     }
     if (name === Icon.attributes.icon) {
       this.updateRootCssVariable(name, getCssIcon(newValue));

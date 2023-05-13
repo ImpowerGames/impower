@@ -1,4 +1,4 @@
-import { Color } from "./color";
+import { ColorName } from "./colorName";
 import { Tone } from "./tone";
 
-export type ColorTone = `${Color}-${Tone}`;
+export type ColorTone = `${ColorName}-${Tone}`;

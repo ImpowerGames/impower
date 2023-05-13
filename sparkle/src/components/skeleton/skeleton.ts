@@ -1,4 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
+import { ColorName } from "../../types/colorName";
+import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssColor } from "../../utils/getCssColor";
 import css from "./skeleton.css";
@@ -6,16 +8,19 @@ import css from "./skeleton.css";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_SKELETON_ATTRIBUTES = getAttributeNameMap(["sheen-color"]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap(["sheen-color"]);
 
 /**
  * Skeletons are used to provide a visual representation of where content will eventually be drawn.
  */
-export default class Skeleton extends SparkleElement {
+export default class Skeleton
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-skeleton";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_SKELETON_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -32,7 +37,7 @@ export default class Skeleton extends SparkleElement {
   /**
    * The color of the sheen.
    */
-  get sheenColor(): string | null {
+  get sheenColor(): ColorName | string | null {
     return this.getStringAttribute(Skeleton.attributes.sheenColor);
   }
   set sheenColor(value) {

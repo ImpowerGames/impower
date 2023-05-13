@@ -10,6 +10,9 @@ import {
 } from "@floating-ui/dom";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { ColorName } from "../../types/colorName";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssColor } from "../../utils/getCssColor";
 import { getCssSize } from "../../utils/getCssSize";
@@ -22,7 +25,7 @@ styles.replaceSync(css);
 
 const repositionEvent = new SparkleEvent("reposition");
 
-export const DEFAULT_POPUP_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "anchor",
   "active",
   "placement",
@@ -51,11 +54,14 @@ export const DEFAULT_POPUP_ATTRIBUTES = getAttributeNameMap([
 /**
  * Popup is a utility that lets you declaratively anchor "popup" containers to another element.
  */
-export default class Popup extends SparkleElement {
+export default class Popup
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-popup";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_POPUP_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -183,6 +189,26 @@ export default class Popup extends SparkleElement {
   }
   set arrowPadding(value) {
     this.setStringAttribute(Popup.attributes.arrowPadding, value);
+  }
+
+  /**
+   * The color of the arrow.
+   */
+  get arrowColor(): ColorName | string | null {
+    return this.getStringAttribute(Popup.attributes.arrowColor);
+  }
+  set arrowColor(value) {
+    this.setStringAttribute(Popup.attributes.arrowColor, value);
+  }
+
+  /**
+   * The size of the arrow.
+   */
+  get arrowSize(): SizeName | string | null {
+    return this.getStringAttribute(Popup.attributes.arrowSize);
+  }
+  set arrowSize(value) {
+    this.setStringAttribute(Popup.attributes.arrowSize, value);
   }
 
   /**

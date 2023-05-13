@@ -1,4 +1,4 @@
-import { generatePatternUrl } from "./generatePatternUrl";
+import { generateGraphicUrl } from "./generateGraphicUrl";
 
 export const generatePatternUrls = (
   patterns: Record<string, string[]>,
@@ -7,7 +7,7 @@ export const generatePatternUrls = (
 ): Record<string, string> => {
   const patternUrls: Record<string, string> = {};
   Object.entries(patterns).forEach(([name, paths]) => {
-    patternUrls[name] = generatePatternUrl(
+    patternUrls[name] = generateGraphicUrl(
       { width, height, shapes: paths.map((d) => ({ d })) },
       false
     );

@@ -56,6 +56,4 @@ export const STYLE_ALIASES = {
   "bg-repeat": "background-repeat",
   "bg-align": "background-align",
   "bg-fit": "background-fit",
-};
-
-export type StyleAliases = typeof STYLE_ALIASES;
+} as const;

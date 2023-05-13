@@ -1,5 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
 import Queue from "../../helpers/queue";
+import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import Toast from "../toast/toast";
@@ -9,33 +10,34 @@ import html from "./toast-stack.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_TOAST_STACK_DEPENDENCIES = getDependencyNameMap([
-  "s-toast",
-]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
-export const DEFAULT_TOAST_STACK_ATTRIBUTES = getAttributeNameMap(["alert"]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap(["alert"]);
 
 /**
  * Toast Stacks are used to display alert notifications in a stack.
  */
-export default class ToastStack extends SparkleElement {
+export default class ToastStack
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-toast-stack";
 
-  static override dependencies = { ...DEFAULT_TOAST_STACK_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_TOAST_STACK_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_TOAST_STACK_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }
 
   override get html(): string {
-    return ToastStack.augment(html, DEFAULT_TOAST_STACK_DEPENDENCIES);
+    return ToastStack.augment(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {

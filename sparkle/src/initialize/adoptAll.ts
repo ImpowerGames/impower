@@ -1,9 +1,10 @@
 import Animations from "../helpers/animations";
+import Icons from "../helpers/icons";
 import Patterns from "../helpers/patterns";
 import Styles from "../helpers/styles";
 import { SparkleStyleType } from "../types/sparkleStyleType";
 import { extractAllAnimationKeyframes } from "../utils/extractAllAnimationKeyframes";
-import { extractAllPatternShapes } from "../utils/extractAllPatternShapes";
+import { extractAllGraphics } from "../utils/extractAllGraphics";
 
 const adoptAll = (styles: Record<SparkleStyleType, CSSStyleSheet>): void => {
   Styles.init(styles);
@@ -13,7 +14,11 @@ const adoptAll = (styles: Record<SparkleStyleType, CSSStyleSheet>): void => {
   document.adoptedStyleSheets.push(...Object.values(styles));
   const patterns = styles["patterns"];
   if (patterns) {
-    Patterns.init(extractAllPatternShapes(patterns));
+    Patterns.init(extractAllGraphics("--s-pattern-", patterns));
+  }
+  const icons = styles["icons"];
+  if (icons) {
+    Icons.init(extractAllGraphics("--s-icon-", icons));
   }
   const animations = styles["animations"];
   if (animations) {

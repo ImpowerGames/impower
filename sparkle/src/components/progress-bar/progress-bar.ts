@@ -1,25 +1,33 @@
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssColor } from "../../utils/getCssColor";
+import { getCssDuration } from "../../utils/getCssDuration";
+import { getCssSize } from "../../utils/getCssSize";
 import css from "./progress-bar.css";
 import html from "./progress-bar.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_PROGRESS_BAR_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "value",
-  "label-color",
+  "track-width",
+  "indicator-width",
+  "speed",
 ]);
 
 /**
  * Progress bars are used to show the status of an ongoing operation.
  */
-export default class ProgressBar extends SparkleElement {
+export default class ProgressBar
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-progress-bar";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_PROGRESS_BAR_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -48,13 +56,33 @@ export default class ProgressBar extends SparkleElement {
   }
 
   /**
-   * The color of the label.
+   * The width of the track.
    */
-  get labelColor(): string | null {
-    return this.getStringAttribute(ProgressBar.attributes.labelColor);
+  get trackWidth(): SizeName | string | null {
+    return this.getStringAttribute(ProgressBar.attributes.trackWidth);
   }
-  set labelColor(value) {
-    this.setStringAttribute(ProgressBar.attributes.labelColor, value);
+  set trackWidth(value) {
+    this.setStringAttribute(ProgressBar.attributes.trackWidth, value);
+  }
+
+  /**
+   * The width of the indicator.
+   */
+  get indicatorWidth(): SizeName | string | null {
+    return this.getStringAttribute(ProgressBar.attributes.indicatorWidth);
+  }
+  set indicatorWidth(value) {
+    this.setStringAttribute(ProgressBar.attributes.indicatorWidth, value);
+  }
+
+  /**
+   * The speed of the indeterminate animation.
+   */
+  get speed(): string | null {
+    return this.getStringAttribute(ProgressBar.attributes.speed);
+  }
+  set speed(value) {
+    this.setStringAttribute(ProgressBar.attributes.speed, value);
   }
 
   protected override onAttributeChanged(
@@ -63,14 +91,20 @@ export default class ProgressBar extends SparkleElement {
     newValue: string
   ): void {
     if (name === ProgressBar.attributes.value) {
-      this.updateRootAttribute("aria-valuenow", newValue);
+      this.updateRootAttribute(ProgressBar.attributes.ariaValueNow, newValue);
       this.updateRootCssVariable(
         name,
         newValue.endsWith("%") ? newValue : `${newValue}%`
       );
     }
-    if (name === ProgressBar.attributes.labelColor) {
-      this.updateRootCssVariable(name, getCssColor(newValue));
+    if (name === ProgressBar.attributes.trackWidth) {
+      this.updateRootCssVariable(name, getCssSize(newValue));
+    }
+    if (name === ProgressBar.attributes.indicatorWidth) {
+      this.updateRootCssVariable(name, getCssSize(newValue));
+    }
+    if (name === ProgressBar.attributes.speed) {
+      this.updateRootCssVariable(name, getCssDuration(newValue));
     }
   }
 }

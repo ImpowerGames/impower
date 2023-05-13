@@ -5,3 +5,27 @@
 .root {
   display: flex;
 }
+
+.icon {
+  --size: calc(1em * var(--s-scale-icon));
+  --width: var(--size);
+  --height: var(--size);
+  width: var(--width);
+  height: var(--height);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 50%;
+  aspect-ratio: 1;
+  -webkit-mask-image: var(--icon, none);
+  mask-image: var(--icon, none);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  background-color: currentColor;
+}

@@ -67,3 +67,7 @@
 [hidden] {
   display: none !important;
 }
+
+slot {
+  border-radius: inherit;
+}

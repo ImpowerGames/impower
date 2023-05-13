@@ -1,5 +1,7 @@
 <button class="root" part="root">
-  <s-ripple></s-ripple>
+  <slot name="ripple">
+    <s-ripple></s-ripple>
+  </slot>
   <div class="icon" part="icon" hidden>
     <slot name="icon">
       <s-icon></s-icon>
@@ -16,7 +18,11 @@
     hidden
   >
     <slot name="spinner">
-      <s-progress-circle position="absolute"></s-progress-circle>
+      <s-progress-circle
+        position="absolute"
+        track-width="2px"
+        indicator-width="3px"
+      ></s-progress-circle>
     </slot>
   </div>
 </button>

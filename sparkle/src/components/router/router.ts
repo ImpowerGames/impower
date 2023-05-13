@@ -1,4 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./router.css";
 import html from "./router.html";
@@ -6,10 +7,7 @@ import html from "./router.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_ROUTER_ATTRIBUTES = getAttributeNameMap([
-  "observe",
-  "swipeable",
-]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap(["observe", "swipeable"]);
 
 /**
  * Routers are used to lazy-load templates when their value matches an observed value.
@@ -17,11 +15,14 @@ export const DEFAULT_ROUTER_ATTRIBUTES = getAttributeNameMap([
  * This element loads any child template whose value attribute matches an observed value.
  * All other children are unloaded.
  */
-export default class Router extends SparkleElement {
+export default class Router
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-router";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ROUTER_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -91,6 +92,9 @@ export default class Router extends SparkleElement {
     return found;
   }
 
+  get templatesSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("templates");
+  }
   protected _templates: HTMLTemplateElement[] = [];
 
   protected _valueObserver?: MutationObserver;
@@ -109,6 +113,10 @@ export default class Router extends SparkleElement {
 
   protected override onConnected(): void {
     this._valueObserver = new MutationObserver(this.handleValueMutation);
+    this.templatesSlot?.addEventListener(
+      "slotchange",
+      this.handleTemplatesSlotChange
+    );
   }
 
   protected override onParsed(): void {
@@ -118,28 +126,30 @@ export default class Router extends SparkleElement {
 
   protected override onDisconnected(): void {
     this._valueObserver?.disconnect();
+    this.templatesSlot?.removeEventListener(
+      "slotchange",
+      this.handleTemplatesSlotChange
+    );
   }
 
-  protected override onContentAssigned(slot: HTMLSlotElement): void {
+  protected handleTemplatesSlotChange = (e: Event) => {
+    const slot = e.currentTarget as HTMLSlotElement;
     this._templates = slot
-      ?.assignedElements?.()
+      ?.assignedElements?.({ flatten: true })
       .filter(
         (el) => el.tagName.toLowerCase() === "template"
       ) as HTMLTemplateElement[];
-  }
+  };
 
   loadTemplates(newValue: string | null): void {
     if (newValue !== this._loadedValue) {
       this._loadedValue = newValue;
-      // Unload all existing content
-      this.root?.replaceChildren();
       this._templates.forEach((el) => {
         const value = el.getAttribute("value");
         if (newValue === value) {
           // Load template content
-          const templateContent = this.root.appendChild(
-            el.content.cloneNode(true)
-          );
+          const templateContent = el.content.cloneNode(true);
+          this.setAssignedToSlot(templateContent);
           if (templateContent instanceof HTMLElement) {
             if (templateContent.getAttribute("role") == null) {
               templateContent.setAttribute("role", `tabpanel`);
@@ -148,8 +158,14 @@ export default class Router extends SparkleElement {
               templateContent.setAttribute("tabindex", "0");
             }
             if (value) {
-              if (templateContent.getAttribute("aria-label") == null) {
-                templateContent.setAttribute("aria-label", value);
+              if (
+                templateContent.getAttribute(Router.attributes.ariaLabel) ==
+                null
+              ) {
+                templateContent.setAttribute(
+                  Router.attributes.ariaLabel,
+                  value
+                );
               }
             }
           }

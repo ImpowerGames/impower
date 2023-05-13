@@ -198,6 +198,4 @@ export const STYLE_TRANSFORMERS = {
   ease: getCssEase,
 
   animation: getCssAnimation,
-};
-
-export type StyleTransformers = typeof STYLE_TRANSFORMERS;
+} as const;

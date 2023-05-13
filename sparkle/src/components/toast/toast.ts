@@ -1,6 +1,7 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import Animations from "../../helpers/animations";
+import { Properties } from "../../types/properties";
 import { animateTo, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -17,37 +18,39 @@ const closedEvent = new SparkleEvent("closed");
 const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
 
-export const DEFAULT_TOAST_DEPENDENCIES = getDependencyNameMap(["s-button"]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
-export const DEFAULT_TOAST_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "open",
   "message",
   "action",
   "timeout",
-  "auto-close",
 ]);
 
 /**
  * Toasts are used to display important messages inline or as alert notifications.
  */
-export default class Toast extends SparkleElement {
+export default class Toast
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-toast";
 
-  static override dependencies = { ...DEFAULT_TOAST_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_TOAST_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_TOAST_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }
 
   override get html(): string {
-    return Toast.augment(html, DEFAULT_TOAST_DEPENDENCIES);
+    return Toast.augment(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {

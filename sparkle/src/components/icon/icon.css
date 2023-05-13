@@ -4,7 +4,7 @@
 :host {
   --child-justify: center;
   --child-align: center;
-  --size: 1em;
+  --size: calc(1em * var(--s-scale-icon));
   --width: var(--size);
   --height: var(--size);
   --width-min: var(--size);
@@ -26,5 +26,7 @@
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
+  -webkit-mask-size: cover;
+  mask-size: cover;
   background-color: currentColor;
 }

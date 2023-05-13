@@ -1,4 +1,7 @@
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssMask } from "../../utils/getCssMask";
@@ -12,16 +15,14 @@ import html from "./button.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_BUTTON_DEPENDENCIES = getDependencyNameMap([
+const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-badge",
   "s-progress-circle",
   "s-ripple",
   "s-icon",
 ]);
 
-export const DEFAULT_BUTTON_ATTRIBUTES = getAttributeNameMap([
-  "aria-expanded",
-  "aria-haspopup",
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "href",
   "target",
   "type",
@@ -38,18 +39,21 @@ export const DEFAULT_BUTTON_ATTRIBUTES = getAttributeNameMap([
 /**
  * Buttons represent actions that are available to the user.
  */
-export default class Button extends SparkleElement {
+export default class Button
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-button";
 
-  static override dependencies = { ...DEFAULT_BUTTON_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_BUTTON_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_BUTTON_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }
@@ -59,12 +63,26 @@ export default class Button extends SparkleElement {
       this.href
         ? html.replace("<button ", "<a ").replace("</button>", "</a>")
         : html,
-      DEFAULT_BUTTON_DEPENDENCIES
+      DEFAULT_DEPENDENCIES
     );
   }
 
   override get styles(): CSSStyleSheet[] {
     return [styles];
+  }
+
+  /**
+   * The default behavior of the button. Possible values are:
+   *
+   * `submit`: The button submits the form data to the server.
+   * `reset`: The button resets all the controls to their initial values.
+   * `button`: The button has no default behavior, and does nothing when pressed by default.
+   */
+  get type(): string | null {
+    return this.getStringAttribute(Button.attributes.type);
+  }
+  set type(value) {
+    this.setStringAttribute(Button.attributes.type, value);
   }
 
   /**
@@ -103,7 +121,7 @@ export default class Button extends SparkleElement {
    *
    * Default is `md`.
    */
-  get size(): "xs" | "sm" | "md" | "lg" | null {
+  get size(): SizeName | null {
     return this.getStringAttribute(Button.attributes.size);
   }
   set size(value) {
@@ -113,7 +131,7 @@ export default class Button extends SparkleElement {
   /**
    * The spacing between the icon and the label.
    */
-  get spacing(): string | null {
+  get spacing(): SizeName | string | null {
     return this.getStringAttribute(Button.attributes.spacing);
   }
   set spacing(value) {
@@ -133,7 +151,7 @@ export default class Button extends SparkleElement {
   /**
    * The icon to display next to the label.
    */
-  get icon(): string | null {
+  get icon(): IconName | string | null {
     return this.getStringAttribute(Button.attributes.icon);
   }
   set icon(value) {
@@ -178,8 +196,8 @@ export default class Button extends SparkleElement {
     newValue: string
   ): void {
     if (
-      name === "aria-haspopup" ||
-      name === "aria-expanded" ||
+      name === Button.attributes.ariaHasPopup ||
+      name === Button.attributes.ariaExpanded ||
       name === Button.attributes.href ||
       name === Button.attributes.target ||
       name === Button.attributes.type ||

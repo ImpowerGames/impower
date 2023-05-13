@@ -6,7 +6,9 @@
   tabindex="-1"
   aria-selected="false"
 >
-  <s-ripple hover-color="transparent"></s-ripple>
+  <slot name="ripple">
+    <s-ripple hover-color="transparent"></s-ripple>
+  </slot>
   <div class="icon" part="icon">
     <slot name="icon">
       <s-icon></s-icon>

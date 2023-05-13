@@ -1,4 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssDuration } from "../../utils/getCssDuration";
@@ -28,29 +29,28 @@ const getCollapsedIconOffset = (
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_COLLAPSIBLE_DEPENDENCIES = getDependencyNameMap([
-  "s-button",
-]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
-export const DEFAULT_COLLAPSIBLE_ATTRIBUTES = getAttributeNameMap([
-  "collapsed",
-]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap(["collapsed"]);
 
 /**
  * Collapsibles can be used to collapse child buttons so that only their icon is visible.
  */
-export default class Collapsible extends SparkleElement {
+export default class Collapsible
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-collapsible";
 
-  static override dependencies = { ...DEFAULT_COLLAPSIBLE_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_COLLAPSIBLE_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_COLLAPSIBLE_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }

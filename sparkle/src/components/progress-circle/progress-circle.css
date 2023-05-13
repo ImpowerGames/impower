@@ -61,7 +61,6 @@
 .track,
 .indicator {
   fill: none;
-  stroke-width: var(--track-width);
   r: calc(var(--radius) - var(--track-width) / 2);
   cx: var(--radius);
   cy: var(--radius);
@@ -69,11 +68,13 @@
 
 .track {
   stroke: var(--background-color);
+  stroke-width: var(--track-width);
   transform-origin: 0% 0%;
 }
 
 .indicator {
   stroke: var(--color);
+  stroke-width: var(--indicator-width);
   stroke-linecap: round;
   transform-origin: 50% 50%;
 }

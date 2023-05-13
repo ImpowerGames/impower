@@ -1,4 +1,4 @@
-import { Pattern } from "../types/pattern";
+import { Graphic } from "../types/graphic";
 
 const REGEX_ENCODE_CHARS = /[(#)]/g;
 
@@ -7,8 +7,8 @@ const encodeSvg = (svg: string) =>
     encodeURIComponent(c)
   )}")`;
 
-export const generatePatternUrl = (
-  pattern: Pattern,
+export const generateGraphicUrl = (
+  pattern: Graphic,
   tiling = true,
   angle = 0,
   zoom = 1

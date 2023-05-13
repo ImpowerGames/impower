@@ -1,4 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { clamp } from "../../utils/clamp";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssProportion } from "../../utils/getCssProportion";
@@ -13,7 +15,7 @@ import html from "./split-layout.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_SPLIT_LAYOUT_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "split",
   "min-panel-width",
   "min-panel-height",
@@ -33,11 +35,14 @@ export const DEFAULT_SPLIT_LAYOUT_ATTRIBUTES = getAttributeNameMap([
 /**
  * Split Layouts display two panels side-by-side and allows the user to adjust their size relative to one another.
  */
-export default class SplitLayout extends SparkleElement {
+export default class SplitLayout
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-split-layout";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_SPLIT_LAYOUT_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -72,7 +77,7 @@ export default class SplitLayout extends SparkleElement {
   /**
    * The smallest width that the panels can be.
    */
-  get minPanelWidth(): string | null {
+  get minPanelWidth(): SizeName | string | null {
     return this.getStringAttribute(SplitLayout.attributes.minPanelWidth);
   }
   set minPanelWidth(value) {
@@ -82,7 +87,7 @@ export default class SplitLayout extends SparkleElement {
   /**
    * The smallest height that the panels can be.
    */
-  get minPanelHeight(): string | null {
+  get minPanelHeight(): SizeName | string | null {
     return this.getStringAttribute(SplitLayout.attributes.minPanelHeight);
   }
   set minPanelHeight(value) {
@@ -179,9 +184,9 @@ export default class SplitLayout extends SparkleElement {
   /**
    * How close the divider must be to a snap point until snapping occurs.
    *
-   * Defaults to `12`.
+   * Defaults to `12px`.
    * */
-  get snapThreshold(): string | null {
+  get snapThreshold(): SizeName | string | null {
     return this.getStringAttribute(SplitLayout.attributes.snapThreshold);
   }
   set snapThreshold(value) {
@@ -191,7 +196,7 @@ export default class SplitLayout extends SparkleElement {
   /**
    * The width of the divider.
    */
-  get dividerWidth(): string | null {
+  get dividerWidth(): SizeName | string | null {
     return this.getStringAttribute(SplitLayout.attributes.dividerWidth);
   }
   set dividerWidth(value) {
@@ -201,7 +206,7 @@ export default class SplitLayout extends SparkleElement {
   /**
    * The width of the area in which drag events will be detected.
    */
-  get dividerHitArea(): string | null {
+  get dividerHitArea(): SizeName | string | null {
     return this.getStringAttribute(SplitLayout.attributes.dividerHitArea);
   }
   set dividerHitArea(value) {
@@ -294,20 +299,20 @@ export default class SplitLayout extends SparkleElement {
       const dividerEl = this.dividerEl;
       if (dividerEl) {
         if (newValue != null) {
-          dividerEl.setAttribute("aria-valuenow", newValue);
+          dividerEl.setAttribute(SplitLayout.attributes.ariaValueNow, newValue);
         } else {
-          dividerEl.removeAttribute("aria-valuenow");
+          dividerEl.removeAttribute(SplitLayout.attributes.ariaValueNow);
         }
       }
       this.updateRootCssVariable(name, newValue);
     }
     if (name === SplitLayout.attributes.minPanelWidth) {
-      const size = getCssSize(newValue);
+      const size = getCssSize(newValue, "px");
       this.updateRootCssVariable(name, size);
       this._cachedMinPanelWidth = getUnitlessValue(size, 0);
     }
     if (name === SplitLayout.attributes.minPanelHeight) {
-      const size = getCssSize(newValue);
+      const size = getCssSize(newValue, "px");
       this.updateRootCssVariable(name, size);
       this._cachedMinPanelHeight = getUnitlessValue(size, 0);
     }
@@ -315,7 +320,8 @@ export default class SplitLayout extends SparkleElement {
       this._cachedSnaps = this.snap?.split(" ") || [];
     }
     if (name === SplitLayout.attributes.snapThreshold) {
-      this._cachedSnapThreshold = getUnitlessValue(this.snapThreshold, 12);
+      const size = getCssSize(newValue, "px");
+      this._cachedSnapThreshold = getUnitlessValue(size, 12);
     }
     if (name === SplitLayout.attributes.dividerWidth) {
       this.updateRootCssVariable(name, getCssSize(newValue));

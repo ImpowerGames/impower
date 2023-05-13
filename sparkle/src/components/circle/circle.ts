@@ -1,4 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssSize } from "../../utils/getCssSize";
 import css from "./circle.css";
@@ -6,16 +8,19 @@ import css from "./circle.css";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_CIRCLE_ATTRIBUTES = getAttributeNameMap(["size"]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap(["size"]);
 
 /**
  * Circles are basic surfaces for styling and laying out content.
  */
-export default class Circle extends SparkleElement {
+export default class Circle
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-circle";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_CIRCLE_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -32,7 +37,7 @@ export default class Circle extends SparkleElement {
   /**
    * The size of the circle.
    */
-  get size(): string | null {
+  get size(): SizeName | string | null {
     return this.getStringAttribute(Circle.attributes.size);
   }
   set size(value) {

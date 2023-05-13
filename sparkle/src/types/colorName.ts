@@ -1,4 +1,4 @@
-export type Color =
+export type ColorName =
   | "fg"
   | "bg"
   | "neutral"

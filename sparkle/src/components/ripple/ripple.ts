@@ -7,6 +7,8 @@
 
 import SparkleEvent from "../../core/SparkleEvent.js";
 import SparkleElement from "../../core/sparkle-element.js";
+import { ColorName } from "../../types/colorName.js";
+import { Properties } from "../../types/properties.js";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap.js";
 import { getCssColor } from "../../utils/getCssColor.js";
 import { getDimensions } from "../../utils/getDimensions.js";
@@ -83,7 +85,7 @@ const unhoveredEvent = new SparkleEvent("unhovered");
 const pressedEvent = new SparkleEvent("pressed");
 const unpressedEvent = new SparkleEvent("unpressed");
 
-export const DEFAULT_RIPPLE_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "hidden",
   "focus-color",
   "hover-color",
@@ -93,11 +95,14 @@ export const DEFAULT_RIPPLE_ATTRIBUTES = getAttributeNameMap([
 /**
  * A ripple component.
  */
-export default class Ripple extends SparkleElement {
+export default class Ripple
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-ripple";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_RIPPLE_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -160,6 +165,36 @@ export default class Ripple extends SparkleElement {
   private state = State.INACTIVE;
   private rippleStartEvent?: PointerEvent;
   private checkBoundsAfterContextMenu = false;
+
+  /**
+   * The color when the ripple is focused.
+   */
+  get focusColor(): ColorName | string | null {
+    return this.getStringAttribute(Ripple.attributes.focusColor);
+  }
+  set focusColor(value) {
+    this.setStringAttribute(Ripple.attributes.focusColor, value);
+  }
+
+  /**
+   * The color when the ripple is hovered.
+   */
+  get hoverColor(): ColorName | string | null {
+    return this.getStringAttribute(Ripple.attributes.hoverColor);
+  }
+  set hoverColor(value) {
+    this.setStringAttribute(Ripple.attributes.hoverColor, value);
+  }
+
+  /**
+   * The color when the ripple is pressed.
+   */
+  get pressColor(): ColorName | string | null {
+    return this.getStringAttribute(Ripple.attributes.pressColor);
+  }
+  set pressColor(value) {
+    this.setStringAttribute(Ripple.attributes.pressColor, value);
+  }
 
   protected override onAttributeChanged(
     name: string,

@@ -1,4 +1,7 @@
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
+import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getCssIcon } from "../../utils/getCssIcon";
 import { getCssMask } from "../../utils/getCssMask";
@@ -11,9 +14,9 @@ import html from "./tab.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-export const DEFAULT_TAB_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
-export const DEFAULT_TAB_ATTRIBUTES = getAttributeNameMap([
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "active",
   "value",
   "disabled",
@@ -24,24 +27,27 @@ export const DEFAULT_TAB_ATTRIBUTES = getAttributeNameMap([
 /**
  * Tabs are used to represent and activate panels.
  */
-export default class Tab extends SparkleElement {
+export default class Tab
+  extends SparkleElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override tagName = "s-tab";
 
-  static override dependencies = { ...DEFAULT_TAB_DEPENDENCIES };
+  static override dependencies = { ...DEFAULT_DEPENDENCIES };
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_TAB_ATTRIBUTES };
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_TAB_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
   }
 
   override get html(): string {
-    return Tab.augment(html, DEFAULT_TAB_DEPENDENCIES);
+    return Tab.augment(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles(): CSSStyleSheet[] {
@@ -71,11 +77,21 @@ export default class Tab extends SparkleElement {
   /**
    * The icon to display next to the label.
    */
-  get icon(): string | null {
+  get icon(): IconName | string | null {
     return this.getStringAttribute(Tab.attributes.icon);
   }
   set icon(value) {
     this.setStringAttribute(Tab.attributes.icon, value);
+  }
+
+  /**
+   * The spacing between the label and icon.
+   */
+  get spacing(): SizeName | string | null {
+    return this.getStringAttribute(Tab.attributes.spacing);
+  }
+  set spacing(value) {
+    this.setStringAttribute(Tab.attributes.spacing, value);
   }
 
   get ripple(): Ripple | null {
@@ -92,9 +108,12 @@ export default class Tab extends SparkleElement {
     newValue: string
   ): void {
     if (name === Tab.attributes.disabled) {
-      this.updateRootAttribute("tabindex", newValue != null ? "-1" : "0");
       this.updateRootAttribute(
-        "aria-disabled",
+        Tab.attributes.tabIndex,
+        newValue != null ? "-1" : "0"
+      );
+      this.updateRootAttribute(
+        Tab.attributes.ariaDisabled,
         newValue != null ? "true" : "false"
       );
     }
@@ -130,8 +149,11 @@ export default class Tab extends SparkleElement {
     }
     if (name === Tab.attributes.active) {
       const active = newValue != null;
-      this.updateRootAttribute("aria-selected", active ? "true" : "false");
-      this.updateRootAttribute("tabindex", active ? "0" : "-1");
+      this.updateRootAttribute(
+        Tab.attributes.ariaSelected,
+        active ? "true" : "false"
+      );
+      this.updateRootAttribute(Tab.attributes.tabIndex, active ? "0" : "-1");
       const icon = this.icon;
       if (icon != null) {
         if (active) {
@@ -151,8 +173,11 @@ export default class Tab extends SparkleElement {
       iconEl.hidden = icon == null;
     }
     const active = this.active;
-    this.updateRootAttribute("aria-selected", active ? "true" : "false");
-    this.updateRootAttribute("tabindex", active ? "0" : "-1");
+    this.updateRootAttribute(
+      Tab.attributes.ariaSelected,
+      active ? "true" : "false"
+    );
+    this.updateRootAttribute(Tab.attributes.tabIndex, active ? "0" : "-1");
   }
 
   protected override onDisconnected(): void {
