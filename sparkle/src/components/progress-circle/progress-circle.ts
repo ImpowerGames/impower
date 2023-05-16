@@ -1,10 +1,9 @@
+import { getCssProportion } from "../../../../sparkle-transformer/src/utils/getCssProportion";
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssDuration } from "../../utils/getCssDuration";
-import { getCssProportion } from "../../utils/getCssProportion";
-import { getCssSize } from "../../utils/getCssSize";
 import css from "./progress-circle.css";
 import html from "./progress-circle.html";
 
@@ -60,11 +59,8 @@ export default class ProgressCircle
   /**
    * The size of the circle.
    */
-  get size(): SizeName | string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.size);
-  }
-  set size(value) {
-    this.setStringAttribute(ProgressCircle.attributes.size, value);
+  override get size(): SizeName | string | null {
+    return super.size;
   }
 
   /**
@@ -85,16 +81,6 @@ export default class ProgressCircle
   }
   set indicatorWidth(value) {
     this.setStringAttribute(ProgressCircle.attributes.indicatorWidth, value);
-  }
-
-  /**
-   * The speed of the indeterminate animation.
-   */
-  get speed(): string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.speed);
-  }
-  set speed(value) {
-    this.setStringAttribute(ProgressCircle.attributes.speed, value);
   }
 
   get indicatorEl(): HTMLElement | null {
@@ -127,15 +113,6 @@ export default class ProgressCircle
       }
     }
     if (name === ProgressCircle.attributes.trackWidth) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
-    if (name === ProgressCircle.attributes.indicatorWidth) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
-    if (name === ProgressCircle.attributes.speed) {
-      this.updateRootCssVariable(name, getCssDuration(newValue));
-    }
-    if (name === ProgressCircle.attributes.size) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }

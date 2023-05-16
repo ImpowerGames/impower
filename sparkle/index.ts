@@ -21,18 +21,17 @@ import Toast from "./src/components/toast/toast";
 import Tooltip from "./src/components/tooltip/tooltip";
 import SparkleElement from "./src/core/sparkle-element";
 import initialize from "./src/initialize/initialize";
-import animationsCSS from "./src/themes/animations.css";
-import darkCSS from "./src/themes/dark.css";
-import easingsCSS from "./src/themes/easings.css";
-import fontsCSS from "./src/themes/fonts.css";
-import globalCSS from "./src/themes/global.css";
-import gradientsCSS from "./src/themes/gradients.css";
-import iconsCSS from "./src/themes/icons.css";
-import keyframesCSS from "./src/themes/keyframes.css";
-import lightCSS from "./src/themes/light.css";
-import masksCSS from "./src/themes/masks.css";
-import patternsCSS from "./src/themes/patterns.css";
-import shadowsCSS from "./src/themes/shadows.css";
+import { ANIMATIONS_CSS } from "./src/styles/animations/animations";
+import { DARK_CSS } from "./src/styles/dark/dark";
+import { EASINGS_CSS } from "./src/styles/easings/easings";
+import { GLOBAL_CSS } from "./src/styles/global/global";
+import { GRADIENTS_CSS } from "./src/styles/gradients/gradients";
+import { ICONS_CSS } from "./src/styles/icons/icons";
+import { KEYFRAMES_CSS } from "./src/styles/keyframes/keyframes";
+import { LIGHT_CSS } from "./src/styles/light/light";
+import { MASKS_CSS } from "./src/styles/masks/masks";
+import { PATTERNS_CSS } from "./src/styles/patterns/patterns";
+import { SHADOWS_CSS } from "./src/styles/shadows/shadows";
 import { SparkleElementTag } from "./src/types/sparkleElementTag";
 import { SparkleStyleType } from "./src/types/sparkleStyleType";
 
@@ -63,44 +62,18 @@ export const DEFAULT_SPARKLE_CONSTRUCTORS: Record<
   "s-breakpoint-observer": BreakpointObserver,
 };
 
-const globalSheet = new CSSStyleSheet();
-globalSheet.replaceSync(globalCSS);
-const lightSheet = new CSSStyleSheet();
-lightSheet.replaceSync(lightCSS);
-const darkSheet = new CSSStyleSheet();
-darkSheet.replaceSync(darkCSS);
-const fontsSheet = new CSSStyleSheet();
-fontsSheet.replaceSync(fontsCSS);
-const iconsSheet = new CSSStyleSheet();
-iconsSheet.replaceSync(iconsCSS);
-const shadowsSheet = new CSSStyleSheet();
-shadowsSheet.replaceSync(shadowsCSS);
-const gradientsSheet = new CSSStyleSheet();
-gradientsSheet.replaceSync(gradientsCSS);
-const masksSheet = new CSSStyleSheet();
-masksSheet.replaceSync(masksCSS);
-const easingsSheet = new CSSStyleSheet();
-easingsSheet.replaceSync(easingsCSS);
-const keyframesSheet = new CSSStyleSheet();
-keyframesSheet.replaceSync(keyframesCSS);
-const animationsSheet = new CSSStyleSheet();
-animationsSheet.replaceSync(animationsCSS);
-const patternsSheet = new CSSStyleSheet();
-patternsSheet.replaceSync(patternsCSS);
-
 export const DEFAULT_SPARKLE_STYLES: Record<SparkleStyleType, CSSStyleSheet> = {
-  global: globalSheet,
-  light: lightSheet,
-  dark: darkSheet,
-  fonts: fontsSheet,
-  icons: iconsSheet,
-  shadows: shadowsSheet,
-  gradients: gradientsSheet,
-  masks: masksSheet,
-  easings: easingsSheet,
-  keyframes: keyframesSheet,
-  animations: animationsSheet,
-  patterns: patternsSheet,
+  global: GLOBAL_CSS,
+  light: LIGHT_CSS,
+  dark: DARK_CSS,
+  icons: ICONS_CSS,
+  shadows: SHADOWS_CSS,
+  gradients: GRADIENTS_CSS,
+  masks: MASKS_CSS,
+  easings: EASINGS_CSS,
+  keyframes: KEYFRAMES_CSS,
+  animations: ANIMATIONS_CSS,
+  patterns: PATTERNS_CSS,
 };
 
 export default abstract class Sparkle {

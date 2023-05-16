@@ -1,16 +1,18 @@
+import { STYLE_ALIASES } from "../../../sparkle-transformer/src/constants/STYLE_ALIASES";
+import { STYLE_TRANSFORMERS } from "../../../sparkle-transformer/src/constants/STYLE_TRANSFORMERS";
+import { getCssTextStroke } from "../../../sparkle-transformer/src/utils/getCssTextStroke";
 import { ARIA_ATTRIBUTE_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
-import { STYLE_ALIASES } from "../constants/STYLE_ALIASES";
-import { STYLE_TRANSFORMERS } from "../constants/STYLE_TRANSFORMERS";
 import Styles from "../helpers/styles";
+import Transformers from "../helpers/transformers";
+import { CORE_CSS } from "../styles/core/core";
+import { NORMALIZE_CSS } from "../styles/normalize/normalize";
 import { ColorName } from "../types/colorName";
+import { IconName } from "../types/iconName";
 import { Properties } from "../types/properties";
 import { SizeName } from "../types/sizeName";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { getAttributeNameMap } from "../utils/getAttributeNameMap";
-import { getCssTextSizeHeight } from "../utils/getCssTextSizeHeight";
-import { getCssTextStroke } from "../utils/getCssTextStroke";
-import { getCssTextWhiteSpace } from "../utils/getCssTextWhiteSpace";
 import { getKeys } from "../utils/getKeys";
 import { getUnitlessValue } from "../utils/getUnitlessValue";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
@@ -20,12 +22,6 @@ import { navNextKey } from "../utils/navNextKey";
 import { navPrevKey } from "../utils/navPrevKey";
 import { navStartKey } from "../utils/navStartKey";
 import { updateAttribute } from "../utils/updateAttribute";
-import { NORMALIZE_STYLES } from "./normalize";
-import css from "./sparkle-element.css";
-import html from "./sparkle-element.html";
-
-const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 export default class SparkleElement
   extends HTMLElement
@@ -82,7 +78,7 @@ export default class SparkleElement
   }
 
   get html(): string {
-    return html;
+    return `<div class="root" part="root"><slot class="content"></slot></div>`;
   }
 
   get styles(): CSSStyleSheet[] {
@@ -91,14 +87,6 @@ export default class SparkleElement
 
   static get observedAttributes() {
     return Object.values(this.attributes);
-  }
-
-  get transformers() {
-    return STYLE_TRANSFORMERS;
-  }
-
-  get aliases() {
-    return STYLE_ALIASES;
   }
 
   /**
@@ -1908,6 +1896,46 @@ export default class SparkleElement
   }
 
   /**
+   * The speed of the animation.
+   */
+  get speed(): string | null {
+    return this.getStringAttribute(SparkleElement.attributes.speed);
+  }
+  set speed(value) {
+    this.setStringAttribute(SparkleElement.attributes.speed, value);
+  }
+
+  /**
+   * The name of the icon to display.
+   */
+  get icon(): IconName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(SparkleElement.attributes.icon, value);
+  }
+
+  /**
+   * The size of the element.
+   */
+  get size(): SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.size);
+  }
+  set size(value) {
+    this.setStringAttribute(SparkleElement.attributes.size, value);
+  }
+
+  /**
+   * The spacing between the element's content.
+   */
+  get spacing(): SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.spacing);
+  }
+  set spacing(value) {
+    this.setStringAttribute(SparkleElement.attributes.spacing, value);
+  }
+
+  /**
    * Allows keyboard navigation between the children of this element.
    */
   get navigation(): "" | "keyboard" | string | null {
@@ -1934,16 +1962,16 @@ export default class SparkleElement
     super();
     const shadowRoot = this.attachShadow(init);
     shadowRoot.innerHTML = this.html;
-    shadowRoot.adoptedStyleSheets = [NORMALIZE_STYLES];
+    shadowRoot.adoptedStyleSheets = [NORMALIZE_CSS];
     const fonts = Styles.get("fonts");
-    const keyframes = Styles.get("keyframes");
     if (fonts) {
       shadowRoot.adoptedStyleSheets.push(fonts);
     }
+    const keyframes = Styles.get("keyframes");
     if (keyframes) {
       shadowRoot.adoptedStyleSheets.push(keyframes);
     }
-    shadowRoot.adoptedStyleSheets.push(styles);
+    shadowRoot.adoptedStyleSheets.push(CORE_CSS);
     shadowRoot.adoptedStyleSheets.push(...this.styles);
   }
 
@@ -2043,7 +2071,7 @@ export default class SparkleElement
     newValue: string
   ): void {
     const className: string =
-      this.aliases[name as keyof typeof STYLE_ALIASES] ?? name;
+      STYLE_ALIASES[name as keyof typeof STYLE_ALIASES] ?? name;
     if (
       className === "role" ||
       className === "tabindex" ||
@@ -2053,53 +2081,15 @@ export default class SparkleElement
       this.updateRootAttribute(className, newValue);
     } else {
       const transformer =
-        this.transformers[className as keyof typeof STYLE_TRANSFORMERS];
+        Transformers.all()?.[className as keyof typeof STYLE_TRANSFORMERS];
       if (transformer) {
         this.updateStyleAttribute(className, newValue, transformer);
-        if (className === SparkleElement.attributes.textSize) {
-          // Setting text-size should also set line-height
-          this.updateStyleAttribute(
-            "text-size--line-height",
-            newValue,
-            getCssTextSizeHeight
-          );
-        }
-        if (className === SparkleElement.attributes.textOverflow) {
-          // Setting text-overflow should also set white-space
-          this.updateStyleAttribute(
-            "text-wrap",
-            newValue,
-            getCssTextWhiteSpace
-          );
-        }
-        if (className === SparkleElement.attributes.selectable) {
-          // Setting selectable should also set cursor
-          if (newValue === "auto") {
-            this.updateStyleAttribute("selectable--cursor", "text");
-          } else {
-            this.updateStyleAttribute("selectable--cursor", null);
-          }
-        }
-        if (className === SparkleElement.attributes.interactable) {
-          // Setting interactable should also set cursor
-          if (newValue === "auto") {
-            this.updateStyleAttribute("interactable--cursor", "pointer");
-          } else {
-            this.updateStyleAttribute("interactable--cursor", null);
-          }
-        }
-        if (className === SparkleElement.attributes.overflowX) {
-          this.updateRootClass("overflow-x--scroll", newValue === "scroll");
-        }
-        if (className === SparkleElement.attributes.overflowY) {
-          this.updateRootClass("overflow-y--scroll", newValue === "scroll");
-        }
         if (
           className === SparkleElement.attributes.textStrokeWidth ||
           className === SparkleElement.attributes.textStrokeColor
         ) {
           const width = this.textStrokeWidth || "1";
-          this.updateRootCssVariable("--text-stroke", getCssTextStroke(width));
+          this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
         }
       }
     }
@@ -2301,6 +2291,11 @@ export default class SparkleElement
     }
   }
 
+  updateRootCssVariable(name: string, value: string | null) {
+    const varName = name.startsWith("--") ? name : `--${name}`;
+    this.root.style.setProperty(varName, value ?? null);
+  }
+
   updateRootClass(name: string, active: boolean | string | null): boolean {
     if (typeof active === "boolean") {
       if (active) {
@@ -2325,11 +2320,6 @@ export default class SparkleElement
     updateAttribute<T>(this.root, name, value);
   }
 
-  updateRootCssVariable(name: string, value: string | null) {
-    const varName = name.startsWith("--") ? name : `--${name}`;
-    this.root.style.setProperty(varName, value ?? null);
-  }
-
   private updateStyleAttribute(
     name: string,
     newValue: string | null,
@@ -2338,8 +2328,7 @@ export default class SparkleElement
     const varName = `--${name}`;
     const formattedValue =
       valueFormatter && newValue != null ? valueFormatter(newValue) : newValue;
-    const classActive = this.updateRootClass(name, newValue);
-    if (classActive && formattedValue) {
+    if (formattedValue) {
       this.updateRootCssVariable(varName, formattedValue);
     } else {
       this.updateRootCssVariable(varName, null);

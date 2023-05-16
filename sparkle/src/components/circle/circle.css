@@ -14,7 +14,7 @@
   --height: var(--size);
 }
 
-.root {
+:host > .root {
   display: flex;
   flex-direction: var(--child-layout);
   justify-content: var(--child-justify);

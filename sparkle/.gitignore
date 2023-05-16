@@ -1,3 +1,6 @@
 out
 dist
+lib
+bundles
 node_modules
+custom-elements.json

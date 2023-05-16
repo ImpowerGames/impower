@@ -1,11 +1,9 @@
+import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
+import { getCssMask } from "../../../../sparkle-transformer/src/utils/getCssMask";
 import SparkleElement from "../../core/sparkle-element";
-import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssIcon } from "../../utils/getCssIcon";
-import { getCssMask } from "../../utils/getCssMask";
-import { getCssSize } from "../../utils/getCssSize";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import type Ripple from "../ripple/ripple";
 import css from "./tab.css";
@@ -75,23 +73,10 @@ export default class Tab
   }
 
   /**
-   * The icon to display next to the label.
-   */
-  get icon(): IconName | string | null {
-    return this.getStringAttribute(Tab.attributes.icon);
-  }
-  set icon(value) {
-    this.setStringAttribute(Tab.attributes.icon, value);
-  }
-
-  /**
    * The spacing between the label and icon.
    */
-  get spacing(): SizeName | string | null {
-    return this.getStringAttribute(Tab.attributes.spacing);
-  }
-  set spacing(value) {
-    this.setStringAttribute(Tab.attributes.spacing, value);
+  override get spacing(): SizeName | string | null {
+    return super.spacing;
   }
 
   get ripple(): Ripple | null {
@@ -133,18 +118,10 @@ export default class Tab
         }
       }
     }
-    if (name === Tab.attributes.spacing) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
     if (name === Tab.attributes.icon) {
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = name == null;
-      }
-      if (this.active) {
-        this.updateRootCssVariable(name, getCssIcon(newValue, "-fill"));
-      } else {
-        this.updateRootCssVariable(name, getCssIcon(newValue));
       }
     }
     if (name === Tab.attributes.active) {
@@ -154,12 +131,14 @@ export default class Tab
         active ? "true" : "false"
       );
       this.updateRootAttribute(Tab.attributes.tabIndex, active ? "0" : "-1");
+    }
+    if (name === Tab.attributes.icon || name === Tab.attributes.active) {
       const icon = this.icon;
       if (icon != null) {
-        if (active) {
-          this.updateRootCssVariable("--icon", getCssIcon(icon, "-fill"));
+        if (this.active) {
+          this.updateRootCssVariable("icon", getCssIcon(icon, "-fill"));
         } else {
-          this.updateRootCssVariable("--icon", getCssIcon(icon));
+          this.updateRootCssVariable("icon", getCssIcon(icon));
         }
       }
     }

@@ -22,7 +22,7 @@
   --corner: 4px;
 }
 
-:host([size="xs"]) .root {
+:host([size="xs"]) > .root {
   --height: 24px;
   --height-min: 24px;
   --text-size: var(--s-text-2xs-font-size);
@@ -30,7 +30,7 @@
   --padding-lr: 8px;
 }
 
-:host([size="sm"]) .root {
+:host([size="sm"]) > .root {
   --height: 32px;
   --height-min: 32px;
   --text-size: var(--s-text-sm-font-size);
@@ -38,8 +38,8 @@
   --padding-lr: 10px;
 }
 
-.root,
-:host([size="md"]) .root {
+:host,
+:host([size="md"]) > .root {
   --height: 40px;
   --height-min: 40px;
   --text-size: var(--s-text-sm-font-size);
@@ -47,7 +47,7 @@
   --padding-lr: 16px;
 }
 
-:host([size="lg"]) .root {
+:host([size="lg"]) > .root {
   --height: 48px;
   --height-min: 48px;
   --text-size: var(--s-text-md-font-size);
@@ -55,7 +55,7 @@
   --padding-lr: 20px;
 }
 
-.root {
+:host > .root {
   cursor: pointer;
   text-decoration: none;
   display: flex;
@@ -76,50 +76,46 @@
   white-space: var(--text-wrap);
   transition-property: var(--transition-property);
   transition-duration: var(--duration);
-  border-start-start-radius: var(--border-start-start-radius);
-  border-start-end-radius: var(--border-start-end-radius);
-  border-end-start-radius: var(--border-end-start-radius);
-  border-end-end-radius: var(--border-end-end-radius);
-  padding-block-start: var(--padding-block-start);
-  padding-block-end: var(--padding-block-end);
-  padding-inline-start: var(--padding-inline-start);
-  padding-inline-end: var(--padding-inline-end);
+  border-color: var(--border-color);
+  border-width: var(--border-width);
+  border-radius: var(--corner);
+  padding-inline: var(--padding-lr);
 }
 
-:host([disabled]) .root {
+:host([disabled]) > .root {
   cursor: default;
   opacity: 0.5;
 }
 
-.label {
-  display: flex;
-  flex-direction: var(--child-layout);
-  align-items: var(--child-align);
-  justify-content: var(--child-justify);
-  z-index: 1;
-  transition-duration: var(--duration);
+:host([disabled]) > .ripple {
+  display: none;
 }
 
 /* Filled */
-.root,
-:host([variant="filled"]) .root {
+:host,
+:host([variant="filled"]) > .root {
   --shadow: var(--s-shadow-drop-1);
 }
 @media (hover: hover) and (pointer: fine) {
-  .root:hover,
-  :host([variant="filled"]) .root:hover {
+  :host > .root:hover,
+  :host([variant="filled"]) > .root:hover {
     --shadow: var(--s-shadow-drop-2);
   }
 }
-.root:active,
-:host([variant="filled"]) .root:active {
+:host > .root:active,
+:host([variant="filled"]) > .root:active {
   --shadow: var(--s-shadow-drop-0);
 }
-.root,
-:host([variant="filled"]) .root {
+:host,
+:host([variant="filled"]) {
   --text-weight: 500;
+}
+:host,
+:host([variant="filled"]) > .root {
   --background-color: var(--color);
-
+}
+:host > .root,
+:host([variant="filled"]) > .root {
   color: var(--text-color);
   background-color: var(--background-color);
   font-weight: var(--text-weight);
@@ -127,28 +123,25 @@
 }
 
 /* Tonal */
-:host([variant="tonal"]) .root {
+:host([variant="tonal"]) {
   --text-color: white;
   --text-weight: 400;
   --shadow: none;
+}
+:host([variant="tonal"]) > .root {
   --background-color: var(--color);
   --border-color: var(--color);
-
+}
+:host([variant="tonal"]) > .root {
   color: var(--text-color);
   font-weight: var(--text-weight);
   filter: var(--shadow);
   background-color: var(--background-color);
   border-style: solid;
-  border-block-start-color: var(--border-block-start-color);
-  border-block-end-color: var(--border-block-end-color);
-  border-inline-start-color: var(--border-inline-start-color);
-  border-inline-end-color: var(--border-inline-end-color);
-  border-block-start-width: var(--border-block-start-width);
-  border-block-end-width: var(--border-block-end-width);
-  border-inline-start-width: var(--border-inline-start-width);
-  border-inline-end-width: var(--border-inline-end-width);
+  border-color: var(--border-color);
+  border-width: var(--border-width);
 }
-:host([variant="tonal"]) .root::after {
+:host([variant="tonal"]) > .root::after {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -158,48 +151,48 @@
 }
 
 /* Outlined */
-:host([variant="outlined"]) .root {
+:host([variant="outlined"]) {
   --text-weight: 500;
   --shadow: none;
   --background-color: transparent;
+}
+:host([variant="outlined"]) > .root {
   --border-color: var(--color);
   --text-color: var(--color);
-
+}
+:host([variant="outlined"]) > .root {
   font-weight: var(--text-weight);
   color: var(--text-color);
   filter: var(--shadow);
   background-color: var(--background-color);
   border-style: solid;
-  border-block-start-color: var(--border-block-start-color);
-  border-block-end-color: var(--border-block-end-color);
-  border-inline-start-color: var(--border-inline-start-color);
-  border-inline-end-color: var(--border-inline-end-color);
-  border-block-start-width: var(--border-block-start-width);
-  border-block-end-width: var(--border-block-end-width);
-  border-inline-start-width: var(--border-inline-start-width);
-  border-inline-end-width: var(--border-inline-end-width);
+  border-color: var(--border-color);
+  border-width: var(--border-width);
 }
 @media (hover: hover) and (pointer: fine) {
-  :host([variant="outlined"]:not([disabled])) .root:hover,
-  :host([variant="outlined"][checked]:not([disabled])) .root {
+  :host([variant="outlined"]:not([disabled])) > .root:hover,
+  :host([variant="outlined"][checked]:not([disabled])) > .root {
     --text-color: var(--s-color-neutral-0);
     background-color: var(--color);
     color: var(--text-color);
   }
 }
-:host([variant="outlined"]:not([disabled])) .root:active {
+:host([variant="outlined"]:not([disabled])) > .root:active {
   --text-color: var(--s-color-neutral-0);
   background-color: var(--color);
   color: var(--text-color);
 }
 
 /* Text */
-:host([variant="text"]) .root {
-  --text-color: var(--color);
+:host([variant="text"]) {
   --text-weight: 500;
   --shadow: none;
   --background-color: transparent;
-
+}
+:host([variant="text"]) > .root {
+  --text-color: var(--color);
+}
+:host([variant="text"]) > .root {
   font-weight: var(--text-weight);
   color: var(--text-color);
   filter: var(--shadow);
@@ -207,14 +200,17 @@
 }
 
 /* Icon */
-:host([variant="icon"]) .root {
-  --text-color: var(--color);
+:host([variant="icon"]) {
   --shadow: none;
   --background-color: transparent;
   --aspect: 1;
   --corner: 50%;
   --padding: 0;
-
+}
+:host([variant="icon"]) > .root {
+  --text-color: var(--color);
+}
+:host([variant="icon"]) > .root {
   aspect-ratio: var(--aspect);
   color: var(--text-color);
   filter: var(--shadow);
@@ -222,26 +218,56 @@
 }
 
 /* Loading */
-.spinner {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.label,
-.icon {
-  visibility: visible;
-}
-:host([loading]) .label,
-:host([loading]) .icon {
-  visibility: hidden;
-}
-:host([loading]) .root {
+
+:host([loading]) > .root {
   position: relative;
   cursor: default;
 }
 
-:host([icon]) .label {
+:host > .root > .spinner {
+  display: none;
+  position: absolute;
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+}
+:host([loading]) > .root > .spinner {
+  display: flex;
+}
+
+:host > .root > .spinner > slot > * {
+  --position: absolute;
+  --track-width: 2px;
+  --indicator-width: 2px;
+}
+:host > .root > .spinner > slot > *,
+:host([variant="filled"]) > .root > .spinner > slot > * {
+  --indicator-width: 4px;
+}
+
+:host > .root > .label {
+  display: flex;
+  visibility: visible;
+  flex-direction: var(--child-layout);
+  align-items: var(--child-align);
+  justify-content: var(--child-justify);
+  z-index: 1;
+  transition-duration: var(--duration);
+}
+:host([loading]) > .root > .label {
+  visibility: hidden;
+}
+:host([icon]) > .root > .label {
   padding-left: var(--spacing);
+}
+
+:host > .root > .icon {
+  display: none;
+  visibility: visible;
+}
+:host([loading]) > .root > .icon {
+  visibility: hidden;
+}
+:host([icon]) > .root > .icon {
+  display: flex;
 }

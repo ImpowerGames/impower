@@ -1,3 +1,4 @@
+import { getCssDurationMS } from "../../../../sparkle-transformer/src/utils/getCssDurationMS";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import Animations from "../../helpers/animations";
@@ -5,7 +6,6 @@ import { Properties } from "../../types/properties";
 import { animateTo, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssDurationMS } from "../../utils/getCssDurationMS";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import css from "./toast.css";
 import html from "./toast.html";

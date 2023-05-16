@@ -10,33 +10,33 @@
   --divider-color: var(--s-color-divider);
   --divider-text-color: var(--s-color-neutral-95);
   --focus-text-color: var(--s-color-neutral-0);
-  --divider-hit-area: 16px;
+  --divider-hit-size: 16px;
 }
 /* Make hit area smaller for pointers that can be more precise */
 @media (hover: hover) and (pointer: fine) {
   :host {
-    --divider-hit-area: 4px;
+    --divider-hit-size: 4px;
   }
 }
 
-.root {
+:host > .root {
   pointer-events: inherit;
   display: flex;
   flex-direction: row;
   flex-grow: var(--grow);
   flex-shrink: var(--shrink);
 }
-:host(:not(vertical)[flipped="flip"]) .root {
+:host(:not(vertical)[flipped="flip"]) > .root {
   flex-direction: column;
 }
-:host(:not(vertical)[flipped="flip-reverse"]) .root {
+:host(:not(vertical)[flipped="flip-reverse"]) > .root {
   flex-direction: column-reverse;
 }
-:host(:is([vertical])[flipped="flip-reverse"]) .root {
+:host(:is([vertical])[flipped="flip-reverse"]) > .root {
   flex-direction: row-reverse;
 }
 
-.divider {
+:host > .root > .divider {
   pointer-events: var(--interactable);
   flex: 0 0 var(--divider-width);
   background-color: var(--divider-color);
@@ -51,16 +51,16 @@
   transition-duration: 150ms;
   box-shadow: 0 0 0 1px transparent;
 }
-:host(:not([disabled])) .divider {
+:host(:not([disabled])) > .root > .divider {
   cursor: col-resize;
 }
-:host(:not([disabled]):is([vertical], [flipped])) .divider {
+:host(:not([disabled]):is([vertical], [flipped])) > .root > .divider {
   cursor: row-resize;
 }
-.divider:focus {
+:host > .root > .divider:focus {
   outline: none;
 }
-:host(:not([disabled])) .divider:focus-visible {
+:host(:not([disabled])) > .root > .divider:focus-visible {
   background-color: var(--s-color-focus);
   color: var(--focus-text-color);
   outline: var(--s-color-focus) var(--s-focus-ring-style)
@@ -68,69 +68,71 @@
   outline-offset: var(--divider-width);
 }
 @media (hover: hover) and (pointer: fine) {
-  :host(:not([disabled])) .divider:hover,
-  :host(:not([disabled])) .divider:active {
+  :host(:not([disabled])) > .root > .divider:hover,
+  :host(:not([disabled])) > .root > .divider:active {
     box-shadow: 0 0 0 1px var(--divider-color);
   }
 }
 
-.divider::after {
+:host > .root > .divider::after {
   content: "";
   position: absolute;
   display: flex;
   flex-direction: row;
-  width: var(--divider-hit-area);
+  width: var(--divider-hit-size);
   height: 100%;
   top: auto;
-  left: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
+  left: calc(var(--divider-hit-size) / -2 + var(--divider-width) / 2);
 }
-:host(:is([vertical], [flipped])) .divider::after {
+:host(:is([vertical], [flipped])) > .root > .divider::after {
   content: "";
   position: absolute;
   display: block;
   flex-direction: column;
   width: 100%;
-  height: var(--divider-hit-area);
-  top: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
+  height: var(--divider-hit-size);
+  top: calc(var(--divider-hit-size) / -2 + var(--divider-width) / 2);
   left: auto;
 }
 
-.start-panel {
+:host > .root > .start-panel {
   position: relative;
   display: block;
   overflow: hidden;
 }
-:host(:not([vertical], [flipped])) .start-panel {
+:host(:not([vertical], [flipped])) > .root > .start-panel {
   min-width: var(--min-panel-width);
   max-width: calc(100% - var(--min-panel-width));
   width: var(--split);
   height: 100%;
 }
 :host(:not([vertical], [flipped]):is([collapsed="end"], [solo="start"]))
-  .start-panel {
+  > .root
+  > .start-panel {
   width: 100%;
   max-width: none;
 }
-:host(:is([vertical], [flipped])) .start-panel {
+:host(:is([vertical], [flipped])) > .root > .start-panel {
   min-height: var(--min-panel-height);
   max-height: calc(100% - var(--min-panel-height));
   width: 100%;
   height: var(--split);
 }
 :host(:is([vertical], [flipped]):is([collapsed="end"], [solo="start"]))
-  .start-panel {
+  > .root
+  > .start-panel {
   max-height: none;
 }
 
-.end-panel {
+:host > .root > .end-panel {
   position: relative;
   display: block;
   overflow: hidden;
   flex: 1;
 }
-:host(:not([vertical], [flipped])) .end-panel {
+:host(:not([vertical], [flipped])) > .root > .end-panel {
   min-width: 0;
 }
-:host(:is([vertical], [flipped])) .end-panel {
+:host(:is([vertical], [flipped])) > .root > .end-panel {
   min-height: 0;
 }

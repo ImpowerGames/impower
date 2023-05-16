@@ -1,9 +1,10 @@
+import { getCssColor } from "../../../../sparkle-transformer/src/utils/getCssColor";
 import SparkleElement from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssColor } from "../../utils/getCssColor";
 import css from "./skeleton.css";
+import html from "./skeleton.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -28,6 +29,10 @@ export default class Skeleton
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
+  }
+
+  override get html(): string {
+    return html;
   }
 
   override get styles(): CSSStyleSheet[] {

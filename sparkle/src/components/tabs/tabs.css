@@ -9,16 +9,16 @@
   --track-width: 2px;
 }
 
-.root {
+:host > .root {
   display: flex;
   flex-direction: var(--child-layout);
   position: var(--position);
 }
-:host([vertical]) .root {
+:host([vertical]) > .root {
   flex-direction: row;
 }
 
-.nav {
+:host > .root > .nav {
   display: flex;
   flex-direction: row;
   overflow-x: visible;
@@ -26,19 +26,19 @@
   /* Hide scrollbar in Firefox */
   scrollbar-width: none;
 }
-.nav::-webkit-scrollbar {
+:host > .root > .nav::-webkit-scrollbar {
   /* Hide scrollbar in chrome/safari */
   width: 0;
   height: 0;
 }
-:host([indicator="before"]) .nav {
+:host([indicator="before"]) > .root > .nav {
   order: 1;
 }
-:host([vertical]) .nav {
+:host([vertical]) > .root > .nav {
   flex-direction: column;
 }
 
-.indicator {
+:host > .root > .indicator {
   background-color: var(--color);
   transition-duration: var(--duration);
   transition-timing-function: var(--ease, ease);
@@ -47,7 +47,7 @@
   height: var(--size, 2px);
   width: 1px;
 }
-:host([vertical]) .indicator {
+:host([vertical]) > .root > .indicator {
   transform-origin: top;
   height: 1px;
   width: var(--size, 2px);

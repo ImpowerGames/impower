@@ -1,5 +1,6 @@
 import fs from "fs";
 
+const IN_PATH = "./custom-elements.json";
 const OUT_PATH = "vscode.html-custom-data.json";
 const STRING_LITERAL_REGEX = /(["][^"]+["]|['][^']+[']|[`][^`]+[`])/g;
 const QUOTE_REGEX = /(["'`])/g;
@@ -76,7 +77,7 @@ export const getValues = (
 };
 
 try {
-  const json = fs.readFileSync("./dist/custom-elements.json", "utf8");
+  const json = fs.readFileSync(IN_PATH, "utf8");
   const obj = JSON.parse(json);
 
   interface Value {

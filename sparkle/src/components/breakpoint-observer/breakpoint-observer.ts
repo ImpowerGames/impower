@@ -2,6 +2,7 @@ import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./breakpoint-observer.css";
+import html from "./breakpoint-observer.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -34,6 +35,10 @@ export default class BreakpointObserver
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
+  }
+
+  override get html(): string {
+    return html;
   }
 
   override get styles(): CSSStyleSheet[] {

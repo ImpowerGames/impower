@@ -1,11 +1,8 @@
+import { getCssMask } from "../../../../sparkle-transformer/src/utils/getCssMask";
 import SparkleElement from "../../core/sparkle-element";
-import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssIcon } from "../../utils/getCssIcon";
-import { getCssMask } from "../../utils/getCssMask";
-import { getCssSize } from "../../utils/getCssSize";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
@@ -121,21 +118,15 @@ export default class Button
    *
    * Default is `md`.
    */
-  get size(): SizeName | null {
-    return this.getStringAttribute(Button.attributes.size);
-  }
-  set size(value) {
-    this.setStringAttribute(Button.attributes.size, value);
+  override get size(): SizeName | string | null {
+    return super.size;
   }
 
   /**
    * The spacing between the icon and the label.
    */
-  get spacing(): SizeName | string | null {
-    return this.getStringAttribute(Button.attributes.spacing);
-  }
-  set spacing(value) {
-    this.setStringAttribute(Button.attributes.spacing, value);
+  override get spacing(): SizeName | string | null {
+    return super.spacing;
   }
 
   /**
@@ -146,16 +137,6 @@ export default class Button
   }
   set label(value) {
     this.setStringAttribute(Button.attributes.label, value);
-  }
-
-  /**
-   * The icon to display next to the label.
-   */
-  get icon(): IconName | string | null {
-    return this.getStringAttribute(Button.attributes.icon);
-  }
-  set icon(value) {
-    this.setStringAttribute(Button.attributes.icon, value);
   }
 
   /**
@@ -227,11 +208,7 @@ export default class Button
         }
       }
     }
-    if (name === Button.attributes.spacing) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
     if (name === Button.attributes.icon) {
-      this.updateRootCssVariable(name, getCssIcon(newValue));
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = newValue == null;

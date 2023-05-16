@@ -24,7 +24,7 @@
   --padding-lr: 16px;
 }
 
-.root {
+:host > .root {
   pointer-events: var(--interactable);
   position: var(--position);
   display: flex;
@@ -38,44 +38,30 @@
   font-size: var(--text-size);
   font-weight: var(--text-weight);
   line-height: var(--text-leading);
-  border-block-start-color: var(--border-block-start-color);
-  border-block-end-color: var(--border-block-end-color);
-  border-inline-start-color: var(--border-inline-start-color);
-  border-inline-end-color: var(--border-inline-end-color);
-  border-block-start-width: var(--border-block-start-width);
-  border-block-end-width: var(--border-block-end-width);
-  border-inline-start-width: var(--border-inline-start-width);
-  border-inline-end-width: var(--border-inline-end-width);
-  border-start-start-radius: var(--border-start-start-radius);
-  border-start-end-radius: var(--border-start-end-radius);
-  border-end-start-radius: var(--border-end-start-radius);
-  border-end-end-radius: var(--border-end-end-radius);
-  margin-block-start: var(--margin-block-start);
-  margin-block-end: var(--margin-block-end);
-  margin-inline-start: var(--margin-inline-start);
-  margin-inline-end: var(--margin-inline-end);
-  padding-block-start: var(--padding-block-start);
-  padding-block-end: var(--padding-block-end);
-  padding-inline-start: var(--padding-inline-start);
-  padding-inline-end: var(--padding-inline-end);
+  border-color: var(--border-color);
+  border-width: var(--border-width);
+  border-radius: var(--corner);
+  margin: var(--margin);
+  padding-block: var(--padding-tb);
+  padding-inline: var(--padding-lr);
 }
-:host([action]) .root {
+:host([action]) > .root {
   padding-right: calc(
     var(--padding-r, var(--padding-lr, var(--padding))) - 8px
   );
 }
 
-.message {
+:host > .root > .message {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-:host([action]) .message {
+:host([action]) > .root > .message {
   padding-right: var(--spacing);
 }
 
-.close {
+:host > .root > .close {
   pointer-events: auto;
   display: flex;
   flex-direction: row;

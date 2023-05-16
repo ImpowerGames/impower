@@ -1,24 +1,11 @@
 import { Graphic } from "../types/graphic";
-
-const QUOTE_REGEX = /([\\]["]|["'`])/g;
+import { getAttribute } from "./getAttribute";
+import { normalizeQuotes } from "./normalizeQuotes";
 
 const REGEX_ARG_SEPARATOR = /[ ]+/;
 
-export const normalize = (str: string): string => {
-  return str.replace(QUOTE_REGEX, "'");
-};
-
-export const getAttribute = (str: string, name: string): string | undefined => {
-  const regex = new RegExp(`${name}[ ]*=[ ]*[']([^']+)[']`);
-  const matches = str.match(regex);
-  if (!matches) {
-    return undefined;
-  }
-  return matches[1];
-};
-
 export const parseGraphic = (value: string): Graphic => {
-  const v = normalize(value).trim();
+  const v = normalizeQuotes(value).trim();
   const svgString = v.slice(v.indexOf("<svg "), v.indexOf("</svg>") + 1);
   const graphic: Graphic = {};
   svgString.split("<path ").forEach((token) => {

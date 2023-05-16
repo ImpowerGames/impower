@@ -2,7 +2,7 @@
   display: contents;
 }
 
-.root {
+:host > .root {
   display: flex;
   width: 100%;
   flex: 1;

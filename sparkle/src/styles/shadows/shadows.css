@@ -1,0 +1,143 @@
+.s-theme-light {
+  --s-color-shadow-key-0: hsl(0 0% 0% / 0%);
+  --s-color-shadow-key-1: hsl(0 0% 0% / 12%);
+  --s-color-shadow-key-2: hsl(0 0% 0% / 16%);
+  --s-color-shadow-key-3: hsl(0 0% 0% / 19%);
+  --s-color-shadow-key-4: hsl(0 0% 0% / 25%);
+  --s-color-shadow-key-5: hsl(0 0% 0% / 30%);
+  --s-color-shadow-ambient-0: hsl(0 0% 0% / 0%);
+  --s-color-shadow-ambient-1: hsl(0 0% 0% / 24%);
+  --s-color-shadow-ambient-2: hsl(0 0% 0% / 23%);
+  --s-color-shadow-ambient-3: hsl(0 0% 0% / 23%);
+  --s-color-shadow-ambient-4: hsl(0 0% 0% / 22%);
+  --s-color-shadow-ambient-5: hsl(0 0% 0% / 22%);
+}
+
+:root,
+.s-theme-dark {
+  --s-color-shadow-key-0: hsl(0 0% 0% / 0%);
+  --s-color-shadow-key-1: hsl(0 0% 0% / 24%);
+  --s-color-shadow-key-2: hsl(0 0% 0% / 32%);
+  --s-color-shadow-key-3: hsl(0 0% 0% / 38%);
+  --s-color-shadow-key-4: hsl(0 0% 0% / 50%);
+  --s-color-shadow-key-5: hsl(0 0% 0% / 60%);
+  --s-color-shadow-ambient-0: hsl(0 0% 0% / 0%);
+  --s-color-shadow-ambient-1: hsl(0 0% 0% / 48%);
+  --s-color-shadow-ambient-2: hsl(0 0% 0% / 46%);
+  --s-color-shadow-ambient-3: hsl(0 0% 0% / 46%);
+  --s-color-shadow-ambient-4: hsl(0 0% 0% / 44%);
+  --s-color-shadow-ambient-5: hsl(0 0% 0% / 44%);
+}
+
+:root,
+.s-theme-light,
+.s-theme-dark {
+  --s-y-shadow-key-0: 0;
+  --s-y-shadow-key-1: 1px;
+  --s-y-shadow-key-2: 3px;
+  --s-y-shadow-key-3: 10px;
+  --s-y-shadow-key-4: 14px;
+  --s-y-shadow-key-5: 19px;
+  --s-y-shadow-ambient-0: 0;
+  --s-y-shadow-ambient-1: 1px;
+  --s-y-shadow-ambient-2: 3px;
+  --s-y-shadow-ambient-3: 6px;
+  --s-y-shadow-ambient-4: 10px;
+  --s-y-shadow-ambient-5: 15px;
+
+  --s-blur-shadow-key-0: 0;
+  --s-blur-shadow-key-1: 1.5px;
+  --s-blur-shadow-key-2: 3px;
+  --s-blur-shadow-key-3: 10px;
+  --s-blur-shadow-key-4: 14px;
+  --s-blur-shadow-key-5: 19px;
+  --s-blur-shadow-ambient-0: 0;
+  --s-blur-shadow-ambient-1: 1px;
+  --s-blur-shadow-ambient-2: 3px;
+  --s-blur-shadow-ambient-3: 3px;
+  --s-blur-shadow-ambient-4: 5px;
+  --s-blur-shadow-ambient-5: 6px;
+
+  --s-shadow-drop-key-0: 0 var(--s-y-shadow-key-0)
+    calc(var(--s-blur-shadow-key-0) / 2) var(--s-color-shadow-key-0);
+  --s-shadow-drop-key-1: 0 var(--s-y-shadow-key-1)
+    calc(var(--s-blur-shadow-key-1) / 2) var(--s-color-shadow-key-1);
+  --s-shadow-drop-key-2: 0 var(--s-y-shadow-key-2)
+    calc(var(--s-blur-shadow-key-2) / 2) var(--s-color-shadow-key-2);
+  --s-shadow-drop-key-3: 0 var(--s-y-shadow-key-3)
+    calc(var(--s-blur-shadow-key-3) / 2) var(--s-color-shadow-key-3);
+  --s-shadow-drop-key-4: 0 var(--s-y-shadow-key-4)
+    calc(var(--s-blur-shadow-key-4) / 2) var(--s-color-shadow-key-4);
+  --s-shadow-drop-key-5: 0 var(--s-y-shadow-key-5)
+    calc(var(--s-blur-shadow-key-5) / 2) var(--s-color-shadow-key-5);
+  --s-shadow-drop-ambient-0: 0 var(--s-y-shadow-ambient-0)
+    calc(var(--s-blur-shadow-ambient-0) / 2) var(--s-color-shadow-ambient-0);
+  --s-shadow-drop-ambient-1: 0 var(--s-y-shadow-ambient-1)
+    calc(var(--s-blur-shadow-ambient-1) / 2) var(--s-color-shadow-ambient-1);
+  --s-shadow-drop-ambient-2: 0 var(--s-y-shadow-ambient-2)
+    calc(var(--s-blur-shadow-ambient-2) / 2) var(--s-color-shadow-ambient-2);
+  --s-shadow-drop-ambient-3: 0 var(--s-y-shadow-ambient-3)
+    calc(var(--s-blur-shadow-ambient-3) / 2) var(--s-color-shadow-ambient-3);
+  --s-shadow-drop-ambient-4: 0 var(--s-y-shadow-ambient-4)
+    calc(var(--s-blur-shadow-ambient-4) / 2) var(--s-color-shadow-ambient-4);
+  --s-shadow-drop-ambient-5: 0 var(--s-y-shadow-ambient-5)
+    calc(var(--s-blur-shadow-ambient-5) / 2) var(--s-color-shadow-ambient-5);
+
+  --s-shadow-drop-0: drop-shadow(var(--s-shadow-drop-key-0))
+    drop-shadow(var(--s-shadow-drop-ambient-0));
+  --s-shadow-drop-1: drop-shadow(var(--s-shadow-drop-key-1))
+    drop-shadow(var(--s-shadow-drop-ambient-1));
+  --s-shadow-drop-2: drop-shadow(var(--s-shadow-drop-key-2))
+    drop-shadow(var(--s-shadow-drop-ambient-2));
+  --s-shadow-drop-3: drop-shadow(var(--s-shadow-drop-key-3))
+    drop-shadow(var(--s-shadow-drop-ambient-3));
+  --s-shadow-drop-4: drop-shadow(var(--s-shadow-drop-key-4))
+    drop-shadow(var(--s-shadow-drop-ambient-4));
+  --s-shadow-drop-5: drop-shadow(var(--s-shadow-drop-key-5))
+    drop-shadow(var(--s-shadow-drop-ambient-5));
+
+  --s-shadow-key-0: 0 var(--s-y-shadow-key-0) var(--s-blur-shadow-key-0)
+    var(--s-color-shadow-key-0);
+  --s-shadow-key-1: 0 var(--s-y-shadow-key-1) var(--s-blur-shadow-key-1)
+    var(--s-color-shadow-key-1);
+  --s-shadow-key-2: 0 var(--s-y-shadow-key-2) var(--s-blur-shadow-key-2)
+    var(--s-color-shadow-key-2);
+  --s-shadow-key-3: 0 var(--s-y-shadow-key-3) var(--s-blur-shadow-key-3)
+    var(--s-color-shadow-key-3);
+  --s-shadow-key-4: 0 var(--s-y-shadow-key-4) var(--s-blur-shadow-key-4)
+    var(--s-color-shadow-key-4);
+  --s-shadow-key-5: 0 var(--s-y-shadow-key-5) var(--s-blur-shadow-key-5)
+    var(--s-color-shadow-key-5);
+  --s-shadow-ambient-0: 0 var(--s-y-shadow-ambient-0)
+    var(--s-blur-shadow-ambient-0) var(--s-color-shadow-ambient-0);
+  --s-shadow-ambient-1: 0 var(--s-y-shadow-ambient-1)
+    var(--s-blur-shadow-ambient-1) var(--s-color-shadow-ambient-1);
+  --s-shadow-ambient-2: 0 var(--s-y-shadow-ambient-2)
+    var(--s-blur-shadow-ambient-2) var(--s-color-shadow-ambient-2);
+  --s-shadow-ambient-3: 0 var(--s-y-shadow-ambient-3)
+    var(--s-blur-shadow-ambient-3) var(--s-color-shadow-ambient-3);
+  --s-shadow-ambient-4: 0 var(--s-y-shadow-ambient-4)
+    var(--s-blur-shadow-ambient-4) var(--s-color-shadow-ambient-4);
+  --s-shadow-ambient-5: 0 var(--s-y-shadow-ambient-5)
+    var(--s-blur-shadow-ambient-5) var(--s-color-shadow-ambient-5);
+
+  --s-shadow-box-0: var(--s-shadow-key-0), var(--s-shadow-ambient-0);
+  --s-shadow-box-1: var(--s-shadow-key-1), var(--s-shadow-ambient-1);
+  --s-shadow-box-2: var(--s-shadow-key-2), var(--s-shadow-ambient-2);
+  --s-shadow-box-3: var(--s-shadow-key-3), var(--s-shadow-ambient-3);
+  --s-shadow-box-4: var(--s-shadow-key-4), var(--s-shadow-ambient-4);
+  --s-shadow-box-5: var(--s-shadow-key-5), var(--s-shadow-ambient-5);
+
+  --s-shadow-inset-0: inset var(--s-shadow-key-0),
+    inset var(--s-shadow-ambient-0);
+  --s-shadow-inset-1: inset var(--s-shadow-key-1),
+    inset var(--s-shadow-ambient-1);
+  --s-shadow-inset-2: inset var(--s-shadow-key-2),
+    inset var(--s-shadow-ambient-2);
+  --s-shadow-inset-3: inset var(--s-shadow-key-3),
+    inset var(--s-shadow-ambient-3);
+  --s-shadow-inset-4: inset var(--s-shadow-key-4),
+    inset var(--s-shadow-ambient-4);
+  --s-shadow-inset-5: inset var(--s-shadow-key-5),
+    inset var(--s-shadow-ambient-5);
+}

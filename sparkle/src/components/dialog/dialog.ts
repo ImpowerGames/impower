@@ -1,10 +1,8 @@
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
-import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssIcon } from "../../utils/getCssIcon";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { lockBodyScrolling, unlockBodyScrolling } from "../../utils/scroll";
 import css from "./dialog.css";
@@ -82,16 +80,6 @@ export default class Dialog
   }
 
   /**
-   * The icon to display above the title.
-   */
-  get icon(): IconName | string | null {
-    return this.getStringAttribute(Dialog.attributes.icon);
-  }
-  set icon(value) {
-    this.setStringAttribute(Dialog.attributes.icon, value);
-  }
-
-  /**
    * The title text.
    */
   get label(): string | null {
@@ -164,7 +152,6 @@ export default class Dialog
       }
     }
     if (name === Dialog.attributes.icon) {
-      this.updateRootCssVariable(name, getCssIcon(newValue));
       const icon = newValue;
       const iconEl = this.iconEl;
       if (iconEl) {

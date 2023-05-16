@@ -2,16 +2,16 @@
   display: contents;
 }
 
-.root {
+:host > .root {
   display: flex;
   flex-shrink: 0;
 }
 
-.root * {
+:host > .root * {
   filter: none;
 }
 
-.sentinel {
+:host > .sentinel {
   pointer-events: none;
   position: absolute;
   top: 0px;

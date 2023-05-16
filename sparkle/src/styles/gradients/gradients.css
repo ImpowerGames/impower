@@ -1,0 +1,21 @@
+.s-theme-light {
+  --s-gradient-gloss-transparent: hsl(0 0% 0% / 0%);
+  --s-gradient-gloss-shine: hsl(0 0% 0% / 5%);
+}
+
+:root,
+.s-theme-dark {
+  --s-gradient-gloss-transparent: hsl(0 0% 100% / 0%);
+  --s-gradient-gloss-shine: hsl(0 0% 100% / 5%);
+}
+
+:root,
+.s-theme-light,
+.s-theme-dark {
+  --s-gradient-gloss: conic-gradient(
+    from 25deg at 35% 75%,
+    var(--s-gradient-gloss-transparent),
+    85%,
+    var(--s-gradient-gloss-shine)
+  );
+}

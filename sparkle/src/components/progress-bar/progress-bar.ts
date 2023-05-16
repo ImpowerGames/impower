@@ -1,9 +1,8 @@
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssDuration } from "../../utils/getCssDuration";
-import { getCssSize } from "../../utils/getCssSize";
 import css from "./progress-bar.css";
 import html from "./progress-bar.html";
 
@@ -75,16 +74,6 @@ export default class ProgressBar
     this.setStringAttribute(ProgressBar.attributes.indicatorWidth, value);
   }
 
-  /**
-   * The speed of the indeterminate animation.
-   */
-  get speed(): string | null {
-    return this.getStringAttribute(ProgressBar.attributes.speed);
-  }
-  set speed(value) {
-    this.setStringAttribute(ProgressBar.attributes.speed, value);
-  }
-
   protected override onAttributeChanged(
     name: string,
     oldValue: string,
@@ -102,9 +91,6 @@ export default class ProgressBar
     }
     if (name === ProgressBar.attributes.indicatorWidth) {
       this.updateRootCssVariable(name, getCssSize(newValue));
-    }
-    if (name === ProgressBar.attributes.speed) {
-      this.updateRootCssVariable(name, getCssDuration(newValue));
     }
   }
 }

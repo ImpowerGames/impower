@@ -25,7 +25,7 @@
   --icon-size: 20px;
 }
 
-.root {
+:host > .root {
   cursor: pointer;
   pointer-events: var(--interactable);
   user-select: var(--selectable);
@@ -44,57 +44,58 @@
   white-space: var(--text-wrap);
   transition-property: var(--transition-property);
   transition-duration: var(--duration);
-  padding-block-start: var(--padding-block-start);
-  padding-block-end: var(--padding-block-end);
-  padding-inline-start: var(--padding-inline-start);
-  padding-inline-end: var(--padding-inline-end);
+  padding-block: var(--padding-tb);
+  padding-inline: var(--padding-lr);
 }
-:host([disabled]) .root {
+:host([disabled]) > .root {
   cursor: default;
   opacity: 0.5;
 }
-@media (hover: hover) and (pointer: fine) {
-  :host(:not([disabled])) .root:hover {
-    color: var(--hover-color);
-  }
-}
-:host([active]:not([disabled])) .root {
+:host([active]:not([disabled])) > .root {
   color: var(--color);
 }
 
-.icon,
-.label {
+:host > .root > .icon,
+:host > .root > .label {
   display: flex;
   align-items: var(--child-align);
   justify-content: var(--child-justify);
   transition-duration: var(--duration);
 }
 
-:host([icon]) .label {
+:host([icon]) > .root > .label {
   margin-top: var(--spacing);
   line-height: 1;
   transform: translateY(0) scale(0.8);
 }
-:host([icon][active]:not([disabled])) .label {
+:host([icon][active]:not([disabled])) > .root > .label {
   transform: translateY(-2px) scale(0.95);
 }
 
-.icon {
+:host > .root > .icon {
+  display: none;
   margin-top: 4px;
   line-height: 1;
   font-size: var(--icon-size);
   transform: translateY(0);
 }
-:host([icon][active]:not([disabled])) .icon {
+:host([icon]) > .root > .icon {
+  display: flex;
+}
+:host([icon][active]:not([disabled])) > .root > .icon {
   transform: translateY(-2px);
 }
 
-button::before {
+:host > .root::before {
   outline-offset: calc(-2 * var(--s-focus-ring-width));
 }
-button.focused::before {
+:host > .root.focused::before {
   outline-offset: calc(-1 * var(--s-focus-ring-width));
 }
-button.focused.pressed::before {
+:host > .root.focused.pressed::before {
   outline-offset: calc((-2 * var(--s-focus-ring-width)) + 1px);
+}
+
+:host([disabled]) > .ripple {
+  display: none;
 }

@@ -8,18 +8,18 @@
   --height: 100%;
 }
 
-.root {
+:host > .root {
   background-color: var(--background-color);
   opacity: var(--opacity);
 }
 
-:host(:not([vertical])) .root {
+:host(:not([vertical])) > .root {
   display: block;
   width: var(--width);
   height: var(--size);
 }
 
-:host([vertical]) .root {
+:host([vertical]) > .root {
   display: inline-block;
   width: var(--size);
   height: var(--height);

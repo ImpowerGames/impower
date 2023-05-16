@@ -8,14 +8,14 @@ import {
   shift,
   size,
 } from "@floating-ui/dom";
+import { getCssColor } from "../../../../sparkle-transformer/src/utils/getCssColor";
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssColor } from "../../utils/getCssColor";
-import { getCssSize } from "../../utils/getCssSize";
 import { offsetParent } from "./composed-offset-position";
 import css from "./popup.css";
 import html from "./popup.html";

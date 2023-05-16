@@ -12,13 +12,10 @@
   --track-width: 2px;
   --indicator-width: var(--track-width);
   --duration: 0.35s;
-  --speed: 2s;
+  --speed: 2;
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-xs-font-size);
   --text-leading: var(--s-text-xs-line-height);
-}
-
-.root {
   --width-min: var(--size);
   --height-min: var(--size);
   --width: var(--size);
@@ -27,7 +24,7 @@
   --circumference: calc(var(--width) * 3.141592654);
 }
 
-.root {
+:host > .root {
   position: var(--position);
   min-width: var(--width-min);
   min-height: var(--height-min);
@@ -39,7 +36,7 @@
   background-color: transparent;
 }
 
-.label {
+:host > .root > .label {
   display: flex;
   justify-content: var(--child-justify);
   align-items: var(--child-align);
@@ -48,7 +45,7 @@
   line-height: var(--text-leading);
 }
 
-.circle {
+:host > .root > .circle {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -58,28 +55,28 @@
   transform-origin: 50% 50%;
 }
 
-.track,
-.indicator {
+:host > .root > .circle > .track,
+:host > .root > .circle > .indicator {
   fill: none;
   r: calc(var(--radius) - var(--track-width) / 2);
   cx: var(--radius);
   cy: var(--radius);
 }
 
-.track {
+:host > .root > .circle > .track {
   stroke: var(--background-color);
   stroke-width: var(--track-width);
   transform-origin: 0% 0%;
 }
 
-.indicator {
+:host > .root > .circle > .indicator {
   stroke: var(--color);
   stroke-width: var(--indicator-width);
   stroke-linecap: round;
   transform-origin: 50% 50%;
 }
 
-:host([value]) .indicator {
+:host([value]) > .root > .circle > .indicator {
   transition-property: stroke-dashoffset;
   transition-duration: var(--duration);
   stroke-dasharray: var(--circumference) var(--circumference);
@@ -88,9 +85,9 @@
   );
 }
 
-:host(:not([value])) .indicator {
+:host(:not([value])) > .root > .circle > .indicator {
   stroke-dasharray: 150% 75%;
-  animation: indeterminate var(--speed) linear infinite;
+  animation: indeterminate calc(1s * var(--speed)) linear infinite;
 }
 
 @keyframes indeterminate {

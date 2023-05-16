@@ -2,6 +2,6 @@
   display: contents;
 }
 
-.root {
+:host > .root {
   display: contents;
 }

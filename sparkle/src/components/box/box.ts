@@ -1,5 +1,6 @@
 import SparkleElement from "../../core/sparkle-element";
 import css from "./box.css";
+import html from "./box.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -15,6 +16,10 @@ export default class Box extends SparkleElement {
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
+  }
+
+  override get html(): string {
+    return html;
   }
 
   override get styles(): CSSStyleSheet[] {

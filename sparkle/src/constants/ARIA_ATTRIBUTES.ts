@@ -49,4 +49,5 @@ export const ARIA_ATTRIBUTE_NAME_MAP = {
   ariaValueText: "aria-valuetext",
   role: "role",
   tabIndex: "tabindex",
+  hidden: "hidden",
 } as const;

@@ -1,7 +1,9 @@
+import { configureStyleTransformers } from "../../../sparkle-transformer/src/utils/configureStyleTransformers";
 import Animations from "../helpers/animations";
 import Icons from "../helpers/icons";
 import Patterns from "../helpers/patterns";
 import Styles from "../helpers/styles";
+import Transformers from "../helpers/transformers";
 import { SparkleStyleType } from "../types/sparkleStyleType";
 import { extractAllAnimationKeyframes } from "../utils/extractAllAnimationKeyframes";
 import { extractAllGraphics } from "../utils/extractAllGraphics";
@@ -24,6 +26,11 @@ const adoptAll = (styles: Record<SparkleStyleType, CSSStyleSheet>): void => {
   if (animations) {
     Animations.init(extractAllAnimationKeyframes(animations));
   }
+  Transformers.init(
+    configureStyleTransformers({
+      graphics: { ...Patterns.all(), ...Icons.all() },
+    })
+  );
 };
 
 export default adoptAll;

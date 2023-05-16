@@ -1,9 +1,9 @@
+import { getCssDuration } from "../../../../sparkle-transformer/src/utils/getCssDuration";
+import { getCssEase } from "../../../../sparkle-transformer/src/utils/getCssEase";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssDuration } from "../../utils/getCssDuration";
-import { getCssEase } from "../../utils/getCssEase";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
 import css from "./collapsible.css";

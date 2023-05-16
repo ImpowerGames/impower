@@ -1,10 +1,10 @@
+import { getCssProportion } from "../../../../sparkle-transformer/src/utils/getCssProportion";
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { clamp } from "../../utils/clamp";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssProportion } from "../../utils/getCssProportion";
-import { getCssSize } from "../../utils/getCssSize";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
 import { percentToPixels } from "../../utils/percentToPixels";
 import { pixelsToPercent } from "../../utils/pixelsToPercent";
@@ -29,7 +29,7 @@ const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "snap",
   "snap-threshold",
   "divider-width",
-  "divider-hit-area",
+  "divider-hit-size",
 ]);
 
 /**
@@ -206,11 +206,11 @@ export default class SplitLayout
   /**
    * The width of the area in which drag events will be detected.
    */
-  get dividerHitArea(): SizeName | string | null {
-    return this.getStringAttribute(SplitLayout.attributes.dividerHitArea);
+  get dividerHitSize(): SizeName | string | null {
+    return this.getStringAttribute(SplitLayout.attributes.dividerHitSize);
   }
-  set dividerHitArea(value) {
-    this.setStringAttribute(SplitLayout.attributes.dividerHitArea, value);
+  set dividerHitSize(value) {
+    this.setStringAttribute(SplitLayout.attributes.dividerHitSize, value);
   }
 
   get dividerEl(): HTMLElement | null {
@@ -326,7 +326,7 @@ export default class SplitLayout
     if (name === SplitLayout.attributes.dividerWidth) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
-    if (name === SplitLayout.attributes.dividerHitArea) {
+    if (name === SplitLayout.attributes.dividerHitSize) {
       this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }

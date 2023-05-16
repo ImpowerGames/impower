@@ -8,7 +8,7 @@
   --child-justify: flex-start;
   --child-gap: 16px;
   --shadow: var(--s-shadow-drop-5);
-  --z: var(--s-z-index-drawer);
+  --z: var(--s-z-index-dialog);
   --ease: ease;
   --title-text-weight: 400;
   --title-text-size: var(--s-text-2xl-font-size);
@@ -26,15 +26,15 @@
   --mobile-exit: var(--s-animation-slide-out-down);
 }
 
-.root {
+:host > .root {
   contain: "layout";
   pointer-events: auto;
   display: flex;
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
-  padding: 0;
   position: fixed;
   inset: 0;
+  padding: 0;
   overflow: hidden;
   filter: var(--shadow);
   z-index: var(--z);
@@ -42,63 +42,50 @@
   transition: opacity 0.5s var(--ease);
   background-color: var(--background-color);
   border-style: solid;
-  border-block-start-color: var(--border-block-start-color);
-  border-block-end-color: var(--border-block-end-color);
-  border-inline-start-color: var(--border-inline-start-color);
-  border-inline-end-color: var(--border-inline-end-color);
-  border-block-start-width: var(--border-block-start-width);
-  border-block-end-width: var(--border-block-end-width);
-  border-inline-start-width: var(--border-inline-start-width);
-  border-inline-end-width: var(--border-inline-end-width);
-  border-start-start-radius: var(--border-start-start-radius);
-  border-start-end-radius: var(--border-start-end-radius);
-  border-end-start-radius: var(--border-end-start-radius);
-  border-end-end-radius: var(--border-end-end-radius);
-  margin-block-start: var(--margin-block-start);
-  margin-block-end: var(--margin-block-end);
-  margin-inline-start: var(--margin-inline-start);
-  margin-inline-end: var(--margin-inline-end);
-  padding: 0;
+  border-color: var(--border-color);
+  border-width: var(--border-width);
+  border-radius: var(--corner);
+  margin: var(--margin);
   max-inline-size: min(90vw, 60ch);
 }
-:host(:not([loaded])) .root {
+:host(:not([loaded])) > .root {
   opacity: 0;
 }
-:host([loaded][open]) .root {
+:host([loaded][open]) > .root {
   animation: var(--enter) forwards;
 }
-:host([loaded]:not([open])) .root {
+:host([loaded]:not([open])) > .root {
   animation: var(--exit) forwards;
 }
 @media (width <= 960px) {
-  .root {
+  :host > .root {
     margin-block-end: 0;
     border-end-end-radius: 0;
     border-end-start-radius: 0;
     max-inline-size: 100vw;
   }
-  :host([loaded][open]) .root {
+  :host([loaded][open]) > .root {
     animation: var(--mobile-enter) forwards;
   }
-  :host([loaded]:not([open])) .root {
+  :host([loaded]:not([open])) > .root {
     animation: var(--mobile-exit) forwards;
   }
 }
 
-.root::backdrop {
+:host > .root::backdrop {
   background-color: black;
 }
-:host(:not([loaded])) .root::backdrop {
+:host(:not([loaded])) > .root::backdrop {
   opacity: 0;
 }
-:host([loaded][open]) .root::backdrop {
+:host([loaded][open]) > .root::backdrop {
   animation: fade-in-overlay 200ms forwards;
 }
-:host([loaded]:not([open])) .root::backdrop {
+:host([loaded]:not([open])) > .root::backdrop {
   animation: fade-out-overlay 200ms forwards;
 }
 
-form {
+:host > .root > form {
   pointer-events: auto;
   display: flex;
   flex-direction: var(--child-layout);
@@ -106,54 +93,29 @@ form {
   gap: var(--child-gap);
   max-block-size: 80vh;
   max-block-size: 80dvb;
-  padding-block-start: var(--padding-block-start);
-  padding-block-end: var(--padding-block-end);
-  padding-inline-start: var(--padding-inline-start);
-  padding-inline-end: var(--padding-inline-end);
+  padding: var(--padding);
 }
 
-.header {
+:host > .root > .form > .header {
   display: flex;
   flex-direction: column;
   align-self: flex-start;
   gap: var(--child-gap);
 }
-:host([icon]) .header {
+:host([icon]) .root > .form > .header {
   align-items: center;
   align-self: center;
 }
 
-.icon {
+:host > .root > .form > .header > .icon {
+  display: none;
   font-size: 24px;
 }
-
-.footer {
+:host([icon]) > .root > .form > .header > .icon {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--child-gap);
-  padding-block-start: 8px;
 }
 
-.label {
-  font-weight: var(--title-text-weight);
-  font-size: var(--title-text-size);
-  line-height: var(--title-text-leading);
-}
-
-.menu {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  padding-inline-start: 0;
-  gap: 8px;
-}
-.menu:only-child {
-  margin-inline-start: auto;
-}
-
-.article {
+:host > .root > .form > .article {
   overflow-y: auto;
   max-block-size: 100%; /* safari */
   overscroll-behavior-y: contain;
@@ -164,14 +126,52 @@ form {
   line-height: var(--text-leading);
   gap: var(--child-gap);
   border-style: color;
-  border-block-start-color: var(--border-block-start-color);
-  border-block-end-color: var(--border-block-end-color);
-  border-inline-start-color: var(--border-inline-start-color);
-  border-inline-end-color: var(--border-inline-end-color);
-  border-block-start-width: var(--border-block-start-width);
-  border-block-end-width: var(--border-block-end-width);
-  border-inline-start-width: var(--border-inline-start-width);
-  border-inline-end-width: var(--border-inline-end-width);
+  border-color: var(--border-color);
+  border-width: var(--border-width);
+}
+
+:host > .root > .form > .footer {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--child-gap);
+  padding-block-start: 8px;
+}
+
+:host > .root > .form > .header > .label {
+  display: none;
+  font-weight: var(--title-text-weight);
+  font-size: var(--title-text-size);
+  line-height: var(--title-text-leading);
+}
+:host([label]) > .root > .form > .header > .label {
+  display: flex;
+}
+
+:host > .root > .form > .footer > .menu {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding-inline-start: 0;
+  gap: 8px;
+}
+:host > .root > .form > .footer > .menu:only-child {
+  margin-inline-start: auto;
+}
+
+:host > .root > .form > menu > .cancel {
+  display: none;
+}
+:host([cancel]) .root > .form > menu > .cancel {
+  display: flex;
+}
+
+:host > .root > .form > menu > .confirm {
+  display: none;
+}
+:host([confirm]) .root > .form > menu > .confirm {
+  display: flex;
 }
 
 @keyframes fade-in-overlay {

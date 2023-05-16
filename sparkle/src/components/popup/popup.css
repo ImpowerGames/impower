@@ -14,11 +14,11 @@
   --shadow: var(--s-shadow-drop-2);
 }
 
-.root {
+:host > .root {
   display: flex;
 }
 
-.root {
+:host > .root {
   position: absolute;
   isolation: isolate;
   max-width: var(--auto-size-available-width, none);
@@ -26,15 +26,18 @@
   filter: var(--shadow);
 }
 
-.fixed {
+:host > .root.fixed {
   position: fixed;
 }
 
-.anchor {
+:host > .anchor {
   display: flex;
 }
 
-:host([arrow]) .arrow {
+:host > .root > .arrow {
+  display: hidden;
+}
+:host([arrow]) > .root > .arrow {
   display: block;
   position: absolute;
   width: calc(var(--arrow-size-diagonal) * 2);

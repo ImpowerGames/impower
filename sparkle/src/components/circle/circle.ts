@@ -2,8 +2,8 @@ import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getCssSize } from "../../utils/getCssSize";
 import css from "./circle.css";
+import html from "./circle.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
@@ -30,6 +30,10 @@ export default class Circle
     return super.define(tagName, dependencies);
   }
 
+  override get html(): string {
+    return html;
+  }
+
   override get styles(): CSSStyleSheet[] {
     return [styles];
   }
@@ -37,21 +41,8 @@ export default class Circle
   /**
    * The size of the circle.
    */
-  get size(): SizeName | string | null {
-    return this.getStringAttribute(Circle.attributes.size);
-  }
-  set size(value) {
-    this.setStringAttribute(Circle.attributes.size, value);
-  }
-
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Circle.attributes.size) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
+  override get size(): SizeName | string | null {
+    return super.size;
   }
 }
 

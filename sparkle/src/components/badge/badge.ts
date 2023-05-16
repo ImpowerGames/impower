@@ -46,16 +46,6 @@ export default class Badge
   set float(value) {
     this.setStringAttribute(Badge.attributes.float, value);
   }
-
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Badge.attributes.float) {
-      this.updateRootCssVariable(name, newValue);
-    }
-  }
 }
 
 declare global {

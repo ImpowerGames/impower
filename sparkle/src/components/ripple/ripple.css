@@ -9,8 +9,7 @@
   --hover-opacity: var(--s-opacity-hover);
   --press-opacity: var(--s-opacity-press);
   --ripple-duration: 150ms;
-  --hover-duration: 15ms;
-  --focus-duration: 75ms;
+  --hover-duration: 75ms;
   --press-duration: 105ms;
   --min-color-stop-length: 75%;
 }
@@ -19,7 +18,7 @@
   opacity: 0;
 }
 
-.root {
+:host > .root {
   pointer-events: none;
   border-radius: inherit;
   position: absolute;
@@ -31,8 +30,8 @@
   mask: inherit;
 }
 
-.root::before,
-.root::after {
+:host > .root::before,
+:host > .root::after {
   position: absolute;
   opacity: 0;
   pointer-events: none;
@@ -42,26 +41,21 @@
   mask: inherit;
 }
 
-.root::before {
+:host > .root::before {
+  inset: 0;
   background-color: currentColor;
   transition-property: opacity, background-color;
   transition-timing-function: linear;
-  inset: 0;
-}
-.hovered::before {
-  background-color: currentColor;
-  opacity: var(--hover-opacity);
-  transition-property: opacity;
   transition-duration: var(--hover-duration);
 }
-.focused::before {
-  background-color: currentColor;
+:host > .root.hovered::before {
+  opacity: var(--hover-opacity);
+}
+:host > .root.focused::before {
   opacity: var(--focus-opacity);
-  transition-property: opacity, outline;
-  transition-duration: var(--focus-duration);
 }
 
-.root::after {
+:host > .root::after {
   background: radial-gradient(
     closest-side,
     currentColor max(calc(100% - 70px), var(--min-color-stop-length)),
@@ -72,14 +66,8 @@
   transition-timing-function: linear;
   transform-origin: center center;
 }
-.pressed::after {
+:host > .root.pressed::after {
   opacity: var(--press-opacity);
   transition-property: opacity;
   transition-duration: var(--press-duration);
-}
-
-@media screen and (forced-colors: active) {
-  :host {
-    display: none;
-  }
 }

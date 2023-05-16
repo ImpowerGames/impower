@@ -13,11 +13,11 @@
   --text-color: var(--s-color-neutral-0);
   --background-color: var(--s-color-neutral-30);
   --color: var(--s-color-primary-70);
-  --speed: 2.5s;
+  --speed: 2.5;
   --duration: 400ms;
 }
 
-.root {
+:host > .root {
   position: var(--position);
   overflow-x: var(--overflow-x);
   overflow-y: var(--overflow-y);
@@ -29,7 +29,7 @@
   background-color: var(--background-color);
 }
 
-.indicator {
+:host > .root > .indicator {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -46,17 +46,18 @@
   transition-duration: var(--duration);
   transform: scaleX(var(--value));
 }
-:host(:not([value])) .indicator {
-  animation: indeterminate var(--speed) infinite cubic-bezier(0.37, 0, 0.63, 1);
+:host(:not([value])) > .root > .indicator {
+  animation: indeterminate calc(1s * var(--speed)) infinite
+    cubic-bezier(0.37, 0, 0.63, 1);
 }
-:host([rtl]) .indicator {
+:host([rtl]) > .root > .indicator {
   transform-origin: right;
 }
-:host([rtl]:not([value])) .indicator {
+:host([rtl]:not([value])) > .root > .indicator {
   animation-name: indeterminate-rtl;
 }
 
-.label {
+:host > .root > .label {
   position: absolute;
   inset: 0;
 }

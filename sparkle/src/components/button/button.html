@@ -1,8 +1,8 @@
 <button class="root" part="root">
-  <slot name="ripple">
+  <slot class="ripple" name="ripple">
     <s-ripple></s-ripple>
   </slot>
-  <div class="icon" part="icon" hidden>
+  <div class="icon" part="icon">
     <slot name="icon">
       <s-icon></s-icon>
     </slot>
@@ -10,19 +10,9 @@
   <div class="label" part="label">
     <slot class="content"></slot>
   </div>
-  <div
-    class="spinner"
-    part="spinner"
-    aria-busy="true"
-    aria-live="polite"
-    hidden
-  >
+  <div class="spinner" part="spinner" aria-busy="true" aria-live="polite">
     <slot name="spinner">
-      <s-progress-circle
-        position="absolute"
-        track-width="2px"
-        indicator-width="3px"
-      ></s-progress-circle>
+      <s-progress-circle></s-progress-circle>
     </slot>
   </div>
 </button>

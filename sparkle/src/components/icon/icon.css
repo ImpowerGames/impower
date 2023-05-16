@@ -12,7 +12,7 @@
   --fill: currentColor;
 }
 
-.root {
+:host > .root {
   display: flex;
   justify-content: var(--child-justify);
   align-items: var(--child-align);

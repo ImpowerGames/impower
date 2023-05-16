@@ -7,12 +7,9 @@
 
 import SparkleEvent from "../../core/SparkleEvent.js";
 import SparkleElement from "../../core/sparkle-element.js";
-import { ColorName } from "../../types/colorName.js";
-import { Properties } from "../../types/properties.js";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap.js";
-import { getCssColor } from "../../utils/getCssColor.js";
 import { getDimensions } from "../../utils/getDimensions.js";
 import css from "./ripple.css";
+import html from "./ripple.html";
 
 const PRESS_GROW_MS = 450;
 const MINIMUM_PRESS_MS = 225;
@@ -85,31 +82,21 @@ const unhoveredEvent = new SparkleEvent("unhovered");
 const pressedEvent = new SparkleEvent("pressed");
 const unpressedEvent = new SparkleEvent("unpressed");
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "hidden",
-  "focus-color",
-  "hover-color",
-  "press-color",
-]);
-
 /**
  * A ripple component.
  */
-export default class Ripple
-  extends SparkleElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
+export default class Ripple extends SparkleElement {
   static override tagName = "s-ripple";
-
-  static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
-  }
 
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies);
+  }
+
+  override get html(): string {
+    return html;
   }
 
   override get styles(): CSSStyleSheet[] {
@@ -166,56 +153,17 @@ export default class Ripple
   private rippleStartEvent?: PointerEvent;
   private checkBoundsAfterContextMenu = false;
 
-  /**
-   * The color when the ripple is focused.
-   */
-  get focusColor(): ColorName | string | null {
-    return this.getStringAttribute(Ripple.attributes.focusColor);
-  }
-  set focusColor(value) {
-    this.setStringAttribute(Ripple.attributes.focusColor, value);
-  }
-
-  /**
-   * The color when the ripple is hovered.
-   */
-  get hoverColor(): ColorName | string | null {
-    return this.getStringAttribute(Ripple.attributes.hoverColor);
-  }
-  set hoverColor(value) {
-    this.setStringAttribute(Ripple.attributes.hoverColor, value);
-  }
-
-  /**
-   * The color when the ripple is pressed.
-   */
-  get pressColor(): ColorName | string | null {
-    return this.getStringAttribute(Ripple.attributes.pressColor);
-  }
-  set pressColor(value) {
-    this.setStringAttribute(Ripple.attributes.pressColor, value);
-  }
-
   protected override onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    if (name === Ripple.attributes.hidden) {
+    if (name === SparkleElement.attributes.hidden) {
       if (newValue != null) {
         this.hovered = false;
         this.focused = false;
         this.pressed = false;
       }
-    }
-    if (name === Ripple.attributes.focusColor) {
-      this.updateRootCssVariable(name, getCssColor(newValue));
-    }
-    if (name === Ripple.attributes.hoverColor) {
-      this.updateRootCssVariable(name, getCssColor(newValue));
-    }
-    if (name === Ripple.attributes.pressColor) {
-      this.updateRootCssVariable(name, getCssColor(newValue));
     }
   }
 

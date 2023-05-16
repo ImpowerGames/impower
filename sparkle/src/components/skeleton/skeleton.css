@@ -18,17 +18,9 @@
     var(--sheen-color)
   );
   --corner: 9999px;
-  --corner-t: var(--corner);
-  --corner-l: var(--corner);
-  --corner-r: var(--corner);
-  --corner-b: var(--corner);
-  --corner-tl: var(--corner);
-  --corner-tr: var(--corner);
-  --corner-br: var(--corner);
-  --corner-bl: var(--corner);
 }
 
-.root {
+:host > .root {
   display: flex;
   min-width: var(--width-min);
   width: var(--width);
@@ -37,20 +29,5 @@
   flex-shrink: var(--shrink);
   background-size: var(--background-fit);
   background-image: var(--background-gradient);
-  border-top-left-radius: var(
-    --corner-tl,
-    var(--corner-t, var(--corner-l, var(--corner)))
-  );
-  border-top-right-radius: var(
-    --corner-tr,
-    var(--corner-t, var(--corner-r, var(--corner)))
-  );
-  border-bottom-right-radius: var(
-    --corner-br,
-    var(--corner-b, var(--corner-r, var(--corner)))
-  );
-  border-bottom-left-radius: var(
-    --corner-bl,
-    var(--corner-b, var(--corner-l, var(--corner)))
-  );
+  border-radius: var(--corner);
 }
