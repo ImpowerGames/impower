@@ -1,14 +1,28 @@
+import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getKeys } from "../../utils/getKeys";
 import css from "./icon.css";
 import html from "./icon.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["icon", "size"]);
+export const DEFAULT_TRANSFORMERS = {
+  icon: (v: string) => getCssIcon(v, Icons.all()),
+  size: getCssSize,
+};
+
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
+  "icon",
+  "size",
+  ...getKeys(DEFAULT_TRANSFORMERS),
+]);
 
 /**
  * Icons are symbols that can be used to represent various options within an application.
@@ -30,19 +44,36 @@ export default class Icon
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return html;
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+  }
+
+  /**
+   * The name of the icon to display.
+   */
+  get icon(): IconName | string | null {
+    return this.getStringAttribute(Icon.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Icon.attributes.icon, value);
   }
 
   /**
    * Sets the size of an icon.
    */
-  override get size(): SizeName | string | null {
-    return super.size;
+  get size(): SizeName | string | null {
+    return this.getStringAttribute(Icon.attributes.size);
+  }
+  set size(value) {
+    this.setStringAttribute(Icon.attributes.size, value);
   }
 
   protected override onAttributeChanged(

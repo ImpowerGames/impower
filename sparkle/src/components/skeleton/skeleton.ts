@@ -3,13 +3,20 @@ import SparkleElement from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getKeys } from "../../utils/getKeys";
 import css from "./skeleton.css";
 import html from "./skeleton.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["sheen-color"]);
+export const DEFAULT_TRANSFORMERS = {
+  "sheen-color": getCssColor,
+};
+
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
+  ...getKeys(DEFAULT_TRANSFORMERS),
+]);
 
 /**
  * Skeletons are used to provide a visual representation of where content will eventually be drawn.
@@ -31,12 +38,16 @@ export default class Skeleton
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return html;
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -47,16 +58,6 @@ export default class Skeleton
   }
   set sheenColor(value) {
     this.setStringAttribute(Skeleton.attributes.sheenColor, value);
-  }
-
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Skeleton.attributes.sheenColor) {
-      this.updateRootCssVariable(name, getCssColor(newValue));
-    }
   }
 }
 

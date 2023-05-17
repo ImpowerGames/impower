@@ -6,15 +6,17 @@ export const generateSSRContent = (
     html?: string;
     css?: string;
     js?: string;
-    graphics?: Record<string, Graphic>;
+    patterns?: Record<string, Graphic>;
+    icons?: Record<string, Graphic>;
   },
   core?: boolean
 ): string => {
   const html = data?.html?.trim() || "";
   const css = data?.css?.trim() || "";
   const js = data?.js?.trim() || "";
-  const graphics = data?.graphics;
-  const styledHtml = getStyledHtml(html, { graphics });
+  const patterns = data?.patterns;
+  const icons = data?.icons;
+  const styledHtml = getStyledHtml(html, { patterns, icons });
   const transformedCss = core
     ? css.replace(/:host[(]/g, "").replace(/][)]/g, "]")
     : css;

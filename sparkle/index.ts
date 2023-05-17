@@ -21,17 +21,17 @@ import Toast from "./src/components/toast/toast";
 import Tooltip from "./src/components/tooltip/tooltip";
 import SparkleElement from "./src/core/sparkle-element";
 import initialize from "./src/initialize/initialize";
-import { ANIMATIONS_CSS } from "./src/styles/animations/animations";
-import { DARK_CSS } from "./src/styles/dark/dark";
-import { EASINGS_CSS } from "./src/styles/easings/easings";
-import { GLOBAL_CSS } from "./src/styles/global/global";
-import { GRADIENTS_CSS } from "./src/styles/gradients/gradients";
-import { ICONS_CSS } from "./src/styles/icons/icons";
-import { KEYFRAMES_CSS } from "./src/styles/keyframes/keyframes";
-import { LIGHT_CSS } from "./src/styles/light/light";
-import { MASKS_CSS } from "./src/styles/masks/masks";
-import { PATTERNS_CSS } from "./src/styles/patterns/patterns";
-import { SHADOWS_CSS } from "./src/styles/shadows/shadows";
+import animations from "./src/styles/animations/animations.css";
+import dark from "./src/styles/dark/dark.css";
+import easings from "./src/styles/easings/easings.css";
+import global from "./src/styles/global/global.css";
+import gradients from "./src/styles/gradients/gradients.css";
+import icons from "./src/styles/icons/icons.css";
+import keyframes from "./src/styles/keyframes/keyframes.css";
+import light from "./src/styles/light/light.css";
+import masks from "./src/styles/masks/masks.css";
+import patterns from "./src/styles/patterns/patterns.css";
+import shadows from "./src/styles/shadows/shadows.css";
 import { SparkleElementTag } from "./src/types/sparkleElementTag";
 import { SparkleStyleType } from "./src/types/sparkleStyleType";
 
@@ -62,18 +62,18 @@ export const DEFAULT_SPARKLE_CONSTRUCTORS: Record<
   "s-breakpoint-observer": BreakpointObserver,
 };
 
-export const DEFAULT_SPARKLE_STYLES: Record<SparkleStyleType, CSSStyleSheet> = {
-  global: GLOBAL_CSS,
-  light: LIGHT_CSS,
-  dark: DARK_CSS,
-  icons: ICONS_CSS,
-  shadows: SHADOWS_CSS,
-  gradients: GRADIENTS_CSS,
-  masks: MASKS_CSS,
-  easings: EASINGS_CSS,
-  keyframes: KEYFRAMES_CSS,
-  animations: ANIMATIONS_CSS,
-  patterns: PATTERNS_CSS,
+export const DEFAULT_SPARKLE_STYLES: Record<SparkleStyleType, string> = {
+  global,
+  light,
+  dark,
+  icons,
+  shadows,
+  gradients,
+  masks,
+  easings,
+  keyframes,
+  animations,
+  patterns,
 };
 
 export default abstract class Sparkle {

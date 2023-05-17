@@ -1,12 +1,12 @@
 import { Graphic } from "../types/graphic";
 import { generateCSSGraphic } from "./generateCSSGraphic";
+import { generateGraphicUrl } from "./generateGraphicUrl";
 
 const REGEX_ARG_SEPARATOR = /[ ]+/;
 
 export const getCssIcon = (
   value: string,
-  suffix = "",
-  icons?: Record<string, Graphic>
+  icons: Record<string, Graphic>
 ): string => {
   if (!value || value === "none") {
     return "none";
@@ -17,11 +17,14 @@ export const getCssIcon = (
   const args = value.trim().split(REGEX_ARG_SEPARATOR);
   const name = args?.[0];
   if (name) {
-    const graphic = icons?.[name];
-    if (graphic) {
-      const url = generateCSSGraphic(graphic, args);
-      return url;
+    const iconGraphic = icons?.[name];
+    if (iconGraphic) {
+      const { graphic, angle, zoom } = generateCSSGraphic(iconGraphic, args);
+      if (graphic?.shapes?.[0]?.d) {
+        const url = generateGraphicUrl(graphic, false, angle, zoom);
+        return url;
+      }
     }
   }
-  return `var(--s-icon-${name}${suffix})`;
+  return `var(--s-icon-${name})`;
 };

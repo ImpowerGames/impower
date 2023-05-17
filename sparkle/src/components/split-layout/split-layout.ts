@@ -5,6 +5,7 @@ import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { clamp } from "../../utils/clamp";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getKeys } from "../../utils/getKeys";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
 import { percentToPixels } from "../../utils/percentToPixels";
 import { pixelsToPercent } from "../../utils/pixelsToPercent";
@@ -15,21 +16,23 @@ import html from "./split-layout.html";
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_TRANSFORMERS = {
+  "divider-width": getCssSize,
+  "divider-hit-area": getCssSize,
+};
+
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "split",
   "min-panel-width",
   "min-panel-height",
   "vertical",
-  "flipped",
   "collapsed",
-  "solo",
   "collapsible",
   "responsive",
   "primary",
   "snap",
   "snap-threshold",
-  "divider-width",
-  "divider-hit-size",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -52,12 +55,16 @@ export default class SplitLayout
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return html;
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -105,16 +112,6 @@ export default class SplitLayout
   }
 
   /**
-   * Flips the orientation of the panels.
-   */
-  get flipped(): string | null {
-    return this.getStringAttribute(SplitLayout.attributes.flipped);
-  }
-  set flipped(value: string | null) {
-    this.setStringAttribute(SplitLayout.attributes.flipped, value);
-  }
-
-  /**
    * Hides the start or end panel.
    */
   get collapsed(): "start" | "end" | null {
@@ -122,16 +119,6 @@ export default class SplitLayout
   }
   set collapsed(value: "start" | "end" | null) {
     this.setStringAttribute(SplitLayout.attributes.collapsed, value);
-  }
-
-  /**
-   * Hides the start or end panel and the resize divider.
-   */
-  get solo(): "start" | "end" | null {
-    return this.getStringAttribute(SplitLayout.attributes.solo);
-  }
-  set solo(value: "start" | "end" | null) {
-    this.setStringAttribute(SplitLayout.attributes.solo, value);
   }
 
   /**
@@ -152,8 +139,16 @@ export default class SplitLayout
    * Set to `flip`, to flip the orientation of the panels, when out of space.
    * Set to `flip-reverse`, to flip the orientation and order of the panels, when out of space.
    * Set to `hide`, to hide the non-primary panel, when out of space.
+   * Set to `hide-end`, to hide the end panel, when out of space.
+   * Set to `hide-start`, to hide the start panel, when out of space.
    */
-  get responsive(): "flip" | "flip-reverse" | "hide-end" | "hide-start" | null {
+  get responsive():
+    | "flip"
+    | "flip-reverse"
+    | "hide"
+    | "hide-end"
+    | "hide-start"
+    | null {
     return this.getStringAttribute(SplitLayout.attributes.responsive);
   }
   set responsive(value) {
@@ -206,11 +201,11 @@ export default class SplitLayout
   /**
    * The width of the area in which drag events will be detected.
    */
-  get dividerHitSize(): SizeName | string | null {
-    return this.getStringAttribute(SplitLayout.attributes.dividerHitSize);
+  get dividerHitArea(): SizeName | string | null {
+    return this.getStringAttribute(SplitLayout.attributes.dividerHitArea);
   }
-  set dividerHitSize(value) {
-    this.setStringAttribute(SplitLayout.attributes.dividerHitSize, value);
+  set dividerHitArea(value) {
+    this.setStringAttribute(SplitLayout.attributes.dividerHitArea, value);
   }
 
   get dividerEl(): HTMLElement | null {
@@ -232,8 +227,6 @@ export default class SplitLayout
   get endSlot(): HTMLSlotElement | null {
     return this.getElementByClass("end");
   }
-
-  protected _resizeObserver?: ResizeObserver;
 
   protected _cachedMinPanelWidth = 0;
 
@@ -278,21 +271,14 @@ export default class SplitLayout
         }
       }
     }
-    if (
-      name === SplitLayout.attributes.collapsed ||
-      name === SplitLayout.attributes.solo
-    ) {
+    if (name === SplitLayout.attributes.collapsed) {
       const startEl = this.startPanelEl;
       if (startEl) {
-        startEl.hidden = this.collapsed === "start" || this.solo === "end";
+        startEl.hidden = this.collapsed === "start";
       }
       const endEl = this.endPanelEl;
       if (endEl) {
-        endEl.hidden = this.collapsed === "end" || this.solo === "start";
-      }
-      const dividerEl = this.dividerEl;
-      if (dividerEl) {
-        dividerEl.hidden = this.solo != null;
+        endEl.hidden = this.collapsed === "end";
       }
     }
     if (name === SplitLayout.attributes.split) {
@@ -323,28 +309,16 @@ export default class SplitLayout
       const size = getCssSize(newValue, "px");
       this._cachedSnapThreshold = getUnitlessValue(size, 12);
     }
-    if (name === SplitLayout.attributes.dividerWidth) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
-    if (name === SplitLayout.attributes.dividerHitSize) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
   }
 
   protected override onConnected(): void {
-    this._resizeObserver = new ResizeObserver(this.handleResize);
     const dividerEl = this.dividerEl;
     dividerEl?.addEventListener("keydown", this.handleKeyDownDivider);
     dividerEl?.addEventListener("pointerdown", this.handlePointerDownDivider);
     dividerEl?.addEventListener("pointermove", this.handlePointerMoveDivider);
   }
 
-  protected override onParsed(): void {
-    this._resizeObserver?.observe(this.root);
-  }
-
   protected override onDisconnected(): void {
-    this._resizeObserver?.disconnect();
     const dividerEl = this.dividerEl;
     dividerEl?.removeEventListener("keydown", this.handleKeyDownDivider);
     dividerEl?.removeEventListener(
@@ -359,13 +333,11 @@ export default class SplitLayout
 
   protected isVertical(): boolean {
     const vertical = this.vertical;
-    const flip = this.flipped;
-    const isFlipped = flip === "flip" || flip === "flip-reverse";
-    return (isFlipped && !vertical) || (vertical && !isFlipped);
+    return vertical;
   }
 
   protected isReversed(): boolean {
-    return this.primary === "end" || this.flipped === "flip-reverse";
+    return this.primary === "end";
   }
 
   protected getSplitPixelValue(value: string | null, rootSize: number): number {
@@ -548,32 +520,6 @@ export default class SplitLayout
         rootSize - min
       );
       this.split = pixelsToPercentage(splitValue, rootSize);
-    }
-  };
-
-  private handleResize = (entries: ResizeObserverEntry[]): void => {
-    const entry = entries[0];
-    if (entry) {
-      const { width, height } = entry.contentRect;
-      const verticalByDefault = this.vertical;
-      const responsive = this.responsive;
-      const minPanelSize = verticalByDefault
-        ? this._cachedMinPanelHeight
-        : this._cachedMinPanelWidth;
-      const currentRootSize = verticalByDefault ? height : width;
-      const belowBreakpoint = currentRootSize < minPanelSize * 2;
-      if (responsive === "flip" || responsive === "flip-reverse") {
-        const newFlipped = belowBreakpoint ? responsive : null;
-        if (this.flipped !== newFlipped) {
-          this.flipped = newFlipped;
-        }
-      } else if (responsive === "hide-end" || responsive === "hide-start") {
-        const soloTarget = responsive === "hide-start" ? "end" : "start";
-        const newSolo = belowBreakpoint ? soloTarget : null;
-        if (this.solo !== newSolo) {
-          this.solo = newSolo;
-        }
-      }
     }
   };
 }

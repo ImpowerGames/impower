@@ -19,7 +19,7 @@
 }
 
 :host > .root {
-  pointer-events: none;
+  pointer-events: auto;
   border-radius: inherit;
   position: absolute;
   inset: 0;
@@ -48,8 +48,11 @@
   transition-timing-function: linear;
   transition-duration: var(--hover-duration);
 }
-:host > .root.hovered::before {
-  opacity: var(--hover-opacity);
+@media (hover: hover) and (pointer: fine) {
+  :host > .root:hover::before,
+  :host > .root.hovered::before {
+    opacity: var(--hover-opacity);
+  }
 }
 :host > .root.focused::before {
   opacity: var(--focus-opacity);

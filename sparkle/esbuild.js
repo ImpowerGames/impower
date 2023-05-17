@@ -8,6 +8,11 @@ const {
 const bundlesDir = "./bundles";
 const componentsDir = "./src/components";
 const stylesDir = "./src/styles";
+const patternsCSS = "./src/styles/patterns/patterns.css";
+const iconsCSS = "./src/styles/icons/icons.css";
+
+const patternFiles = [patternsCSS];
+const iconFiles = [iconsCSS];
 
 fs.rmSync(bundlesDir, { recursive: true, force: true });
 fs.mkdirSync(bundlesDir, { recursive: true });
@@ -30,7 +35,7 @@ const bundleConfig = {
     ".svg": "text",
   },
   entryPoints: [...components, ...styles],
-  plugins: [sparkleTransformerPlugin()],
+  plugins: [sparkleTransformerPlugin({ patternFiles, iconFiles })],
   outdir: `${bundlesDir}`,
   outExtension: { ".js": ".mjs" },
 };

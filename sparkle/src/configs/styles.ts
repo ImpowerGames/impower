@@ -14,7 +14,14 @@ export default abstract class Styles {
     return Object.values(this._map);
   }
 
-  static init(patternShapes: Record<SparkleStyleType, CSSStyleSheet>): void {
-    this._map = patternShapes;
+  static init(cssMap: Record<SparkleStyleType, string>): void {
+    this._map = {} as Record<SparkleStyleType, CSSStyleSheet>;
+    Object.entries(cssMap).forEach(([name, css]) => {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(css);
+      if (this._map) {
+        this._map[name as SparkleStyleType] = sheet;
+      }
+    });
   }
 }

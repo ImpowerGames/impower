@@ -29,11 +29,11 @@ export default class Badge
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return html;
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
   }
 

@@ -15,7 +15,6 @@ import { getCssEase } from "../utils/getCssEase";
 import { getCssFilter } from "../utils/getCssFilter";
 import { getCssGradient } from "../utils/getCssGradient";
 import { getCssGrow } from "../utils/getCssGrow";
-import { getCssIcon } from "../utils/getCssIcon";
 import { getCssImage } from "../utils/getCssImage";
 import { getCssInteractable } from "../utils/getCssInteractable";
 import { getCssInvisible } from "../utils/getCssInvisible";
@@ -44,7 +43,7 @@ import { getCssTextWeight } from "../utils/getCssTextWeight";
 import { getCssTranslate } from "../utils/getCssTranslate";
 import { getCssZ } from "../utils/getCssZ";
 
-const get = (v: string) => v;
+export const get = (v: string) => v;
 
 export const STYLE_TRANSFORMERS = {
   position: getCssPosition,
@@ -199,9 +198,4 @@ export const STYLE_TRANSFORMERS = {
   ease: getCssEase,
 
   animation: getCssAnimation,
-  speed: get,
-
-  icon: getCssIcon,
-  size: getCssSize,
-  spacing: getCssSize,
 } as const;

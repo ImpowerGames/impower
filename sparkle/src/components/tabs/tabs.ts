@@ -1,8 +1,11 @@
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
+import { getKeys } from "../../utils/getKeys";
 import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";
 import { navPrevKey } from "../../utils/navPrevKey";
@@ -18,10 +21,15 @@ const onchangeEvent = new SparkleEvent("onchange");
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
+export const DEFAULT_TRANSFORMERS = {
+  "indicator-width": getCssSize,
+};
+
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "indicator",
   "vertical",
   "value",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -46,12 +54,16 @@ export default class Tabs
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return Tabs.augment(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -84,6 +96,16 @@ export default class Tabs
   }
   set value(value) {
     this.setStringAttribute(Tabs.attributes.value, value);
+  }
+
+  /**
+   * The width of the indicator.
+   */
+  get indicatorWidth(): SizeName | string | null {
+    return this.getStringAttribute(Tabs.attributes.indicatorWidth);
+  }
+  set indicatorWidth(value) {
+    this.setStringAttribute(Tabs.attributes.indicatorWidth, value);
   }
 
   protected _tabs: Tab[] = [];

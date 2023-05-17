@@ -10,12 +10,12 @@
   --divider-color: var(--s-color-divider);
   --divider-text-color: var(--s-color-neutral-95);
   --focus-text-color: var(--s-color-neutral-0);
-  --divider-hit-size: 16px;
+  --divider-hit-area: 16px;
 }
 /* Make hit area smaller for pointers that can be more precise */
 @media (hover: hover) and (pointer: fine) {
   :host {
-    --divider-hit-size: 4px;
+    --divider-hit-area: 4px;
   }
 }
 
@@ -25,15 +25,11 @@
   flex-direction: row;
   flex-grow: var(--grow);
   flex-shrink: var(--shrink);
+  container-type: inline-size;
 }
-:host(:not(vertical)[flipped="flip"]) > .root {
+:host([vertical]) > .root {
   flex-direction: column;
-}
-:host(:not(vertical)[flipped="flip-reverse"]) > .root {
-  flex-direction: column-reverse;
-}
-:host(:is([vertical])[flipped="flip-reverse"]) > .root {
-  flex-direction: row-reverse;
+  container-type: size;
 }
 
 :host > .root > .divider {
@@ -54,7 +50,7 @@
 :host(:not([disabled])) > .root > .divider {
   cursor: col-resize;
 }
-:host(:not([disabled]):is([vertical], [flipped])) > .root > .divider {
+:host(:not([disabled])[vertical]) > .root > .divider {
   cursor: row-resize;
 }
 :host > .root > .divider:focus {
@@ -79,19 +75,19 @@
   position: absolute;
   display: flex;
   flex-direction: row;
-  width: var(--divider-hit-size);
+  width: var(--divider-hit-area);
   height: 100%;
   top: auto;
-  left: calc(var(--divider-hit-size) / -2 + var(--divider-width) / 2);
+  left: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
 }
-:host(:is([vertical], [flipped])) > .root > .divider::after {
+:host([vertical]) > .root > .divider::after {
   content: "";
   position: absolute;
   display: block;
   flex-direction: column;
   width: 100%;
-  height: var(--divider-hit-size);
-  top: calc(var(--divider-hit-size) / -2 + var(--divider-width) / 2);
+  height: var(--divider-hit-area);
+  top: calc(var(--divider-hit-area) / -2 + var(--divider-width) / 2);
   left: auto;
 }
 
@@ -100,27 +96,23 @@
   display: block;
   overflow: hidden;
 }
-:host(:not([vertical], [flipped])) > .root > .start-panel {
+:host(:not([vertical])) > .root > .start-panel {
   min-width: var(--min-panel-width);
   max-width: calc(100% - var(--min-panel-width));
   width: var(--split);
   height: 100%;
 }
-:host(:not([vertical], [flipped]):is([collapsed="end"], [solo="start"]))
-  > .root
-  > .start-panel {
+:host(:not([vertical])[collapsed="end"]) > .root > .start-panel {
   width: 100%;
   max-width: none;
 }
-:host(:is([vertical], [flipped])) > .root > .start-panel {
+:host([vertical]) > .root > .start-panel {
   min-height: var(--min-panel-height);
   max-height: calc(100% - var(--min-panel-height));
   width: 100%;
   height: var(--split);
 }
-:host(:is([vertical], [flipped]):is([collapsed="end"], [solo="start"]))
-  > .root
-  > .start-panel {
+:host([vertical][collapsed="end"]) > .root > .start-panel {
   max-height: none;
 }
 
@@ -130,9 +122,68 @@
   overflow: hidden;
   flex: 1;
 }
-:host(:not([vertical], [flipped])) > .root > .end-panel {
+:host(:not([vertical])) > .root > .end-panel {
   min-width: 0;
 }
-:host(:is([vertical], [flipped])) > .root > .end-panel {
+:host([vertical]) > .root > .end-panel {
   min-height: 0;
+}
+
+/* If the container is less than 600px */
+@container (max-width: 600px) {
+  :host > .root > .divider {
+    display: none;
+  }
+
+  /* Hide end panel */
+  :host([responsive="hide-end"]) > .root > .end-panel,
+  :host(:is([responsive=""], [responsive="hide"]):not([primary="end"]))
+    > .root
+    > .end-panel {
+    display: none;
+  }
+  :host([responsive="hide-end"]:not([vertical])) > .root > .start-panel,
+  :host(
+      :is([responsive=""], [responsive="hide"]):not([primary="end"]):not(
+          [vertical]
+        )
+    )
+    > .root
+    > .start-panel {
+    width: 100%;
+    max-width: none;
+  }
+  :host([responsive="hide-end"]:is([vertical])) > .root > .start-panel,
+  :host(
+      :is([responsive=""], [responsive="hide"]):not([primary="end"]):is(
+          [vertical]
+        )
+    )
+    > .root
+    > .start-panel {
+    max-height: none;
+  }
+
+  /* Hide start panel */
+  :host([responsive="hide-start"]) > .root > .start-panel,
+  :host(:is([responsive=""], [responsive="hide"])[primary="end"])
+    > .root
+    > .start-panel {
+    display: none;
+  }
+  :host(
+      :is([responsive=""], [responsive="hide"])[primary="end"]:not([vertical])
+    )
+    > .root
+    > .end-panel,
+  :host([responsive="hide-start"]:not([vertical])) > .root > .end-panel {
+    width: 100%;
+    max-width: none;
+  }
+  :host(:is([responsive=""], [responsive="hide"])[primary="end"]:is([vertical]))
+    > .root
+    > .end-panel,
+  :host([responsive="hide-start"]:is([vertical])) > .root > .end-panel {
+    max-height: none;
+  }
 }

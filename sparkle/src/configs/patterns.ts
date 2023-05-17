@@ -1,7 +1,7 @@
 import { Graphic } from "../types/graphic";
 
 export default abstract class Patterns {
-  protected static _map?: Record<string, Graphic>;
+  protected static _map: Record<string, Graphic> = {};
 
   static all() {
     return this._map;

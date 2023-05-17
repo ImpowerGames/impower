@@ -81,12 +81,12 @@
    */
 
   /* Fonts */
-  --s-font-mono: "Courier Prime Sans", "Noto Sans Mono", SFMono-Regular,
-    Consolas, "Liberation Mono", Menlo, monospace;
-  --s-font-sans: "Noto Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-    "Segoe UI Symbol";
-  --s-font-serif: "Noto Serif", "Noto Sans", Georgia, "Times New Roman", serif;
+  --s-font-mono: "Courier Prime Sans", SFMono-Regular, Consolas,
+    "Liberation Mono", Menlo, monospace;
+  --s-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
+    "Segoe UI Emoji", "Segoe UI Symbol";
+  --s-font-serif: Georgia, "Times New Roman", serif;
 
   /* Type Scales */
   --s-text-2xs-font-size: 0.6875rem;

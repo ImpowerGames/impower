@@ -1,10 +1,14 @@
 import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
 import { getCssMask } from "../../../../sparkle-transformer/src/utils/getCssMask";
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
+import { getKeys } from "../../utils/getKeys";
 import type Ripple from "../ripple/ripple";
 import css from "./tab.css";
 import html from "./tab.html";
@@ -14,12 +18,17 @@ styles.replaceSync(css);
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
+export const DEFAULT_TRANSFORMERS = {
+  icon: (v: string) => getCssIcon(v, Icons.all()),
+  "active-icon": (v: string) => getCssIcon(v, Icons.all()),
+  spacing: getCssSize,
+};
+
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "active",
   "value",
   "disabled",
-  "icon",
-  "spacing",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -44,12 +53,16 @@ export default class Tab
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return Tab.augment(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -73,10 +86,33 @@ export default class Tab
   }
 
   /**
-   * The spacing between the label and icon.
+   * The name of the icon to display.
    */
-  override get spacing(): SizeName | string | null {
-    return super.spacing;
+  get icon(): IconName | string | null {
+    return this.getStringAttribute(Tab.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Tab.attributes.icon, value);
+  }
+
+  /**
+   * The name of the icon to display when this tab is active.
+   */
+  get activeIcon(): IconName | string | null {
+    return this.getStringAttribute(Tab.attributes.activeIcon);
+  }
+  set activeIcon(value) {
+    this.setStringAttribute(Tab.attributes.activeIcon, value);
+  }
+
+  /**
+   * The spacing between the icon and the label.
+   */
+  get spacing(): SizeName | string | null {
+    return this.getStringAttribute(Tab.attributes.spacing);
+  }
+  set spacing(value) {
+    this.setStringAttribute(Tab.attributes.spacing, value);
   }
 
   get ripple(): Ripple | null {
@@ -131,16 +167,6 @@ export default class Tab
         active ? "true" : "false"
       );
       this.updateRootAttribute(Tab.attributes.tabIndex, active ? "0" : "-1");
-    }
-    if (name === Tab.attributes.icon || name === Tab.attributes.active) {
-      const icon = this.icon;
-      if (icon != null) {
-        if (this.active) {
-          this.updateRootCssVariable("icon", getCssIcon(icon, "-fill"));
-        } else {
-          this.updateRootCssVariable("icon", getCssIcon(icon));
-        }
-      }
     }
   }
 

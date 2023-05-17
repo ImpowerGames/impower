@@ -1,13 +1,23 @@
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
+import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getKeys } from "../../utils/getKeys";
 import css from "./divider.css";
 import html from "./divider.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["vertical"]);
+export const DEFAULT_TRANSFORMERS = {
+  size: getCssSize,
+};
+
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
+  "vertical",
+  ...getKeys(DEFAULT_TRANSFORMERS),
+]);
 
 /**
  * Dividers are used to visually separate or group elements.
@@ -29,12 +39,16 @@ export default class Divider
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return html;
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -45,6 +59,16 @@ export default class Divider
   }
   set vertical(value) {
     this.setStringAttribute(Divider.attributes.vertical, value);
+  }
+
+  /**
+   * The size of the divider
+   */
+  get size(): SizeName | string | null {
+    return this.getStringAttribute(Divider.attributes.size);
+  }
+  set size(value) {
+    this.setStringAttribute(Divider.attributes.size, value);
   }
 
   protected override onAttributeChanged(

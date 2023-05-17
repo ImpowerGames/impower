@@ -13,6 +13,7 @@
   overflow-y: var(--overflow-y, clip);
   pointer-events: var(--interactable, auto);
   min-width: var(--width-min, 100%);
+  position: absolute;
   top: var(--inset-t, var(--inset-tb, var(--inset, 0)));
   right: var(--inset-r, var(--inset-lr, var(--inset, 0)));
   bottom: var(--inset-b, var(--inset-tb, var(--inset, 0)));
@@ -26,6 +27,7 @@
   overflow-x: var(--overflow-x, clip);
   pointer-events: var(--interactable, auto);
   min-height: var(--height-min, 100%);
+  position: absolute;
   top: var(--inset-t, var(--inset-tb, var(--inset, 0)));
   right: var(--inset-r, var(--inset-lr, var(--inset, 0)));
   bottom: var(--inset-b, var(--inset-tb, var(--inset, 0)));

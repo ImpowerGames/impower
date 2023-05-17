@@ -1,9 +1,13 @@
 import { STYLE_ALIASES } from "../constants/STYLE_ALIASES";
+import { STYLE_TRANSFORMERS, get } from "../constants/STYLE_TRANSFORMERS";
 import { Graphic } from "../types/graphic";
-import { configureStyleTransformers } from "./configureStyleTransformers";
+import { getCssColor } from "./getCssColor";
+import { getCssIcon } from "./getCssIcon";
+import { getCssPattern } from "./getCssPattern";
+import { getCssSize } from "./getCssSize";
 import { getCssTextStroke } from "./getCssTextStroke";
 
-const REGEX_ARG_SEPARATOR = /[ \n\r\t]+/;
+const ATTR_REGEX = /([a-z-]+[=]["][^"]*["])/g;
 const QUOTE_REGEX = /([\\]["]|["'`])/g;
 
 const getVariableSetterStyle = (
@@ -24,25 +28,64 @@ const getVariableSetterStyle = (
   }
 };
 
+const inferTransformer = (
+  name: string,
+  config: {
+    patterns?: Record<string, Graphic>;
+    icons?: Record<string, Graphic>;
+  }
+): ((v: string) => string) | undefined => {
+  const patterns = config?.patterns || {};
+  const icons = config?.icons || {};
+  if (name === "icon" || name.endsWith("-icon")) {
+    const getIcon = (v: string) => getCssIcon(v, icons);
+    return getIcon;
+  }
+  if (name === "pattern" || name.endsWith("-pattern")) {
+    const getPattern = (v: string) => getCssPattern(v, patterns);
+    return getPattern;
+  }
+  if (name === "color" || name.endsWith("-color")) {
+    return getCssColor;
+  }
+  if (name === "size" || name.endsWith("-size")) {
+    return getCssSize;
+  }
+  if (name === "spacing" || name.endsWith("-spacing")) {
+    return getCssSize;
+  }
+  if (name === "hit-area" || name.endsWith("-hit-area")) {
+    return getCssSize;
+  }
+  if (name === "speed" || name.endsWith("-speed")) {
+    return get;
+  }
+  return undefined;
+};
+
 export const getStyledHtml = (
   html: string,
-  config: { graphics?: Record<string, Graphic> }
+  config: {
+    patterns?: Record<string, Graphic>;
+    icons?: Record<string, Graphic>;
+  }
 ): string => {
   if (!html) {
     return html;
   }
   const parts = html.split(">");
-  const styleTransformers: Record<string, (v: string) => string> =
-    configureStyleTransformers(config);
+  const patterns = config?.patterns || {};
+  const styleTransformers: Record<string, (v: string) => string> = {
+    ...STYLE_TRANSFORMERS,
+    "background-pattern": (v: string) => getCssPattern(v, patterns),
+  };
   return parts
     .map((part) => {
       let style = "";
       const attributes: Record<string, string> = {};
-      part
-        .slice(part.lastIndexOf("<") + 1)
-        .split(REGEX_ARG_SEPARATOR)
-        .filter((p) => p.includes("="))
-        .forEach((attr) => {
+      const matches = part.slice(part.lastIndexOf("<") + 1).match(ATTR_REGEX);
+      if (matches) {
+        Array.from(matches).forEach((attr) => {
           const [attrName, attrValue] = attr.split("=");
           if (attrName) {
             const name = attrName.trim() || "";
@@ -52,20 +95,22 @@ export const getStyledHtml = (
             attributes[aliasedName] = value;
           }
         });
-      Object.entries(attributes).forEach(([name, value]) => {
-        const transformer = styleTransformers[name];
-        if (transformer) {
-          style += getVariableSetterStyle(name, value, transformer);
-          if (name === "text-stroke-width" || name === "text-stroke-color") {
-            const width = attributes["text-stroke-width"] || "1";
-            style += getVariableSetterStyle(
-              "text-stroke",
-              width,
-              getCssTextStroke
-            );
+        Object.entries(attributes).forEach(([name, value]) => {
+          const transformer =
+            styleTransformers[name] || inferTransformer(name, config);
+          if (transformer) {
+            style += getVariableSetterStyle(name, value, transformer);
+            if (name === "text-stroke-width" || name === "text-stroke-color") {
+              const width = attributes["text-stroke-width"] || "1";
+              style += getVariableSetterStyle(
+                "text-stroke",
+                width,
+                getCssTextStroke
+              );
+            }
           }
-        }
-      });
+        });
+      }
       const suffix = style ? ` style="${style}"` : "";
       const transformedPart = part + suffix;
       return transformedPart;

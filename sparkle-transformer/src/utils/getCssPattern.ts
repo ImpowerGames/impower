@@ -1,11 +1,12 @@
 import { Graphic } from "../types/graphic";
 import { generateCSSGraphic } from "./generateCSSGraphic";
+import { generateGraphicUrl } from "./generateGraphicUrl";
 
 const REGEX_ARG_SEPARATOR = /[ ]+/;
 
 export const getCssPattern = (
   value: string,
-  patterns?: Record<string, Graphic>
+  patterns: Record<string, Graphic>
 ): string => {
   if (!value || value === "none") {
     return "none";
@@ -16,9 +17,13 @@ export const getCssPattern = (
   const args = value.split(REGEX_ARG_SEPARATOR);
   const name = args?.[0];
   if (name) {
-    const graphic = patterns?.[name];
-    if (graphic) {
-      return generateCSSGraphic(graphic, args, true);
+    const patternGraphic = patterns?.[name];
+    if (patternGraphic) {
+      const { graphic, angle, zoom } = generateCSSGraphic(patternGraphic, args);
+      if (graphic?.shapes?.[0]?.d) {
+        const url = generateGraphicUrl(graphic, true, angle, zoom);
+        return url;
+      }
     }
   }
   return `var(--s-pattern-${value})`;

@@ -36,11 +36,11 @@ export default class ToastStack
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return ToastStack.augment(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
   }
 

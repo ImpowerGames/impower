@@ -8,7 +8,8 @@ export const generatePureFunction = (
     html?: string;
     css?: string;
     js?: string;
-    graphics?: Record<string, Graphic>;
+    patterns?: Record<string, Graphic>;
+    icons?: Record<string, Graphic>;
   }
 ): string => {
   const componentName = convertToPascalCase(tagName);

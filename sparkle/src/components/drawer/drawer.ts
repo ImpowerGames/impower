@@ -17,7 +17,7 @@ const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
 const removedEvent = new SparkleEvent("removed");
 
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap(["open", "dismissable"]);
 
@@ -43,11 +43,11 @@ export default class Drawer
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return Drawer.augment(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
   }
 

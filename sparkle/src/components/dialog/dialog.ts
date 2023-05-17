@@ -1,9 +1,13 @@
+import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
+import Icons from "../../configs/icons";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
+import { getKeys } from "../../utils/getKeys";
 import { lockBodyScrolling, unlockBodyScrolling } from "../../utils/scroll";
 import css from "./dialog.css";
 import html from "./dialog.html";
@@ -19,13 +23,17 @@ const removedEvent = new SparkleEvent("removed");
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
+export const DEFAULT_TRANSFORMERS = {
+  icon: (v: string) => getCssIcon(v, Icons.all()),
+};
+
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "open",
   "dismissable",
-  "icon",
   "label",
   "cancel",
   "confirm",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -50,12 +58,16 @@ export default class Dialog
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return Dialog.augment(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -77,6 +89,16 @@ export default class Dialog
   }
   set dismissable(value) {
     this.setStringAttribute(Dialog.attributes.dismissable, value);
+  }
+
+  /**
+   * The name of the icon to display.
+   */
+  get icon(): IconName | string | null {
+    return this.getStringAttribute(Dialog.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Dialog.attributes.icon, value);
   }
 
   /**

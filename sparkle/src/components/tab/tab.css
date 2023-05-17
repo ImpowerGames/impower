@@ -85,6 +85,9 @@
 :host([icon][active]:not([disabled])) > .root > .icon {
   transform: translateY(-2px);
 }
+:host([icon][active]:not([disabled])) > .root > .icon > * {
+  --icon: var(--active-icon) !important;
+}
 
 :host > .root::before {
   outline-offset: calc(-2 * var(--s-focus-ring-width));

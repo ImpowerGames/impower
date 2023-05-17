@@ -5,7 +5,7 @@ import adoptAll from "./adoptAll";
 import defineAll from "./defineAll";
 
 const initialize = (
-  styles: Record<SparkleStyleType, CSSStyleSheet>,
+  styles: Record<SparkleStyleType, string>,
   constructors: Record<SparkleElementTag, typeof SparkleElement>,
   aliases?: Record<SparkleElementTag, string>
 ): Promise<CustomElementConstructor[]> => {

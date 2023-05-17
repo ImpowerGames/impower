@@ -1,15 +1,16 @@
 import { Graphic } from "../types/graphic";
 
-const REGEX_ENCODE_CHARS = /[(#)]/g;
+const REGEX_SINGLE_QUOTE = /[(')]/g;
 
-const encodeSvg = (svg: string) =>
-  `url("data:image/svg+xml,${svg.replace(REGEX_ENCODE_CHARS, (c) =>
-    encodeURIComponent(c)
-  )}")`;
+const encodeSvg = (svg: string) => {
+  const normalizedSvg = svg.replace(REGEX_SINGLE_QUOTE, '"');
+  const encodedSvg = encodeURIComponent(normalizedSvg);
+  return `url('data:image/svg+xml,${encodedSvg}')`;
+};
 
 export const generateGraphicUrl = (
   pattern: Graphic,
-  tiling = true,
+  tiling: boolean,
   angle = 0,
   zoom = 1
 ): string => {
@@ -24,8 +25,8 @@ export const generateGraphicUrl = (
         const validFill = fill ?? "none";
         const validStroke = stroke ?? "black";
         const validStrokeLineCap = strokeLinecap ?? "round";
-        const fillProp = `fill='${validFill}'`;
-        const strokeProp = `stroke='${validStroke}'`;
+        const fillProp = validFill ? `fill='${validFill}'` : "";
+        const strokeProp = validStroke ? `stroke='${validStroke}'` : "";
         const strokeWidthProp = strokeWidth
           ? `stroke-width='${strokeWidth}' `
           : "";
@@ -36,14 +37,14 @@ export const generateGraphicUrl = (
           ? `stroke-linecap='${validStrokeLineCap}'`
           : "";
         const strokeLineProps = `${strokeWidthProp}${strokeLineJoinProp}${strokeLineCapProp}`;
-        const dProp = `d='${validD}'`;
+        const dProp = validD ? `d='${validD}'` : "";
         paths += `<path ${fillProp} ${strokeProp} ${strokeLineProps} ${dProp}/>`;
       }
     );
   }
   if (tiling) {
-    const rotate = `rotate(${angle})`;
-    const scale = `scale(${zoom})`;
+    const rotate = `rotate(${angle ?? 0})`;
+    const scale = `scale(${zoom ?? 1})`;
     const patternTransform = `${rotate} ${scale}`;
     const svgOpen = `<svg id='patternId' width='100%' height='100%' xmlns='http://www.w3.org/2000/svg'>`;
     const defsOpen = `<defs>`;

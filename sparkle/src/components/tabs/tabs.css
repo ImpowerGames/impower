@@ -6,7 +6,7 @@
   --child-layout: column;
   --position: relative;
   --duration: 100ms;
-  --track-width: 2px;
+  --indicator-width: 2px;
 }
 
 :host > .root {
@@ -44,11 +44,11 @@
   transition-timing-function: var(--ease, ease);
   opacity: 0;
   transform-origin: left;
-  height: var(--size, 2px);
+  height: var(--indicator-width);
   width: 1px;
 }
 :host([vertical]) > .root > .indicator {
   transform-origin: top;
   height: 1px;
-  width: var(--size, 2px);
+  width: var(--indicator-width);
 }

@@ -1,9 +1,14 @@
+import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
 import { getCssMask } from "../../../../sparkle-transformer/src/utils/getCssMask";
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
+import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
+import { getKeys } from "../../utils/getKeys";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
 import css from "./button.css";
@@ -19,6 +24,12 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-icon",
 ]);
 
+export const DEFAULT_TRANSFORMERS = {
+  icon: (v: string) => getCssIcon(v, Icons.all()),
+  spacing: getCssSize,
+  size: getCssSize,
+};
+
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "href",
   "target",
@@ -26,11 +37,9 @@ const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "autofocus",
   "disabled",
   "variant",
-  "icon",
   "label",
   "action",
-  "size",
-  "spacing",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -55,7 +64,7 @@ export default class Button
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return Button.augment(
       this.href
         ? html.replace("<button ", "<a ").replace("</button>", "</a>")
@@ -64,8 +73,12 @@ export default class Button
     );
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -114,19 +127,35 @@ export default class Button
   }
 
   /**
+   * The name of the icon to display.
+   */
+  get icon(): IconName | string | null {
+    return this.getStringAttribute(Button.attributes.icon);
+  }
+  set icon(value) {
+    this.setStringAttribute(Button.attributes.icon, value);
+  }
+
+  /**
    * The size of the button.
    *
    * Default is `md`.
    */
-  override get size(): SizeName | string | null {
-    return super.size;
+  get size(): SizeName | string | null {
+    return this.getStringAttribute(Button.attributes.size);
+  }
+  set size(value) {
+    this.setStringAttribute(Button.attributes.size, value);
   }
 
   /**
    * The spacing between the icon and the label.
    */
-  override get spacing(): SizeName | string | null {
-    return super.spacing;
+  get spacing(): SizeName | string | null {
+    return this.getStringAttribute(Button.attributes.spacing);
+  }
+  set spacing(value) {
+    this.setStringAttribute(Button.attributes.spacing, value);
   }
 
   /**

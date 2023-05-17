@@ -3,17 +3,22 @@ import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getKeys } from "../../utils/getKeys";
 import css from "./progress-bar.css";
 import html from "./progress-bar.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_TRANSFORMERS = {
+  "track-width": getCssSize,
+  "indicator-width": getCssSize,
+  speed: (v: string) => v,
+};
+
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "value",
-  "track-width",
-  "indicator-width",
-  "speed",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -36,12 +41,16 @@ export default class ProgressBar
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return html;
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -74,6 +83,16 @@ export default class ProgressBar
     this.setStringAttribute(ProgressBar.attributes.indicatorWidth, value);
   }
 
+  /**
+   * The speed of the animation.
+   */
+  get speed(): string | null {
+    return this.getStringAttribute(ProgressBar.attributes.speed);
+  }
+  set speed(value) {
+    this.setStringAttribute(ProgressBar.attributes.speed, value);
+  }
+
   protected override onAttributeChanged(
     name: string,
     oldValue: string,
@@ -85,12 +104,6 @@ export default class ProgressBar
         name,
         newValue.endsWith("%") ? newValue : `${newValue}%`
       );
-    }
-    if (name === ProgressBar.attributes.trackWidth) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
-    }
-    if (name === ProgressBar.attributes.indicatorWidth) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }
 }

@@ -4,18 +4,23 @@ import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getKeys } from "../../utils/getKeys";
 import css from "./progress-circle.css";
 import html from "./progress-circle.html";
 
 const styles = new CSSStyleSheet();
 styles.replaceSync(css);
 
+export const DEFAULT_TRANSFORMERS = {
+  size: getCssSize,
+  "track-width": getCssSize,
+  "indicator-width": getCssSize,
+  speed: (v: string) => v,
+};
+
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "value",
-  "track-width",
-  "indicator-width",
-  "speed",
-  "size",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -38,12 +43,16 @@ export default class ProgressCircle
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return html;
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -59,8 +68,11 @@ export default class ProgressCircle
   /**
    * The size of the circle.
    */
-  override get size(): SizeName | string | null {
-    return super.size;
+  get size(): SizeName | string | null {
+    return this.getStringAttribute(ProgressCircle.attributes.size);
+  }
+  set size(value) {
+    this.setStringAttribute(ProgressCircle.attributes.size, value);
   }
 
   /**
@@ -81,6 +93,16 @@ export default class ProgressCircle
   }
   set indicatorWidth(value) {
     this.setStringAttribute(ProgressCircle.attributes.indicatorWidth, value);
+  }
+
+  /**
+   * The speed of the animation.
+   */
+  get speed(): string | null {
+    return this.getStringAttribute(ProgressCircle.attributes.speed);
+  }
+  set speed(value) {
+    this.setStringAttribute(ProgressCircle.attributes.speed, value);
   }
 
   get indicatorEl(): HTMLElement | null {
@@ -111,9 +133,6 @@ export default class ProgressCircle
           labelEl.textContent = "";
         }
       }
-    }
-    if (name === ProgressCircle.attributes.trackWidth) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
     }
   }
 }

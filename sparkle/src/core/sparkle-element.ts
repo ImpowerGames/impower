@@ -1,13 +1,13 @@
 import { STYLE_ALIASES } from "../../../sparkle-transformer/src/constants/STYLE_ALIASES";
 import { STYLE_TRANSFORMERS } from "../../../sparkle-transformer/src/constants/STYLE_TRANSFORMERS";
+import { getCssPattern } from "../../../sparkle-transformer/src/utils/getCssPattern";
 import { getCssTextStroke } from "../../../sparkle-transformer/src/utils/getCssTextStroke";
+import Patterns from "../configs/patterns";
+import Styles from "../configs/styles";
 import { ARIA_ATTRIBUTE_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
-import Styles from "../helpers/styles";
-import Transformers from "../helpers/transformers";
 import { CORE_CSS } from "../styles/core/core";
 import { NORMALIZE_CSS } from "../styles/normalize/normalize";
 import { ColorName } from "../types/colorName";
-import { IconName } from "../types/iconName";
 import { Properties } from "../types/properties";
 import { SizeName } from "../types/sizeName";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
@@ -83,6 +83,17 @@ export default class SparkleElement
 
   get styles(): CSSStyleSheet[] {
     return [];
+  }
+
+  get aliases(): Record<string, string> {
+    return STYLE_ALIASES;
+  }
+
+  get transformers(): Record<string, (v: string) => string> {
+    return {
+      ...STYLE_TRANSFORMERS,
+      "background-pattern": (v: string) => getCssPattern(v, Patterns.all()),
+    };
   }
 
   static get observedAttributes() {
@@ -1896,46 +1907,6 @@ export default class SparkleElement
   }
 
   /**
-   * The speed of the animation.
-   */
-  get speed(): string | null {
-    return this.getStringAttribute(SparkleElement.attributes.speed);
-  }
-  set speed(value) {
-    this.setStringAttribute(SparkleElement.attributes.speed, value);
-  }
-
-  /**
-   * The name of the icon to display.
-   */
-  get icon(): IconName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.icon);
-  }
-  set icon(value) {
-    this.setStringAttribute(SparkleElement.attributes.icon, value);
-  }
-
-  /**
-   * The size of the element.
-   */
-  get size(): SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.size);
-  }
-  set size(value) {
-    this.setStringAttribute(SparkleElement.attributes.size, value);
-  }
-
-  /**
-   * The spacing between the element's content.
-   */
-  get spacing(): SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.spacing);
-  }
-  set spacing(value) {
-    this.setStringAttribute(SparkleElement.attributes.spacing, value);
-  }
-
-  /**
    * Allows keyboard navigation between the children of this element.
    */
   get navigation(): "" | "keyboard" | string | null {
@@ -1963,10 +1934,6 @@ export default class SparkleElement
     const shadowRoot = this.attachShadow(init);
     shadowRoot.innerHTML = this.html;
     shadowRoot.adoptedStyleSheets = [NORMALIZE_CSS];
-    const fonts = Styles.get("fonts");
-    if (fonts) {
-      shadowRoot.adoptedStyleSheets.push(fonts);
-    }
     const keyframes = Styles.get("keyframes");
     if (keyframes) {
       shadowRoot.adoptedStyleSheets.push(keyframes);
@@ -2070,8 +2037,7 @@ export default class SparkleElement
     oldValue: string,
     newValue: string
   ): void {
-    const className: string =
-      STYLE_ALIASES[name as keyof typeof STYLE_ALIASES] ?? name;
+    const className: string = this.aliases[name] ?? name;
     if (
       className === "role" ||
       className === "tabindex" ||
@@ -2080,8 +2046,7 @@ export default class SparkleElement
       // Forward all aria attributes to root element
       this.updateRootAttribute(className, newValue);
     } else {
-      const transformer =
-        Transformers.all()?.[className as keyof typeof STYLE_TRANSFORMERS];
+      const transformer = this.transformers[className];
       if (transformer) {
         this.updateStyleAttribute(className, newValue, transformer);
         if (
@@ -2320,7 +2285,7 @@ export default class SparkleElement
     updateAttribute<T>(this.root, name, value);
   }
 
-  private updateStyleAttribute(
+  updateStyleAttribute(
     name: string,
     newValue: string | null,
     valueFormatter?: (v: string) => string

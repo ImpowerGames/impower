@@ -87,10 +87,10 @@
 
 :host(:not([value])) > .root > .circle > .indicator {
   stroke-dasharray: 150% 75%;
-  animation: indeterminate calc(1s * var(--speed)) linear infinite;
+  animation: indeterminate-circle calc(1s * var(--speed)) linear infinite;
 }
 
-@keyframes indeterminate {
+@keyframes indeterminate-circle {
   0% {
     transform: rotate(0deg);
     stroke-dasharray: 5%, 275%;

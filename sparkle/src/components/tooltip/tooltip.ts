@@ -1,6 +1,6 @@
+import Animations from "../../configs/animations";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
-import Animations from "../../helpers/animations";
 import { Properties } from "../../types/properties";
 import { animateTo, parseDuration, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
@@ -52,11 +52,11 @@ export default class Tooltip
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return Tooltip.augment(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
   }
 

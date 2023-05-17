@@ -235,13 +235,13 @@
   display: flex;
 }
 
-:host > .root > .spinner > slot > * {
+:host > .root > .spinner > * {
   --position: absolute;
   --track-width: 2px;
   --indicator-width: 2px;
 }
-:host > .root > .spinner > slot > *,
-:host([variant="filled"]) > .root > .spinner > slot > * {
+:host > .root > .spinner > *,
+:host([variant="filled"]) > .root > .spinner > * {
   --indicator-width: 4px;
 }
 

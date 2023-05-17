@@ -1,7 +1,10 @@
 import { getCssDurationMS } from "../../../../sparkle-transformer/src/utils/getCssDurationMS";
+import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
+import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import Animations from "../../configs/animations";
+import Icons from "../../configs/icons";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
-import Animations from "../../helpers/animations";
 import { Properties } from "../../types/properties";
 import { animateTo, stopAnimations } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
@@ -17,6 +20,11 @@ const closingEvent = new SparkleEvent("closing");
 const closedEvent = new SparkleEvent("closed");
 const openingEvent = new SparkleEvent("opening");
 const openedEvent = new SparkleEvent("opened");
+
+export const DEFAULT_TRANSFORMERS = {
+  icon: (v: string) => getCssIcon(v, Icons.all()),
+  spacing: getCssSize,
+};
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
@@ -49,11 +57,11 @@ export default class Toast
     return super.define(tagName, dependencies);
   }
 
-  override get html(): string {
+  override get html() {
     return Toast.augment(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles(): CSSStyleSheet[] {
+  override get styles() {
     return [styles];
   }
 

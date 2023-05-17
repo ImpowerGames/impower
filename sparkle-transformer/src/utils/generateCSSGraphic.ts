@@ -1,11 +1,9 @@
 import { Graphic } from "../types/graphic";
-import { generateGraphicUrl } from "./generateGraphicUrl";
 
 export const generateCSSGraphic = (
   graphic: Graphic,
-  args: string[],
-  tiling = false
-): string => {
+  args: string[]
+): { graphic: Graphic; angle: number; zoom: number } => {
   const angleIndex = args.findIndex((v) => v.endsWith("deg"));
   const angleValue = Number(args[angleIndex]?.replace("deg", ""));
   const angle = !Number.isNaN(angleValue) ? angleValue : 0;
@@ -21,8 +19,8 @@ export const generateCSSGraphic = (
     : undefined;
   const colorsIndex = Math.max(0, angleIndex, zoomIndex, strokeIndex) + 1;
   const colors = colorsIndex < args.length ? args.slice(colorsIndex) : [];
-  return generateGraphicUrl(
-    {
+  return {
+    graphic: {
       ...graphic,
       shapes: graphic.shapes?.map((s, i) => ({
         ...s,
@@ -30,8 +28,7 @@ export const generateCSSGraphic = (
         strokeWidth: s.stroke ? strokeWidth ?? s.strokeWidth : s.strokeWidth,
       })),
     },
-    tiling,
     angle,
-    zoom
-  );
+    zoom,
+  };
 };
