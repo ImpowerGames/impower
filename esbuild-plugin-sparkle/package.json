@@ -1,0 +1,39 @@
+{
+  "name": "esbuild-plugin-sparkle",
+  "displayName": "Sparkle ESBuild Plugin",
+  "description": "Bundles sparkle web components as pure (SSR-compatible) functions.",
+  "version": "0.0.1",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/index.js",
+      "import": "./dist/mjs/index.js"
+    },
+    "./*": {
+      "require": "./dist/cjs/*",
+      "import": "./dist/mjs/*"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "*": [
+        "dist/cjs/*"
+      ]
+    }
+  },
+  "types": "dist/cjs/index.d.ts",
+  "main": "dist/cjs/index.js",
+  "scripts": {
+    "build-cjs": "node ./clean.js dist/cjs && tsc --module commonjs --outDir dist/cjs/ && echo {\"type\": \"commonjs\"} > dist/cjs/package.json",
+    "build-mjs": "node ./clean.js dist/mjs && tsc --module es2022 --outDir dist/mjs/ && echo {\"type\": \"module\"} > dist/mjs/package.json",
+    "build": "node ./clean.js dist && npm run build-cjs && npm rum build-mjs",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.1.7",
+    "esbuild": "^0.17.19",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "sparkle-style-transformer": "file:../sparkle-style-transformer"
+  }
+}
