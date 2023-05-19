@@ -1,12 +1,20 @@
+import getCssAnimation from "sparkle-style-transformer/utils/getCssAnimation.js";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
+import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getDirection } from "../../utils/getDirection";
 import css from "./router.css";
 import html from "./router.html";
 
 const styles = new CSSStyleSheet();
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["observe", "swipeable"]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap([
+  "enter-event",
+  "exit-event",
+  "swipeable",
+  "directional",
+]);
 
 /**
  * Routers are used to lazy-load templates when their value matches an observed value.
@@ -42,15 +50,39 @@ export default class Router
   }
 
   /**
-   * The id of the sibling element to observe.
+   * The event to listen for that causes the current route to exit.
    *
-   * If not specified, this element will observe any sibling with a value attribute.
+   * Defaults to `changing`
    */
-  get observe(): string | null {
-    return this.getStringAttribute(Router.attributes.observe);
+  get exitEvent(): "changing" {
+    return this.getStringAttribute(Router.attributes.exitEvent) || "changing";
   }
-  set observe(value) {
-    this.setStringAttribute(Router.attributes.observe, value);
+  set exitEvent(value) {
+    this.setStringAttribute(Router.attributes.exitEvent, value);
+  }
+
+  /**
+   * The event to listen for that causes the new route to enter.
+   *
+   * Defaults to `changed`
+   */
+  get enterEvent(): "changed" {
+    return this.getStringAttribute(Router.attributes.enterEvent) || "changed";
+  }
+  set enterEvent(value) {
+    this.setStringAttribute(Router.attributes.enterEvent, value);
+  }
+
+  /**
+   * Determines if the enter and exit animations should be direction-dependent
+   *
+   * If not provided a value, defaults to `horizontal`.
+   */
+  get directional(): "horizontal" | "vertical" | null {
+    return this.getStringAttribute(Router.attributes.directional);
+  }
+  set directional(value) {
+    this.setStringAttribute(Router.attributes.directional, value);
   }
 
   /**
@@ -69,36 +101,24 @@ export default class Router
     this.setStringAttribute(Router.attributes.swipeable, value);
   }
 
-  get observedEl(): HTMLElement | null {
-    const observedElId = this.observe;
-    const siblings = this.parentElement?.childNodes;
-    let found = null;
-    if (observedElId) {
-      siblings?.forEach((sibling) => {
-        const el = sibling as HTMLElement;
-        if (el?.getAttribute?.("id") === observedElId) {
-          found = el;
-        }
-      });
-    }
-    if (found) {
-      return found;
-    }
-    siblings?.forEach((sibling) => {
-      const el = sibling as HTMLElement;
-      if (el?.getAttribute?.("value") != null) {
-        found = el;
-      }
-    });
-    return found;
+  get contentEl(): HTMLElement | null {
+    return this.getElementByClass("content");
   }
 
   get templatesSlot(): HTMLSlotElement | null {
     return this.getElementByClass("templates-slot");
   }
-  protected _templates: HTMLTemplateElement[] = [];
-
-  protected _valueObserver?: MutationObserver;
+  get templates(): HTMLTemplateElement[] {
+    const contentSlot = this.contentSlot;
+    if (contentSlot) {
+      return contentSlot
+        .assignedElements()
+        .filter(
+          (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
+        );
+    }
+    return [];
+  }
 
   protected _loadedValue: string | null = null;
 
@@ -107,39 +127,76 @@ export default class Router
     oldValue: string,
     newValue: string
   ): void {
-    if (name === Router.attributes.observe) {
-      this.observeValue();
+    if (name === Router.attributes.exit) {
+      this.setupExitAnimations(newValue);
+    }
+    if (name === Router.attributes.enter) {
+      this.setupEnterAnimations(newValue);
     }
   }
 
   protected override onConnected(): void {
-    this._valueObserver = new MutationObserver(this.handleValueMutation);
-  }
-
-  protected override onParsed(): void {
-    this.observeValue();
-    this.loadTemplates(this.observedEl?.getAttribute("value") ?? null);
+    this.setupExitAnimations(this.exit);
+    this.setupEnterAnimations(this.enter);
+    this.root?.addEventListener(this.exitEvent, this.handleChanging);
+    this.root?.addEventListener(this.enterEvent, this.handleChanged);
   }
 
   protected override onDisconnected(): void {
-    this._valueObserver?.disconnect();
+    this.root?.removeEventListener(this.exitEvent, this.handleChanging);
+    this.root?.removeEventListener(this.enterEvent, this.handleChanged);
   }
 
-  protected override onContentAssigned(children: Element[]): void {
-    this._templates = children.filter(
-      (el) => el.tagName.toLowerCase() === "template"
-    ) as HTMLTemplateElement[];
+  setupExitAnimations(newValue: string | null): void {
+    const exit = newValue || "exit";
+    this.updateRootCssVariable("exit-up", getCssAnimation(exit, "-up"));
+    this.updateRootCssVariable("exit-down", getCssAnimation(exit, "-down"));
+    this.updateRootCssVariable("exit-left", getCssAnimation(exit, "-left"));
+    this.updateRootCssVariable("exit-right", getCssAnimation(exit, "-right"));
   }
 
-  loadTemplates(newValue: string | null): void {
+  setupEnterAnimations(newValue: string | null): void {
+    const enter = newValue || "enter";
+    this.updateRootCssVariable("enter-up", getCssAnimation(enter, "-up"));
+    this.updateRootCssVariable("enter-down", getCssAnimation(enter, "-down"));
+    this.updateRootCssVariable("enter-left", getCssAnimation(enter, "-left"));
+    this.updateRootCssVariable("enter-right", getCssAnimation(enter, "-right"));
+  }
+
+  async exitRoute(): Promise<void> {
+    this.updateRootClass("exiting", true);
+    await animationsComplete(this.contentEl);
+  }
+
+  async exitedRoute(): Promise<void> {
+    await animationsComplete(this.contentEl);
+    this.updateRootClass("exiting", false);
+  }
+
+  async enterRoute(newValue: string): Promise<void> {
+    if (newValue) {
+      await this.exitedRoute();
+      this.loadRouteTemplate(newValue);
+      this.updateRootClass("entering", true);
+      await animationsComplete(this.contentEl);
+      this.updateRootClass("entering", false);
+    }
+  }
+
+  loadRouteTemplate(newValue: string | null): void {
     if (newValue !== this._loadedValue) {
       this._loadedValue = newValue;
-      this._templates.forEach((el) => {
+      const templates = this.templates;
+      templates.forEach((el) => {
         const value = el.getAttribute("value");
         if (newValue === value) {
           // Load template content
           const templateContent = el.content.cloneNode(true);
-          this.setAssignedToSlot(templateContent);
+          this.setAssignedToSlot(
+            templateContent,
+            undefined,
+            (n) => n instanceof HTMLElement && n.getAttribute("value") != null
+          );
           if (templateContent instanceof HTMLElement) {
             if (templateContent.getAttribute("role") == null) {
               templateContent.setAttribute("role", `tabpanel`);
@@ -164,28 +221,41 @@ export default class Router
     }
   }
 
-  observeValue(): void {
-    if (this._valueObserver) {
-      this._valueObserver.disconnect();
-    }
-    const observedEl = this.observedEl;
-    if (observedEl) {
-      if (this._valueObserver) {
-        this._valueObserver.observe(observedEl, {
-          attributes: true,
-          attributeFilter: ["value"],
-        });
+  protected handleChanging = (e: CustomEvent): void => {
+    if (this.shadowRoot) {
+      if (e.target instanceof HTMLElement) {
+        const newValue = e.detail.value;
+        if (newValue != null) {
+          e.stopPropagation();
+          const direction = getDirection(
+            this.directional,
+            e.detail.oldRect,
+            e.detail.newRect,
+            true
+          );
+          this.updateRootAttribute("direction", direction);
+          this.exitRoute();
+        }
       }
     }
-  }
+  };
 
-  protected handleValueMutation = (mutations: MutationRecord[]): void => {
-    const mutation = mutations?.[0];
-    const observedEl = mutation?.target as HTMLElement;
-    const attributeName = mutation?.attributeName;
-    if (attributeName) {
-      const newValue = observedEl.getAttribute(attributeName);
-      this.loadTemplates(newValue);
+  protected handleChanged = (e: CustomEvent): void => {
+    if (this.shadowRoot) {
+      if (e.target instanceof HTMLElement) {
+        const newValue = e.detail.value;
+        if (newValue != null) {
+          e.stopPropagation();
+          const direction = getDirection(
+            this.directional,
+            e.detail.oldRect,
+            e.detail.newRect,
+            true
+          );
+          this.updateRootAttribute("direction", direction);
+          this.enterRoute(newValue);
+        }
+      }
     }
   };
 }

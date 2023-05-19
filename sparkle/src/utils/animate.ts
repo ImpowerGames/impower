@@ -31,10 +31,15 @@ export const animateTo = (
   });
 };
 
-export const animationsComplete = (element: Element) =>
-  Promise.allSettled(
-    element.getAnimations().map((animation) => animation.finished)
-  );
+export const animationsComplete = async (
+  element: Element | null
+): Promise<void> => {
+  if (element) {
+    await Promise.allSettled(
+      element.getAnimations().map((animation) => animation.finished)
+    );
+  }
+};
 
 /** Parses a CSS duration and returns the number of milliseconds. */
 export const parseDuration = (delay: number | string) => {

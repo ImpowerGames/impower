@@ -20,8 +20,8 @@
   --corner: 8px;
   --margin: auto;
   --padding: 24px;
-  --enter: var(--s-animation-enter);
-  --exit: var(--s-animation-exit);
+  --enter: var(--s-animation-open);
+  --exit: var(--s-animation-close);
   --mobile-enter: var(--s-animation-slide-in-up);
   --mobile-exit: var(--s-animation-slide-out-down);
 }

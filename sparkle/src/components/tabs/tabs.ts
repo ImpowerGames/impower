@@ -17,7 +17,8 @@ import html from "./tabs.html";
 
 const styles = new CSSStyleSheet();
 
-const ONCHANGE_EVENT = "onchange";
+const CHANGING_EVENT = "changing";
+const CHANGED_EVENT = "changed";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
@@ -172,50 +173,73 @@ export default class Tabs
     this.unbindTabs();
   }
 
-  async updateIndicator(
-    tabElement: HTMLElement,
-    tabValue: string | null
-  ): Promise<void> {
-    if (tabElement && this.indicator !== "none") {
-      const indicator = this.indicatorEl;
-      const navEl = this.navEl;
-      const vertical = this.vertical;
-      const navRect = navEl?.getBoundingClientRect();
-      const tabRect = tabElement?.getBoundingClientRect();
-      if (navRect && tabRect) {
-        const size = vertical ? tabRect.height : tabRect.width;
-        const offset = vertical ? tabRect.y - navRect.y : tabRect.x - navRect.x;
-        if (indicator) {
-          if (!indicator.style.transform && !indicator.style.opacity) {
-            indicator.style.setProperty("transition", "none");
-          } else {
-            indicator.style.setProperty("transition", null);
-          }
-          indicator.style.transform = vertical
-            ? `translateY(${offset}px) scaleY(${size})`
-            : `translateX(${offset}px) scaleX(${size})`;
-          indicator.style.opacity = "1";
+  async activateTab(tab: Tab): Promise<void> {
+    const oldTab = this.tabs.find((tab) => tab.active);
+    const newValue = tab.value;
+    const changed = this.value !== newValue;
+    this.value = newValue;
+    tab.active = true;
 
-          if (indicator.style.transition !== "none") {
-            await animationsComplete(indicator);
-          }
-        }
-      }
+    const oldRect = oldTab?.root?.getBoundingClientRect();
+    const newRect = tab?.root?.getBoundingClientRect();
+
+    const detail = { oldRect, newRect, value: newValue };
+
+    if (changed) {
+      this.emit(CHANGING_EVENT, detail);
     }
 
-    this.value = tabValue;
-    this.emit(ONCHANGE_EVENT);
+    if (this.indicator !== "none") {
+      await this.updateIndicator(newRect);
+    }
+
+    if (changed) {
+      this.emit(CHANGED_EVENT, detail);
+    }
   }
 
-  updateTabs(value: string | null): void {
-    this.tabs.forEach((tab) => {
-      if (value === tab.value) {
-        tab.active = true;
-        this.updateIndicator(tab.root, tab.value);
-      } else {
-        tab.active = false;
+  async deactivateTab(tab: Tab): Promise<void> {
+    tab.active = false;
+  }
+
+  async updateIndicator(tabRect: DOMRect): Promise<void> {
+    const indicator = this.indicatorEl;
+    const navEl = this.navEl;
+    const vertical = this.vertical;
+    const navRect = navEl?.getBoundingClientRect();
+    if (navRect && tabRect) {
+      const size = vertical ? tabRect.height : tabRect.width;
+      const offset = vertical ? tabRect.y - navRect.y : tabRect.x - navRect.x;
+      if (indicator) {
+        if (!indicator.style.transform) {
+          indicator.style.setProperty("transition", "none");
+        } else {
+          indicator.style.setProperty("transition", null);
+        }
+        indicator.style.transform = vertical
+          ? `translateY(${offset}px) scaleY(${size})`
+          : `translateX(${offset}px) scaleX(${size})`;
+
+        await new Promise((resolve) => window.requestAnimationFrame(resolve));
+
+        indicator.style.setProperty("transition", null);
+        indicator.style.opacity = "1";
+
+        await animationsComplete(indicator);
       }
-    });
+    }
+  }
+
+  async updateTabs(value: string | null): Promise<void> {
+    await Promise.all(
+      this.tabs.map((tab) => {
+        if (value === tab.value) {
+          return this.activateTab(tab);
+        } else {
+          return this.deactivateTab(tab);
+        }
+      })
+    );
   }
 
   bindTabs(): void {
@@ -248,17 +272,13 @@ export default class Tabs
     });
   }
 
-  activateTab(tab: Tab): void {
-    this.updateTabs(tab.value);
-  }
-
   focusTab(tab: Tab, activate: boolean) {
     for (var i = 0; i < this.tabs.length; i += 1) {
       var t = this.tabs[i];
       if (t === tab) {
         tab.focus();
         if (activate) {
-          this.activateTab(tab);
+          this.updateTabs(tab.value);
         }
       }
     }
@@ -303,7 +323,7 @@ export default class Tabs
   handlePointerEnterTab = (e: PointerEvent): void => {
     const tab = e.currentTarget as Tab;
     if (this._pointerDown) {
-      this.activateTab(tab);
+      this.updateTabs(tab.value);
     }
   };
 
@@ -349,7 +369,7 @@ export default class Tabs
 
   handleClickTab = (e: MouseEvent): void => {
     const tab = e.currentTarget as Tab;
-    this.activateTab(tab);
+    this.updateTabs(tab.value);
   };
 
   protected handleResize = (): void => {
@@ -371,6 +391,7 @@ declare global {
     "s-tabs": Tabs;
   }
   interface HTMLElementEventMap {
-    onchange: SparkleEvent;
+    changing: SparkleEvent;
+    changed: SparkleEvent;
   }
 }

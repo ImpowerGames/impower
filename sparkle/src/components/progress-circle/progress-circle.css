@@ -16,20 +16,14 @@
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-xs-font-size);
   --text-leading: var(--s-text-xs-line-height);
-  --width-min: var(--size);
-  --height-min: var(--size);
-  --width: var(--size);
-  --height: var(--size);
-  --radius: calc(var(--width) / 2);
-  --circumference: calc(var(--width) * 3.141592654);
 }
 
 :host > .root {
   position: var(--position);
-  min-width: var(--width-min);
-  min-height: var(--height-min);
-  width: var(--width);
-  height: var(--height);
+  min-width: var(--size);
+  min-height: var(--size);
+  width: var(--size);
+  height: var(--size);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -59,6 +53,7 @@
 
 :host > .root > .circle > .track,
 :host > .root > .circle > .indicator {
+  --radius: calc(var(--size) / 2);
   fill: none;
   r: calc(var(--radius) - var(--track-width) / 2);
   cx: var(--radius);
@@ -80,6 +75,7 @@
 }
 
 :host([value]) > .root > .circle > .indicator {
+  --circumference: calc(var(--size) * 3.141592654);
   transition-property: stroke-dashoffset;
   transition-duration: var(--duration);
   stroke-dasharray: var(--circumference) var(--circumference);

@@ -1783,6 +1783,26 @@ export default class SparkleElement
   }
 
   /**
+   * Specifies an exit `animation` for this element.
+   */
+  get exit(): "" | AnimationName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.exit);
+  }
+  set exit(value) {
+    this.setStringAttribute(SparkleElement.attributes.exit, value);
+  }
+
+  /**
+   * Specifies an enter `animation` for this element.
+   */
+  get enter(): "" | AnimationName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.enter);
+  }
+  set enter(value) {
+    this.setStringAttribute(SparkleElement.attributes.enter, value);
+  }
+
+  /**
    * Allows keyboard navigation between the children of this element.
    */
   get navigation(): "" | "keyboard" | string | null {
@@ -2171,10 +2191,14 @@ export default class SparkleElement
     return Array.from(this.contentSlot?.childNodes || []) as T[];
   }
 
-  setAssignedToSlot(content: string | Node, name?: string): void {
+  setAssignedToSlot(
+    content: string | Node,
+    name?: string,
+    preserve?: (n: ChildNode) => boolean
+  ): void {
     const assigned = this.getAssignedToSlot(name);
     assigned.forEach((n) => {
-      if (n.parentElement && n.nodeName.toLowerCase() !== "template") {
+      if (n.parentElement && (!preserve || !preserve(n))) {
         n.parentElement.removeChild(n);
       }
     });
@@ -2314,7 +2338,7 @@ export default class SparkleElement
     return value;
   }
 
-  emit(eventName: string): boolean {
-    return this.dispatchEvent(new SparkleEvent(eventName));
+  emit<T>(eventName: string, detail?: T): boolean {
+    return this.dispatchEvent(new SparkleEvent(eventName, { detail }));
   }
 }

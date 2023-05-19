@@ -198,6 +198,8 @@ const STYLE_TRANSFORMERS = {
   ease: getCssEase,
 
   animation: getCssAnimation,
+  exit: getCssAnimation,
+  enter: getCssAnimation,
 } as const;
 
 export default STYLE_TRANSFORMERS;

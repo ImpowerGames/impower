@@ -46,7 +46,7 @@
   transform-origin: left;
   height: var(--indicator-width);
   width: 1px;
-  will-change: transform;
+  will-change: transform, opacity;
 }
 :host([vertical]) > .root > .indicator {
   transform-origin: top;

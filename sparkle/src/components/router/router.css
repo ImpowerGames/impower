@@ -1,7 +1,50 @@
 :host {
   display: contents;
 }
+:host {
+  --enter: var(--s-animation-enter);
+  --exit: var(--s-animation-exit);
+}
 
-:host > .root {
-  display: contents;
+:host > .root,
+:host > .root > .content {
+  display: flex;
+  flex: 1;
+}
+
+:host > .root > .header,
+:host > .root > .footer {
+  display: flex;
+}
+
+:host > .root.exiting > .content {
+  animation: var(--exit) forwards;
+}
+:host > .root.exiting[direction="up"] > .content {
+  animation: var(--exit-up) forwards;
+}
+:host > .root.exiting[direction="down"] > .content {
+  animation: var(--exit-down) forwards;
+}
+:host > .root.exiting[direction="left"] > .content {
+  animation: var(--exit-left) forwards;
+}
+:host > .root.exiting[direction="right"] > .content {
+  animation: var(--exit-right) forwards;
+}
+
+:host > .root.entering > .content {
+  animation: var(--enter) forwards;
+}
+:host > .root.entering[direction="up"] > .content {
+  animation: var(--enter-up) forwards;
+}
+:host > .root.entering[direction="down"] > .content {
+  animation: var(--enter-down) forwards;
+}
+:host > .root.entering[direction="left"] > .content {
+  animation: var(--enter-left) forwards;
+}
+:host > .root.entering[direction="right"] > .content {
+  animation: var(--enter-right) forwards;
 }

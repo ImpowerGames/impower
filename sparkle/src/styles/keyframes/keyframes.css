@@ -131,6 +131,110 @@
   }
 }
 
+@keyframes exit {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@keyframes enter {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes exit-up {
+  to {
+    opacity: 0;
+    transform: translateY(-50%);
+  }
+}
+
+@keyframes exit-down {
+  to {
+    opacity: 0;
+    transform: translateY(50%);
+  }
+}
+
+@keyframes exit-right {
+  to {
+    opacity: 0;
+    transform: translateX(50%);
+  }
+}
+
+@keyframes exit-left {
+  to {
+    opacity: 0;
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes enter-up {
+  0% {
+    opacity: 0;
+    transform: translateY(50%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0%);
+  }
+}
+
+@keyframes enter-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-50%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0%);
+  }
+}
+
+@keyframes enter-right {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
+@keyframes enter-left {
+  0% {
+    opacity: 0;
+    transform: translateX(50%);
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0%);
+  }
+}
+
 @keyframes shake-x {
   0%,
   100% {
@@ -169,7 +273,18 @@
   }
 }
 
-@keyframes enter {
+@keyframes close {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@keyframes open {
   0% {
     opacity: 0;
     transform: scale(0.8);
@@ -179,17 +294,6 @@
   }
   100% {
     transform: scale(1);
-  }
-}
-
-@keyframes exit {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.8);
   }
 }
 

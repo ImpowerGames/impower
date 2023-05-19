@@ -5,10 +5,6 @@
   --child-justify: center;
   --child-align: center;
   --size: calc(1em * var(--s-scale-icon));
-  --width: var(--size);
-  --height: var(--size);
-  --width-min: var(--size);
-  --height-min: var(--size);
   --fill: currentColor;
 }
 
@@ -16,10 +12,10 @@
   display: flex;
   justify-content: var(--child-justify);
   align-items: var(--child-align);
-  width: var(--width);
-  height: var(--height);
-  min-width: var(--width-min);
-  min-height: var(--height-min);
+  width: var(--size);
+  height: var(--size);
+  min-width: var(--size);
+  min-height: var(--size);
   -webkit-mask-image: var(--icon, none);
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
