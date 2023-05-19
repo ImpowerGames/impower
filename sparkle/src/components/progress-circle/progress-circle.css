@@ -34,6 +34,8 @@
   justify-content: center;
   align-items: center;
   background-color: transparent;
+  contain: strict;
+  will-change: transform;
 }
 
 :host > .root > .label {
@@ -74,6 +76,7 @@
   stroke-width: var(--indicator-width);
   stroke-linecap: round;
   transform-origin: 50% 50%;
+  will-change: transform;
 }
 
 :host([value]) > .root > .circle > .indicator {
@@ -86,23 +89,20 @@
 }
 
 :host(:not([value])) > .root > .circle > .indicator {
-  stroke-dasharray: 150% 75%;
+  stroke-dasharray: 137%, 137%;
   animation: indeterminate-circle calc(1s * var(--speed)) linear infinite;
 }
 
 @keyframes indeterminate-circle {
   0% {
     transform: rotate(0deg);
-    stroke-dasharray: 5%, 275%;
   }
 
   50% {
     transform: rotate(450deg);
-    stroke-dasharray: 137%, 137%;
   }
 
   100% {
     transform: rotate(1080deg);
-    stroke-dasharray: 5%, 275%;
   }
 }

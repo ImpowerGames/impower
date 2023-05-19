@@ -5,7 +5,7 @@
  * Released under the Apache-2.0 license.
  */
 
-import SparkleEvent from "../../core/SparkleEvent";
+import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { getDimensions } from "../../utils/getDimensions";
 import css from "./ripple.css";
@@ -74,12 +74,12 @@ const TOUCH_DELAY_MS = 150;
 
 const styles = new CSSStyleSheet();
 
-const focusedEvent = new SparkleEvent("focused");
-const unfocusedEvent = new SparkleEvent("unfocused");
-const hovered = new SparkleEvent("hovered");
-const unhoveredEvent = new SparkleEvent("unhovered");
-const pressedEvent = new SparkleEvent("pressed");
-const unpressedEvent = new SparkleEvent("unpressed");
+const FOCUSED_EVENT = "focused";
+const UNFOCUSED_EVENT = "unfocused";
+const HOVERED_EVENT = "hovered";
+const UNHOVERED_EVENT = "unhovered";
+const PRESSED_EVENT = "pressed";
+const UNPRESSED_EVENT = "unpressed";
 
 /**
  * A ripple component.
@@ -112,9 +112,9 @@ export default class Ripple extends SparkleElement {
     this._hovered = value;
     this.updateState();
     if (value) {
-      this.dispatchEvent(hovered);
+      this.emit(HOVERED_EVENT);
     } else {
-      this.dispatchEvent(unhoveredEvent);
+      this.emit(UNHOVERED_EVENT);
     }
   }
 
@@ -126,9 +126,9 @@ export default class Ripple extends SparkleElement {
     this._focused = value;
     this.updateState();
     if (value) {
-      this.dispatchEvent(focusedEvent);
+      this.emit(FOCUSED_EVENT);
     } else {
-      this.dispatchEvent(unfocusedEvent);
+      this.emit(UNFOCUSED_EVENT);
     }
   }
 
@@ -140,9 +140,9 @@ export default class Ripple extends SparkleElement {
     this._pressed = value;
     this.updateState();
     if (value) {
-      this.dispatchEvent(pressedEvent);
+      this.emit(PRESSED_EVENT);
     } else {
-      this.dispatchEvent(unpressedEvent);
+      this.emit(UNPRESSED_EVENT);
     }
   }
 

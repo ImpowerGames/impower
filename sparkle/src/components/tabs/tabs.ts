@@ -1,5 +1,5 @@
 import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
-import SparkleEvent from "../../core/SparkleEvent";
+import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -17,7 +17,7 @@ import html from "./tabs.html";
 
 const styles = new CSSStyleSheet();
 
-const onchangeEvent = new SparkleEvent("onchange");
+const ONCHANGE_EVENT = "onchange";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
@@ -204,7 +204,7 @@ export default class Tabs
     }
 
     this.value = tabValue;
-    this.dispatchEvent(onchangeEvent);
+    this.emit(ONCHANGE_EVENT);
   }
 
   updateTabs(value: string | null): void {
@@ -220,11 +220,21 @@ export default class Tabs
 
   bindTabs(): void {
     this.tabs.forEach((tab) => {
-      tab.addEventListener("pointerdown", this.handlePointerDownTab);
-      tab.addEventListener("pointerenter", this.handlePointerEnterTab);
-      tab.addEventListener("keydown", this.handleKeyDownTab);
-      tab.addEventListener("click", this.handleClickTab);
-      window.addEventListener("pointerup", this.handlePointerUp);
+      tab.addEventListener("pointerdown", this.handlePointerDownTab, {
+        passive: true,
+      });
+      tab.addEventListener("pointerenter", this.handlePointerEnterTab, {
+        passive: true,
+      });
+      tab.addEventListener("keydown", this.handleKeyDownTab, {
+        passive: true,
+      });
+      tab.addEventListener("click", this.handleClickTab, {
+        passive: true,
+      });
+      window.addEventListener("pointerup", this.handlePointerUp, {
+        passive: true,
+      });
     });
   }
 

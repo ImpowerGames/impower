@@ -3,7 +3,7 @@ import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
 import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import Animations from "../../configs/animations";
 import Icons from "../../configs/icons";
-import SparkleEvent from "../../core/SparkleEvent";
+import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animateTo, stopAnimations } from "../../utils/animate";
@@ -15,10 +15,10 @@ import html from "./toast.html";
 
 const styles = new CSSStyleSheet();
 
-const closingEvent = new SparkleEvent("closing");
-const closedEvent = new SparkleEvent("closed");
-const openingEvent = new SparkleEvent("opening");
-const openedEvent = new SparkleEvent("opened");
+const CLOSING_EVENT = "closing";
+const CLOSED_EVENT = "closed";
+const OPENING_EVENT = "opening";
+const OPENED_EVENT = "opened";
 
 export const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v, Icons.all()),
@@ -191,7 +191,9 @@ export default class Toast
     if (closeEl) {
       closeEl.hidden = action == null;
     }
-    this.root.addEventListener("mousemove", this.handleHover);
+    this.root.addEventListener("mousemove", this.handleHover, {
+      passive: true,
+    });
     this.buttonEl?.addEventListener("click", this.handleButtonClick);
     if (this.shadowRoot) {
       this.actionSlot?.addEventListener(
@@ -230,13 +232,13 @@ export default class Toast
     this.handleActionChildrenAssigned(slot.assignedElements());
   };
 
-  protected handleActionChildrenAssigned = (children: Element[]) => {
+  protected handleActionChildrenAssigned(children: Element[]) {
     if (children.length > 0) {
       if (this.action == null) {
         this.setAttribute("action", "");
       }
     }
-  };
+  }
 
   private restartAutoClose(open: boolean, autoCloseDuration: number): void {
     clearTimeout(this._autoHideTimeout);
@@ -273,7 +275,7 @@ export default class Toast
     }
     if (open) {
       // Show
-      this.dispatchEvent(openingEvent);
+      this.emit(OPENING_EVENT);
 
       if (autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
         this.restartAutoClose(open, autoCloseDuration);
@@ -284,10 +286,10 @@ export default class Toast
       this.root.style.display = "flex";
       await animateTo(this.root, Animations.get("enter"));
 
-      this.dispatchEvent(openedEvent);
+      this.emit(OPENED_EVENT);
     } else {
       // Hide
-      this.dispatchEvent(closingEvent);
+      this.emit(CLOSING_EVENT);
 
       clearTimeout(this._autoHideTimeout);
 
@@ -296,7 +298,7 @@ export default class Toast
       this.root.hidden = true;
       this.root.style.display = "none";
 
-      this.dispatchEvent(closedEvent);
+      this.emit(CLOSED_EVENT);
     }
   }
 

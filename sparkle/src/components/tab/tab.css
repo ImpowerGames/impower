@@ -46,6 +46,7 @@
   transition-duration: var(--duration);
   padding-block: var(--padding-tb);
   padding-inline: var(--padding-lr);
+  will-change: transform;
 }
 :host([disabled]) > .root {
   cursor: default;

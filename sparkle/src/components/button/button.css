@@ -80,6 +80,7 @@
   border-width: var(--border-width);
   border-radius: var(--corner);
   padding-inline: var(--padding-lr);
+  will-change: transform;
 }
 
 :host([disabled]) > .root {
@@ -238,13 +239,13 @@
   display: flex;
 }
 
-:host > .root > .spinner > * {
+:host > .root > .spinner > .spinner-slot > * {
   --position: absolute;
   --track-width: 2px;
   --indicator-width: 2px;
 }
-:host > .root > .spinner > *,
-:host([variant="filled"]) > .root > .spinner > * {
+:host > .root > .spinner > .spinner-slot > *,
+:host([variant="filled"]) > .root > .spinner > .spinner-slot > * {
   --indicator-width: 4px;
 }
 

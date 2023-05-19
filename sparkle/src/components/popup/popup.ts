@@ -1,5 +1,4 @@
 import {
-  autoUpdate,
   computePosition,
   flip,
   offset,
@@ -7,7 +6,7 @@ import {
   shift,
   size,
 } from "@floating-ui/dom";
-import SparkleEvent from "../../core/SparkleEvent";
+import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -17,7 +16,7 @@ import html from "./popup.html";
 
 const styles = new CSSStyleSheet();
 
-const repositionEvent = new SparkleEvent("reposition");
+const REPOSITION_EVENT = "reposition";
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "open",
@@ -320,7 +319,27 @@ export default class Popup
     this.setStringAttribute(Popup.attributes.autoSizePadding, value);
   }
 
-  protected _anchorEl?: HTMLElement | null;
+  get anchorEl(): HTMLElement | null {
+    let el: HTMLElement | null = null;
+    if (this.anchor && typeof this.anchor === "string") {
+      // Locate the anchor by id
+      const root = this.getRootNode() as Document | ShadowRoot;
+      el = root.getElementById(this.anchor);
+    } else {
+      // Look for a slotted anchor
+      if (this.shadowRoot) {
+        el = this.contentSlot?.assignedElements()?.[0] as HTMLElement;
+      } else {
+        el = Array.from(this.contentSlot?.children || [])?.[0] as HTMLElement;
+      }
+    }
+    // An element with `display: contents` cannot be used for calculating position,
+    // so use the firstElementChild of the anchor instead
+    if (el && window.getComputedStyle(el).display === "contents") {
+      el = (el.shadowRoot || el)?.firstElementChild as HTMLElement;
+    }
+    return el;
+  }
 
   get popupEl(): HTMLElement | null {
     return this.getElementByClass("popup");
@@ -329,8 +348,6 @@ export default class Popup
   get popupSlot(): HTMLSlotElement | null {
     return this.getElementByClass("popup-slot");
   }
-
-  private cleanup: ReturnType<typeof autoUpdate> | undefined;
 
   protected override onAttributeChanged(
     name: string,
@@ -375,75 +392,37 @@ export default class Popup
   }
 
   async setupAnchor() {
-    await this.stop();
+    this.stop();
+    this.start();
+  }
 
-    if (this.anchor && typeof this.anchor === "string") {
-      // Locate the anchor by id
-      const root = this.getRootNode() as Document | ShadowRoot;
-      this._anchorEl = root.getElementById(this.anchor);
-    } else {
-      // Look for a slotted anchor
-      if (this.shadowRoot) {
-        this._anchorEl =
-          this.contentSlot?.assignedElements()?.[0] as HTMLElement;
-      } else {
-        this._anchorEl = Array.from(
-          this.contentSlot?.children || []
-        )?.[0] as HTMLElement;
-      }
-    }
+  protected start() {
+    const anchorEl = this.anchorEl;
+    const popupEl = this.popupEl;
 
-    // An element with `display: contents` cannot be used for calculating position,
-    // so use the firstElementChild of the anchor instead
-    if (
-      this._anchorEl &&
-      window.getComputedStyle(this._anchorEl).display === "contents"
-    ) {
-      this._anchorEl = (this._anchorEl.shadowRoot || this._anchorEl)
-        ?.firstElementChild as HTMLElement;
-    }
-
-    if (!this._anchorEl) {
+    if (!anchorEl) {
+      // We can't start the positioner without an anchor
       throw new Error(
         "Invalid anchor element: no anchor could be found using the anchor slot or the anchor attribute."
       );
     }
 
-    this.start();
-  }
+    this.reposition();
 
-  protected start() {
-    const anchorEl = this._anchorEl;
-    const popupEl = this.popupEl;
-
-    if (!anchorEl || !popupEl) {
-      // We can't start the positioner without an anchor or popup
+    if (!popupEl) {
       return;
     }
-
-    this.cleanup = autoUpdate(anchorEl, popupEl, () => {
-      this.reposition();
-    });
   }
 
-  protected async stop(): Promise<void> {
-    return new Promise((resolve) => {
-      if (this.cleanup) {
-        this.cleanup();
-        this.cleanup = undefined;
-        this.removeAttribute("data-current-placement");
-        this.updateRootCssVariable("--auto-size-available-width", null);
-        this.updateRootCssVariable("--auto-size-available-height", null);
-        requestAnimationFrame(() => resolve());
-      } else {
-        resolve();
-      }
-    });
+  protected stop(): void {
+    this.removeAttribute("data-current-placement");
+    this.updateRootCssVariable("--auto-size-available-width", null);
+    this.updateRootCssVariable("--auto-size-available-height", null);
   }
 
   /** Forces the popup to recalculate and reposition itself. */
   reposition() {
-    const anchorEl = this._anchorEl;
+    const anchorEl = this.anchorEl;
     const popupEl = this.popupEl;
     // Nothing to do if the popup is inactive or the anchor doesn't exist
     if (!this.open || !anchorEl || !popupEl) {
@@ -570,7 +549,7 @@ export default class Popup
       popupEl.style.top = `${y}px`;
     });
 
-    this.dispatchEvent(repositionEvent);
+    this.emit(REPOSITION_EVENT);
   }
 }
 

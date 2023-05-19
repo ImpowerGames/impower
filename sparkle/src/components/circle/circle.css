@@ -24,4 +24,5 @@
   aspect-ratio: var(--aspect);
   width: var(--width);
   height: var(--height);
+  will-change: transform;
 }

@@ -14,7 +14,6 @@ const ICON_FILES = [ICONS_CSS];
 const OUT_DIR = "./functions";
 const ENTRY_COMPONENTS_DIR = "./src/components";
 const ENTRY_STYLES_DIR = "./src/styles";
-const SCRIPT_SRC_DIR = "/_public/bundles";
 
 fs.rmSync(OUT_DIR, { recursive: true, force: true });
 fs.mkdirSync(OUT_DIR, { recursive: true });
@@ -50,7 +49,6 @@ const mjsBundlesConfig = {
         sparklePlugin({
           patternFiles: PATTERN_FILES,
           iconFiles: ICON_FILES,
-          scriptSrcDir: SCRIPT_SRC_DIR,
         }),
       ],
     });

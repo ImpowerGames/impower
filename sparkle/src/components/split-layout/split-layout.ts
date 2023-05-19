@@ -316,7 +316,9 @@ export default class SplitLayout
     const dividerEl = this.dividerEl;
     dividerEl?.addEventListener("keydown", this.handleKeyDownDivider);
     dividerEl?.addEventListener("pointerdown", this.handlePointerDownDivider);
-    dividerEl?.addEventListener("pointermove", this.handlePointerMoveDivider);
+    dividerEl?.addEventListener("pointermove", this.handlePointerMoveDivider, {
+      passive: true,
+    });
   }
 
   protected override onDisconnected(): void {

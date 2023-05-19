@@ -1,6 +1,6 @@
 import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
 import Icons from "../../configs/icons";
-import SparkleEvent from "../../core/SparkleEvent";
+import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
@@ -14,11 +14,11 @@ import html from "./dialog.html";
 
 const styles = new CSSStyleSheet();
 
-const closingEvent = new SparkleEvent("closing");
-const closedEvent = new SparkleEvent("closed");
-const openingEvent = new SparkleEvent("opening");
-const openedEvent = new SparkleEvent("opened");
-const removedEvent = new SparkleEvent("removed");
+const CLOSING_EVENT = "closing";
+const CLOSED_EVENT = "closed";
+const OPENING_EVENT = "opening";
+const OPENED_EVENT = "opened";
+const REMOVED_EVENT = "removed";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
@@ -301,7 +301,7 @@ export default class Dialog
         this.handleConfirmSlotAssigned
       );
     }
-    this.dispatchEvent(removedEvent);
+    this.emit(REMOVED_EVENT);
   }
 
   protected handleLabelSlotAssigned = (e: Event) => {
@@ -309,39 +309,39 @@ export default class Dialog
     this.handleLabelChildrenAssigned(slot.assignedElements());
   };
 
-  protected handleLabelChildrenAssigned = (children: Element[]) => {
+  protected handleLabelChildrenAssigned(children: Element[]) {
     if (children.length > 0) {
       if (this.label == null) {
         this.setAttribute("label", "");
       }
     }
-  };
+  }
 
   protected handleCancelSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
     this.handleCancelChildrenAssigned(slot.assignedElements());
   };
 
-  protected handleCancelChildrenAssigned = (children: Element[]) => {
+  protected handleCancelChildrenAssigned(children: Element[]) {
     if (children.length > 0) {
       if (this.cancel == null) {
         this.setAttribute("cancel", "");
       }
     }
-  };
+  }
 
   protected handleConfirmSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
     this.handleCancelChildrenAssigned(slot.assignedElements());
   };
 
-  protected handleConfirmChildrenAssigned = (children: Element[]) => {
+  protected handleConfirmChildrenAssigned(children: Element[]) {
     if (children.length > 0) {
       if (this.confirm == null) {
         this.setAttribute("confirm", "");
       }
     }
-  };
+  }
 
   protected handleLightDismiss = (e: Event) => {
     const el = e.target as HTMLElement;
@@ -374,11 +374,11 @@ export default class Dialog
       }
     }
 
-    this.dispatchEvent(openingEvent);
+    this.emit(OPENING_EVENT);
 
     await animationsComplete(this.root);
 
-    this.dispatchEvent(openedEvent);
+    this.emit(OPENED_EVENT);
   }
 
   protected handleClose = async (
@@ -386,13 +386,13 @@ export default class Dialog
   ): Promise<string | undefined> => {
     this.dialog.inert = true;
     this.open = false;
-    this.dispatchEvent(closingEvent);
+    this.emit(CLOSING_EVENT);
 
     await animationsComplete(this.root);
 
     this.dialog.close();
 
-    this.dispatchEvent(closedEvent);
+    this.emit(CLOSED_EVENT);
     return returnValue;
   };
 

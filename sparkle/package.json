@@ -4,7 +4,7 @@
   "description": "A web component library for games built with Spark.",
   "version": "0.0.1",
   "scripts": {
-    "compile": "node ./esbuild.mjs",
+    "build": "node ./esbuild.mjs",
     "package": "NODE_ENV=production node ./esbuild.mjs",
     "watch": "node ./esbuild.mjs --watch",
     "extract": "ts-node scripts/extract.ts"

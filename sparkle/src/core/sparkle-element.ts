@@ -23,12 +23,14 @@ import { getAttributeNameMap } from "../utils/getAttributeNameMap";
 import { getKeys } from "../utils/getKeys";
 import { getUnitlessValue } from "../utils/getUnitlessValue";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
+import { isFocusableElement } from "../utils/isFocusableElement";
 import { isServer } from "../utils/isServer";
 import { navEndKey } from "../utils/navEndKey";
 import { navNextKey } from "../utils/navNextKey";
 import { navPrevKey } from "../utils/navPrevKey";
 import { navStartKey } from "../utils/navStartKey";
 import { updateAttribute } from "../utils/updateAttribute";
+import SparkleEvent from "./SparkleEvent";
 
 export default class SparkleElement
   extends HTMLElement
@@ -145,9 +147,7 @@ export default class SparkleElement
    * Sets the element's `visibility` to be hidden.
    */
   get invisible(): boolean | string {
-    return this.getBooleanOrStringAttribute(
-      SparkleElement.attributes.invisible
-    );
+    return this.getConditionalAttribute(SparkleElement.attributes.invisible);
   }
   set invisible(value) {
     this.setStringAttribute(SparkleElement.attributes.invisible, value);
@@ -157,9 +157,7 @@ export default class SparkleElement
    * Allows this element to capture `pointer-events`.
    */
   get interactable(): boolean | string {
-    return this.getBooleanOrStringAttribute(
-      SparkleElement.attributes.interactable
-    );
+    return this.getConditionalAttribute(SparkleElement.attributes.interactable);
   }
   set interactable(value) {
     this.setStringAttribute(SparkleElement.attributes.interactable, value);
@@ -169,9 +167,7 @@ export default class SparkleElement
    * Enables `user-select` so the user can select any text inside this element.
    */
   get selectable(): boolean | string {
-    return this.getBooleanOrStringAttribute(
-      SparkleElement.attributes.selectable
-    );
+    return this.getConditionalAttribute(SparkleElement.attributes.selectable);
   }
   set selectable(value) {
     this.setStringAttribute(SparkleElement.attributes.selectable, value);
@@ -1808,9 +1804,22 @@ export default class SparkleElement
     return this.getElementByClass("content-slot");
   }
 
-  protected _focusableChildren: HTMLElement[] = [];
   get focusableChildren(): HTMLElement[] {
-    return this._focusableChildren;
+    if (this.shadowRoot) {
+      this.contentSlot?.addEventListener(
+        "slotchange",
+        this.handleContentSlotAssigned
+      );
+      const elements = this.contentSlot?.assignedElements();
+      if (elements) {
+        return elements.filter(isFocusableElement);
+      }
+    }
+    const elements = this.contentSlot?.children;
+    if (elements) {
+      return Array.from(elements).filter(isFocusableElement);
+    }
+    return [];
   }
 
   constructor() {
@@ -2034,7 +2043,6 @@ export default class SparkleElement
       );
     }
     this.unbindFocus(this.root);
-    this.unbindFocusableChildren();
     this.onDisconnected();
   }
 
@@ -2048,35 +2056,11 @@ export default class SparkleElement
     this.handleContentChildrenAssigned(slot.assignedElements());
   };
 
-  protected handleContentChildrenAssigned = (children: Element[]) => {
-    this.unbindFocusableChildren();
-    this._focusableChildren = children.filter(
-      (el) =>
-        el instanceof HTMLElement &&
-        !(
-          el.inert ||
-          el.hidden ||
-          ((el.shadowRoot || el).firstElementChild as HTMLElement)?.inert ||
-          ((el.shadowRoot || el).firstElementChild as HTMLElement)?.hidden
-        )
-    ) as HTMLElement[];
-    this.bindFocusableChildren();
+  protected handleContentChildrenAssigned(children: Element[]) {
     this.onContentAssigned(children);
-  };
+  }
 
   protected onContentAssigned(children: Element[]): void {}
-
-  bindFocusableChildren(): void {
-    this._focusableChildren.forEach((item) => {
-      item.addEventListener("keydown", this.onKeyDown);
-    });
-  }
-
-  unbindFocusableChildren(): void {
-    this._focusableChildren.forEach((item) => {
-      item.removeEventListener("keydown", this.onKeyDown);
-    });
-  }
 
   onKeyDown = (e: KeyboardEvent): void => {
     const target = e.currentTarget;
@@ -2098,7 +2082,8 @@ export default class SparkleElement
             break;
           case navStartKey():
             {
-              const first = this.focusableChildren[0];
+              const focusableChildren = this.focusableChildren;
+              const first = focusableChildren[0];
               if (first) {
                 e.preventDefault();
                 first.focus();
@@ -2107,8 +2092,8 @@ export default class SparkleElement
             break;
           case navEndKey():
             {
-              const last =
-                this.focusableChildren[this.focusableChildren.length - 1];
+              const focusableChildren = this.focusableChildren;
+              const last = focusableChildren[focusableChildren.length - 1];
               if (last) {
                 e.preventDefault();
                 last.focus();
@@ -2123,15 +2108,16 @@ export default class SparkleElement
   };
 
   focusPreviousChild(item: HTMLElement) {
-    const firstItem = this.focusableChildren[0];
-    const lastItem = this.focusableChildren[this.focusableChildren.length - 1];
+    const focusableChildren = this.focusableChildren;
+    const firstItem = focusableChildren[0];
+    const lastItem = focusableChildren[focusableChildren.length - 1];
     if (item === firstItem) {
       if (lastItem) {
         lastItem.focus();
       }
     } else {
-      const index = this.focusableChildren.indexOf(item);
-      const prevItem = this.focusableChildren[index - 1];
+      const index = focusableChildren.indexOf(item);
+      const prevItem = focusableChildren[index - 1];
       if (prevItem) {
         prevItem.focus();
       }
@@ -2139,15 +2125,16 @@ export default class SparkleElement
   }
 
   focusNextChild(item: HTMLElement) {
-    const firstItem = this.focusableChildren[0];
-    const lastItem = this.focusableChildren[this.focusableChildren.length - 1];
+    const focusableChildren = this.focusableChildren;
+    const firstItem = focusableChildren[0];
+    const lastItem = focusableChildren[focusableChildren.length - 1];
     if (item === lastItem) {
       if (firstItem) {
         firstItem.focus();
       }
     } else {
-      const index = this.focusableChildren.indexOf(item);
-      const nextItem = this.focusableChildren[index + 1];
+      const index = focusableChildren.indexOf(item);
+      const nextItem = focusableChildren[index + 1];
       if (nextItem) {
         nextItem.focus();
       }
@@ -2316,7 +2303,7 @@ export default class SparkleElement
     }
   }
 
-  getBooleanOrStringAttribute(name: string): string | boolean {
+  getConditionalAttribute(name: string): string | boolean {
     const value = this.getAttribute(name);
     if (value == null) {
       return false;
@@ -2325,5 +2312,9 @@ export default class SparkleElement
       return true;
     }
     return value;
+  }
+
+  emit(eventName: string): boolean {
+    return this.dispatchEvent(new SparkleEvent(eventName));
   }
 }

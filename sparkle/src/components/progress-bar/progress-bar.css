@@ -27,6 +27,8 @@
   font-size: var(--text-size);
   font-weight: var(--text-weight);
   background-color: var(--background-color);
+  contain: strict;
+  will-change: transform;
 }
 
 :host > .root > .indicator {
@@ -45,6 +47,7 @@
   transition-property: transform, background-color;
   transition-duration: var(--duration);
   transform: scaleX(var(--value));
+  will-change: transform;
 }
 :host(:not([value])) > .root > .indicator {
   animation: indeterminate-bar calc(1s * var(--speed)) infinite

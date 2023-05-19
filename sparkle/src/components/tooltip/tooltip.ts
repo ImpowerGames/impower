@@ -1,4 +1,4 @@
-import SparkleEvent from "../../core/SparkleEvent";
+import type SparkleEvent from "../../core/SparkleEvent";
 import { Properties } from "../../types/properties";
 import { animationsComplete, parseDuration } from "../../utils/animate";
 import { waitForEvent } from "../../utils/events";
@@ -10,10 +10,10 @@ import html from "./tooltip.html";
 
 const styles = new CSSStyleSheet();
 
-const closingEvent = new SparkleEvent("closing");
-const closedEvent = new SparkleEvent("closed");
-const openingEvent = new SparkleEvent("opening");
-const openedEvent = new SparkleEvent("opened");
+const CLOSING_EVENT = "closing";
+const CLOSED_EVENT = "closed";
+const OPENING_EVENT = "opening";
+const OPENED_EVENT = "opened";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
@@ -271,11 +271,11 @@ export default class Tooltip
       tooltipEl.inert = false;
     }
 
-    this.dispatchEvent(openingEvent);
+    this.emit(OPENING_EVENT);
 
     await animationsComplete(this.root);
 
-    this.dispatchEvent(openedEvent);
+    this.emit(OPENED_EVENT);
   }
 
   async handleClose(): Promise<void> {
@@ -284,7 +284,7 @@ export default class Tooltip
       tooltipEl.inert = true;
     }
 
-    this.dispatchEvent(closingEvent);
+    this.emit(CLOSING_EVENT);
 
     await animationsComplete(this.root);
 
@@ -294,7 +294,7 @@ export default class Tooltip
 
     this.stop();
 
-    this.dispatchEvent(closedEvent);
+    this.emit(CLOSED_EVENT);
   }
 
   /** Shows the tooltip. */
