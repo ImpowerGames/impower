@@ -1,5 +1,5 @@
-import { getCssProportion } from "../../../../sparkle-transformer/src/utils/getCssProportion";
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssProportion from "sparkle-style-transformer/utils/getCssProportion.js";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -9,7 +9,6 @@ import css from "./progress-circle.css";
 import html from "./progress-circle.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 export const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
@@ -38,9 +37,10 @@ export default class ProgressCircle
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -48,6 +48,7 @@ export default class ProgressCircle
   }
 
   override get styles() {
+    styles.replaceSync(ProgressCircle.augmentCss(css));
     return [styles];
   }
 

@@ -1,8 +1,9 @@
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
+import { animationsComplete } from "../../utils/animate";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getKeys } from "../../utils/getKeys";
@@ -15,7 +16,6 @@ import css from "./tabs.css";
 import html from "./tabs.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const onchangeEvent = new SparkleEvent("onchange");
 
@@ -49,16 +49,18 @@ export default class Tabs
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
-    return Tabs.augment(html, DEFAULT_DEPENDENCIES);
+    return Tabs.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles() {
+    styles.replaceSync(Tabs.augmentCss(css, DEFAULT_DEPENDENCIES));
     return [styles];
   }
 
@@ -131,7 +133,7 @@ export default class Tabs
     newValue: string
   ): void {
     if (name === Tabs.attributes.indicator) {
-      this.updateTabs();
+      this.updateTabs(this.value);
       const indicatorEl = this.indicatorEl;
       if (indicatorEl) {
         indicatorEl.hidden = newValue === "none";
@@ -143,7 +145,7 @@ export default class Tabs
         Tabs.attributes.ariaOrientation,
         vertical ? "vertical" : "horizontal"
       );
-      this.updateTabs();
+      this.updateTabs(this.value);
     }
   }
 
@@ -170,7 +172,10 @@ export default class Tabs
     this.unbindTabs();
   }
 
-  updateIndicator = (tabElement: HTMLElement): void => {
+  async updateIndicator(
+    tabElement: HTMLElement,
+    tabValue: string | null
+  ): Promise<void> {
     if (tabElement && this.indicator !== "none") {
       const indicator = this.indicatorEl;
       const navEl = this.navEl;
@@ -190,16 +195,23 @@ export default class Tabs
             ? `translateY(${offset}px) scaleY(${size})`
             : `translateX(${offset}px) scaleX(${size})`;
           indicator.style.opacity = "1";
+
+          if (indicator.style.transition !== "none") {
+            await animationsComplete(indicator);
+          }
         }
       }
     }
-  };
 
-  updateTabs(): void {
+    this.value = tabValue;
+    this.dispatchEvent(onchangeEvent);
+  }
+
+  updateTabs(value: string | null): void {
     this.tabs.forEach((tab) => {
-      if (this.value === tab.value) {
+      if (value === tab.value) {
         tab.active = true;
-        this.updateIndicator(tab.root);
+        this.updateIndicator(tab.root, tab.value);
       } else {
         tab.active = false;
       }
@@ -227,10 +239,7 @@ export default class Tabs
   }
 
   activateTab(tab: Tab): void {
-    const value = tab.value;
-    this.value = value;
-    this.updateTabs();
-    this.dispatchEvent(onchangeEvent);
+    this.updateTabs(tab.value);
   }
 
   focusTab(tab: Tab, activate: boolean) {
@@ -334,18 +343,16 @@ export default class Tabs
   };
 
   protected handleResize = (): void => {
-    this.updateTabs();
+    this.updateTabs(this.value);
   };
 
-  protected override onContentAssigned = (slot: HTMLSlotElement): void => {
+  protected override onContentAssigned = (children: Element[]): void => {
     this.unbindTabs();
-    this._tabs = slot
-      ?.assignedElements?.()
-      .filter(
-        (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
-      ) as Tab[];
+    this._tabs = children.filter(
+      (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
+    ) as Tab[];
     this.bindTabs();
-    this.updateTabs();
+    this.updateTabs(this.value);
   };
 }
 

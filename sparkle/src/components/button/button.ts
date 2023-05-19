@@ -1,6 +1,6 @@
-import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
-import { getCssMask } from "../../../../sparkle-transformer/src/utils/getCssMask";
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
+import getCssMask from "sparkle-style-transformer/utils/getCssMask.js";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
@@ -15,7 +15,6 @@ import css from "./button.css";
 import html from "./button.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-badge",
@@ -59,13 +58,14 @@ export default class Button
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
-    return Button.augment(
+    return Button.augmentHtml(
       this.href
         ? html.replace("<button ", "<a ").replace("</button>", "</a>")
         : html,
@@ -74,6 +74,7 @@ export default class Button
   }
 
   override get styles() {
+    styles.replaceSync(Button.augmentCss(css, DEFAULT_DEPENDENCIES));
     return [styles];
   }
 
@@ -296,7 +297,11 @@ export default class Button
       if (id && attr) {
         const siblings =
           (this.parentElement?.childNodes as NodeListOf<HTMLElement>) || [];
-        const element = [this.parentElement, ...Array.from(siblings)].find(
+        const element = [
+          this.parentElement,
+          this.parentElement?.parentElement,
+          ...Array.from(siblings),
+        ].find(
           (sibling) =>
             (sibling as HTMLElement)?.getAttribute?.("id") === id.trim()
         );
@@ -323,8 +328,8 @@ export default class Button
     }
   };
 
-  protected override onContentAssigned(slot: HTMLSlotElement): void {
-    const nodes = slot?.assignedNodes?.();
+  protected override onContentAssigned(children: Element[]): void {
+    const nodes = children;
     nodes.forEach((node) => {
       if (node.nodeName.toLowerCase() === Button.dependencies.badge) {
         const el = node as HTMLElement;

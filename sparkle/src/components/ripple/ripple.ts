@@ -5,9 +5,9 @@
  * Released under the Apache-2.0 license.
  */
 
-import SparkleEvent from "../../core/SparkleEvent.js";
-import SparkleElement from "../../core/sparkle-element.js";
-import { getDimensions } from "../../utils/getDimensions.js";
+import SparkleEvent from "../../core/SparkleEvent";
+import SparkleElement from "../../core/sparkle-element";
+import { getDimensions } from "../../utils/getDimensions";
 import css from "./ripple.css";
 import html from "./ripple.html";
 
@@ -73,7 +73,6 @@ enum State {
 const TOUCH_DELAY_MS = 150;
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const focusedEvent = new SparkleEvent("focused");
 const unfocusedEvent = new SparkleEvent("unfocused");
@@ -90,9 +89,10 @@ export default class Ripple extends SparkleElement {
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -100,6 +100,7 @@ export default class Ripple extends SparkleElement {
   }
 
   override get styles() {
+    styles.replaceSync(Ripple.augmentCss(css));
     return [styles];
   }
 

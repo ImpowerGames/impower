@@ -1,4 +1,4 @@
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -8,7 +8,6 @@ import css from "./circle.css";
 import html from "./circle.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 export const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
@@ -33,9 +32,10 @@ export default class Circle
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -43,6 +43,7 @@ export default class Circle
   }
 
   override get styles() {
+    styles.replaceSync(Circle.augmentCss(css));
     return [styles];
   }
 

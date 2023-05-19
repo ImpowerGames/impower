@@ -5,7 +5,6 @@ import css from "./router.css";
 import html from "./router.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap(["observe", "swipeable"]);
 
@@ -27,9 +26,10 @@ export default class Router
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -37,6 +37,7 @@ export default class Router
   }
 
   override get styles() {
+    styles.replaceSync(Router.augmentCss(css));
     return [styles];
   }
 
@@ -93,7 +94,7 @@ export default class Router
   }
 
   get templatesSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("templates");
+    return this.getElementByClass("templates-slot");
   }
   protected _templates: HTMLTemplateElement[] = [];
 
@@ -113,10 +114,16 @@ export default class Router
 
   protected override onConnected(): void {
     this._valueObserver = new MutationObserver(this.handleValueMutation);
-    this.templatesSlot?.addEventListener(
-      "slotchange",
-      this.handleTemplatesSlotChange
-    );
+    if (this.shadowRoot) {
+      this.templatesSlot?.addEventListener(
+        "slotchange",
+        this.handleTemplatesSlotAssigned
+      );
+    } else {
+      this.handleTemplatesChildrenAssigned(
+        Array.from(this.templatesSlot?.children || [])
+      );
+    }
   }
 
   protected override onParsed(): void {
@@ -126,19 +133,25 @@ export default class Router
 
   protected override onDisconnected(): void {
     this._valueObserver?.disconnect();
-    this.templatesSlot?.removeEventListener(
-      "slotchange",
-      this.handleTemplatesSlotChange
-    );
+    if (this.shadowRoot) {
+      this.templatesSlot?.removeEventListener(
+        "slotchange",
+        this.handleTemplatesSlotAssigned
+      );
+    }
   }
 
-  protected handleTemplatesSlotChange = (e: Event) => {
+  protected handleTemplatesSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
-    this._templates = slot
-      ?.assignedElements?.({ flatten: true })
-      .filter(
-        (el) => el.tagName.toLowerCase() === "template"
-      ) as HTMLTemplateElement[];
+    this.handleTemplatesChildrenAssigned(
+      slot.assignedElements({ flatten: true })
+    );
+  };
+
+  protected handleTemplatesChildrenAssigned = (children: Element[]) => {
+    this._templates = children.filter(
+      (el) => el.tagName.toLowerCase() === "template"
+    ) as HTMLTemplateElement[];
   };
 
   loadTemplates(newValue: string | null): void {

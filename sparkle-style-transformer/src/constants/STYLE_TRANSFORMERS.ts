@@ -1,5 +1,4 @@
 import getCssAnimation from "../utils/getCssAnimation.js";
-import getCssAspectRatio from "../utils/getCssAspectRatio.js";
 import getCssBgAlign from "../utils/getCssBgAlign.js";
 import getCssBgFit from "../utils/getCssBgFit.js";
 import getCssBlend from "../utils/getCssBlend.js";
@@ -22,6 +21,7 @@ import getCssMask from "../utils/getCssMask.js";
 import getCssOverflow from "../utils/getCssOverflow.js";
 import getCssPattern from "../utils/getCssPattern.js";
 import getCssPosition from "../utils/getCssPosition.js";
+import getCssRatio from "../utils/getCssRatio.js";
 import getCssRepeat from "../utils/getCssRepeat.js";
 import getCssRotate from "../utils/getCssRotate.js";
 import getCssScale from "../utils/getCssScale.js";
@@ -48,7 +48,7 @@ const get = (v: string) => v;
 const STYLE_TRANSFORMERS = {
   position: getCssPosition,
 
-  aspect: getCssAspectRatio,
+  aspect: getCssRatio,
 
   "overflow-x": getCssOverflow,
   "overflow-y": getCssOverflow,

@@ -1,15 +1,15 @@
-:host([position]) > .root {
+[position] > .root {
   position: var(--position, absolute) !important;
 }
 
-:host([aspect]) > .root {
+[aspect] > .root {
   aspect-ratio: var(--aspect, 1) !important;
 }
 
-:host([overflow-x]) > .root {
+[overflow-x] > .root {
   overflow-x: var(--overflow-x, scroll) !important;
 }
-:host(:is([overflow-x=""], [overflow-x="scroll"])) > .root {
+:is([overflow-x=""], [overflow-x="scroll"]) > .root {
   overflow-y: var(--overflow-y, clip);
   pointer-events: var(--interactable, auto);
   min-width: var(--width-min, 100%);
@@ -20,10 +20,10 @@
   left: var(--inset-l, var(--inset-lr, var(--inset, 0)));
 }
 
-:host([overflow-y]) > .root {
+[overflow-y] > .root {
   overflow-y: var(--overflow-y, scroll) !important;
 }
-:host(:is([overflow-y=""], [overflow-y="scroll"])) > .root {
+:is([overflow-y=""], [overflow-y="scroll"]) > .root {
   overflow-x: var(--overflow-x, clip);
   pointer-events: var(--interactable, auto);
   min-height: var(--height-min, 100%);
@@ -34,106 +34,106 @@
   left: var(--inset-l, var(--inset-lr, var(--inset, 0)));
 }
 
-:host([z]) > .root {
+[z] > .root {
   position: var(--position, relative) !important;
   z-index: var(--z, 1) !important;
 }
 
-:host([width]) > .root {
+[width] > .root {
   width: var(--width, 100%) !important;
 }
-:host([width-min]) > .root {
+[width-min] > .root {
   min-width: var(--width-min, 0) !important;
 }
-:host([width-max]) > .root {
+[width-max] > .root {
   max-width: var(--width-max, 100%) !important;
 }
 
-:host([height]) > .root {
+[height] > .root {
   height: var(--height, 100%) !important;
 }
-:host([height-min]) > .root {
+[height-min] > .root {
   min-height: var(--height-min, 0) !important;
 }
-:host([height-max]) > .root {
+[height-max] > .root {
   max-height: var(--height-max, 100%) !important;
 }
 
-:host(:is([c], [corner])) > .root {
+:is([c], [corner]) > .root {
   border-radius: var(--c, var(--corner, 8px)) !important;
 }
-:host(:is([c-t], [corner-t])) > .root {
+:is([c-t], [corner-t]) > .root {
   border-start-start-radius: var(--c-t, var(--corner-t, 8px)) !important;
   border-start-end-radius: var(--c-t, var(--corner-t, 8px)) !important;
 }
-:host(:is([c-b], [corner-b])) > .root {
+:is([c-b], [corner-b]) > .root {
   border-end-start-radius: var(--c-b, var(--corner-b, 8px)) !important;
   border-end-end-radius: var(--c-b, var(--corner-b, 8px)) !important;
 }
-:host(:is([c-l], [corner-l])) > .root {
+:is([c-l], [corner-l]) > .root {
   border-start-start-radius: var(--c-l, var(--corner-l, 8px)) !important;
   border-end-start-radius: var(--c-l, var(--corner-l, 8px)) !important;
 }
-:host(:is([c-r], [corner-r])) > .root {
+:is([c-r], [corner-r]) > .root {
   border-start-end-radius: var(--c-r, var(--corner-r, 8px)) !important;
   border-end-end-radius: var(--c-r, var(--corner-r, 8px)) !important;
 }
-:host(:is([c-tl], [corner-tl])) > .root {
+:is([c-tl], [corner-tl]) > .root {
   border-start-start-radius: var(--c-tl, var(--corner-tl, 8px)) !important;
 }
-:host(:is([c-tr], [corner-tr])) > .root {
+:is([c-tr], [corner-tr]) > .root {
   border-start-end-radius: var(--c-tr, var(--corner-tr, 8px)) !important;
 }
-:host(:is([c-bl], [corner-bl])) > .root {
+:is([c-bl], [corner-bl]) > .root {
   border-end-start-radius: var(--c-bl, var(--corner-bl, 8px)) !important;
 }
-:host(:is([c-br], [corner-br])) > .root {
+:is([c-br], [corner-br]) > .root {
   border-end-end-radius: var(--c-br, var(--corner-br, 8px)) !important;
 }
 
-:host(:is([b-color], [border-color])) > .root {
+:is([b-color], [border-color]) > .root {
   border-style: solid;
   border-color: var(
     --b-color,
     var(--border-color, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:host(:is([b-color-tb], [border-color-tb])) > .root {
+:is([b-color-tb], [border-color-tb]) > .root {
   border-style: solid;
   border-block-color: var(
     --b-color-tb,
     var(--border-color-tb, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:host(:is([b-color-lr], [border-color-lr])) > .root {
+:is([b-color-lr], [border-color-lr]) > .root {
   border-style: solid;
   border-inline-color: var(
     --b-color-lr,
     var(--border-color-lr, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:host(:is([b-color-t], [border-color-t])) > .root {
+:is([b-color-t], [border-color-t]) > .root {
   border-style: solid;
   border-block-start-color: var(
     --b-color-t,
     var(--border-color-t, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:host([border-color-b]) > .root {
+[border-color-b] > .root {
   border-style: solid;
   border-block-end-color: var(
     --b-color-b,
     var(--border-color-b, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:host(:is([b-color-l], [border-color-l])) > .root {
+:is([b-color-l], [border-color-l]) > .root {
   border-style: solid;
   border-inline-start-color: var(
     --b-color-l,
     var(--border-color-l, hsl(0 100% 100% / 50%))
   ) !important;
 }
-:host(:is([b-color-r], [border-color-r])) > .root {
+:is([b-color-r], [border-color-r]) > .root {
   border-style: solid;
   border-inline-end-color: var(
     --b-color-r,
@@ -141,43 +141,43 @@
   ) !important;
 }
 
-:host(:is([b-width], [border-width])) > .root {
+:is([b-width], [border-width]) > .root {
   border-style: solid;
   border-width: var(--b-width, var(--border-width, 8px)) !important;
 }
-:host(:is([b-width-tb], [border-width-tb])) > .root {
+:is([b-width-tb], [border-width-tb]) > .root {
   border-style: solid;
   border-block-width: var(--b-width-tb, var(--border-width-tb, 8px)) !important;
 }
-:host(:is([b-width-lr], [border-width-lr])) > .root {
+:is([b-width-lr], [border-width-lr]) > .root {
   border-style: solid;
   border-inline-width: var(
     --b-width-lr,
     var(--border-width-lr, 8px)
   ) !important;
 }
-:host(:is([b-width-t], [border-width-t])) > .root {
+:is([b-width-t], [border-width-t]) > .root {
   border-style: solid;
   border-block-start-width: var(
     --b-width-t,
     var(--border-width-t, 8px)
   ) !important;
 }
-:host(:is([b-width-b], [border-width-b])) > .root {
+:is([b-width-b], [border-width-b]) > .root {
   border-style: solid;
   border-block-end-width: var(
     --b-width-b,
     var(--border-width-b, 8px)
   ) !important;
 }
-:host(:is([b-width-l], [border-width-l])) > .root {
+:is([b-width-l], [border-width-l]) > .root {
   border-style: solid;
   border-inline-start-width: var(
     --b-width-l,
     var(--border-width-l, 8px)
   ) !important;
 }
-:host(:is([b-width-r], [border-width-r])) > .root {
+:is([b-width-r], [border-width-r]) > .root {
   border-style: solid;
   border-inline-end-width: var(
     --b-width-r,
@@ -185,268 +185,264 @@
   ) !important;
 }
 
-:host(:is([i], [inset])) > .root {
+:is([i], [inset]) > .root {
   inset: var(--i, var(--inset, 8px)) !important;
 }
-:host(:is([i-tb], [inset-tb])) > .root {
+:is([i-tb], [inset-tb]) > .root {
   inset-block: var(--i-tb, var(--inset-tb, 8px)) !important;
 }
-:host(:is([i-lr], [inset-lr])) > .root {
+:is([i-lr], [inset-lr]) > .root {
   inset-inline: var(--i-lr, var(--inset-lr, 8px)) !important;
 }
-:host(:is([i-t], [inset-t])) > .root {
+:is([i-t], [inset-t]) > .root {
   inset-block-start: var(--i-t, var(--inset-t, 8px)) !important;
 }
-:host(:is([i-b], [inset-b])) > .root {
+:is([i-b], [inset-b]) > .root {
   inset-block-end: var(--i-b, var(--inset-b, 8px)) !important;
 }
-:host(:is([i-l], [inset-l])) > .root {
+:is([i-l], [inset-l]) > .root {
   inset-inline-start: var(--i-l, var(--inset-l, 8px)) !important;
 }
-:host(:is([i-r], [inset-r])) > .root {
+:is([i-r], [inset-r]) > .root {
   inset-inline-end: var(--i-r, var(--inset-r, 8px)) !important;
 }
 
-:host(:is([m], [margin])) > .root {
+:is([m], [margin]) > .root {
   margin: var(--m, var(--margin, 8px)) !important;
 }
-:host(:is([m-tb], [margin-tb])) > .root {
+:is([m-tb], [margin-tb]) > .root {
   margin-block: var(--m-tb, var(--margin-tb, 8px)) !important;
 }
-:host(:is([m-lr], [margin-lr])) > .root {
+:is([m-lr], [margin-lr]) > .root {
   margin-inline: var(--m-lr, var(--margin-lr, 8px)) !important;
 }
-:host(:is([m-t], [margin-t])) > .root {
+:is([m-t], [margin-t]) > .root {
   margin-block-start: var(--m-t, var(--margin-t, 8px)) !important;
 }
-:host(:is([m-b], [margin-b])) > .root {
+:is([m-b], [margin-b]) > .root {
   margin-block-end: var(--m-b, var(--margin-b, 8px)) !important;
 }
-:host(:is([m-l], [margin-l])) > .root {
+:is([m-l], [margin-l]) > .root {
   margin-inline-start: var(--m-l, var(--margin-l, 8px)) !important;
 }
-:host(:is([m-r], [margin-r])) > .root {
+:is([m-r], [margin-r]) > .root {
   margin-inline-end: var(--m-r, var(--margin-r, 8px)) !important;
 }
 
-:host(:is([p], [padding])) > .root {
+:is([p], [padding]) > .root {
   padding: var(--p, var(--padding, 8px)) !important;
 }
-:host(:is([p-tb], [padding-tb])) > .root {
+:is([p-tb], [padding-tb]) > .root {
   padding-block: var(--p-tb, var(--padding-tb, 8px)) !important;
 }
-:host(:is([p-lr], [padding-lr])) > .root {
+:is([p-lr], [padding-lr]) > .root {
   padding-inline: var(--p-lr, var(--padding-lr, 8px)) !important;
 }
-:host(:is([p-t], [padding-t])) > .root {
+:is([p-t], [padding-t]) > .root {
   padding-block-start: var(--p-t, var(--padding-t, 8px)) !important;
 }
-:host(:is([p-b], [padding-b])) > .root {
+:is([p-b], [padding-b]) > .root {
   padding-block-end: var(--p-b, var(--padding-b, 8px)) !important;
 }
-:host(:is([p-l], [padding-l])) > .root {
+:is([p-l], [padding-l]) > .root {
   padding-inline-start: var(--p-l, var(--padding-l, 8px)) !important;
 }
-:host(:is([p-r], [padding-r])) > .root {
+:is([p-r], [padding-r]) > .root {
   padding-inline-end: var(--p-r, var(--padding-r, 8px)) !important;
 }
 
-:host([child-layout]) > .root {
+[child-layout] > .root {
   display: flex !important;
   flex-direction: var(--child-layout, row) !important;
 }
-:host([child-gap]) > .root {
+[child-gap] > .root {
   gap: var(--child-gap, 8px) !important;
 }
-:host([child-align]) > .root {
+[child-align] > .root {
   align-items: var(--child-align, center) !important;
 }
-:host([child-justify]) > .root {
+[child-justify] > .root {
   justify-content: var(--child-justify, center) !important;
 }
-:host([child-overflow]) > .root {
+[child-overflow] > .root {
   flex-wrap: var(--child-overflow, nowrap) !important;
 }
-:host([self-align]) > .root {
+[self-align] > .root {
   align-self: var(--self-align, center) !important;
 }
 
-:host([grow]) > .root {
+[grow] > .root {
   flex-grow: var(--grow, 1) !important;
 }
 
-:host([fill]) > .root {
+[fill] > .root {
   fill: var(--fill, currentColor) !important;
 }
-:host([stroke]) > .root {
+[stroke] > .root {
   stroke: var(--stroke, currentColor) !important;
 }
-:host([stroke-width]) > .root {
+[stroke-width] > .root {
   stroke-width: var(--stroke-width, 1) !important;
 }
 
-:host([invisible]) > .root {
+[invisible] > .root {
   visibility: var(--invisible, hidden) !important;
 }
-:host([interactable]) > .root {
+[interactable] > .root {
   pointer-events: var(--interactable, auto) !important;
 }
-:host(:is([interactable=""], [interactable="auto"])) > .root {
+:is([interactable=""], [interactable="auto"]) > .root {
   cursor: pointer;
 }
-:host([interactable--cursor]) > .root {
-  cursor: var(--interactable--cursor, auto) !important;
-}
-:host([selectable]) > .root {
+[selectable] > .root {
   user-select: var(--selectable, auto) !important;
 }
-:host(:is([selectable=""], [selectable="auto"])) > .root {
+:is([selectable=""], [selectable="auto"]) > .root {
   cursor: "text";
 }
 
-:host([text-font]) > .root {
+[text-font] > .root {
   font-family: var(--text-font, monospace) !important;
 }
 
-:host([text-size]) > .root {
+[text-size] > .root {
   font-size: var(--text-size, 1rem) !important;
 }
-:host([text-size="2xs"]) > .root {
+[text-size="2xs"] > .root {
   line-height: var(--s-text-2xs-line-height, 1.5);
 }
-:host([text-size="xs"]) > .root {
+[text-size="xs"] > .root {
   line-height: var(--s-text-xs-line-height, 1.5);
 }
-:host([text-size="sm"]) > .root {
+[text-size="sm"] > .root {
   line-height: var(--s-text-sm-line-height, 1.5);
 }
-:host([text-size="md"]) > .root {
+[text-size="md"] > .root {
   line-height: var(--s-text-md-line-height, 1.5);
 }
-:host([text-size="lg"]) > .root {
+[text-size="lg"] > .root {
   line-height: var(--s-text-lg-line-height, 1.5);
 }
-:host([text-size="xl"]) > .root {
+[text-size="xl"] > .root {
   line-height: var(--s-text-xl-line-height, 1.5);
 }
-:host([text-size="2xl"]) > .root {
+[text-size="2xl"] > .root {
   line-height: var(--s-text-2xl-line-height, 1.5);
 }
-:host([text-size="3xl"]) > .root {
+[text-size="3xl"] > .root {
   line-height: var(--s-text-3xl-line-height, 1.5);
 }
-:host([text-size="4xl"]) > .root {
+[text-size="4xl"] > .root {
   line-height: var(--s-text-4xl-line-height, 1.5);
 }
-:host([text-size="5xl"]) > .root {
+[text-size="5xl"] > .root {
   line-height: var(--s-text-5xl-line-height, 1.5);
 }
-:host([text-size="6xl"]) > .root {
+[text-size="6xl"] > .root {
   line-height: var(--s-text-6xl-line-height, 1.5);
 }
-:host([text-size="7xl"]) > .root {
+[text-size="7xl"] > .root {
   line-height: var(--s-text-7xl-line-height, 1.5);
 }
-:host([text-size="8xl"]) > .root {
+[text-size="8xl"] > .root {
   line-height: var(--s-text-8xl-line-height, 1.5);
 }
-:host([text-size="9xl"]) > .root {
+[text-size="9xl"] > .root {
   line-height: var(--s-text-9xl-line-height, 1.5);
 }
 
-:host([text-leading]) > .root {
+[text-leading] > .root {
   line-height: var(--text-leading, 1.5) !important;
 }
 
-:host([text-kerning]) > .root {
+[text-kerning] > .root {
   letter-spacing: var(--text-kerning, 1.5) !important;
 }
 
-:host([text-weight]) > .root {
+[text-weight] > .root {
   font-weight: var(--text-weight, 600) !important;
 }
-:host([text-italic]) > .root {
+[text-italic] > .root {
   font-style: var(--text-italic, italic) !important;
 }
-:host([text-underline]) > .root,
-:host([text-strikethrough]) > .root {
+[text-underline] > .root,
+[text-strikethrough] > .root {
   /* must preserve trailing comma for empty fallback */
   /* prettier-ignore */
   text-decoration-line: var(--text-underline,) var(--text-strikethrough,) !important;
 }
-:host([text-underline-offset]) > .root {
+[text-underline-offset] > .root {
   text-underline-offset: var(--text-underline-offset, 4px) !important;
 }
-:host([text-decoration-thickness]) > .root {
+[text-decoration-thickness] > .root {
   text-decoration-thickness: var(--text-decoration-thickness, 4px) !important;
 }
-:host([text-case]) > .root {
+[text-case] > .root {
   text-transform: var(--text-case, uppercase) !important;
 }
-:host([text-align]) > .root {
+[text-align] > .root {
   text-align: var(--text-align, center) !important;
 }
-:host([text-overflow]) > .root {
+[text-overflow] > .root {
   text-overflow: var(--text-overflow, clip) !important;
 }
-:host([text-overflow="wrap"]) > .root {
+[text-overflow="wrap"] > .root {
   white-space: break-spaces;
 }
-:host(
-    :is(
-        [text-overflow=""],
-        [text-overflow="visible"],
-        [text-overflow="clip"],
-        [text-overflow="ellipsis"],
 
-      )
+:is(
+    [text-overflow=""],
+    [text-overflow="visible"],
+    [text-overflow="clip"],
+    [text-overflow="ellipsis"],
+
   )
   > .root {
   white-space: nowrap;
 }
-:host([text-color]) > .root {
+[text-color] > .root {
   color: var(--text-color, white) !important;
 }
-:host([text-stroke]) > .root,
-:host([text-stroke-color]) > .root,
-:host([text-stroke-width]) > .root {
+[text-stroke] > .root,
+[text-stroke-color] > .root,
+[text-stroke-width] > .root {
   text-shadow: var(--text-stroke) !important;
 }
 
-:host(:is([bg-color], [background-color])) > .root {
+:is([bg-color], [background-color]) > .root {
   background-color: var(--bg-color, var(--background-color)) !important;
 }
-:host(:is([bg-gradient], [background-gradient])) > .root,
-:host(:is([bg-pattern], [background-pattern])) > .root,
-:host(:is([bg-image], [background-image])) > .root {
+:is([bg-gradient], [background-gradient]) > .root,
+:is([bg-pattern], [background-pattern]) > .root,
+:is([bg-image], [background-image]) > .root {
   background-image: var(--bg-gradient, var(--background-gradient, none)),
     var(--bg-pattern, var(--background-pattern, none)),
     var(--bg-image, var(--background-image, none)) !important;
 }
-:host(:is([bg-repeat], [background-repeat])) > .root {
+:is([bg-repeat], [background-repeat]) > .root {
   background-repeat: no-repeat, no-repeat,
     var(--bg-repeat, var(--background-repeat, repeat)) !important;
 }
-:host(:is([bg-align], [background-align])) > .root {
+:is([bg-align], [background-align]) > .root {
   background-position: center, center,
     var(--bg-align, var(--background-align, center)) !important;
 }
-:host(:is([bg-fit], [background-fit])) > .root {
+:is([bg-fit], [background-fit]) > .root {
   background-size: auto, cover, var(--bg-fit, var(--background-fit, contain)) !important;
 }
 
-:host([clip]) > .root {
+[clip] > .root {
   clip-path: var(--clip, circle(50%)) !important;
 }
 
-:host([shadow]) > .root {
+[shadow] > .root {
   transition-property: opacity, transform, filter !important;
   filter: var(
     --shadow,
     drop-shadow(0 1px 2px hsl(0 0% 0% / 30%)) 0 1px 3px hsl(0 0% 0% / 15%)
   ) !important;
 }
-:host([shadow-inset]) > .root {
+[shadow-inset] > .root {
   box-shadow: var(
     --shadow-inset,
     inset 0 1px 2px hsl(0 0% 0% / 30%),
@@ -454,34 +450,30 @@
   ) !important;
 }
 
-:host([filter]) > .root {
-  /* must preserve trailing comma for empty fallback */
-  /* prettier-ignore */
-  backdrop-filter: var(--brightness,) var(--contrast,)
-    var(--saturate,) var(--grayscale,) var(--sepia,)
-    var(--hue,) var(--invert,) var(--blur,) !important;
+[filter] > .root {
+  backdrop-filter: var(--filter, none) !important;
 }
 
-:host([blend]) > .root {
+[blend] > .root {
   mix-blend-mode: var(--blend, normal) !important;
 }
 
-:host([opacity]) > .root {
+[opacity] > .root {
   transition-property: opacity, transform, filter !important;
   opacity: var(--opacity, 1) !important;
 }
 
-:host([translate-x]) > .root,
-:host([translate-y]) > .root,
-:host([translate-z]) > .root,
-:host([rotate-x]) > .root,
-:host([rotate-y]) > .root,
-:host([rotate-z]) > .root,
-:host([scale-x]) > .root,
-:host([scale-y]) > .root,
-:host([scale-z]) > .root,
-:host([skew-x]) > .root,
-:host([skew-y]) > .root {
+[translate-x] > .root,
+[translate-y] > .root,
+[translate-z] > .root,
+[rotate-x] > .root,
+[rotate-y] > .root,
+[rotate-z] > .root,
+[scale-x] > .root,
+[scale-y] > .root,
+[scale-z] > .root,
+[skew-x] > .root,
+[skew-y] > .root {
   transition-property: opacity, transform, filter !important;
   transform: scale(var(--scale-x, 1), var(--scale-y, 1), var(--scale-z, 1))
     rotate(var(--rotate-x, 0), var(--rotate-y, 0), var(--rotate-z, 0))
@@ -493,25 +485,25 @@
     skew(var(--skew-x, 0), var(--skew-y, 0)) !important;
 }
 
-:host([pivot]) > .root {
+[pivot] > .root {
   transform-origin: var(--pivot, left) !important;
 }
 
-:host([delay]) > .root {
+[delay] > .root {
   transition-delay: var(--delay, 100ms) !important;
 }
-:host([duration]) > .root {
+[duration] > .root {
   transition-duration: var(--duration, 100ms) !important;
 }
-:host([ease]) > .root {
+[ease] > .root {
   transition-timing-function: var(--ease, ease) !important;
 }
 
-:host([animate]) > .root {
-  animation: var(--animate, var(--s-animation-bounce)) !important;
+[animation] > .root {
+  animation: var(--animation, var(--s-animation-bounce)) !important;
 }
 
-:host([mask]) > .root {
+[mask] > .root {
   --s-mask-angled-corner: conic-gradient(
         from -45deg at var(--corner, 8px) var(--corner, 8px),
         #0000 25%,
@@ -542,7 +534,7 @@
   background-color: transparent !important;
   background-image: none !important;
 }
-:host([mask]) > .root::before {
+[mask] > .root::before {
   /* Apply mask to a pseudo-element so that drop-shadow filters applied to the root element will match the shape of the mask */
   position: absolute !important;
   inset: 0 !important;

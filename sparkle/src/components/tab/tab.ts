@@ -1,6 +1,6 @@
-import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
-import { getCssMask } from "../../../../sparkle-transformer/src/utils/getCssMask";
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
+import getCssMask from "sparkle-style-transformer/utils/getCssMask.js";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
@@ -14,7 +14,6 @@ import css from "./tab.css";
 import html from "./tab.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
@@ -48,16 +47,18 @@ export default class Tab
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
-    return Tab.augment(html, DEFAULT_DEPENDENCIES);
+    return Tab.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles() {
+    styles.replaceSync(Tab.augmentCss(css, DEFAULT_DEPENDENCIES));
     return [styles];
   }
 

@@ -1,5 +1,6 @@
 <div class="root" part="root">
-  <slot class="content"></slot>
-  <div class="arrow" part="arrow" role="presentation"></div>
+  <slot class="content-slot"></slot>
 </div>
-<slot class="anchor" part="anchor" name="anchor"></slot>
+<div class="popup" part="popup" inert hidden>
+  <slot class="popup-slot" name="label"></slot>
+</div>

@@ -1,14 +1,21 @@
-import { STYLE_ALIASES } from "../../../sparkle-transformer/src/constants/STYLE_ALIASES";
-import { STYLE_TRANSFORMERS } from "../../../sparkle-transformer/src/constants/STYLE_TRANSFORMERS";
-import { getCssPattern } from "../../../sparkle-transformer/src/utils/getCssPattern";
-import { getCssTextStroke } from "../../../sparkle-transformer/src/utils/getCssTextStroke";
+import STYLE_ALIASES from "sparkle-style-transformer/constants/STYLE_ALIASES.js";
+import STYLE_TRANSFORMERS from "sparkle-style-transformer/constants/STYLE_TRANSFORMERS.js";
+import getCssPattern from "sparkle-style-transformer/utils/getCssPattern.js";
+import getCssTextStroke from "sparkle-style-transformer/utils/getCssTextStroke.js";
 import Patterns from "../configs/patterns";
-import Styles from "../configs/styles";
 import { ARIA_ATTRIBUTE_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
-import { CORE_CSS } from "../styles/core/core";
+import { LIGHT_DOM_CORE_CSS, SHADOW_DOM_CORE_CSS } from "../styles/core/core";
+import { KEYFRAMES_CSS } from "../styles/keyframes/keyframes";
 import { NORMALIZE_CSS } from "../styles/normalize/normalize";
+import { AnimationName } from "../types/animationName";
 import { ColorName } from "../types/colorName";
+import { EasingName } from "../types/easingName";
+import { GradientName } from "../types/gradientName";
+import { LayerName } from "../types/layerName";
+import { MaskName } from "../types/maskName";
+import { PatternName } from "../types/patternName";
 import { Properties } from "../types/properties";
+import { RatioName } from "../types/ratioName";
 import { SizeName } from "../types/sizeName";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
@@ -27,6 +34,8 @@ export default class SparkleElement
   extends HTMLElement
   implements Properties<typeof STYLE_TRANSFORMERS>
 {
+  static shadowDom = false;
+
   private static _tagName = "";
   static get tagName() {
     return this._tagName;
@@ -65,8 +74,10 @@ export default class SparkleElement
    */
   static async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
+    SparkleElement.shadowDom = useShadowDom;
     if (tagName) {
       this.tagName = tagName;
     }
@@ -78,7 +89,7 @@ export default class SparkleElement
   }
 
   get html(): string {
-    return `<div class="root" part="root"><slot class="content"></slot></div>`;
+    return `<div class="root" part="root"><slot class="content-slot"></slot></div>`;
   }
 
   get styles(): CSSStyleSheet[] {
@@ -185,18 +196,9 @@ export default class SparkleElement
   }
 
   /**
-   * Sets a preferred `aspect-ratio` for the box.
+   * Sets a preferred `aspect-ratio` for the element.
    */
-  get aspect():
-    | ""
-    | "square"
-    | "landscape"
-    | "portrait"
-    | "widescreen"
-    | "ultrawide"
-    | "golden"
-    | string
-    | null {
+  get aspect(): "" | RatioName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.aspect);
   }
   set aspect(value) {
@@ -228,19 +230,10 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `z-index` of a positioned element and its descendants. Elements with a larger z value appear on top of those with a smaller one.
+   * Sets the `z-index` of a positioned element and its descendants.
+   * Elements with a larger z value appear on top of those with a smaller one.
    */
-  get z():
-    | ""
-    | "0"
-    | "1"
-    | "drawer"
-    | "dialog"
-    | "dropdown"
-    | "alert"
-    | "tooltip"
-    | string
-    | null {
+  get z(): "" | "0" | "1" | LayerName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.z);
   }
   set z(value) {
@@ -258,7 +251,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `min-width` of this element. Prevents the element's width from becoming smaller than the value specified.
+   * Sets the `min-width` of this element.
+   * Prevents the element's width from becoming smaller than the value specified.
    */
   get widthMin(): "" | "100%" | "min-content" | "max-content" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.widthMin);
@@ -268,7 +262,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `max-width` of this element. Prevents the element's width from becoming larger than the value specified.
+   * Sets the `max-width` of this element.
+   * Prevents the element's width from becoming larger than the value specified.
    */
   get widthMax(): "" | "100%" | "min-content" | "max-content" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.widthMax);
@@ -288,7 +283,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `min-height` of this element. Prevents the element's height from becoming smaller than the value specified.
+   * Sets the `min-height` of this element.
+   * Prevents the element's height from becoming smaller than the value specified.
    */
   get heightMin(): "" | "100%" | "min-content" | "max-content" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.heightMin);
@@ -298,7 +294,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `max-height` of this element. Prevents the element's height from becoming larger than the value specified.
+   * Sets the `max-height` of this element.
+   * Prevents the element's height from becoming larger than the value specified.
    */
   get heightMax(): "" | "100%" | "min-content" | "max-content" | string | null {
     return this.getStringAttribute(SparkleElement.attributes.heightMax);
@@ -416,7 +413,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets how far the `top` `right` `bottom` and `left` edges of this element are from the corresponding edges of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `top` `right` `bottom` and `left` edges of this element are from the corresponding edges of its closest positioned parent.
+   * It has no effect on non-positioned elements.
    *
    * @summary i
    */
@@ -428,7 +426,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets how far the `top` edge of this element is from the top edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `top` edge of this element is from the top edge of its closest positioned parent.
+   * It has no effect on non-positioned elements.
    *
    * @summary i-t
    */
@@ -440,7 +439,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets how far the `right` edge of this element is from the right edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `right` edge of this element is from the right edge of its closest positioned parent.
+   * It has no effect on non-positioned elements.
    *
    * @summary i-r
    */
@@ -452,7 +452,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets how far the `bottom` edge of this element is from the bottom edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `bottom` edge of this element is from the bottom edge of its closest positioned parent.
+   * It has no effect on non-positioned elements.
    *
    * @summary i-b
    */
@@ -464,7 +465,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets how far the `left` edge of this element is from the left edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `left` edge of this element is from the left edge of its closest positioned parent.
+   * It has no effect on non-positioned elements.
    *
    * @summary i-l
    */
@@ -476,7 +478,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets how far the `left` and `right` edge of this element is from the left and right edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `left` and `right` edge of this element is from the left and right edge of its closest positioned parent.
+   * It has no effect on non-positioned elements.
    *
    * @summary i-lr
    */
@@ -488,7 +491,8 @@ export default class SparkleElement
   }
 
   /**
-   * Sets how far the `top` and `bottom` edge of this element is from the top and bottom edge of its closest positioned parent. It has no effect on non-positioned elements.
+   * Sets how far the `top` and `bottom` edge of this element is from the top and bottom edge of its closest positioned parent.
+   * It has no effect on non-positioned elements.
    *
    * @summary i-tb
    */
@@ -1210,7 +1214,7 @@ export default class SparkleElement
    * This value is added to the font's natural letter spacing.
    * Positive values cause letters to spread farther apart, while negative values bring letters closer together.
    */
-  get textKerning(): "" | "none" | SizeName | "2xl" | string | null {
+  get textKerning(): "" | "none" | SizeName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.textKerning);
   }
   set textKerning(value) {
@@ -1409,7 +1413,7 @@ export default class SparkleElement
    *
    * @summary bg-gradient
    */
-  get backgroundGradient(): "" | "gloss" | string | null {
+  get backgroundGradient(): "" | GradientName | string | null {
     return this.getStringAttribute(
       SparkleElement.attributes.backgroundGradient
     );
@@ -1426,30 +1430,7 @@ export default class SparkleElement
    *
    * @summary bg-pattern
    */
-  get backgroundPattern():
-    | ""
-    | "brick"
-    | "bubbles"
-    | "chainlink"
-    | "chevron"
-    | "circles"
-    | "crosses"
-    | "equals"
-    | "flowers"
-    | "grid"
-    | "herringbone"
-    | "memphis"
-    | "net"
-    | "octagon"
-    | "parquet"
-    | "scales"
-    | "shine"
-    | "tile"
-    | "wave"
-    | "weave"
-    | "zigzag"
-    | string
-    | null {
+  get backgroundPattern(): "" | PatternName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.backgroundPattern);
   }
   set backgroundPattern(value) {
@@ -1526,39 +1507,7 @@ export default class SparkleElement
    *
    * If not provided a value, defaults to `circle`.
    */
-  get mask():
-    | ""
-    | "angled-corner"
-    | "scooped-corner"
-    | "notched-corner"
-    | "scooped-edge-tb"
-    | "scooped-edge-lr"
-    | "scooped-edge-t"
-    | "scooped-edge-b"
-    | "scooped-edge-l"
-    | "scooped-edge-r"
-    | "scalloped-edge"
-    | "scalloped-edge-tb"
-    | "scalloped-edge-lr"
-    | "scalloped-edge-t"
-    | "scalloped-edge-b"
-    | "scalloped-edge-l"
-    | "scalloped-edge-r"
-    | "drip-edge"
-    | "drip-edge-tb"
-    | "drip-edge-lr"
-    | "drip-edge-t"
-    | "drip-edge-b"
-    | "drip-edge-l"
-    | "drip-edge-r"
-    | "zigzag-edge-tb"
-    | "zigzag-edge-lr"
-    | "zigzag-edge-t"
-    | "zigzag-edge-b"
-    | "zigzag-edge-l"
-    | "zigzag-edge-r"
-    | string
-    | null {
+  get mask(): "" | MaskName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.mask);
   }
   set mask(value) {
@@ -1820,50 +1769,7 @@ export default class SparkleElement
   /**
    * Specifies the `transition-timing-function` used for property changes.
    */
-  get ease():
-    | ""
-    | "linear"
-    | "ease"
-    | "ease-in"
-    | "ease-out"
-    | "ease-in-out"
-    | "ease-1"
-    | "ease-2"
-    | "ease-3"
-    | "ease-4"
-    | "ease-5"
-    | "ease-in-1"
-    | "ease-in-2"
-    | "ease-in-3"
-    | "ease-in-4"
-    | "ease-in-5"
-    | "ease-out-1"
-    | "ease-out-2"
-    | "ease-out-3"
-    | "ease-out-4"
-    | "ease-out-5"
-    | "ease-in-out-1"
-    | "ease-in-out-2"
-    | "ease-in-out-3"
-    | "ease-in-out-4"
-    | "ease-in-out-5"
-    | "ease-elastic-1"
-    | "ease-elastic-2"
-    | "ease-elastic-3"
-    | "ease-elastic-4"
-    | "ease-elastic-5"
-    | "ease-squish-1"
-    | "ease-squish-2"
-    | "ease-squish-3"
-    | "ease-squish-4"
-    | "ease-squish-5"
-    | "ease-step-1"
-    | "ease-step-2"
-    | "ease-step-3"
-    | "ease-step-4"
-    | "ease-step-5"
-    | string
-    | null {
+  get ease(): "" | EasingName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.ease);
   }
   set ease(value) {
@@ -1873,33 +1779,7 @@ export default class SparkleElement
   /**
    * Applies an `animation` to this element.
    */
-  get animation():
-    | ""
-    | "spin"
-    | "ping"
-    | "sheen"
-    | "blink"
-    | "float"
-    | "bounce"
-    | "fade-in"
-    | "fade-out"
-    | "scale-up"
-    | "scale-down"
-    | "slide-out-up"
-    | "slide-out-down"
-    | "slide-out-right"
-    | "slide-out-left"
-    | "slide-in-up"
-    | "slide-in-down"
-    | "slide-in-right"
-    | "slide-in-left"
-    | "shake-x"
-    | "shake-y"
-    | "enter"
-    | "exit"
-    | "pulse"
-    | string
-    | null {
+  get animation(): "" | AnimationName | string | null {
     return this.getStringAttribute(SparkleElement.attributes.animation);
   }
   set animation(value) {
@@ -1916,30 +1796,49 @@ export default class SparkleElement
     this.setStringAttribute(SparkleElement.attributes.navigation, value);
   }
 
+  get self(): ShadowRoot | HTMLElement {
+    return this.shadowRoot || this;
+  }
+
   get root(): HTMLElement {
-    return this.shadowRoot?.firstElementChild as HTMLElement;
+    return this.self.firstElementChild as HTMLElement;
   }
 
   get contentSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("content");
+    return this.getElementByClass("content-slot");
   }
 
-  protected _items: HTMLElement[] = [];
-  get items(): HTMLElement[] {
-    return this._items;
+  protected _focusableChildren: HTMLElement[] = [];
+  get focusableChildren(): HTMLElement[] {
+    return this._focusableChildren;
   }
 
-  constructor(init: ShadowRootInit = { mode: "open", delegatesFocus: true }) {
+  constructor() {
     super();
-    const shadowRoot = this.attachShadow(init);
-    shadowRoot.innerHTML = this.html;
-    shadowRoot.adoptedStyleSheets = [NORMALIZE_CSS];
-    const keyframes = Styles.get("keyframes");
-    if (keyframes) {
-      shadowRoot.adoptedStyleSheets.push(keyframes);
+    if (SparkleElement.shadowDom) {
+      const shadowRoot = this.attachShadow({
+        mode: "open",
+        delegatesFocus: true,
+      });
+      shadowRoot.innerHTML = this.html;
+      shadowRoot.adoptedStyleSheets = [
+        KEYFRAMES_CSS,
+        NORMALIZE_CSS,
+        SHADOW_DOM_CORE_CSS,
+        ...this.styles,
+      ];
+    } else {
+      if (!this.ownerDocument.adoptedStyleSheets) {
+        this.ownerDocument.adoptedStyleSheets = [];
+      }
+      if (!this.ownerDocument.adoptedStyleSheets.includes(NORMALIZE_CSS)) {
+        this.ownerDocument.adoptedStyleSheets.push(NORMALIZE_CSS);
+      }
+      if (!this.ownerDocument.adoptedStyleSheets.includes(LIGHT_DOM_CORE_CSS)) {
+        this.ownerDocument.adoptedStyleSheets.push(LIGHT_DOM_CORE_CSS);
+      }
+      this.ownerDocument.adoptedStyleSheets.push(...this.styles);
     }
-    shadowRoot.adoptedStyleSheets.push(CORE_CSS);
-    shadowRoot.adoptedStyleSheets.push(...this.styles);
   }
 
   /**
@@ -1949,7 +1848,7 @@ export default class SparkleElement
    * @param tags - the tags to replace. (If not specified, this defaults to the keys of the `dependencies` property.)
    * @returns the augmented html.
    */
-  static augment(
+  static augmentHtml(
     html: string,
     defaultDependencies: Record<string, string>
   ): string {
@@ -1957,13 +1856,39 @@ export default class SparkleElement
       Object.entries(defaultDependencies).forEach(
         ([dependencyName, defaultTagName]) => {
           const newTagName = this.dependencies[dependencyName];
-          if (newTagName) {
-            html.replace(new RegExp(defaultTagName, "g"), newTagName);
+          if (newTagName && newTagName != defaultTagName) {
+            html.replace(
+              new RegExp(`<(${defaultTagName})`, "g"),
+              `<${newTagName}`
+            );
           }
         }
       );
     }
     return html;
+  }
+
+  /**
+   * Replaces :host in css with tag aliases specified by `dependencies`.
+   *
+   * @param css - the original css.
+   * @param tags - the tags to replace. (If not specified, this defaults to the keys of the `dependencies` property.)
+   * @returns the augmented css.
+   */
+  static augmentCss(
+    css: string,
+    defaultDependencies?: Record<string, string>
+  ): string {
+    if (this.dependencies) {
+      Object.values({ default: this.tagName, ...defaultDependencies }).forEach(
+        (newTagName) => {
+          if (newTagName) {
+            css.replace(/(:host)\(\s*(.+)\s*\)/g, `${newTagName}$2`);
+          }
+        }
+      );
+    }
+    return css;
   }
 
   override focus(options?: FocusOptions) {
@@ -2029,29 +1954,26 @@ export default class SparkleElement
     }
   }
 
-  /**
-   * Invoked each time one of the custom element's attributes is added, removed, or changed. Which attributes to notice change for is specified in a static get observedAttributes method
-   */
   protected attributeChangedCallback(
     name: string,
     oldValue: string,
     newValue: string
   ): void {
-    const className: string = this.aliases[name] ?? name;
+    const attrName: string = this.aliases[name] ?? name;
     if (
-      className === "role" ||
-      className === "tabindex" ||
-      className.startsWith("aria-")
+      attrName === "role" ||
+      attrName === "tabindex" ||
+      attrName.startsWith("aria-")
     ) {
       // Forward all aria attributes to root element
-      this.updateRootAttribute(className, newValue);
+      this.updateRootAttribute(attrName, newValue);
     } else {
-      const transformer = this.transformers[className];
+      const transformer = this.transformers[attrName];
       if (transformer) {
-        this.updateStyleAttribute(className, newValue, transformer);
+        this.updateStyleAttribute(attrName, newValue, transformer);
         if (
-          className === SparkleElement.attributes.textStrokeWidth ||
-          className === SparkleElement.attributes.textStrokeColor
+          attrName === SparkleElement.attributes.textStrokeWidth ||
+          attrName === SparkleElement.attributes.textStrokeColor
         ) {
           const width = this.textStrokeWidth || "1";
           this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
@@ -2061,80 +1983,97 @@ export default class SparkleElement
     this.onAttributeChanged(name, oldValue, newValue);
   }
 
+  /**
+   * Invoked each time one of the element's attributes is added, removed, or changed.
+   * Which attributes to notice change for is specified in a static get observedAttributes method
+   */
   protected onAttributeChanged(
     name: string,
     oldValue: string,
     newValue: string
   ) {}
 
-  /**
-   * Invoked each time the custom element is appended into a document-connected element.
-   * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
-   */
   protected connectedCallback(): void {
+    if (this.shadowRoot) {
+      this.contentSlot?.addEventListener(
+        "slotchange",
+        this.handleContentSlotAssigned
+      );
+    } else {
+      this.handleContentChildrenAssigned(
+        Array.from(this.contentSlot?.children || [])
+      );
+    }
     this.bindFocus(this.root);
-    this.contentSlot?.addEventListener(
-      "slotchange",
-      this.handleContentSlotChange
-    );
     this.onConnected();
     window.setTimeout(() => {
       this.parsedCallback();
     });
   }
 
+  /**
+   * Invoked each time the element is appended into a document-connected element.
+   * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
+   */
   protected onConnected(): void {}
 
   protected parsedCallback(): void {
     this.onParsed();
   }
 
+  /**
+   * Invoked when the element's contents have been fully parsed.
+   */
   protected onParsed(): void {}
 
-  /**
-   * Invoked each time the custom element is disconnected from the document's DOM.
-   */
   protected disconnectedCallback(): void {
+    if (this.shadowRoot) {
+      this.contentSlot?.removeEventListener(
+        "slotchange",
+        this.handleContentSlotAssigned
+      );
+    }
     this.unbindFocus(this.root);
-    this.contentSlot?.removeEventListener(
-      "slotchange",
-      this.handleContentSlotChange
-    );
-    this.unbindItems();
+    this.unbindFocusableChildren();
     this.onDisconnected();
   }
 
+  /**
+   * Invoked each time the element is disconnected from the document's DOM.
+   */
   protected onDisconnected(): void {}
 
-  protected handleContentSlotChange = (e: Event) => {
+  protected handleContentSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
-    this.unbindItems();
-    this._items = slot
-      ?.assignedElements?.()
-      .filter(
-        (el) =>
-          el instanceof HTMLElement &&
-          !(
-            el.inert ||
-            el.hidden ||
-            (el.shadowRoot?.firstElementChild as HTMLElement)?.inert ||
-            (el.shadowRoot?.firstElementChild as HTMLElement)?.hidden
-          )
-      ) as HTMLElement[];
-    this.bindItems();
-    this.onContentAssigned(slot);
+    this.handleContentChildrenAssigned(slot.assignedElements());
   };
 
-  protected onContentAssigned(slot: HTMLSlotElement): void {}
+  protected handleContentChildrenAssigned = (children: Element[]) => {
+    this.unbindFocusableChildren();
+    this._focusableChildren = children.filter(
+      (el) =>
+        el instanceof HTMLElement &&
+        !(
+          el.inert ||
+          el.hidden ||
+          ((el.shadowRoot || el).firstElementChild as HTMLElement)?.inert ||
+          ((el.shadowRoot || el).firstElementChild as HTMLElement)?.hidden
+        )
+    ) as HTMLElement[];
+    this.bindFocusableChildren();
+    this.onContentAssigned(children);
+  };
 
-  bindItems(): void {
-    this._items.forEach((item) => {
+  protected onContentAssigned(children: Element[]): void {}
+
+  bindFocusableChildren(): void {
+    this._focusableChildren.forEach((item) => {
       item.addEventListener("keydown", this.onKeyDown);
     });
   }
 
-  unbindItems(): void {
-    this._items.forEach((item) => {
+  unbindFocusableChildren(): void {
+    this._focusableChildren.forEach((item) => {
       item.removeEventListener("keydown", this.onKeyDown);
     });
   }
@@ -2148,30 +2087,31 @@ export default class SparkleElement
           case navPrevKey(dir):
             {
               e.preventDefault();
-              this.focusPreviousItem(target);
+              this.focusPreviousChild(target);
             }
             break;
           case navNextKey(dir):
             {
               e.preventDefault();
-              this.focusNextItem(target);
+              this.focusNextChild(target);
             }
             break;
           case navStartKey():
             {
-              const firstItem = this.items[0];
-              if (firstItem) {
+              const first = this.focusableChildren[0];
+              if (first) {
                 e.preventDefault();
-                firstItem.focus();
+                first.focus();
               }
             }
             break;
           case navEndKey():
             {
-              const lastItem = this.items[this.items.length - 1];
-              if (lastItem) {
+              const last =
+                this.focusableChildren[this.focusableChildren.length - 1];
+              if (last) {
                 e.preventDefault();
-                lastItem.focus();
+                last.focus();
               }
             }
             break;
@@ -2182,32 +2122,32 @@ export default class SparkleElement
     }
   };
 
-  focusPreviousItem(item: HTMLElement) {
-    const firstItem = this.items[0];
-    const lastItem = this.items[this.items.length - 1];
+  focusPreviousChild(item: HTMLElement) {
+    const firstItem = this.focusableChildren[0];
+    const lastItem = this.focusableChildren[this.focusableChildren.length - 1];
     if (item === firstItem) {
       if (lastItem) {
         lastItem.focus();
       }
     } else {
-      const index = this.items.indexOf(item);
-      const prevItem = this.items[index - 1];
+      const index = this.focusableChildren.indexOf(item);
+      const prevItem = this.focusableChildren[index - 1];
       if (prevItem) {
         prevItem.focus();
       }
     }
   }
 
-  focusNextItem(item: HTMLElement) {
-    const firstItem = this.items[0];
-    const lastItem = this.items[this.items.length - 1];
+  focusNextChild(item: HTMLElement) {
+    const firstItem = this.focusableChildren[0];
+    const lastItem = this.focusableChildren[this.focusableChildren.length - 1];
     if (item === lastItem) {
       if (firstItem) {
         firstItem.focus();
       }
     } else {
-      const index = this.items.indexOf(item);
-      const nextItem = this.items[index + 1];
+      const index = this.focusableChildren.indexOf(item);
+      const nextItem = this.focusableChildren[index + 1];
       if (nextItem) {
         nextItem.focus();
       }
@@ -2215,27 +2155,41 @@ export default class SparkleElement
   }
 
   getElementByTag<T extends HTMLElement>(name: string): T | null {
-    return this.shadowRoot?.querySelector<T>(name) || null;
+    return this.self.querySelector<T>(name) || null;
   }
 
   getElementByClass<T extends HTMLElement>(name: string): T | null {
-    return this.shadowRoot?.querySelector<T>(`.${name}`) || null;
+    return this.self.querySelector<T>(`.${name}`) || null;
   }
 
-  getSlotByName<T extends HTMLElement>(name: string): T | null {
-    return this.shadowRoot?.querySelector<T>(`slot[name=${name}]`) || null;
+  getElementByNameAttribute<T extends Element>(name: string): T | null {
+    return this.self.querySelector<T>(`[name=${name}]`) || null;
+  }
+
+  getElementsByNameAttribute<T extends Element>(name: string): T[] {
+    return Array.from(this.self.querySelectorAll<T>(`[name=${name}]`)) as T[];
   }
 
   getAssignedToSlot<T extends ChildNode>(name?: string): T[] {
-    return Array.from(this.childNodes).filter((n) =>
-      isAssignedToSlot(n, name)
-    ) as T[];
+    if (this.shadowRoot) {
+      return Array.from(this.childNodes).filter((n) =>
+        isAssignedToSlot(n, name)
+      ) as T[];
+    }
+    if (name) {
+      return this.getElementsByNameAttribute(name)?.flatMap(
+        (slot) => Array.from(slot?.childNodes || []) as T[]
+      );
+    }
+    return Array.from(this.contentSlot?.childNodes || []) as T[];
   }
 
   setAssignedToSlot(content: string | Node, name?: string): void {
     const assigned = this.getAssignedToSlot(name);
     assigned.forEach((n) => {
-      this.removeChild(n);
+      if (n.parentElement) {
+        n.parentElement.removeChild(n);
+      }
     });
     if (name) {
       const newNode = document.createElement("div");
@@ -2246,13 +2200,21 @@ export default class SparkleElement
       } else {
         newNode.appendChild(content);
       }
-      this.appendChild(newNode);
+      if (this.shadowRoot) {
+        this.appendChild(newNode);
+      } else {
+        this.getElementByNameAttribute(name)?.appendChild(newNode);
+      }
     } else {
       const newNode =
         typeof content === "string"
           ? document.createTextNode(content)
           : content;
-      this.appendChild(newNode);
+      if (this.shadowRoot) {
+        this.appendChild(newNode);
+      } else {
+        this.contentSlot?.appendChild(newNode);
+      }
     }
   }
 

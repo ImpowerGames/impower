@@ -1,15 +1,6 @@
-<s-popup
-  class="root"
-  part="root"
-  distance="8"
-  exportparts="popup arrow"
-  flip
-  shift
->
-  <div class="anchor" part="anchor" slot="anchor" aria-describedby="tooltip">
-    <slot class="content"></slot>
-  </div>
-  <div class="body" part="body" id="tooltip" role="tooltip" inert hidden>
-    <slot class="label" name="label"></slot>
-  </div>
-</s-popup>
+<div class="root" part="root" aria-describedby="tooltip">
+  <slot class="content-slot"></slot>
+</div>
+<div class="popup" part="popup" id="tooltip" role="tooltip" inert hidden>
+  <slot class="popup-slot" name="label"></slot>
+</div>

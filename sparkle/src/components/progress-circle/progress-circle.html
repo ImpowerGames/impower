@@ -1,17 +1,10 @@
-<div
-  class="root"
-  part="root"
-  role="progressbar"
-  aria-label="%"
-  aria-describedby="label"
-  aria-valuemin="0"
-  aria-valuemax="100"
->
+<div class="root" part="root" role="progressbar" aria-label="%" aria-describedby="label" aria-valuemin="0"
+  aria-valuemax="100">
   <svg class="circle" part="circle">
     <circle class="track" part="track"></circle>
     <circle class="indicator" part="indicator"></circle>
   </svg>
   <div class="label" part="label">
-    <slot class="content"></slot>
+    <slot class="content-slot"></slot>
   </div>
 </div>

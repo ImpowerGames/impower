@@ -1,5 +1,5 @@
-import { getCssDuration } from "../../../../sparkle-transformer/src/utils/getCssDuration";
-import { getCssEase } from "../../../../sparkle-transformer/src/utils/getCssEase";
+import getCssDuration from "sparkle-style-transformer/utils/getCssDuration.js";
+import getCssEase from "sparkle-style-transformer/utils/getCssEase.js";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animate";
@@ -27,7 +27,6 @@ const getCollapsedIconOffset = (
 };
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
@@ -50,9 +49,10 @@ export default class Collapsible
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -60,6 +60,7 @@ export default class Collapsible
   }
 
   override get styles() {
+    styles.replaceSync(Collapsible.augmentCss(css));
     return [styles];
   }
 
@@ -107,6 +108,8 @@ export default class Collapsible
     "expanded";
 
   protected _intersectionObserver?: IntersectionObserver;
+
+  protected _cachedCSSVariables: Record<string, string> = {};
 
   protected override onAttributeChanged(
     name: string,
@@ -225,7 +228,7 @@ export default class Collapsible
   loadBorderStyle(targetEl: HTMLElement): void {
     targetEl.style.setProperty("margin", null);
     targetEl.style.setProperty("outline", null);
-    targetEl.style.setProperty("border", null);
+    targetEl.style.setProperty("border-width", null);
     targetEl.style.setProperty("box-shadow", null);
     targetEl.style.setProperty("filter", null);
 
@@ -234,7 +237,7 @@ export default class Collapsible
     const borderRadius = window.getComputedStyle(targetEl).borderRadius;
     const margin = window.getComputedStyle(targetEl).margin;
     const outline = window.getComputedStyle(targetEl).outline;
-    const border = window.getComputedStyle(targetEl).border;
+    const borderWidth = window.getComputedStyle(targetEl).borderWidth;
     const boxShadow = window.getComputedStyle(targetEl).boxShadow;
     const filter = window.getComputedStyle(targetEl).filter;
 
@@ -243,17 +246,36 @@ export default class Collapsible
     this.root.style.setProperty("border-radius", borderRadius);
     this.root.style.setProperty("margin", margin);
     this.root.style.setProperty("outline", outline);
-    this.root.style.setProperty("border", border);
+    this.root.style.setProperty("border-width", borderWidth);
     this.root.style.setProperty("box-shadow", boxShadow);
     this.root.style.setProperty("filter", filter);
 
     targetEl.style.setProperty("overflow-x", "clip");
     targetEl.style.setProperty("overflow-y", "clip");
+    targetEl.style.setProperty("border-width", "0");
     targetEl.style.setProperty("margin", "0");
-    targetEl.style.setProperty("outline", "none");
-    targetEl.style.setProperty("border", "none");
-    targetEl.style.setProperty("box-shadow", "none");
     targetEl.style.setProperty("filter", "none");
+    targetEl.style.setProperty("box-shadow", "none");
+
+    this._cachedCSSVariables["--overflow-x"] =
+      targetEl.style.getPropertyValue("--overflow-x");
+    this._cachedCSSVariables["--overflow-y"] =
+      targetEl.style.getPropertyValue("--overflow-y");
+    this._cachedCSSVariables["--border-width"] =
+      targetEl.style.getPropertyValue("--border-width");
+    this._cachedCSSVariables["--margin"] =
+      targetEl.style.getPropertyValue("--margin");
+    this._cachedCSSVariables["--filter"] =
+      targetEl.style.getPropertyValue("--filter");
+    this._cachedCSSVariables["--shadow"] =
+      targetEl.style.getPropertyValue("--shadow");
+
+    targetEl.style.setProperty("--overflow-x", "clip");
+    targetEl.style.setProperty("--overflow-y", "clip");
+    targetEl.style.setProperty("--border-width", "0");
+    targetEl.style.setProperty("--margin", "0");
+    targetEl.style.setProperty("--filter", "none");
+    targetEl.style.setProperty("--shadow", "none");
   }
 
   unloadBorderStyle(targetEl: HTMLElement): void {
@@ -262,7 +284,7 @@ export default class Collapsible
     this.root.style.setProperty("border-radius", null);
     this.root.style.setProperty("margin", null);
     this.root.style.setProperty("outline", null);
-    this.root.style.setProperty("border", null);
+    this.root.style.setProperty("border-width", null);
     this.root.style.setProperty("box-shadow", null);
     this.root.style.setProperty("filter", null);
 
@@ -270,9 +292,34 @@ export default class Collapsible
     targetEl.style.setProperty("overflow-y", null);
     targetEl.style.setProperty("margin", null);
     targetEl.style.setProperty("outline", null);
-    targetEl.style.setProperty("border", null);
+    targetEl.style.setProperty("border-width", null);
     targetEl.style.setProperty("box-shadow", null);
     targetEl.style.setProperty("filter", null);
+
+    targetEl.style.setProperty(
+      "--overflow-x",
+      this._cachedCSSVariables["--overflow-x"] || null
+    );
+    targetEl.style.setProperty(
+      "--overflow-y",
+      this._cachedCSSVariables["--overflow-y"] || null
+    );
+    targetEl.style.setProperty(
+      "--border-width",
+      this._cachedCSSVariables["--border-width"] || null
+    );
+    targetEl.style.setProperty(
+      "--margin",
+      this._cachedCSSVariables["--margin"] || null
+    );
+    targetEl.style.setProperty(
+      "--shadow",
+      this._cachedCSSVariables["--shadow"] || null
+    );
+    targetEl.style.setProperty(
+      "--filter",
+      this._cachedCSSVariables["--filter"] || null
+    );
   }
 
   loadCollapsedLayout(): void {
@@ -287,7 +334,7 @@ export default class Collapsible
       labelEl.style.transitionProperty = "none";
       buttonEl.style.setProperty("min-width", `${collapsedButtonWidth}px`);
       buttonEl.style.setProperty("max-width", `${collapsedButtonWidth}px`);
-      iconEl.style.setProperty("transform", `translateX(${0})`);
+      iconEl.style.setProperty("transform", `translateX(${0}px)`);
       labelEl.hidden = true;
     }
   }
@@ -402,12 +449,14 @@ export default class Collapsible
     this._state = "expanded";
   }
 
-  protected override onContentAssigned(slot: HTMLSlotElement): void {
-    const elements = slot?.assignedElements?.();
+  protected override onContentAssigned(children: Element[]): void {
+    const elements = children;
     const buttons = elements.filter(
       (el) => el.tagName.toLowerCase() === Collapsible.dependencies.button
     );
-    const targetEl = buttons?.[0]?.shadowRoot?.firstElementChild as HTMLElement;
+    const button = buttons?.[0];
+    const targetEl = (button?.shadowRoot || button)
+      ?.firstElementChild as HTMLElement;
     if (this._buttonEl !== targetEl) {
       this._buttonEl = targetEl;
       this.update(false);

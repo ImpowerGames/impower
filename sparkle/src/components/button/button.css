@@ -87,7 +87,10 @@
   opacity: 0.5;
 }
 
-:host([disabled]) > .ripple {
+:host > .root > .ripple {
+  border-radius: inherit;
+}
+:host([disabled]) > .root > .ripple {
   display: none;
 }
 

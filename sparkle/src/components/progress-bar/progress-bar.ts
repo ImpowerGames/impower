@@ -1,4 +1,4 @@
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -8,7 +8,6 @@ import css from "./progress-bar.css";
 import html from "./progress-bar.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 export const DEFAULT_TRANSFORMERS = {
   "track-width": getCssSize,
@@ -36,9 +35,10 @@ export default class ProgressBar
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -46,6 +46,7 @@ export default class ProgressBar
   }
 
   override get styles() {
+    styles.replaceSync(ProgressBar.augmentCss(css));
     return [styles];
   }
 

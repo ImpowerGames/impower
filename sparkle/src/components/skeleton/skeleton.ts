@@ -1,4 +1,4 @@
-import { getCssColor } from "../../../../sparkle-transformer/src/utils/getCssColor";
+import getCssColor from "sparkle-style-transformer/utils/getCssColor.js";
 import SparkleElement from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
@@ -8,7 +8,6 @@ import css from "./skeleton.css";
 import html from "./skeleton.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 export const DEFAULT_TRANSFORMERS = {
   "sheen-color": getCssColor,
@@ -33,9 +32,10 @@ export default class Skeleton
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -43,6 +43,7 @@ export default class Skeleton
   }
 
   override get styles() {
+    styles.replaceSync(Skeleton.augmentCss(css));
     return [styles];
   }
 

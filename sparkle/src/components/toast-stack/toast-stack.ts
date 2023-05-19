@@ -8,7 +8,6 @@ import css from "./toast-stack.css";
 import html from "./toast-stack.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
@@ -31,16 +30,18 @@ export default class ToastStack
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
-    return ToastStack.augment(html, DEFAULT_DEPENDENCIES);
+    return ToastStack.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles() {
+    styles.replaceSync(ToastStack.augmentCss(css, DEFAULT_DEPENDENCIES));
     return [styles];
   }
 
@@ -77,12 +78,10 @@ export default class ToastStack
     }
   }
 
-  protected override onContentAssigned(slot: HTMLSlotElement): void {
-    this._templates = slot
-      ?.assignedElements?.()
-      .filter(
-        (el) => el.tagName.toLowerCase() === "template"
-      ) as HTMLTemplateElement[];
+  protected override onContentAssigned(children: Element[]): void {
+    this._templates = children.filter(
+      (el) => el.tagName.toLowerCase() === "template"
+    ) as HTMLTemplateElement[];
   }
 
   getTemplate(type?: string): HTMLTemplateElement | null {

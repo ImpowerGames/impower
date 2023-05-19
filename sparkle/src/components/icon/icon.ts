@@ -1,5 +1,5 @@
-import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
@@ -11,7 +11,6 @@ import css from "./icon.css";
 import html from "./icon.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 export const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v, Icons.all()),
@@ -39,9 +38,10 @@ export default class Icon
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -49,6 +49,7 @@ export default class Icon
   }
 
   override get styles() {
+    styles.replaceSync(Icon.augmentCss(css));
     return [styles];
   }
 
@@ -84,14 +85,6 @@ export default class Icon
     if (name === Icon.attributes.ariaLabel) {
       this.updateRootAttribute(Icon.attributes.ariaHidden, Boolean(newValue));
       this.updateRootAttribute(Icon.attributes.role, newValue ? "img" : null);
-    }
-  }
-
-  protected override onContentAssigned(slot: HTMLSlotElement): void {
-    if (slot.assignedNodes().length > 0) {
-      if (this.icon == null) {
-        this.setAttribute("icon", "");
-      }
     }
   }
 }

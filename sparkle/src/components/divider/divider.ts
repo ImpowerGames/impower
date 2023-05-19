@@ -1,4 +1,4 @@
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -8,7 +8,6 @@ import css from "./divider.css";
 import html from "./divider.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 export const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
@@ -34,9 +33,10 @@ export default class Divider
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -44,6 +44,7 @@ export default class Divider
   }
 
   override get styles() {
+    styles.replaceSync(Divider.augmentCss(css));
     return [styles];
   }
 

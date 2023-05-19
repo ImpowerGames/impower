@@ -5,7 +5,6 @@ import css from "./breakpoint-observer.css";
 import html from "./breakpoint-observer.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "measure",
@@ -32,9 +31,10 @@ export default class BreakpointObserver
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -42,6 +42,7 @@ export default class BreakpointObserver
   }
 
   override get styles() {
+    styles.replaceSync(BreakpointObserver.augmentCss(css));
     return [styles];
   }
 

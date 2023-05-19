@@ -1,4 +1,4 @@
-/*!
+/*
  * Based on material-web <https://github.com/material-components/material-web>
  *
  * Copyright 2021 Google LLC

@@ -11,27 +11,14 @@
       </h3>
     </header>
     <article class="article" part="article">
-      <slot class="content"></slot>
+      <slot class="content-slot"></slot>
     </article>
     <footer class="footer" part="footer">
       <menu class="menu" part="menu">
-        <s-button
-          id="cancel"
-          class="cancel"
-          part="cancel"
-          variant="text"
-          type="button"
-        >
+        <s-button id="cancel" class="cancel" part="cancel" variant="text" type="button">
           <slot name="cancel"></slot>
         </s-button>
-        <s-button
-          id="confirm"
-          class="confirm"
-          part="confirm"
-          variant="text"
-          type="submit"
-          value="confirm"
-        >
+        <s-button id="confirm" class="confirm" part="confirm" variant="text" type="submit" value="confirm">
           <slot name="confirm">Confirm</slot>
         </s-button>
       </menu>

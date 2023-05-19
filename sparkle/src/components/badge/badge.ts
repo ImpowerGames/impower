@@ -5,7 +5,6 @@ import css from "./badge.css";
 import html from "./badge.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap(["float"]);
 
@@ -24,9 +23,10 @@ export default class Badge
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -34,6 +34,7 @@ export default class Badge
   }
 
   override get styles() {
+    styles.replaceSync(Badge.augmentCss(css));
     return [styles];
   }
 

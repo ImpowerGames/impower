@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2020",
-    "lib": ["es2020", "dom"],
+    "target": "esnext",
+    "lib": ["esnext", "dom"],
     "outDir": "dist",
+    "declaration": true,
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
@@ -18,5 +19,6 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "esModuleInterop": true
-  }
+  },
+  "include": ["src/**/*", "scripts/**/*"]
 }

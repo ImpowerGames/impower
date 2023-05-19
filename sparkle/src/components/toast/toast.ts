@@ -1,6 +1,6 @@
-import { getCssDurationMS } from "../../../../sparkle-transformer/src/utils/getCssDurationMS";
-import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
+import getCssDurationMS from "sparkle-style-transformer/utils/getCssDurationMS.js";
+import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import Animations from "../../configs/animations";
 import Icons from "../../configs/icons";
 import SparkleEvent from "../../core/SparkleEvent";
@@ -14,7 +14,6 @@ import css from "./toast.css";
 import html from "./toast.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const closingEvent = new SparkleEvent("closing");
 const closedEvent = new SparkleEvent("closed");
@@ -52,16 +51,18 @@ export default class Toast
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
-    return Toast.augment(html, DEFAULT_DEPENDENCIES);
+    return Toast.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles() {
+    styles.replaceSync(Toast.augmentCss(css, DEFAULT_DEPENDENCIES));
     return [styles];
   }
 
@@ -123,7 +124,7 @@ export default class Toast
   }
 
   get actionSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("action");
+    return this.getElementByClass("action-slot");
   }
 
   private _setup = false;
@@ -192,23 +193,31 @@ export default class Toast
     }
     this.root.addEventListener("mousemove", this.handleHover);
     this.buttonEl?.addEventListener("click", this.handleButtonClick);
-    this.actionSlot?.addEventListener(
-      "slotchange",
-      this.handleActionSlotChange
-    );
+    if (this.shadowRoot) {
+      this.actionSlot?.addEventListener(
+        "slotchange",
+        this.handleActionSlotAssigned
+      );
+    } else {
+      this.handleActionChildrenAssigned(
+        Array.from(this.actionSlot?.children || [])
+      );
+    }
   }
 
   protected override onDisconnected(): void {
     this.root.removeEventListener("mousemove", this.handleHover);
     this.buttonEl?.removeEventListener("click", this.handleButtonClick);
-    this.actionSlot?.removeEventListener(
-      "slotchange",
-      this.handleActionSlotChange
-    );
+    if (this.shadowRoot) {
+      this.actionSlot?.removeEventListener(
+        "slotchange",
+        this.handleActionSlotAssigned
+      );
+    }
   }
 
-  protected override onContentAssigned(slot: HTMLSlotElement) {
-    const assignedElement = slot?.assignedElements?.()?.[0];
+  protected override onContentAssigned(children: Element[]) {
+    const assignedElement = children[0];
     if (assignedElement) {
       if (this.message == null) {
         this.setAttribute("message", "");
@@ -216,10 +225,13 @@ export default class Toast
     }
   }
 
-  protected handleActionSlotChange = (e: Event) => {
+  protected handleActionSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
-    const assignedElement = slot?.assignedElements?.()?.[0];
-    if (assignedElement) {
+    this.handleActionChildrenAssigned(slot.assignedElements());
+  };
+
+  protected handleActionChildrenAssigned = (children: Element[]) => {
+    if (children.length > 0) {
       if (this.action == null) {
         this.setAttribute("action", "");
       }

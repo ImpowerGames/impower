@@ -174,14 +174,30 @@
   --s-scrollbar-thickness: thin;
 
   /*
-   * Aspect Ratios
+   * Ratios
    */
   --s-ratio-square: 1;
   --s-ratio-landscape: 4/3;
   --s-ratio-portrait: 3/4;
   --s-ratio-widescreen: 16/9;
   --s-ratio-ultrawide: 18/5;
-  --s-ratio-golden: 1.618/1;
+  --s-ratio-eighth: 1/8;
+  --s-ratio-quarter: 1/4;
+  --s-ratio-half: 1/2;
+  --s-ratio-third: 1/3;
+  --s-ratio-sixteenth: 1/16;
+  --s-ratio-minor-second: 1.067;
+  --s-ratio-major-second: 1.125;
+  --s-ratio-minor-third: 1.2;
+  --s-ratio-major-third: 1.25;
+  --s-ratio-perfect-fourth: 1.333;
+  --s-ratio-augmented-fourth: 1.414;
+  --s-ratio-perfect-fifth: 1.5;
+  --s-ratio-golden: 1.618;
+  --s-ratio-major-sixth: 1.667;
+  --s-ratio-minor-seventh: 1.778;
+  --s-ratio-major-seventh: 1.875;
+  --s-ratio-octave: 2;
 
   /*
    * Elements

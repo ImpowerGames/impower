@@ -1,4 +1,4 @@
-import { getCssIcon } from "../../../../sparkle-transformer/src/utils/getCssIcon";
+import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
 import Icons from "../../configs/icons";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
@@ -13,7 +13,6 @@ import css from "./dialog.css";
 import html from "./dialog.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const closingEvent = new SparkleEvent("closing");
 const closedEvent = new SparkleEvent("closed");
@@ -53,16 +52,18 @@ export default class Dialog
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
-    return Dialog.augment(html, DEFAULT_DEPENDENCIES);
+    return Dialog.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles() {
+    styles.replaceSync(Dialog.augmentCss(css, DEFAULT_DEPENDENCIES));
     return [styles];
   }
 
@@ -152,15 +153,15 @@ export default class Dialog
   }
 
   get labelSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("label");
+    return this.getElementByClass("label-slot");
   }
 
   get cancelSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("cancel");
+    return this.getElementByClass("cancel-slot");
   }
 
   get confirmSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("confirm");
+    return this.getElementByClass("confirm-slot");
   }
 
   protected override onAttributeChanged(
@@ -237,15 +238,36 @@ export default class Dialog
     this.dialog.addEventListener("close", this.handleEscapeClose);
     this.cancelButton?.addEventListener("click", this.handleClickClose);
     this.confirmButton?.addEventListener("click", this.handleClickClose);
-    this.labelSlot?.addEventListener("slotchange", this.handleLabelSlotChange);
-    this.cancelSlot?.addEventListener(
-      "slotchange",
-      this.handleCancelSlotChange
-    );
-    this.confirmSlot?.addEventListener(
-      "slotchange",
-      this.handleConfirmSlotChange
-    );
+    if (this.shadowRoot) {
+      this.labelSlot?.addEventListener(
+        "slotchange",
+        this.handleLabelSlotAssigned
+      );
+    } else {
+      this.handleLabelChildrenAssigned(
+        Array.from(this.labelSlot?.children || [])
+      );
+    }
+    if (this.shadowRoot) {
+      this.cancelSlot?.addEventListener(
+        "slotchange",
+        this.handleCancelSlotAssigned
+      );
+    } else {
+      this.handleCancelChildrenAssigned(
+        Array.from(this.cancelSlot?.children || [])
+      );
+    }
+    if (this.shadowRoot) {
+      this.confirmSlot?.addEventListener(
+        "slotchange",
+        this.handleConfirmSlotAssigned
+      );
+    } else {
+      this.handleConfirmChildrenAssigned(
+        Array.from(this.confirmSlot?.children || [])
+      );
+    }
   }
 
   protected override onParsed(): void {
@@ -261,45 +283,60 @@ export default class Dialog
     this.dialog.removeEventListener("close", this.handleEscapeClose);
     this.cancelButton?.removeEventListener("click", this.handleClickClose);
     this.confirmButton?.removeEventListener("click", this.handleClickClose);
-    this.labelSlot?.removeEventListener(
-      "slotchange",
-      this.handleLabelSlotChange
-    );
-    this.cancelSlot?.removeEventListener(
-      "slotchange",
-      this.handleCancelSlotChange
-    );
-    this.confirmSlot?.removeEventListener(
-      "slotchange",
-      this.handleConfirmSlotChange
-    );
+    if (this.shadowRoot) {
+      this.labelSlot?.removeEventListener(
+        "slotchange",
+        this.handleLabelSlotAssigned
+      );
+    }
+    if (this.shadowRoot) {
+      this.cancelSlot?.removeEventListener(
+        "slotchange",
+        this.handleCancelSlotAssigned
+      );
+    }
+    if (this.shadowRoot) {
+      this.confirmSlot?.removeEventListener(
+        "slotchange",
+        this.handleConfirmSlotAssigned
+      );
+    }
     this.dispatchEvent(removedEvent);
   }
 
-  protected handleLabelSlotChange = (e: Event) => {
+  protected handleLabelSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
-    const assignedElement = slot?.assignedElements?.()?.[0];
-    if (assignedElement) {
+    this.handleLabelChildrenAssigned(slot.assignedElements());
+  };
+
+  protected handleLabelChildrenAssigned = (children: Element[]) => {
+    if (children.length > 0) {
       if (this.label == null) {
         this.setAttribute("label", "");
       }
     }
   };
 
-  protected handleCancelSlotChange = (e: Event) => {
+  protected handleCancelSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
-    const assignedElement = slot?.assignedElements?.()?.[0];
-    if (assignedElement) {
+    this.handleCancelChildrenAssigned(slot.assignedElements());
+  };
+
+  protected handleCancelChildrenAssigned = (children: Element[]) => {
+    if (children.length > 0) {
       if (this.cancel == null) {
         this.setAttribute("cancel", "");
       }
     }
   };
 
-  protected handleConfirmSlotChange = (e: Event) => {
+  protected handleConfirmSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
-    const assignedElement = slot?.assignedElements?.()?.[0];
-    if (assignedElement) {
+    this.handleCancelChildrenAssigned(slot.assignedElements());
+  };
+
+  protected handleConfirmChildrenAssigned = (children: Element[]) => {
+    if (children.length > 0) {
       if (this.confirm == null) {
         this.setAttribute("confirm", "");
       }

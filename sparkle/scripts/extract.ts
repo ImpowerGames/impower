@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 import fs from "fs";
 
 const IN_PATH = "./custom-elements.json";
@@ -77,6 +78,9 @@ export const getValues = (
 };
 
 try {
+  execSync(`cem analyze --outdir "./"`, {
+    stdio: "inherit",
+  });
   const json = fs.readFileSync(IN_PATH, "utf8");
   const obj = JSON.parse(json);
 

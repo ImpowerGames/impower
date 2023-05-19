@@ -1,5 +1,4 @@
 import {
-  arrow,
   autoUpdate,
   computePosition,
   flip,
@@ -8,26 +7,21 @@ import {
   shift,
   size,
 } from "@floating-ui/dom";
-import { getCssColor } from "../../../../sparkle-transformer/src/utils/getCssColor";
-import { getCssSize } from "../../../../sparkle-transformer/src/utils/getCssSize";
 import SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
-import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
-import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { offsetParent } from "./composed-offset-position";
 import css from "./popup.css";
 import html from "./popup.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const repositionEvent = new SparkleEvent("reposition");
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
+  "open",
   "anchor",
-  "active",
   "placement",
   "strategy",
   "distance",
@@ -35,20 +29,18 @@ const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "arrow",
   "arrow-placement",
   "arrow-padding",
-  "flip",
+  "disable-auto-flip",
   "flip-fallback-placements",
   "flip-fallback-strategy",
   "flip-boundary",
   "flip-padding",
-  "shift",
+  "disable-auto-shift",
   "shift-boundary",
   "shift-padding",
   "auto-size",
   "sync",
   "auto-size-boundary",
   "auto-size-padding",
-  "arrow-color",
-  "arrow-size",
 ]);
 
 /**
@@ -66,9 +58,10 @@ export default class Popup
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -76,6 +69,7 @@ export default class Popup
   }
 
   override get styles() {
+    styles.replaceSync(Popup.augmentCss(css));
     return [styles];
   }
 
@@ -94,11 +88,11 @@ export default class Popup
    * Activates the positioning logic and shows the popup. When this attribute is removed, the positioning logic is torn
    * down and the popup will be hidden.
    */
-  get active(): boolean {
-    return this.getBooleanAttribute(Popup.attributes.active);
+  get open(): boolean {
+    return this.getBooleanAttribute(Popup.attributes.open);
   }
-  set active(value: boolean) {
-    this.setBooleanAttribute(Popup.attributes.active, value);
+  set open(value: boolean) {
+    this.setBooleanAttribute(Popup.attributes.open, value);
   }
 
   /**
@@ -140,7 +134,7 @@ export default class Popup
    * The distance in pixels from which to offset the panel away from its anchor.
    */
   get distance(): number | null {
-    return this.getNumberAttribute(Popup.attributes.distance);
+    return this.getNumberAttribute(Popup.attributes.distance) ?? 8;
   }
   set distance(value) {
     this.setStringAttribute(Popup.attributes.distance, value);
@@ -192,34 +186,16 @@ export default class Popup
   }
 
   /**
-   * The color of the arrow.
+   * By default, when the popup's position will cause it to be clipped,
+   * it will automatically flip to the opposite site to keep it in view.
+   * This disables that behavior.
+   * You can use `flipFallbackPlacements` to further configure how the fallback placement is determined.
    */
-  get arrowColor(): ColorName | string | null {
-    return this.getStringAttribute(Popup.attributes.arrowColor);
+  get disableAutoFlip(): boolean {
+    return this.getBooleanAttribute(Popup.attributes.disableAutoFlip);
   }
-  set arrowColor(value) {
-    this.setStringAttribute(Popup.attributes.arrowColor, value);
-  }
-
-  /**
-   * The size of the arrow.
-   */
-  get arrowSize(): SizeName | string | null {
-    return this.getStringAttribute(Popup.attributes.arrowSize);
-  }
-  set arrowSize(value) {
-    this.setStringAttribute(Popup.attributes.arrowSize, value);
-  }
-
-  /**
-   * When set, placement of the popup will flip to the opposite site to keep it in view. You can use
-   * `flipFallbackPlacements` to further configure how the fallback placement is determined.
-   */
-  get flip(): boolean {
-    return this.getBooleanAttribute(Popup.attributes.flip);
-  }
-  set flip(value) {
-    this.setStringAttribute(Popup.attributes.flip, value);
+  set disableAutoFlip(value) {
+    this.setStringAttribute(Popup.attributes.disableAutoFlip, value);
   }
 
   /**
@@ -269,13 +245,15 @@ export default class Popup
   }
 
   /**
-   * Moves the popup along the axis to keep it in view when clipped.
+   * By default, the when the popup's position will cause it to be clipped,
+   * the popup will automatically reposition itself along the axis to keep it in view.
+   * This disables that behavior.
    */
-  get shift(): boolean {
-    return this.getBooleanAttribute(Popup.attributes.shift);
+  get disableAutoShift(): boolean {
+    return this.getBooleanAttribute(Popup.attributes.disableAutoShift);
   }
-  set shift(value) {
-    this.setStringAttribute(Popup.attributes.shift, value);
+  set disableAutoShift(value) {
+    this.setStringAttribute(Popup.attributes.disableAutoShift, value);
   }
 
   /**
@@ -344,16 +322,12 @@ export default class Popup
 
   protected _anchorEl?: HTMLElement | null;
 
-  get anchorSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("anchor");
+  get popupEl(): HTMLElement | null {
+    return this.getElementByClass("popup");
   }
 
-  get rootEl(): HTMLElement | null {
-    return this.getElementByClass("root");
-  }
-
-  get arrowEl(): HTMLElement | null {
-    return this.getElementByClass("arrow");
+  get popupSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("popup-slot");
   }
 
   private cleanup: ReturnType<typeof autoUpdate> | undefined;
@@ -363,60 +337,24 @@ export default class Popup
     oldValue: string,
     newValue: string
   ): void {
-    // Start or stop the positioner when active changes
-    if (name === Popup.attributes.active) {
-      const active = newValue != null;
-      if (active) {
-        this.start();
-      } else {
-        this.stop();
-      }
-      this.root.hidden = !active;
-    }
-
     if (name === Popup.attributes.strategy) {
-      this.updateRootClass("fixed", newValue === "fixed");
-    }
-
-    if (name === Popup.attributes.arrow) {
-      const arrow = newValue != null;
-      const arrowEl = this.arrowEl;
-      if (arrowEl) {
-        arrowEl.hidden = !arrow;
+      const fixed = newValue === "fixed";
+      if (fixed) {
+        this.popupEl?.classList.add("fixed");
+      } else {
+        this.popupEl?.classList.remove("fixed");
       }
-    }
-
-    if (name === Popup.attributes.arrowColor) {
-      this.updateRootCssVariable(name, getCssColor(newValue));
-    }
-
-    if (name === Popup.attributes.arrowSize) {
-      this.updateRootCssVariable(name, getCssSize(newValue));
     }
 
     // Update the anchorEl when anchor changes
     if (name === Popup.attributes.anchor) {
-      this.handleAnchorSlotChange();
+      this.setupAnchor();
     }
 
     // All other properties will trigger a reposition when active
-    if (this.active) {
-      window.setTimeout(() => {
-        this.reposition();
-      });
-    }
-  }
-
-  protected override onConnected(): void {
-    const arrow = this.arrow;
-    const arrowEl = this.arrowEl;
-    if (arrowEl) {
-      arrowEl.hidden = !arrow;
-    }
-    this.anchorSlot?.addEventListener(
-      "slotchange",
-      this.handleAnchorSlotChange
-    );
+    window.setTimeout(() => {
+      this.reposition();
+    });
   }
 
   protected override onParsed(): void {
@@ -425,10 +363,6 @@ export default class Popup
 
   protected override onDisconnected(): void {
     this.stop();
-    this.anchorSlot?.removeEventListener(
-      "slotchange",
-      this.handleAnchorSlotChange
-    );
   }
 
   getElementById(id: string | null): HTMLElement | undefined {
@@ -436,7 +370,11 @@ export default class Popup
     return id ? root.getElementById(id) || undefined : undefined;
   }
 
-  private handleAnchorSlotChange = async () => {
+  override onContentAssigned() {
+    this.setupAnchor();
+  }
+
+  async setupAnchor() {
     await this.stop();
 
     if (this.anchor && typeof this.anchor === "string") {
@@ -445,7 +383,14 @@ export default class Popup
       this._anchorEl = root.getElementById(this.anchor);
     } else {
       // Look for a slotted anchor
-      this._anchorEl = this.querySelector<HTMLElement>('[slot="anchor"]');
+      if (this.shadowRoot) {
+        this._anchorEl =
+          this.contentSlot?.assignedElements()?.[0] as HTMLElement;
+      } else {
+        this._anchorEl = Array.from(
+          this.contentSlot?.children || []
+        )?.[0] as HTMLElement;
+      }
     }
 
     // An element with `display: contents` cannot be used for calculating position,
@@ -454,8 +399,8 @@ export default class Popup
       this._anchorEl &&
       window.getComputedStyle(this._anchorEl).display === "contents"
     ) {
-      this._anchorEl = (this._anchorEl.shadowRoot?.firstElementChild ||
-        this._anchorEl?.firstElementChild) as HTMLElement;
+      this._anchorEl = (this._anchorEl.shadowRoot || this._anchorEl)
+        ?.firstElementChild as HTMLElement;
     }
 
     if (!this._anchorEl) {
@@ -465,11 +410,11 @@ export default class Popup
     }
 
     this.start();
-  };
+  }
 
-  private start() {
+  protected start() {
     const anchorEl = this._anchorEl;
-    const popupEl = this.rootEl;
+    const popupEl = this.popupEl;
 
     if (!anchorEl || !popupEl) {
       // We can't start the positioner without an anchor or popup
@@ -481,7 +426,7 @@ export default class Popup
     });
   }
 
-  private async stop(): Promise<void> {
+  protected async stop(): Promise<void> {
     return new Promise((resolve) => {
       if (this.cleanup) {
         this.cleanup();
@@ -499,9 +444,9 @@ export default class Popup
   /** Forces the popup to recalculate and reposition itself. */
   reposition() {
     const anchorEl = this._anchorEl;
-    const popupEl = this.rootEl;
+    const popupEl = this.popupEl;
     // Nothing to do if the popup is inactive or the anchor doesn't exist
-    if (!this.active || !anchorEl || !popupEl) {
+    if (!this.open || !anchorEl || !popupEl) {
       return;
     }
 
@@ -537,7 +482,7 @@ export default class Popup
     }
 
     // Then we flip
-    if (this.flip) {
+    if (!this.disableAutoFlip) {
       middleware.push(
         flip({
           boundary: this.getElementById(this.flipBoundary),
@@ -553,7 +498,7 @@ export default class Popup
     }
 
     // Then we shift
-    if (this.shift) {
+    if (!this.disableAutoShift) {
       middleware.push(
         shift({
           boundary: this.getElementById(this.shiftBoundary),
@@ -598,19 +543,6 @@ export default class Popup
       this.updateRootCssVariable("--auto-size-available-width", null);
     }
 
-    // Finally, we add an arrow
-    if (this.arrow) {
-      const arrowEl = this.arrowEl;
-      if (arrowEl) {
-        middleware.push(
-          arrow({
-            element: arrowEl,
-            padding: this.arrowPadding || 0,
-          })
-        );
-      }
-    }
-
     //
     // Use custom positioning logic if the strategy is absolute. Otherwise, fall back to the default logic.
     //
@@ -633,87 +565,9 @@ export default class Popup
         getOffsetParent,
       },
     }).then(({ x, y, middlewareData, placement }) => {
-      //
-      // Even though we have our own localization utility, it uses different heuristics to determine RTL. Because of
-      // that, we'll use the same approach that Floating UI uses.
-      //
-      // Source: https://github.com/floating-ui/floating-ui/blob/cb3b6ab07f95275730d3e6e46c702f8d4908b55c/packages/dom/src/utils/getDocumentRect.ts#L31
-      //
-      const isRtl = getComputedStyle(this).direction === "rtl";
-      const side = placement.split("-")[0] || "";
-      const staticSide = {
-        top: "bottom",
-        right: "left",
-        bottom: "top",
-        left: "right",
-      }[side]!;
-
       this.setAttribute("data-current-placement", placement);
-
-      Object.assign(popupEl.style, {
-        left: `${x}px`,
-        top: `${y}px`,
-      });
-
-      if (this.arrow) {
-        const arrowX = middlewareData.arrow!.x;
-        const arrowY = middlewareData.arrow!.y;
-        let top = "";
-        let right = "";
-        let bottom = "";
-        let left = "";
-
-        if (this.arrowPlacement === "start") {
-          // Start
-          const value =
-            typeof arrowX === "number"
-              ? `calc(${this.arrowPadding}px - var(--arrow-padding-offset))`
-              : "";
-          top =
-            typeof arrowY === "number"
-              ? `calc(${this.arrowPadding}px - var(--arrow-padding-offset))`
-              : "";
-          right = isRtl ? value : "";
-          left = isRtl ? "" : value;
-        } else if (this.arrowPlacement === "end") {
-          // End
-          const value =
-            typeof arrowX === "number"
-              ? `calc(${this.arrowPadding}px - var(--arrow-padding-offset))`
-              : "";
-          right = isRtl ? "" : value;
-          left = isRtl ? value : "";
-          bottom =
-            typeof arrowY === "number"
-              ? `calc(${this.arrowPadding}px - var(--arrow-padding-offset))`
-              : "";
-        } else if (this.arrowPlacement === "center") {
-          // Center
-          left =
-            typeof arrowX === "number"
-              ? `calc(50% - var(--arrow-size-diagonal))`
-              : "";
-          top =
-            typeof arrowY === "number"
-              ? `calc(50% - var(--arrow-size-diagonal))`
-              : "";
-        } else {
-          // Anchor (default)
-          left = typeof arrowX === "number" ? `${arrowX}px` : "";
-          top = typeof arrowY === "number" ? `${arrowY}px` : "";
-        }
-
-        const arrowEl = this.arrowEl;
-        if (arrowEl) {
-          Object.assign(arrowEl.style, {
-            top,
-            right,
-            bottom,
-            left,
-            [staticSide]: "calc(var(--arrow-size-diagonal) * -1)",
-          });
-        }
-      }
+      popupEl.style.left = `${x}px`;
+      popupEl.style.top = `${y}px`;
     });
 
     this.dispatchEvent(repositionEvent);

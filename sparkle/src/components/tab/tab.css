@@ -99,6 +99,9 @@
   outline-offset: calc((-2 * var(--s-focus-ring-width)) + 1px);
 }
 
-:host([disabled]) > .ripple {
+:host > .root > .ripple {
+  border-radius: inherit;
+}
+:host([disabled]) > .root > .ripple {
   display: none;
 }

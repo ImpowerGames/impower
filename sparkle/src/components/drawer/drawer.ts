@@ -9,7 +9,6 @@ import css from "./drawer.css";
 import html from "./drawer.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 const closingEvent = new SparkleEvent("closing");
 const closedEvent = new SparkleEvent("closed");
@@ -38,16 +37,18 @@ export default class Drawer
 
   static override async define(
     tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES
+    dependencies = DEFAULT_DEPENDENCIES,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
-    return Drawer.augment(html, DEFAULT_DEPENDENCIES);
+    return Drawer.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   override get styles() {
+    styles.replaceSync(Drawer.augmentCss(css, DEFAULT_DEPENDENCIES));
     return [styles];
   }
 

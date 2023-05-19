@@ -1,4 +1,4 @@
-import { Graphic } from "../types/graphic";
+import Graphic from "sparkle-style-transformer/types/graphic.js";
 
 export default abstract class Patterns {
   protected static _map: Record<string, Graphic> = {};

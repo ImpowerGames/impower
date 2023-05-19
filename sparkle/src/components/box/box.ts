@@ -3,7 +3,6 @@ import css from "./box.css";
 import html from "./box.html";
 
 const styles = new CSSStyleSheet();
-styles.replaceSync(css);
 
 /**
  * Boxes are basic surfaces for styling and laying out content.
@@ -13,9 +12,10 @@ export default class Box extends SparkleElement {
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>
+    dependencies?: Record<string, string>,
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
@@ -23,6 +23,7 @@ export default class Box extends SparkleElement {
   }
 
   override get styles() {
+    styles.replaceSync(Box.augmentCss(css));
     return [styles];
   }
 }

@@ -1,4 +1,4 @@
-const getCssAspectRatio = (value: string): string => {
+const getCssRatio = (value: string): string => {
   if (value === "") {
     return "1";
   }
@@ -11,4 +11,4 @@ const getCssAspectRatio = (value: string): string => {
   return `var(--s-ratio-${value})`;
 };
 
-export default getCssAspectRatio;
+export default getCssRatio;
