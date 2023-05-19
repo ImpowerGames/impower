@@ -114,16 +114,6 @@ export default class Router
 
   protected override onConnected(): void {
     this._valueObserver = new MutationObserver(this.handleValueMutation);
-    if (this.shadowRoot) {
-      this.templatesSlot?.addEventListener(
-        "slotchange",
-        this.handleTemplatesSlotAssigned
-      );
-    } else {
-      this.handleTemplatesChildrenAssigned(
-        Array.from(this.templatesSlot?.children || [])
-      );
-    }
   }
 
   protected override onParsed(): void {
@@ -133,26 +123,13 @@ export default class Router
 
   protected override onDisconnected(): void {
     this._valueObserver?.disconnect();
-    if (this.shadowRoot) {
-      this.templatesSlot?.removeEventListener(
-        "slotchange",
-        this.handleTemplatesSlotAssigned
-      );
-    }
   }
 
-  protected handleTemplatesSlotAssigned = (e: Event) => {
-    const slot = e.currentTarget as HTMLSlotElement;
-    this.handleTemplatesChildrenAssigned(
-      slot.assignedElements({ flatten: true })
-    );
-  };
-
-  protected handleTemplatesChildrenAssigned = (children: Element[]) => {
+  protected override onContentAssigned(children: Element[]): void {
     this._templates = children.filter(
       (el) => el.tagName.toLowerCase() === "template"
     ) as HTMLTemplateElement[];
-  };
+  }
 
   loadTemplates(newValue: string | null): void {
     if (newValue !== this._loadedValue) {

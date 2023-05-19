@@ -2187,7 +2187,7 @@ export default class SparkleElement
   setAssignedToSlot(content: string | Node, name?: string): void {
     const assigned = this.getAssignedToSlot(name);
     assigned.forEach((n) => {
-      if (n.parentElement) {
+      if (n.parentElement && n.nodeName.toLowerCase() !== "template") {
         n.parentElement.removeChild(n);
       }
     });
