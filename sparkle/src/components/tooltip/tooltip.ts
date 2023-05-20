@@ -41,7 +41,6 @@ const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "auto-size-padding",
   "label",
   "trigger",
-  "hoist",
 ]);
 
 /**
@@ -100,18 +99,6 @@ export default class Tooltip
     this.setStringAttribute(Tooltip.attributes.trigger, value);
   }
 
-  /**
-   * Enable this option to prevent the tooltip from being clipped when the component is placed inside a container with
-   * `overflow: auto|hidden|scroll`. Hoisting uses a fixed positioning strategy that works in many, but not all,
-   * scenarios.
-   */
-  get hoist(): boolean {
-    return this.getBooleanAttribute(Tooltip.attributes.hoist);
-  }
-  set hoist(value) {
-    this.setStringAttribute(Tooltip.attributes.hoist, value);
-  }
-
   private hoverTimeout?: number;
 
   protected override onAttributeChanged(
@@ -139,25 +126,9 @@ export default class Tooltip
         this.handleClose();
       }
     }
-    if (name === Tooltip.attributes.placement) {
-      this.updateRootAttribute(name, newValue);
-    }
-    if (name === Tooltip.attributes.distance) {
-      this.updateRootAttribute(name, newValue);
-    }
-    if (name === Tooltip.attributes.skidding) {
-      this.updateRootAttribute(name, newValue);
-    }
-    if (name === Tooltip.attributes.hoist) {
-      this.updateRootAttribute(
-        "strategy",
-        newValue != null ? "fixed" : "absolute"
-      );
-    }
     if (
       name === Tooltip.attributes.label ||
       name === Tooltip.attributes.distance ||
-      name === Tooltip.attributes.hoist ||
       name === Tooltip.attributes.placement ||
       name === Tooltip.attributes.skidding
     ) {

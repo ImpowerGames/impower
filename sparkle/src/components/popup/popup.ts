@@ -110,9 +110,8 @@ export default class Popup
     | "right-end"
     | "left"
     | "left-start"
-    | "left-end"
-    | null {
-    return this.getStringAttribute(Popup.attributes.placement);
+    | "left-end" {
+    return this.getStringAttribute(Popup.attributes.placement) || "top";
   }
   set placement(value) {
     this.setStringAttribute(Popup.attributes.placement, value);
@@ -122,8 +121,8 @@ export default class Popup
    * Determines how the popup is positioned. The `absolute` strategy works well in most cases, but if overflow is
    * clipped, using a `fixed` position strategy can often workaround it.
    */
-  get strategy(): "absolute" | "fixed" | null {
-    return this.getStringAttribute(Popup.attributes.strategy);
+  get strategy(): "absolute" | "fixed" {
+    return this.getStringAttribute(Popup.attributes.strategy) || "absolute";
   }
   set strategy(value) {
     this.setStringAttribute(Popup.attributes.strategy, value);
@@ -349,6 +348,8 @@ export default class Popup
     return this.getElementByClass("popup-slot");
   }
 
+  protected _intersectionObserver?: IntersectionObserver;
+
   protected override onAttributeChanged(
     name: string,
     oldValue: string,
@@ -374,11 +375,14 @@ export default class Popup
     });
   }
 
+  protected override onConnected(): void {}
+
   protected override onParsed(): void {
     this.start();
   }
 
   protected override onDisconnected(): void {
+    this._intersectionObserver?.disconnect();
     this.stop();
   }
 
@@ -392,11 +396,11 @@ export default class Popup
   }
 
   async setupAnchor() {
-    this.stop();
-    this.start();
+    await this.stop();
+    await this.start();
   }
 
-  protected start() {
+  protected async start() {
     const anchorEl = this.anchorEl;
     const popupEl = this.popupEl;
 
@@ -406,26 +410,33 @@ export default class Popup
         "Invalid anchor element: no anchor could be found using the anchor slot or the anchor attribute."
       );
     }
-
-    this.reposition();
-
     if (!popupEl) {
       return;
     }
+
+    if (!this._intersectionObserver) {
+      this._intersectionObserver = new IntersectionObserver(this.update);
+      this._intersectionObserver?.observe(anchorEl);
+    }
+    this.reposition();
   }
 
-  protected stop(): void {
+  protected async stop() {
     this.removeAttribute("data-current-placement");
     this.updateRootCssVariable("--auto-size-available-width", null);
     this.updateRootCssVariable("--auto-size-available-height", null);
   }
 
+  update = (): void => {
+    this.reposition();
+  };
+
   /** Forces the popup to recalculate and reposition itself. */
   reposition() {
     const anchorEl = this.anchorEl;
     const popupEl = this.popupEl;
-    // Nothing to do if the popup is inactive or the anchor doesn't exist
-    if (!this.open || !anchorEl || !popupEl) {
+    // Nothing to do if the popup or anchor doesn't exist
+    if (!anchorEl || !popupEl) {
       return;
     }
 
@@ -528,17 +539,14 @@ export default class Popup
     // More info: https://github.com/shoelace-style/shoelace/issues/1135
     //
     const getOffsetParent =
-      this.strategy === "absolute"
-        ? (element: Element) => platform.getOffsetParent(element, offsetParent)
-        : platform.getOffsetParent;
+      this.strategy === "fixed"
+        ? platform.getOffsetParent
+        : (element: Element) => platform.getOffsetParent(element, offsetParent);
 
-    if (!popupEl) {
-      return;
-    }
     computePosition(anchorEl, popupEl, {
-      placement: this.placement || "top",
+      placement: this.placement,
       middleware,
-      strategy: this.strategy || "absolute",
+      strategy: this.strategy,
       platform: {
         ...platform,
         getOffsetParent,
