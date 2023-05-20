@@ -1826,10 +1826,6 @@ export default class SparkleElement
 
   get focusableChildren(): HTMLElement[] {
     if (this.shadowRoot) {
-      this.contentSlot?.addEventListener(
-        "slotchange",
-        this.handleContentSlotAssigned
-      );
       const elements = this.contentSlot?.assignedElements();
       if (elements) {
         return elements.filter(isFocusableElement);
@@ -2009,6 +2005,13 @@ export default class SparkleElement
         }
       }
     }
+    if (name === SparkleElement.attributes.navigation) {
+      if (newValue != null) {
+        this.bindNavigation();
+      } else {
+        this.unbindNavigation();
+      }
+    }
     this.onAttributeChanged(name, oldValue, newValue);
   }
 
@@ -2063,6 +2066,7 @@ export default class SparkleElement
       );
     }
     this.unbindFocus(this.root);
+    this.unbindNavigation();
     this.onDisconnected();
   }
 
@@ -2081,6 +2085,18 @@ export default class SparkleElement
   }
 
   protected onContentAssigned(children: Element[]): void {}
+
+  protected bindNavigation() {
+    this.focusableChildren.forEach((child) =>
+      child.addEventListener("keydown", this.onKeyDown)
+    );
+  }
+
+  protected unbindNavigation() {
+    this.focusableChildren.forEach((child) =>
+      child.removeEventListener("keydown", this.onKeyDown)
+    );
+  }
 
   onKeyDown = (e: KeyboardEvent): void => {
     const target = e.currentTarget;
