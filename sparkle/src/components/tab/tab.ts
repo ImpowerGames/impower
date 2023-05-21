@@ -1,3 +1,4 @@
+import getCssColor from "sparkle-style-transformer/utils/getCssColor.js";
 import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
 import getCssMask from "sparkle-style-transformer/utils/getCssMask.js";
 import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
@@ -21,6 +22,7 @@ export const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v, Icons.all()),
   "active-icon": (v: string) => getCssIcon(v, Icons.all()),
   spacing: getCssSize,
+  "hover-color": getCssColor,
 };
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
@@ -104,6 +106,16 @@ export default class Tab
   }
   set activeIcon(value) {
     this.setStringAttribute(Tab.attributes.activeIcon, value);
+  }
+
+  /**
+   * The background color when the tab is hovered.
+   */
+  get hoverColor(): SizeName | string | null {
+    return this.getStringAttribute(Tab.attributes.hoverColor);
+  }
+  set hoverColor(value) {
+    this.setStringAttribute(Tab.attributes.hoverColor, value);
   }
 
   /**

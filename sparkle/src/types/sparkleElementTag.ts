@@ -17,6 +17,6 @@ export type SparkleElementTag =
   | "s-toast-stack"
   | "s-toast"
   | "s-dialog"
-  | "s-split-layout"
+  | "s-split-pane"
   | "s-router"
   | "s-breakpoint-observer";

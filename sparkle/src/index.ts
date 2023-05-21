@@ -13,7 +13,7 @@ import ProgressCircle from "./components/progress-circle/progress-circle";
 import Ripple from "./components/ripple/ripple";
 import Router from "./components/router/router";
 import Skeleton from "./components/skeleton/skeleton";
-import SplitLayout from "./components/split-layout/split-layout";
+import SplitPane from "./components/split-pane/split-pane";
 import Tab from "./components/tab/tab";
 import Tabs from "./components/tabs/tabs";
 import ToastStack from "./components/toast-stack/toast-stack";
@@ -57,7 +57,7 @@ export const DEFAULT_SPARKLE_CONSTRUCTORS: Record<
   "s-toast-stack": ToastStack,
   "s-toast": Toast,
   "s-dialog": Dialog,
-  "s-split-layout": SplitLayout,
+  "s-split-pane": SplitPane,
   "s-router": Router,
   "s-breakpoint-observer": BreakpointObserver,
 };
