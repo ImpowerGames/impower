@@ -401,10 +401,6 @@ export default class SplitLayout
     const startScreenX = this._startScreenX;
     const startScreenY = this._startScreenY;
 
-    // Prevent text selection when dragging
-    if (e.cancelable) {
-      e.preventDefault();
-    }
     const deltaX = e.screenX - startScreenX;
     const deltaY = e.screenY - startScreenY;
 

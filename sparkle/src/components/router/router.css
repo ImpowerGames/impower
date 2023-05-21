@@ -4,17 +4,21 @@
 :host {
   --enter: var(--s-animation-enter);
   --exit: var(--s-animation-exit);
+  --position: relative;
 }
 
-:host > .root,
+:host > .root {
+  display: contents;
+}
 :host > .root > .content {
+  position: var(--position);
   display: flex;
   flex: 1;
 }
 
 :host > .root > .header,
 :host > .root > .footer {
-  display: flex;
+  display: contents;
 }
 
 :host > .root.exiting > .content {

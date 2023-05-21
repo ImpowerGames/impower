@@ -8,9 +8,6 @@ import fs from "fs";
 const PATTERNS_CSS = "./src/styles/patterns/patterns.css";
 const ICONS_CSS = "./src/styles/icons/icons.css";
 
-const PATTERN_FILES = [PATTERNS_CSS];
-const ICON_FILES = [ICONS_CSS];
-
 const OUT_DIR = "./functions";
 const ENTRY_COMPONENTS_DIR = "./src/components";
 const ENTRY_STYLES_DIR = "./src/styles";
@@ -32,32 +29,24 @@ const mjsBundlesConfig = {
   format: "esm",
   target: "es2020",
   platform: "browser",
-  outdir: `${OUT_DIR}`,
-  outExtension: { ".js": ".mjs" },
   entryNames: "[name]",
+  outExtension: { ".js": ".mjs" },
+  outdir: `${OUT_DIR}`,
+  entryPoints: [...componentsTS, ...stylesCSS],
+  plugins: [
+    sparklePlugin({
+      componentPrefix: "s-",
+      patternFiles: [PATTERNS_CSS],
+      iconFiles: [ICONS_CSS],
+    }),
+  ],
 };
 
 // Build script
 (async () => {
   try {
     console.log("build started");
-    // Bundle component elements
-    await build({
-      ...mjsBundlesConfig,
-      entryPoints: [...componentsTS],
-      plugins: [
-        sparklePlugin({
-          patternFiles: PATTERN_FILES,
-          iconFiles: ICON_FILES,
-        }),
-      ],
-    });
-    // Bundle style elements
-    await build({
-      ...mjsBundlesConfig,
-      entryPoints: [...stylesCSS],
-      plugins: [sparklePlugin()],
-    });
+    await build(mjsBundlesConfig);
     console.log("build finished");
   } catch (err) {
     process.stderr.write(err.stderr);
