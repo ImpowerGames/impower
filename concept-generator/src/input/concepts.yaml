@@ -1,4 +1,3 @@
----
 abstract:
   - abstract
   - concept
@@ -893,7 +892,6 @@ automation:
   - repeat
   - rig
   - robot
-  - roboto
   - screw
   - script
   - servant
@@ -981,6 +979,7 @@ betrayal:
   - _double cross~
   - _et tu_
   - _not funny_
+  - _stitch~ up_
   - _turn coat_
   - _with us_
   - _you said_
@@ -2292,6 +2291,7 @@ cooking:
   - bitter
   - bittersweet
   - boil
+  - bouche
   - bowel
   - bowl
   - braise
@@ -2628,6 +2628,7 @@ crafting:
   - tack
   - tape
   - teflon
+  - temper
   - thread
   - tin
   - toy
@@ -2803,7 +2804,6 @@ creepy:
   - weepers
   - weeps
   - weird
-  - weirdo
   - whimper
   - whisper
   - witches
@@ -2816,6 +2816,7 @@ crime:
   - _alarm_
   - _alarming_
   - _con_
+  - _conned_
   - _cons_
   - _convict_
   - _convicts_
@@ -2824,6 +2825,7 @@ crime:
   - _hench
   - _lay low_
   - _stick up_
+  - _stitch~ up_
   - _straight laced_
   - alley
   - bookie
@@ -2849,6 +2851,7 @@ crime:
   - pimp
   - poach
   - ponzi
+  - professionals
   - ringleader
   - scam
   - spy
@@ -3114,7 +3117,6 @@ cyberpunk:
   - gasket
   - prosthetic
   - robot
-  - roboto
   - screw
 dairy:
   - butter
@@ -3182,7 +3184,11 @@ deception:
   - _above board_
   - _bona fide_
   - _con_
+  - _conned_
   - _cons_
+  - _false_
+  - _stitch~ up_
+  - _true_
   - _up and up_
   - aboveboard
   - alibi
@@ -3220,7 +3226,6 @@ deception:
   - facts_
   - faint
   - fake
-  - _false_
   - fess
   - fishy_
   - fool
@@ -3270,7 +3275,6 @@ deception:
   - trick_
   - tricked_
   - trickster
-  - _true_
   - trust
   - truth
   - unexamined
@@ -3491,6 +3495,7 @@ demon:
   - smoke
   - sorrow
   - soul
+  - temper
   - temptation
   - terrors
   - tribulation
@@ -3776,12 +3781,14 @@ disillusionment:
   - ^me
   - ^we
   - ^you
-  - _?_
   - _<NEG> think so
+  - _?_
   - _boo hoo_
   - _ex
   - _exes
+  - _no_
   - _of course_
+  - _true_
   - _try it_
   - _up here_
   - _we'll see_
@@ -3918,7 +3925,6 @@ disillusionment:
   - mourn
   - necessity
   - needless
-  - _no_
   - nothings
   - obscurity
   - obsolescence
@@ -3979,7 +3985,6 @@ disillusionment:
   - troubled
   - troubles
   - troublesome
-  - _true_
   - turbulent
   - umbrage
   - unable
@@ -5806,8 +5811,10 @@ genius:
   - eccentric
 glitch:
   - _a feature_
+  - _false_
   - _fix_
   - _meant to_
+  - _null_
   - _oh no_
   - _re pair_
   - _re paired_
@@ -5833,7 +5840,6 @@ glitch:
   - effect
   - error
   - fail
-  - _false_
   - fault
   - flaw
   - fracture
@@ -5852,7 +5858,6 @@ glitch:
   - mess
   - missing
   - mistake
-  - _null_
   - obsolescence
   - oddity
   - omission
@@ -6185,6 +6190,7 @@ idle:
   - waits_
   - watchmaker
 illusion:
+  - _false_
   - abra
   - behold_
   - blur
@@ -6203,7 +6209,6 @@ illusion:
   - distortion
   - distraction
   - fake
-  - _false_
   - foolery
   - hallucination
   - houdini
@@ -6716,6 +6721,7 @@ legal:
   - defend
   - defense
   - discrimination
+  - disposition
   - earnest
   - fair
   - firm
@@ -7062,6 +7068,7 @@ love:
   - _rice in the church_
   - _role play_
   - _role playing_
+  - _significant other_
   - _sleep~ with_
   - _slept with_
   - _smile more_
@@ -7165,6 +7172,7 @@ love:
   - naked
   - nether
   - pair
+  - paramour
   - partner
   - passion
   - pleasure
@@ -7443,7 +7451,6 @@ mecha:
   - large
   - laser
   - mech
-  - mecha
   - pad
   - robot
   - space
@@ -8229,7 +8236,6 @@ musical:
   - mix
   - mosh
   - music
-  - musica
   - noise
   - offbeat
   - oldies
@@ -8665,7 +8671,6 @@ office:
   - cubicle
   - custodian
   - desk
-  - desko
   - desktop
   - director
   - downsize
@@ -9813,7 +9818,6 @@ psychological:
   - unhinged
   - unsound
   - weird
-  - weirdo
 publication:
   - article
   - copy
@@ -10678,6 +10682,8 @@ replayable:
   - repeat
   - replay
   - reset
+  - return
+  - revisit
   - second_
   - seventh_
   - sixth_
@@ -10974,14 +10980,14 @@ rhythm:
   - steppin
   - throb
 rival:
-  - _!_
   - ^arrogance
   - ^i
   - ^me
   - ^we
   - ^you
-  - _?_
+  - _!_
   - _<NEG> like
+  - _?_
   - _at least_
   - _boo hoo_
   - _co_
@@ -11271,7 +11277,6 @@ robot:
   - parts
   - product
   - robot
-  - roboto
   - screw
   - servant
   - slave
@@ -12282,8 +12287,8 @@ stealth:
   - rooftops
   - whisper
 steampunk:
-  - _1800_
   - ^victorian
+  - _1800_
   - _fuse
   - boiler
   - button
@@ -12542,7 +12547,6 @@ surreal:
   - twist
   - unreal
   - weird
-  - weirdo
 surveillance:
   - _are we getting this_
   - _it was right here_
@@ -12853,7 +12857,6 @@ tactical:
   - base
   - chess
   - command
-  - commando
   - contingency
   - counter_
   - defense
@@ -12928,6 +12931,7 @@ technology:
   - _disc_
   - _disk_
   - _end of life_
+  - _null_
   - _port_
   - _ports_
   - _post_
@@ -13025,7 +13029,6 @@ technology:
   - mobile
   - mode_
   - network
-  - _null_
   - number
   - obsolescence
   - offline
@@ -13998,7 +14001,6 @@ weird:
   - unusual
   - wacky
   - weird
-  - weirdo
 werewolf:
   - ^wolf
   - _pac_
@@ -14016,7 +14018,9 @@ werewolf:
   - twilight
   - werewolf
 western:
+  - _sam hill_
   - alamo
+  - blaze
   - boots
   - cactus
   - cart
@@ -14058,6 +14062,7 @@ western:
   - southern
   - spur
   - stable
+  - tarnation
   - trail_
   - trails_
   - trot
@@ -14236,7 +14241,7 @@ young:
   - young
   - youth
 zombie:
-  - <NEG> with us
+  - _<NEG> with us_
   - _don't turn on_
   - _don't turn_
   - _great leveler_

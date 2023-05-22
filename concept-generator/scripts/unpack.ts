@@ -1,13 +1,13 @@
 import fs from "fs";
-import { parse } from "yaml";
+import YAML from "yaml";
 import { getTermTags } from "./utils/getTermTags";
 
-const conceptsPath = "./input/concepts.yaml";
-const phrasesPath = "./input/phrases.txt";
-const archetypesPath = "./input/archetypes.txt";
+const conceptsPath = "./src/input/concepts.yaml";
+const phrasesPath = "./src/input/phrases.txt";
+const archetypesPath = "./src/input/archetypes.txt";
 const termsPath = "./src/output/terms.json";
 
-const concepts = parse(fs.readFileSync(conceptsPath, "utf8"));
+const concepts = YAML.parse(fs.readFileSync(conceptsPath, "utf8"));
 const phrases = fs.readFileSync(phrasesPath, "utf8").split(/\r?\n/);
 const archetypes = fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/);
 
@@ -16,7 +16,7 @@ const result = getTermTags(
   Array.from(new Set([...phrases, ...archetypes]))
 );
 
-fs.writeFile(termsPath, JSON.stringify(result), (err) => {
+fs.writeFile(termsPath, JSON.stringify(result, null, 2), (err) => {
   if (err) {
     console.log("FAILED!", err);
   } else {

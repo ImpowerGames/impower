@@ -1,11 +1,11 @@
 import fs from "fs";
-import { parse } from "yaml";
+import YAML from "yaml";
 import { getClosestTags } from "./utils/getClosestTags";
 
 const conceptsPath = "./src/input/concepts.yaml";
 const termVectorsPath = "./tmp/termVectors.json";
 
-const concepts = parse(fs.readFileSync(conceptsPath, "utf8"));
+const concepts = YAML.parse(fs.readFileSync(conceptsPath, "utf8"));
 const termVectors = JSON.parse(fs.readFileSync(termVectorsPath, "utf8"));
 
 const result = getClosestTags(

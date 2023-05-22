@@ -9,7 +9,7 @@ const archetypes = fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/);
 const sortedPhrases = Array.from(new Set(phrases))
   .sort()
   .sort((a, b) => (a.length < b.length ? -1 : 1));
-fs.writeFile(phrasesPath, JSON.stringify(sortedPhrases), (err) => {
+fs.writeFile(phrasesPath, sortedPhrases.join("\n"), (err) => {
   if (err) {
     console.log("FAILED!", err);
   } else {
@@ -18,7 +18,7 @@ fs.writeFile(phrasesPath, JSON.stringify(sortedPhrases), (err) => {
 });
 
 const sortedArchetypes = Array.from(new Set(archetypes)).sort();
-fs.writeFile(archetypesPath, JSON.stringify(sortedArchetypes), (err) => {
+fs.writeFile(archetypesPath, sortedArchetypes.join("\n"), (err) => {
   if (err) {
     console.log("FAILED!", err);
   } else {

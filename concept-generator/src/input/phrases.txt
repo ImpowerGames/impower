@@ -1,3 +1,4 @@
+
 24/7
 CTRL
 I Do
@@ -12,7 +13,9 @@ Oh No
 Poser
 This.
 Uh Oh
+Vapid
 Woosh
+A Wash
 Act Up
 Blimey
 CTRL+C
@@ -83,6 +86,7 @@ Beat It
 Beat Up
 Bed Out
 Beef Up
+Bespoke
 Big Bad
 Big Dog
 Big Rig
@@ -382,7 +386,6 @@ Find God
 Fired Up
 First Up
 Flat Out
-Flea Pit
 Flip Out
 For Fair
 For Free
@@ -407,6 +410,7 @@ God Damn
 Good Egg
 Good Man
 Got Game
+Gotta Go
 Grey Goo
 Hair Pie
 Half Cut
@@ -418,15 +422,11 @@ Have Fun
 He Knew.
 Head Off
 Heave Ho
-Hell Cat
 Hell Yes
 Helpless
 Hey Dude
-Hit Home
 Hit List
 Hit Send
-Hit Town
-Hive Off
 Hoe Down
 Hog Tied
 Hog Wild
@@ -485,6 +485,7 @@ Leave Be
 Leg Lamp
 Light Up
 Link Rot
+Look Out
 Love Bug
 Love Rat
 Loved Up
@@ -544,11 +545,14 @@ Opus Dei
 Order Up
 Out Cold
 Out Loud
+Out Rage
 Pack Man
 Pair Off
 Palm Off
+Paramore
 Pass Off
 Pass Out
+Photo Op
 Pick Off
 Pie Eyed
 Plus One
@@ -590,10 +594,8 @@ Show Off
 Side Eye
 Sign Off
 Sin City
-Sing Out
 Sky Blue
 Sky High
-Slob Out
 Snow Job
 So Brave
 So There
@@ -623,6 +625,7 @@ Time Was
 Too Slow
 Top Gear
 Top Seed
+Toss Off
 Trust Me
 Tune Out
 Ugly Mug
@@ -637,7 +640,6 @@ War Debt
 War Hero
 War Torn
 War Zone
-Wash Out
 Way Cool
 Well Fed
 Well Met
@@ -699,6 +701,7 @@ Bear Arms
 Bear Down
 Beep Boop
 Below Par
+Big Boned
 Big House
 Big Whoop
 Bite Back
@@ -769,6 +772,7 @@ Cut A Rug
 Cut Costs
 Cut Loose
 Damnation
+Dance Off
 Daring Do
 Dark Arts
 Dawn Raid
@@ -796,6 +800,7 @@ Done Deal
 Doss Down
 Double Up
 Down Pour
+Drawn Out
 Dream Big
 Dredge Up
 Drip Feed
@@ -1006,7 +1011,6 @@ Loco Foco
 Long Face
 Long Lost
 Long Odds
-Look Out!
 Lost Soul
 Love Life
 Love Nest
@@ -1024,7 +1028,6 @@ Main Drag
 Make Bold
 Make Over
 Mama Bear
-Mark Time
 Mea Culpa
 Meat Head
 Mind Meld
@@ -1113,6 +1116,7 @@ Rag Trade
 Raincheck
 Rally Cap
 Rare Bird
+Ravishing
 Real Card
 Real Talk
 Red Baron
@@ -1227,8 +1231,6 @@ Untouched
 Unwilling
 Up To Par
 Wait Here
-Walk Free
-Walk Tall
 War Paint
 War Weary
 War Widow
@@ -1264,6 +1266,7 @@ Act Of God
 Ad Nauseam
 Adam's Ale
 Adult Fear
+After Glow
 Agent Zero
 Air Guitar
 Air Quotes
@@ -1536,6 +1539,7 @@ Heavy Duty
 Heavy Meal
 Heavy Rock
 Hedge Fund
+Hell Child
 Hey, Wait!
 Hidden Gem
 High Class
@@ -1575,7 +1579,6 @@ I Want You
 I'm Joking
 Ill Intent
 Ill Repute
-Ill Temper
 Improbable
 In A Flash
 In A Jiffy
@@ -1593,6 +1596,7 @@ Inner City
 Inside Job
 Inside Out
 Irrational
+It Figures
 Itty Bitty
 Jam Packed
 Jazz It Up
@@ -1733,6 +1737,7 @@ One By One
 One On One
 One Second
 One To One
+Only Human
 Open House
 Our Father
 Pack It In
@@ -1778,7 +1783,6 @@ Psyched Up
 Punch Card
 Punch Line
 Puppy Love
-Put Up Job
 Queer Fish
 Quick Buck
 Rake It In
@@ -1848,6 +1852,7 @@ Spaced Out
 Spade Work
 Spit Blood
 Stand Down
+Stand Tall
 Start Over
 Stash Away
 Status Quo
@@ -2035,7 +2040,6 @@ Big Brother
 Big Hearted
 Big Picture
 Billet Doux
-Bite To Eat
 Bittersweet
 Black Magic
 Black Power
@@ -2579,6 +2583,7 @@ No Fly Zone
 No Means No
 No Nonsense
 No Pressure
+No Problemo
 Nonexistant
 Nonsensical
 Nose Around
@@ -2683,6 +2688,7 @@ Rough Trade
 Round Robin
 Royal Flush
 Rubber Duck
+Run And Gun
 Run To Seed
 Running Gag
 Rust Bucket
@@ -2851,6 +2857,7 @@ Voter Fraud
 Wacky Backy
 Wait For It
 Wait For Me
+Walk It Off
 Walk On Air
 War Driving
 War Is Hell
@@ -2916,6 +2923,7 @@ Alla Capella
 Amateur Hour
 Amen To That
 American Pie
+Amuse Bouche
 Angle For It
 Animal Magic
 Another Time
@@ -3322,6 +3330,7 @@ Hit The Deck
 Hit The Road
 Hit The Roof
 Hit The Sack
+Hit The Town
 Hold A Torch
 Hold Onto It
 Home And Dry
@@ -3352,6 +3361,7 @@ I Work Alone
 I'll Be Back
 I'm Melting!
 Idiot Savant
+Ill Tempered
 Illegitimate
 In A Bad Way
 In A Big Way
@@ -3404,6 +3414,7 @@ John Hancock
 Jump The Gun
 Jungle Juice
 Just As Well
+Just Breathe
 Just In Case
 Just In Time
 Just Kidding
@@ -3497,6 +3508,7 @@ Man And Wife
 Man Of Honor
 Man Of Straw
 Market Fresh
+Marking Time
 Mass Produce
 Mass Transit
 Media Circus
@@ -3518,6 +3530,7 @@ Miss The Cut
 Missing Link
 Mock Modesty
 Modern Times
+Money Makers
 Monkey's Paw
 Monster Mash
 Moonlighting
@@ -3577,6 +3590,7 @@ Off The Menu
 Off The Pace
 Off The Wall
 Off With You
+Off You Trot
 Office Space
 Officer Down
 Oh, What Fun
@@ -3959,6 +3973,7 @@ Zero Gravity
 Zero To Hero
 Zip Your Lip
 Zombie Funds
+A Bite To Eat
 A Dry Martini
 A Fever Pitch
 A Man's World
@@ -4271,6 +4286,7 @@ Feel The Burn
 Feels Bad Man
 Ferret It Out
 Fighting Talk
+Figure It Out
 Firing Blanks
 First Contact
 Fleet Of Foot
@@ -4405,6 +4421,7 @@ I Can Fix Him
 I Can See You
 I Fear No Man
 I Forgive You
+I Have No Son
 I Kid You Not
 I Must Insist
 I Promise You
@@ -4419,6 +4436,7 @@ I'm Listening
 Ice, Ice Baby
 If You Ask Me
 Illegal Alien
+In A Nutshell
 In A Quandary
 In Cold Blood
 In Confidence
@@ -4459,6 +4477,7 @@ Jump The Line
 Jungle Boogie
 Just A Theory
 Just Desserts
+Just Kills Me
 Just Shoot Me
 Just Trolling
 Just You Wait
@@ -4538,6 +4557,7 @@ Lower The Bar
 Lump Together
 Made My Peace
 Made The Team
+Made You Look
 Maid Of Honor
 Maiden Voyage
 Major Leagues
@@ -4729,6 +4749,7 @@ Primrose Path
 Private Parts
 Problem Child
 Profit Margin
+Pros And Cons
 Protein Shake
 Psycho Killer
 Public Domain
@@ -5217,6 +5238,7 @@ Common As Muck
 Complex Number
 Concrete Shoes
 Confirmed Dead
+Content Notice
 Cook The Books
 Cook Up A Plan
 Cookie Monster
@@ -5292,6 +5314,7 @@ Double Trouble
 Down In Flames
 Down It In One
 Down The Drain
+Drawn Together
 Dream Of Sheep
 Drip Drip Drip
 Driving A Desk
@@ -5325,6 +5348,7 @@ False Positive
 Family Matters
 Fan The Flames
 Fancy Footwork
+Far From Ideal
 Fashion Victim
 Favored Status
 Fear The Worst
@@ -5386,7 +5410,6 @@ Global Village
 Global Warming
 Gloom And Doom
 Gloves Are Off
-Gnat's Bollock
 Go Easy On Him
 Go Out With Me
 God Only Knows
@@ -5470,7 +5493,6 @@ I Am What I Am
 I Gave My Word
 I Have A Dream
 I Have My Ways
-I Have No Son!
 I Rest My Case
 I Shall Return
 I Swear To God
@@ -5481,10 +5503,8 @@ I'm Outta Here
 Identity Theft
 If It Kills Me
 In A Bad Light
-In A Blue Funk
 In A Flat Spin
 In A Landslide
-In A Pig's Eye
 In At The Kill
 In Days Of Old
 In Deep Waters
@@ -5531,7 +5551,6 @@ Jump The Shark
 Jump The Track
 Just A One Off
 Just Add Water
-Just Big Boned
 Just For Kicks
 Just Forget It
 Just Semantics
@@ -5586,7 +5605,6 @@ Little Tin God
 Live And Learn
 Live For Today
 Live Your Life
-Long Drawn Out
 Long Suffering
 Look Both Ways
 Losing Control
@@ -5601,7 +5619,6 @@ Mace Your Face
 Mack The Knife
 Mad March Hare
 Made The Grade
-Made You Look!
 Magic Mushroom
 Make A Promise
 Make An Effort
@@ -5768,6 +5785,7 @@ Power Dressing
 Predict A Riot
 Pregnant Pause
 Prepare To Die
+Press Coverage
 Pride Of Place
 Prince Of Pain
 Private School
@@ -6025,6 +6043,7 @@ Up On The Roof
 Up The Academy
 Up The Workers
 Up To The Task
+Up Up And Away
 Up Your Sleeve
 Us Versus Them
 User Interface
@@ -6093,6 +6112,7 @@ A Dose Of Salts
 A Full Recovery
 A House Divided
 A Lick Of Paint
+A Lot To Unpack
 A Rolling Stone
 A Second Chance
 A True Believer
@@ -6102,6 +6122,7 @@ A World Of Good
 Above Suspicion
 Ace In The Hole
 Action Stations
+Active Listener
 Actual Cannibal
 Advanced Notice
 After A Fashion
@@ -6274,6 +6295,7 @@ Command Central
 Companion Plant
 Concrete Jungle
 Content Creator
+Content Warning
 Cook Up A Storm
 Cop An Attitude
 Copper Bottomed
@@ -6281,6 +6303,7 @@ Core Technology
 Cornflower Blue
 Costa Del Crime
 Cottage Economy
+Coup De Theatre
 Crack Some Suds
 Cradle Snatcher
 Crazy As A Loon
@@ -6404,6 +6427,7 @@ For The Culture
 Forbidden Fruit
 Force Of Nature
 Force The Issue
+Forget About It
 Fortress Europe
 Fortunes Of War
 Foul Of The Law
@@ -6512,6 +6536,7 @@ I Deserved That
 I Feel Attacked
 I Got Your Back
 I Just Told You
+I Knew Him Well
 I Live To Serve
 I Love New York
 I Mean, Really?
@@ -6786,6 +6811,7 @@ Pyrrhic Victory
 Quality Control
 Queen For A Day
 Quick And Dirty
+Quite All Right
 Quoth The Raven
 Rack Your Brain
 Rainy Day Women
@@ -6902,7 +6928,6 @@ Stocking Filler
 Stop At Nothing
 Stranger Danger
 Streaming Video
-Stretch A Point
 Strikes A Chord
 Strong As An Ox
 Strong Medicine
@@ -7028,7 +7053,6 @@ Under Your Belt
 Undying Loyalty
 Unlimited Power
 Unlucky In Love
-Up, Up And Away
 Upwardly Mobile
 Value Added Tax
 Value For Money
@@ -7104,7 +7128,6 @@ A Way With Words
 A Welcome Change
 A Wonderful Life
 Accidents Happen
-Active Listening
 Advanced Warning
 After Your Blood
 Against All Odds
@@ -7154,7 +7177,6 @@ Batman And Robin
 Be Gay, Do Crime
 Be Your Own Boss
 Been Here Before
-Been In The Wars
 Behind The Curve
 Behind The Times
 Behind Your Back
@@ -7210,6 +7232,7 @@ Business Partner
 Busman's Holiday
 Busy As A Beaver
 But You Promised
+Butter Side Down
 Butterfly Effect
 By Hook Or Crook
 By Way Of A Joke
@@ -7502,6 +7525,7 @@ In The Bad Books
 In The Limelight
 In The Same Boat
 In The Same Vein
+In This Economy?
 In Tune With You
 In Your Interest
 In Your Own Time
@@ -7633,8 +7657,6 @@ My Time Has Come
 Near The Knuckle
 Need I Say More?
 Never Never Land
-Never Walk Alone
-No Fuss, No Muss
 No Half Measures
 No Hard Feelings
 No Harm, No Foul
@@ -7645,8 +7667,6 @@ No Thanks To You
 No True Scotsman
 No, You Go First
 None Too Pleased
-Nose For Trouble
-Not Best Pleased
 Not Doing So Hot
 Not In The Face!
 Not In The Least
@@ -7744,6 +7764,7 @@ Putting Up Walls
 Quiet As A Mouse
 Raving On And On
 Ready For Action
+Really Hits Home
 Reasonable Doubt
 Red Blooded Male
 Resisting Arrest
@@ -7859,6 +7880,7 @@ Terms Of Service
 Textbook Example
 That Man Is Dead
 That's A New One
+That's A Stretch
 That's All Folks
 That's Just Sick
 The Air Was Blue
@@ -8066,6 +8088,7 @@ Beam Me Up Scotty
 Beat The Hell Out
 Because I Said So
 Bed And Breakfast
+Before Your Maker
 Behind The Scenes
 Believe It Or Not
 Belle Of The Ball
@@ -8235,6 +8258,7 @@ Failure To Launch
 Fair Market Value
 Fall For Anything
 Famous Last Words
+Fancy Dress Party
 Feather Your Nest
 Fie, Foh, And Fum
 Fighting Over You
@@ -8368,6 +8392,7 @@ I'm So Very Tired
 I'm Walkin' Here!
 I've Come Too Far
 Icing On The Cake
+If I Fits, I Sits
 If I Had A Nickel
 Immune Deficiency
 Imposter Syndrome
@@ -8520,7 +8545,6 @@ Minding The Store
 Missing In Action
 Missing The Point
 Moment Of Clarity
-Money Makes Money
 Money's No Object
 Moral High Ground
 More Power To You
@@ -8535,6 +8559,7 @@ My Son The Doctor
 National Treasure
 Natural Selection
 Nature Or Nurture
+Nature vs Nurture
 New Lease On Life
 New York's Finest
 News Travels Fast
@@ -8608,7 +8633,6 @@ Peace Be With You
 Peace In Our Time
 Pearls Past Price
 People These Days
-Photo Opportunity
 Pick Of The Bunch
 Pick Up The Reins
 Pick Your Battles
@@ -8698,6 +8722,7 @@ Show Me The Money
 Show Me The Ropes
 Show's Over Folks
 Sign Of The Times
+Significant Other
 Silence Is Golden
 Singing The Blues
 Sink Like A Stone
@@ -8736,6 +8761,7 @@ Stretch Your Legs
 Strictly Business
 String Them Along
 Stuck In His Craw
+Suffice It To Say
 Suited And Booted
 Sun, Sea And Sand
 Supply And Demand
@@ -8870,6 +8896,7 @@ What Do You Care?
 What Do You Want?
 What Else Is New?
 What Have I Done?
+What In Tarnation
 What Is Going On?
 What's The Catch?
 What's The Point?
@@ -8900,15 +8927,11 @@ Wounded In Action
 Wriggle Out Of It
 Yes, Your Majesty
 You Are Not Alone
-You Are Not Ready
-You Can't Miss It
-You Figure It Out
 You Meddling Kids
 You Talk Too Much
 You Wound Me, Sir
 You're Dead To Me
 You're Kidding Me
-You're Only Human
 You, You, Not You
 Young Grasshopper
 Your Golden Years
@@ -8923,6 +8946,7 @@ A Harebrained Idea
 A Job For The Boys
 A Jungle Out There
 A Mile In My Shoes
+A Nose For Trouble
 A Piece Of My Mind
 A Prior Commitment
 A Room With A View
@@ -9094,6 +9118,7 @@ Do Your Level Best
 Don't Give Me Flak
 Don't I Get A Say?
 Don't Patronize Me
+Don't You Pity Me!
 Double Edged Sword
 Down Came The Rain
 Down For The Count
@@ -9249,7 +9274,6 @@ I'll Have You Know
 I'll Take My Leave
 I'm All Right Jack
 I'm Cold. So Cold.
-If It Fits, I Sits
 If We Survive This
 Ignorance Is Bliss
 Impervious To Heat
@@ -9402,7 +9426,6 @@ Nowhere To Be Seen
 Oak Before The Ash
 Of Your Own Accord
 Off To A Bad Start
-Old Ball And Chain
 On Everyone's Lips
 On The Bright Side
 On The Right Track
@@ -9527,6 +9550,7 @@ Small Is Beautiful
 Snake In The Grass
 Soaked To The Skin
 Sob Your Heart Out
+Social Obligations
 Soldier Of Fortune
 Some Kind Of A Nut
 Soulful Connection
@@ -9651,6 +9675,7 @@ Trick Of The Light
 Trip Of A Lifetime
 Trumped Up Charges
 Unconditional Love
+Undefined Behavior
 Under Construction
 Under Lock And Key
 Unreliable Witness
@@ -9864,6 +9889,7 @@ End Of Life Product
 Enough To Go Around
 Equal Opportunities
 Equivalent Exchange
+Everyone Stay Calm!
 Exercise Discretion
 Fair Weather Friend
 Feather In Your Cap
@@ -9936,6 +9962,7 @@ I See What You Mean
 I'll Tell You Later
 I'm So Proud Of You
 If I Can't Have You
+If I May Be So Bold
 If It Were Up To Me
 If Looks Could Kill
 Image Is Everything
@@ -10510,6 +10537,7 @@ Don't Lose Your Head
 Don't Push Your Luck
 Don't Stop Believing
 Don't Worry About It
+Don't You Die On Me!
 Down The Rabbit Hole
 Drag Through The Mud
 Dressed To The Nines
@@ -10521,7 +10549,6 @@ Eleven Pipers Piping
 End Of A Perfect Day
 End Of The Ball Game
 Err On The Safe Side
-Everybody Stay Calm!
 Expand Your Horizons
 Explore Your Options
 Eye Them Up And Down
@@ -10667,6 +10694,7 @@ Living Hand To Mouth
 Look Before You Leap
 Look Out Down Below!
 Losing Track Of Time
+Lost It In The Light
 Love Will Find A Way
 Lower Your Standards
 Magical Mystery Tour
@@ -11293,6 +11321,7 @@ See A Man About A Dog
 See It For What It Is
 Seeing Pink Elephants
 Sell Your Grandmother
+Sensitive Disposition
 Sensitive Information
 Set The World On Fire
 Set Your Hair On Fire
@@ -11340,7 +11369,6 @@ Thank You, Come Again
 Thanks, But No Thanks
 That Beats Everything
 That Time Of The Year
-That Was My Alter Ego
 That Wasn't A Request
 That Way Madness Lies
 That Would Be Telling
@@ -11367,6 +11395,7 @@ The People's Princess
 The Prime Of His Life
 The Shirt Off My Back
 The Wind At Your Back
+There Can Only Be One
 They Went That A'Way!
 They Will Do Anything
 They'll Eat You Alive
@@ -11805,6 +11834,7 @@ The Error Of Your Ways
 The Fact Of The Matter
 The Kids Are All Right
 The Lowest Form Of Wit
+The Old Ball And Chain
 The Rice In The Church
 The Sun Was In My Eyes
 The World And His Wife
@@ -11926,6 +11956,7 @@ Break The Sound Barrier
 Breaking With Tradition
 Breathe In, Breathe Out
 Bring Forth May Flowers
+But Wait, There's More!
 Buzzing With Excitement
 Can't Hear Myself Think
 Canary In The Coal Mine
@@ -11963,7 +11994,6 @@ Don't Rain On My Parade
 Don't Walk On The Grass
 Don't Waste Your Breath
 Don't Wear Yourself Out
-Don't You Dare Pity Me!
 Down Among The Dead Men
 Dragged Through A Hedge
 Drummed Out Of The Army
@@ -12028,6 +12058,7 @@ Hum It And I'll Play It
 I Can't Do This Anymore
 I Got This Just For You
 I Know Where I'm Going!
+I Take Offense To That!
 I Think They're Onto Us
 I'll Be There In Spirit
 I'll Explain On The Way
@@ -12175,7 +12206,6 @@ Sophisticated Machinery
 Sounds Alright On Paper
 Speak The Same Language
 Speculate To Accumulate
-Stand Before Your Maker
 Stand Up And Be Counted
 Stay Ahead Of The Curve
 Step One: Be Attractive
@@ -12209,6 +12239,7 @@ The Nature Of The Beast
 The Old Man And The Sea
 The One Eyed Man's King
 The Oxygen Of Publicity
+The Piece De Resistance
 The Points Don't Matter
 The Power And The Glory
 The Power Of Friendship
@@ -12254,6 +12285,7 @@ What About What I Want?
 What Big Teeth You Have
 What Did You Say To Me?
 What Dreams Are Made Of
+What Is Wrong With You?
 What Planet Are You On?
 What Were You Thinking?
 What's Gotten Into You?
@@ -12666,7 +12698,6 @@ Don't Keep Us In Suspense
 Don't Psyche Yourself Out
 Don't Shoot The Messenger
 Don't Stand For Something
-Don't You Dare Die On Me!
 Drawing Lines In The Sand
 Drink You Under The Table
 Drive Your Pigs To Market
@@ -12922,7 +12953,6 @@ Don't Burst A Blood Vessel
 Don't Give Up Your Day Job
 Don't Go Towards The Light
 Don't Stand So Close To Me
-Don't Touch It, You Idiot!
 Don't Upset The Apple Cart
 Enough To Make A Cat Laugh
 Err On The Side Of Caution
@@ -13142,7 +13172,6 @@ Another Day, Another Dollar
 Answer To A Maiden's Prayer
 As Soon As My Back's Turned
 Big Brother Is Watching You
-Big Fleas Have Little Fleas
 Blessed Are The Peacemakers
 Breathe On Me Breath Of God
 Brother From Another Mother
@@ -13200,6 +13229,7 @@ I Call Them Like I See Them
 I Could Murder A Cup Of Tea
 I Guess This Is My Life Now
 I Have It On Good Authority
+I Have No Quarrel With You!
 I Just Want You To Be Happy
 I Won't Hold It Against You
 I'd Like To Say A Few Words
@@ -13512,7 +13542,6 @@ After The Lord Mayor's Parade
 All Behind, Like A Cow's Tail
 All Cats Are Grey In The Dark
 All Creatures Great And Small
-Always Falls Butter Side Down
 And I'm Not Afraid To Use It!
 Arson, Murder, and Jaywalking
 Art Is Going One Step Too Far
@@ -13577,6 +13606,7 @@ Kangaroos In Your Top Paddock
 Keep Your Finger On The Pulse
 Kick Off Your Shoes And Enjoy
 Labor Under A Misapprehension
+Leave It To The Professionals
 Left Right, Left Right, March
 Lie Back And Think Of England
 Lightning Never Strikes Twice
@@ -13640,7 +13670,6 @@ Understatement Of The Century
 Useless As A Chocolate Teapot
 Valley Of The Shadow Of Death
 Warms The Cockles Of My Heart
-We Did It! We Saved the City!
 We Only Have One Shot At This
 Wears His Heart On His Sleeve
 What Could Possibly Go Wrong?
@@ -13785,6 +13814,7 @@ The Pitter Patter Of Tiny Feet
 The Readings Are Off The Scale
 The Sincerest Form Of Flattery
 This Is Not What It Looks Like
+This Line Has Been Compromised
 Though Last, Not Least In Love
 Three, Four, Knock At The Door
 Thursday's Child Has Far To Go
@@ -13906,7 +13936,6 @@ Give Me Liberty Or Give Me Death
 Help! Help! I'm Being Repressed!
 I Can't Believe You've Done This
 I Know You're In There Somewhere
-I Take Offense To That Last One!
 I Was Young And Needed The Money
 I Wouldn't Do That If I Were You
 I'll Not Hear A Word Against Him

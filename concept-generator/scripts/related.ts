@@ -1,6 +1,6 @@
 import cliProgress from "cli-progress";
 import fs from "fs";
-import { parse } from "yaml";
+import YAML from "yaml";
 import { getKeywords } from "./utils/getKeywords";
 import { getRelatedTerms } from "./utils/getRelatedTerms";
 
@@ -10,7 +10,7 @@ const archetypesPath = "./src/input/archetypes.txt";
 const termVectorsPath = "./tmp/termVectors.json";
 const relatedTermsPath = "./tmp/relatedTerms.json";
 
-const concepts = parse(fs.readFileSync(conceptsPath, "utf8"));
+const concepts = YAML.parse(fs.readFileSync(conceptsPath, "utf8"));
 const phrases = fs.readFileSync(phrasesPath, "utf8").split(/\r?\n/);
 const archetypes = fs.readFileSync(archetypesPath, "utf8").split(/\r?\n/);
 const termVectors = JSON.parse(fs.readFileSync(termVectorsPath, "utf8"));
@@ -34,7 +34,7 @@ getRelatedTerms(
   process.argv.slice(2),
   onProgress
 ).then((result) => {
-  fs.writeFile(relatedTermsPath, JSON.stringify(result), (err) => {
+  fs.writeFile(relatedTermsPath, JSON.stringify(result, null, 2), (err) => {
     if (err) {
       console.log("FAILED!", err);
     } else {

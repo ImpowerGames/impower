@@ -8,6 +8,7 @@ const getSuffixedVariants = (word: string): string[] => {
   const general = [
     `${word}'n`,
     `${word}'s`,
+    `${word}a`,
     `${word}able`,
     `${word}ables`,
     `${word}ably`,
@@ -60,6 +61,7 @@ const getSuffixedVariants = (word: string): string[] => {
     `${word}ments`,
     `${word}n`,
     `${word}ness`,
+    `${word}o`,
     `${word}ologist`,
     `${word}or`,
     `${word}ors`,
@@ -70,14 +72,14 @@ const getSuffixedVariants = (word: string): string[] => {
     `${word}ry`,
     `${word}s`,
     `${word}sman`,
-    `${word}swoman`,
     `${word}smen`,
     `${word}sperson`,
     `${word}ster`,
+    `${word}swoman`,
     `${word}ty`,
+    `${word}ualist`,
     `${word}ure`,
     `${word}woman`,
-    `${word}ualist`,
     `${word}y`,
   ];
   const sSuffixed = word.endsWith("s")
