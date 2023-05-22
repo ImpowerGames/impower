@@ -8,10 +8,12 @@ export default abstract class Icons {
   }
 
   static get(name: string) {
-    return this._map?.[name];
+    return this._map[name];
   }
 
   static init(iconShapes: Record<string, Graphic>): void {
-    this._map = iconShapes;
+    if (iconShapes) {
+      this._map = iconShapes;
+    }
   }
 }

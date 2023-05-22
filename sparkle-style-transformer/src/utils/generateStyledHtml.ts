@@ -60,6 +60,9 @@ const inferTransformer = (
   if (name === "speed" || name.endsWith("-speed")) {
     return (v: string) => v;
   }
+  if (name === "value") {
+    return (v: string) => v;
+  }
   return undefined;
 };
 

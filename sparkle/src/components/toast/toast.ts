@@ -1,12 +1,11 @@
 import getCssDurationMS from "sparkle-style-transformer/utils/getCssDurationMS.js";
 import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
 import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
-import Animations from "../../configs/animations";
 import Icons from "../../configs/icons";
 import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
-import { animateTo, stopAnimations } from "../../utils/animate";
+import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
@@ -274,32 +273,51 @@ export default class Toast
       }
     }
     if (open) {
-      // Show
-      this.emit(OPENING_EVENT);
-
-      if (autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
-        this.restartAutoClose(open, autoCloseDuration);
-      }
-
-      await stopAnimations(this.root);
-      this.root.hidden = false;
-      this.root.style.display = "flex";
-      await animateTo(this.root, Animations.get("enter"));
-
-      this.emit(OPENED_EVENT);
+      return this.handleOpen(autoCloseDuration);
     } else {
-      // Hide
-      this.emit(CLOSING_EVENT);
-
-      clearTimeout(this._autoHideTimeout);
-
-      await stopAnimations(this.root);
-      await animateTo(this.root, Animations.get("exit"));
-      this.root.hidden = true;
-      this.root.style.display = "none";
-
-      this.emit(CLOSED_EVENT);
+      return this.handleClose();
     }
+  }
+
+  protected async handleOpen(autoCloseDuration: number): Promise<void> {
+    if (this.disabled) {
+      return;
+    }
+
+    if (autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
+      this.restartAutoClose(true, autoCloseDuration);
+    }
+
+    const el = this.root;
+    if (el) {
+      el.hidden = false;
+      el.inert = false;
+    }
+
+    this.emit(OPENING_EVENT);
+
+    await animationsComplete(this.root);
+
+    this.emit(OPENED_EVENT);
+  }
+
+  async handleClose(): Promise<void> {
+    const el = this.root;
+    if (el) {
+      el.inert = true;
+    }
+
+    this.emit(CLOSING_EVENT);
+
+    clearTimeout(this._autoHideTimeout);
+
+    await animationsComplete(this.root);
+
+    if (el) {
+      el.hidden = true;
+    }
+
+    this.emit(CLOSED_EVENT);
   }
 
   /**
@@ -309,7 +327,6 @@ export default class Toast
     if (this.open) {
       return undefined;
     }
-
     this.open = true;
     return waitForEvent(this, "opened");
   }
@@ -321,7 +338,6 @@ export default class Toast
     if (!this.open) {
       return undefined;
     }
-
     this.open = false;
     return waitForEvent(this, "closed");
   }

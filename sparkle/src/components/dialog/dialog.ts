@@ -4,7 +4,7 @@ import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
-import { animationsComplete } from "../../utils/animate";
+import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getKeys } from "../../utils/getKeys";

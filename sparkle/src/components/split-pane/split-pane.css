@@ -5,13 +5,17 @@
   --width: 100%;
   --height: 100%;
   --interactable: auto;
-  --initial-size: 300px;
   --resizer-color: transparent;
   --resizer-width: 8px;
   --divider-color: var(--s-color-divider);
   --divider-width: 2px;
   --indicator-color: var(--s-color-primary-60);
   --indicator-width: calc(var(--divider-width) * 2);
+  --initial-size: 50vw;
+}
+
+:host([vertical]) {
+  --initial-size: 50vh;
 }
 
 :host > .root {

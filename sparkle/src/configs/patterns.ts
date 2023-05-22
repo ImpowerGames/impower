@@ -1,4 +1,4 @@
-import Graphic from "sparkle-style-transformer/types/graphic.js";
+import { Graphic } from "../types/graphic";
 
 export default abstract class Patterns {
   protected static _map: Record<string, Graphic> = {};
@@ -8,10 +8,12 @@ export default abstract class Patterns {
   }
 
   static get(name: string) {
-    return this._map?.[name];
+    return this._map[name];
   }
 
   static init(patternShapes: Record<string, Graphic>): void {
-    this._map = patternShapes;
+    if (patternShapes) {
+      this._map = patternShapes;
+    }
   }
 }

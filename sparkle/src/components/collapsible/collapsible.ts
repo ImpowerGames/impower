@@ -2,7 +2,7 @@ import getCssDuration from "sparkle-style-transformer/utils/getCssDuration.js";
 import getCssEase from "sparkle-style-transformer/utils/getCssEase.js";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
-import { animationsComplete } from "../../utils/animate";
+import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
@@ -15,7 +15,7 @@ const getCollapsedButtonOffset = (
   buttonPaddingLeft: number,
   buttonPaddingRight: number
 ): number => {
-  return buttonWidth - iconWidth - (buttonPaddingLeft + buttonPaddingRight);
+  return buttonWidth - iconWidth - buttonPaddingLeft - buttonPaddingRight;
 };
 
 const getCollapsedIconOffset = (
@@ -334,7 +334,7 @@ export default class Collapsible
       labelEl.style.transitionProperty = "none";
       buttonEl.style.setProperty("min-width", `${collapsedButtonWidth}px`);
       buttonEl.style.setProperty("max-width", `${collapsedButtonWidth}px`);
-      iconEl.style.setProperty("transform", `translateX(${0}px)`);
+      iconEl.style.setProperty("transform", `translateX(0)`);
       labelEl.hidden = true;
     }
   }

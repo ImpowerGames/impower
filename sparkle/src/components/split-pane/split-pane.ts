@@ -5,6 +5,7 @@ import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getKeys } from "../../utils/getKeys";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./split-pane.css";
 import html from "./split-pane.html";
 
@@ -180,13 +181,9 @@ export default class SplitPane
     this.setup();
   }
 
-  protected override onParsed(): void {
-    this.setup();
-  }
-
-  setup(): void {
-    const { width, height } = this.root.getBoundingClientRect();
-    const size = this.vertical ? height : width;
+  async setup(): Promise<void> {
+    await nextAnimationFrame();
+    const size = this.vertical ? this.root.offsetHeight : this.root.offsetWidth;
     const initialSize = `${size / 2}px`;
     this.updateRootCssVariable("initial-size", initialSize);
   }

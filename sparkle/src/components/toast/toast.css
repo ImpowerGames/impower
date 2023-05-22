@@ -22,6 +22,8 @@
   --margin: 4px;
   --padding-tb: 12px;
   --padding-lr: 16px;
+  --enter: var(--s-animation-enter);
+  --exit: var(--s-animation-exit);
 }
 
 :host > .root {
@@ -50,6 +52,13 @@
   padding-right: calc(
     var(--padding-r, var(--padding-lr, var(--padding))) - 8px
   );
+}
+
+:host([open]) > .popup {
+  animation: var(--enter) forwards;
+}
+:host(:not([open])) > .popup {
+  animation: var(--exit) forwards;
 }
 
 :host > .root > .message {

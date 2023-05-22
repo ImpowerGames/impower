@@ -19,7 +19,6 @@ import Tabs from "./components/tabs/tabs";
 import ToastStack from "./components/toast-stack/toast-stack";
 import Toast from "./components/toast/toast";
 import Tooltip from "./components/tooltip/tooltip";
-import SparkleElement from "./core/sparkle-element";
 import initialize from "./initialize/initialize";
 import animations from "./styles/animations/animations.css";
 import dark from "./styles/dark/dark.css";
@@ -33,12 +32,8 @@ import masks from "./styles/masks/masks.css";
 import patterns from "./styles/patterns/patterns.css";
 import shadows from "./styles/shadows/shadows.css";
 import { SparkleElementTag } from "./types/sparkleElementTag";
-import { SparkleStyleType } from "./types/sparkleStyleType";
 
-export const DEFAULT_SPARKLE_CONSTRUCTORS: Record<
-  SparkleElementTag,
-  typeof SparkleElement
-> = {
+export const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-box": Box,
   "s-circle": Circle,
   "s-icon": Icon,
@@ -60,9 +55,9 @@ export const DEFAULT_SPARKLE_CONSTRUCTORS: Record<
   "s-split-pane": SplitPane,
   "s-router": Router,
   "s-breakpoint-observer": BreakpointObserver,
-};
+} as const;
 
-export const DEFAULT_SPARKLE_STYLES: Record<SparkleStyleType, string> = {
+export const DEFAULT_SPARKLE_STYLES = {
   global,
   light,
   dark,
@@ -74,7 +69,7 @@ export const DEFAULT_SPARKLE_STYLES: Record<SparkleStyleType, string> = {
   keyframes,
   animations,
   patterns,
-};
+} as const;
 
 export default abstract class Sparkle {
   static async init(

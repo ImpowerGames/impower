@@ -184,53 +184,45 @@
 }
 
 @keyframes enter-up {
-  0% {
+  from {
     opacity: 0;
     transform: translateY(50%);
   }
-  30% {
+  to {
     opacity: 1;
-  }
-  100% {
     transform: translateY(0%);
   }
 }
 
 @keyframes enter-down {
-  0% {
+  from {
     opacity: 0;
     transform: translateY(-50%);
   }
-  30% {
+  to {
     opacity: 1;
-  }
-  100% {
     transform: translateY(0%);
   }
 }
 
 @keyframes enter-right {
-  0% {
+  from {
     opacity: 0;
     transform: translateX(-50%);
   }
-  30% {
+  to {
     opacity: 1;
-  }
-  100% {
     transform: translateX(0%);
   }
 }
 
 @keyframes enter-left {
-  0% {
+  from {
     opacity: 0;
     transform: translateX(50%);
   }
-  30% {
+  to {
     opacity: 1;
-  }
-  100% {
     transform: translateX(0%);
   }
 }

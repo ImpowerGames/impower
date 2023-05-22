@@ -1,4 +1,4 @@
-import { prefersReducedMotion } from "../utils/animate";
+import { prefersReducedMotion } from "../utils/animationsComplete";
 import { debounce } from "../utils/debounce";
 import { waitForEvent } from "../utils/events";
 

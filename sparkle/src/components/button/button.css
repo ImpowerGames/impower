@@ -20,6 +20,8 @@
   --spacing: 8px;
   --border-width: 1px;
   --corner: 4px;
+  --grow: 0;
+  --background-color: var(--color);
 }
 
 :host([size="xs"]) > .root {
@@ -90,6 +92,8 @@
 
 :host > .root > .ripple {
   border-radius: inherit;
+  position: absolute;
+  inset: 0;
 }
 :host([disabled]) > .root > .ripple {
   display: none;
@@ -114,14 +118,10 @@
 :host([variant="filled"]) {
   --text-weight: 500;
 }
-:host,
-:host([variant="filled"]) > .root {
-  --background-color: var(--color);
-}
 :host > .root,
 :host([variant="filled"]) > .root {
   color: var(--text-color);
-  background-color: var(--background-color);
+  background-color: var(--color);
   font-weight: var(--text-weight);
   filter: var(--shadow);
 }
@@ -133,16 +133,12 @@
   --shadow: none;
 }
 :host([variant="tonal"]) > .root {
-  --background-color: var(--color);
-  --border-color: var(--color);
-}
-:host([variant="tonal"]) > .root {
   color: var(--text-color);
   font-weight: var(--text-weight);
   filter: var(--shadow);
-  background-color: var(--background-color);
+  background-color: var(--color);
   border-style: solid;
-  border-color: var(--border-color);
+  border-color: var(--color);
   border-width: var(--border-width);
 }
 :host([variant="tonal"]) > .root::after {
@@ -161,16 +157,13 @@
   --background-color: transparent;
 }
 :host([variant="outlined"]) > .root {
-  --border-color: var(--color);
   --text-color: var(--color);
-}
-:host([variant="outlined"]) > .root {
   font-weight: var(--text-weight);
   color: var(--text-color);
   filter: var(--shadow);
   background-color: var(--background-color);
   border-style: solid;
-  border-color: var(--border-color);
+  border-color: var(--color);
   border-width: var(--border-width);
 }
 @media (hover: hover) and (pointer: fine) {
@@ -195,8 +188,6 @@
 }
 :host([variant="text"]) > .root {
   --text-color: var(--color);
-}
-:host([variant="text"]) > .root {
   font-weight: var(--text-weight);
   color: var(--text-color);
   filter: var(--shadow);
@@ -213,8 +204,6 @@
 }
 :host([variant="icon"]) > .root {
   --text-color: var(--color);
-}
-:host([variant="icon"]) > .root {
   aspect-ratio: var(--aspect);
   color: var(--text-color);
   filter: var(--shadow);
@@ -252,6 +241,7 @@
 :host > .root > .label {
   display: flex;
   visibility: visible;
+  flex-grow: var(--grow);
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
   justify-content: var(--child-justify);

@@ -1,6 +1,7 @@
+import getCssDurationMS from "sparkle-style-transformer/utils/getCssDurationMS.js";
 import type SparkleEvent from "../../core/SparkleEvent";
 import { Properties } from "../../types/properties";
-import { animationsComplete, parseDuration } from "../../utils/animate";
+import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
@@ -41,6 +42,8 @@ const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "auto-size-padding",
   "label",
   "trigger",
+  "show-delay",
+  "hide-delay",
 ]);
 
 /**
@@ -97,6 +100,26 @@ export default class Tooltip
   }
   set trigger(value) {
     this.setStringAttribute(Tooltip.attributes.trigger, value);
+  }
+
+  /**
+   * How long does the target have to be hovered before the tooltip will show.
+   */
+  get showDelay(): string | null {
+    return this.getStringAttribute(Tooltip.attributes.showDelay);
+  }
+  set showDelay(value) {
+    this.setStringAttribute(Tooltip.attributes.showDelay, value);
+  }
+
+  /**
+   * How long after the target is no longer hovered will the tooltip remain.
+   */
+  get hideDelay(): string | null {
+    return this.getStringAttribute(Tooltip.attributes.hideDelay);
+  }
+  set hideDelay(value) {
+    this.setStringAttribute(Tooltip.attributes.hideDelay, value);
   }
 
   private hoverTimeout?: number;
@@ -202,21 +225,21 @@ export default class Tooltip
 
   private handleMouseOver = (): void => {
     if (this.hasTrigger("hover")) {
-      const delay = parseDuration(
-        getComputedStyle(this).getPropertyValue("--show-delay")
-      );
       clearTimeout(this.hoverTimeout);
-      this.hoverTimeout = window.setTimeout(() => this.show(), delay);
+      this.hoverTimeout = window.setTimeout(
+        () => this.show(),
+        getCssDurationMS(this.showDelay, 0)
+      );
     }
   };
 
   private handleMouseOut = (): void => {
     if (this.hasTrigger("hover")) {
-      const delay = parseDuration(
-        getComputedStyle(this).getPropertyValue("--hide-delay")
-      );
       clearTimeout(this.hoverTimeout);
-      this.hoverTimeout = window.setTimeout(() => this.hide(), delay);
+      this.hoverTimeout = window.setTimeout(
+        () => this.hide(),
+        getCssDurationMS(this.hideDelay, 0)
+      );
     }
   };
 
@@ -236,10 +259,10 @@ export default class Tooltip
 
     this.start();
 
-    const tooltipEl = this.popupEl;
-    if (tooltipEl) {
-      tooltipEl.hidden = false;
-      tooltipEl.inert = false;
+    const el = this.popupEl;
+    if (el) {
+      el.hidden = false;
+      el.inert = false;
     }
 
     this.emit(OPENING_EVENT);
@@ -250,17 +273,17 @@ export default class Tooltip
   }
 
   async handleClose(): Promise<void> {
-    const tooltipEl = this.popupEl;
-    if (tooltipEl) {
-      tooltipEl.inert = true;
+    const el = this.popupEl;
+    if (el) {
+      el.inert = true;
     }
 
     this.emit(CLOSING_EVENT);
 
     await animationsComplete(this.root);
 
-    if (tooltipEl) {
-      tooltipEl.hidden = true;
+    if (el) {
+      el.hidden = true;
     }
 
     this.stop();

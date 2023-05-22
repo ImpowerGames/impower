@@ -3,7 +3,7 @@ import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
-import { animationsComplete } from "../../utils/animate";
+import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getKeys } from "../../utils/getKeys";
@@ -11,6 +11,7 @@ import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";
 import { navPrevKey } from "../../utils/navPrevKey";
 import { navStartKey } from "../../utils/navStartKey";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import type Tab from "../tab/tab";
 import css from "./tabs.css";
 import html from "./tabs.html";
@@ -180,6 +181,7 @@ export default class Tabs
     this.value = newValue;
     tab.active = true;
 
+    await nextAnimationFrame();
     const oldRect = oldTab?.root?.getBoundingClientRect();
     const newRect = tab?.root?.getBoundingClientRect();
 
@@ -190,7 +192,7 @@ export default class Tabs
     }
 
     if (this.indicator !== "none") {
-      await this.updateIndicator(newRect);
+      await this.updateIndicator(tab);
     }
 
     if (changed) {
@@ -202,14 +204,17 @@ export default class Tabs
     tab.active = false;
   }
 
-  async updateIndicator(tabRect: DOMRect): Promise<void> {
+  async updateIndicator(tab: Tab): Promise<void> {
+    await nextAnimationFrame();
     const indicator = this.indicatorEl;
     const navEl = this.navEl;
     const vertical = this.vertical;
-    const navRect = navEl?.getBoundingClientRect();
-    if (navRect && tabRect) {
-      const size = vertical ? tabRect.height : tabRect.width;
-      const offset = vertical ? tabRect.y - navRect.y : tabRect.x - navRect.x;
+    const tabEl = tab?.root;
+    if (navEl && tabEl) {
+      const size = vertical ? tabEl.offsetHeight : tabEl.offsetWidth;
+      const offset = vertical
+        ? tabEl.offsetTop - navEl.offsetTop
+        : tabEl.offsetLeft - navEl.offsetLeft;
       if (indicator) {
         if (!indicator.style.transform) {
           indicator.style.setProperty("transition", "none");

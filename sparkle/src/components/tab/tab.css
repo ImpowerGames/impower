@@ -15,7 +15,7 @@
   --text-size: var(--s-text-sm-font-size);
   --text-weight: 600;
   --text-wrap: nowrap;
-  --transition-property: opacity, transform, filter, color;
+  --transition-property: opacity, transform, filter;
   --duration: 100ms;
   --color: var(--s-color-primary-70);
   --text-color: var(--s-color-neutral-70);
@@ -102,6 +102,8 @@
 
 :host > .root > .ripple {
   border-radius: inherit;
+  position: absolute;
+  inset: 0;
 }
 :host([disabled]) > .root > .ripple {
   display: none;

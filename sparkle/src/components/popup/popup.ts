@@ -9,8 +9,9 @@ import {
 import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
+import { offsetParent } from "../../utils/composed-offset-position";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { offsetParent } from "./composed-offset-position";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./popup.css";
 import html from "./popup.html";
 
@@ -369,10 +370,9 @@ export default class Popup
       this.setupAnchor();
     }
 
-    // All other properties will trigger a reposition when active
-    window.setTimeout(() => {
+    if ((Object.values(DEFAULT_ATTRIBUTES) as string[]).includes(name)) {
       this.reposition();
-    });
+    }
   }
 
   protected override onConnected(): void {}
@@ -400,10 +400,10 @@ export default class Popup
     await this.start();
   }
 
-  protected async start() {
+  protected async start(): Promise<void> {
+    await nextAnimationFrame();
     const anchorEl = this.anchorEl;
     const popupEl = this.popupEl;
-
     if (!anchorEl) {
       // We can't start the positioner without an anchor
       throw new Error(
@@ -413,7 +413,6 @@ export default class Popup
     if (!popupEl) {
       return;
     }
-
     if (!this._intersectionObserver) {
       this._intersectionObserver = new IntersectionObserver(this.update);
       this._intersectionObserver?.observe(anchorEl);
@@ -421,7 +420,8 @@ export default class Popup
     this.reposition();
   }
 
-  protected async stop() {
+  protected async stop(): Promise<void> {
+    await nextAnimationFrame();
     this.removeAttribute("data-current-placement");
     this.updateRootCssVariable("--auto-size-available-width", null);
     this.updateRootCssVariable("--auto-size-available-height", null);
@@ -432,7 +432,8 @@ export default class Popup
   };
 
   /** Forces the popup to recalculate and reposition itself. */
-  reposition() {
+  async reposition(): Promise<void> {
+    await nextAnimationFrame();
     const anchorEl = this.anchorEl;
     const popupEl = this.popupEl;
     // Nothing to do if the popup or anchor doesn't exist

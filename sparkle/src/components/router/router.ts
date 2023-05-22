@@ -1,19 +1,35 @@
 import getCssAnimation from "sparkle-style-transformer/utils/getCssAnimation.js";
+import getCssPosition from "sparkle-style-transformer/utils/getCssPosition.js";
+import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import SparkleElement from "../../core/sparkle-element";
+import { AnimationName } from "../../types/animationName";
 import { Properties } from "../../types/properties";
-import { animationsComplete } from "../../utils/animate";
+import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDirection } from "../../utils/getDirection";
+import { getKeys } from "../../utils/getKeys";
 import css from "./router.css";
 import html from "./router.html";
 
 const styles = new CSSStyleSheet();
+
+export const DEFAULT_TRANSFORMERS = {
+  "header-enter": getCssAnimation,
+  "header-exit": getCssAnimation,
+  "footer-enter": getCssAnimation,
+  "footer-exit": getCssAnimation,
+  "header-position": getCssPosition,
+  "footer-position": getCssPosition,
+  "header-inset": getCssSize,
+  "footer-inset": getCssSize,
+};
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "enter-event",
   "exit-event",
   "swipeable",
   "directional",
+  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -47,6 +63,10 @@ export default class Router
   override get styles() {
     styles.replaceSync(Router.augmentCss(css));
     return [styles];
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   /**
@@ -101,21 +121,136 @@ export default class Router
     this.setStringAttribute(Router.attributes.swipeable, value);
   }
 
+  /**
+   * Specifies a `position` for the header.
+   */
+  get headerPosition(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.headerPosition);
+  }
+  set headerPosition(value) {
+    this.setStringAttribute(Router.attributes.headerPosition, value);
+  }
+
+  /**
+   * Specifies a `inset` for the header.
+   */
+  get headerInset(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.headerInset);
+  }
+  set headerInset(value) {
+    this.setStringAttribute(Router.attributes.headerInset, value);
+  }
+
+  /**
+   * Specifies a header exit `animation` for this element.
+   */
+  get headerExit(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.headerExit);
+  }
+  set headerExit(value) {
+    this.setStringAttribute(Router.attributes.headerExit, value);
+  }
+
+  /**
+   * Specifies a header enter `animation` for this element.
+   */
+  get headerEnter(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.headerEnter);
+  }
+  set headerEnter(value) {
+    this.setStringAttribute(Router.attributes.headerEnter, value);
+  }
+
+  /**
+   * Specifies a `position` for the footer.
+   */
+  get footerPosition(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.footerPosition);
+  }
+  set footerPosition(value) {
+    this.setStringAttribute(Router.attributes.footerPosition, value);
+  }
+
+  /**
+   * Specifies a `inset` for the footer.
+   */
+  get footerInset(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.footerInset);
+  }
+  set footerInset(value) {
+    this.setStringAttribute(Router.attributes.footerInset, value);
+  }
+
+  /**
+   * Specifies a footer exit `animation` for this element.
+   */
+  get footerExit(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.footerExit);
+  }
+  set footerExit(value) {
+    this.setStringAttribute(Router.attributes.footerExit, value);
+  }
+
+  /**
+   * Specifies a footer enter `animation` for this element.
+   */
+  get footerEnter(): "" | AnimationName | string | null {
+    return this.getStringAttribute(Router.attributes.footerEnter);
+  }
+  set footerEnter(value) {
+    this.setStringAttribute(Router.attributes.footerEnter, value);
+  }
+
   get contentEl(): HTMLElement | null {
     return this.getElementByClass("content");
   }
 
-  get templatesSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("templates-slot");
-  }
-  get templates(): HTMLTemplateElement[] {
-    const contentSlot = this.contentSlot;
-    if (contentSlot) {
-      return contentSlot
+  get contentTemplates(): HTMLTemplateElement[] {
+    const slot = this.contentSlot;
+    if (slot) {
+      return slot
         .assignedElements()
         .filter(
           (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
         );
+    }
+    return [];
+  }
+
+  get headerEl(): HTMLElement | null {
+    return this.getElementByClass("header");
+  }
+
+  get headerSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("header-slot");
+  }
+
+  get headerTemplates(): HTMLTemplateElement[] {
+    const slot = this.headerSlot;
+    if (slot) {
+      const assignedElements = slot.assignedElements({ flatten: true });
+      return assignedElements.filter(
+        (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
+      );
+    }
+    return [];
+  }
+
+  get footerEl(): HTMLElement | null {
+    return this.getElementByClass("footer");
+  }
+
+  get footerSlot(): HTMLSlotElement | null {
+    return this.getElementByClass("footer-slot");
+  }
+
+  get footerTemplates(): HTMLTemplateElement[] {
+    const slot = this.footerSlot;
+    if (slot) {
+      const assignedElements = slot.assignedElements({ flatten: true });
+      return assignedElements.filter(
+        (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
+      );
     }
     return [];
   }
@@ -138,6 +273,8 @@ export default class Router
   protected override onConnected(): void {
     this.setupExitAnimations(this.exit);
     this.setupEnterAnimations(this.enter);
+    this.setupHeaderAnimations();
+    this.setupFooterAnimations();
     this.root?.addEventListener(this.exitEvent, this.handleChanging);
     this.root?.addEventListener(this.enterEvent, this.handleChanged);
   }
@@ -163,61 +300,74 @@ export default class Router
     this.updateRootCssVariable("enter-right", getCssAnimation(enter, "-right"));
   }
 
-  async exitRoute(): Promise<void> {
-    this.updateRootClass("exiting", true);
-    await animationsComplete(this.contentEl);
+  setupHeaderAnimations(): void {
+    if (this.headerTemplates.length > 0) {
+      this.headerEl?.classList.add("transition");
+    } else {
+      this.headerEl?.classList.remove("transition");
+    }
   }
 
-  async exitedRoute(): Promise<void> {
-    await animationsComplete(this.contentEl);
-    this.updateRootClass("exiting", false);
+  setupFooterAnimations(): void {
+    if (this.footerTemplates.length > 0) {
+      this.footerEl?.classList.add("transition");
+    } else {
+      this.footerEl?.classList.remove("transition");
+    }
+  }
+
+  async exitRoute(): Promise<void> {
+    this.updateRootClass("exiting", true);
+    await animationsComplete(this.contentEl, this.footerEl);
   }
 
   async enterRoute(newValue: string): Promise<void> {
     if (newValue) {
-      await this.exitedRoute();
-      this.loadRouteTemplate(newValue);
+      await animationsComplete(this.contentEl, this.footerEl);
+      this.loadRoute(newValue);
+      this.updateRootClass("exiting", false);
       this.updateRootClass("entering", true);
-      await animationsComplete(this.contentEl);
+      await animationsComplete(this.contentEl, this.footerEl);
       this.updateRootClass("entering", false);
     }
   }
 
-  loadRouteTemplate(newValue: string | null): void {
+  findTemplate(
+    templates: HTMLTemplateElement[],
+    value: string
+  ): HTMLTemplateElement | undefined {
+    return templates.find((el) => el.getAttribute("value") === value);
+  }
+
+  async loadTemplate(
+    template: HTMLTemplateElement,
+    slotName?: string
+  ): Promise<void> {
+    const preserve = (n: ChildNode) =>
+      n instanceof HTMLElement && n.getAttribute("value") != null;
+    const templateContent = template.content.cloneNode(true);
+    this.setAssignedToSlot(templateContent, slotName, preserve);
+  }
+
+  loadRoute(newValue: string | null): void {
     if (newValue !== this._loadedValue) {
       this._loadedValue = newValue;
-      const templates = this.templates;
-      templates.forEach((el) => {
-        const value = el.getAttribute("value");
-        if (newValue === value) {
-          // Load template content
-          const templateContent = el.content.cloneNode(true);
-          this.setAssignedToSlot(
-            templateContent,
-            undefined,
-            (n) => n instanceof HTMLElement && n.getAttribute("value") != null
-          );
-          if (templateContent instanceof HTMLElement) {
-            if (templateContent.getAttribute("role") == null) {
-              templateContent.setAttribute("role", `tabpanel`);
-            }
-            if (templateContent.getAttribute("tabindex") == null) {
-              templateContent.setAttribute("tabindex", "0");
-            }
-            if (value) {
-              if (
-                templateContent.getAttribute(Router.attributes.ariaLabel) ==
-                null
-              ) {
-                templateContent.setAttribute(
-                  Router.attributes.ariaLabel,
-                  value
-                );
-              }
-            }
-          }
+      if (newValue) {
+        const contentTemplate = this.findTemplate(
+          this.contentTemplates,
+          newValue
+        );
+        if (contentTemplate) {
+          this.loadTemplate(contentTemplate);
         }
-      });
+        const footerTemplate = this.findTemplate(
+          this.footerTemplates,
+          newValue
+        );
+        if (footerTemplate) {
+          this.loadTemplate(footerTemplate, "footer");
+        }
+      }
     }
   }
 

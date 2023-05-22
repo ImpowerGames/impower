@@ -2,8 +2,12 @@
   display: contents;
 }
 :host {
-  --enter: var(--s-animation-enter);
-  --exit: var(--s-animation-exit);
+  --header-enter: var(--s-animation-fade-in);
+  --header-exit: var(--s-animation-fade-out);
+  --enter: var(--s-animation-fade-in);
+  --exit: var(--s-animation-fade-out);
+  --footer-enter: var(--s-animation-fade-in);
+  --footer-exit: var(--s-animation-fade-out);
   --position: relative;
 }
 
@@ -18,7 +22,23 @@
 
 :host > .root > .header,
 :host > .root > .footer {
-  display: contents;
+  display: flex;
+}
+
+:host([header-position]) > .root > .header {
+  position: var(--header-position, absolute);
+}
+:host([header-position="sticky"]) > .root > .header {
+  inset: var(--header-i, var(--header-inset, 0 auto auto auto));
+  z-index: 1;
+}
+
+:host([footer-position]) > .root > .footer {
+  position: var(--footer-position, absolute);
+}
+:host([footer-position="sticky"]) > .root > .footer {
+  inset: var(--footer-i, var(--footer-inset, auto auto 0 auto));
+  z-index: 1;
 }
 
 :host > .root.exiting > .content {
@@ -51,4 +71,20 @@
 }
 :host > .root.entering[direction="right"] > .content {
   animation: var(--enter-right) forwards;
+}
+
+:host > .root.exiting > .header.transition {
+  animation: var(--header-exit) forwards;
+}
+
+:host > .root.entering > .header.transition {
+  animation: var(--header-enter) forwards;
+}
+
+:host > .root.exiting > .footer.transition {
+  animation: var(--footer-exit) forwards;
+}
+
+:host > .root.entering > .footer.transition {
+  animation: var(--footer-enter) forwards;
 }
