@@ -16,11 +16,11 @@
   overflow-x: clip;
   overflow-y: clip;
 }
-:host > .root[state]::after {
+:host > .root[state="exiting"]::after {
   content: "";
   position: absolute;
   inset: 0;
-  /* Block input during animation */
+  /* Block input during exit animation */
   pointer-events: auto;
 }
 :host > .root[state="exiting"] {
