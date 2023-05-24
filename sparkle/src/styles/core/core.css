@@ -73,6 +73,8 @@
 
 [width] > .root {
   width: var(--width, 100%) !important;
+  min-width: var(--width, 0);
+  max-width: var(--width, 100%);
 }
 [width-min] > .root {
   min-width: var(--width-min, 0) !important;
@@ -83,6 +85,8 @@
 
 [height] > .root {
   height: var(--height, 100%) !important;
+  min-height: var(--height, 0);
+  max-height: var(--height, 100%);
 }
 [height-min] > .root {
   min-height: var(--height-min, 0) !important;

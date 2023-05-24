@@ -25,6 +25,9 @@ const getCssSize = (
   if (value === "xl") {
     return defaultUnit === "px" ? "24px" : "1.5rem";
   }
+  if (typeof value === "string" && Number.isNaN(Number(value[0]))) {
+    return `var(--s-size-${value})`;
+  }
   return getCssUnit(value, defaultUnit);
 };
 
