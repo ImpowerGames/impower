@@ -25,6 +25,13 @@
   --icon-size: 20px;
 }
 
+:host(:not([child-layout="row"])) {
+  --gap: 4px;
+}
+:host([child-layout="row"]) {
+  --gap: 8px;
+}
+
 :host > .root {
   cursor: pointer;
   pointer-events: var(--interactable);
@@ -46,6 +53,7 @@
   transition-duration: var(--duration);
   padding-block: var(--padding-tb);
   padding-inline: var(--padding-lr);
+  gap: var(--gap);
   will-change: transform;
 }
 :host([disabled]) > .root {
@@ -74,29 +82,35 @@
 }
 
 :host([icon]) > .root > .label {
-  margin-top: var(--spacing);
   line-height: 1;
+}
+:host(:not([child-layout="row"])[icon]) > .root > .label {
   transform: translateY(0) scale(0.8);
 }
-:host([icon][active]:not([disabled])) > .root > .label {
-  transform: translateY(-2px) scale(0.95);
+:host(:not([child-layout="row"])[icon][active]:not([disabled]))
+  > .root
+  > .label {
+  transform: scale(0.9);
 }
 
 :host > .root > .icon {
   display: none;
-  margin-top: 4px;
-  line-height: 1;
-  font-size: var(--icon-size);
-  transform: translateY(0);
 }
 :host([icon]) > .root > .icon {
   display: flex;
-}
-:host([icon][active]:not([disabled])) > .root > .icon {
-  transform: translateY(-2px);
+  line-height: 1;
 }
 :host([icon][active]:not([disabled])) > .root > .icon > * {
   --icon: var(--active-icon) !important;
+}
+:host(:not([child-layout="row"])[icon]) > .root > .icon {
+  font-size: var(--icon-size);
+  transform: translateY(0);
+}
+:host(:not([child-layout="row"])[icon][active]:not([disabled]))
+  > .root
+  > .icon {
+  transform: translateY(-1px);
 }
 
 :host > .root::before {

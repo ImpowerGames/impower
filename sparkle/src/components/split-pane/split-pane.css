@@ -11,9 +11,11 @@
   --divider-width: 2px;
   --indicator-color: var(--s-color-primary-60);
   --indicator-width: calc(var(--divider-width) * 2);
-  --initial-size: 50vw;
 }
 
+:host(:not([vertical])) {
+  --initial-size: 50vw;
+}
 :host([vertical]) {
   --initial-size: 50vh;
 }

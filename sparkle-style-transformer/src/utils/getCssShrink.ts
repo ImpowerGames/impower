@@ -1,6 +1,6 @@
 const getCssShrink = (value: boolean | string): string => {
   if (value === "") {
-    return "0";
+    return "1";
   }
   if (value === true) {
     return "1";

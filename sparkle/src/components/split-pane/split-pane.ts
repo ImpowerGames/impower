@@ -5,7 +5,6 @@ import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getKeys } from "../../utils/getKeys";
-import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./split-pane.css";
 import html from "./split-pane.html";
 
@@ -20,6 +19,7 @@ export const DEFAULT_TRANSFORMERS = {
   "divider-width": getCssSize,
   "indicator-color": getCssColor,
   "indicator-width": getCssSize,
+  "initial-size": getCssSize,
 };
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
@@ -61,6 +61,18 @@ export default class SplitPane
 
   override get transformers() {
     return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+  }
+
+  /**
+   * The initial size of the start panel.
+   *
+   * Defaults to `50vw` when horizontal and `50vh` when vertical.
+   */
+  get initialSize(): SizeName | string | null {
+    return this.getStringAttribute(SplitPane.attributes.initialSize);
+  }
+  set initialSize(value) {
+    this.setStringAttribute(SplitPane.attributes.initialSize, value);
   }
 
   /**
@@ -175,17 +187,6 @@ export default class SplitPane
   }
   set indicatorWidth(value) {
     this.setStringAttribute(SplitPane.attributes.indicatorWidth, value);
-  }
-
-  protected override onConnected(): void {
-    this.setup();
-  }
-
-  async setup(): Promise<void> {
-    await nextAnimationFrame();
-    const size = this.vertical ? this.root.offsetHeight : this.root.offsetWidth;
-    const initialSize = `${size / 2}px`;
-    this.updateRootCssVariable("initial-size", initialSize);
   }
 }
 

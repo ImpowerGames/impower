@@ -307,6 +307,10 @@
   flex-grow: var(--grow, 1) !important;
 }
 
+[shrink] > .root {
+  flex-shrink: var(--shrink, 1) !important;
+}
+
 [fill] > .root {
   fill: var(--fill, currentColor) !important;
 }
