@@ -1786,7 +1786,7 @@ export default class SparkleElement
    * Specifies an exit `animation` for this element.
    */
   get exit(): "" | AnimationName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.exit);
+    return this.getStringAttribute(SparkleElement.attributes.exit) || "exit";
   }
   set exit(value) {
     this.setStringAttribute(SparkleElement.attributes.exit, value);
@@ -1796,7 +1796,7 @@ export default class SparkleElement
    * Specifies an enter `animation` for this element.
    */
   get enter(): "" | AnimationName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.enter);
+    return this.getStringAttribute(SparkleElement.attributes.enter) || "enter";
   }
   set enter(value) {
     this.setStringAttribute(SparkleElement.attributes.enter, value);
@@ -2211,7 +2211,7 @@ export default class SparkleElement
     content: string | Node,
     name?: string,
     preserve?: (n: ChildNode) => boolean
-  ): void {
+  ): Node | null {
     const assigned = this.getAssignedToSlot(name);
     assigned.forEach((n) => {
       if (n.parentElement && (!preserve || !preserve(n))) {
@@ -2228,9 +2228,12 @@ export default class SparkleElement
         newNode.appendChild(content);
       }
       if (this.shadowRoot) {
-        this.appendChild(newNode);
+        return this.appendChild(newNode)?.firstElementChild;
       } else {
-        this.getElementByNameAttribute(name)?.appendChild(newNode);
+        return (
+          this.getElementByNameAttribute(name)?.appendChild(newNode)
+            ?.firstElementChild || null
+        );
       }
     } else {
       const newNode =
@@ -2238,9 +2241,9 @@ export default class SparkleElement
           ? document.createTextNode(content)
           : content;
       if (this.shadowRoot) {
-        this.appendChild(newNode);
+        return this.appendChild(newNode);
       } else {
-        this.contentSlot?.appendChild(newNode);
+        return this.contentSlot?.appendChild(newNode) || null;
       }
     }
   }
@@ -2356,5 +2359,20 @@ export default class SparkleElement
 
   emit<T>(eventName: string, detail?: T): boolean {
     return this.dispatchEvent(new SparkleEvent(eventName, { detail }));
+  }
+
+  closestAncestor(selector: string, el: Element = this): Element | null {
+    if (!el || el instanceof Document || el instanceof Window) {
+      return null;
+    }
+    const result = el.closest(selector);
+    if (result) {
+      return result;
+    }
+    const host = (el.getRootNode() as ShadowRoot)?.host;
+    if (!host || host === this || host === el) {
+      return null;
+    }
+    return this.closestAncestor(selector, host);
   }
 }

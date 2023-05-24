@@ -1,13 +1,22 @@
 export const getDirection = (
-  orientation: string | null | undefined,
+  axis: string | null | undefined,
   oldRect: DOMRect | undefined,
   newRect: DOMRect,
   reverse?: boolean
 ) => {
-  if (orientation == null) {
+  if (axis == null) {
     return null;
   }
-  if (orientation === "vertical") {
+  if (axis === "z") {
+    const oldX = oldRect?.x ?? 0;
+    const newX = newRect.x;
+    const delta = newX - oldX;
+    if (delta < 0) {
+      return reverse ? "out" : "in";
+    }
+    return reverse ? "in" : "out";
+  }
+  if (axis === "y") {
     const oldY = oldRect?.y ?? 0;
     const newY = newRect.y;
     const delta = newY - oldY;
@@ -15,13 +24,12 @@ export const getDirection = (
       return reverse ? "down" : "up";
     }
     return reverse ? "up" : "down";
-  } else {
-    const oldX = oldRect?.x ?? 0;
-    const newX = newRect.x;
-    const delta = newX - oldX;
-    if (delta < 0) {
-      return reverse ? "right" : "left";
-    }
-    return reverse ? "left" : "right";
   }
+  const oldX = oldRect?.x ?? 0;
+  const newX = newRect.x;
+  const delta = newX - oldX;
+  if (delta < 0) {
+    return reverse ? "right" : "left";
+  }
+  return reverse ? "left" : "right";
 };

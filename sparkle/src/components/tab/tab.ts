@@ -132,6 +132,10 @@ export default class Tab
     return this.getElementByTag<Ripple>(Tab.dependencies.ripple);
   }
 
+  get labelEl(): HTMLElement | null {
+    return this.getElementByClass("label");
+  }
+
   get iconEl(): HTMLElement | null {
     return this.getElementByClass("icon");
   }

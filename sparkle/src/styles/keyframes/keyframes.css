@@ -131,99 +131,126 @@
   }
 }
 
-@keyframes exit {
+@keyframes exit-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes exit-zoom {
   from {
-    opacity: 1;
     transform: scale(1);
   }
   to {
-    opacity: 0;
     transform: scale(0.98);
-  }
-}
-
-@keyframes enter {
-  0% {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  30% {
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes exit-up {
-  to {
-    opacity: 0;
-    transform: translateY(-50%);
-  }
-}
-
-@keyframes exit-down {
-  to {
-    opacity: 0;
-    transform: translateY(50%);
   }
 }
 
 @keyframes exit-right {
   to {
-    opacity: 0;
-    transform: translateX(50%);
+    transform: translateX(32px);
   }
 }
 
 @keyframes exit-left {
   to {
-    opacity: 0;
-    transform: translateX(-50%);
+    transform: translateX(-32px);
   }
 }
 
-@keyframes enter-up {
-  from {
-    opacity: 0;
-    transform: translateY(50%);
-  }
+@keyframes exit-up {
   to {
-    opacity: 1;
-    transform: translateY(0%);
+    transform: translateY(-32px);
   }
 }
 
-@keyframes enter-down {
+@keyframes exit-down {
+  to {
+    transform: translateY(32px);
+  }
+}
+
+@keyframes exit-out {
+  to {
+    transform: perspective(1000px) translateZ(-50px);
+  }
+}
+
+@keyframes exit-in {
+  to {
+    transform: perspective(1000px) translateZ(50px);
+  }
+}
+
+@keyframes enter-fade {
   from {
     opacity: 0;
-    transform: translateY(-50%);
   }
   to {
     opacity: 1;
-    transform: translateY(0%);
+  }
+}
+
+@keyframes enter-zoom {
+  from {
+    transform: scale(0.98);
+  }
+  to {
+    transform: scale(1);
   }
 }
 
 @keyframes enter-right {
   from {
-    opacity: 0;
-    transform: translateX(-50%);
+    transform: translateX(-32px);
   }
   to {
-    opacity: 1;
-    transform: translateX(0%);
+    transform: translateX(0);
   }
 }
 
 @keyframes enter-left {
   from {
-    opacity: 0;
-    transform: translateX(50%);
+    transform: translateX(32px);
   }
   to {
-    opacity: 1;
-    transform: translateX(0%);
+    transform: translateX(0);
+  }
+}
+
+@keyframes enter-up {
+  from {
+    transform: translateY(32px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-down {
+  from {
+    transform: translateY(-32px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes enter-out {
+  from {
+    transform: perspective(1000px) translateZ(50px);
+  }
+  to {
+    transform: perspective(1000px) translateZ(0);
+  }
+}
+
+@keyframes enter-in {
+  from {
+    transform: perspective(1000px) translateZ(-50px);
+  }
+  to {
+    transform: perspective(1000px) translateZ(0);
   }
 }
 

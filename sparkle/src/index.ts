@@ -19,6 +19,7 @@ import Tabs from "./components/tabs/tabs";
 import ToastStack from "./components/toast-stack/toast-stack";
 import Toast from "./components/toast/toast";
 import Tooltip from "./components/tooltip/tooltip";
+import Transition from "./components/transition/transition";
 import initialize from "./initialize/initialize";
 import animations from "./styles/animations/animations.css";
 import dark from "./styles/dark/dark.css";
@@ -53,6 +54,7 @@ export const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-toast": Toast,
   "s-dialog": Dialog,
   "s-split-pane": SplitPane,
+  "s-transition": Transition,
   "s-router": Router,
   "s-breakpoint-observer": BreakpointObserver,
 } as const;

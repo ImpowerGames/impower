@@ -1,8 +1,36 @@
 [position] > .root {
   position: var(--position, absolute) !important;
 }
-[position="sticky"] > .root {
-  inset-block-start: 0;
+[position="sticky-top"] > .root {
+  inset: 0 0 auto 0;
+  z-index: 1;
+}
+[position="sticky-bottom"] > .root {
+  inset: auto 0 0 0;
+  z-index: 1;
+}
+[position="sticky-left"] > .root {
+  inset: 0 auto 0 0;
+  z-index: 1;
+}
+[position="sticky-right"] > .root {
+  inset: 0 0 0 auto;
+  z-index: 1;
+}
+[position="fixed-top"] > .root {
+  inset: 0 0 auto 0;
+  z-index: 1;
+}
+[position="fixed-bottom"] > .root {
+  inset: auto 0 0 0;
+  z-index: 1;
+}
+[position="fixed-left"] > .root {
+  inset: 0 auto 0 0;
+  z-index: 1;
+}
+[position="fixed-right"] > .root {
+  inset: 0 0 0 auto;
   z-index: 1;
 }
 

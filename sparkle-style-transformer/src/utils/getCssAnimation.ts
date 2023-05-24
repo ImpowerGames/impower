@@ -1,10 +1,13 @@
-const getCssAnimation = (value: string, suffix = ""): string => {
-  if (!value || value === "none" || value.startsWith("var(")) {
+const getCssAnimation = (value: string | null, suffix = ""): string => {
+  if (!value || value === "none") {
+    return "none";
+  }
+  if (value.startsWith("var(")) {
     return value;
   }
   return value
     .split(" ")
-    .map((v) => `var(--s-animation-${v}${suffix}, var(--s-animation-${v}))`)
+    .map((v) => `var(--s-animation-${v}${suffix || ""})`)
     .join(", ");
 };
 

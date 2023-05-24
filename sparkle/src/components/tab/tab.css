@@ -17,8 +17,8 @@
   --text-wrap: nowrap;
   --transition-property: opacity, transform, filter;
   --duration: 100ms;
-  --color: var(--s-color-primary-70);
-  --text-color: var(--s-color-neutral-70);
+  --color: var(--s-color-primary-60);
+  --text-color: var(--s-color-neutral-60);
   --hover-color: var(--s-color-neutral-90);
   --padding-tb: 16px;
   --padding-lr: 20px;
@@ -54,6 +54,15 @@
 }
 :host([active]:not([disabled])) > .root {
   color: var(--color);
+}
+
+:host([active]:not([disabled])) > .root::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-style: solid;
+  border-width: 0 0 var(--indicator-width) 0;
+  border-color: white;
 }
 
 :host > .root > .icon,

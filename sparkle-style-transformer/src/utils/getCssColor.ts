@@ -17,7 +17,7 @@ const getCssColor = (color: string): string => {
   if (!color) {
     return color;
   }
-  return `var(--s-color-${color}, var(--s-color-${color}-70))`;
+  return `var(--s-color-${color}, var(--s-color-${color}-60))`;
 };
 
 export default getCssColor;

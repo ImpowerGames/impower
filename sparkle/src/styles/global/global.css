@@ -53,19 +53,6 @@
   --s-color-danger-95: var(--s-color-red-95);
   --s-color-danger-99: var(--s-color-red-99);
 
-  /* Neutral */
-  --s-color-neutral-10: var(--s-color-gray-10);
-  --s-color-neutral-20: var(--s-color-gray-20);
-  --s-color-neutral-30: var(--s-color-gray-30);
-  --s-color-neutral-40: var(--s-color-gray-40);
-  --s-color-neutral-50: var(--s-color-gray-50);
-  --s-color-neutral-60: var(--s-color-gray-60);
-  --s-color-neutral-70: var(--s-color-gray-70);
-  --s-color-neutral-80: var(--s-color-gray-80);
-  --s-color-neutral-90: var(--s-color-gray-90);
-  --s-color-neutral-95: var(--s-color-gray-95);
-  --s-color-neutral-99: var(--s-color-gray-99);
-
   /*
    * Breakpoints
    */

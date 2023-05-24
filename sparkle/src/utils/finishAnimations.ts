@@ -1,19 +1,18 @@
 import { isAnimation } from "./isAnimation";
 import { isElement } from "./isElement";
-import { nextAnimationFrame } from "./nextAnimationFrame";
 
-export const animationsComplete = async (
+export const finishAnimations = (
   ...targets: (Element | Animation | null)[]
-): Promise<Animation[]> => {
+): Animation[] => {
   const elements = targets.filter(isElement);
   const animations = targets.filter(isAnimation);
   if (elements.length > 0) {
-    await nextAnimationFrame();
     elements.forEach((el) => {
       animations.push(...el.getAnimations());
     });
   }
-  await Promise.allSettled(animations.map((animation) => animation.finished));
-  await nextAnimationFrame();
+  animations.map((animation) => {
+    animation.finish();
+  });
   return animations;
 };

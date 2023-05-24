@@ -4,7 +4,7 @@
 :host {
   --overflow-x: clip;
   --selectable: none;
-  --color: var(--s-color-primary-70);
+  --color: var(--s-color-primary-60);
   --text-color: var(--s-color-neutral-0);
   --child-align: center;
   --child-justify: center;

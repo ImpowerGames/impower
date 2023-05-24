@@ -1,35 +1,25 @@
 import getCssAnimation from "sparkle-style-transformer/utils/getCssAnimation.js";
-import getCssPosition from "sparkle-style-transformer/utils/getCssPosition.js";
-import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
+import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
-import { AnimationName } from "../../types/animationName";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDirection } from "../../utils/getDirection";
-import { getKeys } from "../../utils/getKeys";
+import { restartAnimations } from "../../utils/restartAnimations";
+import { reverseAnimations } from "../../utils/reverseAnimations";
 import css from "./router.css";
 import html from "./router.html";
 
 const styles = new CSSStyleSheet();
 
-export const DEFAULT_TRANSFORMERS = {
-  "header-enter": getCssAnimation,
-  "header-exit": getCssAnimation,
-  "footer-enter": getCssAnimation,
-  "footer-exit": getCssAnimation,
-  "header-position": getCssPosition,
-  "footer-position": getCssPosition,
-  "header-inset": getCssSize,
-  "footer-inset": getCssSize,
-};
+const EXIT_EVENT = "exit";
+const ENTER_EVENT = "enter";
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "enter-event",
   "exit-event",
   "swipeable",
   "directional",
-  ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
 /**
@@ -65,10 +55,6 @@ export default class Router
     return [styles];
   }
 
-  override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
-  }
-
   /**
    * The event to listen for that causes the current route to exit.
    *
@@ -96,9 +82,9 @@ export default class Router
   /**
    * Determines if the enter and exit animations should be direction-dependent
    *
-   * If not provided a value, defaults to `horizontal`.
+   * If not provided a value, defaults to `x`.
    */
-  get directional(): "horizontal" | "vertical" | null {
+  get directional(): "x" | "y" | "z" | null {
     return this.getStringAttribute(Router.attributes.directional);
   }
   set directional(value) {
@@ -121,88 +107,20 @@ export default class Router
     this.setStringAttribute(Router.attributes.swipeable, value);
   }
 
-  /**
-   * Specifies a `position` for the header.
-   */
-  get headerPosition(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.headerPosition);
-  }
-  set headerPosition(value) {
-    this.setStringAttribute(Router.attributes.headerPosition, value);
+  get exitFadeEl(): HTMLElement {
+    return this.getElementByClass("exit-fade") as HTMLElement;
   }
 
-  /**
-   * Specifies a `inset` for the header.
-   */
-  get headerInset(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.headerInset);
-  }
-  set headerInset(value) {
-    this.setStringAttribute(Router.attributes.headerInset, value);
+  get exitTransformEl(): HTMLElement {
+    return this.getElementByClass("exit-transform") as HTMLElement;
   }
 
-  /**
-   * Specifies a header exit `animation` for this element.
-   */
-  get headerExit(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.headerExit);
-  }
-  set headerExit(value) {
-    this.setStringAttribute(Router.attributes.headerExit, value);
+  get enterFadeEl(): HTMLElement {
+    return this.getElementByClass("enter-fade") as HTMLElement;
   }
 
-  /**
-   * Specifies a header enter `animation` for this element.
-   */
-  get headerEnter(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.headerEnter);
-  }
-  set headerEnter(value) {
-    this.setStringAttribute(Router.attributes.headerEnter, value);
-  }
-
-  /**
-   * Specifies a `position` for the footer.
-   */
-  get footerPosition(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.footerPosition);
-  }
-  set footerPosition(value) {
-    this.setStringAttribute(Router.attributes.footerPosition, value);
-  }
-
-  /**
-   * Specifies a `inset` for the footer.
-   */
-  get footerInset(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.footerInset);
-  }
-  set footerInset(value) {
-    this.setStringAttribute(Router.attributes.footerInset, value);
-  }
-
-  /**
-   * Specifies a footer exit `animation` for this element.
-   */
-  get footerExit(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.footerExit);
-  }
-  set footerExit(value) {
-    this.setStringAttribute(Router.attributes.footerExit, value);
-  }
-
-  /**
-   * Specifies a footer enter `animation` for this element.
-   */
-  get footerEnter(): "" | AnimationName | string | null {
-    return this.getStringAttribute(Router.attributes.footerEnter);
-  }
-  set footerEnter(value) {
-    this.setStringAttribute(Router.attributes.footerEnter, value);
-  }
-
-  get contentEl(): HTMLElement | null {
-    return this.getElementByClass("content");
+  get enterTransformEl(): HTMLElement {
+    return this.getElementByClass("enter-transform") as HTMLElement;
   }
 
   get contentTemplates(): HTMLTemplateElement[] {
@@ -215,10 +133,6 @@ export default class Router
         );
     }
     return [];
-  }
-
-  get headerEl(): HTMLElement | null {
-    return this.getElementByClass("header");
   }
 
   get headerSlot(): HTMLSlotElement | null {
@@ -236,10 +150,6 @@ export default class Router
     return [];
   }
 
-  get footerEl(): HTMLElement | null {
-    return this.getElementByClass("footer");
-  }
-
   get footerSlot(): HTMLSlotElement | null {
     return this.getElementByClass("footer-slot");
   }
@@ -255,26 +165,15 @@ export default class Router
     return [];
   }
 
+  protected _state: "entering" | "exiting" | null = null;
+
+  protected _loadingValue: string | null = null;
+
   protected _loadedValue: string | null = null;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Router.attributes.exit) {
-      this.setupExitAnimations(newValue);
-    }
-    if (name === Router.attributes.enter) {
-      this.setupEnterAnimations(newValue);
-    }
-  }
+  protected _loadedNode: Node | null = null;
 
   protected override onConnected(): void {
-    this.setupExitAnimations(this.exit);
-    this.setupEnterAnimations(this.enter);
-    this.setupHeaderAnimations();
-    this.setupFooterAnimations();
     this.root?.addEventListener(this.exitEvent, this.handleChanging);
     this.root?.addEventListener(this.enterEvent, this.handleChanged);
   }
@@ -284,52 +183,115 @@ export default class Router
     this.root?.removeEventListener(this.enterEvent, this.handleChanged);
   }
 
-  setupExitAnimations(newValue: string | null): void {
-    const exit = newValue || "exit";
-    this.updateRootCssVariable("exit-up", getCssAnimation(exit, "-up"));
-    this.updateRootCssVariable("exit-down", getCssAnimation(exit, "-down"));
-    this.updateRootCssVariable("exit-left", getCssAnimation(exit, "-left"));
-    this.updateRootCssVariable("exit-right", getCssAnimation(exit, "-right"));
-  }
-
-  setupEnterAnimations(newValue: string | null): void {
-    const enter = newValue || "enter";
-    this.updateRootCssVariable("enter-up", getCssAnimation(enter, "-up"));
-    this.updateRootCssVariable("enter-down", getCssAnimation(enter, "-down"));
-    this.updateRootCssVariable("enter-left", getCssAnimation(enter, "-left"));
-    this.updateRootCssVariable("enter-right", getCssAnimation(enter, "-right"));
-  }
-
-  setupHeaderAnimations(): void {
-    if (this.headerTemplates.length > 0) {
-      this.headerEl?.classList.add("transition");
+  async exitRoute(direction: string | null): Promise<void> {
+    if (this._state === "entering") {
+      // already entering, so reverse enter animations
+      if (this.directional != null) {
+        await reverseAnimations(this.enterFadeEl);
+      } else {
+        await reverseAnimations(this.enterFadeEl, this.enterTransformEl);
+      }
     } else {
-      this.headerEl?.classList.remove("transition");
+      const directionSuffix = direction ? `-${direction}` : "-zoom";
+      this.updateRootCssVariable(
+        "enter",
+        getCssAnimation(this.enter, directionSuffix)
+      );
+      this.updateRootCssVariable(
+        "exit",
+        getCssAnimation(this.exit, directionSuffix)
+      );
+      this.playExitTransition(this._state !== "exiting");
     }
-  }
-
-  setupFooterAnimations(): void {
-    if (this.footerTemplates.length > 0) {
-      this.footerEl?.classList.add("transition");
-    } else {
-      this.footerEl?.classList.remove("transition");
-    }
-  }
-
-  async exitRoute(): Promise<void> {
-    this.updateRootClass("exiting", true);
-    await animationsComplete(this.contentEl, this.footerEl);
   }
 
   async enterRoute(newValue: string): Promise<void> {
-    if (newValue) {
-      await animationsComplete(this.contentEl, this.footerEl);
+    if (this._loadedValue === newValue) {
+      await animationsComplete(this.enterFadeEl, this.enterTransformEl);
+      if (this.interrupted(newValue)) {
+        return;
+      }
+      // already loaded, so reverse exit animations
+      await reverseAnimations(this.exitFadeEl, this.exitTransformEl);
+      if (this.interrupted(newValue)) {
+        return;
+      }
+    } else {
+      await animationsComplete(
+        this.exitFadeEl,
+        this.enterFadeEl,
+        this.enterTransformEl
+      );
+      if (this.interrupted(newValue)) {
+        return;
+      }
       this.loadRoute(newValue);
-      this.updateRootClass("exiting", false);
-      this.updateRootClass("entering", true);
-      await animationsComplete(this.contentEl, this.footerEl);
-      this.updateRootClass("entering", false);
+      this.playEnterTransition(true);
+      this.emit(ENTER_EVENT);
+      await animationsComplete(this.enterFadeEl, this.enterTransformEl);
+      if (this.interrupted(newValue)) {
+        return;
+      }
+      if (this._loadedNode) {
+        this.assignContent(this._loadedNode);
+      }
     }
+    this.endTransitions();
+  }
+
+  interrupted(newValue: string): boolean {
+    return this._loadingValue !== newValue;
+  }
+
+  playExitTransition(restart: boolean): void {
+    this.updateState("exiting");
+    if (restart) {
+      restartAnimations(this.exitFadeEl, this.exitTransformEl);
+    }
+  }
+
+  playEnterTransition(restart: boolean): void {
+    this.updateState("entering");
+    if (restart) {
+      restartAnimations(this.enterFadeEl, this.enterTransformEl);
+    }
+  }
+
+  loadContent(newValue: string | null): Node | null {
+    if (newValue) {
+      const template = this.findTemplate(this.contentTemplates, newValue);
+      if (template) {
+        return this.loadTemplate(template, "enter-content");
+      }
+    }
+    return null;
+  }
+
+  loadFooter(newValue: string | null): Node | null {
+    if (newValue) {
+      const template = this.findTemplate(this.footerTemplates, newValue);
+      if (template) {
+        return this.loadTemplate(template, "footer");
+      }
+    }
+    return null;
+  }
+
+  loadRoute(newValue: string | null): void {
+    if (newValue !== this._loadedValue) {
+      this._loadedValue = newValue;
+      this._loadedNode = this.loadContent(newValue);
+      this.loadFooter(newValue);
+    }
+  }
+
+  endTransitions(): void {
+    this.updateState(null);
+  }
+
+  updateState(state: "entering" | "exiting" | null): void {
+    this._state = state;
+    this.updateRootAttribute("state", state);
   }
 
   findTemplate(
@@ -339,71 +301,54 @@ export default class Router
     return templates.find((el) => el.getAttribute("value") === value);
   }
 
-  async loadTemplate(
-    template: HTMLTemplateElement,
-    slotName?: string
-  ): Promise<void> {
+  loadTemplate(template: HTMLTemplateElement, slotName?: string): Node | null {
+    const templateContent = template.content.cloneNode(true);
+    return this.assignContent(templateContent, slotName);
+  }
+
+  assignContent(node: Node, slotName?: string): Node | null {
     const preserve = (n: ChildNode) =>
       n instanceof HTMLElement && n.getAttribute("value") != null;
-    const templateContent = template.content.cloneNode(true);
-    this.setAssignedToSlot(templateContent, slotName, preserve);
+    return this.setAssignedToSlot(node, slotName, preserve);
   }
 
-  loadRoute(newValue: string | null): void {
-    if (newValue !== this._loadedValue) {
-      this._loadedValue = newValue;
-      if (newValue) {
-        const contentTemplate = this.findTemplate(
-          this.contentTemplates,
-          newValue
-        );
-        if (contentTemplate) {
-          this.loadTemplate(contentTemplate);
-        }
-        const footerTemplate = this.findTemplate(
-          this.footerTemplates,
-          newValue
-        );
-        if (footerTemplate) {
-          this.loadTemplate(footerTemplate, "footer");
-        }
-      }
-    }
-  }
-
-  protected handleChanging = (e: CustomEvent): void => {
-    if (this.shadowRoot) {
-      if (e.target instanceof HTMLElement) {
-        const newValue = e.detail.value;
-        if (newValue != null) {
-          e.stopPropagation();
-          const direction = getDirection(
-            this.directional,
-            e.detail.oldRect,
-            e.detail.newRect,
-            true
-          );
-          this.updateRootAttribute("direction", direction);
-          this.exitRoute();
+  protected handleChanging = (e: Event): void => {
+    if (e instanceof CustomEvent && e.detail) {
+      if (this.shadowRoot) {
+        if (e.target instanceof HTMLElement) {
+          const newValue = e.detail.value;
+          if (newValue != null) {
+            this._loadingValue = newValue;
+            if (this._loadedValue == null) {
+              this._loadedValue =
+                this.contentTemplates?.[0]?.getAttribute("value") || null;
+            }
+            e.stopPropagation();
+            const direction = getDirection(
+              this.directional,
+              e.detail.oldRect,
+              e.detail.newRect,
+              true
+            );
+            this.emit(EXIT_EVENT, { ...e.detail, direction });
+            this.exitRoute(direction);
+          }
         }
       }
     }
   };
 
-  protected handleChanged = (e: CustomEvent): void => {
-    if (this.shadowRoot) {
-      if (e.target instanceof HTMLElement) {
-        const newValue = e.detail.value;
-        if (newValue != null) {
-          e.stopPropagation();
-          const direction = getDirection(
-            this.directional,
-            e.detail.oldRect,
-            e.detail.newRect,
-            true
-          );
-          this.updateRootAttribute("direction", direction);
-          this.enterRoute(newValue);
+  protected handleChanged = (e: Event): void => {
+    if (e instanceof CustomEvent && e.detail) {
+      if (this.shadowRoot) {
+        if (e.target instanceof HTMLElement) {
+          const newValue = e.detail.value;
+          if (newValue != null) {
+            e.stopPropagation();
+            if (newValue === this._loadingValue) {
+              this.enterRoute(newValue);
+            }
+          }
         }
       }
     }
@@ -413,5 +358,9 @@ export default class Router
 declare global {
   interface HTMLElementTagNameMap {
     "s-router": Router;
+  }
+  interface HTMLElementEventMap {
+    exit: SparkleEvent;
+    enter: SparkleEvent;
   }
 }

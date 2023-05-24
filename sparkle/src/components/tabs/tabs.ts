@@ -7,6 +7,7 @@ import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getKeys } from "../../utils/getKeys";
+import { getSlotChildren } from "../../utils/getSlotChildren";
 import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";
 import { navPrevKey } from "../../utils/navPrevKey";
@@ -127,7 +128,9 @@ export default class Tabs
 
   protected _resizeObserver?: ResizeObserver;
 
-  protected _pointerDown?: boolean;
+  protected _pointerDownOnAnyTab?: boolean;
+
+  protected _activatingValue: string | null = null;
 
   protected override onAttributeChanged(
     name: string,
@@ -135,7 +138,7 @@ export default class Tabs
     newValue: string
   ): void {
     if (name === Tabs.attributes.indicator) {
-      this.updateTabs(this.value);
+      this.updateTabs();
       const indicatorEl = this.indicatorEl;
       if (indicatorEl) {
         indicatorEl.hidden = newValue === "none";
@@ -147,11 +150,12 @@ export default class Tabs
         Tabs.attributes.ariaOrientation,
         vertical ? "vertical" : "horizontal"
       );
-      this.updateTabs(this.value);
+      this.updateTabs();
     }
   }
 
   protected override onConnected(): void {
+    this._activatingValue = this.value;
     const indicator = this.indicator;
     const indicatorEl = this.indicatorEl;
     if (indicatorEl) {
@@ -167,6 +171,7 @@ export default class Tabs
 
   protected override onParsed(): void {
     this._resizeObserver?.observe(this.root);
+    this.setupTabs(getSlotChildren(this, this.contentSlot));
   }
 
   protected override onDisconnected(): void {
@@ -179,25 +184,37 @@ export default class Tabs
     const newValue = tab.value;
     const changed = this.value !== newValue;
     this.value = newValue;
-    tab.active = true;
 
     await nextAnimationFrame();
+    if (this.interrupted(newValue)) {
+      return;
+    }
+
     const oldRect = oldTab?.root?.getBoundingClientRect();
     const newRect = tab?.root?.getBoundingClientRect();
-
     const detail = { oldRect, newRect, value: newValue };
 
     if (changed) {
       this.emit(CHANGING_EVENT, detail);
     }
 
+    tab.active = true;
     if (this.indicator !== "none") {
       await this.updateIndicator(tab);
+    }
+
+    await animationsComplete(tab.labelEl, tab.iconEl, this.indicatorEl);
+    if (this.interrupted(newValue)) {
+      return;
     }
 
     if (changed) {
       this.emit(CHANGED_EVENT, detail);
     }
+  }
+
+  interrupted(newValue: string | null): boolean {
+    return this._activatingValue !== newValue;
   }
 
   async deactivateTab(tab: Tab): Promise<void> {
@@ -229,16 +246,14 @@ export default class Tabs
 
         indicator.style.setProperty("transition", null);
         indicator.style.opacity = "1";
-
-        await animationsComplete(indicator);
       }
     }
   }
 
-  async updateTabs(value: string | null): Promise<void> {
+  async updateTabs(): Promise<void> {
     await Promise.all(
       this.tabs.map((tab) => {
-        if (value === tab.value) {
+        if (this._activatingValue === tab.value) {
           return this.activateTab(tab);
         } else {
           return this.deactivateTab(tab);
@@ -283,7 +298,8 @@ export default class Tabs
       if (t === tab) {
         tab.focus();
         if (activate) {
-          this.updateTabs(tab.value);
+          this._activatingValue = tab.value;
+          this.updateTabs();
         }
       }
     }
@@ -322,18 +338,19 @@ export default class Tabs
   }
 
   handlePointerDownTab = (e: PointerEvent): void => {
-    this._pointerDown = true;
+    this._pointerDownOnAnyTab = true;
   };
 
   handlePointerEnterTab = (e: PointerEvent): void => {
     const tab = e.currentTarget as Tab;
-    if (this._pointerDown) {
-      this.updateTabs(tab.value);
+    if (this._pointerDownOnAnyTab) {
+      this._activatingValue = tab.value;
+      this.updateTabs();
     }
   };
 
   handlePointerUp = (e: PointerEvent): void => {
-    this._pointerDown = false;
+    this._pointerDownOnAnyTab = false;
   };
 
   handleKeyDownTab = (e: KeyboardEvent): void => {
@@ -374,21 +391,22 @@ export default class Tabs
 
   handleClickTab = (e: MouseEvent): void => {
     const tab = e.currentTarget as Tab;
-    this.updateTabs(tab.value);
+    this._activatingValue = tab.value;
+    this.updateTabs();
   };
 
   protected handleResize = (): void => {
-    this.updateTabs(this.value);
+    this.updateTabs();
   };
 
-  protected override onContentAssigned = (children: Element[]): void => {
+  protected setupTabs(children: Element[]): void {
     this.unbindTabs();
     this._tabs = children.filter(
       (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
     ) as Tab[];
     this.bindTabs();
-    this.updateTabs(this.value);
-  };
+    this.updateTabs();
+  }
 }
 
 declare global {

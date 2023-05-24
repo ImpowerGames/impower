@@ -2,17 +2,25 @@
   display: contents;
 }
 :host {
-  --color: var(--s-color-primary-70);
+  --color: var(--s-color-primary-60);
   --child-layout: column;
   --position: relative;
   --duration: 100ms;
   --indicator-width: 2px;
+  --overflow-x: clip;
+  --overflow-y: clip;
+}
+
+:host([indicator="none"]) > .root {
+  --indicator-width: 0 !important;
 }
 
 :host > .root {
   display: flex;
   flex-direction: var(--child-layout);
   position: var(--position);
+  overflow-x: var(--overflow-x);
+  overflow-y: var(--overflow-y);
 }
 :host([vertical]) > .root {
   flex-direction: row;
@@ -39,16 +47,21 @@
 }
 
 :host > .root > .indicator {
+  position: relative;
   background-color: var(--color);
   transition-duration: var(--duration);
   transition-timing-function: var(--ease, ease);
   opacity: 0;
+  will-change: transform, opacity;
+}
+:host(:not([vertical])) > .root > .indicator {
+  bottom: var(--indicator-width);
   transform-origin: left;
   height: var(--indicator-width);
   width: 1px;
-  will-change: transform, opacity;
 }
 :host([vertical]) > .root > .indicator {
+  right: var(--indicator-width);
   transform-origin: top;
   height: 1px;
   width: var(--indicator-width);

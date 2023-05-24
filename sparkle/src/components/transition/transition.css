@@ -1,0 +1,31 @@
+:host {
+  display: contents;
+}
+:host {
+  --exit: var(--s-animation-close);
+  --enter: var(--s-animation-open);
+  --position: relative;
+}
+
+:host > .root {
+  position: relative;
+  display: flex;
+  flex: 1;
+}
+:host > .root[state] {
+  overflow-x: clip;
+  overflow-y: clip;
+}
+:host > .root[state]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Block input during animation */
+  pointer-events: auto;
+}
+:host > .root[state="exiting"] {
+  animation: var(--exit) both;
+}
+:host > .root[state="entering"] {
+  animation: var(--enter) both;
+}

@@ -2,89 +2,71 @@
   display: contents;
 }
 :host {
-  --header-enter: var(--s-animation-fade-in);
-  --header-exit: var(--s-animation-fade-out);
-  --enter: var(--s-animation-fade-in);
-  --exit: var(--s-animation-fade-out);
-  --footer-enter: var(--s-animation-fade-in);
-  --footer-exit: var(--s-animation-fade-out);
+  --exit: var(--s-animation-exit-zoom);
+  --enter: var(--s-animation-enter-zoom);
   --position: relative;
 }
 
 :host > .root {
+  position: relative;
+  display: flex;
+  flex: 1 1 100%;
+}
+:host > .root[state] {
+  overflow-x: clip;
+  overflow-y: clip;
+}
+:host > .root[state]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Block input during animation */
+  pointer-events: auto;
+}
+
+:host > .root > .content {
+  position: relative;
+  display: flex;
+  flex: 1 1 100%;
+}
+
+:host > .root > .content > .exit-fade {
   display: contents;
 }
-:host > .root > .content {
-  position: var(--position);
+:host > .root[state="entering"] > .content > .exit-fade {
+  display: none;
+}
+:host > .root[state="exiting"] > .content > .exit-fade {
   display: flex;
-  flex: 1;
+  flex: 1 1 100%;
+  animation: var(--s-animation-exit-fade) both;
 }
 
-:host > .root > .header,
-:host > .root > .footer {
+:host > .root > .content > .exit-fade > .exit-transform {
+  display: contents;
+}
+:host > .root[state="exiting"] > .content > .exit-fade > .exit-transform {
   display: flex;
+  flex: 1 1 100%;
+  animation: var(--exit) both;
 }
 
-:host([header-position]) > .root > .header {
-  position: var(--header-position, absolute);
+:host > .root > .content > .enter-fade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  display: none;
 }
-:host([header-position="sticky"]) > .root > .header {
-  inset: var(--header-i, var(--header-inset, 0 auto auto auto));
-  z-index: 1;
-}
-
-:host([footer-position]) > .root > .footer {
-  position: var(--footer-position, absolute);
-}
-:host([footer-position="sticky"]) > .root > .footer {
-  inset: var(--footer-i, var(--footer-inset, auto auto 0 auto));
-  z-index: 1;
+:host > .root[state="entering"] > .content > .enter-fade {
+  display: flex;
+  flex: 1 1 100%;
+  animation: var(--s-animation-enter-fade) both;
 }
 
-:host > .root.exiting > .content {
-  animation: var(--exit) forwards;
+:host > .root > .content > .enter-fade > .enter-transform {
+  display: flex;
+  flex: 1 1 100%;
 }
-:host > .root.exiting[direction="up"] > .content {
-  animation: var(--exit-up) forwards;
-}
-:host > .root.exiting[direction="down"] > .content {
-  animation: var(--exit-down) forwards;
-}
-:host > .root.exiting[direction="left"] > .content {
-  animation: var(--exit-left) forwards;
-}
-:host > .root.exiting[direction="right"] > .content {
-  animation: var(--exit-right) forwards;
-}
-
-:host > .root.entering > .content {
-  animation: var(--enter) forwards;
-}
-:host > .root.entering[direction="up"] > .content {
-  animation: var(--enter-up) forwards;
-}
-:host > .root.entering[direction="down"] > .content {
-  animation: var(--enter-down) forwards;
-}
-:host > .root.entering[direction="left"] > .content {
-  animation: var(--enter-left) forwards;
-}
-:host > .root.entering[direction="right"] > .content {
-  animation: var(--enter-right) forwards;
-}
-
-:host > .root.exiting > .header.transition {
-  animation: var(--header-exit) forwards;
-}
-
-:host > .root.entering > .header.transition {
-  animation: var(--header-enter) forwards;
-}
-
-:host > .root.exiting > .footer.transition {
-  animation: var(--footer-exit) forwards;
-}
-
-:host > .root.entering > .footer.transition {
-  animation: var(--footer-enter) forwards;
+:host > .root[state="entering"] > .content > .enter-fade > .enter-transform {
+  animation: var(--enter) both;
 }

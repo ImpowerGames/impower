@@ -173,6 +173,12 @@
     > .panel {
     min-width: 100%;
   }
+  :host(:not([vertical])) > .root > .panel > .start {
+    inset: 0;
+  }
+  :host([vertical]) > .root > .panel > .start {
+    inset: 0;
+  }
 
   /* Hide start panel */
   :host(

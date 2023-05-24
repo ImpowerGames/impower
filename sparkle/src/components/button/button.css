@@ -15,12 +15,11 @@
   --text-wrap: nowrap;
   --transition-property: transform, background-color, color, border, filter;
   --duration: 100ms;
-  --color: var(--s-color-primary-70);
+  --color: var(--s-color-primary-60);
   --text-color: var(--s-color-neutral-0);
   --spacing: 8px;
   --border-width: 1px;
   --corner: 4px;
-  --grow: 0;
   --background-color: var(--color);
 }
 
