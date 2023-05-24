@@ -39,7 +39,7 @@
   --s-color-zinc-80: hsl(240 5% 84%);
   --s-color-zinc-90: hsl(240 6% 90%);
   --s-color-zinc-95: hsl(240 5% 96%);
-  --s-color-zinc-99: hsl(0 0% 0.98%);
+  --s-color-zinc-99: hsl(240 0% 98%);
 
   --s-color-neutral-10: hsl(0 0% 4%);
   --s-color-neutral-20: hsl(0 0% 9%);
@@ -275,11 +275,11 @@
 
   /* Elements */
   --s-color-bg: hsl(0 0% 0%);
-  --s-color-fg: hsl(0 0% 100%);
+  --s-color-fg: hsl(0, 0%, 80%);
   --s-color-divider: hsl(0 0% 100% / 13%);
   --s-color-focus: var(--s-color-primary-80);
-  --s-color-surface: var(--s-color-neutral-10);
-  --s-color-surface-border: var(--s-color-neutral-30);
+  --s-color-surface: var(--s-color-neutral-30);
+  --s-color-surface-border: var(--s-color-neutral-40);
 
   /* Scrollbars */
   --s-color-scrollbar-thumb: hsl(0 0% 100% / 25%);
