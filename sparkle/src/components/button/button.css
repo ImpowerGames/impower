@@ -240,12 +240,14 @@
 :host > .root > .label {
   display: flex;
   visibility: visible;
-  flex-grow: var(--grow);
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
   justify-content: var(--child-justify);
   z-index: 1;
   transition-duration: var(--duration);
+}
+:host([child-justify]) > .root > .label {
+  flex-grow: var(--grow);
 }
 :host([loading]) > .root > .label {
   visibility: hidden;
