@@ -9,7 +9,7 @@
   --hover-opacity: var(--s-opacity-hover);
   --press-opacity: var(--s-opacity-press);
   --ripple-duration: 150ms;
-  --hover-duration: 75ms;
+  --hover-duration: 0ms;
   --press-duration: 105ms;
   --min-color-stop-length: 75%;
 }
