@@ -49,8 +49,7 @@
   transition-duration: var(--hover-duration);
 }
 @media (hover: hover) and (pointer: fine) {
-  :host > .root:hover::before,
-  :host > .root.hovered::before {
+  :host > .root:hover::before {
     opacity: var(--hover-opacity);
   }
 }

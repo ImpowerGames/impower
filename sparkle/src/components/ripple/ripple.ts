@@ -110,7 +110,6 @@ export default class Ripple extends SparkleElement {
   }
   set hovered(value: boolean) {
     this._hovered = value;
-    this.updateState();
     if (value) {
       this.emit(HOVERED_EVENT);
     } else {
@@ -124,7 +123,7 @@ export default class Ripple extends SparkleElement {
   }
   set focused(value: boolean) {
     this._focused = value;
-    this.updateState();
+    this.updateRootClass("focused", value);
     if (value) {
       this.emit(FOCUSED_EVENT);
     } else {
@@ -138,7 +137,7 @@ export default class Ripple extends SparkleElement {
   }
   set pressed(value: boolean) {
     this._pressed = value;
-    this.updateState();
+    this.updateRootClass("pressed", value);
     if (value) {
       this.emit(PRESSED_EVENT);
     } else {
@@ -161,33 +160,16 @@ export default class Ripple extends SparkleElement {
   ): void {
     if (name === SparkleElement.attributes.hidden) {
       if (newValue != null) {
-        this.hovered = false;
         this.focused = false;
         this.pressed = false;
       }
     }
   }
 
-  updateState(): void {
-    this.updateRootClass("hovered", this.hovered);
-    this.updateRootClass("focused", this.focused);
-    this.updateRootClass("pressed", this.pressed);
-  }
-
-  handlePointerEnter = (event: PointerEvent) => {
-    if (!this.shouldReactToEvent(event)) {
-      return;
-    }
-
-    this.hovered = true;
-  };
-
   handlePointerLeave = (event: PointerEvent) => {
     if (!this.shouldReactToEvent(event)) {
       return;
     }
-
-    this.hovered = false;
 
     // release a held mouse or pen press that moves outside the element
     if (this.state !== State.INACTIVE) {
@@ -289,7 +271,6 @@ export default class Ripple extends SparkleElement {
     element.addEventListener("contextmenu", this.handleContextMenu);
     element.addEventListener("pointercancel", this.handlePointerCancel);
     element.addEventListener("pointerdown", this.handlePointerDown);
-    element.addEventListener("pointerenter", this.handlePointerEnter);
     element.addEventListener("pointerleave", this.handlePointerLeave);
     element.addEventListener("pointerup", this.handlePointerUp);
   }
@@ -299,7 +280,6 @@ export default class Ripple extends SparkleElement {
     element.removeEventListener("contextmenu", this.handleContextMenu);
     element.removeEventListener("pointercancel", this.handlePointerCancel);
     element.removeEventListener("pointerdown", this.handlePointerDown);
-    element.removeEventListener("pointerenter", this.handlePointerEnter);
     element.removeEventListener("pointerleave", this.handlePointerLeave);
     element.removeEventListener("pointerup", this.handlePointerUp);
   }
