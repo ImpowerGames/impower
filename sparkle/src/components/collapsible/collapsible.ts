@@ -5,32 +5,34 @@ import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
+import { getScrollableParent } from "../../utils/getScrollableParent";
 import { getUnitlessValue } from "../../utils/getUnitlessValue";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./collapsible.css";
 import html from "./collapsible.html";
 
-const getCollapsedButtonOffset = (
-  buttonWidth: number,
+const getCollapsedButtonWidth = (
   iconWidth: number,
   buttonPaddingLeft: number,
   buttonPaddingRight: number
 ): number => {
-  return buttonWidth - iconWidth - buttonPaddingLeft - buttonPaddingRight;
+  return iconWidth - iconWidth / 2 + buttonPaddingLeft + buttonPaddingRight;
 };
 
 const getCollapsedIconOffset = (
   buttonX: number,
   iconX: number,
+  iconWidth: number,
   buttonPaddingLeft: number
 ): number => {
-  return buttonX - iconX + buttonPaddingLeft;
+  return buttonX - iconX - iconWidth / 4 + buttonPaddingLeft;
 };
 
 const styles = new CSSStyleSheet();
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["collapsed"]);
+const DEFAULT_ATTRIBUTES = getAttributeNameMap(["collapsed", "sentinel"]);
 
 /**
  * Collapsibles can be used to collapse child buttons so that only their icon is visible.
@@ -74,6 +76,21 @@ export default class Collapsible
     this.setStringAttribute(Collapsible.attributes.collapsed, value);
   }
 
+  /**
+   * Id of sentinel that is observed to determine if the parent has scrolled.
+   *
+   * Defaults to `scroll-sentinel`.
+   */
+  get sentinel(): string {
+    return (
+      this.getStringAttribute(Collapsible.attributes.sentinel) ||
+      "scroll-sentinel"
+    );
+  }
+  set sentinel(value) {
+    this.setStringAttribute(Collapsible.attributes.sentinel, value);
+  }
+
   protected _buttonEl: HTMLElement | null = null;
 
   get buttonEl(): HTMLElement | null {
@@ -88,8 +105,27 @@ export default class Collapsible
     return this.buttonEl?.querySelector<HTMLElement>(`.icon`) ?? null;
   }
 
+  protected _sentinelEl: HTMLElement | null = null;
   get sentinelEl(): HTMLElement | null {
-    return this.getElementByClass("sentinel");
+    if (!this._sentinelEl) {
+      const scrollParent =
+        this.closestAncestor(`:is([overflow-x], [overflow-y])`) ||
+        getScrollableParent(this.getRootNode().parentElement);
+      if (scrollParent) {
+        const sentinelId = this.sentinel;
+        const sentinel = scrollParent.querySelector(`#${sentinelId}`);
+        if (sentinel instanceof HTMLElement) {
+          this._sentinelEl = sentinel;
+        } else {
+          const sentinel = document.createElement("div");
+          sentinel.id = sentinelId;
+          sentinel.inert = true;
+          scrollParent.prepend(sentinel);
+          this._sentinelEl = sentinel;
+        }
+      }
+    }
+    return this._sentinelEl;
   }
 
   protected _buttonX: number = 0;
@@ -108,6 +144,8 @@ export default class Collapsible
     "expanded";
 
   protected _intersectionObserver?: IntersectionObserver;
+
+  protected _resizeObserver?: ResizeObserver;
 
   protected _cachedCSSVariables: Record<string, string> = {};
 
@@ -130,9 +168,11 @@ export default class Collapsible
 
   protected override onConnected(): void {
     this._intersectionObserver = new IntersectionObserver(this.handleScroll);
+    this._resizeObserver = new ResizeObserver(this.handleResize);
   }
+
   protected override onParsed(): void {
-    this.update(false);
+    this.measure().then(() => this.update(false));
     if (this.collapsed === "scrolled") {
       const sentinelEl = this.sentinelEl;
       if (sentinelEl) {
@@ -140,14 +180,33 @@ export default class Collapsible
         this._intersectionObserver?.observe(sentinelEl);
       }
     }
+    if (this._resizeObserver) {
+      this._resizeObserver?.disconnect();
+      this._resizeObserver?.observe(this.root);
+    }
+  }
+
+  protected override onDisconnected(): void {
+    this._intersectionObserver?.disconnect();
+    this._resizeObserver?.disconnect();
+  }
+
+  async measure(): Promise<void> {
+    await nextAnimationFrame();
     const buttonEl = this.buttonEl;
     const iconEl = this.iconEl;
     const labelEl = this.labelEl;
     if (buttonEl && iconEl && labelEl) {
+      this.root.style.setProperty("overflow-x", null);
+      this.root.style.setProperty("overflow-y", null);
+      this.root.style.setProperty("margin", null);
+      this.root.style.setProperty("border-width", null);
       buttonEl.style.setProperty("min-width", null);
       buttonEl.style.setProperty("max-width", null);
+      buttonEl.style.setProperty("align-self", null);
       buttonEl.style.setProperty("transform", null);
       buttonEl.style.setProperty("margin", null);
+      iconEl.style.setProperty("max-width", null);
       iconEl.style.setProperty("transform", null);
       const buttonRect = buttonEl.getBoundingClientRect();
       const iconRect = iconEl.getBoundingClientRect();
@@ -167,11 +226,295 @@ export default class Collapsible
       this._buttonPaddingRight = buttonPaddingRight;
       this._iconX = iconX;
       this._iconWidth = iconWidth;
+      this._cachedCSSVariables["--overflow-x"] =
+        buttonEl.style.getPropertyValue("--overflow-x");
+      this._cachedCSSVariables["--overflow-y"] =
+        buttonEl.style.getPropertyValue("--overflow-y");
+      this._cachedCSSVariables["--border-width"] =
+        buttonEl.style.getPropertyValue("--border-width");
+      this._cachedCSSVariables["--margin"] =
+        buttonEl.style.getPropertyValue("--margin");
+      this._cachedCSSVariables["--filter"] =
+        buttonEl.style.getPropertyValue("--filter");
+      this._cachedCSSVariables["--shadow"] =
+        buttonEl.style.getPropertyValue("--shadow");
     }
   }
 
-  protected override onDisconnected(): void {
-    this._intersectionObserver?.disconnect();
+  protected update(animated: boolean): void {
+    if (this.collapsed === "") {
+      this.collapse(animated);
+    } else {
+      this.expand(animated);
+    }
+  }
+
+  updateTransition(animated: boolean): void {
+    const buttonEl = this.buttonEl;
+    const iconEl = this.iconEl;
+    const labelEl = this.labelEl;
+    if (buttonEl && iconEl && labelEl) {
+      if (animated) {
+        const transitionProperty = `transform, opacity`;
+        const duration = getCssDuration(
+          this.getAttribute("duration"),
+          this.duration || "150ms"
+        );
+        const ease = getCssEase(this.ease, "ease-out");
+        buttonEl.style.setProperty("transition-property", transitionProperty);
+        buttonEl.style.setProperty("transition-duration", duration);
+        buttonEl.style.setProperty("transition-timing-function", ease);
+        iconEl.style.setProperty("transition-property", transitionProperty);
+        iconEl.style.setProperty("transition-duration", duration);
+        iconEl.style.setProperty("transition-timing-function", ease);
+        labelEl.style.setProperty("transition-property", transitionProperty);
+        labelEl.style.setProperty("transition-duration", duration);
+        labelEl.style.setProperty("transition-timing-function", ease);
+      } else {
+        buttonEl.style.setProperty("transition-property", "none");
+        iconEl.style.setProperty("transition-property", "none");
+        labelEl.style.setProperty("transition-property", "none");
+      }
+    }
+  }
+
+  loadBorderStyle(buttonEl: HTMLElement): void {
+    buttonEl.style.setProperty("margin", null);
+    buttonEl.style.setProperty("outline", null);
+    buttonEl.style.setProperty("border-width", null);
+    buttonEl.style.setProperty("box-shadow", null);
+    buttonEl.style.setProperty("filter", null);
+
+    const overflowX = "clip";
+    const overflowY = "clip";
+    const borderRadius = window.getComputedStyle(buttonEl).borderRadius;
+    const margin = window.getComputedStyle(buttonEl).margin;
+    const outline = window.getComputedStyle(buttonEl).outline;
+    const borderWidth = window.getComputedStyle(buttonEl).borderWidth;
+    const boxShadow = window.getComputedStyle(buttonEl).boxShadow;
+    const filter = window.getComputedStyle(buttonEl).filter;
+
+    this.root.style.setProperty("overflow-x", overflowX);
+    this.root.style.setProperty("overflow-y", overflowY);
+    this.root.style.setProperty("border-radius", borderRadius);
+    this.root.style.setProperty("margin", margin);
+    this.root.style.setProperty("outline", outline);
+    this.root.style.setProperty("border-width", borderWidth);
+    this.root.style.setProperty("box-shadow", boxShadow);
+    this.root.style.setProperty("filter", filter);
+
+    buttonEl.style.setProperty("overflow-x", "clip");
+    buttonEl.style.setProperty("overflow-y", "clip");
+    buttonEl.style.setProperty("border-width", "0");
+    buttonEl.style.setProperty("margin", "0");
+    buttonEl.style.setProperty("filter", "none");
+    buttonEl.style.setProperty("box-shadow", "none");
+
+    buttonEl.style.setProperty("--overflow-x", "clip");
+    buttonEl.style.setProperty("--overflow-y", "clip");
+    buttonEl.style.setProperty("--border-width", "0");
+    buttonEl.style.setProperty("--margin", "0");
+    buttonEl.style.setProperty("--filter", "none");
+    buttonEl.style.setProperty("--shadow", "none");
+  }
+
+  unloadBorderStyle(buttonEl: HTMLElement): void {
+    this.root.style.setProperty("overflow-x", null);
+    this.root.style.setProperty("overflow-y", null);
+    this.root.style.setProperty("border-radius", null);
+    this.root.style.setProperty("margin", null);
+    this.root.style.setProperty("outline", null);
+    this.root.style.setProperty("border-width", null);
+    this.root.style.setProperty("box-shadow", null);
+    this.root.style.setProperty("filter", null);
+
+    buttonEl.style.setProperty("overflow-x", null);
+    buttonEl.style.setProperty("overflow-y", null);
+    buttonEl.style.setProperty("margin", null);
+    buttonEl.style.setProperty("outline", null);
+    buttonEl.style.setProperty("border-width", null);
+    buttonEl.style.setProperty("box-shadow", null);
+    buttonEl.style.setProperty("filter", null);
+
+    buttonEl.style.setProperty(
+      "--overflow-x",
+      this._cachedCSSVariables["--overflow-x"] || null
+    );
+    buttonEl.style.setProperty(
+      "--overflow-y",
+      this._cachedCSSVariables["--overflow-y"] || null
+    );
+    buttonEl.style.setProperty(
+      "--border-width",
+      this._cachedCSSVariables["--border-width"] || null
+    );
+    buttonEl.style.setProperty(
+      "--margin",
+      this._cachedCSSVariables["--margin"] || null
+    );
+    buttonEl.style.setProperty(
+      "--shadow",
+      this._cachedCSSVariables["--shadow"] || null
+    );
+    buttonEl.style.setProperty(
+      "--filter",
+      this._cachedCSSVariables["--filter"] || null
+    );
+  }
+
+  loadCollapsedLayout(): void {
+    const buttonEl = this.buttonEl;
+    const iconEl = this.iconEl;
+    const labelEl = this.labelEl;
+    const collapsedButtonWidth = getCollapsedButtonWidth(
+      this._iconWidth,
+      this._buttonPaddingLeft,
+      this._buttonPaddingRight
+    );
+    if (buttonEl && iconEl && labelEl) {
+      buttonEl.style.setProperty("transition-property", "none");
+      iconEl.style.setProperty("transition-property", "none");
+      labelEl.style.setProperty("transition-property", "none");
+      buttonEl.style.setProperty("min-width", `${collapsedButtonWidth}px`);
+      buttonEl.style.setProperty("max-width", `${collapsedButtonWidth}px`);
+      buttonEl.style.setProperty("transform", null);
+      buttonEl.style.setProperty("align-self", "flex-end");
+      iconEl.style.setProperty("max-width", "0");
+      iconEl.style.setProperty("transform", `translateX(0)`);
+      labelEl.hidden = true;
+    }
+  }
+
+  unloadCollapsedLayout(): void {
+    const buttonEl = this.buttonEl;
+    const iconEl = this.iconEl;
+    const labelEl = this.labelEl;
+    if (buttonEl && iconEl && labelEl) {
+      const collapsedButtonWidth = getCollapsedButtonWidth(
+        this._iconWidth,
+        this._buttonPaddingLeft,
+        this._buttonPaddingRight
+      );
+      const buttonTranslateX = this._buttonWidth - collapsedButtonWidth;
+      const iconTranslateX = getCollapsedIconOffset(
+        this._buttonX,
+        this._iconX,
+        this._iconWidth,
+        this._buttonPaddingLeft
+      );
+      buttonEl.style.transitionProperty = "none";
+      iconEl.style.transitionProperty = "none";
+      labelEl.style.transitionProperty = "none";
+      buttonEl.style.setProperty("min-width", null);
+      buttonEl.style.setProperty("max-width", null);
+      buttonEl.style.setProperty("align-self", null);
+      buttonEl.style.setProperty(
+        "transform",
+        `translateX(${buttonTranslateX}px)`
+      );
+      iconEl.style.setProperty("max-width", null);
+      iconEl.style.setProperty("transform", `translateX(${iconTranslateX}px)`);
+      labelEl.hidden = false;
+    }
+  }
+
+  interrupted(state: "collapsing" | "expanding"): boolean {
+    return this._state !== state;
+  }
+
+  protected async collapse(animated: boolean): Promise<void> {
+    if (this._state === "collapsing" || this._state === "collapsed") {
+      return;
+    }
+    this._state = "collapsing";
+
+    await nextAnimationFrame();
+    if (this.interrupted("collapsing")) {
+      return;
+    }
+
+    this.updateTransition(animated);
+
+    if (animated) {
+      const buttonEl = this.buttonEl;
+      const iconEl = this.iconEl;
+      const labelEl = this.labelEl;
+      if (buttonEl && iconEl && labelEl) {
+        const collapsedButtonWidth = getCollapsedButtonWidth(
+          this._iconWidth,
+          this._buttonPaddingLeft,
+          this._buttonPaddingRight
+        );
+        const buttonTranslateX = this._buttonWidth - collapsedButtonWidth;
+        const iconTranslateX = getCollapsedIconOffset(
+          this._buttonX,
+          this._iconX,
+          this._iconWidth,
+          this._buttonPaddingLeft
+        );
+        buttonEl.style.transform = `translateX(${buttonTranslateX}px)`;
+        iconEl.style.transform = `translateX(${iconTranslateX}px)`;
+        labelEl.hidden = false;
+        labelEl.style.opacity = "0";
+
+        this.loadBorderStyle(buttonEl);
+
+        await animationsComplete(buttonEl);
+        if (this.interrupted("collapsing")) {
+          return;
+        }
+
+        this.unloadBorderStyle(buttonEl);
+
+        this.loadCollapsedLayout();
+      }
+    }
+    this._state = "collapsed";
+  }
+
+  protected async expand(animated: boolean): Promise<void> {
+    if (this._state === "expanding" || this._state === "expanded") {
+      return;
+    }
+    this._state = "expanding";
+
+    await nextAnimationFrame();
+    if (this.interrupted("expanding")) {
+      return;
+    }
+
+    const buttonEl = this.buttonEl;
+    const labelEl = this.labelEl;
+    const iconEl = this.iconEl;
+
+    this.unloadCollapsedLayout();
+
+    if (buttonEl) {
+      this.loadBorderStyle(buttonEl);
+    }
+
+    await nextAnimationFrame();
+    if (this.interrupted("expanding")) {
+      return;
+    }
+
+    this.updateTransition(animated);
+
+    if (buttonEl) {
+      if (animated) {
+        buttonEl?.style.setProperty("transform", `translateX(0)`);
+        iconEl?.style.setProperty("transform", `translateX(0)`);
+        labelEl?.style.setProperty("opacity", "1");
+
+        await animationsComplete(buttonEl);
+        if (this.interrupted("expanding")) {
+          return;
+        }
+      }
+      this.unloadBorderStyle(buttonEl);
+    }
+    this._state = "expanded";
+    this.measure();
   }
 
   handleScroll = (entries: IntersectionObserverEntry[]): void => {
@@ -191,263 +534,11 @@ export default class Collapsible
     }
   };
 
-  protected update(animated: boolean): void {
-    if (this.collapsed === "") {
-      this.collapse(animated);
-    } else {
-      this.expand(animated);
+  handleResize = (): void => {
+    if (!this._state || this._state === "expanded") {
+      this.measure();
     }
-  }
-
-  updateTransition(animated: boolean): void {
-    const buttonEl = this.buttonEl;
-    const iconEl = this.iconEl;
-    const labelEl = this.labelEl;
-    if (buttonEl && iconEl && labelEl) {
-      if (animated) {
-        const transitionProperty = `transform, opacity`;
-        const duration = getCssDuration(this.getAttribute("duration"), "150ms");
-        const ease = getCssEase(this.getAttribute("ease"), "ease");
-        buttonEl.style.transitionProperty = transitionProperty;
-        buttonEl.style.transitionDuration = duration;
-        buttonEl.style.transitionTimingFunction = ease;
-        iconEl.style.transitionProperty = transitionProperty;
-        iconEl.style.transitionDuration = duration;
-        iconEl.style.transitionTimingFunction = ease;
-        labelEl.style.transitionProperty = transitionProperty;
-        labelEl.style.transitionDuration = duration;
-        labelEl.style.transitionTimingFunction = ease;
-      } else {
-        buttonEl.style.transitionProperty = "none";
-        iconEl.style.transitionProperty = "none";
-        labelEl.style.transitionProperty = "none";
-      }
-    }
-  }
-
-  loadBorderStyle(targetEl: HTMLElement): void {
-    targetEl.style.setProperty("margin", null);
-    targetEl.style.setProperty("outline", null);
-    targetEl.style.setProperty("border-width", null);
-    targetEl.style.setProperty("box-shadow", null);
-    targetEl.style.setProperty("filter", null);
-
-    const overflowX = "clip";
-    const overflowY = "clip";
-    const borderRadius = window.getComputedStyle(targetEl).borderRadius;
-    const margin = window.getComputedStyle(targetEl).margin;
-    const outline = window.getComputedStyle(targetEl).outline;
-    const borderWidth = window.getComputedStyle(targetEl).borderWidth;
-    const boxShadow = window.getComputedStyle(targetEl).boxShadow;
-    const filter = window.getComputedStyle(targetEl).filter;
-
-    this.root.style.setProperty("overflow-x", overflowX);
-    this.root.style.setProperty("overflow-y", overflowY);
-    this.root.style.setProperty("border-radius", borderRadius);
-    this.root.style.setProperty("margin", margin);
-    this.root.style.setProperty("outline", outline);
-    this.root.style.setProperty("border-width", borderWidth);
-    this.root.style.setProperty("box-shadow", boxShadow);
-    this.root.style.setProperty("filter", filter);
-
-    targetEl.style.setProperty("overflow-x", "clip");
-    targetEl.style.setProperty("overflow-y", "clip");
-    targetEl.style.setProperty("border-width", "0");
-    targetEl.style.setProperty("margin", "0");
-    targetEl.style.setProperty("filter", "none");
-    targetEl.style.setProperty("box-shadow", "none");
-
-    this._cachedCSSVariables["--overflow-x"] =
-      targetEl.style.getPropertyValue("--overflow-x");
-    this._cachedCSSVariables["--overflow-y"] =
-      targetEl.style.getPropertyValue("--overflow-y");
-    this._cachedCSSVariables["--border-width"] =
-      targetEl.style.getPropertyValue("--border-width");
-    this._cachedCSSVariables["--margin"] =
-      targetEl.style.getPropertyValue("--margin");
-    this._cachedCSSVariables["--filter"] =
-      targetEl.style.getPropertyValue("--filter");
-    this._cachedCSSVariables["--shadow"] =
-      targetEl.style.getPropertyValue("--shadow");
-
-    targetEl.style.setProperty("--overflow-x", "clip");
-    targetEl.style.setProperty("--overflow-y", "clip");
-    targetEl.style.setProperty("--border-width", "0");
-    targetEl.style.setProperty("--margin", "0");
-    targetEl.style.setProperty("--filter", "none");
-    targetEl.style.setProperty("--shadow", "none");
-  }
-
-  unloadBorderStyle(targetEl: HTMLElement): void {
-    this.root.style.setProperty("overflow-x", null);
-    this.root.style.setProperty("overflow-y", null);
-    this.root.style.setProperty("border-radius", null);
-    this.root.style.setProperty("margin", null);
-    this.root.style.setProperty("outline", null);
-    this.root.style.setProperty("border-width", null);
-    this.root.style.setProperty("box-shadow", null);
-    this.root.style.setProperty("filter", null);
-
-    targetEl.style.setProperty("overflow-x", null);
-    targetEl.style.setProperty("overflow-y", null);
-    targetEl.style.setProperty("margin", null);
-    targetEl.style.setProperty("outline", null);
-    targetEl.style.setProperty("border-width", null);
-    targetEl.style.setProperty("box-shadow", null);
-    targetEl.style.setProperty("filter", null);
-
-    targetEl.style.setProperty(
-      "--overflow-x",
-      this._cachedCSSVariables["--overflow-x"] || null
-    );
-    targetEl.style.setProperty(
-      "--overflow-y",
-      this._cachedCSSVariables["--overflow-y"] || null
-    );
-    targetEl.style.setProperty(
-      "--border-width",
-      this._cachedCSSVariables["--border-width"] || null
-    );
-    targetEl.style.setProperty(
-      "--margin",
-      this._cachedCSSVariables["--margin"] || null
-    );
-    targetEl.style.setProperty(
-      "--shadow",
-      this._cachedCSSVariables["--shadow"] || null
-    );
-    targetEl.style.setProperty(
-      "--filter",
-      this._cachedCSSVariables["--filter"] || null
-    );
-  }
-
-  loadCollapsedLayout(): void {
-    const buttonEl = this.buttonEl;
-    const iconEl = this.iconEl;
-    const labelEl = this.labelEl;
-    const collapsedButtonWidth =
-      this._iconWidth + this._buttonPaddingLeft + this._buttonPaddingRight;
-    if (buttonEl && iconEl && labelEl) {
-      buttonEl.style.transitionProperty = "none";
-      iconEl.style.transitionProperty = "none";
-      labelEl.style.transitionProperty = "none";
-      buttonEl.style.setProperty("min-width", `${collapsedButtonWidth}px`);
-      buttonEl.style.setProperty("max-width", `${collapsedButtonWidth}px`);
-      iconEl.style.setProperty("transform", `translateX(0)`);
-      labelEl.hidden = true;
-    }
-  }
-
-  unloadCollapsedLayout(): void {
-    const buttonEl = this.buttonEl;
-    const iconEl = this.iconEl;
-    const labelEl = this.labelEl;
-    if (buttonEl && iconEl && labelEl) {
-      const buttonTranslateX = getCollapsedButtonOffset(
-        this._buttonWidth,
-        this._iconWidth,
-        this._buttonPaddingLeft,
-        this._buttonPaddingRight
-      );
-      const iconTranslateX = getCollapsedIconOffset(
-        this._buttonX,
-        this._iconX,
-        this._buttonPaddingLeft
-      );
-      buttonEl.style.transitionProperty = "none";
-      iconEl.style.transitionProperty = "none";
-      labelEl.style.transitionProperty = "none";
-      buttonEl.style.setProperty("min-width", null);
-      buttonEl.style.setProperty("max-width", null);
-      buttonEl.style.setProperty(
-        "transform",
-        `translateX(${buttonTranslateX}px)`
-      );
-      iconEl.style.setProperty("transform", `translateX(${iconTranslateX}px)`);
-      labelEl.hidden = false;
-    }
-  }
-
-  protected async collapse(animated: boolean): Promise<void> {
-    if (this._state === "collapsing" || this._state === "collapsed") {
-      return;
-    }
-    this._state = "collapsing";
-
-    this.updateTransition(animated);
-
-    if (animated) {
-      const buttonEl = this.buttonEl;
-      const iconEl = this.iconEl;
-      const labelEl = this.labelEl;
-      if (buttonEl && iconEl && labelEl) {
-        const buttonTranslateX = getCollapsedButtonOffset(
-          this._buttonWidth,
-          this._iconWidth,
-          this._buttonPaddingLeft,
-          this._buttonPaddingRight
-        );
-        const iconTranslateX = getCollapsedIconOffset(
-          this._buttonX,
-          this._iconX,
-          this._buttonPaddingLeft
-        );
-        buttonEl.style.transform = `translateX(${buttonTranslateX}px)`;
-        iconEl.style.transform = `translateX(${iconTranslateX}px)`;
-        labelEl.hidden = false;
-        labelEl.style.opacity = "0";
-
-        this.loadBorderStyle(buttonEl);
-
-        await animationsComplete(buttonEl);
-        if (this._state !== "collapsing") {
-          return;
-        }
-
-        this.unloadBorderStyle(buttonEl);
-
-        this.loadCollapsedLayout();
-      }
-    }
-    this._state = "collapsed";
-  }
-
-  protected async expand(animated: boolean): Promise<void> {
-    if (this._state === "expanding" || this._state === "expanded") {
-      return;
-    }
-    this._state = "expanding";
-
-    this.unloadCollapsedLayout();
-
-    await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    if (this._state !== "expanding") {
-      return;
-    }
-
-    this.updateTransition(animated);
-    if (animated) {
-      const buttonEl = this.buttonEl;
-      const labelEl = this.labelEl;
-      const iconEl = this.iconEl;
-      if (buttonEl && iconEl && labelEl) {
-        buttonEl.style.transform = `translateX(0)`;
-        iconEl.style.transform = `translateX(0)`;
-        labelEl.style.opacity = "1";
-
-        this.loadBorderStyle(buttonEl);
-
-        await animationsComplete(buttonEl);
-        if (this._state !== "expanding") {
-          return;
-        }
-
-        this.unloadBorderStyle(buttonEl);
-      }
-    }
-    this._state = "expanded";
-  }
+  };
 
   protected override onContentAssigned(children: Element[]): void {
     const elements = children;

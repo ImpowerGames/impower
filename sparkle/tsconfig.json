@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "esnext",
+    "target": "es2017",
     "lib": ["esnext", "dom"],
     "outDir": "dist",
     "declaration": true,
@@ -19,7 +19,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "checkJs": true
   },
   "include": ["src/**/*", "scripts/**/*"]
 }

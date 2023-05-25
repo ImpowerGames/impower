@@ -3,7 +3,7 @@
     "module": "esnext",
     "moduleResolution": "nodenext",
     "outDir": "dist/mjs",
-    "target": "es2020",
+    "target": "es2017",
     "lib": ["esnext"],
     "declaration": true,
     "skipLibCheck": true,
@@ -20,7 +20,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "checkJs": true
   },
   "include": ["src/**/*"]
 }

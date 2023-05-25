@@ -259,6 +259,8 @@
 :host > .root > .icon {
   display: none;
   visibility: visible;
+  align-items: center;
+  justify-content: center;
 }
 :host([loading]) > .root > .icon {
   visibility: hidden;

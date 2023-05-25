@@ -54,7 +54,7 @@
   opacity: 0;
 }
 :host(:not([vertical])) > .root > .panel > .resize {
-  min-width: var(--min-panel-width);
+  min-width: calc(var(--min-panel-width) + var(--resizer-width));
   width: var(--initial-size);
   height: 16px;
   transform: scaleY(1000);
