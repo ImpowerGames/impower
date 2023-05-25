@@ -61,7 +61,7 @@
   opacity: 0.5;
 }
 :host([active]:not([disabled])) > .root {
-  color: var(--color);
+  color: var(--color) !important;
 }
 
 :host([active]:not([disabled], [state="activating"], [state="deactivating"]))
@@ -71,7 +71,7 @@
   inset: 0;
   border-style: solid;
   border-width: 0 0 var(--indicator-width) 0;
-  border-color: white;
+  border-color: var(--color);
   pointer-events: none;
 }
 
