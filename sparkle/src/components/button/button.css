@@ -11,6 +11,7 @@
   --interactable: auto;
   --selectable: none;
   --width: auto;
+  --height: auto;
   --text-font: var(--s-font-sans);
   --text-wrap: nowrap;
   --transition-property: transform, background-color, color, border, filter;
@@ -24,7 +25,6 @@
 }
 
 :host([size="xs"]) > .root {
-  --height: 24px;
   --height-min: 24px;
   --text-size: var(--s-text-2xs-font-size);
   --text-leading: var(--s-text-2xs-line-height);
@@ -32,7 +32,6 @@
 }
 
 :host([size="sm"]) > .root {
-  --height: 32px;
   --height-min: 32px;
   --text-size: var(--s-text-sm-font-size);
   --text-leading: var(--s-text-sm-line-height);
@@ -41,7 +40,6 @@
 
 :host,
 :host([size="md"]) > .root {
-  --height: 40px;
   --height-min: 40px;
   --text-size: var(--s-text-sm-font-size);
   --text-leading: var(--s-text-sm-line-height);
@@ -49,7 +47,6 @@
 }
 
 :host([size="lg"]) > .root {
-  --height: 48px;
   --height-min: 48px;
   --text-size: var(--s-text-md-font-size);
   --text-leading: var(--s-text-md-line-height);
