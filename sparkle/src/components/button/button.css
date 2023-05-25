@@ -96,25 +96,25 @@
 }
 
 /* Filled */
-:host,
+:host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
   --shadow: var(--s-shadow-drop-1);
 }
 @media (hover: hover) and (pointer: fine) {
-  :host > .root:hover,
+  :host(:not([variant])) > .root:hover,
   :host([variant="filled"]) > .root:hover {
     --shadow: var(--s-shadow-drop-2);
   }
 }
-:host > .root:active,
+:host(:not([variant])) > .root:active,
 :host([variant="filled"]) > .root:active {
   --shadow: var(--s-shadow-drop-0);
 }
-:host,
+:host(:not([variant])),
 :host([variant="filled"]) {
   --text-weight: 500;
 }
-:host > .root,
+:host(:not([variant])) > .root,
 :host([variant="filled"]) > .root {
   color: var(--text-color);
   background-color: var(--color);

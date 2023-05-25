@@ -2,7 +2,6 @@
   display: contents;
 }
 :host {
-  --spacing: 6px;
   --interactable: auto;
   --selectable: none;
   --child-layout: column;
@@ -26,10 +25,10 @@
 }
 
 :host(:not([child-layout="row"])) {
-  --gap: 4px;
+  --child-gap: 4px;
 }
 :host([child-layout="row"]) {
-  --gap: 8px;
+  --child-gap: 8px;
 }
 
 :host > .root {
@@ -53,7 +52,7 @@
   transition-duration: var(--duration);
   padding-block: var(--padding-tb);
   padding-inline: var(--padding-lr);
-  gap: var(--gap);
+  gap: var(--child-gap);
   will-change: transform;
 }
 :host([disabled]) > .root {

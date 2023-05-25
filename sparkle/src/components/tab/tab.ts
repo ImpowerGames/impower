@@ -21,7 +21,7 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 export const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v, Icons.all()),
   "active-icon": (v: string) => getCssIcon(v, Icons.all()),
-  spacing: getCssSize,
+  "icon-size": getCssSize,
   "hover-color": getCssColor,
 };
 
@@ -120,13 +120,13 @@ export default class Tab
   }
 
   /**
-   * The spacing between the icon and the label.
+   * The size of the icon.
    */
-  get spacing(): SizeName | string | null {
-    return this.getStringAttribute(Tab.attributes.spacing);
+  get iconSize(): SizeName | string | null {
+    return this.getStringAttribute(Tab.attributes.iconSize);
   }
-  set spacing(value) {
-    this.setStringAttribute(Tab.attributes.spacing, value);
+  set iconSize(value) {
+    this.setStringAttribute(Tab.attributes.iconSize, value);
   }
 
   /**
