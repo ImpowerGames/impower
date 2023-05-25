@@ -118,7 +118,7 @@
   outline-offset: calc(-2 * var(--s-focus-ring-width));
 }
 :host > .root.focused::before {
-  outline-offset: calc(-1 * var(--s-focus-ring-width));
+  outline-offset: calc(-2 * var(--s-focus-ring-width));
 }
 :host > .root.focused.pressed::before {
   outline-offset: calc((-2 * var(--s-focus-ring-width)) + 1px);

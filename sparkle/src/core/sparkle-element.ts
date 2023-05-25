@@ -1824,9 +1824,21 @@ export default class SparkleElement
     return this.getElementByClass("content-slot");
   }
 
+  get selfChildren(): Element[] {
+    return Array.from(this.self.querySelectorAll("*"));
+  }
+
+  get assignedChildren(): Element[] {
+    return (
+      this.contentSlot?.assignedElements({
+        flatten: true,
+      }) || []
+    );
+  }
+
   get focusableChildren(): HTMLElement[] {
     if (this.shadowRoot) {
-      const elements = this.contentSlot?.assignedElements();
+      const elements = this.contentSlot?.assignedElements({ flatten: true });
       if (elements) {
         return elements.filter(isFocusableElement);
       }
@@ -1916,12 +1928,20 @@ export default class SparkleElement
     return css;
   }
 
-  override focus(options?: FocusOptions) {
-    this.root.focus(options);
+  override focus(options?: FocusOptions | undefined): void {
+    this.selfChildren?.forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.focus(options);
+      }
+    });
   }
 
-  override blur() {
-    this.root.blur();
+  override blur(): void {
+    this.selfChildren?.forEach((el) => {
+      if (el instanceof HTMLElement) {
+        el.blur();
+      }
+    });
   }
 
   protected showFocusRing = (visible: boolean) => {
@@ -2035,6 +2055,11 @@ export default class SparkleElement
       this.handleContentChildrenAssigned(
         Array.from(this.contentSlot?.children || [])
       );
+    }
+    if (this.navigation != null) {
+      this.bindNavigation();
+    } else {
+      this.unbindNavigation();
     }
     this.bindFocus(this.root);
     this.onConnected();

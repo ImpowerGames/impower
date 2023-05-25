@@ -7,8 +7,6 @@
   --position: relative;
   --duration: 100ms;
   --indicator-width: 2px;
-  --overflow-x: clip;
-  --overflow-y: clip;
 }
 
 :host([indicator="none"]) > .root {
@@ -19,8 +17,6 @@
   display: flex;
   flex-direction: var(--child-layout);
   position: var(--position);
-  overflow-x: var(--overflow-x);
-  overflow-y: var(--overflow-y);
 }
 :host([vertical]) > .root {
   flex-direction: row;

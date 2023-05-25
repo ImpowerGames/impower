@@ -587,23 +587,23 @@
 }
 
 button::before {
-  --focus-duration: 50ms !important;
-  position: absolute !important;
-  inset: 0 !important;
-  content: "" !important;
-  border-radius: inherit !important;
-  transition-property: outline-offset, opacity !important;
-  transition-duration: var(--focus-duration) !important;
-  transition-timing-function: ease !important;
-  outline-offset: calc(-1 * var(--s-focus-ring-width)) !important;
+  --focus-duration: 50ms;
+  position: absolute;
+  inset: 0;
+  content: "";
+  border-radius: inherit;
+  transition-property: outline-offset, opacity;
+  transition-duration: var(--focus-duration);
+  transition-timing-function: ease;
+  outline-offset: calc(-1 * var(--s-focus-ring-width));
 }
 button.focused::before {
   outline: var(--s-color-focus) var(--s-focus-ring-style)
-    var(--s-focus-ring-width) !important;
-  outline-offset: var(--s-focus-ring-offset) !important;
-  -webkit-mask: none !important;
-  mask: none !important;
+    var(--s-focus-ring-width);
+  outline-offset: var(--s-focus-ring-offset);
+  -webkit-mask: none;
+  mask: none;
 }
 button.focused.pressed::before {
-  outline-offset: calc((-1 * var(--s-focus-ring-width)) + 1px) !important;
+  outline-offset: calc((-1 * var(--s-focus-ring-width)) + 1px);
 }
