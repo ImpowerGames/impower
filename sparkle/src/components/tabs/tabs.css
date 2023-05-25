@@ -5,8 +5,9 @@
   --color: var(--s-color-primary-60);
   --child-layout: column;
   --position: relative;
-  --duration: 100ms;
+  --duration: 150ms;
   --indicator-width: 2px;
+  --ease: ease-out;
 }
 
 :host([indicator="none"]) > .root {
@@ -47,10 +48,10 @@
 :host > .root > .indicator {
   position: relative;
   background-color: var(--color);
+  transition-property: transform;
   transition-duration: var(--duration);
-  transition-timing-function: var(--ease, ease);
-  opacity: 0;
-  will-change: transform, opacity;
+  transition-timing-function: var(--ease);
+  will-change: transform;
 }
 :host(:not([vertical])) > .root > .indicator {
   bottom: var(--indicator-width);

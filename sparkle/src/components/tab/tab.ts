@@ -29,6 +29,7 @@ const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "active",
   "value",
   "disabled",
+  "state",
   ...getKeys(DEFAULT_TRANSFORMERS),
 ]);
 
@@ -126,6 +127,16 @@ export default class Tab
   }
   set spacing(value) {
     this.setStringAttribute(Tab.attributes.spacing, value);
+  }
+
+  /**
+   * Reflects if the tab is in the process of activating or deactivating.
+   */
+  get state(): "activating" | "deactivating" | null {
+    return this.getStringAttribute(Tab.attributes.state);
+  }
+  set state(value) {
+    this.setStringAttribute(Tab.attributes.state, value);
   }
 
   get ripple(): Ripple | null {

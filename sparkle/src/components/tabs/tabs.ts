@@ -126,8 +126,6 @@ export default class Tabs
     return this.getElementByClass("nav");
   }
 
-  protected _resizeObserver?: ResizeObserver;
-
   protected _pointerDownOnAnyTab?: boolean;
 
   protected _activatingValue: string | null = null;
@@ -138,7 +136,7 @@ export default class Tabs
     newValue: string
   ): void {
     if (name === Tabs.attributes.indicator) {
-      this.updateTabs();
+      this.updateTabs(false);
       const indicatorEl = this.indicatorEl;
       if (indicatorEl) {
         indicatorEl.hidden = newValue === "none";
@@ -150,7 +148,7 @@ export default class Tabs
         Tabs.attributes.ariaOrientation,
         vertical ? "vertical" : "horizontal"
       );
-      this.updateTabs();
+      this.updateTabs(false);
     }
   }
 
@@ -166,24 +164,25 @@ export default class Tabs
       Tabs.attributes.ariaOrientation,
       vertical ? "vertical" : "horizontal"
     );
-    this._resizeObserver = new ResizeObserver(this.handleResize);
   }
 
   protected override onParsed(): void {
-    this._resizeObserver?.observe(this.root);
     this.setupTabs(getSlotChildren(this, this.contentSlot));
   }
 
   protected override onDisconnected(): void {
-    this._resizeObserver?.disconnect();
     this.unbindTabs();
   }
 
-  async activateTab(tab: Tab): Promise<void> {
+  async activateTab(tab: Tab, animate: boolean): Promise<void> {
     const oldTab = this.tabs.find((tab) => tab.active);
     const newValue = tab.value;
     const changed = this.value !== newValue;
     this.value = newValue;
+
+    if (oldTab === tab) {
+      return;
+    }
 
     await nextAnimationFrame();
     if (this.interrupted(newValue)) {
@@ -198,9 +197,12 @@ export default class Tabs
       this.emit(CHANGING_EVENT, detail);
     }
 
+    if (oldTab && oldTab !== tab) {
+      oldTab.active = false;
+    }
     tab.active = true;
-    if (this.indicator !== "none") {
-      await this.updateIndicator(tab);
+    if (animate && this.indicator !== "none") {
+      await this.updateIndicator(newValue, tab, oldTab);
     }
 
     await animationsComplete(tab.labelEl, tab.iconEl, this.indicatorEl);
@@ -221,40 +223,65 @@ export default class Tabs
     tab.active = false;
   }
 
-  async updateIndicator(tab: Tab): Promise<void> {
-    await nextAnimationFrame();
+  async updateIndicator(
+    newValue: string | null,
+    tab: Tab,
+    oldTab?: Tab
+  ): Promise<void> {
     const indicator = this.indicatorEl;
     const navEl = this.navEl;
     const vertical = this.vertical;
     const tabEl = tab?.root;
-    if (navEl && tabEl) {
-      const size = vertical ? tabEl.offsetHeight : tabEl.offsetWidth;
-      const offset = vertical
-        ? tabEl.offsetTop - navEl.offsetTop
-        : tabEl.offsetLeft - navEl.offsetLeft;
-      if (indicator) {
-        if (!indicator.style.transform) {
-          indicator.style.setProperty("transition", "none");
-        } else {
-          indicator.style.setProperty("transition", null);
-        }
-        indicator.style.transform = vertical
-          ? `translateY(${offset}px) scaleY(${size})`
-          : `translateX(${offset}px) scaleX(${size})`;
 
-        await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    if (!navEl || !tabEl || !indicator) {
+      return;
+    }
 
-        indicator.style.setProperty("transition", null);
-        indicator.style.opacity = "1";
-      }
+    tab.state = "activating";
+    if (oldTab) {
+      oldTab.state = "deactivating";
+    }
+
+    const size = vertical ? tabEl.offsetHeight : tabEl.offsetWidth;
+    const offset = vertical
+      ? tabEl.offsetTop - navEl.offsetTop
+      : tabEl.offsetLeft - navEl.offsetLeft;
+
+    const transform = vertical
+      ? `translateY(${offset}px)`
+      : `translateX(${offset}px)`;
+    if (vertical) {
+      indicator.style.setProperty("height", `${size}px`);
+    } else {
+      indicator.style.setProperty("width", `${size}px`);
+    }
+    indicator.style.setProperty("display", "flex");
+
+    await nextAnimationFrame();
+    if (this.interrupted(newValue)) {
+      return;
+    }
+
+    indicator.style.setProperty("transform", transform);
+
+    await animationsComplete(indicator);
+    if (this.interrupted(newValue)) {
+      return;
+    }
+
+    indicator.style.setProperty("display", "none");
+
+    tab.state = null;
+    if (oldTab) {
+      oldTab.state = null;
     }
   }
 
-  async updateTabs(): Promise<void> {
+  async updateTabs(animate: boolean): Promise<void> {
     await Promise.all(
       this.tabs.map((tab) => {
         if (this._activatingValue === tab.value) {
-          return this.activateTab(tab);
+          return this.activateTab(tab, animate);
         } else {
           return this.deactivateTab(tab);
         }
@@ -299,7 +326,7 @@ export default class Tabs
         tab.focus();
         if (activate) {
           this._activatingValue = tab.value;
-          this.updateTabs();
+          this.updateTabs(true);
         }
       }
     }
@@ -345,7 +372,7 @@ export default class Tabs
     const tab = e.currentTarget as Tab;
     if (this._pointerDownOnAnyTab) {
       this._activatingValue = tab.value;
-      this.updateTabs();
+      this.updateTabs(true);
     }
   };
 
@@ -392,11 +419,7 @@ export default class Tabs
   handleClickTab = (e: MouseEvent): void => {
     const tab = e.currentTarget as Tab;
     this._activatingValue = tab.value;
-    this.updateTabs();
-  };
-
-  protected handleResize = (): void => {
-    this.updateTabs();
+    this.updateTabs(true);
   };
 
   protected setupTabs(children: Element[]): void {
@@ -405,7 +428,7 @@ export default class Tabs
       (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
     ) as Tab[];
     this.bindTabs();
-    this.updateTabs();
+    this.updateTabs(false);
   }
 }
 
