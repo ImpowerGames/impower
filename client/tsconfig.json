@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "module": "esnext",
-    "target": "esnext",
+    "module": "commonjs",
+    "target": "es2017",
     "noEmit": true,
-    "lib": ["dom", "dom.iterable", "esnext", "webworker"],
+    "lib": ["esnext", "dom", "dom.iterable", "webworker"],
     "sourceMap": true,
     "strict": false,
     "alwaysStrict": false,
