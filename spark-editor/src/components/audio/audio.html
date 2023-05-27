@@ -1,0 +1,26 @@
+<s-router directional>
+  <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header" value="sounds">
+    <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row"
+      icon="wave-saw" value="sounds" active>
+      Sounds
+    </s-tab>
+    <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row" icon="music"
+      value="music">
+      Music
+    </s-tab>
+  </s-tabs>
+  <se-sounds></se-sounds>
+  <template value="sounds">
+    <se-sounds></se-sounds>
+  </template>
+  <template value="music">
+    <se-music></se-music>
+  </template>
+  <se-add-fab slot="footer">Add Sound</se-add-fab>
+  <template value="sounds" slot="footer">
+    <se-add-fab>Add Sound</se-add-fab>
+  </template>
+  <template value="music" slot="footer">
+    <se-add-fab>Add Music</se-add-fab>
+  </template>
+</s-router>

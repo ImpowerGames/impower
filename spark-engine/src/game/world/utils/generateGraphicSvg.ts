@@ -23,7 +23,7 @@ export const generateGraphicSvg = (graphic: Graphic): string => {
       const validStrokeOpacity = strokeOpacity ?? 1;
       const validStrokeWeight = strokeWeight ?? 1;
       const validStrokeJoin = strokeJoin ?? "miter";
-      const validStrokeCap = strokeCap ?? "round";
+      const validStrokeCap = strokeCap ?? "square";
       const fill = `fill="${validFillColor}" fill-opacity="${validFillOpacity}" `;
       const stroke = `stroke="${validStrokeColor}" stroke-opacity="${validStrokeOpacity}" stroke-width="${validStrokeWeight}" stroke-linejoin="${validStrokeJoin}" stroke-linecap="${validStrokeCap}" `;
       const d = `d="${path}" `;

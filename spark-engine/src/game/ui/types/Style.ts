@@ -1,218 +1,516 @@
-import { EaseType } from "../../core";
-
 export interface SparkStyleProperties {
   /** position */
-  placement: "relative" | "absolute" | "fixed" | "sticky";
-
-  /** top, bottom, left, right */
-  anchor:
-    | "stretch"
-    | "top-stretch"
-    | "middle-stretch"
-    | "bottom-stretch"
-    | "left-stretch"
-    | "center-stretch"
-    | "right-stretch"
-    | "top-left"
-    | "top-center"
-    | "top-right"
-    | "middle-left"
-    | "middle-right"
-    | "bottom-left"
-    | "bottom-center"
-    | "bottom-right";
-
-  /** margin-top */
-  marginTop: number;
-  /** margin-right */
-  marginRight: number;
-  /** margin-bottom */
-  marginBottom: number;
-  /** margin-left */
-  marginLeft: number;
-
-  /** padding-top */
-  paddingTop: number;
-  /** padding-right */
-  paddingRight: number;
-  /** padding-bottom */
-  paddingBottom: number;
-  /** padding-left */
-  paddingLeft: number;
-
-  /** min-width */
-  widthMin: number;
-  /** max-width */
-  widthMax: number;
-
-  /** min-height */
-  heightMin: number;
-  /** max-height */
-  heightMax: number;
+  position: "" | "default" | "relative" | "fixed" | "absolute" | "sticky";
 
   /** aspect-ratio */
-  aspectRatio:
-    | "none"
-    | "1:1"
-    | "16:9"
-    | "9:16"
-    | "4:5"
-    | "2:3"
-    | "2:1"
-    | string;
+  aspect: "1/1" | "16/9" | "9/16" | "4/5" | "2/3" | "2/1" | string;
 
-  /** flex */
-  stretch: number;
+  /** overflow-x */
+  overflowX: "" | "visible" | "scroll" | "clip";
+  /** overflow-y */
+  overflowY: "" | "visible" | "scroll" | "clip";
 
   /** z-index */
-  depth: number;
+  z: "" | number;
 
-  /** border-radius, clip-path */
-  cornerShape:
-    | "round"
-    | "round-top"
-    | "round-bottom"
-    | "round-left"
-    | "round-right"
-    | "round-top-right"
-    | "round-top-left"
-    | "round-bottom-right"
-    | "round-bottom-left"
-    | "cut"
-    | "cut-top"
-    | "cut-bottom"
-    | "cut-left"
-    | "cut-right"
-    | "cut-top-right"
-    | "cut-top-left"
-    | "cut-bottom-right"
-    | "cut-bottom-left";
-  /** border-radius, clip-path */
-  cornerRadius: number;
+  /** width */
+  width: "" | "100%" | "min-content" | "max-content" | number;
+  /** min-width */
+  widthMin: "" | "100%" | "min-content" | "max-content" | number;
+  /** max-width */
+  widthMax: "" | "100%" | "min-content" | "max-content" | number;
+
+  /** height */
+  height: "" | "100%" | "min-content" | "max-content" | number;
+  /** min-height */
+  heightMin: "" | "100%" | "min-content" | "max-content" | number;
+  /** max-height */
+  heightMax: "" | "100%" | "min-content" | "max-content" | number;
+
+  /** border-top-left-radius, border-left-right-radius, border-bottom-left-radius, border-bottom-right-radius */
+  corner: "" | number;
+  /** border-top-left-radius, border-top-right-radius */
+  cornerT: "" | number;
+  /** border-top-right-radius, border-bottom-right-radius */
+  cornerR: "" | number;
+  /** border-bottom-left-radius, border-bottom-right-radius */
+  cornerB: "" | number;
+  /** border-top-left-radius, border-bottom-left-radius */
+  cornerL: "" | number;
+  /** border-top-left-radius */
+  cornerTL: "" | number;
+  /** border-top-right-radius */
+  cornerTR: "" | number;
+  /** border-bottom-right-radius */
+  cornerBR: "" | number;
+  /** border-bottom-left-radius */
+  cornerBL: "" | number;
+
+  /** top, right, bottom, left */
+  inset: "" | number;
+  /** margin-top */
+  insetT: "" | number;
+  /** margin-right */
+  insetR: "" | number;
+  /** margin-bottom */
+  insetB: "" | number;
+  /** margin-left */
+  insetL: "" | number;
+  /** left, right */
+  insetLR: "" | number;
+  /** top, bottom */
+  insetTB: "" | number;
+
+  /** margin-top, margin-right, margin-bottom, margin-left  */
+  margin: "" | number;
+  /** margin-top */
+  marginT: "" | number;
+  /** margin-right */
+  marginR: "" | number;
+  /** margin-bottom */
+  marginB: "" | number;
+  /** margin-left */
+  marginL: "" | number;
+  /** margin-left, margin-right */
+  marginLR: "" | number;
+  /** margin-top, margin-bottom */
+  marginTB: "" | number;
+
+  /** padding-top, padding-right, padding-bottom, padding-left  */
+  padding: "" | number;
+  /** padding-top */
+  paddingT: "" | number;
+  /** padding-right */
+  paddingR: "" | number;
+  /** padding-bottom */
+  paddingB: "" | number;
+  /** padding-left */
+  paddingL: "" | number;
+  /** padding-left, padding-right */
+  paddingLR: "" | number;
+  /** padding-top, padding-bottom */
+  paddingTB: "" | number;
+
+  /** display:flex, flex-direction */
+  childLayout: "" | "row" | "column" | "row-reverse" | "column-reverse";
+  /** gap */
+  childGap: "" | number;
+  /** align-items */
+  childAlign: "" | "center" | "stretch" | "start" | "end";
+  /** justify-content */
+  childJustify:
+    | ""
+    | "center"
+    | "stretch"
+    | "start"
+    | "end"
+    | "between"
+    | "around"
+    | "evenly";
+  /** flex-wrap */
+  overflowOverflow: "" | "visible" | "wrap" | "wrap-reverse";
+  /** align-self */
+  selfAlign: "" | "center" | "stretch" | "start" | "end";
+
+  /** flex */
+  grow: "" | number;
+  shrink: "" | number;
+
+  /** visibility */
+  invisible: boolean;
+  /** pointer-events */
+  interactable: boolean;
+  /** user-select */
+  selectable: boolean;
+
+  /** fill */
+  fill:
+    | ""
+    | "none"
+    | "fg"
+    | "bg"
+    | "neutral"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "gray"
+    | "red"
+    | "orange"
+    | "amber"
+    | "yellow"
+    | "lime"
+    | "green"
+    | "emerald"
+    | "teal"
+    | "cyan"
+    | "sky"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "purple"
+    | "fuchsia"
+    | "pink"
+    | "rose"
+    | string;
+  /** stroke */
+  stroke:
+    | ""
+    | "none"
+    | "fg"
+    | "bg"
+    | "neutral"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "gray"
+    | "red"
+    | "orange"
+    | "amber"
+    | "yellow"
+    | "lime"
+    | "green"
+    | "emerald"
+    | "teal"
+    | "cyan"
+    | "sky"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "purple"
+    | "fuchsia"
+    | "pink"
+    | "rose"
+    | string;
+  /** strokeWidth */
+  strokeWidth: "" | number;
 
   /** background-color */
-  backgroundColor: "none" | "black" | "white" | string;
-  /** background-image: <linear-gradient|radial-gradient> */
-  backgroundGradient: "none" | string;
-  /** background-image: <url> */
-  backgroundPattern: "none" | string;
-  /** background-image: <url> */
-  backgroundGraphic: "none" | string;
-  /** background-repeat */
-  backgroundRepeat: boolean;
-  /** background-position */
-  backgroundAlign: "center" | "top" | "right" | "bottom" | "left";
-  /** background-size */
-  backgroundFit: "cover" | "contain";
-  /** box-shadow */
-  backgroundShadow: "none" | "xs" | "sm" | "md" | "lg" | "xl" | string;
+  color:
+    | ""
+    | "none"
+    | "fg"
+    | "bg"
+    | "neutral"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "gray"
+    | "red"
+    | "orange"
+    | "amber"
+    | "yellow"
+    | "lime"
+    | "green"
+    | "emerald"
+    | "teal"
+    | "cyan"
+    | "sky"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "purple"
+    | "fuchsia"
+    | "pink"
+    | "rose"
+    | string;
 
-  /** backdrop-filter: blur, brightness, contrast, drop-shadow, grayscale, hue-rotate, invert, saturate, sepia */
-  backdropFilter: "none" | string;
-  /** filter: blur, brightness, contrast, drop-shadow, grayscale, hue-rotate, invert, saturate, sepia */
-  filter: "none" | string;
-
-  /** font-family, font-size, line-height, letter-spacing, font-weight, text-shadow, text-decoration-thickness, text-underline-offset */
-  textRole: "display" | "headline" | "title" | "label" | "body" | string;
+  /** font-family */
+  textFont: "" | "sans" | "serif" | "mono" | string;
   /** font-size */
-  textSize: "xs" | "sm" | "md" | "lg" | "xl" | string;
-  /** color */
-  textColor: "black" | "white" | string;
+  textSize:
+    | ""
+    | "2xs"
+    | "xs"
+    | "sm"
+    | "md"
+    | "lg"
+    | "xl"
+    | "2xl"
+    | "3xl"
+    | "4xl"
+    | "5xl"
+    | "6xl"
+    | "7xl"
+    | "8xl"
+    | "9xl";
+  /** line-height */
+  textLeading: "" | number;
+  /** letter-spacing */
+  textKerning: "" | number;
   /** font-weight */
-  textBold: boolean;
+  textWeight: "" | number;
   /** font-style */
   textItalic: boolean;
   /** text-decoration */
   textUnderline: boolean;
   /** text-decoration */
   textStrikethrough: boolean;
-  /** white-space */
-  textWrap: boolean;
-  /** textAlign */
-  textAlign: "left" | "right" | "center" | "justify";
   /** text-transform */
-  textCase: "none" | "uppercase" | "lowercase" | "capitalize";
-  /** font-family */
-  textFont: "auto" | string;
-  /** line-height */
-  textHeight: "auto" | number;
-  /** letter-spacing */
-  textKerning: "auto" | number;
+  textCase: "" | "uppercase" | "lowercase" | "capitalize";
+  /** text-align */
+  textAlign: "" | "center" | "start" | "end" | "justify";
+  /** text-overflow, white-space */
+  textOverflow: "" | "visible" | "wrap" | "clip" | "ellipsis";
+  /** color */
+  textColor:
+    | ""
+    | "none"
+    | "fg"
+    | "bg"
+    | "neutral"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "gray"
+    | "red"
+    | "orange"
+    | "amber"
+    | "yellow"
+    | "lime"
+    | "green"
+    | "emerald"
+    | "teal"
+    | "cyan"
+    | "sky"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "purple"
+    | "fuchsia"
+    | "pink"
+    | "rose"
+    | string;
   /** text-shadow */
-  textStroke: "auto" | number;
+  textStrokeColor:
+    | ""
+    | "none"
+    | "fg"
+    | "bg"
+    | "neutral"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "gray"
+    | "red"
+    | "orange"
+    | "amber"
+    | "yellow"
+    | "lime"
+    | "green"
+    | "emerald"
+    | "teal"
+    | "cyan"
+    | "sky"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "purple"
+    | "fuchsia"
+    | "pink"
+    | "rose"
+    | string;
+  /** text-shadow */
+  textStrokeWidth: "" | number;
   /** text-decoration-thickness */
-  textUnderlineThickness: "auto" | number;
+  textDecorationThickness: "" | number;
   /** text-underline-offset */
-  textUnderlineOffset: "auto" | number;
+  textUnderlineOffset: "" | number;
 
-  /** display: flex; flex-direction: */
-  layout: "column" | "row" | "column-reverse" | "row-reverse";
-  /** align-items */
-  layoutAlign: "start" | "center" | "end" | "stretch";
-  /** justify-content */
-  layoutJustify:
-    | "center"
-    | "start"
-    | "end"
-    | "space-between"
-    | "space-around"
-    | "space-evenly";
-  /** flex-wrap */
-  layoutWrap: boolean;
+  /** background-color */
+  bgColor:
+    | ""
+    | "none"
+    | "fg"
+    | "bg"
+    | "neutral"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "gray"
+    | "red"
+    | "orange"
+    | "amber"
+    | "yellow"
+    | "lime"
+    | "green"
+    | "emerald"
+    | "teal"
+    | "cyan"
+    | "sky"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "purple"
+    | "fuchsia"
+    | "pink"
+    | "rose"
+    | string;
+  /** background-image: --backgroundGradient */
+  bgGradient: "" | "none" | string;
+  /** background-image: --backgroundPattern */
+  bgPattern: "" | "none" | string;
+  /** background-image: --backgroundImage */
+  bgImage: "" | "none" | string;
+  /** background-repeat */
+  bgRepeat: boolean;
+  /** background-position */
+  bgAlign: "" | "center" | "top" | "bottom" | "left" | "right";
+  /** background-size */
+  bgFit: "" | "contain" | "cover";
 
-  /** overflow */
-  overflow: "hidden" | "visible" | "scroll";
+  /** clip-path */
+  clip: "" | "circle" | string;
+
+  /** border-color, border-style:solid */
+  borderColor:
+    | ""
+    | "none"
+    | "fg"
+    | "bg"
+    | "neutral"
+    | "primary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "gray"
+    | "red"
+    | "orange"
+    | "amber"
+    | "yellow"
+    | "lime"
+    | "green"
+    | "emerald"
+    | "teal"
+    | "cyan"
+    | "sky"
+    | "blue"
+    | "indigo"
+    | "violet"
+    | "purple"
+    | "fuchsia"
+    | "pink"
+    | "rose"
+    | string;
+  /** border-width, border-style:solid */
+  borderWidth: "" | number;
+
+  /** filter: drop-shadow */
+  shadow: "" | number;
+  /** box-shadow */
+  shadowInset: "" | number;
+
+  /** backdrop-filter: blur */
+  blur: "" | number;
+  /** backdrop-filter: brightness*/
+  brightness: "" | number;
+  /** backdrop-filter: contrast */
+  contrast: "" | number;
+  /** backdrop-filter: grayscale */
+  grayscale: "" | number;
+  /** backdrop-filter: hue-rotate */
+  hue: "" | number;
+  /** backdrop-filter: invert */
+  invert: "" | number;
+  /** backdrop-filter: sepia */
+  sepia: "" | number;
+  /** backdrop-filter: saturate */
+  saturate: "" | number;
+
+  blend:
+    | ""
+    | "normal"
+    | "multiply"
+    | "screen"
+    | "overlay"
+    | "darken"
+    | "lighten"
+    | "color-dodge"
+    | "color-burn"
+    | "hard-light"
+    | "soft-light"
+    | "difference"
+    | "exclusion"
+    | "hue"
+    | "saturation"
+    | "color"
+    | "luminosity";
 
   /** opacity */
-  opacity: number;
-  /** transition: opacity <duration> */
-  opacityDuration: number;
-  /** transition: opacity <delay> */
-  opacityDelay: number;
-  /** transition: opacity <ease> */
-  opacityEase: EaseType | string;
+  opacity: "" | number;
 
   /** transform: translateX */
-  transformPositionX: number;
+  translateX: "" | number;
   /** transform: translateY */
-  transformPositionY: number;
+  translateY: "" | number;
   /** transform: translateZ */
-  transformPositionZ: number;
+  translateZ: "" | number;
   /** transform: rotateX */
-  transformRotationX: number;
+  rotateX: "" | number;
   /** transform: rotateY */
-  transformRotationY: number;
+  rotateY: "" | number;
   /** transform: rotateZ */
-  transformRotationZ: number;
+  rotateZ: "" | number;
   /** transform: scaleX */
-  transformScaleX: number;
+  scaleX: "" | number;
   /** transform: scaleY */
-  transformScaleY: number;
+  scaleY: "" | number;
   /** transform: scaleZ */
-  transformScaleZ: number;
+  scaleZ: "" | number;
+  /** transform: skewX */
+  skewX: "" | number;
+  /** transform: skewY */
+  skewY: "" | number;
+
   /** transform-origin */
-  transformPivot: "center" | "left" | "right" | "top" | "bottom";
-  /** transition: transform <duration> */
-  transformDuration: number;
-  /** transition: transform <delay> */
-  transformDelay: number;
-  /** transition: transform <timing-function> */
-  transformEase: EaseType | string;
+  pivot: "" | "center" | "top" | "left" | "bottom" | "right";
+
+  /** transition-delay */
+  delay: "" | number;
+  /** transition-duration */
+  duration: "" | number;
+  /** transition-timing-function */
+  ease:
+    | ""
+    | "linear"
+    | "ease"
+    | "ease-in"
+    | "ease-out"
+    | "ease-in-out"
+    | "ease-in-sine"
+    | "ease-in-sine"
+    | "ease-out-sine"
+    | "ease-in-out-sine"
+    | "ease-in-quad"
+    | "ease-out-quad"
+    | "ease-in-out-quad"
+    | "ease-in-cubic"
+    | "ease-out-cubic"
+    | "ease-in-out-cubic"
+    | "ease-in-quart"
+    | "ease-out-quart"
+    | "ease-in-out-quart"
+    | "ease-in-quint"
+    | "ease-out-quint"
+    | "ease-in-out-quint"
+    | "ease-in-expo"
+    | "ease-out-expo"
+    | "ease-in-out-expo"
+    | "ease-in-circ"
+    | "ease-out-circ"
+    | "ease-in-out-circ"
+    | "ease-in-back"
+    | "ease-out-back"
+    | "ease-in-out-back"
+    | string;
 
   /** animation: <name> */
-  animation: "none" | string;
-  /** animation: <timing-function> */
-  animationEase: EaseType | string;
-  /** animation: <duration> */
-  animationDuration: number;
-  /** animation: <delay> */
-  animationDelay: number;
-  /** animation: <iteration-count> */
-  animationRepeat: boolean;
-  /** animation: <direction> */
-  animationDirection: "forward" | "reverse" | "alternate" | "forward-reverse";
-  /** animation: <play-state> */
-  animationRunning: boolean;
+  animate: "" | "spin" | "ping" | "bounce" | "blink" | "sheen" | string;
 }
 
 export interface Style extends SparkStyleProperties, Record<string, any> {}

@@ -1,11 +1,13 @@
 import type { Plugin } from "esbuild";
+import enhanceSetup from "esbuild-plugin-enhance/utils/enhanceSetup.js";
 import fs from "fs";
 import Graphic from "sparkle-style-transformer/types/graphic.js";
 import extractAllGraphics from "sparkle-style-transformer/utils/extractAllGraphics.js";
-import generatePureFunction from "./utils/generatePureFunction.js";
+import generateStyledHtml from "sparkle-style-transformer/utils/generateStyledHtml.js";
 
 const sparklePlugin = (config?: {
-  scriptSrcDir?: string;
+  componentPrefix?: string;
+  fallbackCSS?: string;
   patternFiles?: string[];
   iconFiles?: string[];
 }): Plugin => {
@@ -44,31 +46,13 @@ const sparklePlugin = (config?: {
           }
         }
       });
-      build.onLoad({ filter: /.+$/ }, async (args) => {
-        const basePath = args.path.slice(0, args.path.lastIndexOf("."));
-        const htmlPath = basePath + ".html";
-        const cssPath = basePath + ".css";
-        const fileName = basePath.slice(basePath.lastIndexOf("\\") + 1);
-        const html = await fs.promises
-          .readFile(htmlPath, "utf-8")
-          .catch(() => "");
-        const css = await fs.promises
-          .readFile(cssPath, "utf-8")
-          .catch(() => "");
-        const scriptSrcDir = config?.scriptSrcDir;
-        const scriptSrc = scriptSrcDir ? `${scriptSrcDir}/${fileName}.mjs` : "";
-        const contents = generatePureFunction(fileName, {
-          css,
-          html,
-          scriptSrc,
-          patterns,
-          icons,
-        });
-        return {
-          contents,
-          loader: "js",
-        };
-      });
+      const transforms = {
+        html: (data: { html: string }) =>
+          generateStyledHtml(data?.html, { patterns, icons }),
+        css: (data: { css: string }) => data.css || config?.fallbackCSS || "",
+      };
+      const componentPrefix = config?.componentPrefix;
+      enhanceSetup(build, transforms, componentPrefix);
     },
   };
 };

@@ -2,7 +2,6 @@ import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { getAllProperties } from "../../core/utils/getAllProperties";
 import { IElement } from "../types/IElement";
-import { Theme } from "../types/Theme";
 import { getHash } from "../utils/getHash";
 import { Element } from "./Element";
 
@@ -96,9 +95,15 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   loadTheme(objectMap: { [type: string]: Record<string, any> }): void {
-    const theme = objectMap?.["theme"]?.[""] as Theme;
-    if (theme) {
-      this._config.root.observeSize(theme.breakpoints);
+    const breakpoints = objectMap?.["breakpoint"] || {
+      xs: 400,
+      sm: 600,
+      md: 960,
+      lg: 1280,
+      xl: 1920,
+    };
+    if (breakpoints) {
+      this._config.root.observeSize(breakpoints);
     }
   }
 

@@ -1,0 +1,48 @@
+<s-box>
+  <s-breakpoint-observer></s-breakpoint-observer>
+  <s-circle m="4" bg-color="primary-10">Test</s-circle>
+  <s-progress-circle m="4" size="40"></s-progress-circle>
+  <s-progress-bar m="4" value="50%"></s-progress-bar>
+  <s-progress-bar m="4"></s-progress-bar>
+</s-box>
+<s-box child-layout="row">
+  <s-icon icon="search 1"></s-icon>
+  <s-icon icon="search 2"></s-icon>
+  <s-icon icon="search 3"></s-icon>
+  <s-icon icon="search 4"></s-icon>
+  <s-icon icon="search 5"></s-icon>
+</s-box>
+<s-badge m="4">Default</s-badge>
+<s-badge m="4" color="primary">Primary</s-badge>
+<s-badge m="4" color="success">Success</s-badge>
+<s-badge m="4" color="neutral">Neutral</s-badge>
+<s-badge m="4" color="warning">Warning</s-badge>
+<s-badge m="4" color="danger">Danger</s-badge>
+<s-button m="4" action="dialog:open">Open Dialog</s-button>
+<s-dialog id="dialog" icon="gear" label="Reset settings?" cancel="Cancel" confirm="Reset">
+  <s-divider></s-divider>
+  This will reset your app preferences back to their default settings.
+  <s-divider></s-divider>
+</s-dialog>
+<s-collapsible id="collapsible">
+  <s-button m="4" color="primary" icon="gear" action="collapsible:!collapsed">Collapsible</s-button>
+</s-collapsible>
+<s-tooltip label="top" placement="top">
+  <s-button m="4">Tooltip</s-button>
+</s-tooltip>
+<s-button m="4" loading>Loading</s-button>
+<s-button m="4">
+  Notification
+  <s-badge color="danger" float="right">5</s-badge>
+</s-button>
+<s-button m="4" color="success">Success</s-button>
+<s-button m="4" color="warning" variant="outlined">Warning</s-button>
+<s-button m="4" color="danger" variant="text">Danger</s-button>
+<s-button m="4" variant="tonal" size="xs">X-Small</s-button>
+<s-button m="4" variant="tonal" size="sm">Small</s-button>
+<s-button m="4" variant="tonal" size="md">Medium</s-button>
+<s-button m="4" variant="tonal" size="lg">Large</s-button>
+<s-button m="4" corner="4" mask="angled-corner">Cut</s-button>
+<s-button m="4" c-tl="16" c-br="16" b-width-t="16" variant="outlined">
+  Override
+</s-button>

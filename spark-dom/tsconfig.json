@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "module": "esnext",
-    "target": "esnext",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2017",
     "lib": ["esnext", "dom", "webworker"],
     "outDir": "out",
     "skipLibCheck": true,
@@ -18,6 +19,8 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "esModuleInterop": true,
-    "moduleResolution": "node"
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "checkJs": true
   }
 }

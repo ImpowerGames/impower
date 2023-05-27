@@ -1,5 +1,24 @@
 import getCssUnit from "./getCssUnit.js";
 
+const isNumberChar = (c: string | undefined): boolean =>
+  !Number.isNaN(Number(c));
+
+const isVariableValue = (value: string | number | undefined): boolean => {
+  if (typeof value === "number") {
+    return false;
+  }
+  if (!value) {
+    return false;
+  }
+  if (value[0] === "-") {
+    return false;
+  }
+  if (isNumberChar(value[0])) {
+    return false;
+  }
+  return true;
+};
+
 const getCssSize = (
   value: string | number,
   defaultUnit: "px" | "rem" = "px"
@@ -25,7 +44,7 @@ const getCssSize = (
   if (value === "xl") {
     return defaultUnit === "px" ? "24px" : "1.5rem";
   }
-  if (typeof value === "string" && Number.isNaN(Number(value[0]))) {
+  if (isVariableValue(value)) {
     return `var(--s-size-${value})`;
   }
   return getCssUnit(value, defaultUnit);

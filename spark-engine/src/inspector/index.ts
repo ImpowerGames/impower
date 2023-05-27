@@ -10,7 +10,6 @@ export * from "./constants/SHADOW_VALIDATION";
 export * from "./constants/STYLE_VALIDATION";
 export * from "./constants/SYNTH_RANDOMIZATIONS";
 export * from "./constants/SYNTH_VALIDATION";
-export * from "./constants/THEME_VALIDATION";
 export * from "./constants/WRITER_VALIDATION";
 export * from "./types/RecursiveRandomization";
 export * from "./types/RecursiveValidation";

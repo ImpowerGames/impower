@@ -1,0 +1,84 @@
+<style scope="global">
+  html {
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  body {
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    font-size: 0.875rem;
+  }
+
+  main {
+    height: 100%;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+  }
+</style>
+<style>
+  @font-face {
+    font-family: "Courier Prime Sans";
+    font-weight: 400;
+    font-display: block;
+    src: url("/_public/fonts/courier-prime-sans.ttf") format("truetype");
+  }
+
+  @font-face {
+    font-family: "Courier Prime Sans";
+    font-weight: 700;
+    font-display: block;
+    src: url("/_public/fonts/courier-prime-sans-bold.ttf") format("truetype");
+  }
+
+  @font-face {
+    font-family: "Courier Prime Sans";
+    font-style: italic;
+    font-weight: 400;
+    font-display: block;
+    src: url("/_public/fonts/courier-prime-sans-italic.ttf") format("truetype");
+  }
+
+  @font-face {
+    font-family: "Courier Prime Sans";
+    font-style: italic;
+    font-weight: 700;
+    font-display: block;
+    src: url("/_public/fonts/courier-prime-sans-bold-italic.ttf") format("truetype");
+  }
+</style>
+
+<s-box>
+  <s-keyframes></s-keyframes>
+  <s-normalize></s-normalize>
+  <s-global></s-global>
+  <s-light></s-light>
+  <s-dark></s-dark>
+  <s-animations></s-animations>
+  <s-easings></s-easings>
+  <s-gradients></s-gradients>
+  <s-icons></s-icons>
+  <s-masks></s-masks>
+  <s-patterns></s-patterns>
+  <s-shadows></s-shadows>
+  <s-core></s-core>
+  <se-icons></se-icons>
+  <se-theme></se-theme>
+</s-box>
+<s-box height="100%">
+  <se-header-navigation></se-header-navigation>
+  <se-gui></se-gui>
+</s-box>
+<script type="module">
+  import Sparkle from '/_public/bundles/sparkle.mjs';
+  Sparkle.init();
+  import SparkEditor from '/_public/bundles/spark-editor.mjs';
+  SparkEditor.init();
+</script>

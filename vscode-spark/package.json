@@ -1,0 +1,61 @@
+{
+  "name": "vscode-spark-engine",
+  "displayName": "VSCode Spark Engine",
+  "description": ".",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "spark.showEditor",
+        "title": "Spark: View Editor"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "node ./esbuild.js",
+    "package": "NODE_ENV=production node ./esbuild.js",
+    "watch": "node ./esbuild.js --watch",
+    "publish-minor": "vsce publish minor",
+    "publish-major": "vsce publish major"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/node": "18.15.11",
+    "@types/vscode": "^1.77.0",
+    "@types/vscode-webview": "^1.57.1",
+    "brfs": "^2.0.2",
+    "esbuild": "^0.16.10",
+    "esbuild-plugin-copy": "^2.0.1",
+    "glob": "^10.0.0",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@types/pdfkit": "^0.12.9",
+    "assert": "^2.0.0",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "colord": "^2.9.3",
+    "csv-stringify": "^6.3.2",
+    "html-entities": "^2.3.3",
+    "iconv-lite": "^0.6.3",
+    "pdfkit": "^0.13.0",
+    "process": "^0.11.10",
+    "readable-stream": "^4.3.0",
+    "textbox-for-pdfkit": "^0.2.1",
+    "util": "^0.12.5",
+    "vscode-codicons": "^0.0.17"
+  }
+}

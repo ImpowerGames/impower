@@ -188,6 +188,7 @@
   color: var(--text-color);
   filter: var(--shadow);
   background-color: var(--background-color);
+  min-height: 0;
 }
 
 /* Icon */
@@ -204,6 +205,7 @@
   color: var(--text-color);
   filter: var(--shadow);
   background-color: var(--background-color);
+  min-width: var(--height-min);
 }
 
 /* Loading */
@@ -249,7 +251,7 @@
 :host([loading]) > .root > .label {
   visibility: hidden;
 }
-:host([icon]) > .root > .label {
+:host([icon]:not([variant="icon"])) > .root > .label {
   padding-left: var(--spacing);
 }
 

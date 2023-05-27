@@ -1,0 +1,11 @@
+.env
+.DS_Store
+node_modules
+.enhance
+public/static.json
+models/static.json
+public/bundles
+sam.json
+sam.yaml
+public/styles.css
+models/enhance-styles

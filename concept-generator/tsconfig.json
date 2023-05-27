@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2020",
+    "target": "es2017",
     "lib": ["esnext"],
     "outDir": "out",
     "declaration": true,
@@ -18,7 +18,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": false,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "checkJs": true
   },
   "compileOnSave": true,
   "include": ["src", "scripts"]

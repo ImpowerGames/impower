@@ -290,7 +290,9 @@ export default class Button
     this.root.removeEventListener("click", this.handleClick);
   }
 
-  protected handleClick = (): void => {
+  protected handleClick = (e: MouseEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
     const action = this.action;
     if (action) {
       const [id, attr] = action.split(":");

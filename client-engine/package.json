@@ -1,0 +1,35 @@
+{
+  "name": "client-engine",
+  "version": "0.0.1",
+  "scripts": {
+    "start": "npx enhance dev",
+    "lint": "eslint ./app/**/*.mjs --fix"
+  },
+  "dependencies": {
+    "@impower/arc-plugin-impower": "file:../arc-plugin-impower",
+    "spark-editor": "file:../spark-editor",
+    "sparkle": "file:../sparkle"
+  },
+  "devDependencies": {
+    "@enhance/cli": "^0.0.8",
+    "@enhance/types": "^0.6.0",
+    "eslint": "^8.30.0"
+  },
+  "eslintConfig": {
+    "env": {
+      "node": true
+    },
+    "extends": "eslint:recommended",
+    "rules": {
+      "indent": [
+        "error",
+        2
+      ]
+    },
+    "ignorePatterns": [],
+    "parserOptions": {
+      "sourceType": "module",
+      "ecmaVersion": 2022
+    }
+  }
+}

@@ -1,11 +1,10 @@
-import { Graphic, Theme } from "../../game";
+import { Graphic } from "../../game";
 import { RecursiveValidation } from "../types/RecursiveValidation";
 
 export const GRAPHIC_VALIDATION = (objectMap?: {
   [type: string]: Record<string, object>;
 }): RecursiveValidation<Graphic> => {
-  const theme: Theme = (objectMap?.["theme"]?.[""] || {}) as Theme;
-  const colorNames = Object.keys(theme?.colors || {});
+  const colorNames = Object.keys(objectMap?.["color"] || {});
   return {
     width: [8, 0, 800],
     height: [8, 0, 800],

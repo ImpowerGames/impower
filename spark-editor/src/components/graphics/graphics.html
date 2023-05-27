@@ -1,0 +1,24 @@
+<s-router directional>
+  <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header" value="sprites">
+    <s-tab color="tab-active" text-color="tab-inactive" p="20" child-layout="row" icon="pacman" value="sprites" active>
+      Sprites
+    </s-tab>
+    <s-tab color="tab-active" text-color="tab-inactive" p="20" child-layout="row" icon="wall" value="maps">
+      Maps
+    </s-tab>
+  </s-tabs>
+  <se-sprites></se-sprites>
+  <template value="sprites">
+    <se-sprites></se-sprites>
+  </template>
+  <template value="maps">
+    <se-maps></se-maps>
+  </template>
+  <se-add-fab slot="footer">Add Sprite</se-add-fab>
+  <template value="sprites" slot="footer">
+    <se-add-fab>Add Sprite</se-add-fab>
+  </template>
+  <template value="maps" slot="footer">
+    <se-add-fab>Add Map</se-add-fab>
+  </template>
+</s-router>

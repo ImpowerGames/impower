@@ -1,6 +1,7 @@
 import getCssColor from "sparkle-style-transformer/utils/getCssColor.js";
 import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
 import SparkleElement from "../../core/sparkle-element";
+import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -16,6 +17,8 @@ export const DEFAULT_TRANSFORMERS = {
   "resizer-color": getCssColor,
   "resizer-width": getCssSize,
   "divider-color": getCssColor,
+  "divider-opacity": (v: string) => v,
+  "divider-offset": getCssSize,
   "divider-width": getCssSize,
   "indicator-color": getCssColor,
   "indicator-width": getCssSize,
@@ -152,11 +155,31 @@ export default class SplitPane
   /**
    * The color of the divider between the two panels.
    */
-  get dividerColor(): SizeName | string | null {
+  get dividerColor(): ColorName | string | null {
     return this.getStringAttribute(SplitPane.attributes.dividerColor);
   }
   set dividerColor(value) {
     this.setStringAttribute(SplitPane.attributes.dividerColor, value);
+  }
+
+  /**
+   * The opacity of the divider between the two panels.
+   */
+  get dividerOpacity(): string | null {
+    return this.getStringAttribute(SplitPane.attributes.dividerOpacity);
+  }
+  set dividerOpacity(value) {
+    this.setStringAttribute(SplitPane.attributes.dividerOpacity, value);
+  }
+
+  /**
+   * The offset of the divider between the two panels.
+   */
+  get dividerOffset(): SizeName | string | null {
+    return this.getStringAttribute(SplitPane.attributes.dividerOffset);
+  }
+  set dividerOffset(value) {
+    this.setStringAttribute(SplitPane.attributes.dividerOffset, value);
   }
 
   /**

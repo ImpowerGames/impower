@@ -1,3 +1,38 @@
 {
-  "editor.renderWhitespace": "boundary"
+  "editor.renderWhitespace": "boundary",
+  "html.customData": ["./sparkle/vscode.html-custom-data.json"],
+  "files.exclude": {
+    "**/node_modules/**": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/tmp/**": true,
+    "**/models/**": true,
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/*{.jpg,.png,.gif,.webp,.jpeg,.svg}": true
+  },
+  "search.exclude": {
+    "**/node_modules/**": true,
+    "**/tmp/**": true,
+    "**/models/**": true,
+    "**/dist/**": true,
+    "**/out/**": true,
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/*{.jpg,.png,.gif,.webp,.jpeg,.svg}": true
+  },
+  "editor.wordWrap": "on",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": true
+  },
+  "eslint.workingDirectories": ["./client", "./client-engine"],
+  "editor.tabSize": 2
 }

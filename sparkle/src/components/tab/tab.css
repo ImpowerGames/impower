@@ -23,6 +23,9 @@
   --padding-lr: 20px;
   --icon-size: 20px;
 }
+:host > .root {
+  --active-icon: var(--icon);
+}
 
 :host(:not([child-layout="row"])) {
   --child-gap: 4px;

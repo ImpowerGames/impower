@@ -1,0 +1,24 @@
+<s-router directional>
+  <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header" value="elements">
+    <s-tab color="tab-active" text-color="tab-inactive" p="20" child-layout="row" icon="shape" value="elements" active>
+      Elements
+    </s-tab>
+    <s-tab color="tab-active" text-color="tab-inactive" p="20" child-layout="row" icon="template" value="views">
+      Views
+    </s-tab>
+  </s-tabs>
+  <se-elements></se-elements>
+  <template value="elements">
+    <se-elements></se-elements>
+  </template>
+  <template value="views">
+    <se-views></se-views>
+  </template>
+  <se-add-fab slot="footer">Add Element</se-add-fab>
+  <template value="elements" slot="footer">
+    <se-add-fab>Add Element</se-add-fab>
+  </template>
+  <template value="views" slot="footer">
+    <se-add-fab>Add View</se-add-fab>
+  </template>
+</s-router>

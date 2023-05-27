@@ -291,16 +291,16 @@ export default class Tabs
 
   bindTabs(): void {
     this.tabs.forEach((tab) => {
-      tab.addEventListener("pointerdown", this.handlePointerDownTab, {
+      tab.root.addEventListener("pointerdown", this.handlePointerDownTab, {
         passive: true,
       });
-      tab.addEventListener("pointerenter", this.handlePointerEnterTab, {
+      tab.root.addEventListener("pointerenter", this.handlePointerEnterTab, {
         passive: true,
       });
-      tab.addEventListener("keydown", this.handleKeyDownTab, {
+      tab.root.addEventListener("keydown", this.handleKeyDownTab, {
         passive: true,
       });
-      tab.addEventListener("click", this.handleClickTab, {
+      tab.root.addEventListener("click", this.handleClickTab, {
         passive: true,
       });
       window.addEventListener("pointerup", this.handlePointerUp, {
@@ -311,10 +311,10 @@ export default class Tabs
 
   unbindTabs(): void {
     this.tabs.forEach((tab) => {
-      tab.removeEventListener("pointerdown", this.handlePointerDownTab);
-      tab.removeEventListener("pointerenter", this.handlePointerEnterTab);
-      tab.removeEventListener("keydown", this.handleKeyDownTab);
-      tab.removeEventListener("click", this.handleClickTab);
+      tab.root.removeEventListener("pointerdown", this.handlePointerDownTab);
+      tab.root.removeEventListener("pointerenter", this.handlePointerEnterTab);
+      tab.root.removeEventListener("keydown", this.handleKeyDownTab);
+      tab.root.removeEventListener("click", this.handleClickTab);
       window.removeEventListener("pointerup", this.handlePointerUp);
     });
   }
@@ -369,10 +369,12 @@ export default class Tabs
   };
 
   handlePointerEnterTab = (e: PointerEvent): void => {
-    const tab = e.currentTarget as Tab;
-    if (this._pointerDownOnAnyTab) {
-      this._activatingValue = tab.value;
-      this.updateTabs(true);
+    if (e.currentTarget instanceof HTMLElement) {
+      const tab = (e.currentTarget.getRootNode() as ShadowRoot)?.host as Tab;
+      if (this._pointerDownOnAnyTab) {
+        this._activatingValue = tab.value;
+        this.updateTabs(true);
+      }
     }
   };
 
@@ -381,45 +383,49 @@ export default class Tabs
   };
 
   handleKeyDownTab = (e: KeyboardEvent): void => {
-    const tgt = e.currentTarget as Tab;
-    const vertical = this.vertical;
-    const dir = vertical ? "column" : "row";
-    switch (e.key) {
-      case navPrevKey(dir):
-        {
-          this.focusPreviousTab(tgt, true);
-        }
-        break;
-      case navNextKey(dir):
-        {
-          this.focusNextTab(tgt, true);
-        }
-        break;
-      case navStartKey():
-        {
-          const firstTab = this.tabs[0];
-          if (firstTab) {
-            this.focusTab(firstTab, true);
+    if (e.currentTarget instanceof HTMLElement) {
+      const tab = (e.currentTarget.getRootNode() as ShadowRoot)?.host as Tab;
+      const vertical = this.vertical;
+      const dir = vertical ? "column" : "row";
+      switch (e.key) {
+        case navPrevKey(dir):
+          {
+            this.focusPreviousTab(tab, true);
           }
-        }
-        break;
-      case navEndKey():
-        {
-          const lastTab = this.tabs[this.tabs.length - 1];
-          if (lastTab) {
-            this.focusTab(lastTab, true);
+          break;
+        case navNextKey(dir):
+          {
+            this.focusNextTab(tab, true);
           }
-        }
-        break;
-      default:
-        break;
+          break;
+        case navStartKey():
+          {
+            const firstTab = this.tabs[0];
+            if (firstTab) {
+              this.focusTab(firstTab, true);
+            }
+          }
+          break;
+        case navEndKey():
+          {
+            const lastTab = this.tabs[this.tabs.length - 1];
+            if (lastTab) {
+              this.focusTab(lastTab, true);
+            }
+          }
+          break;
+        default:
+          break;
+      }
     }
   };
 
   handleClickTab = (e: MouseEvent): void => {
-    const tab = e.currentTarget as Tab;
-    this._activatingValue = tab.value;
-    this.updateTabs(true);
+    if (e.currentTarget instanceof HTMLElement) {
+      const tab = (e.currentTarget.getRootNode() as ShadowRoot)?.host as Tab;
+      this._activatingValue = tab.value;
+      this.updateTabs(true);
+    }
   };
 
   protected setupTabs(children: Element[]): void {

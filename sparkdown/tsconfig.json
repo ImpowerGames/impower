@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2020",
-    "lib": ["es2020"],
+    "target": "es2017",
+    "lib": ["esnext"],
     "outDir": "out",
     "skipLibCheck": true,
     "sourceMap": true,
@@ -17,6 +17,9 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "checkJs": true
   }
 }

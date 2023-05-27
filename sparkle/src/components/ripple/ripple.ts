@@ -21,6 +21,10 @@ const PRESS_PSEUDO = "::after";
 const PRESS_EASE = "cubic-bezier(0.2, 0, 0, 1)";
 const ANIMATION_FILL = "forwards";
 
+interface RippleEvent extends PointerEvent {
+  rippling?: Element;
+}
+
 /**
  * Interaction states for the ripple.
  *
@@ -206,7 +210,6 @@ export default class Ripple extends SparkleElement {
     if (!this.shouldReactToEvent(event)) {
       return;
     }
-
     this.rippleStartEvent = event;
     if (!this.isTouch(event)) {
       this.state = State.WAITING_FOR_CLICK;
@@ -402,6 +405,9 @@ export default class Ripple extends SparkleElement {
    * held, or the pointer is hovering
    */
   private shouldReactToEvent(event: PointerEvent) {
+    if (event.target !== this) {
+      return;
+    }
     if (!event.isPrimary) {
       return false;
     }

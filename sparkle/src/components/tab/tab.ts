@@ -200,6 +200,7 @@ export default class Tab
 
   protected override onConnected(): void {
     this.ripple?.bind?.(this.root);
+    this.root.addEventListener("click", this.handleClick);
     const icon = this.icon;
     const iconEl = this.iconEl;
     if (iconEl) {
@@ -215,7 +216,13 @@ export default class Tab
 
   protected override onDisconnected(): void {
     this.ripple?.unbind?.(this.root);
+    this.root.removeEventListener("click", this.handleClick);
   }
+
+  protected handleClick = (e: MouseEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
 }
 
 declare global {

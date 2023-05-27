@@ -1,0 +1,28 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root,
+.se-theme {
+  --s-size-header-nav: 64px;
+  --s-size-footer-nav: 68px;
+  --s-size-panel-nav: 56px;
+
+  --s-color-tab-active: hsl(0, 0%, 95%);
+  --s-color-tab-inactive: hsl(211 26% 48%);
+  --s-color-fab-fg: white;
+  --s-color-fab-bg: hsl(210.8, 44.9%, 34.9%);
+  --s-color-primary-bg: hsl(210.7, 89.1%, 18%);
+  --s-color-panel: hsl(210.6, 100%, 10%);
+
+  --s-color-palette-spot-0: #052d57;
+  --s-color-palette-spot-1: #415a89;
+  --s-color-palette-spot-2: #e3f0ff;
+  --s-color-palette-spot-3: #d7a31a;
+
+  --s-color-palette-cube-0: #052d57;
+  --s-color-palette-cube-1: #00c6bd;
+  --s-color-palette-cube-2: #fff7d6;
+}
