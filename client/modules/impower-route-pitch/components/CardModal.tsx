@@ -1,4 +1,4 @@
-import { ModalManager, ModalUnstyledProps } from "@mui/material/Modal";
+import { ModalManager } from "@mui/material/Modal";
 import {
   unstable_createChainedFunction as createChainedFunction,
   unstable_ownerDocument as ownerDocument,
@@ -23,7 +23,7 @@ const getHasTransition = (props): boolean => {
 
 const defaultManager = new ModalManager();
 
-interface CardModalProps extends ModalUnstyledProps {
+interface CardModalProps {
   manager?: ModalManager;
   onTransitionEnter?: () => void;
   onTransitionExited?: () => void;
@@ -32,6 +32,19 @@ interface CardModalProps extends ModalUnstyledProps {
   components?: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   componentsProps?: any;
+  onBackdropClick?: (event: Event, reason?: string) => void;
+  onClose?: (event: Event, reason?: string) => void;
+  onKeyDown?: (event: Event) => void;
+  container?: () => void;
+  component?: string;
+  className?: string;
+  open?: boolean;
+  closeAfterTransition?: boolean;
+  disableEscapeKeyDown?: boolean;
+  disableScrollLock?: boolean;
+  hideBackdrop?: boolean;
+  keepMounted?: boolean;
+  children?: React.ReactNode;
 }
 
 const CardModal = React.forwardRef(
