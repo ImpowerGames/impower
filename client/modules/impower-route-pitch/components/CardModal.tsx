@@ -33,7 +33,7 @@ interface CardModalProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   componentsProps?: any;
   onBackdropClick?: (event: Event, reason?: string) => void;
-  onClose?: (event: Event, reason?: string) => void;
+  onClose?: (event: React.MouseEvent, reason?: string) => void;
   onKeyDown?: (event: Event) => void;
   container?: () => void;
   component?: string;
@@ -42,6 +42,9 @@ interface CardModalProps {
   closeAfterTransition?: boolean;
   disableEscapeKeyDown?: boolean;
   disableScrollLock?: boolean;
+  disableRestoreFocus?: boolean;
+  disableEnforceFocus?: boolean;
+  disablePortal?: boolean;
   hideBackdrop?: boolean;
   keepMounted?: boolean;
   children?: any;
