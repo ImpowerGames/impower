@@ -44,7 +44,7 @@ interface CardModalProps {
   disableScrollLock?: boolean;
   hideBackdrop?: boolean;
   keepMounted?: boolean;
-  children?: React.ReactNode;
+  children?: any;
 }
 
 const CardModal = React.forwardRef(
