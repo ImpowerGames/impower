@@ -76,7 +76,7 @@
     "@emotion/styled": "^11.10.5",
     "@hcaptcha/react-hcaptcha": "^1.4.4",
     "@mui/lab": "5.0.0-alpha.117",
-    "@mui/material": "^5.11.6",
+    "@mui/material": "^5.13.2",
     "@pixi-essentials/svg": "^2.0.1",
     "@pixi/accessibility": "^7.2.4",
     "@pixi/app": "^7.2.4",
