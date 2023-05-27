@@ -7,6 +7,7 @@
   },
   "dependencies": {
     "@impower/arc-plugin-impower": "file:../arc-plugin-impower",
+    "fastify": "^4.17.0",
     "spark-editor": "file:../spark-editor",
     "sparkle": "file:../sparkle"
   },
