@@ -1,9 +1,6 @@
 {
   "editor.renderWhitespace": "boundary",
   "html.customData": ["./sparkle/vscode.html-custom-data.json"],
-  "files.exclude": {
-    "**/node_modules/**": true
-  },
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/tmp/**": true,
