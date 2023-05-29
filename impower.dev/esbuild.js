@@ -1,5 +1,5 @@
 import chokidar from "chokidar";
-import { context } from "esbuild";
+import { build } from "esbuild";
 import fs from "fs";
 import path from "path";
 import glob from "tiny-glob";
@@ -7,6 +7,7 @@ import glob from "tiny-glob";
 const GREEN = "\x1b[32m%s\x1b[0m";
 const YELLOW = "\x1b[33m%s\x1b[0m";
 const BLUE = "\x1b[34m%s\x1b[0m";
+const MAGENTA = "\x1b[35m%s\x1b[0m";
 
 const indir = "src";
 const outdir = "out";
@@ -26,6 +27,10 @@ const publicOutDir = `${outdir}/public`;
 const args = process.argv.slice(2);
 const watch = args.includes("--watch");
 const serve = args.includes("--serve");
+const production = args.includes("--production");
+if (production) {
+  process.env.NODE_ENV = "production";
+}
 
 const getRelativePath = (p) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
@@ -59,7 +64,7 @@ const clean = async () => {
 
 const buildApi = async () => {
   const entryPoints = await glob(`${apiInDir}/**/*.{js,mjs,ts}`);
-  const ctx = await context({
+  return build({
     entryPoints: entryPoints,
     outdir: apiOutDir,
     platform: "node",
@@ -72,12 +77,11 @@ const buildApi = async () => {
     },
     plugins: [onBuildEndPlugin()],
   });
-  ctx.rebuild();
 };
 
 const buildComponents = async () => {
   const entryPoints = await glob(`${componentsInDir}/**/*.{js,mjs,ts}`);
-  const ctx = await context({
+  return build({
     entryPoints: entryPoints,
     outdir: componentsOutDir,
     platform: "node",
@@ -92,12 +96,11 @@ const buildComponents = async () => {
     },
     plugins: [onBuildEndPlugin()],
   });
-  ctx.rebuild();
 };
 
 const buildPages = async () => {
   const entryPoints = await glob(`${pagesInDir}/**/*.{js,mjs,ts}`);
-  const ctx = await context({
+  return build({
     entryPoints: entryPoints,
     outdir: pagesOutDir,
     platform: "browser",
@@ -112,7 +115,6 @@ const buildPages = async () => {
     },
     plugins: [onBuildEndPlugin()],
   });
-  ctx.rebuild();
 };
 
 const copyStaticFiles = async () => {
@@ -204,6 +206,7 @@ const watchPublic = async (onRebuild) => {
 };
 
 (async () => {
+  console.log(YELLOW, "Build started");
   await clean();
   await buildApi();
   await buildComponents();
@@ -224,4 +227,5 @@ const watchPublic = async (onRebuild) => {
       watchPublic(onRebuild);
     }
   }
+  console.log(MAGENTA, "Build finished");
 })();

@@ -4,14 +4,12 @@ import { Properties } from "../../types/properties";
 import { offsetParent } from "../../utils/composed-offset-position";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import {
-  computePosition,
-  flip,
-  offset,
-  platform,
-  shift,
-  size,
-} from "./floating-ui/dom/src/types";
+import { computePosition } from "./floating-ui/core/src/computePosition";
+import { flip } from "./floating-ui/core/src/middleware/flip";
+import { offset } from "./floating-ui/core/src/middleware/offset";
+import { shift } from "./floating-ui/core/src/middleware/shift";
+import { size } from "./floating-ui/core/src/middleware/size";
+import { platform } from "./floating-ui/dom/src/platform";
 import css from "./popup.css";
 import html from "./popup.html";
 

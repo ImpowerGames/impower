@@ -6,7 +6,7 @@
     "kill": "kill-port 3000",
     "start": "node ./esbuild.js --serve",
     "watch": "node ./esbuild.js --watch --serve",
-    "build": "NODE_ENV=production node ./esbuild.js"
+    "build": "node ./esbuild.js --production"
   },
   "devDependencies": {
     "@types/node": "^20.2.5",
