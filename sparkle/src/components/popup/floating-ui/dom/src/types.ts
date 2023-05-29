@@ -179,6 +179,7 @@ declare const detectOverflow: (
   state: MiddlewareState,
   options?: Partial<DetectOverflowOptions>
 ) => Promise<SideObject>;
+export { computePosition } from ".";
 export { inline, limitShift, offset } from "../../core";
 export type {
   AlignedPlacement,
@@ -208,7 +209,6 @@ export type {
   SideObject,
   Strategy,
 } from "../../core";
-export { computePosition } from "./";
 export { Options as AutoUpdateOptions, autoUpdate } from "./autoUpdate";
 export { platform } from "./platform";
 export { getOverflowAncestors } from "./utils/getOverflowAncestors";
