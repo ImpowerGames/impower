@@ -17,8 +17,6 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@floating-ui/dom": "^1.2.6",
-    "colord": "^2.9.3",
     "esbuild-plugin-sparkle": "file:../esbuild-plugin-sparkle",
     "sparkle-style-transformer": "file:../sparkle-style-transformer"
   }

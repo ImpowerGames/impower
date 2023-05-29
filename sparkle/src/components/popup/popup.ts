@@ -1,3 +1,9 @@
+import type SparkleEvent from "../../core/SparkleEvent";
+import SparkleElement from "../../core/sparkle-element";
+import { Properties } from "../../types/properties";
+import { offsetParent } from "../../utils/composed-offset-position";
+import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import {
   computePosition,
   flip,
@@ -5,13 +11,7 @@ import {
   platform,
   shift,
   size,
-} from "@floating-ui/dom";
-import type SparkleEvent from "../../core/SparkleEvent";
-import SparkleElement from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
-import { offsetParent } from "../../utils/composed-offset-position";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
+} from "./floating-ui/dom";
 import css from "./popup.css";
 import html from "./popup.html";
 
