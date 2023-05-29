@@ -1,1 +1,5 @@
-export declare function within(min: number, value: number, max: number): number;
+import {max as mathMax, min as mathMin} from './math';
+
+export function within(min: number, value: number, max: number): number {
+  return mathMax(min, mathMin(value, max));
+}

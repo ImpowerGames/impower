@@ -1,4 +1,8 @@
-import type { Coords, Middleware, MiddlewareState } from "../types";
+import type {Coords, Middleware, MiddlewareState} from '../types';
+import {getAlignment} from '../utils/getAlignment';
+import {getMainAxisFromPlacement} from '../utils/getMainAxisFromPlacement';
+import {getSide} from '../utils/getSide';
+
 type OffsetValue =
   | number
   | {
@@ -9,12 +13,14 @@ type OffsetValue =
        * @default 0
        */
       mainAxis?: number;
+
       /**
        * The axis that runs along the alignment of the floating element.
        * Represents the skidding between the reference and floating element.
        * @default 0
        */
       crossAxis?: number;
+
       /**
        * The same axis as `crossAxis` but applies only to aligned placements
        * and inverts the `end` alignment. When set to a number, it overrides the
@@ -28,11 +34,39 @@ type OffsetValue =
       alignmentAxis?: number | null;
     };
 type OffsetFunction = (state: MiddlewareState) => OffsetValue;
+
 export type Options = OffsetValue | OffsetFunction;
-export declare function convertValueToCoords(
+
+export async function convertValueToCoords(
   state: MiddlewareState,
   value: Options
-): Promise<Coords>;
+): Promise<Coords> {
+  const {placement, platform, elements} = state;
+  const rtl = await platform.isRTL?.(elements.floating);
+
+  const side = getSide(placement);
+  const alignment = getAlignment(placement);
+  const isVertical = getMainAxisFromPlacement(placement) === 'x';
+  const mainAxisMulti = ['left', 'top'].includes(side) ? -1 : 1;
+  const crossAxisMulti = rtl && isVertical ? -1 : 1;
+
+  const rawValue = typeof value === 'function' ? value(state) : value;
+
+  // eslint-disable-next-line prefer-const
+  let {mainAxis, crossAxis, alignmentAxis} =
+    typeof rawValue === 'number'
+      ? {mainAxis: rawValue, crossAxis: 0, alignmentAxis: null}
+      : {mainAxis: 0, crossAxis: 0, alignmentAxis: null, ...rawValue};
+
+  if (alignment && typeof alignmentAxis === 'number') {
+    crossAxis = alignment === 'end' ? alignmentAxis * -1 : alignmentAxis;
+  }
+
+  return isVertical
+    ? {x: crossAxis * crossAxisMulti, y: mainAxis * mainAxisMulti}
+    : {x: mainAxis * mainAxisMulti, y: crossAxis * crossAxisMulti};
+}
+
 /**
  * Modifies the placement by translating the floating element along the
  * specified axes.
@@ -40,5 +74,17 @@ export declare function convertValueToCoords(
  * object may be passed.
  * @see https://floating-ui.com/docs/offset
  */
-export declare const offset: (value?: Options) => Middleware;
-export {};
+export const offset = (value: Options = 0): Middleware => ({
+  name: 'offset',
+  options: value,
+  async fn(state) {
+    const {x, y} = state;
+    const diffCoords = await convertValueToCoords(state, value);
+
+    return {
+      x: x + diffCoords.x,
+      y: y + diffCoords.y,
+      data: diffCoords,
+    };
+  },
+});

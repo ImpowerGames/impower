@@ -1,1 +1,3 @@
-export declare function getWindow(node: Node): Window;
+export function getWindow(node: Node): Window {
+  return node.ownerDocument?.defaultView || window;
+}

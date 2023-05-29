@@ -1,1 +1,5 @@
-export declare function getComputedStyle(element: Element): CSSStyleDeclaration;
+import {getWindow} from './getWindow';
+
+export function getComputedStyle(element: Element) {
+  return getWindow(element).getComputedStyle(element);
+}

@@ -1,2 +1,2 @@
-export declare const min: (...values: number[]) => number;
-export declare const max: (...values: number[]) => number;
+export const min = Math.min;
+export const max = Math.max;
