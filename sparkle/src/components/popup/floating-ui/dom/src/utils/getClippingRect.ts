@@ -4,28 +4,28 @@ import type {
   Rect,
   RootBoundary,
   Strategy,
-} from '@floating-ui/core';
-import {rectToClientRect} from '@floating-ui/core';
+} from "../../../core";
+import { rectToClientRect } from "../../../core";
 
-import {Platform, ReferenceElement} from '../types';
-import {getBoundingClientRect} from './getBoundingClientRect';
-import {getComputedStyle} from './getComputedStyle';
-import {getDocumentElement} from './getDocumentElement';
-import {getDocumentRect} from './getDocumentRect';
-import {getOverflowAncestors} from './getOverflowAncestors';
-import {getParentNode} from './getParentNode';
-import {getScale} from './getScale';
-import {getViewportRect} from './getViewportRect';
-import {getVisualOffsets} from './getVisualOffsets';
+import { Platform, ReferenceElement } from "../types";
+import { getBoundingClientRect } from "./getBoundingClientRect";
+import { getComputedStyle } from "./getComputedStyle";
+import { getDocumentElement } from "./getDocumentElement";
+import { getDocumentRect } from "./getDocumentRect";
+import { getOverflowAncestors } from "./getOverflowAncestors";
+import { getParentNode } from "./getParentNode";
+import { getScale } from "./getScale";
+import { getViewportRect } from "./getViewportRect";
+import { getVisualOffsets } from "./getVisualOffsets";
 import {
   isContainingBlock,
   isElement,
   isHTMLElement,
   isLastTraversableNode,
   isOverflowElement,
-} from './is';
-import {max, min} from './math';
-import {getNodeName} from './node';
+} from "./is";
+import { max, min } from "./math";
+import { getNodeName } from "./node";
 
 type PlatformWithCache = Platform & {
   _c: Map<ReferenceElement, Element[]>;
@@ -36,10 +36,10 @@ function getInnerBoundingClientRect(
   element: Element,
   strategy: Strategy
 ): Rect {
-  const clientRect = getBoundingClientRect(element, true, strategy === 'fixed');
+  const clientRect = getBoundingClientRect(element, true, strategy === "fixed");
   const top = clientRect.top + element.clientTop;
   const left = clientRect.left + element.clientLeft;
-  const scale = isHTMLElement(element) ? getScale(element) : {x: 1, y: 1};
+  const scale = isHTMLElement(element) ? getScale(element) : { x: 1, y: 1 };
   const width = element.clientWidth * scale.x;
   const height = element.clientHeight * scale.y;
   const x = left * scale.x;
@@ -60,9 +60,9 @@ function getClientRectFromClippingAncestor(
 ): ClientRectObject {
   let rect: Rect;
 
-  if (clippingAncestor === 'viewport') {
+  if (clippingAncestor === "viewport") {
     rect = getViewportRect(element, strategy);
-  } else if (clippingAncestor === 'document') {
+  } else if (clippingAncestor === "document") {
     rect = getDocumentRect(getDocumentElement(element));
   } else if (isElement(clippingAncestor)) {
     rect = getInnerBoundingClientRect(clippingAncestor, strategy);
@@ -89,7 +89,7 @@ function hasFixedPositionAncestor(element: Element, stopNode: Node): boolean {
   }
 
   return (
-    getComputedStyle(parentNode).position === 'fixed' ||
+    getComputedStyle(parentNode).position === "fixed" ||
     hasFixedPositionAncestor(parentNode, stopNode)
   );
 }
@@ -99,7 +99,7 @@ function hasFixedPositionAncestor(element: Element, stopNode: Node): boolean {
 // of the given element up the tree.
 function getClippingElementAncestors(
   element: Element,
-  cache: PlatformWithCache['_c']
+  cache: PlatformWithCache["_c"]
 ): Array<Element> {
   const cachedResult = cache.get(element);
   if (cachedResult) {
@@ -107,10 +107,10 @@ function getClippingElementAncestors(
   }
 
   let result = getOverflowAncestors(element).filter(
-    (el) => isElement(el) && getNodeName(el) !== 'body'
+    (el) => isElement(el) && getNodeName(el) !== "body"
   ) as Array<Element>;
   let currentContainingBlockComputedStyle: CSSStyleDeclaration | null = null;
-  const elementIsFixed = getComputedStyle(element).position === 'fixed';
+  const elementIsFixed = getComputedStyle(element).position === "fixed";
   let currentNode: Node | null = elementIsFixed
     ? getParentNode(element)
     : element;
@@ -120,16 +120,16 @@ function getClippingElementAncestors(
     const computedStyle = getComputedStyle(currentNode);
     const currentNodeIsContaining = isContainingBlock(currentNode);
 
-    if (!currentNodeIsContaining && computedStyle.position === 'fixed') {
+    if (!currentNodeIsContaining && computedStyle.position === "fixed") {
       currentContainingBlockComputedStyle = null;
     }
 
     const shouldDropCurrentNode = elementIsFixed
       ? !currentNodeIsContaining && !currentContainingBlockComputedStyle
       : (!currentNodeIsContaining &&
-          computedStyle.position === 'static' &&
+          computedStyle.position === "static" &&
           !!currentContainingBlockComputedStyle &&
-          ['absolute', 'fixed'].includes(
+          ["absolute", "fixed"].includes(
             currentContainingBlockComputedStyle.position
           )) ||
         (isOverflowElement(currentNode) &&
@@ -169,7 +169,7 @@ export function getClippingRect(
   }
 ): Rect {
   const elementClippingAncestors =
-    boundary === 'clippingAncestors'
+    boundary === "clippingAncestors"
       ? getClippingElementAncestors(element, this._c)
       : [].concat(boundary);
   const clippingAncestors = [...elementClippingAncestors, rootBoundary];
@@ -190,7 +190,11 @@ export function getClippingRect(
 
       return accRect;
     },
-    getClientRectFromClippingAncestor(element, firstClippingAncestor, strategy)
+    getClientRectFromClippingAncestor(
+      element,
+      firstClippingAncestor as Element,
+      strategy
+    )
   );
 
   return {

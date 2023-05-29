@@ -1,6 +1,6 @@
-import {getComputedStyle} from './getComputedStyle';
-import {getWindow} from './getWindow';
-import {getNodeName} from './node';
+import { getComputedStyle } from "./getComputedStyle";
+import { getWindow } from "./getWindow";
+import { getNodeName } from "./node";
 
 declare global {
   interface Window {
@@ -21,7 +21,7 @@ export function isElement(value: any): value is Element {
 
 export function isShadowRoot(node: Node): node is ShadowRoot {
   // Browsers without `ShadowRoot` support.
-  if (typeof ShadowRoot === 'undefined') {
+  if (typeof ShadowRoot === "undefined") {
     return false;
   }
 
@@ -30,15 +30,15 @@ export function isShadowRoot(node: Node): node is ShadowRoot {
 }
 
 export function isOverflowElement(element: Element): boolean {
-  const {overflow, overflowX, overflowY, display} = getComputedStyle(element);
+  const { overflow, overflowX, overflowY, display } = getComputedStyle(element);
   return (
     /auto|scroll|overlay|hidden|clip/.test(overflow + overflowY + overflowX) &&
-    !['inline', 'contents'].includes(display)
+    !["inline", "contents"].includes(display)
   );
 }
 
 export function isTableElement(element: Element): boolean {
-  return ['table', 'td', 'th'].includes(getNodeName(element));
+  return ["table", "td", "th"].includes(getNodeName(element));
 }
 
 export function isContainingBlock(element: Element): boolean {
@@ -47,24 +47,24 @@ export function isContainingBlock(element: Element): boolean {
 
   // https://developer.mozilla.org/en-US/docs/Web/CSS/Containing_block#identifying_the_containing_block
   return (
-    css.transform !== 'none' ||
-    css.perspective !== 'none' ||
-    (!safari && (css.backdropFilter ? css.backdropFilter !== 'none' : false)) ||
-    (!safari && (css.filter ? css.filter !== 'none' : false)) ||
-    ['transform', 'perspective', 'filter'].some((value) =>
-      (css.willChange || '').includes(value)
+    css.transform !== "none" ||
+    css.perspective !== "none" ||
+    (!safari && (css.backdropFilter ? css.backdropFilter !== "none" : false)) ||
+    (!safari && (css.filter ? css.filter !== "none" : false)) ||
+    ["transform", "perspective", "filter"].some((value) =>
+      (css.willChange || "").includes(value)
     ) ||
-    ['paint', 'layout', 'strict', 'content'].some((value) =>
-      (css.contain || '').includes(value)
+    ["paint", "layout", "strict", "content"].some((value) =>
+      (css.contain || "").includes(value)
     )
   );
 }
 
 export function isSafari(): boolean {
-  if (typeof CSS === 'undefined' || !CSS.supports) return false;
-  return CSS.supports('-webkit-backdrop-filter', 'none');
+  if (typeof CSS === "undefined" || !CSS.supports) return false;
+  return CSS.supports("-webkit-backdrop-filter", "none");
 }
 
 export function isLastTraversableNode(node: Node) {
-  return ['html', 'body', '#document'].includes(getNodeName(node));
+  return ["html", "body", "#document"].includes(getNodeName(node));
 }

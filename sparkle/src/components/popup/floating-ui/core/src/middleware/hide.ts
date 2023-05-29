@@ -1,9 +1,9 @@
 import {
   detectOverflow,
   Options as DetectOverflowOptions,
-} from '../detectOverflow';
-import {sides} from '../enums';
-import type {Middleware, Rect, SideObject} from '../types';
+} from "../detectOverflow";
+import { sides } from "../enums";
+import type { Middleware, Rect, SideObject } from "../types";
 
 function getSideOffsets(overflow: SideObject, rect: Rect) {
   return {
@@ -22,7 +22,7 @@ export interface Options {
   /**
    * The strategy used to determine when to hide the floating element.
    */
-  strategy: 'referenceHidden' | 'escaped';
+  strategy: "referenceHidden" | "escaped";
 }
 
 /**
@@ -33,17 +33,17 @@ export interface Options {
 export const hide = (
   options: Partial<Options & DetectOverflowOptions> = {}
 ): Middleware => ({
-  name: 'hide',
+  name: "hide",
   options,
   async fn(state) {
-    const {strategy = 'referenceHidden', ...detectOverflowOptions} = options;
-    const {rects} = state;
+    const { strategy = "referenceHidden", ...detectOverflowOptions } = options;
+    const { rects } = state;
 
     switch (strategy) {
-      case 'referenceHidden': {
+      case "referenceHidden": {
         const overflow = await detectOverflow(state, {
           ...detectOverflowOptions,
-          elementContext: 'reference',
+          elementContext: "reference",
         });
         const offsets = getSideOffsets(overflow, rects.reference);
         return {
@@ -53,7 +53,7 @@ export const hide = (
           },
         };
       }
-      case 'escaped': {
+      case "escaped": {
         const overflow = await detectOverflow(state, {
           ...detectOverflowOptions,
           altBoundary: true,

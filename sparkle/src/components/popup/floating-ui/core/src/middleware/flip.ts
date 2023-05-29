@@ -1,13 +1,13 @@
 import {
   detectOverflow,
   Options as DetectOverflowOptions,
-} from '../detectOverflow';
-import type {Middleware, Placement} from '../types';
-import {getAlignmentSides} from '../utils/getAlignmentSides';
-import {getExpandedPlacements} from '../utils/getExpandedPlacements';
-import {getOppositeAxisPlacements} from '../utils/getOppositeAxisPlacements';
-import {getOppositePlacement} from '../utils/getOppositePlacement';
-import {getSide} from '../utils/getSide';
+} from "../detectOverflow";
+import type { Middleware, Placement } from "../types";
+import { getAlignmentSides } from "../utils/getAlignmentSides";
+import { getExpandedPlacements } from "../utils/getExpandedPlacements";
+import { getOppositeAxisPlacements } from "../utils/getOppositeAxisPlacements";
+import { getOppositePlacement } from "../utils/getOppositePlacement";
+import { getSide } from "../utils/getSide";
 
 export interface Options {
   /**
@@ -34,14 +34,14 @@ export interface Options {
    * What strategy to use when no placements fit.
    * @default 'bestFit'
    */
-  fallbackStrategy: 'bestFit' | 'initialPlacement';
+  fallbackStrategy: "bestFit" | "initialPlacement";
 
   /**
    * Whether to allow fallback to the perpendicular axis of the preferred
    * placement, and if so, which side direction along the axis to prefer.
    * @default 'none' (disallow fallback)
    */
-  fallbackAxisSideDirection: 'none' | 'start' | 'end';
+  fallbackAxisSideDirection: "none" | "start" | "end";
 
   /**
    * Whether to flip to placements with the opposite alignment if they fit
@@ -60,7 +60,7 @@ export interface Options {
 export const flip = (
   options: Partial<Options & DetectOverflowOptions> = {}
 ): Middleware => ({
-  name: 'flip',
+  name: "flip",
   options,
   async fn(state) {
     const {
@@ -76,8 +76,8 @@ export const flip = (
       mainAxis: checkMainAxis = true,
       crossAxis: checkCrossAxis = true,
       fallbackPlacements: specifiedFallbackPlacements,
-      fallbackStrategy = 'bestFit',
-      fallbackAxisSideDirection = 'none',
+      fallbackStrategy = "bestFit",
+      fallbackAxisSideDirection = "none",
       flipAlignment = true,
       ...detectOverflowOptions
     } = options;
@@ -92,7 +92,7 @@ export const flip = (
         ? [getOppositePlacement(initialPlacement)]
         : getExpandedPlacements(initialPlacement));
 
-    if (!specifiedFallbackPlacements && fallbackAxisSideDirection !== 'none') {
+    if (!specifiedFallbackPlacements && fallbackAxisSideDirection !== "none") {
       fallbackPlacements.push(
         ...getOppositeAxisPlacements(
           initialPlacement,
@@ -115,11 +115,11 @@ export const flip = (
     }
 
     if (checkCrossAxis) {
-      const {main, cross} = getAlignmentSides(placement, rects, rtl);
+      const { main, cross } = getAlignmentSides(placement, rects, rtl);
       overflows.push(overflow[main], overflow[cross]);
     }
 
-    overflowsData = [...overflowsData, {placement, overflows}];
+    overflowsData = [...overflowsData, { placement, overflows }];
 
     // One or more sides is overflowing.
     if (!overflows.every((side) => side <= 0)) {
@@ -142,13 +142,15 @@ export const flip = (
       // First, find the candidates that fit on the mainAxis side of overflow,
       // then find the placement that fits the best on the main crossAxis side.
       let resetPlacement = overflowsData
-        .filter((d) => d.overflows[0] <= 0)
-        .sort((a, b) => a.overflows[1] - b.overflows[1])[0]?.placement;
+        .filter((d) => (d.overflows[0] ?? 0) <= 0)
+        .sort(
+          (a, b) => (a.overflows[1] ?? 0) - (b.overflows[1] ?? 0)
+        )[0]?.placement;
 
       // Otherwise fallback.
       if (!resetPlacement) {
         switch (fallbackStrategy) {
-          case 'bestFit': {
+          case "bestFit": {
             const placement = overflowsData
               .map(
                 (d) =>
@@ -165,7 +167,7 @@ export const flip = (
             }
             break;
           }
-          case 'initialPlacement':
+          case "initialPlacement":
             resetPlacement = initialPlacement;
             break;
           default:

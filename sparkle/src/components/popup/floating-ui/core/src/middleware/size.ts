@@ -1,12 +1,12 @@
 import {
   detectOverflow,
   Options as DetectOverflowOptions,
-} from '../detectOverflow';
-import type {Middleware, MiddlewareState} from '../types';
-import {getAlignment} from '../utils/getAlignment';
-import {getMainAxisFromPlacement} from '../utils/getMainAxisFromPlacement';
-import {getSide} from '../utils/getSide';
-import {max, min} from '../utils/math';
+} from "../detectOverflow";
+import type { Middleware, MiddlewareState } from "../types";
+import { getAlignment } from "../utils/getAlignment";
+import { getMainAxisFromPlacement } from "../utils/getMainAxisFromPlacement";
+import { getSide } from "../utils/getSide";
+import { max, min } from "../utils/math";
 
 export interface Options {
   /**
@@ -31,32 +31,32 @@ export interface Options {
 export const size = (
   options: Partial<Options & DetectOverflowOptions> = {}
 ): Middleware => ({
-  name: 'size',
+  name: "size",
   options,
   async fn(state) {
-    const {placement, rects, platform, elements} = state;
-    const {apply = () => {}, ...detectOverflowOptions} = options;
+    const { placement, rects, platform, elements } = state;
+    const { apply = () => {}, ...detectOverflowOptions } = options;
 
     const overflow = await detectOverflow(state, detectOverflowOptions);
     const side = getSide(placement);
     const alignment = getAlignment(placement);
     const axis = getMainAxisFromPlacement(placement);
-    const isXAxis = axis === 'x';
-    const {width, height} = rects.floating;
+    const isXAxis = axis === "x";
+    const { width, height } = rects.floating;
 
-    let heightSide: 'top' | 'bottom';
-    let widthSide: 'left' | 'right';
+    let heightSide: "top" | "bottom";
+    let widthSide: "left" | "right";
 
-    if (side === 'top' || side === 'bottom') {
+    if (side === "top" || side === "bottom") {
       heightSide = side;
       widthSide =
         alignment ===
-        ((await platform.isRTL?.(elements.floating)) ? 'start' : 'end')
-          ? 'left'
-          : 'right';
+        ((await platform.isRTL?.(elements.floating)) ? "start" : "end")
+          ? "left"
+          : "right";
     } else {
       widthSide = side;
-      heightSide = alignment === 'end' ? 'top' : 'bottom';
+      heightSide = alignment === "end" ? "top" : "bottom";
     }
 
     const overflowAvailableHeight = height - overflow[heightSide];
@@ -104,7 +104,7 @@ export const size = (
       }
     }
 
-    await apply({...state, availableWidth, availableHeight});
+    await apply({ ...state, availableWidth, availableHeight });
 
     const nextDimensions = await platform.getDimensions(elements.floating);
 

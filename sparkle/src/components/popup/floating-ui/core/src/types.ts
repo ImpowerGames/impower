@@ -1,10 +1,10 @@
-export type Alignment = 'start' | 'end';
-export type Side = 'top' | 'right' | 'bottom' | 'left';
+export type Alignment = "start" | "end";
+export type Side = "top" | "right" | "bottom" | "left";
 export type AlignedPlacement = `${Side}-${Alignment}`;
 export type Placement = Side | AlignedPlacement;
-export type Strategy = 'absolute' | 'fixed';
-export type Axis = 'x' | 'y';
-export type Length = 'width' | 'height';
+export type Strategy = "absolute" | "fixed";
+export type Axis = "x" | "y";
+export type Length = "width" | "height";
 
 type Promisable<T> = T | Promise<T>;
 
@@ -38,12 +38,12 @@ export interface Platform {
   getDocumentElement?: (element: any) => Promisable<any>;
   getClientRects?: (element: any) => Promisable<Array<ClientRectObject>>;
   isRTL?: (element: any) => Promisable<boolean>;
-  getScale?: (element: any) => Promisable<{x: number; y: number}>;
+  getScale?: (element: any) => Promisable<{ x: number; y: number }>;
 }
 
-export type Coords = {[key in Axis]: number};
+export type Coords = { [key in Axis]: number };
 
-export type SideObject = {[key in Side]: number};
+export type SideObject = { [key in Side]: number };
 
 export interface MiddlewareData {
   [key: string]: any;
@@ -111,7 +111,7 @@ export type Middleware = {
   fn: (state: MiddlewareState) => Promisable<MiddlewareReturn>;
 };
 
-export type Dimensions = {[key in Length]: number};
+export type Dimensions = { [key in Length]: number };
 
 export type Rect = Coords & Dimensions;
 
@@ -153,28 +153,28 @@ export type MiddlewareArguments = MiddlewareState;
 export type ClientRectObject = Rect & SideObject;
 export type Padding = number | Partial<SideObject>;
 export type Boundary = any;
-export type RootBoundary = 'viewport' | 'document' | Rect;
-export type ElementContext = 'reference' | 'floating';
+export type RootBoundary = "viewport" | "document" | Rect;
+export type ElementContext = "reference" | "floating";
 
-export {computePosition} from './computePosition';
+export { computePosition } from "./computePosition";
 export {
-  detectOverflow,
   Options as DetectOverflowOptions,
-} from './detectOverflow';
-export {arrow, Options as ArrowOptions} from './middleware/arrow';
+  detectOverflow,
+} from "./detectOverflow";
+export { Options as ArrowOptions, arrow } from "./middleware/arrow";
 export {
-  autoPlacement,
   Options as AutoPlacementOptions,
-} from './middleware/autoPlacement';
-export {flip, Options as FlipOptions} from './middleware/flip';
-export {hide, Options as HideOptions} from './middleware/hide';
-export {inline, Options as InlineOptions} from './middleware/inline';
-export {offset, Options as OffsetOptions} from './middleware/offset';
+  autoPlacement,
+} from "./middleware/autoPlacement";
+export { Options as FlipOptions, flip } from "./middleware/flip";
+export { Options as HideOptions, hide } from "./middleware/hide";
+export { Options as InlineOptions, inline } from "./middleware/inline";
+export { Options as OffsetOptions, offset } from "./middleware/offset";
 export {
-  limitShift,
   LimitShiftOptions,
-  shift,
   Options as ShiftOptions,
-} from './middleware/shift';
-export {size, Options as SizeOptions} from './middleware/size';
-export {rectToClientRect} from './utils/rectToClientRect';
+  limitShift,
+  shift,
+} from "./middleware/shift";
+export { Options as SizeOptions, size } from "./middleware/size";
+export { rectToClientRect } from "./utils/rectToClientRect";

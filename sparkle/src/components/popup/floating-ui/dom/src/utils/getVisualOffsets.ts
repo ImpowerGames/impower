@@ -1,5 +1,5 @@
-import {getWindow} from './getWindow';
-import {isSafari} from './is';
+import { getWindow } from './getWindow';
+import { isSafari } from './is';
 
 const noOffsets = {x: 0, y: 0};
 

@@ -5,9 +5,9 @@ import type {
   Padding,
   RootBoundary,
   SideObject,
-} from './types';
-import {getSideObjectFromPadding} from './utils/getPaddingObject';
-import {rectToClientRect} from './utils/rectToClientRect';
+} from "./types";
+import { getSideObjectFromPadding } from "./utils/getPaddingObject";
+import { rectToClientRect } from "./utils/rectToClientRect";
 
 export interface Options {
   /**
@@ -54,18 +54,18 @@ export async function detectOverflow(
   state: MiddlewareState,
   options: Partial<Options> = {}
 ): Promise<SideObject> {
-  const {x, y, platform, rects, elements, strategy} = state;
+  const { x, y, platform, rects, elements, strategy } = state;
 
   const {
-    boundary = 'clippingAncestors',
-    rootBoundary = 'viewport',
-    elementContext = 'floating',
+    boundary = "clippingAncestors",
+    rootBoundary = "viewport",
+    elementContext = "floating",
     altBoundary = false,
     padding = 0,
   } = options;
 
   const paddingObject = getSideObjectFromPadding(padding);
-  const altContext = elementContext === 'floating' ? 'reference' : 'floating';
+  const altContext = elementContext === "floating" ? "reference" : "floating";
   const element = elements[altBoundary ? altContext : elementContext];
 
   const clippingClientRect = rectToClientRect(
@@ -82,12 +82,14 @@ export async function detectOverflow(
   );
 
   const rect =
-    elementContext === 'floating' ? {...rects.floating, x, y} : rects.reference;
+    elementContext === "floating"
+      ? { ...rects.floating, x, y }
+      : rects.reference;
 
   const offsetParent = await platform.getOffsetParent?.(elements.floating);
   const offsetScale = (await platform.isElement?.(offsetParent))
-    ? (await platform.getScale?.(offsetParent)) || {x: 1, y: 1}
-    : {x: 1, y: 1};
+    ? (await platform.getScale?.(offsetParent)) || { x: 1, y: 1 }
+    : { x: 1, y: 1 };
 
   const elementClientRect = rectToClientRect(
     platform.convertOffsetParentRelativeRectToViewportRelativeRect

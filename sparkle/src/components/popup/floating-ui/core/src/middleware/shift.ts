@@ -1,12 +1,12 @@
 import {
   detectOverflow,
   Options as DetectOverflowOptions,
-} from '../detectOverflow';
-import type {Coords, Middleware, MiddlewareState} from '../types';
-import {getCrossAxis} from '../utils/getCrossAxis';
-import {getMainAxisFromPlacement} from '../utils/getMainAxisFromPlacement';
-import {getSide} from '../utils/getSide';
-import {within} from '../utils/within';
+} from "../detectOverflow";
+import type { Coords, Middleware, MiddlewareState } from "../types";
+import { getCrossAxis } from "../utils/getCrossAxis";
+import { getMainAxisFromPlacement } from "../utils/getMainAxisFromPlacement";
+import { getSide } from "../utils/getSide";
+import { within } from "../utils/within";
 
 export interface Options {
   /**
@@ -41,18 +41,18 @@ export interface Options {
 export const shift = (
   options: Partial<Options & DetectOverflowOptions> = {}
 ): Middleware => ({
-  name: 'shift',
+  name: "shift",
   options,
   async fn(state) {
-    const {x, y, placement} = state;
+    const { x, y, placement } = state;
     const {
       mainAxis: checkMainAxis = true,
       crossAxis: checkCrossAxis = false,
-      limiter = {fn: ({x, y}) => ({x, y})},
+      limiter = { fn: ({ x, y }) => ({ x, y }) },
       ...detectOverflowOptions
     } = options;
 
-    const coords = {x, y};
+    const coords = { x, y };
     const overflow = await detectOverflow(state, detectOverflowOptions);
     const mainAxis = getMainAxisFromPlacement(getSide(placement));
     const crossAxis = getCrossAxis(mainAxis);
@@ -61,8 +61,8 @@ export const shift = (
     let crossAxisCoord = coords[crossAxis];
 
     if (checkMainAxis) {
-      const minSide = mainAxis === 'y' ? 'top' : 'left';
-      const maxSide = mainAxis === 'y' ? 'bottom' : 'right';
+      const minSide = mainAxis === "y" ? "top" : "left";
+      const maxSide = mainAxis === "y" ? "bottom" : "right";
       const min = mainAxisCoord + overflow[minSide];
       const max = mainAxisCoord - overflow[maxSide];
 
@@ -70,8 +70,8 @@ export const shift = (
     }
 
     if (checkCrossAxis) {
-      const minSide = crossAxis === 'y' ? 'top' : 'left';
-      const maxSide = crossAxis === 'y' ? 'bottom' : 'right';
+      const minSide = crossAxis === "y" ? "top" : "left";
+      const maxSide = crossAxis === "y" ? "bottom" : "right";
       const min = crossAxisCoord + overflow[minSide];
       const max = crossAxisCoord - overflow[maxSide];
 
@@ -153,28 +153,28 @@ export const limitShift = (
 } => ({
   options,
   fn(state) {
-    const {x, y, placement, rects, middlewareData} = state;
+    const { x, y, placement, rects, middlewareData } = state;
     const {
       offset = 0,
       mainAxis: checkMainAxis = true,
       crossAxis: checkCrossAxis = true,
     } = options;
 
-    const coords = {x, y};
+    const coords = { x, y };
     const mainAxis = getMainAxisFromPlacement(placement);
     const crossAxis = getCrossAxis(mainAxis);
 
     let mainAxisCoord = coords[mainAxis];
     let crossAxisCoord = coords[crossAxis];
 
-    const rawOffset = typeof offset === 'function' ? offset(state) : offset;
+    const rawOffset = typeof offset === "function" ? offset(state) : offset;
     const computedOffset =
-      typeof rawOffset === 'number'
-        ? {mainAxis: rawOffset, crossAxis: 0}
-        : {mainAxis: 0, crossAxis: 0, ...rawOffset};
+      typeof rawOffset === "number"
+        ? { mainAxis: rawOffset, crossAxis: 0 }
+        : { mainAxis: 0, crossAxis: 0, ...rawOffset };
 
     if (checkMainAxis) {
-      const len = mainAxis === 'y' ? 'height' : 'width';
+      const len = mainAxis === "y" ? "height" : "width";
       const limitMin =
         rects.reference[mainAxis] -
         rects.floating[len] +
@@ -192,8 +192,8 @@ export const limitShift = (
     }
 
     if (checkCrossAxis) {
-      const len = mainAxis === 'y' ? 'width' : 'height';
-      const isOriginSide = ['top', 'left'].includes(getSide(placement));
+      const len = mainAxis === "y" ? "width" : "height";
+      const isOriginSide = ["top", "left"].includes(getSide(placement));
       const limitMin =
         rects.reference[crossAxis] -
         rects.floating[len] +

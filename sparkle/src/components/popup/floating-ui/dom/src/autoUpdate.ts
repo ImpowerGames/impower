@@ -1,7 +1,7 @@
-import type {FloatingElement, ReferenceElement} from './types';
-import {getBoundingClientRect} from './utils/getBoundingClientRect';
-import {getOverflowAncestors} from './utils/getOverflowAncestors';
-import {isElement} from './utils/is';
+import type { FloatingElement, ReferenceElement } from "./types";
+import { getBoundingClientRect } from "./utils/getBoundingClientRect";
+import { getOverflowAncestors } from "./utils/getOverflowAncestors";
+import { isElement } from "./utils/is";
 
 export interface Options {
   /**
@@ -68,11 +68,11 @@ export function autoUpdate(
   ancestors.forEach((ancestor) => {
     // ignores Window, checks for [object VisualViewport]
     const isVisualViewport =
-      !isElement(ancestor) && ancestor.toString().includes('V');
+      !isElement(ancestor) && ancestor.toString().includes("V");
     if (ancestorScroll && (animationFrame ? isVisualViewport : true)) {
-      ancestor.addEventListener('scroll', update, {passive: true});
+      ancestor.addEventListener("scroll", update, { passive: true });
     }
-    ancestorResize && ancestor.addEventListener('resize', update);
+    ancestorResize && ancestor.addEventListener("resize", update);
   });
 
   let observer: ResizeObserver | null = null;
@@ -115,8 +115,8 @@ export function autoUpdate(
 
   return () => {
     ancestors.forEach((ancestor) => {
-      ancestorScroll && ancestor.removeEventListener('scroll', update);
-      ancestorResize && ancestor.removeEventListener('resize', update);
+      ancestorScroll && ancestor.removeEventListener("scroll", update);
+      ancestorResize && ancestor.removeEventListener("resize", update);
     });
 
     observer?.disconnect();

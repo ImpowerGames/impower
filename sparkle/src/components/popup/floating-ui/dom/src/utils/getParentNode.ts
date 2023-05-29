@@ -1,9 +1,9 @@
-import {getDocumentElement} from './getDocumentElement';
-import {isShadowRoot} from './is';
-import {getNodeName} from './node';
+import { getDocumentElement } from "./getDocumentElement";
+import { isShadowRoot } from "./is";
+import { getNodeName } from "./node";
 
 export function getParentNode(node: Node): Node {
-  if (getNodeName(node) === 'html') {
+  if (getNodeName(node) === "html") {
     return node;
   }
 

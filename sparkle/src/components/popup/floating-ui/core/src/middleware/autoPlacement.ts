@@ -1,13 +1,13 @@
 import {
   detectOverflow,
   Options as DetectOverflowOptions,
-} from '../detectOverflow';
-import {allPlacements} from '../enums';
-import type {Alignment, Middleware, Placement} from '../types';
-import {getAlignment} from '../utils/getAlignment';
-import {getAlignmentSides} from '../utils/getAlignmentSides';
-import {getOppositeAlignmentPlacement} from '../utils/getOppositeAlignmentPlacement';
-import {getSide} from '../utils/getSide';
+} from "../detectOverflow";
+import { allPlacements } from "../enums";
+import type { Alignment, Middleware, Placement } from "../types";
+import { getAlignment } from "../utils/getAlignment";
+import { getAlignmentSides } from "../utils/getAlignmentSides";
+import { getOppositeAlignmentPlacement } from "../utils/getOppositeAlignmentPlacement";
+import { getSide } from "../utils/getSide";
 
 export function getPlacementList(
   alignment: Alignment | null,
@@ -77,10 +77,10 @@ export interface Options {
 export const autoPlacement = (
   options: Partial<Options & DetectOverflowOptions> = {}
 ): Middleware => ({
-  name: 'autoPlacement',
+  name: "autoPlacement",
   options,
   async fn(state) {
-    const {rects, middlewareData, placement, platform, elements} = state;
+    const { rects, middlewareData, placement, platform, elements } = state;
 
     const {
       crossAxis = false,
@@ -104,7 +104,7 @@ export const autoPlacement = (
       return {};
     }
 
-    const {main, cross} = getAlignmentSides(
+    const { main, cross } = getAlignmentSides(
       currentPlacement,
       rects,
       await platform.isRTL?.(elements.floating)
@@ -127,7 +127,7 @@ export const autoPlacement = (
 
     const allOverflows = [
       ...(middlewareData.autoPlacement?.overflows || []),
-      {placement: currentPlacement, overflows: currentOverflows},
+      { placement: currentPlacement, overflows: currentOverflows },
     ];
 
     const nextPlacement = placements[currentIndex + 1];
@@ -158,7 +158,7 @@ export const autoPlacement = (
           d.overflows,
         ] as const;
       })
-      .sort((a, b) => a[1] - b[1]);
+      .sort((a, b) => (a[1] ?? 0) - (b[1] ?? 0));
 
     const placementsThatFitOnEachSide = placementsSortedByMostSpace.filter(
       (d) =>
@@ -173,7 +173,8 @@ export const autoPlacement = (
     );
 
     const resetPlacement =
-      placementsThatFitOnEachSide[0]?.[0] || placementsSortedByMostSpace[0][0];
+      placementsThatFitOnEachSide[0]?.[0] ||
+      placementsSortedByMostSpace[0]?.[0];
 
     if (resetPlacement !== placement) {
       return {

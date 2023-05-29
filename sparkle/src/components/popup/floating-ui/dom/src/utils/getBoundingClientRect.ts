@@ -1,11 +1,11 @@
-import type {ClientRectObject, VirtualElement} from '@floating-ui/core';
-import {rectToClientRect} from '@floating-ui/core';
+import type { ClientRectObject, VirtualElement } from "../../../core";
+import { rectToClientRect } from "../../../core";
 
-import {FALLBACK_SCALE, getScale} from './getScale';
-import {getVisualOffsets} from './getVisualOffsets';
-import {getWindow} from './getWindow';
-import {isElement} from './is';
-import {unwrapElement} from './unwrapElement';
+import { FALLBACK_SCALE, getScale } from "./getScale";
+import { getVisualOffsets } from "./getVisualOffsets";
+import { getWindow } from "./getWindow";
+import { isElement } from "./is";
+import { unwrapElement } from "./unwrapElement";
 
 export function getBoundingClientRect(
   element: Element | VirtualElement,
@@ -69,5 +69,5 @@ export function getBoundingClientRect(
     }
   }
 
-  return rectToClientRect({width, height, x, y});
+  return rectToClientRect({ width, height, x, y });
 }

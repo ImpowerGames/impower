@@ -1,13 +1,13 @@
-import {getComputedStyle} from './getComputedStyle';
-import {getParentNode} from './getParentNode';
-import {getWindow} from './getWindow';
+import { getComputedStyle } from "./getComputedStyle";
+import { getParentNode } from "./getParentNode";
+import { getWindow } from "./getWindow";
 import {
   isContainingBlock,
   isHTMLElement,
   isLastTraversableNode,
   isTableElement,
-} from './is';
-import {getNodeName} from './node';
+} from "./is";
+import { getNodeName } from "./node";
 
 type Polyfill = (element: HTMLElement) => Element | null;
 
@@ -17,7 +17,7 @@ function getTrueOffsetParent(
 ): Element | null {
   if (
     !isHTMLElement(element) ||
-    getComputedStyle(element).position === 'fixed'
+    getComputedStyle(element).position === "fixed"
   ) {
     return null;
   }
@@ -60,16 +60,16 @@ export function getOffsetParent(
   while (
     offsetParent &&
     isTableElement(offsetParent) &&
-    getComputedStyle(offsetParent).position === 'static'
+    getComputedStyle(offsetParent).position === "static"
   ) {
     offsetParent = getTrueOffsetParent(offsetParent, polyfill);
   }
 
   if (
     offsetParent &&
-    (getNodeName(offsetParent) === 'html' ||
-      (getNodeName(offsetParent) === 'body' &&
-        getComputedStyle(offsetParent).position === 'static' &&
+    (getNodeName(offsetParent) === "html" ||
+      (getNodeName(offsetParent) === "body" &&
+        getComputedStyle(offsetParent).position === "static" &&
         !isContainingBlock(offsetParent)))
   ) {
     return window;

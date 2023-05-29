@@ -1,5 +1,5 @@
-import type {Axis} from '../types';
+import type { Axis } from "../types";
 
 export function getCrossAxis(axis: Axis): Axis {
-  return axis === 'x' ? 'y' : 'x';
+  return axis === "x" ? "y" : "x";
 }
