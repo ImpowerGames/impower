@@ -1,4 +1,4 @@
-import getCssDurationMS from "sparkle-style-transformer/utils/getCssDurationMS.js";
+import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
 import type SparkleEvent from "../../core/SparkleEvent";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";

@@ -1,5 +1,5 @@
-import getCssDuration from "sparkle-style-transformer/utils/getCssDuration.js";
-import getCssEase from "sparkle-style-transformer/utils/getCssEase.js";
+import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
+import getCssEase from "../../../../sparkle-style-transformer/src/utils/getCssEase";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";

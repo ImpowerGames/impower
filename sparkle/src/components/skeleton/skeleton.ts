@@ -1,4 +1,4 @@
-import getCssColor from "sparkle-style-transformer/utils/getCssColor.js";
+import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import SparkleElement from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";

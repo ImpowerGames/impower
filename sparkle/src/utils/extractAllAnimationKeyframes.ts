@@ -1,4 +1,4 @@
-import getCssDurationMS from "sparkle-style-transformer/utils/getCssDurationMS.js";
+import getCssDurationMS from "../../../sparkle-style-transformer/src/utils/getCssDurationMS";
 
 export const extractAllAnimationKeyframes = (
   ...sheets: CSSStyleSheet[]

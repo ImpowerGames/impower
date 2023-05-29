@@ -1,7 +1,7 @@
-import getCssColor from "sparkle-style-transformer/utils/getCssColor.js";
-import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
-import getCssMask from "sparkle-style-transformer/utils/getCssMask.js";
-import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
+import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
+import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
+import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
+import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";

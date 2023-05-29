@@ -1,5 +1,5 @@
-import getCssColor from "sparkle-style-transformer/utils/getCssColor.js";
-import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
+import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
+import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import SparkleElement from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";

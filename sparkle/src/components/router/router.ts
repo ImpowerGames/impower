@@ -1,4 +1,4 @@
-import getCssAnimation from "sparkle-style-transformer/utils/getCssAnimation.js";
+import getCssAnimation from "../../../../sparkle-style-transformer/src/utils/getCssAnimation";
 import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";

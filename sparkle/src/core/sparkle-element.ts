@@ -1,7 +1,7 @@
-import STYLE_ALIASES from "sparkle-style-transformer/constants/STYLE_ALIASES.js";
-import STYLE_TRANSFORMERS from "sparkle-style-transformer/constants/STYLE_TRANSFORMERS.js";
-import getCssPattern from "sparkle-style-transformer/utils/getCssPattern.js";
-import getCssTextStroke from "sparkle-style-transformer/utils/getCssTextStroke.js";
+import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
+import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
+import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
+import getCssTextStroke from "../../../sparkle-style-transformer/src/utils/getCssTextStroke";
 import Patterns from "../configs/patterns";
 import { ARIA_ATTRIBUTE_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
 import { LIGHT_DOM_CORE_CSS, SHADOW_DOM_CORE_CSS } from "../styles/core/core";

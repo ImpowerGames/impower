@@ -1,4 +1,4 @@
-import extractAllGraphics from "sparkle-style-transformer/utils/extractAllGraphics.js";
+import extractAllGraphics from "../../../sparkle-style-transformer/src/utils/extractAllGraphics";
 import Animations from "../configs/animations";
 import Icons from "../configs/icons";
 import Patterns from "../configs/patterns";

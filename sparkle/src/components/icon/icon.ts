@@ -1,5 +1,5 @@
-import getCssIcon from "sparkle-style-transformer/utils/getCssIcon.js";
-import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
+import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
+import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";

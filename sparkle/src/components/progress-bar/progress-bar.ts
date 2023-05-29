@@ -1,4 +1,4 @@
-import getCssSize from "sparkle-style-transformer/utils/getCssSize.js";
+import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
