@@ -11,7 +11,7 @@ import {
   platform,
   shift,
   size,
-} from "./floating-ui/dom";
+} from "./floating-ui/dom/src/types";
 import css from "./popup.css";
 import html from "./popup.html";
 
