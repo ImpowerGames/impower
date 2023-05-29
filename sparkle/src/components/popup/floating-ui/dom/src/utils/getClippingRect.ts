@@ -5,7 +5,7 @@ import type {
   RootBoundary,
   Strategy,
 } from "../../../core";
-import { rectToClientRect } from "../../../core";
+import { rectToClientRect } from "../../../core/src/utils/rectToClientRect";
 
 import { Platform, ReferenceElement } from "../types";
 import { getBoundingClientRect } from "./getBoundingClientRect";

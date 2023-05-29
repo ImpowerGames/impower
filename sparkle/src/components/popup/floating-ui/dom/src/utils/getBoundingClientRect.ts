@@ -1,5 +1,5 @@
 import type { ClientRectObject, VirtualElement } from "../../../core";
-import { rectToClientRect } from "../../../core";
+import { rectToClientRect } from "../../../core/src/utils/rectToClientRect";
 
 import { FALLBACK_SCALE, getScale } from "./getScale";
 import { getVisualOffsets } from "./getVisualOffsets";
