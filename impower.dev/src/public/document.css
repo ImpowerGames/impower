@@ -1,0 +1,54 @@
+@font-face {
+  font-family: "Courier Prime Sans";
+  font-weight: 400;
+  font-display: block;
+  src: url("/public/fonts/courier-prime-sans.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime Sans";
+  font-weight: 700;
+  font-display: block;
+  src: url("/public/fonts/courier-prime-sans-bold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime Sans";
+  font-style: italic;
+  font-weight: 400;
+  font-display: block;
+  src: url("/public/fonts/courier-prime-sans-italic.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime Sans";
+  font-style: italic;
+  font-weight: 700;
+  font-display: block;
+  src: url("/public/fonts/courier-prime-sans-bold-italic.ttf")
+    format("truetype");
+}
+
+html {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.875rem;
+}
+
+main {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+}

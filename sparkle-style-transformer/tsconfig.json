@@ -21,8 +21,7 @@
     "noUnusedParameters": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "forceConsistentCasingInFileNames": true,
-    "checkJs": true
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src/**/*"]
 }

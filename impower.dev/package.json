@@ -1,36 +1,30 @@
 {
-  "name": "client-engine",
+  "name": "impower-dev",
   "version": "0.0.1",
+  "type": "module",
   "scripts": {
-    "start": "npx enhance dev",
-    "lint": "eslint ./app/**/*.mjs --fix"
-  },
-  "dependencies": {
-    "@impower/arc-plugin-impower": "file:../arc-plugin-impower",
-    "fastify": "^4.17.0",
-    "spark-editor": "file:../spark-editor",
-    "sparkle": "file:../sparkle"
+    "kill": "kill-port 3000",
+    "start": "node ./esbuild.js --serve",
+    "watch": "node ./esbuild.js --watch --serve",
+    "build": "NODE_ENV=production node ./esbuild.js"
   },
   "devDependencies": {
-    "@enhance/cli": "^0.0.8",
-    "@enhance/types": "^0.6.0",
-    "eslint": "^8.30.0"
+    "@types/node": "^20.2.5",
+    "@types/ws": "^8.5.4",
+    "chokidar": "^3.5.3",
+    "esbuild": "^0.17.19",
+    "kill-port": "^2.0.1",
+    "tiny-glob": "^0.2.9",
+    "typescript": "^5.0.4"
   },
-  "eslintConfig": {
-    "env": {
-      "node": true
-    },
-    "extends": "eslint:recommended",
-    "rules": {
-      "indent": [
-        "error",
-        2
-      ]
-    },
-    "ignorePatterns": [],
-    "parserOptions": {
-      "sourceType": "module",
-      "ecmaVersion": 2022
-    }
+  "dependencies": {
+    "@fastify/cors": "^8.3.0",
+    "@fastify/restartable": "^2.1.0",
+    "@fastify/static": "^6.10.2",
+    "@fastify/websocket": "^8.1.0",
+    "dotenv": "^16.0.3",
+    "fastify": "^4.17.0",
+    "nanoid": "^4.0.2",
+    "pino-pretty": "^10.0.0"
   }
 }
