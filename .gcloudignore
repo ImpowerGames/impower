@@ -13,6 +13,8 @@ node_modules/
 packages/concept-generator/
 packages/vscode-spark/
 packages/vscode-sparkdown/
+packages/impower-app/
+packages/admin/
 
 .gitignore
 README.md

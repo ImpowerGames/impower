@@ -1,13 +1,13 @@
 import {
-    activate as _activate,
-    fetchAndActivate as _fetchAndActivate,
-    fetchConfig as _fetchConfig,
-    getValue as _getValue,
-    getRemoteConfig,
+  activate as _activate,
+  fetchAndActivate as _fetchAndActivate,
+  fetchConfig as _fetchConfig,
+  getValue as _getValue,
+  getRemoteConfig,
 } from "@firebase/remote-config";
-import terms from "../../../../../packages/concept-generator/src/output/terms.json";
 import archetypes from "../../../../concept-generator/src/input/archetypes.txt";
 import phrases from "../../../../concept-generator/src/input/phrases.txt";
+import terms from "../../../../concept-generator/src/output/terms.json";
 import colors from "../../../resources/json/colors.json";
 import abbreviations from "../../../resources/json/en/abbreviations.json";
 import capitalizations from "../../../resources/json/en/capitalizations.json";
