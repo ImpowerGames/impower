@@ -156,6 +156,10 @@ const copyPublic = async () => {
   await fs.promises.cp(publicInDir, publicOutDir, { recursive: true });
 };
 
+const createPackageJson = async () => {
+  await fs.promises.writeFile(`${outdir}/package.json`, `{"type": "module"}`, "utf-8");
+};
+
 const setupLivereload = async () => {
   const livereloadScript = `<script>new EventSource('/livereload').onmessage = () => location.reload()</script>`;
   const documentHtml = await fs.promises.readFile(
@@ -227,6 +231,7 @@ const watchPublic = async (onRebuild) => {
     await buildPages();
     await copyStaticFiles();
     await copyPublic();
+    await createPackageJson();
     console.log(MAGENTA, "Build finished");
     if (SERVE) {
       const { app, reloader } = (await import("./out/api/index.js")).default;

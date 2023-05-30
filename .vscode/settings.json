@@ -39,13 +39,16 @@
   "[html]": {
     "editor.defaultFormatter": "vscode.html-language-features"
   },
-  "[javascript][javascriptreact][typescript]": {
+  "[javascript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
   },
-  "[json][jsonc]": {
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[json]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
-  "[css][scss][less]": {
+  "[css]": {
     "editor.defaultFormatter": "vscode.css-language-features"
-  }
+  },
 }
