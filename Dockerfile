@@ -3,7 +3,7 @@ ENV NODE_ENV production
 WORKDIR /usr/src/app
 COPY ./packages/impower-dev/package*.json ./
 RUN npm ci
-COPY . .
+COPY ./packages/impower-dev/ .
 RUN npm run build
 
 FROM node:20-slim
