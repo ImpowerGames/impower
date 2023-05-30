@@ -1,6 +1,4 @@
 {
-  "editor.renderWhitespace": "boundary",
-  "html.customData": ["./sparkle/vscode.html-custom-data.json"],
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/tmp/**": true,
@@ -25,11 +23,29 @@
     "**/.DS_Store": true,
     "**/*{.jpg,.png,.gif,.webp,.jpeg,.svg}": true
   },
+  "editor.tabSize": 2,
+  "editor.renderWhitespace": "boundary",
   "editor.wordWrap": "on",
+  "editor.linkedEditing": true,
   "editor.formatOnSave": true,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.guides.highlightActiveIndentation": true,
+  "editor.guides.bracketPairsHorizontal": "active",
   "editor.codeActionsOnSave": {
     "source.organizeImports": true
   },
-  "eslint.workingDirectories": ["./client", "./client-engine"],
-  "editor.tabSize": 2
+  "html.customData": ["./sparkle/vscode.html-custom-data.json"],
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  },
+  "[javascript][javascriptreact][typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[json][jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[css][scss][less]": {
+    "editor.defaultFormatter": "vscode.css-language-features"
+  }
 }

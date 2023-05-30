@@ -1,15 +1,14 @@
 {
   "recommendations": [
-    "formulahendry.auto-rename-tag",
     "streetsidesoftware.code-spell-checker",
-    "dbaeumer.vscode-eslint",
-    "esbenp.prettier-vscode",
-    "ofhumanbondage.react-proptypes-intellisense",
-    "styled-components.vscode-styled-components",
-    "yzhang.markdown-all-in-one",
     "cschlosser.doxdocgen",
     "impowergames.sparkdown",
     "aaron-bond.better-comments",
-    "googlecloudtools.cloudcode"
+    "googlecloudtools.cloudcode",
+    "tobermory.es6-string-html",
+    "kisstkondoros.vscode-gutter-preview",
+    "pflannery.vscode-versionlens",
+    "dotjoshjohnson.xml",
+    "ms-azuretools.vscode-docker"
   ]
 }

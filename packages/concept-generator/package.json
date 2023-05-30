@@ -1,0 +1,45 @@
+{
+  "name": "@impower/impower-concept-generator",
+  "author": "Impower Games",
+  "version": "0.1.0",
+  "description": "The scripts and relevancy algorithms used for Impower's Random Concept Generators",
+  "keywords": [
+    "procedural generation",
+    "procedural generator",
+    "procedural",
+    "generator",
+    "procgen",
+    "randomizer"
+  ],
+  "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "moderate": "ts-node scripts/moderate.ts",
+    "similar": "ts-node scripts/similar.ts",
+    "difference": "ts-node scripts/difference.ts",
+    "concept": "ts-node scripts/concept.ts",
+    "closest": "ts-node scripts/closest.ts",
+    "map": "ts-node scripts/map.ts",
+    "average": "ts-node scripts/average.ts",
+    "missing": "ts-node scripts/missing.ts",
+    "keywords": "ts-node scripts/keywords.ts",
+    "vector": "ts-node scripts/vector.ts",
+    "related": "ts-node scripts/related.ts",
+    "sort": "ts-node scripts/sort.ts",
+    "consolidate": "ts-node scripts/consolidate.ts",
+    "unpack": "ts-node scripts/unpack.ts",
+    "curate": "ts-node scripts/curate.ts",
+    "suggest": "npm run keywords && npm run vector && npm run related",
+    "prep": "npm run sort && npm run consolidate && npm run unpack",
+    "build": "npm run prep && npm run curate"
+  },
+  "devDependencies": {
+    "@types/cli-progress": "^3.11.0",
+    "@types/node": "^16.11.4",
+    "ts-node": "^9.1.1",
+    "typescript": "^4.2.4",
+    "cli-progress": "^3.9.0",
+    "fastest-levenshtein": "^1.0.12",
+    "yaml": "^2.2.2"
+  }
+}
