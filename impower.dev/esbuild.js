@@ -1,5 +1,6 @@
 import chokidar from "chokidar";
 import { build } from "esbuild";
+import esbuildPluginPino from "esbuild-plugin-pino";
 import fs from "fs";
 import path from "path";
 import glob from "tiny-glob";
@@ -13,6 +14,7 @@ const indir = "src";
 const outdir = "out";
 
 const apiInDir = `${indir}/api`;
+const apiEntryPoints = [`${apiInDir}/index.ts`];
 const apiOutDir = `${outdir}/api`;
 
 const componentsInDir = `${indir}/components`;
@@ -25,10 +27,10 @@ const publicInDir = `${indir}/public`;
 const publicOutDir = `${outdir}/public`;
 
 const args = process.argv.slice(2);
-const watch = args.includes("--watch");
-const serve = args.includes("--serve");
-const production = args.includes("--production");
-if (production) {
+const WATCH = args.includes("--watch");
+const SERVE = args.includes("--serve");
+const PRODUCTION = args.includes("--production");
+if (PRODUCTION) {
   process.env.NODE_ENV = "production";
 }
 
@@ -63,19 +65,30 @@ const clean = async () => {
 };
 
 const buildApi = async () => {
-  const entryPoints = await glob(`${apiInDir}/**/*.{js,mjs,ts}`);
+  const pinoConfig = PRODUCTION ? {} : { transports: ["pino-pretty"] };
   return build({
-    entryPoints: entryPoints,
+    entryPoints: apiEntryPoints,
     outdir: apiOutDir,
     platform: "node",
     format: "esm",
-    sourcemap: process.env.NODE_ENV !== "production",
+    bundle: true,
+    sourcemap: !PRODUCTION,
     loader: {
       ".html": "text",
       ".css": "text",
       ".svg": "text",
     },
-    plugins: [onBuildEndPlugin()],
+    plugins: [esbuildPluginPino(pinoConfig), onBuildEndPlugin()],
+    banner: {
+      js: `
+import { createRequire } from 'module';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const require = createRequire(import.meta.url);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+      `.trim(),
+    },
   });
 };
 
@@ -87,8 +100,8 @@ const buildComponents = async () => {
     platform: "node",
     format: "esm",
     bundle: true,
-    minify: process.env.NODE_ENV === "production",
-    sourcemap: process.env.NODE_ENV !== "production",
+    minify: PRODUCTION,
+    sourcemap: !PRODUCTION,
     loader: {
       ".html": "text",
       ".css": "text",
@@ -106,8 +119,8 @@ const buildPages = async () => {
     platform: "browser",
     format: "esm",
     bundle: true,
-    minify: process.env.NODE_ENV === "production",
-    sourcemap: process.env.NODE_ENV !== "production",
+    minify: PRODUCTION,
+    sourcemap: !PRODUCTION,
     loader: {
       ".html": "text",
       ".css": "text",
@@ -213,19 +226,21 @@ const watchPublic = async (onRebuild) => {
   await buildPages();
   await copyStaticFiles();
   await copyPublic();
-  if (serve) {
-    await setupLivereload();
-    const startServer = (await import("./out/api/development.js")).default;
-    let app = await startServer();
-    const onRebuild = async () => {
-      app.reload();
-    };
-    if (watch) {
-      watchApi(onRebuild);
-      watchComponents(onRebuild);
-      watchPages(onRebuild);
-      watchPublic(onRebuild);
+  console.log(MAGENTA, "Build finished");
+  if (SERVE) {
+    const { app, reloader } = (await import("./out/api/index.js")).default;
+    if (!PRODUCTION) {
+      await setupLivereload();
+      await app.ready();
+      if (WATCH) {
+        const onRebuild = async () => {
+          reloader.reload();
+        };
+        watchApi(onRebuild);
+        watchComponents(onRebuild);
+        watchPages(onRebuild);
+        watchPublic(onRebuild);
+      }
     }
   }
-  console.log(MAGENTA, "Build finished");
 })();

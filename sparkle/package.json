@@ -4,9 +4,6 @@
   "description": "A web component library for games built with Spark.",
   "version": "0.0.1",
   "scripts": {
-    "build": "node ./esbuild.mjs",
-    "package": "NODE_ENV=production node ./esbuild.mjs",
-    "watch": "node ./esbuild.mjs --watch",
     "extract": "ts-node scripts/extract.ts"
   },
   "devDependencies": {
@@ -15,9 +12,5 @@
     "esbuild": "^0.17.16",
     "ts-node": "^10.9.1",
     "typescript": "^5.0.4"
-  },
-  "dependencies": {
-    "esbuild-plugin-sparkle": "file:../esbuild-plugin-sparkle",
-    "sparkle-style-transformer": "file:../sparkle-style-transformer"
   }
 }
