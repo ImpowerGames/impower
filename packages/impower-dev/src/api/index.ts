@@ -1,7 +1,10 @@
 import Fastify, { FastifyServerOptions } from "fastify";
+import fs from "fs";
 import pino from "pino";
 import livereload from "./plugins/livereload.js";
 import router from "./plugins/router.js";
+
+
 
 const IS_GOOGLE_CLOUD_RUN = process.env["K_SERVICE"] !== undefined;
 const IS_PRODUCTION =
@@ -11,28 +14,32 @@ const reloader: { reload?: () => void } = {};
 
 const config: FastifyServerOptions = IS_PRODUCTION
   ? {
-      logger: pino({
-        messageKey: "message",
-        formatters: {
-          level(label: string, number: number) {
-            return { severity: label };
-          },
-        },
-      }),
-      trustProxy: true,
-    }
-  : {
-      logger: {
-        transport: {
-          target: "pino-pretty",
-          options: {
-            translateTime: "HH:MM:ss Z",
-            ignore: "pid,hostname",
-          },
+    logger: pino({
+      messageKey: "message",
+      formatters: {
+        level(label: string, number: number) {
+          return { severity: label };
         },
       },
-    };
+    }),
+    trustProxy: true,
+  }
+  : {
+    logger: {
+      transport: {
+        target: "pino-pretty",
+        options: {
+          translateTime: "HH:MM:ss Z",
+          ignore: "pid,hostname",
+        },
+      },
+    },
+  };
 const app = Fastify(config);
+
+app.log.info(`process.cwd ${process.cwd()}`)
+app.log.info(`folders ${fs.readdirSync(".").join(" ")}`)
+
 app.register(router);
 if (!IS_PRODUCTION) {
   app.register(livereload, reloader);
