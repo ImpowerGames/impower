@@ -1,5 +1,4 @@
 import Fastify, { FastifyServerOptions } from "fastify";
-import fs from "fs";
 import pino from "pino";
 import livereload from "./plugins/livereload.js";
 import router from "./plugins/router.js";
@@ -36,9 +35,6 @@ const config: FastifyServerOptions = IS_PRODUCTION
     },
   };
 const app = Fastify(config);
-
-app.log.info(`process.cwd ${process.cwd()}`)
-app.log.info(`folders ${fs.readdirSync(".").join(" ")}`)
 
 app.register(router);
 if (!IS_PRODUCTION) {
