@@ -177,26 +177,24 @@ export default class Ripple extends SparkleElement {
     this.focused = false;
   };
 
-  handlePointerDown = async (event: PointerEvent) => {
+  handleMouseDown = async (event: MouseEvent) => {
     if (event.target !== this) {
       return;
     }
 
     this.updateAnimationPosition(event);
 
-    if (!this.isTouch(event)) {
-      this.state = State.WAITING_FOR_CLICK;
-      this.pointerInitiated = true;
-      this.startPressAnimation();
+    this.state = State.WAITING_FOR_CLICK;
+    this.pointerInitiated = true;
+    this.startPressAnimation();
+  };
+
+  handleTouchStart = async (event: TouchEvent) => {
+    if (event.target !== this) {
       return;
     }
 
-    // after a longpress contextmenu event, an extra `pointerdown` can be
-    // dispatched to the pressed element. Check that the down is within
-    // bounds of the element in this case.
-    if (!this.inBounds(event)) {
-      return;
-    }
+    this.updateAnimationPosition(event);
 
     // Wait for a hold after touch delay
     this.state = State.TOUCH_DELAY;
@@ -239,7 +237,8 @@ export default class Ripple extends SparkleElement {
   bind(element: HTMLElement) {
     element.addEventListener("click", this.handleClick);
     element.addEventListener("pointercancel", this.handlePointerCancel);
-    element.addEventListener("pointerdown", this.handlePointerDown);
+    element.addEventListener("mousedown", this.handleMouseDown);
+    element.addEventListener("touchstart", this.handleTouchStart);
     element.addEventListener("pointerleave", this.handlePointerLeave);
     element.addEventListener("pointerup", this.handlePointerUp);
     window.addEventListener("pointerup", this.handlePointerUp);
@@ -248,7 +247,8 @@ export default class Ripple extends SparkleElement {
   unbind(element: HTMLElement) {
     element.removeEventListener("click", this.handleClick);
     element.removeEventListener("pointercancel", this.handlePointerCancel);
-    element.removeEventListener("pointerdown", this.handlePointerDown);
+    element.removeEventListener("mousedown", this.handleMouseDown);
+    element.removeEventListener("touchstart", this.handleTouchStart);
     element.removeEventListener("pointerleave", this.handlePointerLeave);
     element.removeEventListener("pointerup", this.handlePointerUp);
     window.addEventListener("pointerup", this.handlePointerUp);
@@ -273,35 +273,33 @@ export default class Ripple extends SparkleElement {
     this.rippleSize = `${this.initialSize}px`;
   }
 
-  private getNormalizedPointerEventCoords(pointerEvent: {
-    pageX: number;
-    pageY: number;
-  }): {
-    x: number;
-    y: number;
-  } {
-    const { scrollX, scrollY } = window;
-    const { left, top } = getDimensions(this);
-    const documentX = scrollX + left;
-    const documentY = scrollY + top;
-    const { pageX, pageY } = pointerEvent;
-    return { x: pageX - documentX, y: pageY - documentY };
-  }
-
-  private updateAnimationPosition(positionEvent?: Event) {
+  private updateAnimationPosition(
+    pointerEvent?: TouchEvent | MouseEvent | PointerEvent
+  ) {
     const { height, width } = getDimensions(this);
 
-    let pointerPos;
-    if (positionEvent && "pageX" in positionEvent && "pageY" in positionEvent) {
-      pointerPos = this.getNormalizedPointerEventCoords({
-        pageX: positionEvent.pageX as number,
-        pageY: positionEvent.pageY as number,
-      });
-    } else {
-      pointerPos = {
-        x: width / 2,
-        y: height / 2,
-      };
+    let pointerPos = {
+      x: width / 2,
+      y: height / 2,
+    };
+    if (pointerEvent) {
+      const { scrollX, scrollY } = window;
+      const { left, top } = getDimensions(this);
+      const documentX = scrollX + left;
+      const documentY = scrollY + top;
+      let pageX: number | undefined;
+      let pageY: number | undefined;
+      if (pointerEvent instanceof TouchEvent) {
+        const touch = pointerEvent.targetTouches?.[0];
+        pageX = touch?.pageX;
+        pageY = touch?.pageY;
+      } else {
+        pageX = pointerEvent?.pageX;
+        pageY = pointerEvent?.pageY;
+      }
+      if (pageX != null && pageY != null) {
+        pointerPos = { x: pageX - documentX, y: pageY - documentY };
+      }
     }
 
     // center around start point
@@ -371,10 +369,6 @@ export default class Ripple extends SparkleElement {
   private inBounds({ x, y }: PointerEvent) {
     const { top, left, bottom, right } = this.getBoundingClientRect();
     return x >= left && x <= right && y >= top && y <= bottom;
-  }
-
-  private isTouch({ pointerType }: PointerEvent) {
-    return pointerType === "touch";
   }
 }
 
