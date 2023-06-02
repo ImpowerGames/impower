@@ -5,7 +5,6 @@
  * Released under the Apache-2.0 license.
  */
 
-import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { getDimensions } from "../../utils/getDimensions";
 import css from "./ripple.css";
@@ -300,9 +299,9 @@ declare global {
     "s-ripple": Ripple;
   }
   interface HTMLElementEventMap {
-    hovered: SparkleEvent;
-    unhovered: SparkleEvent;
-    pressed: SparkleEvent;
-    unpressed: SparkleEvent;
+    hovered: CustomEvent;
+    unhovered: CustomEvent;
+    pressed: CustomEvent;
+    unpressed: CustomEvent;
   }
 }

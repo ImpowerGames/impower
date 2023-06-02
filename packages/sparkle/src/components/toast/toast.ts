@@ -2,7 +2,6 @@ import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/ge
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
-import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
@@ -368,10 +367,10 @@ declare global {
     "s-toast": Toast;
   }
   interface HTMLElementEventMap {
-    closing: SparkleEvent;
-    closed: SparkleEvent;
-    opening: SparkleEvent;
-    opened: SparkleEvent;
-    removed: SparkleEvent;
+    closing: CustomEvent;
+    closed: CustomEvent;
+    opening: CustomEvent;
+    opened: CustomEvent;
+    removed: CustomEvent;
   }
 }

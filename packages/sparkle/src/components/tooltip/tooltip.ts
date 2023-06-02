@@ -1,5 +1,4 @@
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
-import type SparkleEvent from "../../core/SparkleEvent";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
@@ -329,9 +328,9 @@ declare global {
     "s-tooltip": Tooltip;
   }
   interface HTMLElementEventMap {
-    closing: SparkleEvent;
-    closed: SparkleEvent;
-    opening: SparkleEvent;
-    opened: SparkleEvent;
+    closing: CustomEvent;
+    closed: CustomEvent;
+    opening: CustomEvent;
+    opened: CustomEvent;
   }
 }

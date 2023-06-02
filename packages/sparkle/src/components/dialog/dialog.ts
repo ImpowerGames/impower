@@ -1,6 +1,5 @@
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import Icons from "../../configs/icons";
-import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
@@ -439,10 +438,10 @@ declare global {
     "s-dialog": Dialog;
   }
   interface HTMLElementEventMap {
-    closing: SparkleEvent;
-    closed: SparkleEvent;
-    opening: SparkleEvent;
-    opened: SparkleEvent;
-    removed: SparkleEvent;
+    closing: CustomEvent;
+    closed: CustomEvent;
+    opening: CustomEvent;
+    opened: CustomEvent;
+    removed: CustomEvent;
   }
 }

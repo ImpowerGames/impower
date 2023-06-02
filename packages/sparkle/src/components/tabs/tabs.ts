@@ -1,5 +1,4 @@
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -443,7 +442,7 @@ declare global {
     "s-tabs": Tabs;
   }
   interface HTMLElementEventMap {
-    changing: SparkleEvent;
-    changed: SparkleEvent;
+    changing: CustomEvent;
+    changed: CustomEvent;
   }
 }

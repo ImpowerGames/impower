@@ -30,7 +30,6 @@ import { navNextKey } from "../utils/navNextKey";
 import { navPrevKey } from "../utils/navPrevKey";
 import { navStartKey } from "../utils/navStartKey";
 import { updateAttribute } from "../utils/updateAttribute";
-import SparkleEvent from "./SparkleEvent";
 
 export default class SparkleElement
   extends HTMLElement
@@ -2383,7 +2382,14 @@ export default class SparkleElement
   }
 
   emit<T>(eventName: string, detail?: T): boolean {
-    return this.dispatchEvent(new SparkleEvent(eventName, { detail }));
+    return this.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: true,
+        cancelable: false,
+        composed: true,
+        detail,
+      })
+    );
   }
 
   closestAncestor(selector: string, el: Element = this): Element | null {

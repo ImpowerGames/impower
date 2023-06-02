@@ -1,4 +1,3 @@
-import type SparkleEvent from "../../core/SparkleEvent";
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { offsetParent } from "../../utils/composed-offset-position";
@@ -565,6 +564,6 @@ declare global {
     "s-popup": Popup;
   }
   interface HTMLElementEventMap {
-    reposition: SparkleEvent;
+    reposition: CustomEvent;
   }
 }
