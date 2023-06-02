@@ -150,6 +150,7 @@ export default class Ripple extends SparkleElement {
   private initialSize = 0;
   private growAnimation?: Animation;
   private state = State.INACTIVE;
+  private pointerInitiated = false;
   private startPointX = 0;
   private startPointY = 0;
   private endPointX = 0;
@@ -185,6 +186,7 @@ export default class Ripple extends SparkleElement {
 
     if (!this.isTouch(event)) {
       this.state = State.WAITING_FOR_CLICK;
+      this.pointerInitiated = true;
       this.startPressAnimation();
       return;
     }
@@ -207,16 +209,17 @@ export default class Ripple extends SparkleElement {
     }
 
     this.state = State.HOLDING;
+    this.pointerInitiated = true;
     this.startPressAnimation();
   };
 
   handleClick = () => {
-    if (this.state === State.INACTIVE) {
+    if (this.pointerInitiated) {
+      this.endPressAnimation();
+    } else {
       // keyboard synthesized click event
       this.updateAnimationPosition();
       this.startPressAnimation();
-      this.endPressAnimation();
-    } else {
       this.endPressAnimation();
     }
   };
