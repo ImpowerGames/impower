@@ -139,7 +139,7 @@ async function loadWebView(
       vscode.Uri.joinPath(
         context.extensionUri,
         "node_modules",
-        "vscode-codicons",
+        "@vscode/codicons",
         "dist",
         "codicon.css"
       )

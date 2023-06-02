@@ -54,6 +54,7 @@ const extensionConfig = {
 const webviewConfig = {
   ...baseConfig,
   target: "es2020",
+  platform: "browser",
   format: "esm",
   entryPoints: ["./src/main.ts"],
   outfile: "./out/main.js",
@@ -107,11 +108,14 @@ const watchConfig = {
       });
       console.log("[watch] build finished");
     } else {
+      console.log("build started");
       // Build extension and webview code
       await build(extensionConfig);
       await build(webviewConfig);
+      console.log("build finished");
     }
   } catch (err) {
+    console.err(err);
     process.stderr.write(err.stderr);
     process.exit(1);
   }

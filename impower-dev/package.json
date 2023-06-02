@@ -11,7 +11,6 @@
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.3.0-beta.2",
-    "@impower/sparkle-ssg": "file:../sparkle-ssg",
     "@types/node": "^20.2.5",
     "@types/ws": "^8.5.4",
     "chokidar": "^3.5.3",
@@ -27,8 +26,8 @@
   "dependencies": {
     "@fastify/static": "^6.10.2",
     "@fastify/websocket": "^8.1.0",
-    "@impower/spark-editor": "file:../spark-editor",
-    "@impower/sparkle": "file:../sparkle",
+    "@impower/spark-editor": "file:../packages/spark-editor",
+    "@impower/sparkle": "file:../packages/sparkle",
     "fastify": "^4.17.0",
     "nanoid": "^4.0.2",
     "pino": "^8.14.1"
