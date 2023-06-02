@@ -270,7 +270,10 @@ export default class Ripple extends SparkleElement {
     this.rippleSize = `${this.initialSize}px`;
   }
 
-  private getNormalizedPointerEventCoords(pointerEvent: PointerEvent): {
+  private getNormalizedPointerEventCoords(pointerEvent: {
+    pageX: number;
+    pageY: number;
+  }): {
     x: number;
     y: number;
   } {
@@ -286,8 +289,11 @@ export default class Ripple extends SparkleElement {
     const { height, width } = getDimensions(this);
 
     let pointerPos;
-    if (positionEvent instanceof PointerEvent) {
-      pointerPos = this.getNormalizedPointerEventCoords(positionEvent);
+    if (positionEvent && "pageX" in positionEvent && "pageY" in positionEvent) {
+      pointerPos = this.getNormalizedPointerEventCoords({
+        pageX: positionEvent.pageX as number,
+        pageY: positionEvent.pageY as number,
+      });
     } else {
       pointerPos = {
         x: width / 2,
