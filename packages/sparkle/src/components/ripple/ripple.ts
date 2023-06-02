@@ -245,7 +245,7 @@ export default class Ripple extends SparkleElement {
     element.removeEventListener("touchstart", this.handleTouchStart);
     element.removeEventListener("pointerleave", this.handlePointerLeave);
     element.removeEventListener("pointerup", this.handlePointerUp);
-    window.addEventListener("pointerup", this.handlePointerUp);
+    window.removeEventListener("pointerup", this.handlePointerUp);
   }
 
   private determineRippleSize() {
