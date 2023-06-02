@@ -150,7 +150,6 @@ export default class Ripple extends SparkleElement {
   private initialSize = 0;
   private growAnimation?: Animation;
   private state = State.INACTIVE;
-  private checkBoundsAfterContextMenu = false;
   private startPointX = 0;
   private startPointY = 0;
   private endPointX = 0;
@@ -193,11 +192,9 @@ export default class Ripple extends SparkleElement {
     // after a longpress contextmenu event, an extra `pointerdown` can be
     // dispatched to the pressed element. Check that the down is within
     // bounds of the element in this case.
-    if (this.checkBoundsAfterContextMenu && !this.inBounds(event)) {
+    if (!this.inBounds(event)) {
       return;
     }
-
-    this.checkBoundsAfterContextMenu = false;
 
     // Wait for a hold after touch delay
     this.state = State.TOUCH_DELAY;
@@ -224,10 +221,6 @@ export default class Ripple extends SparkleElement {
     }
   };
 
-  handleContextMenu = () => {
-    this.checkBoundsAfterContextMenu = true;
-  };
-
   handlePointerLeave = (event: PointerEvent) => {
     this.endPressAnimation();
   };
@@ -242,7 +235,6 @@ export default class Ripple extends SparkleElement {
 
   bind(element: HTMLElement) {
     element.addEventListener("click", this.handleClick);
-    element.addEventListener("contextmenu", this.handleContextMenu);
     element.addEventListener("pointercancel", this.handlePointerCancel);
     element.addEventListener("pointerdown", this.handlePointerDown);
     element.addEventListener("pointerleave", this.handlePointerLeave);
@@ -252,7 +244,6 @@ export default class Ripple extends SparkleElement {
 
   unbind(element: HTMLElement) {
     element.removeEventListener("click", this.handleClick);
-    element.removeEventListener("contextmenu", this.handleContextMenu);
     element.removeEventListener("pointercancel", this.handlePointerCancel);
     element.removeEventListener("pointerdown", this.handlePointerDown);
     element.removeEventListener("pointerleave", this.handlePointerLeave);
