@@ -174,19 +174,6 @@ export default class Ripple extends SparkleElement {
     this.focused = false;
   };
 
-  handlePointerUp = (event: PointerEvent) => {
-    if (this.state === State.HOLDING) {
-      this.state = State.WAITING_FOR_CLICK;
-      return;
-    }
-
-    if (this.state === State.TOUCH_DELAY) {
-      this.state = State.WAITING_FOR_CLICK;
-      this.startPressAnimation(this.rippleStartEvent);
-      return;
-    }
-  };
-
   handlePointerDown = async (event: PointerEvent) => {
     if (event.target !== this) {
       return;
@@ -209,10 +196,10 @@ export default class Ripple extends SparkleElement {
 
     // Wait for a hold after touch delay
     this.state = State.TOUCH_DELAY;
+
     await new Promise((resolve) => {
       setTimeout(resolve, TOUCH_DELAY_MS);
     });
-
     if (this.state !== State.TOUCH_DELAY) {
       return;
     }
@@ -222,19 +209,18 @@ export default class Ripple extends SparkleElement {
   };
 
   handleClick = () => {
-    // Click is a MouseEvent in Firefox and Safari, so we cannot use
-    // `shouldReactToEvent`
-    if (this.state === State.WAITING_FOR_CLICK) {
-      this.endPressAnimation();
-      this.state = State.INACTIVE;
-      return;
-    }
-
     if (this.state === State.INACTIVE) {
       // keyboard synthesized click event
       this.startPressAnimation();
       this.endPressAnimation();
+    } else {
+      this.endPressAnimation();
     }
+  };
+
+  handleContextMenu = () => {
+    this.checkBoundsAfterContextMenu = true;
+    this.endPressAnimation();
   };
 
   handlePointerLeave = (event: PointerEvent) => {
@@ -245,8 +231,7 @@ export default class Ripple extends SparkleElement {
     this.endPressAnimation();
   };
 
-  handleContextMenu = () => {
-    this.checkBoundsAfterContextMenu = true;
+  handlePointerUp = (event: PointerEvent) => {
     this.endPressAnimation();
   };
 
@@ -360,6 +345,7 @@ export default class Ripple extends SparkleElement {
     const pressAnimationPlayState = animation?.currentTime ?? Infinity;
     if (pressAnimationPlayState >= MINIMUM_PRESS_MS) {
       this.pressed = false;
+      this.state = State.INACTIVE;
       return;
     }
 
@@ -374,6 +360,7 @@ export default class Ripple extends SparkleElement {
     }
 
     this.pressed = false;
+    this.state = State.INACTIVE;
   }
 
   /**
