@@ -6,7 +6,7 @@ const initialize = async () => {
     await Sparkle.init();
     await SparkEditor.init();
   } catch (err: any) {
-    console.error(err.stack);
+    console.log(err.stack);
   }
 };
 initialize();
