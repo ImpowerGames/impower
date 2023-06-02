@@ -1,4 +1,12 @@
 import SparkEditor from "@impower/spark-editor/src/index.js";
 import Sparkle from "@impower/sparkle/src/index.js";
-Sparkle.init();
-SparkEditor.init();
+
+const initialize = async () => {
+  try {
+    await Sparkle.init();
+    await SparkEditor.init();
+  } catch (err: any) {
+    console.error(err.stack);
+  }
+};
+initialize();
