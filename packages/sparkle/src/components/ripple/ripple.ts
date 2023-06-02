@@ -21,54 +21,7 @@ const PRESS_PSEUDO = "::after";
 const PRESS_EASE = "cubic-bezier(0.2, 0, 0, 1)";
 const ANIMATION_FILL = "forwards";
 
-/**
- * Interaction states for the ripple.
- *
- * On Touch:
- *  - `INACTIVE -> TOUCH_DELAY -> WAITING_FOR_CLICK -> INACTIVE`
- *  - `INACTIVE -> TOUCH_DELAY -> HOLDING -> WAITING_FOR_CLICK -> INACTIVE`
- *
- * On Mouse or Pen:
- *   - `INACTIVE -> WAITING_FOR_CLICK -> INACTIVE`
- */
-enum State {
-  /**
-   * Initial state of the control, no touch in progress.
-   *
-   * Transitions:
-   *   - on touch down: transition to `TOUCH_DELAY`.
-   *   - on mouse down: transition to `WAITING_FOR_CLICK`.
-   */
-  INACTIVE,
-  /**
-   * Touch down has been received, waiting to determine if it's a swipe or
-   * scroll.
-   *
-   * Transitions:
-   *   - on touch up: begin press; transition to `WAITING_FOR_CLICK`.
-   *   - on cancel: transition to `INACTIVE`.
-   *   - after `TOUCH_DELAY_MS`: begin press; transition to `HOLDING`.
-   */
-  TOUCH_DELAY,
-  /**
-   * A touch has been deemed to be a press
-   *
-   * Transitions:
-   *  - on up: transition to `WAITING_FOR_CLICK`.
-   */
-  HOLDING,
-  /**
-   * The user touch has finished, transition into rest state.
-   *
-   * Transitions:
-   *   - on click end press; transition to `INACTIVE`.
-   */
-  WAITING_FOR_CLICK,
-  /**
-   * The user touch has activated a click with their keyboard.
-   */
-  KEYBOARD_PRESS,
-}
+type State = "touch_delay" | "pressing" | "keyboard_press";
 
 /**
  * Delay reacting to touch so that we do not show the ripple for a swipe or
@@ -137,7 +90,7 @@ export default class Ripple extends SparkleElement {
   private rippleScale = "";
   private initialSize = 0;
   private growAnimation?: Animation;
-  private state = State.INACTIVE;
+  private state: State | null = null;
   private pointerInitiated = false;
   private startPointX = 0;
   private startPointY = 0;
@@ -163,7 +116,7 @@ export default class Ripple extends SparkleElement {
 
     this.updateAnimationPosition(event);
 
-    this.state = State.WAITING_FOR_CLICK;
+    this.state = "pressing";
     this.pointerInitiated = true;
     this.startPressAnimation();
   };
@@ -175,17 +128,18 @@ export default class Ripple extends SparkleElement {
 
     this.updateAnimationPosition(event);
 
-    // Wait for a hold after touch delay
-    this.state = State.TOUCH_DELAY;
+    // Wait to determine if this is a press or a drag.
+    // If still touching this element after the delay, this is a press.
+    this.state = "touch_delay";
 
     await new Promise((resolve) => {
       setTimeout(resolve, TOUCH_DELAY_MS);
     });
-    if (this.state !== State.TOUCH_DELAY) {
+    if (this.state !== "touch_delay") {
       return;
     }
 
-    this.state = State.HOLDING;
+    this.state = "pressing";
     this.pointerInitiated = true;
     this.startPressAnimation();
   };
@@ -195,10 +149,10 @@ export default class Ripple extends SparkleElement {
       this.endPressAnimation();
     } else {
       // keyboard synthesized click event
-      this.state = State.KEYBOARD_PRESS;
+      this.state = "keyboard_press";
       this.updateAnimationPosition();
       await this.startPressAnimation();
-      if (this.state !== State.KEYBOARD_PRESS) {
+      if (this.state !== "keyboard_press") {
         return;
       }
       this.endPressAnimation();
@@ -322,7 +276,7 @@ export default class Ripple extends SparkleElement {
     const pressAnimationPlayState = animation?.currentTime ?? Infinity;
     if (pressAnimationPlayState >= MINIMUM_PRESS_MS) {
       this.pressed = false;
-      this.state = State.INACTIVE;
+      this.state = null;
       return;
     }
 
@@ -337,7 +291,7 @@ export default class Ripple extends SparkleElement {
     }
 
     this.pressed = false;
-    this.state = State.INACTIVE;
+    this.state = null;
   }
 }
 
