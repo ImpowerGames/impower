@@ -166,17 +166,6 @@ export default class Ripple extends SparkleElement {
     }
   }
 
-  handlePointerLeave = (event: PointerEvent) => {
-    if (!this.shouldReactToEvent(event)) {
-      return;
-    }
-
-    // release a held mouse or pen press that moves outside the element
-    if (this.state !== State.INACTIVE) {
-      this.endPressAnimation();
-    }
-  };
-
   handleFocusIn = () => {
     this.focused = true;
   };
@@ -203,6 +192,9 @@ export default class Ripple extends SparkleElement {
   };
 
   handlePointerDown = async (event: PointerEvent) => {
+    if (event.target !== this) {
+      return;
+    }
     if (!this.shouldReactToEvent(event)) {
       return;
     }
@@ -250,6 +242,14 @@ export default class Ripple extends SparkleElement {
       this.startPressAnimation();
       this.endPressAnimation();
     }
+  };
+
+  handlePointerLeave = (event: PointerEvent) => {
+    if (!this.shouldReactToEvent(event)) {
+      return;
+    }
+
+    this.endPressAnimation();
   };
 
   handlePointerCancel = (event: PointerEvent) => {
@@ -401,9 +401,6 @@ export default class Ripple extends SparkleElement {
    * held, or the pointer is hovering
    */
   private shouldReactToEvent(event: PointerEvent) {
-    if (event.target !== this) {
-      return;
-    }
     if (!event.isPrimary) {
       return false;
     }
