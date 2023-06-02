@@ -1,3 +1,6 @@
+import transformer from "../../sparkle-style-transformer/src/index";
+import sparkleIconsCSS from "../../sparkle/src/styles/icons/icons.css";
+import sparklePatternsCSS from "../../sparkle/src/styles/patterns/patterns.css";
 import Access from "./components/access/_access";
 import AddFab from "./components/add-fab/_add-fab";
 import Audio from "./components/audio/_audio";
@@ -24,38 +27,58 @@ import Sounds from "./components/sounds/_sounds";
 import Sprites from "./components/sprites/_sprites";
 import Views from "./components/views/_views";
 import Core from "./styles/core/_core";
+import coreCSS from "./styles/core/core.css";
 import Icons from "./styles/icons/_icons";
+import iconsCSS from "./styles/icons/icons.css";
 import Normalize from "./styles/normalize/_normalize";
 import Theme from "./styles/theme/_theme";
 
-export default {
-  "se-option-button": OptionButton,
-  "se-file-button": FileButton,
-  "se-add-fab": AddFab,
-  "se-logic": Logic,
-  "se-maps": Maps,
-  "se-sprites": Sprites,
-  "se-graphics": Graphics,
-  "se-views": Views,
-  "se-elements": Elements,
-  "se-displays": Displays,
-  "se-music": Music,
-  "se-sounds": Sounds,
-  "se-audio": Audio,
-  "se-access": Access,
-  "se-details": Details,
-  "se-share": Share,
-  "se-setup": Setup,
-  "se-demo": Demo,
-  "se-main-panel": MainPanel,
-  "se-preview-panel": PreviewPanel,
-  "se-notifications": Notifications,
-  "se-header-navigation": HeaderNavigation,
-  "se-footer-navigation": FooterNavigation,
-  "se-footer-navigation-spacer": FooterNavigationSpacer,
-  "se-gui": GUI,
+const config = {
+  icons: [sparkleIconsCSS, iconsCSS],
+  patterns: [sparklePatternsCSS],
+};
+
+type Component = () => { html?: string; css?: string };
+
+const style = (component: Component): Component => {
+  const data = component();
+  const html = data.html ? transformer(data.html, config) : data.html;
+  const css = data.css || coreCSS;
+  return () => {
+    return { html, css };
+  };
+};
+
+const components = {
+  "se-option-button": style(OptionButton),
+  "se-file-button": style(FileButton),
+  "se-add-fab": style(AddFab),
+  "se-logic": style(Logic),
+  "se-maps": style(Maps),
+  "se-sprites": style(Sprites),
+  "se-graphics": style(Graphics),
+  "se-views": style(Views),
+  "se-elements": style(Elements),
+  "se-displays": style(Displays),
+  "se-music": style(Music),
+  "se-sounds": style(Sounds),
+  "se-audio": style(Audio),
+  "se-access": style(Access),
+  "se-details": style(Details),
+  "se-share": style(Share),
+  "se-setup": style(Setup),
+  "se-demo": style(Demo),
+  "se-main-panel": style(MainPanel),
+  "se-preview-panel": style(PreviewPanel),
+  "se-notifications": style(Notifications),
+  "se-header-navigation": style(HeaderNavigation),
+  "se-footer-navigation": style(FooterNavigation),
+  "se-footer-navigation-spacer": style(FooterNavigationSpacer),
+  "se-gui": style(GUI),
   "se-core": Core,
   "se-icons": Icons,
   "se-normalize": Normalize,
   "se-theme": Theme,
-};
+} as const;
+
+export default components;

@@ -4,24 +4,27 @@
   "type": "module",
   "scripts": {
     "kill": "kill-port 8080",
-    "dev": "node ./esbuild.js --watch --serve",
-    "prod": "node ./esbuild.js --production --serve",
-    "build": "node ./esbuild.js --production",
+    "dev": "tsx ./esbuild.ts --watch --serve",
+    "prod": "tsx ./esbuild.ts --production --serve",
+    "build": "tsx ./esbuild.ts --production",
     "start": "node ./out/api/index.js"
   },
   "devDependencies": {
+    "@adobe/css-tools": "^4.3.0-beta.2",
+    "@impower/sparkle-ssg": "file:../sparkle-ssg",
     "@types/node": "^20.2.5",
     "@types/ws": "^8.5.4",
     "chokidar": "^3.5.3",
     "esbuild": "^0.17.19",
     "esbuild-plugin-pino": "^2.0.0",
     "kill-port": "^2.0.1",
+    "parse5": "^7.1.2",
     "pino-pretty": "^10.0.0",
     "tiny-glob": "^0.2.9",
+    "tsx": "^3.12.7",
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "@fastify/cors": "^8.3.0",
     "@fastify/static": "^6.10.2",
     "@fastify/websocket": "^8.1.0",
     "@impower/spark-editor": "file:../spark-editor",

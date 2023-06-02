@@ -1,7 +1,7 @@
 {
   "name": "@impower/sparkle-style-transformer",
   "displayName": "Sparkle Style Transformer",
-  "description": "Transforms sparkle styling attributes into css variables",
+  "description": "Transforms sparkle styling attributes into inline styles that set css variables.",
   "version": "0.0.1",
   "exports": {
     ".": {

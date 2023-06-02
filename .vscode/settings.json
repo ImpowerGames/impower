@@ -31,24 +31,24 @@
   "editor.bracketPairColorization.enabled": true,
   "editor.guides.bracketPairs": true,
   "editor.guides.highlightActiveIndentation": true,
-  "editor.guides.bracketPairsHorizontal": "active",
+  "editor.guides.bracketPairsHorizontal": false,
   "editor.codeActionsOnSave": {
     "source.organizeImports": true
   },
   "html.customData": ["./sparkle/vscode.html-custom-data.json"],
-  "[html]": {
-    "editor.defaultFormatter": "vscode.html-language-features"
-  },
   "[javascript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "vscode.typescript-language-features"
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
   },
   "[json]": {
     "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[css]": {
     "editor.defaultFormatter": "vscode.css-language-features"
-  },
+  }
 }

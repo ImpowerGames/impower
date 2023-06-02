@@ -3,8 +3,6 @@ import pino from "pino";
 import livereload from "./plugins/livereload.js";
 import router from "./plugins/router.js";
 
-
-
 const IS_GOOGLE_CLOUD_RUN = process.env["K_SERVICE"] !== undefined;
 const IS_PRODUCTION =
   process.env["NODE_ENV"] === "production" || IS_GOOGLE_CLOUD_RUN;
@@ -34,8 +32,8 @@ const config: FastifyServerOptions = IS_PRODUCTION
       },
     },
   };
-const app = Fastify(config);
 
+const app = Fastify(config);
 app.register(router);
 if (!IS_PRODUCTION) {
   app.register(livereload, reloader);

@@ -25,8 +25,7 @@
   font-style: italic;
   font-weight: 700;
   font-display: block;
-  src: url("/public/fonts/courier-prime-sans-bold-italic.ttf")
-    format("truetype");
+  src: url("/public/fonts/courier-prime-sans-bold-italic.ttf") format("truetype");
 }
 
 html {

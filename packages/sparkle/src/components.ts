@@ -1,3 +1,4 @@
+import transformer from "../../sparkle-style-transformer/src/index";
 import Badge from "./components/badge/_badge";
 import Box from "./components/box/_box";
 import BreakpointObserver from "./components/breakpoint-observer/_breakpoint-observer";
@@ -22,41 +23,60 @@ import Tooltip from "./components/tooltip/_tooltip";
 import Transition from "./components/transition/_transition";
 import Animations from "./styles/animations/_animations";
 import Core from "./styles/core/_core";
+import coreCSS from "./styles/core/core.css";
 import Dark from "./styles/dark/_dark";
 import Easings from "./styles/easings/_easings";
 import Global from "./styles/global/_global";
 import Gradients from "./styles/gradients/_gradients";
 import Icons from "./styles/icons/_icons";
+import iconsCSS from "./styles/icons/icons.css";
 import Keyframes from "./styles/keyframes/_keyframes";
 import Light from "./styles/light/_light";
 import Masks from "./styles/masks/_masks";
 import Normalize from "./styles/normalize/_normalize";
 import Patterns from "./styles/patterns/_patterns";
+import patternsCSS from "./styles/patterns/patterns.css";
 import Shadows from "./styles/shadows/_shadows";
 
-export default {
-  "s-box": Box,
-  "s-circle": Circle,
-  "s-icon": Icon,
-  "s-popup": Popup,
-  "s-divider": Divider,
-  "s-progress-bar": ProgressBar,
-  "s-progress-circle": ProgressCircle,
-  "s-ripple": Ripple,
-  "s-skeleton": Skeleton,
-  "s-badge": Badge,
-  "s-collapsible": Collapsible,
-  "s-button": Button,
-  "s-tab": Tab,
-  "s-tabs": Tabs,
-  "s-tooltip": Tooltip,
-  "s-toast-stack": ToastStack,
-  "s-toast": Toast,
-  "s-dialog": Dialog,
-  "s-split-pane": SplitPane,
-  "s-transition": Transition,
-  "s-router": Router,
-  "s-breakpoint-observer": BreakpointObserver,
+const config = {
+  patterns: [patternsCSS],
+  icons: [iconsCSS],
+};
+
+type Component = () => { html?: string; css?: string };
+
+const style = (component: Component): Component => {
+  const data = component();
+  const html = data.html ? transformer(data.html, config) : data.html;
+  const css = data.css || coreCSS;
+  return () => {
+    return { html, css };
+  };
+};
+
+const components = {
+  "s-box": style(Box),
+  "s-circle": style(Circle),
+  "s-icon": style(Icon),
+  "s-popup": style(Popup),
+  "s-divider": style(Divider),
+  "s-progress-bar": style(ProgressBar),
+  "s-progress-circle": style(ProgressCircle),
+  "s-ripple": style(Ripple),
+  "s-skeleton": style(Skeleton),
+  "s-badge": style(Badge),
+  "s-collapsible": style(Collapsible),
+  "s-button": style(Button),
+  "s-tab": style(Tab),
+  "s-tabs": style(Tabs),
+  "s-tooltip": style(Tooltip),
+  "s-toast-stack": style(ToastStack),
+  "s-toast": style(Toast),
+  "s-dialog": style(Dialog),
+  "s-split-pane": style(SplitPane),
+  "s-transition": style(Transition),
+  "s-router": style(Router),
+  "s-breakpoint-observer": style(BreakpointObserver),
   "s-core": Core,
   "s-normalize": Normalize,
   "s-animations": Animations,
@@ -70,4 +90,6 @@ export default {
   "s-masks": Masks,
   "s-patterns": Patterns,
   "s-shadows": Shadows,
-};
+} as const;
+
+export default components;

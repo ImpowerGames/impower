@@ -51,6 +51,9 @@ const inferTransformer = (
   if (name === "size" || name.endsWith("-size")) {
     return getCssSize;
   }
+  if (name === "offset" || name.endsWith("-offset")) {
+    return getCssSize;
+  }
   if (name === "spacing" || name.endsWith("-spacing")) {
     return getCssSize;
   }
