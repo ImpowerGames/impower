@@ -38,6 +38,8 @@ const pagesOutDir = `${outdir}/public`;
 const publicInDir = `${indir}/public`;
 const publicOutDir = `${outdir}/public`;
 
+const localDependencies = `node_modules/@impower`;
+
 const args = process.argv.slice(2);
 const WATCH = args.includes("--watch");
 const SERVE = args.includes("--serve");
@@ -172,6 +174,12 @@ const expandPageComponents = async () => {
     let documentHtml = await fs.promises
       .readFile(documentHtmlInPath, "utf-8")
       .catch(() => "");
+    if (!PRODUCTION && SERVE) {
+      documentHtml = documentHtml.replace(
+        "</html>",
+        `<script>new EventSource('/livereload').onmessage = () => location.reload()</script>\n</html>`
+      );
+    }
     const globalCssInPath = `${publicInDir}/global.css`;
     const globalCssOutPath = `${publicOutDir}/global.css`;
     let globalCSS = await fs.promises
@@ -256,23 +264,6 @@ const createPackageJson = async () => {
   );
 };
 
-const setupLivereload = async () => {
-  const livereloadScript = `<script>new EventSource('/livereload').onmessage = () => location.reload()</script>`;
-  const documentHtml = await fs.promises.readFile(
-    path.join(publicInDir, "document.html"),
-    "utf-8"
-  );
-  const transformedDocumentHtml = documentHtml.replace(
-    "</html>",
-    livereloadScript + "\n</html>"
-  );
-  await fs.promises.writeFile(
-    path.join(publicOutDir, "document.html"),
-    transformedDocumentHtml,
-    "utf-8"
-  );
-};
-
 const watchPublic = async (onRebuild: Function) => {
   console.log(YELLOW, `Watching ${publicInDir} for changes...`);
   chokidar
@@ -299,8 +290,11 @@ const watchPages = async (onRebuild: Function) => {
   console.log(YELLOW, `Watching ${pagesInDir} for changes...`);
   chokidar
     .watch(
-      ["ts", "js", "mjs"].map((ext) => `${pagesInDir}/**/*.${ext}`),
-      { ignoreInitial: true }
+      [
+        localDependencies,
+        ...["ts", "js", "mjs"].map((ext) => `${pagesInDir}/**/*.${ext}`),
+      ],
+      { ignoreInitial: true, followSymlinks: true }
     )
     .on("all", async (event, path) => {
       console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
@@ -312,8 +306,9 @@ const watchPages = async (onRebuild: Function) => {
 const watchComponents = async (onRebuild: Function) => {
   console.log(YELLOW, `Watching ${componentsInDir} for changes...`);
   chokidar
-    .watch([componentsInDir, `${pagesInDir}/**/*.html`], {
+    .watch([localDependencies, componentsInDir, `${pagesInDir}/**/*.html`], {
       ignoreInitial: true,
+      followSymlinks: true,
     })
     .on("all", async (event, path) => {
       console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
@@ -337,7 +332,6 @@ const watchComponents = async (onRebuild: Function) => {
   if (SERVE) {
     const { app, reloader } = (await import("./out/api/index.js")).default;
     if (!PRODUCTION) {
-      await setupLivereload();
       await app.ready();
       if (WATCH) {
         const onRebuild = async () => {
