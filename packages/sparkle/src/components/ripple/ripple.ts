@@ -175,10 +175,6 @@ export default class Ripple extends SparkleElement {
   };
 
   handlePointerUp = (event: PointerEvent) => {
-    if (!this.shouldReactToEvent(event)) {
-      return;
-    }
-
     if (this.state === State.HOLDING) {
       this.state = State.WAITING_FOR_CLICK;
       return;
@@ -193,9 +189,6 @@ export default class Ripple extends SparkleElement {
 
   handlePointerDown = async (event: PointerEvent) => {
     if (event.target !== this) {
-      return;
-    }
-    if (!this.shouldReactToEvent(event)) {
       return;
     }
     this.rippleStartEvent = event;
@@ -245,18 +238,10 @@ export default class Ripple extends SparkleElement {
   };
 
   handlePointerLeave = (event: PointerEvent) => {
-    if (!this.shouldReactToEvent(event)) {
-      return;
-    }
-
     this.endPressAnimation();
   };
 
   handlePointerCancel = (event: PointerEvent) => {
-    if (!this.shouldReactToEvent(event)) {
-      return;
-    }
-
     this.endPressAnimation();
   };
 
@@ -389,35 +374,6 @@ export default class Ripple extends SparkleElement {
     }
 
     this.pressed = false;
-  }
-
-  /**
-   * Returns `true` if
-   *  - the ripple element is enabled
-   *  - the pointer is primary for the input type
-   *  - the pointer is the pointer that started the interaction, or will start
-   * the interaction
-   *  - the pointer is a touch, or the pointer state has the primary button
-   * held, or the pointer is hovering
-   */
-  private shouldReactToEvent(event: PointerEvent) {
-    if (!event.isPrimary) {
-      return false;
-    }
-
-    if (
-      this.rippleStartEvent &&
-      this.rippleStartEvent.pointerId !== event.pointerId
-    ) {
-      return false;
-    }
-
-    if (event.type === "pointerenter" || event.type === "pointerleave") {
-      return !this.isTouch(event);
-    }
-
-    const isPrimaryButton = event.buttons === 1;
-    return this.isTouch(event) || isPrimaryButton;
   }
 
   /**
