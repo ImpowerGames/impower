@@ -150,7 +150,6 @@ export default class Ripple extends SparkleElement {
   private initialSize = 0;
   private growAnimation?: Animation;
   private state = State.INACTIVE;
-  private rippleStartEvent?: PointerEvent;
   private checkBoundsAfterContextMenu = false;
 
   protected override onAttributeChanged(
@@ -178,7 +177,7 @@ export default class Ripple extends SparkleElement {
     if (event.target !== this) {
       return;
     }
-    this.rippleStartEvent = event;
+
     if (!this.isTouch(event)) {
       this.state = State.WAITING_FOR_CLICK;
       this.startPressAnimation(event);
@@ -242,6 +241,7 @@ export default class Ripple extends SparkleElement {
     element.addEventListener("pointerdown", this.handlePointerDown);
     element.addEventListener("pointerleave", this.handlePointerLeave);
     element.addEventListener("pointerup", this.handlePointerUp);
+    window.addEventListener("pointerup", this.handlePointerUp);
   }
 
   unbind(element: HTMLElement) {
@@ -251,6 +251,7 @@ export default class Ripple extends SparkleElement {
     element.removeEventListener("pointerdown", this.handlePointerDown);
     element.removeEventListener("pointerleave", this.handlePointerLeave);
     element.removeEventListener("pointerup", this.handlePointerUp);
+    window.addEventListener("pointerup", this.handlePointerUp);
   }
 
   private determineRippleSize() {
