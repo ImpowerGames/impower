@@ -226,17 +226,12 @@ export default class Ripple extends SparkleElement {
     this.endPressAnimation();
   };
 
-  handlePointerCancel = (event: PointerEvent) => {
-    this.endPressAnimation();
-  };
-
   handlePointerUp = (event: PointerEvent) => {
     this.endPressAnimation();
   };
 
   bind(element: HTMLElement) {
     element.addEventListener("click", this.handleClick);
-    element.addEventListener("pointercancel", this.handlePointerCancel);
     element.addEventListener("mousedown", this.handleMouseDown);
     element.addEventListener("touchstart", this.handleTouchStart);
     element.addEventListener("pointerleave", this.handlePointerLeave);
@@ -246,7 +241,6 @@ export default class Ripple extends SparkleElement {
 
   unbind(element: HTMLElement) {
     element.removeEventListener("click", this.handleClick);
-    element.removeEventListener("pointercancel", this.handlePointerCancel);
     element.removeEventListener("mousedown", this.handleMouseDown);
     element.removeEventListener("touchstart", this.handleTouchStart);
     element.removeEventListener("pointerleave", this.handlePointerLeave);
