@@ -151,6 +151,10 @@ export default class Ripple extends SparkleElement {
   private growAnimation?: Animation;
   private state = State.INACTIVE;
   private checkBoundsAfterContextMenu = false;
+  private startPointX = 0;
+  private startPointY = 0;
+  private endPointX = 0;
+  private endPointY = 0;
 
   protected override onAttributeChanged(
     name: string,
@@ -178,9 +182,11 @@ export default class Ripple extends SparkleElement {
       return;
     }
 
+    this.updateAnimationPosition(event);
+
     if (!this.isTouch(event)) {
       this.state = State.WAITING_FOR_CLICK;
-      this.startPressAnimation(event);
+      this.startPressAnimation();
       return;
     }
 
@@ -204,12 +210,13 @@ export default class Ripple extends SparkleElement {
     }
 
     this.state = State.HOLDING;
-    this.startPressAnimation(event);
+    this.startPressAnimation();
   };
 
   handleClick = () => {
     if (this.state === State.INACTIVE) {
       // keyboard synthesized click event
+      this.updateAnimationPosition();
       this.startPressAnimation();
       this.endPressAnimation();
     } else {
@@ -285,41 +292,34 @@ export default class Ripple extends SparkleElement {
     return { x: pageX - documentX, y: pageY - documentY };
   }
 
-  private getTranslationCoordinates(positionEvent?: Event) {
+  private updateAnimationPosition(positionEvent?: Event) {
     const { height, width } = getDimensions(this);
-    // end in the center
-    const endPoint = {
-      x: (width - this.initialSize) / 2,
-      y: (height - this.initialSize) / 2,
-    };
 
-    let startPoint;
+    let pointerPos;
     if (positionEvent instanceof PointerEvent) {
-      startPoint = this.getNormalizedPointerEventCoords(positionEvent);
+      pointerPos = this.getNormalizedPointerEventCoords(positionEvent);
     } else {
-      startPoint = {
+      pointerPos = {
         x: width / 2,
         y: height / 2,
       };
     }
 
     // center around start point
-    startPoint = {
-      x: startPoint.x - this.initialSize / 2,
-      y: startPoint.y - this.initialSize / 2,
-    };
+    this.startPointX = pointerPos.x - this.initialSize / 2;
+    this.startPointY = pointerPos.y - this.initialSize / 2;
 
-    return { startPoint, endPoint };
+    // end in the center
+    this.endPointX = (width - this.initialSize) / 2;
+    this.endPointY = (height - this.initialSize) / 2;
   }
 
-  private startPressAnimation(positionEvent?: Event) {
+  private startPressAnimation() {
     this.pressed = true;
     this.growAnimation?.cancel();
     this.determineRippleSize();
-    const { startPoint, endPoint } =
-      this.getTranslationCoordinates(positionEvent);
-    const translateStart = `${startPoint.x}px, ${startPoint.y}px`;
-    const translateEnd = `${endPoint.x}px, ${endPoint.y}px`;
+    const translateStart = `${this.startPointX}px, ${this.startPointY}px`;
+    const translateEnd = `${this.endPointX}px, ${this.endPointY}px`;
 
     this.growAnimation = this.root.animate(
       {
