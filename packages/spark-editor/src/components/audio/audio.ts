@@ -5,9 +5,10 @@ export default class Audio extends SEElement {
   static override async define(
     tag = "se-audio",
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ) {
-    return super.define(tag, dependencies, useShadowDom);
+    return super.define(tag, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {

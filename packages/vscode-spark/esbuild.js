@@ -31,6 +31,11 @@ const baseConfig = {
   bundle: true,
   minify: process.env.NODE_ENV === "production",
   sourcemap: process.env.NODE_ENV !== "production",
+  loader: {
+    ".html": "text",
+    ".css": "text",
+    ".svg": "text",
+  },
 };
 
 // Config for extension source code (to be run in a Node-based context)
@@ -39,11 +44,6 @@ const extensionConfig = {
   ...baseConfig,
   platform: "node",
   format: "cjs",
-  loader: {
-    ".html": "text",
-    ".css": "text",
-    ".svg": "text",
-  },
   entryPoints: ["./src/extension.ts"],
   outfile: "./out/extension.js",
   external: ["vscode"],
@@ -55,11 +55,6 @@ const webviewConfig = {
   ...baseConfig,
   target: "es2020",
   format: "esm",
-  loader: {
-    ".html": "text",
-    ".css": "text",
-    ".svg": "text",
-  },
   entryPoints: ["./src/main.ts"],
   outfile: "./out/main.js",
   plugins: [

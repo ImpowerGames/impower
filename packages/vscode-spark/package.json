@@ -24,8 +24,8 @@
   "scripts": {
     "vscode:prepublish": "npm run package",
     "compile": "node ./esbuild.js",
-    "package": "NODE_ENV=production node ./esbuild.js",
     "watch": "node ./esbuild.js --watch",
+    "package": "NODE_ENV=production node ./esbuild.js",
     "publish-minor": "vsce publish minor",
     "publish-major": "vsce publish major"
   },

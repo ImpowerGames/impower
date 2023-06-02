@@ -9,8 +9,6 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./split-pane.css";
 import html from "./split-pane.html";
 
-const styles = new CSSStyleSheet();
-
 export const DEFAULT_TRANSFORMERS = {
   "min-panel-width": getCssSize,
   "min-panel-height": getCssSize,
@@ -48,9 +46,10 @@ export default class SplitPane
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -58,8 +57,7 @@ export default class SplitPane
   }
 
   override get styles() {
-    styles.replaceSync(SplitPane.augmentCss(css));
-    return [styles];
+    return [SplitPane.augmentCss(css)];
   }
 
   override get transformers() {

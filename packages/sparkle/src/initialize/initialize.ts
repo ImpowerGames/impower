@@ -8,10 +8,11 @@ const initialize = (
   styles: Record<SparkleStyleType, string>,
   constructors: Record<SparkleElementTag, typeof SparkleElement>,
   aliases?: Record<SparkleElementTag, string>,
-  useShadowDom = true
+  useShadowDom = true,
+  useInlineStyles = true
 ): Promise<CustomElementConstructor[]> => {
-  adoptAll(styles);
-  return defineAll(constructors, aliases, useShadowDom);
+  adoptAll(styles, useInlineStyles);
+  return defineAll(constructors, aliases, useShadowDom, useInlineStyles);
 };
 
 export default initialize;

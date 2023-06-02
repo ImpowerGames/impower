@@ -7,8 +7,6 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./circle.css";
 import html from "./circle.html";
 
-const styles = new CSSStyleSheet();
-
 export const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
 };
@@ -33,9 +31,10 @@ export default class Circle
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -43,8 +42,7 @@ export default class Circle
   }
 
   override get styles() {
-    styles.replaceSync(Circle.augmentCss(css));
-    return [styles];
+    return [Circle.augmentCss(css)];
   }
 
   override get transformers() {

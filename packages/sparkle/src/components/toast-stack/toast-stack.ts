@@ -7,8 +7,6 @@ import Toast from "../toast/toast";
 import css from "./toast-stack.css";
 import html from "./toast-stack.html";
 
-const styles = new CSSStyleSheet();
-
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap(["alert"]);
@@ -31,9 +29,10 @@ export default class ToastStack
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -41,8 +40,7 @@ export default class ToastStack
   }
 
   override get styles() {
-    styles.replaceSync(ToastStack.augmentCss(css, DEFAULT_DEPENDENCIES));
-    return [styles];
+    return [ToastStack.augmentCss(css, DEFAULT_DEPENDENCIES)];
   }
 
   /**

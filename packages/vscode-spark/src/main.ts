@@ -1,6 +1,6 @@
+import SparkEditor from "@impower/spark-editor/src/index.js";
+import Sparkle from "@impower/sparkle/src/index.js";
 import { colord } from "colord";
-import SparkEditor from "../../@impower/spark-editor/src/index";
-import Sparkle from "../../@impower/sparkle/src/index";
 
 const css = new CSSStyleSheet();
 document.adoptedStyleSheets.push(css);
@@ -52,8 +52,10 @@ const mutationObserver = new MutationObserver(() => {
 mutationObserver.observe(document.body, { childList: false, attributes: true });
 
 const load = async () => {
-  await Promise.allSettled([Sparkle.init(), SparkEditor.init()]);
+  await Promise.allSettled([
+    Sparkle.init({ useInlineStyles: false }),
+    SparkEditor.init({ useInlineStyles: false }),
+  ]);
   document.body.classList.add("ready");
 };
-
 load();

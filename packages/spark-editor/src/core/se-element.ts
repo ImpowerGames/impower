@@ -1,9 +1,10 @@
-import { CORE_CSS } from "../styles/core/core";
-import { NORMALIZE_CSS } from "../styles/normalize/normalize";
-import html from "./se-element.html";
+import Styles from "../helpers/styles";
+import coreCSS from "../styles/core/core.css";
+import normalizeCSS from "../styles/normalize/normalize.css";
 
 export default class SEElement extends HTMLElement {
-  static shadowDom = false;
+  static useShadowDom = false;
+  static useInlineStyles = false;
 
   private static _tagName = "";
   static get tagName() {
@@ -24,9 +25,11 @@ export default class SEElement extends HTMLElement {
   static async define(
     tagName: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    SEElement.shadowDom = useShadowDom;
+    SEElement.useShadowDom = useShadowDom;
+    SEElement.useInlineStyles = useInlineStyles;
     if (tagName) {
       this.tagName = tagName;
     }
@@ -38,10 +41,10 @@ export default class SEElement extends HTMLElement {
   }
 
   get html(): string {
-    return html;
+    return `<slot class="content-slot"></slot>`;
   }
 
-  get styles(): CSSStyleSheet[] {
+  get styles(): string[] {
     return [];
   }
 
@@ -71,24 +74,23 @@ export default class SEElement extends HTMLElement {
 
   constructor() {
     super();
-    if (SEElement.shadowDom) {
+    if (SEElement.useShadowDom) {
       const shadowRoot = this.attachShadow({
         mode: "open",
         delegatesFocus: true,
       });
       shadowRoot.innerHTML = this.html;
-      shadowRoot.adoptedStyleSheets = [NORMALIZE_CSS, CORE_CSS, ...this.styles];
+      Styles.adopt(shadowRoot, normalizeCSS, SEElement.useInlineStyles);
+      Styles.adopt(shadowRoot, coreCSS, SEElement.useInlineStyles);
+      this.styles.forEach((css) => {
+        Styles.adopt(shadowRoot, css, SEElement.useInlineStyles);
+      });
     } else {
-      if (!this.ownerDocument.adoptedStyleSheets) {
-        this.ownerDocument.adoptedStyleSheets = [];
-      }
-      if (!this.ownerDocument.adoptedStyleSheets.includes(NORMALIZE_CSS)) {
-        this.ownerDocument.adoptedStyleSheets.push(NORMALIZE_CSS);
-      }
-      if (!this.ownerDocument.adoptedStyleSheets.includes(CORE_CSS)) {
-        this.ownerDocument.adoptedStyleSheets.push(CORE_CSS);
-      }
-      this.ownerDocument.adoptedStyleSheets.push(...this.styles);
+      Styles.adopt(this.ownerDocument, normalizeCSS, SEElement.useInlineStyles);
+      Styles.adopt(this.ownerDocument, coreCSS, SEElement.useInlineStyles);
+      this.styles.forEach((css) => {
+        Styles.adopt(this.ownerDocument, css, SEElement.useInlineStyles);
+      });
     }
   }
 

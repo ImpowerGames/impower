@@ -28,8 +28,6 @@ type State = "touch_delay" | "pressing" | "keyboard_press";
  */
 const TOUCH_DELAY_MS = 150;
 
-const styles = new CSSStyleSheet();
-
 const HOVERED_EVENT = "hovered";
 const UNHOVERED_EVENT = "unhovered";
 const PRESSED_EVENT = "pressed";
@@ -44,9 +42,10 @@ export default class Ripple extends SparkleElement {
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -54,8 +53,7 @@ export default class Ripple extends SparkleElement {
   }
 
   override get styles() {
-    styles.replaceSync(Ripple.augmentCss(css));
-    return [styles];
+    return [Ripple.augmentCss(css)];
   }
 
   private _hovered = false;

@@ -14,8 +14,6 @@ import type Ripple from "../ripple/ripple";
 import css from "./button.css";
 import html from "./button.html";
 
-const styles = new CSSStyleSheet();
-
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-badge",
   "s-progress-circle",
@@ -59,9 +57,10 @@ export default class Button
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -74,8 +73,7 @@ export default class Button
   }
 
   override get styles() {
-    styles.replaceSync(Button.augmentCss(css, DEFAULT_DEPENDENCIES));
-    return [styles];
+    return [Button.augmentCss(css, DEFAULT_DEPENDENCIES)];
   }
 
   override get transformers() {

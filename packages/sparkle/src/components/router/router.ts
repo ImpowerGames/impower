@@ -9,8 +9,6 @@ import { reverseAnimations } from "../../utils/reverseAnimations";
 import css from "./router.css";
 import html from "./router.html";
 
-const styles = new CSSStyleSheet();
-
 const EXIT_EVENT = "exit";
 const ENTER_EVENT = "enter";
 
@@ -40,9 +38,10 @@ export default class Router
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -50,8 +49,7 @@ export default class Router
   }
 
   override get styles() {
-    styles.replaceSync(Router.augmentCss(css));
-    return [styles];
+    return [Router.augmentCss(css)];
   }
 
   /**

@@ -7,8 +7,6 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./divider.css";
 import html from "./divider.html";
 
-const styles = new CSSStyleSheet();
-
 export const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
 };
@@ -34,9 +32,10 @@ export default class Divider
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -44,8 +43,7 @@ export default class Divider
   }
 
   override get styles() {
-    styles.replaceSync(Divider.augmentCss(css));
-    return [styles];
+    return [Divider.augmentCss(css)];
   }
 
   override get transformers() {

@@ -7,8 +7,6 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./progress-bar.css";
 import html from "./progress-bar.html";
 
-const styles = new CSSStyleSheet();
-
 export const DEFAULT_TRANSFORMERS = {
   "track-width": getCssSize,
   "indicator-width": getCssSize,
@@ -36,9 +34,10 @@ export default class ProgressBar
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -46,8 +45,7 @@ export default class ProgressBar
   }
 
   override get styles() {
-    styles.replaceSync(ProgressBar.augmentCss(css));
-    return [styles];
+    return [ProgressBar.augmentCss(css)];
   }
 
   override get transformers() {

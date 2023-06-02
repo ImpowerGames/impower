@@ -3,10 +3,11 @@ import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants
 import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
 import getCssTextStroke from "../../../sparkle-style-transformer/src/utils/getCssTextStroke";
 import Patterns from "../configs/patterns";
+import Styles from "../configs/styles";
 import { ARIA_ATTRIBUTE_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
-import { LIGHT_DOM_CORE_CSS, SHADOW_DOM_CORE_CSS } from "../styles/core/core";
-import { KEYFRAMES_CSS } from "../styles/keyframes/keyframes";
-import { NORMALIZE_CSS } from "../styles/normalize/normalize";
+import coreCSS from "../styles/core/core.css";
+import keyframesCSS from "../styles/keyframes/keyframes.css";
+import normalizeCSS from "../styles/normalize/normalize.css";
 import { AnimationName } from "../types/animationName";
 import { ColorName } from "../types/colorName";
 import { EasingName } from "../types/easingName";
@@ -29,13 +30,15 @@ import { navEndKey } from "../utils/navEndKey";
 import { navNextKey } from "../utils/navNextKey";
 import { navPrevKey } from "../utils/navPrevKey";
 import { navStartKey } from "../utils/navStartKey";
+import scopeCssToHost from "../utils/scopeCssToHost";
 import { updateAttribute } from "../utils/updateAttribute";
 
 export default class SparkleElement
   extends HTMLElement
   implements Properties<typeof STYLE_TRANSFORMERS>
 {
-  static shadowDom = false;
+  static useShadowDom = false;
+  static useInlineStyles = false;
 
   private static _tagName = "";
   static get tagName() {
@@ -76,9 +79,11 @@ export default class SparkleElement
   static async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    SparkleElement.shadowDom = useShadowDom;
+    SparkleElement.useShadowDom = useShadowDom;
+    SparkleElement.useInlineStyles = useInlineStyles;
     if (tagName) {
       this.tagName = tagName;
     }
@@ -93,7 +98,7 @@ export default class SparkleElement
     return `<div class="root" part="root"><slot class="content-slot"></slot></div>`;
   }
 
-  get styles(): CSSStyleSheet[] {
+  get styles(): string[] {
     return [];
   }
 
@@ -1851,29 +1856,37 @@ export default class SparkleElement
 
   constructor() {
     super();
-    if (SparkleElement.shadowDom) {
+    if (SparkleElement.useShadowDom) {
       const shadowRoot = this.attachShadow({
         mode: "open",
         delegatesFocus: true,
       });
       shadowRoot.innerHTML = this.html;
-      shadowRoot.adoptedStyleSheets = [
-        KEYFRAMES_CSS,
-        NORMALIZE_CSS,
-        SHADOW_DOM_CORE_CSS,
-        ...this.styles,
-      ];
+      Styles.adopt(shadowRoot, keyframesCSS, SparkleElement.useInlineStyles);
+      Styles.adopt(shadowRoot, normalizeCSS, SparkleElement.useInlineStyles);
+      Styles.adopt(
+        shadowRoot,
+        scopeCssToHost(coreCSS),
+        SparkleElement.useInlineStyles
+      );
+      this.styles.forEach((css) => {
+        Styles.adopt(shadowRoot, css, SparkleElement.useInlineStyles);
+      });
     } else {
-      if (!this.ownerDocument.adoptedStyleSheets) {
-        this.ownerDocument.adoptedStyleSheets = [];
-      }
-      if (!this.ownerDocument.adoptedStyleSheets.includes(NORMALIZE_CSS)) {
-        this.ownerDocument.adoptedStyleSheets.push(NORMALIZE_CSS);
-      }
-      if (!this.ownerDocument.adoptedStyleSheets.includes(LIGHT_DOM_CORE_CSS)) {
-        this.ownerDocument.adoptedStyleSheets.push(LIGHT_DOM_CORE_CSS);
-      }
-      this.ownerDocument.adoptedStyleSheets.push(...this.styles);
+      Styles.adopt(
+        this.ownerDocument,
+        keyframesCSS,
+        SparkleElement.useInlineStyles
+      );
+      Styles.adopt(
+        this.ownerDocument,
+        normalizeCSS,
+        SparkleElement.useInlineStyles
+      );
+      Styles.adopt(this.ownerDocument, coreCSS, SparkleElement.useInlineStyles);
+      this.styles.forEach((css) => {
+        Styles.adopt(this.ownerDocument, css, SparkleElement.useInlineStyles);
+      });
     }
   }
 

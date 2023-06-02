@@ -23,8 +23,9 @@ import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
 import Sprites from "./components/sprites/sprites";
 import Views from "./components/views/views";
-import { ICONS_CSS } from "./styles/icons/icons";
-import { THEME_CSS } from "./styles/theme/theme";
+import Styles from "./helpers/styles";
+import icons from "./styles/icons/icons.css";
+import theme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-option-button": OptionButton,
@@ -55,24 +56,39 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
 } as const;
 
 export const DEFAULT_SPARK_EDITOR_STYLES = {
-  theme: THEME_CSS,
-  icons: ICONS_CSS,
-};
+  theme,
+  icons,
+} as const;
+
+interface InitOptions {
+  useShadowDom?: boolean;
+  useInlineStyles?: boolean;
+  styles?: typeof DEFAULT_SPARK_EDITOR_STYLES;
+  constructors?: typeof DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
+  dependencies?: Record<string, string>;
+}
 
 export default abstract class SparkEditor {
   static async init(
-    useShadowDom = true,
-    styles = DEFAULT_SPARK_EDITOR_STYLES,
-    constructors = DEFAULT_SPARK_EDITOR_CONSTRUCTORS,
-    dependencies?: Record<string, string>
+    options?: InitOptions
   ): Promise<CustomElementConstructor[]> {
-    if (!document.adoptedStyleSheets) {
-      document.adoptedStyleSheets = [];
-    }
-    document.adoptedStyleSheets.push(...Object.values(styles));
+    const useShadowDom = options?.useShadowDom ?? true;
+    const useInlineStyles = options?.useInlineStyles ?? true;
+    const styles = options?.styles ?? DEFAULT_SPARK_EDITOR_STYLES;
+    const constructors =
+      options?.constructors ?? DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
+    const dependencies = options?.dependencies ?? {};
+    Object.values(styles).forEach((css) => {
+      Styles.adopt(document, css, useInlineStyles);
+    });
     return Promise.all(
       Object.entries(constructors).map(([k, v]) =>
-        v.define(dependencies?.[k] || k, dependencies as any, useShadowDom)
+        v.define(
+          dependencies?.[k] || k,
+          dependencies as any,
+          useShadowDom,
+          useInlineStyles
+        )
       )
     );
   }

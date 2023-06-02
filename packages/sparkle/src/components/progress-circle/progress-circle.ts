@@ -8,8 +8,6 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./progress-circle.css";
 import html from "./progress-circle.html";
 
-const styles = new CSSStyleSheet();
-
 export const DEFAULT_TRANSFORMERS = {
   size: getCssSize,
   "track-width": getCssSize,
@@ -38,9 +36,10 @@ export default class ProgressCircle
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -48,8 +47,7 @@ export default class ProgressCircle
   }
 
   override get styles() {
-    styles.replaceSync(ProgressCircle.augmentCss(css));
-    return [styles];
+    return [ProgressCircle.augmentCss(css)];
   }
 
   override get transformers() {

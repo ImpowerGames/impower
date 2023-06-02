@@ -14,8 +14,6 @@ import type Ripple from "../ripple/ripple";
 import css from "./tab.css";
 import html from "./tab.html";
 
-const styles = new CSSStyleSheet();
-
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
 export const DEFAULT_TRANSFORMERS = {
@@ -51,9 +49,10 @@ export default class Tab
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -61,8 +60,7 @@ export default class Tab
   }
 
   override get styles() {
-    styles.replaceSync(Tab.augmentCss(css, DEFAULT_DEPENDENCIES));
-    return [styles];
+    return [Tab.augmentCss(css, DEFAULT_DEPENDENCIES)];
   }
 
   override get transformers() {

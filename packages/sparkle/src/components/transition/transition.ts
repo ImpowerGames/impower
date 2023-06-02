@@ -5,8 +5,6 @@ import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import css from "./transition.css";
 import html from "./transition.html";
 
-const styles = new CSSStyleSheet();
-
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-router"]);
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([]);
 
@@ -28,9 +26,10 @@ export default class Transition
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -38,8 +37,7 @@ export default class Transition
   }
 
   override get styles() {
-    styles.replaceSync(Transition.augmentCss(css));
-    return [styles];
+    return [Transition.augmentCss(css)];
   }
 
   get parentRouter(): Element | null {

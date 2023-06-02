@@ -10,8 +10,6 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./icon.css";
 import html from "./icon.html";
 
-const styles = new CSSStyleSheet();
-
 export const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v, Icons.all()),
   size: getCssSize,
@@ -39,9 +37,10 @@ export default class Icon
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -49,8 +48,7 @@ export default class Icon
   }
 
   override get styles() {
-    styles.replaceSync(Icon.augmentCss(css));
-    return [styles];
+    return [Icon.augmentCss(css)];
   }
 
   override get transformers() {

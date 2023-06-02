@@ -12,8 +12,6 @@ import { platform } from "./floating-ui/dom/src/platform";
 import css from "./popup.css";
 import html from "./popup.html";
 
-const styles = new CSSStyleSheet();
-
 const REPOSITION_EVENT = "reposition";
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap([
@@ -56,9 +54,10 @@ export default class Popup
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -66,8 +65,7 @@ export default class Popup
   }
 
   override get styles() {
-    styles.replaceSync(Popup.augmentCss(css));
-    return [styles];
+    return [Popup.augmentCss(css)];
   }
 
   /**

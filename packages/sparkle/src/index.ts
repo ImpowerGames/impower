@@ -32,7 +32,6 @@ import light from "./styles/light/light.css";
 import masks from "./styles/masks/masks.css";
 import patterns from "./styles/patterns/patterns.css";
 import shadows from "./styles/shadows/shadows.css";
-import { SparkleElementTag } from "./types/sparkleElementTag";
 
 export const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-box": Box,
@@ -73,13 +72,29 @@ export const DEFAULT_SPARKLE_STYLES = {
   patterns,
 } as const;
 
+interface InitOptions {
+  useShadowDom?: boolean;
+  useInlineStyles?: boolean;
+  styles?: typeof DEFAULT_SPARKLE_STYLES;
+  constructors?: typeof DEFAULT_SPARKLE_CONSTRUCTORS;
+  dependencies?: Record<string, string>;
+}
+
 export default abstract class Sparkle {
   static async init(
-    useShadowDom = true,
-    styles = DEFAULT_SPARKLE_STYLES,
-    constructors = DEFAULT_SPARKLE_CONSTRUCTORS,
-    dependencies?: Record<SparkleElementTag, string>
+    options?: InitOptions
   ): Promise<CustomElementConstructor[]> {
-    return initialize(styles, constructors, dependencies, useShadowDom);
+    const useShadowDom = options?.useShadowDom ?? true;
+    const useInlineStyles = options?.useInlineStyles ?? true;
+    const styles = options?.styles ?? DEFAULT_SPARKLE_STYLES;
+    const constructors = options?.constructors ?? DEFAULT_SPARKLE_CONSTRUCTORS;
+    const dependencies = options?.dependencies ?? {};
+    return initialize(
+      styles,
+      constructors,
+      dependencies,
+      useShadowDom,
+      useInlineStyles
+    );
   }
 }

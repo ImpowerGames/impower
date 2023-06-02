@@ -8,8 +8,6 @@ import Popup from "../popup/popup";
 import css from "./tooltip.css";
 import html from "./tooltip.html";
 
-const styles = new CSSStyleSheet();
-
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
@@ -63,9 +61,10 @@ export default class Tooltip
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -73,8 +72,7 @@ export default class Tooltip
   }
 
   override get styles() {
-    styles.replaceSync(Tooltip.augmentCss(css, DEFAULT_DEPENDENCIES));
-    return [styles];
+    return [Tooltip.augmentCss(css, DEFAULT_DEPENDENCIES)];
   }
 
   /**

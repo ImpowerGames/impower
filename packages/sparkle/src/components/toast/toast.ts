@@ -11,8 +11,6 @@ import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import css from "./toast.css";
 import html from "./toast.html";
 
-const styles = new CSSStyleSheet();
-
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
@@ -50,9 +48,10 @@ export default class Toast
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -60,8 +59,7 @@ export default class Toast
   }
 
   override get styles() {
-    styles.replaceSync(Toast.augmentCss(css, DEFAULT_DEPENDENCIES));
-    return [styles];
+    return [Toast.augmentCss(css, DEFAULT_DEPENDENCIES)];
   }
 
   /**

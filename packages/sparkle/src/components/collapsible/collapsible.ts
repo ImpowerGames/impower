@@ -28,8 +28,6 @@ const getCollapsedIconOffset = (
   return buttonX - iconX - iconWidth / 4 + buttonPaddingLeft;
 };
 
-const styles = new CSSStyleSheet();
-
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
 const DEFAULT_ATTRIBUTES = getAttributeNameMap(["collapsed", "sentinel"]);
@@ -52,9 +50,10 @@ export default class Collapsible
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -62,8 +61,7 @@ export default class Collapsible
   }
 
   override get styles() {
-    styles.replaceSync(Collapsible.augmentCss(css));
-    return [styles];
+    return [Collapsible.augmentCss(css)];
   }
 
   /**

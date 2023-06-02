@@ -16,8 +16,6 @@ import type Tab from "../tab/tab";
 import css from "./tabs.css";
 import html from "./tabs.html";
 
-const styles = new CSSStyleSheet();
-
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
@@ -52,9 +50,10 @@ export default class Tabs
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
+    useShadowDom = true,
+    useInlineStyles = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
   }
 
   override get html() {
@@ -62,8 +61,7 @@ export default class Tabs
   }
 
   override get styles() {
-    styles.replaceSync(Tabs.augmentCss(css, DEFAULT_DEPENDENCIES));
-    return [styles];
+    return [Tabs.augmentCss(css, DEFAULT_DEPENDENCIES)];
   }
 
   override get transformers() {
