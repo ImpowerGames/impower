@@ -5,7 +5,6 @@
   mask: inherit;
 }
 :host {
-  --focus-opacity: var(--s-opacity-focus);
   --hover-opacity: var(--s-opacity-hover);
   --press-opacity: var(--s-opacity-press);
   --ripple-duration: 150ms;
@@ -14,8 +13,8 @@
   --min-color-stop-length: 75%;
 }
 
-:host([disabled]) {
-  opacity: 0;
+:host([disabled]) > .root::after {
+  visibility: hidden;
 }
 
 :host > .root {
@@ -52,9 +51,6 @@
   :host > .root:hover::before {
     opacity: var(--hover-opacity);
   }
-}
-:host > .root.focused::before {
-  opacity: var(--focus-opacity);
 }
 
 :host > .root::after {

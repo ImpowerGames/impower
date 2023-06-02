@@ -64,6 +64,10 @@ enum State {
    *   - on click end press; transition to `INACTIVE`.
    */
   WAITING_FOR_CLICK,
+  /**
+   * The user touch has activated a click with their keyboard.
+   */
+  KEYBOARD_PRESS,
 }
 
 /**
@@ -74,8 +78,6 @@ const TOUCH_DELAY_MS = 150;
 
 const styles = new CSSStyleSheet();
 
-const FOCUSED_EVENT = "focused";
-const UNFOCUSED_EVENT = "unfocused";
 const HOVERED_EVENT = "hovered";
 const UNHOVERED_EVENT = "unhovered";
 const PRESSED_EVENT = "pressed";
@@ -117,20 +119,6 @@ export default class Ripple extends SparkleElement {
     }
   }
 
-  private _focused = false;
-  get focused(): boolean {
-    return this._focused;
-  }
-  set focused(value: boolean) {
-    this._focused = value;
-    this.updateRootClass("focused", value);
-    if (value) {
-      this.emit(FOCUSED_EVENT);
-    } else {
-      this.emit(UNFOCUSED_EVENT);
-    }
-  }
-
   private _pressed = false;
   get pressed(): boolean {
     return this._pressed;
@@ -163,19 +151,10 @@ export default class Ripple extends SparkleElement {
   ): void {
     if (name === SparkleElement.attributes.hidden) {
       if (newValue != null) {
-        this.focused = false;
         this.pressed = false;
       }
     }
   }
-
-  handleFocusIn = () => {
-    this.focused = true;
-  };
-
-  handleFocusOut = () => {
-    this.focused = false;
-  };
 
   handleMouseDown = async (event: MouseEvent) => {
     if (event.target !== this) {
@@ -211,13 +190,17 @@ export default class Ripple extends SparkleElement {
     this.startPressAnimation();
   };
 
-  handleClick = () => {
+  handleClick = async () => {
     if (this.pointerInitiated) {
       this.endPressAnimation();
     } else {
       // keyboard synthesized click event
+      this.state = State.KEYBOARD_PRESS;
       this.updateAnimationPosition();
-      this.startPressAnimation();
+      await this.startPressAnimation();
+      if (this.state !== State.KEYBOARD_PRESS) {
+        return;
+      }
       this.endPressAnimation();
     }
   };
@@ -330,6 +313,8 @@ export default class Ripple extends SparkleElement {
         fill: ANIMATION_FILL,
       }
     );
+
+    return this.growAnimation.finished;
   }
 
   private async endPressAnimation() {
@@ -354,16 +339,6 @@ export default class Ripple extends SparkleElement {
     this.pressed = false;
     this.state = State.INACTIVE;
   }
-
-  /**
-   * Check if the event is within the bounds of the element.
-   *
-   * This is only needed for the "stuck" contextmenu longpress on Chrome.
-   */
-  private inBounds({ x, y }: PointerEvent) {
-    const { top, left, bottom, right } = this.getBoundingClientRect();
-    return x >= left && x <= right && y >= top && y <= bottom;
-  }
 }
 
 declare global {
@@ -371,8 +346,6 @@ declare global {
     "s-ripple": Ripple;
   }
   interface HTMLElementEventMap {
-    focused: SparkleEvent;
-    unfocused: SparkleEvent;
     hovered: SparkleEvent;
     unhovered: SparkleEvent;
     pressed: SparkleEvent;

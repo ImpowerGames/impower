@@ -587,7 +587,7 @@
   mask: var(--mask, none) !important;
 }
 
-button::before {
+button::after {
   --focus-duration: 50ms;
   position: absolute;
   inset: 0;
@@ -597,14 +597,15 @@ button::before {
   transition-duration: var(--focus-duration);
   transition-timing-function: ease;
   outline-offset: calc(-1 * var(--s-focus-ring-width));
+  pointer-events: none;
 }
-button.focused::before {
+button.focused::after {
   outline: var(--s-color-focus) var(--s-focus-ring-style)
     var(--s-focus-ring-width);
-  outline-offset: var(--s-focus-ring-offset);
+  outline-offset: calc(-1 * var(--s-focus-ring-width));
   -webkit-mask: none;
   mask: none;
 }
-button.focused.pressed::before {
-  outline-offset: calc((-1 * var(--s-focus-ring-width)) + 1px);
+button.focused.pressed::after {
+  outline-offset: calc((-1 * var(--s-focus-ring-width)) - 2px);
 }

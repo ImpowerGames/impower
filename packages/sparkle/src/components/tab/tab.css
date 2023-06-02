@@ -1,6 +1,7 @@
 :host {
   display: contents;
 }
+
 :host {
   --interactable: auto;
   --selectable: none;
@@ -22,7 +23,9 @@
   --padding-tb: 16px;
   --padding-lr: 20px;
   --icon-size: 20px;
+  --hover-opacity: var(--s-opacity-hover);
 }
+
 :host > .root {
   --active-icon: var(--icon);
 }
@@ -30,6 +33,7 @@
 :host(:not([child-layout="row"])) {
   --child-gap: 4px;
 }
+
 :host([child-layout="row"]) {
   --child-gap: 8px;
 }
@@ -58,10 +62,12 @@
   gap: var(--child-gap);
   will-change: transform;
 }
+
 :host([disabled]) > .root {
   cursor: default;
   opacity: 0.5;
 }
+
 :host([active]:not([disabled])) > .root {
   color: var(--color) !important;
 }
@@ -88,9 +94,11 @@
 :host([icon]) > .root > .label {
   line-height: 1;
 }
+
 :host(:not([child-layout="row"])[icon]) > .root > .label {
   transform: translateY(0) scale(0.8);
 }
+
 :host(:not([child-layout="row"])[icon][active]:not([disabled]))
   > .root
   > .label {
@@ -100,38 +108,23 @@
 :host > .root > .icon {
   display: none;
 }
+
 :host([icon]) > .root > .icon {
   display: flex;
   line-height: 1;
 }
+
 :host([icon][active]:not([disabled])) > .root > .icon > * {
   --icon: var(--active-icon) !important;
 }
+
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
   font-size: var(--icon-size);
   transform: translateY(0);
 }
+
 :host(:not([child-layout="row"])[icon][active]:not([disabled]))
   > .root
   > .icon {
   transform: translateY(-1px);
-}
-
-:host > .root::before {
-  outline-offset: calc(-2 * var(--s-focus-ring-width));
-}
-:host > .root.focused::before {
-  outline-offset: calc(-2 * var(--s-focus-ring-width));
-}
-:host > .root.focused.pressed::before {
-  outline-offset: calc((-2 * var(--s-focus-ring-width)) + 1px);
-}
-
-:host > .root > .ripple {
-  border-radius: inherit;
-  position: absolute;
-  inset: 0;
-}
-:host([disabled]) > .root > .ripple {
-  display: none;
 }
