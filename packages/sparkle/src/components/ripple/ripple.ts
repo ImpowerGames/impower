@@ -226,7 +226,6 @@ export default class Ripple extends SparkleElement {
 
   handleContextMenu = () => {
     this.checkBoundsAfterContextMenu = true;
-    this.endPressAnimation();
   };
 
   handlePointerLeave = (event: PointerEvent) => {
