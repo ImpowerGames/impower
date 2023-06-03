@@ -52,10 +52,7 @@ const mutationObserver = new MutationObserver(() => {
 mutationObserver.observe(document.body, { childList: false, attributes: true });
 
 const load = async () => {
-  await Promise.allSettled([
-    Sparkle.init({ useInlineStyles: false }),
-    SparkEditor.init({ useInlineStyles: false }),
-  ]);
+  await Promise.allSettled([Sparkle.init(), SparkEditor.init()]);
   document.body.classList.add("ready");
 };
 load();

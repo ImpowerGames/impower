@@ -4,12 +4,9 @@ import Patterns from "../configs/patterns";
 import Styles from "../configs/styles";
 import { SparkleStyleType } from "../types/sparkleStyleType";
 
-const adoptAll = (
-  styles: Record<SparkleStyleType, string>,
-  useInlineStyles: boolean
-): void => {
+const adoptAll = (styles: Record<SparkleStyleType, string>): void => {
   Object.values(styles).forEach((css) => {
-    Styles.adopt(document, css, useInlineStyles);
+    Styles.adopt(document, css);
   });
   const patterns = styles["patterns"];
   if (patterns) {

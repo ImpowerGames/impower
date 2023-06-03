@@ -46,10 +46,9 @@ export default class SplitPane
   static override async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true,
-    useInlineStyles = true
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {

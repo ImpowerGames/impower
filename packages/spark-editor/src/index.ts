@@ -23,7 +23,7 @@ import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
 import Sprites from "./components/sprites/sprites";
 import Views from "./components/views/views";
-import Styles from "./helpers/styles";
+import Styles from "./configs/styles";
 import icons from "./styles/icons/icons.css";
 import theme from "./styles/theme/theme.css";
 
@@ -62,7 +62,6 @@ export const DEFAULT_SPARK_EDITOR_STYLES = {
 
 interface InitOptions {
   useShadowDom?: boolean;
-  useInlineStyles?: boolean;
   styles?: typeof DEFAULT_SPARK_EDITOR_STYLES;
   constructors?: typeof DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
   dependencies?: Record<string, string>;
@@ -73,22 +72,16 @@ export default abstract class SparkEditor {
     options?: InitOptions
   ): Promise<CustomElementConstructor[]> {
     const useShadowDom = options?.useShadowDom ?? true;
-    const useInlineStyles = options?.useInlineStyles ?? true;
     const styles = options?.styles ?? DEFAULT_SPARK_EDITOR_STYLES;
     const constructors =
       options?.constructors ?? DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
     const dependencies = options?.dependencies ?? {};
     Object.values(styles).forEach((css) => {
-      Styles.adopt(document, css, useInlineStyles);
+      Styles.adopt(document, css);
     });
     return Promise.all(
       Object.entries(constructors).map(([k, v]) =>
-        v.define(
-          dependencies?.[k] || k,
-          dependencies as any,
-          useShadowDom,
-          useInlineStyles
-        )
+        v.define(dependencies?.[k] || k, dependencies as any, useShadowDom)
       )
     );
   }

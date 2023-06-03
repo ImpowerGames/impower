@@ -74,7 +74,6 @@ export const DEFAULT_SPARKLE_STYLES = {
 
 interface InitOptions {
   useShadowDom?: boolean;
-  useInlineStyles?: boolean;
   styles?: typeof DEFAULT_SPARKLE_STYLES;
   constructors?: typeof DEFAULT_SPARKLE_CONSTRUCTORS;
   dependencies?: Record<string, string>;
@@ -85,16 +84,9 @@ export default abstract class Sparkle {
     options?: InitOptions
   ): Promise<CustomElementConstructor[]> {
     const useShadowDom = options?.useShadowDom ?? true;
-    const useInlineStyles = options?.useInlineStyles ?? true;
     const styles = options?.styles ?? DEFAULT_SPARKLE_STYLES;
     const constructors = options?.constructors ?? DEFAULT_SPARKLE_CONSTRUCTORS;
     const dependencies = options?.dependencies ?? {};
-    return initialize(
-      styles,
-      constructors,
-      dependencies,
-      useShadowDom,
-      useInlineStyles
-    );
+    return initialize(styles, constructors, dependencies, useShadowDom);
   }
 }

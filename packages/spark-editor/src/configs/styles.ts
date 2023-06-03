@@ -20,26 +20,23 @@ export default abstract class Styles {
     return sheet;
   }
 
-  static adopt(
-    el: Element | ShadowRoot | Document,
-    css: string,
-    useInlineStyles: boolean
-  ) {
-    if (useInlineStyles) {
-      const styleEl = document.createElement("style");
-      styleEl.innerHTML = css;
-      const targetEl =
-        el instanceof Document ? el.getElementsByTagName("head")[0] : el;
-      if (targetEl) {
-        targetEl.appendChild(styleEl);
-      }
-    } else {
+  static adopt(el: Element | ShadowRoot | Document, css: string) {
+    try {
       const sheet = new CSSStyleSheet();
       sheet.replaceSync(css);
       const targetEl =
         el instanceof Document || el instanceof ShadowRoot ? el : el.shadowRoot;
       if (targetEl) {
         targetEl.adoptedStyleSheets.push(this.get(css));
+      }
+    } catch {
+      // Fallback to inline styles if constructable style sheets are not supported
+      const styleEl = document.createElement("style");
+      styleEl.innerHTML = css;
+      const targetEl =
+        el instanceof Document ? el.getElementsByTagName("head")[0] : el;
+      if (targetEl) {
+        targetEl.appendChild(styleEl);
       }
     }
   }

@@ -1,10 +1,9 @@
-import Styles from "../helpers/styles";
+import Styles from "../configs/styles";
 import coreCSS from "../styles/core/core.css";
 import normalizeCSS from "../styles/normalize/normalize.css";
 
 export default class SEElement extends HTMLElement {
   static useShadowDom = false;
-  static useInlineStyles = false;
 
   private static _tagName = "";
   static get tagName() {
@@ -25,11 +24,9 @@ export default class SEElement extends HTMLElement {
   static async define(
     tagName: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true,
-    useInlineStyles = true
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
     SEElement.useShadowDom = useShadowDom;
-    SEElement.useInlineStyles = useInlineStyles;
     if (tagName) {
       this.tagName = tagName;
     }
@@ -80,16 +77,16 @@ export default class SEElement extends HTMLElement {
         delegatesFocus: true,
       });
       shadowRoot.innerHTML = this.html;
-      Styles.adopt(shadowRoot, normalizeCSS, SEElement.useInlineStyles);
-      Styles.adopt(shadowRoot, coreCSS, SEElement.useInlineStyles);
+      Styles.adopt(shadowRoot, normalizeCSS);
+      Styles.adopt(shadowRoot, coreCSS);
       this.styles.forEach((css) => {
-        Styles.adopt(shadowRoot, css, SEElement.useInlineStyles);
+        Styles.adopt(shadowRoot, css);
       });
     } else {
-      Styles.adopt(this.ownerDocument, normalizeCSS, SEElement.useInlineStyles);
-      Styles.adopt(this.ownerDocument, coreCSS, SEElement.useInlineStyles);
+      Styles.adopt(this.ownerDocument, normalizeCSS);
+      Styles.adopt(this.ownerDocument, coreCSS);
       this.styles.forEach((css) => {
-        Styles.adopt(this.ownerDocument, css, SEElement.useInlineStyles);
+        Styles.adopt(this.ownerDocument, css);
       });
     }
   }

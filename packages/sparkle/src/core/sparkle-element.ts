@@ -38,7 +38,6 @@ export default class SparkleElement
   implements Properties<typeof STYLE_TRANSFORMERS>
 {
   static useShadowDom = false;
-  static useInlineStyles = false;
 
   private static _tagName = "";
   static get tagName() {
@@ -79,11 +78,9 @@ export default class SparkleElement
   static async define(
     tagName?: string,
     dependencies?: Record<string, string>,
-    useShadowDom = true,
-    useInlineStyles = true
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
     SparkleElement.useShadowDom = useShadowDom;
-    SparkleElement.useInlineStyles = useInlineStyles;
     if (tagName) {
       this.tagName = tagName;
     }
@@ -1862,30 +1859,18 @@ export default class SparkleElement
         delegatesFocus: true,
       });
       shadowRoot.innerHTML = this.html;
-      Styles.adopt(shadowRoot, keyframesCSS, SparkleElement.useInlineStyles);
-      Styles.adopt(shadowRoot, normalizeCSS, SparkleElement.useInlineStyles);
-      Styles.adopt(
-        shadowRoot,
-        scopeCssToHost(coreCSS),
-        SparkleElement.useInlineStyles
-      );
+      Styles.adopt(shadowRoot, keyframesCSS);
+      Styles.adopt(shadowRoot, normalizeCSS);
+      Styles.adopt(shadowRoot, scopeCssToHost(coreCSS));
       this.styles.forEach((css) => {
-        Styles.adopt(shadowRoot, css, SparkleElement.useInlineStyles);
+        Styles.adopt(shadowRoot, css);
       });
     } else {
-      Styles.adopt(
-        this.ownerDocument,
-        keyframesCSS,
-        SparkleElement.useInlineStyles
-      );
-      Styles.adopt(
-        this.ownerDocument,
-        normalizeCSS,
-        SparkleElement.useInlineStyles
-      );
-      Styles.adopt(this.ownerDocument, coreCSS, SparkleElement.useInlineStyles);
+      Styles.adopt(this.ownerDocument, keyframesCSS);
+      Styles.adopt(this.ownerDocument, normalizeCSS);
+      Styles.adopt(this.ownerDocument, coreCSS);
       this.styles.forEach((css) => {
-        Styles.adopt(this.ownerDocument, css, SparkleElement.useInlineStyles);
+        Styles.adopt(this.ownerDocument, css);
       });
     }
   }

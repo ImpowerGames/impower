@@ -35,10 +35,9 @@ export default class Drawer
   static override async define(
     tagName?: string,
     dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true,
-    useInlineStyles = true
+    useShadowDom = true
   ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom, useInlineStyles);
+    return super.define(tagName, dependencies, useShadowDom);
   }
 
   override get html() {
