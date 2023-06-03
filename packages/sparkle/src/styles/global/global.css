@@ -1,6 +1,4 @@
-:root,
-.s-theme-light,
-.s-theme-dark {
+:root {
   /* Primary */
   --s-color-primary-10: var(--s-color-sky-10);
   --s-color-primary-20: var(--s-color-sky-20);

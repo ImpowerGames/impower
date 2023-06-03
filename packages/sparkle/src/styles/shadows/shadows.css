@@ -13,7 +13,6 @@
   --s-color-shadow-ambient-5: hsl(0 0% 0% / 22%);
 }
 
-:root,
 .s-theme-dark {
   --s-color-shadow-key-0: hsl(0 0% 0% / 0%);
   --s-color-shadow-key-1: hsl(0 0% 0% / 24%);
@@ -29,9 +28,7 @@
   --s-color-shadow-ambient-5: hsl(0 0% 0% / 44%);
 }
 
-:root,
-.s-theme-light,
-.s-theme-dark {
+:root {
   --s-y-shadow-key-0: 0;
   --s-y-shadow-key-1: 1px;
   --s-y-shadow-key-2: 3px;

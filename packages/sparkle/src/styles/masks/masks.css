@@ -1,6 +1,4 @@
-:root,
-.s-theme-light,
-.s-theme-dark {
+:root {
   --s-mask-scooped-edge-tb: radial-gradient(20px at 50% 20px, #0000 97%, #000)
     50% -20px / calc(1.9 * 20px) 100%;
   --s-mask-scooped-edge-lr: radial-gradient(20px at 20px 50%, #0000 97%, #000) -20px /

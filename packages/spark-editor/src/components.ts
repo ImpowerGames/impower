@@ -26,7 +26,6 @@ import Share from "./components/share/_share";
 import Sounds from "./components/sounds/_sounds";
 import Sprites from "./components/sprites/_sprites";
 import Views from "./components/views/_views";
-import Core from "./styles/core/_core";
 import coreCSS from "./styles/core/core.css";
 import Icons from "./styles/icons/_icons";
 import iconsCSS from "./styles/icons/icons.css";
@@ -50,6 +49,9 @@ const style = (component: Component): Component => {
 };
 
 const components = {
+  "se-icons": Icons,
+  "se-theme": Theme,
+  "se-normalize": Normalize,
   "se-option-button": style(OptionButton),
   "se-file-button": style(FileButton),
   "se-add-fab": style(AddFab),
@@ -75,10 +77,6 @@ const components = {
   "se-footer-navigation": style(FooterNavigation),
   "se-footer-navigation-spacer": style(FooterNavigationSpacer),
   "se-gui": style(GUI),
-  "se-core": Core,
-  "se-icons": Icons,
-  "se-normalize": Normalize,
-  "se-theme": Theme,
 } as const;
 
 export default components;

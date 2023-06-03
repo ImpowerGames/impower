@@ -1,6 +1,4 @@
-:root,
-.s-theme-light,
-.s-theme-dark {
+:root {
   --s-easing-linear: linear;
   --s-easing-ease: ease;
   --s-easing-ease-in: ease-in;

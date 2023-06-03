@@ -23,7 +23,6 @@ import Tooltip from "./components/tooltip/_tooltip";
 import Transition from "./components/transition/_transition";
 import Animations from "./styles/animations/_animations";
 import Core from "./styles/core/_core";
-import coreCSS from "./styles/core/core.css";
 import Dark from "./styles/dark/_dark";
 import Easings from "./styles/easings/_easings";
 import Global from "./styles/global/_global";
@@ -48,13 +47,26 @@ type Component = () => { html?: string; css?: string };
 const style = (component: Component): Component => {
   const data = component();
   const html = data.html ? transformer(data.html, config) : data.html;
-  const css = data.css || coreCSS;
+  const css = data.css;
   return () => {
     return { html, css };
   };
 };
 
 const components = {
+  "s-easings": Easings,
+  "s-keyframes": Keyframes,
+  "s-animations": Animations,
+  "s-gradients": Gradients,
+  "s-icons": Icons,
+  "s-patterns": Patterns,
+  "s-masks": Masks,
+  "s-dark": Dark,
+  "s-light": Light,
+  "s-global": Global,
+  "s-normalize": Normalize,
+  "s-core": Core,
+  "s-shadows": Shadows,
   "s-box": style(Box),
   "s-circle": style(Circle),
   "s-icon": style(Icon),
@@ -77,19 +89,6 @@ const components = {
   "s-transition": style(Transition),
   "s-router": style(Router),
   "s-breakpoint-observer": style(BreakpointObserver),
-  "s-core": Core,
-  "s-normalize": Normalize,
-  "s-animations": Animations,
-  "s-dark": Dark,
-  "s-easings": Easings,
-  "s-global": Global,
-  "s-gradients": Gradients,
-  "s-icons": Icons,
-  "s-keyframes": Keyframes,
-  "s-light": Light,
-  "s-masks": Masks,
-  "s-patterns": Patterns,
-  "s-shadows": Shadows,
 } as const;
 
 export default components;

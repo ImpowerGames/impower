@@ -1,6 +1,4 @@
-:root,
-.s-theme-light,
-.s-theme-dark {
+:root {
   --s-animation-spin: spin 1s linear infinite;
   --s-animation-ping: ping 1.5s linear infinite;
   --s-animation-sheen: sheen 8s ease-in-out infinite;
