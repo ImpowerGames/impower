@@ -5,7 +5,6 @@
   --child-justify: center;
   --child-align: center;
   --size: calc(1em * var(--s-scale-icon));
-  --fill: currentColor;
 }
 
 :host > .root {
