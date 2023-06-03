@@ -4,8 +4,9 @@ import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDirection } from "../../utils/getDirection";
-import { restartAnimations } from "../../utils/restartAnimations";
-import { reverseAnimations } from "../../utils/reverseAnimations";
+import { resetAnimation } from "../../utils/resetAnimation";
+import { restartAnimation } from "../../utils/restartAnimation";
+import { reverseAnimation } from "../../utils/reverseAnimation";
 import css from "./router.css";
 import html from "./router.html";
 
@@ -17,6 +18,7 @@ const DEFAULT_ATTRIBUTES = getAttributeNameMap([
   "exit-event",
   "swipeable",
   "directional",
+  "unmount",
 ]);
 
 /**
@@ -89,6 +91,18 @@ export default class Router
   }
 
   /**
+   * Determines when the exiting panel should be unmounted from the dom
+   *
+   * Defaults to `on-exit`.
+   */
+  get unmount(): "on-exit" | "on-enter" | "never" | null {
+    return this.getStringAttribute(Router.attributes.unmount);
+  }
+  set unmount(value) {
+    this.setStringAttribute(Router.attributes.unmount, value);
+  }
+
+  /**
    * Allow panels to be swiped.
    *
    * Set to `touch` to limit swipe detection to touch devices.
@@ -104,20 +118,38 @@ export default class Router
     this.setStringAttribute(Router.attributes.swipeable, value);
   }
 
+  get oldFadeEl(): HTMLElement {
+    return this.getElementByClass("old-fade") as HTMLElement;
+  }
+
+  get oldTransformEl(): HTMLElement {
+    return this.getElementByClass("old-transform") as HTMLElement;
+  }
+
+  get newFadeEl(): HTMLElement {
+    return this.getElementByClass("new-fade") as HTMLElement;
+  }
+
+  get newTransformEl(): HTMLElement {
+    return this.getElementByClass("new-transform") as HTMLElement;
+  }
+
   get exitFadeEl(): HTMLElement {
-    return this.getElementByClass("exit-fade") as HTMLElement;
+    return this.oldFadeEl;
   }
 
   get exitTransformEl(): HTMLElement {
-    return this.getElementByClass("exit-transform") as HTMLElement;
+    return this.oldTransformEl;
   }
 
   get enterFadeEl(): HTMLElement {
-    return this.getElementByClass("enter-fade") as HTMLElement;
+    return this.unmount === "on-enter" ? this.newFadeEl : this.oldFadeEl;
   }
 
   get enterTransformEl(): HTMLElement {
-    return this.getElementByClass("enter-transform") as HTMLElement;
+    return this.unmount === "on-enter"
+      ? this.newTransformEl
+      : this.oldTransformEl;
   }
 
   get contentTemplates(): HTMLTemplateElement[] {
@@ -162,7 +194,7 @@ export default class Router
     return [];
   }
 
-  protected _state: "entering" | "exiting" | null = null;
+  protected _state: "exiting" | "loading" | "entering" | null = null;
 
   protected _loadingValue: string | null = null;
 
@@ -170,9 +202,30 @@ export default class Router
 
   protected _loadedNode: Node | null = null;
 
+  protected _enter_transform = "";
+
+  protected _exit_transform = "";
+
+  protected _enter_fade = "";
+
+  protected _exit_fade = "";
+
+  protected override onAttributeChanged(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ): void {
+    if (name === Router.attributes.enter || name === Router.attributes.exit) {
+      this.cacheAnimationNames();
+    }
+  }
+
   protected override onConnected(): void {
     this.root?.addEventListener(this.exitEvent, this.handleChanging);
     this.root?.addEventListener(this.enterEvent, this.handleChanged);
+    this.updateRootCssVariable("exit-fade", "var(--s-animation-exit-fade)");
+    this.updateRootCssVariable("enter-fade", "var(--s-animation-enter-fade)");
+    this.cacheAnimationNames();
   }
 
   protected override onDisconnected(): void {
@@ -180,24 +233,28 @@ export default class Router
     this.root?.removeEventListener(this.enterEvent, this.handleChanged);
   }
 
+  cacheAnimationNames(): void {
+    this._exit_transform = this.root.style.getPropertyValue("--exit");
+    this._enter_transform = this.root.style.getPropertyValue("--enter");
+    this._exit_fade = this.root.style.getPropertyValue("--exit-fade");
+    this._enter_fade = this.root.style.getPropertyValue("--enter-fade");
+  }
+
   async exitRoute(direction: string | null): Promise<void> {
     if (this._state === "entering") {
       // already entering, so reverse enter animations
       if (this.directional != null) {
-        await reverseAnimations(this.enterFadeEl);
+        reverseAnimation(this.enterFadeEl, this._enter_fade);
       } else {
-        await reverseAnimations(this.enterFadeEl, this.enterTransformEl);
+        reverseAnimation(this.enterFadeEl, this._enter_fade);
+        reverseAnimation(this.enterTransformEl, this._enter_transform);
       }
     } else {
       const directionSuffix = direction ? `-${direction}` : "-zoom";
-      this.updateRootCssVariable(
-        "enter",
-        getCssAnimation(this.enter, directionSuffix)
-      );
-      this.updateRootCssVariable(
-        "exit",
-        getCssAnimation(this.exit, directionSuffix)
-      );
+      this._enter_transform = getCssAnimation(this.enter, directionSuffix);
+      this.updateRootCssVariable("enter", this._enter_transform);
+      this._exit_transform = getCssAnimation(this.exit, directionSuffix);
+      this.updateRootCssVariable("exit", this._exit_transform);
       this.playExitTransition(this._state !== "exiting");
     }
   }
@@ -209,10 +266,12 @@ export default class Router
         return;
       }
       // already loaded, so reverse exit animations
-      await reverseAnimations(this.exitFadeEl, this.exitTransformEl);
+      reverseAnimation(this.exitFadeEl, this._exit_fade);
+      reverseAnimation(this.exitTransformEl, this._exit_transform);
       if (this.interrupted(newValue)) {
         return;
       }
+      this.endTransitions();
     } else {
       await animationsComplete(
         this.exitFadeEl,
@@ -222,18 +281,23 @@ export default class Router
       if (this.interrupted(newValue)) {
         return;
       }
+      this.root.setAttribute("mounting", "");
+      this.resetEnterTransition();
       this.loadRoute(newValue);
+      this.root.removeAttribute("mounting");
       this.playEnterTransition(true);
       this.emit(ENTER_EVENT);
       await animationsComplete(this.enterFadeEl, this.enterTransformEl);
       if (this.interrupted(newValue)) {
         return;
       }
-      if (this._loadedNode) {
-        this.assignContent(this._loadedNode);
+      if (this.unmount === "on-enter") {
+        if (this._loadedNode) {
+          this.assignContent(this._loadedNode);
+        }
       }
+      this.endTransitions();
     }
-    this.endTransitions();
   }
 
   interrupted(newValue: string): boolean {
@@ -243,14 +307,22 @@ export default class Router
   playExitTransition(restart: boolean): void {
     this.updateState("exiting");
     if (restart) {
-      restartAnimations(this.exitFadeEl, this.exitTransformEl);
+      restartAnimation(this.exitFadeEl, this._exit_fade);
+      restartAnimation(this.exitTransformEl, this._exit_transform);
     }
+  }
+
+  resetEnterTransition(): void {
+    this.updateState("entering");
+    resetAnimation(this.enterFadeEl, this._enter_fade);
+    resetAnimation(this.enterTransformEl, this._enter_transform);
   }
 
   playEnterTransition(restart: boolean): void {
     this.updateState("entering");
     if (restart) {
-      restartAnimations(this.enterFadeEl, this.enterTransformEl);
+      restartAnimation(this.enterFadeEl, this._enter_fade);
+      restartAnimation(this.enterTransformEl, this._enter_transform);
     }
   }
 
@@ -258,7 +330,9 @@ export default class Router
     if (newValue) {
       const template = this.findTemplate(this.contentTemplates, newValue);
       if (template) {
-        return this.loadTemplate(template, "enter-content");
+        const targetSlotName =
+          this.unmount === "on-enter" ? "new-content" : undefined;
+        return this.loadTemplate(template, targetSlotName);
       }
     }
     return null;
@@ -286,7 +360,7 @@ export default class Router
     this.updateState(null);
   }
 
-  updateState(state: "entering" | "exiting" | null): void {
+  updateState(state: "exiting" | "loading" | "entering" | null): void {
     this._state = state;
     this.updateRootAttribute("state", state);
   }

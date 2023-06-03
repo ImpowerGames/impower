@@ -1,14 +1,14 @@
 <div class="root" part="root">
   <slot class="header-slot" name="header"></slot>
   <div class="content" part="content">
-    <div class="exit-fade" part="exit-fade">
-      <div class="exit-transform" part="exit-transform">
+    <div class="old-fade" part="old-fade">
+      <div class="old-transform" part="old-transform">
         <slot class="content-slot"></slot>
       </div>
     </div>
-    <div class="enter-fade" part="enter-fade">
-      <div class="enter-transform" part="enter-transform">
-        <slot class="enter-content-slot" name="enter-content"></slot>
+    <div class="new-fade" part="new-fade">
+      <div class="new-transform" part="new-transform">
+        <slot class="new-content-slot" name="new-content"></slot>
       </div>
     </div>
   </div>
