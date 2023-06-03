@@ -14,7 +14,7 @@ const scopeRules = (arr: Array<CssAtRuleAST>, scopeTo: string) => {
           out = out
             .replace(/(::slotted)[(]\s*(.+)\s*[)]/, "$2")
             .replace(/(:host-context)[(]\s*(.+)\s*[)]/, "$2 __TAGNAME__")
-            .replace(/(:host)[(]\s*([^ ]+)\s*[)]/, "__TAGNAME__$2")
+            .replace(/(:host)[(]\s*([^>]+)\s*[)]/, "__TAGNAME__$2")
             .replace(
               /([[a-zA-Z0-9_-]*)(::part)[(]\s*(.+)\s*[)]/,
               '$1 [part*="$3"][part*="$1"]'
