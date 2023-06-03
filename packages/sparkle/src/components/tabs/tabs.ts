@@ -202,6 +202,7 @@ export default class Tabs
     }
 
     await animationsComplete(tab.labelEl, tab.iconEl, this.indicatorEl);
+    await nextAnimationFrame();
     if (this.interrupted(newValue)) {
       return;
     }

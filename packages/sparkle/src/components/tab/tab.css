@@ -116,7 +116,6 @@
 
 :host([icon][active]:not([disabled])) > .root > .icon > * {
   --icon: var(--active-icon) !important;
-  background-color: var(--color) !important;
 }
 
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
