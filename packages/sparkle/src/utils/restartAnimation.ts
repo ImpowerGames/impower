@@ -1,15 +1,18 @@
 export const restartAnimation = (
   target: Element | null,
-  animationName: string
+  animationName?: string
 ): Animation | null => {
   if (!target) {
     return null;
   }
   const animation = target
     .getAnimations()
-    .find((animation) => (animation as any).animationName === animationName);
+    .filter(
+      (animation) =>
+        !animationName || (animation as any).animationName === animationName
+    )?.[0];
   if (!animation) {
-    return animation || null;
+    return null;
   }
   animation.currentTime = 0;
   animation.playbackRate = 1;

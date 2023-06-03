@@ -2,10 +2,9 @@ import getCssAnimation from "../../../../sparkle-style-transformer/src/utils/get
 import SparkleElement from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
+import { cancelAnimations } from "../../utils/cancelAnimations";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDirection } from "../../utils/getDirection";
-import { resetAnimation } from "../../utils/resetAnimation";
-import { restartAnimation } from "../../utils/restartAnimation";
 import { reverseAnimation } from "../../utils/reverseAnimation";
 import css from "./router.css";
 import html from "./router.html";
@@ -233,28 +232,30 @@ export default class Router
   }
 
   cacheAnimationNames(): void {
-    this._exit_transform = this.root.style.getPropertyValue("--exit");
-    this._enter_transform = this.root.style.getPropertyValue("--enter");
-    this._exit_fade = this.root.style.getPropertyValue("--exit-fade");
-    this._enter_fade = this.root.style.getPropertyValue("--enter-fade");
+    const computedStyle = getComputedStyle(this.root);
+    this._exit_transform =
+      computedStyle.getPropertyValue("--exit").split(" ")?.[0] || "";
+    this._enter_transform =
+      computedStyle.getPropertyValue("--enter").split(" ")?.[0] || "";
+    this._exit_fade =
+      computedStyle.getPropertyValue("--exit-fade").split(" ")?.[0] || "";
+    this._enter_fade =
+      computedStyle.getPropertyValue("--enter-fade").split(" ")?.[0] || "";
   }
 
   async exitRoute(direction: string | null): Promise<void> {
     if (this._state === "entering") {
       // already entering, so reverse enter animations
-      if (this.directional != null) {
-        reverseAnimation(this.enterFadeEl, this._enter_fade);
-      } else {
-        reverseAnimation(this.enterFadeEl, this._enter_fade);
-        reverseAnimation(this.enterTransformEl, this._enter_transform);
-      }
+      reverseAnimation(this.enterFadeEl, this._enter_fade);
+      reverseAnimation(this.enterTransformEl, this._enter_transform);
     } else {
       const directionSuffix = direction ? `-${direction}` : "-zoom";
-      this._enter_transform = getCssAnimation(this.enter, directionSuffix);
-      this.updateRootCssVariable("enter", this._enter_transform);
-      this._exit_transform = getCssAnimation(this.exit, directionSuffix);
-      this.updateRootCssVariable("exit", this._exit_transform);
-      this.playExitTransition(this._state !== "exiting");
+      const enter = getCssAnimation(this.enter, directionSuffix);
+      this.updateRootCssVariable("enter", enter);
+      const exit = getCssAnimation(this.exit, directionSuffix);
+      this.updateRootCssVariable("exit", exit);
+      this.cacheAnimationNames();
+      this.playExitTransition();
     }
   }
 
@@ -267,33 +268,29 @@ export default class Router
       // already loaded, so reverse exit animations
       reverseAnimation(this.exitFadeEl, this._exit_fade);
       reverseAnimation(this.exitTransformEl, this._exit_transform);
+      await animationsComplete(this.exitFadeEl, this.exitTransformEl);
       if (this.interrupted(newValue)) {
         return;
       }
       this.endTransitions();
     } else {
-      await animationsComplete(
-        this.exitFadeEl,
-        this.enterFadeEl,
-        this.enterTransformEl
-      );
+      await animationsComplete(this.exitFadeEl);
       if (this.interrupted(newValue)) {
         return;
       }
       this.root.setAttribute("mounting", "");
-      this.resetEnterTransition();
+      cancelAnimations(this.enterFadeEl);
+      cancelAnimations(this.enterTransformEl);
+      this.playEnterTransition();
       this.loadRoute(newValue);
       this.root.removeAttribute("mounting");
-      this.playEnterTransition(true);
       this.emit(ENTER_EVENT);
       await animationsComplete(this.enterFadeEl, this.enterTransformEl);
       if (this.interrupted(newValue)) {
         return;
       }
-      if (this.unmount === "on-enter") {
-        if (this._loadedNode) {
-          this.assignContent(this._loadedNode);
-        }
+      if (this.unmount === "on-enter" && this._loadedNode) {
+        this.assignContent(this._loadedNode);
       }
       this.endTransitions();
     }
@@ -303,26 +300,12 @@ export default class Router
     return this._loadingValue !== newValue;
   }
 
-  playExitTransition(restart: boolean): void {
+  playExitTransition(): void {
     this.updateState("exiting");
-    if (restart) {
-      restartAnimation(this.exitFadeEl, this._exit_fade);
-      restartAnimation(this.exitTransformEl, this._exit_transform);
-    }
   }
 
-  resetEnterTransition(): void {
+  playEnterTransition(): void {
     this.updateState("entering");
-    resetAnimation(this.enterFadeEl, this._enter_fade);
-    resetAnimation(this.enterTransformEl, this._enter_transform);
-  }
-
-  playEnterTransition(restart: boolean): void {
-    this.updateState("entering");
-    if (restart) {
-      restartAnimation(this.enterFadeEl, this._enter_fade);
-      restartAnimation(this.enterTransformEl, this._enter_transform);
-    }
   }
 
   loadContent(newValue: string | null): Node | null {
