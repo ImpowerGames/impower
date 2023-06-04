@@ -266,7 +266,13 @@ export default class Router
       }
       this.endTransitions();
     } else {
-      await animationsComplete(this.exitFadeEl);
+      if (this.directional != null) {
+        // To give the illusion of continuous motion for directional transitions
+        // we only wait for the fade to finish
+        await animationsComplete(this.exitFadeEl);
+      } else {
+        await animationsComplete(this.exitFadeEl, this.exitTransformEl);
+      }
       if (this.interrupted(newValue)) {
         return;
       }
