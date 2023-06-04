@@ -115,16 +115,14 @@
 }
 
 :host([icon]) > .root > .icon {
-  --size: calc(1em * var(--s-scale-icon));
-
   display: flex;
   line-height: 1;
   justify-content: center;
   align-items: center;
-  width: var(--size);
-  height: var(--size);
-  min-width: var(--size);
-  min-height: var(--size);
+  width: calc(1em * var(--s-scale-icon));
+  height: calc(1em * var(--s-scale-icon));
+  min-width: calc(1em * var(--s-scale-icon));
+  min-height: calc(1em * var(--s-scale-icon));
   -webkit-mask-image: var(--icon, none);
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
