@@ -120,6 +120,7 @@ const buildPages = async () => {
     entryPoints: entryPoints,
     outdir: pagesOutDir,
     platform: "browser",
+    format: "esm",
     bundle: true,
     minify: PRODUCTION,
     sourcemap: !PRODUCTION,
@@ -226,11 +227,11 @@ const expandPageComponents = async () => {
         const cssPath = fs.existsSync(cssFilePath)
           ? cssFilePath.replace(outdir, "")
           : "";
-        const jsPath = fs.existsSync(jsFilePath)
+        const mjsPath = fs.existsSync(jsFilePath)
           ? jsFilePath.replace(outdir, "")
           : "";
         let html = await fs.promises.readFile(src, "utf-8").catch(() => "");
-        const pageComponent = () => ({ html, cssPath, jsPath });
+        const pageComponent = () => ({ html, cssPath, mjsPath });
         html = renderPage(documentHtml, pageComponent, components);
         await fs.promises.mkdir(path.dirname(dest), { recursive: true });
         await fs.promises.writeFile(dest, html, "utf-8");
