@@ -10,7 +10,7 @@
   --child-justify: center;
   --position: relative;
   --grow: 1;
-  --shrink: 0;
+  --shrink: 1;
   --text-font: var(--s-font-sans);
   --text-size: var(--s-text-sm-font-size);
   --text-weight: 600;
@@ -118,6 +118,12 @@
 
   position: relative;
   display: flex;
+  width: var(--size);
+  height: var(--size);
+  min-width: var(--size);
+  min-height: var(--size);
+  justify-content: center;
+  align-items: center;
   will-change: transform;
 }
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
@@ -133,14 +139,13 @@
 }
 
 :host([icon]) > .root > .icon > .inactive-icon {
-  display: flex;
+  position: absolute;
+  inset: 0;
   line-height: 1;
   justify-content: center;
   align-items: center;
-  width: var(--size);
-  height: var(--size);
-  min-width: var(--size);
-  min-height: var(--size);
+  width: 100%;
+  height: 100%;
   -webkit-mask-image: var(--icon, none);
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
@@ -152,23 +157,22 @@
   background-color: var(--text-color);
   will-change: transform, opacity;
   transition-property: none;
-  opacity: 1;
 }
-:host([icon][active]:not([disabled])) > .root > .icon > .inactive-icon {
-  opacity: 0;
+:host([icon]:not([active])) > .root > .icon > .inactive-icon {
+  display: flex;
+}
+:host([icon][active]) > .root > .icon > .inactive-icon {
+  display: none;
 }
 
 :host([icon]) > .root > .icon > .active-icon {
   position: absolute;
   inset: 0;
-  display: flex;
   line-height: 1;
   justify-content: center;
   align-items: center;
-  width: var(--size);
-  height: var(--size);
-  min-width: var(--size);
-  min-height: var(--size);
+  width: 100%;
+  height: 100%;
   -webkit-mask-image: var(--active-icon, none);
   mask-image: var(--active-icon, none);
   -webkit-mask-repeat: no-repeat;
@@ -180,8 +184,10 @@
   background-color: var(--color);
   will-change: transform, opacity;
   transition-property: none;
-  opacity: 0;
 }
-:host([icon][active]:not([disabled])) > .root > .icon > .active-icon {
-  opacity: 1;
+:host([icon]:not([active])) > .root > .icon > .active-icon {
+  display: none;
+}
+:host([icon][active]) > .root > .icon > .active-icon {
+  display: flex;
 }
