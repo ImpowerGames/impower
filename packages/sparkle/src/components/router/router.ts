@@ -208,22 +208,9 @@ export default class Router
 
   protected _exit_fade = "";
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Router.attributes.enter || name === Router.attributes.exit) {
-      this.cacheAnimationNames();
-    }
-  }
-
   protected override onConnected(): void {
     this.root?.addEventListener(this.exitEvent, this.handleChanging);
     this.root?.addEventListener(this.enterEvent, this.handleChanged);
-    this.updateRootCssVariable("exit-fade", "var(--s-animation-exit-fade)");
-    this.updateRootCssVariable("enter-fade", "var(--s-animation-enter-fade)");
-    this.cacheAnimationNames();
   }
 
   protected override onDisconnected(): void {
