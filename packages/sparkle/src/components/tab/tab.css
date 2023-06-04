@@ -143,11 +143,4 @@
 
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
   font-size: var(--icon-size);
-  transform: translateY(1px);
-}
-
-:host(:not([child-layout="row"])[icon][active]:not([disabled]))
-  > .root
-  > .icon {
-  transform: translateY(0px);
 }
