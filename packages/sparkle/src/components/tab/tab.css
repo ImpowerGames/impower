@@ -83,6 +83,11 @@
   pointer-events: none;
 }
 
+:host > .root > .ripple {
+  position: absolute;
+  inset: 0;
+}
+
 :host > .root > .icon,
 :host > .root > .label {
   display: flex;
@@ -96,7 +101,7 @@
 }
 
 :host(:not([child-layout="row"])[icon]) > .root > .label {
-  transform: translateY(0) scale(0.8);
+  transform: scale(0.8);
 }
 
 :host(:not([child-layout="row"])[icon][active]:not([disabled]))
@@ -131,18 +136,18 @@
   background-color: currentColor;
   will-change: transform;
 }
-
-:host(:not([child-layout="row"])[icon]) > .root > .icon {
-  font-size: var(--icon-size);
-  transform: translateY(0);
-}
 :host([icon][active]:not([disabled])) > .root > .icon {
   -webkit-mask-image: var(--active-icon, none);
   mask-image: var(--active-icon, none);
 }
 
+:host(:not([child-layout="row"])[icon]) > .root > .icon {
+  font-size: var(--icon-size);
+  transform: translateY(1px);
+}
+
 :host(:not([child-layout="row"])[icon][active]:not([disabled]))
   > .root
   > .icon {
-  transform: translateY(-1px);
+  transform: translateY(0px);
 }
