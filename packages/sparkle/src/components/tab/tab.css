@@ -125,8 +125,6 @@
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
-  -webkit-mask-size: cover;
-  mask-size: cover;
   background-color: currentColor;
   will-change: transform;
 }
@@ -136,6 +134,9 @@
 }
 
 :host([child-layout="row"][icon]) > .root > .icon {
+  -webkit-mask-size: calc(14px * var(--s-scale-icon))
+    calc(14px * var(--s-scale-icon));
+  mask-size: calc(14px * var(--s-scale-icon)) calc(14px * var(--s-scale-icon));
   width: calc(14px * var(--s-scale-icon));
   height: calc(14px * var(--s-scale-icon));
   min-width: calc(14px * var(--s-scale-icon));
@@ -145,6 +146,9 @@
 }
 
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
+  -webkit-mask-size: calc(20px * var(--s-scale-icon))
+    calc(20px * var(--s-scale-icon));
+  mask-size: calc(20px * var(--s-scale-icon)) calc(20px * var(--s-scale-icon));
   width: calc(20px * var(--s-scale-icon));
   height: calc(20px * var(--s-scale-icon));
   min-width: calc(20px * var(--s-scale-icon));
