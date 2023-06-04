@@ -150,8 +150,6 @@
   mask-size: cover;
   background-color: currentColor;
   will-change: transform, opacity;
-  transition-property: var(--transition-property);
-  transition-duration: var(--duration);
   opacity: 1;
 }
 :host([icon][active]:not([disabled])) > .root > .icon > .inactive-icon {
@@ -179,8 +177,6 @@
   mask-size: cover;
   background-color: currentColor;
   will-change: transform, opacity;
-  transition-property: var(--transition-property);
-  transition-duration: var(--duration);
   opacity: 0;
 }
 :host([icon][active]:not([disabled])) > .root > .icon > .active-icon {
