@@ -123,6 +123,8 @@
   height: calc(1em * var(--s-scale-icon));
   min-width: calc(1em * var(--s-scale-icon));
   min-height: calc(1em * var(--s-scale-icon));
+  max-width: calc(1em * var(--s-scale-icon));
+  max-height: calc(1em * var(--s-scale-icon));
   -webkit-mask-image: var(--icon, none);
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
