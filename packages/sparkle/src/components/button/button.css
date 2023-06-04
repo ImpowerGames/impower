@@ -105,10 +105,10 @@
   :host([variant="filled"]) > .root:hover {
     --shadow: var(--s-shadow-drop-2);
   }
-}
-:host(:not([variant])) > .root:active,
-:host([variant="filled"]) > .root:active {
-  --shadow: var(--s-shadow-drop-0);
+  :host(:not([variant])) > .root:active,
+  :host([variant="filled"]) > .root:active {
+    --shadow: var(--s-shadow-drop-0);
+  }
 }
 :host(:not([variant])),
 :host([variant="filled"]) {
@@ -169,11 +169,11 @@
     background-color: var(--color);
     color: var(--text-color);
   }
-}
-:host([variant="outlined"]:not([disabled])) > .root:active {
-  --text-color: var(--s-color-neutral-0);
-  background-color: var(--color);
-  color: var(--text-color);
+  :host([variant="outlined"]:not([disabled])) > .root:active {
+    --text-color: var(--s-color-neutral-0);
+    background-color: var(--color);
+    color: var(--text-color);
+  }
 }
 
 /* Text */
