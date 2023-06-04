@@ -148,6 +148,14 @@ export default class Tab
     return this.getElementByClass("icon");
   }
 
+  get inactiveIconEl(): HTMLElement | null {
+    return this.getElementByClass("inactive-icon");
+  }
+
+  get activeIconEl(): HTMLElement | null {
+    return this.getElementByClass("active-icon");
+  }
+
   protected override onAttributeChanged(
     name: string,
     oldValue: string,

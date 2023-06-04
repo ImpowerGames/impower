@@ -205,6 +205,8 @@ export default class Tabs
       tab.root,
       tab.labelEl,
       tab.iconEl,
+      tab.inactiveIconEl,
+      tab.activeIconEl,
       this.indicatorEl
     );
     if (this.interrupted(newValue)) {
