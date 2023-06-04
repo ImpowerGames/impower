@@ -193,7 +193,7 @@ export default class Tabs
       this.emit(CHANGING_EVENT, detail);
     }
 
-    if (oldTab && oldTab !== tab) {
+    if (oldTab) {
       oldTab.active = false;
     }
     tab.active = true;
@@ -201,7 +201,15 @@ export default class Tabs
       await this.updateIndicator(newValue, tab, oldTab);
     }
 
-    await animationsComplete(tab.labelEl, tab.iconEl, this.indicatorEl);
+    await animationsComplete(
+      tab.root,
+      tab.labelEl,
+      tab.iconEl,
+      this.indicatorEl
+    );
+    // Wait 3 frames for styles to propagate to children
+    await nextAnimationFrame();
+    await nextAnimationFrame();
     await nextAnimationFrame();
     if (this.interrupted(newValue)) {
       return;
