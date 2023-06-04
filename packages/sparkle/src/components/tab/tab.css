@@ -149,7 +149,7 @@
   mask-position: center;
   -webkit-mask-size: cover;
   mask-size: cover;
-  background-color: currentColor;
+  background-color: var(--text-color);
   will-change: transform, opacity;
   transition-property: none;
   opacity: 1;
@@ -177,7 +177,7 @@
   mask-position: center;
   -webkit-mask-size: cover;
   mask-size: cover;
-  background-color: currentColor;
+  background-color: var(--color);
   will-change: transform, opacity;
   transition-property: none;
   opacity: 0;
