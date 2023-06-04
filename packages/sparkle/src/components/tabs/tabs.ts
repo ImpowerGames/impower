@@ -1,5 +1,8 @@
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { animationsComplete } from "../../utils/animationsComplete";
@@ -22,15 +25,19 @@ const CHANGED_EVENT = "changed";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "indicator-width": getCssSize,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "indicator",
-  "vertical",
-  "value",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([
+    "indicator",
+    "vertical",
+    "value",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
+};
 
 /**
  * Tabs indicate which child tab is currently active.
@@ -41,10 +48,10 @@ export default class Tabs
 {
   static override tagName = "s-tabs";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -64,7 +71,7 @@ export default class Tabs
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

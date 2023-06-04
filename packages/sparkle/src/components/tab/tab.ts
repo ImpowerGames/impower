@@ -3,7 +3,10 @@ import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIc
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -17,19 +20,23 @@ import html from "./tab.html";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
   "active-icon": (v: string) => getCssIcon(v, Icons.all()),
   "icon-size": getCssSize,
   "hover-color": getCssColor,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "active",
-  "value",
-  "disabled",
-  "state",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([
+    "active",
+    "value",
+    "disabled",
+    "state",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
+};
 
 /**
  * Tabs are used to represent and activate panels.
@@ -40,10 +47,10 @@ export default class Tab
 {
   static override tagName = "s-tab";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -63,7 +70,7 @@ export default class Tab
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

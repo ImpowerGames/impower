@@ -1,10 +1,15 @@
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./badge.css";
 import html from "./badge.html";
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["float"]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["float"]),
+};
 
 /**
  * Badges are used to draw attention and display statuses or counts.
@@ -16,7 +21,7 @@ export default class Badge
   static override tagName = "s-badge";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

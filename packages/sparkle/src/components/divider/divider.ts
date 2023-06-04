@@ -1,5 +1,8 @@
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -8,13 +11,14 @@ import css from "./divider.css";
 import html from "./divider.html";
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   size: getCssSize,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "vertical",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["vertical", ...getKeys(DEFAULT_TRANSFORMERS)]),
+};
 
 /**
  * Dividers are used to visually separate or group elements.
@@ -26,7 +30,7 @@ export default class Divider
   static override tagName = "s-divider";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -46,7 +50,7 @@ export default class Divider
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

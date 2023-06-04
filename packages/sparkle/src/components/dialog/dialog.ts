@@ -1,6 +1,9 @@
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import Icons from "../../configs/icons";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
@@ -20,17 +23,21 @@ const REMOVED_EVENT = "removed";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "open",
-  "dismissable",
-  "label",
-  "cancel",
-  "confirm",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([
+    "open",
+    "dismissable",
+    "label",
+    "cancel",
+    "confirm",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
+};
 
 /**
  * Dialogs, sometimes called "modals", appear above the page and require the user's immediate attention.
@@ -41,10 +48,10 @@ export default class Dialog
 {
   static override tagName = "s-dialog";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -64,7 +71,7 @@ export default class Dialog
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

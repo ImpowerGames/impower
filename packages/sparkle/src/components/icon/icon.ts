@@ -1,7 +1,10 @@
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -11,15 +14,15 @@ import css from "./icon.css";
 import html from "./icon.html";
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
   size: getCssSize,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "icon",
-  "size",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["icon", "size", ...getKeys(DEFAULT_TRANSFORMERS)]),
+};
 
 /**
  * Icons are symbols that can be used to represent various options within an application.
@@ -31,7 +34,7 @@ export default class Icon
   static override tagName = "s-icon";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -51,7 +54,7 @@ export default class Icon
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

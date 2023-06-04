@@ -1,5 +1,8 @@
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -8,15 +11,16 @@ import css from "./progress-bar.css";
 import html from "./progress-bar.html";
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "track-width": getCssSize,
   "indicator-width": getCssSize,
   speed: (v: string) => v,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "value",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["value", ...getKeys(DEFAULT_TRANSFORMERS)]),
+};
 
 /**
  * Progress bars are used to show the status of an ongoing operation.
@@ -28,7 +32,7 @@ export default class ProgressBar
   static override tagName = "s-progress-bar";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -48,7 +52,7 @@ export default class ProgressBar
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

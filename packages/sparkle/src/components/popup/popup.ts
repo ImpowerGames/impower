@@ -1,4 +1,6 @@
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { offsetParent } from "../../utils/composed-offset-position";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -14,29 +16,32 @@ import html from "./popup.html";
 
 const REPOSITION_EVENT = "reposition";
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "open",
-  "anchor",
-  "placement",
-  "strategy",
-  "distance",
-  "skidding",
-  "arrow",
-  "arrow-placement",
-  "arrow-padding",
-  "disable-auto-flip",
-  "flip-fallback-placements",
-  "flip-fallback-strategy",
-  "flip-boundary",
-  "flip-padding",
-  "disable-auto-shift",
-  "shift-boundary",
-  "shift-padding",
-  "auto-size",
-  "sync",
-  "auto-size-boundary",
-  "auto-size-padding",
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([
+    "open",
+    "anchor",
+    "placement",
+    "strategy",
+    "distance",
+    "skidding",
+    "arrow",
+    "arrow-placement",
+    "arrow-padding",
+    "disable-auto-flip",
+    "flip-fallback-placements",
+    "flip-fallback-strategy",
+    "flip-boundary",
+    "flip-padding",
+    "disable-auto-shift",
+    "shift-boundary",
+    "shift-padding",
+    "auto-size",
+    "sync",
+    "auto-size-boundary",
+    "auto-size-padding",
+  ]),
+};
 
 /**
  * Popup is a utility that lets you declaratively anchor "popup" containers to another element.
@@ -48,7 +53,7 @@ export default class Popup
   static override tagName = "s-popup";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

@@ -2,7 +2,10 @@ import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIc
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -22,22 +25,26 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([
 ]);
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
   spacing: getCssSize,
   size: getCssSize,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "href",
-  "target",
-  "type",
-  "autofocus",
-  "disabled",
-  "variant",
-  "label",
-  "action",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([
+    "href",
+    "target",
+    "type",
+    "autofocus",
+    "disabled",
+    "variant",
+    "label",
+    "action",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
+};
 
 /**
  * Buttons represent actions that are available to the user.
@@ -48,10 +55,10 @@ export default class Button
 {
   static override tagName = "s-button";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -76,7 +83,7 @@ export default class Button
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

@@ -1,4 +1,6 @@
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import Queue from "../../helpers/queue";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -9,7 +11,10 @@ import html from "./toast-stack.html";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["alert"]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["alert"]),
+};
 
 /**
  * Toast Stacks are used to display alert notifications in a stack.
@@ -20,10 +25,10 @@ export default class ToastStack
 {
   static override tagName = "s-toast-stack";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

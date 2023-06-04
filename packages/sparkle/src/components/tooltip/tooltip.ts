@@ -1,4 +1,5 @@
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
@@ -15,33 +16,36 @@ const OPENED_EVENT = "opened";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "open",
-  "anchor",
-  "placement",
-  "strategy",
-  "distance",
-  "skidding",
-  "arrow",
-  "arrow-placement",
-  "arrow-padding",
-  "disable-auto-flip",
-  "flip-fallback-placements",
-  "flip-fallback-strategy",
-  "flip-boundary",
-  "flip-padding",
-  "disable-auto-shift",
-  "shift-boundary",
-  "shift-padding",
-  "auto-size",
-  "sync",
-  "auto-size-boundary",
-  "auto-size-padding",
-  "label",
-  "trigger",
-  "show-delay",
-  "hide-delay",
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([
+    "open",
+    "anchor",
+    "placement",
+    "strategy",
+    "distance",
+    "skidding",
+    "arrow",
+    "arrow-placement",
+    "arrow-padding",
+    "disable-auto-flip",
+    "flip-fallback-placements",
+    "flip-fallback-strategy",
+    "flip-boundary",
+    "flip-padding",
+    "disable-auto-shift",
+    "shift-boundary",
+    "shift-padding",
+    "auto-size",
+    "sync",
+    "auto-size-boundary",
+    "auto-size-padding",
+    "label",
+    "trigger",
+    "show-delay",
+    "hide-delay",
+  ]),
+};
 
 /**
  * Tooltips display additional information based on a specific action.
@@ -52,10 +56,10 @@ export default class Tooltip
 {
   static override tagName = "s-tooltip";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

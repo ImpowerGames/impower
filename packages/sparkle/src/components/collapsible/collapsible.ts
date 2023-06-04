@@ -1,6 +1,8 @@
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssEase from "../../../../sparkle-style-transformer/src/utils/getCssEase";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -30,7 +32,10 @@ const getCollapsedIconOffset = (
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["collapsed", "sentinel"]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["collapsed", "sentinel"]),
+};
 
 /**
  * Collapsibles can be used to collapse child buttons so that only their icon is visible.
@@ -41,10 +46,10 @@ export default class Collapsible
 {
   static override tagName = "s-collapsible";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

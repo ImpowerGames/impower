@@ -1,5 +1,8 @@
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -8,12 +11,14 @@ import css from "./skeleton.css";
 import html from "./skeleton.html";
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "sheen-color": getCssColor,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([...getKeys(DEFAULT_TRANSFORMERS)]),
+};
 
 /**
  * Skeletons are used to provide a visual representation of where content will eventually be drawn.
@@ -25,7 +30,7 @@ export default class Skeleton
   static override tagName = "s-skeleton";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -45,7 +50,7 @@ export default class Skeleton
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

@@ -1,12 +1,15 @@
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import css from "./transition.css";
 import html from "./transition.html";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-router"]);
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+};
 
 /**
  * Transitions are used to smoothly swap between two elements
@@ -17,10 +20,10 @@ export default class Transition
 {
   static override tagName = "s-transition";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

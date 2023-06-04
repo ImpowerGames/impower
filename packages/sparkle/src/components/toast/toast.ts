@@ -2,7 +2,9 @@ import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/ge
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
@@ -23,12 +25,10 @@ export const DEFAULT_TRANSFORMERS = {
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "open",
-  "message",
-  "action",
-  "timeout",
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["open", "message", "action", "timeout"]),
+};
 
 /**
  * Toasts are used to display important messages inline or as alert notifications.
@@ -39,10 +39,10 @@ export default class Toast
 {
   static override tagName = "s-toast";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

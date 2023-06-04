@@ -1,18 +1,15 @@
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./breakpoint-observer.css";
 import html from "./breakpoint-observer.html";
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "measure",
-  "xs",
-  "sm",
-  "md",
-  "lg",
-  "xl",
-  "value",
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["measure", "xs", "sm", "md", "lg", "xl", "value"]),
+};
 
 /**
  * Breakpoint observers automatically update their value attribute to match the currently active breakpoint.
@@ -24,7 +21,7 @@ export default class BreakpointObserver
   static override tagName = "s-breakpoint-observer";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

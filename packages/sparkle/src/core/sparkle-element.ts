@@ -4,7 +4,7 @@ import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPa
 import getCssTextStroke from "../../../sparkle-style-transformer/src/utils/getCssTextStroke";
 import Patterns from "../configs/patterns";
 import Styles from "../configs/styles";
-import { ARIA_ATTRIBUTE_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
+import { ARIA_PROPERTY_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
 import coreCSS from "../styles/core/core.css";
 import keyframesCSS from "../styles/keyframes/keyframes.css";
 import normalizeCSS from "../styles/normalize/normalize.css";
@@ -35,9 +35,27 @@ import { updateAttribute } from "../utils/updateAttribute";
 
 const scopedCoreCSS = scopeCssToHost(coreCSS);
 
+export const DEFAULT_SPARKLE_TRANSFORMERS = {
+  ...STYLE_TRANSFORMERS,
+  "background-pattern": (v: string) => getCssPattern(v, Patterns.all()),
+};
+
+export const DEFAULT_SPARKLE_ATTRIBUTES = {
+  rtl: "rtl",
+  disabled: "disabled",
+  loading: "loading",
+  navigation: "navigation",
+  ...getAttributeNameMap(getKeys(STYLE_TRANSFORMERS)),
+  ...ARIA_PROPERTY_NAME_MAP,
+};
+
+const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(
+  getKeys(STYLE_ALIASES)
+);
+
 export default class SparkleElement
   extends HTMLElement
-  implements Properties<typeof STYLE_TRANSFORMERS>
+  implements Properties<typeof DEFAULT_SPARKLE_ATTRIBUTES>
 {
   static useShadowDom = false;
 
@@ -57,15 +75,7 @@ export default class SparkleElement
     this._dependencies = value;
   }
 
-  private static _attributes = {
-    rtl: "rtl",
-    disabled: "disabled",
-    loading: "loading",
-    navigation: "navigation",
-    ...ARIA_ATTRIBUTE_NAME_MAP,
-    ...getAttributeNameMap(getKeys(STYLE_TRANSFORMERS)),
-    ...getAttributeNameMap(getKeys(STYLE_ALIASES)),
-  };
+  private static _attributes = DEFAULT_SPARKLE_ATTRIBUTES;
   static get attributes() {
     return this._attributes;
   }
@@ -106,14 +116,14 @@ export default class SparkleElement
   }
 
   get transformers(): Record<string, (v: string) => string> {
-    return {
-      ...STYLE_TRANSFORMERS,
-      "background-pattern": (v: string) => getCssPattern(v, Patterns.all()),
-    };
+    return DEFAULT_SPARKLE_TRANSFORMERS;
   }
 
   static get observedAttributes() {
-    return Object.values(this.attributes);
+    return Object.values({
+      ...this.attributes,
+      ...DEFAULT_SPARKLE_ALIAS_ATTRIBUTES,
+    });
   }
 
   /**

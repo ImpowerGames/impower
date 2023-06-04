@@ -1,4 +1,6 @@
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -15,7 +17,10 @@ const REMOVED_EVENT = "removed";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap(["open", "dismissable"]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["open", "dismissable"]),
+};
 
 /**
  * Drawers slide in from a container to expose additional options and information.
@@ -26,10 +31,10 @@ export default class Drawer
 {
   static override tagName = "s-drawer";
 
-  static override dependencies = { ...DEFAULT_DEPENDENCIES };
+  static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

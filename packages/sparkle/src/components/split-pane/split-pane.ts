@@ -1,6 +1,9 @@
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
@@ -10,6 +13,7 @@ import css from "./split-pane.css";
 import html from "./split-pane.html";
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "min-panel-width": getCssSize,
   "min-panel-height": getCssSize,
   "resizer-color": getCssColor,
@@ -23,12 +27,15 @@ export const DEFAULT_TRANSFORMERS = {
   "initial-size": getCssSize,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "vertical",
-  "responsive",
-  "primary",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap([
+    "vertical",
+    "responsive",
+    "primary",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
+};
 
 /**
  * Split Panes display two panels side-by-side and allows the user to adjust their size relative to one another.
@@ -40,7 +47,7 @@ export default class SplitPane
   static override tagName = "s-split-pane";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -60,7 +67,7 @@ export default class SplitPane
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**

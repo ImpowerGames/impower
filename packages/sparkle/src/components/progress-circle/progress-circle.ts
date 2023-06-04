@@ -1,6 +1,9 @@
 import getCssProportion from "../../../../sparkle-style-transformer/src/utils/getCssProportion";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
@@ -9,16 +12,17 @@ import css from "./progress-circle.css";
 import html from "./progress-circle.html";
 
 export const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   size: getCssSize,
   "track-width": getCssSize,
   "indicator-width": getCssSize,
   speed: (v: string) => v,
 };
 
-const DEFAULT_ATTRIBUTES = getAttributeNameMap([
-  "value",
-  ...getKeys(DEFAULT_TRANSFORMERS),
-]);
+const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["value", ...getKeys(DEFAULT_TRANSFORMERS)]),
+};
 
 /**
  * Progress circles are used to show the progress of an operation in a circular fashion.
@@ -30,7 +34,7 @@ export default class ProgressCircle
   static override tagName = "s-progress-circle";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -50,7 +54,7 @@ export default class ProgressCircle
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   /**
