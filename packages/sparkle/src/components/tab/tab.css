@@ -118,6 +118,7 @@
 
   position: relative;
   display: flex;
+  will-change: transform;
 }
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
   font-size: var(--icon-size);
