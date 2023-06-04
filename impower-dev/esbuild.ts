@@ -201,13 +201,14 @@ const expandPageComponents = async () => {
               }
               if (css) {
                 const scope = html ? tagName : undefined;
-                globalCSS += scopeCss(css, scope) + "\n";
+                globalCSS += scopeCss(css, scope) + "\n\n";
               }
             }
           });
         }
       })
     );
+    globalCSS += "html{opacity:1;}";
     await fs.promises.mkdir(publicOutDir, { recursive: true });
     await fs.promises.writeFile(globalCssOutPath, globalCSS, "utf-8");
     console.log("");
