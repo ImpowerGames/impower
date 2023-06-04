@@ -110,17 +110,35 @@
 }
 
 :host([icon]) > .root > .icon {
+  --size: calc(1em * var(--s-scale-icon));
+
   display: flex;
   line-height: 1;
-}
-
-:host([icon][active]:not([disabled])) > .root > .icon > * {
-  --icon: var(--active-icon) !important;
+  justify-content: center;
+  align-items: center;
+  width: var(--size);
+  height: var(--size);
+  min-width: var(--size);
+  min-height: var(--size);
+  -webkit-mask-image: var(--icon, none);
+  mask-image: var(--icon, none);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  background-color: currentColor;
+  will-change: transform;
 }
 
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
   font-size: var(--icon-size);
   transform: translateY(0);
+}
+:host([icon][active]:not([disabled])) > .root > .icon {
+  -webkit-mask-image: var(--active-icon, none);
+  mask-image: var(--active-icon, none);
 }
 
 :host(:not([child-layout="row"])[icon][active]:not([disabled]))

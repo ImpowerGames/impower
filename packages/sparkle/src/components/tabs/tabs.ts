@@ -207,10 +207,6 @@ export default class Tabs
       tab.iconEl,
       this.indicatorEl
     );
-    // Wait 3 frames for styles to propagate to children
-    await nextAnimationFrame();
-    await nextAnimationFrame();
-    await nextAnimationFrame();
     if (this.interrupted(newValue)) {
       return;
     }
