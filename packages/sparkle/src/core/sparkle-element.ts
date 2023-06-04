@@ -1935,14 +1935,17 @@ export default class SparkleElement
     css: string,
     defaultDependencies?: Record<string, string>
   ): string {
-    if (this.dependencies) {
-      Object.values({ default: this.tagName, ...defaultDependencies }).forEach(
-        (newTagName) => {
+    if (!this.useShadowDom) {
+      if (this.dependencies) {
+        Object.values({
+          default: this.tagName,
+          ...defaultDependencies,
+        }).forEach((newTagName) => {
           if (newTagName) {
             css.replace(/(:host)\(\s*(.+)\s*\)/g, `${newTagName}$2`);
           }
-        }
-      );
+        });
+      }
     }
     return css;
   }
