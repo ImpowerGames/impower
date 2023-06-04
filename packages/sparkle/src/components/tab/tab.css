@@ -113,46 +113,76 @@
 :host > .root > .icon {
   display: none;
 }
-
 :host([icon]) > .root > .icon {
+  --size: calc(1em * var(--s-scale-icon));
+
+  position: relative;
+  display: flex;
+}
+:host(:not([child-layout="row"])[icon]) > .root > .icon {
+  font-size: var(--icon-size);
+}
+:host(:not([child-layout="row"])[icon]) > .root > .icon {
+  transform: translateY(1px);
+}
+:host(:not([child-layout="row"])[icon][active]:not([disabled]))
+  > .root
+  > .icon {
+  transform: translateY(0px);
+}
+
+:host([icon]) > .root > .icon > .inactive-icon {
   display: flex;
   line-height: 1;
   justify-content: center;
   align-items: center;
+  width: var(--size);
+  height: var(--size);
+  min-width: var(--size);
+  min-height: var(--size);
   -webkit-mask-image: var(--icon, none);
   mask-image: var(--icon, none);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
+  -webkit-mask-size: cover;
+  mask-size: cover;
   background-color: currentColor;
-  will-change: transform;
+  will-change: transform, opacity;
+  transition-property: var(--transition-property);
+  transition-duration: var(--duration);
+  opacity: 1;
 }
-:host([icon][active]:not([disabled])) > .root > .icon {
+:host([icon][active]:not([disabled])) > .root > .icon > .inactive-icon {
+  opacity: 0;
+}
+
+:host([icon]) > .root > .icon > .active-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  line-height: 1;
+  justify-content: center;
+  align-items: center;
+  width: var(--size);
+  height: var(--size);
+  min-width: var(--size);
+  min-height: var(--size);
   -webkit-mask-image: var(--active-icon, none);
   mask-image: var(--active-icon, none);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: cover;
+  mask-size: cover;
+  background-color: currentColor;
+  will-change: transform, opacity;
+  transition-property: var(--transition-property);
+  transition-duration: var(--duration);
+  opacity: 0;
 }
-
-:host([child-layout="row"][icon]) > .root > .icon {
-  -webkit-mask-size: calc(14px * var(--s-scale-icon))
-    calc(14px * var(--s-scale-icon));
-  mask-size: calc(14px * var(--s-scale-icon)) calc(14px * var(--s-scale-icon));
-  width: calc(14px * var(--s-scale-icon));
-  height: calc(14px * var(--s-scale-icon));
-  min-width: calc(14px * var(--s-scale-icon));
-  min-height: calc(14px * var(--s-scale-icon));
-  max-width: calc(14px * var(--s-scale-icon));
-  max-height: calc(14px * var(--s-scale-icon));
-}
-
-:host(:not([child-layout="row"])[icon]) > .root > .icon {
-  -webkit-mask-size: calc(20px * var(--s-scale-icon))
-    calc(20px * var(--s-scale-icon));
-  mask-size: calc(20px * var(--s-scale-icon)) calc(20px * var(--s-scale-icon));
-  width: calc(20px * var(--s-scale-icon));
-  height: calc(20px * var(--s-scale-icon));
-  min-width: calc(20px * var(--s-scale-icon));
-  min-height: calc(20px * var(--s-scale-icon));
-  max-width: calc(20px * var(--s-scale-icon));
-  max-height: calc(20px * var(--s-scale-icon));
+:host([icon][active]:not([disabled])) > .root > .icon > .active-icon {
+  opacity: 1;
 }
