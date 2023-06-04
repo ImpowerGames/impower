@@ -22,8 +22,6 @@ export default abstract class Styles {
 
   static adopt(el: Element | ShadowRoot | Document, css: string) {
     try {
-      const sheet = new CSSStyleSheet();
-      sheet.replaceSync(css);
       const targetEl =
         el instanceof Document || el instanceof ShadowRoot ? el : el.shadowRoot;
       if (targetEl) {
