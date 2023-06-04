@@ -516,9 +516,14 @@
 [skew-x] > .root,
 [skew-y] > .root {
   transition-property: opacity, transform, filter !important;
-  transform: scale(var(--scale-x, 1), var(--scale-y, 1), var(--scale-z, 1))
-    rotate(var(--rotate-x, 0), var(--rotate-y, 0), var(--rotate-z, 0))
-    translate(
+  transform: scale3d(var(--scale-x, 1), var(--scale-y, 1), var(--scale-z, 1))
+    rotate3d(
+      var(--rotate-x, 0),
+      var(--rotate-y, 0),
+      var(--rotate-z, 0),
+      var(--rotate, 0)
+    )
+    translate3d(
       var(--translate-x, 0),
       var(--translate-y, 0),
       var(--translate-z, 0)

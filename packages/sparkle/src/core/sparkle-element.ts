@@ -1642,6 +1642,16 @@ export default class SparkleElement
   }
 
   /**
+   * Sets an element's `rotate` angle.
+   */
+  get rotate(): "" | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.rotate);
+  }
+  set rotate(value) {
+    this.setStringAttribute(SparkleElement.attributes.rotate, value);
+  }
+
+  /**
    * Sets an element's `transform` to scale it along the x-axis.
    */
   get scaleX(): "" | string | null {
