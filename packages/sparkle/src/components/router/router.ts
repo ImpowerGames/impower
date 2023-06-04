@@ -267,7 +267,7 @@ export default class Router
       this.endTransitions();
     } else {
       if (this.directional != null) {
-        // To give the illusion of continuous motion for directional transitions
+        // For directional transitions, to give the illusion of continuous motion
         // we only wait for the fade to finish
         await animationsComplete(this.exitFadeEl);
       } else {
