@@ -142,7 +142,7 @@
     transform: scale(1);
   }
   to {
-    transform: scale(0.98);
+    transform: scale(0.99);
   }
 }
 
@@ -193,7 +193,7 @@
 
 @keyframes enter-zoom {
   from {
-    transform: scale(0.98);
+    transform: scale(0.99);
   }
   to {
     transform: scale(1);
