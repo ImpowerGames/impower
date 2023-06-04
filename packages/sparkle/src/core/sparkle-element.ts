@@ -33,6 +33,8 @@ import { navStartKey } from "../utils/navStartKey";
 import scopeCssToHost from "../utils/scopeCssToHost";
 import { updateAttribute } from "../utils/updateAttribute";
 
+const scopedCoreCSS = scopeCssToHost(coreCSS);
+
 export default class SparkleElement
   extends HTMLElement
   implements Properties<typeof STYLE_TRANSFORMERS>
@@ -1871,7 +1873,7 @@ export default class SparkleElement
       shadowRoot.innerHTML = this.html;
       Styles.adopt(shadowRoot, keyframesCSS);
       Styles.adopt(shadowRoot, normalizeCSS);
-      Styles.adopt(shadowRoot, scopeCssToHost(coreCSS));
+      Styles.adopt(shadowRoot, scopedCoreCSS);
       this.styles.forEach((css) => {
         Styles.adopt(shadowRoot, css);
       });
