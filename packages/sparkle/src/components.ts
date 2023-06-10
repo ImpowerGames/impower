@@ -21,6 +21,7 @@ import ToastStack from "./components/toast-stack/_toast-stack";
 import Toast from "./components/toast/_toast";
 import Tooltip from "./components/tooltip/_tooltip";
 import Transition from "./components/transition/_transition";
+import Viewport from "./components/viewport/_viewport";
 import Animations from "./styles/animations/_animations";
 import Core from "./styles/core/_core";
 import Dark from "./styles/dark/_dark";
@@ -68,6 +69,7 @@ const components = {
   "s-core": Core,
   "s-shadows": Shadows,
   "s-box": style(Box),
+  "s-viewport": style(Viewport),
   "s-circle": style(Circle),
   "s-icon": style(Icon),
   "s-popup": style(Popup),

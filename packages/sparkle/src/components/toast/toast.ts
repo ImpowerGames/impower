@@ -18,7 +18,7 @@ const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v, Icons.all()),
   spacing: getCssSize,
 };

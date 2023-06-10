@@ -12,7 +12,7 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./split-pane.css";
 import html from "./split-pane.html";
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   "min-panel-width": getCssSize,
   "min-panel-height": getCssSize,

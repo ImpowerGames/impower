@@ -24,7 +24,7 @@ const CHANGED_EVENT = "changed";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   "indicator-width": getCssSize,
 };

@@ -1,14 +1,18 @@
 import type SparkleElement from "../core/sparkle-element";
-import { SparkleElementTag } from "../types/sparkleElementTag";
+import { SparkleConstructorType } from "../types/sparkleConstructorType";
 
 const defineAll = async (
-  constructors: Record<SparkleElementTag, typeof SparkleElement>,
-  aliases?: Record<SparkleElementTag, string>,
+  constructors: Record<SparkleConstructorType, typeof SparkleElement>,
+  aliases?: Record<SparkleConstructorType, string>,
   useShadowDom = true
 ): Promise<CustomElementConstructor[]> => {
   return Promise.all(
     Object.entries(constructors).map(([k, v]) =>
-      v.define(aliases?.[k as SparkleElementTag] || k, aliases, useShadowDom)
+      v.define(
+        aliases?.[k as SparkleConstructorType] || k,
+        aliases,
+        useShadowDom
+      )
     )
   );
 };

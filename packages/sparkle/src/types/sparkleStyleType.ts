@@ -1,12 +1,3 @@
-export type SparkleStyleType =
-  | "global"
-  | "light"
-  | "dark"
-  | "icons"
-  | "shadows"
-  | "gradients"
-  | "masks"
-  | "easings"
-  | "keyframes"
-  | "animations"
-  | "patterns";
+import type DEFAULT_SPARKLE_STYLES from "../constants/DEFAULT_SPARKLE_STYLES";
+
+export type SparkleStyleType = keyof typeof DEFAULT_SPARKLE_STYLES;

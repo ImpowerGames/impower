@@ -10,7 +10,7 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./skeleton.css";
 import html from "./skeleton.html";
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   "sheen-color": getCssColor,
 };

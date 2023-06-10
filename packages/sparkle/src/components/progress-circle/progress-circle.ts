@@ -11,7 +11,7 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./progress-circle.css";
 import html from "./progress-circle.html";
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   size: getCssSize,
   "track-width": getCssSize,

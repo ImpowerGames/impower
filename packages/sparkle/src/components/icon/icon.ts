@@ -13,7 +13,7 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./icon.css";
 import html from "./icon.html";
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
   size: getCssSize,

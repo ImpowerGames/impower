@@ -10,7 +10,7 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./progress-bar.css";
 import html from "./progress-bar.html";
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   "track-width": getCssSize,
   "indicator-width": getCssSize,

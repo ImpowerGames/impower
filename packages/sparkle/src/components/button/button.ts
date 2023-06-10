@@ -24,7 +24,7 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-icon",
 ]);
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
   spacing: getCssSize,

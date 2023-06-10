@@ -19,7 +19,7 @@ import html from "./tab.html";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
   "active-icon": (v: string) => getCssIcon(v, Icons.all()),

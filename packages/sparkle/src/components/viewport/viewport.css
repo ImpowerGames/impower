@@ -1,0 +1,7 @@
+:host {
+  display: contents;
+}
+
+:host > .root {
+  display: flex;
+}

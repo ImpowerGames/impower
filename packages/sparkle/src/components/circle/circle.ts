@@ -10,7 +10,7 @@ import { getKeys } from "../../utils/getKeys";
 import css from "./circle.css";
 import html from "./circle.html";
 
-export const DEFAULT_TRANSFORMERS = {
+const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   size: getCssSize,
 };
