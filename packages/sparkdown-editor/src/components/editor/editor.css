@@ -1,0 +1,9 @@
+:host {
+  display: contents;
+}
+
+:host > .root {
+  pointer-events: auto;
+  display: flex;
+  min-height: 100%;
+}

@@ -1,0 +1,46 @@
+fileTypes: [sd, spark, sparkdown, sdown]
+keyEquivalent: ^~S
+name: Sparkdown
+scopeName: text.source.sparkdown
+uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
+
+patterns:
+  - { include: "#Expression" }
+
+repository:
+  Expression:
+    patterns:
+      - { include: "#Letter" }
+      - { include: "#ParenExpression" }
+      - { include: "#Newline" }
+      - { include: "#Space" }
+
+  Letter:
+    match: a|b|c
+    name: keyword.letter
+    tag: keyword
+
+  ParenExpression:
+    begin: \(
+    end: \)
+    beginCaptures:
+      0:
+        name: punctuation.paren.open
+        tag: bracket
+    endCaptures:
+      0:
+        name: punctuation.paren.close
+        tag: bracket
+    name: expression.group
+    patterns:
+      - { include: "#Expression" }
+
+  Newline:
+    match: \n
+    name: meta.paragraph.markdown
+    tag: meta
+
+  Space:
+    match: "[ ]+"
+    name: meta.paragraph.markdown
+    tag: meta

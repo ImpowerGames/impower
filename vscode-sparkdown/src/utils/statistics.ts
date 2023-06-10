@@ -1,16 +1,16 @@
-import * as vscode from "vscode";
 import {
   generateSparkPdfData,
   LineStruct,
   SparkScreenplayConfig,
-} from "../../../spark-screenplay";
+} from "@impower/spark-screenplay/src/index";
 import {
   calculateSpeechDuration,
   isMonologue,
   SparkParseResult,
   sparkRegexes,
   StructureItem,
-} from "../../../sparkdown";
+} from "@impower/sparkdown/src/index";
+import * as vscode from "vscode";
 import { generatePdfStats } from "../pdf/generatePdfStats";
 import { getCharacterName } from "./getCharacterName";
 import { getFonts } from "./getFonts";

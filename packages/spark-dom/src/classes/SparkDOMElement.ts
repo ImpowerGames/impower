@@ -1,4 +1,4 @@
-import { IElement } from "../../../spark-engine";
+import { IElement } from "../../../spark-engine/src";
 import { getCSSPropertyKeyValue } from "../utils/getCSSPropertyKeyValue";
 import { getCSSPropertyName } from "../utils/getCSSPropertyName";
 

@@ -20,8 +20,8 @@ export default class Box extends SparkleElement {
     return html;
   }
 
-  override get styles() {
-    return [Box.augmentCss(css)];
+  override get css() {
+    return Box.augmentCss(css);
   }
 }
 

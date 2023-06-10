@@ -45,8 +45,8 @@ export default class Circle
     return html;
   }
 
-  override get styles() {
-    return [Circle.augmentCss(css)];
+  override get css() {
+    return Circle.augmentCss(css);
   }
 
   override get transformers() {

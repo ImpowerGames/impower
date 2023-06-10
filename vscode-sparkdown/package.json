@@ -49,7 +49,8 @@
       "[sparkdown]": {
         "editor.wordWrap": "on",
         "editor.wordBasedSuggestions": false,
-        "editor.suggestSelection": "first"
+        "editor.suggestSelection": "first",
+        "diffEditor.ignoreTrimWhitespace": false
       }
     },
     "languages": [
@@ -64,7 +65,7 @@
           ".spark",
           ".sd"
         ],
-        "configuration": "./language-configuration.json",
+        "configuration": "./language/sparkdown.language-config.json",
         "icon": {
           "light": "icon-lang.png",
           "dark": "icon-lang.png"
@@ -75,7 +76,13 @@
       {
         "language": "sparkdown",
         "scopeName": "text.source.sparkdown",
-        "path": "./syntaxes/sparkdown.tmLanguage.json"
+        "path": "./language/sparkdown.language-grammar.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "markdown",
+        "path": "./language/sparkdown.language-snippets.json"
       }
     ],
     "viewsContainers": {
@@ -377,7 +384,6 @@
     ]
   },
   "scripts": {
-    "test": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. --extensionTestsPath=out/test/suite/index.js",
     "pretest": "npm run compile-web",
     "vscode:prepublish": "npm run package-web",
     "publish-minor": "vsce publish minor",
@@ -387,33 +393,32 @@
     "package-game": "cd ./previews/game-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
     "package-screenplay": "cd ./previews/screenplay-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
     "package-web": "npm run package-game && npm run package-screenplay && webpack --mode production --devtool hidden-source-map",
-    "build": "npm run build-game && npm run build-screenplay && webpack",
+    "build": "webpack",
     "compile": "webpack",
-    "lint": "eslint src --ext ts",
     "browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
-    "check": "npm run build && npm run lint"
+    "language": "tsx scripts/language.ts"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.2.5",
     "@types/pdfkit": "^0.12.9",
     "@types/vscode": "^1.78.1",
     "@types/webpack-env": "^1.18.1",
-    "@typescript-eslint/eslint-plugin": "^5.59.8",
-    "@typescript-eslint/parser": "^5.59.8",
     "@vscode/test-web": "^0.0.44",
     "brfs": "^2.0.2",
     "copy-webpack-plugin": "^11.0.0",
-    "eslint": "^8.41.0",
-    "mocha": "^10.2.0",
     "os-browserify": "^0.3.0",
     "path-browserify": "^1.0.1",
     "transform-loader": "^0.2.4",
     "ts-loader": "^9.4.3",
+    "tsx": "^3.12.7",
     "typescript": "^5.1.3",
     "webpack": "^5.85.0",
     "webpack-cli": "^5.1.1"
   },
   "dependencies": {
+    "@impower/spark-evaluate": "file:../packages/spark-evaluate",
+    "@impower/spark-screenplay": "file:../packages/spark-screenplay",
+    "@impower/sparkdown": "file:../packages/sparkdown",
     "@vscode/codicons": "^0.0.33",
     "assert": "^2.0.0",
     "browserify-zlib": "^0.2.0",
@@ -425,6 +430,7 @@
     "process": "^0.11.10",
     "readable-stream": "^4.4.0",
     "textbox-for-pdfkit": "^0.2.1",
-    "util": "^0.12.5"
+    "util": "^0.12.5",
+    "yaml": "^2.3.1"
   }
 }

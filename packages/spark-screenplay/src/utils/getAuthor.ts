@@ -1,4 +1,4 @@
-import { SparkToken } from "../../../sparkdown";
+import { SparkToken } from "../../../sparkdown/src";
 import { clearFormatting } from "./clearFormatting";
 import { getToken } from "./getToken";
 

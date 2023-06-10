@@ -1,4 +1,4 @@
-import { uuid } from "../../../../../../../../../spark-evaluate";
+import { uuid } from "../../../../../../../../../spark-evaluate/src";
 import { LogCommandData } from "../../../../../../../data";
 import { Game } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";

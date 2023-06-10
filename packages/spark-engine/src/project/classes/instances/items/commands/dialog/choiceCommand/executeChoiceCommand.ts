@@ -1,4 +1,4 @@
-import { format } from "../../../../../../../../../spark-evaluate";
+import { format } from "../../../../../../../../../spark-evaluate/src";
 import { SparkGame, Writer } from "../../../../../../../game";
 import { ChoiceCommandData } from "./ChoiceCommandData";
 

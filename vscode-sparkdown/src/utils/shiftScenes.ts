@@ -1,5 +1,5 @@
+import { SparkParseResult } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
-import { SparkParseResult } from "../../../sparkdown";
 
 export const last = function <T>(array: T[]): T {
   return array[array.length - 1] as T;

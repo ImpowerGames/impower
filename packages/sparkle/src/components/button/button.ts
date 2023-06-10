@@ -78,8 +78,8 @@ export default class Button
     );
   }
 
-  override get styles() {
-    return [Button.augmentCss(css, DEFAULT_DEPENDENCIES)];
+  override get css() {
+    return Button.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   override get transformers() {

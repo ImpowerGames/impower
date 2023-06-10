@@ -1,6 +1,6 @@
+import { SparkScreenplayConfig } from "@impower/spark-screenplay/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
-import { SparkScreenplayConfig } from "../../../spark-screenplay";
 import { parseState } from "../state/parseState";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownConfig } from "../utils/getSparkdownConfig";

@@ -1,4 +1,4 @@
-import { sparkRegexes, SparkRegexType } from "../../../sparkdown";
+import { sparkRegexes, SparkRegexType } from "../../../sparkdown/src";
 import { LexerReplacements } from "../types/LexerReplacements";
 
 export const sparkLexer = (

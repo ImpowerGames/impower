@@ -56,7 +56,7 @@ const StyledIconButton = styled(IconButton)`
   }
 `;
 
-const DISMISSED_KEY = "@impower/DISMISSED_BETA_WARNING";
+const DISMISSED_KEY = "impower/DISMISSED_BETA_WARNING";
 
 const BetaBanner = React.memo((): JSX.Element => {
   const [dismissed, setDismissed] = useState(

@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
 import {
   getCharactersWhoSpokeBeforeLine,
   titlePageDisplay,
-} from "../../../sparkdown";
+} from "@impower/sparkdown/src/index";
+import * as vscode from "vscode";
 import { parseState } from "../state/parseState";
 import { addForceSymbolToCharacter } from "../utils/addForceSymbolToCharacter";
 

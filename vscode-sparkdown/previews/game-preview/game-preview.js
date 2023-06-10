@@ -1,5 +1,5 @@
-const { previewLine, SparkContext } = require("../../../spark-engine");
-const { SparkDOMElement } = require("../../../spark-dom");
+const { previewLine, SparkContext } = require("../../../packages/spark-engine");
+const { SparkDOMElement } = require("../../../packages/spark-dom");
 
 const vscode = acquireVsCodeApi();
 

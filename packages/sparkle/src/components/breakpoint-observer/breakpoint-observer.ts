@@ -36,8 +36,8 @@ export default class BreakpointObserver
     return html;
   }
 
-  override get styles() {
-    return [BreakpointObserver.augmentCss(css)];
+  override get css() {
+    return BreakpointObserver.augmentCss(css);
   }
 
   /**

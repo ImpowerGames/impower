@@ -49,8 +49,8 @@ export default class Drawer
     return Drawer.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles() {
-    return [Drawer.augmentCss(css, DEFAULT_DEPENDENCIES)];
+  override get css() {
+    return Drawer.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**

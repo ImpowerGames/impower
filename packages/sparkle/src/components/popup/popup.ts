@@ -68,8 +68,8 @@ export default class Popup
     return html;
   }
 
-  override get styles() {
-    return [Popup.augmentCss(css)];
+  override get css() {
+    return Popup.augmentCss(css);
   }
 
   /**

@@ -1,5 +1,9 @@
+import {
+  LineStruct,
+  PdfData,
+  pdfGenerate,
+} from "@impower/spark-screenplay/src/index";
 import { encode } from "html-entities";
-import { LineStruct, PdfData, pdfGenerate } from "../../../spark-screenplay";
 import { createPdfDocument } from "./createPdfDocument";
 
 export const generatePdfStats = (

@@ -1,0 +1,19 @@
+{
+  "name": "@impower/sparkdown-editor",
+  "displayName": "Sparkdown Editor",
+  "description": "A text editor for sparkdown scripts.",
+  "version": "0.0.1",
+  "devDependencies": {
+    "typescript": "^5.0.4"
+  },
+  "dependencies": {
+    "@codemirror/autocomplete": "^6.7.1",
+    "@codemirror/collab": "^6.0.0",
+    "@codemirror/commands": "^6.2.4",
+    "@codemirror/lint": "^6.2.2",
+    "@codemirror/search": "^6.5.0",
+    "@codemirror/state": "^6.2.1",
+    "@codemirror/text": "^0.19.6",
+    "@codemirror/view": "^6.13.0"
+  }
+}

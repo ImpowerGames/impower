@@ -1,4 +1,4 @@
-import { SparkParseResult, SparkSectionToken } from "../../../sparkdown";
+import { SparkParseResult, SparkSectionToken } from "../../../sparkdown/src";
 import { Liner } from "../classes/Liner";
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import { PdfData } from "../types/PdfData";

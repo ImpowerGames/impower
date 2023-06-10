@@ -1,5 +1,5 @@
+import { SparkDiagnostic } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
-import { SparkDiagnostic } from "../../../sparkdown/src/types/SparkDiagnostic";
 import { diagnosticCollection } from "../state/diagnosticCollection";
 
 export const updateDiagnostics = (

@@ -1,4 +1,4 @@
-import { randomizer } from "../../../../../spark-evaluate";
+import { randomizer } from "../../../../../spark-evaluate/src";
 import { OscillatorType } from "../types/OscillatorType";
 
 const PI2 = 2 * Math.PI;

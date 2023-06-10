@@ -1,8 +1,8 @@
-import { compile, format } from "../../../../spark-evaluate";
-import { SparkParser, SparkParserConfig } from "../../../../sparkdown";
+import { compile, format } from "../../../../spark-evaluate/src";
+import { SparkParser, SparkParserConfig } from "../../../../sparkdown/src";
 import { processBeatmap } from "../../game/rhythm";
 
-export class EngineSparkParser extends SparkParser {
+export default class EngineSparkParser extends SparkParser {
   private static _instance: EngineSparkParser;
 
   public static get instance(): EngineSparkParser {

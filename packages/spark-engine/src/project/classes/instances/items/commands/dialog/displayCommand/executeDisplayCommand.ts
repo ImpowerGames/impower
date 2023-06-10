@@ -1,4 +1,4 @@
-import { format } from "../../../../../../../../../spark-evaluate";
+import { format } from "../../../../../../../../../spark-evaluate/src";
 import {
   Character,
   Chunk,

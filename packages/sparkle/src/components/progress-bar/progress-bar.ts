@@ -47,8 +47,8 @@ export default class ProgressBar
     return html;
   }
 
-  override get styles() {
-    return [ProgressBar.augmentCss(css)];
+  override get css() {
+    return ProgressBar.augmentCss(css);
   }
 
   override get transformers() {

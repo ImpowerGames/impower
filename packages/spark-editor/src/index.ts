@@ -1,3 +1,4 @@
+import STYLES from "../../spark-element/src/STYLE_CACHE";
 import Access from "./components/access/access";
 import AddFab from "./components/add-fab/add-fab";
 import Audio from "./components/audio/audio";
@@ -6,7 +7,6 @@ import Details from "./components/details/details";
 import Displays from "./components/displays/displays";
 import Elements from "./components/elements/elements";
 import FileButton from "./components/file-button/file-button";
-import FooterNavigationSpacer from "./components/footer-navigation-spacer/footer-navigation-spacer";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import Graphics from "./components/graphics/graphics";
 import GUI from "./components/gui/gui";
@@ -23,7 +23,6 @@ import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
 import Sprites from "./components/sprites/sprites";
 import Views from "./components/views/views";
-import Styles from "./configs/styles";
 import icons from "./styles/icons/icons.css";
 import theme from "./styles/theme/theme.css";
 
@@ -51,7 +50,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-notifications": Notifications,
   "se-header-navigation": HeaderNavigation,
   "se-footer-navigation": FooterNavigation,
-  "se-footer-navigation-spacer": FooterNavigationSpacer,
   "se-gui": GUI,
 } as const;
 
@@ -77,7 +75,7 @@ export default abstract class SparkEditor {
       options?.constructors ?? DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
     const dependencies = options?.dependencies ?? {};
     Object.values(styles).forEach((css) => {
-      Styles.adopt(document, css);
+      STYLES.adopt(document, css);
     });
     return Promise.all(
       Object.entries(constructors).map(([k, v]) =>

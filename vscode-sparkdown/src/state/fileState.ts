@@ -1,4 +1,4 @@
-import { SparkStruct } from "../../../sparkdown";
+import { SparkStruct } from "@impower/sparkdown/src/index";
 
 export const fileState: Record<
   string,

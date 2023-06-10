@@ -36,8 +36,8 @@ export default class Badge
     return html;
   }
 
-  override get styles() {
-    return [Badge.augmentCss(css)];
+  override get css() {
+    return Badge.augmentCss(css);
   }
 
   /**

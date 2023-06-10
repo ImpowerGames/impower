@@ -1,0 +1,6 @@
+{
+  "name": "@impower/spark-dom",
+  "displayName": "Spark DOM",
+  "description": "Classes used to run spark games in a browser environment.",
+  "version": "0.0.1"
+}

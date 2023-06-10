@@ -181,6 +181,7 @@ export class SparkEditorWebview {
               display: flex;
               flex-direction: column;
               font-size: 0.875rem;
+              font-family: var(--s-font-sans);
             }
 
             body.ready {

@@ -1,0 +1,6 @@
+{
+  "name": "@impower/spark-element",
+  "displayName": "Spark Element",
+  "description": "The base web component element used for spark ui.",
+  "version": "0.0.1"
+}

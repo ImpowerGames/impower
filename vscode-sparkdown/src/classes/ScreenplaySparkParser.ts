@@ -1,5 +1,5 @@
-import { compile, format } from "../../../spark-evaluate";
-import { SparkParser, SparkParserConfig } from "../../../sparkdown";
+import { compile, format } from "@impower/spark-evaluate/src/index";
+import { SparkParser, SparkParserConfig } from "@impower/sparkdown/src/index";
 
 export class ScreenplaySparkParser extends SparkParser {
   private static _instance: ScreenplaySparkParser;
@@ -11,15 +11,14 @@ export class ScreenplaySparkParser extends SparkParser {
     return this._instance;
   }
 
-  constructor(config?: SparkParserConfig, defaults?: string[]) {
+  constructor(config?: SparkParserConfig) {
     super(
       config || {
         compiler: compile,
         formatter: format,
         removeBlockComments: true,
         skipTokens: ["condition"],
-      },
-      defaults
+      }
     );
   }
 }

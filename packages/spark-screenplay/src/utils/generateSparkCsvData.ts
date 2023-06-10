@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../sparkdown";
+import { SparkParseResult } from "../../../sparkdown/src";
 
 export const generateSparkCsvData = (result: SparkParseResult): string[][] => {
   const language: string =

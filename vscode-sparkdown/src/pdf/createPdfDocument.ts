@@ -1,5 +1,3 @@
-import PDFKit from "pdfkit";
-import addTextbox from "textbox-for-pdfkit";
 import {
   FONT_KEY,
   getAuthor,
@@ -9,7 +7,9 @@ import {
   pdfFormatText,
   pdfProcessText,
   TextOptions,
-} from "../../../spark-screenplay";
+} from "@impower/spark-screenplay/src/index";
+import PDFKit from "pdfkit";
+import addTextbox from "textbox-for-pdfkit";
 
 export const createPdfDocument = (data: PdfData): PdfDocument => {
   const size = data?.print.paper_size === "a4" ? "A4" : "LETTER";

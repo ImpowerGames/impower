@@ -1,4 +1,7 @@
-import { evaluate, format } from "../../../../../../../../../spark-evaluate";
+import {
+  evaluate,
+  format,
+} from "../../../../../../../../../spark-evaluate/src";
 import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 import { ChoiceCommandData } from "./ChoiceCommandData";

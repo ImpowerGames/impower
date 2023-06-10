@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../../sparkdown";
+import { SparkParseResult } from "../../../../sparkdown/src";
 import { SparkGame, SparkGameConfig, SparkGameState } from "../../game";
 import { SparkGameRunner } from "../../runner";
 import { STRUCT_DEFAULTS } from "../constants/STRUCT_DEFAULTS";

@@ -53,8 +53,8 @@ export default class Router
     return html;
   }
 
-  override get styles() {
-    return [Router.augmentCss(css)];
+  override get css() {
+    return Router.augmentCss(css);
   }
 
   /**

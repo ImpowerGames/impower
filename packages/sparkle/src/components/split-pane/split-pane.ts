@@ -62,8 +62,8 @@ export default class SplitPane
     return html;
   }
 
-  override get styles() {
-    return [SplitPane.augmentCss(css)];
+  override get css() {
+    return SplitPane.augmentCss(css);
   }
 
   override get transformers() {

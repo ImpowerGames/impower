@@ -5,7 +5,7 @@
  * Released under the MIT license.
  */
 
-import { randomizer } from "../../../../../spark-evaluate";
+import { randomizer } from "../../../../../spark-evaluate/src";
 import { lerp, unlerp } from "../../core";
 import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
 import { OscillatorType } from "../types/OscillatorType";

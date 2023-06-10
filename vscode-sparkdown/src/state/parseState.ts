@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../sparkdown";
+import { SparkParseResult } from "@impower/sparkdown/src/index";
 
 export const parseState = {
   lastParsedUri: "",

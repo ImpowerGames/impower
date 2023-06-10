@@ -1,0 +1,22 @@
+{
+  "ignoreCase": true,
+  "root": [
+    {
+      "include": "blocks"
+    }
+  ],
+  "includes": {
+    "blocks": ["Letter"]
+  },
+  "repository": {
+    "Letter": {
+      "match": "/(a|b|c)/",
+      "captures": {
+        "0": {
+          "type": "LetterCapture",
+          "tag": "string"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,781 @@
+fileTypes: [sd, spark, sparkdown, sdown]
+keyEquivalent: ^~S
+name: Sparkdown
+scopeName: text.html.markdown.sparkdown
+uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
+patterns:
+  - { include: "#frontMatter" }
+  - { include: "#block" }
+repository:
+  block:
+    patterns:
+      - { include: "#separator" }
+      - { include: "#heading" }
+      - { include: "#blockquote" }
+      - { include: "#lists" }
+      - { include: "#fenced_code_block" }
+      - { include: "#raw_block" }
+      - { include: "#paragraph" }
+  blockquote:
+    begin: (^|\G)[ ]{0,3}(>) ?
+    captures:
+      "2": { name: punctuation.definition.quote.begin.markdown }
+    name: markup.quote.markdown
+    patterns:
+      - { include: "#block" }
+    while: (^|\G)\s*(>) ?
+  fenced_code_block:
+    patterns:
+      - { include: "#fenced_code_block_unknown" }
+  fenced_code_block_unknown:
+    begin: (^|\G)(\s*)(`{3,}|~{3,})\s*(?=([^`]*)?$)
+    beginCaptures:
+      "3": { name: punctuation.definition.markdown }
+      "4": { name: fenced_code.block.language }
+    end: (^|\G)(\2|\s{0,3})(\3)\s*$
+    endCaptures:
+      "3": { name: punctuation.definition.markdown }
+    name: markup.fenced_code.block.markdown
+  heading:
+    match: (?:^|\G)[ ]{0,3}(#{1,6}\s+(.*?)(\s+#{1,6})?\s*)$
+    captures:
+      "1":
+        patterns:
+          - match: (#{6})\s+(.*?)(?:\s+(#+))?\s*$
+            name: "heading.6.markdown"
+            captures:
+              "1": { name: punctuation.definition.heading.markdown }
+              "2":
+                name: entity.name.section.markdown
+                patterns: [{ include: "#inline" }]
+              "3": { name: punctuation.definition.heading.markdown }
+          - match: (#{5})\s+(.*?)(?:\s+(#+))?\s*$
+            name: "heading.5.markdown"
+            captures:
+              "1": { name: punctuation.definition.heading.markdown }
+              "2":
+                name: entity.name.section.markdown
+                patterns: [{ include: "#inline" }]
+              "3": { name: punctuation.definition.heading.markdown }
+          - match: (#{4})\s+(.*?)(?:\s+(#+))?\s*$
+            name: "heading.4.markdown"
+            captures:
+              "1": { name: punctuation.definition.heading.markdown }
+              "2":
+                name: entity.name.section.markdown
+                patterns: [{ include: "#inline" }]
+              "3": { name: punctuation.definition.heading.markdown }
+          - match: (#{3})\s+(.*?)(?:\s+(#+))?\s*$
+            name: "heading.3.markdown"
+            captures:
+              "1": { name: punctuation.definition.heading.markdown }
+              "2":
+                name: entity.name.section.markdown
+                patterns: [{ include: "#inline" }]
+              "3": { name: punctuation.definition.heading.markdown }
+          - match: (#{2})\s+(.*?)(?:\s+(#+))?\s*$
+            name: "heading.2.markdown"
+            captures:
+              "1": { name: punctuation.definition.heading.markdown }
+              "2":
+                name: entity.name.section.markdown
+                patterns: [{ include: "#inline" }]
+              "3": { name: punctuation.definition.heading.markdown }
+          - match: (#{1})\s+(.*?)(?:\s+(#+))?\s*$
+            name: "heading.1.markdown"
+            captures:
+              "1": { name: punctuation.definition.heading.markdown }
+              "2":
+                name: entity.name.section.markdown
+                patterns: [{ include: "#inline" }]
+              "3": { name: punctuation.definition.heading.markdown }
+    name: markup.heading.markdown
+    patterns:
+      - { include: "#inline" }
+  list_paragraph:
+    begin: (^|\G)(?=\S)(?![*+->]\s|[0-9]+\.\s)
+    name: meta.paragraph.markdown
+    patterns:
+      - { include: "#inline" }
+    while: (^|\G)(?!\s*$|#|[ ]{0,3}([-*_>][ ]{2,}){3,}[ \t]*$\n?|[ ]{0,3}[*+->]|[ ]{0,3}[0-9]+\.)
+  lists:
+    patterns:
+      - begin: (^|\G)([ ]{0,3})([*+-])([ \t])
+        beginCaptures:
+          "3": { name: punctuation.definition.list.begin.markdown }
+        comment: Currently does not support un-indented second lines.
+        name: markup.list.unnumbered.markdown
+        patterns:
+          - { include: "#block" }
+          - { include: "#list_paragraph" }
+        while: ((^|\G)([ ]{2,4}|\t))|(^[ \t]*$)
+      - begin: (^|\G)([ ]{0,3})([0-9]+\.)([ \t])
+        beginCaptures:
+          "3": { name: punctuation.definition.list.begin.markdown }
+        name: markup.list.numbered.markdown
+        patterns:
+          - { include: "#block" }
+          - { include: "#list_paragraph" }
+        while: ((^|\G)([ ]{2,4}|\t))|(^[ \t]*$)
+  paragraph:
+    begin: (^|\G)[ ]{0,3}(?=\S)
+    name: meta.paragraph.markdown
+    patterns:
+      - { include: "#inline" }
+    while: (^|\G)((?=\s*[-=]{3,}\s*$)|[ ]{4,}(?=\S))
+  raw_block:
+    {
+      begin: '(^|\G)([ ]{4}|\t)',
+      name: markup.raw.block.markdown,
+      while: '(^|\G)([
+        ]{4}|\t)',
+    }
+  separator:
+    {
+      match: '(^|\G)[ ]{0,3}([\*\-\_])([ ]{0,2}\2){2,}[ \t]*$\n?',
+      name: meta.separator.markdown,
+    }
+  frontMatter:
+    begin: \A-{3}\s*$
+    contentName: meta.embedded.block.frontmatter
+    patterns:
+      - { include: "#yaml" }
+    end: (^|\G)-{3}|\.{3}\s*$
+  inline:
+    patterns:
+      - { include: "#ampersand" }
+      - { include: "#bracket" }
+      - { include: "#bold" }
+      - { include: "#italic" }
+      - { include: "#raw" }
+      - { include: "#strikethrough" }
+      - { include: "#escape" }
+  ampersand:
+    comment: "Markdown will convert this for us. We match it so that the HTML grammar will not mark it up as invalid."
+    match: "&(?!([a-zA-Z0-9]+|#[0-9]+|#x[0-9a-fA-F]+);)"
+    name: meta.other.valid-ampersand.markdown
+  bold:
+    begin: >
+      (?x)
+      (?<open>(\*\*(?=\w)|(?<!\w)\*\*|(?<!\w)\b__))(?=\S)
+      (?=
+        (
+          <[^>]*+>                                            # HTML tags
+          | (?<raw>`+)([^`]|(?!(?<!`)\k<raw>(?!`))`)*+\k<raw> # Raw
+          | \\[\\`*_{}\[\]()#.!+\->]?+                        # Escapes
+          | \[
+          (
+              (?<square>                                      # Named group
+                [^\[\]\\]                                     # Match most chars
+                | \\.                                         # Escaped chars
+                | \[ \g<square>*+ \]                          # Nested brackets
+              )*+
+            \]
+            (
+              (                                               # Reference Link
+                [ ]?                                          # Optional space
+                \[[^\]]*+\]                                   # Ref name
+              )
+              | (                                             # Inline Link
+                \(                                            # Opening paren
+                  [ \t]*+                                     # Optional whitespace
+                  <?(.*?)>?                                   # URL
+                  [ \t]*+                                     # Optional whitespace
+                  (                                           # Optional Title
+                    (?<title>['"])
+                    (.*?)
+                    \k<title>
+                  )?
+                \)
+              )
+            )
+          )
+          | (?!(?<=\S)\k<open>).                              # Everything besides style closer
+        )++
+        (?<=\S)(?=__\b|\*\*)\k<open>                          # Close
+      )
+    captures:
+      "1": { name: punctuation.definition.bold.markdown }
+    end: (?<=\S)(\1)
+    name: markup.bold.markdown
+    patterns:
+      - { include: "#escape" }
+      - { include: "#ampersand" }
+      - { include: "#bracket" }
+      - { include: "#raw" }
+      - { include: "#bold" }
+      - { include: "#italic" }
+      - { include: "#strikethrough" }
+  bracket:
+    comment: "Markdown will convert this for us. We match it so that the HTML grammar will not mark it up as invalid."
+    match: '<(?![a-zA-Z/?\$!])'
+    name: meta.other.valid-bracket.markdown
+  escape:
+    {
+      match: '\\[-`*_#+.!(){}\[\]\\>]',
+      name: constant.character.escape.markdown,
+    }
+  italic:
+    begin: >
+      (?x)
+      (?<open>(\*(?=\w)|(?<!\w)\*|(?<!\w)\b_))(?=\S)            # Open
+        (?=
+          (
+            <[^>]*+>                                            # HTML tags
+            | (?<raw>`+)([^`]|(?!(?<!`)\k<raw>(?!`))`)*+\k<raw> # Raw
+            | \\[\\`*_{}\[\]()#.!+\->]?+                        # Escapes
+            | \[
+            (
+                (?<square>                                      # Named group
+                  [^\[\]\\]                                     # Match most chars
+                  | \\.                                         # Escaped chars
+                  | \[ \g<square>*+ \]                          # Nested brackets
+                )*+
+              \]
+              (
+                (                                               # Reference Link
+                  [ ]?                                          # Optional space
+                  \[[^\]]*+\]                                   # Ref name
+                )
+                | (                                             # Inline Link
+                  \(                                            # Opening paren
+                    [ \t]*+                                     # Optional whitespace
+                    <?(.*?)>?                                   # URL
+                    [ \t]*+                                     # Optional whitespace
+                    (                                           # Optional Title
+                      (?<title>['"])
+                      (.*?)
+                      \k<title>
+                    )?
+                  \)
+                )
+              )
+            )
+            | \k<open>\k<open>                                  # Must be bold closer
+            | (?!(?<=\S)\k<open>).                              # Everything besides style closer
+          )++
+          (?<=\S)(?=_\b|\*)\k<open>                             # Close
+        )
+    captures:
+      "1": { name: punctuation.definition.italic.markdown }
+    end: (?<=\S)(\1)((?!\1)|(?=\1\1))
+    name: markup.italic.markdown
+    patterns:
+      - { include: "#escape" }
+      - { include: "#ampersand" }
+      - { include: "#bracket" }
+      - { include: "#raw" }
+      - { include: "#bold" }
+      - { include: "#strikethrough" }
+  raw:
+    captures:
+      "1": { name: punctuation.definition.raw.markdown }
+      "3": { name: punctuation.definition.raw.markdown }
+    match: (`+)((?:[^`]|(?!(?<!`)\1(?!`))`)*+)(\1)
+    name: markup.inline.raw.string.markdown
+  strikethrough:
+    captures:
+      "1": { name: punctuation.definition.strikethrough.markdown }
+      "2":
+        patterns:
+          - { include: "#escape" }
+          - { include: "#ampersand" }
+          - { include: "#bracket" }
+          - { include: "#raw" }
+          - { include: "#bold" }
+          - { include: "#italic" }
+      "3": { name: punctuation.definition.strikethrough.markdown }
+    match: (?<!\\)(~{2,})((?:[^~]|(?!(?<![~\\])\1(?!~))~)*+)(\1)
+    name: markup.strikethrough.markdown
+
+  # YAML (subset)
+
+  yaml:
+    - { include: "#property" }
+    - { include: "#node" }
+  block-collection:
+    patterns:
+      - { include: "#block-sequence" }
+      - { include: "#block-mapping" }
+  block-mapping:
+    patterns:
+      - { include: "#block-pair" }
+  block-node:
+    patterns:
+      - { include: "#prototype" }
+      - { include: "#block-scalar" }
+      - { include: "#block-collection" }
+      - { include: "#flow-scalar-plain-out" }
+      - { include: "#flow-node" }
+  block-pair:
+    patterns:
+      - begin: \?
+        beginCaptures:
+          "1":
+            name: punctuation.definition.key-value.begin.yaml
+        end: '(?=\?)|^ *(:)|(:)'
+        endCaptures:
+          "1":
+            name: punctuation.separator.key-value.mapping.yaml
+          "2":
+            name: invalid.illegal.expected-newline.yaml
+        name: meta.block-mapping.yaml
+        patterns:
+          - { include: "#block-node" }
+      - begin: |-
+          (?x)
+                                  (?=
+                                      (?x:
+                                            [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+                                          | [?:-] \S
+                                      )
+                                      (
+                                            [^\s:]
+                                          | : \S
+                                          | \s+ (?![#\s])
+                                      )*
+                                      \s*
+                                      :\s
+                                  )
+
+        end: |-
+          (?x)
+                                  (?=
+                                        \s* $
+                                      | \s+ \#
+                                      | \s* : \s
+                                  )
+
+        patterns:
+          - { include: "#flow-scalar-plain-out-implicit-type" }
+          - begin: |-
+              (?x)
+                                                [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+                                              | [?:-] \S
+
+            beginCaptures:
+              "0":
+                name: entity.name.tag.yaml
+            contentName: entity.name.tag.yaml
+            end: |-
+              (?x)
+                                              (?=
+                                                    \s* $
+                                                  | \s+ \#
+                                                  | \s* : \s
+                                              )
+
+            name: string.unquoted.plain.out.yaml
+      - match: ':(?=\s|$)'
+        name: punctuation.separator.key-value.mapping.yaml
+  block-scalar:
+    begin: '(?:(\|)|(>))([1-9])?([-+])?(.*\n?)'
+    beginCaptures:
+      "1":
+        name: punctuation.definition.block.scalar.literal.yaml
+      "2":
+        name: punctuation.definition.block.scalar.folded.yaml
+      "3":
+        name: constant.numeric.indentation-indicator.yaml
+      "4":
+        name: support.other.chomping-indicator.yaml
+      "5":
+        patterns:
+          - { include: "#comment" }
+          - match: .+
+            name: invalid.illegal.expected-comment-or-newline.yaml
+    end: ^(?=\S)|(?!\G)
+    patterns:
+      - begin: "^([ ]+)(?! )"
+        end: ^(?!\1|\s*$)
+        name: string.unquoted.block.yaml
+  block-sequence:
+    match: (-)( |\t|$)
+    name: punctuation.definition.block.sequence.item.yaml
+  comment:
+    begin: '(?:(^[ \t]*)|[ \t]+)(?=#\p{Print}*$)'
+    beginCaptures:
+      "1":
+        name: punctuation.whitespace.comment.leading.yaml
+    end: (?!\G)
+    patterns:
+      - begin: "#"
+        beginCaptures:
+          "0":
+            name: punctuation.definition.comment.yaml
+        end: \n
+        name: comment.line.number-sign.yaml
+  flow-alias:
+    captures:
+      "1":
+        name: keyword.control.flow.alias.yaml
+      "2":
+        name: punctuation.definition.alias.yaml
+      "3":
+        name: variable.other.alias.yaml
+      "4":
+        name: invalid.illegal.character.anchor.yaml
+    match: '((\*))([^\s\[\]/{/},]+)([^\s\]},]\S*)?'
+  flow-collection:
+    patterns:
+      - { include: "#flow-sequence" }
+      - { include: "#flow-mapping" }
+  flow-mapping:
+    begin: '\{'
+    beginCaptures:
+      "0":
+        name: punctuation.definition.mapping.begin.yaml
+    end: '\}'
+    endCaptures:
+      "0":
+        name: punctuation.definition.mapping.end.yaml
+    name: meta.flow-mapping.yaml
+    patterns:
+      - { include: "#prototype" }
+      - match: ","
+        name: punctuation.separator.mapping.yaml
+      - { include: "#flow-pair" }
+  flow-node:
+    patterns:
+      - { include: "#prototype" }
+      - { include: "#flow-alias" }
+      - { include: "#flow-collection" }
+      - { include: "#flow-scalar" }
+  flow-pair:
+    patterns:
+      - begin: \?
+        beginCaptures:
+          "0":
+            name: punctuation.definition.key-value.begin.yaml
+        end: '(?=[},\]])'
+        name: meta.flow-pair.explicit.yaml
+        patterns:
+          - { include: "#prototype" }
+          - { include: "#flow-pair" }
+          - { include: "#flow-node" }
+          - begin: ':(?=\s|$|[\[\]{},])'
+            beginCaptures:
+              "0":
+                name: punctuation.separator.key-value.mapping.yaml
+            end: '(?=[},\]])'
+            patterns:
+              - { include: "#flow-value" }
+      - begin: |-
+          (?x)
+                                  (?=
+                                      (?:
+                                          [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+                                        | [?:-] [^\s[\[\]{},]]
+                                      )
+                                      (
+                                            [^\s:[\[\]{},]]
+                                          | : [^\s[\[\]{},]]
+                                          | \s+ (?![#\s])
+                                      )*
+                                      \s*
+                                      :\s
+                                  )
+
+        end: |-
+          (?x)
+                                  (?=
+                                        \s* $
+                                      | \s+ \#
+                                      | \s* : \s
+                                      | \s* : [\[\]{},]
+                                      | [\[\]{},]
+                                  )
+
+        name: meta.flow-pair.key.yaml
+        patterns:
+          - { include: "#flow-scalar-plain-in-implicit-type" }
+          - begin: |-
+              (?x)
+                                                [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+                                              | [?:-] [^\s[\[\]{},]]
+
+            beginCaptures:
+              "0":
+                name: entity.name.tag.yaml
+            contentName: entity.name.tag.yaml
+            end: |-
+              (?x)
+                                              (?=
+                                                    \s* $
+                                                  | \s+ \#
+                                                  | \s* : \s
+                                                  | \s* : [\[\]{},]
+                                                  | [\[\]{},]
+                                              )
+
+            name: string.unquoted.plain.in.yaml
+      - { include: "#flow-node" }
+      - begin: ':(?=\s|$|[\[\]{},])'
+        captures:
+          "0":
+            name: punctuation.separator.key-value.mapping.yaml
+        end: '(?=[},\]])'
+        name: meta.flow-pair.yaml
+        patterns:
+          - { include: "#flow-value" }
+  flow-scalar:
+    patterns:
+      - { include: "#flow-scalar-double-quoted" }
+      - { include: "#flow-scalar-single-quoted" }
+      - { include: "#flow-scalar-plain-in" }
+  flow-scalar-double-quoted:
+    begin: '"'
+    beginCaptures:
+      "0":
+        name: punctuation.definition.string.begin.yaml
+    end: '"'
+    endCaptures:
+      "0":
+        name: punctuation.definition.string.end.yaml
+    name: string.quoted.double.yaml
+    patterns:
+      - match: '\\([0abtnvfre "/\\N_Lp]|x\d\d|u\d{4}|U\d{8})'
+        name: constant.character.escape.yaml
+      - match: \\\n
+        name: constant.character.escape.double-quoted.newline.yaml
+  flow-scalar-plain-in:
+    patterns:
+      - { include: "#flow-scalar-plain-in-implicit-type" }
+      - begin: |-
+          (?x)
+                                    [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+                                  | [?:-] [^\s[\[\]{},]]
+
+        end: |-
+          (?x)
+                                  (?=
+                                        \s* $
+                                      | \s+ \#
+                                      | \s* : \s
+                                      | \s* : [\[\]{},]
+                                      | [\[\]{},]
+                                  )
+
+        name: string.unquoted.plain.in.yaml
+  flow-scalar-plain-in-implicit-type:
+    patterns:
+      - captures:
+          "1":
+            name: constant.language.null.yaml
+          "2":
+            name: constant.language.boolean.yaml
+          "3":
+            name: constant.numeric.integer.yaml
+          "4":
+            name: constant.numeric.float.yaml
+          "5":
+            name: constant.other.timestamp.yaml
+          "6":
+            name: constant.language.value.yaml
+          "7":
+            name: constant.language.merge.yaml
+        match: |-
+          (?x)
+                                  (?x:
+                                        (null|Null|NULL|~)
+                                      | (y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)
+                                      | (
+                                          (?:
+                                                [-+]? 0b [0-1_]+ # (base 2)
+                                              | [-+]? 0  [0-7_]+ # (base 8)
+                                              | [-+]? (?: 0|[1-9][0-9_]*) # (base 10)
+                                              | [-+]? 0x [0-9a-fA-F_]+ # (base 16)
+                                              | [-+]? [1-9] [0-9_]* (?: :[0-5]?[0-9])+ # (base 60)
+                                          )
+                                        )
+                                      | (
+                                          (?x:
+                                                [-+]? (?: [0-9] [0-9_]*)? \. [0-9.]* (?: [eE] [-+] [0-9]+)? # (base 10)
+                                              | [-+]? [0-9] [0-9_]* (?: :[0-5]?[0-9])+ \. [0-9_]* # (base 60)
+                                              | [-+]? \. (?: inf|Inf|INF) # (infinity)
+                                              |       \. (?: nan|NaN|NAN) # (not a number)
+                                          )
+                                        )
+                                      | (
+                                          (?x:
+                                              \d{4} - \d{2} - \d{2}           # (y-m-d)
+                                            | \d{4}                           # (year)
+                                              - \d{1,2}                       # (month)
+                                              - \d{1,2}                       # (day)
+                                              (?: [Tt] | [ \t]+) \d{1,2}      # (hour)
+                                              : \d{2}                         # (minute)
+                                              : \d{2}                         # (second)
+                                              (?: \.\d*)?                     # (fraction)
+                                              (?:
+                                                    (?:[ \t]*) Z
+                                                  | [-+] \d{1,2} (?: :\d{1,2})?
+                                              )?                              # (time zone)
+                                          )
+                                        )
+                                      | (=)
+                                      | (<<)
+                                  )
+                                  (?:
+                                      (?=
+                                            \s* $
+                                          | \s+ \#
+                                          | \s* : \s
+                                          | \s* : [\[\]{},]
+                                          | [\[\]{},]
+                                      )
+                                  )
+
+  flow-scalar-plain-out:
+    patterns:
+      - { include: "#flow-scalar-plain-out-implicit-type" }
+      - begin: |-
+          (?x)
+                                    [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+                                  | [?:-] \S
+
+        end: |-
+          (?x)
+                                  (?=
+                                        \s* $
+                                      | \s+ \#
+                                      | \s* : \s
+                                  )
+
+        name: string.unquoted.plain.out.yaml
+  flow-scalar-plain-out-implicit-type:
+    patterns:
+      - captures:
+          "1":
+            name: constant.language.null.yaml
+          "2":
+            name: constant.language.boolean.yaml
+          "3":
+            name: constant.numeric.integer.yaml
+          "4":
+            name: constant.numeric.float.yaml
+          "5":
+            name: constant.other.timestamp.yaml
+          "6":
+            name: constant.language.value.yaml
+          "7":
+            name: constant.language.merge.yaml
+        match: |-
+          (?x)
+                                  (?x:
+                                        (null|Null|NULL|~)
+                                      | (y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)
+                                      | (
+                                          (?:
+                                                [-+]? 0b [0-1_]+ # (base 2)
+                                              | [-+]? 0  [0-7_]+ # (base 8)
+                                              | [-+]? (?: 0|[1-9][0-9_]*) # (base 10)
+                                              | [-+]? 0x [0-9a-fA-F_]+ # (base 16)
+                                              | [-+]? [1-9] [0-9_]* (?: :[0-5]?[0-9])+ # (base 60)
+                                          )
+                                        )
+                                      | (
+                                          (?x:
+                                                [-+]? (?: [0-9] [0-9_]*)? \. [0-9.]* (?: [eE] [-+] [0-9]+)? # (base 10)
+                                              | [-+]? [0-9] [0-9_]* (?: :[0-5]?[0-9])+ \. [0-9_]* # (base 60)
+                                              | [-+]? \. (?: inf|Inf|INF) # (infinity)
+                                              |       \. (?: nan|NaN|NAN) # (not a number)
+                                          )
+                                        )
+                                      | (
+                                          (?x:
+                                              \d{4} - \d{2} - \d{2}           # (y-m-d)
+                                            | \d{4}                           # (year)
+                                              - \d{1,2}                       # (month)
+                                              - \d{1,2}                       # (day)
+                                              (?: [Tt] | [ \t]+) \d{1,2}      # (hour)
+                                              : \d{2}                         # (minute)
+                                              : \d{2}                         # (second)
+                                              (?: \.\d*)?                     # (fraction)
+                                              (?:
+                                                    (?:[ \t]*) Z
+                                                  | [-+] \d{1,2} (?: :\d{1,2})?
+                                              )?                              # (time zone)
+                                          )
+                                        )
+                                      | (=)
+                                      | (<<)
+                                  )
+                                  (?x:
+                                      (?=
+                                            \s* $
+                                          | \s+ \#
+                                          | \s* : \s
+                                      )
+                                  )
+
+  flow-scalar-single-quoted:
+    begin: "'"
+    beginCaptures:
+      "0":
+        name: punctuation.definition.string.begin.yaml
+    end: "'(?!')"
+    endCaptures:
+      "0":
+        name: punctuation.definition.string.end.yaml
+    name: string.quoted.single.yaml
+    patterns:
+      - match: "''"
+        name: constant.character.escape.single-quoted.yaml
+  flow-sequence:
+    begin: '\['
+    beginCaptures:
+      "0":
+        name: punctuation.definition.sequence.begin.yaml
+    end: '\]'
+    endCaptures:
+      "0":
+        name: punctuation.definition.sequence.end.yaml
+    name: meta.flow-sequence.yaml
+    patterns:
+      - { include: "#prototype" }
+      - match: ","
+        name: punctuation.separator.sequence.yaml
+      - { include: "#flow-pair" }
+      - { include: "#flow-node" }
+  flow-value:
+    patterns:
+      - begin: '\G(?![},\]])'
+        end: '(?=[},\]])'
+        name: meta.flow-pair.value.yaml
+        patterns:
+          - { include: "#flow-node" }
+  node:
+    patterns:
+      - { include: "#block-node" }
+  property:
+    begin: (?=!|&)
+    end: (?!\G)
+    name: meta.property.yaml
+    patterns:
+      - captures:
+          "1":
+            name: keyword.control.property.anchor.yaml
+          "2":
+            name: punctuation.definition.anchor.yaml
+          "3":
+            name: entity.name.type.anchor.yaml
+          "4":
+            name: invalid.illegal.character.anchor.yaml
+        match: '\G((&))([^\s\[\]/{/},]+)(\S+)?'
+      - match: |-
+          (?x)
+                                  \G
+                                  (?:
+                                      ! < (?: %\p{XDigit}{2} | [0-9A-Za-z\-#;/?:@&=+$,_.!~*'()\[\]] )+ >
+                                    | (?:!(?:[0-9A-Za-z\-]*!)?) (?: %\p{XDigit}{2} | [0-9A-Za-z\-#;/?:@&=+$_.~*'()] )+
+                                    | !
+                                  )
+                                  (?=\ |\t|$)
+
+        name: storage.type.tag-handle.yaml
+      - match: \S+
+        name: invalid.illegal.tag-handle.yaml
+  prototype:
+    patterns:
+      - { include: "#comment" }
+      - { include: "#property" }

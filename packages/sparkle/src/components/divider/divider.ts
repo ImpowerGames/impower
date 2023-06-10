@@ -45,8 +45,8 @@ export default class Divider
     return html;
   }
 
-  override get styles() {
-    return [Divider.augmentCss(css)];
+  override get css() {
+    return Divider.augmentCss(css);
   }
 
   override get transformers() {

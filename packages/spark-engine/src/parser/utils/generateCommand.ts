@@ -1,4 +1,4 @@
-import { SparkDisplayToken, SparkToken } from "../../../../sparkdown";
+import { SparkDisplayToken, SparkToken } from "../../../../sparkdown/src";
 import {
   AssignCommandData,
   ChoiceCommandData,

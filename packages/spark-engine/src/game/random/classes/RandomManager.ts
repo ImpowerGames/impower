@@ -1,4 +1,4 @@
-import { randomizer, shuffle, uuid } from "../../../../../spark-evaluate";
+import { randomizer, shuffle, uuid } from "../../../../../spark-evaluate/src";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 

@@ -45,8 +45,8 @@ export default class Skeleton
     return html;
   }
 
-  override get styles() {
-    return [Skeleton.augmentCss(css)];
+  override get css() {
+    return Skeleton.augmentCss(css);
   }
 
   override get transformers() {

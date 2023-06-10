@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
 import {
   generateSparkScriptHtml,
   generateSparkTitleHtml,
-} from "../../../spark-screenplay";
+} from "@impower/spark-screenplay/src/index";
+import * as vscode from "vscode";
 import { diagnosticState } from "../state/diagnosticState";
 import { parseState } from "../state/parseState";
 import { getEditor } from "./getEditor";

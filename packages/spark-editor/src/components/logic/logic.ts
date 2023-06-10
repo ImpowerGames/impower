@@ -1,16 +1,18 @@
 import SEElement from "../../core/se-element";
 import html from "./logic.html";
 
+const DEFAULT_DEPENDENCIES = { "sparkdown-editor": "sparkdown-editor" };
+
 export default class Logic extends SEElement {
   static override async define(
     tag = "se-logic",
-    dependencies?: Record<string, string>,
+    dependencies = DEFAULT_DEPENDENCIES,
     useShadowDom = true
   ) {
     return super.define(tag, dependencies, useShadowDom);
   }
 
   override get html() {
-    return html;
+    return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 }

@@ -1,6 +1,6 @@
+import { SparkStruct } from "@impower/sparkdown/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
-import { SparkStruct } from "../../../sparkdown";
 import { assetExts, audioExts, imageExts } from "../constants/extensions";
 import { fileState } from "../state/fileState";
 import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";

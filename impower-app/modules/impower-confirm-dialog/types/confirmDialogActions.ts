@@ -1,4 +1,4 @@
-export const CONFIRM_DIALOG_NAV_OPEN = "@impower/confirm-dialog/NAV_OPEN";
+export const CONFIRM_DIALOG_NAV_OPEN = "impower/confirm-dialog/NAV_OPEN";
 export interface ConfirmDialogNavOpenAction {
   type: typeof CONFIRM_DIALOG_NAV_OPEN;
   payload: {
@@ -46,7 +46,7 @@ export const confirmDialogNavOpen = (
   };
 };
 
-export const CONFIRM_DIALOG_OPEN = "@impower/confirm-dialog/OPEN";
+export const CONFIRM_DIALOG_OPEN = "impower/confirm-dialog/OPEN";
 export interface ConfirmDialogOpenAction {
   type: typeof CONFIRM_DIALOG_OPEN;
   payload: {
@@ -94,7 +94,7 @@ export const confirmDialogOpen = (
   };
 };
 
-export const CONFIRM_DIALOG_CLOSE = "@impower/confirm-dialog/CLOSE";
+export const CONFIRM_DIALOG_CLOSE = "impower/confirm-dialog/CLOSE";
 export interface ConfirmDialogCloseAction {
   type: typeof CONFIRM_DIALOG_CLOSE;
 }

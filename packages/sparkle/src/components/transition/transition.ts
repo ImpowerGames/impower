@@ -38,8 +38,8 @@ export default class Transition
     return html;
   }
 
-  override get styles() {
-    return [Transition.augmentCss(css)];
+  override get css() {
+    return Transition.augmentCss(css);
   }
 
   get parentRouter(): Element | null {

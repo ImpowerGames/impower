@@ -27,6 +27,8 @@
     "@fastify/static": "^6.10.2",
     "@fastify/websocket": "^8.1.0",
     "@impower/spark-editor": "file:../packages/spark-editor",
+    "@impower/spark-element": "file:../packages/spark-element",
+    "@impower/sparkdown-editor": "file:../packages/sparkdown-editor",
     "@impower/sparkle": "file:../packages/sparkle",
     "fastify": "^4.17.0",
     "nanoid": "^4.0.2",

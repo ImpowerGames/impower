@@ -43,8 +43,8 @@ export default class ToastStack
     return ToastStack.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles() {
-    return [ToastStack.augmentCss(css, DEFAULT_DEPENDENCIES)];
+  override get css() {
+    return ToastStack.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**

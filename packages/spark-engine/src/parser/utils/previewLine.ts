@@ -2,7 +2,7 @@ import {
   getScopedValueContext,
   getSectionAtLine,
   SparkParseResult,
-} from "../../../../sparkdown";
+} from "../../../../sparkdown/src";
 import { Context } from "../classes/Context";
 import { getPreviewCommand } from "./getPreviewCommand";
 import { getPreviewStruct } from "./getPreviewStruct";

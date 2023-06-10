@@ -1,5 +1,5 @@
+import { StructureItem } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
-import { StructureItem } from "../../../sparkdown";
 import { parseState } from "../state/parseState";
 import { getEditor } from "../utils/getEditor";
 import { getSuffixFromState } from "../utils/getSuffixFromState";

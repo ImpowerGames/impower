@@ -1,4 +1,4 @@
-import { SparkStruct, SparkToken } from "../../../../sparkdown";
+import { SparkStruct, SparkToken } from "../../../../sparkdown/src";
 import { getSparkStruct } from "./getSparkStruct";
 
 export const getPreviewStruct = (

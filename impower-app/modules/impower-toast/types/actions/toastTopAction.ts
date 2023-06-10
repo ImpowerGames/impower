@@ -1,6 +1,6 @@
 import { AlertColor } from "../enums/alertColor";
 
-export const TOAST_TOP = "@impower/toast/TOP";
+export const TOAST_TOP = "impower/toast/TOP";
 export interface ToastTopAction {
   type: typeof TOAST_TOP;
   payload: {

@@ -1,9 +1,9 @@
+import SparkElement from "../../../spark-element/src/spark-element";
 import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
 import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
 import getCssTextStroke from "../../../sparkle-style-transformer/src/utils/getCssTextStroke";
 import Patterns from "../configs/patterns";
-import Styles from "../configs/styles";
 import { ARIA_PROPERTY_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
 import coreCSS from "../styles/core/core.css";
 import keyframesCSS from "../styles/keyframes/keyframes.css";
@@ -54,61 +54,16 @@ const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(
 );
 
 export default class SparkleElement
-  extends HTMLElement
+  extends SparkElement
   implements Properties<typeof DEFAULT_SPARKLE_ATTRIBUTES>
 {
-  static useShadowDom = false;
-
-  private static _tagName = "";
-  static get tagName() {
-    return this._tagName;
-  }
-  private static set tagName(value) {
-    this._tagName = value;
-  }
-
-  private static _dependencies: Record<string, string> = {};
-  static get dependencies() {
-    return this._dependencies;
-  }
-  private static set dependencies(value) {
-    this._dependencies = value;
-  }
-
   private static _attributes = DEFAULT_SPARKLE_ATTRIBUTES;
   static get attributes() {
     return this._attributes;
   }
 
-  /**
-   * Defines this component with the specified tag name.
-   *
-   * @param tagName - the tag name to use for this component.
-   * @param dependencies - the tag names to use for the dependencies of this component.
-   * @returns a promise that resolves when the named element is finished being defined.
-   */
-  static async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    SparkleElement.useShadowDom = useShadowDom;
-    if (tagName) {
-      this.tagName = tagName;
-    }
-    if (dependencies) {
-      this.dependencies = { ...this.dependencies, ...dependencies };
-    }
-    customElements.define(this.tagName, this);
-    return customElements.whenDefined(this.tagName);
-  }
-
-  get html(): string {
-    return `<div class="root" part="root"><slot class="content-slot"></slot></div>`;
-  }
-
-  get styles(): string[] {
-    return [];
+  override get sharedStyles(): string[] {
+    return [keyframesCSS, normalizeCSS, scopedCoreCSS];
   }
 
   get aliases(): Record<string, string> {
@@ -1835,30 +1790,6 @@ export default class SparkleElement
     this.setStringAttribute(SparkleElement.attributes.navigation, value);
   }
 
-  get self(): ShadowRoot | HTMLElement {
-    return this.shadowRoot || this;
-  }
-
-  get root(): HTMLElement {
-    return this.self.firstElementChild as HTMLElement;
-  }
-
-  get contentSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("content-slot");
-  }
-
-  get selfChildren(): Element[] {
-    return Array.from(this.self.querySelectorAll("*"));
-  }
-
-  get assignedChildren(): Element[] {
-    return (
-      this.contentSlot?.assignedElements({
-        flatten: true,
-      }) || []
-    );
-  }
-
   get focusableChildren(): HTMLElement[] {
     if (this.shadowRoot) {
       const elements = this.contentSlot?.assignedElements({ flatten: true });
@@ -1871,57 +1802,6 @@ export default class SparkleElement
       return Array.from(elements).filter(isFocusableElement);
     }
     return [];
-  }
-
-  constructor() {
-    super();
-    if (SparkleElement.useShadowDom) {
-      const shadowRoot = this.attachShadow({
-        mode: "open",
-        delegatesFocus: true,
-      });
-      shadowRoot.innerHTML = this.html;
-      Styles.adopt(shadowRoot, keyframesCSS);
-      Styles.adopt(shadowRoot, normalizeCSS);
-      Styles.adopt(shadowRoot, scopedCoreCSS);
-      this.styles.forEach((css) => {
-        Styles.adopt(shadowRoot, css);
-      });
-    } else {
-      Styles.adopt(this.ownerDocument, keyframesCSS);
-      Styles.adopt(this.ownerDocument, normalizeCSS);
-      Styles.adopt(this.ownerDocument, coreCSS);
-      this.styles.forEach((css) => {
-        Styles.adopt(this.ownerDocument, css);
-      });
-    }
-  }
-
-  /**
-   * Replaces tags in html with tag aliases specified by `dependencies`.
-   *
-   * @param html - the original html.
-   * @param tags - the tags to replace. (If not specified, this defaults to the keys of the `dependencies` property.)
-   * @returns the augmented html.
-   */
-  static augmentHtml(
-    html: string,
-    defaultDependencies: Record<string, string>
-  ): string {
-    if (this.dependencies) {
-      Object.entries(defaultDependencies).forEach(
-        ([dependencyName, defaultTagName]) => {
-          const newTagName = this.dependencies[dependencyName];
-          if (newTagName && newTagName != defaultTagName) {
-            html.replace(
-              new RegExp(`<(${defaultTagName})`, "g"),
-              `<${newTagName}`
-            );
-          }
-        }
-      );
-    }
-    return html;
   }
 
   /**
@@ -2021,7 +1901,7 @@ export default class SparkleElement
     }
   }
 
-  protected attributeChangedCallback(
+  protected override attributeChangedCallback(
     name: string,
     oldValue: string,
     newValue: string
@@ -2054,20 +1934,10 @@ export default class SparkleElement
         this.unbindNavigation();
       }
     }
-    this.onAttributeChanged(name, oldValue, newValue);
+    super.attributeChangedCallback(name, oldValue, newValue);
   }
 
-  /**
-   * Invoked each time one of the element's attributes is added, removed, or changed.
-   * Which attributes to notice change for is specified in a static get observedAttributes method
-   */
-  protected onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ) {}
-
-  protected connectedCallback(): void {
+  protected override connectedCallback(): void {
     if (this.shadowRoot) {
       this.contentSlot?.addEventListener(
         "slotchange",
@@ -2084,28 +1954,10 @@ export default class SparkleElement
       this.unbindNavigation();
     }
     this.bindFocus(this.root);
-    this.onConnected();
-    window.setTimeout(() => {
-      this.parsedCallback();
-    });
+    super.connectedCallback();
   }
 
-  /**
-   * Invoked each time the element is appended into a document-connected element.
-   * (This will happen each time the node is moved, and may happen before the element's contents have been fully parsed.)
-   */
-  protected onConnected(): void {}
-
-  protected parsedCallback(): void {
-    this.onParsed();
-  }
-
-  /**
-   * Invoked when the element's contents have been fully parsed.
-   */
-  protected onParsed(): void {}
-
-  protected disconnectedCallback(): void {
+  protected override disconnectedCallback(): void {
     if (this.shadowRoot) {
       this.contentSlot?.removeEventListener(
         "slotchange",
@@ -2114,13 +1966,8 @@ export default class SparkleElement
     }
     this.unbindFocus(this.root);
     this.unbindNavigation();
-    this.onDisconnected();
+    super.disconnectedCallback();
   }
-
-  /**
-   * Invoked each time the element is disconnected from the document's DOM.
-   */
-  protected onDisconnected(): void {}
 
   protected handleContentSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;

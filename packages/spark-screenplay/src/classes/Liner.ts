@@ -3,7 +3,7 @@ import {
   SparkLine,
   SparkToken,
   SparkTokenTypeMap,
-} from "../../../sparkdown";
+} from "../../../sparkdown/src";
 import { PrintProfile } from "../types/PrintProfile";
 
 export interface LineItem extends SparkLine {

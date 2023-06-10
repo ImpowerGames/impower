@@ -1,4 +1,11 @@
 import sparkEditorComponents from "@impower/spark-editor/src/components.js";
+import sparkElementComponents from "@impower/spark-element/src/components.js";
+import sparkdownEditorComponents from "@impower/sparkdown-editor/src/components.js";
 import sparkleComponents from "@impower/sparkle/src/components.js";
 
-export default { ...sparkleComponents, ...sparkEditorComponents };
+export default {
+  ...sparkElementComponents,
+  ...sparkleComponents,
+  ...sparkdownEditorComponents,
+  ...sparkEditorComponents,
+};

@@ -1,5 +1,5 @@
+import { generateSparkHtmlData } from "@impower/spark-screenplay/src/index";
 import * as vscode from "vscode";
-import { generateSparkHtmlData } from "../../../spark-screenplay";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { commandViewProvider } from "../state/commandViewProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";

@@ -1,0 +1,8 @@
+{
+  "comments": {
+    "block": {
+      "open": "[!--",
+      "close": "--]"
+    }
+  }
+}

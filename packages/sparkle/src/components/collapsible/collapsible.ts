@@ -64,8 +64,8 @@ export default class Collapsible
     return html;
   }
 
-  override get styles() {
-    return [Collapsible.augmentCss(css)];
+  override get css() {
+    return Collapsible.augmentCss(css);
   }
 
   /**

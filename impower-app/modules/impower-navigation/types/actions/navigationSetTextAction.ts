@@ -1,4 +1,4 @@
-export const NAVIGATION_SET_TEXT = "@impower/navigation/SET_TEXT";
+export const NAVIGATION_SET_TEXT = "impower/navigation/SET_TEXT";
 export interface NavigationSetTextAction {
   type: typeof NAVIGATION_SET_TEXT;
   payload: {

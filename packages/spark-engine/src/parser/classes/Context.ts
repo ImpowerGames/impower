@@ -2,7 +2,7 @@ import {
   getScopedValueContext,
   getSectionAtLine,
   SparkParseResult,
-} from "../../../../sparkdown";
+} from "../../../../sparkdown/src";
 import { CommandData } from "../../data";
 import { Block, Game, GameConfig, GameState } from "../../game";
 import { CommandRunner } from "../../runner";

@@ -51,8 +51,8 @@ export default class Ripple extends SparkleElement {
     return html;
   }
 
-  override get styles() {
-    return [Ripple.augmentCss(css)];
+  override get css() {
+    return Ripple.augmentCss(css);
   }
 
   private _hovered = false;

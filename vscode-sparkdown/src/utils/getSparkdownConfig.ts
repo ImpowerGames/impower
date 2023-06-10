@@ -1,5 +1,5 @@
+import { SparkScreenplayConfig } from "@impower/spark-screenplay/src/index";
 import * as vscode from "vscode";
-import { SparkScreenplayConfig } from "../../../spark-screenplay";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 
 export const getSparkdownConfig = (uri: vscode.Uri): SparkScreenplayConfig => {

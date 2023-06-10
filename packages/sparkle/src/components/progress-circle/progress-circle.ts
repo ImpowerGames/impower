@@ -49,8 +49,8 @@ export default class ProgressCircle
     return html;
   }
 
-  override get styles() {
-    return [ProgressCircle.augmentCss(css)];
+  override get css() {
+    return ProgressCircle.augmentCss(css);
   }
 
   override get transformers() {

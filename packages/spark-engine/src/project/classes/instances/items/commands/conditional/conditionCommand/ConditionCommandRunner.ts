@@ -1,4 +1,4 @@
-import { evaluate } from "../../../../../../../../../spark-evaluate";
+import { evaluate } from "../../../../../../../../../spark-evaluate/src";
 import { ConditionCommandData, InstanceData } from "../../../../../../../data";
 import { Game } from "../../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../../runner";

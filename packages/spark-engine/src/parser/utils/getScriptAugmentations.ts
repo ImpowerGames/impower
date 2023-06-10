@@ -1,4 +1,4 @@
-import { SparkDeclarations, SparkStruct } from "../../../../sparkdown";
+import { SparkDeclarations, SparkStruct } from "../../../../sparkdown/src";
 import { STRUCT_DEFAULTS } from "../constants/STRUCT_DEFAULTS";
 
 export const getScriptAugmentations = (

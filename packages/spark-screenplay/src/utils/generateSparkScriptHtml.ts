@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../sparkdown";
+import { SparkParseResult } from "../../../sparkdown/src";
 import { HTML_REPLACEMENTS } from "../constants/HTML_REPLACEMENTS";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";

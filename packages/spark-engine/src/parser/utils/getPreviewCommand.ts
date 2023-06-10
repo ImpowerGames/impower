@@ -3,7 +3,7 @@ import {
   SparkSection,
   SparkStruct,
   SparkToken,
-} from "../../../../sparkdown";
+} from "../../../../sparkdown/src";
 import { CommandData } from "../../data";
 import { generateCommand } from "./generateCommand";
 

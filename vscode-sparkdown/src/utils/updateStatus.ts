@@ -1,4 +1,4 @@
-import { getRuntimeString } from "../../../sparkdown";
+import { getRuntimeString } from "@impower/sparkdown/src/index";
 import { statusState } from "../state/statusState";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 

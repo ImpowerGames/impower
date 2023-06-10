@@ -9,7 +9,6 @@ import Details from "./components/details/_details";
 import Displays from "./components/displays/_displays";
 import Elements from "./components/elements/_elements";
 import FileButton from "./components/file-button/_file-button";
-import FooterNavigationSpacer from "./components/footer-navigation-spacer/_footer-navigation-spacer";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
 import Graphics from "./components/graphics/_graphics";
 import GUI from "./components/gui/_gui";
@@ -75,7 +74,6 @@ const components = {
   "se-notifications": style(Notifications),
   "se-header-navigation": style(HeaderNavigation),
   "se-footer-navigation": style(FooterNavigation),
-  "se-footer-navigation-spacer": style(FooterNavigationSpacer),
   "se-gui": style(GUI),
 } as const;
 

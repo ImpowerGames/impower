@@ -57,8 +57,8 @@ export default class Toast
     return Toast.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles() {
-    return [Toast.augmentCss(css, DEFAULT_DEPENDENCIES)];
+  override get css() {
+    return Toast.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**

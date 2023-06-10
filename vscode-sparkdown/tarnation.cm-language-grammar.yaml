@@ -1,0 +1,116 @@
+patterns:
+  - { include: "#BlockComment" }
+  - { include: "#BlockNodeMap" }
+  - { include: "#BlockContainerMap" }
+  - { include: "#Paragraph" }
+
+repository:
+  # Tarnation
+
+  ws: /[^\S\r\n]/
+  namela: /_?(?:@ws|@BlockEnd|$)/
+
+  BlockComment:
+    tag: (...) blockComment
+    match: /(/*)([^]+?)(*/)/
+    fold: offset(3, -3)
+    captures:
+      0: { open: BlockComment }
+      2: { close: BlockComment }
+
+  BlockStart:
+    tag: squareBracket
+    match: /\[{2}(?!\[)/
+    closedBy: BlockEnd
+
+  BlockStartClosing:
+    tag: squareBracket
+    match: /\[{2}\//
+    closedBy: BlockEnd
+
+  BlockEnd:
+    tag: squareBracket
+    match: /(?!\]{3})\]{2}/
+    openedBy: [BlockStart, BlockStartClosing]
+
+  BlockNamePrefix:
+    tag: modifier
+    match: /[*=><](?![*=><])|f>|f</
+
+  BlockNameSuffix:
+    tag: modifier
+    match: "_"
+    lookbehind: '!/\s/'
+
+  BlockLabel:
+    tag: invalid
+    match: /[^\s\]]+/
+
+  BlockNodeArgument:
+    match: /(\S+?)(\s*=\s*)(")((?:[^"]|\\")*)(")/
+    captures:
+      0: { type: BlockNodeArgumentName, tag: special(propertyName) }
+      1: { type: BlockNodeArgumentOperator, tag: definitionOperator }
+      2: { open: BlockNodeArgumentMark, tag: string }
+      3:
+        if: $0
+        matches: style
+        then: { type: CSSAttributes, nest: style-attribute }
+        else: { type: BlockNodeArgumentValue, tag: string }
+      4: { close: BlockNodeArgumentMark, tag: string }
+
+  BlockNameMap:
+    tag: tagName
+    lookup:
+      - toc
+      - blockquote
+    lookahead: /@namela/
+    emit: BlockName
+
+  BlockNameMapElements:
+    tag: tagName
+    # lookup is a list of strings that can be matched
+    lookup:
+      - toc
+      - blockquote
+    lookahead: /@namela/
+    emit: BlockName
+
+  BlockNodeMap:
+    emit: BlockNode
+    indent: delimited(]])
+    skip: /\s+/
+    chain:
+      - BlockStart
+      - BlockNamePrefix?
+      - BlockNameMap
+      - BlockNameSuffix?
+      - BlockNodeArgument |* BlockLabel
+      - BlockEnd
+
+  BlockContainerMap:
+    emit: BlockContainer
+    fold: inside
+    begin:
+      type: BlockContainerMapStartNode
+      emit: BlockNode
+      indent: delimited(]])
+      skip: /\s+/
+      chain:
+        - BlockStart
+        - BlockNamePrefix?
+        - BlockNameMapElements
+        - BlockNameSuffix?
+        - BlockNodeArgument |* BlockLabel
+        - BlockEnd
+    end:
+      type: BlockContainerMapEndNode
+      emit: BlockNode
+      indent: delimited(]])
+      skip: /\s+/
+      chain:
+        - BlockStartClosing
+        - BlockNamePrefix?
+        - BlockNameMapElements
+        - BlockNameSuffix?
+        - BlockEnd

@@ -1,5 +1,5 @@
+import { StructureItem } from "@impower/sparkdown/src/index";
 import { FoldingRange, FoldingRangeProvider, TextDocument } from "vscode";
-import { StructureItem } from "../../../sparkdown";
 import { parseState } from "../state/parseState";
 
 export class SparkdownFoldingRangeProvider implements FoldingRangeProvider {

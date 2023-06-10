@@ -1,5 +1,5 @@
+import { getRuntimeString, StructureItem } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
-import { getRuntimeString, StructureItem } from "../../../sparkdown";
 import { parseState } from "../state/parseState";
 
 export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {

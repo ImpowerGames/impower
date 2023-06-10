@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../sparkdown";
+import { SparkParseResult } from "../../../sparkdown/src";
 import { STATIC_HTML } from "../constants/STATIC_HTML";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { encodeBase64 } from "./encodeBase64";

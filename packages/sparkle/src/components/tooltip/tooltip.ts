@@ -74,8 +74,8 @@ export default class Tooltip
     return Tooltip.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles() {
-    return [Tooltip.augmentCss(css, DEFAULT_DEPENDENCIES)];
+  override get css() {
+    return Tooltip.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**

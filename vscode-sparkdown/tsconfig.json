@@ -20,6 +20,6 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["node", "@types/mocha", "@types/webpack-env"]
+    "types": ["node", "@types/webpack-env"]
   }
 }

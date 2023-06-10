@@ -66,8 +66,8 @@ export default class Dialog
     return Dialog.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles() {
-    return [Dialog.augmentCss(css, DEFAULT_DEPENDENCIES)];
+  override get css() {
+    return Dialog.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   override get transformers() {

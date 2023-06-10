@@ -65,8 +65,8 @@ export default class Tab
     return Tab.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get styles() {
-    return [Tab.augmentCss(css, DEFAULT_DEPENDENCIES)];
+  override get css() {
+    return Tab.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   override get transformers() {

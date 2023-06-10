@@ -1,10 +1,10 @@
-import { encode } from "html-entities";
-import * as vscode from "vscode";
 import {
   generateSparkPdfData,
   pdfGenerate,
   PdfWriteStream,
-} from "../../../spark-screenplay";
+} from "@impower/spark-screenplay/src/index";
+import { encode } from "html-entities";
+import * as vscode from "vscode";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { createPdfDocument } from "../pdf/createPdfDocument";
 import { commandViewProvider } from "../state/commandViewProvider";

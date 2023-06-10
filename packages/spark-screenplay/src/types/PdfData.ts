@@ -1,4 +1,4 @@
-import { SparkSectionToken, SparkToken } from "../../../sparkdown";
+import { SparkSectionToken, SparkToken } from "../../../sparkdown/src";
 import { LineItem } from "../classes/Liner";
 import { PrintProfile } from "./PrintProfile";
 import { SparkScreenplayConfig } from "./SparkScreenplayConfig";

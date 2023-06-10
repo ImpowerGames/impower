@@ -1,4 +1,4 @@
-import { SparkSection } from "../../../../sparkdown";
+import { SparkSection } from "../../../../sparkdown/src";
 import { Block } from "../../game";
 import { generateCommand } from "./generateCommand";
 

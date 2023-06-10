@@ -1,12 +1,12 @@
+import STYLES from "../../../spark-element/src/STYLE_CACHE";
 import extractAllGraphics from "../../../sparkle-style-transformer/src/utils/extractAllGraphics";
 import Icons from "../configs/icons";
 import Patterns from "../configs/patterns";
-import Styles from "../configs/styles";
 import { SparkleStyleType } from "../types/sparkleStyleType";
 
 const adoptAll = (styles: Record<SparkleStyleType, string>): void => {
   Object.values(styles).forEach((css) => {
-    Styles.adopt(document, css);
+    STYLES.adopt(document, css);
   });
   const patterns = styles["patterns"];
   if (patterns) {

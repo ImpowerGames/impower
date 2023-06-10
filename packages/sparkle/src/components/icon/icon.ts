@@ -49,8 +49,8 @@ export default class Icon
     return html;
   }
 
-  override get styles() {
-    return [Icon.augmentCss(css)];
+  override get css() {
+    return Icon.augmentCss(css);
   }
 
   override get transformers() {

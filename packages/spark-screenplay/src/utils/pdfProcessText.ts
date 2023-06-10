@@ -1,4 +1,4 @@
-import { sparkRegexes } from "../../../sparkdown";
+import { sparkRegexes } from "../../../sparkdown/src";
 import { PdfDocument } from "../types/PdfDocument";
 import { TextOptions } from "../types/TextOptions";
 

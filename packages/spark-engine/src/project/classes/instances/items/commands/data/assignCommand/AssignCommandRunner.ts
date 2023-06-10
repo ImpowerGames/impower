@@ -1,4 +1,4 @@
-import { evaluate } from "../../../../../../../../../spark-evaluate";
+import { evaluate } from "../../../../../../../../../spark-evaluate/src";
 import { AssignCommandData } from "../../../../../../../data";
 import { Game } from "../../../../../../../game";
 import { modifyValue } from "../../../../../../../runner/utils/modifyValue";
