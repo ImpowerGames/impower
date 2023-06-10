@@ -116,7 +116,7 @@ export default class Viewport
       console.log(visualViewport.height);
       if (visualViewport) {
         this.root.style.maxHeight = `${
-          visualViewport.height + this._offsetPx
+          visualViewport.height - this._offsetPx
         }px`;
       }
       this._pendingViewportUpdate = undefined;

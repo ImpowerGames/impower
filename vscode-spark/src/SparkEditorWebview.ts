@@ -200,7 +200,6 @@ export class SparkEditorWebview {
           </style>
         </head>
         <body>
-          <se-header-navigation></se-header-navigation>
           <se-gui></se-gui>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
