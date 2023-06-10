@@ -108,7 +108,6 @@ export default class Viewport
   }
 
   handleViewportChange = (event: Event) => {
-    console.log("handleViewportChange");
     if (this._pendingViewportUpdate) {
       window.cancelAnimationFrame(this._pendingViewportUpdate);
     }
