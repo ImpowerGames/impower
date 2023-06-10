@@ -8,10 +8,11 @@ const SPARKDOWN_THEME: {
     color: SPARKDOWN_COLORS.foreground,
     backgroundColor: SPARKDOWN_COLORS.background,
     flex: 1,
+    fontFamily: "Courier Prime Sans",
+    fontSize: "1rem",
   },
   ".cm-scroller": {
     overflowY: "scroll",
-    fontFamily: "Courier Prime Sans",
   },
   ".cm-content": {
     caretColor: "white",
