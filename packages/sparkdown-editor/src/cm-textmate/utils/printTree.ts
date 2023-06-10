@@ -5,7 +5,7 @@
  * Released under the MIT License.
  */
 
-import { Text } from "@codemirror/text";
+import { Text } from "@codemirror/state";
 import { Input, NodeType, SyntaxNode, Tree, TreeCursor } from "@lezer/common";
 
 class StringInput implements Input {

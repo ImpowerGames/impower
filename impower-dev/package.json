@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "kill": "kill-port 8080",
+    "preinstall": "cd ../packages/sparkdown-editor && npm ci && cd ../../impower-dev",
     "dev": "tsx ./esbuild.ts --watch --serve",
     "prod": "tsx ./esbuild.ts --production --serve",
     "build": "tsx ./esbuild.ts --production",
