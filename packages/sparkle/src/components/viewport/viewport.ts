@@ -22,8 +22,8 @@ const DEFAULT_ATTRIBUTES = {
 };
 
 /**
- * Viewports fill the entire screen height and shrink if necessary
- * to accommodate on-screen virtual keyboards that would otherwise cover up content
+ * Viewports fill the entire screen height and shrink to accommodate
+ * on-screen virtual keyboards that would otherwise cover up content
  */
 export default class Viewport
   extends SparkleElement
@@ -56,7 +56,8 @@ export default class Viewport
   }
 
   /**
-   * Determines how much the viewport should be offset in addition to the height of the virtual keyboard
+   * Determines how much the viewport should be offset
+   * in addition to the height of the virtual keyboard
    */
   get offset(): SizeName | null {
     return this.getStringAttribute(Viewport.attributes.offset);
