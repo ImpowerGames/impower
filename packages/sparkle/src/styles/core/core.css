@@ -616,3 +616,11 @@ button.focused::after {
 button.focused.pressed::after {
   outline-offset: calc((-1 * var(--s-focus-ring-width)) - 2px);
 }
+
+[hidden] {
+  display: none !important;
+}
+
+* [hidden] {
+  display: none !important;
+}

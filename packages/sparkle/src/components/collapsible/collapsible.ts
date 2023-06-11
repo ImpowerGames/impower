@@ -383,7 +383,6 @@ export default class Collapsible
       buttonEl.style.setProperty("align-self", "flex-end");
       iconEl.style.setProperty("max-width", "0");
       iconEl.style.setProperty("transform", `translateX(0)`);
-      labelEl.style.setProperty("display", "none");
       labelEl.hidden = true;
     }
   }
@@ -417,7 +416,6 @@ export default class Collapsible
       );
       iconEl.style.setProperty("max-width", null);
       iconEl.style.setProperty("transform", `translateX(${iconTranslateX}px)`);
-      labelEl.style.setProperty("display", null);
       labelEl.hidden = false;
     }
   }
