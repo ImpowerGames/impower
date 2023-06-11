@@ -27,7 +27,7 @@ const SPARKDOWN_THEME: {
       content: "''",
       opacity: 0,
       position: "absolute",
-      inset: "-4px 0",
+      inset: "0 0 -4px 0",
       pointerEvents: "none",
     },
   },
