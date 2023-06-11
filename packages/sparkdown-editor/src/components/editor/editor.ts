@@ -93,7 +93,7 @@ export default class SparkdownEditor
 
   _doc = "";
 
-  _editedEmissionDelay = 400;
+  _editedEmissionDelay = 500;
 
   _pendingEditedEvent = 0;
 
