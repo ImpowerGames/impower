@@ -11,6 +11,7 @@
   border: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
+  touch-action: var(--touch-action, none);
 }
 
 *::-moz-focus-inner {

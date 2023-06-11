@@ -50,7 +50,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  touch-action: pan-x;
+  --touch-action: pan-x;
 }
 
 [overflow-y] > .root {
@@ -65,7 +65,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  touch-action: pan-y;
+  --touch-action: pan-y;
 }
 
 [z] > .root {
