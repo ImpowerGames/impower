@@ -93,7 +93,7 @@ export default class SparkdownEditor
 
   _doc = "";
 
-  _virtualKeyboardCloseDuration = 800;
+  _virtualKeyboardCloseDuration = 700;
 
   _pendingEditedEvent = 0;
 
