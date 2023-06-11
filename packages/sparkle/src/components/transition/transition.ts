@@ -42,20 +42,14 @@ export default class Transition
     return Transition.augmentCss(css);
   }
 
-  get parentRouter(): Element | null {
-    return this.closestAncestor(Transition.dependencies.router);
-  }
-
   protected override onConnected(): void {
-    const parentRouter = this.parentRouter;
-    parentRouter?.addEventListener("exit", this.handleExit, true);
-    parentRouter?.addEventListener("enter", this.handleEnter, true);
+    window.addEventListener("exit", this.handleExit, true);
+    window.addEventListener("enter", this.handleEnter, true);
   }
 
   protected override onDisconnected(): void {
-    const parentRouter = this.parentRouter;
-    parentRouter?.removeEventListener("exit", this.handleExit, true);
-    parentRouter?.removeEventListener("enter", this.handleEnter, true);
+    window.removeEventListener("exit", this.handleExit, true);
+    window.removeEventListener("enter", this.handleEnter, true);
   }
 
   updateState(state: "entering" | "exiting" | null): void {
