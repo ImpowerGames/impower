@@ -27,9 +27,9 @@ const SPARKDOWN_THEME: {
       content: "''",
       opacity: 0,
       position: "absolute",
-      inset: "0",
+      inset: "-1px 0",
       pointerEvents: "none",
-      transform: "translateY(1px)",
+      transform: "translateY(2px)",
     },
   },
   ".cm-content": {
