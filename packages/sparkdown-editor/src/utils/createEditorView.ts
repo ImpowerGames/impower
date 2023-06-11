@@ -38,6 +38,7 @@ const PARSE_CACHE: {
 } = {};
 
 interface EditorOptions {
+  disableBodyScrollLocking?: number;
   margin?: {
     top?: number;
     bottom?: number;
@@ -111,6 +112,7 @@ const createEditorView = (
   parent: HTMLElement,
   options?: EditorOptions
 ): EditorView => {
+  const disableBodyScrollLocking = options?.disableBodyScrollLocking;
   const margin = options?.margin;
   const footerHeight = options?.footerHeight;
   const backgroundColor = options?.backgroundColor;
@@ -335,6 +337,14 @@ const createEditorView = (
           ? "redo"
           : undefined;
         const focused = u.view.hasFocus;
+        if (!disableBodyScrollLocking) {
+          if (focused) {
+            document.body.style.setProperty("overflow", "hidden");
+          } else {
+            document.body.style.setProperty("overflow", null);
+          }
+        }
+
         const snippet = Boolean(parent.querySelector(".cm-snippetField"));
         const lint = Boolean(parent.querySelector(".cm-panel-lint"));
         const selected =

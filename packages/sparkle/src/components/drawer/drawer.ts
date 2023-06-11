@@ -3,9 +3,12 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
+import {
+  lockBodyScrolling,
+  unlockBodyScrolling,
+} from "../../utils/bodyScrolling";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
-import { lockBodyScrolling, unlockBodyScrolling } from "../../utils/scroll";
 import css from "./drawer.css";
 import html from "./drawer.html";
 

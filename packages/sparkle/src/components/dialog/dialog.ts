@@ -7,10 +7,13 @@ import SparkleElement, {
 import { IconName } from "../../types/iconName";
 import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
+import {
+  lockBodyScrolling,
+  unlockBodyScrolling,
+} from "../../utils/bodyScrolling";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getKeys } from "../../utils/getKeys";
-import { lockBodyScrolling, unlockBodyScrolling } from "../../utils/scroll";
 import css from "./dialog.css";
 import html from "./dialog.html";
 
