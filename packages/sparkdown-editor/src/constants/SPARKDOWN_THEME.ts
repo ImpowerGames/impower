@@ -48,11 +48,14 @@ const SPARKDOWN_THEME: {
     color: SPARKDOWN_COLORS.lineNumber,
     border: "none",
   },
-  ".cm-gutter.cm-lineNumbers": {
-    minWidth: "36px",
-  },
   ".cm-gutterElement *": {
     userSelect: "none",
+  },
+  ".cm-gutter.cm-lineNumbers": {
+    minWidth: "32px",
+  },
+  ".cm-gutter-lint": {
+    width: "1em",
   },
   ".cm-lineNumbers .cm-gutterElement": {
     padding: "0 2px",
