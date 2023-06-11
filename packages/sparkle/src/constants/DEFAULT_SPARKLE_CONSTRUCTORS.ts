@@ -12,6 +12,7 @@ import ProgressBar from "../components/progress-bar/progress-bar";
 import ProgressCircle from "../components/progress-circle/progress-circle";
 import Ripple from "../components/ripple/ripple";
 import Router from "../components/router/router";
+import ScrollBlocker from "../components/scroll-blocker/scroll-blocker";
 import Skeleton from "../components/skeleton/skeleton";
 import SplitPane from "../components/split-pane/split-pane";
 import Tab from "../components/tab/tab";
@@ -25,6 +26,7 @@ import Viewport from "../components/viewport/viewport";
 const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-box": Box,
   "s-viewport": Viewport,
+  "s-scroll-blocker": ScrollBlocker,
   "s-circle": Circle,
   "s-icon": Icon,
   "s-popup": Popup,

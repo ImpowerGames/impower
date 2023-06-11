@@ -13,6 +13,7 @@ import ProgressBar from "./components/progress-bar/_progress-bar";
 import ProgressCircle from "./components/progress-circle/_progress-circle";
 import Ripple from "./components/ripple/_ripple";
 import Router from "./components/router/_router";
+import ScrollBlocker from "./components/scroll-blocker/_scroll-blocker";
 import Skeleton from "./components/skeleton/_skeleton";
 import SplitPane from "./components/split-pane/_split-pane";
 import Tab from "./components/tab/_tab";
@@ -70,6 +71,7 @@ const components = {
   "s-shadows": Shadows,
   "s-box": style(Box),
   "s-viewport": style(Viewport),
+  "s-scroll-blocker": style(ScrollBlocker),
   "s-circle": style(Circle),
   "s-icon": style(Icon),
   "s-popup": style(Popup),

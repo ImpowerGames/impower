@@ -1,0 +1,11 @@
+:host {
+  display: contents;
+}
+
+:host > .root {
+  display: flex;
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: auto;
+}
