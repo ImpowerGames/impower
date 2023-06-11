@@ -12,7 +12,7 @@ export default class SparkdownEditor extends SparkdownElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  _editedDelay = 200;
+  _editedDelay = 300;
 
   _pendingEvent = 0;
 
