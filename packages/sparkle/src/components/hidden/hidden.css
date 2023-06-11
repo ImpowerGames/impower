@@ -2,7 +2,7 @@
   display: contents;
 }
 :host {
-  --duration: 200ms;
+  --duration: 150ms;
 }
 
 :host > .root {
