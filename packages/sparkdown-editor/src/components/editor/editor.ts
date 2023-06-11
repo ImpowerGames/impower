@@ -89,22 +89,7 @@ export default class SparkdownEditor
     return this.getElementByClass("editor");
   }
 
-  _editing = false;
-
   _doc = "";
-
-  _virtualKeyboardCloseDuration = 750;
-
-  _pendingEditedEvent = 0;
-
-  willDispatchEditedEvent() {
-    return this._pendingEditedEvent;
-  }
-
-  cancelEditedEvent() {
-    window.clearTimeout(this._pendingEditedEvent);
-    this._pendingEditedEvent = 0;
-  }
 
   emit(event: "editing" | "edited", detail: string) {
     this.dispatchEvent(
@@ -129,23 +114,11 @@ export default class SparkdownEditor
         },
         onFocus: (doc: string) => {
           this._doc = doc;
-          this._editing = true;
-          if (this.willDispatchEditedEvent()) {
-            this.cancelEditedEvent();
-          }
           this.emit("editing", doc);
         },
         onBlur: (doc: string) => {
           this._doc = doc;
-          this._editing = false;
-          if (this.willDispatchEditedEvent()) {
-            this.cancelEditedEvent();
-          }
-          // Delay the edited event until after the on-screen
-          // keyboard has had time to fully close
-          this._pendingEditedEvent = window.setTimeout(() => {
-            this.emit("edited", doc);
-          }, this._virtualKeyboardCloseDuration);
+          this.emit("edited", doc);
         },
       });
     }

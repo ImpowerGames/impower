@@ -7,11 +7,14 @@ const getCssDurationMS = (
   defaultValue: number,
   emptyValue = defaultValue
 ): number => {
+  if (value == null) {
+    return defaultValue;
+  }
   if (value === "") {
     return emptyValue;
   }
-  if (value == null) {
-    return defaultValue;
+  if (value === "0") {
+    return 0;
   }
   const v = value.trim().toLowerCase();
   if (v === "none" || v === "infinity") {

@@ -22,11 +22,10 @@
   transition-duration: 0 !important;
 }
 
-:host([initial="on"]) > .root:not([loaded]),
-:host > .root[active] {
+:host > .root[state="hiding"] {
   opacity: 0;
 }
-:host > .root[active]::after {
+:host > .root[state="hiding"]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -34,10 +33,16 @@
   pointer-events: auto;
 }
 
-:host > .root[hidden] {
+:host([initial="hide"]) > .root:not([loaded]),
+:host > .root[state="hidden"] {
   display: none;
 }
 
-:host > .root:not([active]) {
+:host > .root[loaded][state="mounting"] {
+  display: flex;
+  opacity: 0;
+}
+
+:host > .root[loaded]:is([state="showing"], [state="shown"]) {
   opacity: 1;
 }

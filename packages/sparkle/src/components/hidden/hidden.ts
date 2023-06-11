@@ -1,19 +1,37 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
+import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getBreakpointValue } from "../../utils/getBreakpointValue";
 import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
+import { getKeys } from "../../utils/getKeys";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./hidden.css";
 import html from "./hidden.html";
 
+const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
+  "hide-delay": getCssDuration,
+  "show-delay": getCssDuration,
+};
+
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["initial", "below", "above", "on", "off", "instant"]),
+  ...getAttributeNameMap([
+    "initial",
+    "if-below",
+    "if-above",
+    "hide-event",
+    "show-event",
+    "hide-instantly",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
 };
 
 /**
@@ -27,6 +45,10 @@ export default class Hidden
 
   static override get attributes() {
     return DEFAULT_ATTRIBUTES;
+  }
+
+  override get transformers() {
+    return DEFAULT_TRANSFORMERS;
   }
 
   static override async define(
@@ -48,9 +70,9 @@ export default class Hidden
   /**
    * Determines if the element is initially hidden or not.
    *
-   * Defaults to `off` for not hidden.
+   * Defaults to `show`.
    */
-  get initial(): "on" | "off" | null {
+  get initial(): "hide" | "show" | null {
     return this.getStringAttribute(Hidden.attributes.initial);
   }
   set initial(value) {
@@ -60,66 +82,90 @@ export default class Hidden
   /**
    * If provided, the element will only listen for events when the width of the screen is below the specified breakpoint.
    */
-  get below(): SizeName | null {
-    return this.getStringAttribute(Hidden.attributes.below);
+  get ifBelow(): SizeName | null {
+    return this.getStringAttribute(Hidden.attributes.ifBelow);
   }
-  set below(value) {
-    this.setStringAttribute(Hidden.attributes.below, value);
+  set ifBelow(value) {
+    this.setStringAttribute(Hidden.attributes.ifBelow, value);
   }
 
   /**
    * If provided, the element will only listen for events when the width of the screen is above the specified breakpoint.
    */
-  get above(): SizeName | null {
-    return this.getStringAttribute(Hidden.attributes.above);
+  get ifAbove(): SizeName | null {
+    return this.getStringAttribute(Hidden.attributes.ifAbove);
   }
-  set above(value) {
-    this.setStringAttribute(Hidden.attributes.above, value);
+  set ifAbove(value) {
+    this.setStringAttribute(Hidden.attributes.ifAbove, value);
   }
 
   /**
    * The element will hide when this event is fired
    */
-  get on(): string | null {
-    return this.getStringAttribute(Hidden.attributes.on);
+  get hideEvent(): string | null {
+    return this.getStringAttribute(Hidden.attributes.hideEvent);
   }
-  set on(value) {
-    this.setStringAttribute(Hidden.attributes.on, value);
+  set hideEvent(value) {
+    this.setStringAttribute(Hidden.attributes.hideEvent, value);
   }
 
   /**
    * The element will be shown again when this event is fired
    */
-  get off(): string | null {
-    return this.getStringAttribute(Hidden.attributes.off);
+  get showEvent(): string | null {
+    return this.getStringAttribute(Hidden.attributes.showEvent);
   }
-  set off(value) {
-    this.setStringAttribute(Hidden.attributes.off, value);
+  set showEvent(value) {
+    this.setStringAttribute(Hidden.attributes.showEvent, value);
   }
 
   /**
-   * The element will hide instantly
+   * The hide transition duration
    */
-  get instant(): string | null {
-    return this.getStringAttribute(Hidden.attributes.instant);
+  get hideInstantly(): string | null {
+    return this.getStringAttribute(Hidden.attributes.hideInstantly);
   }
-  set instant(value) {
-    this.setStringAttribute(Hidden.attributes.instant, value);
+  set hideInstantly(value) {
+    this.setStringAttribute(Hidden.attributes.hideInstantly, value);
+  }
+
+  /**
+   * The delay before the element is hidden
+   */
+  get hideDelay(): string | null {
+    return this.getStringAttribute(Hidden.attributes.hideDelay);
+  }
+  set hideDelay(value) {
+    this.setStringAttribute(Hidden.attributes.hideDelay, value);
+  }
+
+  /**
+   * The delay before the element is shown again
+   */
+  get showDelay(): string | null {
+    return this.getStringAttribute(Hidden.attributes.showDelay);
+  }
+  set showDelay(value) {
+    this.setStringAttribute(Hidden.attributes.showDelay, value);
   }
 
   _breakpointValue = 0;
+
+  _hideTransitionTimeout = 0;
+
+  _showTransitionTimeout = 0;
 
   protected override onConnected(): void {
     window.addEventListener("resize", this.handleWindowResize, {
       passive: true,
     });
-    const on = this.on;
-    if (on) {
-      window.addEventListener(on, this.handleOn);
+    const hideEvent = this.hideEvent;
+    if (hideEvent) {
+      window.addEventListener(hideEvent, this.handleHide);
     }
-    const off = this.off;
-    if (off) {
-      window.addEventListener(off, this.handleOff);
+    const showEvent = this.showEvent;
+    if (showEvent) {
+      window.addEventListener(showEvent, this.handleShow);
     }
   }
 
@@ -129,13 +175,13 @@ export default class Hidden
 
   protected override onDisconnected(): void {
     window.removeEventListener("resize", this.handleWindowResize);
-    const on = this.on;
-    if (on) {
-      window.removeEventListener(on, this.handleOn);
+    const hideEvent = this.hideEvent;
+    if (hideEvent) {
+      window.removeEventListener(hideEvent, this.handleHide);
     }
-    const off = this.off;
-    if (off) {
-      window.removeEventListener(off, this.handleOff);
+    const showEvent = this.showEvent;
+    if (showEvent) {
+      window.removeEventListener(showEvent, this.handleShow);
     }
   }
 
@@ -145,56 +191,94 @@ export default class Hidden
   }
 
   preConditionsSatisfied() {
-    const above = this.above;
-    const below = this.below;
+    const aboveBreakpoint = this.ifAbove;
+    const belowBreakpoint = this.ifBelow;
     const aboveSatisfied =
-      above == null || this._breakpointValue > getBreakpointValue(above);
+      aboveBreakpoint == null ||
+      this._breakpointValue > getBreakpointValue(aboveBreakpoint);
     const belowSatisfied =
-      below == null || this._breakpointValue < getBreakpointValue(below);
+      belowBreakpoint == null ||
+      this._breakpointValue < getBreakpointValue(belowBreakpoint);
     return aboveSatisfied && belowSatisfied;
   }
 
   async load() {
     this.updateBreakpoint();
-    if (this.initial === "on") {
-      this.activate();
+    if (this.initial === "hide") {
+      this.hide();
     } else {
-      this.deactivate();
+      this.show();
     }
     await nextAnimationFrame();
     this.root.setAttribute("loaded", "");
   }
 
-  async activate() {
-    if (this.instant != null) {
+  async hide() {
+    if (this.hideInstantly != null) {
       this.root.hidden = true;
-      this.root.setAttribute("active", "");
+      this.root.setAttribute("state", "hidden");
     } else {
-      this.root.setAttribute("active", "");
+      this.root.setAttribute("state", "hiding");
       await animationsComplete(this.root);
       this.root.hidden = true;
     }
   }
 
-  async deactivate() {
+  async show() {
     this.root.hidden = false;
+    this.root.setAttribute("state", "mounting");
     await animationsComplete(this.root);
-    this.root.removeAttribute("active");
+    this.root.setAttribute("state", "showing");
+    await animationsComplete(this.root);
+    this.root.setAttribute("state", "shown");
+  }
+
+  async cancelPending() {
+    if (this._hideTransitionTimeout) {
+      window.clearTimeout(this._hideTransitionTimeout);
+    }
+    if (this._showTransitionTimeout) {
+      window.clearTimeout(this._showTransitionTimeout);
+    }
   }
 
   private handleWindowResize = (): void => {
     this.updateBreakpoint();
   };
 
-  private handleOn = () => {
-    if (this.preConditionsSatisfied()) {
-      this.activate();
+  private handleHide = () => {
+    this.cancelPending();
+    const hideDelay = getCssDurationMS(this.hideDelay, 0);
+    const conditionallyHide = () => {
+      if (this.preConditionsSatisfied()) {
+        this.hide();
+      }
+    };
+    if (hideDelay > 0) {
+      this._hideTransitionTimeout = window.setTimeout(
+        conditionallyHide,
+        hideDelay
+      );
+    } else {
+      conditionallyHide();
     }
   };
 
-  private handleOff = () => {
-    if (this.preConditionsSatisfied()) {
-      this.deactivate();
+  private handleShow = () => {
+    this.cancelPending();
+    const showDelay = getCssDurationMS(this.showDelay, 0);
+    const conditionallyShow = () => {
+      if (this.preConditionsSatisfied()) {
+        this.show();
+      }
+    };
+    if (showDelay > 0) {
+      this._showTransitionTimeout = window.setTimeout(
+        conditionallyShow,
+        showDelay
+      );
+    } else {
+      conditionallyShow();
     }
   };
 }
