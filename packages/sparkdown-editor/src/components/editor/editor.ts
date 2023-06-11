@@ -21,8 +21,39 @@ export default class SparkdownEditor extends SparkdownElement {
   }
 
   protected override onConnected(): void {
-    setupEditor(this.root);
+    setupEditor(this.root, {
+      onFocus: (doc: string) => {
+        this.dispatchEvent(
+          new CustomEvent("editing", {
+            bubbles: true,
+            cancelable: false,
+            composed: true,
+            detail: doc,
+          })
+        );
+      },
+      onBlur: (doc: string) => {
+        this.dispatchEvent(
+          new CustomEvent("edited", {
+            bubbles: true,
+            cancelable: false,
+            composed: true,
+            detail: doc,
+          })
+        );
+      },
+    });
   }
 
   protected override onDisconnected(): void {}
+}
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "sparkdown-editor": SparkdownEditor;
+  }
+  interface HTMLElementEventMap {
+    editing: CustomEvent;
+    edited: CustomEvent;
+  }
 }

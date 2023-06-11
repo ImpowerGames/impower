@@ -3,6 +3,7 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { Properties } from "../../types/properties";
 import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
 import css from "./breakpoint-observer.css";
 import html from "./breakpoint-observer.html";
 
@@ -59,8 +60,8 @@ export default class BreakpointObserver
    *
    * Defaults to `400px`.
    */
-  get xs(): number {
-    return this.getNumberAttribute(BreakpointObserver.attributes.xs) ?? 400;
+  get xs(): number | null {
+    return this.getNumberAttribute(BreakpointObserver.attributes.xs);
   }
   set xs(value) {
     this.setStringAttribute(BreakpointObserver.attributes.xs, value);
@@ -71,8 +72,8 @@ export default class BreakpointObserver
    *
    * Defaults to `600px`.
    */
-  get sm(): number {
-    return this.getNumberAttribute(BreakpointObserver.attributes.sm) ?? 600;
+  get sm(): number | null {
+    return this.getNumberAttribute(BreakpointObserver.attributes.sm);
   }
   set sm(value) {
     this.setStringAttribute(BreakpointObserver.attributes.sm, value);
@@ -83,8 +84,8 @@ export default class BreakpointObserver
    *
    * Defaults to `960px`.
    */
-  get md(): number {
-    return this.getNumberAttribute(BreakpointObserver.attributes.md) ?? 960;
+  get md(): number | null {
+    return this.getNumberAttribute(BreakpointObserver.attributes.md);
   }
   set md(value) {
     this.setStringAttribute(BreakpointObserver.attributes.md, value);
@@ -95,8 +96,8 @@ export default class BreakpointObserver
    *
    * Defaults to `1280px`.
    */
-  get lg(): number {
-    return this.getNumberAttribute(BreakpointObserver.attributes.lg) ?? 1280;
+  get lg(): number | null {
+    return this.getNumberAttribute(BreakpointObserver.attributes.lg);
   }
   set lg(value) {
     this.setStringAttribute(BreakpointObserver.attributes.lg, value);
@@ -107,8 +108,8 @@ export default class BreakpointObserver
    *
    * Defaults to `1920px`.
    */
-  get xl(): number {
-    return this.getNumberAttribute(BreakpointObserver.attributes.xl) ?? 1920;
+  get xl(): number | null {
+    return this.getNumberAttribute(BreakpointObserver.attributes.xl);
   }
   set xl(value) {
     this.setStringAttribute(BreakpointObserver.attributes.xl, value);
@@ -119,6 +120,15 @@ export default class BreakpointObserver
   }
   set value(value: string | null) {
     this.setStringAttribute(BreakpointObserver.attributes.value, value);
+  }
+
+  get breakpoints() {
+    return {
+      xs: this.xs,
+      sm: this.sm,
+      md: this.md,
+      lg: this.lg,
+    };
   }
 
   protected _resizeObserver?: ResizeObserver;
@@ -137,12 +147,12 @@ export default class BreakpointObserver
     }
     const measure = this.measure;
     if (measure === "screen") {
-      this.value = this.getBreakpoint(screen.availWidth);
+      this.value = getCurrentBreakpoint(screen.availWidth, this.breakpoints);
     } else if (measure === "window") {
-      this.value = this.getBreakpoint(window.innerWidth);
+      this.value = getCurrentBreakpoint(window.innerWidth, this.breakpoints);
     } else if (observedEl) {
       const { width } = observedEl.getBoundingClientRect();
-      this.value = this.getBreakpoint(width);
+      this.value = getCurrentBreakpoint(width, this.breakpoints);
     }
   }
 
@@ -151,25 +161,9 @@ export default class BreakpointObserver
     window.removeEventListener("resize", this.handleWindowResize);
   }
 
-  getBreakpoint(width: number): string {
-    if (width <= this.xs) {
-      return "xs";
-    }
-    if (width <= this.sm) {
-      return "sm";
-    }
-    if (width <= this.md) {
-      return "md";
-    }
-    if (width <= this.lg) {
-      return "lg";
-    }
-    return "xl";
-  }
-
   private handleWindowResize = (): void => {
     if (this.measure === "window") {
-      this.value = this.getBreakpoint(window.innerWidth);
+      this.value = getCurrentBreakpoint(window.innerWidth, this.breakpoints);
     }
   };
 
@@ -178,7 +172,7 @@ export default class BreakpointObserver
       const entry = entries[0];
       if (entry) {
         const { width } = entry.contentRect;
-        this.value = this.getBreakpoint(width);
+        this.value = getCurrentBreakpoint(width, this.breakpoints);
       }
     }
   };

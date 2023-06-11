@@ -7,6 +7,7 @@ import Circle from "./components/circle/_circle";
 import Collapsible from "./components/collapsible/_collapsible";
 import Dialog from "./components/dialog/_dialog";
 import Divider from "./components/divider/_divider";
+import Hidden from "./components/hidden/_hidden";
 import Icon from "./components/icon/_icon";
 import Popup from "./components/popup/_popup";
 import ProgressBar from "./components/progress-bar/_progress-bar";
@@ -69,6 +70,7 @@ const components = {
   "s-normalize": Normalize,
   "s-core": Core,
   "s-shadows": Shadows,
+  "s-hidden": style(Hidden),
   "s-box": style(Box),
   "s-viewport": style(Viewport),
   "s-scroll-blocker": style(ScrollBlocker),

@@ -56,7 +56,7 @@ interface EditorOptions {
   snippetPreview?: string;
   searchTextQuery?: SearchTextQuery;
   searchLineQuery?: SearchLineQuery;
-  editorChange: {
+  editorChange?: {
     category?: string;
     action?: string;
     focus?: boolean;
@@ -93,8 +93,8 @@ interface EditorOptions {
   onCloseSearchTextPanel?: (query?: SearchTextQuery) => void;
   onOpenSearchLinePanel?: (query?: SearchLineQuery) => void;
   onCloseSearchLinePanel?: (query?: SearchLineQuery) => void;
-  onFocus?: () => void;
-  onBlur?: () => void;
+  onFocus?: (value: string) => void;
+  onBlur?: (value: string) => void;
   getAugmentations?: () => SparkDeclarations;
   onParse?: (result: SparkParseResult) => void;
   getRuntimeValue?: (id: string) => unknown;
@@ -315,9 +315,11 @@ const createEditorView = (
           onReady?.();
         }
 
-        // DEBUG
-        const tree = syntaxTree(u.state);
-        console.log(printTree(tree, u.state.doc.toString()));
+        if (u.docChanged) {
+          // DEBUG
+          const tree = syntaxTree(u.state);
+          console.log(printTree(tree, u.state.doc.toString()));
+        }
         onViewUpdate?.(u);
         const json: {
           history: SerializableHistoryState;
@@ -383,9 +385,9 @@ const createEditorView = (
         }
         if (u.focusChanged) {
           if (u.view.hasFocus) {
-            onFocus?.();
+            onFocus?.(doc);
           } else {
-            onBlur?.();
+            onBlur?.(doc);
           }
         }
         if (u.docChanged) {

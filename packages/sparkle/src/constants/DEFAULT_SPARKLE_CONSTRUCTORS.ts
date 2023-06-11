@@ -6,6 +6,7 @@ import Circle from "../components/circle/circle";
 import Collapsible from "../components/collapsible/collapsible";
 import Dialog from "../components/dialog/dialog";
 import Divider from "../components/divider/divider";
+import Hidden from "../components/hidden/hidden";
 import Icon from "../components/icon/icon";
 import Popup from "../components/popup/popup";
 import ProgressBar from "../components/progress-bar/progress-bar";
@@ -24,6 +25,7 @@ import Transition from "../components/transition/transition";
 import Viewport from "../components/viewport/viewport";
 
 const DEFAULT_SPARKLE_CONSTRUCTORS = {
+  "s-hidden": Hidden,
   "s-box": Box,
   "s-viewport": Viewport,
   "s-scroll-blocker": ScrollBlocker,

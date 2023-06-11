@@ -1,0 +1,11 @@
+:host {
+  display: contents;
+}
+
+:host > .root {
+  display: flex;
+}
+
+:host > .root[active] {
+  display: none;
+}
