@@ -12,9 +12,9 @@ export default class SparkdownEditor extends SparkdownElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  _editedDelay = 300;
+  _editedEmissionDelay = 400;
 
-  _pendingEvent = 0;
+  _pendingEditedEvent = 0;
 
   override get html() {
     return html;
@@ -25,12 +25,23 @@ export default class SparkdownEditor extends SparkdownElement {
   }
 
   willDispatchEditedEvent() {
-    return this._pendingEvent;
+    return this._pendingEditedEvent;
   }
 
   cancelEditedEvent() {
-    window.clearTimeout(this._pendingEvent);
-    this._pendingEvent = 0;
+    window.clearTimeout(this._pendingEditedEvent);
+    this._pendingEditedEvent = 0;
+  }
+
+  emit(event: "editing" | "edited", detail: string) {
+    this.dispatchEvent(
+      new CustomEvent(event, {
+        bubbles: true,
+        cancelable: false,
+        composed: true,
+        detail,
+      })
+    );
   }
 
   protected override onConnected(): void {
@@ -39,29 +50,15 @@ export default class SparkdownEditor extends SparkdownElement {
         if (this.willDispatchEditedEvent()) {
           this.cancelEditedEvent();
         }
-        this.dispatchEvent(
-          new CustomEvent("editing", {
-            bubbles: true,
-            cancelable: false,
-            composed: true,
-            detail: doc,
-          })
-        );
+        this.emit("editing", doc);
       },
       onBlur: (doc: string) => {
         if (this.willDispatchEditedEvent()) {
           this.cancelEditedEvent();
         }
-        this._pendingEvent = window.setTimeout(() => {
-          this.dispatchEvent(
-            new CustomEvent("edited", {
-              bubbles: true,
-              cancelable: false,
-              composed: true,
-              detail: doc,
-            })
-          );
-        }, this._editedDelay);
+        this._pendingEditedEvent = window.setTimeout(() => {
+          this.emit("edited", doc);
+        }, this._editedEmissionDelay);
       },
     });
   }
