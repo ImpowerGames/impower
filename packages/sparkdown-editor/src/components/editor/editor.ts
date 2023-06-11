@@ -89,6 +89,8 @@ export default class SparkdownEditor
     return this.getElementByClass("editor");
   }
 
+  _editing = false;
+
   _doc = "";
 
   emit(event: "editing" | "edited", detail: string) {
@@ -114,10 +116,12 @@ export default class SparkdownEditor
         },
         onFocus: (doc: string) => {
           this._doc = doc;
+          this._editing = true;
           this.emit("editing", doc);
         },
         onBlur: (doc: string) => {
           this._doc = doc;
+          this._editing = false;
           this.emit("edited", doc);
         },
       });
@@ -125,14 +129,16 @@ export default class SparkdownEditor
   }
 
   protected override onDisconnected(): void {
-    document.body.dispatchEvent(
-      new CustomEvent("edited", {
-        bubbles: true,
-        cancelable: false,
-        composed: true,
-        detail: this._doc,
-      })
-    );
+    if (this._editing) {
+      document.body.dispatchEvent(
+        new CustomEvent("edited", {
+          bubbles: true,
+          cancelable: false,
+          composed: true,
+          detail: this._doc,
+        })
+      );
+    }
   }
 }
 
