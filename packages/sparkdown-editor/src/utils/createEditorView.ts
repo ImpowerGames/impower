@@ -32,6 +32,7 @@ import {
   SerializableFoldedState,
   SerializableHistoryState,
 } from "../types/editor";
+import { lockBodyScrolling, unlockBodyScrolling } from "./bodyScrolling";
 
 const PARSE_CACHE: {
   current?: SparkParseResult;
@@ -339,21 +340,9 @@ const createEditorView = (
         const focused = u.view.hasFocus;
         if (!disableBodyScrollLocking) {
           if (focused) {
-            document.documentElement.style.setProperty(
-              "overscroll-behavior",
-              "none"
-            );
-            document.documentElement.style.setProperty("overflow", "hidden");
-            document.body.style.setProperty("overscroll-behavior", "none");
-            document.body.style.setProperty("overflow", "hidden");
+            lockBodyScrolling();
           } else {
-            document.documentElement.style.setProperty(
-              "overscroll-behavior",
-              null
-            );
-            document.documentElement.style.setProperty("overflow", null);
-            document.body.style.setProperty("overscroll-behavior", null);
-            document.body.style.setProperty("overflow", null);
+            unlockBodyScrolling();
           }
         }
 

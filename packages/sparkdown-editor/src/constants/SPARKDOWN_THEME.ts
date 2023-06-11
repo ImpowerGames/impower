@@ -5,6 +5,7 @@ const SPARKDOWN_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&": {
+    touchAction: "pan-y",
     color: SPARKDOWN_COLORS.foreground,
     backgroundColor: SPARKDOWN_COLORS.background,
     flex: 1,
