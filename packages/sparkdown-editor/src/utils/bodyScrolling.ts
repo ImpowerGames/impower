@@ -1,27 +1,25 @@
-export const lockBodyScrolling = () => {
-  document.documentElement.style.setProperty("touch-action", "none");
-  document.documentElement.style.setProperty("overflow", "hidden");
-  document.documentElement.style.setProperty("position", "fixed");
-  document.documentElement.style.setProperty("inset", "0");
-  document.documentElement.style.setProperty("overscroll-behavior", "none");
+const lock = (el: HTMLElement) => {
+  el.style.setProperty("touch-action", "none");
+  el.style.setProperty("overflow", "hidden");
+  el.style.setProperty("position", "fixed");
+  el.style.setProperty("inset", "0");
+  el.style.setProperty("overscroll-behavior", "none");
+};
 
-  document.body.style.setProperty("touch-action", "none");
-  document.body.style.setProperty("overflow", "hidden");
-  document.body.style.setProperty("position", "fixed");
-  document.body.style.setProperty("inset", "0");
-  document.body.style.setProperty("overscroll-behavior", "none");
+const unlock = (el: HTMLElement) => {
+  el.style.setProperty("touch-action", null);
+  el.style.setProperty("overflow", null);
+  el.style.setProperty("position", null);
+  el.style.setProperty("inset", null);
+  el.style.setProperty("overscroll-behavior", null);
+};
+
+export const lockBodyScrolling = () => {
+  lock(document.documentElement);
+  lock(document.body);
 };
 
 export const unlockBodyScrolling = () => {
-  document.documentElement.style.setProperty("touch-action", null);
-  document.documentElement.style.setProperty("overflow", null);
-  document.documentElement.style.setProperty("position", null);
-  document.documentElement.style.setProperty("inset", null);
-  document.documentElement.style.setProperty("overscroll-behavior", null);
-
-  document.body.style.setProperty("touch-action", null);
-  document.body.style.setProperty("overflow", null);
-  document.body.style.setProperty("position", null);
-  document.body.style.setProperty("inset", null);
-  document.body.style.setProperty("overscroll-behavior", null);
+  unlock(document.documentElement);
+  unlock(document.body);
 };
