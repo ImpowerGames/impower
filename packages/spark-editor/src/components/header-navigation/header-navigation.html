@@ -1,13 +1,18 @@
 <s-box position="relative" bg-color="primary-bg" z="2">
   <s-scroll-blocker></s-scroll-blocker>
-  <s-box height="header-nav" p="0 32" child-justify="center">
-    <s-button variant="text" text-size="lg" text-weight="500" color="fg" p="0 4" m="0 -4" self-align="start">
-      Project Name
-      <s-icon icon="caret-down" m-l="4" size="1em"></s-icon>
-    </s-button>
-    <s-box text-size="sm" text-weight="500" m-b="2px" opacity="0.7">
-      Synced Locally
+  <s-box height="header-nav" p="0 16 0 32" child-layout="row" child-align="center">
+    <s-box grow>
+      <s-button variant="text" text-size="lg" text-weight="500" color="fg" p="0 4" m="0 -4" self-align="start">
+        Project Name
+        <s-icon icon="caret-down" m-l="4" size="1em"></s-icon>
+      </s-button>
+      <s-box text-size="sm" text-weight="500" m-b="2px" opacity="0.7">
+        Synced Locally
+      </s-box>
     </s-box>
+    <s-hidden below="md" on="edited" off="editing" initial="on">
+      <s-button variant="icon" icon="check" color="tab-inactive" text-size="18"></s-button>
+    </s-hidden>
   </s-box>
   <s-divider></s-divider>
 </s-box>

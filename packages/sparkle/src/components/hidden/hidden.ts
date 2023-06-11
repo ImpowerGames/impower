@@ -11,7 +11,7 @@ import html from "./hidden.html";
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["below", "above", "on", "off"]),
+  ...getAttributeNameMap(["initial", "below", "above", "on", "off"]),
 };
 
 /**
@@ -41,6 +41,18 @@ export default class Hidden
 
   override get css() {
     return Hidden.augmentCss(css);
+  }
+
+  /**
+   * Determines if the element is initially hidden or not.
+   *
+   * Defaults to `off` for not hidden.
+   */
+  get initial(): "on" | "off" | null {
+    return this.getStringAttribute(Hidden.attributes.initial);
+  }
+  set initial(value) {
+    this.setStringAttribute(Hidden.attributes.initial, value);
   }
 
   /**
@@ -101,6 +113,13 @@ export default class Hidden
 
   protected override onParsed(): void {
     this.updateBreakpoint();
+    if (this.preConditionsSatisfied()) {
+      if (this.initial === "on") {
+        this.activate();
+      } else {
+        this.deactivate();
+      }
+    }
   }
 
   protected override onDisconnected(): void {
@@ -130,19 +149,27 @@ export default class Hidden
     return aboveSatisfied && belowSatisfied;
   }
 
+  activate() {
+    this.root.setAttribute("active", "");
+  }
+
+  deactivate() {
+    this.root.removeAttribute("active");
+  }
+
   private handleWindowResize = (): void => {
     this.updateBreakpoint();
   };
 
   private handleOn = () => {
     if (this.preConditionsSatisfied()) {
-      this.root.setAttribute("active", "");
+      this.activate();
     }
   };
 
   private handleOff = () => {
     if (this.preConditionsSatisfied()) {
-      this.root.removeAttribute("active");
+      this.deactivate();
     }
   };
 }

@@ -624,3 +624,11 @@ button.focused.pressed::after {
 * [hidden] {
   display: none !important;
 }
+
+slot {
+  border-radius: inherit;
+}
+
+* slot {
+  border-radius: inherit;
+}

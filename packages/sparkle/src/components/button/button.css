@@ -206,6 +206,8 @@
   filter: var(--shadow);
   background-color: var(--background-color);
   min-width: var(--height-min);
+  padding: var(--padding);
+  border-radius: var(--corner);
 }
 
 /* Loading */

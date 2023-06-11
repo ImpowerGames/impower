@@ -17,6 +17,9 @@ const getCssTextSize = (value: string): string => {
   ) {
     return `var(--s-text-${value}-font-size)`;
   }
+  if (!Number.isNaN(Number(value))) {
+    return `${value}px`;
+  }
   return value;
 };
 
