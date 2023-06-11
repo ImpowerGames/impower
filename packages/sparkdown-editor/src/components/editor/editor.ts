@@ -93,7 +93,7 @@ export default class SparkdownEditor
 
   _doc = "";
 
-  _editedEmissionDelay = 500;
+  _virtualKeyboardCloseDuration = 600;
 
   _pendingEditedEvent = 0;
 
@@ -141,9 +141,11 @@ export default class SparkdownEditor
           if (this.willDispatchEditedEvent()) {
             this.cancelEditedEvent();
           }
+          // Delay the edited event until after the on-screen
+          // keyboard has had time to fully close
           this._pendingEditedEvent = window.setTimeout(() => {
             this.emit("edited", doc);
-          }, this._editedEmissionDelay);
+          }, this._virtualKeyboardCloseDuration);
         },
       });
     }
