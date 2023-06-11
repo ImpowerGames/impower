@@ -5,7 +5,6 @@ const SPARKDOWN_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&": {
-    touchAction: "pan-y",
     color: SPARKDOWN_COLORS.foreground,
     backgroundColor: SPARKDOWN_COLORS.background,
     flex: 1,
@@ -13,8 +12,13 @@ const SPARKDOWN_THEME: {
     fontSize: "1rem",
   },
   ".cm-scroller": {
+    pointerEvents: "auto",
     overflowY: "scroll",
+    touchAction: "pan-y",
     position: "relative",
+    "& *": {
+      pointerEvents: "auto",
+    },
     "&:before": {
       // Force scroller to always be able to scroll,
       // even if the content isn't long enough to warrant it.
