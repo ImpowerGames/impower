@@ -335,6 +335,7 @@ const watchComponents = async (onRebuild: Function) => {
       await app.ready();
       if (WATCH) {
         const onRebuild = async () => {
+          await new Promise((resolve) => setTimeout(resolve, 200));
           if ("reload" in reloader && typeof reloader.reload === "function") {
             reloader.reload();
           }
