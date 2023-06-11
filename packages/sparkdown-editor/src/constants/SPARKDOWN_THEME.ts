@@ -10,16 +10,16 @@ const SPARKDOWN_THEME: {
     flex: 1,
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
-  },
-  ".cm-scroller": {
-    pointerEvents: "auto",
-    overflowY: "scroll",
-    position: "relative",
     "& *": {
       pointerEvents: "auto",
       touchAction: "pan-y",
       "--touch-action": "pan-y",
     },
+  },
+  ".cm-scroller": {
+    pointerEvents: "auto",
+    overflowY: "scroll",
+    position: "relative",
     "&:before": {
       // Force scroller to always be able to scroll,
       // even if the content isn't long enough to warrant it.
