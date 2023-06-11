@@ -14,12 +14,12 @@
   transition-property: opacity;
 }
 
-:host > .root:not([loaded]) {
-  transition-duration: 0 !important;
-}
-
 :host > .root[loaded] {
   transition-duration: var(--duration);
+}
+
+:host > .root:not([loaded]) {
+  transition-duration: 0 !important;
 }
 
 :host([initial="on"]) > .root:not([loaded]),

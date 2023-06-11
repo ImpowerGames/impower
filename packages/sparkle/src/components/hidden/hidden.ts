@@ -13,7 +13,7 @@ import html from "./hidden.html";
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["initial", "below", "above", "on", "off"]),
+  ...getAttributeNameMap(["initial", "below", "above", "on", "off", "instant"]),
 };
 
 /**
@@ -97,6 +97,16 @@ export default class Hidden
     this.setStringAttribute(Hidden.attributes.off, value);
   }
 
+  /**
+   * The element will hide instantly
+   */
+  get instant(): string | null {
+    return this.getStringAttribute(Hidden.attributes.instant);
+  }
+  set instant(value) {
+    this.setStringAttribute(Hidden.attributes.instant, value);
+  }
+
   _breakpointValue = 0;
 
   protected override onConnected(): void {
@@ -156,9 +166,14 @@ export default class Hidden
   }
 
   async activate() {
-    this.root.setAttribute("active", "");
-    await animationsComplete(this.root);
-    this.root.hidden = true;
+    if (this.instant != null) {
+      this.root.hidden = true;
+      this.root.setAttribute("active", "");
+    } else {
+      this.root.setAttribute("active", "");
+      await animationsComplete(this.root);
+      this.root.hidden = true;
+    }
   }
 
   async deactivate() {
