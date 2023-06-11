@@ -18,7 +18,11 @@ const DEFAULT_TRANSFORMERS = {
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap([...getKeys(DEFAULT_TRANSFORMERS)]),
+  ...getAttributeNameMap([
+    "constrained-event",
+    "unconstrained-event",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
 };
 
 /**
@@ -56,6 +60,26 @@ export default class Viewport
   }
 
   /**
+   * The viewport will be constrained when this event is fired
+   */
+  get constrainedEvent(): string | null {
+    return this.getStringAttribute(Viewport.attributes.constrainedEvent);
+  }
+  set constrainedEvent(value) {
+    this.setStringAttribute(Viewport.attributes.constrainedEvent, value);
+  }
+
+  /**
+   * The viewport will be unconstrained when this event is fired
+   */
+  get unconstrainedEvent(): string | null {
+    return this.getStringAttribute(Viewport.attributes.unconstrainedEvent);
+  }
+  set unconstrainedEvent(value) {
+    this.setStringAttribute(Viewport.attributes.unconstrainedEvent, value);
+  }
+
+  /**
    * Determines how much the viewport should be offset
    * in addition to the height of the virtual keyboard
    */
@@ -69,6 +93,8 @@ export default class Viewport
   protected _offsetPx = 0;
 
   protected _pendingViewportUpdate?: number;
+
+  protected _constrained = false;
 
   protected override onAttributeChanged(
     name: string,
@@ -95,6 +121,18 @@ export default class Viewport
         passive: true,
       }
     );
+    const constrainedEvent = this.constrainedEvent;
+    if (constrainedEvent) {
+      window.addEventListener(constrainedEvent, this.handleConstrained, {
+        passive: true,
+      });
+    }
+    const unconstrainedEvent = this.unconstrainedEvent;
+    if (unconstrainedEvent) {
+      window.addEventListener(unconstrainedEvent, this.handleUnconstrained, {
+        passive: true,
+      });
+    }
   }
 
   protected override onDisconnected(): void {
@@ -106,7 +144,28 @@ export default class Viewport
       "resize",
       this.handleViewportChange
     );
+    const constrainedEvent = this.constrainedEvent;
+    if (constrainedEvent) {
+      window.removeEventListener(constrainedEvent, this.handleConstrained);
+    }
+    const unconstrainedEvent = this.unconstrainedEvent;
+    if (unconstrainedEvent) {
+      window.removeEventListener(unconstrainedEvent, this.handleUnconstrained);
+    }
   }
+
+  handleConstrained = () => {
+    this._constrained = true;
+    if (window.visualViewport) {
+      const maxHeight = `${window.visualViewport.height - this._offsetPx}px`;
+      this.root.style.setProperty("max-height", maxHeight);
+    }
+  };
+
+  handleUnconstrained = () => {
+    this._constrained = false;
+    this.root.style.setProperty("max-height", null);
+  };
 
   handleViewportChange = (event: Event) => {
     if (this._pendingViewportUpdate) {
@@ -115,9 +174,8 @@ export default class Viewport
     this._pendingViewportUpdate = window.requestAnimationFrame(() => {
       const visualViewport = event.target as unknown as { height: number };
       if (visualViewport) {
-        this.root.style.maxHeight = `${
-          visualViewport.height - this._offsetPx
-        }px`;
+        const maxHeight = `${visualViewport.height - this._offsetPx}px`;
+        this.root.style.setProperty("max-height", maxHeight);
       }
       this._pendingViewportUpdate = undefined;
     });
