@@ -12,6 +12,10 @@ export default class SparkdownEditor extends SparkdownElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
+  _editedDelay = 200;
+
+  _pendingEvent = 0;
+
   override get html() {
     return html;
   }
@@ -20,9 +24,21 @@ export default class SparkdownEditor extends SparkdownElement {
     return css;
   }
 
+  willDispatchEditedEvent() {
+    return this._pendingEvent;
+  }
+
+  cancelEditedEvent() {
+    window.clearTimeout(this._pendingEvent);
+    this._pendingEvent = 0;
+  }
+
   protected override onConnected(): void {
     setupEditor(this.root, {
       onFocus: (doc: string) => {
+        if (this.willDispatchEditedEvent()) {
+          this.cancelEditedEvent();
+        }
         this.dispatchEvent(
           new CustomEvent("editing", {
             bubbles: true,
@@ -33,14 +49,19 @@ export default class SparkdownEditor extends SparkdownElement {
         );
       },
       onBlur: (doc: string) => {
-        this.dispatchEvent(
-          new CustomEvent("edited", {
-            bubbles: true,
-            cancelable: false,
-            composed: true,
-            detail: doc,
-          })
-        );
+        if (this.willDispatchEditedEvent()) {
+          this.cancelEditedEvent();
+        }
+        this._pendingEvent = window.setTimeout(() => {
+          this.dispatchEvent(
+            new CustomEvent("edited", {
+              bubbles: true,
+              cancelable: false,
+              composed: true,
+              detail: doc,
+            })
+          );
+        }, this._editedDelay);
       },
     });
   }
