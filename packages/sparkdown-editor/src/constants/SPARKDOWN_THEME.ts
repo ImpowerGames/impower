@@ -17,7 +17,6 @@ const SPARKDOWN_THEME: {
     },
   },
   ".cm-scroller": {
-    pointerEvents: "auto",
     overflowY: "scroll",
     position: "relative",
     "&:before": {
