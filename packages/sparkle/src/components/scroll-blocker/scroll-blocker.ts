@@ -25,6 +25,40 @@ export default class ScrollBlocker extends SparkleElement {
   override get css() {
     return ScrollBlocker.augmentCss(css);
   }
+
+  protected override onConnected(): void {
+    this.root.addEventListener("click", this.handleClick);
+    this.root.addEventListener("pointerdown", this.handlePointerDown);
+    this.root.addEventListener("touchstart", this.handleTouchStart);
+    this.root.addEventListener("touchmove", this.handleTouchMove);
+  }
+
+  protected override onDisconnected(): void {
+    this.root.removeEventListener("click", this.handleClick);
+    this.root.removeEventListener("pointerdown", this.handlePointerDown);
+    this.root.removeEventListener("touchstart", this.handleTouchStart);
+    this.root.removeEventListener("touchmove", this.handleTouchMove);
+  }
+
+  protected handleClick = (e: MouseEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  protected handlePointerDown = (e: PointerEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  protected handleTouchStart = (e: TouchEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  protected handleTouchMove = (e: TouchEvent): void => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
 }
 
 declare global {

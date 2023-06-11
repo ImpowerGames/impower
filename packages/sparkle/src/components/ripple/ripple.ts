@@ -155,15 +155,15 @@ export default class Ripple extends SparkleElement {
     }
   };
 
-  handlePointerLeave = (event: PointerEvent) => {
+  handlePointerLeave = () => {
     this.endPressAnimation();
   };
 
-  handlePointerUp = (event: PointerEvent) => {
+  handlePointerUp = () => {
     this.endPressAnimation();
   };
 
-  handleTouchEnd = (event: TouchEvent) => {
+  handleTouchEnd = () => {
     this.endPressAnimation();
   };
 
@@ -277,7 +277,8 @@ export default class Ripple extends SparkleElement {
 
   private async endPressAnimation() {
     const animation = this.growAnimation;
-    const pressAnimationPlayState = animation?.currentTime ?? Infinity;
+    const pressAnimationPlayState =
+      (animation?.currentTime as number) ?? Infinity;
     if (pressAnimationPlayState >= MINIMUM_PRESS_MS) {
       this.pressed = false;
       this.state = null;
