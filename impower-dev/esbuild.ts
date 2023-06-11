@@ -264,62 +264,7 @@ const createPackageJson = async () => {
   );
 };
 
-const watchPublic = async (onRebuild: Function) => {
-  console.log(YELLOW, `Watching ${publicInDir} for changes...`);
-  chokidar
-    .watch(publicInDir, { ignoreInitial: true })
-    .on("all", async (event, path) => {
-      console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
-      await copyPublic();
-      onRebuild();
-    });
-};
-
-const watchApi = async (onRebuild: Function) => {
-  console.log(YELLOW, `Watching ${apiInDir} for changes...`);
-  chokidar
-    .watch(apiInDir, { ignoreInitial: true })
-    .on("all", async (event, path) => {
-      console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
-      await buildApi();
-      onRebuild();
-    });
-};
-
-const watchPages = async (onRebuild: Function) => {
-  console.log(YELLOW, `Watching ${pagesInDir} for changes...`);
-  chokidar
-    .watch(
-      [
-        localDependencies,
-        ...["ts", "js", "mjs"].map((ext) => `${pagesInDir}/**/*.${ext}`),
-      ],
-      { ignoreInitial: true, followSymlinks: true }
-    )
-    .on("all", async (event, path) => {
-      console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
-      await buildPages();
-      onRebuild();
-    });
-};
-
-const watchComponents = async (onRebuild: Function) => {
-  console.log(YELLOW, `Watching ${componentsInDir} for changes...`);
-  chokidar
-    .watch([localDependencies, componentsInDir, `${pagesInDir}/**/*.html`], {
-      ignoreInitial: true,
-      followSymlinks: true,
-    })
-    .on("all", async (event, path) => {
-      console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
-      await buildComponents();
-      await expandPageComponents();
-      onRebuild();
-    });
-};
-
-(async () => {
-  console.log(STARTED_COLOR, "Build started");
+const buildAll = async () => {
   await clean();
   await copyPublic();
   await buildApi();
@@ -327,6 +272,11 @@ const watchComponents = async (onRebuild: Function) => {
   await buildComponents();
   await expandPageComponents();
   await createPackageJson();
+};
+
+(async () => {
+  console.log(STARTED_COLOR, "Build started");
+  await buildAll();
   console.log("");
   console.log(FINISHED_COLOR, "Build finished");
   if (SERVE) {
@@ -334,16 +284,29 @@ const watchComponents = async (onRebuild: Function) => {
     if (!PRODUCTION) {
       await app.ready();
       if (WATCH) {
-        const onRebuild = async () => {
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          if ("reload" in reloader && typeof reloader.reload === "function") {
-            reloader.reload();
-          }
-        };
-        watchPublic(onRebuild);
-        watchApi(onRebuild);
-        watchPages(onRebuild);
-        watchComponents(onRebuild);
+        console.log(YELLOW, `Watching for changes...`);
+        chokidar
+          .watch(
+            [
+              publicInDir,
+              apiInDir,
+              localDependencies,
+              componentsInDir,
+              pagesInDir,
+            ],
+            {
+              ignoreInitial: true,
+              followSymlinks: true,
+            }
+          )
+          .on("all", async (event, path) => {
+            console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
+            await buildAll();
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            if ("reload" in reloader && typeof reloader.reload === "function") {
+              reloader.reload();
+            }
+          });
       }
     }
   }
