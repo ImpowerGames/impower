@@ -146,12 +146,10 @@ export default class Hidden
 
   async load() {
     this.updateBreakpoint();
-    if (this.preConditionsSatisfied()) {
-      if (this.initial === "on") {
-        this.activate();
-      } else {
-        this.deactivate();
-      }
+    if (this.initial === "on") {
+      this.activate();
+    } else {
+      this.deactivate();
     }
     await nextAnimationFrame();
     this.root.setAttribute("loaded", "");
