@@ -14,6 +14,19 @@ const SPARKDOWN_THEME: {
   },
   ".cm-scroller": {
     overflowY: "scroll",
+    position: "relative",
+    "&:before": {
+      // Force scroller to always be able to scroll,
+      // even if the content isn't long enough to warrant it.
+      // This is what allows us to prevent users on Safari iOS from
+      // scrolling the page when the on-screen keyboard is shown
+      content: "''",
+      opacity: 0,
+      position: "absolute",
+      inset: "0",
+      pointerEvents: "none",
+      transform: "translateY(1px)",
+    },
   },
   ".cm-content": {
     caretColor: "white",
