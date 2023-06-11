@@ -1,7 +1,7 @@
 import { CamelCasedArrayMap } from "../types/camelCase";
-import { convertToCamelCase } from "./convertToCamelCase";
+import convertToCamelCase from "./convertToCamelCase";
 
-export const getAttributeNameMap = <T extends string>(
+const getAttributeNameMap = <T extends string>(
   obj: T[]
 ): CamelCasedArrayMap<T> =>
   Object.values(obj).reduce((p, c) => {
@@ -10,3 +10,5 @@ export const getAttributeNameMap = <T extends string>(
     p[propName] = key as never;
     return p;
   }, {} as CamelCasedArrayMap<T>);
+
+export default getAttributeNameMap;

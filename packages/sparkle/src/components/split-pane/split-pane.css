@@ -50,7 +50,6 @@
 
 :host > .root > .panel > .resize {
   pointer-events: var(--interactable);
-  overflow: scroll;
   opacity: 0;
 }
 :host(:not([vertical])) > .root > .panel > .resize {
@@ -130,12 +129,10 @@
 :host(:not([vertical])) > .root > .panel > .start {
   min-width: var(--min-panel-width);
   inset: 0 var(--resizer-width) 0 0;
-  overflow-y: auto;
 }
 :host([vertical]) > .root > .panel > .start {
   min-height: var(--min-panel-height);
   inset: 0 0 var(--resizer-width) 0;
-  overflow-x: auto;
 }
 
 :host > .root > .end {
@@ -145,11 +142,9 @@
 }
 :host(:not([vertical])) > .root > .end {
   min-width: var(--min-panel-width);
-  overflow-y: auto;
 }
 :host([vertical]) > .root > .end {
   min-height: var(--min-panel-height);
-  overflow-x: auto;
 }
 
 /* If the container is less than 600px */

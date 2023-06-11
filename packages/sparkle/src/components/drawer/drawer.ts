@@ -1,14 +1,14 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import {
   lockBodyScrolling,
   unlockBodyScrolling,
 } from "../../utils/bodyScrolling";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import css from "./drawer.css";
 import html from "./drawer.html";
 

@@ -40,11 +40,17 @@ const PARSE_CACHE: {
 
 interface EditorOptions {
   disableBodyScrollLocking?: number;
-  margin?: {
+  scrollMargin?: {
     top?: number;
     bottom?: number;
     left?: number;
     right?: number;
+  };
+  contentPadding?: {
+    top?: string | null;
+    bottom?: string | null;
+    left?: string | null;
+    right?: string | null;
   };
   footerHeight?: number;
   backgroundColor?: string;
@@ -114,7 +120,8 @@ const createEditorView = (
   options?: EditorOptions
 ): EditorView => {
   const disableBodyScrollLocking = options?.disableBodyScrollLocking;
-  const margin = options?.margin;
+  const contentPadding = options?.contentPadding;
+  const scrollMargin = options?.scrollMargin;
   const footerHeight = options?.footerHeight;
   const backgroundColor = options?.backgroundColor;
   const defaultState = options?.defaultState;
@@ -149,7 +156,7 @@ const createEditorView = (
       margin?: { top?: number; bottom?: number; left?: number; right?: number };
 
       update(_update: ViewUpdate): void {
-        this.margin = margin;
+        this.margin = scrollMargin;
       }
     },
     {
@@ -270,7 +277,7 @@ const createEditorView = (
           right: number;
         } => {
           return {
-            top: margin?.top ?? 0,
+            top: scrollMargin?.top ?? 0,
             left: 0,
             bottom: window.innerHeight - (footerHeight ?? 0),
             right: window.innerWidth,
@@ -282,6 +289,20 @@ const createEditorView = (
       EditorView.theme(
         {
           ...SPARKDOWN_THEME,
+          ".cm-content": {
+            ...(contentPadding?.top != null
+              ? { paddingTop: `${contentPadding?.top}` }
+              : {}),
+            ...(contentPadding?.bottom != null
+              ? { paddingBottom: `${contentPadding?.bottom}` }
+              : {}),
+            ...(contentPadding?.left != null
+              ? { paddingLeft: `${contentPadding?.left}` }
+              : {}),
+            ...(contentPadding?.right != null
+              ? { paddingRight: `${contentPadding?.right}` }
+              : {}),
+          },
           ".cm-panels": {
             ...(backgroundColor ? { backgroundColor } : {}),
           },

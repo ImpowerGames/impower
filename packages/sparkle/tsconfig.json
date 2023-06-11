@@ -22,5 +22,14 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*", "scripts/**/*"]
+  "include": [
+    "src/**/*",
+    "scripts/**/*",
+    "../spark-element/src/utils/getAttributeNameMap.ts",
+    "../spark-element/src/utils/convertToCamelCase.ts",
+    "../spark-element/src/utils/getDependencyNameMap.ts",
+    "../spark-element/src/types/camelCase.ts",
+    "../spark-element/src/types/properties.ts",
+    "../spark-element/src/utils/getUnitlessValue.ts"
+  ]
 }

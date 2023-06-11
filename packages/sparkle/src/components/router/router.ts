@@ -1,11 +1,11 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getCssAnimation from "../../../../sparkle-style-transformer/src/utils/getCssAnimation";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { cancelAnimations } from "../../utils/cancelAnimations";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getDirection } from "../../utils/getDirection";
 import { reverseAnimation } from "../../utils/reverseAnimation";
 import css from "./router.css";

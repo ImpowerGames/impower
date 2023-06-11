@@ -1,10 +1,10 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
 import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import Popup from "../popup/popup";
 import css from "./tooltip.css";
 import html from "./tooltip.html";

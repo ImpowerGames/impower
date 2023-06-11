@@ -1,4 +1,4 @@
-import STYLES from "../../../spark-element/src/STYLE_CACHE";
+import STYLES from "../../../spark-element/src/caches/STYLE_CACHE";
 import extractAllGraphics from "../../../sparkle-style-transformer/src/utils/extractAllGraphics";
 import Icons from "../configs/icons";
 import Patterns from "../configs/patterns";

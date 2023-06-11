@@ -1,3 +1,6 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import Icons from "../../configs/icons";
 import SparkleElement, {
@@ -5,14 +8,11 @@ import SparkleElement, {
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
-import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
 import {
   lockBodyScrolling,
   unlockBodyScrolling,
 } from "../../utils/bodyScrolling";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getKeys } from "../../utils/getKeys";
 import css from "./dialog.css";
 import html from "./dialog.html";

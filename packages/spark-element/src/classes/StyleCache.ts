@@ -1,4 +1,4 @@
-export default class Styles {
+export default class StyleCache {
   protected _cache: Record<string, CSSStyleSheet> = {};
 
   cache() {

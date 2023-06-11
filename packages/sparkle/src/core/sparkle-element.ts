@@ -1,4 +1,6 @@
-import SparkElement from "../../../spark-element/src/spark-element";
+import SparkElement from "../../../spark-element/src/core/spark-element";
+import { Properties } from "../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../spark-element/src/utils/getAttributeNameMap";
 import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
 import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
@@ -15,14 +17,11 @@ import { GradientName } from "../types/gradientName";
 import { LayerName } from "../types/layerName";
 import { MaskName } from "../types/maskName";
 import { PatternName } from "../types/patternName";
-import { Properties } from "../types/properties";
 import { RatioName } from "../types/ratioName";
 import { SizeName } from "../types/sizeName";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
-import { getAttributeNameMap } from "../utils/getAttributeNameMap";
 import { getKeys } from "../utils/getKeys";
-import { getUnitlessValue } from "../utils/getUnitlessValue";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isFocusableElement } from "../utils/isFocusableElement";
 import { isServer } from "../utils/isServer";
@@ -57,9 +56,8 @@ export default class SparkleElement
   extends SparkElement
   implements Properties<typeof DEFAULT_SPARKLE_ATTRIBUTES>
 {
-  private static _attributes = DEFAULT_SPARKLE_ATTRIBUTES;
-  static get attributes() {
-    return this._attributes;
+  static override get attributes() {
+    return DEFAULT_SPARKLE_ATTRIBUTES;
   }
 
   override get sharedStyles(): string[] {
@@ -2071,22 +2069,6 @@ export default class SparkleElement
     }
   }
 
-  getElementByTag<T extends HTMLElement>(name: string): T | null {
-    return this.self.querySelector<T>(name) || null;
-  }
-
-  getElementByClass<T extends HTMLElement>(name: string): T | null {
-    return this.self.querySelector<T>(`.${name}`) || null;
-  }
-
-  getElementByNameAttribute<T extends Element>(name: string): T | null {
-    return this.self.querySelector<T>(`[name=${name}]`) || null;
-  }
-
-  getElementsByNameAttribute<T extends Element>(name: string): T[] {
-    return Array.from(this.self.querySelectorAll<T>(`[name=${name}]`)) as T[];
-  }
-
   getAssignedToSlot<T extends ChildNode>(name?: string): T[] {
     if (this.shadowRoot) {
       return Array.from(this.childNodes).filter((n) =>
@@ -2183,60 +2165,6 @@ export default class SparkleElement
       this.updateRootCssVariable(varName, formattedValue);
     } else {
       this.updateRootCssVariable(varName, null);
-    }
-  }
-
-  getBooleanAttribute<T extends boolean>(name: string): T {
-    const value = this.getAttribute(name);
-    return (value != null) as T;
-  }
-
-  setBooleanAttribute<T extends boolean>(name: string, value: T): void {
-    if (typeof value === "string") {
-      if (value === "") {
-        this.setAttribute(name, "");
-      } else {
-        this.removeAttribute(name);
-      }
-    } else if (value) {
-      this.setAttribute(name, "");
-    } else {
-      this.removeAttribute(name);
-    }
-  }
-
-  getStringAttribute<T extends string>(name: string): T | null {
-    const value = this.getAttribute(name);
-    return (value != null ? value : null) as T;
-  }
-
-  setStringAttribute<T extends string>(
-    name: T,
-    value: T | number | boolean | null
-  ): void {
-    if (typeof value === "boolean") {
-      if (value) {
-        this.setAttribute(name, "");
-      } else {
-        this.removeAttribute(name);
-      }
-    } else if (value != null) {
-      this.setAttribute(name, `${value}`);
-    } else {
-      this.removeAttribute(name);
-    }
-  }
-
-  getNumberAttribute(name: string, emptyValue = 0): number | null {
-    const value = this.getAttribute(name);
-    return value != null ? getUnitlessValue(value, emptyValue) : null;
-  }
-
-  setNumberAttribute(name: string, value: number | null): void | null {
-    if (value != null) {
-      this.setAttribute(name, String(value));
-    } else {
-      this.removeAttribute(name);
     }
   }
 

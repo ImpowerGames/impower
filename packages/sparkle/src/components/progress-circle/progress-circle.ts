@@ -1,12 +1,12 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getCssProportion from "../../../../sparkle-style-transformer/src/utils/getCssProportion";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getKeys } from "../../utils/getKeys";
 import css from "./progress-circle.css";
 import html from "./progress-circle.html";

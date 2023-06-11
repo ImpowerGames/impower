@@ -1,8 +1,8 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
-import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import css from "./transition.css";
 import html from "./transition.html";
 

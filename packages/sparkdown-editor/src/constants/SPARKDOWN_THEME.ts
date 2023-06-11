@@ -10,11 +10,6 @@ const SPARKDOWN_THEME: {
     flex: 1,
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
-    "& *": {
-      pointerEvents: "auto",
-      touchAction: "pan-y",
-      "--touch-action": "pan-y",
-    },
   },
   ".cm-scroller": {
     overflowY: "scroll",

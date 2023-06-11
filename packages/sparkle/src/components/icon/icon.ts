@@ -1,3 +1,5 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import Icons from "../../configs/icons";
@@ -6,9 +8,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
-import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { getKeys } from "../../utils/getKeys";
 import css from "./icon.css";
 import html from "./icon.html";

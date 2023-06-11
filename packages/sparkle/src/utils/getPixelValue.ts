@@ -1,4 +1,4 @@
-import { getUnitlessValue } from "./getUnitlessValue";
+import { getUnitlessValue } from "../../../spark-element/src/utils/getUnitlessValue";
 
 export const getPixelValue = (
   element: HTMLElement,

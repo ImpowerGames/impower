@@ -2,8 +2,21 @@
   display: contents;
 }
 
-:host > .root {
+:host * {
   pointer-events: auto;
+  touch-action: pan-y;
+  --touch-action: "pan-y";
+}
+
+:host > .root {
+  position: absolute;
+  inset: 0;
   display: flex;
-  min-height: 100%;
+  flex-direction: column;
+}
+
+:host > .root > .editor {
+  flex: 1;
+  display: flex;
+  max-height: 100%;
 }

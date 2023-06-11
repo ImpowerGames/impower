@@ -1,4 +1,4 @@
-import STYLES from "../../spark-element/src/STYLE_CACHE";
+import STYLES from "../../spark-element/src/caches/STYLE_CACHE";
 import Access from "./components/access/access";
 import AddFab from "./components/add-fab/add-fab";
 import Audio from "./components/audio/audio";

@@ -1,11 +1,13 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
 import { SizeName } from "../../types/sizeName";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
+import { animationsComplete } from "../../utils/animationsComplete";
 import { getBreakpointValue } from "../../utils/getBreakpointValue";
 import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./hidden.css";
 import html from "./hidden.html";
 
@@ -112,14 +114,7 @@ export default class Hidden
   }
 
   protected override onParsed(): void {
-    this.updateBreakpoint();
-    if (this.preConditionsSatisfied()) {
-      if (this.initial === "on") {
-        this.activate();
-      } else {
-        this.deactivate();
-      }
-    }
+    this.load();
   }
 
   protected override onDisconnected(): void {
@@ -149,11 +144,28 @@ export default class Hidden
     return aboveSatisfied && belowSatisfied;
   }
 
-  activate() {
-    this.root.setAttribute("active", "");
+  async load() {
+    this.updateBreakpoint();
+    if (this.preConditionsSatisfied()) {
+      if (this.initial === "on") {
+        this.activate();
+      } else {
+        this.deactivate();
+      }
+    }
+    await nextAnimationFrame();
+    this.root.setAttribute("loaded", "");
   }
 
-  deactivate() {
+  async activate() {
+    this.root.setAttribute("active", "");
+    await animationsComplete(this.root);
+    this.root.hidden = true;
+  }
+
+  async deactivate() {
+    this.root.hidden = false;
+    await animationsComplete(this.root);
     this.root.removeAttribute("active");
   }
 

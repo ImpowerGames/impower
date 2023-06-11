@@ -1,9 +1,9 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
 import { offsetParent } from "../../utils/composed-offset-position";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import { computePosition } from "./floating-ui/core/src/computePosition";
 import { flip } from "./floating-ui/core/src/middleware/flip";

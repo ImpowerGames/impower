@@ -1,8 +1,8 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
 import css from "./badge.css";
 import html from "./badge.html";
 

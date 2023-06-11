@@ -1,7 +1,7 @@
 import { UnprefixedCamelCasedArrayMap } from "../types/camelCase";
-import { convertToCamelCase } from "./convertToCamelCase";
+import convertToCamelCase from "./convertToCamelCase";
 
-export const getDependencyNameMap = <T extends string, P extends string>(
+const getDependencyNameMap = <T extends string, P extends string>(
   obj: T[],
   prefix: P = "s" as P
 ): UnprefixedCamelCasedArrayMap<T, P> =>
@@ -11,3 +11,5 @@ export const getDependencyNameMap = <T extends string, P extends string>(
     p[propName] = c as never;
     return p;
   }, {} as UnprefixedCamelCasedArrayMap<T, P>);
+
+export default getDependencyNameMap;

@@ -1,11 +1,43 @@
 :host {
   display: contents;
 }
+:host {
+  --duration: 200ms;
+}
 
 :host > .root {
   display: flex;
 }
 
+:host > .root {
+  position: relative;
+  transition-property: opacity;
+}
+
+:host > .root:not([loaded]) {
+  transition-duration: 0 !important;
+}
+
+:host > .root[loaded] {
+  transition-duration: var(--duration);
+}
+
+:host([initial="on"]) > .root:not([loaded]),
 :host > .root[active] {
+  opacity: 0;
+}
+:host > .root[active]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Block input during exit animation */
+  pointer-events: auto;
+}
+
+:host > .root[hidden] {
   display: none;
+}
+
+:host > .root:not([active]) {
+  opacity: 1;
 }

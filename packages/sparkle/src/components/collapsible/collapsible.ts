@@ -1,14 +1,14 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { getUnitlessValue } from "../../../../spark-element/src/utils/getUnitlessValue";
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssEase from "../../../../sparkle-style-transformer/src/utils/getCssEase";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import { Properties } from "../../types/properties";
 import { animationsComplete } from "../../utils/animationsComplete";
-import { getAttributeNameMap } from "../../utils/getAttributeNameMap";
-import { getDependencyNameMap } from "../../utils/getDependencyNameMap";
 import { getScrollableParent } from "../../utils/getScrollableParent";
-import { getUnitlessValue } from "../../utils/getUnitlessValue";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./collapsible.css";
 import html from "./collapsible.html";

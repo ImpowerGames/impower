@@ -1,5 +1,6 @@
-import normalizeCSS from "./normalize.css";
-import STYLES from "./STYLE_CACHE";
+import STYLES from "../caches/STYLE_CACHE";
+import normalizeCSS from "../styles/normalize/normalize.css";
+import { getUnitlessValue } from "../utils/getUnitlessValue";
 
 export default class SparkElement extends HTMLElement {
   static useShadowDom = false;
@@ -42,6 +43,11 @@ export default class SparkElement extends HTMLElement {
 
   get css(): string {
     return ":host{ display: contents }";
+  }
+
+  private static _attributes: Record<string, string> = {};
+  static get attributes() {
+    return this._attributes;
   }
 
   get sharedStyles(): string[] {
@@ -119,6 +125,76 @@ export default class SparkElement extends HTMLElement {
       );
     }
     return html;
+  }
+
+  getBooleanAttribute<T extends boolean>(name: string): T {
+    const value = this.getAttribute(name);
+    return (value != null) as T;
+  }
+
+  setBooleanAttribute<T extends boolean>(name: string, value: T): void {
+    if (typeof value === "string") {
+      if (value === "") {
+        this.setAttribute(name, "");
+      } else {
+        this.removeAttribute(name);
+      }
+    } else if (value) {
+      this.setAttribute(name, "");
+    } else {
+      this.removeAttribute(name);
+    }
+  }
+
+  getStringAttribute<T extends string>(name: string): T | null {
+    const value = this.getAttribute(name);
+    return (value != null ? value : null) as T;
+  }
+
+  setStringAttribute<T extends string>(
+    name: T,
+    value: T | number | boolean | null
+  ): void {
+    if (typeof value === "boolean") {
+      if (value) {
+        this.setAttribute(name, "");
+      } else {
+        this.removeAttribute(name);
+      }
+    } else if (value != null) {
+      this.setAttribute(name, `${value}`);
+    } else {
+      this.removeAttribute(name);
+    }
+  }
+
+  getNumberAttribute(name: string, emptyValue = 0): number | null {
+    const value = this.getAttribute(name);
+    return value != null ? getUnitlessValue(value, emptyValue) : null;
+  }
+
+  setNumberAttribute(name: string, value: number | null): void | null {
+    if (value != null) {
+      this.setAttribute(name, String(value));
+    } else {
+      this.removeAttribute(name);
+    }
+  }
+
+  getElementByTag<T extends HTMLElement>(name: string): T | null {
+    return this.self.querySelector<T>(name) || null;
+  }
+
+  getElementByClass<T extends HTMLElement>(name: string): T | null {
+    return this.self.querySelector<T>(`.${name}`) || null;
+  }
+
+  getElementByNameAttribute<T extends Element>(name: string): T | null {
+    return this.self.querySelector<T>(`[name=${name}]`) || null;
+  }
+
+  getElementsByNameAttribute<T extends Element>(name: string): T[] {
+    return Array.from(this.self.querySelectorAll<T>(`[name=${name}]`)) as T[];
   }
 
   protected attributeChangedCallback(

@@ -1,9 +1,23 @@
+import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import SparkdownElement from "../../core/sparkdown-element";
-import setupEditor from "../../utils/createEditorView";
+import createEditorView from "../../utils/createEditorView";
 import css from "./editor.css";
 import html from "./editor.html";
 
-export default class SparkdownEditor extends SparkdownElement {
+const DEFAULT_ATTRIBUTES = {
+  ...getAttributeNameMap([
+    "content-padding-top",
+    "content-padding-bottom",
+    "content-padding-left",
+    "content-padding-right",
+  ]),
+};
+
+export default class SparkdownEditor
+  extends SparkdownElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
   static override async define(
     tag = "sparkdown-editor",
     dependencies?: Record<string, string>,
@@ -12,10 +26,9 @@ export default class SparkdownEditor extends SparkdownElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  _editedEmissionDelay = 400;
-
-  _pendingEditedEvent = 0;
-
+  static override get attributes() {
+    return DEFAULT_ATTRIBUTES;
+  }
   override get html() {
     return html;
   }
@@ -23,6 +36,66 @@ export default class SparkdownEditor extends SparkdownElement {
   override get css() {
     return css;
   }
+
+  get contentPaddingTop() {
+    return this.getStringAttribute(
+      SparkdownEditor.attributes.contentPaddingTop
+    );
+  }
+  set contentPaddingTop(value) {
+    this.setStringAttribute(
+      SparkdownEditor.attributes.contentPaddingTop,
+      value
+    );
+  }
+
+  get contentPaddingBottom() {
+    return this.getStringAttribute(
+      SparkdownEditor.attributes.contentPaddingBottom
+    );
+  }
+  set contentPaddingBottom(value) {
+    this.setStringAttribute(
+      SparkdownEditor.attributes.contentPaddingBottom,
+      value
+    );
+  }
+
+  get contentPaddingLeft() {
+    return this.getStringAttribute(
+      SparkdownEditor.attributes.contentPaddingLeft
+    );
+  }
+  set contentPaddingLeft(value) {
+    this.setStringAttribute(
+      SparkdownEditor.attributes.contentPaddingLeft,
+      value
+    );
+  }
+
+  get contentPaddingRight() {
+    return this.getStringAttribute(
+      SparkdownEditor.attributes.contentPaddingRight
+    );
+  }
+  set contentPaddingRight(value) {
+    this.setStringAttribute(
+      SparkdownEditor.attributes.contentPaddingRight,
+      value
+    );
+  }
+
+  get editorEl() {
+    return this.getElementByClass("editor");
+  }
+
+  _editing = false;
+
+  _doc = "";
+
+  _editedEmissionDelay = 400;
+
+  _pendingEditedEvent = 0;
 
   willDispatchEditedEvent() {
     return this._pendingEditedEvent;
@@ -45,25 +118,47 @@ export default class SparkdownEditor extends SparkdownElement {
   }
 
   protected override onConnected(): void {
-    setupEditor(this.root, {
-      onFocus: (doc: string) => {
-        if (this.willDispatchEditedEvent()) {
-          this.cancelEditedEvent();
-        }
-        this.emit("editing", doc);
-      },
-      onBlur: (doc: string) => {
-        if (this.willDispatchEditedEvent()) {
-          this.cancelEditedEvent();
-        }
-        this._pendingEditedEvent = window.setTimeout(() => {
-          this.emit("edited", doc);
-        }, this._editedEmissionDelay);
-      },
-    });
+    const editorEl = this.editorEl;
+    if (editorEl) {
+      createEditorView(editorEl, {
+        contentPadding: {
+          top: this.contentPaddingTop,
+          bottom: this.contentPaddingBottom,
+          left: this.contentPaddingLeft,
+          right: this.contentPaddingRight,
+        },
+        onFocus: (doc: string) => {
+          this._doc = doc;
+          this._editing = true;
+          if (this.willDispatchEditedEvent()) {
+            this.cancelEditedEvent();
+          }
+          this.emit("editing", doc);
+        },
+        onBlur: (doc: string) => {
+          this._doc = doc;
+          this._editing = false;
+          if (this.willDispatchEditedEvent()) {
+            this.cancelEditedEvent();
+          }
+          this._pendingEditedEvent = window.setTimeout(() => {
+            this.emit("edited", doc);
+          }, this._editedEmissionDelay);
+        },
+      });
+    }
   }
 
-  protected override onDisconnected(): void {}
+  protected override onDisconnected(): void {
+    document.body.dispatchEvent(
+      new CustomEvent("edited", {
+        bubbles: true,
+        cancelable: false,
+        composed: true,
+        detail: this._doc,
+      })
+    );
+  }
 }
 
 declare global {
