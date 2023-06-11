@@ -14,10 +14,11 @@ const SPARKDOWN_THEME: {
   ".cm-scroller": {
     pointerEvents: "auto",
     overflowY: "scroll",
-    touchAction: "pan-y",
     position: "relative",
     "& *": {
       pointerEvents: "auto",
+      touchAction: "pan-y",
+      "--touch-action": "pan-y",
     },
     "&:before": {
       // Force scroller to always be able to scroll,
