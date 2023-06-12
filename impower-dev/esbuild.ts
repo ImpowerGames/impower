@@ -270,9 +270,13 @@ const buildAll = async () => {
   await buildApi();
   await buildPages();
   await buildComponents();
+  await new Promise((resolve) => setTimeout(resolve, 100));
   await expandPageComponents();
   await createPackageJson();
 };
+
+const DEBOUNCE_DELAY = 200;
+let pendingBuildTimeout: NodeJS.Timeout | undefined;
 
 (async () => {
   console.log(STARTED_COLOR, "Build started");
@@ -283,6 +287,13 @@ const buildAll = async () => {
     const { app, reloader } = (await import("./out/api/index.js")).default;
     if (!PRODUCTION) {
       await app.ready();
+      const rebuild = async () => {
+        await buildAll();
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        if ("reload" in reloader && typeof reloader.reload === "function") {
+          reloader.reload();
+        }
+      };
       if (WATCH) {
         console.log(YELLOW, `Watching for changes...`);
         chokidar
@@ -301,11 +312,11 @@ const buildAll = async () => {
           )
           .on("all", async (event, path) => {
             console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
-            await buildAll();
-            await new Promise((resolve) => setTimeout(resolve, 200));
-            if ("reload" in reloader && typeof reloader.reload === "function") {
-              reloader.reload();
+            if (pendingBuildTimeout) {
+              clearTimeout(pendingBuildTimeout);
+              pendingBuildTimeout = undefined;
             }
+            pendingBuildTimeout = setTimeout(rebuild, DEBOUNCE_DELAY);
           });
       }
     }
