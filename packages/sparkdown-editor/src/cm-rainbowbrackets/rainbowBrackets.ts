@@ -5,6 +5,7 @@
  * Released under the MIT License.
  */
 
+import { syntaxTree } from "@codemirror/language";
 import {
   Decoration,
   DecorationSet,
@@ -12,6 +13,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
+import { isCommentNode } from "./utils/isCommentNode";
 
 const DEFAULT_BRACKETS = "()[]{}";
 const DEFAULT_MATCHING_BRACKET_COLORS = ["#ffd700", "#da70d6", "#179fff"];
@@ -59,8 +61,9 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
 
       getBracketDecorations(view: EditorView) {
         const { doc } = view.state;
+        const tree = syntaxTree(view.state);
         const decorations = [];
-        const stack: { type: string; from: number }[] = [];
+        const stack: { char: string; from: number }[] = [];
         const brackets = config.brackets;
         const matchingMarks = this.matchingMarks;
         const nonmatchingMark = this.nonmatchingMark;
@@ -71,29 +74,35 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
           const isOpenBracket = bracketIndex >= 0 && bracketIndex % 2 === 0;
           const isCloseBracket = bracketIndex >= 0 && bracketIndex % 2 !== 0;
           if (isOpenBracket) {
-            stack.push({ type: char, from: pos });
+            const node = tree.resolveInner(pos, 1);
+            if (!isCommentNode(node)) {
+              stack.push({ char: char, from: pos });
+            }
           } else if (isCloseBracket) {
-            const open = stack.pop();
-            if (open && open.type === getMatchingBracket(char, brackets)) {
-              const colorIndex =
-                stack.length % config.matchingBracketColors.length;
-              const matchingMark = matchingMarks[colorIndex]!;
-              decorations.push(
-                matchingMark.range(open.from, open.from + 1),
-                matchingMark.range(pos, pos + 1)
-              );
+            const node = tree.resolveInner(pos, 1);
+            if (!isCommentNode(node)) {
+              const open = stack.pop();
+              if (open && open.char === getMatchingBracket(char, brackets)) {
+                const colorIndex =
+                  stack.length % config.matchingBracketColors.length;
+                const matchingMark = matchingMarks[colorIndex]!;
+                decorations.push(
+                  matchingMark.range(open.from, open.from + 1),
+                  matchingMark.range(pos, pos + 1)
+                );
+              }
             }
           }
         }
         while (stack.length > 0) {
           const hangingBracket = stack.pop();
           if (hangingBracket) {
-            decorations.push(
-              nonmatchingMark.range(
-                hangingBracket.from,
-                hangingBracket.from + 1
-              )
-            );
+            const char = hangingBracket.char;
+            const pos = hangingBracket.from;
+            const node = tree.resolveInner(pos, 1);
+            if (!isCommentNode(node)) {
+              decorations.push(nonmatchingMark.range(pos, pos + 1));
+            }
           }
         }
 
@@ -112,11 +121,15 @@ const rainbowBrackets = (config = DEFAULT_CONFIG) => {
   config.matchingBracketColors.forEach((value, i) => {
     spec[`& .cm-matchingBracket-colored-${i}`] = { color: value };
     spec[`& .cm-matchingBracket-colored-${i} > span`] = { color: value };
+    spec[`& .cm-matchingBracket-colored-${i} > span > span`] = { color: value };
   });
   spec[`& .cm-nonmatchingBracket-colored`] = {
     color: config.nonmatchingBracketColor,
   };
   spec[`& .cm-nonmatchingBracket-colored > span`] = {
+    color: config.nonmatchingBracketColor,
+  };
+  spec[`& .cm-nonmatchingBracket-colored > span > span`] = {
     color: config.nonmatchingBracketColor,
   };
   return [rainbowBracketsPlugin(config), EditorView.baseTheme(spec)];

@@ -230,8 +230,8 @@ export const conditionSnippets: readonly Completion[] = [
     label: "* if",
     type: "condition",
   }),
-  snip("* elif ${}", {
-    label: "* elif",
+  snip("* elseif ${}", {
+    label: "* elseif",
     type: "condition",
   }),
   snip("* else${}", {
@@ -241,8 +241,16 @@ export const conditionSnippets: readonly Completion[] = [
 ];
 
 export const declareSnippets: readonly Completion[] = [
-  snip("* var ${}", {
-    label: "* var",
+  snip("@ string ${}", {
+    label: "@ string",
+    type: "type",
+  }),
+  snip("@ number ${}", {
+    label: "@ number",
+    type: "type",
+  }),
+  snip("@ boolean ${}", {
+    label: "@ boolean",
     type: "type",
   }),
 ];

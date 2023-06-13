@@ -30,7 +30,7 @@ export class RegExpMatcher implements Matcher {
    * @param src - The source `RegExp` to wrap.
    */
   constructor(src: string) {
-    const flags = "ymu";
+    const flags = "muy";
     const regexp = new RegExp(src, flags);
     if (!regexp) {
       throw new Error(`Invalid RegExp: ${src}`);
@@ -80,7 +80,7 @@ export class RegExpMatcher implements Matcher {
         // out where the match ended
         const length = this.regexp!.lastIndex - pos;
         const total = str.slice(pos, pos + length);
-        return { total, captures: [total], length };
+        return [total];
       }
       return null;
     }
@@ -93,27 +93,26 @@ export class RegExpMatcher implements Matcher {
       const match = this.exec(str, pos);
       if (match) {
         const total = match[0];
-        const captures = match.length > 1 ? match.slice(1) : null;
-        const length = total.length;
+        const result = match.slice();
 
         // capturing groups can be undefined if an entire group was marked as optional
         // so we'll replace those with an empty string to keep the interface consistent
-        if (captures) {
-          let len = 0;
-          for (let i = 0; i < captures.length; i++) {
-            if (captures[i] === undefined) {
-              captures[i] = "";
+        if (result) {
+          let capturedLength = 0;
+          for (let i = 1; i < result.length; i++) {
+            if (result[i] === undefined) {
+              result[i] = "";
             }
-            len += captures[i]?.length ?? 0;
+            capturedLength += result[i]?.length ?? 0;
           }
           // tarnation can only accept regexps that have their capturing groups
           // consist of contigous ranges covering the entirety of the match
-          if (len !== length) {
+          if (capturedLength !== total.length) {
             throw new Error("Invalid capturing group lengths");
           }
         }
 
-        return { total, captures, length };
+        return result;
       }
     }
 

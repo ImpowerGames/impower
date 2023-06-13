@@ -122,17 +122,7 @@ export interface Matcher {
 }
 
 /** Standard output for a {@link Matcher}. */
-export type MatchOutput = null | {
-  /** The entirety of the substring matched. */
-  total: string;
-  /**
-   * Captures for this match, if any. Captures must be contiguous
-   * substrings of the total match.
-   */
-  captures: string[] | null;
-  /** The length of the match. */
-  length: number;
-};
+export type MatchOutput = null | string[];
 
 /** A variable for use by a {@link GrammarData}. */
 export type Variable = Matcher | string | string[] | RegExp;

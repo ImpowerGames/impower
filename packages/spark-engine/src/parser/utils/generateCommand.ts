@@ -102,7 +102,7 @@ export const generateCommand = (
       indent: token.indent,
       waitUntilFinished: true,
       value: token.value as string,
-      check: (token.check || "") as "if" | "elif" | "else" | "close",
+      check: (token.check || "") as "if" | "elseif" | "else" | "close",
     };
     return newCommand;
   }

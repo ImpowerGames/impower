@@ -31,12 +31,12 @@ export class ConditionCommandRunner<G extends Game> extends CommandRunner<
       const shouldExecute = evaluate(value, valueMap);
       if (!shouldExecute) {
         const nextCommandIndex = getNextJumpIndex(index, commands, [
-          { check: (c): boolean => c === "elif", offset: 0 },
+          { check: (c): boolean => c === "elseif", offset: 0 },
           { check: (c): boolean => c === "else", offset: 1 },
         ]);
         return [nextCommandIndex];
       }
-    } else if (check === "elif") {
+    } else if (check === "elseif") {
       const shouldExecute = evaluate(value, valueMap);
       if (!shouldExecute) {
         const blockState =
@@ -52,7 +52,7 @@ export class ConditionCommandRunner<G extends Game> extends CommandRunner<
           }
         }
         const nextCommandIndex = getNextJumpIndex(index, commands, [
-          { check: (c): boolean => c === "elif", offset: 0 },
+          { check: (c): boolean => c === "elseif", offset: 0 },
           { check: (c): boolean => c === "else", offset: 1 },
         ]);
         return [nextCommandIndex];

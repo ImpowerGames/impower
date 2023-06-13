@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { createID } from "../../utils/createID";
+import { isSwitchRuleItem } from "../../utils/isSwitchRuleItem";
 import { Matched } from "../matched";
 import { ParserNode } from "../node";
 import { RegExpMatcher } from "../regexp";
@@ -10,6 +11,7 @@ import type { Repository } from "../repository";
 import { GrammarState } from "../state";
 import type * as DF from "../types/definition";
 import { Rule } from "../types/rule";
+import { SwitchRule } from "./switch";
 
 /**
  * A {@link Rule} subclass that uses {@link RegExpMatcher} or
@@ -22,7 +24,7 @@ export class MatchRule implements Rule {
 
   declare matcher: RegExpMatcher;
 
-  declare captures: ParserNode[];
+  declare captures: (ParserNode | SwitchRule)[];
 
   constructor(repo: Repository, item: DF.MatchRuleItem) {
     let type = item.type ?? createID();
@@ -38,31 +40,61 @@ export class MatchRule implements Rule {
         const value = item.captures[key];
         const idx = parseInt(key, 10);
         if (value != null) {
-          this.captures[idx] = repo.add(value, this.name + "-" + idx);
+          if (isSwitchRuleItem(value)) {
+            this.captures[idx] = repo.add(value, this.name + "-" + idx);
+          } else {
+            this.captures[idx] = repo.add(value, this.name + "-" + idx);
+          }
         }
       }
     }
   }
 
   match(str: string, pos: number, state: GrammarState) {
-    const output = this.matcher.match(str, pos);
-    if (output) {
-      const matched = new Matched(state, this.node, output.total, pos);
-      state.last = output;
-      if (this.captures) {
-        if (output.captures) {
-          const captures: Matched[] = [];
-          let capturePos = pos;
-          this.captures.forEach((node, i) => {
-            const capture = output.captures?.[i] ?? "";
-            captures.push(new Matched(state, node, capture, capturePos));
-            capturePos += capture.length;
-          });
-          matched.captures = captures;
-        }
-      }
-      return matched;
+    const result = this.matcher.match(str, pos);
+    if (!result) {
+      return null;
     }
-    return null;
+    const total = result[0];
+    if (!total) {
+      return null;
+    }
+    const matched = new Matched(state, this.node, total, pos);
+    state.last = result;
+    if (this.captures) {
+      if (result) {
+        const captures: Matched[] = [];
+        let capturePos = pos;
+        result.forEach((capturedStr, i) => {
+          const capture = this.captures?.[i];
+          if (capture) {
+            if (capture instanceof SwitchRule) {
+              const truncatedStr = str.slice(
+                0,
+                capturePos + capturedStr.length
+              );
+              const switchMatched = capture.match(
+                truncatedStr,
+                capturePos,
+                state
+              );
+              if (switchMatched) {
+                captures.push(switchMatched);
+              }
+            } else {
+              captures.push(
+                new Matched(state, capture, capturedStr, capturePos)
+              );
+            }
+          }
+          if (i > 0) {
+            // First capture is always the total match so it's length shouldn't count
+            capturePos += capturedStr.length;
+          }
+        });
+        matched.captures = captures;
+      }
+    }
+    return matched;
   }
 }

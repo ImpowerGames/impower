@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { GrammarToken, MatchOutput } from "../core/types";
+import { GrammarToken } from "../core/types";
 import { ParserNode } from "./node";
 import type { GrammarState } from "./state";
 import { Wrapping } from "./types/wrapping";
@@ -75,18 +75,6 @@ export class Matched {
     } else {
       this.captures.push(match);
     }
-  }
-
-  /** Returns this match represented as a raw {@link MatchOutput}. */
-  output(): MatchOutput {
-    let captures: string[] | null = null;
-    if (this.captures) {
-      captures = [];
-      for (let i = 0; i < this.captures.length; i++) {
-        captures.push(this.captures[i]!.total);
-      }
-    }
-    return { total: this.total, captures, length: this.length };
   }
 
   /** Internal method for compiling. */

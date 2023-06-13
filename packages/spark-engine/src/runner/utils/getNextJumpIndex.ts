@@ -10,7 +10,7 @@ export const getNextJumpIndex = <
   index: number,
   iterableRunners: { runner: R; data: D }[],
   validJumps: {
-    check: (c: "if" | "elif" | "else" | "close") => boolean;
+    check: (c: "if" | "elseif" | "else" | "close") => boolean;
     offset: number;
   }[] = []
 ): number => {
@@ -24,7 +24,11 @@ export const getNextJumpIndex = <
           break;
         }
         if (c.data.indent === currentLevel) {
-          const check = c?.data?.["check"] as "if" | "elif" | "else" | "close";
+          const check = c?.data?.["check"] as
+            | "if"
+            | "elseif"
+            | "else"
+            | "close";
           const nextJump = validJumps.find((next) => next.check(check));
           if (nextJump) {
             return i + nextJump.offset;
@@ -41,7 +45,7 @@ export const getNextJumpIndex = <
         break;
       }
       if (c.data.indent === currentLevel) {
-        const check = c?.data?.["check"] as "if" | "elif" | "else" | "close";
+        const check = c?.data?.["check"] as "if" | "elseif" | "else" | "close";
         if (check === "close") {
           return i + 1;
         }

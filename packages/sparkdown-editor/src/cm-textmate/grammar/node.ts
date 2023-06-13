@@ -71,7 +71,7 @@ export class ParserNode {
 
     {
       if (tag) {
-        props.push(styleTags(parseTag(emitType, tag)));
+        props.push(styleTags(parseTag(emitType + "/...", tag)));
       }
       if (openedBy) {
         props.push(NodeProp.openedBy.add({ [emitType]: [openedBy].flat() }));

@@ -42,6 +42,7 @@ const EXTENSIONS = [
   drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
+  indentUnit.of("  "),
   indentOnInput(),
   syntaxHighlighting(SPARKDOWN_HIGHLIGHTS),
   bracketMatching(),
@@ -62,7 +63,6 @@ const EXTENSIONS = [
     ...lintKeymap,
   ]),
   EditorView.lineWrapping,
-  indentUnit.of("  "),
   gutterCompartment.of(lintGutter()),
   EditorState.phrases.of({ "No diagnostics": "No errors" }),
 ];

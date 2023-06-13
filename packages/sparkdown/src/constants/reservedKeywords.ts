@@ -17,7 +17,7 @@ export const reservedKeywords = [
   "declare",
   "delete",
   "do",
-  "elif",
+  "elseif",
   "else if",
   "else",
   "enum",

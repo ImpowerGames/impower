@@ -288,11 +288,11 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
 
   cheatSheet["Variables"] = [
     new CheatsheetItem(
-      "* var count = 0",
+      "@ number count = 0",
       "Declare a variable",
-      `<span class='keyword'>* var name = "John"</span>
-<span class='keyword'>* var score = 100</span>
-<span class='keyword'>* var alive = true</span>`
+      `<span class='keyword'>@ string name = "John"</span>
+<span class='keyword'>@ number score = 100</span>
+<span class='keyword'>@ boolean alive = true</span>`
     ),
     new CheatsheetItem(
       "* count = 1",
@@ -322,22 +322,22 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
 `
     ),
     new CheatsheetItem(
-      "* elif (condition):",
-      "'elif' statements are checked if the proceeding 'if' condition is false",
+      "* elseif (condition):",
+      "'elseif' statements are checked if the proceeding 'if' condition is false",
       `<span class='condition'>* if (health < 0):</span>
 <span class='action'>  You are dead.</span>
 <span class='keyword'>  > GameOver</span>
-<span class='condition'>* elif (health == max_health):</span>
+<span class='condition'>* elseif (health == max_health):</span>
 <span class='action'>  You are fully healed.</span>
 `
     ),
     new CheatsheetItem(
       "* else:",
-      "An 'else' statement is executed if all proceeding 'if' or 'elif' conditions are false",
+      "An 'else' statement is executed if all proceeding 'if' or 'elseif' conditions are false",
       `<span class='condition'>* if (health < 0):</span>
 <span class='action'>  You are dead.</span>
 <span class='keyword'>  > GameOver</span>
-<span class='condition'>* elif (health == max_health):</span>
+<span class='condition'>* elseif (health == max_health):</span>
 <span class='action'>  You are fully healed.</span>
 <span class='condition'>* else:</span>
 <span class='action'>  You are scathed, but still able to fight.</span>
@@ -349,13 +349,13 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     new CheatsheetItem(
       "{count}",
       "Display the current value of a variable by wrapping it in curly brackets",
-      `<span class='keyword'>* var score = 1</span>
+      `<span class='keyword'>@ number score = 1</span>
 <span class='action'>\nYour current score is <mark class='keyword'>{score}</mark>.</span>`
     ),
     new CheatsheetItem(
       "{count:item|items}",
       "Pluralize a word according to a variable value",
-      `<span class='keyword'>* var count = 1</span>
+      `<span class='keyword'>@ number count = 1</span>
 <span class='action'>\nSally approached the sea shore with her <mark class='keyword'>{count:shell|shells}</mark>.</span>
 <span class='dialogue_character'>\nSALLY</span>
 <span class='dialogue'>I have <mark class='keyword'>{count}</mark> sea <mark class='keyword'>{count:shell|shells}</mark> for sale!</span>`

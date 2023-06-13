@@ -27,6 +27,7 @@ import {
   SparkToken,
 } from "../types/SparkToken";
 import { SparkTokenType } from "../types/SparkTokenType";
+import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkVariableType } from "../types/SparkVariableType";
 import { StructureItem } from "../types/StructureItem";
@@ -2213,19 +2214,19 @@ const hoistDeclarations = (
       }
       newSection.triggers = type === "detector" ? parameters : [];
     } else if ((match = text.match(sparkRegexes.variable))) {
+      const type = (match[4] || "") as keyof SparkTokenTypeMap;
       const name = match[6] || "";
-      const valueText = match[14] || "";
-      const type = (match[10] || "") as SparkVariableType;
+      const valueText = match[10] || "";
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
         line: context.line + (config?.lineOffset || 0),
         from,
       });
+      const typeFrom = currentToken.from + getStart(match, 4);
+      const typeTo = typeFrom + type.length;
       const nameFrom = currentToken.from + getStart(match, 6);
       const nameTo = nameFrom + name.length;
-      const typeFrom = currentToken.from + getStart(match, 10);
-      const typeTo = typeFrom + type.length;
-      const valueFrom = currentToken.from + getStart(match, 14);
+      const valueFrom = currentToken.from + getStart(match, 10);
       const valueTo = valueFrom + valueText.length;
       if (name) {
         const tokenType = addVariable(
@@ -2908,9 +2909,9 @@ export const parseSpark = (
           const checkFrom = currentToken.from + getStart(match, 4);
           const checkTo = checkFrom + check.length;
           const expressionFrom = currentToken.from + getStart(match, 6);
-          currentToken.check = (check as "if" | "elif" | "else") || "close";
+          currentToken.check = (check as "if" | "elseif" | "else") || "close";
           currentToken.value = expression;
-          if (check === "elif" || check === "else") {
+          if (check === "elseif" || check === "else") {
             const startIndex = parsed.tokens.length;
             let index = startIndex;
             let lastToken = parsed.tokens[index - 1];
@@ -2929,7 +2930,7 @@ export const parseSpark = (
                 if (lastToken?.check === "else") {
                   break;
                 } else if (
-                  lastToken?.check === "elif" ||
+                  lastToken?.check === "elseif" ||
                   lastToken?.check === "if"
                 ) {
                   valid = true;
@@ -2954,7 +2955,7 @@ export const parseSpark = (
             diagnostic(
               parsed,
               currentToken,
-              "'else' cannot have a condition. Use elif instead.",
+              "'else' cannot have a condition. Use elseif instead.",
               undefined,
               checkFrom,
               checkTo
@@ -2971,16 +2972,16 @@ export const parseSpark = (
           }
         }
       } else if ((match = currentToken.content.match(sparkRegexes.variable))) {
+        const declaredType = match[4] || "";
         const name = match[6] || "";
         const operator = (match[6] || "") as "=";
         const valueText = match[14] || "";
-        const found = findVariable(parsed.variables, currentSectionId, name);
-        const tokenType = found?.type;
-        if (tokenType) {
-          currentToken.type = tokenType;
-          if (currentToken.type === tokenType) {
+        const assignedType = declaredType as SparkVariableType;
+        if (assignedType) {
+          currentToken.type = assignedType;
+          if (currentToken.type === assignedType) {
             currentToken.name = name;
-            currentToken.type = tokenType;
+            currentToken.type = assignedType;
             currentToken.operator = operator;
             currentToken.value = valueText;
           }

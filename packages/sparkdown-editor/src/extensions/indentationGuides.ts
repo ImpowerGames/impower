@@ -49,11 +49,11 @@ function makeIndentationMark(
 
 function makeIndentationDecorators(view: EditorView): RangeSet<Decoration> {
   const tabSize = getIndentUnit(view.state);
+  const tree = syntaxTree(view.state);
   const builder = new RangeSetBuilder<Decoration>();
   const { doc } = view.state;
   const spaceOnlyLines = [];
   view.visibleRanges.forEach((range) => {
-    const tree = syntaxTree(view.state);
     const visibleFrom = range?.from;
     const visibleTo = range?.to;
     let to = visibleFrom - 1;

@@ -116,7 +116,7 @@ export interface RuleItem {
 
 export interface MatchRuleItem extends RuleItem {
   match: string;
-  captures?: Record<string, RuleItem>;
+  captures?: Record<string, RuleItem | SwitchRuleItem>;
 }
 
 export interface SwitchRuleItem extends RuleItem {

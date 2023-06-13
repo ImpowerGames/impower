@@ -5,42 +5,177 @@ scopeName: text.source.sparkdown
 uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 
 patterns:
-  - { include: "#Expression" }
+  - { include: "#Comment" }
+  - { include: "#Note" }
+  - { include: "#Synopsis" }
+  - { include: "#PageBreak" }
+  - { include: "#Jump" }
+  - { include: "#Centered" }
+  - { include: "#Condition" }
+  - { include: "#Logic" }
+  - { include: "#List" }
+  - { include: "#Import" }
+  - { include: "#Variable" }
 
 repository:
-  Expression:
+  Comment:
     patterns:
-      - { include: "#Letter" }
-      - { include: "#ParenExpression" }
-      - { include: "#Newline" }
-      - { include: "#Space" }
+      - { include: "#CommentLine" }
+      - { include: "#CommentBlock" }
 
-  Letter:
-    match: a|b|c
-    name: keyword.letter
-    tag: keyword
-
-  ParenExpression:
-    begin: \(
-    end: \)
+  CommentBlock:
+    tag: comment
+    name: comment.block.sd
+    begin: (/[*])
     beginCaptures:
-      0:
-        name: punctuation.paren.open
-        tag: bracket
+      1:
+        tag: blockComment
+        name: comment.block.open.sd
+    end: ([*]/)
     endCaptures:
-      0:
-        name: punctuation.paren.close
-        tag: bracket
-    name: expression.group
-    patterns:
-      - { include: "#Expression" }
+      1:
+        tag: blockComment
+        name: comment.block.close.sd
 
-  Newline:
-    match: \n
-    name: meta.paragraph.markdown
-    tag: meta
+  CommentLine:
+    tag: comment
+    name: comment.line.sd
+    match: (\/\/)(.*)
+    captures:
+      1:
+        tag: lineComment
+        name: comment.line.double-slash.sd
+      2:
+        tag: comment
+        name: comment.line.content.sd
 
-  Space:
-    match: "[ ]+"
-    name: meta.paragraph.markdown
-    tag: meta
+  Note:
+    tag: comment
+    name: comment.line.note.sd
+    match: (\[{2})([^\]]*)(\]{2})
+    captures:
+      1:
+        tag: lineComment
+        name: comment.line.double-square-bracket.sd
+      2:
+        tag: comment
+        name: comment.line.note.sd
+      3:
+        tag: lineComment
+        name: comment.line.double-square-bracket.sd
+
+  Synopsis:
+    tag: comment
+    name: comment.line.synopsis.sd
+    match: ^([ \t]*)(?![=]{2,})([=])([ ]*)(.*)
+    captures:
+      2:
+        tag: lineComment
+        name: comment.line.equal.sd
+      4:
+        tag: comment
+        name: comment.line.synopsis.sd
+
+  PageBreak:
+    tag: contentSeparator
+    name: markup.heading.separator.sd
+    match: ^([ \t]*)(===+)
+    captures:
+      2:
+        tag: contentSeparator
+        name: markup.heading.separator.equals.sd
+
+  Jump:
+    match: ^([ \t]*)([>])([ ]*)([^ ]+|[{][^\n\r<]+[}])?$
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.jump.sd
+      4:
+        tag: labelName
+        name: keyword.control.export.sd
+
+  Centered:
+    tag: quote
+    name: keyword.other.centered.sd
+    match: ^([ \t]*)(>)([^<>\n\r]+)(<)
+    captures:
+      2:
+        tag: quote
+        name: storage.type.centered.angle-left.sd
+      3:
+        patterns:
+          - include: "#Comment"
+          - include: "#Note"
+          - include: "#Inline"
+      4:
+        tag: quote
+        name: storage.type.centered.angle-right.sd
+
+  Condition:
+    match: ^([ \t]*)([*])($|[ ]+)($|if|elseif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[^\n\r:])+))?([ ]*)($|[:])
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.condition.sd
+      4:
+        tag: logicOperator
+        name: keyword.other.condition.sd
+      6:
+        patterns:
+          - include: "#Expression"
+      8:
+        tag: punctuation
+        name: punctuation.separator.colon.sd
+
+  Logic:
+    match: ^([ \t]*)([*])($|[ ]+)([^\n\r]*)?
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.logic.sd
+      4:
+        patterns:
+          - include: "#expression"
+
+  List:
+    match: ^([ \t]*)([*+-])($|[ ]+)
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.list.sd
+
+  Import:
+    match: ^([ \t]*)(import)($|[ ]+)($|[^\n\r]+)
+    captures:
+      2:
+        tag: logicOperator
+        name: keyword.control.import.sd
+      4:
+        patterns:
+          - include: "#Expression"
+
+  Variable:
+    match: ^([ \t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)([^\n\r]+)
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.variable.sd
+      4:
+        tag: typeName
+        name: support.type.primitive.sd
+      6:
+        patterns:
+          - include: "#Expression"
+
+  # TODO
+
+  Inline:
+    name: meta.paragraph.text.sd
+    tag: content
+    match: ([^\n\r<]+)
+
+  Expression:
+    name: variable.other.readwrite.sd
+    tag: variableName
+    match: ([^\n\r]+)

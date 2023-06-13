@@ -70,7 +70,7 @@ export interface SparkChoiceToken extends SparkLine {
 
 export interface SparkConditionToken extends SparkLine {
   type: SparkConditionTokenType;
-  check: "if" | "elif" | "else" | "close";
+  check: "if" | "elseif" | "else" | "close";
   value: string;
 }
 

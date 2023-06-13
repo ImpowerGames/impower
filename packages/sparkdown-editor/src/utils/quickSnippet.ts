@@ -43,7 +43,7 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   repeat: "^${}\n${}",
   return: "< ${}\n${}",
 
-  declare_variable: "* var ${name} = ${value}\n${}",
+  declare_variable: "@ ${type} ${name} = ${value}\n${}",
   assign_variable: "* ${name} = ${value}\n${}",
   declare_tag: "* tag ${tagName} = `${value}`\n${}",
   declare_image: "* image ${imageName} = `${value}`\n${}",
