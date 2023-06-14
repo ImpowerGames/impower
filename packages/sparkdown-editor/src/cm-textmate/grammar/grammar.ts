@@ -5,9 +5,7 @@
 import type { Matched } from "./matched";
 import { ParserNode } from "./node";
 import { Repository } from "./repository";
-import { MatchRule } from "./rules/match";
 import { ScopedRule } from "./rules/scoped";
-import { SwitchRule } from "./rules/switch";
 import { GrammarStack, GrammarState } from "./state";
 import type * as DF from "./types/definition";
 import { Rule } from "./types/rule";
@@ -49,13 +47,6 @@ export class Grammar {
         const rule = this.repository.get(name);
         if ("resolve" in rule && rule.resolve) {
           rule.resolve(this.repository);
-        }
-        if (rule instanceof MatchRule) {
-          rule.captures.forEach((capture) => {
-            if (capture instanceof SwitchRule) {
-              capture.resolve(this.repository);
-            }
-          });
         }
       }
     }

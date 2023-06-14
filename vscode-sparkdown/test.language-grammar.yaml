@@ -324,34 +324,34 @@ repository:
           - { include: "#block-node" }
       - begin: |-
           (?x)
-                                  (?=
-                                      (?x:
-                                            [^\s[-?:,\[\]{}#&*!|>'"%@`]]
-                                          | [?:-] \S
-                                      )
-                                      (
-                                            [^\s:]
-                                          | : \S
-                                          | \s+ (?![#\s])
-                                      )*
-                                      \s*
-                                      :\s
-                                  )
+          (?=
+              (?x:
+                    [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+                  | [?:-] \S
+              )
+              (
+                    [^\s:]
+                  | : \S
+                  | \s+ (?![#\s])
+              )*
+              \s*
+              :\s
+          )
 
         end: |-
           (?x)
-                                  (?=
-                                        \s* $
-                                      | \s+ \#
-                                      | \s* : \s
-                                  )
+          (?=
+                \s* $
+              | \s+ \#
+              | \s* : \s
+          )
 
         patterns:
           - { include: "#flow-scalar-plain-out-implicit-type" }
           - begin: |-
               (?x)
-                                                [^\s[-?:,\[\]{}#&*!|>'"%@`]]
-                                              | [?:-] \S
+                [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+              | [?:-] \S
 
             beginCaptures:
               "0":
@@ -359,11 +359,11 @@ repository:
             contentName: entity.name.tag.yaml
             end: |-
               (?x)
-                                              (?=
-                                                    \s* $
-                                                  | \s+ \#
-                                                  | \s* : \s
-                                              )
+              (?=
+                    \s* $
+                  | \s+ \#
+                  | \s* : \s
+              )
 
             name: string.unquoted.plain.out.yaml
       - match: ':(?=\s|$)'
@@ -543,18 +543,18 @@ repository:
       - { include: "#flow-scalar-plain-in-implicit-type" }
       - begin: |-
           (?x)
-                                    [^\s[-?:,\[\]{}#&*!|>'"%@`]]
-                                  | [?:-] [^\s[\[\]{},]]
+            [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+          | [?:-] [^\s[\[\]{},]]
 
         end: |-
           (?x)
-                                  (?=
-                                        \s* $
-                                      | \s+ \#
-                                      | \s* : \s
-                                      | \s* : [\[\]{},]
-                                      | [\[\]{},]
-                                  )
+          (?=
+                \s* $
+              | \s+ \#
+              | \s* : \s
+              | \s* : [\[\]{},]
+              | [\[\]{},]
+          )
 
         name: string.unquoted.plain.in.yaml
   flow-scalar-plain-in-implicit-type:
@@ -576,70 +576,70 @@ repository:
             name: constant.language.merge.yaml
         match: |-
           (?x)
-                                  (?x:
-                                        (null|Null|NULL|~)
-                                      | (y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)
-                                      | (
-                                          (?:
-                                                [-+]? 0b [0-1_]+ # (base 2)
-                                              | [-+]? 0  [0-7_]+ # (base 8)
-                                              | [-+]? (?: 0|[1-9][0-9_]*) # (base 10)
-                                              | [-+]? 0x [0-9a-fA-F_]+ # (base 16)
-                                              | [-+]? [1-9] [0-9_]* (?: :[0-5]?[0-9])+ # (base 60)
-                                          )
-                                        )
-                                      | (
-                                          (?x:
-                                                [-+]? (?: [0-9] [0-9_]*)? \. [0-9.]* (?: [eE] [-+] [0-9]+)? # (base 10)
-                                              | [-+]? [0-9] [0-9_]* (?: :[0-5]?[0-9])+ \. [0-9_]* # (base 60)
-                                              | [-+]? \. (?: inf|Inf|INF) # (infinity)
-                                              |       \. (?: nan|NaN|NAN) # (not a number)
-                                          )
-                                        )
-                                      | (
-                                          (?x:
-                                              \d{4} - \d{2} - \d{2}           # (y-m-d)
-                                            | \d{4}                           # (year)
-                                              - \d{1,2}                       # (month)
-                                              - \d{1,2}                       # (day)
-                                              (?: [Tt] | [ \t]+) \d{1,2}      # (hour)
-                                              : \d{2}                         # (minute)
-                                              : \d{2}                         # (second)
-                                              (?: \.\d*)?                     # (fraction)
-                                              (?:
-                                                    (?:[ \t]*) Z
-                                                  | [-+] \d{1,2} (?: :\d{1,2})?
-                                              )?                              # (time zone)
-                                          )
-                                        )
-                                      | (=)
-                                      | (<<)
-                                  )
-                                  (?:
-                                      (?=
-                                            \s* $
-                                          | \s+ \#
-                                          | \s* : \s
-                                          | \s* : [\[\]{},]
-                                          | [\[\]{},]
-                                      )
-                                  )
+          (?x:
+                (null|Null|NULL|~)
+              | (y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)
+              | (
+                  (?:
+                        [-+]? 0b [0-1_]+ # (base 2)
+                      | [-+]? 0  [0-7_]+ # (base 8)
+                      | [-+]? (?: 0|[1-9][0-9_]*) # (base 10)
+                      | [-+]? 0x [0-9a-fA-F_]+ # (base 16)
+                      | [-+]? [1-9] [0-9_]* (?: :[0-5]?[0-9])+ # (base 60)
+                  )
+                )
+              | (
+                  (?x:
+                        [-+]? (?: [0-9] [0-9_]*)? \. [0-9.]* (?: [eE] [-+] [0-9]+)? # (base 10)
+                      | [-+]? [0-9] [0-9_]* (?: :[0-5]?[0-9])+ \. [0-9_]* # (base 60)
+                      | [-+]? \. (?: inf|Inf|INF) # (infinity)
+                      |       \. (?: nan|NaN|NAN) # (not a number)
+                  )
+                )
+              | (
+                  (?x:
+                      \d{4} - \d{2} - \d{2}           # (y-m-d)
+                    | \d{4}                           # (year)
+                      - \d{1,2}                       # (month)
+                      - \d{1,2}                       # (day)
+                      (?: [Tt] | [ \t]+) \d{1,2}      # (hour)
+                      : \d{2}                         # (minute)
+                      : \d{2}                         # (second)
+                      (?: \.\d*)?                     # (fraction)
+                      (?:
+                            (?:[ \t]*) Z
+                          | [-+] \d{1,2} (?: :\d{1,2})?
+                      )?                              # (time zone)
+                  )
+                )
+              | (=)
+              | (<<)
+          )
+          (?:
+              (?=
+                    \s* $
+                  | \s+ \#
+                  | \s* : \s
+                  | \s* : [\[\]{},]
+                  | [\[\]{},]
+              )
+          )
 
   flow-scalar-plain-out:
     patterns:
       - { include: "#flow-scalar-plain-out-implicit-type" }
       - begin: |-
           (?x)
-                                    [^\s[-?:,\[\]{}#&*!|>'"%@`]]
-                                  | [?:-] \S
+            [^\s[-?:,\[\]{}#&*!|>'"%@`]]
+          | [?:-] \S
 
         end: |-
           (?x)
-                                  (?=
-                                        \s* $
-                                      | \s+ \#
-                                      | \s* : \s
-                                  )
+          (?=
+                \s* $
+              | \s+ \#
+              | \s* : \s
+          )
 
         name: string.unquoted.plain.out.yaml
   flow-scalar-plain-out-implicit-type:
@@ -661,52 +661,52 @@ repository:
             name: constant.language.merge.yaml
         match: |-
           (?x)
-                                  (?x:
-                                        (null|Null|NULL|~)
-                                      | (y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)
-                                      | (
-                                          (?:
-                                                [-+]? 0b [0-1_]+ # (base 2)
-                                              | [-+]? 0  [0-7_]+ # (base 8)
-                                              | [-+]? (?: 0|[1-9][0-9_]*) # (base 10)
-                                              | [-+]? 0x [0-9a-fA-F_]+ # (base 16)
-                                              | [-+]? [1-9] [0-9_]* (?: :[0-5]?[0-9])+ # (base 60)
-                                          )
-                                        )
-                                      | (
-                                          (?x:
-                                                [-+]? (?: [0-9] [0-9_]*)? \. [0-9.]* (?: [eE] [-+] [0-9]+)? # (base 10)
-                                              | [-+]? [0-9] [0-9_]* (?: :[0-5]?[0-9])+ \. [0-9_]* # (base 60)
-                                              | [-+]? \. (?: inf|Inf|INF) # (infinity)
-                                              |       \. (?: nan|NaN|NAN) # (not a number)
-                                          )
-                                        )
-                                      | (
-                                          (?x:
-                                              \d{4} - \d{2} - \d{2}           # (y-m-d)
-                                            | \d{4}                           # (year)
-                                              - \d{1,2}                       # (month)
-                                              - \d{1,2}                       # (day)
-                                              (?: [Tt] | [ \t]+) \d{1,2}      # (hour)
-                                              : \d{2}                         # (minute)
-                                              : \d{2}                         # (second)
-                                              (?: \.\d*)?                     # (fraction)
-                                              (?:
-                                                    (?:[ \t]*) Z
-                                                  | [-+] \d{1,2} (?: :\d{1,2})?
-                                              )?                              # (time zone)
-                                          )
-                                        )
-                                      | (=)
-                                      | (<<)
-                                  )
-                                  (?x:
-                                      (?=
-                                            \s* $
-                                          | \s+ \#
-                                          | \s* : \s
-                                      )
-                                  )
+          (?x:
+                (null|Null|NULL|~)
+              | (y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF)
+              | (
+                  (?:
+                        [-+]? 0b [0-1_]+ # (base 2)
+                      | [-+]? 0  [0-7_]+ # (base 8)
+                      | [-+]? (?: 0|[1-9][0-9_]*) # (base 10)
+                      | [-+]? 0x [0-9a-fA-F_]+ # (base 16)
+                      | [-+]? [1-9] [0-9_]* (?: :[0-5]?[0-9])+ # (base 60)
+                  )
+                )
+              | (
+                  (?x:
+                        [-+]? (?: [0-9] [0-9_]*)? \. [0-9.]* (?: [eE] [-+] [0-9]+)? # (base 10)
+                      | [-+]? [0-9] [0-9_]* (?: :[0-5]?[0-9])+ \. [0-9_]* # (base 60)
+                      | [-+]? \. (?: inf|Inf|INF) # (infinity)
+                      |       \. (?: nan|NaN|NAN) # (not a number)
+                  )
+                )
+              | (
+                  (?x:
+                      \d{4} - \d{2} - \d{2}           # (y-m-d)
+                    | \d{4}                           # (year)
+                      - \d{1,2}                       # (month)
+                      - \d{1,2}                       # (day)
+                      (?: [Tt] | [ \t]+) \d{1,2}      # (hour)
+                      : \d{2}                         # (minute)
+                      : \d{2}                         # (second)
+                      (?: \.\d*)?                     # (fraction)
+                      (?:
+                            (?:[ \t]*) Z
+                          | [-+] \d{1,2} (?: :\d{1,2})?
+                      )?                              # (time zone)
+                  )
+                )
+              | (=)
+              | (<<)
+          )
+          (?x:
+              (?=
+                    \s* $
+                  | \s+ \#
+                  | \s* : \s
+              )
+          )
 
   flow-scalar-single-quoted:
     begin: "'"
@@ -764,13 +764,13 @@ repository:
         match: '\G((&))([^\s\[\]/{/},]+)(\S+)?'
       - match: |-
           (?x)
-                                  \G
-                                  (?:
-                                      ! < (?: %\p{XDigit}{2} | [0-9A-Za-z\-#;/?:@&=+$,_.!~*'()\[\]] )+ >
-                                    | (?:!(?:[0-9A-Za-z\-]*!)?) (?: %\p{XDigit}{2} | [0-9A-Za-z\-#;/?:@&=+$_.~*'()] )+
-                                    | !
-                                  )
-                                  (?=\ |\t|$)
+          \G
+          (?:
+              ! < (?: %\p{XDigit}{2} | [0-9A-Za-z\-#;/?:@&=+$,_.!~*'()\[\]] )+ >
+            | (?:!(?:[0-9A-Za-z\-]*!)?) (?: %\p{XDigit}{2} | [0-9A-Za-z\-#;/?:@&=+$_.~*'()] )+
+            | !
+          )
+          (?=\ |\t|$)
 
         name: storage.type.tag-handle.yaml
       - match: \S+

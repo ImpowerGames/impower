@@ -2213,7 +2213,7 @@ const hoistDeclarations = (
         newSection.value = 0;
       }
       newSection.triggers = type === "detector" ? parameters : [];
-    } else if ((match = text.match(sparkRegexes.variable))) {
+    } else if ((match = text.match(sparkRegexes.declare_variable))) {
       const type = (match[4] || "") as keyof SparkTokenTypeMap;
       const name = match[6] || "";
       const valueText = match[10] || "";
@@ -2251,7 +2251,7 @@ const hoistDeclarations = (
           currentToken.type = tokenType;
         }
       }
-    } else if ((match = text.match(sparkRegexes.struct))) {
+    } else if ((match = text.match(sparkRegexes.declare_struct))) {
       const type = match[4] || "";
       const name = match[6] || "";
       const base = match[10] || "";
@@ -2733,7 +2733,10 @@ export const parseSpark = (
             currentToken.from + currentToken.offset + extraOffset
           );
         }
-      } else if ((match = currentToken.content.match(sparkRegexes.centered))) {
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.centered)) ||
+        (match = currentToken.content.match(sparkRegexes.centered_angle))
+      ) {
         currentToken.type = "centered";
         if (currentToken.type === "centered") {
           const content = match[4] || "";
@@ -2971,7 +2974,9 @@ export const parseSpark = (
             );
           }
         }
-      } else if ((match = currentToken.content.match(sparkRegexes.variable))) {
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.declare_variable))
+      ) {
         const declaredType = match[4] || "";
         const name = match[6] || "";
         const operator = (match[6] || "") as "=";
@@ -3002,7 +3007,9 @@ export const parseSpark = (
             expressionFrom
           );
         }
-      } else if ((match = currentToken.content.match(sparkRegexes.assign))) {
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.assign_variable))
+      ) {
         currentToken.type = "assign";
         if (currentToken.type === "assign") {
           const name = match[4] || "";
@@ -3039,7 +3046,9 @@ export const parseSpark = (
             currentToken.value = expression;
           }
         }
-      } else if ((match = currentToken.content.match(sparkRegexes.struct))) {
+      } else if (
+        (match = currentToken.content.match(sparkRegexes.declare_struct))
+      ) {
         const name = match[6] || "";
         const colon = match[14] || "";
         if (colon) {

@@ -1,65 +1,12 @@
-export type SparkRegexType =
-  | "title_page"
-  | "section"
-  | "scene"
-  | "transition"
-  | "dialogue_character"
-  | "dialogue_parenthetical"
-  | "dialogue"
-  | "action"
-  | "page_break"
-  | "line_break"
-  | "centered"
-  | "content_continuation"
-  | "lyric"
-  | "import"
-  | "list"
-  | "call"
-  | "condition"
-  | "assign"
-  | "choice"
-  | "jump"
-  | "repeat"
-  | "return"
-  | "dialogue_terminator"
-  | "variable"
-  | "struct"
-  | "synopsis"
-  | "note"
-  | "string"
-  | "string_template"
-  | "boolean"
-  | "number"
-  | "variableAccess"
-  | "struct_field"
-  | "interpolation_splitter"
-  | "interpolation_token"
-  | "parameter_declaration"
-  | "expression_list"
-  | "emphasis"
-  | "bold_italic_underline"
-  | "bold_underline"
-  | "italic_underline"
-  | "bold_italic"
-  | "bold"
-  | "italic"
-  | "underline"
-  | "comment_inline"
-  | "comment_block"
-  | "comment_mark"
-  | "indent"
-  | "link";
-
-interface SparkRegexes extends Record<SparkRegexType, RegExp> {}
-
-export const sparkRegexes: SparkRegexes = {
+export const sparkRegexes = {
   note: /(?:\[{2}(?!\[+))([\s\S]*)(?:\]{2}(?!\[+))|(?:\({2}(?!\(+))([\s\S]*)(?:\){2}(?!\(+))/g,
   synopsis: /^([ \t]*)(?![=]{3,})([=])([ ]*)(.*)([ ]*)$/,
   line_break: /^ {2}$/,
   page_break: /^([ \t]*)([=]{3,})([^\n\r=]*)([ ]*)$/,
   transition:
     /^([ \t]*)([>][ ]+[^ ]*[ ][^ ][^a-z]*|(?:^|[^a-z]*[ ]+)(?:TO:|TO BLACK:|FADE OUT:|FADE IN:|TO[ ]+.*[.]))([ ]*)$/,
-  centered: /^([ \t]*)([>])([ ]*)(.+[^\s])([ ]*)([<])([ ]*)$/,
+  centered: /^([ \t]*)([:])([ ]*)([^:]+[^\s:])([ ]*)([:])([ ]*)$/,
+  centered_angle: /^([ \t]*)([>])([ ]*)([^><]+[^\s><])([ ]*)([<])([ ]*)$/,
   lyric: /^([ \t]*)(~)(.+)([ ]*)$/,
   section:
     /^([ \t]*)(#+)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[^\n\r:]+)?([:])?([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)?([ ]*)$/,
@@ -75,18 +22,18 @@ export const sparkRegexes: SparkRegexes = {
   action: /^([ \t]*)(.+)$/,
 
   import: /^([ \t]*)(import)($|[ ]+)($|[^\n\r]+)([ ]*)$/,
-  struct:
-    /^([ \t]*)(@)($|[ ]+)($|[a-z]+)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
+  declare_struct:
+    /^([ \t]*)(@)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$/,
 
   list: /^([ \t]*)([*+-])($|[ ]+)(.*)([ ]*)$/,
   choice:
     /^([ \t]*)([+])($|[ ]+)(?:([^\n\r>]+))?([ ]*)(?:([>])([ ]*)([^\n\r<]+)?([ ]*))?(?!<[ ]*)$/,
   condition:
     /^([ \t]*)([*])([ ]+)(if|elseif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[^\n\r:])+))?([ ]*)($|[:])([ ]*)$/,
-  variable:
-    /^([ \t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)(?:$|($|[=])([ ]*)($|[^\n\r]+)([ ]*))?$/,
+  declare_variable:
+    /^([ \t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)(?:$|($|[=])([ ]*)($|[^\n\r:]+)([ ]*))?(?![:])$/,
   call: /^([ \t]*)([*])([ ]+)([_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)[(][^\n\r]*(?:$|[)])([ ]*)$/,
-  assign:
+  assign_variable:
     /^([ \t]*)([*])($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:$|([/*+-]?(?:$|[=]))([ ]*)($|[^\n\r]+)([ ]*))?$/,
 
   jump: /^([ \t]*)([>])([ ]*)([^ ]+|[{][^\n\r<]+[}])?$/,
@@ -128,4 +75,6 @@ export const sparkRegexes: SparkRegexes = {
   indent: /^([ \t]*)/,
 
   link: /(\[?(\[)([^\][]*\[?[^\][]*\]?[^\][]*)(\])(\()(.+?)(?:\s+(["'])(.*?)\4)?(\)))/g,
-};
+} as const;
+
+export type SparkRegexType = keyof typeof sparkRegexes;

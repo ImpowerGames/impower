@@ -50,6 +50,15 @@ export class MatchRule implements Rule {
     }
   }
 
+  resolve(repo: Repository) {
+    // patterns
+    this.captures.forEach((capture) => {
+      if (capture instanceof SwitchRule) {
+        capture.resolve(repo);
+      }
+    });
+  }
+
   match(str: string, pos: number, state: GrammarState) {
     const result = this.matcher.match(str, pos);
     if (!result) {
