@@ -39,7 +39,6 @@ export class SwitchRule implements Rule {
     this.rules.forEach((rule) => {
       rule.resolve?.(repo);
     });
-    this.patterns = undefined;
   }
 
   /**

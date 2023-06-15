@@ -67,35 +67,35 @@ export class ChunkBuffer {
    * @param token - The token to add to the buffer.
    */
   add(state: GrammarState, token: GrammarToken) {
-    let pushed = false;
+    const [id, from, to, open, close] = token;
+    let newChunk = false;
 
     let current = this.chunks[this.chunks.length - 1];
 
     if (!current) {
-      current = new Chunk(token[1], state);
+      current = new Chunk(from, state);
       this.chunks.push(current);
-      pushed = true;
     }
 
-    if (token[3]) {
+    if (open) {
       if (current.length !== 0) {
         current = new Chunk(current.to, state);
         this.chunks.push(current);
-        pushed = true;
+        newChunk = true;
       }
-      current.pushOpen(...token[3]);
+      current.pushOpen(...open);
     }
 
-    current.add(token[0], token[1], token[2]);
+    current.add(id, from, to);
 
-    if (token[4]) {
-      current.pushClose(...token[4]);
+    if (close) {
+      current.pushClose(...close);
       current = new Chunk(current.to, state);
       this.chunks.push(current);
-      pushed = true;
+      newChunk = true;
     }
 
-    return pushed;
+    return newChunk;
   }
 
   /**

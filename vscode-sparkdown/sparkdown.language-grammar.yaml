@@ -18,6 +18,7 @@ patterns:
   - { include: "#Import" }
   - { include: "#Variable" }
   - { include: "#Struct" }
+  - { include: "#Action" }
 
 repository:
   Comment:
@@ -222,6 +223,11 @@ repository:
     tag: content
     match: ([^\n\r<]+)
 
+  Action:
+    name: meta.paragraph.text.sd
+    tag: content
+    match: (?:(?!\/\/|\/\*).)*
+
   # YAML (stricter subset)
 
   YAML:
@@ -230,7 +236,7 @@ repository:
       - { include: "#BlockArrayStart" }
       - { include: "#BlockScalarStart" }
       - { include: "#BlockMapStart" }
-      - { include: "#FlowNodeStart" }
+      - { include: "#ExpressionStart" }
 
   BlockArrayStart:
     match: ([ ]{2,}|[\t]+)([-])([\t ]*$|[\t ]+[^\n\r]+)$
@@ -238,12 +244,13 @@ repository:
       1:
         name: markup.raw.whitespace.indent.yaml.sd
       2:
+        tag: keyword
         name: storage.type.array.sd
       3:
         patterns:
           - { include: "#Comment" }
           - { include: "#BlockScalar" }
-          - { include: "#FlowNode" }
+          - { include: "#Expression" }
 
   BlockScalarStart:
     match: ([ ]{2,}|[\t]+)(?![-])([^\n\r:]+)([:])([\t ]+[^\n\r:]+)$
@@ -251,6 +258,7 @@ repository:
       1:
         name: markup.raw.whitespace.indent.yaml.sd
       2:
+        tag: keyword
         name: storage.type.map.sd
       3:
         name: punctuation.separator.colon.sd
@@ -258,7 +266,7 @@ repository:
         patterns:
           - { include: "#Comment" }
           - { include: "#BlockScalar" }
-          - { include: "#FlowNode" }
+          - { include: "#Expression" }
 
   BlockMapStart:
     match: ([ ]{2,}|[\t]+)(?![-])([^\n\r:]+)([:])([\t ]*)$
@@ -266,18 +274,19 @@ repository:
       1:
         name: markup.raw.whitespace.indent.yaml.sd
       2:
+        tag: keyword
         name: storage.type.map.sd
       3:
         name: punctuation.separator.colon.sd
 
-  FlowNodeStart:
+  ExpressionStart:
     match: ([ ]{2,}|[\t]+)([^\n\r]+)$
     captures:
       1:
         name: markup.raw.whitespace.indent.yaml.sd
       2:
         patterns:
-          - { include: "#FlowNode" }
+          - { include: "#Expression" }
 
   BlockScalar:
     begin: (?:(\|)|(>))([1-9])?([-+])?(.*\n?)
@@ -301,151 +310,9 @@ repository:
         end: ^(?!\s*$)
         name: string.unquoted.block.yaml
 
-  FlowNode:
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#FlowAlias" }
-      - { include: "#FlowCollection" }
-      - { include: "#Expression" }
-
-  FlowAlias:
-    match: ((\*))([^\s\[\]/{/},]+)([^\s\]},]\S*)?
-    captures:
-      1:
-        name: keyword.control.flow.alias.yaml
-      2:
-        name: punctuation.definition.alias.yaml
-      3:
-        name: variable.other.alias.yaml
-      4:
-        name: invalid.illegal.character.anchor.yaml
-
-  FlowCollection:
-    patterns:
-      - { include: "#FlowArray" }
-      - { include: "#FlowMap" }
-
-  FlowArray:
-    begin: '\['
-    beginCaptures:
-      0:
-        name: punctuation.definition.sequence.begin.yaml
-    end: '\]'
-    endCaptures:
-      0:
-        name: punctuation.definition.sequence.end.yaml
-    name: meta.flow-array.yaml
-    patterns:
-      - { include: "#Comment" }
-      - match: ","
-        name: punctuation.separator.sequence.yaml
-      - { include: "#FlowPair" }
-      - { include: "#FlowNode" }
-
-  FlowMap:
-    begin: '\{'
-    beginCaptures:
-      0:
-        name: punctuation.definition.mapping.begin.yaml
-    end: '\}'
-    endCaptures:
-      0:
-        name: punctuation.definition.mapping.end.yaml
-    name: meta.flow-map.yaml
-    patterns:
-      - { include: "#Comment" }
-      - match: ","
-        name: punctuation.separator.mapping.yaml
-      - { include: "#FlowPair" }
-
-  FlowPair:
-    patterns:
-      - name: meta.flow-pair.key.yaml
-        begin: ([ ]{2,})(?=(?:[^\s,\[\]{}#&*!|>'"%@`?:-]|[?:-][^\s\[\]{},])([^\s:\[\]{},]|:[^\s\[\]{},]|\s+(?![#\s]))*\s*:\s)
-        beginCaptures:
-          1:
-            name: markup.raw.whitespace.indent.sd
-        end: (?=\s*$|\s+\/\/|\s*:\s|\s*:[\[\]{},][\[\]{},])
-        patterns:
-          - { include: "#ScalarPlainIn" }
-          - begin: ([^\s[,\[\]{}#&*!|>'"%@`?:-]|[?:-][^\s[\[\]{},])
-            beginCaptures:
-              1:
-                name: entity.name.tag.yaml
-            contentName: entity.name.tag.yaml
-            end: (?=\s*$|\s+\/\/|\s*:\s|\s*:[\[\]{},]|[\[\]{},])
-            name: string.unquoted.plain.in.yaml
-      - { include: "#FlowNode" }
-      - begin: ':(?=\s|$|[\[\]{},])'
-        captures:
-          0:
-            name: punctuation.separator.key-value.mapping.yaml
-        end: '(?=[},\]])'
-        name: meta.flow-pair.yaml
-        patterns:
-          - { include: "#FlowValue" }
-
-  FlowValue:
-    patterns:
-      - begin: '(?![},\]])'
-        end: '(?=[},\]])'
-        name: meta.flow-pair.value.yaml
-        patterns:
-          - { include: "#FlowNode" }
-
-  # TODO: Handle with TypeScript Expression
+  # TypeScript (subset)
 
   Expression:
-    patterns:
-      - { include: "#ScalarDoubleQuoted" }
-      - { include: "#ScalarSingleQuoted" }
-      - { include: "#ScalarPlainIn" }
-      - { include: "#VariableName" }
-
-  ScalarDoubleQuoted:
-    name: string.quoted.double.yaml
-    begin: '"'
-    beginCaptures:
-      0:
-        name: punctuation.definition.string.begin.yaml
-    end: '"'
-    endCaptures:
-      0:
-        name: punctuation.definition.string.end.yaml
-    patterns:
-      - match: '\\([0abtnvfre "/\\N_Lp]|x\d\d|u\d{4}|U\d{8})'
-        name: constant.character.escape.yaml
-      - match: \\\n
-        name: constant.character.escape.double-quoted.newline.yaml
-
-  ScalarSingleQuoted:
-    begin: "'"
-    beginCaptures:
-      0:
-        name: punctuation.definition.string.begin.yaml
-    end: "'(?!')"
-    endCaptures:
-      0:
-        name: punctuation.definition.string.end.yaml
-    name: string.quoted.single.yaml
-    patterns:
-      - match: "''"
-        name: constant.character.escape.single-quoted.yaml
-
-  ScalarPlainIn:
-    patterns:
-      - match: '(?:(null)|(true|false)|([\d]*[.][\d]*|[\d]+)|(Infinity))(?=\s*$|\s+\/\/|\s*:\s|\s*:[\[\]{},]|[\[\]{},])'
-        captures:
-          1:
-            name: constant.language.null.yaml
-          2:
-            name: constant.language.boolean.yaml
-          3:
-            name: constant.numeric.integer.yaml
-          4:
-            name: constant.numeric.float.yaml
-
-  VariableName:
-    tag: variableName
-    name: variable.other.readwrite.struct.sd
-    match: ([_a-zA-Z]+[_a-zA-Z0-9]*)
+    tag: number
+    name: constant.numeric
+    match: ([^\n\r<]+)

@@ -265,9 +265,8 @@ export class Parse implements PartialParse {
         this.state = match.state;
         matchTokens = match.compile();
         length = match.length;
-      }
-      // if we didn't match, we'll advance with an error token to prevent getting stuck
-      else {
+      } else {
+        // if we didn't match, we'll advance with an error token to prevent getting stuck
         matchTokens = [[NodeID.ERROR_UNRECOGNIZED, pos, pos + 1]];
         length = 1;
       }

@@ -52,6 +52,8 @@ export class Compiler {
     this.compiled[idx + 3] = children;
     this.size++;
     this.stack.increment();
+
+    // console.log("EMIT", this.language.nodeTypes?.[type]?.name, from, to);
   }
 
   private parse(chunk: Chunk) {
@@ -109,8 +111,8 @@ export class Compiler {
     }
   }
 
-  step(force = false) {
-    if (this.index < this.buffer.chunks.length - +force) {
+  step() {
+    if (this.index < this.buffer.chunks.length) {
       const chunk = this.buffer.chunks[this.index]!;
       this.parse(chunk);
       this.index++;
@@ -119,9 +121,9 @@ export class Compiler {
     return false;
   }
 
-  advanceFully(force = false) {
+  advanceFully() {
     if (!this.done) {
-      while (this.step(force)) {}
+      while (this.step()) {}
     }
   }
 
