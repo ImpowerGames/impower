@@ -2,14 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { match } from "../utils/match";
 import type { Matched } from "./matched";
 import { ParserNode } from "./node";
 import { Repository } from "./repository";
-import { ScopedRule } from "./rules/scoped";
 import { GrammarStack, GrammarState } from "./state";
 import type * as DF from "./types/definition";
 import { Rule } from "./types/rule";
-import { Wrapping } from "./types/wrapping";
 
 /** Grammar/dumb-tokenizer for a {@link TextmateLanguage}. */
 export class Grammar {
@@ -72,45 +71,6 @@ export class Grammar {
    *   `from` position.
    */
   match(state: GrammarState, str: string, pos: number, offset = 0) {
-    if (state.stack.end) {
-      if (state.stack.end instanceof ScopedRule) {
-        let result = state.stack.end.close(str, pos, state);
-        if (result) {
-          if (offset !== pos) {
-            result.offset(offset);
-          }
-          return result;
-        }
-      } else {
-        let result = state.stack.end.match(str, pos, state);
-        if (result) {
-          if (state.stack.node) {
-            result = result.wrap(state.stack.node, Wrapping.END);
-          }
-          result.state.stack.pop();
-          if (offset !== pos) {
-            result.offset(offset);
-          }
-          return result;
-        }
-      }
-    }
-
-    // normal matching
-    const rules = state.stack.rules;
-    if (rules) {
-      for (let i = 0; i < rules.length; i++) {
-        const rule = rules[i];
-        const result = rule?.match(str, pos, state);
-        if (result) {
-          if (offset !== pos) {
-            result.offset(offset);
-          }
-          return result;
-        }
-      }
-    }
-
-    return null;
+    return match(state, str, pos, offset);
   }
 }

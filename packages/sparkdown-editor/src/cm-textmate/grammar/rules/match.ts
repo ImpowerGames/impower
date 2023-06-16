@@ -4,6 +4,7 @@
 
 import { createID } from "../../utils/createID";
 import { isSwitchRuleItem } from "../../utils/isSwitchRuleItem";
+import { match } from "../../utils/match";
 import { Matched } from "../matched";
 import { ParserNode } from "../node";
 import { RegExpMatcher } from "../regexp";
@@ -38,12 +39,12 @@ export class MatchRule implements Rule {
       this.captures = [];
       for (const key in item.captures) {
         const value = item.captures[key];
-        const idx = parseInt(key, 10);
+        const index = parseInt(key, 10);
         if (value != null) {
           if (isSwitchRuleItem(value)) {
-            this.captures[idx] = repo.add(value, this.name + "-" + idx);
+            this.captures[index] = repo.add(value, this.name + "-" + index);
           } else {
-            this.captures[idx] = repo.add(value, this.name + "-" + idx);
+            this.captures[index] = repo.add(value, this.name + "-" + index);
           }
         }
       }
@@ -74,29 +75,32 @@ export class MatchRule implements Rule {
       if (result) {
         const captures: Matched[] = [];
         let capturePos = pos;
-        result.forEach((capturedStr, i) => {
-          const capture = this.captures?.[i];
+        result.forEach((capturedStr, captureIndex) => {
+          const capture = this.captures?.[captureIndex];
           if (capture) {
             if (capture instanceof SwitchRule) {
-              const truncatedStr = str.slice(
-                0,
-                capturePos + capturedStr.length
-              );
-              const switchMatched = capture.match(
-                truncatedStr,
-                capturePos,
-                state
-              );
-              if (switchMatched) {
-                captures.push(switchMatched);
+              const captureFrom = capturePos;
+              const captureTo = capturePos + capturedStr.length;
+              const truncatedStr = str.slice(0, captureTo);
+              if (!capture.rules) {
+                throw new Error("Rules were not resolved prior to matching");
               }
+              state.stack.push(this.node, capture.rules, this);
+              for (let i = captureFrom; i <= captureTo; i += 1) {
+                const matched = match(state, truncatedStr, i, i);
+                if (matched) {
+                  captures.push(matched);
+                  i += matched.total.length - 1;
+                }
+              }
+              state.stack.pop();
             } else {
               captures.push(
                 new Matched(state, capture, capturedStr, capturePos)
               );
             }
           }
-          if (i > 0) {
+          if (captureIndex > 0) {
             // First capture is always the total match so it's length shouldn't count
             capturePos += capturedStr.length;
           }

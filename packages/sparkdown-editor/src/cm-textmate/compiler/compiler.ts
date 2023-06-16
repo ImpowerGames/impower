@@ -53,7 +53,7 @@ export class Compiler {
     this.size++;
     this.stack.increment();
 
-    // console.log("EMIT", this.language.nodeTypes?.[type]?.name, from, to);
+    // console.log("EMIT", type, this.language.nodeTypes?.[type], from, to);
   }
 
   private parse(chunk: Chunk) {

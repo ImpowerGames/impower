@@ -38,8 +38,6 @@ const convertConfigToLanguageData = (config: ConfigData): LanguageData => {
     data.indentOnInput = regex;
   }
 
-  console.log("langaugeData", JSON.stringify(data));
-
   return data;
 };
 
