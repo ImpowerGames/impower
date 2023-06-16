@@ -91,6 +91,14 @@ export class MatchRule implements Rule {
                 if (matched) {
                   captures.push(matched);
                   i += matched.total.length - 1;
+                } else {
+                  const unrecognized = new Matched(
+                    state,
+                    capture.node,
+                    truncatedStr[i] || "",
+                    i
+                  );
+                  captures.push(unrecognized);
                 }
               }
               state.stack.pop();
