@@ -31,7 +31,7 @@ export const FINISH_INCOMPLETE_NODES = true;
 export const DISABLED_NESTED = false;
 
 /** If true, the "left" (previous) side of a parse will be reused. */
-export const REUSE_LEFT = true;
+export const REUSE_LEFT = false;
 
 /** If true, the "right" (ahead) side of a parse will be reused. */
 export const REUSE_RIGHT = true;

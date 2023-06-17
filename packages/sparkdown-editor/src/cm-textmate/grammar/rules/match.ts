@@ -66,7 +66,7 @@ export class MatchRule implements Rule {
       return null;
     }
     const total = result[0];
-    if (total == null) {
+    if (!total) {
       return null;
     }
     const matched = new Matched(state, this.node, total, pos);
@@ -90,22 +90,13 @@ export class MatchRule implements Rule {
                 resultStr,
                 from
               );
+              captureMatched.captures ??= [];
               state.stack.push(capture.node, capture.rules, null);
               for (let i = 0; i < resultStr.length; i += 1) {
                 const matched = match(state, resultStr, i, from + i);
                 if (matched) {
-                  captureMatched.captures ??= [];
                   captureMatched.captures.push(matched);
                   i += matched.total.length - 1;
-                } else {
-                  const unrecognized = new Matched(
-                    state,
-                    ParserNode.None,
-                    resultStr[i] || "",
-                    from + i
-                  );
-                  captureMatched.captures ??= [];
-                  captureMatched.captures.push(unrecognized);
                 }
               }
               state.stack.pop();

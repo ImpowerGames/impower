@@ -104,10 +104,12 @@ export class RegExpMatcher implements Matcher {
             }
             capturedLength += result[i]?.length ?? 0;
           }
-          // tarnation can only accept regexps that have their capturing groups
-          // consist of contigous ranges covering the entirety of the match
+          // parser only accepts regexps that have their capturing groups
+          // consist of contiguous ranges covering the entirety of the match
           if (capturedLength !== total.length) {
-            throw new Error("Invalid capturing group lengths");
+            throw new Error(
+              `Invalid capturing group lengths: ${this.regexp.source}`
+            );
           }
         }
 
