@@ -3,6 +3,8 @@ export enum NodeID {
   NONE,
   /** ID for the top-level node. */
   TOP,
+  /** ID for the newline node. */
+  NEWLINE,
   /**
    * ID for the `ERROR_UNRECOGNIZED` node.
    *

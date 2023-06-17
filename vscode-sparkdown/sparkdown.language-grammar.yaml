@@ -89,7 +89,7 @@ repository:
         name: markup.heading.separator.equals.sd
 
   Jump:
-    match: ^([ \t]*)([>])([ ]*)([^ ]+|[{][^\n\r<]+[}])?$
+    match: ^([ \t]*)([>])([ ]*)([^\n\r ]+|[{][^\n\r<]+[}])?$
     captures:
       2:
         tag: keyword
@@ -214,7 +214,7 @@ repository:
         name: punctuation.definition.struct.sd
     patterns:
       - { include: "#YAML" }
-    end: (?=@)
+    end: (?=@|^[\n\r]*$)
 
   # TODO
 
@@ -226,7 +226,7 @@ repository:
   Action:
     name: meta.paragraph.text.sd
     tag: content
-    match: (?:(?!\/\/|\/\*).)*
+    match: ^((?:(?![\/][\/]|[\/][*]).)+)$
 
   # YAML (stricter subset)
 
@@ -239,7 +239,7 @@ repository:
       - { include: "#ExpressionStart" }
 
   BlockArrayStart:
-    match: ([ ]{2,}|[\t]+)([-])([\t ]*$|[\t ]+[^\n\r]+)$
+    match: ([ ]{2,}|[\t]+)([-])([\t ]+[^\n\r]+|[\t ]*)$
     captures:
       1:
         name: markup.raw.whitespace.indent.yaml.sd
@@ -303,6 +303,7 @@ repository:
         patterns:
           - { include: "#Comment" }
           - match: .+
+            tag: invalid
             name: invalid.illegal.expected-comment-or-newline.yaml
     end: ^(?=\S)
     patterns:
@@ -313,6 +314,436 @@ repository:
   # TypeScript (subset)
 
   Expression:
-    tag: number
-    name: constant.numeric
-    match: ([^\n\r<]+)
+    patterns:
+      - { include: "#ExpressionWithoutIdentifiers" }
+      # - { include: "#Identifiers" }
+      # - { include: "#ExpressionPunctuations" }
+
+  ExpressionWithoutIdentifiers:
+    patterns:
+      - { include: "#String" }
+      - { include: "#Comment" }
+      - { include: "#ExpressionOperators" }
+      # - { include: "#Literal" }
+      # - { include: "#ParenExpression" }
+
+  String:
+    patterns:
+      - { include: "#QStringSingle" }
+      - { include: "#QStringDouble" }
+      # - { include: "#Template" }
+
+  QStringDouble:
+    tag: string
+    name: string.quoted.double.ts
+    begin: (["])
+    beginCaptures:
+      1:
+        tag: string
+        name: punctuation.definition.string.begin.ts
+    end: (["])|([^\\\n]$)
+    endCaptures:
+      1:
+        tag: string
+        name: punctuation.definition.string.end.ts
+      2:
+        tag: invalid
+        name: invalid.illegal.newline.ts
+
+  QStringSingle:
+    tag: string
+    name: string.quoted.single.ts
+    begin: (['])
+    beginCaptures:
+      1:
+        tag: string
+        name: punctuation.definition.string.begin.ts
+    end: (['])|([^\\\n]$)
+    endCaptures:
+      1:
+        tag: string
+        name: punctuation.definition.string.end.ts
+      2:
+        tag: invalid
+        name: invalid.illegal.newline.ts
+
+  # ExpressionPunctuations:
+  #   patterns:
+  #     - { include: "#PunctuationComma" }
+  #     - { include: "#PunctuationAccessor" }
+
+  # ParenExpression:
+  #   begin: \(
+  #   beginCaptures:
+  #     "0":
+  #       name: meta.brace.round.ts
+  #   patterns:
+  #     - { include: "#Expression" }
+  #   end: \)
+  #   endCaptures:
+  #     "0":
+  #       name: meta.brace.round.ts
+
+  ExpressionOperators:
+    patterns:
+      - tag: operatorKeyword
+        name: keyword.control.flow.ts
+        match: (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(await)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+      - begin: (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?=\s*\/[*]([^*]|([*][^\/]))*[*]\/\s*[*])
+        beginCaptures:
+          1:
+            tag: controlKeyword
+            name: keyword.control.flow.ts
+        patterns:
+          - { include: "#Comment" }
+        end: ([*])
+        endCaptures:
+          1:
+            name: keyword.generator.asterisk.ts
+      - match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?:\s*([*]))?
+        captures:
+          1:
+            name: keyword.control.flow.ts
+          2:
+            name: keyword.generator.asterisk.ts
+      - name: keyword.operator.expression.delete.ts
+        match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))delete(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+      - name: keyword.operator.expression.in.ts
+        match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))in(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\()
+      - name: keyword.operator.expression.of.ts
+        match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))of(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\()
+      - name: keyword.operator.expression.instanceof.ts
+        match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))instanceof(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+      - name: keyword.operator.new.ts
+        match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))new(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+      - name: keyword.operator.expression.void.ts
+        match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))void(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+      - match: >-
+          (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(as)\s+(const)(?=\s*($|[;,:})\]]))
+        captures:
+          1:
+            name: keyword.control.as.ts
+          2:
+            name: storage.modifier.ts
+      - name: keyword.operator.spread.ts
+        match: ([.][.][.])
+      - name: keyword.operator.assignment.compound.ts
+        match: ([*][=]|(?<!\()[\/][=]|[%][=]|[+][=]|[-][=])
+      - name: keyword.operator.assignment.compound.bitwise.ts
+        match: ([&][=]|[\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])
+      - name: keyword.operator.bitwise.shift.ts
+        match: ([<][<]|[>][>][>]|[>][>])
+      - name: keyword.operator.comparison.ts
+        match: ([=][=][=]|[!][=][=]|[=][=]|[!][=])
+      - name: keyword.operator.relational.ts
+        match: ([<][=]|[>][=]|[<][>]|[<]|[>])
+      - match: (?<=[_$A-Za-z0-9])([!])\s*(?:([\/][=])|(?:([\/])(?![/*])))
+        captures:
+          1:
+            name: keyword.operator.logical.ts
+          2:
+            name: keyword.operator.assignment.compound.ts
+          3:
+            name: keyword.operator.arithmetic.ts
+      - name: keyword.operator.logical.ts
+        match: ([!]|[&][&]|[|][|]|[?][?])
+      - name: keyword.operator.bitwise.ts
+        match: ([&]|[~]|[\^]|[|])
+      - name: keyword.operator.assignment.ts
+        match: ([=])
+      - name: keyword.operator.decrement.ts
+        match: ([-][-])
+      - name: keyword.operator.increment.ts
+        match: ([+][+])
+      - name: keyword.operator.arithmetic.ts
+        match: ([%]|[*]|[\/]|[-]|[+])
+      - begin: >-
+          (?<=[_$A-Za-z0-9)\]])\s*(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
+        end: (?:(/=)|(?:(/)(?![*]([^*]|([*][^\/]))*[*][\/])))
+        endCaptures:
+          1:
+            name: keyword.operator.assignment.compound.ts
+          2:
+            name: keyword.operator.arithmetic.ts
+        patterns:
+          - { include: "#Comment" }
+      - match: (?<=[_$A-Za-z0-9)\]])\s*(?:(/=)|(?:(/)(?![/*])))
+        captures:
+          1:
+            name: keyword.operator.assignment.compound.ts
+          2:
+            name: keyword.operator.arithmetic.ts
+      - name: keyword.operator.type.annotation.ts
+        match: ([:])
+
+  # Literal:
+  #   patterns:
+  #     - { include: "#NumericLiteral" }
+  #     - { include: "#BooleanLiteral" }
+  #     - { include: "#NullLiteral" }
+  #     - { include: "#UndefinedLiteral" }
+  #     - { include: "#NumericConstantLiteral" }
+  #     - { include: "#ArrayLiteral" }
+
+  # ArrayLiteral:
+  #   name: meta.array.literal.ts
+  #   begin: \s*(\[)
+  #   beginCaptures:
+  #     "1":
+  #       name: meta.brace.square.ts
+  #   patterns:
+  #     - { include: "#Expression" }
+  #     - { include: "#PunctuationComma" }
+  #   end: \]
+  #   endCaptures:
+  #     "0":
+  #       name: meta.brace.square.ts
+
+  # NumericLiteral:
+  #   patterns:
+  #     - name: constant.numeric.hex.ts
+  #       match: \b(?<!\$)0(?:x|X)[0-9a-fA-F][0-9a-fA-F_]*(n)?\b(?!\$)
+  #       captures:
+  #         "1":
+  #           name: storage.type.numeric.bigint.ts
+  #     - name: constant.numeric.binary.ts
+  #       match: \b(?<!\$)0(?:b|B)[01][01_]*(n)?\b(?!\$)
+  #       captures:
+  #         "1":
+  #           name: storage.type.numeric.bigint.ts
+  #     - name: constant.numeric.octal.ts
+  #       match: \b(?<!\$)0(?:o|O)?[0-7][0-7_]*(n)?\b(?!\$)
+  #       captures:
+  #         "1":
+  #           name: storage.type.numeric.bigint.ts
+  #     - match: |-
+  #         (?x)
+  #         (?<!\$)(?:
+  #           (?:\b[0-9][0-9_]*([.])[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*(n)?\b)| # 1.1E+3
+  #           (?:\b[0-9][0-9_]*([.])[eE][+-]?[0-9][0-9_]*(n)?\b)|             # 1.E+3
+  #           (?:\B([.])[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*(n)?\b)|             # .1E+3
+  #           (?:\b[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*(n)?\b)|                 # 1E+3
+  #           (?:\b[0-9][0-9_]*([.])[0-9][0-9_]*(n)?\b)|                      # 1.1
+  #           (?:\b[0-9][0-9_]*([.])(n)?\B)|                                  # 1.
+  #           (?:\B([.])[0-9][0-9_]*(n)?\b)|                                  # .1
+  #           (?:\b[0-9][0-9_]*(n)?\b(?![.]))                                 # 1
+  #         )(?!\$)
+  #       captures:
+  #         "0":
+  #           name: constant.numeric.decimal.ts
+  #         "1":
+  #           name: meta.delimiter.decimal.period.ts
+  #         "2":
+  #           name: storage.type.numeric.bigint.ts
+  #         "3":
+  #           name: meta.delimiter.decimal.period.ts
+  #         "4":
+  #           name: storage.type.numeric.bigint.ts
+  #         "5":
+  #           name: meta.delimiter.decimal.period.ts
+  #         "6":
+  #           name: storage.type.numeric.bigint.ts
+  #         "7":
+  #           name: storage.type.numeric.bigint.ts
+  #         "8":
+  #           name: meta.delimiter.decimal.period.ts
+  #         "9":
+  #           name: storage.type.numeric.bigint.ts
+  #         "10":
+  #           name: meta.delimiter.decimal.period.ts
+  #         "11":
+  #           name: storage.type.numeric.bigint.ts
+  #         "12":
+  #           name: meta.delimiter.decimal.period.ts
+  #         "13":
+  #           name: storage.type.numeric.bigint.ts
+  #         "14":
+  #           name: storage.type.numeric.bigint.ts
+
+  # BooleanLiteral:
+  #   patterns:
+  #     - name: constant.language.boolean.true.ts
+  #       match: >-
+  #         (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))true(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+  #     - name: constant.language.boolean.false.ts
+  #       match: >-
+  #         (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))false(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+
+  # NullLiteral:
+  #   name: constant.language.null.ts
+  #   match: >-
+  #     (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))null(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+
+  # UndefinedLiteral:
+  #   name: constant.language.undefined.ts
+  #   match: >-
+  #     (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))undefined(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+
+  # NumericConstantLiteral:
+  #   patterns:
+  #     - name: constant.language.nan.ts
+  #       match: >-
+  #         (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))NaN(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+  #     - name: constant.language.infinity.ts
+  #       match: >-
+  #         (?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))Infinity(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))
+
+  # Identifiers:
+  #   patterns:
+  #     - match: >-
+  #         (?x)(?:(?:([.])|(\?[.](?!\s*[0-9])))\s*)?([_$A-Za-z][_$A-Za-z0-9]*)(?=\s*=\s*(
+  #           ((async\s+)?(
+  #             (function\s*[(<*]) |
+  #             (function\s+) |
+  #             ([_$A-Za-z][_$A-Za-z0-9]*\s*=>)
+  #           )) |
+  #           ((async\s*)?(
+  #             ((<\s*$)|((<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<]|\<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<]|\<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<])*\>)*\>)*>\s*)?[\(]\s*((([\{\[]\s*)?$)|((\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})\s*((:\s*\{?$)|((\s*([^<>\(\)\{\}]|\<([^<>]|\<([^<>]|\<[^<>]+\>)+\>)+\>|\([^\(\)]+\)|\{[^\{\}]+\})+\s*)?=\s*)))|((\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])\s*((:\s*\[?$)|((\s*([^<>\(\)\{\}]|\<([^<>]|\<([^<>]|\<[^<>]+\>)+\>)+\>|\([^\(\)]+\)|\{[^\{\}]+\})+\s*)?=\s*)))))) |
+  #             # sure shot arrow functions even if => is on new line
+  #         (
+  #           (<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<]|\<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<]|\<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<])*\>)*\>)*>\s*)?
+  #           [(]\s*([\/][*]([^*]|([*][^\/]))*[*][\/]\s*)*
+  #           (
+  #             ([)]\s*:) |                                                                                       # ():
+  #             (([.][.][.]\s*)?[_$A-Za-z][_$A-Za-z0-9]*\s*:)                                                                  # [(]param: | [(]...param:
+  #           )
+  #         ) |
+
+  #         # arrow function possible to detect only with => on same line
+
+  #         (
+  #           (<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<]|\<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<]|\<\s*([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\]))([^=<>]|=[^<])*\>)*\>)*>\s*)?                                                                                 # typeparameters
+  #           \(\s*(\/[*]([^*]|([*][^\/]))*[*]\/\s*)*(([_$A-Za-z]|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])|([.][.][.]\s*[_$A-Za-z]))([^()\'\"\`]|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\'([^\'\\]|\[.])*\')|(\"([^\"\\]|\[.])*\")|(\`([^\`\\]|\[.])*\`))*)?\)   # parameters
+  #           (\s*:\s*([^<>\(\)\{\}]|\<([^<>]|\<([^<>]|\<[^<>]+\>)+\>)+\>|\([^\(\)]+\)|\{[^\{\}]+\})+)?                                                                        # return type
+  #           \s*=>                                                                                               # arrow operator
+  #         )
+  #           ))
+  #         ))
+  #       captures:
+  #         "1":
+  #           name: punctuation.accessor.ts
+  #         "2":
+  #           name: punctuation.accessor.optional.ts
+  #         "3":
+  #           name: entity.name.function.ts
+  #     - match: >-
+  #         (?:([.])|(\?[.](?!\s*[0-9])))\s*(\#?[A-Z][_$0-9A-Z]*)(?![_$A-Za-z0-9])
+  #       captures:
+  #         "1":
+  #           name: punctuation.accessor.ts
+  #         "2":
+  #           name: punctuation.accessor.optional.ts
+  #         "3":
+  #           name: variable.other.constant.property.ts
+  #     - match: (?:([.])|(\?[.](?!\s*[0-9])))\s*(\#?[_$A-Za-z][_$A-Za-z0-9]*)
+  #       captures:
+  #         "1":
+  #           name: punctuation.accessor.ts
+  #         "2":
+  #           name: punctuation.accessor.optional.ts
+  #         "3":
+  #           name: variable.other.property.ts
+  #     - name: variable.other.constant.ts
+  #       match: ([A-Z][_$0-9A-Z]*)(?![_$A-Za-z0-9])
+  #     - name: variable.other.readwrite.ts
+  #       match: "[_$A-Za-z][_$A-Za-z0-9]*"
+
+  # PunctuationComma:
+  #   name: punctuation.separator.comma.ts
+  #   match: ","
+
+  # PunctuationAccessor:
+  #   match: (?:([.])|(\?[.](?!\s*[0-9])))
+  #   captures:
+  #     "1":
+  #       name: punctuation.accessor.ts
+  #     "2":
+  #       name: punctuation.accessor.optional.ts
+
+  # Template:
+  #   patterns:
+  #     - { include: "#TemplateCall" }
+  #     - name: string.template.ts
+  #       begin: ([_$A-Za-z][_$A-Za-z0-9]*)?(`)
+  #       beginCaptures:
+  #         "1":
+  #           name: entity.name.function.tagged-template.ts
+  #         "2":
+  #           name: punctuation.definition.string.template.begin.ts
+  #       patterns:
+  #         - { include: "#TemplateSubstitutionElement" }
+  #         - { include: "#StringCharacterEscape" }
+  #       end: "`"
+  #       endCaptures:
+  #         "0":
+  #           name: punctuation.definition.string.template.end.ts
+
+  # TemplateCall:
+  #   patterns:
+  #     - name: string.template.ts
+  #       begin: >-
+  #         (?=(([_$A-Za-z][_$A-Za-z0-9]*\s*\??[.]\s*)*|(\??[.]\s*)?)([_$A-Za-z][_$A-Za-z0-9]*)(<\s*(((keyof|infer|typeof|readonly)\s+)|(([_$A-Za-z][_$A-Za-z0-9]*|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])|(\'([^\'\\]|\[.])*\')|(\"([^\"\\]|\[.])*\")|(\`([^\`\\]|\[.])*\`))(?=\s*([\<\>\,[.]\[]|=>|&(?!&)|\|(?!\|)))))([^<>\(]|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(?<==)\>|\<\s*(((keyof|infer|typeof|readonly)\s+)|(([_$A-Za-z][_$A-Za-z0-9]*|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])|(\'([^\'\\]|\[.])*\')|(\"([^\"\\]|\[.])*\")|(\`([^\`\\]|\[.])*\`))(?=\s*([\<\>\,[.]\[]|=>|&(?!&)|\|(?!\|)))))(([^<>\(]|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(?<==)\>|\<\s*(((keyof|infer|typeof|readonly)\s+)|(([_$A-Za-z][_$A-Za-z0-9]*|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])|(\'([^\'\\]|\[.])*\')|(\"([^\"\\]|\[.])*\")|(\`([^\`\\]|\[.])*\`))(?=\s*([\<\>\,[.]\[]|=>|&(?!&)|\|(?!\|)))))([^<>\(]|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(?<==)\>)*(?<!=)\>))*(?<!=)\>)*(?<!=)>\s*)?`)
+  #       patterns:
+  #         - begin: >-
+  #             (?=(([_$A-Za-z][_$A-Za-z0-9]*\s*\??[.]\s*)*|(\??[.]\s*)?)([_$A-Za-z][_$A-Za-z0-9]*))
+  #           patterns:
+  #             - name: entity.name.function.tagged-template.ts
+  #               match: ([_$A-Za-z][_$A-Za-z0-9]*)
+  #           end: >-
+  #             (?=(<\s*(((keyof|infer|typeof|readonly)\s+)|(([_$A-Za-z][_$A-Za-z0-9]*|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])|(\'([^\'\\]|\[.])*\')|(\"([^\"\\]|\[.])*\")|(\`([^\`\\]|\[.])*\`))(?=\s*([\<\>\,[.]\[]|=>|&(?!&)|\|(?!\|)))))([^<>\(]|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(?<==)\>|\<\s*(((keyof|infer|typeof|readonly)\s+)|(([_$A-Za-z][_$A-Za-z0-9]*|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])|(\'([^\'\\]|\[.])*\')|(\"([^\"\\]|\[.])*\")|(\`([^\`\\]|\[.])*\`))(?=\s*([\<\>\,[.]\[]|=>|&(?!&)|\|(?!\|)))))(([^<>\(]|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(?<==)\>|\<\s*(((keyof|infer|typeof|readonly)\s+)|(([_$A-Za-z][_$A-Za-z0-9]*|(\{([^\{\}]|(\{([^\{\}]|\{[^\{\}]*\})*\}))*\})|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(\[([^\[\]]|(\[([^\[\]]|\[[^\[\]]*\])*\]))*\])|(\'([^\'\\]|\[.])*\')|(\"([^\"\\]|\[.])*\")|(\`([^\`\\]|\[.])*\`))(?=\s*([\<\>\,[.]\[]|=>|&(?!&)|\|(?!\|)))))([^<>\(]|(\(([^\(\)]|(\(([^\(\)]|\([^\(\)]*\))*\)))*\))|(?<==)\>)*(?<!=)\>))*(?<!=)\>)*(?<!=)>\s*)?`)
+  #       end: (?=`)
+
+  # TemplateSubstitutionElement:
+  #   name: meta.template.expression.ts
+  #   begin: \$\{
+  #   beginCaptures:
+  #     "0":
+  #       name: punctuation.definition.template-Expression.begin.ts
+  #   contentName: meta.embedded.line.ts
+  #   patterns:
+  #     - { include: "#Expression" }
+  #   end: \}
+  #   endCaptures:
+  #     "0":
+  #       name: punctuation.definition.template-Expression.end.ts
+
+  # TypeString:
+  #   patterns:
+  #     - { include: "#QStringSingle" }
+  #     - { include: "#QStringDouble" }
+  #     - { include: "#TemplateType" }
+
+  # TemplateType:
+  #   patterns:
+  #     - { include: "#TemplateCall" }
+  #     - name: string.template.ts
+  #       begin: ([_$A-Za-z][_$A-Za-z0-9]*)?(`)
+  #       beginCaptures:
+  #         "1":
+  #           name: entity.name.function.tagged-template.ts
+  #         "2":
+  #           name: punctuation.definition.string.template.begin.ts
+  #       patterns:
+  #         - { include: "#StringCharacterEscape" }
+  #       end: "`"
+  #       endCaptures:
+  #         "0":
+  #           name: punctuation.definition.string.template.end.ts
+
+  # Brackets:
+  #   patterns:
+  #     - begin: "{"
+  #       patterns:
+  #         - { include: "#Brackets" }
+  #       end: '}|(?=[*][\/])'
+  #     - begin: \[
+  #       patterns:
+  #         - { include: "#Brackets" }
+  #       end: \]|(?=[*][\/])

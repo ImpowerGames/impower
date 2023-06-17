@@ -10,6 +10,7 @@ import { GrammarState } from "../state";
 import type * as DF from "../types/definition";
 import { Rule } from "../types/rule";
 import { Wrapping } from "../types/wrapping";
+import type { MatchRule } from "./match";
 
 /**
  * A {@link Rule} subclass that uses {@link RegExpMatcher} or
@@ -20,9 +21,9 @@ export class ScopedRule implements Rule {
 
   node: ParserNode;
 
-  beginRule: Rule;
+  beginRule: MatchRule;
 
-  endRule: Rule;
+  endRule: MatchRule;
 
   patterns?: DF.Patterns;
 

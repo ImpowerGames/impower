@@ -49,6 +49,14 @@ export const LIMIT_TO_VIEWPORT = false;
 // node types
 
 /**
+ * Node emitted when the parser reached a newline and had to manually advance.
+ */
+export const NODE_NEWLINE = NodeType.define({
+  name: "newline",
+  id: NodeID.NEWLINE,
+});
+
+/**
  * Node emitted when the parser didn't match anything in the grammar,
  * and had to manually advance.
  */

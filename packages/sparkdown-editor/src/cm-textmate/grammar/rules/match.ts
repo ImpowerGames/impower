@@ -33,7 +33,7 @@ export class MatchRule implements Rule {
     this.name = type;
     this.node = !emit ? ParserNode.None : new ParserNode(repo.id(), item);
 
-    this.matcher = new RegExpMatcher(item.match);
+    this.matcher = new RegExpMatcher(item.match, item.flags);
 
     if (item.captures) {
       this.captures = [];
@@ -66,54 +66,61 @@ export class MatchRule implements Rule {
       return null;
     }
     const total = result[0];
-    if (!total) {
+    if (total == null) {
       return null;
     }
     const matched = new Matched(state, this.node, total, pos);
     state.last = result;
     if (this.captures) {
       if (result) {
-        const captures: Matched[] = [];
-        let capturePos = pos;
-        result.forEach((capturedStr, captureIndex) => {
-          const capture = this.captures?.[captureIndex];
+        if (!matched.captures) {
+          matched.captures = [];
+        }
+        let from = pos;
+        result.forEach((resultStr, resultIndex) => {
+          const capture = this.captures?.[resultIndex];
           if (capture) {
             if (capture instanceof SwitchRule) {
-              const captureFrom = capturePos;
-              const captureTo = capturePos + capturedStr.length;
-              const truncatedStr = str.slice(0, captureTo);
               if (!capture.rules) {
                 throw new Error("Rules were not resolved prior to matching");
               }
-              state.stack.push(this.node, capture.rules, this);
-              for (let i = captureFrom; i <= captureTo; i += 1) {
-                const matched = match(state, truncatedStr, i, i);
+              const captureMatched = new Matched(
+                state,
+                capture.node,
+                resultStr,
+                from
+              );
+              state.stack.push(capture.node, capture.rules, null);
+              for (let i = 0; i < resultStr.length; i += 1) {
+                const matched = match(state, resultStr, i, from + i);
                 if (matched) {
-                  captures.push(matched);
+                  captureMatched.captures ??= [];
+                  captureMatched.captures.push(matched);
                   i += matched.total.length - 1;
                 } else {
                   const unrecognized = new Matched(
                     state,
-                    capture.node,
-                    truncatedStr[i] || "",
-                    i
+                    ParserNode.None,
+                    resultStr[i] || "",
+                    from + i
                   );
-                  captures.push(unrecognized);
+                  captureMatched.captures ??= [];
+                  captureMatched.captures.push(unrecognized);
                 }
               }
               state.stack.pop();
+              matched.captures!.push(captureMatched);
             } else {
-              captures.push(
-                new Matched(state, capture, capturedStr, capturePos)
+              matched.captures!.push(
+                new Matched(state, capture, resultStr, from)
               );
             }
           }
-          if (captureIndex > 0) {
+          if (resultIndex > 0) {
             // First capture is always the total match so it's length shouldn't count
-            capturePos += capturedStr.length;
+            from += resultStr.length;
           }
         });
-        matched.captures = captures;
       }
     }
     return matched;

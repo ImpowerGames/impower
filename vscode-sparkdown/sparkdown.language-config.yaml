@@ -32,7 +32,7 @@ wordPattern:
   flags: "u"
 
 indentationRules:
-  increaseIndentPattern: ^\s*.*(:|-) ?(&amp;\w+)?([{][^}"']*|[(][^)"']*)?$
+  increaseIndentPattern: ^\s*.*(:|-)[ ]?(&amp;\w+)?([{][^}"']*|[(][^)"']*)?$
   decreaseIndentPattern: ^\s+[}]$
 
 folding:

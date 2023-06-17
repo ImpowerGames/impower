@@ -18,7 +18,7 @@ export class RegExpMatcher implements Matcher {
    * input `RegExp` source won't throw. This is used to combat inconsistent
    * browser behavior.
    */
-  private declare regexp: RegExp;
+  declare regexp: RegExp;
 
   /**
    * True if the source `RegExp` has an capturing groups. Used to short
@@ -29,8 +29,7 @@ export class RegExpMatcher implements Matcher {
   /**
    * @param src - The source `RegExp` to wrap.
    */
-  constructor(src: string) {
-    const flags = "muy";
+  constructor(src: string, flags = "muy") {
     const regexp = new RegExp(src, flags);
     if (!regexp) {
       throw new Error(`Invalid RegExp: ${src}`);

@@ -266,8 +266,11 @@ export class Parse implements PartialParse {
         matchTokens = match.compile();
         length = match.length;
       } else {
-        // if we didn't match, we'll advance with an error token to prevent getting stuck
-        matchTokens = [[NodeID.ERROR_UNRECOGNIZED, pos, pos + 1]];
+        // if we didn't match, we'll advance to prevent getting stuck
+        matchTokens =
+          str[pos - start] === "\n"
+            ? [[NodeID.NEWLINE, pos, pos + 1]]
+            : [[NodeID.ERROR_UNRECOGNIZED, pos, pos + 1]];
         length = 1;
       }
 

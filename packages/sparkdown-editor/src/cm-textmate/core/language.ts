@@ -18,6 +18,7 @@ import type { LanguageData, TextmateData } from "../grammar/types/definition";
 import {
   NODE_ERROR_INCOMPLETE,
   NODE_ERROR_UNRECOGNIZED,
+  NODE_NEWLINE,
 } from "../parser/constants";
 import { Parser } from "../parser/parser";
 import convertConfigToLanguageData from "../utils/convertConfigToLanguageData";
@@ -166,6 +167,7 @@ export default class TextmateLanguage {
       nodeTypes.unshift(
         NodeType.none,
         this.topNode,
+        NODE_NEWLINE,
         NODE_ERROR_UNRECOGNIZED,
         NODE_ERROR_INCOMPLETE
       );

@@ -143,7 +143,7 @@
       }
     },
     "Jump": {
-      "match": "^([ \\t]*)([>])([ ]*)([^ ]+|[{][^\\n\\r<]+[}])?$",
+      "match": "^([ \\t]*)([>])([ ]*)([^\\n\\r ]+|[{][^\\n\\r<]+[}])?$",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -333,7 +333,7 @@
           "include": "#YAML"
         }
       ],
-      "end": "(?=@)"
+      "end": "(?=@|^[\\n\\r]*$)"
     },
     "Inline": {
       "name": "meta.paragraph.text.sd",
@@ -343,7 +343,7 @@
     "Action": {
       "name": "meta.paragraph.text.sd",
       "tag": "content",
-      "match": "(?:(?!\\/\\/|\\/\\*).)*"
+      "match": "^((?:(?![\\/][\\/]|[\\/][*]).)+)$"
     },
     "YAML": {
       "patterns": [
@@ -365,7 +365,7 @@
       ]
     },
     "BlockArrayStart": {
-      "match": "([ ]{2,}|[\\t]+)([-])([\\t ]*$|[\\t ]+[^\\n\\r]+)$",
+      "match": "([ ]{2,}|[\\t]+)([-])([\\t ]+[^\\n\\r]+|[\\t ]*)$",
       "captures": {
         "1": {
           "name": "markup.raw.whitespace.indent.yaml.sd"
@@ -469,6 +469,7 @@
             },
             {
               "match": ".+",
+              "tag": "invalid",
               "name": "invalid.illegal.expected-comment-or-newline.yaml"
             }
           ]
@@ -484,9 +485,247 @@
       ]
     },
     "Expression": {
-      "tag": "number",
-      "name": "constant.numeric",
-      "match": "([^\\n\\r<]+)"
+      "patterns": [
+        {
+          "include": "#ExpressionWithoutIdentifiers"
+        }
+      ]
+    },
+    "ExpressionWithoutIdentifiers": {
+      "patterns": [
+        {
+          "include": "#String"
+        },
+        {
+          "include": "#Comment"
+        },
+        {
+          "include": "#ExpressionOperators"
+        }
+      ]
+    },
+    "String": {
+      "patterns": [
+        {
+          "include": "#QStringSingle"
+        },
+        {
+          "include": "#QStringDouble"
+        }
+      ]
+    },
+    "QStringDouble": {
+      "tag": "string",
+      "name": "string.quoted.double.ts",
+      "begin": "([\"])",
+      "beginCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.begin.ts"
+        }
+      },
+      "end": "([\"])|([^\\\\\\n]$)",
+      "endCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.end.ts"
+        },
+        "2": {
+          "tag": "invalid",
+          "name": "invalid.illegal.newline.ts"
+        }
+      }
+    },
+    "QStringSingle": {
+      "tag": "string",
+      "name": "string.quoted.single.ts",
+      "begin": "(['])",
+      "beginCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.begin.ts"
+        }
+      },
+      "end": "(['])|([^\\\\\\n]$)",
+      "endCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.end.ts"
+        },
+        "2": {
+          "tag": "invalid",
+          "name": "invalid.illegal.newline.ts"
+        }
+      }
+    },
+    "ExpressionOperators": {
+      "patterns": [
+        {
+          "tag": "operatorKeyword",
+          "name": "keyword.control.flow.ts",
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(await)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+        },
+        {
+          "begin": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?=\\s*\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*[*])",
+          "beginCaptures": {
+            "1": {
+              "tag": "controlKeyword",
+              "name": "keyword.control.flow.ts"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#Comment"
+            }
+          ],
+          "end": "([*])",
+          "endCaptures": {
+            "1": {
+              "name": "keyword.generator.asterisk.ts"
+            }
+          }
+        },
+        {
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?:\\s*([*]))?",
+          "captures": {
+            "1": {
+              "name": "keyword.control.flow.ts"
+            },
+            "2": {
+              "name": "keyword.generator.asterisk.ts"
+            }
+          }
+        },
+        {
+          "name": "keyword.operator.expression.delete.ts",
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))delete(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+        },
+        {
+          "name": "keyword.operator.expression.in.ts",
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))in(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
+        },
+        {
+          "name": "keyword.operator.expression.of.ts",
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))of(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
+        },
+        {
+          "name": "keyword.operator.expression.instanceof.ts",
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))instanceof(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+        },
+        {
+          "name": "keyword.operator.new.ts",
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))new(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+        },
+        {
+          "name": "keyword.operator.expression.void.ts",
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))void(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+        },
+        {
+          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(as)\\s+(const)(?=\\s*($|[;,:})\\]]))",
+          "captures": {
+            "1": {
+              "name": "keyword.control.as.ts"
+            },
+            "2": {
+              "name": "storage.modifier.ts"
+            }
+          }
+        },
+        {
+          "name": "keyword.operator.spread.ts",
+          "match": "([.][.][.])"
+        },
+        {
+          "name": "keyword.operator.assignment.compound.ts",
+          "match": "([*][=]|(?<!\\()[\\/][=]|[%][=]|[+][=]|[-][=])"
+        },
+        {
+          "name": "keyword.operator.assignment.compound.bitwise.ts",
+          "match": "([&][=]|[\\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])"
+        },
+        {
+          "name": "keyword.operator.bitwise.shift.ts",
+          "match": "([<][<]|[>][>][>]|[>][>])"
+        },
+        {
+          "name": "keyword.operator.comparison.ts",
+          "match": "([=][=][=]|[!][=][=]|[=][=]|[!][=])"
+        },
+        {
+          "name": "keyword.operator.relational.ts",
+          "match": "([<][=]|[>][=]|[<][>]|[<]|[>])"
+        },
+        {
+          "match": "(?<=[_$A-Za-z0-9])([!])\\s*(?:([\\/][=])|(?:([\\/])(?![/*])))",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.logical.ts"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.compound.ts"
+            },
+            "3": {
+              "name": "keyword.operator.arithmetic.ts"
+            }
+          }
+        },
+        {
+          "name": "keyword.operator.logical.ts",
+          "match": "([!]|[&][&]|[|][|]|[?][?])"
+        },
+        {
+          "name": "keyword.operator.bitwise.ts",
+          "match": "([&]|[~]|[\\^]|[|])"
+        },
+        {
+          "name": "keyword.operator.assignment.ts",
+          "match": "([=])"
+        },
+        {
+          "name": "keyword.operator.decrement.ts",
+          "match": "([-][-])"
+        },
+        {
+          "name": "keyword.operator.increment.ts",
+          "match": "([+][+])"
+        },
+        {
+          "name": "keyword.operator.arithmetic.ts",
+          "match": "([%]|[*]|[\\/]|[-]|[+])"
+        },
+        {
+          "begin": "(?<=[_$A-Za-z0-9)\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
+          "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][\\/])))",
+          "endCaptures": {
+            "1": {
+              "name": "keyword.operator.assignment.compound.ts"
+            },
+            "2": {
+              "name": "keyword.operator.arithmetic.ts"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#Comment"
+            }
+          ]
+        },
+        {
+          "match": "(?<=[_$A-Za-z0-9)\\]])\\s*(?:(/=)|(?:(/)(?![/*])))",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.assignment.compound.ts"
+            },
+            "2": {
+              "name": "keyword.operator.arithmetic.ts"
+            }
+          }
+        },
+        {
+          "name": "keyword.operator.type.annotation.ts",
+          "match": "([:])"
+        }
+      ]
     }
   }
 }
