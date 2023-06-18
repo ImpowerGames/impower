@@ -13,7 +13,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { isCommentNode } from "./utils/isCommentNode";
+import { isAlreadyColored } from "./utils/isAlreadyColored";
 
 const DEFAULT_BRACKETS = "()[]{}";
 const DEFAULT_MATCHING_BRACKET_COLORS = ["#ffd700", "#da70d6", "#179fff"];
@@ -75,12 +75,12 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
           const isCloseBracket = bracketIndex >= 0 && bracketIndex % 2 !== 0;
           if (isOpenBracket) {
             const node = tree.resolveInner(pos, 1);
-            if (!isCommentNode(node)) {
+            if (!isAlreadyColored(node)) {
               stack.push({ char: char, from: pos });
             }
           } else if (isCloseBracket) {
             const node = tree.resolveInner(pos, 1);
-            if (!isCommentNode(node)) {
+            if (!isAlreadyColored(node)) {
               const open = stack.pop();
               if (open && open.char === getMatchingBracket(char, brackets)) {
                 const colorIndex =
@@ -97,10 +97,9 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
         while (stack.length > 0) {
           const hangingBracket = stack.pop();
           if (hangingBracket) {
-            const char = hangingBracket.char;
             const pos = hangingBracket.from;
             const node = tree.resolveInner(pos, 1);
-            if (!isCommentNode(node)) {
+            if (!isAlreadyColored(node)) {
               decorations.push(nonmatchingMark.range(pos, pos + 1));
             }
           }

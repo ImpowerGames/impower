@@ -67,14 +67,14 @@
     "CommentBlock": {
       "tag": "comment",
       "name": "comment.block.sd",
-      "begin": "(/[*])",
+      "begin": "([/][*])",
       "beginCaptures": {
         "1": {
           "tag": "blockComment",
           "name": "comment.block.open.sd"
         }
       },
-      "end": "([*]/)",
+      "end": "([*][/])",
       "endCaptures": {
         "1": {
           "tag": "blockComment",
@@ -277,7 +277,7 @@
       }
     },
     "Variable": {
-      "match": "^([ \\t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)([^\\n\\r:]+)(?![:])$",
+      "match": "^([ \\t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*(?:\\[\\])*)($|[ ]+)([^\\n\\r:]+)(?![:])$",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -333,7 +333,7 @@
           "include": "#YAML"
         }
       ],
-      "end": "(?=@)|(^[\\n\\r\\t ]*$)"
+      "end": "(?=@|^[\\n\\r\\t ]*$)"
     },
     "Inline": {
       "tag": "content",
@@ -365,7 +365,7 @@
       ]
     },
     "BlockArrayIndented": {
-      "match": "([ ]{2,}|[\\t]+)([-])([\\t ]+[^\\n\\r]+|[\\t ]*)$",
+      "match": "([ ]{2,}|[\\t]+)([-])([\\t ]*)([^\\n\\r]*)$",
       "captures": {
         "1": {
           "tag": "content",
@@ -373,9 +373,13 @@
         },
         "2": {
           "tag": "keyword",
-          "name": "storage.type.array.sd"
+          "name": "storage.type.array.yaml.sd"
         },
         "3": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.yaml.sd"
+        },
+        "4": {
           "patterns": [
             {
               "include": "#Comment"
@@ -391,7 +395,7 @@
       }
     },
     "BlockScalarIndented": {
-      "match": "([ ]{2,}|[\\t]+)(?![-])([^\\n\\r:]+)([:])([\\t ]+[^\\n\\r:]+)$",
+      "match": "([ ]{2,}|[\\t]+)(?![-])([^\\n\\r:]+)([:])([\\t ]+)([^\\n\\r:]+)$",
       "captures": {
         "1": {
           "tag": "content",
@@ -399,13 +403,17 @@
         },
         "2": {
           "tag": "keyword",
-          "name": "storage.type.map.sd"
+          "name": "storage.type.map.yaml.sd"
         },
         "3": {
           "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
+          "name": "punctuation.separator.colon.yaml.sd"
         },
         "4": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.yaml.sd"
+        },
+        "5": {
           "patterns": [
             {
               "include": "#Comment"
@@ -429,11 +437,11 @@
         },
         "2": {
           "tag": "keyword",
-          "name": "storage.type.map.sd"
+          "name": "storage.type.map.yaml.sd"
         },
         "3": {
           "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
+          "name": "punctuation.separator.colon.yaml.sd"
         }
       }
     },
@@ -458,19 +466,19 @@
       "beginCaptures": {
         "1": {
           "tag": "definitionKeyword",
-          "name": "punctuation.definition.block.scalar.literal.yaml"
+          "name": "punctuation.definition.block.scalar.literal.yaml.sd"
         },
         "2": {
           "tag": "definitionKeyword",
-          "name": "punctuation.definition.block.scalar.folded.yaml"
+          "name": "punctuation.definition.block.scalar.folded.yaml.sd"
         },
         "3": {
           "tag": "definitionKeyword",
-          "name": "constant.numeric.indentation-indicator.yaml"
+          "name": "constant.numeric.indentation-indicator.yaml.sd"
         },
         "4": {
           "tag": "definitionKeyword",
-          "name": "support.other.chomping-indicator.yaml"
+          "name": "support.other.chomping-indicator.yaml.sd"
         },
         "5": {
           "patterns": [
@@ -478,34 +486,30 @@
               "include": "#Comment"
             },
             {
-              "match": ".+",
-              "tag": "invalid",
-              "name": "invalid.illegal.expected-comment-or-newline.yaml"
+              "include": "#ExpectedCommentOrNewline"
             }
           ]
         }
       },
-      "end": "^(?=\\S)",
       "patterns": [
         {
-          "begin": "^([ ]+)(?! )",
-          "end": "^(?!\\s*$)",
-          "tag": "definitionKeyword",
-          "name": "string.unquoted.block.yaml"
+          "include": "#BlockScalarContent"
         }
-      ]
+      ],
+      "end": "^(?=\\S)"
+    },
+    "BlockScalarContent": {
+      "tag": "definitionKeyword",
+      "name": "string.unquoted.block.yaml.sd",
+      "begin": "^([ ]+)(?![ ])",
+      "end": "^(?!\\s*$)"
+    },
+    "ExpectedCommentOrNewline": {
+      "tag": "invalid",
+      "name": "invalid.illegal.expected-comment-or-newline.yaml.sd",
+      "match": ".+"
     },
     "Expression": {
-      "patterns": [
-        {
-          "include": "#InnerExpression"
-        },
-        {
-          "include": "#ArrayLiteral"
-        }
-      ]
-    },
-    "InnerExpression": {
       "patterns": [
         {
           "include": "#String"
@@ -530,8 +534,28 @@
         },
         {
           "include": "#NumericConstantLiteral"
+        },
+        {
+          "include": "#Whitespace"
+        },
+        {
+          "include": "#ArrayLiteral"
+        },
+        {
+          "include": "#ParenExpression"
+        },
+        {
+          "include": "#Identifiers"
+        },
+        {
+          "include": "#ExpressionPunctuations"
         }
       ]
+    },
+    "Whitespace": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.ts.sd",
+      "match": "([\\t ]+)"
     },
     "String": {
       "patterns": [
@@ -540,344 +564,452 @@
         },
         {
           "include": "#QStringDouble"
+        },
+        {
+          "include": "#Template"
         }
       ]
     },
     "QStringDouble": {
       "tag": "string",
-      "name": "string.quoted.double.ts",
+      "name": "string.quoted.double.ts.sd",
       "begin": "([\"])",
       "beginCaptures": {
         "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.begin.ts"
+          "tag": "quote",
+          "name": "punctuation.definition.string.begin.ts.sd"
         }
       },
       "end": "([\"])|([^\\\\\\n]$)",
       "endCaptures": {
         "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.end.ts"
+          "tag": "quote",
+          "name": "punctuation.definition.string.end.ts.sd"
         },
         "2": {
           "tag": "invalid",
-          "name": "invalid.illegal.newline.ts"
+          "name": "invalid.illegal.newline.ts.sd"
         }
       }
     },
     "QStringSingle": {
       "tag": "string",
-      "name": "string.quoted.single.ts",
+      "name": "string.quoted.single.ts.sd",
       "begin": "(['])",
       "beginCaptures": {
         "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.begin.ts"
+          "tag": "quote",
+          "name": "punctuation.definition.string.begin.ts.sd"
         }
       },
       "end": "(['])|([^\\\\\\n]$)",
       "endCaptures": {
         "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.end.ts"
+          "tag": "quote",
+          "name": "punctuation.definition.string.end.ts.sd"
         },
         "2": {
           "tag": "invalid",
-          "name": "invalid.illegal.newline.ts"
+          "name": "invalid.illegal.newline.ts.sd"
         }
       }
     },
     "ExpressionOperators": {
       "patterns": [
         {
-          "tag": "controlKeyword",
-          "name": "keyword.control.flow.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(await)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#AwaitOperator"
         },
         {
-          "begin": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?=\\s*\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*[*])",
-          "beginCaptures": {
-            "1": {
-              "tag": "controlKeyword",
-              "name": "keyword.control.flow.ts"
-            }
-          },
-          "patterns": [
-            {
-              "include": "#Comment"
-            }
-          ],
-          "end": "([*])",
-          "endCaptures": {
-            "1": {
-              "tag": "controlKeyword",
-              "name": "keyword.generator.asterisk.ts"
-            }
-          }
+          "include": "#YieldOperator"
         },
         {
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?:\\s*([*]))?",
-          "captures": {
-            "1": {
-              "tag": "controlKeyword",
-              "name": "keyword.control.flow.ts"
-            },
-            "2": {
-              "tag": "controlKeyword",
-              "name": "keyword.generator.asterisk.ts"
-            }
-          }
+          "include": "#YieldIteratorOperator"
         },
         {
-          "tag": "operatorKeyword",
-          "name": "keyword.operator.expression.delete.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))delete(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#DeleteOperator"
         },
         {
-          "tag": "operatorKeyword",
-          "name": "keyword.operator.expression.in.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))in(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
+          "include": "#InOperator"
         },
         {
-          "tag": "operatorKeyword",
-          "name": "keyword.operator.expression.of.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))of(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
+          "include": "#OfOperator"
         },
         {
-          "tag": "operatorKeyword",
-          "name": "keyword.operator.expression.instanceof.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))instanceof(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#InstanceOfOperator"
         },
         {
-          "tag": "operatorKeyword",
-          "name": "keyword.operator.new.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))new(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#NewOperator"
         },
         {
-          "tag": "operatorKeyword",
-          "name": "keyword.operator.expression.void.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))void(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#VoidOperator"
         },
         {
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(as)\\s+(const)(?=\\s*($|[;,:})\\]]))",
-          "captures": {
-            "1": {
-              "tag": "controlKeyword",
-              "name": "keyword.control.as.ts"
-            },
-            "2": {
-              "tag": "controlKeyword",
-              "name": "storage.modifier.ts"
-            }
-          }
+          "include": "#AsOperator"
         },
         {
-          "tag": "derefOperator",
-          "name": "keyword.operator.spread.ts",
-          "match": "([.][.][.])"
+          "include": "#SpreadOperator"
         },
         {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.compound.ts",
-          "match": "([*][=]|(?<!\\()[\\/][=]|[%][=]|[+][=]|[-][=])"
+          "include": "#AssignArithmeticOperator"
         },
         {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.compound.bitwise.ts",
-          "match": "([&][=]|[\\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])"
+          "include": "#AssignBitwiseOperator"
         },
         {
-          "name": "keyword.operator.bitwise.shift.ts",
-          "match": "([<][<]|[>][>][>]|[>][>])"
+          "include": "#BitwiseShiftOperator"
         },
         {
-          "tag": "compareOperator",
-          "name": "keyword.operator.comparison.ts",
-          "match": "([=][=][=]|[!][=][=]|[=][=]|[!][=])"
+          "include": "#CompareEqualOperator"
         },
         {
-          "tag": "compareOperator",
-          "name": "keyword.operator.relational.ts",
-          "match": "([<][=]|[>][=]|[<][>]|[<]|[>])"
+          "include": "#CompareRelativeOperator"
         },
         {
-          "match": "(?<=[_$A-Za-z0-9])([!])\\s*(?:([\\/][=])|(?:([\\/])(?![/*])))",
-          "captures": {
-            "1": {
-              "tag": "logicOperator",
-              "name": "keyword.operator.logical.ts"
-            },
-            "2": {
-              "tag": "updateOperator",
-              "name": "keyword.operator.assignment.compound.ts"
-            },
-            "3": {
-              "tag": "arithmeticOperator",
-              "name": "keyword.operator.arithmetic.ts"
-            }
-          }
+          "include": "#NegateOperator"
         },
         {
-          "tag": "logicOperator",
-          "name": "keyword.operator.logical.ts",
-          "match": "([!]|[&][&]|[|][|]|[?][?])"
+          "include": "#LogicalOperator"
         },
         {
-          "tag": "bitwiseOperator",
-          "name": "keyword.operator.bitwise.ts",
-          "match": "([&]|[~]|[\\^]|[|])"
+          "include": "#BitwiseOperator"
         },
         {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.ts",
-          "match": "([=])"
+          "include": "#AssignEqualOperator"
         },
         {
-          "tag": "updateOperator",
-          "name": "keyword.operator.decrement.ts",
-          "match": "([-][-])"
+          "include": "#DecrementOperator"
         },
         {
-          "tag": "updateOperator",
-          "name": "keyword.operator.increment.ts",
-          "match": "([+][+])"
+          "include": "#IncrementOperator"
         },
         {
-          "tag": "arithmeticOperator",
-          "name": "keyword.operator.arithmetic.ts",
-          "match": "([%]|[*]|[\\/]|[-]|[+])"
+          "include": "#ArithmeticOperator"
         },
         {
-          "begin": "(?<=[_$A-Za-z0-9)\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
-          "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][\\/])))",
-          "endCaptures": {
-            "1": {
-              "tag": "updateOperator",
-              "name": "keyword.operator.assignment.compound.ts"
-            },
-            "2": {
-              "tag": "arithmeticOperator",
-              "name": "keyword.operator.arithmetic.ts"
-            }
-          },
-          "patterns": [
-            {
-              "include": "#Comment"
-            }
-          ]
+          "include": "#AssignMultiplyOperator"
         },
         {
-          "match": "(?<=[_$A-Za-z0-9)\\]])\\s*(?:(/=)|(?:(/)(?![/*])))",
-          "captures": {
-            "1": {
-              "tag": "updateOperator",
-              "name": "keyword.operator.assignment.compound.ts"
-            },
-            "2": {
-              "tag": "arithmeticOperator",
-              "name": "keyword.operator.arithmetic.ts"
-            }
-          }
+          "include": "#AssignDivideOperator"
         },
         {
-          "tag": "punctuation",
-          "name": "keyword.operator.type.annotation.ts",
-          "match": "([:])"
+          "include": "#ColonOperator"
         }
       ]
+    },
+    "AwaitOperator": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.flow.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(await)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
+    "YieldOperator": {
+      "begin": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?=\\s*\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*[*])",
+      "beginCaptures": {
+        "1": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.flow.ts.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Comment"
+        }
+      ],
+      "end": "([*])",
+      "endCaptures": {
+        "1": {
+          "tag": "controlKeyword",
+          "name": "keyword.generator.asterisk.ts.sd"
+        }
+      }
+    },
+    "YieldIteratorOperator": {
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?:\\s*([*]))?",
+      "captures": {
+        "1": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.flow.ts.sd"
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.generator.asterisk.ts.sd"
+        }
+      }
+    },
+    "DeleteOperator": {
+      "tag": "operatorKeyword",
+      "name": "keyword.operator.expression.delete.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))delete(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
+    "InOperator": {
+      "tag": "operatorKeyword",
+      "name": "keyword.operator.expression.in.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))in(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
+    },
+    "OfOperator": {
+      "tag": "operatorKeyword",
+      "name": "keyword.operator.expression.of.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))of(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
+    },
+    "InstanceOfOperator": {
+      "tag": "operatorKeyword",
+      "name": "keyword.operator.expression.instanceof.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))instanceof(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
+    "NewOperator": {
+      "tag": "operatorKeyword",
+      "name": "keyword.operator.new.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))new(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
+    "VoidOperator": {
+      "tag": "operatorKeyword",
+      "name": "keyword.operator.expression.void.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))void(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
+    "AsOperator": {
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(as)\\s+(const)(?=\\s*($|[;,:})\\]]))",
+      "captures": {
+        "1": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.as.ts.sd"
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "storage.modifier.ts.sd"
+        }
+      }
+    },
+    "SpreadOperator": {
+      "tag": "derefOperator",
+      "name": "keyword.operator.spread.ts.sd",
+      "match": "([.][.][.])"
+    },
+    "AssignArithmeticOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.assignment.compound.ts.sd",
+      "match": "([*][=]|(?<!\\()[\\/][=]|[%][=]|[+][=]|[-][=])"
+    },
+    "AssignBitwiseOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.assignment.compound.bitwise.ts.sd",
+      "match": "([&][=]|[\\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])"
+    },
+    "BitwiseShiftOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.bitwise.shift.ts.sd",
+      "match": "([<][<]|[>][>][>]|[>][>])"
+    },
+    "CompareEqualOperator": {
+      "tag": "compareOperator",
+      "name": "keyword.operator.comparison.ts.sd",
+      "match": "([=][=][=]|[!][=][=]|[=][=]|[!][=])"
+    },
+    "CompareRelativeOperator": {
+      "tag": "compareOperator",
+      "name": "keyword.operator.relational.ts.sd",
+      "match": "([<][=]|[>][=]|[<][>]|[<]|[>])"
+    },
+    "NegateOperator": {
+      "tag": "updateOperator",
+      "match": "(?<=[_$A-Za-z0-9])([!])\\s*(?:([\\/][=])|(?:([\\/])(?![/*])))",
+      "captures": {
+        "1": {
+          "tag": "logicOperator",
+          "name": "keyword.operator.logical.ts.sd"
+        },
+        "2": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.compound.ts.sd"
+        },
+        "3": {
+          "tag": "arithmeticOperator",
+          "name": "keyword.operator.arithmetic.ts.sd"
+        }
+      }
+    },
+    "LogicalOperator": {
+      "tag": "logicOperator",
+      "name": "keyword.operator.logical.ts.sd",
+      "match": "([!]|[&][&]|[|][|]|[?][?])"
+    },
+    "BitwiseOperator": {
+      "tag": "bitwiseOperator",
+      "name": "keyword.operator.bitwise.ts.sd",
+      "match": "([&]|[~]|[\\^]|[|])"
+    },
+    "AssignEqualOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.assignment.ts.sd",
+      "match": "([=])"
+    },
+    "DecrementOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.decrement.ts.sd",
+      "match": "([-][-])"
+    },
+    "IncrementOperator": {
+      "tag": "updateOperator",
+      "name": "keyword.operator.increment.ts.sd",
+      "match": "([+][+])"
+    },
+    "ArithmeticOperator": {
+      "tag": "arithmeticOperator",
+      "name": "keyword.operator.arithmetic.ts.sd",
+      "match": "([%]|[*]|[\\/]|[-]|[+])"
+    },
+    "AssignMultiplyOperator": {
+      "begin": "(?<=[_$A-Za-z0-9)\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
+      "patterns": [
+        {
+          "include": "#Comment"
+        }
+      ],
+      "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][\\/])))",
+      "endCaptures": {
+        "1": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.compound.ts.sd"
+        },
+        "2": {
+          "tag": "arithmeticOperator",
+          "name": "keyword.operator.arithmetic.ts.sd"
+        }
+      }
+    },
+    "AssignDivideOperator": {
+      "match": "(?<=[_$A-Za-z0-9)\\]])\\s*(?:(/=)|(?:(/)(?![/*])))",
+      "captures": {
+        "1": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.compound.ts.sd"
+        },
+        "2": {
+          "tag": "arithmeticOperator",
+          "name": "keyword.operator.arithmetic.ts.sd"
+        }
+      }
+    },
+    "ColonOperator": {
+      "tag": "punctuation",
+      "name": "keyword.operator.type.annotation.ts.sd",
+      "match": "([:])"
     },
     "NumericLiteral": {
       "patterns": [
         {
-          "tag": "number",
-          "name": "constant.numeric.hex.ts",
-          "match": "\\b(?<![$])0(?:x|X)[0-9a-fA-F][0-9a-fA-F_]*(n)?\\b(?![$])",
-          "captures": {
-            "1": {
-              "tag": "number",
-              "name": "storage.type.numeric.bigint.ts"
-            }
-          }
+          "include": "#HexNumber"
         },
         {
-          "tag": "number",
-          "name": "constant.numeric.binary.ts",
-          "match": "\\b(?<![$])0(?:b|B)[01][01_]*(n)?\\b(?![$])",
-          "captures": {
-            "1": {
-              "tag": "number",
-              "name": "storage.type.numeric.bigint.ts"
-            }
-          }
+          "include": "#BinaryNumber"
         },
         {
-          "tag": "number",
-          "name": "constant.numeric.octal.ts",
-          "match": "\\b(?<![$])0(?:o|O)?[0-7][0-7_]*(n)?\\b(?![$])",
-          "captures": {
-            "1": {
-              "tag": "number",
-              "name": "storage.type.numeric.bigint.ts"
-            }
-          }
+          "include": "#OctalNumber"
         },
         {
-          "tag": "number",
-          "name": "constant.numeric.decimal.ts",
-          "match": "((?<![$])(?:(?:\\b[0-9][0-9_]*[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\B[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][n]?\\B)|(?:\\B[.][0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[n]?\\b(?![.])))(?![$]))"
+          "include": "#DecimalNumber"
         }
       ]
+    },
+    "HexNumber": {
+      "tag": "number",
+      "name": "constant.numeric.hex.ts.sd",
+      "match": "\\b(?<![$])0(?:x|X)[0-9a-fA-F][0-9a-fA-F_]*(n)?\\b(?![$])",
+      "captures": {
+        "1": {
+          "tag": "number",
+          "name": "storage.type.numeric.bigint.ts.sd"
+        }
+      }
+    },
+    "BinaryNumber": {
+      "tag": "number",
+      "name": "constant.numeric.binary.ts.sd",
+      "match": "\\b(?<![$])0(?:b|B)[01][01_]*(n)?\\b(?![$])",
+      "captures": {
+        "1": {
+          "tag": "number",
+          "name": "storage.type.numeric.bigint.ts.sd"
+        }
+      }
+    },
+    "OctalNumber": {
+      "tag": "number",
+      "name": "constant.numeric.octal.ts.sd",
+      "match": "\\b(?<![$])0(?:o|O)?[0-7][0-7_]*(n)?\\b(?![$])",
+      "captures": {
+        "1": {
+          "tag": "number",
+          "name": "storage.type.numeric.bigint.ts.sd"
+        }
+      }
+    },
+    "DecimalNumber": {
+      "tag": "number",
+      "name": "constant.numeric.decimal.ts.sd",
+      "match": "((?<![$])(?:(?:\\b[0-9][0-9_]*[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\B[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][n]?\\B)|(?:\\B[.][0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[n]?\\b(?![.])))(?![$]))"
     },
     "BooleanLiteral": {
       "patterns": [
         {
-          "tag": "bool",
-          "name": "constant.language.boolean.true.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))true(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#BooleanTrue"
         },
         {
-          "tag": "bool",
-          "name": "constant.language.boolean.false.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))false(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#BooleanFalse"
         }
       ]
     },
+    "BooleanTrue": {
+      "tag": "bool",
+      "name": "constant.language.boolean.true.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))true(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
+    "BooleanFalse": {
+      "tag": "bool",
+      "name": "constant.language.boolean.false.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))false(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
     "NullLiteral": {
       "tag": "null",
-      "name": "constant.language.null.ts",
+      "name": "constant.language.null.ts.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))null(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "UndefinedLiteral": {
       "tag": "null",
-      "name": "constant.language.undefined.ts",
+      "name": "constant.language.undefined.ts.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))undefined(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "NumericConstantLiteral": {
       "patterns": [
         {
-          "tag": "atom",
-          "name": "constant.language.nan.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))NaN(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#NaN"
         },
         {
-          "tag": "atom",
-          "name": "constant.language.infinity.ts",
-          "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))Infinity(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+          "include": "#Infinity"
         }
       ]
     },
+    "NaN": {
+      "tag": "atom",
+      "name": "constant.language.nan.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))NaN(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
+    "Infinity": {
+      "tag": "atom",
+      "name": "constant.language.infinity.ts.sd",
+      "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))Infinity(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
+    },
     "ArrayLiteral": {
-      "name": "meta.array.literal.ts",
-      "begin": "\\s*(\\[)",
+      "name": "meta.array.literal.ts.sd",
+      "brackets": true,
+      "begin": "(\\[)",
       "beginCaptures": {
         "1": {
           "tag": "brace",
-          "name": "meta.brace.square.ts"
+          "name": "meta.brace.square.ts.sd"
         }
       },
       "patterns": [
         {
-          "include": "#InnerExpression"
+          "include": "#Expression"
         },
         {
           "include": "#PunctuationComma"
@@ -887,14 +1019,191 @@
       "endCaptures": {
         "1": {
           "tag": "brace",
-          "name": "meta.brace.square.ts"
+          "name": "meta.brace.square.ts.sd"
         }
       }
     },
     "PunctuationComma": {
       "tag": "punctuation",
-      "name": "punctuation.separator.comma.ts",
+      "name": "punctuation.separator.comma.ts.sd",
       "match": ","
+    },
+    "ParenExpression": {
+      "brackets": true,
+      "begin": "([(])",
+      "beginCaptures": {
+        "1": {
+          "tag": "paren",
+          "name": "meta.brace.round.ts.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "([)])",
+      "endCaptures": {
+        "1": {
+          "tag": "paren",
+          "name": "meta.brace.round.ts.sd"
+        }
+      }
+    },
+    "Identifiers": {
+      "patterns": [
+        {
+          "include": "#AccessorIdentifier"
+        },
+        {
+          "include": "#NestedAccessorIdentifier"
+        },
+        {
+          "include": "#ConstantVariableIdentifier"
+        },
+        {
+          "include": "#WritableVariableIdentifier"
+        }
+      ]
+    },
+    "AccessorIdentifier": {
+      "match": "(?:([.])|(\\?[.](?!\\s*[0-9])))\\s*([#]?[A-Z][_$0-9A-Z]*)(?![_$A-Za-z0-9])",
+      "captures": {
+        "1": {
+          "tag": "punctuation",
+          "name": "punctuation.accessor.ts.sd"
+        },
+        "2": {
+          "tag": "punctuation",
+          "name": "punctuation.accessor.optional.ts.sd"
+        },
+        "3": {
+          "tag": "variableName",
+          "name": "variable.other.constant.property.ts.sd"
+        }
+      }
+    },
+    "NestedAccessorIdentifier": {
+      "match": "(?:([.])|(\\?[.](?!\\s*[0-9])))\\s*([#]?[_$A-Za-z][_$A-Za-z0-9]*)",
+      "captures": {
+        "1": {
+          "tag": "punctuation",
+          "name": "punctuation.accessor.ts.sd"
+        },
+        "2": {
+          "tag": "punctuation",
+          "name": "punctuation.accessor.optional.ts.sd"
+        },
+        "3": {
+          "tag": "variableName",
+          "name": "variable.other.property.ts.sd"
+        }
+      }
+    },
+    "ConstantVariableIdentifier": {
+      "tag": "variableName",
+      "name": "variable.other.constant.ts.sd",
+      "match": "([A-Z][_$0-9A-Z]*)(?![_$A-Za-z0-9])"
+    },
+    "WritableVariableIdentifier": {
+      "tag": "variableName",
+      "name": "variable.other.readwrite.ts.sd",
+      "match": "[_$A-Za-z][_$A-Za-z0-9]*"
+    },
+    "ExpressionPunctuations": {
+      "patterns": [
+        {
+          "include": "#PunctuationComma"
+        },
+        {
+          "include": "#PunctuationAccessor"
+        }
+      ]
+    },
+    "PunctuationAccessor": {
+      "match": "(?:([.])|(\\?[.](?!\\s*[0-9])))",
+      "captures": {
+        "1": {
+          "tag": "variableName",
+          "name": "punctuation.accessor.ts.sd"
+        },
+        "2": {
+          "tag": "punctuation",
+          "name": "punctuation.accessor.optional.ts.sd"
+        }
+      }
+    },
+    "Template": {
+      "patterns": [
+        {
+          "include": "#TemplateSubstitution"
+        }
+      ]
+    },
+    "TemplateSubstitution": {
+      "begin": "([_$A-Za-z][_$A-Za-z0-9]*)?([`])",
+      "beginCaptures": {
+        "1": {
+          "tag": "tagName",
+          "name": "entity.name.function.tagged-template.ts.sd"
+        },
+        "2": {
+          "tag": "string",
+          "name": "punctuation.definition.string.template.begin.ts.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#TemplateSubstitutionElement"
+        },
+        {
+          "include": "#StringCharacterEscape"
+        },
+        {
+          "include": "#StringContent"
+        }
+      ],
+      "end": "([`])",
+      "endCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.template.end.ts.sd"
+        }
+      }
+    },
+    "TemplateSubstitutionElement": {
+      "brackets": true,
+      "name": "meta.template.expression.ts.sd",
+      "begin": "([$]?[{])",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.begin.ts.sd"
+        }
+      },
+      "contentName": "meta.embedded.line.ts.sd",
+      "patterns": [
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "([}])",
+      "endCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.end.ts.sd"
+        }
+      }
+    },
+    "StringCharacterEscape": {
+      "tag": "character",
+      "name": "constant.character.escape.ts",
+      "match": "([\\\\])(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
+    },
+    "StringContent": {
+      "tag": "string",
+      "name": "string.template.ts.sd",
+      "match": "((?:(?![$]?[{])[^\\n\\r`])+)"
     }
   }
 }
