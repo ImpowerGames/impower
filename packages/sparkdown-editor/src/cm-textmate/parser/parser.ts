@@ -262,9 +262,14 @@ export class Parse implements PartialParse {
       );
 
       if (match) {
-        this.state = match.state;
-        matchTokens = match.compile();
-        length = match.length;
+        try {
+          this.state = match.state;
+          matchTokens = match.compile();
+          length = match.length;
+        } catch (e) {
+          console.error(match);
+          console.error(e);
+        }
       } else {
         // if we didn't match, we'll advance to prevent getting stuck
         matchTokens =

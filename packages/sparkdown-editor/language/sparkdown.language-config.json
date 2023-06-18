@@ -74,8 +74,8 @@
     "flags": "u"
   },
   "indentationRules": {
-    "increaseIndentPattern": "^\\s*.*(:|-) ?(&amp;\\w+)?([{][^}\"']*|[(][^)\"']*)?$",
-    "decreaseIndentPattern": "^\\s+[}]$"
+    "increaseIndentPattern": "^\\s*.*(:|-)[ ]?(&amp;\\w+)?([{][^}\"']*|[(][^)\"']*)?$",
+    "decreaseIndentPattern": "^\\s+[}]$|^\\s*[-]{3,}\\s*$"
   },
   "folding": {
     "offSide": true,

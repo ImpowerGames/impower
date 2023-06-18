@@ -33,7 +33,7 @@ wordPattern:
 
 indentationRules:
   increaseIndentPattern: ^\s*.*(:|-)[ ]?(&amp;\w+)?([{][^}"']*|[(][^)"']*)?$
-  decreaseIndentPattern: ^\s+[}]$
+  decreaseIndentPattern: ^\s+[}]$|^\s*[-]{3,}\s*$
 
 folding:
   offSide: true

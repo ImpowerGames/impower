@@ -66,16 +66,13 @@ export class MatchRule implements Rule {
       return null;
     }
     const total = result[0];
-    if (!total) {
+    if (total == null) {
       return null;
     }
     const matched = new Matched(state, this.node, total, pos);
     state.last = result;
     if (this.captures) {
       if (result) {
-        if (!matched.captures) {
-          matched.captures = [];
-        }
         let from = pos;
         result.forEach((resultStr, resultIndex) => {
           const capture = this.captures?.[resultIndex];
@@ -90,19 +87,21 @@ export class MatchRule implements Rule {
                 resultStr,
                 from
               );
-              captureMatched.captures ??= [];
               state.stack.push(capture.node, capture.rules, null);
               for (let i = 0; i < resultStr.length; i += 1) {
                 const matched = match(state, resultStr, i, from + i);
                 if (matched) {
+                  captureMatched.captures ??= [];
                   captureMatched.captures.push(matched);
                   i += matched.total.length - 1;
                 }
               }
               state.stack.pop();
-              matched.captures!.push(captureMatched);
+              matched.captures ??= [];
+              matched.captures.push(captureMatched);
             } else {
-              matched.captures!.push(
+              matched.captures ??= [];
+              matched.captures.push(
                 new Matched(state, capture, resultStr, from)
               );
             }
