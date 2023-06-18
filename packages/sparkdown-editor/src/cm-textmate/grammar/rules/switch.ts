@@ -15,15 +15,19 @@ import { Rule } from "../types/rule";
  * {@link StringMatcher} instances for the underlying pattern.
  */
 export class SwitchRule implements Rule {
+  repo: Repository;
+
   name: string;
 
   node: ParserNode;
 
-  patterns?: DF.Patterns;
+  patterns?: DF.IncludeItem[];
 
   rules?: Rule[];
 
   constructor(repo: Repository, item: DF.SwitchRuleItem) {
+    this.repo = repo;
+
     let type = item.type ?? createID();
     let emit = (item.type && item.emit !== false) || item.autocomplete;
     this.name = type;
@@ -33,14 +37,6 @@ export class SwitchRule implements Rule {
     this.patterns = item.patterns;
   }
 
-  resolve(repo: Repository) {
-    // patterns
-    this.rules = this.patterns ? repo.patterns(this.patterns) : [];
-    this.rules.forEach((rule) => {
-      rule.resolve?.(repo);
-    });
-  }
-
   /**
    * @param str - The string to match.
    * @param pos - The position to start matching at.
@@ -48,7 +44,9 @@ export class SwitchRule implements Rule {
    */
   match(str: string, pos: number, state: GrammarState) {
     if (!this.rules) {
-      throw new Error("Rules were not resolved prior to matching");
+      this.rules = this.patterns
+        ? this.repo.patterns(this.patterns, this.name)
+        : [];
     }
     for (let i = 0; i < this.rules.length; i += 1) {
       const rule = this.rules[i];

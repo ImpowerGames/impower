@@ -41,13 +41,7 @@ export class Grammar {
     }
 
     if (data?.patterns) {
-      this.patterns = this.repository.patterns(data.patterns);
-      for (const name in data.repository) {
-        const rule = this.repository.get(name);
-        if ("resolve" in rule && rule.resolve) {
-          rule.resolve(this.repository);
-        }
-      }
+      this.patterns = this.repository.patterns(data.patterns, "");
     }
   }
 

@@ -4,7 +4,6 @@
 
 import { Matched } from "../matched";
 import { ParserNode } from "../node";
-import { Repository } from "../repository";
 import type { GrammarState } from "../state";
 
 /**
@@ -24,6 +23,4 @@ export interface Rule {
    * @param state - The current {@link GrammarState}.
    */
   match: (str: string, pos: number, state: GrammarState) => Matched | null;
-
-  resolve?: (repo: Repository) => void;
 }

@@ -23,7 +23,7 @@ type FilterOut<O extends Record<string, any>, T> = {
 };
 
 export interface GrammarData {
-  patterns?: Patterns;
+  patterns?: IncludeItem[];
 
   repository?: Record<string, RepositoryItem>;
 }
@@ -95,6 +95,7 @@ export interface RuleItem {
 
   // CodeMirror properties
   tag?: Tag;
+  brackets?: boolean;
   openedBy?: string | string[];
   closedBy?: string | string[];
   group?: string | string[];
@@ -121,7 +122,7 @@ export interface MatchRuleItem extends RuleItem {
 }
 
 export interface SwitchRuleItem extends RuleItem {
-  patterns: Patterns;
+  patterns: IncludeItem[];
 }
 
 export interface ScopedRuleItem extends RuleItem {
@@ -129,14 +130,12 @@ export interface ScopedRuleItem extends RuleItem {
   end: string;
   beginCaptures?: Record<string, RuleItem>;
   endCaptures?: Record<string, RuleItem>;
-  patterns?: Patterns;
+  patterns?: IncludeItem[];
 }
 
 export type IncludeItem = { include: string };
 
 export type RepositoryItem = MatchRuleItem | SwitchRuleItem | ScopedRuleItem;
-
-export type Patterns = (RepositoryItem | IncludeItem)[];
 
 export type StyleTag = keyof FilterOut<typeof cmTags, (tag: cmTag) => cmTag>;
 export type FunctionTag = keyof FilterFor<typeof cmTags, (tag: cmTag) => cmTag>;

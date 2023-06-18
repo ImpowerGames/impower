@@ -17,6 +17,8 @@ import type { MatchRule } from "./match";
  * {@link StringMatcher} instances for the underlying pattern.
  */
 export class ScopedRule implements Rule {
+  repo: Repository;
+
   name: string;
 
   node: ParserNode;
@@ -25,11 +27,13 @@ export class ScopedRule implements Rule {
 
   endRule: MatchRule;
 
-  patterns?: DF.Patterns;
+  patterns?: DF.IncludeItem[];
 
   rules?: Rule[];
 
   constructor(repo: Repository, item: DF.ScopedRuleItem) {
+    this.repo = repo;
+
     let type = item.type ?? createID();
     let emit = (item.type && item.emit !== false) || item.autocomplete;
     this.name = type;
@@ -43,7 +47,7 @@ export class ScopedRule implements Rule {
       type: beginName,
       match: item.begin,
       captures: item.beginCaptures,
-      closedBy: endName,
+      closedBy: item.closedBy ?? item.brackets ? endName : undefined,
     };
     this.beginRule = repo.add(beginRuleItem, beginName);
 
@@ -52,21 +56,12 @@ export class ScopedRule implements Rule {
       type: endName,
       match: item.end,
       captures: item.endCaptures,
-      openedBy: beginName,
+      openedBy: item.openedBy ?? item.brackets ? beginName : undefined,
     };
     this.endRule = repo.add(endRuleItem, endName);
 
     // patterns
     this.patterns = item.patterns;
-  }
-
-  resolve(repo: Repository) {
-    // patterns
-    this.rules = this.patterns ? repo.patterns(this.patterns) : [];
-    this.rules.forEach((rule) => {
-      rule.resolve?.(repo);
-    });
-    this.patterns = undefined;
   }
 
   /**
@@ -76,7 +71,9 @@ export class ScopedRule implements Rule {
    */
   match(str: string, pos: number, state: GrammarState) {
     if (!this.rules) {
-      throw new Error("Rules were not resolved prior to matching");
+      this.rules = this.patterns
+        ? this.repo.patterns(this.patterns, this.name)
+        : [];
     }
     let matched = this.beginRule.match(str, pos, state);
     if (!matched) {

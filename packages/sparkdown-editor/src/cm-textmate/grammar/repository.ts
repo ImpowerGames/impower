@@ -75,18 +75,6 @@ export class Repository {
 
     // match rule
     if (isMatchRuleItem(obj)) {
-      if (!obj.captures) {
-        // If no captures were explicitly specified,
-        // the entire match should be captured
-        obj.captures = {
-          0: {
-            tag: obj.tag,
-            name: obj.name,
-          },
-        };
-        delete obj.tag;
-        delete obj.name;
-      }
       const rule = new MatchRule(this, obj);
       this.map.set(rule.name, rule);
       return rule;
@@ -158,19 +146,20 @@ export class Repository {
    *
    * @param items - The list of rule/include items to process.
    */
-  patterns(items: DF.Patterns) {
+  patterns(items: DF.Patterns, typePrefix: string) {
     const rules: Rule[] = [];
-    for (const item of items) {
+    items.forEach((item, i) => {
+      const typeFallback = typePrefix + `-p${i}`;
       if (isIncludeItem(item)) {
         rules.push(...this.include(item.include));
       } else if (isMatchRuleItem(item)) {
-        rules.push(this.add(item));
+        rules.push(this.add(item, typeFallback));
       } else if (isScopedRuleItem(item)) {
-        rules.push(this.add(item));
+        rules.push(this.add(item, typeFallback));
       } else if (isSwitchRuleItem(item)) {
-        rules.push(this.add(item));
+        rules.push(this.add(item, typeFallback));
       }
-    }
+    });
     return rules;
   }
 }

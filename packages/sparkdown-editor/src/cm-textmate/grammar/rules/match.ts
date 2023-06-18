@@ -19,6 +19,8 @@ import { SwitchRule } from "./switch";
  * {@link StringMatcher} instances for the underlying pattern.
  */
 export class MatchRule implements Rule {
+  repo: Repository;
+
   name: string;
 
   node: ParserNode;
@@ -28,6 +30,8 @@ export class MatchRule implements Rule {
   declare captures: (ParserNode | SwitchRule)[];
 
   constructor(repo: Repository, item: DF.MatchRuleItem) {
+    this.repo = repo;
+
     let type = item.type ?? createID();
     let emit = (item.type && item.emit !== false) || item.autocomplete;
     this.name = type;
@@ -42,22 +46,13 @@ export class MatchRule implements Rule {
         const index = parseInt(key, 10);
         if (value != null) {
           if (isSwitchRuleItem(value)) {
-            this.captures[index] = repo.add(value, this.name + "-" + index);
+            this.captures[index] = repo.add(value, this.name + `-c${index}`);
           } else {
-            this.captures[index] = repo.add(value, this.name + "-" + index);
+            this.captures[index] = repo.add(value, this.name + `-c${index}`);
           }
         }
       }
     }
-  }
-
-  resolve(repo: Repository) {
-    // patterns
-    this.captures.forEach((capture) => {
-      if (capture instanceof SwitchRule) {
-        capture.resolve(repo);
-      }
-    });
   }
 
   match(str: string, pos: number, state: GrammarState) {
@@ -79,7 +74,9 @@ export class MatchRule implements Rule {
           if (capture) {
             if (capture instanceof SwitchRule) {
               if (!capture.rules) {
-                throw new Error("Rules were not resolved prior to matching");
+                capture.rules = capture.patterns
+                  ? this.repo.patterns(capture.patterns, this.name)
+                  : [];
               }
               const captureMatched = new Matched(
                 state,

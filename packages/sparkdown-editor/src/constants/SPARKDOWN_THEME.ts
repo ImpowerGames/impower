@@ -32,6 +32,13 @@ const SPARKDOWN_THEME: {
   "&.cm-focused .cm-cursor": {
     borderLeftColor: "white",
   },
+  "&.cm-focused .cm-matchingBracket": {
+    outline: "solid 1px #FFFFFF66",
+    backgroundColor: "transparent",
+  },
+  "&.cm-focused .cm-nonmatchingBracket": {
+    backgroundColor: "transparent",
+  },
   ".cm-snippet & .cm-selectionMatch": {
     backgroundColor: "transparent",
   },
