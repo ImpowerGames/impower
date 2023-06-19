@@ -41,7 +41,7 @@
       "include": "#Logic"
     },
     {
-      "include": "#List"
+      "include": "#Choice"
     },
     {
       "include": "#Import"
@@ -306,7 +306,7 @@
       }
     },
     "Logic": {
-      "match": "^([ \\t]*)([*])($|[ ]+)([^\\n\\r]*)?",
+      "match": "^([ \\t]*)([*])($|[ ]+)($|[^\\n\\r]+)$",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -321,12 +321,30 @@
         }
       }
     },
-    "List": {
-      "match": "^([ \\t]*)([*+-])($|[ \\t]+)",
+    "Choice": {
+      "match": "^([ \\t]*)([+])($|[ ]+)(?:([^\\n\\r>]+))?([ ]*)(?:([>])([ ]*)([^\\n\\r<]+)?([ ]*))?(?!<[ ]*)$",
       "captures": {
         "2": {
           "tag": "keyword",
           "name": "storage.type.list.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Comment"
+            },
+            {
+              "include": "#InlineString"
+            }
+          ]
+        },
+        "6": {
+          "tag": "keyword",
+          "name": "storage.type.jump.sd"
+        },
+        "8": {
+          "tag": "labelName",
+          "name": "keyword.control.export.jump.sd"
         }
       }
     },
