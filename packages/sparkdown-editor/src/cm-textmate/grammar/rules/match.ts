@@ -65,7 +65,6 @@ export class MatchRule implements Rule {
       return null;
     }
     const matched = new Matched(state, this.node, total, pos);
-    state.last = result;
     if (this.captures) {
       if (result) {
         let from = pos;
@@ -78,24 +77,32 @@ export class MatchRule implements Rule {
                   ? this.repo.patterns(capture.patterns, this.name)
                   : [];
               }
-              const captureMatched = new Matched(
-                state,
-                capture.node,
-                resultStr,
-                from
-              );
+              const nestedCaptures: Matched[] = [];
               state.stack.push(capture.node, capture.rules, null);
               for (let i = 0; i < resultStr.length; i += 1) {
                 const matched = match(state, resultStr, i, from + i);
                 if (matched) {
-                  captureMatched.captures ??= [];
-                  captureMatched.captures.push(matched);
+                  nestedCaptures.push(matched);
                   i += matched.total.length - 1;
+                } else {
+                  // Reserve space for unrecognized tokens
+                  nestedCaptures.push(
+                    new Matched(state, ParserNode.None, resultStr[i]!, from + i)
+                  );
                 }
               }
               state.stack.pop();
-              matched.captures ??= [];
-              matched.captures.push(captureMatched);
+              if (nestedCaptures.length > 0) {
+                const captureMatched = new Matched(
+                  state,
+                  capture.node,
+                  resultStr,
+                  nestedCaptures[0]?.from ?? from,
+                  nestedCaptures
+                );
+                matched.captures ??= [];
+                matched.captures.push(captureMatched);
+              }
             } else {
               matched.captures ??= [];
               matched.captures.push(

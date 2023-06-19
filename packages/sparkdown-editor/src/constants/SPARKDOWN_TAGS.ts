@@ -23,7 +23,6 @@ const SPARKDOWN_TAGS = {
   underline: tags.link,
   emphasis: tags.emphasis,
   strong: tags.strong,
-  strongEmphasis: tags.strong,
   conditionCheck: tags.logicOperator,
   comment: tags.comment,
   commentBlock: tags.blockComment,

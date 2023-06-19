@@ -46,6 +46,82 @@
   "browser": "./out/extension.js",
   "contributes": {
     "configurationDefaults": {
+      "editor.tokenColorCustomizations": {
+        "textMateRules": [
+          {
+            "scope": "keyword.control.flow.scene.sd",
+            "settings": {
+              "foreground": "#FF8080"
+            }
+          },
+          {
+            "scope": "keyword.control.flow.transition.sd",
+            "settings": {
+              "foreground": "#BEA3A3"
+            }
+          },
+          {
+            "scope": "keyword.control.export.section.sd",
+            "settings": {
+              "foreground": "#FF80F4"
+            }
+          },
+          {
+            "scope": "keyword.control.export.jump.sd",
+            "settings": {
+              "foreground": "#F9B8F9"
+            }
+          },
+          {
+            "scope": "markup.bold",
+            "settings": {
+              "foreground": "#569CD6"
+            }
+          },
+          {
+            "scope": "markup.italic",
+            "settings": {
+              "foreground": "#569CD6"
+            }
+          },
+          {
+            "scope": "markup.underline",
+            "settings": {
+              "foreground": "#569CD6"
+            }
+          },
+          {
+            "scope": "markup.strikethrough",
+            "settings": {
+              "foreground": "#569CD6"
+            }
+          },
+          {
+            "scope": "string markup.bold",
+            "settings": {
+              "foreground": "#CE9178"
+            }
+          },
+          {
+            "scope": "string markup.italic",
+            "settings": {
+              "foreground": "#CE9178"
+            }
+          },
+          {
+            "scope": "string markup.underline",
+            "settings": {
+              "foreground": "#CE9178"
+            }
+          },
+          {
+            "scope": "string markup.strikethrough",
+            "settings": {
+              "foreground": "#CE9178"
+            }
+          }
+        ]
+      },
       "[sparkdown]": {
         "editor.wordWrap": "on",
         "editor.wordBasedSuggestions": false,

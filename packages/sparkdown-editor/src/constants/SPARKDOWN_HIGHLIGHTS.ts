@@ -16,7 +16,7 @@ const SPARKDOWN_HIGHLIGHTS = HighlightStyle.define([
     tag: t.link,
     color: c.formatting,
     textDecoration: "underline",
-    textUnderlineOffset: "3px",
+    textUnderlineOffset: "5px",
   },
   {
     tag: t.strikethrough,

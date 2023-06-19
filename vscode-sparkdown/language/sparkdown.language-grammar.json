@@ -23,6 +23,9 @@
       "include": "#PageBreak"
     },
     {
+      "include": "#FrontMatter"
+    },
+    {
       "include": "#Jump"
     },
     {
@@ -48,6 +51,24 @@
     },
     {
       "include": "#Struct"
+    },
+    {
+      "include": "#Repeat"
+    },
+    {
+      "include": "#Return"
+    },
+    {
+      "include": "#Scene"
+    },
+    {
+      "include": "#Section"
+    },
+    {
+      "include": "#Transition"
+    },
+    {
+      "include": "#Dialogue"
     },
     {
       "include": "#Action"
@@ -85,7 +106,7 @@
     "CommentLine": {
       "tag": "comment",
       "name": "comment.line.sd",
-      "match": "(\\/\\/)(.*)",
+      "match": "([/][/])(.*)$",
       "captures": {
         "1": {
           "tag": "lineComment",
@@ -98,28 +119,26 @@
       }
     },
     "Note": {
-      "tag": "comment",
-      "name": "comment.line.note.sd",
       "match": "(\\[{2})([^\\]]*)(\\]{2})",
       "captures": {
         "1": {
-          "tag": "lineComment",
-          "name": "comment.line.double-square-bracket.sd"
+          "tag": "comment",
+          "name": "comment.block.open.sd"
         },
         "2": {
-          "tag": "comment",
-          "name": "comment.line.note.sd"
+          "tag": "variableName",
+          "name": "variable.other.readwrite.sd"
         },
         "3": {
-          "tag": "lineComment",
-          "name": "comment.line.double-square-bracket.sd"
+          "tag": "comment",
+          "name": "comment.block.close.sd"
         }
       }
     },
     "Synopsis": {
       "tag": "comment",
       "name": "comment.line.synopsis.sd",
-      "match": "^([ \\t]*)(?![=]{2,})([=])([ ]*)(.*)",
+      "match": "^([ \\t]*)(?![=]{2,})([=])([ ]*)(.*)$",
       "captures": {
         "2": {
           "tag": "lineComment",
@@ -134,13 +153,64 @@
     "PageBreak": {
       "tag": "contentSeparator",
       "name": "markup.heading.separator.sd",
-      "match": "^([ \\t]*)(===+)",
+      "match": "^([ \\t]*)(===+)([ \\t]*)$",
       "captures": {
         "2": {
           "tag": "contentSeparator",
           "name": "markup.heading.separator.equals.sd"
         }
       }
+    },
+    "FrontMatter": {
+      "tag": "keyword",
+      "name": "string.other.front-matter.sd",
+      "begin": "^([ \\t]*)([-]{3,})([ \\t]*)$",
+      "beginCaptures": {
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.front-matter.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#FrontMatterEntry"
+        }
+      ],
+      "end": "^([ \\t]*)([-]{3,})([ \\t]*)$",
+      "endCaptures": {
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.front-matter.sd"
+        }
+      }
+    },
+    "FrontMatterEntry": {
+      "name": "string.other.front-matter-entry.sd",
+      "begin": "^([ _a-zA-Z]+[ _a-zA-Z0-9]*)([:])([^\\n\\r]+)$",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.front-matter-entry.sd"
+        },
+        "2": {
+          "tag": "punctuation",
+          "name": "punctuation.definition.tag.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Comment"
+            },
+            {
+              "include": "#Note"
+            },
+            {
+              "include": "#InlineString"
+            }
+          ]
+        }
+      },
+      "end": "^(?=[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "Jump": {
       "match": "^([ \\t]*)([>])([ ]*)([^\\n\\r ]+|[{][^\\n\\r<]+[}])?$",
@@ -151,14 +221,14 @@
         },
         "4": {
           "tag": "labelName",
-          "name": "keyword.control.export.sd"
+          "name": "keyword.control.export.jump.sd"
         }
       }
     },
     "Centered": {
       "tag": "quote",
       "name": "keyword.other.centered.sd",
-      "match": "^([ \\t]*)(:)([^\\n\\r:]+)(:)",
+      "match": "^([ \\t]*)(:)([^\\n\\r:]+)(:)([ \\t]*)$",
       "captures": {
         "2": {
           "tag": "quote",
@@ -186,7 +256,7 @@
     "CenteredAngle": {
       "tag": "quote",
       "name": "keyword.other.centered.sd",
-      "match": "^([ \\t]*)(>)([^\\n\\r<>]+)(<)",
+      "match": "^([ \\t]*)(>)([^\\n\\r<>]+)(<)([ \\t]*)$",
       "captures": {
         "2": {
           "tag": "quote",
@@ -212,7 +282,7 @@
       }
     },
     "Condition": {
-      "match": "^([ \\t]*)([*])($|[ ]+)($|if|elseif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\\n\\r`]*`|\"[^\\n\\r\"]*\"|'[^\\n\\r']*'|[^\\n\\r:])+))?([ ]*)($|[:])",
+      "match": "^([ \\t]*)([*])($|[ ]+)($|if|elseif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\\n\\r`]*`|\"[^\\n\\r\"]*\"|'[^\\n\\r']*'|[^\\n\\r:])+))?([ ]*)($|[:])([ \\t]*)$",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -252,7 +322,7 @@
       }
     },
     "List": {
-      "match": "^([ \\t]*)([*+-])($|[ ]+)",
+      "match": "^([ \\t]*)([*+-])($|[ \\t]+)",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -261,13 +331,21 @@
       }
     },
     "Import": {
-      "match": "^([ \\t]*)(import)($|[ ]+)($|[^\\n\\r]+)",
+      "match": "^([ \\t]*)(import)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)([^\\n\\r:]+)(?![:])$",
       "captures": {
         "2": {
           "tag": "logicOperator",
           "name": "keyword.control.import.sd"
         },
         "4": {
+          "tag": "function(variableName)",
+          "name": "variable.other.constant.sd"
+        },
+        "6": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.ts.sd"
+        },
+        "8": {
           "patterns": [
             {
               "include": "#Expression"
@@ -277,7 +355,7 @@
       }
     },
     "Variable": {
-      "match": "^([ \\t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*(?:\\[\\])*)($|[ ]+)([^\\n\\r:]+)(?![:])$",
+      "match": "^([ \\t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*(?:\\[\\])*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)([^\\n\\r:]+)(?![:])$",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -288,6 +366,14 @@
           "name": "support.type.primitive.sd"
         },
         "6": {
+          "tag": "function(variableName)",
+          "name": "variable.other.constant.sd"
+        },
+        "8": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.ts.sd"
+        },
+        "10": {
           "patterns": [
             {
               "include": "#Expression"
@@ -297,7 +383,7 @@
       }
     },
     "Struct": {
-      "begin": "^([ \\t]*)(@)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ ]*)$",
+      "begin": "^([ \\t]*)(@)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ \\t]*)$",
       "beginCaptures": {
         "2": {
           "tag": "keyword",
@@ -308,8 +394,8 @@
           "name": "support.type.primitive.struct.sd"
         },
         "6": {
-          "tag": "variableName",
-          "name": "variable.other.readwrite.struct.sd"
+          "tag": "function(variableName)",
+          "name": "variable.other.constant.struct.sd"
         },
         "8": {
           "tag": "punctuation",
@@ -335,15 +421,352 @@
       ],
       "end": "(?=@|^[\\n\\r\\t ]*$)"
     },
-    "Inline": {
-      "tag": "content",
-      "name": "meta.paragraph.text.sd",
-      "match": "([^\\n\\r<]+)"
+    "Repeat": {
+      "match": "^([ \\t]*)([\\^])([ \\t]*)$",
+      "captures": {
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.repeat.sd"
+        }
+      }
+    },
+    "Return": {
+      "match": "^([ \\t]*)([<])([ ]*)([^\\n\\r]*)([ \\t]*)$",
+      "captures": {
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.return.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Expression"
+            }
+          ]
+        }
+      }
+    },
+    "Scene": {
+      "match": "^([ \\t]*)([.](?![. ])|INT[.][ ]+|EXT[.][ ]+|INT[.]?/EXT[.][ ]+)($|(?:[^\\n\\r-]|[^ \\t\\n\\r][-])*[^ \\t\\n\\r])($|[ ]+)($|[-])($|[ ]+)($|[^\\n\\r#]*[^ \\t\\n\\r#])($|[ ]+)($|[#])($|[^\\n\\r#]+)($|[#])?([ \\t]*)$",
+      "captures": {
+        "2": {
+          "tag": "propertyName",
+          "name": "keyword.control.flow.scene.sd"
+        },
+        "3": {
+          "tag": "propertyName",
+          "name": "keyword.control.flow.scene.sd"
+        },
+        "5": {
+          "tag": "propertyName",
+          "name": "keyword.control.flow.scene.sd"
+        },
+        "7": {
+          "tag": "propertyName",
+          "name": "keyword.control.flow.scene.sd"
+        },
+        "9": {
+          "tag": "typeName",
+          "name": "support.type.primitive.scene.sd"
+        },
+        "10": {
+          "tag": "typeName",
+          "name": "support.type.primitive.scene.sd"
+        },
+        "11": {
+          "tag": "typeName",
+          "name": "support.type.primitive.scene.sd"
+        }
+      }
+    },
+    "Section": {
+      "match": "^([ \\t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\\n\\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ \\t]*)$",
+      "captures": {
+        "2": {
+          "tag": "heading",
+          "name": "keyword.control.export.section.sd"
+        },
+        "4": {
+          "tag": "heading",
+          "name": "keyword.control.export.section.sd"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Expression"
+            }
+          ]
+        },
+        "7": {
+          "tag": "punctuation",
+          "name": "keyword.operator.type.annotation.section.sd"
+        },
+        "9": {
+          "tag": "typeName",
+          "name": "entity.name.type.interface.section.sd"
+        }
+      }
+    },
+    "Transition": {
+      "tag": "unit",
+      "name": "keyword.control.flow.transition.sd",
+      "match": "([ \\t]*)((?:^|.*[ ]+)(?:TO:|TO BLACK:|FADE OUT:|FADE IN:))"
+    },
+    "Dialogue": {
+      "begin": "^([ \\t]*)(?![!#]|\\[\\[)([^\\p{Ll}\\r\\n]*?\\p{Lu}[^\\p{Ll}\\r\\n]*?)(\\(.*\\))?(\\s*\\^)?$",
+      "beginCaptures": {
+        "2": {
+          "tag": "className",
+          "name": "entity.name.type.sd"
+        },
+        "3": {
+          "tag": "tagName",
+          "name": "constant.character.escape.sd"
+        },
+        "5": {
+          "tag": "tagName",
+          "name": "constant.character.escape.sd"
+        },
+        "6": {
+          "tag": "tagName",
+          "name": "constant.character.escape.sd"
+        },
+        "7": {
+          "tag": "tagName",
+          "name": "constant.character.escape.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Comment"
+        },
+        {
+          "include": "#Parenthetical"
+        },
+        {
+          "include": "#Note"
+        },
+        {
+          "include": "#InlineString"
+        }
+      ],
+      "end": "^$"
+    },
+    "Parenthetical": {
+      "tag": "tagName",
+      "name": "constant.character.escape",
+      "match": "^([ \\t]*)([(])([^()]*)([)])$"
+    },
+    "Lyric": {
+      "tag": "annotation",
+      "name": "markup.italic string",
+      "match": "^([ \\t]*)(~)((?:(?![/][/]|[/][*]).)+)$",
+      "captures": {
+        "3": {
+          "patterns": [
+            {
+              "include": "#Inline"
+            }
+          ]
+        }
+      }
     },
     "Action": {
       "tag": "content",
       "name": "meta.paragraph.text.sd",
-      "match": "^((?:(?![\\/][\\/]|[\\/][*]).)+)$"
+      "match": "^((?:(?![/][/]|[/][*]).)+)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Inline"
+            }
+          ]
+        }
+      }
+    },
+    "InlineString": {
+      "tag": "string",
+      "name": "string",
+      "match": "((?:(?![/][/]|[/][*]).)+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Lyric"
+            },
+            {
+              "include": "#Inline"
+            }
+          ]
+        }
+      }
+    },
+    "Inline": {
+      "patterns": [
+        {
+          "include": "#Underline"
+        },
+        {
+          "include": "#Bold"
+        },
+        {
+          "include": "#Italic"
+        },
+        {
+          "include": "#Raw"
+        },
+        {
+          "include": "#Strikethrough"
+        },
+        {
+          "include": "#Escape"
+        }
+      ]
+    },
+    "Escape": {
+      "tag": "escape",
+      "name": "constant.character.escape.markdown",
+      "match": "\\\\[-`*_#+.!(){}\\[\\]\\\\>]"
+    },
+    "Bold": {
+      "tag": "strong",
+      "name": "markup.bold.markdown",
+      "match": "([*][*])((?![*][*]).+)([*][*])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.bold.markdown"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Escape"
+            },
+            {
+              "include": "#Raw"
+            },
+            {
+              "include": "#Underline"
+            },
+            {
+              "include": "#Italic"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "punctuation.definition.bold.markdown"
+        }
+      }
+    },
+    "Italic": {
+      "tag": "emphasis",
+      "name": "markup.italic.markdown",
+      "match": "([*])([^*]+)([*])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.italic.markdown"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Escape"
+            },
+            {
+              "include": "#Raw"
+            },
+            {
+              "include": "#Underline"
+            },
+            {
+              "include": "#Bold"
+            },
+            {
+              "include": "#Italic"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "punctuation.definition.italic.markdown"
+        }
+      }
+    },
+    "Underline": {
+      "tag": "link",
+      "name": "markup.underline.markdown",
+      "match": "([_])([^_]+)([_])",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.underline.markdown"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Escape"
+            },
+            {
+              "include": "#Raw"
+            },
+            {
+              "include": "#Bold"
+            },
+            {
+              "include": "#Italic"
+            }
+          ]
+        },
+        "3": {
+          "name": "punctuation.definition.underline.markdown"
+        }
+      }
+    },
+    "Strikethrough": {
+      "tag": "strikethrough",
+      "name": "markup.strikethrough.markdown",
+      "match": "([~][~])((?![~][~]).+)([~][~])",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.strikethrough.markdown"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Escape"
+            },
+            {
+              "include": "#Raw"
+            },
+            {
+              "include": "#Underline"
+            },
+            {
+              "include": "#Bold"
+            },
+            {
+              "include": "#Italic"
+            }
+          ]
+        },
+        "3": {
+          "name": "punctuation.definition.strikethrough.markdown"
+        }
+      }
+    },
+    "Raw": {
+      "tag": "monospace",
+      "name": "markup.inline.raw.string.markdown",
+      "match": "([`])([^`]+)([`])",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.raw.markdown"
+        },
+        "3": {
+          "name": "punctuation.definition.raw.markdown"
+        }
+      }
     },
     "YAML": {
       "patterns": [
@@ -786,7 +1209,7 @@
     "AssignArithmeticOperator": {
       "tag": "updateOperator",
       "name": "keyword.operator.assignment.compound.ts.sd",
-      "match": "([*][=]|(?<!\\()[\\/][=]|[%][=]|[+][=]|[-][=])"
+      "match": "([*][=]|(?<!\\()[/][=]|[%][=]|[+][=]|[-][=])"
     },
     "AssignBitwiseOperator": {
       "tag": "updateOperator",
@@ -810,7 +1233,7 @@
     },
     "NegateOperator": {
       "tag": "updateOperator",
-      "match": "(?<=[_$A-Za-z0-9])([!])\\s*(?:([\\/][=])|(?:([\\/])(?![/*])))",
+      "match": "(?<=[_$A-Za-z0-9])([!])\\s*(?:([/][=])|(?:([/])(?![/*])))",
       "captures": {
         "1": {
           "tag": "logicOperator",
@@ -854,7 +1277,7 @@
     "ArithmeticOperator": {
       "tag": "arithmeticOperator",
       "name": "keyword.operator.arithmetic.ts.sd",
-      "match": "([%]|[*]|[\\/]|[-]|[+])"
+      "match": "([%]|[*]|[/]|[-]|[+])"
     },
     "AssignMultiplyOperator": {
       "begin": "(?<=[_$A-Za-z0-9)\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
@@ -863,7 +1286,7 @@
           "include": "#Comment"
         }
       ],
-      "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][\\/])))",
+      "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][/])))",
       "endCaptures": {
         "1": {
           "tag": "updateOperator",
@@ -1141,6 +1564,7 @@
       ]
     },
     "TemplateSubstitution": {
+      "name": "string.template.ts",
       "begin": "([_$A-Za-z][_$A-Za-z0-9]*)?([`])",
       "beginCaptures": {
         "1": {

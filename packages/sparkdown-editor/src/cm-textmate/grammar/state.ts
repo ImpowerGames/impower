@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type { GrammarStackElement, MatchOutput } from "../core/types";
+import type { GrammarStackElement } from "../core/types";
 import type { ParserNode } from "./node";
 import type { Rule } from "./types/rule";
 
@@ -11,62 +11,11 @@ export class GrammarState {
   /**
    * @param context - The current context table.
    * @param stack - The current {@link GrammarStack}.
-   * @param last - The last {@link MatchOutput} that was matched.
    */
   constructor(
     public context: Record<string, string> = {},
-    public stack: GrammarStack = new GrammarStack(),
-    public last?: MatchOutput
+    public stack: GrammarStack = new GrammarStack()
   ) {}
-
-  /**
-   * Sets a key in the context table.
-   *
-   * @param key - The key to set.
-   * @param value - The value to set. If `null`, the key will be removed.
-   */
-  set(key: string, value: string | null) {
-    if (value === null) {
-      this.context = { ...this.context };
-      delete this.context[key];
-    } else {
-      const subbed = this.sub(value);
-      if (typeof subbed !== "string") {
-        throw new Error("Invalid context value");
-      }
-      this.context = { ...this.context, [key]: subbed };
-    }
-  }
-
-  /**
-   * Gets a key from the context table.
-   *
-   * @param key - The key to get.
-   */
-  get(key: string): string | null {
-    return this.context[key] ?? null;
-  }
-
-  /**
-   * Expands any substitutions found in the given string.
-   *
-   * @param str - The string to expand.
-   */
-  sub(str: string) {
-    if (str[0] !== "$") {
-      return str;
-    } else if (str.startsWith("$ctx:")) {
-      // context substitution
-      const [, name] = str.split(":");
-      return this.context[name ?? ""];
-    } else if (this.last?.captures) {
-      // match/capture substitution
-      const [, index] = str.split("$");
-      return this.last.captures[parseInt(index ?? "", 10)];
-    }
-
-    throw new Error("Couldn't resolve substitute");
-  }
 
   /**
    * Returns if another {@link GrammarState} is effectively equivalent to this one.
@@ -85,7 +34,7 @@ export class GrammarState {
 
   /** Returns a new clone of this state, including its stack. */
   clone() {
-    return new GrammarState(this.context, this.stack.clone(), this.last);
+    return new GrammarState(this.context, this.stack.clone());
   }
 }
 
