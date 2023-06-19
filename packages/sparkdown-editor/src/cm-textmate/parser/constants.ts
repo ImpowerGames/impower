@@ -57,8 +57,8 @@ export const NODE_NEWLINE = NodeType.define({
 });
 
 /**
- * Node emitted when the parser didn't match anything in the grammar,
- * and had to manually advance.
+ * Node emitted when a character doesn't match anything in the grammar,
+ * and the parser had to manually advance past it.
  */
 export const NODE_ERROR_UNRECOGNIZED = NodeType.define({
   name: "⚠️ ERROR_UNRECOGNIZED",
