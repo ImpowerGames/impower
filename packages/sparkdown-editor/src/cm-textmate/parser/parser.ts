@@ -140,8 +140,7 @@ export class Parse implements PartialParse {
           if (chunk && index !== null) {
             // split the buffer, reuse the left side,
             // but keep the right side around for reuse as well
-            const { left, right } = buffer.split(index);
-            this.previousRight = right;
+            const { left } = buffer.split(index);
             this.region.from = chunk.from;
             this.buffer = left;
             this.state = chunk.state.clone();
