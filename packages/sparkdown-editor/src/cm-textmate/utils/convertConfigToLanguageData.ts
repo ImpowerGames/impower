@@ -1,6 +1,9 @@
-import { ConfigData, LanguageData } from "../grammar/types/definition";
+import { ConfigDefinition } from "../types/ConfigDefinition";
+import { LanguageData } from "../types/LanguageData";
 
-const convertConfigToLanguageData = (config: ConfigData): LanguageData => {
+const convertConfigToLanguageData = (
+  config: ConfigDefinition
+): LanguageData => {
   // process language data
   const comments = config?.comments;
   const autoClosingPairs = config?.autoClosingPairs;

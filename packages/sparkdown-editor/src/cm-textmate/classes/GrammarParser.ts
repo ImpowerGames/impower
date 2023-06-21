@@ -1,0 +1,400 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
+
+import {
+  Input,
+  NodeProp,
+  NodeSet,
+  NodeType,
+  Parser,
+  PartialParse,
+  Tree,
+  TreeBuffer,
+  TreeFragment,
+} from "@lezer/common";
+
+import { ChunkBuffer, Compiler } from "../../../../grammar-parser/src/compiler";
+import { GrammarToken, NodeID } from "../../../../grammar-parser/src/core";
+import {
+  Grammar,
+  GrammarDefinition,
+  GrammarState,
+  RuleDefinition,
+} from "../../../../grammar-parser/src/grammar";
+
+import { MARGIN_AFTER, MARGIN_BEFORE } from "../constants/margin";
+import { REUSE_LEFT, REUSE_RIGHT } from "../constants/reuse";
+import getRuleNodeType from "../utils/getRuleNodeType";
+import { ParseRegion } from "./ParseRegion";
+
+const STATE_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
+
+export class GrammarParser extends Parser {
+  /** The resolved grammar. */
+  declare grammar: Grammar;
+
+  /** The set of CodeMirror NodeTypes in the grammar. */
+  declare nodeSet: NodeSet;
+
+  constructor(grammarDefinition: GrammarDefinition, rootNodeType: NodeType) {
+    super();
+    const nodeTypeProp = "nodeType";
+    const declarator = (
+      typeIndex: number,
+      typeId: string,
+      data: RuleDefinition
+    ) => ({
+      [nodeTypeProp]: getRuleNodeType(rootNodeType, typeIndex, typeId, data),
+    });
+    this.grammar = new Grammar(grammarDefinition, declarator);
+    const nodeTypes = this.grammar.nodes.map((n) => n.props[nodeTypeProp]);
+    this.nodeSet = new NodeSet(nodeTypes);
+  }
+
+  createParse(
+    input: Input,
+    fragments: readonly TreeFragment[],
+    ranges: { from: number; to: number }[]
+  ) {
+    const parser = new Parse(
+      this.grammar,
+      this.nodeSet,
+      input,
+      fragments,
+      ranges
+    );
+    return parser;
+  }
+}
+
+/**
+ * `Parse` is the main interface for tokenizing and parsing, and what
+ * CodeMirror directly interacts with.
+ *
+ * Additionally, `Parse` handles the recovery of grammar state from
+ * the stale trees provided by CodeMirror, and then uses this data to
+ * restart tokenization with reused tokens.
+ *
+ * Note that `Parse` is not persistent a objects It is discarded as
+ * soon as the parse is done. That means that its startup time is very significant.
+ */
+export class Parse implements PartialParse {
+  /** The host grammar. */
+  declare grammar: Grammar;
+
+  /** The set of CodeMirror NodeTypes in the grammar. */
+  declare nodeSet: NodeSet;
+
+  /**
+   * An object storing details about the region of the document to be
+   * parsed, where it was edited, the length, etc.
+   */
+  private declare region: ParseRegion;
+
+  /** The current state of the grammar, such as the stack. */
+  private declare state: GrammarState;
+
+  /** {@link Chunk} buffer, where matched tokens are cached. */
+  private declare buffer: ChunkBuffer;
+
+  private declare compiler: Compiler;
+
+  /**
+   * A buffer containing the stale _ahead_ state of the tokenized output.
+   * As in, when a user makes a change, this is all of the tokenization
+   * data for the previous document after the location of that new change.
+   */
+  private declare previousRight?: ChunkBuffer;
+
+  /** The current position of the parser. */
+  declare parsedPos: number;
+
+  /**
+   * The position the parser will be stopping at early, if given a location
+   * to stop at.
+   */
+  declare stoppedAt: number | null;
+
+  /** The current performance value, in milliseconds. */
+  declare performance?: number;
+
+  /**
+   * @param language - The language containing the grammar to use.
+   * @param input - The input document to parse.
+   * @param fragments - The fragments to be used for determining reuse of
+   *   previous parses.
+   * @param ranges - The ranges of the document to parse.
+   */
+  constructor(
+    grammar: Grammar,
+    nodeSet: NodeSet,
+    input: Input,
+    fragments: readonly TreeFragment[],
+    ranges: { from: number; to: number }[]
+  ) {
+    this.grammar = grammar;
+    this.nodeSet = nodeSet;
+    this.stoppedAt = null;
+
+    this.region = new ParseRegion(input, ranges, fragments);
+
+    // find cached data, if possible
+    if (REUSE_LEFT && fragments?.length) {
+      for (let idx = 0; idx < fragments.length; idx++) {
+        const f = fragments[idx]!;
+        // make sure fragment is within the region of the document we care about
+        if (f.from > this.region.from || f.to < this.region.from) {
+          continue;
+        }
+
+        // try to find the buffer for this fragment's tree in the cache
+        const buffer = this.find(f.tree, this.region.from, f.to);
+
+        if (buffer) {
+          // try to find a suitable chunk from the buffer to restart tokenization from
+          const { chunk, index } = buffer.search(this.region.edit!.from, -1);
+          if (chunk && index !== null) {
+            // split the buffer, reuse the left side,
+            // but keep the right side around for reuse as well
+            const { left } = buffer.split(index);
+            this.region.from = chunk.from;
+            this.buffer = left;
+            this.state = chunk.state.clone();
+          }
+        }
+      }
+    }
+
+    this.parsedPos = this.region.from;
+
+    // if we couldn't reuse state, we'll need to startup things with a default state
+    if (!this.buffer || !this.state) {
+      this.buffer = new ChunkBuffer();
+      this.state = this.grammar.startState();
+    }
+
+    this.compiler = new Compiler(grammar, this.buffer);
+
+    // if we reused left, we'll catch the compiler up to the current position
+    if (this.buffer.chunks.length) {
+      this.compiler.advanceFully();
+    }
+  }
+
+  /** True if the parser is done. */
+  get done() {
+    return this.parsedPos >= this.region.to;
+  }
+
+  /**
+   * Notifies the parser to not progress past the given position.
+   *
+   * @param pos - The position to stop at.
+   */
+  stopAt(pos: number) {
+    this.region.to = pos;
+    this.stoppedAt = pos;
+  }
+
+  /** Advances tokenization one step. */
+  advance(): Tree | null {
+    // if we're told to stop, we need to BAIL
+    if (this.stoppedAt && this.parsedPos >= this.stoppedAt) {
+      return this.finish();
+    }
+
+    this.nextChunk();
+    this.compiler.step();
+
+    if (this.done) {
+      return this.finish();
+    }
+
+    return null;
+  }
+
+  private finish(): Tree {
+    const start = this.region.original.from;
+    const length = this.region.original.length;
+
+    const result = this.compiler.compile(length);
+
+    if (result) {
+      const topID = NodeID.TOP;
+      const buffer = result.cursor;
+      const reused = result.reused.map(
+        (b) => new TreeBuffer(b.buffer, b.length, this.nodeSet)
+      ) as unknown as readonly Tree[];
+      const nodeSet = this.nodeSet;
+      // build tree from buffer
+      const tree = Tree.build({
+        topID,
+        buffer,
+        nodeSet,
+        reused,
+        start,
+        length,
+      });
+      // bit of a hack (private properties)
+      // this is so that we don't need to build another tree
+      const props = Object.create(null);
+      // @ts-ignore
+      props[STATE_PROP.id] = this.buffer;
+      // @ts-ignore
+      tree.props = props;
+
+      return tree;
+    }
+    const topNode = this.grammar.nodes[NodeID.TOP];
+    const topNodeType = topNode?.props["nodeType"];
+    return new Tree(topNodeType, [], [], length);
+  }
+
+  /** Advances the parser to the next chunk. */
+  private nextChunk() {
+    // this condition is a little misleading,
+    // as we're actually going to break out when any chunk is emitted.
+    // however, if we're at the "last chunk", this condition catches that
+    while (this.parsedPos < this.region.to) {
+      if (REUSE_RIGHT) {
+        // try to reuse ahead state
+        const reused =
+          this.previousRight && this.tryToReuse(this.previousRight);
+        // can't reuse the buffer more than once (pointless)
+        if (reused) {
+          this.previousRight = undefined;
+        }
+      }
+
+      const pos = this.parsedPos;
+      const startState = this.state.clone();
+
+      let matchTokens: GrammarToken[] | null = null;
+      let length = 0;
+
+      const start = Math.max(pos - MARGIN_BEFORE, this.region.from);
+      const startCompensated = this.region.compensate(pos, start - pos);
+
+      const str = this.region.read(
+        startCompensated,
+        MARGIN_AFTER,
+        this.region.to
+      );
+
+      const match = this.grammar.match(this.state, str, pos - start, pos);
+
+      if (match) {
+        this.state = match.state;
+        matchTokens = match.compile();
+        length = match.length;
+      } else {
+        // if we didn't match, we'll advance to prevent getting stuck
+        matchTokens =
+          str[pos - start] === "\n"
+            ? [[NodeID.NEWLINE, pos, pos + 1]]
+            : [[NodeID.ERROR_UNRECOGNIZED, pos, pos + 1]];
+        length = 1;
+      }
+
+      this.parsedPos = this.region.compensate(pos, length);
+
+      let addedChunk = false;
+
+      for (let idx = 0; idx < matchTokens!.length; idx++) {
+        const t = matchTokens![idx]!;
+
+        if (!this.region.contiguous) {
+          const from = this.region.compensate(pos, t[1] - pos);
+          const end = this.region.compensate(pos, t[2] - pos);
+          t[1] = from;
+          t[2] = end;
+        }
+
+        if (this.buffer.add(startState, t)) {
+          addedChunk = true;
+        }
+      }
+
+      if (addedChunk) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Tries to reuse a buffer _ahead_ of the current position. Returns true
+   * if this was successful, otherwise false.
+   *
+   * @param right - The buffer to try and reuse.
+   */
+  private tryToReuse(right: ChunkBuffer) {
+    // can't reuse if we don't know the safe regions
+    if (!this.region.edit) {
+      return false;
+    }
+    // can only safely reuse if we're ahead of the edited region
+    if (this.parsedPos <= this.region.edit.to) {
+      return false;
+    }
+
+    // check every chunk and see if we can reuse it
+    for (let idx = 0; idx < right.chunks.length; idx++) {
+      const chunk = right.chunks[idx]!;
+      if (
+        chunk.isReusable(this.state, this.parsedPos, this.region.edit.offset)
+      ) {
+        right.slide(idx, this.region.edit.offset, true);
+        this.buffer.link(right, this.region.original.length);
+        this.buffer.ensureLast(this.parsedPos, this.state);
+        this.state = this.buffer.last!.state.clone();
+        this.parsedPos = this.buffer.last!.from;
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Returns the first chunk buffer found within a tree, if any.
+   *
+   * @param tree - The tree to search through, recursively.
+   * @param from - The start of the search area.
+   * @param to - The end of the search area.
+   * @param offset - An offset added to the tree's positions, so that they
+   *   may match some other source's positions.
+   */
+  private find(
+    tree: Tree,
+    from: number,
+    to: number,
+    offset = 0
+  ): ChunkBuffer | null {
+    const bundle: ChunkBuffer | undefined =
+      offset >= from && offset + tree.length >= to
+        ? tree.prop(STATE_PROP)
+        : undefined;
+
+    if (bundle) {
+      return bundle;
+    }
+
+    // recursively check children
+    for (let i = tree.children.length - 1; i >= 0; i--) {
+      const child = tree.children[i];
+      const pos = offset + tree.positions[i]!;
+      if (!(child instanceof Tree && pos < to)) {
+        continue;
+      }
+      const found = this.find(child, from, to, pos);
+      if (found) {
+        return found;
+      }
+    }
+
+    return null;
+  }
+}

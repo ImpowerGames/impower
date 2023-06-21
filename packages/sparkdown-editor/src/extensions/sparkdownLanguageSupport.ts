@@ -1,9 +1,10 @@
 import { LanguageSupport } from "@codemirror/language";
 import { SparkParseResult } from "../../../sparkdown/src/types/SparkParseResult";
 import { parseSpark } from "../../../sparkdown/src/utils/parseSpark";
-import config from "../../language/sparkdown.language-config.json";
-import grammar from "../../language/sparkdown.language-grammar.json";
-import TextmateLanguage from "../cm-textmate/core/language";
+import configData from "../../language/sparkdown.language-config.json";
+import grammarData from "../../language/sparkdown.language-grammar.json";
+import snippetsData from "../../language/sparkdown.language-snippets.json";
+import { TextmateLanguage } from "../cm-textmate";
 
 const sparkdownLanguageSupport = (
   _config: {
@@ -13,7 +14,9 @@ const sparkdownLanguageSupport = (
 ): LanguageSupport => {
   const textmateLanguage = new TextmateLanguage({
     name: "sparkdown",
-    textmateData: { config, grammar },
+    configDefinition: configData,
+    grammarDefinition: grammarData,
+    snippetsDefinition: snippetsData,
   });
   return textmateLanguage.load();
 };

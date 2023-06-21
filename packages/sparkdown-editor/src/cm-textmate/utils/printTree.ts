@@ -5,7 +5,6 @@
  * Released under the MIT License.
  */
 
-import { Text } from "@codemirror/state";
 import { Input, NodeType, SyntaxNode, Tree, TreeCursor } from "@lezer/common";
 
 class StringInput implements Input {
@@ -223,7 +222,7 @@ export function printTree(
   { from, to, start = 0, includeParents }: PrintTreeOptions = {}
 ): string {
   const inp = typeof input === "string" ? new StringInput(input) : input;
-  const text = Text.of(inp.read(0, inp.length).split("\n"));
+  const text = inp.read(0, inp.length);
   const state = {
     output: "",
     prefixes: [] as string[],
@@ -278,15 +277,23 @@ export function printTree(
   return state.output;
 }
 
-function locAt(text: Text, pos: number): string {
-  const line = text.lineAt(pos);
-  return line.number + ":" + (pos - line.from);
-}
+const lineAt = (
+  text: string,
+  pos: number
+): { number: number; from: number } => {
+  let number = 1;
+  let from = 0;
+  for (let i = 0; i <= pos; i += 1) {
+    const char = text[i]!;
+    if (char === "\n") {
+      number += 1;
+      from = i;
+    }
+  }
+  return { number, from };
+};
 
-export function logTree(
-  tree: TreeCursor | Tree | SyntaxNode,
-  input: string,
-  options?: PrintTreeOptions
-): void {
-  console.log(printTree(tree, input, options));
-}
+const locAt = (text: string, pos: number): string => {
+  const line = lineAt(text, pos);
+  return pos + (line.number + ":" + (pos - line.from));
+};

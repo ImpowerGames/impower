@@ -88,12 +88,5 @@
   "indentationRules": {
     "increaseIndentPattern": "^\\s*.*(:|-)[ ]?(&amp;\\w+)?([{][^}\"']*|[(][^)\"']*)?$",
     "decreaseIndentPattern": "^\\s+[}]$|^\\s*[-]{3,}\\s*$"
-  },
-  "folding": {
-    "offSide": true,
-    "markers": {
-      "start": "^\\s*#\\s*region\\b",
-      "end": "^\\s*#\\s*endregion\\b"
-    }
   }
 }
