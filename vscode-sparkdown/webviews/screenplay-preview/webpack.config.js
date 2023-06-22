@@ -8,7 +8,7 @@ const path = require("path");
 const webpack = require("webpack");
 
 /** @type WebpackConfig */
-const webExtensionConfig = {
+const config = {
   mode: "none", // this leaves the source code as close as possible to the original (when packaging we set this to 'production')
   target: "webworker",
   node: {
@@ -17,7 +17,7 @@ const webExtensionConfig = {
   entry: "./screenplay-preview.js",
   output: {
     path: path.join(__dirname, "../../out/webviews"),
-    filename: "screenplay-preview.bundle.js",
+    filename: "screenplay-preview.js",
     libraryTarget: "commonjs",
     devtoolModuleFilenameTemplate: "../../[resource-path]",
   },
@@ -76,4 +76,4 @@ const webExtensionConfig = {
   },
 };
 
-module.exports = [webExtensionConfig];
+module.exports = [config];

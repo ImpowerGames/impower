@@ -8,7 +8,7 @@ import { Input, TreeFragment } from "@lezer/common";
  * The region of a document that should be parsed, along with other
  * information such as what the edited range of the document was.
  */
-export class ParseRegion {
+export default class LezerParseRegion {
   /** The parser should start before or at this position. */
   declare from: number;
 
@@ -198,10 +198,10 @@ export class ParseRegion {
         let final: { from: number; to: number };
         // prettier-ignore
         switch (side) {
-           case -1: final = this.ranges[i - 1]!; break
-           case  0: final = range; break
-           case  1: final = this.ranges[i + 1]!; break
-         }
+            case -1: final = this.ranges[i - 1]!; break
+            case  0: final = range; break
+            case  1: final = this.ranges[i + 1]!; break
+          }
         return final ?? null;
       }
     }

@@ -47,10 +47,10 @@
       "include": "#Import"
     },
     {
-      "include": "#Variable"
+      "include": "#Struct"
     },
     {
-      "include": "#Struct"
+      "include": "#Variable"
     },
     {
       "include": "#Repeat"
@@ -361,37 +361,9 @@
         },
         "6": {
           "tag": "updateOperator",
-          "name": "keyword.operator.assignment.ts.sd"
+          "name": "keyword.operator.assignment.sd"
         },
         "8": {
-          "patterns": [
-            {
-              "include": "#Expression"
-            }
-          ]
-        }
-      }
-    },
-    "Variable": {
-      "match": "^([ \\t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*(?:\\[\\])*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)([^\\n\\r:]+)(?![:])$",
-      "captures": {
-        "2": {
-          "tag": "keyword",
-          "name": "storage.type.variable.sd"
-        },
-        "4": {
-          "tag": "typeName",
-          "name": "support.type.primitive.sd"
-        },
-        "6": {
-          "tag": "function(variableName)",
-          "name": "variable.other.constant.sd"
-        },
-        "8": {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.ts.sd"
-        },
-        "10": {
           "patterns": [
             {
               "include": "#Expression"
@@ -435,6 +407,33 @@
       "patterns": [
         {
           "include": "#YAML"
+        }
+      ],
+      "end": "(?=@|^[\\n\\r\\t ]*$)"
+    },
+    "Variable": {
+      "begin": "^([ \\t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*(?:\\[\\])*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])",
+      "beginCaptures": {
+        "2": {
+          "tag": "keyword",
+          "name": "storage.type.variable.sd"
+        },
+        "4": {
+          "tag": "typeName",
+          "name": "support.type.primitive.sd"
+        },
+        "6": {
+          "tag": "function(variableName)",
+          "name": "variable.other.constant.sd"
+        },
+        "8": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Expression"
         }
       ],
       "end": "(?=@|^[\\n\\r\\t ]*$)"
@@ -572,7 +571,7 @@
     },
     "Parenthetical": {
       "tag": "tagName",
-      "name": "constant.character.escape",
+      "name": "constant.character.escape.sd",
       "match": "^([ \\t]*)([(])([^()]*)([)])$"
     },
     "Lyric": {
@@ -605,7 +604,7 @@
     },
     "InlineString": {
       "tag": "string",
-      "name": "string",
+      "name": "string.inline.sd",
       "match": "((?:(?![/][/]|[/][*]).)+)",
       "captures": {
         "1": {
@@ -644,17 +643,17 @@
     },
     "Escape": {
       "tag": "escape",
-      "name": "constant.character.escape.markdown",
+      "name": "constant.character.escape.sd",
       "match": "\\\\[-`*_#+.!(){}\\[\\]\\\\>]"
     },
     "Bold": {
       "tag": "strong",
-      "name": "markup.bold.markdown",
+      "name": "markup.bold.sd",
       "match": "([*][*])((?![*][*]).+)([*][*])",
       "captures": {
         "1": {
           "tag": "keyword",
-          "name": "punctuation.definition.bold.markdown"
+          "name": "punctuation.definition.bold.sd"
         },
         "2": {
           "patterns": [
@@ -674,18 +673,18 @@
         },
         "3": {
           "tag": "keyword",
-          "name": "punctuation.definition.bold.markdown"
+          "name": "punctuation.definition.bold.sd"
         }
       }
     },
     "Italic": {
       "tag": "emphasis",
-      "name": "markup.italic.markdown",
+      "name": "markup.italic.sd",
       "match": "([*])([^*]+)([*])",
       "captures": {
         "1": {
           "tag": "keyword",
-          "name": "punctuation.definition.italic.markdown"
+          "name": "punctuation.definition.italic.sd"
         },
         "2": {
           "patterns": [
@@ -708,17 +707,17 @@
         },
         "3": {
           "tag": "keyword",
-          "name": "punctuation.definition.italic.markdown"
+          "name": "punctuation.definition.italic.sd"
         }
       }
     },
     "Underline": {
       "tag": "link",
-      "name": "markup.underline.markdown",
+      "name": "markup.underline.sd",
       "match": "([_])([^_]+)([_])",
       "captures": {
         "1": {
-          "name": "punctuation.definition.underline.markdown"
+          "name": "punctuation.definition.underline.sd"
         },
         "2": {
           "patterns": [
@@ -737,17 +736,17 @@
           ]
         },
         "3": {
-          "name": "punctuation.definition.underline.markdown"
+          "name": "punctuation.definition.underline.sd"
         }
       }
     },
     "Strikethrough": {
       "tag": "strikethrough",
-      "name": "markup.strikethrough.markdown",
+      "name": "markup.strikethrough.sd",
       "match": "([~][~])((?![~][~]).+)([~][~])",
       "captures": {
         "1": {
-          "name": "punctuation.definition.strikethrough.markdown"
+          "name": "punctuation.definition.strikethrough.sd"
         },
         "2": {
           "patterns": [
@@ -769,20 +768,20 @@
           ]
         },
         "3": {
-          "name": "punctuation.definition.strikethrough.markdown"
+          "name": "punctuation.definition.strikethrough.sd"
         }
       }
     },
     "Raw": {
       "tag": "monospace",
-      "name": "markup.inline.raw.string.markdown",
+      "name": "markup.inline.raw.string.sd",
       "match": "([`])([^`]+)([`])",
       "captures": {
         "1": {
-          "name": "punctuation.definition.raw.markdown"
+          "name": "punctuation.definition.raw.sd"
         },
         "3": {
-          "name": "punctuation.definition.raw.markdown"
+          "name": "punctuation.definition.raw.sd"
         }
       }
     },
@@ -810,15 +809,15 @@
       "captures": {
         "1": {
           "tag": "content",
-          "name": "markup.raw.whitespace.indent.yaml.sd"
+          "name": "markup.raw.whitespace.indent.sd"
         },
         "2": {
           "tag": "keyword",
-          "name": "storage.type.array.yaml.sd"
+          "name": "storage.type.array.sd"
         },
         "3": {
           "tag": "content",
-          "name": "markup.raw.whitespace.yaml.sd"
+          "name": "markup.raw.whitespace.sd"
         },
         "4": {
           "patterns": [
@@ -840,19 +839,19 @@
       "captures": {
         "1": {
           "tag": "content",
-          "name": "markup.raw.whitespace.indent.yaml.sd"
+          "name": "markup.raw.whitespace.indent.sd"
         },
         "2": {
           "tag": "keyword",
-          "name": "storage.type.map.yaml.sd"
+          "name": "storage.type.map.sd"
         },
         "3": {
           "tag": "punctuation",
-          "name": "punctuation.separator.colon.yaml.sd"
+          "name": "punctuation.separator.colon.sd"
         },
         "4": {
           "tag": "content",
-          "name": "markup.raw.whitespace.yaml.sd"
+          "name": "markup.raw.whitespace.sd"
         },
         "5": {
           "patterns": [
@@ -874,15 +873,15 @@
       "captures": {
         "1": {
           "tag": "content",
-          "name": "markup.raw.whitespace.indent.yaml.sd"
+          "name": "markup.raw.whitespace.indent.sd"
         },
         "2": {
           "tag": "keyword",
-          "name": "storage.type.map.yaml.sd"
+          "name": "storage.type.map.sd"
         },
         "3": {
           "tag": "punctuation",
-          "name": "punctuation.separator.colon.yaml.sd"
+          "name": "punctuation.separator.colon.sd"
         }
       }
     },
@@ -891,7 +890,7 @@
       "captures": {
         "1": {
           "tag": "content",
-          "name": "markup.raw.whitespace.indent.yaml.sd"
+          "name": "markup.raw.whitespace.indent.sd"
         },
         "2": {
           "patterns": [
@@ -907,19 +906,19 @@
       "beginCaptures": {
         "1": {
           "tag": "definitionKeyword",
-          "name": "punctuation.definition.block.scalar.literal.yaml.sd"
+          "name": "punctuation.definition.block.scalar.literal.sd"
         },
         "2": {
           "tag": "definitionKeyword",
-          "name": "punctuation.definition.block.scalar.folded.yaml.sd"
+          "name": "punctuation.definition.block.scalar.folded.sd"
         },
         "3": {
           "tag": "definitionKeyword",
-          "name": "constant.numeric.indentation-indicator.yaml.sd"
+          "name": "constant.numeric.indentation-indicator.sd"
         },
         "4": {
           "tag": "definitionKeyword",
-          "name": "support.other.chomping-indicator.yaml.sd"
+          "name": "support.other.chomping-indicator.sd"
         },
         "5": {
           "patterns": [
@@ -941,13 +940,13 @@
     },
     "BlockScalarContent": {
       "tag": "definitionKeyword",
-      "name": "string.unquoted.block.yaml.sd",
+      "name": "string.unquoted.block.sd",
       "begin": "^([ ]+)(?![ ])",
       "end": "^(?!\\s*$)"
     },
     "ExpectedCommentOrNewline": {
       "tag": "invalid",
-      "name": "invalid.illegal.expected-comment-or-newline.yaml.sd",
+      "name": "invalid.illegal.expected-comment-or-newline.sd",
       "match": ".+"
     },
     "Expression": {
@@ -995,7 +994,7 @@
     },
     "Whitespace": {
       "tag": "content",
-      "name": "markup.raw.whitespace.ts.sd",
+      "name": "markup.raw.whitespace.sd",
       "match": "([\\t ]+)"
     },
     "String": {
@@ -1013,45 +1012,55 @@
     },
     "QStringDouble": {
       "tag": "string",
-      "name": "string.quoted.double.ts.sd",
+      "name": "string.quoted.double.sd",
       "begin": "([\"])",
       "beginCaptures": {
         "1": {
           "tag": "quote",
-          "name": "punctuation.definition.string.begin.ts.sd"
+          "name": "punctuation.definition.string.begin.sd"
         }
       },
+      "patterns": [
+        {
+          "include": "#Color"
+        }
+      ],
       "end": "([\"])|([^\\\\\\n]$)",
       "endCaptures": {
         "1": {
           "tag": "quote",
-          "name": "punctuation.definition.string.end.ts.sd"
+          "name": "punctuation.definition.string.end.sd"
         },
         "2": {
           "tag": "invalid",
-          "name": "invalid.illegal.newline.ts.sd"
+          "name": "invalid.illegal.newline.sd"
         }
       }
     },
     "QStringSingle": {
       "tag": "string",
-      "name": "string.quoted.single.ts.sd",
+      "name": "string.quoted.single.sd",
       "begin": "(['])",
       "beginCaptures": {
         "1": {
           "tag": "quote",
-          "name": "punctuation.definition.string.begin.ts.sd"
+          "name": "punctuation.definition.string.begin.sd"
         }
       },
+      "patterns": [
+        {
+          "include": "#Color"
+        }
+      ],
       "end": "(['])|([^\\\\\\n]$)",
       "endCaptures": {
         "1": {
           "tag": "quote",
-          "name": "punctuation.definition.string.end.ts.sd"
+          "name": "punctuation.definition.string.end.sd"
         },
         "2": {
           "tag": "invalid",
-          "name": "invalid.illegal.newline.ts.sd"
+          "name": "invalid.illegal.newline.sd"
         }
       }
     },
@@ -1139,7 +1148,7 @@
     },
     "AwaitOperator": {
       "tag": "controlKeyword",
-      "name": "keyword.control.flow.ts.sd",
+      "name": "keyword.control.flow.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))(await)(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "YieldOperator": {
@@ -1147,7 +1156,7 @@
       "beginCaptures": {
         "1": {
           "tag": "controlKeyword",
-          "name": "keyword.control.flow.ts.sd"
+          "name": "keyword.control.flow.sd"
         }
       },
       "patterns": [
@@ -1159,7 +1168,7 @@
       "endCaptures": {
         "1": {
           "tag": "controlKeyword",
-          "name": "keyword.generator.asterisk.ts.sd"
+          "name": "keyword.generator.asterisk.sd"
         }
       }
     },
@@ -1168,42 +1177,42 @@
       "captures": {
         "1": {
           "tag": "controlKeyword",
-          "name": "keyword.control.flow.ts.sd"
+          "name": "keyword.control.flow.sd"
         },
         "2": {
           "tag": "controlKeyword",
-          "name": "keyword.generator.asterisk.ts.sd"
+          "name": "keyword.generator.asterisk.sd"
         }
       }
     },
     "DeleteOperator": {
       "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.delete.ts.sd",
+      "name": "keyword.operator.expression.delete.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))delete(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "InOperator": {
       "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.in.ts.sd",
+      "name": "keyword.operator.expression.in.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))in(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
     },
     "OfOperator": {
       "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.of.ts.sd",
+      "name": "keyword.operator.expression.of.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))of(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
     },
     "InstanceOfOperator": {
       "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.instanceof.ts.sd",
+      "name": "keyword.operator.expression.instanceof.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))instanceof(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "NewOperator": {
       "tag": "operatorKeyword",
-      "name": "keyword.operator.new.ts.sd",
+      "name": "keyword.operator.new.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))new(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "VoidOperator": {
       "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.void.ts.sd",
+      "name": "keyword.operator.expression.void.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))void(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "AsOperator": {
@@ -1211,42 +1220,42 @@
       "captures": {
         "1": {
           "tag": "controlKeyword",
-          "name": "keyword.control.as.ts.sd"
+          "name": "keyword.control.as.sd"
         },
         "2": {
           "tag": "controlKeyword",
-          "name": "storage.modifier.ts.sd"
+          "name": "storage.modifier.sd"
         }
       }
     },
     "SpreadOperator": {
       "tag": "derefOperator",
-      "name": "keyword.operator.spread.ts.sd",
+      "name": "keyword.operator.spread.sd",
       "match": "([.][.][.])"
     },
     "AssignArithmeticOperator": {
       "tag": "updateOperator",
-      "name": "keyword.operator.assignment.compound.ts.sd",
+      "name": "keyword.operator.assignment.compound.sd",
       "match": "([*][=]|(?<!\\()[/][=]|[%][=]|[+][=]|[-][=])"
     },
     "AssignBitwiseOperator": {
       "tag": "updateOperator",
-      "name": "keyword.operator.assignment.compound.bitwise.ts.sd",
+      "name": "keyword.operator.assignment.compound.bitwise.sd",
       "match": "([&][=]|[\\^][=]|[<][<][=]|[>][>][=]|[>][>][>][=]|[|][=])"
     },
     "BitwiseShiftOperator": {
       "tag": "updateOperator",
-      "name": "keyword.operator.bitwise.shift.ts.sd",
+      "name": "keyword.operator.bitwise.shift.sd",
       "match": "([<][<]|[>][>][>]|[>][>])"
     },
     "CompareEqualOperator": {
       "tag": "compareOperator",
-      "name": "keyword.operator.comparison.ts.sd",
+      "name": "keyword.operator.comparison.sd",
       "match": "([=][=][=]|[!][=][=]|[=][=]|[!][=])"
     },
     "CompareRelativeOperator": {
       "tag": "compareOperator",
-      "name": "keyword.operator.relational.ts.sd",
+      "name": "keyword.operator.relational.sd",
       "match": "([<][=]|[>][=]|[<][>]|[<]|[>])"
     },
     "NegateOperator": {
@@ -1255,46 +1264,46 @@
       "captures": {
         "1": {
           "tag": "logicOperator",
-          "name": "keyword.operator.logical.ts.sd"
+          "name": "keyword.operator.logical.sd"
         },
         "2": {
           "tag": "updateOperator",
-          "name": "keyword.operator.assignment.compound.ts.sd"
+          "name": "keyword.operator.assignment.compound.sd"
         },
         "3": {
           "tag": "arithmeticOperator",
-          "name": "keyword.operator.arithmetic.ts.sd"
+          "name": "keyword.operator.arithmetic.sd"
         }
       }
     },
     "LogicalOperator": {
       "tag": "logicOperator",
-      "name": "keyword.operator.logical.ts.sd",
+      "name": "keyword.operator.logical.sd",
       "match": "([!]|[&][&]|[|][|]|[?][?])"
     },
     "BitwiseOperator": {
       "tag": "bitwiseOperator",
-      "name": "keyword.operator.bitwise.ts.sd",
+      "name": "keyword.operator.bitwise.sd",
       "match": "([&]|[~]|[\\^]|[|])"
     },
     "AssignEqualOperator": {
       "tag": "updateOperator",
-      "name": "keyword.operator.assignment.ts.sd",
+      "name": "keyword.operator.assignment.sd",
       "match": "([=])"
     },
     "DecrementOperator": {
       "tag": "updateOperator",
-      "name": "keyword.operator.decrement.ts.sd",
+      "name": "keyword.operator.decrement.sd",
       "match": "([-][-])"
     },
     "IncrementOperator": {
       "tag": "updateOperator",
-      "name": "keyword.operator.increment.ts.sd",
+      "name": "keyword.operator.increment.sd",
       "match": "([+][+])"
     },
     "ArithmeticOperator": {
       "tag": "arithmeticOperator",
-      "name": "keyword.operator.arithmetic.ts.sd",
+      "name": "keyword.operator.arithmetic.sd",
       "match": "([%]|[*]|[/]|[-]|[+])"
     },
     "AssignMultiplyOperator": {
@@ -1308,11 +1317,11 @@
       "endCaptures": {
         "1": {
           "tag": "updateOperator",
-          "name": "keyword.operator.assignment.compound.ts.sd"
+          "name": "keyword.operator.assignment.compound.sd"
         },
         "2": {
           "tag": "arithmeticOperator",
-          "name": "keyword.operator.arithmetic.ts.sd"
+          "name": "keyword.operator.arithmetic.sd"
         }
       }
     },
@@ -1321,17 +1330,17 @@
       "captures": {
         "1": {
           "tag": "updateOperator",
-          "name": "keyword.operator.assignment.compound.ts.sd"
+          "name": "keyword.operator.assignment.compound.sd"
         },
         "2": {
           "tag": "arithmeticOperator",
-          "name": "keyword.operator.arithmetic.ts.sd"
+          "name": "keyword.operator.arithmetic.sd"
         }
       }
     },
     "ColonOperator": {
       "tag": "punctuation",
-      "name": "keyword.operator.type.annotation.ts.sd",
+      "name": "keyword.operator.type.annotation.sd",
       "match": "([:])"
     },
     "NumericLiteral": {
@@ -1352,40 +1361,40 @@
     },
     "HexNumber": {
       "tag": "number",
-      "name": "constant.numeric.hex.ts.sd",
+      "name": "constant.numeric.hex.sd",
       "match": "\\b(?<![$])0(?:x|X)[0-9a-fA-F][0-9a-fA-F_]*(n)?\\b(?![$])",
       "captures": {
         "1": {
           "tag": "number",
-          "name": "storage.type.numeric.bigint.ts.sd"
+          "name": "storage.type.numeric.bigint.sd"
         }
       }
     },
     "BinaryNumber": {
       "tag": "number",
-      "name": "constant.numeric.binary.ts.sd",
+      "name": "constant.numeric.binary.sd",
       "match": "\\b(?<![$])0(?:b|B)[01][01_]*(n)?\\b(?![$])",
       "captures": {
         "1": {
           "tag": "number",
-          "name": "storage.type.numeric.bigint.ts.sd"
+          "name": "storage.type.numeric.bigint.sd"
         }
       }
     },
     "OctalNumber": {
       "tag": "number",
-      "name": "constant.numeric.octal.ts.sd",
+      "name": "constant.numeric.octal.sd",
       "match": "\\b(?<![$])0(?:o|O)?[0-7][0-7_]*(n)?\\b(?![$])",
       "captures": {
         "1": {
           "tag": "number",
-          "name": "storage.type.numeric.bigint.ts.sd"
+          "name": "storage.type.numeric.bigint.sd"
         }
       }
     },
     "DecimalNumber": {
       "tag": "number",
-      "name": "constant.numeric.decimal.ts.sd",
+      "name": "constant.numeric.decimal.sd",
       "match": "((?<![$])(?:(?:\\b[0-9][0-9_]*[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\B[.][0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[.][n]?\\B)|(?:\\B[.][0-9][0-9_]*[n]?\\b)|(?:\\b[0-9][0-9_]*[n]?\\b(?![.])))(?![$]))"
     },
     "BooleanLiteral": {
@@ -1400,22 +1409,22 @@
     },
     "BooleanTrue": {
       "tag": "bool",
-      "name": "constant.language.boolean.true.ts.sd",
+      "name": "constant.language.boolean.true.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))true(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "BooleanFalse": {
       "tag": "bool",
-      "name": "constant.language.boolean.false.ts.sd",
+      "name": "constant.language.boolean.false.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))false(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "NullLiteral": {
       "tag": "null",
-      "name": "constant.language.null.ts.sd",
+      "name": "constant.language.null.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))null(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "UndefinedLiteral": {
       "tag": "null",
-      "name": "constant.language.undefined.ts.sd",
+      "name": "constant.language.undefined.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))undefined(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "NumericConstantLiteral": {
@@ -1430,22 +1439,22 @@
     },
     "NaN": {
       "tag": "atom",
-      "name": "constant.language.nan.ts.sd",
+      "name": "constant.language.nan.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))NaN(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "Infinity": {
       "tag": "atom",
-      "name": "constant.language.infinity.ts.sd",
+      "name": "constant.language.infinity.sd",
       "match": "(?<![_$A-Za-z0-9])(?:(?<=[.][.][.])|(?<![.]))Infinity(?![_$A-Za-z0-9])(?:(?=[.][.][.])|(?![.]))"
     },
     "ArrayLiteral": {
-      "name": "meta.array.literal.ts.sd",
+      "name": "meta.array.literal.sd",
       "brackets": true,
       "begin": "(\\[)",
       "beginCaptures": {
         "1": {
           "tag": "brace",
-          "name": "meta.brace.square.ts.sd"
+          "name": "meta.brace.square.sd"
         }
       },
       "patterns": [
@@ -1460,13 +1469,13 @@
       "endCaptures": {
         "1": {
           "tag": "brace",
-          "name": "meta.brace.square.ts.sd"
+          "name": "meta.brace.square.sd"
         }
       }
     },
     "PunctuationComma": {
       "tag": "punctuation",
-      "name": "punctuation.separator.comma.ts.sd",
+      "name": "punctuation.separator.comma.sd",
       "match": ","
     },
     "ParenExpression": {
@@ -1475,7 +1484,7 @@
       "beginCaptures": {
         "1": {
           "tag": "paren",
-          "name": "meta.brace.round.ts.sd"
+          "name": "meta.brace.round.sd"
         }
       },
       "patterns": [
@@ -1487,7 +1496,7 @@
       "endCaptures": {
         "1": {
           "tag": "paren",
-          "name": "meta.brace.round.ts.sd"
+          "name": "meta.brace.round.sd"
         }
       }
     },
@@ -1512,15 +1521,15 @@
       "captures": {
         "1": {
           "tag": "punctuation",
-          "name": "punctuation.accessor.ts.sd"
+          "name": "punctuation.accessor.sd"
         },
         "2": {
           "tag": "punctuation",
-          "name": "punctuation.accessor.optional.ts.sd"
+          "name": "punctuation.accessor.optional.sd"
         },
         "3": {
           "tag": "variableName",
-          "name": "variable.other.constant.property.ts.sd"
+          "name": "variable.other.constant.property.sd"
         }
       }
     },
@@ -1529,26 +1538,26 @@
       "captures": {
         "1": {
           "tag": "punctuation",
-          "name": "punctuation.accessor.ts.sd"
+          "name": "punctuation.accessor.sd"
         },
         "2": {
           "tag": "punctuation",
-          "name": "punctuation.accessor.optional.ts.sd"
+          "name": "punctuation.accessor.optional.sd"
         },
         "3": {
           "tag": "variableName",
-          "name": "variable.other.property.ts.sd"
+          "name": "variable.other.property.sd"
         }
       }
     },
     "ConstantVariableIdentifier": {
       "tag": "variableName",
-      "name": "variable.other.constant.ts.sd",
+      "name": "variable.other.constant.sd",
       "match": "([A-Z][_$0-9A-Z]*)(?![_$A-Za-z0-9])"
     },
     "WritableVariableIdentifier": {
       "tag": "variableName",
-      "name": "variable.other.readwrite.ts.sd",
+      "name": "variable.other.readwrite.sd",
       "match": "[_$A-Za-z][_$A-Za-z0-9]*"
     },
     "ExpressionPunctuations": {
@@ -1566,11 +1575,11 @@
       "captures": {
         "1": {
           "tag": "variableName",
-          "name": "punctuation.accessor.ts.sd"
+          "name": "punctuation.accessor.sd"
         },
         "2": {
           "tag": "punctuation",
-          "name": "punctuation.accessor.optional.ts.sd"
+          "name": "punctuation.accessor.optional.sd"
         }
       }
     },
@@ -1587,14 +1596,17 @@
       "beginCaptures": {
         "1": {
           "tag": "tagName",
-          "name": "entity.name.function.tagged-template.ts.sd"
+          "name": "entity.name.function.tagged-template.sd"
         },
         "2": {
           "tag": "string",
-          "name": "punctuation.definition.string.template.begin.ts.sd"
+          "name": "punctuation.definition.string.template.begin.sd"
         }
       },
       "patterns": [
+        {
+          "include": "#Color"
+        },
         {
           "include": "#TemplateSubstitutionElement"
         },
@@ -1609,21 +1621,21 @@
       "endCaptures": {
         "1": {
           "tag": "string",
-          "name": "punctuation.definition.string.template.end.ts.sd"
+          "name": "punctuation.definition.string.template.end.sd"
         }
       }
     },
     "TemplateSubstitutionElement": {
       "brackets": true,
-      "name": "meta.template.expression.ts.sd",
+      "name": "meta.template.expression.sd",
       "begin": "([$]?[{])",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
-          "name": "punctuation.definition.template-expression.begin.ts.sd"
+          "name": "punctuation.definition.template-expression.begin.sd"
         }
       },
-      "contentName": "meta.embedded.line.ts.sd",
+      "contentName": "meta.embedded.line.sd",
       "patterns": [
         {
           "include": "#Expression"
@@ -1633,7 +1645,7 @@
       "endCaptures": {
         "1": {
           "tag": "keyword",
-          "name": "punctuation.definition.template-expression.end.ts.sd"
+          "name": "punctuation.definition.template-expression.end.sd"
         }
       }
     },
@@ -1644,8 +1656,39 @@
     },
     "StringContent": {
       "tag": "string",
-      "name": "string.template.ts.sd",
+      "name": "string.template.sd",
       "match": "((?:(?![$]?[{])[^\\n\\r`])+)"
+    },
+    "Color": {
+      "patterns": [
+        {
+          "include": "#HEXColor"
+        },
+        {
+          "include": "#RGBColor"
+        },
+        {
+          "include": "#HSLColor"
+        }
+      ]
+    },
+    "HEXColor": {
+      "tag": "string",
+      "name": "string.color.hex.sd",
+      "match": "(#)((?:[0-9a-f]{2}){2,4})",
+      "color": true
+    },
+    "RGBColor": {
+      "tag": "string",
+      "name": "string.color.rgb.sd",
+      "match": "(rgb)([(](?:-?\\d+%?[\\s]+){2,3}\\s*[/]\\s*[\\d\\.]+%?[)])",
+      "color": true
+    },
+    "HSLColor": {
+      "tag": "string",
+      "name": "string.color.hsl.sd",
+      "match": "(hsl)([(](?:-?\\d+%?[\\s]+){2,3}\\s*[/]\\s*[\\d\\.]+%?[)])",
+      "color": true
     }
   }
 }

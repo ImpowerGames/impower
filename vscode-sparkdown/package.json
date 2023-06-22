@@ -42,7 +42,6 @@
     "onWebviewPanel:sparkdown-preview-screenplay",
     "onWebviewPanel:sparkdown-preview-game"
   ],
-  "main": "./out/extension.js",
   "browser": "./out/extension.js",
   "contributes": {
     "configurationDefaults": {
@@ -320,6 +319,24 @@
     ],
     "configuration": [
       {
+        "order": 22,
+        "id": "sparkdown-language-server",
+        "title": "Sparkdown Language Server",
+        "properties": {
+          "sparkdown.trace.server": {
+            "type": "string",
+            "scope": "window",
+            "enum": [
+              "off",
+              "messages",
+              "verbose"
+            ],
+            "default": "verbose",
+            "description": "Traces the communication between VS Code and the sparkdown language server."
+          }
+        }
+      },
+      {
         "title": "Sparkdown Preview",
         "type": "object",
         "properties": {
@@ -473,15 +490,16 @@
     "vscode:prepublish": "npm run package-web",
     "publish-minor": "vsce publish minor",
     "publish-major": "vsce publish major",
-    "build-game": "cd ./previews/game-preview && webpack && cd ../..",
-    "build-screenplay": "cd ./previews/screenplay-preview && webpack && cd ../..",
-    "package-game": "cd ./previews/game-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
-    "package-screenplay": "cd ./previews/screenplay-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
+    "build-server": "cd ../packages/sparkdown-language-server && npm run build && cd ../../vscode-sparkdown",
+    "build-game": "cd ./webviews/game-preview && webpack && cd ../..",
+    "build-screenplay": "cd ./webviews/screenplay-preview && webpack && cd ../..",
+    "package-game": "cd ./webviews/game-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
+    "package-screenplay": "cd ./webviews/screenplay-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
     "package-web": "npm run package-game && npm run package-screenplay && webpack --mode production --devtool hidden-source-map",
-    "build": "webpack",
+    "build": "npm run build-server && webpack",
     "compile": "webpack",
-    "browser": "vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
-    "language": "tsx scripts/language.ts"
+    "browser": "npm run compile && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
+    "postinstall": "cd ../packages/sparkdown-language-server && npm install && cd ../../vscode-sparkdown"
   },
   "devDependencies": {
     "@types/node": "^20.2.5",
@@ -516,6 +534,7 @@
     "readable-stream": "^4.4.0",
     "textbox-for-pdfkit": "^0.2.1",
     "util": "^0.12.5",
+    "vscode-languageclient": "^8.1.0",
     "yaml": "^2.3.1"
   }
 }

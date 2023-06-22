@@ -2,23 +2,23 @@ import fs from "fs";
 import YAML from "yaml";
 
 const CONFIG_NAME = "sparkdown.language-config";
-const IN_CONFIG_PATH = `./${CONFIG_NAME}.yaml`;
+const IN_CONFIG_PATH = `./language/${CONFIG_NAME}.yaml`;
 const OUT_CONFIG_PATHS = [
-  `./language/${CONFIG_NAME}.json`,
+  `../vscode-sparkdown/language/${CONFIG_NAME}.json`,
   `../packages/sparkdown-editor/language/${CONFIG_NAME}.json`,
 ];
 
 const GRAMMAR_NAME = "sparkdown.language-grammar";
-const IN_GRAMMAR_PATH = `./${GRAMMAR_NAME}.yaml`;
+const IN_GRAMMAR_PATH = `./language/${GRAMMAR_NAME}.yaml`;
 const OUT_GRAMMAR_PATHS = [
-  `./language/${GRAMMAR_NAME}.json`,
+  `../vscode-sparkdown/language/${GRAMMAR_NAME}.json`,
   `../packages/sparkdown-editor/language/${GRAMMAR_NAME}.json`,
 ];
 
 const SNIPPETS_NAME = "sparkdown.language-snippets";
-const IN_SNIPPETS_PATH = `./${SNIPPETS_NAME}.yaml`;
+const IN_SNIPPETS_PATH = `./language/${SNIPPETS_NAME}.yaml`;
 const OUT_SNIPPETS_PATHS = [
-  `./language/${SNIPPETS_NAME}.json`,
+  `../vscode-sparkdown/language/${SNIPPETS_NAME}.json`,
   `../packages/sparkdown-editor/language/${SNIPPETS_NAME}.json`,
 ];
 

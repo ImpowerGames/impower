@@ -99,8 +99,8 @@ const diagnostic = (
     validFrom = lineStart;
   }
   const line = currentToken?.line;
-  const startColumn = validFrom - currentToken.from;
-  const endColumn = startColumn + (validTo - validFrom);
+  const startColumn = Math.max(0, validFrom - currentToken.from);
+  const endColumn = Math.max(0, startColumn + (validTo - validFrom));
   const source = `${severity.toUpperCase()}: line ${line} column ${startColumn}`;
   if (validFrom < validTo) {
     parsed.diagnostics.push({

@@ -1,5 +1,5 @@
 import { historyField } from "@codemirror/commands";
-import { syntaxTree, syntaxTreeAvailable } from "@codemirror/language";
+import { syntaxTreeAvailable } from "@codemirror/language";
 import { getSearchQuery } from "@codemirror/search";
 import { EditorSelection, EditorState, Extension } from "@codemirror/state";
 import {
@@ -13,7 +13,6 @@ import {
 import EngineSparkParser from "../../../spark-engine/src/parser/classes/EngineSparkParser";
 import { SparkDeclarations } from "../../../sparkdown/src/types/SparkDeclarations";
 import { SparkParseResult } from "../../../sparkdown/src/types/SparkParseResult";
-import { printTree } from "../cm-textmate/utils/printTree";
 import EXTENSIONS from "../constants/EXTENSIONS";
 import SPARKDOWN_THEME from "../constants/SPARKDOWN_THEME";
 import { foldedField } from "../extensions/foldedField";
@@ -336,11 +335,6 @@ const createEditorView = (
           onReady?.();
         }
 
-        if (u.docChanged) {
-          // DEBUG
-          const tree = syntaxTree(u.state);
-          console.log(printTree(tree, u.state.doc.toString()));
-        }
         onViewUpdate?.(u);
         const json: {
           history: SerializableHistoryState;

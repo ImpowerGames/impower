@@ -8,6 +8,7 @@ import { activateCheatSheetView } from "./utils/activateCheatSheetView";
 import { activateCommandView } from "./utils/activateCommandView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateLanguageAssistance } from "./utils/activateLanguageAssistance";
+import { activateLanguageClient } from "./utils/activateLanguageClient";
 import { activateOutlineView } from "./utils/activateOutlineView";
 import { activatePreviewPanel } from "./utils/activatePreviewPanel";
 import { getActiveSparkdownDocument } from "./utils/getActiveSparkdownDocument";
@@ -32,6 +33,7 @@ export const activate = async (
   activatePreviewPanel(context, "screenplay");
   // activateStatisticsPanel(context);
   activateDurationStatus(context);
+  activateLanguageClient(context);
   activateLanguageAssistance(context);
   registerTyping();
   const uri = getActiveSparkdownDocument();

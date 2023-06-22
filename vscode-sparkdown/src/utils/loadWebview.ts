@@ -146,7 +146,7 @@ export const loadWebView = async (
     context.extensionUri,
     "out",
     "webviews",
-    `${type}-preview.bundle.js`
+    `${type}-preview.js`
   );
 
   const webviewHtml =

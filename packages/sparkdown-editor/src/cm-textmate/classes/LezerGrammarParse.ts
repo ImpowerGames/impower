@@ -6,67 +6,37 @@ import {
   Input,
   NodeProp,
   NodeSet,
-  NodeType,
-  Parser,
   PartialParse,
   Tree,
   TreeBuffer,
   TreeFragment,
 } from "@lezer/common";
 
-import { ChunkBuffer, Compiler } from "../../../../grammar-parser/src/compiler";
-import { GrammarToken, NodeID } from "../../../../grammar-parser/src/core";
+import {
+  ChunkBuffer,
+  Compiler,
+} from "../../../../grammar-compiler/src/compiler";
+import { GrammarToken, NodeID } from "../../../../grammar-compiler/src/core";
 import {
   Grammar,
-  GrammarDefinition,
   GrammarState,
-  RuleDefinition,
-} from "../../../../grammar-parser/src/grammar";
+} from "../../../../grammar-compiler/src/grammar";
 
-import { MARGIN_AFTER, MARGIN_BEFORE } from "../constants/margin";
-import { REUSE_LEFT, REUSE_RIGHT } from "../constants/reuse";
-import getRuleNodeType from "../utils/getRuleNodeType";
-import { ParseRegion } from "./ParseRegion";
+import LezerParseRegion from "./LezerParseRegion";
+
+/** Amount of characters to slice before the starting position of the parse. */
+const MARGIN_BEFORE = 32;
+
+/** Amount of characters to slice after the requested ending position of a parse. */
+const MARGIN_AFTER = 128;
+
+/** If true, the "left" (previous) side of a parse will be reused. */
+const REUSE_LEFT = true;
+
+/** If true, the "right" (ahead) side of a parse will be reused. */
+const REUSE_RIGHT = true;
 
 const STATE_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
-
-export class GrammarParser extends Parser {
-  /** The resolved grammar. */
-  declare grammar: Grammar;
-
-  /** The set of CodeMirror NodeTypes in the grammar. */
-  declare nodeSet: NodeSet;
-
-  constructor(grammarDefinition: GrammarDefinition, rootNodeType: NodeType) {
-    super();
-    const nodeTypeProp = "nodeType";
-    const declarator = (
-      typeIndex: number,
-      typeId: string,
-      data: RuleDefinition
-    ) => ({
-      [nodeTypeProp]: getRuleNodeType(rootNodeType, typeIndex, typeId, data),
-    });
-    this.grammar = new Grammar(grammarDefinition, declarator);
-    const nodeTypes = this.grammar.nodes.map((n) => n.props[nodeTypeProp]);
-    this.nodeSet = new NodeSet(nodeTypes);
-  }
-
-  createParse(
-    input: Input,
-    fragments: readonly TreeFragment[],
-    ranges: { from: number; to: number }[]
-  ) {
-    const parser = new Parse(
-      this.grammar,
-      this.nodeSet,
-      input,
-      fragments,
-      ranges
-    );
-    return parser;
-  }
-}
 
 /**
  * `Parse` is the main interface for tokenizing and parsing, and what
@@ -79,7 +49,7 @@ export class GrammarParser extends Parser {
  * Note that `Parse` is not persistent a objects It is discarded as
  * soon as the parse is done. That means that its startup time is very significant.
  */
-export class Parse implements PartialParse {
+export default class GrammarParse implements PartialParse {
   /** The host grammar. */
   declare grammar: Grammar;
 
@@ -90,7 +60,7 @@ export class Parse implements PartialParse {
    * An object storing details about the region of the document to be
    * parsed, where it was edited, the length, etc.
    */
-  private declare region: ParseRegion;
+  private declare region: LezerParseRegion;
 
   /** The current state of the grammar, such as the stack. */
   private declare state: GrammarState;
@@ -137,7 +107,7 @@ export class Parse implements PartialParse {
     this.nodeSet = nodeSet;
     this.stoppedAt = null;
 
-    this.region = new ParseRegion(input, ranges, fragments);
+    this.region = new LezerParseRegion(input, ranges, fragments);
 
     // find cached data, if possible
     if (REUSE_LEFT && fragments?.length) {

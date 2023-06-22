@@ -125,12 +125,7 @@ async function loadWebView(
 
   const jsUriString = statspanel.webview
     .asWebviewUri(
-      vscode.Uri.joinPath(
-        context.extensionUri,
-        "out",
-        "webviews",
-        "stats.bundle.js"
-      )
+      vscode.Uri.joinPath(context.extensionUri, "out", "webviews", "stats.js")
     )
     .toString();
 

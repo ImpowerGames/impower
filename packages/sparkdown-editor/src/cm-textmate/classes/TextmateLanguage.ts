@@ -10,19 +10,19 @@ import {
   languageDataProp,
 } from "@codemirror/language";
 import type { Extension, Facet } from "@codemirror/state";
-import { NodeType } from "@lezer/common";
+import { NodeType, Parser } from "@lezer/common";
 
-import { GrammarDefinition, NodeID } from "../../../../grammar-parser/src";
+import { GrammarDefinition, NodeID } from "../../../../grammar-compiler/src";
 
 import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";
 import { SnippetDefinition } from "../types/SnippetDefinition";
 import convertConfigToLanguageData from "../utils/convertConfigToLanguageData";
 import { removeUndefined } from "../utils/removeUndefined";
-import { GrammarParser } from "./GrammarParser";
+import LezerGrammarParser from "./LezerGrammarParser";
 
 /**
- * Textmate language. Use the `load` method to get the extension needed to
+ * Use the `load` method to get the extension needed to
  * load the language into CodeMirror. If you need a `LanguageDescription`,
  * the `description` property will hold one.
  */
@@ -66,7 +66,7 @@ export default class TextmateLanguage {
   /**
    * The parser created for this grammar.
    */
-  declare parser?: GrammarParser;
+  declare parser?: Parser;
 
   /** Will be true if the language has been loaded at least once. */
   loaded = false;
@@ -142,26 +142,20 @@ export default class TextmateLanguage {
    * will just return the previously loaded language.
    */
   load(): LanguageSupport {
-    // setup grammar data
     if (this.description?.support) {
       return this.description.support;
     }
-    // setup node data
-
     const facet = defineLanguageFacet(this.languageData);
-
-    const rootNodeType = NodeType.define({
+    const topNodeType = NodeType.define({
       id: NodeID.TOP,
       name: this.description.name,
       top: true,
       props: [[languageDataProp, facet]],
     });
-
-    this.parser = new GrammarParser(this.grammarDefinition, rootNodeType);
+    this.parser = new LezerGrammarParser(this.grammarDefinition, topNodeType);
     this.language = new Language(facet, this.parser);
     this.support = new LanguageSupport(this.language, this.extensions);
     this.loaded = true;
-
     return this.support;
   }
 }
