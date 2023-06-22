@@ -2329,9 +2329,9 @@ const hoistDeclarations = (
         line: context.line + (config?.lineOffset || 0),
         from,
       });
-      const valueText = match[4] || "";
+      const valueText = match[8] || "";
       currentToken.content = getRawString(valueText) || "";
-      const valueFrom = currentToken.from + getStart(match, 4);
+      const valueFrom = currentToken.from + getStart(match, 8);
       const valueTo = valueFrom + valueText.length;
       addImport(program, valueText, currentToken.line, valueFrom, valueTo);
     }
@@ -3066,7 +3066,7 @@ export const parseSpark = (
         const type = "import";
         currentToken.type = type;
         if (currentToken.type === type) {
-          const valueText = match[4] || "";
+          const valueText = match[8] || "";
           currentToken.content = getRawString(valueText) || "";
         }
       } else if ((match = currentToken.content.match(sparkRegexes.synopsis))) {
