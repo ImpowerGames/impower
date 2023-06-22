@@ -17,4 +17,5 @@ export interface SparkProgram extends SparkDeclarations {
   properties?: SparkProperties;
   sections?: Record<string, SparkSection>;
   parseTime?: number;
+  parseDuration?: number;
 }

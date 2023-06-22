@@ -9,6 +9,7 @@ export class SparkParser {
     this.config = config || this.config;
   }
 
+  // TODO: Support incremental parsing
   parse(script: string, config?: SparkParserConfig): SparkProgram {
     const result = parseSpark(script, {
       ...(this.config || {}),

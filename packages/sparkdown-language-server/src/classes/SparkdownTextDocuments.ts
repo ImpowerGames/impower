@@ -20,10 +20,12 @@ import {
   TextDocuments,
   TextDocumentsConfiguration,
 } from "vscode-languageserver/lib/common/textDocuments";
-import { SyntaxTree } from "../types/SyntaxTree";
-import { SyntaxTreeChangeEvent } from "../types/SyntaxTreeChangeEvent";
-import { SyntaxTreeParser } from "../types/SyntaxTreeParser";
-import SparkdownParser from "./SparkdownParser";
+import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import { EditorSparkParser } from "./EditorSparkParser";
+
+interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
+  program: SparkProgram;
+}
 
 export default class SparkdownTextDocuments<
   T extends TextDocument = TextDocument
@@ -70,16 +72,16 @@ export default class SparkdownTextDocuments<
     return this._willSaveWaitUntil;
   }
 
-  protected readonly _syncedTrees = new Map<string, SyntaxTree>();
+  protected readonly _syncedPrograms = new Map<string, SparkProgram>();
 
-  protected readonly _onDidParse: Emitter<SyntaxTreeChangeEvent<T>>;
+  protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
 
-  protected readonly _parser: SyntaxTreeParser<T>;
+  protected readonly _parser: EditorSparkParser;
 
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
-    this._onDidParse = new Emitter<SyntaxTreeChangeEvent<T>>();
-    this._parser = new SparkdownParser();
+    this._onDidParse = new Emitter<SparkProgramChangeEvent<T>>();
+    this._parser = new EditorSparkParser();
   }
   /**
    * An event that fires when a text document has been parsed
@@ -88,14 +90,14 @@ export default class SparkdownTextDocuments<
     return this._onDidParse.event;
   }
   /**
-   * Returns the syntax tree for the given URI.
+   * Returns the sparkdown program for the given URI.
    * Returns undefined if the document is not managed by this instance.
    *
    * @param uri The text document's URI to retrieve.
-   * @return the text document's syntax tree or `undefined`.
+   * @return the text document's sparkdown program or `undefined`.
    */
-  public tree(uri: string): SyntaxTree | undefined {
-    return this._syncedTrees.get(uri);
+  public program(uri: string): SparkProgram | undefined {
+    return this._syncedPrograms.get(uri);
   }
 
   public override listen(connection: TextDocumentConnection): Disposable {
@@ -115,9 +117,12 @@ export default class SparkdownTextDocuments<
         const toFire = Object.freeze({ document });
         this.__onDidOpen.fire(toFire);
         this.__onDidChangeContent.fire(toFire);
-        const syncedTree = this._parser.create(td.text);
-        if (document && syncedTree) {
-          this._onDidParse.fire(Object.freeze({ document, tree: syncedTree }));
+        const syncedProgram = this._parser.parse(td.text);
+        this._syncedPrograms.set(td.uri, syncedProgram);
+        if (document && syncedProgram) {
+          this._onDidParse.fire(
+            Object.freeze({ document, program: syncedProgram })
+          );
         }
       })
     );
@@ -147,17 +152,16 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              let syncedTree = this._syncedTrees.get(td.uri);
-              if (syncedDocument && syncedTree) {
-                syncedTree = this._parser.update(
-                  syncedTree,
-                  syncedDocument,
-                  changes,
-                  version
+              if (syncedDocument) {
+                const syncedProgram = this._parser.parse(
+                  syncedDocument.getText()
                 );
-                this._syncedTrees.set(td.uri, syncedTree);
+                this._syncedPrograms.set(td.uri, syncedProgram);
                 this._onDidParse.fire(
-                  Object.freeze({ document: syncedDocument, tree: syncedTree })
+                  Object.freeze({
+                    document: syncedDocument,
+                    program: syncedProgram,
+                  })
                 );
               }
             }

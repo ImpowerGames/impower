@@ -14,7 +14,10 @@ const registerColorProvider = (
   documents: SparkdownTextDocuments
 ) => {
   connection.onDocumentColor((params) => {
-    const document = documents.get(params.textDocument.uri);
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const program = documents.program(uri);
+    console.log(program);
     return getColorInformation(document);
   });
   connection.onColorPresentation((params) => {
