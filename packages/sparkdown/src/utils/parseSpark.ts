@@ -55,12 +55,8 @@ const getLastStructureItem = (
   parsed: { properties?: SparkProperties },
   condition: (token?: StructureItem) => boolean = () => true
 ): StructureItem | undefined => {
-  if (!parsed.properties) {
-    parsed.properties = {};
-  }
-  if (!parsed.properties.structure) {
-    parsed.properties.structure = {};
-  }
+  parsed.properties ??= {};
+  parsed.properties.structure ??= {};
   const structures = Object.values(parsed.properties.structure);
   for (let i = structures.length - 1; i >= 0; i -= 1) {
     const structItem = structures[i];
@@ -89,9 +85,7 @@ const diagnostic = (
   if (from === to) {
     to = from + 1;
   }
-  if (!parsed.diagnostics) {
-    parsed.diagnostics = [];
-  }
+  parsed.diagnostics ??= [];
   const lineStart = (currentToken.from || 0) + (currentToken.offset || 0);
   let validFrom = Math.max(0, from >= 0 ? from : lineStart);
   const validTo = to >= 0 ? to : currentToken.to;
@@ -296,9 +290,7 @@ const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
 ): boolean => {
   const validSectionId = sectionId != null ? sectionId : currentSectionId;
   if (reservedKeywords.includes(name)) {
-    if (!program.diagnostics) {
-      program.diagnostics = [];
-    }
+    program.diagnostics ??= [];
     diagnostic(
       program,
       currentToken,
@@ -360,15 +352,9 @@ const addSection = (
   nameTo: number
 ): void => {
   const id = currentSectionId;
-  if (!program.sections) {
-    program.sections = {};
-  }
-  if (!program.references) {
-    program.references = {};
-  }
-  if (!program.references[section.line]) {
-    program.references[section.line] = [];
-  }
+  program.sections ??= {};
+  program.references ??= {};
+  program.references[section.line] ??= [];
   program.references[section.line]?.push({
     from: nameFrom,
     to: nameTo,
@@ -381,9 +367,7 @@ const addSection = (
     section.parent = parentId;
     const parentSection = program.sections[parentId];
     if (parentSection) {
-      if (!parentSection.children) {
-        parentSection.children = [];
-      }
+      parentSection.children ??= [];
       parentSection.children.push(id);
       if (
         section.type !== "function" &&
@@ -415,12 +399,8 @@ const addSection = (
   }
   section.index = Object.keys(program.sections).length;
   program.sections[id] = section;
-  if (!program.sectionLines) {
-    program.sectionLines = {};
-  }
-  if (!program.sectionLines[section.line]) {
-    program.sectionLines[section.line] = id;
-  }
+  program.sectionLines ??= {};
+  program.sectionLines[section.line] ??= id;
 };
 
 const getSection = (
@@ -437,12 +417,8 @@ const getSection = (
   }
   const id = findSectionId(program.sections, currentSectionId, name);
   const found = program.sections?.[id || ""];
-  if (!program.references) {
-    program.references = {};
-  }
-  if (!program.references[currentToken.line]) {
-    program.references[currentToken.line] = [];
-  }
+  program.references ??= {};
+  program.references[currentToken.line] ??= [];
   program.references[currentToken.line]?.push({ from, to, name, id });
   if (!found) {
     diagnostic(
@@ -459,9 +435,7 @@ const getSection = (
     return found;
   }
   if (found.type !== type) {
-    if (!program.diagnostics) {
-      program.diagnostics = [];
-    }
+    program.diagnostics ??= [];
     diagnostic(
       program,
       currentToken,
@@ -560,12 +534,8 @@ const getArgumentValues = (
             if (r) {
               const from = expressionFrom + r.from;
               const to = expressionFrom + r.to;
-              if (!program.references) {
-                program.references = {};
-              }
-              if (!program.references[currentToken.line]) {
-                program.references[currentToken.line] = [];
-              }
+              program.references ??= {};
+              program.references[currentToken.line] ??= [];
               program.references[currentToken.line]?.push({
                 from,
                 to,
@@ -784,12 +754,8 @@ const checkExpressionValue = (
       if (r) {
         const from = expressionFrom + r.from;
         const to = expressionFrom + r.to;
-        if (!program.references) {
-          program.references = {};
-        }
-        if (!program.references[currentToken.line]) {
-          program.references[currentToken.line] = [];
-        }
+        program.references ??= {};
+        program.references[currentToken.line] ??= [];
         program.references[currentToken.line]?.push({
           from,
           to,
@@ -1002,12 +968,8 @@ const getVariableExpressionValue = (
       if (r) {
         const from = expressionFrom + r.from;
         const to = expressionFrom + r.to;
-        if (!program.references) {
-          program.references = {};
-        }
-        if (!program.references[currentToken.line]) {
-          program.references[currentToken.line] = [];
-        }
+        program.references ??= {};
+        program.references[currentToken.line] ??= [];
         program.references[currentToken.line]?.push({
           from,
           to,
@@ -1069,12 +1031,8 @@ const getStruct = (
   }
   const id = findStructId(program.structs, name);
   const found = program.structs?.[id || ""];
-  if (!program.references) {
-    program.references = {};
-  }
-  if (!program.references[currentToken.line]) {
-    program.references[currentToken.line] = [];
-  }
+  program.references ??= {};
+  program.references[currentToken.line] ??= [];
   program.references[currentToken.line]?.push({ from, to, name, id });
   if (!found) {
     diagnostic(
@@ -1118,12 +1076,8 @@ const getVariable = (
   }
   const id = findVariableId(program.variables, currentSectionId, name);
   const found = program.variables?.[id || ""];
-  if (!program.references) {
-    program.references = {};
-  }
-  if (!program.references[currentToken.line]) {
-    program.references[currentToken.line] = [];
-  }
+  program.references ??= {};
+  program.references[currentToken.line] ??= [];
   program.references[currentToken.line]?.push({ from, to, name, id });
   if (!found) {
     const itemType =
@@ -1244,21 +1198,15 @@ const addStruct = (
   baseFrom: number,
   baseTo: number
 ): void => {
-  if (!program.structs) {
-    program.structs = {};
-  }
+  program.structs ??= {};
   const id = name;
   if (
     !lintName(program, currentToken, currentSectionId, name, nameFrom, nameTo)
   ) {
     return;
   }
-  if (!program.references) {
-    program.references = {};
-  }
-  if (!program.references[currentToken.line]) {
-    program.references[currentToken.line] = [];
-  }
+  program.references ??= {};
+  program.references[currentToken.line] ??= [];
   program.references[currentToken.line]?.push({
     from: nameFrom,
     to: nameTo,
@@ -1290,9 +1238,7 @@ const addImport = (
   valueFrom: number,
   valueTo: number
 ): void => {
-  if (!program.structs) {
-    program.structs = {};
-  }
+  program.structs ??= {};
   const value = getRawString(valueText);
   const name = "import";
   const existing = program?.structs?.[name];
@@ -1336,9 +1282,7 @@ const addVariable = (
   valueFrom: number,
   valueTo: number
 ): SparkVariableType | null => {
-  if (!program.variables) {
-    program.variables = {};
-  }
+  program.variables ??= {};
   const prefix = scope === "private" ? "private-" : "";
   const id = `${currentSectionId}.${prefix}${name}`;
   if (
@@ -1346,12 +1290,8 @@ const addVariable = (
   ) {
     return null;
   }
-  if (!program.references) {
-    program.references = {};
-  }
-  if (!program.references[currentToken.line]) {
-    program.references[currentToken.line] = [];
-  }
+  program.references ??= {};
+  program.references[currentToken.line] ??= [];
   program.references[currentToken.line]?.push({
     from: nameFrom,
     to: nameTo,
@@ -1393,9 +1333,7 @@ const addVariable = (
     program.variables[id] = item;
     const parentSection = program.sections?.[currentSectionId];
     if (parentSection) {
-      if (!parentSection.variables) {
-        parentSection.variables = {};
-      }
+      parentSection.variables ??= {};
       parentSection.variables[id] = item;
     }
   }
@@ -1418,26 +1356,18 @@ const addField = (
   const valueText = currentToken.valueText;
   const currentStructName = currentToken.struct;
   const line = currentToken.line;
-  if (!program.structs) {
-    program.structs = {};
-  }
+  program.structs ??= {};
   const struct = program.structs[currentStructName];
   if (struct) {
-    if (!struct.fields) {
-      struct.fields = {};
-    }
+    struct.fields ??= {};
     if (
       !lintName(program, currentToken, currentSectionId, id, nameFrom, nameTo)
     ) {
       return;
     }
     if (id) {
-      if (!program.references) {
-        program.references = {};
-      }
-      if (!program.references[line]) {
-        program.references[line] = [];
-      }
+      program.references ??= {};
+      program.references[line] ??= [];
       program.references[line]?.push({
         from: nameFrom,
         to: nameTo,
@@ -1656,20 +1586,14 @@ const pushToken = (
     return;
   }
   if (updateLines) {
-    if (!program.tokenLines) {
-      program.tokenLines = {};
-    }
+    program.tokenLines ??= {};
     program.tokenLines[token.line] = program.tokens.length;
   }
   program.tokens.push(token);
-  if (!program.sections) {
-    program.sections = {};
-  }
+  program.sections ??= {};
   const section = program.sections[currentSectionId] || createSparkSection();
   program.sections[currentSectionId] = section;
-  if (!section.tokens) {
-    section.tokens = [];
-  }
+  section.tokens ??= [];
   const tokens = section.tokens;
   if (tokens) {
     tokens.push(token);
@@ -1716,9 +1640,7 @@ const pushAssets = (
       if (name) {
         getStruct(program, currentToken, type, name, from, to, "warning");
       }
-      if (!state.assets) {
-        state.assets = [];
-      }
+      state.assets ??= [];
       state.assets.push({ name });
     }
   }
@@ -1728,9 +1650,7 @@ const saveAndClearAssets = (
   currentToken: SparkToken,
   state: SparkParseState
 ): void => {
-  if (!state.assets) {
-    state.assets = [];
-  }
+  state.assets ??= [];
   const save = state.assets.length > 0;
   if (
     save &&
@@ -1738,9 +1658,7 @@ const saveAndClearAssets = (
       currentToken.type === "dialogue" ||
       currentToken.type === "action")
   ) {
-    if (!currentToken.assets) {
-      currentToken.assets = [];
-    }
+    currentToken.assets ??= [];
     currentToken.assets = [...currentToken.assets, ...state.assets];
   }
   state.assets.length = 0;
@@ -1769,9 +1687,7 @@ const pushChoice = (
   state: SparkParseState,
   choiceToken: SparkChoiceToken
 ): void => {
-  if (!state.choiceTokens) {
-    state.choiceTokens = [];
-  }
+  state.choiceTokens ??= [];
   if (!state.choiceTokens?.length) {
     pushToken(
       program,
@@ -1797,9 +1713,7 @@ const saveAndClearChoices = (
   currentSectionId: string,
   state: SparkParseState
 ): void => {
-  if (!state.choiceTokens) {
-    state.choiceTokens = [];
-  }
+  state.choiceTokens ??= [];
   if (state.choiceTokens.length > 0) {
     pushToken(
       program,
@@ -1868,9 +1782,7 @@ const processDisplayedContent = (
   }
   if (token.type === "action") {
     token.duration = calculateSpeechDuration(token.text);
-    if (!program.properties) {
-      program.properties = {};
-    }
+    program.properties ??= {};
     program.properties.actionDuration =
       (program.properties.actionDuration || 0) + token.duration;
     const currentScene = program.properties?.scenes?.[state.sceneIndex || 0];
@@ -1881,9 +1793,7 @@ const processDisplayedContent = (
   }
   if (token.type === "dialogue") {
     token.duration = calculateSpeechDuration(token.text);
-    if (!program.properties) {
-      program.properties = {};
-    }
+    program.properties ??= {};
     program.properties.dialogueDuration =
       (program.properties.dialogueDuration || 0) + token.duration;
     const currentScene = program.properties?.scenes?.[state.sceneIndex || 0];
@@ -1938,19 +1848,13 @@ const augmentResult = (program: SparkProgram, config?: SparkParserConfig) => {
   }
   if (config?.augmentations?.variables) {
     Object.entries(config?.augmentations?.variables).forEach(([id, d]) => {
-      if (!program.variables) {
-        program.variables = {};
-      }
+      program.variables ??= {};
       program.variables[id] = d;
       const parentId = id.split(".").slice(0, -1).join(".") || "";
-      if (!program.sections) {
-        program.sections = {};
-      }
+      program.sections ??= {};
       const parentSection = program.sections[parentId] || createSparkSection();
       program.sections[parentId] = parentSection;
-      if (parentSection && !parentSection.variables) {
-        parentSection.variables = {};
-      }
+      parentSection.variables ??= {};
       const variables = parentSection.variables;
       if (variables) {
         variables[id] = d;
@@ -1959,9 +1863,7 @@ const augmentResult = (program: SparkProgram, config?: SparkParserConfig) => {
   }
   if (config?.augmentations?.structs) {
     Object.entries(config?.augmentations?.structs).forEach(([id, d]) => {
-      if (!program.structs) {
-        program.structs = {};
-      }
+      program.structs ??= {};
       program.structs[id] = d;
     });
   }
@@ -2377,9 +2279,7 @@ export const parseSpark = (
 
   hoistDeclarations(program, config, newLineLength, lines);
 
-  if (!program.properties) {
-    program.properties = {};
-  }
+  program.properties ??= {};
   program.properties.structure = {
     "": {
       type: "section",
@@ -2568,12 +2468,8 @@ export const parseSpark = (
         const keyFormat = titlePageDisplay[type];
         currentToken.order = keyFormat?.order || 0;
         if (keyFormat) {
-          if (!program.titleTokens) {
-            program.titleTokens = {};
-          }
-          if (!program.titleTokens[keyFormat.position]) {
-            program.titleTokens[keyFormat.position] = [];
-          }
+          program.titleTokens ??= {};
+          program.titleTokens[keyFormat.position] ??= [];
           if (currentToken.content && !currentToken.text) {
             currentToken.text = currentToken.content;
           }
@@ -2595,9 +2491,7 @@ export const parseSpark = (
       if (currentToken.content.match(sparkRegexes.line_break)) {
         tokenCategory = "none";
       } else if (program.properties?.firstTokenLine === undefined) {
-        if (!program.properties) {
-          program.properties = {};
-        }
+        program.properties ??= {};
         program.properties.firstTokenLine = currentToken.line;
         currentLevel = 0;
       }
@@ -2643,12 +2537,8 @@ export const parseSpark = (
             currentToken,
             currentToken.from + currentToken.offset + extraOffset
           );
-          if (!program.properties) {
-            program.properties = {};
-          }
-          if (!program.properties.scenes) {
-            program.properties.scenes = [];
-          }
+          program.properties ??= {};
+          program.properties.scenes ??= [];
           state.sceneIndex = program.properties.scenes.length || 0;
           currentToken.scene = scene || state.sceneIndex + 1;
           const environmentTrimmed = environmentText?.toLowerCase()?.trim();
@@ -2668,23 +2558,15 @@ export const parseSpark = (
             actionDuration: 0,
             dialogueDuration: 0,
           });
-          if (!program.sceneLines) {
-            program.sceneLines = {};
-          }
-          if (!program.sceneLines[currentToken.line]) {
-            program.sceneLines[currentToken.line] = state.sceneIndex;
-          }
-          if (!program.properties.locations) {
-            program.properties.locations = {};
-          }
+          program.sceneLines ??= {};
+          program.sceneLines[currentToken.line] ??= state.sceneIndex;
+          program.properties.locations ??= {};
           if (program.properties.locations[location]) {
             program.properties.locations[location]?.push(currentToken.line);
           } else {
             program.properties.locations[location] = [currentToken.line];
           }
-          if (!program.properties.times) {
-            program.properties.times = {};
-          }
+          program.properties.times ??= {};
           if (program.properties.times[time]) {
             program.properties.times[time]?.push(currentToken.line);
           } else {
@@ -2711,9 +2593,7 @@ export const parseSpark = (
               children: [],
             };
             latestSection.children.push(structureItem.id);
-            if (!program.properties.structure) {
-              program.properties.structure = {};
-            }
+            program.properties.structure ??= {};
             program.properties.structure[structureItem.id] = structureItem;
           }
         }
@@ -2820,9 +2700,7 @@ export const parseSpark = (
                   if (r) {
                     const from = expressionFrom + r.from;
                     const to = expressionFrom + r.to;
-                    if (!program.references[currentToken.line]) {
-                      program.references[currentToken.line] = [];
-                    }
+                    program.references[currentToken.line] ??= [];
                     program.references[currentToken.line]?.push({
                       from,
                       to,
@@ -3072,12 +2950,8 @@ export const parseSpark = (
       } else if ((match = currentToken.content.match(sparkRegexes.synopsis))) {
         currentToken.type = "synopsis";
         currentToken.content = match[4] || "";
-        if (!program.properties) {
-          program.properties = {};
-        }
-        if (!program.properties.structure) {
-          program.properties.structure = {};
-        }
+        program.properties ??= {};
+        program.properties.structure ??= {};
         const latestSectionOrScene = getLastStructureItem(
           program,
           (t) => t?.type === "section" || t?.type === "scene"
@@ -3097,9 +2971,7 @@ export const parseSpark = (
             children: [],
           };
           latestSectionOrScene.children.push(structureItem.id);
-          if (!program.properties.structure) {
-            program.properties.structure = {};
-          }
+          program.properties.structure ??= {};
           program.properties.structure[structureItem.id] = structureItem;
         }
       } else if ((match = currentToken.content.match(sparkRegexes.section))) {
@@ -3189,9 +3061,7 @@ export const parseSpark = (
               children: [],
             };
             latestSection.children.push(structureItem.id);
-            if (!program.properties.structure) {
-              program.properties.structure = {};
-            }
+            program.properties.structure ??= {};
             program.properties.structure[structureItem.id] = structureItem;
           }
         }
@@ -3286,12 +3156,8 @@ export const parseSpark = (
             currentToken.content
           ).trim();
           const characterName = character.replace(/\^$/, "").trim();
-          if (!program.properties) {
-            program.properties = {};
-          }
-          if (!program.properties.characters) {
-            program.properties.characters = {};
-          }
+          program.properties ??= {};
+          program.properties.characters ??= {};
           if (program.properties.characters[characterName]) {
             program.properties.characters[characterName]?.push(
               currentToken.line
@@ -3301,9 +3167,7 @@ export const parseSpark = (
           }
           state.character = currentToken.content;
           lastCharacterIndex = program.tokens.length;
-          if (!program.dialogueLines) {
-            program.dialogueLines = {};
-          }
+          program.dialogueLines ??= {};
           program.dialogueLines[currentToken.line] = characterName;
         }
       } else if (
@@ -3621,9 +3485,7 @@ export const parseSpark = (
   const parseEndTime = Date.now();
   program.parseTime = parseEndTime;
   program.parseDuration = parseEndTime - parseStartTime;
-  if (!program.objectMap) {
-    program.objectMap = {};
-  }
+  program.objectMap ??= {};
   updateObjectMap(program.objectMap, program.structs);
   // console.log(parsed);
 
