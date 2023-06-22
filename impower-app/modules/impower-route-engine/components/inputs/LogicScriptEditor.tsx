@@ -17,7 +17,7 @@ import {
 } from "../../../../../spark-engine";
 import { evaluate } from "../../../../../spark-evaluate";
 import {
-  SparkParseResult,
+  SparkProgram,
   getGlobalValueContext,
 } from "../../../../../sparkdown";
 import { debounce } from "../../../impower-core";
@@ -107,7 +107,7 @@ const LogicScriptEditor = React.memo(
     const scriptValueRef = useRef<string>();
     const lastEditorStateRef = useRef<SerializableEditorState>();
     const scrollTopLineRef = useRef<number>();
-    const parseResultRef = useRef<SparkParseResult>();
+    const parseResultRef = useRef<SparkProgram>();
     const currentSectionNameRef = useRef<string>();
     const variableValueListenerRef =
       useRef<(data: { variableId: string; value: unknown }) => void>();
@@ -118,7 +118,7 @@ const LogicScriptEditor = React.memo(
 
     const [ready, setReady] = useState(false);
     const [parseResultState, setParseResultState] =
-      useState<SparkParseResult>();
+      useState<SparkProgram>();
     const [executingCursor, setExecutingCursor] = useState<{
       anchor: number;
       head: number;
@@ -189,8 +189,8 @@ const LogicScriptEditor = React.memo(
       dispatch(panelSearchLine(windowType, null));
     }, [dispatch, windowType]);
 
-    const handleScriptParse = useCallback((result: SparkParseResult) => {
-      parseResultRef.current = result;
+    const handleScriptParse = useCallback((program: SparkProgram) => {
+      parseResultRef.current = program;
       setParseResultState(parseResultRef.current);
     }, []);
 

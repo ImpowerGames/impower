@@ -5,7 +5,7 @@ import { SparkReference } from "./SparkReference";
 import { SparkSection } from "./SparkSection";
 import { SparkToken } from "./SparkToken";
 
-export interface SparkParseResult extends SparkDeclarations {
+export interface SparkProgram extends SparkDeclarations {
   titleTokens?: Record<string, SparkToken[]>;
   tokens: SparkToken[];
   diagnostics: SparkDiagnostic[];

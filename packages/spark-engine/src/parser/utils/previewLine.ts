@@ -1,7 +1,7 @@
 import {
   getScopedValueContext,
   getSectionAtLine,
-  SparkParseResult,
+  SparkProgram,
 } from "../../../../sparkdown/src";
 import { Context } from "../classes/Context";
 import { getPreviewCommand } from "./getPreviewCommand";
@@ -9,20 +9,20 @@ import { getPreviewStruct } from "./getPreviewStruct";
 
 export const previewLine = (
   context: Context,
-  result: SparkParseResult,
+  program: SparkProgram,
   line: number,
   instant: boolean,
   debug: boolean
 ) => {
-  const objectMap = result?.objectMap || {};
-  const runtimeCommand = getPreviewCommand(result, line);
+  const objectMap = program?.objectMap || {};
+  const runtimeCommand = getPreviewCommand(program, line);
   if (runtimeCommand) {
     const commandRunner = context?.runner?.getRunner(runtimeCommand.reference);
     if (commandRunner) {
-      const [sectionId] = getSectionAtLine(line, result?.sections || {});
+      const [sectionId] = getSectionAtLine(line, program?.sections || {});
       const [, valueMap] = getScopedValueContext(
         sectionId,
-        result?.sections || {}
+        program?.sections || {}
       );
       context.game.ui.loadTheme(objectMap);
       context.game.ui.loadStyles(objectMap);
@@ -35,7 +35,7 @@ export const previewLine = (
       });
     }
   } else {
-    const previewStruct = getPreviewStruct(result, line);
+    const previewStruct = getPreviewStruct(program, line);
     if (previewStruct?.type === "style") {
       context.game.ui.loadStyles(objectMap, previewStruct.name);
     }

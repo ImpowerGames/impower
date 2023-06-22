@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../sparkdown/src";
+import { SparkProgram } from "../../../sparkdown/src";
 import { STATIC_HTML } from "../constants/STATIC_HTML";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { encodeBase64 } from "./encodeBase64";
@@ -6,7 +6,7 @@ import { generateSparkScriptHtml } from "./generateSparkScriptHtml";
 import { generateSparkTitleHtml } from "./generateSparkTitleHtml";
 
 export const generateSparkHtmlData = (
-  result: SparkParseResult,
+  program: SparkProgram,
   config: SparkScreenplayConfig,
   fonts: {
     normal?: ArrayBuffer | Uint8Array;
@@ -46,14 +46,14 @@ export const generateSparkHtmlData = (
     );
   }
 
-  const titleHtml = generateSparkTitleHtml(result, config);
+  const titleHtml = generateSparkTitleHtml(program, config);
   if (titleHtml) {
     rawHtml = rawHtml.replace("$TITLEPAGE$", titleHtml);
   } else {
     rawHtml = rawHtml.replace("$TITLEDISPLAY$", "hidden");
   }
 
-  const scriptHtml = generateSparkScriptHtml(result, config);
+  const scriptHtml = generateSparkScriptHtml(program, config);
   rawHtml = rawHtml.replace("$SCREENPLAY$", scriptHtml);
 
   return rawHtml;

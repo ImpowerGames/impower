@@ -6,7 +6,7 @@ import {
 import {
   calculateSpeechDuration,
   isMonologue,
-  SparkParseResult,
+  SparkProgram,
   sparkRegexes,
   StructureItem,
 } from "@impower/sparkdown/src/index";
@@ -128,20 +128,20 @@ const getLineCountWithoutWhitespace = (script: string): number => {
 };
 
 const createCharacterStatistics = (
-  parsed: SparkParseResult
+  program: SparkProgram
 ): CharacterStatistics => {
   const dialoguePieces: DialoguePiece[] = [];
-  for (let i = 0; i < parsed.tokens.length; i++) {
+  for (let i = 0; i < program.tokens.length; i++) {
     while (
-      i < parsed.tokens.length &&
-      parsed.tokens[i]?.type === "dialogue_character"
+      i < program.tokens.length &&
+      program.tokens[i]?.type === "dialogue_character"
     ) {
-      const character = getCharacterName(parsed.tokens[i]?.text || "");
+      const character = getCharacterName(program.tokens[i]?.text || "");
       let speech = "";
-      while (i++ && i < parsed.tokens.length) {
-        if (parsed.tokens[i]?.type === "dialogue") {
-          speech += parsed.tokens[i]?.text + " ";
-        } else if (parsed.tokens[i]?.type === "dialogue_character") {
+      while (i++ && i < program.tokens.length) {
+        if (program.tokens[i]?.type === "dialogue") {
+          speech += program.tokens[i]?.text + " ";
+        } else if (program.tokens[i]?.type === "dialogue_character") {
           break;
         }
         // else skip extensions / parenthesis / dialogue-begin/-end
@@ -220,9 +220,9 @@ const createCharacterStatistics = (
   };
 };
 
-const createSceneStatistics = (parsed: SparkParseResult): SceneStatistics => {
+const createSceneStatistics = (program: SparkProgram): SceneStatistics => {
   const sceneStats: SingleSceneStatistic[] = [];
-  parsed.tokens.forEach((tok) => {
+  program.tokens.forEach((tok) => {
     if (tok.type === "scene") {
       sceneStats.push({
         title: tok.text,
@@ -269,7 +269,7 @@ const getLocationTime = (val: RegExpExecArray | null): string => {
 };
 
 const getLengthChart = (
-  parsed: SparkParseResult
+  program: SparkProgram
 ): {
   action: LengthChartItem[];
   dialogue: LengthChartItem[];
@@ -288,7 +288,7 @@ const getLengthChart = (
   let currentScene = "";
   let monologues = 0;
   const scenePropDurations: Record<string, number> = {};
-  parsed.tokens.forEach((element) => {
+  program.tokens.forEach((element) => {
     if (element.type === "action" || element.type === "dialogue") {
       const time = Number(element.duration);
       if (!isNaN(time)) {
@@ -343,7 +343,7 @@ const getLengthChart = (
       }
     }
   });
-  const sceneProperties = parsed.properties?.scenes || [];
+  const sceneProperties = program.properties?.scenes || [];
   sceneProperties.forEach((scene) => {
     currentScene = scene.name;
     if (scenes.length > 0) {
@@ -401,7 +401,7 @@ const createLengthStatistics = (
     pageCountReal: number;
     lineMap: Record<number, LineStruct>; //the structure of each line
   },
-  parsed: SparkParseResult
+  program: SparkProgram
 ): LengthStatistics => {
   return {
     characters: getCharacterCount(script),
@@ -411,21 +411,21 @@ const createLengthStatistics = (
     words: getWordCount(script),
     pagesreal: pdf.pageCountReal,
     pages: pdf.pageCount,
-    scenes: (parsed.properties?.scenes || []).length,
+    scenes: (program.properties?.scenes || []).length,
   };
 };
 
 const createDurationStatistics = (
-  parsed: SparkParseResult
+  program: SparkProgram
 ): DurationStatistics => {
-  const lengthCharts = getLengthChart(parsed);
+  const lengthCharts = getLengthChart(program);
   console.log("Created duration stats");
   return {
-    dialogue: parsed.properties?.dialogueDuration || 0,
-    action: parsed.properties?.actionDuration || 0,
+    dialogue: program.properties?.dialogueDuration || 0,
+    action: program.properties?.actionDuration || 0,
     total:
-      (parsed.properties?.dialogueDuration || 0) +
-      (parsed.properties?.actionDuration || 0),
+      (program.properties?.dialogueDuration || 0) +
+      (program.properties?.actionDuration || 0),
     durationBySceneProp: lengthCharts.durationByProp,
     lengthchart_action: lengthCharts.action,
     lengthchart_dialogue: lengthCharts.dialogue,
@@ -439,18 +439,18 @@ const createDurationStatistics = (
 export const retrieveScreenPlayStatistics = async (
   context: vscode.ExtensionContext,
   script: string,
-  parsed: SparkParseResult,
+  program: SparkProgram,
   config: SparkScreenplayConfig
 ): Promise<ScreenPlayStatistics> => {
   const fonts = await getFonts(context);
-  const pdfData = generateSparkPdfData(parsed, config, fonts);
+  const pdfData = generateSparkPdfData(program, config, fonts);
   const pdfStats = await generatePdfStats(pdfData);
   return {
-    characterStats: createCharacterStatistics(parsed),
-    sceneStats: createSceneStatistics(parsed),
-    lengthStats: createLengthStatistics(script, pdfStats, parsed),
-    durationStats: createDurationStatistics(parsed),
+    characterStats: createCharacterStatistics(program),
+    sceneStats: createSceneStatistics(program),
+    lengthStats: createLengthStatistics(script, pdfStats, program),
+    durationStats: createDurationStatistics(program),
     pdfmap: JSON.stringify(pdfStats?.lineMap),
-    structure: parsed.properties?.structure || {},
+    structure: program.properties?.structure || {},
   };
 };

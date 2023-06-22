@@ -7,13 +7,13 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { SparkParseResult } from "../../../sparkdown/src/types/SparkParseResult";
+import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { getRelativeSection } from "../../../sparkdown/src/utils/getRelativeSection";
 import { getSectionAt } from "../../../sparkdown/src/utils/getSectionAt";
 import { Type } from "../types/type";
 import { JumpWidgetType } from "./JumpWidgetType";
 
-const parseContextState = Facet.define<{ result?: SparkParseResult }>({});
+const parseContextState = Facet.define<{ program?: SparkProgram }>({});
 
 const jumpDecorations = (view: EditorView): DecorationSet => {
   const widgets: Range<Decoration>[] = [];
@@ -26,14 +26,14 @@ const jumpDecorations = (view: EditorView): DecorationSet => {
         const from = node?.from;
         const to = node?.to;
         const [parseContext] = view.state.facet(parseContextState);
-        if (parseContext.result) {
+        if (parseContext?.program) {
           if (type.id === Type.JumpSectionName) {
             const sectionText = view.state.doc.sliceString(from, to);
-            const [sectionId] = getSectionAt(from, parseContext.result);
-            if (parseContext.result.sections) {
+            const [sectionId] = getSectionAt(from, parseContext.program);
+            if (parseContext.program.sections) {
               const [, relativeSection] = getRelativeSection(
                 sectionId,
-                parseContext.result.sections,
+                parseContext.program.sections,
                 sectionText as ">" | "]" | "[" | "^"
               );
               const name = relativeSection?.name;
@@ -72,7 +72,7 @@ export const jumpWidgetPlugin = ViewPlugin.fromClass(
 
 export const jumpWidget = (options: {
   parseContext: {
-    result: SparkParseResult;
+    program: SparkProgram;
   };
 }): Extension => {
   return [parseContextState.of(options.parseContext), jumpWidgetPlugin];

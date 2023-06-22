@@ -1,20 +1,20 @@
 import { EditorView, Tooltip } from "@codemirror/view";
-import { SparkParseResult } from "../../../sparkdown/src/types/SparkParseResult";
+import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { SparkReference } from "../../../sparkdown/src/types/SparkReference";
 
 const getSparkReferenceAt = (
   lineNumber: number,
   pos: number,
-  result: SparkParseResult
+  program: SparkProgram
 ): SparkReference | null => {
-  if (!result?.references) {
+  if (!program?.references) {
     return null;
   }
-  const lineReferences = result?.references[lineNumber];
+  const lineReferences = program?.references[lineNumber];
   if (lineReferences) {
     for (let i = 0; i < lineReferences.length; i += 1) {
       const found = lineReferences[i];
-      if (pos >= found.from && pos <= found.to) {
+      if (found && pos >= found.from && pos <= found.to) {
         return found;
       }
     }
@@ -27,14 +27,14 @@ export const sparkTooltip = (
   pos: number,
   side: 1 | -1,
   parseContext: {
-    result: SparkParseResult;
+    program: SparkProgram;
   },
   getRuntimeValue?: (id: string) => unknown,
   setRuntimeValue?: (id: string, expression: string) => void,
   observeRuntimeValue?: (listener: (id: string, value: unknown) => void) => void
 ): Tooltip | null | Promise<Tooltip | null> => {
   const line = view.state.doc.lineAt(pos);
-  const token = getSparkReferenceAt(line.number, pos, parseContext?.result);
+  const token = getSparkReferenceAt(line.number, pos, parseContext?.program);
   if (!token || token.declaration) {
     return null;
   }
@@ -45,9 +45,9 @@ export const sparkTooltip = (
     create: (): { dom: HTMLDivElement } => {
       const dom = document.createElement("div");
       const context = {
-        ...(parseContext?.result?.sections || {}),
-        ...(parseContext?.result?.structs || {}),
-        ...(parseContext?.result?.variables || {}),
+        ...(parseContext?.program?.sections || {}),
+        ...(parseContext?.program?.structs || {}),
+        ...(parseContext?.program?.variables || {}),
       };
       const tokenId = token.id;
       const item = tokenId ? context[tokenId] : undefined;

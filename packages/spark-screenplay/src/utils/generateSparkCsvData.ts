@@ -1,15 +1,15 @@
-import { SparkParseResult } from "../../../sparkdown/src";
+import { SparkProgram } from "../../../sparkdown/src";
 
-export const generateSparkCsvData = (result: SparkParseResult): string[][] => {
+export const generateSparkCsvData = (program: SparkProgram): string[][] => {
   const language: string =
-    result?.titleTokens?.["language"]?.[0]?.content || "en-US [English (US)]";
+    program?.titleTokens?.["language"]?.[0]?.content || "en-US [English (US)]";
   const strings: string[][] = [["KEY", "CONTEXT", language]];
-  Object.keys(result.properties?.characters || {})
+  Object.keys(program.properties?.characters || {})
     ?.sort()
     ?.forEach((character) => {
       strings.push([character, "N:", character]);
     });
-  Object.entries(result.sections || {})?.forEach(([sectionId, section]) => {
+  Object.entries(program.sections || {})?.forEach(([sectionId, section]) => {
     const characterKeys: Record<string, number> = {};
     const typeKeys: Record<string, number> = {};
     let dialogueIndex = 0;

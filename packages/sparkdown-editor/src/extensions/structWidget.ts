@@ -26,7 +26,7 @@ import {
   randomize,
 } from "../../../spark-engine/src/inspector";
 import {
-  SparkParseResult,
+  SparkProgram,
   SparkStruct,
   SparkStructFieldToken,
   construct,
@@ -580,18 +580,18 @@ const drawSoundWaveform = (
 };
 
 const parseContextState = Facet.define<{
-  result?: SparkParseResult;
+  program?: SparkProgram;
 }>({});
 
 const getStructs = (view: EditorView): Record<string, SparkStruct> => {
   const [parseContext] = view.state.facet(parseContextState);
-  const result = parseContext.result;
+  const result = parseContext?.program;
   return result?.structs ?? {};
 };
 
 const getStruct = (view: EditorView, from: number): SparkStruct | null => {
   const [parseContext] = view.state.facet(parseContextState);
-  const result = parseContext.result;
+  const result = parseContext?.program;
   if (!result) {
     return null;
   }
@@ -828,7 +828,7 @@ const updateGraphicPreview = (structName: string, graphic: Graphic): void => {
 
 const structDecorations = (view: EditorView): DecorationSet => {
   const [parseContext] = view.state.facet(parseContextState);
-  const objectMap = parseContext?.result?.objectMap || {};
+  const objectMap = parseContext?.program?.objectMap || {};
   const structTypes = Object.keys(STRUCT_DEFAULTS);
   const structDefaultMap = STRUCT_DEFAULTS;
   const structValidationMap = structTypes.reduce((p, structType) => {
@@ -1059,7 +1059,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
             const to = node?.to;
             const [parseContext] = view.state.facet(parseContextState);
             const line = view.state.doc.lineAt(to);
-            const result = parseContext.result;
+            const result = parseContext.program;
             if (result) {
               const tokenIndex = result.tokenLines[line.number];
               const structFieldToken = result.tokens[
@@ -1081,7 +1081,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
             const to = node?.to;
             const [parseContext] = view.state.facet(parseContextState);
             const line = view.state.doc.lineAt(to);
-            const result = parseContext.result;
+            const result = parseContext.program;
             if (result) {
               const tokenIndex = result.tokenLines[line.number];
               const structFieldToken = result.tokens[
@@ -1231,7 +1231,7 @@ export const structWidgetPlugin = ViewPlugin.fromClass(
 
 export const structWidget = (options: {
   parseContext: {
-    result: SparkParseResult;
+    program: SparkProgram;
   };
 }): Extension => {
   return [parseContextState.of(options.parseContext), structWidgetPlugin];

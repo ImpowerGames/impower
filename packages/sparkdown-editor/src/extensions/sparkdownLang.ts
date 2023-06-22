@@ -19,7 +19,7 @@ import {
 import { Diagnostic, linter } from "@codemirror/lint";
 import { Prec } from "@codemirror/state";
 import { EditorView, KeyBinding, hoverTooltip, keymap } from "@codemirror/view";
-import { SparkParseResult } from "../../../sparkdown/src/types/SparkParseResult";
+import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { parseSpark } from "../../../sparkdown/src/utils/parseSpark";
 import { MarkdownParser } from "../classes/MarkdownParser";
 import {
@@ -45,9 +45,9 @@ import { structWidget } from "./structWidget";
 
 export {
   commonmarkLanguage,
-  sparkLanguage,
-  insertNewlineContinueMarkup,
   deleteMarkupBackward,
+  insertNewlineContinueMarkup,
+  sparkLanguage,
 };
 
 /// A small keymap with Markdown-specific bindings. Binds Enter to
@@ -99,7 +99,7 @@ const sparkdown = (
     extensions?: MarkdownExtension;
     base?: Language;
     initialDoc: string;
-    parse: (script: string) => SparkParseResult;
+    parse: (script: string) => SparkProgram;
     getRuntimeValue?: (id: string) => unknown;
     setRuntimeValue?: (id: string, expression: string) => void;
     observeRuntimeValue?: (
@@ -127,16 +127,16 @@ const sparkdown = (
       "Base parser provided to `markdown` should be a Markdown parser"
     );
   }
-  const result = parse(initialDoc);
+  const program = parse(initialDoc);
   const parseContext: {
-    result: SparkParseResult;
+    program: SparkProgram;
   } = {
-    result,
+    program,
   };
   const sparkParseLinter = (view: EditorView): Diagnostic[] => {
     const script = view.state.doc.toString();
-    parseContext.result = parse(script);
-    const diagnostics = parseContext.result?.diagnostics || [];
+    parseContext.program = parse(script);
+    const diagnostics = parseContext.program?.diagnostics || [];
     return getDiagnostics(script, diagnostics);
   };
   const extensions = config.extensions ? [config.extensions] : [];
@@ -196,7 +196,7 @@ const sparkdown = (
             key: "Enter",
             run: (target: EditorView): boolean => {
               const inserted = insertNewlineContinueMarkup(target);
-              parseContext.result = parse(target.state.doc.toString());
+              parseContext.program = parse(target.state.doc.toString());
               const prompted = startCompletion(target);
               return inserted || prompted;
             },

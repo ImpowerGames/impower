@@ -1,9 +1,9 @@
-import { SparkParseResult } from "@impower/sparkdown/src/index";
+import { SparkProgram } from "@impower/sparkdown/src/index";
 import { parseState } from "../state/parseState";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 
-export function getActiveParsedDocument(): SparkParseResult | undefined {
+export function getActiveParsedDocument(): SparkProgram | undefined {
   const uri = getActiveSparkdownDocument();
   if (!uri) {
     return undefined;

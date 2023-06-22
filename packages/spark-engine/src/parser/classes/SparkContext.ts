@@ -1,4 +1,4 @@
-import { SparkParseResult } from "../../../../sparkdown/src";
+import { SparkProgram } from "../../../../sparkdown/src";
 import { SparkGame, SparkGameConfig, SparkGameState } from "../../game";
 import { SparkGameRunner } from "../../runner";
 import { STRUCT_DEFAULTS } from "../constants/STRUCT_DEFAULTS";
@@ -11,11 +11,8 @@ export class SparkContext<
   S extends SparkGameState = SparkGameState,
   R extends SparkGameRunner<G> = SparkGameRunner<G>
 > extends Context<G, C, S, R> {
-  constructor(
-    parsed: SparkParseResult,
-    config?: SparkContextConfig<G, C, S, R>
-  ) {
-    super(parsed, {
+  constructor(program: SparkProgram, config?: SparkContextConfig<G, C, S, R>) {
+    super(program, {
       defaults: STRUCT_DEFAULTS,
       runner: new SparkGameRunner<G>() as R,
       createGame: (c?: C, s?: S) => new SparkGame(c, s) as G,

@@ -1,4 +1,4 @@
-import { SparkParseResult } from "@impower/sparkdown/src/index";
+import { SparkProgram } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
 
 export const last = function <T>(array: T[]): T {
@@ -8,7 +8,7 @@ export const last = function <T>(array: T[]): T {
 /** Shifts scene/s at the selected text up or down */
 export const shiftScenes = (
   editor: vscode.TextEditor,
-  parsed: SparkParseResult,
+  program: SparkProgram,
   direction: number
 ) => {
   let numNewlinesAtEndRequired = 0;
@@ -16,7 +16,7 @@ export const shiftScenes = (
     sel: vscode.Selection
   ): vscode.Selection | undefined => {
     // returns range that contains whole scenes that overlap with the selection
-    const headingsBefore = parsed.tokens
+    const headingsBefore = program.tokens
       .filter(
         (token) =>
           (token.type === "scene" || token.type === "section") &&
@@ -24,7 +24,7 @@ export const shiftScenes = (
           token.line <= sel.anchor.line
       )
       .sort((a, b) => b.line - a.line);
-    const headingsAfter = parsed.tokens
+    const headingsAfter = program.tokens
       .filter(
         (token) =>
           (token.type === "scene" || token.type === "section") &&
@@ -43,7 +43,8 @@ export const shiftScenes = (
       return new vscode.Selection(selStart, 0, selEnd, 0);
     } else {
       // +2 is where the next scene would start if there was one. done to make it look consistent.
-      const selEnd = last(parsed.tokens.filter((token) => token.line)).line + 2;
+      const selEnd =
+        last(program.tokens.filter((token) => token.line)).line + 2;
       if (selEnd >= editor.document.lineCount) {
         numNewlinesAtEndRequired = selEnd - editor.document.lineCount + 1;
       }

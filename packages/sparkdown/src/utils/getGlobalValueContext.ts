@@ -1,14 +1,14 @@
-import { SparkParseResult } from "../types/SparkParseResult";
+import { SparkProgram } from "../types/SparkProgram";
 
 export const getGlobalValueContext = (
-  result: SparkParseResult
+  program: SparkProgram
 ): Record<string, unknown> => {
   const sectionValues: Record<string, number> = {};
-  Object.keys(result?.sections || {}).forEach((id) => {
+  Object.keys(program?.sections || {}).forEach((id) => {
     sectionValues[id] = 0;
   });
   const variableValues: Record<string, unknown> = {};
-  Object.entries(result?.variables || {}).forEach(([id, v]) => {
+  Object.entries(program?.variables || {}).forEach(([id, v]) => {
     variableValues[id] = v.value;
   });
   return {

@@ -1,7 +1,7 @@
-import { SparkParseResult } from "@impower/sparkdown/src/index";
+import { SparkProgram } from "@impower/sparkdown/src/index";
 
 export const parseState = {
   lastParsedUri: "",
   lastShiftedParseId: "",
-  parsedDocuments: {} as Record<string, SparkParseResult>,
+  parsedDocuments: {} as Record<string, SparkProgram>,
 };

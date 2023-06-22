@@ -1,12 +1,12 @@
-import { SparkParseResult } from "../types/SparkParseResult";
+import { SparkProgram } from "../types/SparkProgram";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 
 export const getCharactersWhoSpokeBeforeLine = (
-  result: SparkParseResult,
+  program: SparkProgram,
   line: number
 ) => {
   let searchIndex = 0;
-  const prevLine = result.tokenLines[line - 1];
+  const prevLine = program.tokenLines[line - 1];
   if (prevLine) {
     searchIndex = prevLine;
   }
@@ -14,7 +14,7 @@ export const getCharactersWhoSpokeBeforeLine = (
   const previousCharacters: string[] = [];
   let lastCharacter = "";
   while (searchIndex > 0 && !stopSearch) {
-    const token = result.tokens[searchIndex - 1];
+    const token = program.tokens[searchIndex - 1];
     if (token) {
       if (token.type === "dialogue_character") {
         const name = trimCharacterExtension(token.text || "").trim();

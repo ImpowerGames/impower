@@ -1,5 +1,5 @@
 import { SparkParserConfig } from "../types/SparkParserConfig";
-import { SparkParseResult } from "../types/SparkParseResult";
+import { SparkProgram } from "../types/SparkProgram";
 import { parseSpark } from "../utils/parseSpark";
 
 export class SparkParser {
@@ -9,7 +9,7 @@ export class SparkParser {
     this.config = config || this.config;
   }
 
-  parse(script: string, config?: SparkParserConfig): SparkParseResult {
+  parse(script: string, config?: SparkParserConfig): SparkProgram {
     const result = parseSpark(script, {
       ...(this.config || {}),
       ...(config || {}),

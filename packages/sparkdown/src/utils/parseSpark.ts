@@ -10,10 +10,10 @@ import { defaultCompiler } from "../defaults/defaultCompiler";
 import { defaultFormatter } from "../defaults/defaultFormatter";
 import { SparkAction, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
+import { SparkParseState } from "../types/SparkParseState";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkParserContext } from "../types/SparkParserContext";
-import { SparkParseResult } from "../types/SparkParseResult";
-import { SparkParseState } from "../types/SparkParseState";
+import { SparkProgram } from "../types/SparkProgram";
 import { SparkProperties } from "../types/SparkProperties";
 import { SparkSection } from "../types/SparkSection";
 import { SparkStruct } from "../types/SparkStruct";
@@ -286,7 +286,7 @@ const lintNameUnique = <
 };
 
 const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   currentToken: { from: number; to: number; line: number; offset?: number },
   currentSectionId: string,
   name: string,
@@ -353,23 +353,23 @@ const lintName = <T extends SparkSection | SparkVariable | SparkStruct>(
 };
 
 const addSection = (
-  parsed: SparkParseResult,
+  program: SparkProgram,
   currentSectionId: string,
   section: SparkSection,
   nameFrom: number,
   nameTo: number
 ): void => {
   const id = currentSectionId;
-  if (!parsed.sections) {
-    parsed.sections = {};
+  if (!program.sections) {
+    program.sections = {};
   }
-  if (!parsed.references) {
-    parsed.references = {};
+  if (!program.references) {
+    program.references = {};
   }
-  if (!parsed.references[section.line]) {
-    parsed.references[section.line] = [];
+  if (!program.references[section.line]) {
+    program.references[section.line] = [];
   }
-  parsed.references[section.line]?.push({
+  program.references[section.line]?.push({
     from: nameFrom,
     to: nameTo,
     name: section.name,
@@ -379,7 +379,7 @@ const addSection = (
   if (id) {
     const parentId = id.split(".").slice(0, -1).join(".");
     section.parent = parentId;
-    const parentSection = parsed.sections[parentId];
+    const parentSection = program.sections[parentId];
     if (parentSection) {
       if (!parentSection.children) {
         parentSection.children = [];
@@ -390,7 +390,7 @@ const addSection = (
         (parentSection.type === "detector" || parentSection.type === "function")
       ) {
         diagnostic(
-          parsed,
+          program,
           section,
           `'${section.name}' cannot be a child of ${parentSection.type} '${
             parentSection.name
@@ -402,22 +402,22 @@ const addSection = (
     }
   }
   if (
-    !lintName(parsed, section, currentSectionId, section.name, nameFrom, nameTo)
+    !lintName(program, section, currentSectionId, section.name, nameFrom, nameTo)
   ) {
     return;
   }
-  section.index = Object.keys(parsed.sections).length;
-  parsed.sections[id] = section;
-  if (!parsed.sectionLines) {
-    parsed.sectionLines = {};
+  section.index = Object.keys(program.sections).length;
+  program.sections[id] = section;
+  if (!program.sectionLines) {
+    program.sectionLines = {};
   }
-  if (!parsed.sectionLines[section.line]) {
-    parsed.sectionLines[section.line] = id;
+  if (!program.sectionLines[section.line]) {
+    program.sectionLines[section.line] = id;
   }
 };
 
 const getSection = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   currentToken: SparkToken,
   currentSectionId: string,
   type: "section" | "method" | "function" | "detector",
@@ -469,7 +469,7 @@ const getSection = (
 };
 
 const getArgumentValues = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -623,7 +623,7 @@ const getArgumentValues = (
 };
 
 const getExpressionCallNameAndValues = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -755,7 +755,7 @@ const getExpressionCallNameAndValues = (
 };
 
 const checkExpressionValue = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -805,7 +805,7 @@ const checkExpressionValue = (
 };
 
 const checkTextExpression = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -827,7 +827,7 @@ const checkTextExpression = (
 };
 
 const getSectionCalls = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -900,7 +900,7 @@ const getSectionCalls = (
 };
 
 const getVariableExpressionValue = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -1049,7 +1049,7 @@ const getVariableExpressionValue = (
 };
 
 const getStruct = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   currentToken: SparkToken,
   type: string,
   name: string,
@@ -1097,7 +1097,7 @@ const getStruct = (
 };
 
 const getVariable = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   currentToken: SparkToken,
   currentSectionId: string,
   type: SparkVariableType | SparkVariableType[] | undefined,
@@ -1182,7 +1182,7 @@ const getValueType = (valueText: string): SparkVariableType | undefined => {
 };
 
 const getVariableValueOrReference = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   currentToken: SparkToken,
   currentSectionId: string,
   content: string,
@@ -1225,7 +1225,7 @@ const getRawString = (content: string): string => {
 };
 
 const addStruct = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   currentToken: SparkToken,
   currentSectionId: string,
   type: string,
@@ -1277,7 +1277,7 @@ const addStruct = (
 };
 
 const addImport = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   valueText: string,
   line: number,
   valueFrom: number,
@@ -1312,7 +1312,7 @@ const addImport = (
 };
 
 const addVariable = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -1397,7 +1397,7 @@ const addVariable = (
 };
 
 const addField = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkStructFieldToken,
   currentSectionId: string,
@@ -1471,7 +1471,7 @@ const addField = (
 };
 
 const getParameterNames = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -1636,7 +1636,7 @@ const getParameterNames = (
 };
 
 const pushToken = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentSectionId: string,
   token: SparkToken,
@@ -1669,10 +1669,7 @@ const pushToken = (
   }
 };
 
-const checkNotes = (
-  parsed: SparkParseResult,
-  currentToken: SparkToken
-): void => {
+const checkNotes = (parsed: SparkProgram, currentToken: SparkToken): void => {
   const str = currentToken.content;
   if (str?.indexOf("[") >= 0) {
     const noteMatches = str.match(sparkRegexes.note);
@@ -1694,7 +1691,7 @@ const checkNotes = (
 };
 
 const pushAssets = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   currentToken: SparkToken,
   state: SparkParseState
 ): void => {
@@ -1743,7 +1740,7 @@ const saveAndClearAssets = (
 };
 
 const saveAndClearDialogueToken = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -1759,7 +1756,7 @@ const saveAndClearDialogueToken = (
 };
 
 const pushChoice = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentSectionId: string,
   state: SparkParseState,
@@ -1787,7 +1784,7 @@ const pushChoice = (
 };
 
 const saveAndClearChoices = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -1819,7 +1816,7 @@ const actionOrAssetTypes = ["action", "action_asset"];
 const sparkLineKeys = Object.keys(createSparkLine());
 
 const processDisplayedContent = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   currentToken: SparkToken,
   currentSectionId: string,
@@ -1928,10 +1925,7 @@ const processDisplayedContent = (
   checkNotes(parsed, currentToken);
 };
 
-const augmentResult = (
-  parsed: SparkParseResult,
-  config?: SparkParserConfig
-) => {
+const augmentResult = (parsed: SparkProgram, config?: SparkParserConfig) => {
   if (!parsed.objectMap) {
     parsed.objectMap = config?.augmentations?.objectMap ?? {};
   }
@@ -2062,7 +2056,7 @@ const updateFieldToken = (
 };
 
 const hoistDeclarations = (
-  parsed: SparkParseResult,
+  parsed: SparkProgram,
   config: SparkParserConfig | undefined,
   newLineLength: number,
   lines: string[]
@@ -2349,8 +2343,8 @@ const hoistDeclarations = (
 export const parseSpark = (
   script: string,
   config?: SparkParserConfig
-): SparkParseResult => {
-  const parsed: SparkParseResult = {
+): SparkProgram => {
+  const parsed: SparkProgram = {
     tokens: [],
     tokenLines: {},
     properties: {},

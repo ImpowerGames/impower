@@ -1,7 +1,7 @@
 import {
   getScopedValueContext,
   getSectionAtLine,
-  SparkParseResult,
+  SparkProgram,
 } from "../../../../sparkdown/src";
 import { CommandData } from "../../data";
 import { Block, Game, GameConfig, GameState } from "../../game";
@@ -68,16 +68,19 @@ export class Context<
     return this._contexts;
   }
 
-  constructor(parsed: SparkParseResult, config: ContextConfig<G, C, S, R>) {
+  constructor(program: SparkProgram, config: ContextConfig<G, C, S, R>) {
     this._runner = config.runner || (new GameRunner() as R);
     this._editable = config?.editable || false;
-    this._game = this.load(parsed, config);
+    this._game = this.load(program, config);
   }
 
-  load(parsed: SparkParseResult, config: ContextConfig<G, C, S, R>): G {
+  load(program: SparkProgram, config: ContextConfig<G, C, S, R>): G {
     const activeLine = config?.activeLine || 0;
-    const blockMap = generateSectionBlocks(parsed?.sections || {});
-    const [startBlockId] = getSectionAtLine(activeLine, parsed?.sections || {});
+    const blockMap = generateSectionBlocks(program?.sections || {});
+    const [startBlockId] = getSectionAtLine(
+      activeLine,
+      program?.sections || {}
+    );
     const startRuntimeBlock = blockMap?.[startBlockId];
     let startCommandIndex = 0;
     const startCommands = Object.values(startRuntimeBlock?.commands || {});
@@ -92,7 +95,7 @@ export class Context<
     const c = {
       ...(config?.config || {}),
       logic: { blockMap },
-      struct: { objectMap: parsed.objectMap },
+      struct: { objectMap: program.objectMap },
     } as C;
     const s = {
       ...(config?.state || {}),

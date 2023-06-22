@@ -1,11 +1,11 @@
-import { SparkParseResult } from "../types/SparkParseResult";
+import { SparkProgram } from "../types/SparkProgram";
 import { SparkSection } from "../types/SparkSection";
 
 export const getSectionAt = (
   pos: number,
-  result: SparkParseResult
+  program: SparkProgram
 ): [string, SparkSection | undefined] => {
-  const sectionEntries = Object.entries(result?.sections || {});
+  const sectionEntries = Object.entries(program?.sections || {});
   for (let i = sectionEntries.length - 1; i >= 0; i -= 1) {
     const [id, section] = sectionEntries[i] || [];
     if (id !== undefined && section !== undefined) {
@@ -15,5 +15,5 @@ export const getSectionAt = (
       }
     }
   }
-  return ["", result?.sections?.[""]];
+  return ["", program?.sections?.[""]];
 };

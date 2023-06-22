@@ -12,7 +12,7 @@ import {
 } from "@codemirror/view";
 import EngineSparkParser from "../../../spark-engine/src/parser/classes/EngineSparkParser";
 import { SparkDeclarations } from "../../../sparkdown/src/types/SparkDeclarations";
-import { SparkParseResult } from "../../../sparkdown/src/types/SparkParseResult";
+import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import EXTENSIONS from "../constants/EXTENSIONS";
 import SPARKDOWN_THEME from "../constants/SPARKDOWN_THEME";
 import { foldedField } from "../extensions/foldedField";
@@ -34,7 +34,7 @@ import {
 import { lockBodyScrolling, unlockBodyScrolling } from "./bodyScrolling";
 
 const PARSE_CACHE: {
-  current?: SparkParseResult;
+  current?: SparkProgram;
 } = {};
 
 interface EditorOptions {
@@ -101,7 +101,7 @@ interface EditorOptions {
   onFocus?: (value: string) => void;
   onBlur?: (value: string) => void;
   getAugmentations?: () => SparkDeclarations;
-  onParse?: (result: SparkParseResult) => void;
+  onParse?: (program: SparkProgram) => void;
   getRuntimeValue?: (id: string) => unknown;
   setRuntimeValue?: (id: string, expression: string) => void;
   observeRuntimeValue?: (

@@ -18,7 +18,7 @@ import {
   getRelativeSection,
   getSectionAt,
   getSiblingIds,
-  SparkParseResult,
+  SparkProgram,
   sparkRegexes,
   SparkSection,
   SparkStructFieldToken,
@@ -148,7 +148,7 @@ export const uppercaseParagraphSnippets: readonly Completion[] = [
 export const structSnippets: readonly Completion[] = structTypes.map((type) => {
   const name =
     type === "style"
-      ? `${type[0].toUpperCase() + type.slice(1)}Name`
+      ? `${type[0]!.toUpperCase() + type.slice(1)}Name`
       : `${type.toUpperCase()}_NAME`;
   return snip(
     `@ ${type} ${CURSOR}${CURSOR_OPEN}${name}${CURSOR_CLOSE}:${CURSOR}`,
@@ -705,11 +705,11 @@ export const allFromList = (
 export const sparkAutocomplete = async (
   context: CompletionContext,
   parseContext: {
-    result: SparkParseResult;
+    program: SparkProgram;
   }
 ): Promise<CompletionResult> => {
-  const { result } = parseContext;
-  const objectMap = result?.objectMap || {};
+  const { program } = parseContext;
+  const objectMap = program?.objectMap || {};
   const requestTree = (
     onTreeReady: (value: Tree | PromiseLike<Tree>) => void
   ): number => {
@@ -737,13 +737,13 @@ export const sparkAutocomplete = async (
   const input = context.state.sliceDoc(node.from, node.to);
   const line = context.state.doc.lineAt(node.from);
   const lineNumber = line.number;
-  const [sectionId, section] = getSectionAt(node.from, result);
+  const [sectionId, section] = getSectionAt(node.from, program);
   const sectionLevel = section?.level || 0;
   const ancestorIds = getAncestorIds(sectionId);
   const variableOptions: Option[] = ancestorIds.flatMap((ancestorId) =>
-    Object.entries(result?.sections?.[ancestorId]?.variables || {}).map(
+    Object.entries(program?.sections?.[ancestorId]?.variables || {}).map(
       ([id]) => {
-        const found = result?.sections?.[ancestorId]?.variables?.[id];
+        const found = program?.sections?.[ancestorId]?.variables?.[id];
         const completionType: CompletionType = found.parameter
           ? "parameter"
           : "variable";
@@ -808,14 +808,17 @@ export const sparkAutocomplete = async (
   if ([Type.SceneLocation].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
-      ...nameSnippets(Object.keys(result?.properties?.locations || {}), "scene")
+      ...nameSnippets(
+        Object.keys(program?.properties?.locations || {}),
+        "scene"
+      )
     );
     return completeFromList(completions)(context);
   }
   if ([Type.SceneTime].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
-      ...nameSnippets(Object.keys(result?.properties?.times || {}), "scene")
+      ...nameSnippets(Object.keys(program?.properties?.times || {}), "scene")
     );
     return completeFromList(completions)(context);
   }
@@ -826,8 +829,8 @@ export const sparkAutocomplete = async (
       const completions: Completion[] = [];
       completions.push(
         ...characterSnippets(
-          Object.keys(result?.properties?.characters || {}),
-          result?.dialogueLines,
+          Object.keys(program?.properties?.characters || {}),
+          program?.dialogueLines,
           line.number,
           `\n${CURSOR}`
         )
@@ -842,8 +845,8 @@ export const sparkAutocomplete = async (
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
-        Object.keys(result?.properties?.characters || {}),
-        result?.dialogueLines,
+        Object.keys(program?.properties?.characters || {}),
+        program?.dialogueLines,
         line.number,
         `\n${CURSOR}`
       )
@@ -855,8 +858,8 @@ export const sparkAutocomplete = async (
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
-        Object.keys(result?.properties?.characters || {}),
-        result?.dialogueLines,
+        Object.keys(program?.properties?.characters || {}),
+        program?.dialogueLines,
         line.number
       )
     );
@@ -864,7 +867,7 @@ export const sparkAutocomplete = async (
   }
   if ([Type.ImageNote].includes(node.type.id)) {
     const completions: Completion[] = [];
-    const validOptions = Object.entries(result?.objectMap?.image || {}).map(
+    const validOptions = Object.entries(program?.objectMap?.image || {}).map(
       ([structName, struct]) => {
         return {
           name: structName,
@@ -877,7 +880,7 @@ export const sparkAutocomplete = async (
   }
   if ([Type.AudioNote].includes(node.type.id)) {
     const completions: Completion[] = [];
-    const validOptions = Object.entries(result?.objectMap?.audio || {}).map(
+    const validOptions = Object.entries(program?.objectMap?.audio || {}).map(
       ([structName, struct]) => {
         return {
           name: structName,
@@ -890,7 +893,7 @@ export const sparkAutocomplete = async (
   }
   if (node.type.id === Type.DynamicTag) {
     const completions: Completion[] = [];
-    const validOptions = Object.entries(result?.objectMap?.tag || {}).map(
+    const validOptions = Object.entries(program?.objectMap?.tag || {}).map(
       ([, struct]) => {
         return {
           type: "tag",
@@ -912,12 +915,12 @@ export const sparkAutocomplete = async (
   }
   if ([Type.StructFieldName, Type.Struct].includes(node.type.id)) {
     const line = context.state.doc.lineAt(context.pos);
-    const tokenIndex = result.tokenLines[line.number];
-    const token = result.tokens[tokenIndex];
+    const tokenIndex = program.tokenLines[line.number];
+    const token = program.tokens[tokenIndex];
     const structField = token as SparkStructFieldToken;
     const structName = structField?.struct;
     const fieldId = structField?.id;
-    const struct = result.structs[structName || ""];
+    const struct = program.structs[structName || ""];
     const structType = struct?.type;
     const defaultStructObj = STRUCT_DEFAULTS[structType]?.[""];
     if (defaultStructObj) {
@@ -964,12 +967,12 @@ export const sparkAutocomplete = async (
     const isStartOfString = [`""`, `''`, "''"].includes(input);
     const isPossiblyStartOfBoolean = [`t`, `f`].includes(input);
     if (isStartOfString || isPossiblyStartOfBoolean) {
-      const tokenIndex = result.tokenLines[line.number];
-      const structField = result.tokens[tokenIndex] as SparkStructFieldToken;
+      const tokenIndex = program.tokenLines[line.number];
+      const structField = program.tokens[tokenIndex] as SparkStructFieldToken;
       const structName = structField?.struct;
       const fieldId = structField?.id;
       const defaultValue = structField?.valueText;
-      const struct = result.structs[structName || ""];
+      const struct = program.structs[structName || ""];
       const structType = struct?.type;
       const validation = getSparkValidation(structType, objectMap)?.validation;
       if (validation) {
@@ -1002,23 +1005,23 @@ export const sparkAutocomplete = async (
   ) {
     const completions: Completion[] = [];
     completions.push(
-      ...logicSnippets(variableOptions, sectionId, result?.sections)
+      ...logicSnippets(variableOptions, sectionId, program?.sections)
     );
     return completeFromList(completions)(context);
   }
   if ([Type.JumpMark, Type.ChoiceJumpMark].includes(node.type.id)) {
     const completions: Completion[] = [];
-    completions.push(...sectionSnippets(sectionId, result?.sections, "> "));
+    completions.push(...sectionSnippets(sectionId, program?.sections, "> "));
     return completeFromList(completions)(context);
   }
   if ([Type.JumpSectionName, Type.ChoiceSectionName].includes(node.type.id)) {
     const completions: Completion[] = [];
-    completions.push(...sectionSnippets(sectionId, result?.sections));
+    completions.push(...sectionSnippets(sectionId, program?.sections));
     return completeFromList(completions)(context);
   }
   if ([Type.CallEntityName].includes(node.type.id)) {
     const completions: Completion[] = [];
-    const entityOptions = Object.keys(result?.objectMap?.entity || {}).map(
+    const entityOptions = Object.keys(program?.objectMap?.entity || {}).map(
       (name) => {
         return {
           name,

@@ -1,11 +1,11 @@
-import { SparkParseResult, SparkSectionToken } from "../../../sparkdown/src";
+import { SparkProgram, SparkSectionToken } from "../../../sparkdown/src";
 import { Liner } from "../classes/Liner";
 import { PRINT_PROFILES } from "../constants/PRINT_PROFILES";
 import { PdfData } from "../types/PdfData";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 
 export const generateSparkPdfData = (
-  result: SparkParseResult,
+  program: SparkProgram,
   config: SparkScreenplayConfig,
   fonts: {
     normal?: ArrayBuffer | Uint8Array;
@@ -17,8 +17,8 @@ export const generateSparkPdfData = (
   let watermark = undefined;
   let header = undefined;
   let footer = undefined;
-  if (result.titleTokens) {
-    const hiddenTitleTokens = result.titleTokens["hidden"] || [];
+  if (program.titleTokens) {
+    const hiddenTitleTokens = program.titleTokens["hidden"] || [];
     for (let index = 0; index < hiddenTitleTokens.length; index++) {
       const titleToken = hiddenTitleTokens[index];
       if (titleToken) {
@@ -37,8 +37,8 @@ export const generateSparkPdfData = (
   }
   let currentIndex = 0;
 
-  const titleTokens = result.titleTokens || {};
-  const tokens = [...result.tokens];
+  const titleTokens = program.titleTokens || {};
+  const tokens = [...program.tokens];
   const sceneInvisibleSections: Record<string | number, SparkSectionToken[]> =
     {};
   // tidy up separators
@@ -79,7 +79,7 @@ export const generateSparkPdfData = (
   // clean separators at the end
   while (
     tokens.length > 0 &&
-    tokens[result.tokens.length - 1]?.type === "separator"
+    tokens[program.tokens.length - 1]?.type === "separator"
   ) {
     tokens.pop();
   }

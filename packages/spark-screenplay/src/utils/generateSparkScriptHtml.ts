@@ -1,18 +1,18 @@
-import { SparkParseResult } from "../../../sparkdown/src";
+import { SparkProgram } from "../../../sparkdown/src";
 import { HTML_REPLACEMENTS } from "../constants/HTML_REPLACEMENTS";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
 
 export const generateSparkScriptHtml = (
-  result: SparkParseResult,
+  program: SparkProgram,
   config: SparkScreenplayConfig
 ): string => {
   const html: string[] = [];
   let currentIndex = 0;
   let isAction = false;
 
-  while (currentIndex < result.tokens.length) {
-    const currentToken = result.tokens[currentIndex];
+  while (currentIndex < program.tokens.length) {
+    const currentToken = program.tokens[currentIndex];
     if (!currentToken) {
       currentIndex++;
       continue;
@@ -50,9 +50,9 @@ export const generateSparkScriptHtml = (
 
       isAction = true;
     } else if (currentToken.type == "separator" && isAction) {
-      if (currentIndex + 1 < result.tokens.length - 1) {
+      if (currentIndex + 1 < program.tokens.length - 1) {
         //we're not at the end
-        const next_type = result.tokens[currentIndex + 1]?.type;
+        const next_type = program.tokens[currentIndex + 1]?.type;
         if (
           next_type == "action" ||
           next_type == "separator" ||

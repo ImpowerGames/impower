@@ -1,5 +1,5 @@
-import { SparkParseResult } from "../../../sparkdown/src";
+import { SparkProgram } from "../../../sparkdown/src";
 
-export const generateSparkJsonData = (result: SparkParseResult): string => {
-  return JSON.stringify(result, null, 2);
+export const generateSparkJsonData = (program: SparkProgram): string => {
+  return JSON.stringify(program, null, 2);
 };
