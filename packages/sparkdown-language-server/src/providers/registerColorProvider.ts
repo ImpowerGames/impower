@@ -1,11 +1,12 @@
+import { RgbaColor, colord } from "colord";
 import {
   Color,
   ColorInformation,
   ColorPresentation,
   Connection,
   Range,
-  TextEdit,
 } from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import SparkdownTextDocuments from "../classes/SparkdownTextDocuments";
 
@@ -17,95 +18,65 @@ const registerColorProvider = (
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.program(uri);
-    return getColorInformation(program);
+    return getColorInformation(document, program);
   });
   connection.onColorPresentation((params) => {
-    return getColorPresentation(params.color, params.range);
+    return getColorPresentation(params.color);
   });
 };
 
-const getColorInformation = (program: SparkProgram | undefined) => {
-  const result: ColorInformation[] = [];
-
-  if (program) {
-    const text = document.getText();
-
-    COLOR_REGEX.lastIndex = 0;
-    let match;
-    while ((match = COLOR_REGEX.exec(text)) != null) {
-      const offset = match.index;
-      const length = match[0].length;
-      const range = Range.create(
-        document.positionAt(offset),
-        document.positionAt(offset + length)
-      );
-      const color = parseColor(text, offset);
-      result.push({ color, range });
+const getColorInformation = (
+  document: TextDocument | undefined,
+  program: SparkProgram | undefined
+) => {
+  const infos: ColorInformation[] = [];
+  if (document && program) {
+    const colors = program.metadata.colors;
+    if (colors) {
+      colors.forEach((c) => {
+        const range = Range.create(
+          document.positionAt(c.from),
+          document.positionAt(c.to)
+        );
+        const rgb = colord(c.value).toRgb();
+        const color = Color.create(
+          rgb.r / 255,
+          rgb.g / 255,
+          rgb.b / 255,
+          rgb.a
+        );
+        infos.push({ color, range });
+      });
     }
   }
-
-  return result;
+  return infos;
 };
 
-const getColorPresentation = (color: Color, range: Range) => {
-  const result: ColorPresentation[] = [];
-  const red256 = Math.round(color.red * 255),
-    green256 = Math.round(color.green * 255),
-    blue256 = Math.round(color.blue * 255);
-
-  const toTwoDigitHex = (n: number): string => {
-    const r = n.toString(16);
-    return r.length !== 2 ? "0" + r : r;
+const getColorPresentation = (color: Color) => {
+  const presentations: ColorPresentation[] = [];
+  const rgba: RgbaColor = {
+    r: color.red * 255,
+    g: color.green * 255,
+    b: color.blue * 255,
+    a: color.alpha,
   };
-
-  const label = `#${toTwoDigitHex(red256)}${toTwoDigitHex(
-    green256
-  )}${toTwoDigitHex(blue256)}`;
-  result.push({ label: label, textEdit: TextEdit.replace(range, label) });
-
-  return result;
-};
-
-const COLOR_REGEX = /#([0-9A-Fa-f]{6})/g;
-
-const enum CharCode {
-  Digit0 = 48,
-  Digit9 = 57,
-
-  A = 65,
-  F = 70,
-
-  a = 97,
-  f = 102,
-}
-
-const parseHexDigit = (charCode: CharCode): number => {
-  if (charCode >= CharCode.Digit0 && charCode <= CharCode.Digit9) {
-    return charCode - CharCode.Digit0;
-  }
-  if (charCode >= CharCode.A && charCode <= CharCode.F) {
-    return charCode - CharCode.A + 10;
-  }
-  if (charCode >= CharCode.a && charCode <= CharCode.f) {
-    return charCode - CharCode.a + 10;
-  }
-  return 0;
-};
-
-const parseColor = (content: string, offset: number): Color => {
-  const r =
-    (16 * parseHexDigit(content.charCodeAt(offset + 1)) +
-      parseHexDigit(content.charCodeAt(offset + 2))) /
-    255;
-  const g =
-    (16 * parseHexDigit(content.charCodeAt(offset + 3)) +
-      parseHexDigit(content.charCodeAt(offset + 4))) /
-    255;
-  const b =
-    (16 * parseHexDigit(content.charCodeAt(offset + 5)) +
-      parseHexDigit(content.charCodeAt(offset + 6))) /
-    255;
-  return Color.create(r, g, b, 1);
+  const c = colord(rgba);
+  const hex = c.toHex();
+  const rbga = c.toRgb();
+  const hsla = c.toHsl();
+  const hexLabel = hex.toUpperCase();
+  const rgbLabel =
+    rbga.a < 1
+      ? `rgb(${rbga.r} ${rbga.g} ${rbga.b} / ${rgba.a * 100}%)`
+      : `rgb(${rbga.r} ${rbga.g} ${rbga.b})`;
+  const hslLabel =
+    hsla.a < 1
+      ? `hsl(${hsla.h} ${hsla.s}% ${hsla.l}% / ${hsla.a * 100}%)`
+      : `hsl(${hsla.h} ${hsla.s}% ${hsla.l}%)`;
+  presentations.push({ label: hexLabel });
+  presentations.push({ label: rgbLabel });
+  presentations.push({ label: hslLabel });
+  return presentations;
 };
 
 export default registerColorProvider;

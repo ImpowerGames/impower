@@ -44,6 +44,12 @@ export const sparkRegexes = {
   content_continuation: /^([&])?(.+[^\s])([ ]+)?$/,
   dialogue_terminator: /^([\t ]*)([<>^*+-])($|[ ]+[^\n\r]*)$/,
 
+  hex_color: /^(#)((?:[0-9a-fA-F]{2}){2,4})$/,
+  rgb_color:
+    /^(rgb)([(][\d]+[\s]+[\d]+[\s]+[\d]+(?:[\s]*[/][\s]*[\d.]+[%]?)?[)])$/,
+  hsl_color:
+    /^(hsl)([(][\d]+[\s]+[\d]+[%]?[\s]+[\d]+[%]?(?:[\s]*[/][\s]*[\d.]+[%]?)?[)])$/,
+
   string: /^(`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*')$/,
   string_template: /^(`[^\n\r`]*`)$/,
   boolean: /^(true|false)$/,

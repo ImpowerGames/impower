@@ -8,6 +8,7 @@ import { reservedKeywords } from "../constants/reservedKeywords";
 import { sparkRegexes } from "../constants/sparkRegexes";
 import { defaultCompiler } from "../defaults/defaultCompiler";
 import { defaultFormatter } from "../defaults/defaultFormatter";
+import { SparkColorMetadata } from "../types/SparkColorMetadata";
 import { SparkAction, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
 import { SparkParseState } from "../types/SparkParseState";
@@ -50,6 +51,28 @@ import { trimCharacterExtension } from "./trimCharacterExtension";
 import { updateObjectMap } from "./updateObjectMap";
 
 const EMPTY_OBJECT = {};
+
+const getColorMetadata = (
+  expression: string,
+  expressionFrom: number
+): SparkColorMetadata | null => {
+  if (!expression.match(sparkRegexes.string)) {
+    return null;
+  }
+  const stringContent = expression.slice(1, -1);
+  if (
+    sparkRegexes.hex_color.test(stringContent) ||
+    sparkRegexes.hsl_color.test(stringContent) ||
+    sparkRegexes.rgb_color.test(stringContent)
+  ) {
+    return {
+      from: expressionFrom + 1,
+      to: expressionFrom + expression.length - 1,
+      value: stringContent,
+    };
+  }
+  return null;
+};
 
 const getLastStructureItem = (
   parsed: { metadata?: SparkProgramMetadata },
@@ -537,6 +560,11 @@ const getArgumentValues = (
           currentSectionId,
           program.sections
         );
+        const colorMetadata = getColorMetadata(expression, expressionFrom);
+        if (colorMetadata) {
+          program.metadata.colors ??= [];
+          program.metadata.colors?.push(colorMetadata);
+        }
         const compiler = config?.compiler || defaultCompiler;
         const [result, diagnostics, references] = compiler(expression, context);
         if (references?.length > 0) {
@@ -545,7 +573,6 @@ const getArgumentValues = (
             if (r) {
               const from = expressionFrom + r.from;
               const to = expressionFrom + r.to;
-              program.metadata ??= {};
               program.metadata.lines ??= [];
               program.metadata.lines[currentToken.line] ??= {};
               program.metadata.lines[currentToken.line]!.references ??= [];
@@ -759,6 +786,11 @@ const checkExpressionValue = (
     currentSectionId,
     program.sections
   );
+  const colorMetadata = getColorMetadata(expression, expressionFrom);
+  if (colorMetadata) {
+    program.metadata.colors ??= [];
+    program.metadata.colors?.push(colorMetadata);
+  }
   const compiler = config?.compiler || defaultCompiler;
   const [, diagnostics, references] = compiler(expression, context);
   if (references?.length > 0) {
@@ -767,7 +799,6 @@ const checkExpressionValue = (
       if (r) {
         const from = expressionFrom + r.from;
         const to = expressionFrom + r.to;
-        program.metadata ??= {};
         program.metadata.lines ??= [];
         program.metadata.lines[currentToken.line] ??= {};
         program.metadata.lines[currentToken.line]!.references ??= [];
@@ -975,6 +1006,11 @@ const getVariableExpressionValue = (
     currentSectionId,
     program.sections
   );
+  const colorMetadata = getColorMetadata(expression, expressionFrom);
+  if (colorMetadata) {
+    program.metadata.colors ??= [];
+    program.metadata.colors?.push(colorMetadata);
+  }
   const compiler = config?.compiler || defaultCompiler;
   const [result, diagnostics, references] = compiler(expression, context);
   if (references?.length > 0) {
@@ -983,7 +1019,6 @@ const getVariableExpressionValue = (
       if (r) {
         const from = expressionFrom + r.from;
         const to = expressionFrom + r.to;
-        program.metadata ??= {};
         program.metadata.lines ??= [];
         program.metadata.lines[currentToken.line] ??= {};
         program.metadata.lines[currentToken.line]!.references ??= [];
@@ -2718,6 +2753,14 @@ export const parseSpark = (
                 currentSectionId,
                 program.sections
               );
+              const colorMetadata = getColorMetadata(
+                expression,
+                expressionFrom
+              );
+              if (colorMetadata) {
+                program.metadata.colors ??= [];
+                program.metadata.colors?.push(colorMetadata);
+              }
               const compiler = config?.compiler || defaultCompiler;
               const [result, diagnostics, references] = compiler(
                 expression,

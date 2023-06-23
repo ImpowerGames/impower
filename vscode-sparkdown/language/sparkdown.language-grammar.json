@@ -349,7 +349,7 @@
       }
     },
     "Import": {
-      "match": "^([ \\t]*)(import)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)([^\\n\\r:]+)(?![:])$",
+      "match": "^([ \\t]*)(import)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)([^\\n\\r:]+)$",
       "captures": {
         "2": {
           "tag": "logicOperator",
@@ -1675,19 +1675,19 @@
     "HEXColor": {
       "tag": "string",
       "name": "string.color.hex.sd",
-      "match": "(#)((?:[0-9a-f]{2}){2,4})",
+      "match": "(#)((?:[0-9a-fA-F]{2}){2,4})",
       "color": true
     },
     "RGBColor": {
       "tag": "string",
       "name": "string.color.rgb.sd",
-      "match": "(rgb)([(](?:-?\\d+%?[\\s]+){2,3}\\s*[/]\\s*[\\d\\.]+%?[)])",
+      "match": "(rgb)([(][\\d]+[\\s]+[\\d]+[\\s]+[\\d]+(?:[\\s]*[/][\\s]*[\\d.]+[%]?)?[)])",
       "color": true
     },
     "HSLColor": {
       "tag": "string",
       "name": "string.color.hsl.sd",
-      "match": "(hsl)([(](?:-?\\d+%?[\\s]+){2,3}\\s*[/]\\s*[\\d\\.]+%?[)])",
+      "match": "(hsl)([(][\\d]+[\\s]+[\\d]+[%]?[\\s]+[\\d]+[%]?(?:[\\s]*[/][\\s]*[\\d.]+[%]?)?[)])",
       "color": true
     }
   }
