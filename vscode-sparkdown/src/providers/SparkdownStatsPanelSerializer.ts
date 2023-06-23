@@ -58,12 +58,12 @@ export async function refreshPanel(
     version: document.version,
     loading: true,
   });
-  const parsed = parseState.parsedDocuments[document.uri.toString()];
-  if (parsed) {
+  const program = parseState.parsedPrograms[document.uri.toString()];
+  if (program) {
     const stats = await retrieveScreenPlayStatistics(
       context,
       document.getText(),
-      parsed,
+      program,
       config
     );
     statspanel.webview.postMessage({

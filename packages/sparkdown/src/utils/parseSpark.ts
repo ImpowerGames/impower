@@ -14,7 +14,7 @@ import { SparkParseState } from "../types/SparkParseState";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkParserContext } from "../types/SparkParserContext";
 import { SparkProgram } from "../types/SparkProgram";
-import { SparkProperties } from "../types/SparkProperties";
+import { SparkProgramMetadata } from "../types/SparkProgramMetadata";
 import { SparkSection } from "../types/SparkSection";
 import { SparkStruct } from "../types/SparkStruct";
 import { SparkTitleKeyword } from "../types/SparkTitleKeyword";
@@ -52,12 +52,12 @@ import { updateObjectMap } from "./updateObjectMap";
 const EMPTY_OBJECT = {};
 
 const getLastStructureItem = (
-  parsed: { properties?: SparkProperties },
+  parsed: { metadata?: SparkProgramMetadata },
   condition: (token?: StructureItem) => boolean = () => true
 ): StructureItem | undefined => {
-  parsed.properties ??= {};
-  parsed.properties.structure ??= {};
-  const structures = Object.values(parsed.properties.structure);
+  parsed.metadata ??= {};
+  parsed.metadata.structure ??= {};
+  const structures = Object.values(parsed.metadata.structure);
   for (let i = structures.length - 1; i >= 0; i -= 1) {
     const structItem = structures[i];
     if (!condition || condition(structItem)) {
@@ -70,7 +70,7 @@ const getLastStructureItem = (
 const diagnostic = (
   parsed: {
     diagnostics?: SparkDiagnostic[];
-    properties?: SparkProperties;
+    metadata?: SparkProgramMetadata;
   },
   currentToken: { from: number; to: number; line: number; offset?: number },
   message = "",
@@ -121,7 +121,7 @@ const diagnostic = (
       actions,
     });
   }
-  if (parsed.properties?.structure) {
+  if (parsed.metadata?.structure) {
     const latestStructureItem = getLastStructureItem(parsed);
     const severityOrder = ["info", "warning", "error"];
     if (
@@ -131,7 +131,7 @@ const diagnostic = (
     ) {
       latestStructureItem.state = severity;
       getAncestorIds(latestStructureItem.id).forEach((id) => {
-        const structureItem = parsed.properties?.structure?.[id];
+        const structureItem = parsed.metadata?.structure?.[id];
         if (
           structureItem &&
           severityOrder.indexOf(severity) >
@@ -352,16 +352,18 @@ const addSection = (
   nameTo: number
 ): void => {
   const id = currentSectionId;
-  program.sections ??= {};
-  program.references ??= {};
-  program.references[section.line] ??= [];
-  program.references[section.line]?.push({
+  program.metadata ??= {};
+  program.metadata.lines ??= [];
+  program.metadata.lines[section.line] ??= {};
+  program.metadata.lines[section.line]!.references ??= [];
+  program.metadata.lines[section.line]!.references!.push({
     from: nameFrom,
     to: nameTo,
     name: section.name,
     id,
     declaration: true,
   });
+  program.sections ??= {};
   if (id) {
     const parentId = id.split(".").slice(0, -1).join(".");
     section.parent = parentId;
@@ -399,8 +401,10 @@ const addSection = (
   }
   section.index = Object.keys(program.sections).length;
   program.sections[id] = section;
-  program.sectionLines ??= {};
-  program.sectionLines[section.line] ??= id;
+  program.metadata ??= {};
+  program.metadata.lines ??= [];
+  program.metadata.lines[section.line] ??= {};
+  program.metadata.lines[section.line]!.section ??= id;
 };
 
 const getSection = (
@@ -417,9 +421,16 @@ const getSection = (
   }
   const id = findSectionId(program.sections, currentSectionId, name);
   const found = program.sections?.[id || ""];
-  program.references ??= {};
-  program.references[currentToken.line] ??= [];
-  program.references[currentToken.line]?.push({ from, to, name, id });
+  program.metadata ??= {};
+  program.metadata.lines ??= [];
+  program.metadata.lines[currentToken.line] ??= {};
+  program.metadata.lines[currentToken.line]!.references ??= [];
+  program.metadata.lines[currentToken.line]!.references!.push({
+    from,
+    to,
+    name,
+    id,
+  });
   if (!found) {
     diagnostic(
       program,
@@ -534,9 +545,11 @@ const getArgumentValues = (
             if (r) {
               const from = expressionFrom + r.from;
               const to = expressionFrom + r.to;
-              program.references ??= {};
-              program.references[currentToken.line] ??= [];
-              program.references[currentToken.line]?.push({
+              program.metadata ??= {};
+              program.metadata.lines ??= [];
+              program.metadata.lines[currentToken.line] ??= {};
+              program.metadata.lines[currentToken.line]!.references ??= [];
+              program.metadata.lines[currentToken.line]!.references!?.push({
                 from,
                 to,
                 name: r.content,
@@ -754,9 +767,11 @@ const checkExpressionValue = (
       if (r) {
         const from = expressionFrom + r.from;
         const to = expressionFrom + r.to;
-        program.references ??= {};
-        program.references[currentToken.line] ??= [];
-        program.references[currentToken.line]?.push({
+        program.metadata ??= {};
+        program.metadata.lines ??= [];
+        program.metadata.lines[currentToken.line] ??= {};
+        program.metadata.lines[currentToken.line]!.references ??= [];
+        program.metadata.lines[currentToken.line]!.references!?.push({
           from,
           to,
           name: r.content,
@@ -968,9 +983,11 @@ const getVariableExpressionValue = (
       if (r) {
         const from = expressionFrom + r.from;
         const to = expressionFrom + r.to;
-        program.references ??= {};
-        program.references[currentToken.line] ??= [];
-        program.references[currentToken.line]?.push({
+        program.metadata ??= {};
+        program.metadata.lines ??= [];
+        program.metadata.lines[currentToken.line] ??= {};
+        program.metadata.lines[currentToken.line]!.references ??= [];
+        program.metadata.lines[currentToken.line]!.references!?.push({
           from,
           to,
           name: r.content,
@@ -1031,9 +1048,16 @@ const getStruct = (
   }
   const id = findStructId(program.structs, name);
   const found = program.structs?.[id || ""];
-  program.references ??= {};
-  program.references[currentToken.line] ??= [];
-  program.references[currentToken.line]?.push({ from, to, name, id });
+  program.metadata ??= {};
+  program.metadata.lines ??= [];
+  program.metadata.lines[currentToken.line] ??= {};
+  program.metadata.lines[currentToken.line]!.references ??= [];
+  program.metadata.lines[currentToken.line]!.references!?.push({
+    from,
+    to,
+    name,
+    id,
+  });
   if (!found) {
     diagnostic(
       program,
@@ -1076,9 +1100,16 @@ const getVariable = (
   }
   const id = findVariableId(program.variables, currentSectionId, name);
   const found = program.variables?.[id || ""];
-  program.references ??= {};
-  program.references[currentToken.line] ??= [];
-  program.references[currentToken.line]?.push({ from, to, name, id });
+  program.metadata ??= {};
+  program.metadata.lines ??= [];
+  program.metadata.lines[currentToken.line] ??= {};
+  program.metadata.lines[currentToken.line]!.references ??= [];
+  program.metadata.lines[currentToken.line]!.references!?.push({
+    from,
+    to,
+    name,
+    id,
+  });
   if (!found) {
     const itemType =
       typeof type === "string"
@@ -1205,9 +1236,11 @@ const addStruct = (
   ) {
     return;
   }
-  program.references ??= {};
-  program.references[currentToken.line] ??= [];
-  program.references[currentToken.line]?.push({
+  program.metadata ??= {};
+  program.metadata.lines ??= [];
+  program.metadata.lines[currentToken.line] ??= {};
+  program.metadata.lines[currentToken.line]!.references ??= [];
+  program.metadata.lines[currentToken.line]!.references!?.push({
     from: nameFrom,
     to: nameTo,
     name,
@@ -1290,9 +1323,11 @@ const addVariable = (
   ) {
     return null;
   }
-  program.references ??= {};
-  program.references[currentToken.line] ??= [];
-  program.references[currentToken.line]?.push({
+  program.metadata ??= {};
+  program.metadata.lines ??= [];
+  program.metadata.lines[currentToken.line] ??= {};
+  program.metadata.lines[currentToken.line]!.references ??= [];
+  program.metadata.lines[currentToken.line]!.references!?.push({
     from: nameFrom,
     to: nameTo,
     name,
@@ -1366,9 +1401,11 @@ const addField = (
       return;
     }
     if (id) {
-      program.references ??= {};
-      program.references[line] ??= [];
-      program.references[line]?.push({
+      program.metadata ??= {};
+      program.metadata.lines ??= [];
+      program.metadata.lines[currentToken.line] ??= {};
+      program.metadata.lines[currentToken.line]!.references ??= [];
+      program.metadata.lines[currentToken.line]!.references!?.push({
         from: nameFrom,
         to: nameTo,
         name: name,
@@ -1586,8 +1623,12 @@ const pushToken = (
     return;
   }
   if (updateLines) {
-    program.tokenLines ??= {};
-    program.tokenLines[token.line] = program.tokens.length;
+    const tokenIndex = program.tokens.length;
+    program.metadata ??= {};
+    program.metadata.lines ??= [];
+    program.metadata.lines[token.line] ??= {};
+    program.metadata.lines[token.line]!.tokens ??= [];
+    program.metadata.lines[token.line]!.tokens!.push(tokenIndex);
   }
   program.tokens.push(token);
   program.sections ??= {};
@@ -1782,10 +1823,10 @@ const processDisplayedContent = (
   }
   if (token.type === "action") {
     token.duration = calculateSpeechDuration(token.text);
-    program.properties ??= {};
-    program.properties.actionDuration =
-      (program.properties.actionDuration || 0) + token.duration;
-    const currentScene = program.properties?.scenes?.[state.sceneIndex || 0];
+    program.metadata ??= {};
+    program.metadata.actionDuration =
+      (program.metadata.actionDuration || 0) + token.duration;
+    const currentScene = program.metadata?.scenes?.[state.sceneIndex || 0];
     if (currentScene) {
       currentScene.actionDuration =
         (currentScene.actionDuration || 0) + token.duration;
@@ -1793,10 +1834,10 @@ const processDisplayedContent = (
   }
   if (token.type === "dialogue") {
     token.duration = calculateSpeechDuration(token.text);
-    program.properties ??= {};
-    program.properties.dialogueDuration =
-      (program.properties.dialogueDuration || 0) + token.duration;
-    const currentScene = program.properties?.scenes?.[state.sceneIndex || 0];
+    program.metadata ??= {};
+    program.metadata.dialogueDuration =
+      (program.metadata.dialogueDuration || 0) + token.duration;
+    const currentScene = program.metadata?.scenes?.[state.sceneIndex || 0];
     if (currentScene) {
       currentScene.dialogueDuration =
         (currentScene.dialogueDuration || 0) + token.duration;
@@ -2255,10 +2296,8 @@ export const parseSpark = (
 ): SparkProgram => {
   const program: SparkProgram = {
     tokens: [],
-    tokenLines: {},
-    properties: {},
+    metadata: {},
     diagnostics: [],
-    references: [],
   };
 
   const parseStartTime = Date.now();
@@ -2279,8 +2318,8 @@ export const parseSpark = (
 
   hoistDeclarations(program, config, newLineLength, lines);
 
-  program.properties ??= {};
-  program.properties.structure = {
+  program.metadata ??= {};
+  program.metadata.structure = {
     "": {
       type: "section",
       level: 0,
@@ -2490,9 +2529,8 @@ export const parseSpark = (
     if (stateType === "normal") {
       if (currentToken.content.match(sparkRegexes.line_break)) {
         tokenCategory = "none";
-      } else if (program.properties?.firstTokenLine === undefined) {
-        program.properties ??= {};
-        program.properties.firstTokenLine = currentToken.line;
+      } else if (program.metadata?.firstScriptLine === undefined) {
+        program.metadata.firstScriptLine = currentToken.line;
         currentLevel = 0;
       }
 
@@ -2537,9 +2575,8 @@ export const parseSpark = (
             currentToken,
             currentToken.from + currentToken.offset + extraOffset
           );
-          program.properties ??= {};
-          program.properties.scenes ??= [];
-          state.sceneIndex = program.properties.scenes.length || 0;
+          program.metadata.scenes ??= [];
+          state.sceneIndex = program.metadata.scenes.length || 0;
           currentToken.scene = scene || state.sceneIndex + 1;
           const environmentTrimmed = environmentText?.toLowerCase()?.trim();
           currentToken.environment =
@@ -2551,27 +2588,19 @@ export const parseSpark = (
               : environmentTrimmed?.startsWith("ext.")
               ? "ext"
               : "other";
-          program.properties.scenes.push({
-            name: currentToken.content,
+          program.metadata.scenes.push({
             scene: currentToken.scene,
+            name: currentToken.content,
             line: currentToken.line,
+            location,
+            time,
             actionDuration: 0,
             dialogueDuration: 0,
           });
-          program.sceneLines ??= {};
-          program.sceneLines[currentToken.line] ??= state.sceneIndex;
-          program.properties.locations ??= {};
-          if (program.properties.locations[location]) {
-            program.properties.locations[location]?.push(currentToken.line);
-          } else {
-            program.properties.locations[location] = [currentToken.line];
-          }
-          program.properties.times ??= {};
-          if (program.properties.times[time]) {
-            program.properties.times[time]?.push(currentToken.line);
-          } else {
-            program.properties.times[time] = [currentToken.line];
-          }
+          program.metadata ??= {};
+          program.metadata.lines ??= [];
+          program.metadata.lines[currentToken.line] ??= {};
+          program.metadata.lines[currentToken.line]!.scene = state.sceneIndex;
 
           const latestSection = getLastStructureItem(
             program,
@@ -2593,8 +2622,8 @@ export const parseSpark = (
               children: [],
             };
             latestSection.children.push(structureItem.id);
-            program.properties.structure ??= {};
-            program.properties.structure[structureItem.id] = structureItem;
+            program.metadata.structure ??= {};
+            program.metadata.structure[structureItem.id] = structureItem;
           }
         }
       } else if (
@@ -2700,8 +2729,14 @@ export const parseSpark = (
                   if (r) {
                     const from = expressionFrom + r.from;
                     const to = expressionFrom + r.to;
-                    program.references[currentToken.line] ??= [];
-                    program.references[currentToken.line]?.push({
+                    program.metadata ??= {};
+                    program.metadata.lines ??= [];
+                    program.metadata.lines[currentToken.line] ??= {};
+                    program.metadata.lines[currentToken.line]!.references ??=
+                      [];
+                    program.metadata.lines[
+                      currentToken.line
+                    ]!.references!?.push({
                       from,
                       to,
                       name: r.content,
@@ -2950,8 +2985,7 @@ export const parseSpark = (
       } else if ((match = currentToken.content.match(sparkRegexes.synopsis))) {
         currentToken.type = "synopsis";
         currentToken.content = match[4] || "";
-        program.properties ??= {};
-        program.properties.structure ??= {};
+        program.metadata.structure ??= {};
         const latestSectionOrScene = getLastStructureItem(
           program,
           (t) => t?.type === "section" || t?.type === "scene"
@@ -2971,8 +3005,8 @@ export const parseSpark = (
             children: [],
           };
           latestSectionOrScene.children.push(structureItem.id);
-          program.properties.structure ??= {};
-          program.properties.structure[structureItem.id] = structureItem;
+          program.metadata.structure ??= {};
+          program.metadata.structure[structureItem.id] = structureItem;
         }
       } else if ((match = currentToken.content.match(sparkRegexes.section))) {
         currentToken.type = "section";
@@ -3061,8 +3095,8 @@ export const parseSpark = (
               children: [],
             };
             latestSection.children.push(structureItem.id);
-            program.properties.structure ??= {};
-            program.properties.structure[structureItem.id] = structureItem;
+            program.metadata.structure ??= {};
+            program.metadata.structure[structureItem.id] = structureItem;
           }
         }
       } else if (
@@ -3155,20 +3189,20 @@ export const parseSpark = (
           const character: string = trimCharacterExtension(
             currentToken.content
           ).trim();
-          const characterName = character.replace(/\^$/, "").trim();
-          program.properties ??= {};
-          program.properties.characters ??= {};
-          if (program.properties.characters[characterName]) {
-            program.properties.characters[characterName]?.push(
-              currentToken.line
-            );
-          } else {
-            program.properties.characters[characterName] = [currentToken.line];
-          }
+          const characterName = character.replace(/[\^]$/, "").trim();
+          program.metadata.characters ??= {};
+          program.metadata.characters[characterName] ??= {};
+          program.metadata.characters[characterName]!.name = characterName;
+          program.metadata.characters[characterName]!.lines ??= [];
+          program.metadata.characters[characterName]!.lines!.push(
+            currentToken.line
+          );
           state.character = currentToken.content;
           lastCharacterIndex = program.tokens.length;
-          program.dialogueLines ??= {};
-          program.dialogueLines[currentToken.line] = characterName;
+          program.metadata ??= {};
+          program.metadata.lines ??= [];
+          program.metadata.lines[currentToken.line] ??= {};
+          program.metadata.lines[currentToken.line]!.character = characterName;
         }
       } else if (
         currentToken.content?.match(sparkRegexes.note) &&
@@ -3483,8 +3517,8 @@ export const parseSpark = (
     program.tokens.pop();
   }
   const parseEndTime = Date.now();
-  program.parseTime = parseEndTime;
-  program.parseDuration = parseEndTime - parseStartTime;
+  program.metadata.parseTime = parseEndTime;
+  program.metadata.parseDuration = parseEndTime - parseStartTime;
   program.objectMap ??= {};
   updateObjectMap(program.objectMap, program.structs);
   // console.log(parsed);

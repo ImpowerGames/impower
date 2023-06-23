@@ -8,33 +8,33 @@ import { CommandData } from "../../data";
 import { generateCommand } from "./generateCommand";
 
 export const getPreviewCommand = (
-  result: {
+  program: {
     tokens: SparkToken[];
-    tokenLines: Record<number, number>;
+    metadata: { lines: { tokens: number[] }[] };
     sections?: Record<string, SparkSection>;
     structs?: Record<string, SparkStruct>;
   },
   line: number
 ): CommandData | null | undefined => {
-  if (!result) {
+  if (!program) {
     return undefined;
   }
   if (!line) {
     return undefined;
   }
-  let tokenIndex = result.tokenLines[line] || -1;
-  let token = result.tokens[tokenIndex];
+  let tokenIndex = program.metadata?.lines[line]?.tokens?.[0] || -1;
+  let token = program.tokens[tokenIndex];
   if (!token) {
     return null;
   }
-  while (tokenIndex < result.tokens.length && token?.skipToNextPreview) {
+  while (tokenIndex < program.tokens.length && token?.skipToNextPreview) {
     tokenIndex += 1;
-    token = result.tokens[tokenIndex];
+    token = program.tokens[tokenIndex];
   }
   if (!token) {
     return null;
   }
-  const [sectionId] = getSectionAtLine(line, result?.sections || {});
+  const [sectionId] = getSectionAtLine(line, program?.sections || {});
   const runtimeCommand = generateCommand(token, sectionId);
   return runtimeCommand;
 };

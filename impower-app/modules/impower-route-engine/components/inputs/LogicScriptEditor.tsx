@@ -14,12 +14,12 @@ import {
   getPreviewCommand,
   getScriptAugmentations,
   previewLine,
-} from "../../../../../spark-engine";
-import { evaluate } from "../../../../../spark-evaluate";
+} from "../../../../../packages/spark-engine/src";
+import { evaluate } from "../../../../../packages/spark-evaluate/src";
 import {
   SparkProgram,
   getGlobalValueContext,
-} from "../../../../../sparkdown";
+} from "../../../../../packages/sparkdown/src";
 import { debounce } from "../../../impower-core";
 import { FadeAnimation } from "../../../impower-route";
 import {
@@ -336,7 +336,7 @@ const LogicScriptEditor = React.memo(
         }
         const parseResult = parseResultRef.current;
         const firstVisibleTokenIndex =
-          parseResult?.tokenLines?.[firstVisibleLine];
+          parseResult?.metadata?.lines?.[firstVisibleLine]?.tokens?.[0] ?? -1;
         if (firstVisibleTokenIndex >= 0) {
           let lastSectionName = "";
           for (let i = firstVisibleTokenIndex - 2; i >= 0; i -= 1) {

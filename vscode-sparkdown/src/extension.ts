@@ -100,7 +100,7 @@ vscode.workspace.onDidSaveTextDocument((doc) => {
 });
 
 vscode.workspace.onDidCloseTextDocument((doc) => {
-  delete parseState.parsedDocuments[doc.uri.toString()];
+  delete parseState.parsedPrograms[doc.uri.toString()];
   if (fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher) {
     fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher?.dispose();
   }

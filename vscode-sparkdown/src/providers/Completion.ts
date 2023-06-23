@@ -126,7 +126,7 @@ export class SparkdownCompletionProvider
     document: vscode.TextDocument,
     position: vscode.Position /* token: CancellationToken, context: CompletionContext*/
   ): vscode.CompletionItem[] {
-    const parsedDocument = parseState.parsedDocuments[document.uri.toString()];
+    const program = parseState.parsedPrograms[document.uri.toString()];
     const completes: vscode.CompletionItem[] = [];
     const currentLine = document.getText(
       new vscode.Range(new vscode.Position(position.line, 0), position)
@@ -137,18 +137,15 @@ export class SparkdownCompletionProvider
       )
       .trimEnd();
     const hasCharacters =
-      Object.keys(parsedDocument?.properties?.characters || {}).length > 0;
+      Object.keys(program?.metadata?.characters || {}).length > 0;
     const currentLineIsEmpty = currentLine === "";
     const previousLineIsEmpty = prevLine === "";
-    const firstScriptLine = parsedDocument?.properties?.firstTokenLine;
+    const firstScriptLine = program?.metadata?.firstScriptLine ?? 0;
 
     //Title page autocomplete
-    if (
-      firstScriptLine === undefined ||
-      (firstScriptLine || 0) >= position.line
-    ) {
+    if (position.line <= firstScriptLine) {
       if (currentLine.indexOf(":") === -1) {
-        if (!parsedDocument?.titleTokens?.["title"]) {
+        if (!program?.titleTokens?.["title"]) {
           completes.push(
             TitlePageKey({
               name: "Title",
@@ -158,7 +155,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["credit"]) {
+        if (!program?.titleTokens?.["credit"]) {
           completes.push(
             TitlePageKey({
               name: "Credit",
@@ -171,7 +168,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["author"]) {
+        if (!program?.titleTokens?.["author"]) {
           completes.push(
             TitlePageKey({
               name: "Author",
@@ -184,7 +181,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["source"]) {
+        if (!program?.titleTokens?.["source"]) {
           completes.push(
             TitlePageKey({
               name: "Source",
@@ -197,7 +194,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["notes"]) {
+        if (!program?.titleTokens?.["notes"]) {
           completes.push(
             TitlePageKey({
               name: "Notes",
@@ -209,7 +206,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["draft_date"]) {
+        if (!program?.titleTokens?.["draft_date"]) {
           completes.push(
             TitlePageKey({
               name: "Draft Date",
@@ -222,7 +219,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["date"]) {
+        if (!program?.titleTokens?.["date"]) {
           completes.push(
             TitlePageKey({
               name: "Date",
@@ -236,8 +233,8 @@ export class SparkdownCompletionProvider
           );
         }
         if (
-          !parsedDocument?.titleTokens?.["contact"] ||
-          !parsedDocument?.titleTokens?.["contact_info"]
+          !program?.titleTokens?.["contact"] ||
+          !program?.titleTokens?.["contact_info"]
         ) {
           completes.push(
             TitlePageKey({
@@ -249,7 +246,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["copyright"]) {
+        if (!program?.titleTokens?.["copyright"]) {
           completes.push(
             TitlePageKey({
               name: "Copyright",
@@ -263,7 +260,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["watermark"]) {
+        if (!program?.titleTokens?.["watermark"]) {
           completes.push(
             TitlePageKey({
               name: "Watermark",
@@ -275,7 +272,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["font"]) {
+        if (!program?.titleTokens?.["font"]) {
           completes.push(
             TitlePageKey({
               name: "Font",
@@ -287,7 +284,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["language"]) {
+        if (!program?.titleTokens?.["language"]) {
           completes.push(
             TitlePageKey({
               name: "Language",
@@ -298,7 +295,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!parsedDocument?.titleTokens?.["revision"]) {
+        if (!program?.titleTokens?.["revision"]) {
           completes.push(
             TitlePageKey({
               name: "Revision",
@@ -467,7 +464,7 @@ export class SparkdownCompletionProvider
       }
     }
     //Scene header autocomplete
-    else if (parsedDocument?.sceneLines?.[position.line] !== undefined) {
+    else if (program?.metadata?.lines?.[position.line]?.scene !== undefined) {
       //Time of day
       if (currentLine.trimEnd().endsWith("-")) {
         const addSpace = !currentLine.endsWith(" ");
@@ -482,9 +479,7 @@ export class SparkdownCompletionProvider
         if (sceneMatch) {
           const previousLabels = [];
           const sceneNames = Array.from(
-            new Set(
-              (parsedDocument.properties?.scenes || [])?.map((x) => x.name)
-            )
+            new Set((program?.metadata?.scenes || [])?.map((x) => x.name))
           );
           for (let index = 0; index < sceneNames.length; index++) {
             const sceneName = sceneNames[index];
@@ -533,10 +528,10 @@ export class SparkdownCompletionProvider
 			}*/
       let charactersWhoSpokeBeforeLast = undefined;
       const charactersFromCurrentSceneHash = new Set();
-      if (parsedDocument && hasCharacters) {
+      if (program && hasCharacters) {
         // The characters who spoke before the last one, within the current scene
         charactersWhoSpokeBeforeLast = getCharactersWhoSpokeBeforeLine(
-          parsedDocument,
+          program,
           position.line
         );
         if (charactersWhoSpokeBeforeLast.length > 0) {
@@ -595,22 +590,20 @@ export class SparkdownCompletionProvider
         ) {
           sortText = "0A"; //There's no characters in the current scene, suggest characters before INT/EXT
         }
-        Object.entries(parsedDocument?.properties?.characters || {}).forEach(
-          ([key]) => {
-            if (!charactersFromCurrentSceneHash.has(key)) {
-              completes.push({
-                label: key,
-                sortText: sortText,
-                kind: vscode.CompletionItemKind.Text,
-                command: {
-                  command: "type",
-                  arguments: [{ text: "\n" }],
-                  title: "newline",
-                },
-              });
-            }
+        Object.keys(program?.metadata?.characters || {}).forEach((key) => {
+          if (!charactersFromCurrentSceneHash.has(key)) {
+            completes.push({
+              label: key,
+              sortText: sortText,
+              kind: vscode.CompletionItemKind.Text,
+              command: {
+                command: "type",
+                arguments: [{ text: "\n" }],
+                title: "newline",
+              },
+            });
           }
-        );
+        });
       }
     }
     return completes;

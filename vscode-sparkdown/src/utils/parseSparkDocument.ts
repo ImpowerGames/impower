@@ -11,19 +11,19 @@ import { updateStatus } from "./updateStatus";
 export const parseSparkDocument = (document: vscode.TextDocument) => {
   performance.mark("parseSparkDocument-start");
   const structs = fileState[document.uri.toString()]?.assets;
-  const output = GameSparkParser.instance.parse(document.getText(), {
+  const program = GameSparkParser.instance.parse(document.getText(), {
     augmentations: { structs },
   });
   parseState.lastParsedUri = document.uri.toString();
-  parseState.parsedDocuments[parseState.lastParsedUri] = output;
+  parseState.parsedPrograms[parseState.lastParsedUri] = program;
   updateScreenplayPreviews(document);
   updateGamePreviews(document);
   updateOutline(document);
   updateStatus(
-    output.properties?.actionDuration || 0,
-    output.properties?.dialogueDuration || 0
+    program?.metadata?.actionDuration || 0,
+    program?.metadata?.dialogueDuration || 0
   );
-  updateDiagnostics(document.uri, output.diagnostics);
+  updateDiagnostics(document.uri, program.diagnostics);
   performance.mark("parseSparkDocument-end");
   performance.measure(
     "parseSparkDocument",

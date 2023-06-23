@@ -6,7 +6,7 @@ import {
   Range,
   TextEdit,
 } from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import SparkdownTextDocuments from "../classes/SparkdownTextDocuments";
 
 const registerColorProvider = (
@@ -17,31 +17,17 @@ const registerColorProvider = (
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.program(uri);
-    console.log(program);
-    return getColorInformation(document);
+    return getColorInformation(program);
   });
   connection.onColorPresentation((params) => {
     return getColorPresentation(params.color, params.range);
   });
 };
 
-const COLOR_REGEX = /#([0-9A-Fa-f]{6})/g;
-
-const enum CharCode {
-  Digit0 = 48,
-  Digit9 = 57,
-
-  A = 65,
-  F = 70,
-
-  a = 97,
-  f = 102,
-}
-
-const getColorInformation = (document: TextDocument | undefined) => {
+const getColorInformation = (program: SparkProgram | undefined) => {
   const result: ColorInformation[] = [];
 
-  if (document) {
+  if (program) {
     const text = document.getText();
 
     COLOR_REGEX.lastIndex = 0;
@@ -79,6 +65,19 @@ const getColorPresentation = (color: Color, range: Range) => {
 
   return result;
 };
+
+const COLOR_REGEX = /#([0-9A-Fa-f]{6})/g;
+
+const enum CharCode {
+  Digit0 = 48,
+  Digit9 = 57,
+
+  A = 65,
+  F = 70,
+
+  a = 97,
+  f = 102,
+}
 
 const parseHexDigit = (charCode: CharCode): number => {
   if (charCode >= CharCode.Digit0 && charCode <= CharCode.Digit9) {

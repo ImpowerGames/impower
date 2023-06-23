@@ -7,13 +7,13 @@ const getSparkReferenceAt = (
   pos: number,
   program: SparkProgram
 ): SparkReference | null => {
-  if (!program?.references) {
+  if (!program?.metadata?.lines) {
     return null;
   }
-  const lineReferences = program?.references[lineNumber];
-  if (lineReferences) {
-    for (let i = 0; i < lineReferences.length; i += 1) {
-      const found = lineReferences[i];
+  const line = program?.metadata?.lines[lineNumber];
+  if (line?.references) {
+    for (let i = 0; i < line?.references.length; i += 1) {
+      const found = line?.references[i];
       if (found && pos >= found.from && pos <= found.to) {
         return found;
       }

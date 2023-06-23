@@ -224,7 +224,7 @@ const getValue = (str: string): unknown => {
   if (!Number.isNaN(num)) {
     return num;
   }
-  const first = str[0];
+  const first = str[0]!;
   const last = str[str.length - 1];
   const isQuoted = first === last && ["'", '"', "`"].includes(first);
   if (isQuoted) {
@@ -412,7 +412,7 @@ const getOrCreateFileInput = (
     swapButtonEl.style.backgroundColor = HOVER_COLOR;
   };
   swapButtonEl.onclick = (): void => {
-    visible = VISIBLE_WAVE_TYPES[visibleIndex % VISIBLE_WAVE_TYPES.length];
+    visible = VISIBLE_WAVE_TYPES[visibleIndex % VISIBLE_WAVE_TYPES.length]!;
     visibleIndex += 1;
     if (visible === "reference") {
       swapButtonEl.style.color = REFERENCE_COLOR;
@@ -507,7 +507,7 @@ const drawSoundWaveform = (
     for (let x = visibleStartX; x < visibleEndX; x += 1) {
       const bufferIndex = getSampleIndex(x, startX, endX, bufferLength);
       if (bufferIndex >= 0) {
-        const val = pitchBuffer[bufferIndex];
+        const val = pitchBuffer[bufferIndex]!;
         const mag =
           maxPitch === minPitch
             ? 0.5
@@ -531,7 +531,7 @@ const drawSoundWaveform = (
     for (let x = visibleStartX; x < visibleEndX; x += 1) {
       const bufferIndex = getSampleIndex(x, startX, endX, bufferLength);
       if (bufferIndex >= 0) {
-        const val = volumeBuffer[bufferIndex];
+        const val = volumeBuffer[bufferIndex]!;
         const delta = val * (height / 2);
         const y = startY - delta;
         ctx.lineTo(x, y);
@@ -551,7 +551,7 @@ const drawSoundWaveform = (
     for (let x = visibleStartX; x < visibleEndX; x += 1) {
       const bufferIndex = getSampleIndex(x, startX, endX, bufferLength);
       if (bufferIndex >= 0) {
-        const val = referenceBuffer[bufferIndex];
+        const val = referenceBuffer[bufferIndex]!;
         const delta = val * 50;
         const y = startY + delta;
         ctx.lineTo(x, y);
@@ -569,7 +569,7 @@ const drawSoundWaveform = (
     for (let x = visibleStartX; x < visibleEndX; x += 1) {
       const bufferIndex = getSampleIndex(x, startX, endX, bufferLength);
       if (bufferIndex >= 0) {
-        const val = soundBuffer[bufferIndex];
+        const val = soundBuffer[bufferIndex]!;
         const delta = val * 50;
         const y = startY + delta;
         ctx.lineTo(x, y);
@@ -591,18 +591,18 @@ const getStructs = (view: EditorView): Record<string, SparkStruct> => {
 
 const getStruct = (view: EditorView, from: number): SparkStruct | null => {
   const [parseContext] = view.state.facet(parseContextState);
-  const result = parseContext?.program;
-  if (!result) {
+  const program = parseContext?.program;
+  if (!program) {
     return null;
   }
   const line = view.state.doc.lineAt(Math.min(from, view.state.doc.length));
-  const tokenIndex = result.tokenLines[line.number];
-  const structToken = result.tokens[tokenIndex] as {
+  const tokenIndex = program.metadata?.lines?.[line.number]?.tokens?.[0] ?? -1;
+  const structToken = program.tokens[tokenIndex] as {
     struct?: string;
     name?: string;
   };
   const structName = structToken?.struct || structToken?.name || "";
-  return result.structs?.[structName] ?? null;
+  return program.structs?.[structName] ?? null;
 };
 
 const autofillStruct = (
@@ -907,7 +907,7 @@ const structDecorations = (view: EditorView): DecorationSet => {
             if (struct) {
               const structType = struct?.type;
               const defaultStructObj = structDefaultMap[structType]?.[""];
-              const validation = structValidationMap[structType];
+              const validation = structValidationMap[structType]!;
               const randomizations = structRandomizationsMap[structType];
               const randomizationOptions: Record<
                 string,
@@ -1059,10 +1059,11 @@ const structDecorations = (view: EditorView): DecorationSet => {
             const to = node?.to;
             const [parseContext] = view.state.facet(parseContextState);
             const line = view.state.doc.lineAt(to);
-            const result = parseContext.program;
-            if (result) {
-              const tokenIndex = result.tokenLines[line.number];
-              const structFieldToken = result.tokens[
+            const program = parseContext?.program;
+            if (program) {
+              const tokenIndex =
+                program.metadata?.lines?.[line.number]?.tokens?.[0] ?? -1;
+              const structFieldToken = program.tokens[
                 tokenIndex
               ] as SparkStructFieldToken;
               if (structFieldToken) {
@@ -1081,15 +1082,16 @@ const structDecorations = (view: EditorView): DecorationSet => {
             const to = node?.to;
             const [parseContext] = view.state.facet(parseContextState);
             const line = view.state.doc.lineAt(to);
-            const result = parseContext.program;
-            if (result) {
-              const tokenIndex = result.tokenLines[line.number];
-              const structFieldToken = result.tokens[
+            const program = parseContext?.program;
+            if (program) {
+              const tokenIndex =
+                program.metadata?.lines?.[line.number]?.tokens?.[0] ?? -1;
+              const structFieldToken = program.tokens[
                 tokenIndex
               ] as SparkStructFieldToken;
               if (structFieldToken) {
                 const structName = structFieldToken?.struct;
-                const struct = result.structs?.[structName || ""];
+                const struct = program.structs?.[structName || ""];
                 if (struct) {
                   const structField = struct.fields[structFieldToken.id];
                   const startValue = structField?.value;
@@ -1116,9 +1118,9 @@ const structDecorations = (view: EditorView): DecorationSet => {
                   if (range) {
                     const onDragging = throttle(
                       (
-                        e: MouseEvent,
-                        startX: number,
-                        x: number,
+                        _e: MouseEvent,
+                        _startX: number,
+                        _x: number,
                         fieldPreviewTextContent: string
                       ): void => {
                         const valueEl = getElement(id);
@@ -1149,9 +1151,9 @@ const structDecorations = (view: EditorView): DecorationSet => {
                       }
                     );
                     const onDragEnd = (
-                      e: MouseEvent,
-                      startX: number,
-                      x: number,
+                      _e: MouseEvent,
+                      _startX: number,
+                      _x: number,
                       fieldPreviewTextContent: string | undefined
                     ): void => {
                       const valueEl = getElement(id);

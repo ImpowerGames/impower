@@ -4,7 +4,7 @@ export const generateSparkCsvData = (program: SparkProgram): string[][] => {
   const language: string =
     program?.titleTokens?.["language"]?.[0]?.content || "en-US [English (US)]";
   const strings: string[][] = [["KEY", "CONTEXT", language]];
-  Object.keys(program.properties?.characters || {})
+  Object.keys(program?.metadata?.characters || {})
     ?.sort()
     ?.forEach((character) => {
       strings.push([character, "N:", character]);

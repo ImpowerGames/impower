@@ -5,9 +5,9 @@ import { parseState } from "../state/parseState";
 export class SparkdownFoldingRangeProvider implements FoldingRangeProvider {
   provideFoldingRanges(document: TextDocument): FoldingRange[] {
     const ranges: FoldingRange[] = [];
-    const doc = parseState.parsedDocuments[document.uri.toString()];
-    const structure = doc?.properties?.structure || {};
-    if (doc) {
+    const program = parseState.parsedPrograms[document.uri.toString()];
+    const structure = program?.metadata?.structure || {};
+    if (program) {
       const addRange = (
         structItem?: StructureItem,
         nextStructItem?: StructureItem,

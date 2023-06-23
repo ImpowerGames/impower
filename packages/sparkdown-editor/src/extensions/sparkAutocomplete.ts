@@ -19,6 +19,7 @@ import {
   getSectionAt,
   getSiblingIds,
   SparkProgram,
+  SparkProgramMetadata,
   sparkRegexes,
   SparkSection,
   SparkStructFieldToken,
@@ -606,20 +607,18 @@ export const sectionHeaderSnippets = (level: number): Completion[] => {
 };
 
 export const characterSnippets = (
-  characters: string[],
-  dialogueLines: Record<number, string>,
+  characterNames: string[],
+  metadata: SparkProgramMetadata,
   line: number,
   suffix = ""
 ): Completion[] => {
   const recentCharactersSet = new Set<string>();
-  if (dialogueLines) {
-    for (let i = line - 1; i >= 0; i -= 1) {
-      const dialogueLine = dialogueLines[i];
-      if (dialogueLine) {
-        recentCharactersSet.add(dialogueLine);
-        if (recentCharactersSet.size >= characters.length) {
-          break;
-        }
+  for (let i = line - 1; i >= 0; i -= 1) {
+    const dialogueCharacterName = metadata.lines?.[i]?.character;
+    if (dialogueCharacterName) {
+      recentCharactersSet.add(dialogueCharacterName);
+      if (recentCharactersSet.size >= characterNames.length) {
+        break;
       }
     }
   }
@@ -640,7 +639,7 @@ export const characterSnippets = (
       })
     );
   });
-  characters.forEach((name) => {
+  characterNames.forEach((name) => {
     if (!recentCharactersSet.has(name)) {
       result.push(
         snip(`${name + suffix}`, {
@@ -809,7 +808,7 @@ export const sparkAutocomplete = async (
     const completions: Completion[] = [];
     completions.push(
       ...nameSnippets(
-        Object.keys(program?.properties?.locations || {}),
+        Array.from(new Set(program?.metadata?.scenes?.map((s) => s.location))),
         "scene"
       )
     );
@@ -818,7 +817,10 @@ export const sparkAutocomplete = async (
   if ([Type.SceneTime].includes(node.type.id)) {
     const completions: Completion[] = [];
     completions.push(
-      ...nameSnippets(Object.keys(program?.properties?.times || {}), "scene")
+      ...nameSnippets(
+        Array.from(new Set(program?.metadata?.scenes?.map((s) => s.time))),
+        "scene"
+      )
     );
     return completeFromList(completions)(context);
   }
@@ -829,8 +831,8 @@ export const sparkAutocomplete = async (
       const completions: Completion[] = [];
       completions.push(
         ...characterSnippets(
-          Object.keys(program?.properties?.characters || {}),
-          program?.dialogueLines,
+          Object.keys(program?.metadata?.characters || {}),
+          program.metadata,
           line.number,
           `\n${CURSOR}`
         )
@@ -845,8 +847,8 @@ export const sparkAutocomplete = async (
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
-        Object.keys(program?.properties?.characters || {}),
-        program?.dialogueLines,
+        Object.keys(program?.metadata?.characters || {}),
+        program.metadata,
         line.number,
         `\n${CURSOR}`
       )
@@ -858,8 +860,8 @@ export const sparkAutocomplete = async (
     const completions: Completion[] = [];
     completions.push(
       ...characterSnippets(
-        Object.keys(program?.properties?.characters || {}),
-        program?.dialogueLines,
+        Object.keys(program?.metadata?.characters || {}),
+        program.metadata,
         line.number
       )
     );
@@ -915,7 +917,8 @@ export const sparkAutocomplete = async (
   }
   if ([Type.StructFieldName, Type.Struct].includes(node.type.id)) {
     const line = context.state.doc.lineAt(context.pos);
-    const tokenIndex = program.tokenLines[line.number];
+    const tokenIndex =
+      program.metadata?.lines?.[line.number]?.tokens?.[0] ?? -1;
     const token = program.tokens[tokenIndex];
     const structField = token as SparkStructFieldToken;
     const structName = structField?.struct;
@@ -967,7 +970,8 @@ export const sparkAutocomplete = async (
     const isStartOfString = [`""`, `''`, "''"].includes(input);
     const isPossiblyStartOfBoolean = [`t`, `f`].includes(input);
     if (isStartOfString || isPossiblyStartOfBoolean) {
-      const tokenIndex = program.tokenLines[line.number];
+      const tokenIndex =
+        program.metadata?.lines?.[line.number]?.tokens?.[0] ?? -1;
       const structField = program.tokens[tokenIndex] as SparkStructFieldToken;
       const structName = structField?.struct;
       const fieldId = structField?.id;

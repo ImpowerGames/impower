@@ -156,10 +156,10 @@ export class SparkdownOutlineTreeDataProvider
 
   update(uri?: vscode.Uri): void {
     const editor = getEditor(uri);
-    const result = editor
-      ? parseState.parsedDocuments[editor.document.uri.toString()]
-      : parseState.parsedDocuments[parseState.lastParsedUri];
-    const structure = result?.properties?.structure || {};
+    const program = editor
+      ? parseState.parsedPrograms[editor.document.uri.toString()]
+      : parseState.parsedPrograms[parseState.lastParsedUri];
+    const structure = program?.metadata?.structure || {};
     this.treeRoot = this.buildTree(this.context, structure, uri);
     this.onDidChangeTreeDataEmitter.fire(null);
   }

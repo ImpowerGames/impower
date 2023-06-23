@@ -2,31 +2,31 @@ import { SparkStruct, SparkToken } from "../../../../sparkdown/src";
 import { getSparkStruct } from "./getSparkStruct";
 
 export const getPreviewStruct = (
-  result: {
+  program: {
     tokens: SparkToken[];
-    tokenLines: Record<number, number>;
+    metadata: { lines: { tokens: number[] }[] };
     structs?: Record<string, SparkStruct>;
   },
   line: number
 ): SparkStruct | null | undefined => {
-  if (!result) {
+  if (!program) {
     return undefined;
   }
   if (!line) {
     return undefined;
   }
-  let tokenIndex = result.tokenLines[line] || -1;
-  let token = result.tokens[tokenIndex];
+  let tokenIndex = program.metadata?.lines[line]?.tokens?.[0] || -1;
+  let token = program.tokens[tokenIndex];
   if (!token) {
     return null;
   }
-  while (tokenIndex < result.tokens.length && token?.skipToNextPreview) {
+  while (tokenIndex < program.tokens.length && token?.skipToNextPreview) {
     tokenIndex += 1;
-    token = result.tokens[tokenIndex];
+    token = program.tokens[tokenIndex];
   }
   if (!token) {
     return null;
   }
-  const runtimeEntity = getSparkStruct(token, result?.structs || {});
+  const runtimeEntity = getSparkStruct(token, program?.structs || {});
   return runtimeEntity;
 };

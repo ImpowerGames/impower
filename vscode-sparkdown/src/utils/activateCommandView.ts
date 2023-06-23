@@ -74,17 +74,21 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
     if (!editor) {
       return;
     }
-    const parsed = parseState.parsedDocuments[editor.document.uri.toString()];
-    if (!parsed) {
+    const program = parseState.parsedPrograms[editor.document.uri.toString()];
+    if (!program) {
       return;
     }
     /* prevent the shiftScenes() being processed again before the document is re-parsed from the previous
             shiftScenes() (like when holding down the command key) so the selection doesn't slip */
-    if (parseState.lastShiftedParseId === parsed.parseTime + "_" + direction) {
+    if (
+      parseState.lastShiftedParseId ===
+      program.metadata?.parseTime + "_" + direction
+    ) {
       return;
     }
-    shiftScenes(editor, parsed, direction);
-    parseState.lastShiftedParseId = parsed.parseTime + "_" + direction;
+    shiftScenes(editor, program, direction);
+    parseState.lastShiftedParseId =
+      program.metadata?.parseTime + "_" + direction;
   };
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.shiftScenesUp", () =>

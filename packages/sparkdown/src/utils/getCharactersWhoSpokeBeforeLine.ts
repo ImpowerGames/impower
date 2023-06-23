@@ -6,9 +6,9 @@ export const getCharactersWhoSpokeBeforeLine = (
   line: number
 ) => {
   let searchIndex = 0;
-  const prevLine = program.tokenLines[line - 1];
-  if (prevLine) {
-    searchIndex = prevLine;
+  const prevLineTokenIndex = program.metadata?.lines?.[line - 1]?.tokens?.[0];
+  if (prevLineTokenIndex) {
+    searchIndex = prevLineTokenIndex;
   }
   let stopSearch = false;
   const previousCharacters: string[] = [];

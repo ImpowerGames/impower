@@ -1,7 +1,5 @@
 import * as vscode from "vscode";
-import { diagnosticState } from "../state/diagnosticState";
 import { editorState } from "../state/editorState";
-import { parseState } from "../state/parseState";
 import { previewState } from "../state/previewState";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownConfig } from "../utils/getSparkdownConfig";
@@ -34,43 +32,7 @@ export const loadWebView = async (
     };
   }
   panel.webview.onDidReceiveMessage(async (message) => {
-    if (message.command === "sparkdown.updateFontResult") {
-      const parsedDoc =
-        parseState.parsedDocuments[vscode.Uri.parse(message.uri).toString()];
-      if (parsedDoc) {
-        if (
-          message.content === false &&
-          parsedDoc.properties?.fontLine !== -1
-        ) {
-          //The font could not be rendered
-          diagnosticState.diagnostics.length = 0;
-          diagnosticState.diagnostics.push(
-            new vscode.Diagnostic(
-              new vscode.Range(
-                new vscode.Position(parsedDoc.properties?.fontLine || 0, 0),
-                new vscode.Position(
-                  parseState.parsedDocuments[uri.toString()]?.properties
-                    ?.fontLine || 0,
-                  5
-                )
-              ),
-              "This font could not be rendered in the live preview. Is it installed?",
-              vscode.DiagnosticSeverity.Error
-            )
-          );
-          diagnosticState.diagnosticCollection.set(
-            vscode.Uri.parse(message.uri),
-            diagnosticState.diagnostics
-          );
-        } else {
-          //Yay, the font has been rendered
-          diagnosticState.diagnosticCollection.set(
-            vscode.Uri.parse(message.uri),
-            []
-          );
-        }
-      }
-    } else if (message.command === "sparkdown.revealLine") {
+    if (message.command === "sparkdown.revealLine") {
       const cfg = getSparkdownConfig(vscode.Uri.parse(message.uri));
       const syncedWithCursor =
         type === "game"

@@ -9,8 +9,8 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
     const symbols: vscode.DocumentSymbol[] = [];
     let sceneCounter = 0;
 
-    const doc = parseState.parsedDocuments[document.uri.toString()];
-    const structure = doc?.properties?.structure || {};
+    const program = parseState.parsedPrograms[document.uri.toString()];
+    const structure = program?.metadata?.structure || {};
 
     //hierarchyEnd is the last line of the token's hierarchy. Last line of document for the root, last line of current section, etc...
     const symbolFromStruct = (
@@ -39,7 +39,7 @@ export class SparkdownSymbolProvider implements vscode.DocumentSymbolProvider {
       }
       if (token.type !== "section") {
         const scene =
-          parseState.parsedDocuments[document.uri.toString()]?.properties
+          parseState.parsedPrograms[document.uri.toString()]?.metadata
             ?.scenes?.[sceneCounter];
         const sceneLength =
           (scene?.actionDuration || 0) + (scene?.dialogueDuration || 0);

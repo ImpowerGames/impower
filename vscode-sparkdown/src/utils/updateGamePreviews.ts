@@ -6,13 +6,13 @@ import { getPreviewPanelsToUpdate } from "./getPreviewPanelsToUpdate";
 export const updateGamePreviews = (doc: vscode.TextDocument) => {
   performance.mark("updateGamePreviews-start");
   const uri = doc.uri;
-  const result = parseState.parsedDocuments[uri.toString()];
+  const program = parseState.parsedPrograms[uri.toString()];
   const gamePreviewsToUpdate = getPreviewPanelsToUpdate("game", uri);
-  if (result && gamePreviewsToUpdate && gamePreviewsToUpdate?.length > 0) {
+  if (program && gamePreviewsToUpdate && gamePreviewsToUpdate?.length > 0) {
     for (let i = 0; i < gamePreviewsToUpdate.length; i++) {
       const preview = gamePreviewsToUpdate[i];
       if (preview) {
-        const structs = result?.structs || {};
+        const structs = program?.structs || {};
         Object.entries(structs).forEach(([k]) => {
           const fieldObj = structs[k]?.fields?.["src"];
           if (

@@ -343,7 +343,7 @@ const getLengthChart = (
       }
     }
   });
-  const sceneProperties = program.properties?.scenes || [];
+  const sceneProperties = program?.metadata?.scenes || [];
   sceneProperties.forEach((scene) => {
     currentScene = scene.name;
     if (scenes.length > 0) {
@@ -411,7 +411,7 @@ const createLengthStatistics = (
     words: getWordCount(script),
     pagesreal: pdf.pageCountReal,
     pages: pdf.pageCount,
-    scenes: (program.properties?.scenes || []).length,
+    scenes: (program?.metadata?.scenes || []).length,
   };
 };
 
@@ -421,11 +421,11 @@ const createDurationStatistics = (
   const lengthCharts = getLengthChart(program);
   console.log("Created duration stats");
   return {
-    dialogue: program.properties?.dialogueDuration || 0,
-    action: program.properties?.actionDuration || 0,
+    dialogue: program?.metadata?.dialogueDuration || 0,
+    action: program?.metadata?.actionDuration || 0,
     total:
-      (program.properties?.dialogueDuration || 0) +
-      (program.properties?.actionDuration || 0),
+      (program?.metadata?.dialogueDuration || 0) +
+      (program?.metadata?.actionDuration || 0),
     durationBySceneProp: lengthCharts.durationByProp,
     lengthchart_action: lengthCharts.action,
     lengthchart_dialogue: lengthCharts.dialogue,
@@ -451,6 +451,6 @@ export const retrieveScreenPlayStatistics = async (
     lengthStats: createLengthStatistics(script, pdfStats, program),
     durationStats: createDurationStatistics(program),
     pdfmap: JSON.stringify(pdfStats?.lineMap),
-    structure: program.properties?.structure || {},
+    structure: program?.metadata?.structure || {},
   };
 };
