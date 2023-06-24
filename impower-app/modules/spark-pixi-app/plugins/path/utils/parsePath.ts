@@ -1,4 +1,4 @@
-/*!
+/*
  * Based on path-data-parser <https://github.com/pshihn/path-data-parser>
  *
  * Copyright (c) 2020 Preet Shihn

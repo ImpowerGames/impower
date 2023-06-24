@@ -1,15 +1,15 @@
+import type {
+  InitializeParams,
+  InitializeResult,
+  ServerCapabilities,
+} from "vscode-languageserver";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
   createConnection,
 } from "vscode-languageserver/browser";
 
-import {
-  InitializeParams,
-  InitializeResult,
-  ServerCapabilities,
-} from "vscode-languageserver";
-import { TextDocument } from "vscode-languageserver-textdocument";
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import registerColorProvider from "./providers/registerColorProvider";
 

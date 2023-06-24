@@ -1,4 +1,4 @@
-/*!
+/*
  * Based on svelte-svg-patterns <https://github.com/catchspider2002/svelte-svg-patterns>
  *
  * Copyright (c) 2021 pattern.monster

@@ -1,14 +1,10 @@
 import * as vscode from "vscode";
-import { createWorkerLanguageClient } from "./createWorkerLanguageClient";
+import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 
 export const activateLanguageClient = (
   context: vscode.ExtensionContext
 ): void => {
-  const client = createWorkerLanguageClient(context, {
-    documentSelector: [{ language: "sparkdown" }],
-    synchronize: {},
-    initializationOptions: {},
-  });
+  const client = createSparkdownLanguageClient(context);
   client.start();
   const dispose = () => client.stop();
   context.subscriptions.push({ dispose });

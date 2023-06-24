@@ -4,25 +4,30 @@
   "type": "module",
   "scripts": {
     "kill": "kill-port 8080",
-    "preinstall": "cd ../packages/sparkdown-editor && npm ci && cd ../../impower-dev",
-    "dev": "tsx ./esbuild.ts --watch --serve",
-    "prod": "tsx ./esbuild.ts --production --serve",
-    "build": "tsx ./esbuild.ts --production",
-    "start": "node ./out/api/index.js"
+    "install-workers": "cd ../packages/sparkdown-language-server && npm ci && cd ../../impower-dev",
+    "build-workers": "cd ../packages/sparkdown-language-server && tsx ./esbuild.ts --outdir=../../impower-dev/out/public && cd ../../impower-dev",
+    "install-sparkdown-editor": "cd ../packages/sparkdown-editor && npm ci && cd ../../impower-dev",
+    "dev": "tsx ./esbuild.ts --watch",
+    "prod": "tsx ./esbuild.ts --production",
+    "build": "npm run prod",
+    "start": "node ./out/api/index.js",
+    "preinstall": "npm run install-sparkdown-editor && npm run install-workers"
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.3.0-beta.2",
-    "@types/node": "^20.2.5",
-    "@types/ws": "^8.5.4",
+    "@types/node": "^20.3.1",
+    "@types/ws": "^8.5.5",
     "chokidar": "^3.5.3",
-    "esbuild": "^0.17.19",
+    "esbuild": "^0.18.6",
     "esbuild-plugin-pino": "^2.0.0",
     "kill-port": "^2.0.1",
     "parse5": "^7.1.2",
     "pino-pretty": "^10.0.0",
     "tiny-glob": "^0.2.9",
     "tsx": "^3.12.7",
-    "typescript": "^5.0.4"
+    "typescript": "^5.1.3",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.4"
   },
   "dependencies": {
     "@fastify/static": "^6.10.2",
@@ -31,7 +36,7 @@
     "@impower/spark-element": "file:../packages/spark-element",
     "@impower/sparkdown-editor": "file:../packages/sparkdown-editor",
     "@impower/sparkle": "file:../packages/sparkle",
-    "fastify": "^4.17.0",
+    "fastify": "^4.18.0",
     "nanoid": "^4.0.2",
     "pino": "^8.14.1"
   }

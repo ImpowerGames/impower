@@ -1,4 +1,3 @@
-import { RgbaColor, colord } from "colord";
 import {
   Color,
   ColorInformation,
@@ -7,6 +6,9 @@ import {
   Range,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
+
+import { RgbaColor, colord } from "colord";
+
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import SparkdownTextDocuments from "../classes/SparkdownTextDocuments";
 

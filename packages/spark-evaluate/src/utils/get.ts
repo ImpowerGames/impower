@@ -1,4 +1,4 @@
-/*!
+/*
  * get-value <https://github.com/jonschlinkert/get-value>
  *
  * Copyright (c) 2014-2018, Jon Schlinkert.

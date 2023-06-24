@@ -22,6 +22,7 @@ import {
   searchLinePanel,
 } from "../extensions/searchLinePanel";
 import { searchTextPanel } from "../extensions/searchTextPanel";
+import sparkdownLanguageClient from "../extensions/sparkdownLanguageClient";
 import sparkdownLanguageSupport from "../extensions/sparkdownLanguageSupport";
 import { SearchTextQuery } from "../panels/SearchTextPanel";
 import {
@@ -248,6 +249,7 @@ const createEditorView = (
       //   onNavigateUp,
       //   onNavigateDown,
     }),
+    sparkdownLanguageClient(),
   ];
   const startState = EditorState.create({
     doc,

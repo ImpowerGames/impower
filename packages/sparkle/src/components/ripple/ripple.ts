@@ -1,4 +1,4 @@
-/*!
+/*
  * Based on material-web ripple <https://github.com/material-components/material-web/blob/master/ripple/lib/ripple.ts>
  *
  * Copyright 2021 Google LLC

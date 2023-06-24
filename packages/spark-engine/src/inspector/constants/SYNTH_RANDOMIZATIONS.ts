@@ -1,4 +1,4 @@
-/*!
+/*
  * Inspired by ChipTone <https://sfbgames.itch.io/chiptone>
  */
 

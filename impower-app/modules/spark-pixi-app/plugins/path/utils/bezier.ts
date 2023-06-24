@@ -1,4 +1,4 @@
-/*!
+/*
  * Based on bezier-easing <https://github.com/thednp/bezier-easing>
  *
  * Copyright (c) 2020 thednp

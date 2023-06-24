@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2017",
-    "lib": ["esnext", "dom"],
+    "target": "es2020",
+    "lib": ["esnext", "dom", "WebWorker"],
     "outDir": "out",
     "skipLibCheck": true,
     "sourceMap": true,

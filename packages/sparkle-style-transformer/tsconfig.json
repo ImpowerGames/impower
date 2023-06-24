@@ -3,7 +3,7 @@
     "module": "esnext",
     "moduleResolution": "nodenext",
     "outDir": "dist/mjs",
-    "target": "es2017",
+    "target": "es2020",
     "lib": ["esnext"],
     "declaration": true,
     "skipLibCheck": true,

@@ -1,4 +1,4 @@
-/*!
+/*
  * uuid <https://github.com/lukeed/uuid>
  *
  * Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com)

@@ -1,4 +1,4 @@
-/*!
+/*
  * Based on midi-json-parser-worker <https://github.com/chrisguttandin/midi-json-parser-worker>
  *
  * Copyright (c) 2023 Christoph Guttandin

@@ -1,4 +1,4 @@
-import { ToneSequence } from "../../../../../spark-engine/src/game/sound/types/ToneSequence";
+import { ToneSequence } from "../../../../../packages/spark-engine/src/game/sound/types/ToneSequence";
 
 export const synthesizeToneSequence = async (
   toneSequence: ToneSequence,

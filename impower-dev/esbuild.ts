@@ -1,3 +1,4 @@
+import { exec } from "child_process";
 import chokidar from "chokidar";
 import { build } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
@@ -32,17 +33,15 @@ const apiOutDir = `${outdir}/api`;
 const componentsInDir = `${indir}/components`;
 const componentsOutDir = `${outdir}/components`;
 
-const pagesInDir = `${indir}/pages`;
-const pagesOutDir = `${outdir}/public`;
-
 const publicInDir = `${indir}/public`;
 const publicOutDir = `${outdir}/public`;
+
+const pagesInDir = `${indir}/pages`;
 
 const localDependencies = `node_modules/@impower`;
 
 const args = process.argv.slice(2);
 const WATCH = args.includes("--watch");
-const SERVE = args.includes("--serve");
 const PRODUCTION = args.includes("--production");
 if (PRODUCTION) {
   process.env["NODE_ENV"] = "production";
@@ -52,7 +51,11 @@ const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
 
 const clean = async () => {
-  await fs.promises.rm(outdir, { recursive: true, force: true });
+  await Promise.all(
+    [apiOutDir, componentsOutDir, publicOutDir].map((d) =>
+      fs.promises.rm(d, { recursive: true, force: true })
+    )
+  );
 };
 
 const copyPublic = async () => {
@@ -118,7 +121,7 @@ const buildPages = async () => {
   });
   await build({
     entryPoints: entryPoints,
-    outdir: pagesOutDir,
+    outdir: publicOutDir,
     platform: "browser",
     format: "esm",
     bundle: true,
@@ -173,7 +176,7 @@ const expandPageComponents = async () => {
     let documentHtml = await fs.promises
       .readFile(documentHtmlInPath, "utf-8")
       .catch(() => "");
-    if (!PRODUCTION && SERVE) {
+    if (!PRODUCTION) {
       documentHtml = documentHtml.replace(
         "</html>",
         `<script>new EventSource('/livereload').onmessage = () => location.reload()</script>\n</html>`
@@ -264,6 +267,12 @@ const createPackageJson = async () => {
   );
 };
 
+const buildWorkers = async () => {
+  return new Promise((resolve) => {
+    exec("npm run build-workers", resolve);
+  });
+};
+
 const buildAll = async () => {
   await clean();
   await copyPublic();
@@ -273,53 +282,48 @@ const buildAll = async () => {
   await new Promise((resolve) => setTimeout(resolve, 100));
   await expandPageComponents();
   await createPackageJson();
+  await buildWorkers();
 };
 
 const DEBOUNCE_DELAY = 200;
 let pendingBuildTimeout: NodeJS.Timeout | undefined;
+
+const watchFiles = async () => {
+  const { app, reloader } = (await import("./out/api/index.js")).default;
+  await app.ready();
+  const rebuild = async () => {
+    await buildAll();
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    if ("reload" in reloader && typeof reloader.reload === "function") {
+      reloader.reload();
+    }
+  };
+  console.log(YELLOW, `Watching for changes...`);
+  chokidar
+    .watch(
+      [publicInDir, apiInDir, localDependencies, componentsInDir, pagesInDir],
+      {
+        ignoreInitial: true,
+        followSymlinks: true,
+      }
+    )
+    .on("all", async (event, path) => {
+      console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
+      if (pendingBuildTimeout) {
+        clearTimeout(pendingBuildTimeout);
+        pendingBuildTimeout = undefined;
+      }
+      pendingBuildTimeout = setTimeout(rebuild, DEBOUNCE_DELAY);
+    });
+};
 
 (async () => {
   console.log(STARTED_COLOR, "Build started");
   await buildAll();
   console.log("");
   console.log(FINISHED_COLOR, "Build finished");
-  if (SERVE) {
-    const { app, reloader } = (await import("./out/api/index.js")).default;
-    if (!PRODUCTION) {
-      await app.ready();
-      const rebuild = async () => {
-        await buildAll();
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        if ("reload" in reloader && typeof reloader.reload === "function") {
-          reloader.reload();
-        }
-      };
-      if (WATCH) {
-        console.log(YELLOW, `Watching for changes...`);
-        chokidar
-          .watch(
-            [
-              publicInDir,
-              apiInDir,
-              localDependencies,
-              componentsInDir,
-              pagesInDir,
-            ],
-            {
-              ignoreInitial: true,
-              followSymlinks: true,
-            }
-          )
-          .on("all", async (event, path) => {
-            console.log(SRC_COLOR, `${event} ${getRelativePath(path)}`);
-            if (pendingBuildTimeout) {
-              clearTimeout(pendingBuildTimeout);
-              pendingBuildTimeout = undefined;
-            }
-            pendingBuildTimeout = setTimeout(rebuild, DEBOUNCE_DELAY);
-          });
-      }
-    }
+  if (WATCH) {
+    watchFiles();
   }
 })();
 

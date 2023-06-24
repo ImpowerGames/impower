@@ -7,19 +7,20 @@ import {
   Disposable,
   Emitter,
   RequestHandler,
+  TextDocumentChangeEvent,
   TextDocumentSyncKind,
+  TextDocumentWillSaveEvent,
+  TextDocuments,
+  TextDocumentsConfiguration,
   TextEdit,
   WillSaveTextDocumentParams,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   ConnectionState,
-  TextDocumentChangeEvent,
   TextDocumentConnection,
-  TextDocumentWillSaveEvent,
-  TextDocuments,
-  TextDocumentsConfiguration,
 } from "vscode-languageserver/lib/common/textDocuments";
+
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { EditorSparkParser } from "./EditorSparkParser";
 

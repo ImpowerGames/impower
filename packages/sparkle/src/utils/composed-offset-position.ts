@@ -1,4 +1,4 @@
-/*!
+/*
  * composed-offset-position - https://github.com/jcfranco/composed-offset-position
  * Version - 0.0.4
  * Released under the MIT License

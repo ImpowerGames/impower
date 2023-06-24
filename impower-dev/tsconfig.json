@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2017",
+    "target": "es2020",
     "lib": ["esnext", "dom"],
     "outDir": "dist",
     "declaration": true,
@@ -23,5 +23,5 @@
     "forceConsistentCasingInFileNames": true,
     "allowJs": true
   },
-  "include": ["src/**/*", "esbuild.ts"]
+  "include": ["src", "esbuild.ts"]
 }

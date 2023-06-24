@@ -1,4 +1,4 @@
-/*!
+/*
  * Based on bfxr2 <https://github.com/increpare/bfxr2>
  *
  * Copyright (c) 2021 Stephen Lavelle
@@ -121,7 +121,7 @@ const allpass = (gain: number, state: AllpassState): number => {
   return sample - gain;
 };
 
-/*!
+/*
  * Based on Freeverb <https://github.com/sinshu/freeverb>
  *
  * Written by Jezar, Released as Public Domain.
