@@ -2,7 +2,7 @@ import { Action } from "@codemirror/lint";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
-export const getActions = (
+export const getEditorDiagnosticActions = (
   data: {
     name: string;
     focus?: { from: number; to: number };

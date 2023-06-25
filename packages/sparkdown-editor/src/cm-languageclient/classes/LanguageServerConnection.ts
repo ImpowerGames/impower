@@ -4,6 +4,7 @@ import {
   createMessageConnection,
 } from "vscode-jsonrpc/browser";
 import {
+  CancellationToken,
   ClientCapabilities,
   CodeActionKind,
   CompletionParams,
@@ -13,18 +14,27 @@ import {
   DidChangeTextDocumentParams,
   DidOpenTextDocumentNotification,
   DidOpenTextDocumentParams,
+  DocumentColorParams,
+  DocumentColorRequest,
   HoverParams,
   HoverRequest,
   InitializeRequest,
   InitializeResult,
   MessageConnection,
-  ParameterStructures,
+  NotificationType,
+  PublishDiagnosticsNotification,
+  PublishDiagnosticsParams,
+  RequestType,
   ServerCapabilities,
 } from "vscode-languageserver-protocol";
 
+import {
+  DidParseParams,
+  DidParseTextDocument,
+} from "../types/DidParseTextDocument";
 import { LanguageClientOptions } from "../types/LanguageClientOptions";
 import ConsoleLogger from "./ConsoleLogger";
-import type LanguageClientPlugin from "./LanguageClientPlugin";
+import { Event } from "./Event";
 
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   textDocument: {
@@ -127,13 +137,7 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
   },
 };
 
-export default class LanguageClient {
-  protected _plugins = new Set<LanguageClientPlugin>();
-
-  protected _id: string;
-
-  protected _name: string;
-
+export default class LanguageServerConnection {
   protected _options: LanguageClientOptions;
 
   protected _worker: Worker;
@@ -144,20 +148,34 @@ export default class LanguageClient {
 
   protected _connection?: MessageConnection;
 
-  protected _capabilities?: ServerCapabilities;
+  protected _name: string;
+  get name() {
+    return this._name;
+  }
 
-  protected _starting?: Promise<InitializeResult>;
-
+  protected _id: string;
   get id() {
     return this._id;
   }
 
+  protected _serverCapabilities?: ServerCapabilities;
+  get serverCapabilities() {
+    return this._serverCapabilities;
+  }
+
+  protected _starting?: Promise<InitializeResult>;
   get starting() {
     return this._starting;
   }
 
-  get capabilities() {
-    return this._capabilities;
+  protected _publishDiagnosticsEvent = new Event<PublishDiagnosticsParams>();
+  get publishDiagnosticsEvent() {
+    return this._publishDiagnosticsEvent;
+  }
+
+  protected _parseEvent = new Event<DidParseParams>();
+  get parseEvent() {
+    return this._parseEvent;
   }
 
   constructor(
@@ -191,10 +209,11 @@ export default class LanguageClient {
     connection.onClose(() => {
       this.stop();
     });
-    connection.onNotification((method, params) => {
-      this._plugins.forEach((plugin) => {
-        plugin.handleNotification(method, params);
-      });
+    connection.onNotification(PublishDiagnosticsNotification.type, (params) => {
+      this._publishDiagnosticsEvent.emit(params);
+    });
+    connection.onNotification(DidParseTextDocument.type, (params) => {
+      this._parseEvent.emit(params);
     });
     connection.listen();
     const result = await connection.sendRequest<InitializeResult>(
@@ -202,7 +221,7 @@ export default class LanguageClient {
       this._options
     );
     this._connection = connection;
-    this._capabilities = result.capabilities;
+    this._serverCapabilities = result.capabilities;
     return result;
   }
 
@@ -210,10 +229,9 @@ export default class LanguageClient {
     this._connection?.dispose();
   }
 
-  protected async sendNotification(
-    type: string,
-    r0?: any,
-    ...rest: any[]
+  protected async sendNotification<P>(
+    type: NotificationType<P>,
+    params?: P
   ): Promise<void> {
     if (this._starting) {
       await this._starting;
@@ -221,13 +239,13 @@ export default class LanguageClient {
     if (!this._connection) {
       throw new Error("Connection could not be established");
     }
-    return this._connection.sendNotification(type, r0, ...rest);
+    return this._connection.sendNotification(type, params);
   }
 
-  protected async sendRequest<R>(
-    type: string,
-    r0?: ParameterStructures | any,
-    ...rest: any[]
+  protected async sendRequest<P, R, E>(
+    type: RequestType<P, R, E>,
+    params: P,
+    token?: CancellationToken
   ): Promise<R> {
     if (this._starting) {
       await this._starting;
@@ -235,36 +253,37 @@ export default class LanguageClient {
     if (!this._connection) {
       throw new Error("Connection could not be established");
     }
-    return this._connection.sendRequest<R>(type, r0, ...rest);
+    return this._connection.sendRequest(type, params, token);
   }
 
-  attachPlugin(plugin: LanguageClientPlugin) {
-    this._plugins.add(plugin);
+  notifyDidOpenTextDocument(params: DidOpenTextDocumentParams) {
+    return this.sendNotification(DidOpenTextDocumentNotification.type, params);
   }
 
-  detachPlugin(plugin: LanguageClientPlugin) {
-    this._plugins.delete(plugin);
-  }
-
-  textDocumentDidOpen(params: DidOpenTextDocumentParams) {
+  notifyDidChangeTextDocument(params: DidChangeTextDocumentParams) {
     return this.sendNotification(
-      DidOpenTextDocumentNotification.method,
+      DidChangeTextDocumentNotification.type,
       params
     );
   }
 
-  textDocumentDidChange(params: DidChangeTextDocumentParams) {
-    return this.sendNotification(
-      DidChangeTextDocumentNotification.method,
-      params
-    );
+  async requestDocumentColors(
+    params: DocumentColorParams,
+    token?: CancellationToken | undefined
+  ) {
+    return this.sendRequest(DocumentColorRequest.type, params, token);
+  }
+  async requestHovers(
+    params: HoverParams,
+    token?: CancellationToken | undefined
+  ) {
+    return this.sendRequest(HoverRequest.type, params, token);
   }
 
-  async textDocumentHover(params: HoverParams) {
-    return this.sendRequest(HoverRequest.method, params);
-  }
-
-  async textDocumentCompletion(params: CompletionParams) {
-    return this.sendRequest(CompletionRequest.method, params);
+  async requestCompletions(
+    params: CompletionParams,
+    token?: CancellationToken | undefined
+  ) {
+    return this.sendRequest(CompletionRequest.type, params, token);
   }
 }

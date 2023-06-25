@@ -1,46 +1,47 @@
 import { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
 
-import { Diagnostic, setDiagnostics } from "@codemirror/lint";
+import { setDiagnostics } from "@codemirror/lint";
 import {
-  PublishDiagnosticsNotification,
+  Diagnostic,
   PublishDiagnosticsParams,
 } from "vscode-languageserver-protocol";
+import { DidParseParams } from "../types/DidParseTextDocument";
 import debounce from "../utils/debounce";
-import { getActions } from "../utils/getActions";
-import { getSeverity } from "../utils/getSeverity";
-import { positionToOffset } from "../utils/positionToOffset";
-import type LanguageClient from "./LanguageClient";
+import { getEditorDiagnostics } from "../utils/getEditorDiagnostics";
+import ColorSupport from "./ColorSupport";
+import type LanguageServerConnection from "./LanguageServerConnection";
 
 export default class LanguageClientPlugin implements PluginValue {
   protected _view: EditorView;
-  protected _client: LanguageClient;
+  protected _connection: LanguageServerConnection;
 
-  protected _documentUri: string;
+  protected _document: { uri: string };
   protected _documentVersion: number;
 
   protected declare debouncedChange: () => void;
 
+  protected _colorSupport?: ColorSupport;
+
   constructor(
     view: EditorView,
-    client: LanguageClient,
+    connection: LanguageServerConnection,
     documentUri: string,
     options?: {
       changeDelay?: number;
     }
   ) {
     this._view = view;
-    this._client = client;
-    this._documentUri = documentUri;
+    this._connection = connection;
+    this._document = { uri: documentUri };
     this._documentVersion = 0;
 
-    this._client.attachPlugin(this);
+    this.bind();
 
     this.initialize({
       documentText: this._view.state.doc.toString(),
     });
 
     const changeDelay = options?.changeDelay ?? 500;
-
     this.debouncedChange = debounce(() => {
       this.sendChange({
         documentText: this._view.state.doc.toString(),
@@ -56,74 +57,97 @@ export default class LanguageClientPlugin implements PluginValue {
   }
 
   destroy() {
-    this._client.detachPlugin(this);
+    this.unbind();
+  }
+
+  bind() {
+    this._connection.publishDiagnosticsEvent.addListener(
+      this.handleDiagnostics
+    );
+    this._connection.parseEvent.addListener(this.handleParse);
+  }
+
+  unbind() {
+    this._connection.publishDiagnosticsEvent.removeListener(
+      this.handleDiagnostics
+    );
+    this._connection.parseEvent.removeListener(this.handleParse);
   }
 
   protected async initialize({ documentText }: { documentText: string }) {
-    if (this._client.starting) {
-      await this._client.starting;
+    if (this._connection.starting) {
+      await this._connection.starting;
     }
-    this._client.textDocumentDidOpen({
+    this._connection.notifyDidOpenTextDocument({
       textDocument: {
-        uri: this._documentUri,
-        languageId: this._client.id,
+        uri: this._document.uri,
+        languageId: this._connection.id,
         text: documentText,
         version: this._documentVersion,
       },
     });
+    const serverCapabilities = this._connection.serverCapabilities;
+    if (serverCapabilities?.colorProvider) {
+      this.initializeDocumentColors();
+    }
   }
 
-  handleNotification(method: string, params: any): void {
-    try {
-      switch (method) {
-        case PublishDiagnosticsNotification.method: {
-          this.processDiagnostics(params);
-          break;
-        }
-      }
-    } catch (error) {
-      console.error(error);
+  async initializeDocumentColors() {
+    const support = new ColorSupport();
+    support.activate(this._view);
+    this._colorSupport = support;
+  }
+
+  handleDiagnostics = (params: PublishDiagnosticsParams) => {
+    if (
+      params.uri !== this._document.uri ||
+      (params.version != null && params.version !== this._documentVersion)
+    ) {
+      return;
+    }
+    this.updateDiagnostics(params.diagnostics);
+  };
+
+  handleParse = async (params: DidParseParams) => {
+    if (
+      params.uri !== this._document.uri ||
+      (params.version != null && params.version !== this._documentVersion)
+    ) {
+      return;
+    }
+    this.updateDocumentColors();
+  };
+
+  updateDiagnostics(diagnostics: Diagnostic[]) {
+    const transaction = setDiagnostics(
+      this._view.state,
+      getEditorDiagnostics(this._view.state, diagnostics)
+    );
+    this._view.dispatch(transaction);
+  }
+
+  async updateDocumentColors() {
+    if (this._colorSupport) {
+      const documentColors = await this._connection.requestDocumentColors({
+        textDocument: this._document,
+      });
+      const transaction = this._colorSupport.transaction(
+        this._view.state,
+        documentColors
+      );
+      this._view.dispatch(transaction);
     }
   }
 
   protected async sendChange({ documentText }: { documentText: string }) {
-    return this._client.textDocumentDidChange({
+    this._documentVersion += 1;
+    await this._connection.notifyDidChangeTextDocument({
       textDocument: {
-        uri: this._documentUri,
-        version: this._documentVersion++,
+        uri: this._document.uri,
+        version: this._documentVersion,
       },
       contentChanges: [{ text: documentText }],
     });
-  }
-
-  protected processDiagnostics(params: PublishDiagnosticsParams) {
-    if (params.uri !== this._documentUri) {
-      return;
-    }
-    const diagnostics: Diagnostic[] = params.diagnostics
-      .map(
-        (d): Diagnostic => ({
-          from: positionToOffset(this._view.state.doc, d.range.start),
-          to: positionToOffset(this._view.state.doc, d.range.end),
-          severity: getSeverity(d.severity),
-          message: d.message,
-          actions: getActions(d.data),
-        })
-      )
-      .filter(
-        ({ from, to }) =>
-          from !== null && to !== null && from !== undefined && to !== undefined
-      )
-      .sort((a, b) => {
-        switch (true) {
-          case a.from < b.from:
-            return -1;
-          case a.from > b.from:
-            return 1;
-        }
-        return 0;
-      });
-    this._view.dispatch(setDiagnostics(this._view.state, diagnostics));
   }
 
   // async requestHoverTooltip(

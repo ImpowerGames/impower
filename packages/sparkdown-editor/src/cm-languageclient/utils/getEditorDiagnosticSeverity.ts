@@ -1,6 +1,6 @@
 import { DiagnosticSeverity } from "vscode-languageserver-protocol";
 
-export const getSeverity = (
+export const getEditorDiagnosticSeverity = (
   s: DiagnosticSeverity | undefined
 ): "error" | "warning" | "info" => {
   if (s === DiagnosticSeverity.Error) {

@@ -56,18 +56,26 @@ const getColorMetadata = (
   expression: string,
   expressionFrom: number
 ): SparkColorMetadata | null => {
-  if (!expression.match(sparkRegexes.string)) {
+  const expressionTo = expressionFrom + expression.length;
+  const trimmedStartWhitespaceLength =
+    expression.length - expression.trimStart().length;
+  const trimmedEndWhitespaceLength =
+    expression.length - expression.trimEnd().length;
+  const trimmedExpression = expression.trim();
+  if (!trimmedExpression.match(sparkRegexes.string)) {
     return null;
   }
-  const stringContent = expression.slice(1, -1);
+  const stringContent = trimmedExpression.slice(1, -1);
+  const from = expressionFrom + trimmedStartWhitespaceLength + 1;
+  const to = expressionTo - trimmedEndWhitespaceLength - 1;
   if (
     sparkRegexes.hex_color.test(stringContent) ||
     sparkRegexes.hsl_color.test(stringContent) ||
     sparkRegexes.rgb_color.test(stringContent)
   ) {
     return {
-      from: expressionFrom + 1,
-      to: expressionFrom + expression.length - 1,
+      from,
+      to,
       value: stringContent,
     };
   }
@@ -3564,7 +3572,6 @@ export const parseSpark = (
   program.metadata.parseDuration = parseEndTime - parseStartTime;
   program.objectMap ??= {};
   updateObjectMap(program.objectMap, program.structs);
-  // console.log(parsed);
 
   return program;
 };

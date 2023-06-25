@@ -31,7 +31,7 @@ const MARGIN_BEFORE = 32;
 const MARGIN_AFTER = 128;
 
 /** If true, the "left" (previous) side of a parse will be reused. */
-const REUSE_LEFT = true;
+const REUSE_LEFT = false;
 
 /** If true, the "right" (ahead) side of a parse will be reused. */
 const REUSE_RIGHT = true;

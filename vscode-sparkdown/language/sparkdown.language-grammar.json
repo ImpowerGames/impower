@@ -1326,12 +1326,8 @@
       }
     },
     "AssignDivideOperator": {
-      "match": "(?<=[_$A-Za-z0-9)\\]])\\s*(?:(/=)|(?:(/)(?![/*])))",
+      "match": "(?<=[_$A-Za-z0-9)\\]])([\\s]*)([/][=]|([/])(?![/*]))",
       "captures": {
-        "1": {
-          "tag": "updateOperator",
-          "name": "keyword.operator.assignment.compound.sd"
-        },
         "2": {
           "tag": "arithmeticOperator",
           "name": "keyword.operator.arithmetic.sd"

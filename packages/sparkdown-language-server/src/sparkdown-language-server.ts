@@ -11,6 +11,10 @@ import {
   createConnection,
 } from "vscode-languageserver/browser";
 
+import {
+  DidParseParams,
+  DidParseTextDocument,
+} from "./classes/DidParseTextDocument";
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import getColorPresentations from "./utils/getColorPresentations";
 import getDocumentColors from "./utils/getDocumentColors";
@@ -24,6 +28,10 @@ const connection = createConnection(messageReader, messageWriter);
 
 connection.onInitialize((_params: InitializeParams): InitializeResult => {
   const capabilities: ServerCapabilities = {
+    diagnosticProvider: {
+      interFileDependencies: true,
+      workspaceDiagnostics: true,
+    },
     colorProvider: true,
     codeActionProvider: true,
     textDocumentSync: TextDocumentSyncKind.Full,
@@ -37,6 +45,12 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => {
 const documents = new SparkdownTextDocuments(TextDocument);
 
 documents.onDidParse((change) => {
+  const params: DidParseParams = {
+    uri: change.document.uri,
+    version: change.document.version,
+    program: change.program,
+  };
+  connection.sendNotification(DidParseTextDocument.method, params);
   connection.sendDiagnostics(
     getDocumentDiagnostics(change.document, change.program)
   );

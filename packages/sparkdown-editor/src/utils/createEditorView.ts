@@ -249,7 +249,7 @@ const createEditorView = (
       //   onNavigateUp,
       //   onNavigateDown,
     }),
-    sparkdownLanguageClient(),
+    sparkdownLanguageClient("script"),
   ];
   const startState = EditorState.create({
     doc,
