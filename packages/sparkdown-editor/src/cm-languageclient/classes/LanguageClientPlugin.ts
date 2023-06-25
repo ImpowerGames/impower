@@ -6,8 +6,8 @@ import {
   PublishDiagnosticsParams,
 } from "vscode-languageserver-protocol";
 import { DidParseParams } from "../types/DidParseTextDocument";
-import debounce from "../utils/debounce";
 import { getEditorDiagnostics } from "../utils/getEditorDiagnostics";
+import throttle from "../utils/throttle";
 import ColorSupport from "./ColorSupport";
 import type LanguageServerConnection from "./LanguageServerConnection";
 
@@ -18,7 +18,7 @@ export default class LanguageClientPlugin implements PluginValue {
   protected _document: { uri: string };
   protected _documentVersion: number;
 
-  protected declare debouncedChange: () => void;
+  protected declare throttledChange: () => void;
 
   protected _colorSupport?: ColorSupport;
 
@@ -42,7 +42,7 @@ export default class LanguageClientPlugin implements PluginValue {
     });
 
     const changeDelay = options?.changeDelay ?? 500;
-    this.debouncedChange = debounce(() => {
+    this.throttledChange = throttle(() => {
       this.sendChange({
         documentText: this._view.state.doc.toString(),
       });
@@ -53,7 +53,7 @@ export default class LanguageClientPlugin implements PluginValue {
     if (!u.docChanged) {
       return;
     }
-    this.debouncedChange();
+    this.throttledChange();
   }
 
   destroy() {
