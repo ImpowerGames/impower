@@ -5,14 +5,26 @@ import {
 } from "vscode-jsonrpc/browser";
 import {
   ClientCapabilities,
+  CodeActionKind,
+  CompletionParams,
+  CompletionRequest,
   DiagnosticTag,
+  DidChangeTextDocumentNotification,
+  DidChangeTextDocumentParams,
+  DidOpenTextDocumentNotification,
+  DidOpenTextDocumentParams,
+  HoverParams,
+  HoverRequest,
   InitializeRequest,
+  InitializeResult,
   MessageConnection,
   ParameterStructures,
+  ServerCapabilities,
 } from "vscode-languageserver-protocol";
 
 import { LanguageClientOptions } from "../types/LanguageClientOptions";
 import ConsoleLogger from "./ConsoleLogger";
+import type LanguageClientPlugin from "./LanguageClientPlugin";
 
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   textDocument: {
@@ -27,8 +39,8 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
       completionItem: {
         snippetSupport: true,
         insertReplaceSupport: true,
-        commitCharactersSupport: false,
-        documentationFormat: ["markdown", "plaintext"],
+        commitCharactersSupport: true,
+        documentationFormat: ["plaintext", "markdown"],
         deprecatedSupport: true,
         preselectSupport: true,
         resolveSupport: { properties: ["documentation", "detail"] },
@@ -37,12 +49,12 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
     },
     hover: {
       dynamicRegistration: true,
-      contentFormat: ["markdown", "plaintext"],
+      contentFormat: ["plaintext", "markdown"],
     },
     signatureHelp: {
       dynamicRegistration: true,
       signatureInformation: {
-        documentationFormat: ["markdown", "plaintext"],
+        documentationFormat: ["plaintext", "markdown"],
         parameterInformation: {
           labelOffsetSupport: true,
         },
@@ -76,7 +88,15 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
       dynamicRegistration: true,
       hierarchicalDocumentSymbolSupport: true,
     },
-    // codeAction: {},
+    codeAction: {
+      dynamicRegistration: true,
+      dataSupport: true,
+      codeActionLiteralSupport: {
+        codeActionKind: {
+          valueSet: [CodeActionKind.Source],
+        },
+      },
+    },
     // codeLens: {},
     // documentLink: {
     //   dynamicRegistration: true,
@@ -108,6 +128,8 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
 };
 
 export default class LanguageClient {
+  protected _plugins = new Set<LanguageClientPlugin>();
+
   protected _id: string;
 
   protected _name: string;
@@ -116,7 +138,27 @@ export default class LanguageClient {
 
   protected _worker: Worker;
 
-  protected _connection: MessageConnection;
+  protected _reader: BrowserMessageReader;
+
+  protected _writer: BrowserMessageWriter;
+
+  protected _connection?: MessageConnection;
+
+  protected _capabilities?: ServerCapabilities;
+
+  protected _starting?: Promise<InitializeResult>;
+
+  get id() {
+    return this._id;
+  }
+
+  get starting() {
+    return this._starting;
+  }
+
+  get capabilities() {
+    return this._capabilities;
+  }
 
   constructor(
     id: string,
@@ -135,44 +177,94 @@ export default class LanguageClient {
       ...(clientOptions || {}),
     };
     this._worker = worker;
-    const reader = new BrowserMessageReader(this._worker);
-    const writer = new BrowserMessageWriter(this._worker);
-    this._connection = createMessageConnection(
-      reader,
-      writer,
-      new ConsoleLogger()
-    );
-    this._connection.onClose(() => {
-      this.stop();
-    });
-    this._connection.listen();
+    this._reader = new BrowserMessageReader(this._worker);
+    this._writer = new BrowserMessageWriter(this._worker);
+    this._starting = this.start();
   }
 
-  async start() {
-    const result = await this.sendRequest(
+  async start(): Promise<InitializeResult> {
+    const connection = createMessageConnection(
+      this._reader,
+      this._writer,
+      new ConsoleLogger()
+    );
+    connection.onClose(() => {
+      this.stop();
+    });
+    connection.onNotification((method, params) => {
+      this._plugins.forEach((plugin) => {
+        plugin.handleNotification(method, params);
+      });
+    });
+    connection.listen();
+    const result = await connection.sendRequest<InitializeResult>(
       InitializeRequest.method,
       this._options
     );
-    console.log(this._id, result);
+    this._connection = connection;
+    this._capabilities = result.capabilities;
+    return result;
   }
 
   async stop() {
-    this._connection.dispose();
+    this._connection?.dispose();
   }
 
-  public async sendNotification(
+  protected async sendNotification(
     type: string,
     r0?: any,
     ...rest: any[]
   ): Promise<void> {
+    if (this._starting) {
+      await this._starting;
+    }
+    if (!this._connection) {
+      throw new Error("Connection could not be established");
+    }
     return this._connection.sendNotification(type, r0, ...rest);
   }
 
-  public async sendRequest<R>(
+  protected async sendRequest<R>(
     type: string,
     r0?: ParameterStructures | any,
     ...rest: any[]
   ): Promise<R> {
+    if (this._starting) {
+      await this._starting;
+    }
+    if (!this._connection) {
+      throw new Error("Connection could not be established");
+    }
     return this._connection.sendRequest<R>(type, r0, ...rest);
+  }
+
+  attachPlugin(plugin: LanguageClientPlugin) {
+    this._plugins.add(plugin);
+  }
+
+  detachPlugin(plugin: LanguageClientPlugin) {
+    this._plugins.delete(plugin);
+  }
+
+  textDocumentDidOpen(params: DidOpenTextDocumentParams) {
+    return this.sendNotification(
+      DidOpenTextDocumentNotification.method,
+      params
+    );
+  }
+
+  textDocumentDidChange(params: DidChangeTextDocumentParams) {
+    return this.sendNotification(
+      DidChangeTextDocumentNotification.method,
+      params
+    );
+  }
+
+  async textDocumentHover(params: HoverParams) {
+    return this.sendRequest(HoverRequest.method, params);
+  }
+
+  async textDocumentCompletion(params: CompletionParams) {
+    return this.sendRequest(CompletionRequest.method, params);
   }
 }

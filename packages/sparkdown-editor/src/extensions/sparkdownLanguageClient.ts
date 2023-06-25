@@ -19,9 +19,9 @@ const createSparkdownLanguageClient = (
   );
 };
 
-const sparkdownLanguageClient = () => {
+const sparkdownLanguageClient = (documentUri: string) => {
   const client = createSparkdownLanguageClient();
-  return [languageClient(client)];
+  return [languageClient(client, documentUri)];
 };
 
 export default sparkdownLanguageClient;

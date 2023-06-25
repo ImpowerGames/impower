@@ -91,6 +91,9 @@ const SPARKDOWN_THEME: {
       color: "white",
     },
   },
+  ".cm-lintRange": {
+    backgroundSize: "auto",
+  },
   ".cm-lintRange-active": {
     backgroundColor: "#ffdd991a",
   },
