@@ -51,6 +51,7 @@
 :host > .root > .panel > .resize {
   pointer-events: var(--interactable);
   opacity: 0;
+  overflow: hidden;
 }
 :host(:not([vertical])) > .root > .panel > .resize {
   min-width: calc(var(--min-panel-width) + var(--resizer-width));
