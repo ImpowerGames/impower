@@ -82,7 +82,7 @@ const colorDecorationsField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-export default class ColorSupport extends FeatureSupport<ColorInformation[]> {
+class ColorSupport extends FeatureSupport<ColorInformation[]> {
   constructor() {
     super([colorDecorationsField, COLOR_SUPPORT_WIDGET_THEME]);
   }
@@ -93,3 +93,5 @@ export default class ColorSupport extends FeatureSupport<ColorInformation[]> {
     return setColorDecorations(state, colors);
   }
 }
+
+export const colorSupport = new ColorSupport();

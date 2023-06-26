@@ -5,50 +5,38 @@ import {
   Diagnostic,
   PublishDiagnosticsParams,
 } from "vscode-languageserver-protocol";
+import { languageClientConfig } from "../extensions/languageClient";
 import { DidParseParams } from "../types/DidParseTextDocument";
 import { getEditorDiagnostics } from "../utils/getEditorDiagnostics";
 import throttle from "../utils/throttle";
-import ColorSupport from "./ColorSupport";
-import FoldingSupport from "./FoldingSupport";
+import { colorSupport } from "./ColorSupport";
+import { foldingSupport } from "./FoldingSupport";
 import type LanguageServerConnection from "./LanguageServerConnection";
 
-export default class LanguageClientPlugin implements PluginValue {
+export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
-  protected _connection: LanguageServerConnection;
 
+  protected _connection: LanguageServerConnection;
   protected _document: { uri: string };
   protected _documentVersion: number;
 
   protected declare throttledChange: () => void;
 
-  protected _foldingSupport?: FoldingSupport;
-  protected _colorSupport?: ColorSupport;
-
-  constructor(
-    view: EditorView,
-    connection: LanguageServerConnection,
-    documentUri: string,
-    options?: {
-      changeDelay?: number;
-    }
-  ) {
+  constructor(view: EditorView) {
     this._view = view;
-    this._connection = connection;
-    this._document = { uri: documentUri };
+    const config = view.state.facet(languageClientConfig);
+    this._connection = config.connection;
+    this._document = { uri: config.documentUri };
     this._documentVersion = 0;
 
     this.bind();
 
-    this.initialize({
-      documentText: this._view.state.doc.toString(),
-    });
+    this.initialize(view, view.state.doc.toString());
 
-    const changeDelay = options?.changeDelay ?? 500;
+    const throttleDelay = config?.throttleDelay;
     this.throttledChange = throttle(() => {
-      this.sendChange({
-        documentText: this._view.state.doc.toString(),
-      });
-    }, changeDelay);
+      this.sendChange(view.state.doc.toString());
+    }, throttleDelay);
   }
 
   update(u: ViewUpdate) {
@@ -76,7 +64,7 @@ export default class LanguageClientPlugin implements PluginValue {
     this._connection.parseEvent.removeListener(this.handleParse);
   }
 
-  protected async initialize({ documentText }: { documentText: string }) {
+  protected async initialize(view: EditorView, text: string) {
     if (this._connection.starting) {
       await this._connection.starting;
     }
@@ -84,29 +72,25 @@ export default class LanguageClientPlugin implements PluginValue {
       textDocument: {
         uri: this._document.uri,
         languageId: this._connection.id,
-        text: documentText,
+        text,
         version: this._documentVersion,
       },
     });
     const serverCapabilities = this._connection.serverCapabilities;
     if (serverCapabilities?.foldingRangeProvider) {
-      this.initializeFoldingSupport();
+      this.initializeFoldingSupport(view);
     }
     if (serverCapabilities?.colorProvider) {
-      this.initializeDocumentColors();
+      this.initializeDocumentColors(view);
     }
   }
 
-  async initializeFoldingSupport() {
-    const support = new FoldingSupport();
-    support.activate(this._view);
-    this._foldingSupport = support;
+  async initializeFoldingSupport(view: EditorView) {
+    foldingSupport.activate(view);
   }
 
-  async initializeDocumentColors() {
-    const support = new ColorSupport();
-    support.activate(this._view);
-    this._colorSupport = support;
+  async initializeDocumentColors(view: EditorView) {
+    colorSupport.activate(view);
   }
 
   handleDiagnostics = (params: PublishDiagnosticsParams) => {
@@ -116,7 +100,7 @@ export default class LanguageClientPlugin implements PluginValue {
     ) {
       return;
     }
-    this.updateDiagnostics(params.diagnostics);
+    this.updateDiagnostics(this._view, params.diagnostics);
   };
 
   handleParse = async (params: DidParseParams) => {
@@ -126,54 +110,44 @@ export default class LanguageClientPlugin implements PluginValue {
     ) {
       return;
     }
-    this.updateFoldingRanges();
-    this.updateDocumentColors();
+    this.updateFoldingRanges(this._view);
+    this.updateDocumentColors(this._view);
   };
 
-  updateDiagnostics(diagnostics: Diagnostic[]) {
+  updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
     const transaction = setDiagnostics(
-      this._view.state,
-      getEditorDiagnostics(this._view.state, diagnostics)
+      view.state,
+      getEditorDiagnostics(view.state, diagnostics)
     );
-    this._view.dispatch(transaction);
+    view.dispatch(transaction);
   }
 
-  async updateFoldingRanges() {
-    if (this._foldingSupport) {
-      const result = await this._connection.requestFoldingRanges({
-        textDocument: this._document,
-      });
-      if (result) {
-        const transaction = this._foldingSupport.transaction(
-          this._view.state,
-          result
-        );
-        this._view.dispatch(transaction);
-      }
+  async updateFoldingRanges(view: EditorView) {
+    const result = await this._connection.requestFoldingRanges({
+      textDocument: this._document,
+    });
+    if (result) {
+      const transaction = foldingSupport.transaction(view.state, result);
+      view.dispatch(transaction);
     }
   }
 
-  async updateDocumentColors() {
-    if (this._colorSupport) {
-      const result = await this._connection.requestDocumentColors({
-        textDocument: this._document,
-      });
-      const transaction = this._colorSupport.transaction(
-        this._view.state,
-        result
-      );
-      this._view.dispatch(transaction);
-    }
+  async updateDocumentColors(view: EditorView) {
+    const result = await this._connection.requestDocumentColors({
+      textDocument: this._document,
+    });
+    const transaction = colorSupport.transaction(view.state, result);
+    view.dispatch(transaction);
   }
 
-  protected async sendChange({ documentText }: { documentText: string }) {
+  protected async sendChange(text: string) {
     this._documentVersion += 1;
     await this._connection.notifyDidChangeTextDocument({
       textDocument: {
         uri: this._document.uri,
         version: this._documentVersion,
       },
-      contentChanges: [{ text: documentText }],
+      contentChanges: [{ text }],
     });
   }
 

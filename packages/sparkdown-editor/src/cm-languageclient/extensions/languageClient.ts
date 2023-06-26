@@ -1,16 +1,30 @@
-import { Extension } from "@codemirror/state";
-import { EditorView, ViewPlugin } from "@codemirror/view";
-import LanguageClientPlugin from "../classes/LanguageClientPlugin";
+import { Extension, Facet, combineConfig } from "@codemirror/state";
+import { ViewPlugin } from "@codemirror/view";
+
+import LanguageClientPluginValue from "../classes/LanguageClientPluginValue";
 import LanguageServerConnection from "../classes/LanguageServerConnection";
 
-const languageClient = (
-  client: LanguageServerConnection,
-  documentUri: string
-): Extension[] => {
+export interface LanguageClientConfig {
+  connection: LanguageServerConnection;
+  documentUri: string;
+  throttleDelay?: number;
+}
+
+export const languageClientConfig = Facet.define<
+  LanguageClientConfig,
+  Required<LanguageClientConfig>
+>({
+  combine(configs) {
+    return combineConfig<Required<LanguageClientConfig>>(configs, {
+      throttleDelay: 500,
+    });
+  },
+});
+
+const languageClient = (config: LanguageClientConfig): Extension[] => {
   return [
-    ViewPlugin.define(
-      (view: EditorView) => new LanguageClientPlugin(view, client, documentUri)
-    ),
+    ViewPlugin.fromClass(LanguageClientPluginValue),
+    languageClientConfig.of(config),
   ];
 };
 

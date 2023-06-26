@@ -75,11 +75,10 @@ const SPARKDOWN_THEME: {
     padding: 0,
   },
   ".cm-foldPlaceholder": {
-    backgroundColor: "#00000080",
-    borderColor: "#00000080",
-    color: "#FFFFFF99",
-    margin: "0 4px",
-    padding: "0 8px",
+    backgroundColor: "transparent",
+    border: "none",
+    color: "grey",
+    margin: ".1em .2em 0",
   },
   ".cm-panel.cm-panel-lint": {
     "& ul": {

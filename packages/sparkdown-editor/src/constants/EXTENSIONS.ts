@@ -12,6 +12,7 @@ import {
 } from "@codemirror/commands";
 import {
   bracketMatching,
+  codeFolding,
   foldGutter,
   foldKeymap,
   indentOnInput,
@@ -43,6 +44,7 @@ const EXTENSIONS = [
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
+  codeFolding({ placeholderText: "⋯" }),
   gutterCompartment.of(lintGutter()),
   foldGutter({
     openText: "v",

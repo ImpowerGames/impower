@@ -1,14 +1,13 @@
 import {
-  languageClient,
-  LanguageClient,
   LanguageClientOptions,
+  LanguageServerConnection,
 } from "../cm-languageclient";
 
-const createSparkdownLanguageClient = (
+export const createSparkdownLanguageServerConnection = (
   clientOptions?: LanguageClientOptions
 ) => {
   const worker = new Worker("/public/sparkdown-language-server.js");
-  return new LanguageClient(
+  return new LanguageServerConnection(
     "sparkdown-language-server",
     "Sparkdown Language Server",
     {
@@ -18,10 +17,3 @@ const createSparkdownLanguageClient = (
     worker
   );
 };
-
-const sparkdownLanguageClient = (documentUri: string) => {
-  const client = createSparkdownLanguageClient();
-  return [languageClient(client, documentUri)];
-};
-
-export default sparkdownLanguageClient;

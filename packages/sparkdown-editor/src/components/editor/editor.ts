@@ -2,6 +2,7 @@ import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import SparkdownElement from "../../core/sparkdown-element";
 import createEditorView from "../../utils/createEditorView";
+import { createSparkdownLanguageServerConnection } from "../../utils/createSparkdownLanguageServerConnection";
 import css from "./editor.css";
 import html from "./editor.html";
 
@@ -18,6 +19,8 @@ export default class SparkdownEditor
   extends SparkdownElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
+  connection = createSparkdownLanguageServerConnection();
+
   static override async define(
     tag = "sparkdown-editor",
     dependencies?: Record<string, string>,
@@ -108,6 +111,7 @@ export default class SparkdownEditor
     const editorEl = this.editorEl;
     if (editorEl) {
       createEditorView(editorEl, {
+        connection: this.connection,
         contentPadding: {
           top: this.contentPaddingTop,
           bottom: this.contentPaddingBottom,

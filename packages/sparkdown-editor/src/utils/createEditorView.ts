@@ -13,6 +13,7 @@ import {
 import EngineSparkParser from "../../../spark-engine/src/parser/classes/EngineSparkParser";
 import { SparkDeclarations } from "../../../sparkdown/src/types/SparkDeclarations";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import { LanguageServerConnection, languageClient } from "../cm-languageclient";
 import EXTENSIONS from "../constants/EXTENSIONS";
 import SPARKDOWN_THEME from "../constants/SPARKDOWN_THEME";
 import { foldedField } from "../extensions/foldedField";
@@ -22,7 +23,6 @@ import {
   searchLinePanel,
 } from "../extensions/searchLinePanel";
 import { searchTextPanel } from "../extensions/searchTextPanel";
-import sparkdownLanguageClient from "../extensions/sparkdownLanguageClient";
 import sparkdownLanguageSupport from "../extensions/sparkdownLanguageSupport";
 import { SearchTextQuery } from "../panels/SearchTextPanel";
 import {
@@ -39,6 +39,7 @@ const PARSE_CACHE: {
 } = {};
 
 interface EditorOptions {
+  connection: LanguageServerConnection;
   disableBodyScrollLocking?: number;
   scrollMargin?: {
     top?: number;
@@ -119,6 +120,7 @@ const createEditorView = (
   parent: HTMLElement,
   options?: EditorOptions
 ): EditorView => {
+  const connection = options?.connection;
   const disableBodyScrollLocking = options?.disableBodyScrollLocking;
   const contentPadding = options?.contentPadding;
   const scrollMargin = options?.scrollMargin;
@@ -249,8 +251,15 @@ const createEditorView = (
       //   onNavigateUp,
       //   onNavigateDown,
     }),
-    sparkdownLanguageClient("script"),
   ];
+  if (connection) {
+    languageSetup.push(
+      languageClient({
+        connection,
+        documentUri: "script",
+      })
+    );
+  }
   const startState = EditorState.create({
     doc,
     selection,

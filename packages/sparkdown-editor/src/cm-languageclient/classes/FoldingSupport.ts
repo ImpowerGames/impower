@@ -84,7 +84,7 @@ export const foldingRangesService = foldService.of((state, from, to) => {
   return result;
 });
 
-export default class FoldingSupport extends FeatureSupport<FoldingRange[]> {
+class FoldingSupport extends FeatureSupport<FoldingRange[]> {
   constructor() {
     super([foldableDecorationsField, foldingRangesService]);
   }
@@ -95,3 +95,5 @@ export default class FoldingSupport extends FeatureSupport<FoldingRange[]> {
     return setFoldables(state, ranges);
   }
 }
+
+export const foldingSupport = new FoldingSupport();
