@@ -59,8 +59,9 @@ const SPARKDOWN_THEME: {
   ".cm-gutter-lint": {
     width: "1em",
   },
-  ".cm-foldGutter": {
+  ".cm-foldGutter .cm-gutterElement span": {
     width: "1em",
+    display: "inline-block",
   },
   ".cm-lineNumbers .cm-gutterElement": {
     padding: "0 2px",
