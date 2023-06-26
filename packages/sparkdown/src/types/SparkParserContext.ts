@@ -1,4 +1,6 @@
-export interface SparkParserContext {
+import { SparkRange } from "./SparkRange";
+
+export interface SparkParserContext extends SparkRange {
   line: number;
   from: number;
   to: number;

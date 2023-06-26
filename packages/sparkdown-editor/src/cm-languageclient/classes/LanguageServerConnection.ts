@@ -16,6 +16,8 @@ import {
   DidOpenTextDocumentParams,
   DocumentColorParams,
   DocumentColorRequest,
+  FoldingRangeParams,
+  FoldingRangeRequest,
   HoverParams,
   HoverRequest,
   InitializeRequest,
@@ -107,17 +109,19 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
         },
       },
     },
+    colorProvider: { dynamicRegistration: true },
+    foldingRange: {
+      dynamicRegistration: true,
+    },
     // codeLens: {},
     // documentLink: {
     //   dynamicRegistration: true,
     //   tooltipSupport: false,
     // },
-    // colorProvider: {},
     // formatting: {},
     // rangeFormatting: {},
     // onTypeFormatting: {},
     // rename: {},
-    // foldingRange: {},
     // selectionRange: {},
     publishDiagnostics: {
       relatedInformation: true,
@@ -273,6 +277,14 @@ export default class LanguageServerConnection {
   ) {
     return this.sendRequest(DocumentColorRequest.type, params, token);
   }
+
+  async requestFoldingRanges(
+    params: FoldingRangeParams,
+    token?: CancellationToken | undefined
+  ) {
+    return this.sendRequest(FoldingRangeRequest.type, params, token);
+  }
+
   async requestHovers(
     params: HoverParams,
     token?: CancellationToken | undefined

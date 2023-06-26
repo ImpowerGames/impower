@@ -4,7 +4,12 @@ import {
   closeBracketsKeymap,
   completionKeymap,
 } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+} from "@codemirror/commands";
 import {
   bracketMatching,
   foldGutter,
@@ -38,7 +43,11 @@ const EXTENSIONS = [
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
-  foldGutter(),
+  gutterCompartment.of(lintGutter()),
+  foldGutter({
+    openText: "v",
+    closedText: ">",
+  }),
   drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
@@ -54,6 +63,7 @@ const EXTENSIONS = [
   highlightActiveLine(),
   highlightSelectionMatches(),
   keymap.of([
+    indentWithTab,
     ...closeBracketsKeymap,
     ...defaultKeymap,
     ...searchKeymap,
@@ -63,7 +73,6 @@ const EXTENSIONS = [
     ...lintKeymap,
   ]),
   EditorView.lineWrapping,
-  gutterCompartment.of(lintGutter()),
   EditorState.phrases.of({ "No diagnostics": "No errors" }),
 ];
 

@@ -1,7 +1,8 @@
+import { SparkRange } from "./SparkRange";
 import { SparkToken } from "./SparkToken";
 import { SparkVariable } from "./SparkVariable";
 
-export interface SparkSection {
+export interface SparkSection extends SparkRange {
   type: "section" | "function" | "method" | "detector";
   name: string;
   from: number;

@@ -1,4 +1,6 @@
-export interface CompilerDiagnostic {
+import { SparkRange } from "./SparkRange";
+
+export interface CompilerDiagnostic extends SparkRange {
   from: number;
   to: number;
   content: string;

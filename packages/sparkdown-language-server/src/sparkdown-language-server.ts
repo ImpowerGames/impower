@@ -7,7 +7,6 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
-  TextDocumentSyncKind,
   createConnection,
 } from "vscode-languageserver/browser";
 
@@ -19,6 +18,7 @@ import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import getColorPresentations from "./utils/getColorPresentations";
 import getDocumentColors from "./utils/getDocumentColors";
 import getDocumentDiagnostics from "./utils/getDocumentDiagnostics";
+import getFoldingRanges from "./utils/getFoldingRanges";
 
 console.log("running sparkdown-language-server");
 
@@ -28,22 +28,15 @@ const connection = createConnection(messageReader, messageWriter);
 
 connection.onInitialize((_params: InitializeParams): InitializeResult => {
   const capabilities: ServerCapabilities = {
-    diagnosticProvider: {
-      interFileDependencies: true,
-      workspaceDiagnostics: true,
-    },
+    foldingRangeProvider: true,
     colorProvider: true,
-    codeActionProvider: true,
-    textDocumentSync: TextDocumentSyncKind.Full,
-    completionProvider: {
-      resolveProvider: true,
-    },
   };
   return { capabilities };
 });
 
 const documents = new SparkdownTextDocuments(TextDocument);
 
+// parseProvider
 documents.onDidParse((change) => {
   const params: DidParseParams = {
     uri: change.document.uri,
@@ -56,13 +49,21 @@ documents.onDidParse((change) => {
   );
 });
 
+// foldingRangeProvider
+connection.onFoldingRanges((params) => {
+  const uri = params.textDocument.uri;
+  const document = documents.get(uri);
+  const program = documents.program(uri);
+  return getFoldingRanges(document, program);
+});
+
+// colorProvider
 connection.onDocumentColor((params) => {
   const uri = params.textDocument.uri;
   const document = documents.get(uri);
   const program = documents.program(uri);
   return getDocumentColors(document, program);
 });
-
 connection.onColorPresentation((params) => {
   return getColorPresentations(params.color);
 });

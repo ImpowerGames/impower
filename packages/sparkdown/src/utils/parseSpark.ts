@@ -383,17 +383,6 @@ const addSection = (
   nameTo: number
 ): void => {
   const id = currentSectionId;
-  program.metadata ??= {};
-  program.metadata.lines ??= [];
-  program.metadata.lines[section.line] ??= {};
-  program.metadata.lines[section.line]!.references ??= [];
-  program.metadata.lines[section.line]!.references!.push({
-    from: nameFrom,
-    to: nameTo,
-    name: section.name,
-    id,
-    declaration: true,
-  });
   program.sections ??= {};
   if (id) {
     const parentId = id.split(".").slice(0, -1).join(".");
@@ -432,10 +421,17 @@ const addSection = (
   }
   section.index = Object.keys(program.sections).length;
   program.sections[id] = section;
-  program.metadata ??= {};
   program.metadata.lines ??= [];
   program.metadata.lines[section.line] ??= {};
   program.metadata.lines[section.line]!.section ??= id;
+  program.metadata.lines[section.line]!.references ??= [];
+  program.metadata.lines[section.line]!.references!.push({
+    from: nameFrom,
+    to: nameTo,
+    name: section.name,
+    id,
+    declaration: true,
+  });
 };
 
 const getSection = (

@@ -27,6 +27,29 @@ const addColorDecorationEffect = StateEffect.define<{
   }),
 });
 
+const setColorDecorations = (
+  state: EditorState,
+  colors: ColorInformation[]
+): TransactionSpec => {
+  const effects: StateEffect<unknown>[] = [];
+  effects.push(clearColorDecorationsEffect.of({}));
+  effects.push(
+    ...colors.map((c) => {
+      const r = c.color.red * 255;
+      const g = c.color.green * 255;
+      const b = c.color.blue * 255;
+      const a = c.color.alpha;
+      const rgb = `rgb(${r} ${g} ${b} / ${a * 100}%)`;
+      return addColorDecorationEffect.of({
+        color: rgb,
+        from: positionToOffset(state.doc, c.range.start),
+        to: positionToOffset(state.doc, c.range.end),
+      });
+    })
+  );
+  return { effects };
+};
+
 const colorDecorationsField = StateField.define<DecorationSet>({
   create() {
     return Decoration.none;
@@ -59,35 +82,10 @@ const colorDecorationsField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-const setColorDecorations = (
-  state: EditorState,
-  colors: ColorInformation[]
-): TransactionSpec => {
-  const effects: StateEffect<unknown>[] = [];
-  effects.push(clearColorDecorationsEffect.of({}));
-  effects.push(
-    ...colors.map((c) => {
-      const r = c.color.red * 255;
-      const g = c.color.green * 255;
-      const b = c.color.blue * 255;
-      const a = c.color.alpha;
-      const rgb = `rgb(${r} ${g} ${b} / ${a * 100}%)`;
-      console.log(rgb);
-      return addColorDecorationEffect.of({
-        color: rgb,
-        from: positionToOffset(state.doc, c.range.start),
-        to: positionToOffset(state.doc, c.range.end),
-      });
-    })
-  );
-  return { effects };
-};
-
 export default class ColorSupport extends FeatureSupport<ColorInformation[]> {
   constructor() {
     super([colorDecorationsField, COLOR_SUPPORT_WIDGET_THEME]);
   }
-
   override transaction(
     state: EditorState,
     colors: ColorInformation[]

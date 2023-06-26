@@ -9,6 +9,7 @@ import { DidParseParams } from "../types/DidParseTextDocument";
 import { getEditorDiagnostics } from "../utils/getEditorDiagnostics";
 import throttle from "../utils/throttle";
 import ColorSupport from "./ColorSupport";
+import FoldingSupport from "./FoldingSupport";
 import type LanguageServerConnection from "./LanguageServerConnection";
 
 export default class LanguageClientPlugin implements PluginValue {
@@ -20,6 +21,7 @@ export default class LanguageClientPlugin implements PluginValue {
 
   protected declare throttledChange: () => void;
 
+  protected _foldingSupport?: FoldingSupport;
   protected _colorSupport?: ColorSupport;
 
   constructor(
@@ -87,9 +89,18 @@ export default class LanguageClientPlugin implements PluginValue {
       },
     });
     const serverCapabilities = this._connection.serverCapabilities;
+    if (serverCapabilities?.foldingRangeProvider) {
+      this.initializeFoldingSupport();
+    }
     if (serverCapabilities?.colorProvider) {
       this.initializeDocumentColors();
     }
+  }
+
+  async initializeFoldingSupport() {
+    const support = new FoldingSupport();
+    support.activate(this._view);
+    this._foldingSupport = support;
   }
 
   async initializeDocumentColors() {
@@ -115,6 +126,7 @@ export default class LanguageClientPlugin implements PluginValue {
     ) {
       return;
     }
+    this.updateFoldingRanges();
     this.updateDocumentColors();
   };
 
@@ -126,14 +138,29 @@ export default class LanguageClientPlugin implements PluginValue {
     this._view.dispatch(transaction);
   }
 
+  async updateFoldingRanges() {
+    if (this._foldingSupport) {
+      const result = await this._connection.requestFoldingRanges({
+        textDocument: this._document,
+      });
+      if (result) {
+        const transaction = this._foldingSupport.transaction(
+          this._view.state,
+          result
+        );
+        this._view.dispatch(transaction);
+      }
+    }
+  }
+
   async updateDocumentColors() {
     if (this._colorSupport) {
-      const documentColors = await this._connection.requestDocumentColors({
+      const result = await this._connection.requestDocumentColors({
         textDocument: this._document,
       });
       const transaction = this._colorSupport.transaction(
         this._view.state,
-        documentColors
+        result
       );
       this._view.dispatch(transaction);
     }

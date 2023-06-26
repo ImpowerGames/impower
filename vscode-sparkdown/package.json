@@ -125,7 +125,6 @@
         "editor.wordWrap": "on",
         "editor.wordBasedSuggestions": false,
         "editor.suggestSelection": "first",
-        "editor.foldingStrategy": "indentation",
         "diffEditor.ignoreTrimWhitespace": false,
         "editor.insertSpaces": true,
         "editor.tabSize": 2,

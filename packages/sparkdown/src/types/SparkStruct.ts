@@ -1,6 +1,7 @@
 import { SparkField } from "./SparkField";
+import { SparkRange } from "./SparkRange";
 
-export interface SparkStruct {
+export interface SparkStruct extends SparkRange {
   from: number;
   to: number;
   line: number;

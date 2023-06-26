@@ -9,14 +9,11 @@ import {
   selectedCompletion,
   startCompletion,
 } from "@codemirror/autocomplete";
-import { indentWithTab } from "@codemirror/commands";
 import {
   Language,
   LanguageDescription,
   LanguageSupport,
-  indentUnit,
 } from "@codemirror/language";
-import { Diagnostic, linter } from "@codemirror/lint";
 import { Prec } from "@codemirror/state";
 import { EditorView, KeyBinding, hoverTooltip, keymap } from "@codemirror/view";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
@@ -28,7 +25,6 @@ import {
   toggleComment,
 } from "../constants/commands";
 import { MarkdownExtension } from "../types/markdownExtension";
-import { getDiagnostics } from "./getDiagnostics";
 import { indentationGuides } from "./indentationGuides";
 import { jumpWidget } from "./jumpWidget";
 import { parseCode } from "./nest";
@@ -133,22 +129,11 @@ const sparkdown = (
   } = {
     program,
   };
-  const sparkParseLinter = (view: EditorView): Diagnostic[] => {
-    const script = view.state.doc.toString();
-    parseContext.program = parse(script);
-    const diagnostics = parseContext.program?.diagnostics || [];
-    return getDiagnostics(script, diagnostics);
-  };
   const extensions = config.extensions ? [config.extensions] : [];
   const support = [
     sparkLanguage.data.of({
       autocomplete: async (c) => sparkAutocomplete(c, parseContext),
-      closeBrackets: {
-        brackets: ["(", "[", "{", "'", '"', "`"],
-      },
     }),
-    indentUnit.of("  "),
-    keymap.of([indentWithTab]),
     indentationGuides(),
     autocompletion({ aboveCursor: true, defaultKeymap: false }),
     hoverTooltip((v, p, s) =>
@@ -165,7 +150,6 @@ const sparkdown = (
     jumpWidget({ parseContext }),
     structWidget({ parseContext }),
     snippetPreview(),
-    linter(sparkParseLinter, { delay: 100 }),
   ];
   let defaultCode;
   if (defaultCodeLanguage instanceof LanguageSupport) {

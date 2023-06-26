@@ -1,6 +1,7 @@
+import { SparkRange } from "./SparkRange";
 import { SparkVariable } from "./SparkVariable";
 
-export interface SparkLine {
+export interface SparkLine extends SparkRange {
   type: string;
   content: string;
   text: string;
