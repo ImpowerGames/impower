@@ -34,6 +34,8 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
+import { indentationGuides } from "../cm-indentation-guides/indentationGuides";
+import { indentedLineWrapping } from "../cm-indented-line-wrapping/indentedLineWrapping";
 import rainbowBrackets from "../cm-rainbowbrackets/rainbowBrackets";
 import SPARKDOWN_HIGHLIGHTS from "./SPARKDOWN_HIGHLIGHTS";
 
@@ -50,6 +52,8 @@ const EXTENSIONS = [
     openText: "v",
     closedText: ">",
   }),
+  indentationGuides(),
+  indentedLineWrapping(),
   drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),

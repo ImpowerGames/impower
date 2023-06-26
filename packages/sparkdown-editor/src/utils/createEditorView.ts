@@ -13,6 +13,7 @@ import {
 import EngineSparkParser from "../../../spark-engine/src/parser/classes/EngineSparkParser";
 import { SparkDeclarations } from "../../../sparkdown/src/types/SparkDeclarations";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import sparkdownLanguageSupport from "../cm-lang-sparkdown/sparkdownLanguageSupport";
 import { LanguageServerConnection, languageClient } from "../cm-languageclient";
 import EXTENSIONS from "../constants/EXTENSIONS";
 import SPARKDOWN_THEME from "../constants/SPARKDOWN_THEME";
@@ -23,7 +24,6 @@ import {
   searchLinePanel,
 } from "../extensions/searchLinePanel";
 import { searchTextPanel } from "../extensions/searchTextPanel";
-import sparkdownLanguageSupport from "../extensions/sparkdownLanguageSupport";
 import { SearchTextQuery } from "../panels/SearchTextPanel";
 import {
   SerializableChangeSet,

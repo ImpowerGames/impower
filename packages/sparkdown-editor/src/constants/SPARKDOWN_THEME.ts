@@ -80,6 +80,9 @@ const SPARKDOWN_THEME: {
     color: "grey",
     margin: ".1em .2em 0",
   },
+  ".cm-lineWrapping": {
+    overflowWrap: "break-word",
+  },
   ".cm-panel.cm-panel-lint": {
     "& ul": {
       "& [aria-selected]": {
