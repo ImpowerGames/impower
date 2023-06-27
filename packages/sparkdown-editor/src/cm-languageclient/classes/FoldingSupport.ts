@@ -84,7 +84,7 @@ export const foldingRangesService = foldService.of((state, from, to) => {
   }
   let result = null;
   const line = state.doc.lineAt(from).number;
-  ranges.between(0, state.doc.length - 1, (f, t) => {
+  ranges.between(from, to, (f, t) => {
     const startLine = state.doc.lineAt(f).number;
     if (line === startLine) {
       result = { from: to, to: t };
