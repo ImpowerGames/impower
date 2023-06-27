@@ -13,7 +13,6 @@ import {
 import {
   bracketMatching,
   codeFolding,
-  foldGutter,
   foldKeymap,
   indentOnInput,
   indentUnit,
@@ -48,10 +47,6 @@ const EXTENSIONS = [
   history(),
   codeFolding({ placeholderText: "⋯" }),
   gutterCompartment.of(lintGutter()),
-  foldGutter({
-    openText: "v",
-    closedText: ">",
-  }),
   indentationGuides(),
   indentedLineWrapping(),
   drawSelection(),

@@ -1,4 +1,4 @@
-import { foldService } from "@codemirror/language";
+import { foldGutter, foldService } from "@codemirror/language";
 import {
   EditorState,
   StateEffect,
@@ -6,7 +6,12 @@ import {
   Transaction,
   TransactionSpec,
 } from "@codemirror/state";
-import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
+import {
+  Decoration,
+  DecorationSet,
+  EditorView,
+  ViewUpdate,
+} from "@codemirror/view";
 import { FoldingRange } from "vscode-languageserver-protocol";
 import FeatureSupport from "./FeatureSupport";
 
@@ -84,9 +89,23 @@ export const foldingRangesService = foldService.of((state, from, to) => {
   return result;
 });
 
+const foldingChanged = (update: ViewUpdate): boolean => {
+  return update.transactions.some((t) =>
+    t.effects.some((e) => e.is(clearFoldablesEffect) || e.is(addFoldableEffect))
+  );
+};
+
 class FoldingSupport extends FeatureSupport<FoldingRange[]> {
   constructor() {
-    super([foldableDecorationsField, foldingRangesService]);
+    super([
+      foldableDecorationsField,
+      foldingRangesService,
+      foldGutter({
+        openText: "v",
+        closedText: ">",
+        foldingChanged,
+      }),
+    ]);
   }
   override transaction(
     state: EditorState,
