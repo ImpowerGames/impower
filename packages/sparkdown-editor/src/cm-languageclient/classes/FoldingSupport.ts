@@ -1,4 +1,4 @@
-import { foldGutter, foldService } from "@codemirror/language";
+import { codeFolding, foldGutter, foldService } from "@codemirror/language";
 import {
   EditorState,
   StateEffect,
@@ -100,6 +100,7 @@ class FoldingSupport extends FeatureSupport<FoldingRange[]> {
     super([
       foldableDecorationsField,
       foldingRangesService,
+      codeFolding({ placeholderText: "⋯" }),
       foldGutter({
         openText: "v",
         closedText: ">",

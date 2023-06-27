@@ -10,23 +10,23 @@ import {
 } from "@codemirror/view";
 import { IndentEntry, IndentationMap } from "./classes/map";
 import {
-  IndentationMarkerConfiguration,
-  indentationMarkerConfig,
+  IndentationMarkerConfiguration as IndentationGuideConfiguration,
+  indentationMarkerConfig as indentationGuideConfig,
 } from "./facets/config";
 import { getCurrentLine } from "./utils/getCurrentLine";
 import { getVisibleLines } from "./utils/getVisibleLines";
 
 // CSS classes:
-// - .cm-indent-markers
+// - .cm-indent-guides
 
 // CSS variables:
 // - --indent-marker-bg-part
 // - --indent-marker-active-bg-part
 
-/** Thickness of indent markers. Probably should be integer pixel values. */
+/** Thickness of indent guides. Probably should be integer pixel values. */
 const MARKER_THICKNESS = "1px";
 
-const indentTheme = EditorView.baseTheme({
+const indentationGuideTheme = EditorView.baseTheme({
   "&light": {
     "--indent-marker-bg-color": "#0000001A",
     "--indent-marker-active-bg-color": "#0000004D",
@@ -41,16 +41,16 @@ const indentTheme = EditorView.baseTheme({
     position: "relative",
   },
 
-  // this pseudo-element is used to draw the indent markers,
+  // this pseudo-element is used to draw the indent guides,
   // while still allowing the line to have its own background.
-  ".cm-indent-markers::before": {
+  ".cm-indent-guides::before": {
     content: '""',
     position: "absolute",
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    background: "var(--indent-markers)",
+    background: "var(--indent-guides)",
     pointerEvents: "none",
     zIndex: "-1",
   },
@@ -82,14 +82,14 @@ function makeBackgroundCSS(
   const backgrounds = [];
 
   if (active !== undefined) {
-    const markersBeforeActive = active - startAt - 1;
-    if (markersBeforeActive > 0) {
+    const guidesBeforeActive = active - startAt - 1;
+    if (guidesBeforeActive > 0) {
       backgrounds.push(
         createGradient(
           "--indent-marker-bg-color",
           indentWidth,
           startAt,
-          markersBeforeActive
+          guidesBeforeActive
         )
       );
     }
@@ -125,7 +125,7 @@ function makeBackgroundCSS(
   return backgrounds.join(",");
 }
 
-class IndentMarkersClass implements PluginValue {
+class IndentGuideClass implements PluginValue {
   view: EditorView;
   decorations!: DecorationSet;
 
@@ -149,7 +149,7 @@ class IndentMarkersClass implements PluginValue {
     const lineNumberChanged = lineNumber !== this.currentLineNumber;
     this.currentLineNumber = lineNumber;
     const activeBlockUpdateRequired =
-      update.state.facet(indentationMarkerConfig).highlightActiveBlock &&
+      update.state.facet(indentationGuideConfig).highlightActiveBlock &&
       lineNumberChanged;
     if (
       update.docChanged ||
@@ -166,7 +166,7 @@ class IndentMarkersClass implements PluginValue {
 
     const lines = getVisibleLines(this.view, state);
     const map = new IndentationMap(lines, state, this.unitWidth);
-    const { hideFirstIndent } = state.facet(indentationMarkerConfig);
+    const { hideFirstIndent } = state.facet(indentationGuideConfig);
 
     for (const line of lines) {
       const entry = map.get(line.number);
@@ -184,9 +184,9 @@ class IndentMarkersClass implements PluginValue {
         line.from,
         line.from,
         Decoration.line({
-          class: "cm-indent-markers",
+          class: "cm-indent-guides",
           attributes: {
-            style: `--indent-markers: ${backgrounds}`,
+            style: `--indent-guides: ${backgrounds}`,
           },
         })
       );
@@ -196,11 +196,11 @@ class IndentMarkersClass implements PluginValue {
   }
 }
 
-export function indentationGuides(config: IndentationMarkerConfiguration = {}) {
+export function indentationGuides(config: IndentationGuideConfiguration = {}) {
   return [
-    indentationMarkerConfig.of(config),
-    indentTheme,
-    ViewPlugin.fromClass(IndentMarkersClass, {
+    indentationGuideConfig.of(config),
+    indentationGuideTheme,
+    ViewPlugin.fromClass(IndentGuideClass, {
       decorations: (v) => v.decorations,
     }),
   ];

@@ -12,7 +12,6 @@ import {
 } from "@codemirror/commands";
 import {
   bracketMatching,
-  codeFolding,
   foldKeymap,
   indentOnInput,
   indentUnit,
@@ -36,6 +35,7 @@ import {
 import { indentationGuides } from "../cm-indentation-guides/indentationGuides";
 import { indentedLineWrapping } from "../cm-indented-line-wrapping/indentedLineWrapping";
 import rainbowBrackets from "../cm-rainbowbrackets/rainbowBrackets";
+import { whitespaceMarkers } from "../cm-whitespace-markers/whitespaceMarkers";
 import SPARKDOWN_HIGHLIGHTS from "./SPARKDOWN_HIGHLIGHTS";
 
 const gutterCompartment = new Compartment();
@@ -45,10 +45,10 @@ const EXTENSIONS = [
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
-  codeFolding({ placeholderText: "⋯" }),
   gutterCompartment.of(lintGutter()),
   indentationGuides(),
   indentedLineWrapping(),
+  whitespaceMarkers(),
   drawSelection(),
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
