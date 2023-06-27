@@ -57,7 +57,7 @@ const getFoldingRanges = (
       // Find the next line that is indented less than the current line
       for (let i = index + 1; i < lines.length; i += 1) {
         const next = lines[i]!;
-        if (next.indent! <= curr.indent!) {
+        if (next && next.indent! <= curr.indent!) {
           // fold ends the line before the outdented line
           return i - 1;
         }

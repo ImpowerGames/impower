@@ -13,7 +13,6 @@ import {
 import {
   bracketMatching,
   foldKeymap,
-  indentOnInput,
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
@@ -53,7 +52,6 @@ const EXTENSIONS = [
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
   indentUnit.of("  "),
-  indentOnInput(),
   syntaxHighlighting(SPARKDOWN_HIGHLIGHTS),
   bracketMatching(),
   rainbowBrackets(),

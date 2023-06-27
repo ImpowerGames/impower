@@ -9,7 +9,6 @@ const convertConfigToLanguageData = (
   const autoClosingPairs = config?.autoClosingPairs;
   const autoCloseBefore = config?.autoCloseBefore;
   const wordChars = config?.wordChars;
-  const indentationRules = config?.indentationRules;
 
   const data: LanguageData = {};
 
@@ -30,15 +29,6 @@ const convertConfigToLanguageData = (
   }
   if (wordChars) {
     data.wordChars = wordChars;
-  }
-  if (indentationRules?.increaseIndentPattern) {
-    const regex = new RegExp(indentationRules.increaseIndentPattern, "m");
-    if (!regex) {
-      throw new Error(
-        `Invalid indentOnInput: ${indentationRules.increaseIndentPattern}`
-      );
-    }
-    data.indentOnInput = regex;
   }
 
   return data;

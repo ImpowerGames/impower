@@ -122,10 +122,10 @@
         ]
       },
       "[sparkdown]": {
+        "diffEditor.ignoreTrimWhitespace": false,
         "editor.wordWrap": "on",
         "editor.wordBasedSuggestions": false,
         "editor.suggestSelection": "first",
-        "diffEditor.ignoreTrimWhitespace": false,
         "editor.insertSpaces": true,
         "editor.tabSize": 2,
         "editor.bracketPairColorization.enabled": true,

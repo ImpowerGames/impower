@@ -13,8 +13,6 @@ export interface LanguageData {
 
   wordChars?: string;
 
-  indentOnInput?: RegExp;
-
   autocomplete?: (
     context: CompletionContext
   ) => CompletionResult | Promise<CompletionResult | null> | null;

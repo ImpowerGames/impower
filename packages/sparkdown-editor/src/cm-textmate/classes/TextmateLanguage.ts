@@ -7,6 +7,8 @@ import {
   LanguageDescription,
   LanguageSupport,
   defineLanguageFacet,
+  getIndentUnit,
+  indentService,
   languageDataProp,
 } from "@codemirror/language";
 import type { Extension, Facet } from "@codemirror/state";
@@ -20,6 +22,8 @@ import { SnippetDefinition } from "../types/SnippetDefinition";
 import convertConfigToLanguageData from "../utils/convertConfigToLanguageData";
 import { removeUndefined } from "../utils/removeUndefined";
 import LezerGrammarParser from "./LezerGrammarParser";
+
+const INDENT_REGEX = /^(\s)*/;
 
 /**
  * Use the `load` method to get the extension needed to
@@ -125,11 +129,28 @@ export default class TextmateLanguage {
     this.snippetsDefinition = snippetsDefinition;
     this.languageData = {
       ...dataDescription,
-      ...convertConfigToLanguageData(this.configDefinition || {}),
+      ...convertConfigToLanguageData(configDefinition || {}),
       ...languageData,
     };
+    const languageExtensions = [
+      indentService.of((context, pos) => {
+        const prevLine = context.lineAt(pos - 1);
+        const prevText = prevLine.text;
+        const prevIndentSize = prevText.match(INDENT_REGEX)?.[0].length ?? 0;
+        const indentationRules = configDefinition?.indentationRules;
+        const decreaseIndentPattern = indentationRules?.decreaseIndentPattern;
+        if (decreaseIndentPattern && prevText.match(decreaseIndentPattern)) {
+          return prevIndentSize - getIndentUnit(context.state);
+        }
+        const increaseIndentPattern = indentationRules?.increaseIndentPattern;
+        if (increaseIndentPattern && prevText.match(increaseIndentPattern)) {
+          return prevIndentSize + getIndentUnit(context.state);
+        }
+        return prevIndentSize;
+      }),
+    ];
     this.nestLanguages = nestLanguages;
-    this.extensions = supportExtensions;
+    this.extensions = [...languageExtensions, ...supportExtensions];
 
     this.description = LanguageDescription.of({
       ...dataDescription,
