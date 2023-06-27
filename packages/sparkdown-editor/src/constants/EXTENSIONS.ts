@@ -26,7 +26,6 @@ import {
   dropCursor,
   highlightActiveLine,
   highlightActiveLineGutter,
-  highlightSpecialChars,
   keymap,
   lineNumbers,
   rectangularSelection,
@@ -42,7 +41,6 @@ const gutterCompartment = new Compartment();
 const EXTENSIONS = [
   lineNumbers(),
   highlightActiveLineGutter(),
-  highlightSpecialChars(),
   history(),
   gutterCompartment.of(lintGutter()),
   indentationGuides(),
