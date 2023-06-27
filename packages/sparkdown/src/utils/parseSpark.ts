@@ -1661,18 +1661,22 @@ const pushToken = (
   if (config?.skipTokens?.includes(token.type)) {
     return;
   }
+  program.tokens.push(token);
+  program.sections ??= {};
+  const section = program.sections[currentSectionId] || createSparkSection();
+  program.sections[currentSectionId] = section;
   if (updateLines) {
     const tokenIndex = program.tokens.length;
     program.metadata ??= {};
     program.metadata.lines ??= [];
     program.metadata.lines[token.line] ??= {};
+    program.metadata.lines[token.line]!.level = section.level;
+    program.metadata.lines[token.line]!.indent = token.indent;
+    program.metadata.lines[token.line]!.offset = token.offset;
+    program.metadata.lines[token.line]!.length = token.text.length;
     program.metadata.lines[token.line]!.tokens ??= [];
     program.metadata.lines[token.line]!.tokens!.push(tokenIndex);
   }
-  program.tokens.push(token);
-  program.sections ??= {};
-  const section = program.sections[currentSectionId] || createSparkSection();
-  program.sections[currentSectionId] = section;
   section.tokens ??= [];
   const tokens = section.tokens;
   if (tokens) {

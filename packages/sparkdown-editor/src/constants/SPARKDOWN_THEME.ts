@@ -46,9 +46,10 @@ const SPARKDOWN_THEME: {
     backgroundColor: "transparent",
   },
   ".cm-gutters": {
-    backgroundColor: "#00000066",
+    backgroundColor: "transparent",
     color: SPARKDOWN_COLORS.lineNumber,
     border: "none",
+    opacity: 0.7,
   },
   ".cm-gutterElement *": {
     userSelect: "none",
@@ -78,7 +79,7 @@ const SPARKDOWN_THEME: {
     backgroundColor: "transparent",
     border: "none",
     color: "grey",
-    margin: ".1em .2em 0",
+    margin: ".1em .4em 0",
   },
   ".cm-lineWrapping": {
     overflowWrap: "break-word",

@@ -26,7 +26,7 @@ export const indentedLineWrappingConfig = Facet.define<
 >({
   combine(configs) {
     return combineConfig(configs, {
-      padding: `8px`,
+      padding: `4px`,
     });
   },
 });

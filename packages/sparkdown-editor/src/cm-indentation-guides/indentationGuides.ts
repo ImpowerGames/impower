@@ -23,26 +23,18 @@ import { getVisibleLines } from "./utils/getVisibleLines";
 // - --indent-marker-bg-part
 // - --indent-marker-active-bg-part
 
-/** Color of inactive indent markers. Based on RUI's var(--background-higher) */
-const MARKER_COLOR_LIGHT = "#F0F1F2";
-const MARKER_COLOR_DARK = "#2B3245";
-
-/** Color of active indent markers. Based on RUI's var(--background-highest) */
-const MARKER_COLOR_ACTIVE_LIGHT = "#E4E5E6";
-const MARKER_COLOR_ACTIVE_DARK = "#3C445C";
-
 /** Thickness of indent markers. Probably should be integer pixel values. */
 const MARKER_THICKNESS = "1px";
 
 const indentTheme = EditorView.baseTheme({
   "&light": {
-    "--indent-marker-bg-color": MARKER_COLOR_LIGHT,
-    "--indent-marker-active-bg-color": MARKER_COLOR_ACTIVE_LIGHT,
+    "--indent-marker-bg-color": "#0000001A",
+    "--indent-marker-active-bg-color": "#0000004D",
   },
 
   "&dark": {
-    "--indent-marker-bg-color": MARKER_COLOR_DARK,
-    "--indent-marker-active-bg-color": MARKER_COLOR_ACTIVE_DARK,
+    "--indent-marker-bg-color": "#ffffff1A",
+    "--indent-marker-active-bg-color": "#ffffff4D",
   },
 
   ".cm-line": {
@@ -178,8 +170,7 @@ class IndentMarkersClass implements PluginValue {
 
     for (const line of lines) {
       const entry = map.get(line.number);
-
-      if (!entry?.level) {
+      if (!entry?.level || this.unitWidth * entry.level > line.text.length) {
         continue;
       }
 
