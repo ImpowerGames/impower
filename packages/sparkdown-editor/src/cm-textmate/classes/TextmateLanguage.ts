@@ -2,10 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import {
   Language,
   LanguageDescription,
   LanguageSupport,
+  bracketMatching,
   defineLanguageFacet,
   getIndentUnit,
   indentService,
@@ -16,6 +18,7 @@ import { NodeType, Parser } from "@lezer/common";
 
 import { GrammarDefinition, NodeID } from "../../../../grammar-compiler/src";
 
+import { keymap } from "@codemirror/view";
 import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";
 import { SnippetDefinition } from "../types/SnippetDefinition";
@@ -133,6 +136,9 @@ export default class TextmateLanguage {
       ...languageData,
     };
     const languageExtensions = [
+      bracketMatching(),
+      closeBrackets(),
+      keymap.of([...closeBracketsKeymap]),
       indentService.of((context, pos) => {
         const prevLine = context.lineAt(pos - 1);
         const prevText = prevLine.text;

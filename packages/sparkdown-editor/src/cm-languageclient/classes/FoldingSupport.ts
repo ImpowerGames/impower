@@ -1,4 +1,9 @@
-import { codeFolding, foldGutter, foldService } from "@codemirror/language";
+import {
+  codeFolding,
+  foldGutter,
+  foldKeymap,
+  foldService,
+} from "@codemirror/language";
 import {
   EditorState,
   StateEffect,
@@ -11,6 +16,7 @@ import {
   DecorationSet,
   EditorView,
   ViewUpdate,
+  keymap,
 } from "@codemirror/view";
 import { FoldingRange } from "vscode-languageserver-protocol";
 import FeatureSupport from "./FeatureSupport";
@@ -106,6 +112,7 @@ class FoldingSupport extends FeatureSupport<FoldingRange[]> {
         closedText: ">",
         foldingChanged,
       }),
+      keymap.of([...foldKeymap]),
     ]);
   }
   override transaction(

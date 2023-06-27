@@ -1,24 +1,14 @@
-import {
-  autocompletion,
-  closeBrackets,
-  closeBracketsKeymap,
-  completionKeymap,
-} from "@codemirror/autocomplete";
+import { autocompletion, completionKeymap } from "@codemirror/autocomplete";
 import {
   defaultKeymap,
   history,
   historyKeymap,
   indentWithTab,
 } from "@codemirror/commands";
-import {
-  bracketMatching,
-  foldKeymap,
-  indentUnit,
-  syntaxHighlighting,
-} from "@codemirror/language";
+import { indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { lintGutter, lintKeymap } from "@codemirror/lint";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { Compartment, EditorState } from "@codemirror/state";
+import { EditorState } from "@codemirror/state";
 import {
   EditorView,
   crosshairCursor,
@@ -36,35 +26,29 @@ import rainbowBrackets from "../cm-rainbowbrackets/rainbowBrackets";
 import { whitespaceMarkers } from "../cm-whitespace-markers/whitespaceMarkers";
 import SPARKDOWN_HIGHLIGHTS from "./SPARKDOWN_HIGHLIGHTS";
 
-const gutterCompartment = new Compartment();
-
 const EXTENSIONS = [
-  lineNumbers(),
-  highlightActiveLineGutter(),
   history(),
-  gutterCompartment.of(lintGutter()),
+  lineNumbers(),
+  lintGutter(),
+  indentUnit.of("  "),
   indentationGuides(),
   indentedLineWrapping(),
   whitespaceMarkers(),
   drawSelection(),
   dropCursor(),
-  indentUnit.of("  "),
-  syntaxHighlighting(SPARKDOWN_HIGHLIGHTS),
-  bracketMatching(),
-  rainbowBrackets(),
-  closeBrackets(),
-  autocompletion(),
-  rectangularSelection(),
   crosshairCursor(),
+  rectangularSelection(),
+  syntaxHighlighting(SPARKDOWN_HIGHLIGHTS),
+  rainbowBrackets(),
+  autocompletion(),
   highlightActiveLine(),
+  highlightActiveLineGutter(),
   highlightSelectionMatches(),
   keymap.of([
     indentWithTab,
-    ...closeBracketsKeymap,
     ...defaultKeymap,
     ...searchKeymap,
     ...historyKeymap,
-    ...foldKeymap,
     ...completionKeymap,
     ...lintKeymap,
   ]),
