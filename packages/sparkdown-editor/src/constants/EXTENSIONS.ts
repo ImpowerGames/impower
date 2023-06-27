@@ -50,7 +50,6 @@ const EXTENSIONS = [
   whitespaceMarkers(),
   drawSelection(),
   dropCursor(),
-  EditorState.allowMultipleSelections.of(true),
   indentUnit.of("  "),
   syntaxHighlighting(SPARKDOWN_HIGHLIGHTS),
   bracketMatching(),
