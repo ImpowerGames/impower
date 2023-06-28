@@ -164,7 +164,7 @@
     ],
     "snippets": [
       {
-        "language": "markdown",
+        "language": "sparkdown",
         "path": "./language/sparkdown.language-snippets.json"
       }
     ],

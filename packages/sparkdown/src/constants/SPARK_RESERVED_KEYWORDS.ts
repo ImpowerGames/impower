@@ -1,7 +1,7 @@
-import { primitiveTypes } from "./primitiveTypes";
+import { SPARK_PRIMITIVE_TYPES } from "./SPARK_PRIMITIVE_TYPES";
 
-export const reservedKeywords = [
-  ...primitiveTypes,
+export const SPARK_RESERVED_KEYWORDS = [
+  ...SPARK_PRIMITIVE_TYPES,
   "locale",
   "any",
   "as",

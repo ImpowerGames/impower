@@ -1,4 +1,4 @@
-import { sparkRegexes } from "../constants/sparkRegexes";
+import { SPARK_REGEX } from "../constants/SPARK_REGEX";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 
 export const defaultCompiler = (
@@ -17,16 +17,16 @@ export const defaultCompiler = (
   const content = expr;
   const from = expr.length - expr.trimStart().length;
   const to = from + trimmedExpr.length;
-  if (trimmedExpr.match(sparkRegexes.string)) {
+  if (trimmedExpr.match(SPARK_REGEX.string)) {
     return [trimmedExpr.slice(1, -1), diagnostics, references];
   }
-  if (trimmedExpr.match(sparkRegexes.number)) {
+  if (trimmedExpr.match(SPARK_REGEX.number)) {
     return [Number(trimmedExpr), diagnostics, references];
   }
-  if (trimmedExpr.match(sparkRegexes.boolean)) {
+  if (trimmedExpr.match(SPARK_REGEX.boolean)) {
     return [trimmedExpr === "true" ? true : false, diagnostics, references];
   }
-  if (trimmedExpr.match(sparkRegexes.variableAccess)) {
+  if (trimmedExpr.match(SPARK_REGEX.variableAccess)) {
     const result = context?.[trimmedExpr];
     if (result === undefined) {
       diagnostics.push({

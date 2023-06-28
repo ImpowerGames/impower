@@ -1,4 +1,4 @@
-import { sparkRegexes, SparkRegexType } from "../../../sparkdown/src";
+import { SPARK_REGEX, SparkRegexType } from "../../../sparkdown/src";
 import { LexerReplacements } from "../types/LexerReplacements";
 
 export const sparkLexer = (
@@ -25,10 +25,10 @@ export const sparkLexer = (
   let match;
 
   if (titlePage) {
-    s = s.replace(sparkRegexes.link, replacer.link);
+    s = s.replace(SPARK_REGEX.link, replacer.link);
   }
   s = s
-    .replace(sparkRegexes.note, replacer.note)
+    .replace(SPARK_REGEX.note_inline, replacer.note)
     .replace(/\\\*/g, "[star]")
     .replace(/\\_/g, "[underline]")
     .replace(/\n/g, replacer.line_break);
@@ -38,7 +38,7 @@ export const sparkLexer = (
     if (!style) {
       break;
     }
-    match = sparkRegexes[style];
+    match = SPARK_REGEX[style];
 
     if (match.test(s)) {
       s = s.replace(match, replacer[style] || "");

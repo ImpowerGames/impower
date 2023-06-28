@@ -1,7 +1,7 @@
 import { SparkTitleKeyword } from "../types/SparkTitleKeyword";
 import { SparkTitlePosition } from "../types/SparkTitlePosition";
 
-export const titlePageDisplay: Record<
+export const TITLE_PAGE_DISPLAY: Record<
   SparkTitleKeyword | SparkTitlePosition,
   {
     position: SparkTitlePosition;

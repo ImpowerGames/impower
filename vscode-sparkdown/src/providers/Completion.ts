@@ -1,6 +1,6 @@
 import {
   getCharactersWhoSpokeBeforeLine,
-  titlePageDisplay,
+  TITLE_PAGE_DISPLAY,
 } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
 import { parseState } from "../state/parseState";
@@ -151,7 +151,7 @@ export class SparkdownCompletionProvider
               name: "Title",
               detail: "The title of the screenplay",
               sort: "A",
-              position: titlePageDisplay["title"].position,
+              position: TITLE_PAGE_DISPLAY["title"].position,
             })
           );
         }
@@ -164,7 +164,7 @@ export class SparkdownCompletionProvider
               documentation:
                 'Inserted between the title and the author. Good practice is to simply use "Written by" (avoid "Created by" etc...).',
               sort: "B",
-              position: titlePageDisplay["credit"].position,
+              position: TITLE_PAGE_DISPLAY["credit"].position,
             })
           );
         }
@@ -177,7 +177,7 @@ export class SparkdownCompletionProvider
               triggerIntellisense: true,
               documentation:
                 "This is you! If there are several authors, you can optionally use the 'authors' tag instead.",
-              position: titlePageDisplay["author"].position,
+              position: TITLE_PAGE_DISPLAY["author"].position,
             })
           );
         }
@@ -190,7 +190,7 @@ export class SparkdownCompletionProvider
               documentation:
                 "This will be inserted below the author, and is useful if the story has an additional source (such as 'Original story by x', 'Based on the novel by x', etc...)",
               sort: "D",
-              position: titlePageDisplay["source"].position,
+              position: TITLE_PAGE_DISPLAY["source"].position,
             })
           );
         }
@@ -202,7 +202,7 @@ export class SparkdownCompletionProvider
               sort: "E",
               documentation:
                 "Any additional notes you wish to include in the title page",
-              position: titlePageDisplay["notes"].position,
+              position: TITLE_PAGE_DISPLAY["notes"].position,
             })
           );
         }
@@ -215,7 +215,7 @@ export class SparkdownCompletionProvider
               documentation:
                 "Useful if you have several drafts and need to keep track of when they were written",
               sort: "F",
-              position: titlePageDisplay["draft_date"].position,
+              position: TITLE_PAGE_DISPLAY["draft_date"].position,
             })
           );
         }
@@ -228,7 +228,7 @@ export class SparkdownCompletionProvider
               documentation:
                 "Only include the date it if necessary for production purposes. Someone reading your screenplay does not generally need to know when it was written.",
               sort: "G",
-              position: titlePageDisplay["date"].position,
+              position: TITLE_PAGE_DISPLAY["date"].position,
             })
           );
         }
@@ -242,7 +242,7 @@ export class SparkdownCompletionProvider
               detail: "Contact details",
               sort: "H",
               documentation: "Your contact details (Address, email, etc...)",
-              position: titlePageDisplay["contact"].position,
+              position: TITLE_PAGE_DISPLAY["contact"].position,
             })
           );
         }
@@ -256,7 +256,7 @@ export class SparkdownCompletionProvider
                 "**Warning:** Including copyright information tends to be unnecessary, and may even seem unprofessional in some cases.",
               sort: "I",
               deprecated: true,
-              position: titlePageDisplay["copyright"].position,
+              position: TITLE_PAGE_DISPLAY["copyright"].position,
             })
           );
         }
@@ -268,7 +268,7 @@ export class SparkdownCompletionProvider
               documentation:
                 "A watermark displayed diagonally on every single page",
               sort: "J",
-              position: titlePageDisplay["watermark"].position,
+              position: TITLE_PAGE_DISPLAY["watermark"].position,
             })
           );
         }
@@ -280,7 +280,7 @@ export class SparkdownCompletionProvider
               triggerIntellisense: true,
               documentation: `Generally a monospace courier-type font. Sparkdown's default is [Courier Prime](https://quoteunquoteapps.com/courierprime/), with added support for cyrillic.`,
               sort: "K",
-              position: titlePageDisplay["font"].position,
+              position: TITLE_PAGE_DISPLAY["font"].position,
             })
           );
         }
@@ -291,7 +291,7 @@ export class SparkdownCompletionProvider
               detail: "The language the screenplay is written in",
               documentation: `Generally the language's ISO code. Sparkdown's default is en-US`,
               sort: "K",
-              position: titlePageDisplay["language"].position,
+              position: TITLE_PAGE_DISPLAY["language"].position,
             })
           );
         }
@@ -319,7 +319,7 @@ export class SparkdownCompletionProvider
 * Second Salmon Revision
 * Second Cherry Revision`,
               sort: "L",
-              position: titlePageDisplay["revision"].position,
+              position: TITLE_PAGE_DISPLAY["revision"].position,
             })
           );
         }
@@ -330,7 +330,7 @@ export class SparkdownCompletionProvider
             documentation:
               "Additional content in the top left of the title page",
             sort: "M",
-            position: titlePageDisplay["tl"].position,
+            position: TITLE_PAGE_DISPLAY["tl"].position,
           })
         );
         completes.push(
@@ -340,7 +340,7 @@ export class SparkdownCompletionProvider
             documentation:
               "Additional content in the top center of the title page",
             sort: "N",
-            position: titlePageDisplay["tc"].position,
+            position: TITLE_PAGE_DISPLAY["tc"].position,
           })
         );
         completes.push(
@@ -350,7 +350,7 @@ export class SparkdownCompletionProvider
             documentation:
               "Additional content in the top right of the title page",
             sort: "O",
-            position: titlePageDisplay["tr"].position,
+            position: TITLE_PAGE_DISPLAY["tr"].position,
           })
         );
         completes.push(
@@ -359,7 +359,7 @@ export class SparkdownCompletionProvider
             detail: "Center Center",
             documentation: "Additional content in the center of the title page",
             sort: "P",
-            position: titlePageDisplay["cc"].position,
+            position: TITLE_PAGE_DISPLAY["cc"].position,
           })
         );
         completes.push(
@@ -369,7 +369,7 @@ export class SparkdownCompletionProvider
             documentation:
               "Additional content in the bottom left of the title page",
             sort: "Q",
-            position: titlePageDisplay["bl"].position,
+            position: TITLE_PAGE_DISPLAY["bl"].position,
           })
         );
         completes.push(
@@ -379,7 +379,7 @@ export class SparkdownCompletionProvider
             documentation:
               "Additional content in the bottom right of the title page",
             sort: "R",
-            position: titlePageDisplay["br"].position,
+            position: TITLE_PAGE_DISPLAY["br"].position,
           })
         );
         completes.push(

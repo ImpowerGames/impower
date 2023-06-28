@@ -1,4 +1,4 @@
-import { sparkRegexes } from "../../../sparkdown/src";
+import { SPARK_REGEX } from "../../../sparkdown/src";
 import { PdfDocument } from "../types/PdfDocument";
 import { TextOptions } from "../types/TextOptions";
 
@@ -48,7 +48,7 @@ export const pdfProcessText = (
   if (options?.links) {
     let match;
     //Clean up all the links, while keeping track of their offset in order to add them back in later.
-    while ((match = sparkRegexes.link.exec(text)) !== null) {
+    while ((match = SPARK_REGEX.link.exec(text)) !== null) {
       match.index;
       const trimmed = match[3];
       links.push({

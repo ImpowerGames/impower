@@ -1,0 +1,125 @@
+"Interior Scene":
+  prefix: "INT."
+  body: "INT. ${1:LOCATION} - ${2:TIME}"
+  description: "An indoor scene"
+  documentation: "<span class='scene'>INT. BEDROOM - DAY</span>"
+  category: "Scenes"
+
+"Exterior Scene":
+  prefix: "EXT."
+  body: "EXT. ${1:LOCATION} - ${2:TIME}"
+  description: "An outdoor scene"
+  documentation: "<span class='scene'>EXT. BEACH - DAY</span>"
+  category: "Scenes"
+
+"Intercut Scene":
+  prefix: "INT./EXT."
+  body: "INT./EXT. ${1:LOCATION} - ${2:TIME}"
+  description: "A scene that is intercut between indoors and outdoors"
+  documentation: "<span class='scene'>INT./EXT. PHONE BOOTH</span>"
+  category: "Scenes"
+
+"Character":
+  prefix: "@"
+  body: "@${1:${TM_SELECTED_TEXT}}"
+  description: "The speaker of the dialogue line"
+  documentation: "<span class='dialogue_character'>JEFFERY</span><span class='dialogue'>Do you know where we are?</span>"
+  category: "Dialogue"
+
+"Parenthetical":
+  prefix: "("
+  body: "(${1:${TM_SELECTED_TEXT}})"
+  description: "A brief description of how a particular line of dialogue should be delivered"
+  documentation: "<span class='dialogue_character'>HILDY</span><span class='dialogue_parenthetical'>(with a smile)</span><span class='dialogue'>Hello, Skinny. Remember me?</span>"
+  category: "Dialogue"
+
+"Dialogue":
+  prefix: "…"
+  body: "${1:${TM_SELECTED_TEXT}}"
+  description: "Words that are spoken by a character"
+  documentation: "<span class='dialogue_character'>TRACY</span><span class='dialogue'>Oh, we're going to talk about me, are we?</span>"
+  category: "Dialogue"
+
+"Simultaneous Dialogue":
+  prefix: "^"
+  body: "^"
+  description: "A dialogue line that is delivered at the same time as the previous dialogue line"
+  documentation: "<span class='dialogue_character'>BRICK</span><span class='dialogue'>Screw retirement.</span><span class='dialogue_character'>\nSTEEL <mark class='caret'>^</mark></span><span class='dialogue'>Screw retirement.</span>"
+  category: "Dialogue"
+
+"Lyrics":
+  prefix: "~"
+  body: "~${1:${TM_SELECTED_TEXT}}"
+  description: "A dialogue line that should be sung musically"
+  documentation: "<span class='dialogue_character'>JANE</span><span class='dialogue'>~Happy Birthday to you!\n~Happy Birthday to you!</span>"
+  category: "Dialogue"
+
+"Action":
+  prefix: "!"
+  body: "!${1:${TM_SELECTED_TEXT}}"
+  description: "Text that describes the scene or character actions"
+  documentation: "The men look at each other."
+  category: "Action"
+
+"Cut Transition":
+  prefix: "CUT TO:"
+  body: "CUT TO:"
+  description: "Camera moves to the next shot with no transitional effect"
+  documentation: "<span class='transition'>CUT TO:</span><span class='scene'>\nEXT. COFFEE SHOP - DAY</span>"
+  category: "Transitions"
+
+"Flash Cut Transition":
+  prefix: "FLASH CUT TO:"
+  body: "FLASH CUT TO:"
+  description: "Camera flashes to the next shot"
+  documentation: "<span class='transition'>FLASH CUT TO:</span><span class='scene'>\nEXT. COFFEE SHOP - DAY</span>"
+  category: "Transitions"
+
+"Fade Transition":
+  prefix: "FADE TO:"
+  body: "FADE TO:"
+  description: "Camera fades out the current shot and then fades in the next shot"
+  documentation: "<span class='transition'>FADE TO:</span><span class='scene'>\nEXT. COFFEE SHOP - DAY</span>"
+  category: "Transitions"
+
+"Dissolve Transition":
+  prefix: "DISSOLVE TO:"
+  body: "DISSOLVE TO:"
+  description: "Camera simultaneously fades out the current and fades in the next shot"
+  documentation: "<span class='transition'>DISSOLVE TO:</span><span class='scene'>\nEXT. COFFEE SHOP - DAY</span>"
+  category: "Transitions"
+
+"*Italics*":
+  prefix: "*"
+  description: "*Italics*"
+  body: "*${1:${TM_SELECTED_TEXT}}*$0"
+  documentation: "<span class='italics'>*italicized text*</span>"
+  category: "Emphasis"
+
+"**Bold**":
+  prefix: "**"
+  description: "**Bold**"
+  body: "**${1:${TM_SELECTED_TEXT}}**$0"
+  documentation: "<span class='bold'>**bolded text**</span>"
+  category: "Emphasis"
+
+"***Bold Italics***":
+  prefix: "***"
+  description: "***Bold Italics***"
+  body: "***${1:${TM_SELECTED_TEXT}}***$0"
+  documentation: "<span class='bold italics'>***bolded and italicized text***</span>"
+  category: "Emphasis"
+
+"_Underline_":
+  prefix: "_"
+  description: "_Underline_"
+  body: "_${1:${TM_SELECTED_TEXT}}_$0"
+  documentation: "<span class='underline'>_underlined text_</span>"
+  category: "Emphasis"
+
+"|Centered|":
+  prefix: "|"
+  description: "|Centered|"
+  body: "|${1:${TM_SELECTED_TEXT}}|$0"
+  documentation: "<span class='centered'>|THE END|</span>"
+  category: "Emphasis"

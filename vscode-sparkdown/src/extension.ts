@@ -7,7 +7,6 @@ import { typingState } from "./state/typingState";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
 import { activateCommandView } from "./utils/activateCommandView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
-import { activateLanguageAssistance } from "./utils/activateLanguageAssistance";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
 import { activateOutlineView } from "./utils/activateOutlineView";
 import { activatePreviewPanel } from "./utils/activatePreviewPanel";
@@ -34,7 +33,6 @@ export const activate = async (
   // activateStatisticsPanel(context);
   activateDurationStatus(context);
   activateLanguageClient(context);
-  activateLanguageAssistance(context);
   registerTyping();
   const uri = getActiveSparkdownDocument();
   if (!uri) {

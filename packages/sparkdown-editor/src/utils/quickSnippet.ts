@@ -6,7 +6,8 @@ export const quickSnippetTemplates: { [id: string]: string } = {
   bold: "**{selection}**${}",
   italic: "*{selection}*${}",
   underline: "_{selection}_${}",
-  center: "> {selection} <${}",
+  center: "|{selection}|${}",
+
   dynamic: "{{selection}}${}",
 
   section: "\n# ${SectionName}\n${}",

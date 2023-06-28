@@ -251,7 +251,7 @@ export class StringRule extends BaseRule<IConfStringRule> {
     }
 
     if (!closed && !c.unquoted) {
-      ctx.err("Unclosed quote after ");
+      ctx.err("Unclosed quote");
     }
 
     if (isTemplate) {

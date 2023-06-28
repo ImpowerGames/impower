@@ -3,8 +3,12 @@ import { SparkDeclarations } from "./SparkDeclarations";
 import { SparkParserContext } from "./SparkParserContext";
 import { SparkTokenType } from "./SparkTokenType";
 
+interface SparkAugmentations extends SparkDeclarations {
+  scopes?: string[];
+}
+
 export interface SparkParserConfig {
-  augmentations?: SparkDeclarations;
+  augmentations?: SparkAugmentations;
   lineOffset?: number;
   removeBlockComments?: boolean;
   skipTokens?: SparkTokenType[];

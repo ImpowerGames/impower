@@ -10,4 +10,5 @@ export interface SparkLineMetadata {
   section?: string;
   scene?: number;
   character?: string;
+  scope?: number;
 }

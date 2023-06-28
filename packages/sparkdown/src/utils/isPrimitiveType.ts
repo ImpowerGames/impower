@@ -1,6 +1,6 @@
-import { primitiveTypes } from "../constants/primitiveTypes";
+import { SPARK_PRIMITIVE_TYPES } from "../constants/SPARK_PRIMITIVE_TYPES";
 import { SparkPrimitiveType } from "../types/SparkPrimitiveType";
 
 export const isPrimitiveType = (type: string): type is SparkPrimitiveType => {
-  return primitiveTypes.includes(type as SparkPrimitiveType);
+  return SPARK_PRIMITIVE_TYPES.includes(type as SparkPrimitiveType);
 };

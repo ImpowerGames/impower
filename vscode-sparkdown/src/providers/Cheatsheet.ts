@@ -217,7 +217,11 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       "",
       "<span class='italics'>*italicized text*</span>"
     ),
-    new CheatsheetItem("**Bold**", "", "<span class='bold'>**bolded text**"),
+    new CheatsheetItem(
+      "**Bold**",
+      "",
+      "<span class='bold'>**bolded text**</span>"
+    ),
     new CheatsheetItem(
       "***Bold Italics***",
       "",
@@ -229,9 +233,9 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       "<span class='underline'>_underlined text_</span>"
     ),
     new CheatsheetItem(
-      ">Centered<",
+      "|Centered|",
       "",
-      "<span class='centered'>&gt;THE END&lt;</span>"
+      "<span class='centered'>|THE END|</span>"
     ),
   ];
 

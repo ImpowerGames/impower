@@ -6,8 +6,8 @@ import {
 import {
   calculateSpeechDuration,
   isMonologue,
+  SPARK_REGEX,
   SparkProgram,
-  sparkRegexes,
   StructureItem,
 } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
@@ -352,7 +352,7 @@ const getLengthChart = (
         lastScene.endline = scene.line - 1;
       }
     }
-    const deconstructedSlug = sparkRegexes.scene.exec(scene.name);
+    const deconstructedSlug = SPARK_REGEX.scene.exec(scene.name);
     const sceneType = getLocationType(deconstructedSlug);
     const sceneTime = getLocationTime(deconstructedSlug);
     scenes.push({

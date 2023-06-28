@@ -18,9 +18,9 @@ import {
   getRelativeSection,
   getSectionAt,
   getSiblingIds,
+  SPARK_REGEX,
   SparkProgram,
   SparkProgramMetadata,
-  sparkRegexes,
   SparkSection,
   SparkStructFieldToken,
 } from "../../../sparkdown/src";
@@ -1034,7 +1034,7 @@ export const sparkAutocomplete = async (
       }
     );
     const validOptions = entityOptions.filter((x) => x.type === "image");
-    if (input.match(sparkRegexes.string)) {
+    if (input.match(SPARK_REGEX.string)) {
       completions.push(
         ...nameSnippets(validOptions, "entity", "", "", SPARKDOWN_COLORS.struct)
       );

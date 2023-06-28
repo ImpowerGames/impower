@@ -5,6 +5,7 @@ import { SparkSection } from "./SparkSection";
 import { SparkToken } from "./SparkToken";
 
 export interface SparkProgram extends SparkDeclarations {
+  scopes?: string[];
   titleTokens?: Record<string, SparkToken[]>;
   tokens: SparkToken[];
   sections?: Record<string, SparkSection>;
