@@ -47,6 +47,7 @@ import { getTo } from "./getTo";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
 import { isVariableType } from "./isVariableType";
 import { stripBlockComments } from "./stripBlockComments";
+import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { updateObjectMap } from "./updateObjectMap";
 
@@ -2292,7 +2293,7 @@ const hoistDeclarations = (
     } else if ((match = text.match(SPARK_REGEX.variable))) {
       const type = (match[4] || "") as keyof SparkTokenTypeMap;
       const name = match[6] || "";
-      let expression = match[10] || "";
+      let expression = stripInlineComments(match[10] || "");
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
         line: context.line + (config?.lineOffset || 0),
@@ -2373,7 +2374,8 @@ const hoistDeclarations = (
         const mark = match[2] || "";
         const name = match[4] || "";
         const colon = match[6] || "";
-        const expression = match[8] || "";
+        // TODO: support multiline expressions
+        const expression = stripInlineComments(match[8] || "");
         const nameFrom = context.from + getStart(match, 4);
         const expressionFrom = context.from + getStart(match, 8);
         const nameTo = nameFrom + name.length;
@@ -2405,7 +2407,7 @@ const hoistDeclarations = (
         line: context.line + (config?.lineOffset || 0),
         from: context.from,
       });
-      const expression = match[8] || "";
+      const expression = stripInlineComments(match[8] || "");
       currentToken.content = getRawString(expression) || "";
       const expressionFrom = currentToken.from + getStart(match, 8);
       const expressionTo = expressionFrom + expression.length;
@@ -2832,7 +2834,7 @@ export const parseSpark = (
       } else if ((match = currentToken.content.match(SPARK_REGEX.return))) {
         currentToken.type = "return";
         if (currentToken.type === "return") {
-          let expression = match[4] || "";
+          let expression = stripInlineComments(match[4] || "");
           const expressionFrom = currentToken.from + getStart(match, 4);
           expression = processMultilineExpression(
             expressionFrom,
@@ -2970,7 +2972,7 @@ export const parseSpark = (
         currentToken.type = "condition";
         if (currentToken.type === "condition") {
           const check = match[4] || "";
-          let expression = match[6] || "";
+          let expression = stripInlineComments(match[6] || "");
           const checkFrom = currentToken.from + getStart(match, 4);
           const expressionFrom = currentToken.from + getStart(match, 6);
           expression = processMultilineExpression(
@@ -3045,7 +3047,7 @@ export const parseSpark = (
         const declaredType = (match[4] || "") as SparkVariableType;
         const name = match[6] || "";
         const operator = (match[6] || "") as "=";
-        let expression = match[14] || "";
+        let expression = stripInlineComments(match[14] || "");
         const expressionFrom = currentToken.from + getStart(match, 14);
         expression = processMultilineExpression(expressionFrom, lines, context);
         if (declaredType) {
@@ -3080,7 +3082,7 @@ export const parseSpark = (
         if (currentToken.type === "assign") {
           const name = match[4] || "";
           const operator = match[6] || "";
-          let expression = match[8] || "";
+          let expression = stripInlineComments(match[8] || "");
           const nameFrom = currentToken.from + getStart(match, 4);
           const expressionFrom = currentToken.from + getStart(match, 8);
           expression = processMultilineExpression(
@@ -3132,7 +3134,7 @@ export const parseSpark = (
         const type = "import";
         currentToken.type = type;
         if (currentToken.type === type) {
-          const expression = match[8] || "";
+          const expression = stripInlineComments(match[8] || "");
           currentToken.content = getRawString(expression) || "";
         }
       } else if ((match = currentToken.content.match(SPARK_REGEX.synopsis))) {
@@ -3465,7 +3467,7 @@ export const parseSpark = (
       if ((match = currentToken.content.match(SPARK_REGEX.struct_field))) {
         const mark = match[2] || "";
         const name = match[4] || "";
-        const expression = match[8] || "";
+        const expression = stripInlineComments(match[8] || "");
         currentToken.type = "struct_field";
         if (currentToken.type === "struct_field") {
           currentToken.struct = currentStructName;

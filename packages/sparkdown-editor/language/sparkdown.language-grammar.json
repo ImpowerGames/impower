@@ -32,13 +32,13 @@
       "include": "#PageBreak"
     },
     {
-      "include": "#Jump"
-    },
-    {
       "include": "#Centered"
     },
     {
       "include": "#CenteredAngle"
+    },
+    {
+      "include": "#Jump"
     },
     {
       "include": "#Condition"
@@ -91,7 +91,7 @@
       }
     },
     "Note": {
-      "match": "^([ \\t]*)(\\[{2})([^\\]]*)(\\]{2})([ \\t]*)($|[/][/].*)",
+      "match": "^([ \\t]*)(\\[{2})([^\\]]*)(\\]{2})([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
           "tag": "comment",
@@ -213,7 +213,7 @@
       "end": "^(?=[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "Jump": {
-      "match": "^([ \\t]*)([>])([ ]*)([^\\n\\r ]+|[{][^\\n\\r<]+[}])?([ ]*)($|[/][/].*)",
+      "match": "^([ \\t]*)([>])([ ]*)([^\\n\\r ]+|[{].+[}])?([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -384,7 +384,7 @@
       }
     },
     "Import": {
-      "match": "^([ \\t]*)(import)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)([^\\n\\r:]+)",
+      "match": "^([ \\t]*)(import)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)(.+)",
       "captures": {
         "2": {
           "tag": "logicOperator",
@@ -513,7 +513,7 @@
       }
     },
     "Scene": {
-      "match": "^([ \\t]*)([.](?![. ])|INT[.](?:$|[ ]+)|EXT[.](?:$|[ ]+)|INT[.]?/EXT[.](?:$|[ ]+))($|(?:[^\\n\\r-]|[^ \\t\\n\\r][-])*[^ \\t\\n\\r])($|[ ]+)($|[-])($|[ ]+)($|(?:(?![/][/]).)*)($|[/][/].*)",
+      "match": "^([ \\t]*)([.](?![. ])|INT[.](?:$|[ ]+)|EXT[.](?:$|[ ]+)|INT[.]?[/]EXT[.](?:$|[ ]+))($|(?:[^\\n\\r-]|[^ \\t\\n\\r][-])*[^ \\t\\n\\r])($|[ ]+)($|[-])($|[ ]+)($|(?:(?![/][/]).)*)($|[/][/].*)",
       "captures": {
         "2": {
           "tag": "propertyName",
@@ -844,9 +844,6 @@
           "include": "#Comment"
         },
         {
-          "include": "#BlockArrayIndented"
-        },
-        {
           "include": "#BlockScalarIndented"
         },
         {
@@ -857,38 +854,8 @@
         }
       ]
     },
-    "BlockArrayIndented": {
-      "match": "^([ ]{2,}|[\\t]+)([-])([\\t ]*)(.*)",
-      "captures": {
-        "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "storage.type.array.sd"
-        },
-        "3": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.sd"
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Comment"
-            },
-            {
-              "include": "#BlockScalar"
-            },
-            {
-              "include": "#Expression"
-            }
-          ]
-        }
-      }
-    },
     "BlockScalarIndented": {
-      "match": "^([ ]{2,}|[\\t]+)(?![-])([^\\n\\r:]+)([:])([\\t ]+)([^\\n\\r:]+)",
+      "match": "^([ ]{2,}|[\\t]+)(?![-])([^\\n\\r:]+)([:])([\\t ]+)([^\\n\\r]+)",
       "captures": {
         "1": {
           "tag": "content",
