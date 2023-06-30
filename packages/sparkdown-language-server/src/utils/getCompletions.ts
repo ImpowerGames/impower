@@ -147,7 +147,6 @@ const getCompletions = (
   }
   const lineText = getLineText(document, position);
   const prevLineText = getLineText(document, position, -1);
-  console.log(JSON.stringify(lineText), JSON.stringify(prevLineText));
   const triggerCharacter = context?.triggerCharacter;
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopeName = program?.scopes?.[lineMetadata?.scope ?? -1];
