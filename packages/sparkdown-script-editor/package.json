@@ -3,9 +3,6 @@
   "displayName": "Sparkdown Script Editor",
   "description": "A text editor for sparkdown scripts.",
   "version": "0.0.1",
-  "devDependencies": {
-    "typescript": "^5.1.3"
-  },
   "dependencies": {
     "@codemirror/autocomplete": "^6.8.1",
     "@codemirror/collab": "^6.0.0",
