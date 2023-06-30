@@ -4,7 +4,7 @@
     "moduleResolution": "node",
     "target": "es2020",
     "lib": ["es2020", "WebWorker"],
-    "outDir": "out",
+    "outDir": "dist",
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
