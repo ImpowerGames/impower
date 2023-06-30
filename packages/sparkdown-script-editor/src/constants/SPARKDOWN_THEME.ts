@@ -310,34 +310,14 @@ const SPARKDOWN_THEME: {
     width: "0.8em",
     height: "0.8em",
   },
-  ".cm-completionInfo p": {
-    marginTop: "0",
-  },
-  ".cm-completionInfo pre": {
-    margin: "0",
-  },
-  ".cm-tooltip.cm-completionInfo": {
-    maxWidth: "320px",
-  },
-  ".cm-valueInfo": {
-    fontFamily: "monospace",
-  },
   ".cm-tooltip": {
-    fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
-    fontSize: "0.96em",
     backgroundColor: SPARKDOWN_COLORS.tooltip,
-  },
-  "& .cm-tooltip.cm-tooltip-autocomplete": {
-    minWidth: "min(90vw, 400px)",
   },
   ".cm-tooltip-autocomplete ul li[aria-selected]": {
     background: SPARKDOWN_COLORS.selected,
   },
-  "& .cm-tooltip.cm-tooltip-autocomplete > ul > li": {
-    display: "flex",
-    flexDirection: "row",
-    alignItems: "center",
-    padding: "3px 10px 3px 2px",
+  ".cm-valueInfo": {
+    fontFamily: "monospace",
   },
 };
 

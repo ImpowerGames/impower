@@ -185,8 +185,6 @@ const createEditorView = (
           };
         },
       }),
-      EXTENSIONS,
-      sparkdownLanguageExtension({ connection }),
       EditorView.theme(
         {
           ...SPARKDOWN_THEME,
@@ -210,6 +208,8 @@ const createEditorView = (
         },
         { dark: true }
       ),
+      EXTENSIONS,
+      sparkdownLanguageExtension({ connection }),
       EditorView.domEventHandlers({
         scroll: (e, v) => {
           const scrollEl = e.target as HTMLElement;

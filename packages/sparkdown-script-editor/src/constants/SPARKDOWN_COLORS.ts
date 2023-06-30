@@ -40,9 +40,10 @@ const SPARKDOWN_COLORS = {
   codeMark: "#FFBF00",
   codeText: "#FF8000",
 
-  tooltip: "#313133",
+  tooltip: "#1f1f1f",
   match: "#18A3FF",
-  selected: "#094771",
+  selected: "#323232",
+  border: "#FFFFFF21",
 };
 
 export default SPARKDOWN_COLORS;
