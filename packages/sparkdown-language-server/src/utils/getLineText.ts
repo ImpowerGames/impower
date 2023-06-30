@@ -5,14 +5,12 @@ const getLineText = (
   document: TextDocument,
   position: Position,
   lineOffset: number = 0
-) =>
-  document.getText(
-    Range.create(
-      position.line + lineOffset,
-      0,
-      position.line + lineOffset + 1,
-      0
-    )
-  );
+) => {
+  const startLine = position.line + lineOffset;
+  if (startLine === -1) {
+    return "";
+  }
+  return document.getText(Range.create(startLine, 0, startLine + 1, 0));
+};
 
 export default getLineText;
