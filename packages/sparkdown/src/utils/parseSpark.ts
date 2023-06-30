@@ -57,10 +57,12 @@ const processBalancedExpression = (
   expression: string,
   expressionFrom: number,
   lines: string[],
+  program: SparkProgram,
   context: SparkParserContext,
   begin: string,
   end: string,
-  escape: string
+  escape: string,
+  scope: SparkScopeType
 ): string => {
   let balancedExpression = "";
   let escaped = false;
@@ -105,6 +107,13 @@ const processBalancedExpression = (
       }
       escaped = !escaped && char === escape;
     }
+    if (scope) {
+      program.metadata.lines ??= [];
+      program.metadata.lines[context.line] ??= {};
+      program.metadata.lines[context.line]!.scope = SPARK_SCOPE_TYPES.indexOf(
+        scope as SparkScopeType
+      );
+    }
     balancedExpression += "\n";
     context.to += 2;
     context.line += 1;
@@ -118,6 +127,7 @@ const processMultilineExpression = (
   expression: string,
   expressionFrom: number,
   lines: string[],
+  program: SparkProgram,
   context: SparkParserContext
 ): string => {
   const expressionStartOffset = expressionFrom - context.from;
@@ -129,10 +139,12 @@ const processMultilineExpression = (
         expression,
         expressionFrom,
         lines,
+        program,
         context,
         "[",
         "]",
-        "\\"
+        "\\",
+        "array"
       )
     );
   }
@@ -142,10 +154,12 @@ const processMultilineExpression = (
         expression,
         expressionFrom,
         lines,
+        program,
         context,
         "`",
         "`",
-        "\\"
+        "\\",
+        "string"
       )
     );
   }
@@ -2322,6 +2336,7 @@ const hoistDeclarations = (
         expression,
         expressionFrom,
         lines,
+        program,
         context
       );
       const typeTo = typeFrom + type.length;
@@ -2862,6 +2877,7 @@ export const parseSpark = (
             expression,
             expressionFrom,
             lines,
+            program,
             context
           );
           const expressionTo = expressionFrom + expression.length;
@@ -3002,6 +3018,7 @@ export const parseSpark = (
             expression,
             expressionFrom,
             lines,
+            program,
             context
           );
           const checkTo = checkFrom + check.length;
@@ -3077,6 +3094,7 @@ export const parseSpark = (
           expression,
           expressionFrom,
           lines,
+          program,
           context
         );
         if (declaredType) {
@@ -3118,6 +3136,7 @@ export const parseSpark = (
             expression,
             expressionFrom,
             lines,
+            program,
             context
           );
           const nameTo = nameFrom + name.length;

@@ -3,5 +3,6 @@ export type SparkScopeType =
   | "dialogue"
   | "dual_dialogue"
   | "string"
+  | "array"
   | "struct"
   | "type";
