@@ -327,6 +327,9 @@ const SPARKDOWN_THEME: {
     fontSize: "0.96em",
     backgroundColor: SPARKDOWN_COLORS.tooltip,
   },
+  "& .cm-tooltip.cm-tooltip-autocomplete": {
+    minWidth: "min(90vw, 400px)",
+  },
   ".cm-tooltip-autocomplete ul li[aria-selected]": {
     background: SPARKDOWN_COLORS.selected,
   },
