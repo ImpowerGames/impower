@@ -21,7 +21,6 @@ const getSyntaxHighlightedHtml = (str: string) => {
 };
 
 const REGEX = {
-  clean_lines: /^\s*/gm,
   header: /(#+)(.*)/gim,
   image: /!\[([^[]+)\]\(([^)]+)\)/gim,
   link: /\[([^[]+)\]\(([^)]+)\)/gim,
@@ -36,7 +35,7 @@ const REGEX = {
   strikethrough: /~~(.*?)~~/gim,
   horizontal_rule: /\n-{5,}/gim,
   blockquote: /\n(&gt;|>)(.*)/gim,
-  paragraph: /\n([^\n]+)\n/gim,
+  paragraph: /(^|\n\n)((?:(?!\n\n)[\s\S])*)/gim,
   paragraph_ignore: /^<\/?(ul|ol|li|h|p|bl|code|table|tr|td)/i,
   fix_list_unordered: /<\/ul>\s?<ul>/gim,
   fix_list_ordered: /<\/ol>\s<ol>/gim,
@@ -47,12 +46,6 @@ const rules: {
   regex: RegExp;
   replacer: (substring: string, ...args: any[]) => string;
 }[] = [
-  {
-    regex: REGEX.clean_lines,
-    replacer: () => {
-      return "";
-    },
-  },
   {
     regex: REGEX.header,
     replacer: (_match, $1, $2) => {
@@ -135,17 +128,20 @@ const rules: {
   {
     regex: REGEX.blockquote,
     replacer: (_$match, _$1, $2) => {
-      return `\n<blockquote>${$2}</blockquote>`;
+      return `<blockquote>${$2}</blockquote>`;
     },
   },
   {
     regex: REGEX.paragraph,
-    replacer: (_$match, $1) => {
-      let trimmed = $1.trim();
+    replacer: (_$match, _$1, $2) => {
+      let trimmed = $2.trim();
+      if (!trimmed) {
+        return "";
+      }
       if (REGEX.paragraph_ignore.test(trimmed)) {
         return `\n${trimmed}\n`;
       }
-      return `\n<p>${trimmed}</p>\n`;
+      return `<p>${trimmed}</p>`;
     },
   },
   {

@@ -201,6 +201,7 @@ export default class LanguageClientPluginValue implements PluginValue {
         detail,
         label,
         labelDetails,
+        insertText,
         kind,
         textEdit,
         documentation,
@@ -214,7 +215,7 @@ export default class LanguageClientPluginValue implements PluginValue {
         } = {
           label,
           detail: labelDetails?.description,
-          apply: textEdit?.newText ?? label,
+          apply: textEdit?.newText ?? insertText ?? label,
           type: getClientCompletionType(kind),
           sortText: sortText ?? label,
           filterText: filterText ?? label,

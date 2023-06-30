@@ -22,7 +22,7 @@ const createNode = (
     } else {
       documentationNode.textContent = documentation;
     }
-    documentationNode.style.padding = "4px 0";
+    documentationNode.style.padding = "2px 0";
     preview.appendChild(documentationNode);
   }
   return preview;

@@ -2,8 +2,6 @@ import {
   CompletionContext,
   CompletionItem,
   CompletionItemKind,
-  InsertTextFormat,
-  InsertTextMode,
   MarkupKind,
   Position,
 } from "vscode-languageserver";
@@ -12,7 +10,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { getBlockMatch } from "@impower/sparkdown/src/utils/getBlockMatch";
 import { getBlockType } from "@impower/sparkdown/src/utils/getBlockType";
-import getFencedCode from "./getFencedCode";
+import getDocumentation from "./getFencedCode";
 import getLineText from "./getLineText";
 import getUniqueOptions from "./getUniqueOptions";
 
@@ -20,51 +18,55 @@ const getSceneCompletions = () => {
   return [
     {
       label: "INT.",
-      labelDetails: {
-        description: "Interior Scene",
-      },
-      detail: "An indoor scene",
+      labelDetails: { description: "Interior Scene" },
+      kind: CompletionItemKind.Class,
       documentation: {
         kind: MarkupKind.Markdown,
-        value: getFencedCode(`INT. BEDROOM - NIGHT`),
+        value: getDocumentation("An indoor scene.", `INT. BEDROOM - NIGHT`),
       },
-      insertText: "INT. ${1:LOCATION} - ${2:TIME}",
-      insertTextFormat: InsertTextFormat.Snippet,
-      insertTextMode: InsertTextMode.adjustIndentation,
-      kind: CompletionItemKind.Interface,
     },
     {
       label: "EXT.",
-      labelDetails: {
-        description: "Exterior Scene",
-      },
-      detail: "An outdoor scene",
+      labelDetails: { description: "Exterior Scene" },
+      kind: CompletionItemKind.Class,
       documentation: {
         kind: MarkupKind.Markdown,
-        value: getFencedCode(`EXT. BEACH - DAY`),
+        value: getDocumentation("An outdoor scene.", `EXT. BEACH - DAY`),
       },
-      insertText: "EXT. ${1:LOCATION} - ${2:TIME}",
-      insertTextFormat: InsertTextFormat.Snippet,
-      insertTextMode: InsertTextMode.adjustIndentation,
-      kind: CompletionItemKind.Interface,
     },
     {
       label: "INT./EXT.",
-      labelDetails: {
-        description: "Intercut Scene",
-      },
-      detail: "A scene that is intercut between indoors and outdoors",
+      labelDetails: { description: "Intercut Scene" },
+      kind: CompletionItemKind.Class,
       documentation: {
         kind: MarkupKind.Markdown,
-        value: getFencedCode(`INT./EXT. PHONE BOOTH`),
+        value: getDocumentation(
+          "A scene that is intercut between indoors and outdoors.",
+          `INT./EXT. PHONE BOOTH`
+        ),
       },
-      insertText: "INT./EXT. ${1:LOCATION} - ${2:TIME}",
-      insertTextFormat: InsertTextFormat.Snippet,
-      insertTextMode: InsertTextMode.adjustIndentation,
-      kind: CompletionItemKind.Interface,
     },
   ];
 };
+
+const getCharacterCompletions = (program: SparkProgram | undefined) => {
+  const characters = getUniqueOptions(
+    Object.keys(program?.metadata?.characters || {})
+  );
+  return characters.map((c) => ({
+    label: c,
+    labelDetails: { description: "Character Dialogue" },
+    kind: CompletionItemKind.Constant,
+    documentation: {
+      kind: MarkupKind.Markdown,
+      value: getDocumentation(
+        "Dialogue is represented with an UPPERCASE character name followed by a line of text.",
+        `JEFFERY\nDo you know where we are?`
+      ),
+    },
+  }));
+};
+
 const getSceneCaptureCompletions = (
   match: string[],
   program: SparkProgram | undefined
@@ -78,7 +80,7 @@ const getSceneCaptureCompletions = (
     );
     return locations.map((location) => ({
       label: location,
-      kind: CompletionItemKind.Module,
+      kind: CompletionItemKind.Enum,
     }));
   }
   if (dash && !time) {
@@ -89,7 +91,7 @@ const getSceneCaptureCompletions = (
     ]);
     return times.map((time) => ({
       label: time,
-      kind: CompletionItemKind.Module,
+      kind: CompletionItemKind.Enum,
     }));
   }
   return [];
@@ -120,7 +122,7 @@ const getCompletions = (
       }
     } else {
       if (!triggerCharacter) {
-        return getSceneCompletions();
+        return [...getCharacterCompletions(program), ...getSceneCompletions()];
       }
     }
   }
