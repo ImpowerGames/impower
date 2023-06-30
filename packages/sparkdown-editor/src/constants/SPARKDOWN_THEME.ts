@@ -296,6 +296,9 @@ const SPARKDOWN_THEME: {
   ".cm-completionIcon-condition": {
     "&:after": { content: "'✓'", color: SPARKDOWN_COLORS.condition },
   },
+  ".cm-completionIcon-module": {
+    "&:after": { content: "'⩀'", color: SPARKDOWN_COLORS.variableName },
+  },
   ".cm-diagnosticText": {
     marginRight: "16px",
   },

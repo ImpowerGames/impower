@@ -193,6 +193,9 @@ export default class LanguageClientPluginValue implements PluginValue {
       return null;
     }
     const items = "items" in result ? result.items : result;
+    if (items.length === 0) {
+      return null;
+    }
     let options = items.map(
       ({
         detail,

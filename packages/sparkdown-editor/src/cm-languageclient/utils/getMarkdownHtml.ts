@@ -99,10 +99,6 @@ const rules: {
   {
     regex: REGEX.fenced_code_tilde,
     replacer: (_match, _$1, _$2, _$3, $4) => {
-      const tree = language.parser.parse($4);
-      highlightTree(tree, SPARKDOWN_HIGHLIGHTS, (from, to, token) => {
-        console.log({ from, to, token });
-      });
       return `<pre><code>${getSyntaxHighlightedHtml($4)}</code></pre>`;
     },
   },
@@ -176,6 +172,5 @@ export const getMarkdownHtml = (markdown: string): string => {
   rules.forEach((rule) => {
     markdown = markdown.replace(rule.regex, rule.replacer);
   });
-  console.log(markdown);
   return markdown.trim();
 };
