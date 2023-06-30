@@ -55,7 +55,6 @@ const getCharacterCompletions = (
   program: SparkProgram | undefined
 ) => {
   const characterNames = Object.keys(program?.metadata?.characters || {});
-  console.log(program);
   const recentCharactersSet = new Set<string>();
   for (let i = line - 1; i >= 0; i -= 1) {
     const dialogueCharacterName = program?.metadata?.lines?.[i]?.character;
