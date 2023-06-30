@@ -1,10 +1,10 @@
 import { exec } from "child_process";
 import chokidar from "chokidar";
 import { build } from "esbuild";
+import esbuildPluginPino from "esbuild-plugin-pino";
 import fs from "fs";
 import path from "path";
 import glob from "tiny-glob";
-import esbuildPluginPino from "./plugins/esbuild-plugin-pino";
 import renderPage from "./src/build/renderPage";
 import scopeCss from "./src/build/scopeCss";
 
