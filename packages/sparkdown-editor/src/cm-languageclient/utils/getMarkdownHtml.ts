@@ -1,10 +1,8 @@
+import { Language } from "@codemirror/language";
 import { highlightTree } from "@lezer/highlight";
-import sparkdownLanguageSupport from "../../cm-lang-sparkdown/sparkdownLanguageSupport";
 import SPARKDOWN_HIGHLIGHTS from "../../constants/SPARKDOWN_HIGHLIGHTS";
 
-const language = sparkdownLanguageSupport().language;
-
-const getSyntaxHighlightedHtml = (str: string) => {
+const getSyntaxHighlightedHtml = (str: string, language: Language) => {
   const tree = language.parser.parse(str);
   let html = "";
   let prev = 0;
@@ -42,10 +40,12 @@ const REGEX = {
   fix_blockquote: /<\/blockquote>\s?<blockquote>/gim,
 } as const;
 
-const rules: {
+const getRules = (
+  language: Language
+): {
   regex: RegExp;
   replacer: (substring: string, ...args: any[]) => string;
-}[] = [
+}[] => [
   {
     regex: REGEX.header,
     replacer: (_match, $1, $2) => {
@@ -86,14 +86,18 @@ const rules: {
   {
     regex: REGEX.fenced_code_backtick,
     replacer: (_match, _$1, $2, _$3, $4) => {
-      const content = $2 === "sparkdown" ? getSyntaxHighlightedHtml($4) : $4;
+      console.log($2, language.name);
+      const content =
+        $2 === language.name ? getSyntaxHighlightedHtml($4, language) : $4;
       return `<pre><code>${content}</code></pre>`;
     },
   },
   {
     regex: REGEX.fenced_code_tilde,
     replacer: (_match, _$1, $2, _$3, $4) => {
-      const content = $2 === "sparkdown" ? getSyntaxHighlightedHtml($4) : $4;
+      console.log($2, language.name);
+      const content =
+        $2 === language.name ? getSyntaxHighlightedHtml($4, language) : $4;
       return `<pre><code>${content}</code></pre>`;
     },
   },
@@ -166,7 +170,11 @@ const rules: {
   },
 ];
 
-export const getMarkdownHtml = (markdown: string): string => {
+export const getMarkdownHtml = (
+  markdown: string,
+  language: Language
+): string => {
+  const rules = getRules(language);
   rules.forEach((rule) => {
     markdown = markdown.replace(rule.regex, rule.replacer);
   });

@@ -112,6 +112,6 @@ export const foldedField: StateField<DecorationSet> & {
     toJSON: (value: DecorationSet) => { from: number; to: number }[];
     fromJSON: (value: { from: number; to: number }[]) => DecorationSet;
   };
-} = foldExtension[0];
+} = Array.isArray(foldExtension) ? foldExtension[0] : foldExtension;
 foldedField.spec.toJSON = toJSON;
 foldedField.spec.fromJSON = fromJSON;

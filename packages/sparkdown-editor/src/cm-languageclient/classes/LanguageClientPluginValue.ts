@@ -5,6 +5,7 @@ import {
   CompletionContext,
   CompletionResult,
 } from "@codemirror/autocomplete";
+import { Language } from "@codemirror/language";
 import { setDiagnostics } from "@codemirror/lint";
 import {
   Diagnostic,
@@ -28,6 +29,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
 
   protected _connection: LanguageServerConnection;
+  protected _language: Language;
   protected _document: { uri: string };
   protected _documentVersion: number;
 
@@ -41,6 +43,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._view = view;
     const config = view.state.facet(languageClientConfig);
     this._connection = config.connection;
+    this._language = config.language;
     this._document = { uri: config.documentUri };
     this._documentVersion = 0;
     this._foldingSupport = new FoldingSupport();
@@ -221,7 +224,11 @@ export default class LanguageClientPluginValue implements PluginValue {
           filterText: filterText ?? label,
         };
         if (documentation) {
-          completion.info = getClientCompletionInfo(detail, documentation);
+          completion.info = getClientCompletionInfo(
+            detail,
+            documentation,
+            this._language
+          );
         }
         return completion;
       }

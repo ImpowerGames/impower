@@ -1,6 +1,6 @@
 {
   "name": "@impower/sparkdown-editor",
-  "displayName": "Sparkdown Editor",
+  "displayName": "Sparkdown Script Editor",
   "description": "A text editor for sparkdown scripts.",
   "version": "0.0.1",
   "devDependencies": {

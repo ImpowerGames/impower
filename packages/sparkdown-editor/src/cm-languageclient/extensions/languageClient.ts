@@ -1,3 +1,4 @@
+import { Language } from "@codemirror/language";
 import { Extension, Facet, combineConfig } from "@codemirror/state";
 import { ViewPlugin } from "@codemirror/view";
 
@@ -6,6 +7,7 @@ import LanguageServerConnection from "../classes/LanguageServerConnection";
 
 export interface LanguageClientConfig {
   connection: LanguageServerConnection;
+  language: Language;
   documentUri: string;
   throttleDelay?: number;
 }

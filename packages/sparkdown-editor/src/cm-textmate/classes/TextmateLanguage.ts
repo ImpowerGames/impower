@@ -180,7 +180,12 @@ export default class TextmateLanguage {
       props: [[languageDataProp, facet]],
     });
     this.parser = new LezerGrammarParser(this.grammarDefinition, topNodeType);
-    this.language = new Language(facet, this.parser);
+    this.language = new Language(
+      facet,
+      this.parser,
+      this.extensions,
+      this.description.name
+    );
     this.support = new LanguageSupport(this.language, this.extensions);
     this.loaded = true;
     return this.support;

@@ -1,6 +1,6 @@
+import SparkElement from "../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import SparkdownElement from "../../core/sparkdown-element";
 import createEditorView from "../../utils/createEditorView";
 import { createSparkdownLanguageServerConnection } from "../../utils/createSparkdownLanguageServerConnection";
 import css from "./editor.css";
@@ -16,7 +16,7 @@ const DEFAULT_ATTRIBUTES = {
 };
 
 export default class SparkdownEditor
-  extends SparkdownElement
+  extends SparkElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   connection = createSparkdownLanguageServerConnection();

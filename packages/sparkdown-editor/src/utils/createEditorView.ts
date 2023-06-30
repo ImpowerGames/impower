@@ -1,6 +1,5 @@
 import { historyField } from "@codemirror/commands";
 import { syntaxTreeAvailable } from "@codemirror/language";
-import { getSearchQuery } from "@codemirror/search";
 import { EditorSelection, EditorState, Extension } from "@codemirror/state";
 import {
   DecorationSet,
@@ -10,21 +9,10 @@ import {
   panels,
   tooltips,
 } from "@codemirror/view";
-import EngineSparkParser from "../../../spark-engine/src/parser/classes/EngineSparkParser";
-import { SparkDeclarations } from "../../../sparkdown/src/types/SparkDeclarations";
-import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
-import sparkdownLanguageSupport from "../cm-lang-sparkdown/sparkdownLanguageSupport";
-import { LanguageServerConnection, languageClient } from "../cm-languageclient";
+import { foldedField } from "../cm-folded/foldedField";
+import { LanguageServerConnection } from "../cm-languageclient";
 import EXTENSIONS from "../constants/EXTENSIONS";
 import SPARKDOWN_THEME from "../constants/SPARKDOWN_THEME";
-import { foldedField } from "../extensions/foldedField";
-import {
-  SearchLineQuery,
-  getSearchLineQuery,
-  searchLinePanel,
-} from "../extensions/searchLinePanel";
-import { searchTextPanel } from "../extensions/searchTextPanel";
-import { SearchTextQuery } from "../panels/SearchTextPanel";
 import {
   SerializableChangeSet,
   SerializableEditorSelection,
@@ -33,10 +21,7 @@ import {
   SerializableHistoryState,
 } from "../types/editor";
 import { lockBodyScrolling, unlockBodyScrolling } from "./bodyScrolling";
-
-const PARSE_CACHE: {
-  current?: SparkProgram;
-} = {};
+import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
 
 interface EditorOptions {
   connection: LanguageServerConnection;
@@ -61,8 +46,6 @@ interface EditorOptions {
   toggleGotoLine?: boolean;
   focusFirstError?: boolean;
   snippetPreview?: string;
-  searchTextQuery?: SearchTextQuery;
-  searchLineQuery?: SearchLineQuery;
   editorChange?: {
     category?: string;
     action?: string;
@@ -96,21 +79,8 @@ interface EditorOptions {
   onReady?: () => void;
   onViewUpdate?: (update: ViewUpdate) => void;
   onScrollLine?: (event: Event, firstVisibleLine: number) => void;
-  onOpenSearchTextPanel?: (query?: SearchTextQuery) => void;
-  onCloseSearchTextPanel?: (query?: SearchTextQuery) => void;
-  onOpenSearchLinePanel?: (query?: SearchLineQuery) => void;
-  onCloseSearchLinePanel?: (query?: SearchLineQuery) => void;
   onFocus?: (value: string) => void;
   onBlur?: (value: string) => void;
-  getAugmentations?: () => SparkDeclarations;
-  onParse?: (program: SparkProgram) => void;
-  getRuntimeValue?: (id: string) => unknown;
-  setRuntimeValue?: (id: string, expression: string) => void;
-  observeRuntimeValue?: (
-    listener: (id: string, value: unknown) => void
-  ) => void;
-  onNavigateUp?: (view: EditorView) => boolean;
-  onNavigateDown?: (view: EditorView) => boolean;
   style?: {
     backgroundColor: string;
   };
@@ -132,10 +102,6 @@ const createEditorView = (
   const onReady = options?.onReady;
   const onViewUpdate = options?.onViewUpdate;
   const onScrollLine = options?.onScrollLine;
-  const onOpenSearchTextPanel = options?.onOpenSearchTextPanel;
-  const onCloseSearchTextPanel = options?.onCloseSearchTextPanel;
-  const onOpenSearchLinePanel = options?.onOpenSearchLinePanel;
-  const onCloseSearchLinePanel = options?.onCloseSearchLinePanel;
   const onBlur = options?.onBlur;
   const onFocus = options?.onFocus;
   const getCursor = options?.getCursor;
@@ -146,13 +112,6 @@ const createEditorView = (
   const setEditorState = options?.setEditorState;
   const getDoc = options?.getDoc;
   const setDoc = options?.setDoc;
-  const getAugmentations = options?.getAugmentations;
-  const onParse = options?.onParse;
-  // const getRuntimeValue = options?.getRuntimeValue;
-  // const setRuntimeValue = options?.setRuntimeValue;
-  // const observeRuntimeValue = options?.observeRuntimeValue;
-  // const onNavigateUp = options?.onNavigateUp;
-  // const onNavigateDown = options?.onNavigateDown;
   const marginPlugin: Extension = ViewPlugin.fromClass(
     class {
       margin?: { top?: number; bottom?: number; left?: number; right?: number };
@@ -171,36 +130,6 @@ const createEditorView = (
         }),
     }
   );
-  const handleOpenSearchTextPanel = (view: EditorView): void => {
-    const searchInput = document.querySelector<HTMLInputElement>(
-      "input[name='search']"
-    );
-    if (searchInput) {
-      searchInput.focus();
-      searchInput.select();
-    }
-    const query = getSearchQuery(view.state);
-    onOpenSearchTextPanel?.(query);
-  };
-  const handleCloseSearchTextPanel = (view: EditorView): void => {
-    const query = getSearchQuery(view.state);
-    onCloseSearchTextPanel?.(query);
-  };
-  const handleOpenSearchLinePanel = (view: EditorView): void => {
-    const searchInput = document.querySelector<HTMLInputElement>(
-      "input[name='search']"
-    );
-    if (searchInput) {
-      searchInput.focus();
-      searchInput.select();
-    }
-    const query = getSearchLineQuery(view.state);
-    onOpenSearchLinePanel?.(query);
-  };
-  const handleCloseSearchLinePanel = (view: EditorView): void => {
-    const query = getSearchLineQuery(view.state);
-    onCloseSearchLinePanel?.(query);
-  };
   const doc = defaultState?.doc ?? getDoc?.();
   const selection =
     defaultState?.selection != null
@@ -230,50 +159,12 @@ const createEditorView = (
         ),
       ]
     : [];
-  const languageSetup: Extension[] = [
-    // TODO: Add Sparkdown Language Support
-    sparkdownLanguageSupport({
-      initialDoc: doc ?? "",
-      parse: (script: string) => {
-        const augmentations = getAugmentations?.();
-        const result = EngineSparkParser.instance.parse(script, {
-          augmentations,
-        });
-        PARSE_CACHE.current = { ...result };
-        if (onParse) {
-          onParse(result);
-        }
-        return result;
-      },
-      //   getRuntimeValue,
-      //   setRuntimeValue,
-      //   observeRuntimeValue,
-      //   onNavigateUp,
-      //   onNavigateDown,
-    }),
-  ];
-  if (connection) {
-    languageSetup.push(
-      languageClient({
-        connection,
-        documentUri: "script",
-      })
-    );
-  }
   const startState = EditorState.create({
     doc,
     selection,
     extensions: [
       ...restoredExtensions,
       marginPlugin,
-      searchLinePanel({
-        onOpen: handleOpenSearchLinePanel,
-        onClose: handleCloseSearchLinePanel,
-      }),
-      searchTextPanel({
-        onOpen: handleOpenSearchTextPanel,
-        onClose: handleCloseSearchTextPanel,
-      }),
       panels({
         topContainer: topPanelsContainer,
         bottomContainer: bottomPanelsContainer,
@@ -295,7 +186,7 @@ const createEditorView = (
         },
       }),
       EXTENSIONS,
-      languageSetup,
+      sparkdownLanguageExtension({ connection }),
       EditorView.theme(
         {
           ...SPARKDOWN_THEME,
@@ -379,7 +270,6 @@ const createEditorView = (
         const selected =
           selection?.ranges?.[selection.main]?.head !==
           selection?.ranges?.[selection.main]?.anchor;
-        const diagnostics = PARSE_CACHE?.current?.diagnostics;
         const editorState = {
           doc,
           selection,
@@ -388,7 +278,6 @@ const createEditorView = (
           focused,
           selected,
           snippet,
-          diagnostics,
           folded,
         };
         if (parent) {

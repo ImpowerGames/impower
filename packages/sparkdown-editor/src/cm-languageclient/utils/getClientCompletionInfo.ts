@@ -1,11 +1,13 @@
 import { Completion, CompletionInfo } from "@codemirror/autocomplete";
+import { Language } from "@codemirror/language";
 import { MarkupContent, MarkupKind } from "vscode-languageserver-protocol";
 import { getMarkdownHtml } from "./getMarkdownHtml";
 
 const createNode = (
   detail: string,
   documentation: string,
-  documentationKind: MarkupKind
+  documentationKind: MarkupKind,
+  language: Language
 ): Node => {
   const preview = document.createElement("div");
   if (detail) {
@@ -18,7 +20,7 @@ const createNode = (
   if (documentation) {
     const documentationNode = document.createElement("div");
     if (documentationKind === "markdown") {
-      documentationNode.innerHTML = getMarkdownHtml(documentation);
+      documentationNode.innerHTML = getMarkdownHtml(documentation, language);
     } else {
       documentationNode.textContent = documentation;
     }
@@ -31,14 +33,16 @@ const createNode = (
 const infoContent = (
   detail: string,
   documentation: string,
-  documentationKind: MarkupKind
+  documentationKind: MarkupKind,
+  language: Language
 ): Node => {
-  return createNode(detail, documentation, documentationKind);
+  return createNode(detail, documentation, documentationKind, language);
 };
 
 export const getClientCompletionInfo = (
   detail: string | undefined,
-  documentation: string | MarkupContent
+  documentation: string | MarkupContent,
+  language: Language
 ):
   | string
   | ((completion: Completion) => CompletionInfo | Promise<CompletionInfo>) => {
@@ -47,5 +51,6 @@ export const getClientCompletionInfo = (
     typeof documentation === "string" ? documentation : documentation.value;
   const documentationKind =
     typeof documentation === "string" ? "plaintext" : documentation.kind;
-  return () => infoContent(detailValue, documentationValue, documentationKind);
+  return () =>
+    infoContent(detailValue, documentationValue, documentationKind, language);
 };
