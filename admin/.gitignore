@@ -36,5 +36,6 @@ node_modules/
 
 # Lib directory
 lib/
+dist/
 
 scripts/refactor
