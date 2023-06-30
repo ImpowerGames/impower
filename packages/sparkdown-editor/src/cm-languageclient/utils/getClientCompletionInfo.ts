@@ -2,9 +2,6 @@ import { Completion, CompletionInfo } from "@codemirror/autocomplete";
 import { MarkupContent, MarkupKind } from "vscode-languageserver-protocol";
 import { getMarkdownHtml } from "./getMarkdownHtml";
 
-const FENCED_CODE_BACKTICK_REGEX = /([`]{3})([\S]*)([\s]?)([\s\S]+)([`]{3})/gm;
-const FENCED_CODE_TILDE_REGEX = /([~]{3})([\S]*)([\s]?)([\s\S]+)([~]{3})/gm;
-
 const createNode = (
   detail: string,
   documentation: string,
@@ -20,7 +17,11 @@ const createNode = (
   }
   if (documentation) {
     const documentationNode = document.createElement("div");
-    documentationNode.innerHTML = getMarkdownHtml(documentation);
+    if (documentationKind === "markdown") {
+      documentationNode.innerHTML = getMarkdownHtml(documentation);
+    } else {
+      documentationNode.textContent = documentation;
+    }
     documentationNode.style.padding = "4px 0";
     preview.appendChild(documentationNode);
   }
