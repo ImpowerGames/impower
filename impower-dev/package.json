@@ -4,14 +4,14 @@
   "type": "module",
   "scripts": {
     "kill": "kill-port 8080",
-    "install-sparkdown-editor": "cd ../packages/sparkdown-editor && npm ci && cd ../../impower-dev",
+    "install-sparkdown-script-editor": "cd ../packages/sparkdown-script-editor && npm ci && cd ../../impower-dev",
     "install-workers": "cd ../packages/sparkdown-language-server && npm ci && cd ../../impower-dev",
     "build-workers": "cd ../packages/sparkdown-language-server && node ./esbuild.js --outdir=../../impower-dev/out/public && cd ../../impower-dev",
     "dev": "tsx ./esbuild.ts --watch",
     "prod": "tsx ./esbuild.ts --production",
     "build": "npm run prod",
     "start": "node ./out/api/index.js",
-    "preinstall": "npm run install-sparkdown-editor && npm run install-workers"
+    "preinstall": "npm run install-sparkdown-script-editor && npm run install-workers"
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.3.0-beta.2",
@@ -34,7 +34,7 @@
     "@fastify/websocket": "^8.1.0",
     "@impower/spark-editor": "file:../packages/spark-editor",
     "@impower/spark-element": "file:../packages/spark-element",
-    "@impower/sparkdown-editor": "file:../packages/sparkdown-editor",
+    "@impower/sparkdown-script-editor": "file:../packages/sparkdown-script-editor",
     "@impower/sparkle": "file:../packages/sparkle",
     "fastify": "^4.18.0",
     "nanoid": "^4.0.2",

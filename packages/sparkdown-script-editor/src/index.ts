@@ -1,7 +1,7 @@
 import Editor from "./components/editor/editor";
 
 export const DEFAULT_SPARKDOWN_EDITOR_CONSTRUCTORS = {
-  "sparkdown-editor": Editor,
+  "sparkdown-script-editor": Editor,
 } as const;
 
 interface InitOptions {

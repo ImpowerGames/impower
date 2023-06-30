@@ -15,14 +15,14 @@ const DEFAULT_ATTRIBUTES = {
   ]),
 };
 
-export default class SparkdownEditor
+export default class SparkdownScriptEditor
   extends SparkElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   connection = createSparkdownLanguageServerConnection();
 
   static override async define(
-    tag = "sparkdown-editor",
+    tag = "sparkdown-script-editor",
     dependencies?: Record<string, string>,
     useShadowDom = true
   ) {
@@ -42,48 +42,48 @@ export default class SparkdownEditor
 
   get contentPaddingTop() {
     return this.getStringAttribute(
-      SparkdownEditor.attributes.contentPaddingTop
+      SparkdownScriptEditor.attributes.contentPaddingTop
     );
   }
   set contentPaddingTop(value) {
     this.setStringAttribute(
-      SparkdownEditor.attributes.contentPaddingTop,
+      SparkdownScriptEditor.attributes.contentPaddingTop,
       value
     );
   }
 
   get contentPaddingBottom() {
     return this.getStringAttribute(
-      SparkdownEditor.attributes.contentPaddingBottom
+      SparkdownScriptEditor.attributes.contentPaddingBottom
     );
   }
   set contentPaddingBottom(value) {
     this.setStringAttribute(
-      SparkdownEditor.attributes.contentPaddingBottom,
+      SparkdownScriptEditor.attributes.contentPaddingBottom,
       value
     );
   }
 
   get contentPaddingLeft() {
     return this.getStringAttribute(
-      SparkdownEditor.attributes.contentPaddingLeft
+      SparkdownScriptEditor.attributes.contentPaddingLeft
     );
   }
   set contentPaddingLeft(value) {
     this.setStringAttribute(
-      SparkdownEditor.attributes.contentPaddingLeft,
+      SparkdownScriptEditor.attributes.contentPaddingLeft,
       value
     );
   }
 
   get contentPaddingRight() {
     return this.getStringAttribute(
-      SparkdownEditor.attributes.contentPaddingRight
+      SparkdownScriptEditor.attributes.contentPaddingRight
     );
   }
   set contentPaddingRight(value) {
     this.setStringAttribute(
-      SparkdownEditor.attributes.contentPaddingRight,
+      SparkdownScriptEditor.attributes.contentPaddingRight,
       value
     );
   }
@@ -148,7 +148,7 @@ export default class SparkdownEditor
 
 declare global {
   interface HTMLElementTagNameMap {
-    "sparkdown-editor": SparkdownEditor;
+    "sparkdown-script-editor": SparkdownScriptEditor;
   }
   interface HTMLElementEventMap {
     editing: CustomEvent;

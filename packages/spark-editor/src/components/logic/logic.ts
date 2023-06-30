@@ -1,7 +1,9 @@
 import SEElement from "../../core/se-element";
 import html from "./logic.html";
 
-const DEFAULT_DEPENDENCIES = { "sparkdown-editor": "sparkdown-editor" };
+const DEFAULT_DEPENDENCIES = {
+  "sparkdown-script-editor": "sparkdown-script-editor",
+};
 
 export default class Logic extends SEElement {
   static override async define(
