@@ -13,12 +13,13 @@ import { getBlockType } from "@impower/sparkdown/src/utils/getBlockType";
 import getDocumentation from "./getFencedCode";
 import getLineText from "./getLineText";
 import getUniqueOptions from "./getUniqueOptions";
+import isEmptyLine from "./isEmptyLine";
 
 const getSceneCompletions = () => {
   return [
     {
       label: "INT.",
-      labelDetails: { description: "Interior Scene" },
+      labelDetails: { description: "Scene" },
       kind: CompletionItemKind.Class,
       documentation: {
         kind: MarkupKind.Markdown,
@@ -27,7 +28,7 @@ const getSceneCompletions = () => {
     },
     {
       label: "EXT.",
-      labelDetails: { description: "Exterior Scene" },
+      labelDetails: { description: "Scene" },
       kind: CompletionItemKind.Class,
       documentation: {
         kind: MarkupKind.Markdown,
@@ -36,7 +37,7 @@ const getSceneCompletions = () => {
     },
     {
       label: "INT./EXT.",
-      labelDetails: { description: "Intercut Scene" },
+      labelDetails: { description: "Scene" },
       kind: CompletionItemKind.Class,
       documentation: {
         kind: MarkupKind.Markdown,
@@ -49,22 +50,61 @@ const getSceneCompletions = () => {
   ];
 };
 
-const getCharacterCompletions = (program: SparkProgram | undefined) => {
-  const characters = getUniqueOptions(
-    Object.keys(program?.metadata?.characters || {})
-  );
-  return characters.map((c) => ({
-    label: c,
-    labelDetails: { description: "Character Dialogue" },
-    kind: CompletionItemKind.Constant,
-    documentation: {
-      kind: MarkupKind.Markdown,
-      value: getDocumentation(
-        "Dialogue is represented with an UPPERCASE character name followed by a line of text.",
-        `JEFFERY\nDo you know where we are?`
-      ),
-    },
-  }));
+const getCharacterCompletions = (
+  line: number,
+  program: SparkProgram | undefined
+) => {
+  const characterNames = Object.keys(program?.metadata?.characters || {});
+  console.log(program);
+  const recentCharactersSet = new Set<string>();
+  for (let i = line - 1; i >= 0; i -= 1) {
+    const dialogueCharacterName = program?.metadata?.lines?.[i]?.character;
+    if (dialogueCharacterName) {
+      recentCharactersSet.add(dialogueCharacterName);
+      if (recentCharactersSet.size >= characterNames.length) {
+        break;
+      }
+    }
+  }
+  const recentCharacters = Array.from(recentCharactersSet);
+  if (recentCharacters.length > 1) {
+    const mostRecentCharacter = recentCharacters.shift();
+    if (mostRecentCharacter) {
+      recentCharacters.splice(1, 0, mostRecentCharacter);
+    }
+  }
+  const labelDetails = { description: "Dialogue" };
+  const kind = CompletionItemKind.Constant;
+  const documentation = {
+    kind: MarkupKind.Markdown,
+    value: getDocumentation(
+      "Dialogue is represented with an UPPERCASE character name followed by a line of text.",
+      `JEFFERY\nDo you know where we are?`
+    ),
+  };
+  const result: CompletionItem[] = [];
+  recentCharacters.forEach((name, index) => {
+    result.push({
+      label: name,
+      insertText: name + "\n",
+      labelDetails,
+      kind,
+      documentation,
+      sortText: `${index}`,
+    });
+  });
+  characterNames.forEach((name) => {
+    if (!recentCharactersSet.has(name)) {
+      result.push({
+        label: name,
+        insertText: name + "\n",
+        labelDetails,
+        kind,
+        documentation,
+      });
+    }
+  });
+  return result;
 };
 
 const getSceneCaptureCompletions = (
@@ -107,10 +147,9 @@ const getCompletions = (
     return [];
   }
   const lineText = getLineText(document, position);
+  const prevLineText = getLineText(document, position, -1);
+  console.log(JSON.stringify(lineText), JSON.stringify(prevLineText));
   const triggerCharacter = context?.triggerCharacter;
-  if (triggerCharacter === "\n" || triggerCharacter === "\r") {
-    return [];
-  }
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopeName = program?.scopes?.[lineMetadata?.scope ?? -1];
   if (!scopeName) {
@@ -122,7 +161,12 @@ const getCompletions = (
       }
     } else {
       if (!triggerCharacter) {
-        return [...getCharacterCompletions(program), ...getSceneCompletions()];
+        return [
+          ...getCharacterCompletions(position.line, program),
+          ...getSceneCompletions(),
+        ];
+      } else if (triggerCharacter === "\n" && isEmptyLine(prevLineText)) {
+        return [...getCharacterCompletions(position.line, program)];
       }
     }
   }
