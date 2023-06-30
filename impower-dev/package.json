@@ -6,7 +6,7 @@
     "kill": "kill-port 8080",
     "install-sparkdown-editor": "cd ../packages/sparkdown-editor && npm ci && cd ../../impower-dev",
     "install-workers": "cd ../packages/sparkdown-language-server && npm ci && cd ../../impower-dev",
-    "build-workers": "cd ../packages/sparkdown-language-server && tsx ./esbuild.ts --outdir=../../impower-dev/out/public && cd ../../impower-dev",
+    "build-workers": "cd ../packages/sparkdown-language-server && node ./esbuild.js --outdir=../../impower-dev/out/public && cd ../../impower-dev",
     "dev": "tsx ./esbuild.ts --watch",
     "prod": "tsx ./esbuild.ts --production",
     "build": "npm run prod",

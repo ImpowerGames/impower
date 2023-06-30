@@ -490,7 +490,7 @@
     "publish-minor": "vsce publish minor",
     "publish-major": "vsce publish major",
     "install-workers": "cd ../packages/sparkdown-language-server && npm install && cd ../../vscode-sparkdown",
-    "build-workers": "cd ../packages/sparkdown-language-server && tsx ./esbuild.ts --outdir=../../vscode-sparkdown/out/workers && cd ../../vscode-sparkdown",
+    "build-workers": "cd ../packages/sparkdown-language-server && node ./esbuild.js --outdir=../../vscode-sparkdown/out/workers && cd ../../vscode-sparkdown",
     "build-game": "cd ./webviews/game-preview && webpack && cd ../..",
     "build-screenplay": "cd ./webviews/screenplay-preview && webpack && cd ../..",
     "package-game": "cd ./webviews/game-preview && webpack --mode production --devtool hidden-source-map && cd ../..",
