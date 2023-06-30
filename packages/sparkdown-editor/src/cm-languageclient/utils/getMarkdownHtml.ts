@@ -85,14 +85,16 @@ const rules: {
   },
   {
     regex: REGEX.fenced_code_backtick,
-    replacer: (_match, _$1, _$2, _$3, $4) => {
-      return `<pre><code>${getSyntaxHighlightedHtml($4)}</code></pre>`;
+    replacer: (_match, _$1, $2, _$3, $4) => {
+      const content = $2 === "sparkdown" ? getSyntaxHighlightedHtml($4) : $4;
+      return `<pre><code>${content}</code></pre>`;
     },
   },
   {
     regex: REGEX.fenced_code_tilde,
-    replacer: (_match, _$1, _$2, _$3, $4) => {
-      return `<pre><code>${getSyntaxHighlightedHtml($4)}</code></pre>`;
+    replacer: (_match, _$1, $2, _$3, $4) => {
+      const content = $2 === "sparkdown" ? getSyntaxHighlightedHtml($4) : $4;
+      return `<pre><code>${content}</code></pre>`;
     },
   },
   {
