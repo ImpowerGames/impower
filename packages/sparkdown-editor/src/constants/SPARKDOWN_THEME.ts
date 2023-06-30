@@ -114,10 +114,21 @@ const SPARKDOWN_THEME: {
     textDecoration: "none",
     color: SPARKDOWN_COLORS.match,
   },
+  "& .cm-tooltip.cm-tooltip-autocomplete > ul > li": {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: "3px 10px 3px 2px",
+  },
+  ".cm-completionLabel": {
+    flex: 1,
+  },
   ".cm-completionDetail": {
     opacity: 0.55,
+    fontSize: "0.85em",
     fontStyle: "normal",
     whiteSpace: "pre-wrap",
+    lineHeight: "1",
   },
   ".cm-completionIcon": {
     minWidth: "1.75em",
@@ -310,6 +321,9 @@ const SPARKDOWN_THEME: {
   },
   ".cm-completionInfo": {
     fontFamily: "monospace",
+  },
+  ".cm-completionInfo pre": {
+    margin: "0",
   },
   ".cm-tooltip.cm-completionInfo": {
     maxWidth: "320px",

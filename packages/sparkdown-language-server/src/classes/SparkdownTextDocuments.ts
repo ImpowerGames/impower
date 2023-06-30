@@ -21,7 +21,7 @@ import {
   TextDocumentConnection,
 } from "vscode-languageserver/lib/common/textDocuments";
 
-import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { EditorSparkParser } from "./EditorSparkParser";
 
 interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {

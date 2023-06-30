@@ -1,6 +1,6 @@
-import { compile, format } from "../../../spark-evaluate/src/index";
-import { SparkParser } from "../../../sparkdown/src/classes/SparkParser";
-import { SparkParserConfig } from "../../../sparkdown/src/types/SparkParserConfig";
+import { compile, format } from "@impower/spark-evaluate/src/index";
+import { SparkParser } from "@impower/sparkdown/src/classes/SparkParser";
+import { SparkParserConfig } from "@impower/sparkdown/src/types/SparkParserConfig";
 
 export class EditorSparkParser extends SparkParser {
   private static _instance: EditorSparkParser;

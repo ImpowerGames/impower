@@ -1,9 +1,9 @@
+import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   DocumentUri,
   MessageDirection,
   ProtocolNotificationType,
 } from "vscode-languageserver";
-import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 
 export interface DidParseParams {
   /**

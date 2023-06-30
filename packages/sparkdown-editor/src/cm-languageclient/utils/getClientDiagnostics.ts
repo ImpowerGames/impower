@@ -1,22 +1,22 @@
-import { Diagnostic } from "@codemirror/lint";
+import { Diagnostic as ClientDiagnostic } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
-import { Diagnostic as LSPDiagnostic } from "vscode-languageserver-protocol";
-import { getEditorDiagnosticActions } from "./getEditorDiagnosticActions";
-import { getEditorDiagnosticSeverity } from "./getEditorDiagnosticSeverity";
+import { Diagnostic as ServerDiagnostic } from "vscode-languageserver-protocol";
+import { getClientDiagnosticActions } from "./getClientDiagnosticActions";
+import { getClientDiagnosticSeverity } from "./getClientDiagnosticSeverity";
 import { positionToOffset } from "./positionToOffset";
 
-export const getEditorDiagnostics = (
+export const getClientDiagnostics = (
   state: EditorState,
-  diagnostics: LSPDiagnostic[]
-): Diagnostic[] => {
-  const result: Diagnostic[] = diagnostics
+  diagnostics: ServerDiagnostic[]
+): ClientDiagnostic[] => {
+  const result: ClientDiagnostic[] = diagnostics
     .map(
-      (d): Diagnostic => ({
+      (d): ClientDiagnostic => ({
         from: positionToOffset(state.doc, d.range.start),
         to: positionToOffset(state.doc, d.range.end),
-        severity: getEditorDiagnosticSeverity(d.severity),
+        severity: getClientDiagnosticSeverity(d.severity),
         message: d.message,
-        actions: getEditorDiagnosticActions(d.data),
+        actions: getClientDiagnosticActions(d.data),
       })
     )
     .filter(

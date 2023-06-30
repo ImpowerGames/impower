@@ -28,6 +28,8 @@ export const SPARK_BLOCK_REGEX = {
     /^([ \t]*)(?![!#]|\[\[)([^\p{Ll}\r\n]*?\p{Lu}[^\p{Ll}\r\n]*?)(\(.*\))?(\s*)(\^)?(\s*)($|[/][/].*)/,
 } as const;
 
+export type SparkBlockType = keyof typeof SPARK_BLOCK_REGEX;
+
 export const SPARK_REGEX = {
   ...SPARK_BLOCK_REGEX,
 

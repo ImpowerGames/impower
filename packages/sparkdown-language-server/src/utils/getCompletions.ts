@@ -9,8 +9,9 @@ import {
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { SPARK_REGEX } from "../../../sparkdown/src/constants/SPARK_REGEX";
-import type { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { getBlockMatch } from "@impower/sparkdown/src/utils/getBlockMatch";
+import { getBlockType } from "@impower/sparkdown/src/utils/getBlockType";
 import getFencedCode from "./getFencedCode";
 import getLineText from "./getLineText";
 import getUniqueOptions from "./getUniqueOptions";
@@ -111,12 +112,16 @@ const getCompletions = (
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopeName = program?.scopes?.[lineMetadata?.scope ?? -1];
   if (!scopeName) {
-    const sceneMatch = lineText.match(SPARK_REGEX.scene);
-    if (triggerCharacter === " " && sceneMatch) {
-      return getSceneCaptureCompletions(sceneMatch, program);
-    }
-    if (!triggerCharacter && !sceneMatch) {
-      return getSceneCompletions();
+    const match = getBlockMatch(lineText);
+    const blockType = getBlockType(match);
+    if (match) {
+      if (blockType === "scene" && triggerCharacter === " ") {
+        return getSceneCaptureCompletions(match, program);
+      }
+    } else {
+      if (!triggerCharacter) {
+        return getSceneCompletions();
+      }
     }
   }
   return [];

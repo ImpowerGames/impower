@@ -1,11 +1,9 @@
 import { CompilerDiagnostic } from "./CompilerDiagnostic";
-import { SparkDeclarations } from "./SparkDeclarations";
 import { SparkParserContext } from "./SparkParserContext";
+import { SparkProgram } from "./SparkProgram";
 import { SparkTokenType } from "./SparkTokenType";
 
-interface SparkAugmentations extends SparkDeclarations {
-  scopes?: string[];
-}
+interface SparkAugmentations extends Partial<SparkProgram> {}
 
 export interface SparkParserConfig {
   augmentations?: SparkAugmentations;

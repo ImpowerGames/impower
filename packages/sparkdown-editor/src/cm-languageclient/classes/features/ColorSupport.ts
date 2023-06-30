@@ -7,11 +7,11 @@ import {
 } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { ColorInformation } from "vscode-languageserver-protocol";
-import { positionToOffset } from "../utils/positionToOffset";
+import { positionToOffset } from "../../utils/positionToOffset";
 import ColorSupportWidget, {
   COLOR_SUPPORT_WIDGET_THEME,
-} from "./ColorSupportWidget";
-import FeatureSupport from "./FeatureSupport";
+} from "../ColorSupportWidget";
+import FeatureSupport from "../FeatureSupport";
 
 const clearColorDecorationsEffect = StateEffect.define<{}>();
 
@@ -82,7 +82,7 @@ const colorDecorationsField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 });
 
-class ColorSupport extends FeatureSupport<ColorInformation[]> {
+export default class ColorSupport extends FeatureSupport<ColorInformation[]> {
   constructor() {
     super([colorDecorationsField, COLOR_SUPPORT_WIDGET_THEME]);
   }
@@ -93,5 +93,3 @@ class ColorSupport extends FeatureSupport<ColorInformation[]> {
     return setColorDecorations(state, colors);
   }
 }
-
-export const colorSupport = new ColorSupport();

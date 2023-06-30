@@ -28,6 +28,8 @@ export * from "./utils/calculateSpeechDuration";
 export * from "./utils/construct";
 export * from "./utils/createSparkToken";
 export * from "./utils/getAncestorIds";
+export * from "./utils/getBlockMatch";
+export * from "./utils/getBlockType";
 export * from "./utils/getCharactersWhoSpokeBeforeLine";
 export * from "./utils/getChildrenIds";
 export * from "./utils/getGlobalValueContext";

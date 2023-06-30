@@ -3,7 +3,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import { colord } from "colord";
 
-import type { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 const getDocumentColors = (
   document: TextDocument | undefined,

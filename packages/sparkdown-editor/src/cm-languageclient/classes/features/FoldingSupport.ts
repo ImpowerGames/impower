@@ -19,7 +19,7 @@ import {
   keymap,
 } from "@codemirror/view";
 import { FoldingRange } from "vscode-languageserver-protocol";
-import FeatureSupport from "./FeatureSupport";
+import FeatureSupport from "../FeatureSupport";
 
 const foldableMark = Decoration.mark({ class: "cm-foldable" });
 
@@ -101,7 +101,7 @@ const foldingChanged = (update: ViewUpdate): boolean => {
   );
 };
 
-class FoldingSupport extends FeatureSupport<FoldingRange[]> {
+export default class FoldingSupport extends FeatureSupport<FoldingRange[]> {
   constructor() {
     super([
       foldableDecorationsField,
@@ -122,5 +122,3 @@ class FoldingSupport extends FeatureSupport<FoldingRange[]> {
     return setFoldables(state, ranges);
   }
 }
-
-export const foldingSupport = new FoldingSupport();

@@ -1,8 +1,8 @@
 import { FoldingRange } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { SparkLineMetadata } from "../../../sparkdown/src/types/SparkLineMetadata";
-import type { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
+import { SparkLineMetadata } from "@impower/sparkdown/src/types/SparkLineMetadata";
+import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 /** Has some content that is not just whitespace */
 const isContentful = (line: SparkLineMetadata) => line.length! > line.offset!;

@@ -6,7 +6,7 @@ import {
 } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 
-export default abstract class FeatureSupport<T> {
+export default abstract class FeatureSupport<T = undefined> {
   extension: Extension;
 
   constructor(extension: Extension) {
