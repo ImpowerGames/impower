@@ -22,6 +22,6 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src", "esbuild.js"],
+  "include": ["src"],
   "exclude": ["node_modules"]
 }
