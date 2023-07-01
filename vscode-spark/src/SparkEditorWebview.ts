@@ -200,7 +200,7 @@ export class SparkEditorWebview {
           </style>
         </head>
         <body>
-          <se-gui></se-gui>
+          <spark-editor></spark-editor>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>

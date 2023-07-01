@@ -9,7 +9,6 @@ import Elements from "./components/elements/elements";
 import FileButton from "./components/file-button/file-button";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import Graphics from "./components/graphics/graphics";
-import GUI from "./components/gui/gui";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import Logic from "./components/logic/logic";
 import MainPanel from "./components/main-panel/main-panel";
@@ -23,6 +22,7 @@ import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
 import Sprites from "./components/sprites/sprites";
 import Views from "./components/views/views";
+import Main from "./main/spark-editor";
 import icons from "./styles/icons/icons.css";
 import theme from "./styles/theme/theme.css";
 
@@ -50,7 +50,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-notifications": Notifications,
   "se-header-navigation": HeaderNavigation,
   "se-footer-navigation": FooterNavigation,
-  "se-gui": GUI,
+  "spark-editor": Main,
 } as const;
 
 export const DEFAULT_SPARK_EDITOR_STYLES = {

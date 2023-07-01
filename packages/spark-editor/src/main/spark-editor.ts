@@ -1,7 +1,7 @@
-import SEElement from "../../core/se-element";
-import html from "./gui.html";
+import SEElement from "../core/se-element";
+import html from "./spark-editor.html";
 
-export default class GUI extends SEElement {
+export default class SparkEditor extends SEElement {
   static override async define(
     tag = "se-gui",
     dependencies?: Record<string, string>,

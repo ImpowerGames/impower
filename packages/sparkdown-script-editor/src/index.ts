@@ -1,4 +1,4 @@
-import Editor from "./components/editor/editor";
+import Editor from "./components/sparkdown-script-editor/sparkdown-script-editor";
 
 export const DEFAULT_SPARKDOWN_EDITOR_CONSTRUCTORS = {
   "sparkdown-script-editor": Editor,
