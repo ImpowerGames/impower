@@ -1,8 +1,8 @@
-import SparkElement from "../../../../spark-element/src/core/spark-element";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import createEditorView from "../../utils/createEditorView";
-import { createSparkdownLanguageServerConnection } from "../../utils/createSparkdownLanguageServerConnection";
+import SparkElement from "../../../spark-element/src/core/spark-element";
+import { Properties } from "../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../spark-element/src/utils/getAttributeNameMap";
+import createEditorView from "../utils/createEditorView";
+import { createSparkdownLanguageServerConnection } from "../utils/createSparkdownLanguageServerConnection";
 import css from "./sparkdown-script-editor.css";
 import html from "./sparkdown-script-editor.html";
 

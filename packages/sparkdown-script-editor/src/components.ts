@@ -1,4 +1,4 @@
-import Main from "./components/sparkdown-script-editor/_sparkdown-script-editor";
+import Main from "./main/_sparkdown-script-editor";
 
 const components = {
   "sparkdown-script-editor": Main,
