@@ -186,7 +186,7 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
   cheatSheet["Dialogue"] = [
     new CheatsheetItem(
       "@",
-      "Character names should be in upper case",
+      "Character names are always UPPERCASE",
       "<span class='dialogue_character'>STEEL</span><span class='dialogue'>The man's a myth!</span>"
     ),
     new CheatsheetItem(
@@ -248,10 +248,10 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
 <span class='dialogue'>Don't you know who I am?</span>`
     ),
     new CheatsheetItem(
-      "[[(audio)]]",
-      "Play an audio file by wrapping the audio name in double brackets and parenthesis",
+      "((audio))",
+      "Play an audio file by wrapping the audio name in double parenthesis",
       `<span class='dialogue_character'>BRUCE</span>
-<span class='note'>[[(b_grumble)]]</span>
+<span class='note'>((b_grumble))</span>
 <span class='dialogue_parenthetical'>(in a gravelly voice)</span>
 <span class='dialogue'>Don't you know who I am?</span>`
     ),
