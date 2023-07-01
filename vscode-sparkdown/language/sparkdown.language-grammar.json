@@ -23,7 +23,10 @@
       "include": "#Variable"
     },
     {
-      "include": "#Note"
+      "include": "#Image"
+    },
+    {
+      "include": "#Audio"
     },
     {
       "include": "#Synopsis"
@@ -90,8 +93,32 @@
         }
       }
     },
-    "Note": {
+    "Image": {
       "match": "^([ \\t]*)(\\[{2})([^\\]]*)(\\]{2})([ ]*)($|[/][/].*)",
+      "captures": {
+        "2": {
+          "tag": "comment",
+          "name": "comment.block.open.sd"
+        },
+        "3": {
+          "tag": "variableName",
+          "name": "variable.other.readwrite.sd"
+        },
+        "4": {
+          "tag": "comment",
+          "name": "comment.block.close.sd"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Comment"
+            }
+          ]
+        }
+      }
+    },
+    "Audio": {
+      "match": "^([ \\t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
           "tag": "comment",
@@ -202,7 +229,10 @@
               "include": "#Comment"
             },
             {
-              "include": "#Note"
+              "include": "#Image"
+            },
+            {
+              "include": "#Audio"
             },
             {
               "include": "#InlineString"
@@ -247,7 +277,10 @@
               "include": "#Comment"
             },
             {
-              "include": "#Note"
+              "include": "#Image"
+            },
+            {
+              "include": "#Audio"
             },
             {
               "include": "#Inline"
@@ -282,7 +315,10 @@
               "include": "#Comment"
             },
             {
-              "include": "#Note"
+              "include": "#Image"
+            },
+            {
+              "include": "#Audio"
             },
             {
               "include": "#Inline"
@@ -608,7 +644,10 @@
           "include": "#Parenthetical"
         },
         {
-          "include": "#Note"
+          "include": "#Image"
+        },
+        {
+          "include": "#Audio"
         },
         {
           "include": "#InlineString"

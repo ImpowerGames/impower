@@ -9,7 +9,8 @@ patterns:
   - { include: "#FrontMatter" }
   - { include: "#Struct" }
   - { include: "#Variable" }
-  - { include: "#Note" }
+  - { include: "#Image" }
+  - { include: "#Audio" }
   - { include: "#Synopsis" }
   - { include: "#PageBreak" }
   - { include: "#Centered" }
@@ -40,8 +41,24 @@ repository:
         tag: comment
         name: comment.line.content.sd
 
-  Note:
+  Image:
     match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ ]*)($|[/][/].*)
+    captures:
+      2:
+        tag: comment
+        name: comment.block.open.sd
+      3:
+        tag: variableName
+        name: variable.other.readwrite.sd
+      4:
+        tag: comment
+        name: comment.block.close.sd
+      6:
+        patterns:
+          - { include: "#Comment" }
+
+  Audio:
+    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/].*)
     captures:
       2:
         tag: comment
@@ -115,7 +132,8 @@ repository:
       3:
         patterns:
           - { include: "#Comment" }
-          - { include: "#Note" }
+          - { include: "#Image" }
+          - { include: "#Audio" }
           - { include: "#InlineString" }
     end: ^(?=[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
 
@@ -143,7 +161,8 @@ repository:
       3:
         patterns:
           - { include: "#Comment" }
-          - { include: "#Note" }
+          - { include: "#Image" }
+          - { include: "#Audio" }
           - { include: "#Inline" }
       4:
         tag: quote
@@ -163,7 +182,8 @@ repository:
       3:
         patterns:
           - { include: "#Comment" }
-          - { include: "#Note" }
+          - { include: "#Image" }
+          - { include: "#Audio" }
           - { include: "#Inline" }
       4:
         tag: quote
@@ -371,7 +391,8 @@ repository:
     patterns:
       - { include: "#Comment" }
       - { include: "#Parenthetical" }
-      - { include: "#Note" }
+      - { include: "#Image" }
+      - { include: "#Audio" }
       - { include: "#InlineString" }
     end: ^$
 
