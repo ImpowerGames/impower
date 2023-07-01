@@ -10,6 +10,7 @@ export interface LanguageClientConfig {
   language: Language;
   documentUri: string;
   throttleDelay?: number;
+  debounceDelay?: number;
 }
 
 export const languageClientConfig = Facet.define<
@@ -19,6 +20,7 @@ export const languageClientConfig = Facet.define<
   combine(configs) {
     return combineConfig<Required<LanguageClientConfig>>(configs, {
       throttleDelay: 500,
+      debounceDelay: 500,
     });
   },
 });

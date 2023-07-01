@@ -13,6 +13,7 @@ import {
 } from "vscode-languageserver-protocol";
 import { languageClientConfig } from "../extensions/languageClient";
 import { DidParseParams } from "../types/DidParseTextDocument";
+import debounce from "../utils/debounce";
 import { getClientCompletionInfo } from "../utils/getClientCompletionInfo";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
 import { getClientDiagnostics } from "../utils/getClientDiagnostics";
@@ -38,6 +39,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   protected _completionSupport: CompletionSupport;
 
   protected declare throttledChange: () => void;
+  protected declare debouncedChange: () => void;
 
   constructor(view: EditorView) {
     this._view = view;
@@ -60,6 +62,11 @@ export default class LanguageClientPluginValue implements PluginValue {
     this.throttledChange = throttle(() => {
       this.sendChange(view.state.doc.toString());
     }, throttleDelay);
+
+    const debounceDelay = config?.debounceDelay;
+    this.debouncedChange = debounce(() => {
+      this.sendChange(view.state.doc.toString());
+    }, debounceDelay);
   }
 
   update(u: ViewUpdate) {
@@ -67,6 +74,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       return;
     }
     this.throttledChange();
+    this.debouncedChange();
   }
 
   destroy() {
