@@ -31,7 +31,7 @@ const MARGIN_BEFORE = 32;
 const MARGIN_AFTER = 128;
 
 /** If true, the "left" (previous) side of a parse will be reused. */
-const REUSE_LEFT = false;
+const REUSE_LEFT = true;
 
 /** If true, the "right" (ahead) side of a parse will be reused. */
 const REUSE_RIGHT = true;
@@ -123,10 +123,17 @@ export default class GrammarParse implements PartialParse {
 
         if (buffer) {
           // try to find a suitable chunk from the buffer to restart tokenization from
-          const { chunk, index } = buffer.search(this.region.edit!.from, -1);
+          // TODO: Restart from previous top-level grammar pattern instead of empty line?
+          let restartPos = this.region.edit!.from - 1;
+          for (; restartPos >= f.from; restartPos -= 1) {
+            if (this.region.input.read(restartPos, restartPos + 2) === "\n\n") {
+              // Restart at previous empty line
+              break;
+            }
+          }
+          const { chunk, index } = buffer.search(restartPos, 0);
           if (chunk && index !== null) {
-            // split the buffer, reuse the left side,
-            // but keep the right side around for reuse as well
+            // split the buffer, reuse the left side
             const { left } = buffer.split(index);
             this.region.from = chunk.from;
             this.buffer = left;
