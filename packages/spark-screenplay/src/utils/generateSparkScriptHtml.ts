@@ -28,10 +28,7 @@ export const generateSparkScriptHtml = (
     } else {
       currentToken.html = "";
     }
-    if (
-      (currentToken.type == "action" || currentToken.type == "centered") &&
-      !currentToken.ignore
-    ) {
+    if (currentToken.type == "action" || currentToken.type == "centered") {
       let classes = "haseditorline";
 
       let elStart = "\n";

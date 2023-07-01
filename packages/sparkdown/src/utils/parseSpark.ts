@@ -1,6 +1,3 @@
-/* eslint-disable no-cond-assign */
-/* eslint-disable prefer-destructuring */
-/* eslint-disable no-continue */
 import { SPARK_DISPLAY_TOKEN_TYPES } from "../constants/SPARK_DISPLAY_TOKEN_TYPES";
 import { SPARK_FLOW_TOKEN_TYPES } from "../constants/SPARK_FLOW_TOKEN_TYPES";
 import { SPARK_REGEX } from "../constants/SPARK_REGEX";
@@ -2525,7 +2522,7 @@ export const parseSpark = (
   let tokenCategory = "none";
   let lastCharacterIndex = -1;
   let dualRight = false;
-  let titlePageStarted = false;
+  let frontMatterStarted = false;
   let isDualDialogue = false;
 
   const state: SparkParseState = { newLineLength };
@@ -2656,16 +2653,22 @@ export const parseSpark = (
     tokenCategory = "script";
 
     if (
-      !titlePageStarted &&
-      SPARK_REGEX.title_page.test(currentToken.content)
+      !frontMatterStarted &&
+      SPARK_REGEX.front_matter.test(currentToken.content)
     ) {
       currentScope = "front-matter";
+      continue;
     }
 
     if (currentScope === "front-matter") {
-      if ((match = currentToken.content.match(SPARK_REGEX.title_page))) {
+      if ((match = currentToken.content.match(SPARK_REGEX.front_matter))) {
+        currentScope = "";
+        continue;
+      } else if (
+        (match = currentToken.content.match(SPARK_REGEX.front_matter_entry))
+      ) {
         const key = match[2] || "";
-        const entry = match[4] || "";
+        const entry = match[5] || "";
         currentToken.type = key
           .toLowerCase()
           .replace(" ", "_") as SparkTokenType;
@@ -2677,16 +2680,16 @@ export const parseSpark = (
         const keyFormat = TITLE_PAGE_DISPLAY[type];
         currentToken.order = keyFormat?.order || 0;
         if (keyFormat) {
-          program.titleTokens ??= {};
-          program.titleTokens[keyFormat.position] ??= [];
+          program.frontMatter ??= {};
+          program.frontMatter[keyFormat.position] ??= [];
           if (currentToken.content && !currentToken.text) {
             currentToken.text = currentToken.content;
           }
-          program.titleTokens[keyFormat.position]?.push(currentToken);
+          program.frontMatter[keyFormat.position]?.push(currentToken);
         }
-        titlePageStarted = true;
+        frontMatterStarted = true;
         continue;
-      } else if (titlePageStarted) {
+      } else if (frontMatterStarted) {
         if (lastTitlePageToken) {
           lastTitlePageToken.text +=
             (lastTitlePageToken.text ? "\n" : "") +
@@ -2819,10 +2822,9 @@ export const parseSpark = (
       ) {
         currentToken.type = "centered";
         if (currentToken.type === "centered") {
-          const content = match[4] || "";
-          const contentFrom = currentToken.from + getStart(match, 4);
-          const endSpaces = match[7] || "";
-          currentToken.content = (content?.trimStart() || "") + endSpaces;
+          const content = match[3] || "";
+          const contentFrom = currentToken.from + getStart(match, 3);
+          currentToken.content = content?.trimStart() || "";
           processDisplayedContent(
             program,
             config,
@@ -3635,7 +3637,7 @@ export const parseSpark = (
     if (tokenCategory === "script") {
       if (["scene", "transition"].includes(currentToken.type)) {
         currentToken.content = currentToken.content.toUpperCase();
-        titlePageStarted = true; // ignore title tags after first heading
+        frontMatterStarted = true; // ignore title tags after first heading
       }
       if (
         currentToken.content &&
@@ -3713,8 +3715,8 @@ export const parseSpark = (
 
   // tidy up separators
 
-  if (!titlePageStarted) {
-    program.titleTokens = undefined;
+  if (!frontMatterStarted) {
+    program.frontMatter = undefined;
   }
 
   // clean separators at the end

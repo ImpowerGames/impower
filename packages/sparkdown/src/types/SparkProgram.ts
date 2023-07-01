@@ -7,7 +7,7 @@ import { SparkToken } from "./SparkToken";
 import { SparkVariable } from "./SparkVariable";
 
 export interface SparkProgram extends SparkDeclarations {
-  titleTokens?: Record<string, SparkToken[]>;
+  frontMatter?: Record<string, SparkToken[]>;
   tokens: SparkToken[];
   scopes?: string[];
   sections?: Record<string, SparkSection>;

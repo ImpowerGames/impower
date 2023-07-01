@@ -17,8 +17,8 @@ export const generateSparkPdfData = (
   let watermark = undefined;
   let header = undefined;
   let footer = undefined;
-  if (program.titleTokens) {
-    const hiddenTitleTokens = program.titleTokens["hidden"] || [];
+  if (program.frontMatter) {
+    const hiddenTitleTokens = program.frontMatter["hidden"] || [];
     for (let index = 0; index < hiddenTitleTokens.length; index++) {
       const titleToken = hiddenTitleTokens[index];
       if (titleToken) {
@@ -37,7 +37,7 @@ export const generateSparkPdfData = (
   }
   let currentIndex = 0;
 
-  const titleTokens = program.titleTokens || {};
+  const titleTokens = program.frontMatter || {};
   const tokens = [...program.tokens];
   const sceneInvisibleSections: Record<string | number, SparkSectionToken[]> =
     {};

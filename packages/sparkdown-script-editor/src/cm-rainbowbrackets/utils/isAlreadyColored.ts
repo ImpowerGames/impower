@@ -19,5 +19,7 @@ export const isAlreadyColored = (node: SyntaxNode) =>
     tags.controlKeyword,
     tags.definitionKeyword,
     tags.moduleKeyword,
-    tags.string
+    tags.string,
+    tags.className,
+    tags.tagName
   );

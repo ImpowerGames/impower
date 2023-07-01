@@ -11,11 +11,11 @@ export const generateSparkTitleHtml = (
     return "";
   }
 
-  if (!program.titleTokens) {
+  if (!program.frontMatter) {
     return "";
   }
 
-  const populatedTokenKeys = Object.keys(program.titleTokens);
+  const populatedTokenKeys = Object.keys(program.frontMatter);
   if (populatedTokenKeys.length === 0) {
     return "";
   }
@@ -38,7 +38,7 @@ export const generateSparkTitleHtml = (
   let footer: SparkToken | undefined;
 
   titleTokenKeys.forEach((section) => {
-    const tokens = program?.titleTokens?.[section] || [];
+    const tokens = program?.frontMatter?.[section] || [];
     tokens.sort((a, b) => {
       if (a.order === -1) {
         return 0;
@@ -49,9 +49,6 @@ export const generateSparkTitleHtml = (
     html.push(`<div class="titlepagesection" data-position="${section}">`);
     tokens.forEach((currentToken) => {
       if (!currentToken) {
-        return;
-      }
-      if (currentToken.ignore) {
         return;
       }
       if ((currentToken as { position: string }).position === "hidden") {

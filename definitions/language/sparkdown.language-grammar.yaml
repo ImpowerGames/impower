@@ -48,8 +48,8 @@ repository:
         tag: comment
         name: comment.block.open.sd
       3:
-        tag: variableName
-        name: variable.other.readwrite.sd
+        tag: comment
+        name: comment.block.content.sd
       4:
         tag: comment
         name: comment.block.close.sd
@@ -64,8 +64,8 @@ repository:
         tag: comment
         name: comment.block.open.sd
       3:
-        tag: variableName
-        name: variable.other.readwrite.sd
+        tag: comment
+        name: comment.block.content.sd
       4:
         tag: comment
         name: comment.block.close.sd
@@ -121,7 +121,7 @@ repository:
 
   FrontMatterEntry:
     name: string.other.front-matter-entry.sd
-    begin: ^([ _a-zA-Z]+[ _a-zA-Z0-9]*)([:])(.+)
+    begin: ^([ _a-zA-Z]+[ _a-zA-Z0-9]*)([:])(.*)
     beginCaptures:
       1:
         tag: keyword
@@ -132,9 +132,10 @@ repository:
       3:
         patterns:
           - { include: "#Comment" }
-          - { include: "#Image" }
-          - { include: "#Audio" }
           - { include: "#InlineString" }
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#InlineString" }
     end: ^(?=[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
 
   Jump:

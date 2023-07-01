@@ -29,6 +29,40 @@
     format("truetype");
 }
 
+@font-face {
+  font-family: "Courier Prime";
+  font-weight: 400;
+  font-display: block;
+  src: url("/public/fonts/courier-prime.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime";
+  font-weight: 700;
+  font-display: block;
+  src: url("/public/fonts/courier-prime-bold.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime";
+  font-style: italic;
+  font-weight: 400;
+  font-display: block;
+  src: url("/public/fonts/courier-prime-italic.ttf") format("truetype");
+}
+
+@font-face {
+  font-family: "Courier Prime";
+  font-style: italic;
+  font-weight: 700;
+  font-display: block;
+  src: url("/public/fonts/courier-prime-bold-italic.ttf") format("truetype");
+}
+
+:root {
+  --screenplay-preview-texture: url("/public/noisetexture.png");
+}
+
 html {
   height: 100%;
   padding: 0;

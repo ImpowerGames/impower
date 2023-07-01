@@ -6,7 +6,6 @@ import {
 import {
   CancellationToken,
   ClientCapabilities,
-  CodeActionKind,
   CompletionParams,
   CompletionRequest,
   DiagnosticTag,
@@ -39,6 +38,14 @@ import ConsoleLogger from "./ConsoleLogger";
 import { Event } from "./Event";
 
 const CLIENT_CAPABILITIES: ClientCapabilities = {
+  workspace: {
+    didChangeConfiguration: {
+      dynamicRegistration: true,
+    },
+    didChangeWatchedFiles: {
+      dynamicRegistration: false,
+    },
+  },
   textDocument: {
     synchronization: {
       dynamicRegistration: true,
@@ -46,73 +53,79 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
       willSaveWaitUntil: true,
       didSave: true,
     },
-    completion: {
-      dynamicRegistration: true,
-      completionItem: {
-        snippetSupport: true,
-        insertReplaceSupport: true,
-        commitCharactersSupport: true,
-        documentationFormat: ["plaintext", "markdown"],
-        deprecatedSupport: true,
-        preselectSupport: true,
-        resolveSupport: { properties: ["documentation", "detail"] },
-      },
-      contextSupport: true,
-    },
-    hover: {
-      dynamicRegistration: true,
-      contentFormat: ["plaintext", "markdown"],
-    },
-    signatureHelp: {
-      dynamicRegistration: true,
-      signatureInformation: {
-        documentationFormat: ["plaintext", "markdown"],
-        parameterInformation: {
-          labelOffsetSupport: true,
-        },
-        // activeParameterSupport: true,
-      },
-      contextSupport: true,
-    },
-    declaration: {
-      dynamicRegistration: true,
-      linkSupport: false,
-    },
-    definition: {
-      dynamicRegistration: true,
-      linkSupport: true,
-    },
-    typeDefinition: {
-      dynamicRegistration: true,
-      linkSupport: true,
-    },
-    implementation: {
-      dynamicRegistration: true,
-      linkSupport: true,
-    },
-    references: {
-      dynamicRegistration: true,
-    },
-    documentHighlight: {
-      dynamicRegistration: true,
-    },
-    documentSymbol: {
-      dynamicRegistration: true,
-      hierarchicalDocumentSymbolSupport: true,
-    },
-    codeAction: {
-      dynamicRegistration: true,
-      dataSupport: true,
-      codeActionLiteralSupport: {
-        codeActionKind: {
-          valueSet: [CodeActionKind.Source],
-        },
-      },
-    },
     colorProvider: { dynamicRegistration: true },
     foldingRange: {
       dynamicRegistration: true,
     },
+    publishDiagnostics: {
+      relatedInformation: true,
+      tagSupport: {
+        valueSet: [DiagnosticTag.Unnecessary, DiagnosticTag.Deprecated],
+      },
+    },
+    completion: {
+      dynamicRegistration: true,
+      contextSupport: true,
+      completionItem: {
+        documentationFormat: ["plaintext", "markdown"],
+        // snippetSupport: true,
+        // insertReplaceSupport: true,
+        // commitCharactersSupport: true,
+        // deprecatedSupport: true,
+        // preselectSupport: true,
+        // resolveSupport: { properties: ["documentation", "detail"] },
+      },
+    },
+    // hover: {
+    //   dynamicRegistration: true,
+    //   contentFormat: ["plaintext", "markdown"],
+    // },
+    // signatureHelp: {
+    //   dynamicRegistration: true,
+    //   signatureInformation: {
+    //     documentationFormat: ["plaintext", "markdown"],
+    //     parameterInformation: {
+    //       labelOffsetSupport: true,
+    //     },
+    //     activeParameterSupport: true,
+    //   },
+    //   contextSupport: true,
+    // },
+    // declaration: {
+    //   dynamicRegistration: true,
+    //   linkSupport: false,
+    // },
+    // definition: {
+    //   dynamicRegistration: true,
+    //   linkSupport: true,
+    // },
+    // typeDefinition: {
+    //   dynamicRegistration: true,
+    //   linkSupport: true,
+    // },
+    // implementation: {
+    //   dynamicRegistration: true,
+    //   linkSupport: true,
+    // },
+    // references: {
+    //   dynamicRegistration: true,
+    // },
+    // documentHighlight: {
+    //   dynamicRegistration: true,
+    // },
+    // documentSymbol: {
+    //   dynamicRegistration: true,
+    //   hierarchicalDocumentSymbolSupport: true,
+    // },
+    // codeAction: {
+    //   dynamicRegistration: true,
+    //   dataSupport: true,
+    //   codeActionLiteralSupport: {
+    //     codeActionKind: {
+    //       valueSet: [CodeActionKind.Source],
+    //     },
+    //   },
+    // },
     // codeLens: {},
     // documentLink: {
     //   dynamicRegistration: true,
@@ -123,21 +136,7 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
     // onTypeFormatting: {},
     // rename: {},
     // selectionRange: {},
-    publishDiagnostics: {
-      relatedInformation: true,
-      tagSupport: {
-        valueSet: [DiagnosticTag.Unnecessary, DiagnosticTag.Deprecated],
-      },
-    },
-    moniker: {},
-  },
-  workspace: {
-    didChangeConfiguration: {
-      dynamicRegistration: true,
-    },
-    didChangeWatchedFiles: {
-      dynamicRegistration: false,
-    },
+    // moniker: {},
   },
 };
 

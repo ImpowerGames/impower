@@ -145,7 +145,7 @@ export class SparkdownCompletionProvider
     //Title page autocomplete
     if (position.line <= firstScriptLine) {
       if (currentLine.indexOf(":") === -1) {
-        if (!program?.titleTokens?.["title"]) {
+        if (!program?.frontMatter?.["title"]) {
           completes.push(
             TitlePageKey({
               name: "Title",
@@ -155,7 +155,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["credit"]) {
+        if (!program?.frontMatter?.["credit"]) {
           completes.push(
             TitlePageKey({
               name: "Credit",
@@ -168,7 +168,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["author"]) {
+        if (!program?.frontMatter?.["author"]) {
           completes.push(
             TitlePageKey({
               name: "Author",
@@ -181,7 +181,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["source"]) {
+        if (!program?.frontMatter?.["source"]) {
           completes.push(
             TitlePageKey({
               name: "Source",
@@ -194,7 +194,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["notes"]) {
+        if (!program?.frontMatter?.["notes"]) {
           completes.push(
             TitlePageKey({
               name: "Notes",
@@ -206,7 +206,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["draft_date"]) {
+        if (!program?.frontMatter?.["draft_date"]) {
           completes.push(
             TitlePageKey({
               name: "Draft Date",
@@ -219,7 +219,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["date"]) {
+        if (!program?.frontMatter?.["date"]) {
           completes.push(
             TitlePageKey({
               name: "Date",
@@ -233,8 +233,8 @@ export class SparkdownCompletionProvider
           );
         }
         if (
-          !program?.titleTokens?.["contact"] ||
-          !program?.titleTokens?.["contact_info"]
+          !program?.frontMatter?.["contact"] ||
+          !program?.frontMatter?.["contact_info"]
         ) {
           completes.push(
             TitlePageKey({
@@ -246,7 +246,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["copyright"]) {
+        if (!program?.frontMatter?.["copyright"]) {
           completes.push(
             TitlePageKey({
               name: "Copyright",
@@ -260,7 +260,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["watermark"]) {
+        if (!program?.frontMatter?.["watermark"]) {
           completes.push(
             TitlePageKey({
               name: "Watermark",
@@ -272,7 +272,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["font"]) {
+        if (!program?.frontMatter?.["font"]) {
           completes.push(
             TitlePageKey({
               name: "Font",
@@ -284,7 +284,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["language"]) {
+        if (!program?.frontMatter?.["language"]) {
           completes.push(
             TitlePageKey({
               name: "Language",
@@ -295,7 +295,7 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.titleTokens?.["revision"]) {
+        if (!program?.frontMatter?.["revision"]) {
           completes.push(
             TitlePageKey({
               name: "Revision",

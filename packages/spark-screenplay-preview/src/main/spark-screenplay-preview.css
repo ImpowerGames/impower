@@ -1,0 +1,358 @@
+:host {
+  display: contents;
+}
+
+:host * {
+  pointer-events: auto;
+  touch-action: pan-y;
+  --touch-action: "pan-y";
+}
+
+:host > .root {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+:host > .root > .preview {
+  flex: 1;
+  display: flex;
+  max-height: 100%;
+  overflow-y: scroll;
+}
+
+:host > .root > .preview > #workspace {
+  white-space: pre-wrap;
+  tab-size: 4;
+  font-size: 14px;
+  color: #333;
+  position: relative;
+  width: 100%;
+  font-family: "Courier Prime";
+}
+
+:host > .root > .preview > #workspace > #screenplay {
+  margin: 0px auto 0;
+  max-width: 850px;
+}
+
+:host > .root > .preview > #workspace > #screenplay > .page {
+  background-color: rgb(235, 234, 232);
+  background-image: var(--screenplay-preview-texture);
+  background-size: auto;
+  background-repeat: repeat;
+  border: 1px solid;
+  border-color: transparent;
+  border-radius: 2px;
+  cursor: text;
+  letter-spacing: 0 !important;
+  line-height: 107.5%;
+  margin-bottom: 25px;
+  position: relative;
+  text-align: left;
+  width: 100%;
+  z-index: 200;
+  box-shadow: 0px 0px 28px 0px rgba(0, 0, 0, 0.25);
+  box-sizing: border-box;
+}
+
+hr {
+  border-width: 0;
+  border-style: solid;
+  border-color: rgba(0, 0, 0, 0.2);
+  border-bottom-width: thin;
+  margin-top: 2em;
+  margin-bottom: 2em;
+}
+
+#workspace #screenplay.dpi72 .page {
+  font-size: 12px;
+  padding: 72px 72px 72px 108px;
+}
+
+#workspace #screenplay.dpi100 .page {
+  font-size: 16px;
+}
+#workspace #screenplay.dpi100 .innerpage {
+  max-width: 728px;
+  margin-top: 100px;
+  margin-bottom: 100px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 42px;
+  padding-right: 42px;
+}
+
+#workspace #screenplay.dpi150 .page {
+  font-size: 33px;
+  padding: 150px 150px 150px 225px;
+}
+
+#workspace #screenplay.dpi72 .page h1,
+#workspace #screenplay.dpi72 .page h2,
+#workspace #screenplay.dpi72 .page h3,
+#workspace #screenplay.dpi72 .page h4,
+#workspace #screenplay.dpi72 .page p {
+  font-size: 12px;
+  font-weight: 400;
+}
+
+#workspace #screenplay.dpi100 .page h1,
+#workspace #screenplay.dpi100 .page h2,
+#workspace #screenplay.dpi100 .page h3,
+#workspace #screenplay.dpi100 .page h4,
+#workspace #screenplay.dpi100 .page p {
+  font-size: 17px;
+  font-weight: 400;
+}
+
+#workspace #screenplay.dpi150 .page h1,
+#workspace #screenplay.dpi150 .page h2,
+#workspace #screenplay.dpi150 .page h3,
+#workspace #screenplay.dpi150 .page h4,
+#workspace #screenplay.dpi150 .page p {
+  font-size: 33px;
+  font-weight: 400;
+}
+
+#workspace #screenplay.us-letter.dpi72 {
+  width: 612px;
+}
+
+#workspace #screenplay.us-letter.dpi150 {
+  width: 1275px;
+}
+
+#workspace #screenplay.us-letter.dpi72 .page {
+  height: 792px;
+}
+
+#workspace #screenplay.us-letter.dpi100 .page {
+  height: 1100px;
+}
+
+#workspace #screenplay.us-letter.dpi150 .page {
+  height: 1650px;
+}
+
+#workspace #screenplay.a4.dpi72 {
+  width: 595px;
+}
+
+#workspace #screenplay.a4.dpi100 {
+  width: auto;
+  max-width: 827px;
+}
+
+#workspace #screenplay.a4.dpi150 {
+  width: 1250px;
+}
+
+#workspace #screenplay.a4.dpi72 .page {
+  height: 842px;
+}
+
+#workspace #screenplay.a4.dpi100 .page {
+  height: 1169px;
+}
+
+#workspace #screenplay.a4.dpi150 .page {
+  height: 1754px;
+}
+
+#workspace #screenplay .page h2 {
+  text-align: right;
+}
+
+#workspace #screenplay .page h2.left-aligned {
+  text-align: left;
+}
+
+#workspace #screenplay .page h3 {
+  position: relative;
+}
+
+div#title_content {
+  display: grid;
+  height: calc(100% - 200px);
+  width: 100%;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+  grid-template-rows: 200px 1fr 300px;
+}
+.titlepagesection[data-position="tl"] {
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+.titlepagesection[data-position="tc"] {
+  grid-column-start: 3;
+  grid-column-end: 5;
+  text-align: center;
+}
+.titlepagesection[data-position="tr"] {
+  grid-column-start: 5;
+  grid-column-end: 7;
+  text-align: right;
+}
+.titlepagesection[data-position="cc"] {
+  grid-column-start: 1;
+  grid-column-end: 7;
+  text-align: center;
+  align-self: center;
+}
+.titlepagesection[data-position="bl"] {
+  grid-column-start: 1;
+  grid-column-end: 4;
+  align-self: end;
+}
+.titlepagesection[data-position="br"] {
+  grid-column-start: 4;
+  grid-column-end: 7;
+  text-align: right;
+  align-self: end;
+}
+
+.numberonleft h3:before {
+  opacity: 0.4;
+  content: attr(data-scenenumber);
+  font-weight: 700;
+  left: -45px;
+  position: absolute;
+}
+
+.numberonright h3:after {
+  opacity: 0.4;
+  content: attr(data-scenenumber);
+  font-weight: 700;
+  right: -45px;
+  position: absolute;
+}
+
+#workspace #screenplay .page div.dialogue {
+  margin-left: auto;
+  margin-right: auto;
+  width: 68%;
+}
+
+#workspace #screenplay .page div.dialogue h4 {
+  margin-bottom: 0;
+  margin-left: 23%;
+}
+
+#workspace #screenplay .page div.dialogue p.dialogue_parenthetical {
+  margin-bottom: 0;
+  margin-top: 0;
+  margin-left: 11%;
+}
+
+#workspace #screenplay .page div.dialogue p {
+  margin-bottom: 0;
+  margin-top: 0;
+}
+
+#workspace #screenplay .page div.dual-dialogue {
+  margin: 2em 0 0.9em 2%;
+  width: 95%;
+}
+
+#workspace #screenplay .page div.dual-dialogue div.dialogue {
+  display: inline-block;
+  margin: 0;
+  width: 45%;
+}
+
+#workspace #screenplay .page div.dual-dialogue div.dialogue h4 {
+  margin-top: 0;
+}
+
+#workspace #screenplay .page div.dual-dialogue div.dialogue.right {
+  float: right;
+}
+
+#workspace #screenplay .page span.centered {
+  text-align: center;
+  width: 92.5%;
+  display: block;
+  margin: auto;
+}
+
+#workspace #screenplay .page p.section {
+  opacity: 0.2;
+  margin-left: -30px;
+}
+
+#workspace #screenplay .page p.synopsis {
+  opacity: 0.4;
+  margin-left: -20px;
+  font-style: italic;
+}
+
+#workspace #screenplay .page span.italic {
+  font-style: italic;
+}
+
+#workspace #screenplay .page span.bold {
+  font-weight: 700;
+}
+
+.page h3 {
+  font-weight: bold;
+}
+
+.note {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.underline {
+  text-decoration: underline;
+}
+
+#linehighlight_active {
+  width: 100%;
+  position: absolute;
+  background-color: blue;
+  border: 2px solid;
+  border-left: 0;
+  border-right: 0;
+  z-index: -1;
+  margin-top: -3px;
+  opacity: 0;
+}
+#linehighlight_click {
+  width: 100%;
+  position: absolute;
+  background-color: red;
+  border: 2px solid;
+  border-left: 0;
+  border-right: 0;
+  z-index: -1;
+  margin-top: -3px;
+  opacity: 0;
+}
+
+.vscode_theme #linehighlight_active,
+.vscode_theme #linehighlight_click {
+  background-color: var(--vscode-editor-lineHighlightBackground) !important;
+  border-color: var(--vscode-editor-lineHighlightBorder);
+}
+.vscode_theme *::selection {
+  background-color: var(--vscode-editor-selectionBackground);
+  color: var(--vscode-editor-selectionForeground);
+}
+.paper_theme #linehighlight_active,
+.paper_theme #linehighlight_click {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.05) !important;
+}
+#script_page {
+  height: auto !important;
+}
+.header {
+  position: absolute;
+  top: 48px;
+}
+.footer {
+  position: absolute;
+  bottom: 48px;
+}

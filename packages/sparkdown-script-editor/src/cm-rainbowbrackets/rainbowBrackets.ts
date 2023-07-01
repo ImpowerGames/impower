@@ -75,6 +75,7 @@ const rainbowBracketsPlugin = (config: typeof DEFAULT_CONFIG) =>
           const isCloseBracket = bracketIndex >= 0 && bracketIndex % 2 !== 0;
           if (isOpenBracket) {
             const node = tree.resolveInner(pos, 1);
+            console.log(node);
             if (!isAlreadyColored(node)) {
               stack.push({ char: char, from: pos });
             }

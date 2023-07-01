@@ -4,9 +4,9 @@ import {
 } from "../cm-languageclient";
 
 export const createSparkdownLanguageServerConnection = (
+  serverWorker: Worker,
   clientOptions?: LanguageClientOptions
 ) => {
-  const worker = new Worker("/public/sparkdown-language-server.js");
   return new LanguageServerConnection(
     "sparkdown-language-server",
     "Sparkdown Language Server",
@@ -14,6 +14,6 @@ export const createSparkdownLanguageServerConnection = (
       documentSelector: [{ language: "sparkdown" }],
       ...(clientOptions || {}),
     },
-    worker
+    serverWorker
   );
 };

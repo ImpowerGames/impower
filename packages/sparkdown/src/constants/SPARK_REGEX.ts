@@ -34,6 +34,8 @@ export type SparkBlockType = keyof typeof SPARK_BLOCK_REGEX;
 export const SPARK_REGEX = {
   ...SPARK_BLOCK_REGEX,
 
+  front_matter_entry: /^([ \t]*)([^\n\r:]+)([ ]*)([:])([^\n\r]*)($|[/][/].*)/,
+
   comment: /([/][/])(.*)$/gm,
 
   dialogue_character:
@@ -49,9 +51,6 @@ export const SPARK_REGEX = {
     /(?:\[{2}(?!\[+))([\s\S]*)(?:\]{2}(?!\[+))|(?:\({2}(?!\(+))([\s\S]*)(?:\){2}(?!\(+))/g,
 
   line_break: /^[ \t]{2,}$/,
-
-  title_page:
-    /^([ \t]*)(title|credit|author[s]?|source|notes|draft date|date|watermark|contact(?: info)?|revision|copyright|font|tl|tc|tr|cc|br|bl)(:)(.*)?$/i,
 
   lyric: /^([ \t]*)(~)(.+)([ ]*)$/,
 

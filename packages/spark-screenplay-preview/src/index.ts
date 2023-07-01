@@ -1,7 +1,7 @@
-import Main from "./main/sparkdown-script-editor";
+import Main from "./main/spark-screenplay-preview";
 
 export const DEFAULT_CONSTRUCTORS = {
-  "sparkdown-script-editor": Main,
+  "spark-screenplay-preview": Main,
 } as const;
 
 interface InitOptions {
@@ -10,7 +10,7 @@ interface InitOptions {
   dependencies?: Record<string, string>;
 }
 
-export default abstract class SparkdownScriptEditor {
+export default abstract class SparkScreenplayPreview {
   static async init(
     options?: InitOptions
   ): Promise<CustomElementConstructor[]> {

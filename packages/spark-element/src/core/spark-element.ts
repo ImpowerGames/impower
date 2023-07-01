@@ -185,6 +185,10 @@ export default class SparkElement extends HTMLElement {
     return this.self.querySelector<T>(name) || null;
   }
 
+  getElementById<T extends HTMLElement>(name: string): T | null {
+    return this.self.querySelector<T>(`#${name}`) || null;
+  }
+
   getElementByClass<T extends HTMLElement>(name: string): T | null {
     return this.self.querySelector<T>(`.${name}`) || null;
   }

@@ -1,14 +1,14 @@
 import PDFKit from "pdfkit";
 import addTextbox from "textbox-for-pdfkit";
 import {
-    FONT_KEY,
-    getAuthor,
-    getTitle,
-    PdfData,
-    PdfDocument,
-    pdfFormatText,
-    pdfProcessText,
-    TextOptions,
+  FONT_KEY,
+  getAuthor,
+  getTitle,
+  PdfData,
+  PdfDocument,
+  pdfFormatText,
+  pdfProcessText,
+  TextOptions,
 } from "../../../../spark-screenplay";
 
 export const createPdfDocument = (data: PdfData): PdfDocument => {

@@ -22,7 +22,6 @@ import {
 } from "@codemirror/view";
 import { indentationGuides } from "../cm-indentation-guides/indentationGuides";
 import { indentedLineWrapping } from "../cm-indented-line-wrapping/indentedLineWrapping";
-import rainbowBrackets from "../cm-rainbowbrackets/rainbowBrackets";
 import { whitespaceMarkers } from "../cm-whitespace-markers/whitespaceMarkers";
 
 const EXTENSIONS = [
@@ -37,7 +36,6 @@ const EXTENSIONS = [
   dropCursor(),
   crosshairCursor(),
   rectangularSelection(),
-  rainbowBrackets(),
   highlightActiveLine(),
   highlightActiveLineGutter(),
   highlightSelectionMatches(),

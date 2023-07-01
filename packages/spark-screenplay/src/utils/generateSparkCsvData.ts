@@ -2,7 +2,7 @@ import { SparkProgram } from "../../../sparkdown/src";
 
 export const generateSparkCsvData = (program: SparkProgram): string[][] => {
   const language: string =
-    program?.titleTokens?.["language"]?.[0]?.content || "en-US [English (US)]";
+    program?.frontMatter?.["language"]?.[0]?.content || "en-US [English (US)]";
   const strings: string[][] = [["KEY", "CONTEXT", language]];
   Object.keys(program?.metadata?.characters || {})
     ?.sort()
