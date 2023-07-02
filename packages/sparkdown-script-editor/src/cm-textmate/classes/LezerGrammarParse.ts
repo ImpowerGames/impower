@@ -134,11 +134,10 @@ export default class GrammarParse implements PartialParse {
           const { chunk, index } = buffer.search(restartPos, 0);
           if (chunk && index !== null) {
             // split the buffer, reuse the left side
-            const { left, right } = buffer.split(index);
+            const { left } = buffer.split(index);
             this.region.from = chunk.from;
             this.buffer = left;
             this.state = chunk.state.clone();
-            this.previousRight = right;
           }
         }
       }
