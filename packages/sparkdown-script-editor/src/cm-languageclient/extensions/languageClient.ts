@@ -19,7 +19,7 @@ export const languageClientConfig = Facet.define<
 >({
   combine(configs) {
     return combineConfig<Required<LanguageClientConfig>>(configs, {
-      throttleDelay: 500,
+      throttleDelay: 200,
       debounceDelay: 500,
     });
   },
