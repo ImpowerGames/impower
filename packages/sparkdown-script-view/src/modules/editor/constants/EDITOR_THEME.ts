@@ -132,62 +132,62 @@ const EDITOR_THEME: {
   ".cm-completionIcon-choice_plus": {
     "&:after": {
       content: "'⊕'",
-      color: EDITOR_COLORS.variableName,
+      color: EDITOR_COLORS.variableNameAccessor,
     },
   },
   ".cm-completionIcon-choice_minus": {
     "&:after": {
       content: "'⊖'",
-      color: EDITOR_COLORS.variableName,
+      color: EDITOR_COLORS.variableNameAccessor,
     },
   },
   ".cm-completionIcon-section": {
-    "&:after": { content: "'#'", color: EDITOR_COLORS.section },
+    "&:after": { content: "'#'", color: EDITOR_COLORS.sectionNameDefinition },
   },
   ".cm-completionIcon-ancestor": {
     "&:after": {
       content: "'⮤'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-parent": {
     "&:after": {
       content: "'⬑'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-child": {
     "&:after": {
       content: "'⤵'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-first_sibling": {
     "&:after": {
       content: "'↱'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-last_sibling": {
     "&:after": {
       content: "'↳'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-next": {
     "&:after": {
       content: "'⭳'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-top": {
     "&:after": {
       content: "'⭱'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-quit": {
-    "&:after": { content: "'×'", color: EDITOR_COLORS.section },
+    "&:after": { content: "'×'", color: EDITOR_COLORS.sectionNameDefinition },
   },
   ".cm-completionIcon-option": {
     "&:after": {
@@ -234,13 +234,13 @@ const EDITOR_THEME: {
   ".cm-completionIcon-variable": {
     "&:after": {
       content: "'𝑥'",
-      color: EDITOR_COLORS.variableName,
+      color: EDITOR_COLORS.variableNameAccessor,
     },
   },
   ".cm-completionIcon-parameter": {
     "&:after": {
       content: "'ρ'",
-      color: EDITOR_COLORS.parameterName,
+      color: EDITOR_COLORS.variableNameDefinition,
     },
   },
   ".cm-completionIcon-trigger": {
@@ -264,17 +264,17 @@ const EDITOR_THEME: {
   ".cm-completionIcon-method": {
     "&:after": {
       content: "'m'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-function": {
     "&:after": {
       content: "'ƒ'",
-      color: EDITOR_COLORS.section,
+      color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
   ".cm-completionIcon-character": {
-    "&:after": { content: "'𝐶'", color: EDITOR_COLORS.dialogue_character },
+    "&:after": { content: "'𝐶'", color: EDITOR_COLORS.dialogueCharacter },
   },
   ".cm-completionIcon-transition": {
     "&:after": { content: "'Ŧ'", color: EDITOR_COLORS.transition },
@@ -286,7 +286,7 @@ const EDITOR_THEME: {
     "&:after": { content: "'✓'", color: EDITOR_COLORS.condition },
   },
   ".cm-completionIcon-module": {
-    "&:after": { content: "'⩀'", color: EDITOR_COLORS.variableName },
+    "&:after": { content: "'⩀'", color: EDITOR_COLORS.variableNameAccessor },
   },
   ".cm-diagnosticText": {
     marginRight: "16px",

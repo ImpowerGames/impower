@@ -1,6 +1,6 @@
 import { StyleSpec } from "style-mod";
 
-const SCREENPLAY_THEME: {
+const PREVIEW_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&": {
@@ -30,4 +30,4 @@ const SCREENPLAY_THEME: {
   },
 };
 
-export default SCREENPLAY_THEME;
+export default PREVIEW_THEME;

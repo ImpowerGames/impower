@@ -1,7 +1,8 @@
+import { syntaxTreeAvailable } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
-import SCREENPLAY_THEME from "../constants/SCREENPLAY_THEME";
+import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import { screenplayFormatting } from "./screenplayFormatting";
 
 interface EditorConfig {
@@ -12,8 +13,9 @@ interface EditorConfig {
     left?: number;
     right?: number;
   };
-  onFocus?: (value: string) => void;
-  onBlur?: (value: string) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  onReady?: () => void;
 }
 
 const createEditorView = (
@@ -24,19 +26,23 @@ const createEditorView = (
   const contentPadding = config?.contentPadding;
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
+  const onReady = config?.onReady;
   const startState = EditorState.create({
     doc,
     extensions: [
       EditorState.readOnly.of(true),
-      EditorView.theme(SCREENPLAY_THEME),
+      EditorView.theme(PREVIEW_THEME),
       EditorView.lineWrapping,
       EditorView.updateListener.of((u) => {
+        const parsed = syntaxTreeAvailable(u.state);
+        if (parsed) {
+          onReady?.();
+        }
         if (u.focusChanged) {
-          const doc = u.view.state.doc.toJSON().join("\n");
           if (u.view.hasFocus) {
-            onFocus?.(doc);
+            onFocus?.();
           } else {
-            onBlur?.(doc);
+            onBlur?.();
           }
         }
       }),

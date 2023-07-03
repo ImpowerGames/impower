@@ -14,15 +14,6 @@
       "include": "#Comment"
     },
     {
-      "include": "#FrontMatter"
-    },
-    {
-      "include": "#Struct"
-    },
-    {
-      "include": "#Variable"
-    },
-    {
       "include": "#Image"
     },
     {
@@ -30,6 +21,15 @@
     },
     {
       "include": "#Synopsis"
+    },
+    {
+      "include": "#FrontMatter"
+    },
+    {
+      "include": "#Struct"
+    },
+    {
+      "include": "#Variable"
     },
     {
       "include": "#PageBreak"
@@ -79,34 +79,36 @@
   ],
   "repository": {
     "Comment": {
-      "tag": "comment",
+      "tag": "lineComment",
       "name": "comment.line.sd",
       "match": "([/][/])(.*)$",
       "captures": {
         "1": {
-          "tag": "lineComment",
+          "tag": "definition(lineComment)",
           "name": "comment.line.double-slash.sd"
         },
         "2": {
-          "tag": "comment",
+          "tag": "lineComment",
           "name": "comment.line.content.sd"
         }
       }
     },
     "Image": {
+      "tag": "blockComment",
+      "name": "comment.block.image.sd",
       "match": "^([ \\t]*)(\\[{2})([^\\]]*)(\\]{2})([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
-          "tag": "comment",
-          "name": "comment.block.open.sd"
+          "tag": "definition(blockComment)",
+          "name": "comment.block.open.image.sd"
         },
         "3": {
-          "tag": "comment",
-          "name": "comment.block.content.sd"
+          "tag": "blockComment",
+          "name": "comment.block.content.image.sd"
         },
         "4": {
-          "tag": "comment",
-          "name": "comment.block.close.sd"
+          "tag": "definition(blockComment)",
+          "name": "comment.block.close.image.sd"
         },
         "6": {
           "patterns": [
@@ -118,19 +120,21 @@
       }
     },
     "Audio": {
+      "tag": "blockComment",
+      "name": "comment.block.audio.sd",
       "match": "^([ \\t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
-          "tag": "comment",
-          "name": "comment.block.open.sd"
+          "tag": "definition(blockComment)",
+          "name": "comment.block.open.audio.sd"
         },
         "3": {
-          "tag": "comment",
-          "name": "comment.block.content.sd"
+          "tag": "blockComment",
+          "name": "comment.block.content.audio.sd"
         },
         "4": {
-          "tag": "comment",
-          "name": "comment.block.close.sd"
+          "tag": "definition(blockComment)",
+          "name": "comment.block.close.audio.sd"
         },
         "6": {
           "patterns": [
@@ -142,17 +146,17 @@
       }
     },
     "Synopsis": {
-      "tag": "comment",
+      "tag": "docComment",
       "name": "comment.line.synopsis.sd",
       "match": "^([ \\t]*)(?![=]{2,})([=])([ ]*)((?:(?![/][/]).)*)($|[/][/].*)",
       "captures": {
         "2": {
-          "tag": "lineComment",
-          "name": "comment.line.equal.sd"
+          "tag": "definition(docComment)",
+          "name": "comment.line.equal.synopsis.sd"
         },
         "4": {
-          "tag": "comment",
-          "name": "comment.line.synopsis.sd"
+          "tag": "docComment",
+          "name": "comment.line.content.synopsis.sd"
         },
         "5": {
           "patterns": [
@@ -182,7 +186,7 @@
       }
     },
     "FrontMatter": {
-      "tag": "keyword",
+      "tag": "documentMeta",
       "name": "string.other.front-matter.sd",
       "begin": "^([ \\t]*)([-]{3,})([ \\t]*)($|[/][/].*)",
       "beginCaptures": {
@@ -212,6 +216,7 @@
       }
     },
     "FrontMatterEntry": {
+      "tag": "annotation",
       "name": "string.other.front-matter-entry.sd",
       "begin": "^([ _a-zA-Z]+[ _a-zA-Z0-9]*)([:])(.*)",
       "beginCaptures": {
@@ -245,6 +250,8 @@
       "end": "^(?=[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "Jump": {
+      "tag": "controlOperator",
+      "name": "storage.type.jump.sd",
       "match": "^([ \\t]*)([>])([ ]*)([^\\n\\r ]+|[{].+[}])?([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
@@ -252,7 +259,7 @@
           "name": "storage.type.jump.sd"
         },
         "4": {
-          "tag": "labelName",
+          "tag": "heading",
           "name": "keyword.control.export.jump.sd"
         },
         "6": {
@@ -265,12 +272,12 @@
       }
     },
     "Centered": {
-      "tag": "quote",
+      "tag": "monospace",
       "name": "keyword.other.centered.sd",
       "match": "^([ \\t]*)([|])([^\\n\\r|]+)([|])([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "storage.type.centered.bar-left.sd"
         },
         "3": {
@@ -290,7 +297,7 @@
           ]
         },
         "4": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "storage.type.centered.bar-right.sd"
         },
         "6": {
@@ -303,12 +310,12 @@
       }
     },
     "CenteredAngle": {
-      "tag": "quote",
+      "tag": "monospace",
       "name": "keyword.other.centered.sd",
       "match": "^([ \\t]*)(>)([^\\n\\r<>]+)(<)([ ]*)($|[/][/].*)",
       "captures": {
         "2": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "storage.type.centered.angle-left.sd"
         },
         "3": {
@@ -328,7 +335,7 @@
           ]
         },
         "4": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "storage.type.centered.angle-right.sd"
         },
         "6": {
@@ -388,6 +395,8 @@
       }
     },
     "Choice": {
+      "tag": "list",
+      "name": "storage.type.list.sd",
       "match": "^([ \\t]*)([+-])($|[ ]+)(?:([^\\n\\r>]+))?([ ]*)(?:([>])([ ]*)((?:(?![/][/]).)*)?)?($|[/][/].*)",
       "captures": {
         "2": {
@@ -409,7 +418,7 @@
           "name": "storage.type.jump.sd"
         },
         "8": {
-          "tag": "labelName",
+          "tag": "heading",
           "name": "keyword.control.export.jump.sd"
         },
         "9": {
@@ -425,11 +434,11 @@
       "match": "^([ \\t]*)(import)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])($|[ ]*)(.+)",
       "captures": {
         "2": {
-          "tag": "logicOperator",
+          "tag": "moduleKeyword",
           "name": "keyword.control.import.sd"
         },
         "4": {
-          "tag": "function(variableName)",
+          "tag": "definition(variableName)",
           "name": "variable.other.constant.sd"
         },
         "6": {
@@ -449,7 +458,7 @@
       "begin": "^([ \\t]*)(@)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ \\t]*)($|[/][/].*)",
       "beginCaptures": {
         "2": {
-          "tag": "keyword",
+          "tag": "definitionKeyword",
           "name": "storage.type.struct.sd"
         },
         "4": {
@@ -457,7 +466,7 @@
           "name": "support.type.primitive.struct.sd"
         },
         "6": {
-          "tag": "function(variableName)",
+          "tag": "definition(variableName)",
           "name": "variable.other.constant.struct.sd"
         },
         "8": {
@@ -495,7 +504,7 @@
       "begin": "^([ \\t]*)([@])([ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*(?:\\[\\])*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]*)($|[=])",
       "beginCaptures": {
         "2": {
-          "tag": "keyword",
+          "tag": "definitionKeyword",
           "name": "storage.type.variable.sd"
         },
         "4": {
@@ -503,7 +512,7 @@
           "name": "support.type.primitive.sd"
         },
         "6": {
-          "tag": "function(variableName)",
+          "tag": "definition(variableName)",
           "name": "variable.other.constant.sd"
         },
         "8": {
@@ -579,14 +588,16 @@
       }
     },
     "Section": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.export.section.sd",
       "match": "^([ \\t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\\n\\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ \\t]*)($|[/][/].*)",
       "captures": {
         "2": {
-          "tag": "heading",
+          "tag": "definition(heading)",
           "name": "keyword.control.export.section.sd"
         },
         "4": {
-          "tag": "heading",
+          "tag": "definition(heading)",
           "name": "keyword.control.export.section.sd"
         },
         "6": {
@@ -615,7 +626,7 @@
       "begin": "^([ \\t]*)(?![!#]|\\[\\[)([^\\p{Ll}\\r\\n]*?\\p{Lu}[^\\p{Ll}\\r\\n]*?)(\\(.*\\))?(\\s*)(\\^)?(\\s*)($|[/][/].*)",
       "beginCaptures": {
         "2": {
-          "tag": "className",
+          "tag": "character",
           "name": "entity.name.type.sd"
         },
         "3": {
@@ -623,11 +634,7 @@
           "name": "constant.character.escape.sd"
         },
         "5": {
-          "tag": "tagName",
-          "name": "constant.character.escape.sd"
-        },
-        "6": {
-          "tag": "tagName",
+          "tag": "processingInstruction",
           "name": "constant.character.escape.sd"
         },
         "7": {
@@ -663,7 +670,7 @@
       "match": "^([ \\t]*)([(])([^()]*)([)])($|[/][/].*)"
     },
     "Lyric": {
-      "tag": "annotation",
+      "tag": "quote",
       "name": "markup.italic string",
       "match": "^([ \\t]*)(~)(.*)",
       "captures": {
@@ -1077,7 +1084,7 @@
       "begin": "([\"])",
       "beginCaptures": {
         "1": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "punctuation.definition.string.begin.sd"
         }
       },
@@ -1089,7 +1096,7 @@
       "end": "([\"])|([^\\\\\\n]$)",
       "endCaptures": {
         "1": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "punctuation.definition.string.end.sd"
         },
         "2": {
@@ -1104,7 +1111,7 @@
       "begin": "(['])",
       "beginCaptures": {
         "1": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "punctuation.definition.string.begin.sd"
         }
       },
@@ -1116,7 +1123,7 @@
       "end": "(['])|([^\\\\\\n]$)",
       "endCaptures": {
         "1": {
-          "tag": "quote",
+          "tag": "punctuation",
           "name": "punctuation.definition.string.end.sd"
         },
         "2": {
@@ -1707,7 +1714,7 @@
       }
     },
     "StringCharacterEscape": {
-      "tag": "character",
+      "tag": "escape",
       "name": "constant.character.escape.ts",
       "match": "([\\\\])(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
     },
