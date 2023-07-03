@@ -910,8 +910,8 @@
           "name": "markup.raw.whitespace.indent.sd"
         },
         "2": {
-          "tag": "keyword",
-          "name": "storage.type.map.sd"
+          "tag": "variableName",
+          "name": "variable.other.readwrite.sd"
         },
         "3": {
           "tag": "punctuation",
@@ -944,8 +944,8 @@
           "name": "markup.raw.whitespace.indent.sd"
         },
         "2": {
-          "tag": "keyword",
-          "name": "storage.type.map.sd"
+          "tag": "variableName",
+          "name": "variable.other.readwrite.sd"
         },
         "3": {
           "tag": "punctuation",

@@ -552,8 +552,8 @@ repository:
         tag: content
         name: markup.raw.whitespace.indent.sd
       2:
-        tag: keyword
-        name: storage.type.map.sd
+        tag: variableName
+        name: variable.other.readwrite.sd
       3:
         tag: punctuation
         name: punctuation.separator.colon.sd
@@ -573,8 +573,8 @@ repository:
         tag: content
         name: markup.raw.whitespace.indent.sd
       2:
-        tag: keyword
-        name: storage.type.map.sd
+        tag: variableName
+        name: variable.other.readwrite.sd
       3:
         tag: punctuation
         name: punctuation.separator.colon.sd

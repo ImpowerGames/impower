@@ -2406,7 +2406,7 @@ const hoistDeclarations = (
         });
         const mark = match[2] || "";
         const name = match[4] || "";
-        const colon = match[6] || "";
+        const colonOrEquals = match[6] || "";
         // TODO: support multiline expressions
         const expression = stripInlineComments(match[8] || "");
         const nameFrom = context.from + getStart(match, 4);
@@ -2419,7 +2419,7 @@ const hoistDeclarations = (
           currentToken.name = name;
           currentToken.valueText = expression;
           updateFieldToken(currentToken, currentFieldTokens);
-          if (expression || !colon) {
+          if (expression || !colonOrEquals) {
             addField(
               program,
               config,
@@ -2427,6 +2427,16 @@ const hoistDeclarations = (
               currentSectionId,
               nameFrom,
               nameTo,
+              expressionFrom,
+              expressionTo
+            );
+          }
+          if (colonOrEquals === ":" && expression.trim()) {
+            diagnostic(
+              program,
+              currentToken,
+              `Unexpected expression after colon`,
+              [],
               expressionFrom,
               expressionTo
             );
@@ -3732,5 +3742,6 @@ export const parseSpark = (
   program.objectMap ??= {};
   updateObjectMap(program.objectMap, program.structs);
 
+  console.log(program);
   return program;
 };
