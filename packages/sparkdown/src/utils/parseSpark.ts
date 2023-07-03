@@ -3742,6 +3742,5 @@ export const parseSpark = (
   program.objectMap ??= {};
   updateObjectMap(program.objectMap, program.structs);
 
-  console.log(program);
   return program;
 };
