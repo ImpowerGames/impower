@@ -21,6 +21,25 @@ import {
 import { FoldingRange } from "vscode-languageserver-protocol";
 import { FeatureSupport } from "../../types/FeatureSupport";
 
+const foldingTheme = EditorView.baseTheme({
+  "&light": {
+    "--fold-open-color": "#000000",
+    "--fold-closed-color": "#000000",
+  },
+
+  "&dark": {
+    "--fold-open-color": "#cccccc",
+    "--fold-closed-color": "#cccccc",
+  },
+
+  "& .cm-foldGutter .cm-gutterElement .cm-fold-open": {
+    color: "var(--fold-open-color)",
+  },
+  "& .cm-foldGutter .cm-gutterElement .cm-fold-closed": {
+    color: "var(--fold-closed-color)",
+  },
+});
+
 const foldableMark = Decoration.mark({ class: "cm-foldable" });
 
 const clearFoldablesEffect = StateEffect.define<{}>();
@@ -104,12 +123,26 @@ const foldingChanged = (update: ViewUpdate): boolean => {
 export default class FoldingSupport implements FeatureSupport<FoldingRange[]> {
   load() {
     return [
+      foldingTheme,
       foldableDecorationsField,
       foldingRangesService,
       codeFolding({ placeholderText: "⋯" }),
       foldGutter({
-        openText: "v",
-        closedText: ">",
+        markerDOM: (open: boolean) => {
+          const dom = document.createElement("span");
+          dom.textContent = "⌵";
+          dom.style.position = "relative";
+          dom.style.top = "-1px";
+          if (open) {
+            dom.className = "cm-fold-open";
+            dom.style.opacity = "0.5";
+          } else {
+            dom.className = "cm-fold-closed";
+            dom.style.transform = "translateX(-4px) rotate(-90deg)";
+            dom.style.opacity = "1";
+          }
+          return dom;
+        },
         foldingChanged,
       }),
       keymap.of([...foldKeymap]),
