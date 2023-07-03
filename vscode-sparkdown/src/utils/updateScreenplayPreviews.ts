@@ -23,7 +23,7 @@ export const updateScreenplayPreviews = (doc: vscode.TextDocument) => {
   ) {
     const config = getSparkdownConfig(uri);
     const titleHtml = generateSparkTitleHtml(program, config);
-    const scriptHtml = generateSparkScriptHtml(program, config);
+    const scriptHtml = generateSparkScriptHtml(program, config).join("");
     for (let i = 0; i < screenplayPreviewsToUpdate.length; i++) {
       const preview = screenplayPreviewsToUpdate[i];
       if (preview) {

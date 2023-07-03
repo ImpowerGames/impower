@@ -332,17 +332,17 @@ repository:
     match: ^([ \t]*)([.](?![. ])|INT[.](?:$|[ ]+)|EXT[.](?:$|[ ]+)|INT[.]?[/]EXT[.](?:$|[ ]+))($|(?:(?![ ][-]).)*)($|[ ]+)($|[-])($|[ ]+)($|(?:(?![/][/]).)*)($|[/][/].*)
     captures:
       2:
-        tag: propertyName
-        name: keyword.control.flow.scene.sd
+        tag: regexp
+        name: string.regexp.scene.sd
       3:
-        tag: propertyName
-        name: keyword.control.flow.scene.sd
+        tag: regexp
+        name: string.regexp.scene.sd
       5:
-        tag: propertyName
-        name: keyword.control.flow.scene.sd
+        tag: regexp
+        name: string.regexp.scene.sd
       7:
-        tag: propertyName
-        name: keyword.control.flow.scene.sd
+        tag: regexp
+        name: string.regexp.scene.sd
       8:
         patterns:
           - { include: "#Comment" }

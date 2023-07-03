@@ -1,6 +1,0 @@
-{
-  "name": "@impower/spark-screenplay-preview",
-  "displayName": "Spark Screenplay Preview",
-  "description": "A web component that allows you to preview a spark program as a screenplay.",
-  "version": "0.0.1"
-}

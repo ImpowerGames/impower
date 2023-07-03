@@ -4,7 +4,7 @@
   "description": "YAML definition files that are converted to json and propagated to other modules.",
   "version": "0.0.1",
   "scripts": {
-    "language": "tsx language/language.ts ../packages/sparkdown-script-editor/language ../vscode-sparkdown/language",
+    "language": "tsx language/language.ts ../packages/sparkdown-script-view/language ../vscode-sparkdown/language",
     "build": "npm run language"
   },
   "dependencies": {

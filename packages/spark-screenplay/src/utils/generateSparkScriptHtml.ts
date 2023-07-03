@@ -6,10 +6,22 @@ import { sparkLexer } from "./sparkLexer";
 export const generateSparkScriptHtml = (
   program: SparkProgram,
   config: SparkScreenplayConfig
-): string => {
+): string[] => {
   const html: string[] = [];
   let currentIndex = 0;
   let isAction = false;
+
+  const append = (str: string) => {
+    html[html.length - 1] += str;
+  };
+
+  const push = (str: string) => {
+    if (html[html.length - 1] === "") {
+      append(str);
+    } else {
+      html.push(str);
+    }
+  };
 
   while (currentIndex < program.tokens.length) {
     const currentToken = program.tokens[currentIndex];
@@ -41,7 +53,7 @@ export const generateSparkScriptHtml = (
         }
         classes += " centered";
       }
-      html.push(
+      append(
         `${elStart}<span class="${classes}" id="sourceline_${line}">${currentToken.html}</span>`
       );
 
@@ -55,17 +67,17 @@ export const generateSparkScriptHtml = (
           next_type == "separator" ||
           next_type == "centered"
         ) {
-          html.push("\n");
+          append("\n");
         }
       } else if (isAction) {
         //we're at the end
-        html.push("</p>");
+        append("</p>");
       }
     } else {
       if (isAction) {
         //no longer, close the paragraph
         isAction = false;
-        html.push("</p>");
+        append("</p>");
       }
       switch (currentToken.type) {
         case "scene":
@@ -79,7 +91,7 @@ export const generateSparkScriptHtml = (
               "</span>";
           }
 
-          html.push(
+          push(
             '<h3 class="haseditorline" data-scenenumber="' +
               currentToken.scene +
               '" data-position="' +
@@ -89,23 +101,25 @@ export const generateSparkScriptHtml = (
               content +
               "</h3>"
           );
+          push("");
           break;
         case "transition":
-          html.push(
+          push(
             '<h2 class="haseditorline" id="sourceline_' +
               line +
               '">' +
               text +
               "</h2>"
           );
+          push("");
           break;
 
         case "dual_dialogue_start":
-          html.push('<div class="dual-dialogue">');
+          push('<div class="dual-dialogue">');
           break;
 
         case "dialogue_start":
-          html.push(
+          push(
             '<div class="dialogue' +
               (currentToken.position ? " " + currentToken.position : "") +
               '">'
@@ -114,12 +128,12 @@ export const generateSparkScriptHtml = (
 
         case "dialogue_character":
           if (currentToken.position == "left") {
-            html.push('<div class="dialogue left">');
+            append('<div class="dialogue left">');
           } else if (currentToken.position == "right") {
-            html.push('</div><div class="dialogue right">');
+            append('</div><div class="dialogue right">');
           }
 
-          html.push(
+          append(
             '<h4 class="haseditorline" id="sourceline_' +
               line +
               '">' +
@@ -129,7 +143,7 @@ export const generateSparkScriptHtml = (
 
           break;
         case "dialogue_parenthetical":
-          html.push(
+          append(
             '<p class="haseditorline dialogue_parenthetical" id="sourceline_' +
               line +
               '" >' +
@@ -138,9 +152,10 @@ export const generateSparkScriptHtml = (
           );
           break;
         case "dialogue":
-          if (text == "  ") html.push("<br>");
-          else
-            html.push(
+          if (text == "  ") {
+            append("<br>");
+          } else
+            append(
               '<p class="haseditorline" id="sourceline_' +
                 line +
                 '">' +
@@ -149,15 +164,17 @@ export const generateSparkScriptHtml = (
             );
           break;
         case "dialogue_end":
-          html.push("</div> ");
+          append("</div> ");
+          push("");
           break;
         case "dual_dialogue_end":
-          html.push("</div></div> ");
+          append("</div></div> ");
+          push("");
           break;
 
         case "section":
           if (config.screenplay_print_sections) {
-            html.push(
+            push(
               '<p class="haseditorline section" id="sourceline_' +
                 line +
                 '" data-position="' +
@@ -168,21 +185,23 @@ export const generateSparkScriptHtml = (
                 text +
                 "</p>"
             );
+            push("");
           }
           break;
         case "synopsis":
           if (config.screenplay_print_synopses) {
-            html.push(
+            push(
               '<p class="haseditorline synopsis" id="sourceline_' +
                 line +
                 '" >' +
                 currentToken.html +
                 "</p>"
             );
+            push("");
           }
           break;
         case "lyric":
-          html.push(
+          append(
             '<p class="haseditorline lyric" id="sourceline_' +
               line +
               '">' +
@@ -193,7 +212,7 @@ export const generateSparkScriptHtml = (
 
         case "note":
           if (config.screenplay_print_notes) {
-            html.push(
+            append(
               '<p class="haseditorline note" id="sourceline_' +
                 line +
                 '">' +
@@ -204,12 +223,13 @@ export const generateSparkScriptHtml = (
           break;
 
         case "page_break":
-          html.push("<hr />");
+          push("<hr />");
+          push("");
           break;
       }
     }
 
     currentIndex++;
   }
-  return html.join("");
+  return html;
 };

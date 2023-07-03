@@ -54,7 +54,7 @@ export const generateSparkHtmlData = (
   }
 
   const scriptHtml = generateSparkScriptHtml(program, config);
-  rawHtml = rawHtml.replace("$SCREENPLAY$", scriptHtml);
+  rawHtml = rawHtml.replace("$SCREENPLAY$", scriptHtml.join(""));
 
   return rawHtml;
 };

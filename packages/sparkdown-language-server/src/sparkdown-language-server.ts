@@ -9,6 +9,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
+  TextDocumentSyncKind,
   createConnection,
 } from "vscode-languageserver/browser";
 
@@ -32,6 +33,7 @@ try {
 
   connection.onInitialize((_params: InitializeParams): InitializeResult => {
     const capabilities: ServerCapabilities = {
+      textDocumentSync: TextDocumentSyncKind.Incremental,
       foldingRangeProvider: true,
       colorProvider: true,
       completionProvider: {

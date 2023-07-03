@@ -48,7 +48,7 @@
       "editor.tokenColorCustomizations": {
         "textMateRules": [
           {
-            "scope": "keyword.control.flow.scene.sd",
+            "scope": "string.regexp.scene.sd",
             "settings": {
               "foreground": "#FF8080"
             }
