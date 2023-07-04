@@ -50,119 +50,6 @@ import { updateObjectMap } from "./updateObjectMap";
 
 const EMPTY_OBJECT = {};
 
-const processBalancedExpression = (
-  expression: string,
-  expressionFrom: number,
-  lines: string[],
-  program: SparkProgram,
-  context: SparkParserContext,
-  begin: string,
-  end: string,
-  escape: string,
-  scope: SparkScopeType
-): string => {
-  let balancedExpression = "";
-  let escaped = false;
-  const brackets = [];
-  let lineContent = lines[context.line] || "";
-  let expressionStartOffset = expressionFrom - context.from;
-  let expressionEndOffset =
-    lineContent.length - expressionStartOffset - expression.length;
-  context.to = expressionFrom + 1;
-  while (context.line < lines.length) {
-    lineContent = lines[context.line] || "";
-    for (
-      let i = expressionStartOffset;
-      i < lineContent.length - expressionEndOffset;
-      i += 1
-    ) {
-      const char = lineContent[i]!;
-      balancedExpression += char;
-      context.to += 1;
-      if (!escaped) {
-        if (begin === end) {
-          if (char === begin || char === end) {
-            if (brackets.length === 0) {
-              brackets.push(true);
-            } else {
-              brackets.pop();
-              if (brackets.length === 0) {
-                return balancedExpression;
-              }
-            }
-          }
-        } else {
-          if (char === begin) {
-            brackets.push(true);
-          } else if (char === end) {
-            brackets.pop();
-            if (brackets.length === 0) {
-              return balancedExpression;
-            }
-          }
-        }
-      }
-      escaped = !escaped && char === escape;
-    }
-    if (scope) {
-      program.metadata.lines ??= [];
-      program.metadata.lines[context.line] ??= {};
-      program.metadata.lines[context.line]!.scope = SPARK_SCOPE_TYPES.indexOf(
-        scope as SparkScopeType
-      );
-    }
-    balancedExpression += "\n";
-    context.to += 2;
-    context.line += 1;
-    expressionStartOffset = 0;
-    expressionEndOffset = 0;
-  }
-  return balancedExpression;
-};
-
-const processMultilineExpression = (
-  expression: string,
-  expressionFrom: number,
-  lines: string[],
-  program: SparkProgram,
-  context: SparkParserContext
-): string => {
-  const expressionStartOffset = expressionFrom - context.from;
-  const lineContent = lines[context.line] || "";
-  const char = lineContent[expressionStartOffset] || "";
-  if (SPARK_REGEX.array_begin.test(char)) {
-    return stripInlineComments(
-      processBalancedExpression(
-        expression,
-        expressionFrom,
-        lines,
-        program,
-        context,
-        "[",
-        "]",
-        "\\",
-        "array"
-      )
-    );
-  }
-  if (SPARK_REGEX.string_template_begin.test(char)) {
-    return stripInlineComments(
-      processBalancedExpression(
-        expression,
-        expressionFrom,
-        lines,
-        program,
-        context,
-        "`",
-        "`",
-        "\\",
-        "string"
-      )
-    );
-  }
-  return stripInlineComments(expression);
-};
-
 const getColorMetadata = (
   expression: string,
   expressionFrom: number
@@ -2329,13 +2216,7 @@ const hoistDeclarations = (
       const typeFrom = currentToken.from + getStart(match, 4);
       const nameFrom = currentToken.from + getStart(match, 6);
       const expressionFrom = currentToken.from + getStart(match, 10);
-      expression = processMultilineExpression(
-        expression,
-        expressionFrom,
-        lines,
-        program,
-        context
-      );
+      expression = stripInlineComments(expression);
       const typeTo = typeFrom + type.length;
       const nameTo = nameFrom + name.length;
       const expressionTo = expressionFrom + expression.length;
@@ -2885,13 +2766,7 @@ export const parseSpark = (
         if (currentToken.type === "return") {
           let expression = match[4] || "";
           const expressionFrom = currentToken.from + getStart(match, 4);
-          expression = processMultilineExpression(
-            expression,
-            expressionFrom,
-            lines,
-            program,
-            context
-          );
+          expression = stripInlineComments(expression);
           const expressionTo = expressionFrom + expression.length;
           currentToken.value = expression;
           const currentSection = program?.sections?.[currentSectionId];
@@ -3102,13 +2977,7 @@ export const parseSpark = (
         const operator = (match[6] || "") as "=";
         let expression = match[14] || "";
         const expressionFrom = currentToken.from + getStart(match, 14);
-        expression = processMultilineExpression(
-          expression,
-          expressionFrom,
-          lines,
-          program,
-          context
-        );
+        expression = stripInlineComments(expression);
         if (declaredType) {
           currentToken.type = declaredType;
           if (currentToken.type === declaredType) {
@@ -3144,13 +3013,7 @@ export const parseSpark = (
           let expression = match[8] || "";
           const nameFrom = currentToken.from + getStart(match, 4);
           const expressionFrom = currentToken.from + getStart(match, 8);
-          expression = processMultilineExpression(
-            expression,
-            expressionFrom,
-            lines,
-            program,
-            context
-          );
+          expression = stripInlineComments(expression);
           const nameTo = nameFrom + name.length;
           const expressionTo = expressionFrom + expression.length;
           currentToken.name = name;
