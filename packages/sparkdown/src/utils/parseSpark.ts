@@ -2713,8 +2713,8 @@ export const parseSpark = (
       ) {
         currentToken.type = "centered";
         if (currentToken.type === "centered") {
-          const content = match[3] || "";
-          const contentFrom = currentToken.from + getStart(match, 3);
+          const content = match[4] || "";
+          const contentFrom = currentToken.from + getStart(match, 4);
           currentToken.content = content?.trimStart() || "";
           processDisplayedContent(
             program,

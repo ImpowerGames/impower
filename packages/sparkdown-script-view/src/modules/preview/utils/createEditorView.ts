@@ -30,7 +30,7 @@ const createEditorView = (
   const startState = EditorState.create({
     doc,
     extensions: [
-      EditorState.readOnly.of(true),
+      EditorView.editable.of(false),
       EditorView.theme(PREVIEW_THEME),
       EditorView.lineWrapping,
       EditorView.updateListener.of((u) => {

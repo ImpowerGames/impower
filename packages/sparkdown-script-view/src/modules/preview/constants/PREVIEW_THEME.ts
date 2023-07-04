@@ -5,8 +5,6 @@ const PREVIEW_THEME: {
 } = {
   "&": {
     flex: 1,
-    backgroundColor: "rgb(235, 234, 232)",
-    backgroundImage: "var(--screenplay-preview-texture)",
     backgroundSize: "auto",
     backgroundRepeat: "repeat",
     color: "#333",
@@ -26,6 +24,19 @@ const PREVIEW_THEME: {
       position: "absolute",
       inset: "0 0 -4px 0",
       pointerEvents: "none",
+    },
+  },
+  ".cm-content": {
+    padding: "68px 24px 136px 24px",
+    margin: "auto",
+    maxWidth: "664px",
+    position: "relative",
+    "&:before": {
+      content: "''",
+      position: "absolute",
+      inset: "0 -96px",
+      backgroundColor: "rgb(235, 234, 232)",
+      backgroundImage: "var(--screenplay-preview-texture)",
     },
   },
 };

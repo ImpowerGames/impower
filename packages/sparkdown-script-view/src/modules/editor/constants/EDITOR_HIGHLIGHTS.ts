@@ -9,11 +9,12 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.definition(tags.heading), color: c.sectionNameDefinition },
   { tag: tags.heading, color: c.sectionNameAccessor },
   { tag: tags.regexp, color: c.scene },
-  { tag: tags.unit, color: c.transition },
+  { tag: tags.labelName, color: c.transition },
   { tag: tags.character, color: c.dialogueCharacter },
   { tag: tags.tagName, color: c.dialogueParenthetical },
   { tag: tags.processingInstruction, color: c.dialogueDual },
 
+  { tag: tags.monospace, color: c.formatting },
   { tag: tags.quote, color: c.formatting, fontStyle: "italic" },
   { tag: tags.emphasis, color: c.formatting, fontStyle: "italic" },
   { tag: tags.strong, color: c.formatting, fontWeight: "bold" },
