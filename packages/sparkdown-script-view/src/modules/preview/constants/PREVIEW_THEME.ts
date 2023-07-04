@@ -27,14 +27,15 @@ const PREVIEW_THEME: {
     },
   },
   ".cm-content": {
-    padding: "68px 24px 136px 24px",
+    padding: "68px 24px 136px 24px", // 24px ≈ 0.25 inch
     margin: "auto",
     maxWidth: "664px",
+    minHeight: "calc(96px * 11)", // US-Letter height = 11 inch
     position: "relative",
     "&:before": {
       content: "''",
       position: "absolute",
-      inset: "0 -96px",
+      inset: "0 -96px", // 96px ≈ 1 inch
       backgroundColor: "rgb(235, 234, 232)",
       backgroundImage: "var(--screenplay-preview-texture)",
     },
