@@ -40,13 +40,13 @@ export default class LezerGrammarParser extends Parser {
     fragments: readonly TreeFragment[],
     ranges: { from: number; to: number }[]
   ) {
-    const parser = new LezerGrammarParse(
+    const parse = new LezerGrammarParse(
       this.grammar,
       this.nodeSet,
       input,
       fragments,
       ranges
     );
-    return parser;
+    return parse;
   }
 }
