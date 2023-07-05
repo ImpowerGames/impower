@@ -29,9 +29,6 @@ export const NODE_ERROR_INCOMPLETE = NodeType.define({
   error: true,
 });
 
-/** A `NodeProp` that points to the original grammar `Node` for the `NodeType`. */
-export const NODE_TYPE_PROP = new NodeProp();
-
 const getRuleNodeType = (
   topNode: NodeType,
   typeIndex: number,
@@ -55,8 +52,6 @@ const getRuleNodeType = (
   }
   const { tag, openedBy, closedBy, group } = def;
   const props = [];
-
-  props.push(NODE_TYPE_PROP.add({ [typeId]: this }));
 
   if (tag) {
     props.push(styleTags(parseTag(typeId + "/...", tag)));
