@@ -15,6 +15,12 @@ import { ChunkBuffer } from "./ChunkBuffer";
 import { CompileStack } from "./CompileStack";
 import CompileTreeBuffer from "./CompileTreeBuffer";
 
+const enum SpecialRecord {
+  Reuse = -1,
+  ContextChange = -3,
+  LookAhead = -4,
+}
+
 export class Compiler {
   declare grammar: Grammar;
   declare stack: CompileStack;
@@ -32,6 +38,10 @@ export class Compiler {
     this.size = 0;
     this.reused = [];
     this.index = 0;
+  }
+
+  get cursor() {
+    return new ArrayBufferCursor(this.compiled, this.size * 4);
   }
 
   get done() {
@@ -71,7 +81,8 @@ export class Compiler {
 
     if (chunk.tryForTree(this.grammar.nodes)) {
       const tree = chunk.tree!;
-      this.emit(this.reused.length, from, to, -1);
+      const reusedIndex = this.reused.length;
+      this.emit(reusedIndex, from, to, SpecialRecord.Reuse);
       this.reused.push(tree);
       return;
     }
