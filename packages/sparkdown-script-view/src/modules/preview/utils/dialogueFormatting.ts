@@ -7,7 +7,6 @@ import {
   EditorView,
   WidgetType,
 } from "@codemirror/view";
-import { printTree } from "../../../cm-textmate/utils/printTree";
 
 const NODE_NAMES = {
   Dialogue: "Dialogue",
@@ -91,7 +90,6 @@ const decorate = (state: EditorState) => {
       if (type.name === NODE_NAMES.Dialogue) {
         let isDual = false;
         const tree = nodeRef.node.toTree();
-        console.log(printTree(tree, content));
         tree.iterate({
           enter: (childNodeRef) => {
             if (childNodeRef.type.name === NODE_NAMES.Dialogue_begin_dual) {
