@@ -7,6 +7,7 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
 
   { tag: tags.contentSeparator, color: c.pageBreak },
   { tag: tags.definition(tags.heading), color: c.sectionNameDefinition },
+  { tag: tags.special(tags.heading), color: c.sectionNameDefinition },
   { tag: tags.heading, color: c.sectionNameAccessor },
   { tag: tags.regexp, color: c.scene },
   { tag: tags.labelName, color: c.transition },

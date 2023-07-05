@@ -3,7 +3,8 @@ import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
-import { screenplayFormatting } from "./screenplayFormatting";
+import dialogueFormatting from "./dialogueFormatting";
+import screenplayFormatting from "./screenplayFormatting";
 
 interface EditorConfig {
   doc?: string;
@@ -48,6 +49,7 @@ const createEditorView = (
       }),
       scrollMargins(contentPadding),
       screenplayFormatting(),
+      dialogueFormatting(),
     ],
   });
   const view = new EditorView({
