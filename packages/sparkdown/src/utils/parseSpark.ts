@@ -2901,13 +2901,7 @@ export const parseSpark = (
           let expression = match[6] || "";
           const checkFrom = currentToken.from + getStart(match, 4);
           const expressionFrom = currentToken.from + getStart(match, 6);
-          expression = processMultilineExpression(
-            expression,
-            expressionFrom,
-            lines,
-            program,
-            context
-          );
+          expression = stripInlineComments(expression);
           const checkTo = checkFrom + check.length;
           currentToken.check = (check as "if" | "elseif" | "else") || "close";
           currentToken.value = expression;
@@ -2976,7 +2970,6 @@ export const parseSpark = (
         const name = match[6] || "";
         const operator = (match[6] || "") as "=";
         let expression = match[14] || "";
-        const expressionFrom = currentToken.from + getStart(match, 14);
         expression = stripInlineComments(expression);
         if (declaredType) {
           currentToken.type = declaredType;
