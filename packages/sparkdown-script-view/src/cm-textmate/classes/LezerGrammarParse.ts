@@ -123,7 +123,6 @@ export default class GrammarParse implements PartialParse {
 
         if (buffer) {
           // try to find a suitable chunk from the buffer to restart tokenization from
-          // TODO: Restart from previous top-level grammar pattern instead of empty line?
           let restartPos = this.region.edit!.from - 1;
           for (; restartPos >= f.from; restartPos -= 1) {
             if (this.region.input.read(restartPos, restartPos + 2) === "\n\n") {
@@ -213,6 +212,7 @@ export default class GrammarParse implements PartialParse {
         start,
         length,
       });
+      // console.log(printTree(tree, this.region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
