@@ -84,6 +84,7 @@ const EDITOR_THEME: {
   },
   ".cm-lineWrapping": {
     overflowWrap: "break-word",
+    whiteSpace: "pre-wrap",
   },
   ".cm-panel.cm-panel-lint": {
     "& ul": {

@@ -40,6 +40,10 @@ const PREVIEW_THEME: {
       backgroundImage: "var(--screenplay-preview-texture)",
     },
   },
+  ".cm-lineWrapping": {
+    overflowWrap: "break-word",
+    whiteSpace: "pre-wrap",
+  },
 };
 
 export default PREVIEW_THEME;

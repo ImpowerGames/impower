@@ -7,7 +7,11 @@ import {
 } from "@codemirror/commands";
 import { indentUnit } from "@codemirror/language";
 import { lintGutter, lintKeymap } from "@codemirror/lint";
-import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import {
+  highlightSelectionMatches,
+  search,
+  searchKeymap,
+} from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
 import {
   EditorView,
@@ -26,6 +30,7 @@ import { whitespaceMarkers } from "../../../cm-whitespace-markers/whitespaceMark
 
 const EDITOR_EXTENSIONS = [
   history(),
+  search(),
   lineNumbers(),
   lintGutter(),
   indentUnit.of("  "),

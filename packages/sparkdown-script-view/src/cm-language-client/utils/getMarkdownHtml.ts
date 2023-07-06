@@ -19,7 +19,7 @@ const getSyntaxHighlightedHtml = (
     if (diff > 0) {
       html += `<span>${str.slice(from - diff, from)}</span>`;
     }
-    html += `<span class=${token}>${s}</span>`;
+    html += `<span class="${token}">${s}</span>`;
     prev = to;
   });
   return html;

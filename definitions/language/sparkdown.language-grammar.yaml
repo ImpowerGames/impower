@@ -26,6 +26,7 @@ patterns:
   - { include: "#Section" }
   - { include: "#Transition" }
   - { include: "#Dialogue" }
+  - { include: "#Lyric" }
   - { include: "#Action" }
 
 repository:
@@ -44,7 +45,7 @@ repository:
   Image:
     tag: blockComment
     name: entity.image.sd
-    match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ ]*)($|[/][/].*)$
+    match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ ]*)($|[/][/].*)($\n?)
     captures:
       2:
         tag: definition(blockComment)
@@ -55,6 +56,9 @@ repository:
       4:
         tag: definition(blockComment)
         name: comment.block.close.image.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.sd
       6:
         patterns:
           - { include: "#Comment" }
@@ -62,7 +66,7 @@ repository:
   Audio:
     tag: blockComment
     name: entity.audio.sd
-    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/].*)$
+    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/].*)($\n?)
     captures:
       2:
         tag: definition(blockComment)
@@ -73,6 +77,9 @@ repository:
       4:
         tag: definition(blockComment)
         name: comment.block.close.audio.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.sd
       6:
         patterns:
           - { include: "#Comment" }
@@ -102,45 +109,6 @@ repository:
         patterns:
           - { include: "#Comment" }
 
-  FrontMatter:
-    tag: meta
-    name: entity.front-matter.sd
-    begin: ^([ \t]*)([-]{3,})([ \t]*)($|[/][/].*)$
-    beginCaptures:
-      2:
-        tag: keyword
-        name: keyword.other.front-matter.sd
-      4:
-        patterns:
-          - { include: "#Comment" }
-    patterns:
-      - { include: "#FrontMatterEntry" }
-    end: ^([ \t]*)([-]{3,})
-    endCaptures:
-      2:
-        tag: keyword
-        name: keyword.other.front-matter.sd
-
-  FrontMatterEntry:
-    tag: meta
-    name: entity.front-matter-entry.sd
-    begin: ^([ _a-zA-Z]+[ _a-zA-Z0-9]*)([:])(?![-]{3,})(.*)
-    beginCaptures:
-      1:
-        tag: keyword
-        name: keyword.other.front-matter-entry.sd
-      2:
-        tag: content
-        name: punctuation.definition.tag.sd
-      3:
-        patterns:
-          - { include: "#Comment" }
-          - { include: "#InlineString" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#InlineString" }
-    end: ^(?=[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
-
   Jump:
     tag: meta
     name: entity.jump.sd
@@ -152,6 +120,9 @@ repository:
       4:
         tag: heading
         name: keyword.control.export.jump.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.sd
       6:
         patterns:
           - { include: "#Comment" }
@@ -178,6 +149,9 @@ repository:
       6:
         tag: bracket
         name: storage.type.centered.bar-right.sd
+      7:
+        tag: content
+        name: markup.raw.whitespace.sd
       8:
         patterns:
           - { include: "#Comment" }
@@ -204,6 +178,9 @@ repository:
       6:
         tag: bracket
         name: storage.type.centered.angle-right.sd
+      7:
+        tag: content
+        name: markup.raw.whitespace.sd
       8:
         patterns:
           - { include: "#Comment" }
@@ -225,6 +202,9 @@ repository:
       8:
         tag: content
         name: punctuation.separator.colon.sd
+      9:
+        tag: content
+        name: markup.raw.whitespace.sd
       10:
         patterns:
           - { include: "#Comment" }
@@ -249,7 +229,6 @@ repository:
         name: storage.type.list.sd
       4:
         patterns:
-          - { include: "#Comment" }
           - { include: "#InlineString" }
       6:
         tag: keyword
@@ -305,6 +284,9 @@ repository:
       14:
         tag: content
         name: punctuation.definition.struct.sd
+      15:
+        tag: content
+        name: markup.raw.whitespace.sd
       16:
         patterns:
           - { include: "#Comment" }
@@ -329,6 +311,9 @@ repository:
       8:
         tag: updateOperator
         name: keyword.operator.assignment.sd
+      9:
+        tag: content
+        name: markup.raw.whitespace.sd
       10:
         patterns:
           - { include: "#Expression" }
@@ -341,6 +326,9 @@ repository:
       2:
         tag: keyword
         name: keyword.other.repeat.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.sd
       4:
         patterns:
           - { include: "#Comment" }
@@ -353,6 +341,9 @@ repository:
       2:
         tag: keyword
         name: keyword.other.return.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.sd
       4:
         patterns:
           - { include: "#Expression" }
@@ -440,6 +431,9 @@ repository:
       6:
         tag: processingInstruction
         name: constant.character.escape.sd
+      7:
+        tag: content
+        name: markup.raw.whitespace.sd
       8:
         patterns:
           - { include: "#Comment" }
@@ -449,7 +443,7 @@ repository:
       - { include: "#Image" }
       - { include: "#Audio" }
       - { include: "#InlineString" }
-    end: ^$(\n?)
+    end: ^$
 
   Parenthetical:
     tag: tagName
@@ -469,8 +463,11 @@ repository:
   Lyric:
     tag: quote
     name: markup.italic string
-    match: ^([ \t]*)(~)(.*)
+    match: ^([ \t]*)([~])(.*)$
     captures:
+      2:
+        tag: punctuation
+        name: punctuation.lyric.sd
       3:
         patterns:
           - { include: "#Inline" }
@@ -478,9 +475,12 @@ repository:
   Action:
     tag: content
     name: meta.paragraph.text.sd
-    match: ^([ \t]*)(.+)$
+    match: ^([ \t]*)([!])?(.+)$
     captures:
       2:
+        tag: punctuation
+        name: punctuation.action.sd
+      3:
         patterns:
           - { include: "#Inline" }
 
@@ -544,7 +544,6 @@ repository:
           - { include: "#Raw" }
           - { include: "#Underline" }
           - { include: "#Bold" }
-          - { include: "#Italic" }
       3:
         tag: bracket
         name: punctuation.definition.italic.sd
@@ -595,6 +594,324 @@ repository:
         name: punctuation.definition.raw.sd
       3:
         name: punctuation.definition.raw.sd
+
+  # FrontMatter
+
+  FrontMatter:
+    tag: meta
+    name: entity.front-matter.sd
+    begin: ^([ \t]*)([-]{3,})([ \t]*)($|[/][/].*)$
+    beginCaptures:
+      2:
+        tag: keyword
+        name: keyword.other.front-matter.dashes.start.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.sd
+      4:
+        patterns:
+          - { include: "#Comment" }
+    patterns:
+      - { include: "#TitleEntry" }
+      - { include: "#CreditEntry" }
+      - { include: "#AuthorEntry" }
+      - { include: "#SourceEntry" }
+      - { include: "#NotesEntry" }
+      - { include: "#DateEntry" }
+      - { include: "#ContactEntry" }
+      - { include: "#RevisionEntry" }
+      - { include: "#CopyrightEntry" }
+      - { include: "#FontEntry" }
+      - { include: "#TLEntry" }
+      - { include: "#TCEntry" }
+      - { include: "#TREntry" }
+      - { include: "#CCEntry" }
+      - { include: "#BLEntry" }
+      - { include: "#BREntry" }
+      - { include: "#OtherEntry" }
+    end: ^([ \t]*)([-]{3,})([ \t]*)($|[/][/].*)$
+    endCaptures:
+      2:
+        tag: keyword
+        name: keyword.other.front-matter.dashes.end.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.sd
+      4:
+        patterns:
+          - { include: "#Comment" }
+
+  TitleEntry:
+    begin: ^(TITLE|Title|title)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.title.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  CreditEntry:
+    begin: ^(CREDIT|Credit|credit)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.credit.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  AuthorEntry:
+    begin: ^(AUTHOR[S]?|Author[s]?|author[s]?)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.author.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  SourceEntry:
+    begin: ^(SOURCE|Source|source)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.source.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  NotesEntry:
+    begin: ^(NOTES|Notes|notes)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.notes.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  DateEntry:
+    begin: ^((?:DRAFT[_ ]|Draft[_ ]|draft[_ ])?(?:DATE|Date|date))($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.date.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  ContactEntry:
+    begin: ^((?:CONTACT|Contact|contact)(?:[_ ]INFO|[_ ]Info|[_ ]info)?)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.contract.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  RevisionEntry:
+    begin: ^(REVISION|Revision|revision)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.revision.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  CopyrightEntry:
+    begin: ^(COPYRIGHT|Copyright|copyright)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.copyright.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  FontEntry:
+    begin: ^(FONT|Font|font)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.font.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  TLEntry:
+    begin: ^(TL|Tl|tl)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.tl.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  TCEntry:
+    begin: ^(TC|Tc|tc)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.tc.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  TREntry:
+    begin: ^(TR|Tr|tr)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.tr.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  CCEntry:
+    begin: ^(CC|Cc|cc)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.cc.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  BLEntry:
+    begin: ^(BL|Bl|bl)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.bl.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  BREntry:
+    begin: ^(BR|Br|br)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.br.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
+
+  OtherEntry:
+    begin: ^([ _a-zA-Z]+[ _a-zA-Z0-9]*)($|[:])(.*)$
+    beginCaptures:
+      1:
+        tag: keyword
+        name: keyword.other.front-matter.other.sd
+      2:
+        tag: content
+        name: punctuation.separator.colon.sd
+      3:
+        patterns:
+          - { include: "#InlineString" }
+    patterns:
+      - { include: "#InlineString" }
+    end: (?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})
 
   # YAML (stricter subset)
 
@@ -670,7 +987,7 @@ repository:
           - { include: "#ExpectedCommentOrNewline" }
     patterns:
       - { include: "#BlockScalarContent" }
-    end: ^(?=\S)
+    end: (?=^\S)
 
   BlockScalarContent:
     tag: definitionKeyword

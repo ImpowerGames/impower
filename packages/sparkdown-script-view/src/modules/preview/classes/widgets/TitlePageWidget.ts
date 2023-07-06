@@ -1,0 +1,104 @@
+import { MarkupBlock } from "../../types/MarkupBlock";
+import { ReplaceSpec } from "../../types/ReplaceSpec";
+import getFormattedHTML from "../../utils/getFormattedHTML";
+import ReplaceWidget from "../ReplaceWidget";
+
+export interface TitlePageSpec extends ReplaceSpec {
+  tl?: MarkupBlock[];
+  tc?: MarkupBlock[];
+  tr?: MarkupBlock[];
+  bl?: MarkupBlock[];
+  br?: MarkupBlock[];
+  cc?: MarkupBlock[];
+}
+
+export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
+  toDOM() {
+    const container = document.createElement("div");
+    container.classList.add("cm-line");
+    const gridEl = document.createElement("div");
+    gridEl.style.display = "grid";
+    gridEl.style.height = "calc(96px * 9)";
+    gridEl.style.gridTemplateColumns = "1fr 1fr 1fr 1fr 1fr 1fr";
+    gridEl.style.gridTemplateRows = "200px 1fr 300px";
+    const tlEl = document.createElement("div");
+    tlEl.style.gridColumnStart = "1";
+    tlEl.style.gridColumnEnd = "3";
+    if (this.spec.tl) {
+      tlEl.innerHTML = getFormattedHTML(
+        this.spec.tl,
+        this.spec.language,
+        this.spec.highlighter
+      );
+    }
+    gridEl.appendChild(tlEl);
+    const tcEl = document.createElement("div");
+    tcEl.style.gridColumnStart = "3";
+    tcEl.style.gridColumnEnd = "5";
+    tcEl.style.textAlign = "center";
+    if (this.spec.tc) {
+      tcEl.innerHTML = getFormattedHTML(
+        this.spec.tc,
+        this.spec.language,
+        this.spec.highlighter
+      );
+    }
+    gridEl.appendChild(tcEl);
+    const trEl = document.createElement("div");
+    trEl.style.gridColumnStart = "5";
+    trEl.style.gridColumnEnd = "7";
+    trEl.style.textAlign = "right";
+    if (this.spec.tr) {
+      trEl.innerHTML = getFormattedHTML(
+        this.spec.tr,
+        this.spec.language,
+        this.spec.highlighter
+      );
+    }
+    gridEl.appendChild(trEl);
+    const ccEl = document.createElement("div");
+    ccEl.style.gridColumnStart = "1";
+    ccEl.style.gridColumnEnd = "7";
+    ccEl.style.textAlign = "center";
+    ccEl.style.alignSelf = "center";
+    if (this.spec.cc) {
+      ccEl.innerHTML = getFormattedHTML(
+        this.spec.cc,
+        this.spec.language,
+        this.spec.highlighter
+      );
+    }
+    gridEl.appendChild(ccEl);
+    const blEl = document.createElement("div");
+    blEl.style.gridColumnStart = "1";
+    blEl.style.gridColumnEnd = "4";
+    blEl.style.alignSelf = "end";
+    if (this.spec.bl) {
+      blEl.innerHTML = getFormattedHTML(
+        this.spec.bl,
+        this.spec.language,
+        this.spec.highlighter
+      );
+    }
+    gridEl.appendChild(blEl);
+    const brEl = document.createElement("div");
+    brEl.style.gridColumnStart = "4";
+    brEl.style.gridColumnEnd = "7";
+    brEl.style.textAlign = "right";
+    brEl.style.alignSelf = "end";
+    if (this.spec.br) {
+      brEl.innerHTML = getFormattedHTML(
+        this.spec.br,
+        this.spec.language,
+        this.spec.highlighter
+      );
+    }
+    gridEl.appendChild(brEl);
+    container.appendChild(gridEl);
+    const pageBreakEl = document.createElement("div");
+    pageBreakEl.style.borderBottom = "1px solid #00000033";
+    pageBreakEl.style.paddingTop = "2em";
+    container.appendChild(pageBreakEl);
+    return container;
+  }
+}
