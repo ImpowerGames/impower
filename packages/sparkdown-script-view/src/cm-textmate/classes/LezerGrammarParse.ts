@@ -137,7 +137,7 @@ export default class GrammarParse implements PartialParse {
             const { left } = buffer.split(index);
             this.region.from = chunk.from;
             this.buffer = left;
-            this.state = chunk.state.clone();
+            this.state = this.grammar.startState();
           }
         }
       }
