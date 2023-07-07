@@ -1,10 +1,24 @@
 <s-box position="absolute" inset="0">
   <s-box bg-color="black" grow>
-    <s-box p="16" text-size="lg" child-align="center" bg-color="panel">
-      Screenplay Preview
-    </s-box>
     <s-box position="relative" grow>
-      <sparkdown-script-preview content-padding="0 0 68px 0"></sparkdown-script-preview>
+      <s-router directional>
+        <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header" value="game">
+          <s-box bg-color="panel" position="absolute" i="0 0 0 0" height="100vh" translate-y="-100%"></s-box>
+          <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row"
+            icon="joystick" value="game" active>
+            Game
+          </s-tab>
+          <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row"
+            icon="file-description" value="screenplay">
+            Screenplay
+          </s-tab>
+        </s-tabs>
+        <template value="game">
+        </template>
+        <template value="screenplay">
+          <sparkdown-script-preview content-padding="0 0 68px 0"></sparkdown-script-preview>
+        </template>
+      </s-router>
     </s-box>
   </s-box>
 </s-box>
