@@ -189,7 +189,7 @@ export default class SparkdownScriptEditor
           if (startLineNumber <= 1) {
             view.scrollDOM.scrollTop = 0;
           } else if (endLineNumber >= doc.lines) {
-            view.scrollDOM.scrollTop = Number.MAX_SAFE_INTEGER;
+            view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
           } else {
             const pos = doc.line(Math.max(1, startLineNumber)).from;
             view.dispatch({
