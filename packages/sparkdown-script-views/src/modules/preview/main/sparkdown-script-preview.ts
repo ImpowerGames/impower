@@ -170,9 +170,9 @@ export default class SparkScreenplayPreview
           const doc = view.state.doc;
           const startLineNumber = params.range.start.line + 1;
           const endLineNumber = params.range.end.line + 1;
-          if (startLineNumber === 1) {
+          if (startLineNumber <= 1) {
             view.scrollDOM.scrollTop = 0;
-          } else if (endLineNumber === doc.lines) {
+          } else if (endLineNumber >= doc.lines) {
             view.scrollDOM.scrollTop = Number.MAX_SAFE_INTEGER;
           } else {
             const pos = doc.line(Math.max(1, startLineNumber)).from;
