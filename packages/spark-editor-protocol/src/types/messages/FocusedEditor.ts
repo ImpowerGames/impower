@@ -15,7 +15,7 @@ export class FocusedEditor {
   static is(obj: any): obj is FocusedEditorMessage {
     return obj.method === this.method;
   }
-  static create(params: FocusedEditorParams): FocusedEditorMessage {
+  static message(params: FocusedEditorParams): FocusedEditorMessage {
     return {
       method: this.method,
       params,

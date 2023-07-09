@@ -1,41 +1,29 @@
 import { Message } from "../Message";
+import { ScreenplayOptions } from "../ScreenplayOptions";
 import { TextDocumentIdentifier } from "../TextDocumentIdentifier";
-
-export type ConfigureScreenplayMethod = typeof ConfigureScreenplay.method;
 
 export interface ConfigureScreenplayParams {
   textDocument: TextDocumentIdentifier;
-  options: {
-    scrollSynced?: boolean;
-    theme?: string;
-    texture?: boolean;
-    paperProfile?: string;
-    boldSceneHeaders?: boolean;
-    printSections?: boolean;
-    printSynopses?: boolean;
-    printNotes?: boolean;
-    printTitlePage?: boolean;
-    printPageNumbers?: boolean;
-    printSectionNumbers?: boolean;
-    printSceneNumbers?: string;
-    splitDialogueAcrossPages?: boolean;
-    moreDialogueText?: string;
-    continuedDialogueText?: string;
-    headerText?: string;
-    footerText?: string;
-    watermarkText?: string;
-  };
+  options: ScreenplayOptions;
 }
 
+export type ConfigureScreenplayPreviewMethod =
+  typeof ConfigureScreenplay.method;
+
 export interface ConfigureScreenplayMessage
-  extends Message<ConfigureScreenplayMethod, ConfigureScreenplayParams> {}
+  extends Message<
+    ConfigureScreenplayPreviewMethod,
+    ConfigureScreenplayParams
+  > {}
 
 export class ConfigureScreenplay {
   static readonly method = "screenplay/configure";
   static is(obj: any): obj is ConfigureScreenplayMessage {
     return obj.method === this.method;
   }
-  static create(params: ConfigureScreenplayParams): ConfigureScreenplayMessage {
+  static message(
+    params: ConfigureScreenplayParams
+  ): ConfigureScreenplayMessage {
     return {
       method: this.method,
       params,

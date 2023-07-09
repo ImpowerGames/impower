@@ -8,10 +8,11 @@ export class SparkdownPreviewScreenplayPanelSerializer
 
   async deserializeWebviewPanel(
     panel: vscode.WebviewPanel,
-    state: { params: { textDocument: { uri: string } } }
+    state: { textDocument: { uri: string } }
   ) {
+    console.log(state);
     if (state) {
-      const documentUri = vscode.Uri.parse(state.params.textDocument.uri);
+      const documentUri = vscode.Uri.parse(state.textDocument.uri);
       await SparkdownPreviewScreenplayPanelManager.instance.loadPanel(
         this._context.extensionUri,
         documentUri,

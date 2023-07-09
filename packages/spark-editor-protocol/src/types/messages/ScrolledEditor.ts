@@ -17,7 +17,7 @@ export class ScrolledEditor {
   static is(obj: any): obj is ScrolledEditorMessage {
     return obj.method === this.method;
   }
-  static create(params: ScrolledEditorParams): ScrolledEditorMessage {
+  static message(params: ScrolledEditorParams): ScrolledEditorMessage {
     return {
       method: this.method,
       params,

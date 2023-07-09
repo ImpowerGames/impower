@@ -15,7 +15,7 @@ export class HoveredOnPreview {
   static is(obj: any): obj is HoveredOnPreviewMessage {
     return obj.method === this.method;
   }
-  static create(params: HoveredOnPreviewParams): HoveredOnPreviewMessage {
+  static message(params: HoveredOnPreviewParams): HoveredOnPreviewMessage {
     return {
       method: this.method,
       params,

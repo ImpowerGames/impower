@@ -1,7 +1,8 @@
 import {
-  CachedPreview,
+  ConnectedScreenplayPreview,
   HoveredOffPreview,
   HoveredOnPreview,
+  LoadedScreenplayPreview,
   ScrolledPreview,
   SelectedPreview,
 } from "@impower/spark-editor-protocol/src/index.js";
@@ -64,13 +65,17 @@ mutationObserver.observe(document.body, { childList: false, attributes: true });
 
 const load = async () => {
   await Promise.allSettled([Sparkle.init(), SparkdownScriptPreview.init()]);
-  document.body.classList.add("ready");
 };
 load();
 
 window.addEventListener("message", (e: MessageEvent) => {
-  if (CachedPreview.is(e.data)) {
-    vscode.setState(e.data);
+  if (LoadedScreenplayPreview.is(e.data)) {
+    document.body.classList.add("ready");
+    vscode.setState({ textDocument: e.data.params.textDocument });
+    vscode.postMessage(e.data);
+  }
+  if (ConnectedScreenplayPreview.is(e.data)) {
+    vscode.postMessage(e.data);
   }
   if (ScrolledPreview.is(e.data)) {
     vscode.postMessage(e.data);

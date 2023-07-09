@@ -17,7 +17,7 @@ export class ScrolledPreview {
   static is(obj: any): obj is ScrolledPreviewMessage {
     return obj.method === this.method;
   }
-  static create(params: ScrolledPreviewParams): ScrolledPreviewMessage {
+  static message(params: ScrolledPreviewParams): ScrolledPreviewMessage {
     return {
       method: this.method,
       params,

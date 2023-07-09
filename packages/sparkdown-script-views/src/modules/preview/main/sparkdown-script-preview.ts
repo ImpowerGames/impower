@@ -1,10 +1,14 @@
 import { EditorView } from "@codemirror/view";
 import {
+  ConnectedScreenplayPreview,
   DidChangeTextDocument,
   DidOpenTextDocument,
   FocusedEditor,
   HoveredOffPreview,
   HoveredOnPreview,
+  InitializeScreenplay,
+  LoadedScreenplayPreview,
+  Range,
   ScrolledEditor,
   ScrolledPreview,
   TextDocumentIdentifier,
@@ -88,6 +92,7 @@ export default class SparkScreenplayPreview
     }
     window.addEventListener("message", this.handleMessage);
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
+    window.postMessage(ConnectedScreenplayPreview.message({}));
   }
 
   protected override onParsed(): void {
@@ -125,18 +130,45 @@ export default class SparkScreenplayPreview
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
+    if (InitializeScreenplay.is(message)) {
+      const params = message.params;
+      const textDocument = params.textDocument;
+      const visibleRange = params.visibleRange;
+      this._textDocument = textDocument;
+      const view = this._view;
+      if (view) {
+        view.dispatch({
+          changes: [
+            {
+              from: 0,
+              to: view.state.doc.length,
+              insert: textDocument.text,
+            },
+          ],
+        });
+        window.requestAnimationFrame(() => {
+          this.revealRange(visibleRange);
+          window.requestAnimationFrame(() => {
+            window.postMessage(
+              LoadedScreenplayPreview.message({
+                textDocument,
+              })
+            );
+          });
+        });
+      }
+    }
     if (DidOpenTextDocument.is(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       this._textDocument = textDocument;
       const view = this._view;
       if (view) {
-        const doc = view.state.doc;
         view.dispatch({
           changes: [
             {
               from: 0,
-              to: doc.length,
+              to: view.state.doc.length,
               insert: textDocument.text,
             },
           ],
@@ -150,8 +182,7 @@ export default class SparkScreenplayPreview
         const contentChanges = params.contentChanges;
         const view = this._view;
         if (view) {
-          const doc = view.state.doc;
-          const changes = getClientChanges(doc, contentChanges);
+          const changes = getClientChanges(view.state.doc, contentChanges);
           view.dispatch({ changes });
         }
       }
@@ -164,28 +195,34 @@ export default class SparkScreenplayPreview
     if (ScrolledEditor.is(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
+      const range = params.range;
       if (textDocument.uri === this._textDocument?.uri) {
-        const view = this._view;
-        if (view) {
-          const doc = view.state.doc;
-          const startLineNumber = params.range.start.line + 1;
-          const endLineNumber = params.range.end.line + 1;
-          if (startLineNumber <= 1) {
-            view.scrollDOM.scrollTop = 0;
-          } else if (endLineNumber >= doc.lines) {
-            view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
-          } else {
-            const pos = doc.line(Math.max(1, startLineNumber)).from;
-            view.dispatch({
-              effects: EditorView.scrollIntoView(pos, {
-                y: "start",
-              }),
-            });
-          }
-        }
+        this.revealRange(range);
       }
     }
   };
+
+  protected revealRange(range: Range) {
+    const view = this._view;
+    if (view) {
+      const doc = view.state.doc;
+      const startLineNumber = range.start.line + 1;
+      const endLineNumber = range.end.line + 1;
+      if (startLineNumber <= 1) {
+        view.scrollDOM.scrollTop = 0;
+      } else if (endLineNumber >= doc.lines) {
+        view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+      } else {
+        const pos = doc.line(Math.max(1, startLineNumber)).from;
+        view.dispatch({
+          effects: EditorView.scrollIntoView(pos, {
+            y: "start",
+            yMargin: 0,
+          }),
+        });
+      }
+    }
+  }
 
   protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
     const entry = entries?.[0];
@@ -199,7 +236,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = true;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOnPreview.create({
+        HoveredOnPreview.message({
           textDocument: this._textDocument,
         })
       );
@@ -210,7 +247,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = false;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOffPreview.create({
+        HoveredOffPreview.message({
           textDocument: this._textDocument,
         })
       );
@@ -242,7 +279,7 @@ export default class SparkScreenplayPreview
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
             window.postMessage(
-              ScrolledPreview.create({
+              ScrolledPreview.message({
                 textDocument: this._textDocument,
                 range: {
                   start: {

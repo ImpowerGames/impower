@@ -17,7 +17,7 @@ export class DidParseTextDocument {
   static is(obj: any): obj is DidParseTextDocumentMessage {
     return obj.method === this.method;
   }
-  static create(
+  static message(
     params: DidParseTextDocumentParams
   ): DidParseTextDocumentMessage {
     return {

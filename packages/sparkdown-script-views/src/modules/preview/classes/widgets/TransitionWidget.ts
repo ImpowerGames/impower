@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import { MarkupBlock } from "../../types/MarkupBlock";
 import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
@@ -8,7 +9,7 @@ export interface TransitionSpec extends ReplaceSpec {
 }
 
 export default class TransitionWidget extends ReplaceWidget<TransitionSpec> {
-  override toDOM() {
+  override toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.textAlign = "right";
@@ -19,6 +20,7 @@ export default class TransitionWidget extends ReplaceWidget<TransitionSpec> {
         this.spec.highlighter
       );
     }
+    view.requestMeasure();
     return container;
   }
 }

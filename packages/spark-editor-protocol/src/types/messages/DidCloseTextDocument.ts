@@ -15,7 +15,7 @@ export class DidCloseTextDocument {
   static is(obj: any): obj is DidCloseTextDocumentMessage {
     return obj.method === this.method;
   }
-  static create(
+  static message(
     params: DidCloseTextDocumentParams
   ): DidCloseTextDocumentMessage {
     return {

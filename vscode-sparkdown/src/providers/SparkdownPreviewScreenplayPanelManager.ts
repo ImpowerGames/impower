@@ -1,10 +1,11 @@
 import {
-  CachedPreview,
   ConfigureScreenplay,
+  ConnectedScreenplayPreview,
   DidChangeTextDocument,
   DidOpenTextDocument,
   HoveredOffPreview,
   HoveredOnPreview,
+  InitializeScreenplay,
   ScrolledEditor,
   ScrolledPreview,
   SelectedEditor,
@@ -12,9 +13,10 @@ import {
 } from "@impower/spark-editor-protocol/src";
 import * as vscode from "vscode";
 import { Uri, ViewColumn, WebviewPanel, window } from "vscode";
-import { getConfigureScreenplayParams } from "../messages/getConfigureScreenplayParams";
+import { getScreenplayOptions } from "../messages/getConfigureScreenplayParams";
+import { getClientRange } from "../utils/getClientRange";
 import { getNonce } from "../utils/getNonce";
-import { getRange } from "../utils/getRange";
+import { getServerRange } from "../utils/getServerRange";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getUri } from "../utils/getUri";
 import { getVisibleEditor } from "../utils/getVisibleEditor";
@@ -56,7 +58,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     }
   }
 
-  loadPanel(extensionUri: Uri, documentUri: Uri, panel: WebviewPanel) {
+  async loadPanel(extensionUri: Uri, documentUri: Uri, panel: WebviewPanel) {
     const editor = getVisibleEditor(documentUri);
     panel.iconPath = {
       light: vscode.Uri.joinPath(extensionUri, "icon-lang.png"),
@@ -64,52 +66,27 @@ export class SparkdownPreviewScreenplayPanelManager {
     };
     panel.webview.html = this.getWebviewContent(panel.webview, extensionUri);
 
-    panel.webview.postMessage(
-      CachedPreview.create({
-        textDocument: { uri: documentUri.toString() },
-      })
-    );
-    const configuration = getSparkdownPreviewConfig(documentUri);
-    if (editor) {
-      panel.webview.postMessage(
-        DidOpenTextDocument.create({
-          textDocument: {
-            uri: editor.document.uri.toString(),
-            languageId: editor.document.languageId,
-            version: editor.document.version,
-            text: editor.document.getText(),
-          },
-        })
-      );
-      const syncedWithCursor =
-        configuration.screenplay_preview_synchronized_with_cursor;
-      if (syncedWithCursor) {
-        const range = editor.visibleRanges[0];
-        if (range) {
+    panel.webview.onDidReceiveMessage(async (message) => {
+      if (ConnectedScreenplayPreview.is(message)) {
+        const configuration = getSparkdownPreviewConfig(documentUri);
+        if (editor) {
+          const visibleRange = editor.visibleRanges[0]!;
+          const selectedRange = editor.selection;
           panel.webview.postMessage(
-            ScrolledEditor.create({
-              textDocument: { uri: documentUri.toString() },
-              range: {
-                start: {
-                  line: range.start.line,
-                  character: range.start.character,
-                },
-                end: {
-                  line: range.end.line,
-                  character: range.end.character,
-                },
+            InitializeScreenplay.message({
+              textDocument: {
+                uri: editor.document.uri.toString(),
+                languageId: editor.document.languageId,
+                version: editor.document.version,
+                text: editor.document.getText(),
               },
+              visibleRange: getServerRange(visibleRange),
+              selectedRange: getServerRange(selectedRange),
+              options: getScreenplayOptions(configuration),
             })
           );
         }
       }
-    }
-    panel.webview.postMessage(
-      ConfigureScreenplay.create(
-        getConfigureScreenplayParams(documentUri.toString())
-      )
-    );
-    panel.webview.onDidReceiveMessage(async (message) => {
       if (HoveredOnPreview.is(message)) {
         this.hovering = true;
       }
@@ -118,7 +95,7 @@ export class SparkdownPreviewScreenplayPanelManager {
       }
       if (ScrolledPreview.is(message)) {
         const documentUri = getUri(message.params.textDocument.uri);
-        const range = getRange(message.params.range);
+        const range = getClientRange(message.params.range);
         const cfg = getSparkdownPreviewConfig(documentUri);
         const syncedWithCursor =
           cfg.screenplay_preview_synchronized_with_cursor;
@@ -131,7 +108,7 @@ export class SparkdownPreviewScreenplayPanelManager {
       }
       if (SelectedPreview.is(message)) {
         const documentUri = getUri(message.params.textDocument.uri);
-        const range = getRange(message.params.range);
+        const range = getClientRange(message.params.range);
         let editor = getVisibleEditor(documentUri);
         if (editor === undefined) {
           const doc = await vscode.workspace.openTextDocument(documentUri);
@@ -158,10 +135,14 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   notifyConfiguredScreenplay() {
     this._panels.forEach((panel, documentUri) => {
+      const configuration = getSparkdownPreviewConfig(
+        vscode.Uri.parse(documentUri)
+      );
       panel.webview.postMessage(
-        ConfigureScreenplay.create(
-          getConfigureScreenplayParams(documentUri.toString())
-        )
+        ConfigureScreenplay.message({
+          textDocument: { uri: documentUri.toString() },
+          options: getScreenplayOptions(configuration),
+        })
       );
     });
   }
@@ -170,7 +151,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     const panel = this.getPanel(document.uri);
     if (panel) {
       panel.webview.postMessage(
-        DidOpenTextDocument.create({
+        DidOpenTextDocument.message({
           textDocument: {
             uri: document.uri.toString(),
             languageId: document.languageId,
@@ -189,21 +170,12 @@ export class SparkdownPreviewScreenplayPanelManager {
     const panel = this.getPanel(document.uri);
     if (panel) {
       panel.webview.postMessage(
-        DidChangeTextDocument.create({
+        DidChangeTextDocument.message({
           textDocument: {
             uri: document.uri.toString(),
           },
           contentChanges: contentChanges.map((c) => ({
-            range: {
-              start: {
-                line: c.range.start.line,
-                character: c.range.start.character,
-              },
-              end: {
-                line: c.range.end.line,
-                character: c.range.end.character,
-              },
-            },
+            range: getServerRange(c.range),
             text: c.text,
           })),
         })
@@ -215,18 +187,9 @@ export class SparkdownPreviewScreenplayPanelManager {
     const panel = this.getPanel(document.uri);
     if (panel) {
       panel.webview.postMessage(
-        SelectedEditor.create({
+        SelectedEditor.message({
           textDocument: { uri: document.uri.toString() },
-          range: {
-            start: {
-              line: range.start.line,
-              character: range.start.character,
-            },
-            end: {
-              line: range.end.line,
-              character: range.end.character,
-            },
-          },
+          range: getServerRange(range),
         })
       );
     }
@@ -236,18 +199,9 @@ export class SparkdownPreviewScreenplayPanelManager {
     const panel = this.getPanel(document.uri);
     if (panel) {
       panel.webview.postMessage(
-        ScrolledEditor.create({
+        ScrolledEditor.message({
           textDocument: { uri: document.uri.toString() },
-          range: {
-            start: {
-              line: range.start.line,
-              character: range.start.character,
-            },
-            end: {
-              line: range.end.line,
-              character: range.end.character,
-            },
-          },
+          range: getServerRange(range),
         })
       );
     }

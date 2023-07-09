@@ -17,7 +17,7 @@ export class SelectedEditor {
   static is(obj: any): obj is SelectedEditorMessage {
     return obj.method === this.method;
   }
-  static create(params: SelectedEditorParams): SelectedEditorMessage {
+  static message(params: SelectedEditorParams): SelectedEditorMessage {
     return {
       method: this.method,
       params,

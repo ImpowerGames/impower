@@ -17,7 +17,7 @@ export class SelectedPreview {
   static is(obj: any): obj is SelectedPreviewMessage {
     return obj.method === this.method;
   }
-  static create(params: SelectedPreviewParams): SelectedPreviewMessage {
+  static message(params: SelectedPreviewParams): SelectedPreviewMessage {
     return {
       method: this.method,
       params,

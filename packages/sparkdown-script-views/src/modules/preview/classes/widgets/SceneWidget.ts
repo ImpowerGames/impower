@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import { MarkupBlock } from "../../types/MarkupBlock";
 import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
@@ -8,7 +9,7 @@ export interface SceneSpec extends ReplaceSpec {
 }
 
 export default class SceneWidget extends ReplaceWidget<SceneSpec> {
-  override toDOM() {
+  override toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.fontWeight = "bold";
@@ -19,6 +20,7 @@ export default class SceneWidget extends ReplaceWidget<SceneSpec> {
         this.spec.highlighter
       );
     }
+    view.requestMeasure();
     return container;
   }
 }

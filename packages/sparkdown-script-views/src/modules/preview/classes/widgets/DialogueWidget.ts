@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import { MarkupBlock } from "../../types/MarkupBlock";
 import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
@@ -10,7 +11,7 @@ export interface DialogueSpec extends ReplaceSpec {
 }
 
 export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
-  override toDOM() {
+  override toDOM(view: EditorView) {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.marginLeft = "auto";
@@ -50,6 +51,7 @@ export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
         container.appendChild(rightEl);
       }
     }
+    view.requestMeasure();
     return container;
   }
 }

@@ -17,7 +17,7 @@ export class DidChangeTextDocument {
   static is(obj: any): obj is DidChangeTextDocumentMessage {
     return obj.method === this.method;
   }
-  static create(
+  static message(
     params: DidChangeTextDocumentParams
   ): DidChangeTextDocumentMessage {
     return {

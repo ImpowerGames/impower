@@ -1,3 +1,4 @@
+import { EditorView } from "@codemirror/view";
 import { MarkupBlock } from "../../types/MarkupBlock";
 import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
@@ -13,7 +14,7 @@ export interface TitlePageSpec extends ReplaceSpec {
 }
 
 export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
-  override toDOM() {
+  override toDOM(view: EditorView) {
     const language = this.spec.language;
     const highlighter = this.spec.highlighter;
     const container = document.createElement("div");
@@ -77,6 +78,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     pageBreakEl.style.borderBottom = "1px solid #00000033";
     pageBreakEl.style.paddingTop = "2em";
     container.appendChild(pageBreakEl);
+    view.requestMeasure();
     return container;
   }
 }

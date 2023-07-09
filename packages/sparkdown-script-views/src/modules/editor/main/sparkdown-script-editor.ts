@@ -4,6 +4,7 @@ import {
   DidOpenTextDocument,
   DidParseTextDocument,
   FocusedEditor,
+  Range,
   ScrolledEditor,
   ScrolledPreview,
   TextDocumentItem,
@@ -100,7 +101,7 @@ export default class SparkdownScriptEditor
         onFocus: () => {
           this._editing = true;
           window.postMessage(
-            FocusedEditor.create({
+            FocusedEditor.message({
               textDocument: this._textDocument,
             })
           );
@@ -108,7 +109,7 @@ export default class SparkdownScriptEditor
         onBlur: () => {
           this._editing = false;
           window.postMessage(
-            UnfocusedEditor.create({
+            UnfocusedEditor.message({
               textDocument: this._textDocument,
             })
           );
@@ -120,7 +121,7 @@ export default class SparkdownScriptEditor
             textDocument: this._textDocument,
             contentChanges: getServerChanges(before, changes),
           };
-          window.postMessage(DidChangeTextDocument.create(params));
+          window.postMessage(DidChangeTextDocument.message(params));
           this._connection.notifyDidChangeTextDocument(params);
         },
       });
@@ -150,7 +151,7 @@ export default class SparkdownScriptEditor
     window.removeEventListener("message", this.handleMessage);
     if (this._editing) {
       window.postMessage(
-        UnfocusedEditor.create({
+        UnfocusedEditor.message({
           textDocument: this._textDocument,
         })
       );
@@ -180,31 +181,37 @@ export default class SparkdownScriptEditor
     if (ScrolledPreview.is(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
+      const range = params.range;
       if (textDocument.uri === this._textDocument?.uri) {
-        const view = this._view;
-        if (view) {
-          const doc = view.state.doc;
-          const startLineNumber = params.range.start.line + 1;
-          const endLineNumber = params.range.end.line + 1;
-          if (startLineNumber <= 1) {
-            view.scrollDOM.scrollTop = 0;
-          } else if (endLineNumber >= doc.lines) {
-            view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
-          } else {
-            const pos = doc.line(Math.max(1, startLineNumber)).from;
-            view.dispatch({
-              effects: EditorView.scrollIntoView(pos, {
-                y: "start",
-              }),
-            });
-          }
-        }
+        this.revealRange(range);
       }
     }
   };
 
+  protected revealRange(range: Range) {
+    const view = this._view;
+    if (view) {
+      const doc = view.state.doc;
+      const startLineNumber = range.start.line + 1;
+      const endLineNumber = range.end.line + 1;
+      if (startLineNumber <= 1) {
+        view.scrollDOM.scrollTop = 0;
+      } else if (endLineNumber >= doc.lines) {
+        view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+      } else {
+        const pos = doc.line(Math.max(1, startLineNumber)).from;
+        view.dispatch({
+          effects: EditorView.scrollIntoView(pos, {
+            y: "start",
+            yMargin: 0,
+          }),
+        });
+      }
+    }
+  }
+
   protected handleParsed = (params: DidParseTextDocumentParams): void => {
-    window.postMessage(DidParseTextDocument.create(params));
+    window.postMessage(DidParseTextDocument.message(params));
   };
 
   protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
@@ -248,7 +255,7 @@ export default class SparkdownScriptEditor
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
             window.postMessage(
-              ScrolledEditor.create({
+              ScrolledEditor.message({
                 textDocument: this._textDocument,
                 range: {
                   start: {
