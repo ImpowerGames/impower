@@ -1,5 +1,7 @@
+import { Line } from "@codemirror/state";
+
 export interface MarkupBlock {
-  line: number;
+  line: Line;
   from: number;
   to: number;
   value: string;

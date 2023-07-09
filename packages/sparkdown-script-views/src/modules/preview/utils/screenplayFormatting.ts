@@ -4,7 +4,7 @@ import {
   syntaxHighlighting,
 } from "@codemirror/language";
 import type { EditorState, Line, Text } from "@codemirror/state";
-import { Extension, RangeSet, StateField } from "@codemirror/state";
+import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import grammarDefinition from "../../../../language/sparkdown.language-grammar.json";
@@ -94,11 +94,32 @@ const FRONTMATTER_POSITIONS = {
 };
 const FRONTMATTER_POSITION_ENTRIES = Object.entries(FRONTMATTER_POSITIONS);
 
-const createReplaceDecoration = (spec: ReplaceSpec) => {
-  return Decoration.replace({
-    widget: spec.widget ? new spec.widget(spec) : undefined,
-    block: spec.block,
-  });
+const createReplaceDecoration = (spec: ReplaceSpec): Range<Decoration>[] => {
+  if (spec.widget === DialogueWidget) {
+    const dialogueSpec = spec as DialogueSpec;
+    if (dialogueSpec.content && !dialogueSpec.left && !dialogueSpec.right) {
+      return dialogueSpec.content.map((b) => {
+        const s: DialogueSpec = {
+          from: b.from,
+          to: b.to,
+          lines: [b.line],
+          language: spec.language,
+          highlighter: spec.highlighter,
+          content: [b],
+        };
+        return Decoration.replace({
+          widget: spec.widget ? new spec.widget(s) : undefined,
+          block: spec.block,
+        }).range(b.from, b.to);
+      });
+    }
+  }
+  return [
+    Decoration.replace({
+      widget: spec.widget ? new spec.widget(spec) : undefined,
+      block: spec.block,
+    }).range(spec.from, spec.to),
+  ];
 };
 
 const getContentBlock = (
@@ -155,7 +176,7 @@ const decorate = (state: EditorState) => {
                 const childLength = childNodeRef.to - childNodeRef.from;
                 const childFrom = from + childNodeRef.from;
                 const childTo = childFrom + childLength;
-                const childLine = doc.lineAt(childFrom).number;
+                const childLine = doc.lineAt(childFrom);
                 const childTree = childNodeRef.node.toTree();
                 const captureBlocks: MarkupBlock[] = [];
                 childTree.iterate({
@@ -227,7 +248,7 @@ const decorate = (state: EditorState) => {
               const childLength = childNodeRef.to - childNodeRef.from;
               const childFrom = from + childNodeRef.from;
               const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom).number;
+              const childLine = doc.lineAt(childFrom);
               const value = getContentBlock(doc, childFrom, childTo);
               content.push({
                 line: childLine,
@@ -261,7 +282,7 @@ const decorate = (state: EditorState) => {
               const childLength = childNodeRef.to - childNodeRef.from;
               const childFrom = from + childNodeRef.from;
               const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom).number;
+              const childLine = doc.lineAt(childFrom);
               const value = getContentBlock(doc, childFrom, childTo);
               content.push({
                 line: childLine,
@@ -322,7 +343,7 @@ const decorate = (state: EditorState) => {
               const childLength = childNodeRef.to - childNodeRef.from;
               const childFrom = from + childNodeRef.from;
               const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom).number;
+              const childLine = doc.lineAt(childFrom);
               const value = getContentBlock(doc, childFrom, childTo).trim();
               content.push({
                 line: childLine,
@@ -350,7 +371,7 @@ const decorate = (state: EditorState) => {
               const childLength = childNodeRef.to - childNodeRef.from;
               const childFrom = from + childNodeRef.from;
               const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom).number;
+              const childLine = doc.lineAt(childFrom);
               const value = getContentBlock(doc, childFrom, childTo).trim();
               content.push({
                 line: childLine,
@@ -365,7 +386,7 @@ const decorate = (state: EditorState) => {
               const childLength = childNodeRef.to - childNodeRef.from;
               const childFrom = from + childNodeRef.from;
               const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom).number;
+              const childLine = doc.lineAt(childFrom);
               const value = getContentBlock(doc, childFrom, childTo).trim();
               content.push({
                 line: childLine,
@@ -415,7 +436,8 @@ const decorate = (state: EditorState) => {
 
   return specs.length > 0
     ? RangeSet.of(
-        specs.map((b) => createReplaceDecoration(b).range(b.from, b.to))
+        specs.flatMap((b) => createReplaceDecoration(b)),
+        true
       )
     : Decoration.none;
 };
