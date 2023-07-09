@@ -29,21 +29,21 @@ export const getSyntaxHighlightedHtml = (
 
 export const getMarkupHtml = (
   m: MarkupBlock,
-  language: Language,
-  highlighter: {
+  language?: Language,
+  highlighter?: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
   }
 ) => {
-  return m.markdown
-    ? getSyntaxHighlightedHtml(m.value, language, highlighter)
+  return m.markdown && language && highlighter
+    ? getSyntaxHighlightedHtml(m.value ?? "", language, highlighter)
     : m.value;
 };
 
 const getFormattedHTML = (
   lines: MarkupBlock[],
-  language: Language,
-  highlighter: {
+  language?: Language,
+  highlighter?: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
   }
@@ -51,7 +51,10 @@ const getFormattedHTML = (
   return lines
     .map((m) => {
       const content = getMarkupHtml(m, language, highlighter);
-      return `<div style="margin:${m.margin ?? 0}">${content}</div>`;
+      const style = m.attributes?.style
+        ? ` style="${m.attributes?.style}"`
+        : "";
+      return `<div${style}>${content}</div>`;
     })
     .join("");
 };

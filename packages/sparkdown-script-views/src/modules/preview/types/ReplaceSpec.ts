@@ -1,15 +1,14 @@
 import { Language } from "@codemirror/language";
-import { Line } from "@codemirror/state";
 import { WidgetType } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
+import { MarkupBlock } from "./MarkupBlock";
 
 export interface ReplaceSpec {
   from: number;
   to: number;
-  lines: Line[];
-  language: Language;
-  highlighter: {
+  language?: Language;
+  highlighter?: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
   };
@@ -17,5 +16,6 @@ export interface ReplaceSpec {
     new (args: any): WidgetType;
   };
   block?: boolean;
+  content?: MarkupBlock[];
   [other: string]: any;
 }

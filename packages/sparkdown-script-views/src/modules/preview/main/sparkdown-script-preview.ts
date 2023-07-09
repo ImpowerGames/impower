@@ -2,7 +2,6 @@ import { EditorView } from "@codemirror/view";
 import {
   ConnectedScreenplayPreview,
   DidChangeTextDocument,
-  DidOpenTextDocument,
   FocusedEditor,
   HoveredOffPreview,
   HoveredOnPreview,
@@ -68,6 +67,10 @@ export default class SparkScreenplayPreview
 
   protected _textDocument?: TextDocumentIdentifier;
 
+  protected _initialized = false;
+
+  protected _loaded = false;
+
   protected _view?: EditorView;
 
   protected _resizeObserver?: ResizeObserver;
@@ -88,6 +91,8 @@ export default class SparkScreenplayPreview
       const contentPadding = getBoxValues(this.contentPadding);
       this._view = createEditorView(editorEl, {
         contentPadding,
+        stabilizationDuration: 500,
+        onHeightStabilized: this.handleHeightStabilized,
       });
     }
     window.addEventListener("message", this.handleMessage);
@@ -134,6 +139,8 @@ export default class SparkScreenplayPreview
       const params = message.params;
       const textDocument = params.textDocument;
       const visibleRange = params.visibleRange;
+      this._initialized = false;
+      this._loaded = false;
       this._textDocument = textDocument;
       const view = this._view;
       if (view) {
@@ -147,31 +154,10 @@ export default class SparkScreenplayPreview
           ],
         });
         window.requestAnimationFrame(() => {
-          this.revealRange(visibleRange);
-          window.requestAnimationFrame(() => {
-            window.postMessage(
-              LoadedScreenplayPreview.message({
-                textDocument,
-              })
-            );
-          });
-        });
-      }
-    }
-    if (DidOpenTextDocument.is(message)) {
-      const params = message.params;
-      const textDocument = params.textDocument;
-      this._textDocument = textDocument;
-      const view = this._view;
-      if (view) {
-        view.dispatch({
-          changes: [
-            {
-              from: 0,
-              to: view.state.doc.length,
-              insert: textDocument.text,
-            },
-          ],
+          if (visibleRange) {
+            this.revealRange(visibleRange);
+          }
+          this._initialized = true;
         });
       }
     }
@@ -222,6 +208,19 @@ export default class SparkScreenplayPreview
       }
     }
   }
+
+  protected handleHeightStabilized = (): void => {
+    if (this._initialized && !this._loaded) {
+      this._loaded = true;
+      if (this._textDocument) {
+        window.postMessage(
+          LoadedScreenplayPreview.message({
+            textDocument: this._textDocument,
+          })
+        );
+      }
+    }
+  };
 
   protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
     const entry = entries?.[0];

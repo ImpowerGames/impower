@@ -8,11 +8,11 @@ patterns:
   - { include: "#Comment" }
   - { include: "#Image" }
   - { include: "#Audio" }
+  - { include: "#PageBreak" }
   - { include: "#Synopsis" }
   - { include: "#FrontMatter" }
   - { include: "#Struct" }
   - { include: "#Variable" }
-  - { include: "#PageBreak" }
   - { include: "#Centered" }
   - { include: "#CenteredAngle" }
   - { include: "#Jump" }
@@ -84,6 +84,18 @@ repository:
         patterns:
           - { include: "#Comment" }
 
+  PageBreak:
+    tag: meta
+    name: entity.page-break.sd
+    match: ^([ \t]*)(===+)($|[/][/].*)$
+    captures:
+      2:
+        tag: contentSeparator
+        name: entity.separator.sd
+      3:
+        patterns:
+          - { include: "#Comment" }
+
   Synopsis:
     tag: docComment
     name: entity.synopsis.sd
@@ -96,16 +108,6 @@ repository:
         tag: docComment
         name: comment.line.content.synopsis.sd
       5:
-        patterns:
-          - { include: "#Comment" }
-
-  PageBreak:
-    match: ^([ \t]*)(===+)($|[/][/].*)$
-    captures:
-      2:
-        tag: contentSeparator
-        name: entity.separator.sd
-      3:
         patterns:
           - { include: "#Comment" }
 
@@ -142,8 +144,6 @@ repository:
         name: keyword.centered.sd
         patterns:
           - { include: "#Comment" }
-          - { include: "#Image" }
-          - { include: "#Audio" }
           - { include: "#Inline" }
       5:
         tag: bracket
@@ -172,8 +172,6 @@ repository:
         name: keyword.centered.sd
         patterns:
           - { include: "#Comment" }
-          - { include: "#Image" }
-          - { include: "#Audio" }
           - { include: "#Inline" }
       5:
         tag: bracket
@@ -442,15 +440,19 @@ repository:
     patterns:
       - { include: "#Comment" }
       - { include: "#Parenthetical" }
-      - { include: "#Image" }
-      - { include: "#Audio" }
+      - { include: "#DialogueImage" }
+      - { include: "#DialogueAudio" }
       - { include: "#InlineString" }
-    end: ^$
+    end: (^$\n?)
+    endCaptures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.sd
 
   Parenthetical:
     tag: tagName
     name: constant.character.escape.sd
-    match: ^([ \t]*)([(])([^()]*)([)])($|[/][/].*)$
+    match: ^([ \t]*)([(])([^()]*)([)])([ ]*)($|[/][/].*)$
     captures:
       2:
         tag: tagName
@@ -461,6 +463,54 @@ repository:
       4:
         tag: tagName
         name: constant.character.escape.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.sd
+      6:
+        patterns:
+          - { include: "#Comment" }
+
+  DialogueImage:
+    tag: blockComment
+    name: entity.image.dialogue.sd
+    match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ ]*)($|[/][/].*)($\n?)
+    captures:
+      2:
+        tag: definition(blockComment)
+        name: comment.block.open.image.dialogue.sd
+      3:
+        tag: blockComment
+        name: comment.block.content.image.dialogue.sd
+      4:
+        tag: definition(blockComment)
+        name: comment.block.close.image.dialogue.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.dialogue.sd
+      6:
+        patterns:
+          - { include: "#Comment" }
+
+  DialogueAudio:
+    tag: blockComment
+    name: entity.audio.dialogue.sd
+    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/].*)($\n?)
+    captures:
+      2:
+        tag: definition(blockComment)
+        name: comment.block.open.audio.dialogue.sd
+      3:
+        tag: blockComment
+        name: comment.block.content.audio.dialogue.sd
+      4:
+        tag: definition(blockComment)
+        name: comment.block.close.audio.dialogue.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.dialogue.sd
+      6:
+        patterns:
+          - { include: "#Comment" }
 
   Lyric:
     tag: quote

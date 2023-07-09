@@ -76,7 +76,8 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     container.appendChild(gridEl);
     const pageBreakEl = document.createElement("div");
     pageBreakEl.style.borderBottom = "1px solid #00000033";
-    pageBreakEl.style.paddingTop = "2em";
+    pageBreakEl.style.height = "1em";
+    pageBreakEl.style.marginTop = "1em";
     container.appendChild(pageBreakEl);
     view.requestMeasure();
     return container;

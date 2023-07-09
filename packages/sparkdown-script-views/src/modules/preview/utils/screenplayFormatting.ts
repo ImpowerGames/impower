@@ -1,22 +1,18 @@
 import {
+  DocInput,
   HighlightStyle,
-  ensureSyntaxTree,
   syntaxHighlighting,
 } from "@codemirror/language";
-import type { EditorState, Line, Text } from "@codemirror/state";
+import type { EditorState, Text } from "@codemirror/state";
 import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import grammarDefinition from "../../../../language/sparkdown.language-grammar.json";
 import TextmateLanguageSupport from "../../../cm-textmate/classes/TextmateLanguageSupport";
-import CenteredWidget from "../classes/widgets/CenteredWidget";
 import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
-import PageBreakWidget from "../classes/widgets/PageBreakWidget";
-import SceneWidget from "../classes/widgets/SceneWidget";
 import TitlePageWidget from "../classes/widgets/TitlePageWidget";
-import TransitionWidget from "../classes/widgets/TransitionWidget";
 import { MarkupBlock } from "../types/MarkupBlock";
 import { ReplaceSpec } from "../types/ReplaceSpec";
 
@@ -39,6 +35,19 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
     textDecoration: "line-through",
   },
   { tag: tags.punctuation, display: "none" },
+  {
+    tag: tags.contentSeparator,
+    display: "block",
+    color: "transparent",
+    borderBottom: "1px solid #00000033",
+  },
+  { tag: tags.regexp, fontWeight: "bold" },
+  { tag: tags.special(tags.monospace), display: "block", textAlign: "center" },
+  { tag: tags.labelName, display: "block", textAlign: "right" },
+
+  { tag: tags.comment, display: "none" },
+  { tag: tags.blockComment, display: "none" },
+  { tag: tags.docComment, display: "none" },
 ]);
 
 const HIDDEN_NODE_NAMES = [
@@ -56,26 +65,30 @@ const HIDDEN_NODE_NAMES = [
   "Section",
 ];
 
-const VISIBLE_NODE_NAMES = {
+const NODE_NAMES = {
   FrontMatter: "FrontMatter",
-  PageBreak: "PageBreak",
-  Centered: "Centered",
-  Centered_content: "Centered-c4",
-  CenteredAngle: "CenteredAngle",
-  CenteredAngle_content: "CenteredAngle-c4",
-  Choice: "Choice",
-  Scene: "Scene",
-  Transition: "Transition",
+  FrontMatter_begin: "FrontMatter_begin",
+  FrontMatter_end: "FrontMatter_end",
   Dialogue: "Dialogue",
+  Dialogue_begin: "Dialogue_begin",
+  Dialogue_end: "Dialogue_end",
   Dialogue_begin_character: "Dialogue_begin-c2",
   Dialogue_begin_parenthetical: "Dialogue_begin-c4",
   Dialogue_begin_dual: "Dialogue_begin-c6",
   Parenthetical: "Parenthetical",
+  DialogueImage: "DialogueImage",
+  DialogueAudio: "DialogueAudio",
   InlineString: "InlineString",
   Action: "Action",
+  Centered: "Centered",
+  CenteredAngle: "CenteredAngle",
+  PageBreak: "PageBreak",
+  Transition: "Transition",
+  Scene: "Scene",
+  Newline: "newline",
 } as const;
 
-const FRONTMATTER_POSITIONS = {
+const FRONTMATTER_POSITIONS: Record<string, string> = {
   TitleEntry: "cc",
   CreditEntry: "cc",
   AuthorEntry: "cc",
@@ -92,27 +105,28 @@ const FRONTMATTER_POSITIONS = {
   BLEntry: "bl",
   BREntry: "br",
 };
-const FRONTMATTER_POSITION_ENTRIES = Object.entries(FRONTMATTER_POSITIONS);
+const FRONTMATTER_ENTRY_NODE_NAMES = Object.keys(FRONTMATTER_POSITIONS);
 
-const createReplaceDecoration = (spec: ReplaceSpec): Range<Decoration>[] => {
+const createDecorations = (
+  spec: ReplaceSpec,
+  doc: Text
+): Range<Decoration>[] => {
   if (spec.widget === DialogueWidget) {
     const dialogueSpec = spec as DialogueSpec;
     if (dialogueSpec.content && !dialogueSpec.left && !dialogueSpec.right) {
       return dialogueSpec.content.map((b) => {
-        const s: DialogueSpec = {
-          from: b.from,
-          to: b.to,
-          lines: [b.line],
-          language: spec.language,
-          highlighter: spec.highlighter,
-          content: [b],
-        };
-        return Decoration.replace({
-          widget: spec.widget ? new spec.widget(s) : undefined,
-          block: spec.block,
-        }).range(b.from, b.to);
+        return Decoration.line({
+          attributes: b.attributes,
+        }).range(doc.lineAt(b.from + 1).from);
       });
     }
+  }
+  if (!spec.block && spec.content) {
+    return spec.content.map((b) => {
+      return Decoration.line({
+        attributes: b.attributes,
+      }).range(doc.lineAt(b.from + 1).from);
+    });
   }
   return [
     Decoration.replace({
@@ -122,35 +136,184 @@ const createReplaceDecoration = (spec: ReplaceSpec): Range<Decoration>[] => {
   ];
 };
 
-const getContentBlock = (
-  doc: Text,
-  from: number,
-  to: number,
-  end = "\n\n"
-): string => {
-  const str = doc.sliceString(from, to);
-  const emptyLineIndex = str.indexOf(end);
-  if (emptyLineIndex >= 0) {
-    return str.slice(0, emptyLineIndex);
-  }
-  return str;
+const getDialogueLineStyle = (paddingLeft: string = "0") => {
+  return `margin: 0 auto; width: 68%; padding: 0 0 0 ${paddingLeft};`;
 };
 
 const decorate = (state: EditorState) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const specs: ReplaceSpec[] = [];
   const doc = state.doc;
-  ensureSyntaxTree(state, doc.length - 1, 5000)?.iterate({
+  const input = new DocInput(doc);
+  const tree = LANGUAGE_SUPPORT.language.parser.parse(input);
+  let inDialogue = false;
+  let inDualDialogue = false;
+  let dialogueFrom = 0;
+  let dialogueContent: MarkupBlock[] = [];
+  let frontMatterPositionContent: Record<string, MarkupBlock[]> = {};
+  tree.iterate({
+    from: 0,
+    to: doc.length,
     enter: (nodeRef) => {
-      const type = nodeRef.type;
-      const from = nodeRef.from;
-      const to = nodeRef.to;
-      const lineFrom = doc.lineAt(from).number;
-      const lineTo = doc.lineAt(to).number;
-      const lines: Line[] = [];
-      for (let n = lineFrom; n <= lineTo; n += 1) {
-        const line = doc.line(n);
-        lines.push(line);
+      const type = nodeRef.node.type;
+      const from = nodeRef.node.from;
+      const to = nodeRef.node.to;
+      if (type.name === NODE_NAMES.FrontMatter) {
+        frontMatterPositionContent = {};
+        return true;
+      }
+      if (FRONTMATTER_ENTRY_NODE_NAMES.includes(type.name)) {
+        const captureBlocks: MarkupBlock[] = [];
+        const childTree = nodeRef.node.tree || nodeRef.node.toTree();
+        childTree.iterate({
+          enter: (captureNodeRef) => {
+            if (captureNodeRef.type.name === NODE_NAMES.InlineString) {
+              const captureLength = captureNodeRef.to - captureNodeRef.from;
+              const captureFrom = from + captureNodeRef.from;
+              const captureTo = captureFrom + captureLength;
+              const value = doc.sliceString(captureFrom, captureTo).trim();
+              captureBlocks.push({
+                from: captureFrom,
+                to: captureTo,
+                value,
+                markdown: true,
+              });
+            }
+          },
+        });
+        const firstCaptureBlock = captureBlocks[0];
+        const lastCaptureBlock = captureBlocks[captureBlocks.length - 1];
+        if (firstCaptureBlock) {
+          firstCaptureBlock.attributes = {
+            style: "padding: 1em 0 0 0",
+          };
+        }
+        if (lastCaptureBlock) {
+          lastCaptureBlock.attributes = { style: "padding: 0 0 1em 0" };
+        }
+        const position = FRONTMATTER_POSITIONS[type.name];
+        if (position) {
+          frontMatterPositionContent[position] ??= [];
+          frontMatterPositionContent[position]!.push(...captureBlocks);
+        }
+        return false;
+      }
+      if (type.name === NODE_NAMES.FrontMatter_end) {
+        specs.push({
+          from,
+          to,
+          block: true,
+          widget: TitlePageWidget,
+          language: LANGUAGE_SUPPORT.language,
+          highlighter: LANGUAGE_HIGHLIGHTS,
+          ...frontMatterPositionContent,
+        });
+        return false;
+      }
+      if (type.name === NODE_NAMES.Dialogue) {
+        inDialogue = true;
+        inDualDialogue = false;
+        dialogueFrom = from;
+        dialogueContent = [];
+        return true;
+      }
+      if (type.name === NODE_NAMES.Dialogue_end) {
+        if (inDialogue) {
+          if (inDualDialogue) {
+            if (prevDialogueSpec) {
+              prevDialogueSpec.to = to - 1;
+              prevDialogueSpec.left = prevDialogueSpec.content;
+              prevDialogueSpec.right = dialogueContent;
+              prevDialogueSpec.content = undefined;
+            }
+          } else {
+            const spec: ReplaceSpec = {
+              from: dialogueFrom,
+              to: to - 1,
+              widget: DialogueWidget,
+              language: LANGUAGE_SUPPORT.language,
+              highlighter: LANGUAGE_HIGHLIGHTS,
+              block: true,
+              content: dialogueContent,
+            };
+            specs.push(spec);
+            prevDialogueSpec = spec;
+          }
+        }
+        inDialogue = false;
+        inDualDialogue = false;
+        return false;
+      }
+      if (type.name === NODE_NAMES.Dialogue_begin_character) {
+        const value = doc.sliceString(from, to).trim();
+        dialogueContent.push({
+          from,
+          to,
+          value,
+          attributes: {
+            style: getDialogueLineStyle("23%"),
+          },
+        });
+        return false;
+      }
+      if (type.name === NODE_NAMES.Dialogue_begin_parenthetical) {
+        const value = doc.sliceString(from, to).trim();
+        const firstDialogueBlockLine = dialogueContent[0];
+        if (firstDialogueBlockLine) {
+          firstDialogueBlockLine.value += " " + value;
+          firstDialogueBlockLine.to = to;
+        }
+        return false;
+      }
+      if (type.name === NODE_NAMES.Dialogue_begin_dual) {
+        const value = doc.sliceString(from, to).trim();
+        if (value) {
+          inDualDialogue = true;
+        }
+        return false;
+      }
+      if (type.name === NODE_NAMES.Parenthetical) {
+        const value = doc.sliceString(from, to).trim();
+        dialogueContent.push({
+          from,
+          to,
+          value,
+          attributes: {
+            style: getDialogueLineStyle("11%"),
+          },
+        });
+        return false;
+      }
+      if (type.name === NODE_NAMES.InlineString && inDialogue) {
+        const value = doc.sliceString(from, to).trim();
+        dialogueContent.push({
+          from,
+          to,
+          value,
+          markdown: true,
+          attributes: {
+            style: getDialogueLineStyle(),
+          },
+        });
+        return false;
+      }
+      if (type.name === NODE_NAMES.Action) {
+        return false;
+      }
+      if (type.name === NODE_NAMES.Centered) {
+        return false;
+      }
+      if (type.name === NODE_NAMES.CenteredAngle) {
+        return false;
+      }
+      if (type.name === NODE_NAMES.PageBreak) {
+        return false;
+      }
+      if (type.name === NODE_NAMES.Transition) {
+        return false;
+      }
+      if (type.name === NODE_NAMES.Scene) {
+        return false;
       }
       if (HIDDEN_NODE_NAMES.includes(type.name)) {
         const nextLine = to < doc.length - 1 ? doc.lineAt(to + 1) : null;
@@ -161,296 +324,28 @@ const decorate = (state: EditorState) => {
         specs.push({
           from,
           to: blockTo,
-          lines,
           block: true,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
         });
-      } else if (type.name === VISIBLE_NODE_NAMES.FrontMatter) {
-        const positions: Record<string, MarkupBlock[]> = {};
-        const tree = nodeRef.node.toTree();
-        tree.iterate({
-          enter: (childNodeRef) => {
-            FRONTMATTER_POSITION_ENTRIES.forEach(([k, v]) => {
-              if (childNodeRef.type.name === k) {
-                const childLength = childNodeRef.to - childNodeRef.from;
-                const childFrom = from + childNodeRef.from;
-                const childTo = childFrom + childLength;
-                const childLine = doc.lineAt(childFrom);
-                const childTree = childNodeRef.node.toTree();
-                const captureBlocks: MarkupBlock[] = [];
-                childTree.iterate({
-                  enter: (captureNodeRef) => {
-                    const captureLength =
-                      captureNodeRef.to - captureNodeRef.from;
-                    const captureFrom = childFrom + captureNodeRef.from;
-                    const captureTo = captureFrom + captureLength;
-                    if (
-                      captureNodeRef.type.name ===
-                      VISIBLE_NODE_NAMES.InlineString
-                    ) {
-                      const value = doc
-                        .sliceString(captureFrom, captureTo)
-                        .trim();
-                      captureBlocks.push({
-                        line: childLine,
-                        from: childFrom,
-                        to: childTo,
-                        value,
-                        markdown: true,
-                      });
-                    }
-                  },
-                });
-                const firstCaptureBlock = captureBlocks[0];
-                const lastCaptureBlock =
-                  captureBlocks[captureBlocks.length - 1];
-                if (firstCaptureBlock) {
-                  firstCaptureBlock.margin = "1em 0 0 0";
-                }
-                if (lastCaptureBlock) {
-                  lastCaptureBlock.margin = "0 0 1em 0";
-                }
-                positions[v] ??= [];
-                positions[v]!.push(...captureBlocks);
-              }
-            });
-          },
-        });
-        specs.push({
-          from,
-          to,
-          lines,
-          block: true,
-          widget: TitlePageWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          ...positions,
-        });
-      } else if (type.name === VISIBLE_NODE_NAMES.PageBreak) {
-        specs.push({
-          from,
-          to,
-          lines,
-          widget: PageBreakWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          block: true,
-        });
-      } else if (type.name === VISIBLE_NODE_NAMES.Centered) {
-        const content: MarkupBlock[] = [];
-        const tree = nodeRef.node.toTree();
-        tree.iterate({
-          enter: (childNodeRef) => {
-            if (
-              childNodeRef.type.name === VISIBLE_NODE_NAMES.Centered_content
-            ) {
-              const childLength = childNodeRef.to - childNodeRef.from;
-              const childFrom = from + childNodeRef.from;
-              const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom);
-              const value = getContentBlock(doc, childFrom, childTo);
-              content.push({
-                line: childLine,
-                from: childFrom,
-                to: childTo,
-                value,
-                markdown: true,
-              });
-            }
-          },
-        });
-        specs.push({
-          from,
-          to,
-          lines,
-          widget: CenteredWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          block: true,
-          content,
-        });
-      } else if (type.name === VISIBLE_NODE_NAMES.CenteredAngle) {
-        const content: MarkupBlock[] = [];
-        const tree = nodeRef.node.toTree();
-        tree.iterate({
-          enter: (childNodeRef) => {
-            if (
-              childNodeRef.type.name ===
-              VISIBLE_NODE_NAMES.CenteredAngle_content
-            ) {
-              const childLength = childNodeRef.to - childNodeRef.from;
-              const childFrom = from + childNodeRef.from;
-              const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom);
-              const value = getContentBlock(doc, childFrom, childTo);
-              content.push({
-                line: childLine,
-                from: childFrom,
-                to: childTo,
-                value,
-                markdown: true,
-              });
-            }
-          },
-        });
-        specs.push({
-          from,
-          to,
-          lines,
-          widget: CenteredWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          block: true,
-          content,
-        });
-      } else if (type.name === VISIBLE_NODE_NAMES.Scene) {
-        const str = getContentBlock(doc, from, to);
-        const content = [{ value: str.startsWith(".") ? str.slice(1) : str }];
-        specs.push({
-          from,
-          to,
-          lines,
-          widget: SceneWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          block: true,
-          content,
-        });
-      } else if (type.name === VISIBLE_NODE_NAMES.Transition) {
-        const str = getContentBlock(doc, from, to);
-        const content = [{ value: str }];
-        specs.push({
-          from,
-          to,
-          lines,
-          widget: TransitionWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          block: true,
-          content,
-        });
-      } else if (type.name === VISIBLE_NODE_NAMES.Dialogue) {
-        const content: MarkupBlock[] = [];
-        let isDual = false;
-        const tree = nodeRef.node.toTree();
-        tree.iterate({
-          enter: (childNodeRef) => {
-            if (
-              childNodeRef.type.name ===
-              VISIBLE_NODE_NAMES.Dialogue_begin_character
-            ) {
-              const childLength = childNodeRef.to - childNodeRef.from;
-              const childFrom = from + childNodeRef.from;
-              const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom);
-              const value = getContentBlock(doc, childFrom, childTo).trim();
-              content.push({
-                line: childLine,
-                from: childFrom,
-                to: childTo,
-                value,
-                margin: "0 0 0 23%",
-              });
-            } else if (
-              childNodeRef.type.name ===
-              VISIBLE_NODE_NAMES.Dialogue_begin_parenthetical
-            ) {
-              const childLength = childNodeRef.to - childNodeRef.from;
-              const childFrom = from + childNodeRef.from;
-              const childTo = childFrom + childLength;
-              const value = getContentBlock(doc, childFrom, childTo).trim();
-              const characterLine = content[0];
-              if (characterLine) {
-                characterLine.value += " " + value;
-                characterLine.to = childTo;
-              }
-            } else if (
-              childNodeRef.type.name === VISIBLE_NODE_NAMES.Parenthetical
-            ) {
-              const childLength = childNodeRef.to - childNodeRef.from;
-              const childFrom = from + childNodeRef.from;
-              const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom);
-              const value = getContentBlock(doc, childFrom, childTo).trim();
-              content.push({
-                line: childLine,
-                from: childFrom,
-                to: childTo,
-                value,
-                margin: "0 0 0 11%",
-              });
-            } else if (
-              childNodeRef.type.name === VISIBLE_NODE_NAMES.InlineString
-            ) {
-              const childLength = childNodeRef.to - childNodeRef.from;
-              const childFrom = from + childNodeRef.from;
-              const childTo = childFrom + childLength;
-              const childLine = doc.lineAt(childFrom);
-              const value = getContentBlock(doc, childFrom, childTo).trim();
-              content.push({
-                line: childLine,
-                from: childFrom,
-                to: childTo,
-                value,
-                markdown: true,
-              });
-            } else if (
-              childNodeRef.type.name === VISIBLE_NODE_NAMES.Dialogue_begin_dual
-            ) {
-              const childLength = childNodeRef.to - childNodeRef.from;
-              const childFrom = from + childNodeRef.from;
-              const childTo = childFrom + childLength;
-              const value = getContentBlock(doc, childFrom, childTo).trim();
-              if (value) {
-                isDual = true;
-              }
-            }
-          },
-        });
-        if (isDual) {
-          if (prevDialogueSpec) {
-            prevDialogueSpec.to = to - 1;
-            prevDialogueSpec.left = prevDialogueSpec.content;
-            prevDialogueSpec.right = content;
-            prevDialogueSpec.content = undefined;
-            prevDialogueSpec.lines = [...prevDialogueSpec.lines, ...lines];
-          }
-        } else {
-          const spec: ReplaceSpec = {
-            from,
-            to: to - 1,
-            lines,
-            widget: DialogueWidget,
-            language: LANGUAGE_SUPPORT.language,
-            highlighter: LANGUAGE_HIGHLIGHTS,
-            block: true,
-            content,
-          };
-          specs.push(spec);
-          prevDialogueSpec = spec;
-        }
+        return false;
       }
+      return true;
     },
   });
-
-  return specs.length > 0
-    ? RangeSet.of(
-        specs.flatMap((b) => createReplaceDecoration(b)),
-        true
-      )
-    : Decoration.none;
+  const decorations = specs.flatMap((b) => createDecorations(b, doc));
+  return specs.length > 0 ? RangeSet.of(decorations) : Decoration.none;
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({
   create(state) {
-    return decorate(state);
+    return decorate(state) ?? Decoration.none;
   },
-  update(images, transaction) {
+  update(value, transaction) {
     if (transaction.docChanged) {
-      return decorate(transaction.state);
+      return decorate(transaction.state) ?? value;
     }
-    return images.map(transaction.changes);
+    return value;
   },
   provide(field) {
     return EditorView.decorations.from(field);
