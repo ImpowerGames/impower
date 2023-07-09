@@ -217,7 +217,6 @@ export default class SparkScreenplayPreview
         view.dispatch({
           effects: EditorView.scrollIntoView(pos, {
             y: "start",
-            yMargin: 0,
           }),
         });
       }

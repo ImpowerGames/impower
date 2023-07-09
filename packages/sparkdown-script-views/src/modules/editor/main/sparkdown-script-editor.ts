@@ -203,7 +203,6 @@ export default class SparkdownScriptEditor
         view.dispatch({
           effects: EditorView.scrollIntoView(pos, {
             y: "start",
-            yMargin: 0,
           }),
         });
       }
