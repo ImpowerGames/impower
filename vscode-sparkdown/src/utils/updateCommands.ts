@@ -1,8 +1,8 @@
 import * as vscode from "vscode";
-import { commandDecorationProvider } from "../state/commandDecorationProvider";
-import { commandViewProvider } from "../state/commandViewProvider";
+import { SparkdownCommandFileDecorationProvider } from "../providers/SparkdownCommandFileDecorationProvider";
+import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 
 export const updateCommands = (uri: vscode.Uri) => {
-  commandViewProvider.update(uri);
-  commandDecorationProvider.update(uri);
+  SparkdownCommandTreeDataProvider.instance.update(uri);
+  SparkdownCommandFileDecorationProvider.instance.update(uri);
 };

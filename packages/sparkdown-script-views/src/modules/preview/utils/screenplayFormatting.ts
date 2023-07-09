@@ -3,7 +3,7 @@ import {
   ensureSyntaxTree,
   syntaxHighlighting,
 } from "@codemirror/language";
-import type { EditorState, Text } from "@codemirror/state";
+import type { EditorState, Line, Text } from "@codemirror/state";
 import { Extension, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
@@ -124,6 +124,13 @@ const decorate = (state: EditorState) => {
       const type = nodeRef.type;
       const from = nodeRef.from;
       const to = nodeRef.to;
+      const lineFrom = doc.lineAt(from).number;
+      const lineTo = doc.lineAt(to).number;
+      const lines: Line[] = [];
+      for (let n = lineFrom; n <= lineTo; n += 1) {
+        const line = doc.line(n);
+        lines.push(line);
+      }
       if (HIDDEN_NODE_NAMES.includes(type.name)) {
         const nextLine = to < doc.length - 1 ? doc.lineAt(to + 1) : null;
         const blockTo =
@@ -133,37 +140,58 @@ const decorate = (state: EditorState) => {
         specs.push({
           from,
           to: blockTo,
+          lines,
           block: true,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
         });
       } else if (type.name === VISIBLE_NODE_NAMES.FrontMatter) {
-        const str = doc.sliceString(from, to);
         const positions: Record<string, MarkupBlock[]> = {};
-        const tree = nodeRef.node.toTree() || nodeRef.node.toTree();
+        const tree = nodeRef.node.toTree();
         tree.iterate({
           enter: (childNodeRef) => {
             FRONTMATTER_POSITION_ENTRIES.forEach(([k, v]) => {
               if (childNodeRef.type.name === k) {
-                let value = "";
-                const childStr = str.slice(childNodeRef.from, childNodeRef.to);
-                const childTree =
-                  childNodeRef.tree || childNodeRef.node.toTree();
+                const childLength = childNodeRef.to - childNodeRef.from;
+                const childFrom = from + childNodeRef.from;
+                const childTo = childFrom + childLength;
+                const childLine = doc.lineAt(childFrom).number;
+                const childTree = childNodeRef.node.toTree();
+                const captureBlocks: MarkupBlock[] = [];
                 childTree.iterate({
                   enter: (captureNodeRef) => {
+                    const captureLength =
+                      captureNodeRef.to - captureNodeRef.from;
+                    const captureFrom = childFrom + captureNodeRef.from;
+                    const captureTo = captureFrom + captureLength;
                     if (
                       captureNodeRef.type.name ===
                       VISIBLE_NODE_NAMES.InlineString
                     ) {
-                      value +=
-                        childStr
-                          .slice(captureNodeRef.from, captureNodeRef.to)
-                          .trim() + "\n";
+                      const value = doc
+                        .sliceString(captureFrom, captureTo)
+                        .trim();
+                      captureBlocks.push({
+                        line: childLine,
+                        from: childFrom,
+                        to: childTo,
+                        value,
+                        markdown: true,
+                      });
                     }
                   },
                 });
+                const firstCaptureBlock = captureBlocks[0];
+                const lastCaptureBlock =
+                  captureBlocks[captureBlocks.length - 1];
+                if (firstCaptureBlock) {
+                  firstCaptureBlock.margin = "1em 0 0 0";
+                }
+                if (lastCaptureBlock) {
+                  lastCaptureBlock.margin = "0 0 1em 0";
+                }
                 positions[v] ??= [];
-                positions[v]!.push({ value, markdown: true, margin: "1em 0" });
+                positions[v]!.push(...captureBlocks);
               }
             });
           },
@@ -171,6 +199,7 @@ const decorate = (state: EditorState) => {
         specs.push({
           from,
           to,
+          lines,
           block: true,
           widget: TitlePageWidget,
           language: LANGUAGE_SUPPORT.language,
@@ -181,28 +210,39 @@ const decorate = (state: EditorState) => {
         specs.push({
           from,
           to,
+          lines,
           widget: PageBreakWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
           block: true,
         });
       } else if (type.name === VISIBLE_NODE_NAMES.Centered) {
-        const str = getContentBlock(doc, from, to);
         const content: MarkupBlock[] = [];
-        const tree = nodeRef.node.toTree() || nodeRef.node.toTree();
+        const tree = nodeRef.node.toTree();
         tree.iterate({
           enter: (childNodeRef) => {
             if (
               childNodeRef.type.name === VISIBLE_NODE_NAMES.Centered_content
             ) {
-              const value = str.slice(childNodeRef.from, childNodeRef.to);
-              content.push({ value, markdown: true });
+              const childLength = childNodeRef.to - childNodeRef.from;
+              const childFrom = from + childNodeRef.from;
+              const childTo = childFrom + childLength;
+              const childLine = doc.lineAt(childFrom).number;
+              const value = getContentBlock(doc, childFrom, childTo);
+              content.push({
+                line: childLine,
+                from: childFrom,
+                to: childTo,
+                value,
+                markdown: true,
+              });
             }
           },
         });
         specs.push({
           from,
           to,
+          lines,
           widget: CenteredWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
@@ -210,23 +250,33 @@ const decorate = (state: EditorState) => {
           content,
         });
       } else if (type.name === VISIBLE_NODE_NAMES.CenteredAngle) {
-        const str = getContentBlock(doc, from, to);
         const content: MarkupBlock[] = [];
-        const tree = nodeRef.node.toTree() || nodeRef.node.toTree();
+        const tree = nodeRef.node.toTree();
         tree.iterate({
           enter: (childNodeRef) => {
             if (
               childNodeRef.type.name ===
               VISIBLE_NODE_NAMES.CenteredAngle_content
             ) {
-              const value = str.slice(childNodeRef.from, childNodeRef.to);
-              content.push({ value, markdown: true });
+              const childLength = childNodeRef.to - childNodeRef.from;
+              const childFrom = from + childNodeRef.from;
+              const childTo = childFrom + childLength;
+              const childLine = doc.lineAt(childFrom).number;
+              const value = getContentBlock(doc, childFrom, childTo);
+              content.push({
+                line: childLine,
+                from: childFrom,
+                to: childTo,
+                value,
+                markdown: true,
+              });
             }
           },
         });
         specs.push({
           from,
           to,
+          lines,
           widget: CenteredWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
@@ -239,6 +289,7 @@ const decorate = (state: EditorState) => {
         specs.push({
           from,
           to,
+          lines,
           widget: SceneWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
@@ -251,6 +302,7 @@ const decorate = (state: EditorState) => {
         specs.push({
           from,
           to,
+          lines,
           widget: TransitionWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
@@ -258,51 +310,77 @@ const decorate = (state: EditorState) => {
           content,
         });
       } else if (type.name === VISIBLE_NODE_NAMES.Dialogue) {
-        const str = getContentBlock(doc, from, to);
         const content: MarkupBlock[] = [];
         let isDual = false;
-        const tree = nodeRef.node.toTree() || nodeRef.node.toTree();
+        const tree = nodeRef.node.toTree();
         tree.iterate({
           enter: (childNodeRef) => {
             if (
               childNodeRef.type.name ===
               VISIBLE_NODE_NAMES.Dialogue_begin_character
             ) {
-              const value = str
-                .slice(childNodeRef.from, childNodeRef.to)
-                .trim();
-              content.push({ value, margin: "0 0 0 23%" });
+              const childLength = childNodeRef.to - childNodeRef.from;
+              const childFrom = from + childNodeRef.from;
+              const childTo = childFrom + childLength;
+              const childLine = doc.lineAt(childFrom).number;
+              const value = getContentBlock(doc, childFrom, childTo).trim();
+              content.push({
+                line: childLine,
+                from: childFrom,
+                to: childTo,
+                value,
+                margin: "0 0 0 23%",
+              });
             } else if (
               childNodeRef.type.name ===
               VISIBLE_NODE_NAMES.Dialogue_begin_parenthetical
             ) {
-              const value = str
-                .slice(childNodeRef.from, childNodeRef.to)
-                .trim();
+              const childLength = childNodeRef.to - childNodeRef.from;
+              const childFrom = from + childNodeRef.from;
+              const childTo = childFrom + childLength;
+              const value = getContentBlock(doc, childFrom, childTo).trim();
               const characterLine = content[0];
               if (characterLine) {
                 characterLine.value += " " + value;
+                characterLine.to = childTo;
               }
             } else if (
               childNodeRef.type.name === VISIBLE_NODE_NAMES.Parenthetical
             ) {
-              const value = str
-                .slice(childNodeRef.from, childNodeRef.to)
-                .trim();
-              content.push({ value, margin: "0 0 0 11%" });
+              const childLength = childNodeRef.to - childNodeRef.from;
+              const childFrom = from + childNodeRef.from;
+              const childTo = childFrom + childLength;
+              const childLine = doc.lineAt(childFrom).number;
+              const value = getContentBlock(doc, childFrom, childTo).trim();
+              content.push({
+                line: childLine,
+                from: childFrom,
+                to: childTo,
+                value,
+                margin: "0 0 0 11%",
+              });
             } else if (
               childNodeRef.type.name === VISIBLE_NODE_NAMES.InlineString
             ) {
-              const value = str
-                .slice(childNodeRef.from, childNodeRef.to)
-                .trim();
-              content.push({ value, markdown: true });
+              const childLength = childNodeRef.to - childNodeRef.from;
+              const childFrom = from + childNodeRef.from;
+              const childTo = childFrom + childLength;
+              const childLine = doc.lineAt(childFrom).number;
+              const value = getContentBlock(doc, childFrom, childTo).trim();
+              content.push({
+                line: childLine,
+                from: childFrom,
+                to: childTo,
+                value,
+                markdown: true,
+              });
             } else if (
               childNodeRef.type.name === VISIBLE_NODE_NAMES.Dialogue_begin_dual
             ) {
-              const value = str
-                .slice(childNodeRef.from, childNodeRef.to)
-                .trim();
+              const childLength = childNodeRef.to - childNodeRef.from;
+              const childFrom = from + childNodeRef.from;
+              const childTo = childFrom + childLength;
+              const value = getContentBlock(doc, childFrom, childTo).trim();
               if (value) {
                 isDual = true;
               }
@@ -315,11 +393,13 @@ const decorate = (state: EditorState) => {
             prevDialogueSpec.left = prevDialogueSpec.content;
             prevDialogueSpec.right = content;
             prevDialogueSpec.content = undefined;
+            prevDialogueSpec.lines = [...prevDialogueSpec.lines, ...lines];
           }
         } else {
           const spec: ReplaceSpec = {
             from,
             to: to - 1,
+            lines,
             widget: DialogueWidget,
             language: LANGUAGE_SUPPORT.language,
             highlighter: LANGUAGE_HIGHLIGHTS,

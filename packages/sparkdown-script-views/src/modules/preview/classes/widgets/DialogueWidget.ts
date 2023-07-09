@@ -10,7 +10,7 @@ export interface DialogueSpec extends ReplaceSpec {
 }
 
 export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
-  toDOM() {
+  override toDOM() {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.marginLeft = "auto";
@@ -24,10 +24,12 @@ export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
       );
     } else if (this.spec.left || this.spec.right) {
       container.style.width = "95%";
+      container.style.display = "flex";
+      container.style.flexDirection = "row";
+      container.style.justifyContent = "space-between";
       if (this.spec.left) {
         const leftEl = document.createElement("div");
         leftEl.classList.add("cm-block-left");
-        leftEl.style.display = "inline-block";
         leftEl.style.width = "45%";
         leftEl.innerHTML = getFormattedHTML(
           this.spec.left,
@@ -39,9 +41,7 @@ export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
       if (this.spec.right) {
         const rightEl = document.createElement("div");
         rightEl.classList.add("cm-block-right");
-        rightEl.style.display = "inline-block";
         rightEl.style.width = "45%";
-        rightEl.style.float = "right";
         rightEl.innerHTML = getFormattedHTML(
           this.spec.right,
           this.spec.language,

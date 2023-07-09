@@ -159,14 +159,7 @@ export default class Hidden
     window.addEventListener("resize", this.handleWindowResize, {
       passive: true,
     });
-    const hideEvent = this.hideEvent;
-    if (hideEvent) {
-      window.addEventListener(hideEvent, this.handleHide);
-    }
-    const showEvent = this.showEvent;
-    if (showEvent) {
-      window.addEventListener(showEvent, this.handleShow);
-    }
+    window.addEventListener("message", this.handleMessage);
   }
 
   protected override onParsed(): void {
@@ -175,14 +168,7 @@ export default class Hidden
 
   protected override onDisconnected(): void {
     window.removeEventListener("resize", this.handleWindowResize);
-    const hideEvent = this.hideEvent;
-    if (hideEvent) {
-      window.removeEventListener(hideEvent, this.handleHide);
-    }
-    const showEvent = this.showEvent;
-    if (showEvent) {
-      window.removeEventListener(showEvent, this.handleShow);
-    }
+    window.removeEventListener("message", this.handleMessage);
   }
 
   updateBreakpoint() {
@@ -242,43 +228,44 @@ export default class Hidden
     }
   }
 
-  private handleWindowResize = (): void => {
+  protected handleWindowResize = (): void => {
     this.updateBreakpoint();
   };
 
-  private handleHide = () => {
-    this.cancelPending();
-    const hideDelay = getCssDurationMS(this.hideDelay, 0);
-    const conditionallyHide = () => {
-      if (this.preConditionsSatisfied()) {
-        this.hide();
+  protected handleMessage = (e: MessageEvent): void => {
+    if (e.data.method === this.hideEvent) {
+      this.cancelPending();
+      const hideDelay = getCssDurationMS(this.hideDelay, 0);
+      const conditionallyHide = () => {
+        if (this.preConditionsSatisfied()) {
+          this.hide();
+        }
+      };
+      if (hideDelay > 0) {
+        this._hideTransitionTimeout = window.setTimeout(
+          conditionallyHide,
+          hideDelay
+        );
+      } else {
+        conditionallyHide();
       }
-    };
-    if (hideDelay > 0) {
-      this._hideTransitionTimeout = window.setTimeout(
-        conditionallyHide,
-        hideDelay
-      );
-    } else {
-      conditionallyHide();
     }
-  };
-
-  private handleShow = () => {
-    this.cancelPending();
-    const showDelay = getCssDurationMS(this.showDelay, 0);
-    const conditionallyShow = () => {
-      if (this.preConditionsSatisfied()) {
-        this.show();
+    if (e.data.method === this.showEvent) {
+      this.cancelPending();
+      const showDelay = getCssDurationMS(this.showDelay, 0);
+      const conditionallyShow = () => {
+        if (this.preConditionsSatisfied()) {
+          this.show();
+        }
+      };
+      if (showDelay > 0) {
+        this._showTransitionTimeout = window.setTimeout(
+          conditionallyShow,
+          showDelay
+        );
+      } else {
+        conditionallyShow();
       }
-    };
-    if (showDelay > 0) {
-      this._showTransitionTimeout = window.setTimeout(
-        conditionallyShow,
-        showDelay
-      );
-    } else {
-      conditionallyShow();
     }
   };
 }

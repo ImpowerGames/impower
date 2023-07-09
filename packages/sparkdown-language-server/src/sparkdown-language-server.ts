@@ -14,8 +14,8 @@ import {
 } from "vscode-languageserver/browser";
 
 import {
-  DidParseParams,
   DidParseTextDocument,
+  DidParseTextDocumentParams,
 } from "./classes/DidParseTextDocument";
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import getColorPresentations from "./utils/getColorPresentations";
@@ -51,9 +51,11 @@ try {
 
   // parseProvider
   documents.onDidParse((change) => {
-    const params: DidParseParams = {
-      uri: change.document.uri,
-      version: change.document.version,
+    const params: DidParseTextDocumentParams = {
+      textDocument: {
+        uri: change.document.uri,
+        version: change.document.version,
+      },
       program: change.program,
     };
     connection.sendNotification(DidParseTextDocument.method, params);

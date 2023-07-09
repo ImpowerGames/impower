@@ -13,7 +13,9 @@ export const createSparkdownLanguageClient = (
     "workers",
     "sparkdown-language-server.js"
   );
-  const worker = new Worker(serverMain.toString(true));
+  const serverMainUrl = serverMain.toString(true);
+  console.log(serverMainUrl);
+  const worker = new Worker(serverMainUrl);
   return new LanguageClient(
     "sparkdown-language-server",
     "Sparkdown Language Server",

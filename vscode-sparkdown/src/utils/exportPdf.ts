@@ -7,12 +7,12 @@ import { encode } from "html-entities";
 import * as vscode from "vscode";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { createPdfDocument } from "../pdf/createPdfDocument";
-import { commandViewProvider } from "../state/commandViewProvider";
+import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getEditor } from "./getEditor";
 import { getFonts } from "./getFonts";
-import { getSparkdownConfig } from "./getSparkdownConfig";
+import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
+import { getVisibleEditor } from "./getVisibleEditor";
 import { writeFile } from "./writeFile";
 
 export const exportPdf = async (
@@ -22,7 +22,7 @@ export const exportPdf = async (
   if (!uri) {
     return;
   }
-  const editor = getEditor(uri);
+  const editor = getVisibleEditor(uri);
   if (!editor) {
     return;
   }
@@ -30,10 +30,10 @@ export const exportPdf = async (
   if (!fsPath) {
     return;
   }
-  commandViewProvider.notifyExportStarted("pdf");
+  SparkdownCommandTreeDataProvider.instance.notifyExportStarted("pdf");
   const sparkdown = editor.document.getText();
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
-  const config = getSparkdownConfig(uri);
+  const config = getSparkdownPreviewConfig(uri);
   const fonts = await getFonts(context);
   const pdfData = generateSparkPdfData(result, config, fonts);
   const doc = createPdfDocument(pdfData);
@@ -47,5 +47,5 @@ export const exportPdf = async (
     doc.end();
   });
   await writeFile(fsPath, pdfBuffer);
-  commandViewProvider.notifyExportEnded("pdf");
+  SparkdownCommandTreeDataProvider.instance.notifyExportEnded("pdf");
 };

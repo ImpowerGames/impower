@@ -127,6 +127,8 @@ const getSceneCaptureCompletions = (
       ...(program?.metadata.scenes?.map((s) => s.time) || []),
       "DAY",
       "NIGHT",
+      "DAWN",
+      "DUSK",
     ]);
     return times.map((time) => ({
       label: time,

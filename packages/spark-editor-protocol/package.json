@@ -1,0 +1,6 @@
+{
+  "name": "@impower/spark-editor-protocol",
+  "displayName": "Spark Preview Protocol",
+  "description": "JSON RPC protocol for messages between a sparkdown editor and preview.",
+  "version": "0.0.1"
+}

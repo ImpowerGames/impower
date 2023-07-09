@@ -1,12 +1,12 @@
 import { generateSparkHtmlData } from "@impower/spark-screenplay/src/index";
 import * as vscode from "vscode";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
-import { commandViewProvider } from "../state/commandViewProvider";
+import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getEditor } from "./getEditor";
 import { getFonts } from "./getFonts";
-import { getSparkdownConfig } from "./getSparkdownConfig";
+import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
+import { getVisibleEditor } from "./getVisibleEditor";
 import { writeFile } from "./writeFile";
 
 export const exportHtml = async (
@@ -16,7 +16,7 @@ export const exportHtml = async (
   if (!uri) {
     return;
   }
-  const editor = getEditor(uri);
+  const editor = getVisibleEditor(uri);
   if (!editor) {
     return;
   }
@@ -24,14 +24,14 @@ export const exportHtml = async (
   if (!fsPath) {
     return;
   }
-  commandViewProvider.notifyExportStarted("html");
+  SparkdownCommandTreeDataProvider.instance.notifyExportStarted("html");
   const sparkdown = editor.document.getText();
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
-  const config = getSparkdownConfig(uri);
+  const config = getSparkdownPreviewConfig(uri);
   const fonts = await getFonts(context);
   const rawHtml: string = generateSparkHtmlData(result, config, fonts);
   const output =
     process?.platform !== "win32" ? rawHtml.replace(/\r\n/g, "\n") : rawHtml;
   await writeFile(fsPath, output);
-  commandViewProvider.notifyExportEnded("html");
+  SparkdownCommandTreeDataProvider.instance.notifyExportEnded("html");
 };

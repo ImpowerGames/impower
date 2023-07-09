@@ -1,45 +1,33 @@
 import { EditorView } from "@codemirror/view";
-import { Range } from "vscode-languageserver-protocol";
+import {
+  DidChangeTextDocument,
+  DidOpenTextDocument,
+  DidParseTextDocument,
+  FocusedEditor,
+  ScrolledEditor,
+  ScrolledPreview,
+  TextDocumentItem,
+  UnfocusedEditor,
+} from "@impower/spark-editor-protocol/src";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
-import {
-  getClientChanges,
-  getServerChanges,
-} from "../../../cm-language-client";
-import { DidParseParams } from "../../../cm-language-client/types/DidParseTextDocument";
+import { getServerChanges } from "../../../cm-language-client";
+import { DidParseTextDocumentParams } from "../../../cm-language-client/types/DidParseTextDocument";
 import createEditorView from "../utils/createEditorView";
 import { createSparkdownLanguageServerConnection } from "../utils/createSparkdownLanguageServerConnection";
 import css from "./sparkdown-script-editor.css";
 import html from "./sparkdown-script-editor.html";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap([
-    "synced-event",
-    "editor-focused-event",
-    "editor-unfocused-event",
-    "editor-scrolled-event",
-    "editor-parsed-event",
-    "editor-edited-event",
-    "preview-scrolled-event",
-    "content-padding",
-  ]),
+  ...getAttributeNameMap(["content-padding"]),
 };
 
 export default class SparkdownScriptEditor
   extends SparkElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  connection = createSparkdownLanguageServerConnection(
-    new Worker("/public/sparkdown-language-server.js")
-  );
-
-  textDocument = {
-    uri: "script",
-    version: 0,
-  };
-
   static override async define(
     tag = "sparkdown-script-editor",
     dependencies?: Record<string, string>,
@@ -59,138 +47,6 @@ export default class SparkdownScriptEditor
     return css;
   }
 
-  /**
-   * The event that this component will listen for to sync the displayed document with outside changes.
-   *
-   * Defaults to `synced`
-   */
-  get syncedEvent(): string {
-    return (
-      this.getStringAttribute(SparkdownScriptEditor.attributes.syncedEvent) ||
-      "synced"
-    );
-  }
-  set syncedEvent(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.syncedEvent,
-      value
-    );
-  }
-
-  /**
-   * The event this component fires when the user focuses the editor.
-   *
-   * Defaults to `editor-focused`
-   */
-  get editorFocusedEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkdownScriptEditor.attributes.editorFocusedEvent
-      ) || "editor-focused"
-    );
-  }
-  set editorFocusedEvent(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.editorFocusedEvent,
-      value
-    );
-  }
-
-  /**
-   * The event this component fires when the user scrolls the editor.
-   *
-   * Defaults to `editor-scrolled`
-   */
-  get editorScrolledEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkdownScriptEditor.attributes.editorScrolledEvent
-      ) || "editor-scrolled"
-    );
-  }
-  set editorScrolledEvent(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.editorScrolledEvent,
-      value
-    );
-  }
-
-  /**
-   * The event that this component will listen for that fires when the preview is scrolled.
-   *
-   * Defaults to `preview-scrolled`
-   */
-  get previewScrolledEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkdownScriptEditor.attributes.previewScrolledEvent
-      ) || "preview-scrolled"
-    );
-  }
-  set previewScrolledEvent(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.previewScrolledEvent,
-      value
-    );
-  }
-
-  /**
-   * The event this component fires when the editor is unfocused.
-   *
-   * Defaults to `editor-unfocused`
-   */
-  get editorUnfocusedEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkdownScriptEditor.attributes.editorUnfocusedEvent
-      ) || "editor-unfocused"
-    );
-  }
-  set editorUnfocusedEvent(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.editorUnfocusedEvent,
-      value
-    );
-  }
-
-  /**
-   * The event this component fires whenever the user edits the script.
-   *
-   * Defaults to `editor-edited`
-   */
-  get editorEditedEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkdownScriptEditor.attributes.editorEditedEvent
-      ) || "editor-edited"
-    );
-  }
-  set editorEditedEvent(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.editorEditedEvent,
-      value
-    );
-  }
-
-  /**
-   * The event this component fires whenever the script is parsed.
-   *
-   * Defaults to `editor-parsed`
-   */
-  get editorParsedEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkdownScriptEditor.attributes.editorParsedEvent
-      ) || "editor-parsed"
-    );
-  }
-  set editorParsedEvent(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.editorParsedEvent,
-      value
-    );
-  }
-
   get contentPadding() {
     return this.getStringAttribute(
       SparkdownScriptEditor.attributes.contentPadding
@@ -207,9 +63,16 @@ export default class SparkdownScriptEditor
     return this.getElementByClass("editor");
   }
 
-  get scrollerEl() {
-    return this.getElementByClass("cm-scroller");
-  }
+  protected _connection = createSparkdownLanguageServerConnection(
+    new Worker("/public/sparkdown-language-server.js")
+  );
+
+  protected _textDocument: TextDocumentItem = {
+    uri: "script",
+    languageId: "sparkdown",
+    version: 0,
+    text: "",
+  };
 
   protected _view?: EditorView;
 
@@ -217,9 +80,9 @@ export default class SparkdownScriptEditor
 
   protected _editing = false;
 
-  protected _firstVisibleLine = 0;
+  protected _startVisibleLineNumber = 0;
 
-  protected _lastVisibleLine = 0;
+  protected _endVisibleLineNumber = 0;
 
   protected _scrollTop = 0;
 
@@ -227,62 +90,56 @@ export default class SparkdownScriptEditor
 
   protected _pointerOverScroller = false;
 
-  emit(event: string, detail?: any) {
-    this.dispatchEvent(
-      new CustomEvent(event, {
-        bubbles: true,
-        cancelable: false,
-        composed: true,
-        detail,
-      })
-    );
-  }
-
   protected override onConnected(): void {
     const editorEl = this.editorEl;
     if (editorEl) {
       this._view = createEditorView(editorEl, {
-        connection: this.connection,
-        textDocument: this.textDocument,
+        connection: this._connection,
+        textDocument: this._textDocument,
         contentPadding: getBoxValues(this.contentPadding),
         onFocus: () => {
           this._editing = true;
-          this.emit(this.editorFocusedEvent);
+          window.postMessage(
+            FocusedEditor.create({
+              textDocument: this._textDocument,
+            })
+          );
         },
         onBlur: () => {
           this._editing = false;
-          this.emit(this.editorUnfocusedEvent);
+          window.postMessage(
+            UnfocusedEditor.create({
+              textDocument: this._textDocument,
+            })
+          );
         },
         onEdit: (e) => {
           const { before, changes } = e;
-          this.textDocument.version += 1;
+          this._textDocument.version += 1;
           const params = {
-            textDocument: this.textDocument,
+            textDocument: this._textDocument,
             contentChanges: getServerChanges(before, changes),
           };
-          this.emit(this.editorEditedEvent, params);
-          this.connection.notifyDidChangeTextDocument(params);
+          window.postMessage(DidChangeTextDocument.create(params));
+          this._connection.notifyDidChangeTextDocument(params);
         },
       });
     }
-    this.root?.addEventListener(this.syncedEvent, this.handleSynced);
-    this.connection.parseEvent.addListener(this.handleParsed);
+    window.addEventListener("message", this.handleMessage);
+    this._connection.parseEvent.addListener(this.handleParsed);
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
-    window.addEventListener(
-      this.previewScrolledEvent,
-      this.handlePreviewScrolled
-    );
   }
 
   protected override onParsed(): void {
-    if (this.scrollerEl) {
-      this._resizeObserver?.observe(this.scrollerEl);
-      this.scrollerEl?.addEventListener("scroll", this.handlePointerScroll);
-      this.scrollerEl?.addEventListener(
+    const view = this._view;
+    if (view) {
+      this._resizeObserver?.observe(view.scrollDOM);
+      view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
+      view.scrollDOM.addEventListener(
         "pointerenter",
         this.handlePointerEnterScroller
       );
-      this.scrollerEl?.addEventListener(
+      view.scrollDOM.addEventListener(
         "pointerleave",
         this.handlePointerLeaveScroller
       );
@@ -290,50 +147,62 @@ export default class SparkdownScriptEditor
   }
 
   protected override onDisconnected(): void {
-    this.root?.removeEventListener(this.syncedEvent, this.handleSynced);
+    window.removeEventListener("message", this.handleMessage);
     if (this._editing) {
-      document.body.dispatchEvent(
-        new CustomEvent(this.editorUnfocusedEvent, {
-          bubbles: true,
-          cancelable: false,
-          composed: true,
+      window.postMessage(
+        UnfocusedEditor.create({
+          textDocument: this._textDocument,
         })
       );
     }
-    this.connection.parseEvent.removeListener(this.handleParsed);
+    this._connection.parseEvent.removeListener(this.handleParsed);
     this._resizeObserver?.disconnect();
-    window.removeEventListener(
-      this.previewScrolledEvent,
-      this.handlePreviewScrolled
-    );
-    this.scrollerEl?.removeEventListener("scroll", this.handlePointerScroll);
-    this.scrollerEl?.removeEventListener(
-      "pointerenter",
-      this.handlePointerEnterScroller
-    );
-    this.scrollerEl?.removeEventListener(
-      "pointerleave",
-      this.handlePointerLeaveScroller
-    );
+    const view = this._view;
+    if (view) {
+      view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
+      view.scrollDOM.removeEventListener(
+        "pointerenter",
+        this.handlePointerEnterScroller
+      );
+      view.scrollDOM.removeEventListener(
+        "pointerleave",
+        this.handlePointerLeaveScroller
+      );
+    }
   }
 
-  protected handleSynced = (e: Event): void => {
-    if (e instanceof CustomEvent && e.detail) {
-      const detail = e.detail;
-      const contentChanges: {
-        range?: Range;
-        text: string;
-      }[] = detail.contentChanges;
-      if (this._view && contentChanges) {
-        const doc = this._view.state.doc;
-        const changes = getClientChanges(doc, contentChanges);
-        this._view.dispatch({ changes });
+  protected handleMessage = (e: MessageEvent): void => {
+    const message = e.data;
+    if (DidOpenTextDocument.is(message)) {
+      const params = message.params;
+      this._textDocument = params.textDocument;
+    }
+    if (ScrolledPreview.is(message)) {
+      const params = message.params;
+      const textDocument = params.textDocument;
+      if (textDocument.uri === this._textDocument?.uri) {
+        const view = this._view;
+        if (view) {
+          const doc = view.state.doc;
+          const startLineNumber = params.range.start.line + 1;
+          const endLineNumber = params.range.end.line + 1;
+          if (endLineNumber === doc.lines) {
+            view.scrollDOM.scrollTop = Number.MAX_SAFE_INTEGER;
+          } else {
+            const pos = doc.line(Math.max(1, startLineNumber)).from;
+            view.dispatch({
+              effects: EditorView.scrollIntoView(pos, {
+                y: "start",
+              }),
+            });
+          }
+        }
       }
     }
   };
 
-  protected handleParsed = (params: DidParseParams): void => {
-    this.emit(this.editorParsedEvent, params);
+  protected handleParsed = (params: DidParseTextDocumentParams): void => {
+    window.postMessage(DidParseTextDocument.create(params));
   };
 
   protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
@@ -357,65 +226,40 @@ export default class SparkdownScriptEditor
       const scrollEl = e.target as HTMLElement;
       const scrollTop =
         scrollEl?.scrollTop != null ? scrollEl?.scrollTop : window.scrollY;
-      const scrollDirection = scrollTop - this._scrollTop;
       this._scrollTop = scrollTop;
       const scrollBottom = scrollTop + this._viewportHeight;
       const view = this._view;
       if (view) {
         const doc = view.state.doc;
         const firstVisibleLineFrom = view.lineBlockAtHeight(scrollTop).from;
-        const firstVisibleLine: number | undefined =
-          doc.lineAt(firstVisibleLineFrom).number;
+        const startLine = doc.lineAt(firstVisibleLineFrom);
+        const startLineNumber: number | undefined = startLine.number;
         const lastVisibleLineFrom = view.lineBlockAtHeight(scrollBottom).from;
-        const lastVisibleLine = doc.lineAt(lastVisibleLineFrom).number;
+        const endLine = doc.lineAt(lastVisibleLineFrom);
+        const endLineNumber = endLine.number;
+        const endLineLength = endLine.to - endLine.from;
         if (
-          firstVisibleLine !== this._firstVisibleLine ||
-          lastVisibleLine !== this._lastVisibleLine
+          startLineNumber !== this._startVisibleLineNumber ||
+          endLineNumber !== this._endVisibleLineNumber
         ) {
-          this._firstVisibleLine = firstVisibleLine;
-          this._lastVisibleLine = lastVisibleLine;
-          this.emit(this.editorScrolledEvent, {
-            firstVisibleLine,
-            lastVisibleLine,
-            scrollDirection,
-          });
-        }
-      }
-    }
-  };
-
-  protected handlePreviewScrolled = (e: Event): void => {
-    if (!this._pointerOverScroller) {
-      if (e instanceof CustomEvent && e.detail) {
-        const detail = e.detail;
-        const firstVisibleLine = detail.firstVisibleLine;
-        const lastVisibleLine = detail.lastVisibleLine;
-        if (this._view) {
-          if (this.scrollerEl) {
-            this.scrollerEl.dataset["scrollsyncing"] = "true";
-          }
-          const doc = this._view.state.doc;
-          if (lastVisibleLine === doc.lines) {
-            if (lastVisibleLine >= 1 && lastVisibleLine <= doc.lines) {
-              const pos = doc.line(lastVisibleLine).to;
-              this._view.dispatch({
-                effects: EditorView.scrollIntoView(pos, {
-                  y: "end",
-                }),
-              });
-            }
-          } else {
-            if (firstVisibleLine >= 1 && firstVisibleLine <= doc.lines) {
-              const pos = doc.line(firstVisibleLine).from;
-              this._view.dispatch({
-                effects: EditorView.scrollIntoView(pos, {
-                  y: "start",
-                }),
-              });
-            }
-          }
-          if (this.scrollerEl) {
-            delete this.scrollerEl.dataset["scrollsyncing"];
+          this._startVisibleLineNumber = startLineNumber;
+          this._endVisibleLineNumber = endLineNumber;
+          if (this._textDocument) {
+            window.postMessage(
+              ScrolledEditor.create({
+                textDocument: this._textDocument,
+                range: {
+                  start: {
+                    line: startLineNumber - 1,
+                    character: 0,
+                  },
+                  end: {
+                    line: endLineNumber - 1,
+                    character: Math.max(0, endLineLength - 1),
+                  },
+                },
+              })
+            );
           }
         }
       }

@@ -8,7 +8,7 @@ export interface SceneSpec extends ReplaceSpec {
 }
 
 export default class SceneWidget extends ReplaceWidget<SceneSpec> {
-  toDOM() {
+  override toDOM() {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.fontWeight = "bold";

@@ -2,8 +2,9 @@ import { SparkScreenplayConfig } from "@impower/spark-screenplay/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
 import { parseState } from "../state/parseState";
-import { getEditor } from "../utils/getEditor";
-import { getSparkdownConfig } from "../utils/getSparkdownConfig";
+import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
+import { getVisibleEditor } from "../utils/getVisibleEditor";
+import { getWebviewUri } from "../utils/getWebviewUri";
 import { readTextFile } from "../utils/readTextFile";
 import { retrieveScreenPlayStatistics } from "../utils/statistics";
 
@@ -123,23 +124,17 @@ async function loadWebView(
       vscode.Uri.joinPath(context.extensionUri, "out", "webviews", `stats.html`)
     )) || "";
 
-  const jsUriString = statspanel.webview
-    .asWebviewUri(
-      vscode.Uri.joinPath(context.extensionUri, "out", "webviews", "stats.js")
-    )
-    .toString();
+  const jsUriString = getWebviewUri(statspanel.webview, context.extensionUri, [
+    "out",
+    "webviews",
+    "stats.js",
+  ]).toString();
 
-  const codiconUriString = statspanel.webview
-    .asWebviewUri(
-      vscode.Uri.joinPath(
-        context.extensionUri,
-        "node_modules",
-        "@vscode/codicons",
-        "dist",
-        "codicon.css"
-      )
-    )
-    .toString();
+  const codiconUriString = getWebviewUri(
+    statspanel.webview,
+    context.extensionUri,
+    ["node_modules", "@vscode/codicons", "dist", "codicon.css"]
+  ).toString();
 
   statspanel.webview.html = statsHtml
     .replace("$CODICON_CSS$", codiconUriString)
@@ -150,13 +145,13 @@ async function loadWebView(
     uri: docuri.toString(),
   });
 
-  const config = getSparkdownConfig(docuri);
+  const config = getSparkdownPreviewConfig(docuri);
   statspanel.webview.postMessage({
     command: "sparkdown.updateconfig",
     content: config,
   });
 
-  const activeEditor = getEditor(docuri);
+  const activeEditor = getVisibleEditor(docuri);
   if (!activeEditor) {
     return;
   }
@@ -164,7 +159,7 @@ async function loadWebView(
   statspanel.webview.onDidReceiveMessage(async (message) => {
     if (message.command === "sparkdown.revealLine") {
       const sourceLine = message.content;
-      let editor = getEditor(vscode.Uri.parse(message.uri));
+      let editor = getVisibleEditor(vscode.Uri.parse(message.uri));
       if (editor === undefined) {
         const doc = await vscode.workspace.openTextDocument(
           vscode.Uri.parse(message.uri)
@@ -191,7 +186,7 @@ async function loadWebView(
     if (message.command === "sparkdown.selectLines") {
       const startline = Math.floor(message.content.start);
       const endline = Math.floor(message.content.end);
-      let editor = getEditor(vscode.Uri.parse(message.uri));
+      let editor = getVisibleEditor(vscode.Uri.parse(message.uri));
       if (!editor) {
         const doc = await vscode.workspace.openTextDocument(
           vscode.Uri.parse(message.uri)
@@ -235,7 +230,7 @@ async function loadWebView(
 vscode.workspace.onDidChangeConfiguration((change) => {
   if (change.affectsConfiguration("sparkdown")) {
     statsPanels.forEach((p) => {
-      const config = getSparkdownConfig(vscode.Uri.parse(p.uri));
+      const config = getSparkdownPreviewConfig(vscode.Uri.parse(p.uri));
       p.panel.webview.postMessage({
         command: "sparkdown.updateconfig",
         content: config,

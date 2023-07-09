@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "@impower/spark-editor-protocol": "file:../../../packages/spark-editor-protocol",
+    "@impower/sparkdown-script-views": "file:../../../packages/sparkdown-script-views",
+    "@impower/sparkle": "file:../../../packages/sparkle",
+    "colord": "^2.9.3"
+  },
+  "scripts": {
+    "build": "node ./esbuild.js",
+    "package": "node ./esbuild.js --production"
+  }
+}

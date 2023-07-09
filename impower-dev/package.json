@@ -38,6 +38,7 @@
     "@fastify/websocket": "^8.1.0",
     "@impower/spark-editor": "file:../packages/spark-editor",
     "@impower/spark-element": "file:../packages/spark-element",
+    "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
     "@impower/sparkdown-script-views": "file:../packages/sparkdown-script-views",
     "@impower/sparkle": "file:../packages/sparkle",
     "fastify": "^4.18.0",

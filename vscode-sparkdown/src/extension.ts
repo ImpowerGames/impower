@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import * as vscode from "vscode";
-import { commandDecorationProvider } from "./state/commandDecorationProvider";
 import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
 import { parseState } from "./state/parseState";
 import { typingState } from "./state/typingState";
@@ -9,10 +8,10 @@ import { activateCommandView } from "./utils/activateCommandView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
 import { activateOutlineView } from "./utils/activateOutlineView";
-import { activatePreviewPanel } from "./utils/activatePreviewPanel";
+import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
 import { getActiveSparkdownDocument } from "./utils/getActiveSparkdownDocument";
-import { getEditor } from "./utils/getEditor";
-import { getSparkdownConfig } from "./utils/getSparkdownConfig";
+import { getSparkdownPreviewConfig } from "./utils/getSparkdownPreviewConfig";
+import { getVisibleEditor } from "./utils/getVisibleEditor";
 import { parseSparkDocument } from "./utils/parseSparkDocument";
 import { activateUIPersistence } from "./utils/persistence";
 import { registerTyping } from "./utils/registerTyping";
@@ -28,8 +27,8 @@ export const activate = async (
   activateOutlineView(context);
   activateCommandView(context);
   activateCheatSheetView(context);
-  activatePreviewPanel(context, "game");
-  activatePreviewPanel(context, "screenplay");
+  activatePreviewScreenplayPanel(context);
+  // activateGamePreviewPanel(context);
   // activateStatisticsPanel(context);
   activateDurationStatus(context);
   activateLanguageClient(context);
@@ -38,72 +37,84 @@ export const activate = async (
   if (!uri) {
     return;
   }
-  const editor = getEditor(uri);
+  const editor = getVisibleEditor(uri);
   if (!editor) {
     return;
   }
-  watchFiles(editor.document);
+  watchFiles(context, editor.document);
   await updateAssets(editor.document);
-  parseSparkDocument(editor.document);
+  parseSparkDocument(context, editor.document);
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeTextDocument((change) => {
+      if (
+        change?.document?.languageId === "sparkdown" &&
+        change?.contentChanges?.length > 0
+      ) {
+        watchFiles(context, change.document);
+        parseSparkDocument(context, change.document);
+        // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(async (editor) => {
+      if (editor?.document?.languageId === "sparkdown") {
+        watchFiles(context, editor.document);
+        await updateAssets(editor.document);
+        parseSparkDocument(context, editor.document);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((change) => {
+      if (
+        change.affectsConfiguration(
+          "sparkdown.general.parentheticalNewLineHelper"
+        )
+      ) {
+        const uri = getActiveSparkdownDocument();
+        if (!uri) {
+          return;
+        }
+        const config = getSparkdownPreviewConfig(uri);
+        if (typingState.disposeTyping) {
+          typingState.disposeTyping.dispose();
+        }
+        if (config.editor_parenthetical_newline_helper) {
+          registerTyping();
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument((doc) => {
+      if (doc?.languageId === "sparkdown") {
+        updateCommands(doc.uri);
+        //   const config = getSparkdownConfig(doc.uri);
+        //   if (config.refresh_stats_on_save) {
+        //     const statsPanel = getStatisticsPanels(doc.uri);
+        //     for (const sp of statsPanel) {
+        //       refreshPanel(sp.panel, doc, config);
+        //     }
+        //   }
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument((doc) => {
+      delete parseState.parsedPrograms[doc.uri.toString()];
+      if (fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher) {
+        fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher?.dispose();
+      }
+      delete fileSystemWatcherState[doc.uri.toString()];
+    })
+  );
 };
-
-vscode.workspace.onDidChangeConfiguration((change) => {
-  if (
-    change.affectsConfiguration("sparkdown.general.parentheticalNewLineHelper")
-  ) {
-    const uri = getActiveSparkdownDocument();
-    if (!uri) {
-      return;
-    }
-    const config = getSparkdownConfig(uri);
-    if (typingState.disposeTyping) {
-      typingState.disposeTyping.dispose();
-    }
-    if (config.editor_parenthetical_newline_helper) {
-      registerTyping();
-    }
-  }
-});
-
-vscode.workspace.onDidChangeTextDocument((change) => {
-  if (
-    change?.document?.languageId === "sparkdown" &&
-    change?.contentChanges?.length > 0
-  ) {
-    watchFiles(change.document);
-    parseSparkDocument(change.document);
-    // updateStatisticsDocumentVersion(change.document.uri, change.document.version);
-  }
-});
-
-vscode.window.onDidChangeActiveTextEditor(async (editor) => {
-  if (editor?.document?.languageId === "sparkdown") {
-    watchFiles(editor.document);
-    await updateAssets(editor.document);
-    parseSparkDocument(editor.document);
-  }
-});
-
-vscode.workspace.onDidSaveTextDocument((doc) => {
-  if (doc?.languageId === "sparkdown") {
-    updateCommands(doc.uri);
-    //   const config = getSparkdownConfig(doc.uri);
-    //   if (config.refresh_stats_on_save) {
-    //     const statsPanel = getStatisticsPanels(doc.uri);
-    //     for (const sp of statsPanel) {
-    //       refreshPanel(sp.panel, doc, config);
-    //     }
-    //   }
-  }
-});
-
-vscode.workspace.onDidCloseTextDocument((doc) => {
-  delete parseState.parsedPrograms[doc.uri.toString()];
-  if (fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher) {
-    fileSystemWatcherState[doc.uri.toString()]?.assetsWatcher?.dispose();
-  }
-  delete fileSystemWatcherState[doc.uri.toString()];
-});
 
 // this method is called when your extension is deactivated
 export function deactivate() {
@@ -112,5 +123,4 @@ export function deactivate() {
       v.assetsWatcher.dispose();
     }
   });
-  commandDecorationProvider.dispose();
 }

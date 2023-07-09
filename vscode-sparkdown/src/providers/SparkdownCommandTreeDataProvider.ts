@@ -1,11 +1,19 @@
 import * as vscode from "vscode";
 import { createFileExportTreeItem } from "../utils/createFileExportTreeItem";
 import { fileStat } from "../utils/fileStat";
-import { getEditor } from "../utils/getEditor";
+import { getVisibleEditor } from "../utils/getVisibleEditor";
 
 export class SparkdownCommandTreeDataProvider
   implements vscode.TreeDataProvider<vscode.TreeItem>
 {
+  private static _instance: SparkdownCommandTreeDataProvider;
+  static get instance(): SparkdownCommandTreeDataProvider {
+    if (!this._instance) {
+      this._instance = new SparkdownCommandTreeDataProvider();
+    }
+    return this._instance;
+  }
+
   public readonly onDidChangeTreeDataEmitter: vscode.EventEmitter<vscode.TreeItem | null> =
     new vscode.EventEmitter<vscode.TreeItem | null>();
   public readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | null> =
@@ -140,7 +148,7 @@ export class SparkdownCommandTreeDataProvider
     if (!uri) {
       return;
     }
-    const editor = getEditor(uri);
+    const editor = getVisibleEditor(uri);
     if (!editor) {
       return;
     }

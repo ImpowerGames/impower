@@ -1,13 +1,14 @@
 import * as vscode from "vscode";
-import { outlineDecorationProvider } from "../state/outlineDecorationProvider";
-import { outlineViewProviderState } from "../state/outlineViewProviderState";
+import { SparkdownOutlineFileDecorationProvider } from "../providers/SparkdownOutlineFileDecorationProvider";
+import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
 
-export const updateOutline = (doc: vscode.TextDocument) => {
+export const updateOutline = (
+  context: vscode.ExtensionContext,
+  doc: vscode.TextDocument
+) => {
   performance.mark("updateOutline-start");
-  if (outlineViewProviderState.provider) {
-    outlineViewProviderState.provider.update(doc.uri);
-  }
-  outlineDecorationProvider.update(doc.uri);
+  SparkdownOutlineTreeDataProvider.instance.update(context, doc.uri);
+  SparkdownOutlineFileDecorationProvider.instance.update(doc.uri);
   performance.mark("updateOutline-end");
   performance.measure(
     "updateOutline",

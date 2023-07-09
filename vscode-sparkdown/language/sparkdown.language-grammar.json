@@ -234,6 +234,7 @@
         },
         "4": {
           "tag": "special(monospace)",
+          "name": "keyword.centered.sd",
           "patterns": [
             {
               "include": "#Comment"
@@ -283,6 +284,7 @@
         },
         "4": {
           "tag": "special(monospace)",
+          "name": "keyword.centered.sd",
           "patterns": [
             {
               "include": "#Comment"
@@ -1047,7 +1049,7 @@
       }
     },
     "TitleEntry": {
-      "begin": "^(TITLE|Title|title)($|[:])(.*)$",
+      "begin": "^(TITLE|Title|title)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1057,7 +1059,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1073,7 +1075,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "CreditEntry": {
-      "begin": "^(CREDIT|Credit|credit)($|[:])(.*)$",
+      "begin": "^(CREDIT|Credit|credit)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1083,7 +1085,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1099,7 +1101,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "AuthorEntry": {
-      "begin": "^(AUTHOR[S]?|Author[s]?|author[s]?)($|[:])(.*)$",
+      "begin": "^(AUTHOR[S]?|Author[s]?|author[s]?)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1109,7 +1111,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1125,7 +1127,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "SourceEntry": {
-      "begin": "^(SOURCE|Source|source)($|[:])(.*)$",
+      "begin": "^(SOURCE|Source|source)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1135,7 +1137,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1151,7 +1153,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "NotesEntry": {
-      "begin": "^(NOTES|Notes|notes)($|[:])(.*)$",
+      "begin": "^(NOTES|Notes|notes)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1161,7 +1163,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1177,7 +1179,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "DateEntry": {
-      "begin": "^((?:DRAFT[_ ]|Draft[_ ]|draft[_ ])?(?:DATE|Date|date))($|[:])(.*)$",
+      "begin": "^((?:DRAFT[_ ]|Draft[_ ]|draft[_ ])?(?:DATE|Date|date))($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1187,7 +1189,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1203,7 +1205,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "ContactEntry": {
-      "begin": "^((?:CONTACT|Contact|contact)(?:[_ ]INFO|[_ ]Info|[_ ]info)?)($|[:])(.*)$",
+      "begin": "^((?:CONTACT|Contact|contact)(?:[_ ]INFO|[_ ]Info|[_ ]info)?)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1213,7 +1215,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1229,7 +1231,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "RevisionEntry": {
-      "begin": "^(REVISION|Revision|revision)($|[:])(.*)$",
+      "begin": "^(REVISION|Revision|revision)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1239,7 +1241,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1255,7 +1257,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "CopyrightEntry": {
-      "begin": "^(COPYRIGHT|Copyright|copyright)($|[:])(.*)$",
+      "begin": "^(COPYRIGHT|Copyright|copyright)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1265,7 +1267,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1281,7 +1283,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "FontEntry": {
-      "begin": "^(FONT|Font|font)($|[:])(.*)$",
+      "begin": "^(FONT|Font|font)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1291,7 +1293,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1307,7 +1309,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "TLEntry": {
-      "begin": "^(TL|Tl|tl)($|[:])(.*)$",
+      "begin": "^(TL|Tl|tl)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1317,7 +1319,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1333,7 +1335,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "TCEntry": {
-      "begin": "^(TC|Tc|tc)($|[:])(.*)$",
+      "begin": "^(TC|Tc|tc)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1343,7 +1345,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1359,7 +1361,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "TREntry": {
-      "begin": "^(TR|Tr|tr)($|[:])(.*)$",
+      "begin": "^(TR|Tr|tr)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1369,7 +1371,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1385,7 +1387,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "CCEntry": {
-      "begin": "^(CC|Cc|cc)($|[:])(.*)$",
+      "begin": "^(CC|Cc|cc)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1395,7 +1397,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1411,7 +1413,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "BLEntry": {
-      "begin": "^(BL|Bl|bl)($|[:])(.*)$",
+      "begin": "^(BL|Bl|bl)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1421,7 +1423,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1437,7 +1439,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "BREntry": {
-      "begin": "^(BR|Br|br)($|[:])(.*)$",
+      "begin": "^(BR|Br|br)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1447,7 +1449,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"
@@ -1463,7 +1465,7 @@
       "end": "(?=^[ _a-zA-Z]+[ _a-zA-Z0-9]*[:]|[-]{3,})"
     },
     "OtherEntry": {
-      "begin": "^([ _a-zA-Z]+[ _a-zA-Z0-9]*)($|[:])(.*)$",
+      "begin": "^([ _a-zA-Z]+[ _a-zA-Z0-9]*)($|[:])([ ]*)(.*)$",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -1473,7 +1475,7 @@
           "tag": "content",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#InlineString"

@@ -1,9 +1,9 @@
 import { generateSparkJsonData } from "@impower/spark-screenplay/src/index";
 import { GameSparkParser } from "../classes/GameSparkParser";
-import { commandViewProvider } from "../state/commandViewProvider";
+import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getEditor } from "./getEditor";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
+import { getVisibleEditor } from "./getVisibleEditor";
 import { writeFile } from "./writeFile";
 
 export const exportJson = async (): Promise<void> => {
@@ -11,7 +11,7 @@ export const exportJson = async (): Promise<void> => {
   if (!uri) {
     return;
   }
-  const editor = getEditor(uri);
+  const editor = getVisibleEditor(uri);
   if (!editor) {
     return;
   }
@@ -19,11 +19,11 @@ export const exportJson = async (): Promise<void> => {
   if (!fsPath) {
     return;
   }
-  commandViewProvider.notifyExportStarted("json");
+  SparkdownCommandTreeDataProvider.instance.notifyExportStarted("json");
   const sparkdown = editor.document.getText();
   const result = GameSparkParser.instance.parse(sparkdown);
   console.log(result);
   const output = generateSparkJsonData(result);
   await writeFile(fsPath, output);
-  commandViewProvider.notifyExportEnded("json");
+  SparkdownCommandTreeDataProvider.instance.notifyExportEnded("json");
 };

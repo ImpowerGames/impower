@@ -16,7 +16,7 @@ const config = {
   },
   entry: "./game-preview.js",
   output: {
-    path: path.join(__dirname, "../../out/webviews"),
+    path: path.join(__dirname, "../../out/common/webviews"),
     filename: "game-preview.js",
     libraryTarget: "commonjs",
     devtoolModuleFilenameTemplate: "../../[resource-path]",

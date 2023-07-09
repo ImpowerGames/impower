@@ -1,26 +1,28 @@
 import { StructureItem } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
 import { parseState } from "../state/parseState";
-import { getEditor } from "../utils/getEditor";
 import { getSuffixFromState } from "../utils/getSuffixFromState";
+import { getVisibleEditor } from "../utils/getVisibleEditor";
 import { uiPersistence } from "../utils/persistence";
 
 export class SparkdownOutlineTreeDataProvider
   implements vscode.TreeDataProvider<vscode.TreeItem>
 {
+  private static _instance: SparkdownOutlineTreeDataProvider;
+  static get instance(): SparkdownOutlineTreeDataProvider {
+    if (!this._instance) {
+      this._instance = new SparkdownOutlineTreeDataProvider();
+    }
+    return this._instance;
+  }
+
   public readonly onDidChangeTreeDataEmitter: vscode.EventEmitter<vscode.TreeItem | null> =
     new vscode.EventEmitter<vscode.TreeItem | null>();
   public readonly onDidChangeTreeData: vscode.Event<vscode.TreeItem | null> =
     this.onDidChangeTreeDataEmitter.event;
 
   treeView: vscode.TreeView<vscode.TreeItem> | undefined;
-  private treeRoot: OutlineTreeItem | undefined;
-
-  context: vscode.ExtensionContext;
-
-  constructor(context: vscode.ExtensionContext) {
-    this.context = context;
-  }
+  protected _treeRoot: OutlineTreeItem | undefined;
 
   getTreeItem(
     element: vscode.TreeItem
@@ -35,8 +37,8 @@ export class SparkdownOutlineTreeDataProvider
     if (element) {
       return element.children;
     }
-    if (this.treeRoot && this.treeRoot.children) {
-      return this.treeRoot.children;
+    if (this._treeRoot && this._treeRoot.children) {
+      return this._treeRoot.children;
     } else {
       return [];
     }
@@ -154,29 +156,32 @@ export class SparkdownOutlineTreeDataProvider
     return root;
   }
 
-  update(uri?: vscode.Uri): void {
-    const editor = getEditor(uri);
+  update(context: vscode.ExtensionContext, uri?: vscode.Uri): void {
+    const editor = getVisibleEditor(uri);
     const program = editor
       ? parseState.parsedPrograms[editor.document.uri.toString()]
       : parseState.parsedPrograms[parseState.lastParsedUri];
     const structure = program?.metadata?.structure || {};
-    this.treeRoot = this.buildTree(this.context, structure, uri);
+    if (context) {
+      this._treeRoot = this.buildTree(context, structure, uri);
+    }
     this.onDidChangeTreeDataEmitter.fire(null);
   }
+
   reveal(uri?: vscode.Uri): void {
     if (!this.treeView) {
       return;
     }
-    if (!this.treeRoot) {
+    if (!this._treeRoot) {
       return;
     }
-    const editor = getEditor(uri);
+    const editor = getVisibleEditor(uri);
     if (!editor) {
       return;
     }
     const currentCursorLine = editor.selection.active.line;
     // find the closest node without going past the current cursor
-    const closestNode = this.treeRoot
+    const closestNode = this._treeRoot
       .filter((node) => node.lineNumber <= currentCursorLine)
       .sort((a, b) => b.lineNumber - a.lineNumber)[0];
 

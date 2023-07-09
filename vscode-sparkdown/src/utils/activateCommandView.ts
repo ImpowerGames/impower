@@ -1,26 +1,32 @@
 import * as vscode from "vscode";
-import { commandDecorationProvider } from "../state/commandDecorationProvider";
-import { commandViewProvider } from "../state/commandViewProvider";
+import { SparkdownCommandFileDecorationProvider } from "../providers/SparkdownCommandFileDecorationProvider";
+import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { parseState } from "../state/parseState";
 import { exportCsv } from "./exportCsv";
 import { exportHtml } from "./exportHtml";
 import { exportJson } from "./exportJson";
 import { exportPdf } from "./exportPdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getEditor } from "./getEditor";
-import { getSparkdownConfig } from "./getSparkdownConfig";
-import { scrollPreview } from "./scrollPreview";
+import { getVisibleEditor } from "./getVisibleEditor";
 import { shiftScenes } from "./shiftScenes";
 export const activateCommandView = (context: vscode.ExtensionContext): void => {
   // Register Commands view
-  vscode.window.registerTreeDataProvider(
-    "sparkdown-commands",
-    commandViewProvider
+  context.subscriptions.push(
+    vscode.window.registerTreeDataProvider(
+      "sparkdown-commands",
+      SparkdownCommandTreeDataProvider.instance
+    )
   );
-  vscode.window.createTreeView("sparkdown-commands", {
-    treeDataProvider: commandViewProvider,
-  });
-  vscode.window.registerFileDecorationProvider(commandDecorationProvider);
+  context.subscriptions.push(
+    vscode.window.createTreeView("sparkdown-commands", {
+      treeDataProvider: SparkdownCommandTreeDataProvider.instance,
+    })
+  );
+  context.subscriptions.push(
+    vscode.window.registerFileDecorationProvider(
+      SparkdownCommandFileDecorationProvider.instance
+    )
+  );
 
   // Jump to line command
   context.subscriptions.push(
@@ -29,20 +35,13 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
       if (!uri) {
         return;
       }
-      const editor = getEditor(uri);
+      const editor = getVisibleEditor(uri);
       if (!editor) {
         return;
       }
       const range = editor.document.lineAt(Number(args)).range;
       editor.selection = new vscode.Selection(range.start, range.start);
       editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
-      const config = getSparkdownConfig(editor.document.uri);
-      if (config.game_preview_synchronized_with_cursor) {
-        scrollPreview("game", args);
-      }
-      if (config.screenplay_preview_synchronized_with_cursor) {
-        scrollPreview("screenplay", args);
-      }
     })
   );
   context.subscriptions.push(
@@ -70,7 +69,7 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
     if (!uri) {
       return;
     }
-    const editor = getEditor(uri);
+    const editor = getVisibleEditor(uri);
     if (!editor) {
       return;
     }
@@ -101,6 +100,6 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
     )
   );
   const uri = getActiveSparkdownDocument();
-  commandViewProvider.update(uri);
-  commandDecorationProvider.update(uri);
+  SparkdownCommandTreeDataProvider.instance.update(uri);
+  SparkdownCommandFileDecorationProvider.instance.update(uri);
 };

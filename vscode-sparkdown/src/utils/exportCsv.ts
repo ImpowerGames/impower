@@ -1,9 +1,9 @@
 import { generateSparkCsvData } from "@impower/spark-screenplay/src/index";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
-import { commandViewProvider } from "../state/commandViewProvider";
+import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getEditor } from "./getEditor";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
+import { getVisibleEditor } from "./getVisibleEditor";
 import { writeFile } from "./writeFile";
 
 export const exportCsv = async (): Promise<void> => {
@@ -12,7 +12,7 @@ export const exportCsv = async (): Promise<void> => {
   if (!uri) {
     return;
   }
-  const editor = getEditor(uri);
+  const editor = getVisibleEditor(uri);
   if (!editor) {
     return;
   }
@@ -20,7 +20,7 @@ export const exportCsv = async (): Promise<void> => {
   if (!fsPath) {
     return;
   }
-  commandViewProvider.notifyExportStarted("csv");
+  SparkdownCommandTreeDataProvider.instance.notifyExportStarted("csv");
   const sparkdown = editor.document.getText();
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
   const strings = generateSparkCsvData(result);
@@ -30,5 +30,5 @@ export const exportCsv = async (): Promise<void> => {
       resolve();
     });
   });
-  commandViewProvider.notifyExportEnded("csv");
+  SparkdownCommandTreeDataProvider.instance.notifyExportEnded("csv");
 };

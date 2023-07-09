@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { typingState } from "../state/typingState";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getSparkdownConfig } from "./getSparkdownConfig";
+import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 
 export const registerTyping = (): void => {
   try {
@@ -9,7 +9,7 @@ export const registerTyping = (): void => {
     if (!uri) {
       return;
     }
-    const config = getSparkdownConfig(uri);
+    const config = getSparkdownPreviewConfig(uri);
     if (config.editor_parenthetical_newline_helper) {
       typingState.disposeTyping = vscode.commands.registerCommand(
         "type",

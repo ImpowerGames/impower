@@ -7,13 +7,15 @@ export interface TitlePageSpec extends ReplaceSpec {
   tl?: MarkupBlock[];
   tc?: MarkupBlock[];
   tr?: MarkupBlock[];
+  cc?: MarkupBlock[];
   bl?: MarkupBlock[];
   br?: MarkupBlock[];
-  cc?: MarkupBlock[];
 }
 
 export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
-  toDOM() {
+  override toDOM() {
+    const language = this.spec.language;
+    const highlighter = this.spec.highlighter;
     const container = document.createElement("div");
     container.classList.add("cm-line");
     const gridEl = document.createElement("div");
@@ -25,11 +27,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     tlEl.style.gridColumnStart = "1";
     tlEl.style.gridColumnEnd = "3";
     if (this.spec.tl) {
-      tlEl.innerHTML = getFormattedHTML(
-        this.spec.tl,
-        this.spec.language,
-        this.spec.highlighter
-      );
+      tlEl.innerHTML = getFormattedHTML(this.spec.tl, language, highlighter);
     }
     gridEl.appendChild(tlEl);
     const tcEl = document.createElement("div");
@@ -37,11 +35,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     tcEl.style.gridColumnEnd = "5";
     tcEl.style.textAlign = "center";
     if (this.spec.tc) {
-      tcEl.innerHTML = getFormattedHTML(
-        this.spec.tc,
-        this.spec.language,
-        this.spec.highlighter
-      );
+      tcEl.innerHTML = getFormattedHTML(this.spec.tc, language, highlighter);
     }
     gridEl.appendChild(tcEl);
     const trEl = document.createElement("div");
@@ -49,11 +43,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     trEl.style.gridColumnEnd = "7";
     trEl.style.textAlign = "right";
     if (this.spec.tr) {
-      trEl.innerHTML = getFormattedHTML(
-        this.spec.tr,
-        this.spec.language,
-        this.spec.highlighter
-      );
+      trEl.innerHTML = getFormattedHTML(this.spec.tr, language, highlighter);
     }
     gridEl.appendChild(trEl);
     const ccEl = document.createElement("div");
@@ -62,11 +52,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     ccEl.style.textAlign = "center";
     ccEl.style.alignSelf = "center";
     if (this.spec.cc) {
-      ccEl.innerHTML = getFormattedHTML(
-        this.spec.cc,
-        this.spec.language,
-        this.spec.highlighter
-      );
+      ccEl.innerHTML = getFormattedHTML(this.spec.cc, language, highlighter);
     }
     gridEl.appendChild(ccEl);
     const blEl = document.createElement("div");
@@ -74,11 +60,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     blEl.style.gridColumnEnd = "4";
     blEl.style.alignSelf = "end";
     if (this.spec.bl) {
-      blEl.innerHTML = getFormattedHTML(
-        this.spec.bl,
-        this.spec.language,
-        this.spec.highlighter
-      );
+      blEl.innerHTML = getFormattedHTML(this.spec.bl, language, highlighter);
     }
     gridEl.appendChild(blEl);
     const brEl = document.createElement("div");
@@ -87,11 +69,7 @@ export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {
     brEl.style.textAlign = "right";
     brEl.style.alignSelf = "end";
     if (this.spec.br) {
-      brEl.innerHTML = getFormattedHTML(
-        this.spec.br,
-        this.spec.language,
-        this.spec.highlighter
-      );
+      brEl.innerHTML = getFormattedHTML(this.spec.br, language, highlighter);
     }
     gridEl.appendChild(brEl);
     container.appendChild(gridEl);

@@ -1,16 +1,16 @@
 import * as vscode from "vscode";
-import { previewState } from "../state/previewState";
+import { SparkdownPreviewScreenplayPanelManager } from "../providers/SparkdownPreviewScreenplayPanelManager";
 
 /**
  * Get the relevant sparkdown document for the currently selected preview or text editor
  */
 export const getActiveSparkdownDocument = (): vscode.Uri | undefined => {
   //first check if any previews have focus
-  const previews = Object.values(previewState).flatMap((x) => x);
-  for (let i = 0; i < previews.length; i++) {
-    const preview = previews[i];
-    if (preview?.panel.active) {
-      return vscode.Uri.parse(preview.uri);
+  const panels = SparkdownPreviewScreenplayPanelManager.instance.getAllPanels();
+  for (let i = 0; i < panels.length; i++) {
+    const [uri, panel] = panels[i]!;
+    if (panel.active) {
+      return vscode.Uri.parse(uri);
     }
   }
   //no previews were active, is activeTextEditor a sparkdown document?

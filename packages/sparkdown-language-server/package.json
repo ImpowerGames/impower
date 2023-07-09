@@ -1,13 +1,25 @@
 {
-  "name": "sparkdown-language-server",
+  "name": "@impower/sparkdown-language-server",
   "description": "A language server for sparkdown.",
   "version": "1.0.0",
   "type": "module",
   "engines": {
     "node": "*"
   },
+  "exports": {
+    ".": {
+      "require": "./dist/sparkdown-language-server.js",
+      "import": "./dist/sparkdown-language-server.js"
+    },
+    "./*": {
+      "require": "./dist/*",
+      "import": "./dist/*"
+    }
+  },
+  "main": "dist/sparkdown-language-server.js",
   "scripts": {
-    "build": "node ./esbuild.js"
+    "build": "node ./esbuild.js",
+    "postinstall": "node ./esbuild.js"
   },
   "dependencies": {
     "@impower/spark-evaluate": "file:../spark-evaluate",

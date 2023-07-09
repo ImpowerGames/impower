@@ -7,7 +7,10 @@ import { updateAssets } from "./updateAssets";
 import { updateCommands } from "./updateCommands";
 import { updateGamePreviews } from "./updateGamePreviews";
 
-export const watchFiles = (doc: vscode.TextDocument) => {
+export const watchFiles = (
+  context: vscode.ExtensionContext,
+  doc: vscode.TextDocument
+) => {
   const uri = doc.uri;
   const state = fileSystemWatcherState[uri.toString()] || {
     assetsWatcher: undefined,
@@ -21,17 +24,17 @@ export const watchFiles = (doc: vscode.TextDocument) => {
         vscode.workspace.createFileSystemWatcher(relativePath);
       state.assetsWatcher.onDidChange(async () => {
         await updateAssets(doc);
-        parseSparkDocument(doc);
+        parseSparkDocument(context, doc);
         updateGamePreviews(doc);
       });
       state.assetsWatcher.onDidCreate(async () => {
         await updateAssets(doc);
-        parseSparkDocument(doc);
+        parseSparkDocument(context, doc);
         updateGamePreviews(doc);
       });
       state.assetsWatcher.onDidDelete(async () => {
         await updateAssets(doc);
-        parseSparkDocument(doc);
+        parseSparkDocument(context, doc);
         updateGamePreviews(doc);
       });
     }

@@ -4,6 +4,14 @@ import { getStateFromSuffix } from "../utils/getStateFromSuffix";
 export class SparkdownOutlineFileDecorationProvider
   implements vscode.FileDecorationProvider
 {
+  private static _instance: SparkdownOutlineFileDecorationProvider;
+  static get instance(): SparkdownOutlineFileDecorationProvider {
+    if (!this._instance) {
+      this._instance = new SparkdownOutlineFileDecorationProvider();
+    }
+    return this._instance;
+  }
+
   public readonly onDidChangeFileDecorationsEmitter: vscode.EventEmitter<
     undefined | vscode.Uri | vscode.Uri[]
   > = new vscode.EventEmitter<undefined | vscode.Uri | vscode.Uri[]>();
@@ -34,7 +42,7 @@ export class SparkdownOutlineFileDecorationProvider
           color: new vscode.ThemeColor(
             "gitDecoration.deletedResourceForeground"
           ),
-          badge: "!",
+          badge: "×",
         };
       }
       if (state === "warning") {
@@ -43,7 +51,7 @@ export class SparkdownOutlineFileDecorationProvider
           color: new vscode.ThemeColor(
             "gitDecoration.modifiedResourceForeground"
           ),
-          badge: "?",
+          badge: "!",
         };
       }
       if (state === "info") {

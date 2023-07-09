@@ -2,21 +2,23 @@
   <s-box bg-color="black" grow>
     <s-box position="relative" grow>
       <s-router directional>
-        <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header" value="game">
+        <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header"
+          value="screenplay">
           <s-box bg-color="panel" position="absolute" i="0 0 0 0" height="100vh" translate-y="-100%"></s-box>
           <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row"
-            icon="joystick" value="game" active>
-            Game
-          </s-tab>
-          <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row"
-            icon="file-description" value="screenplay">
+            icon="file-description" value="screenplay" active>
             Screenplay
           </s-tab>
+          <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row"
+            icon="joystick" value="game">
+            Game
+          </s-tab>
         </s-tabs>
-        <template value="game">
-        </template>
+        <sparkdown-script-preview content-padding="0 0 68px 0"></sparkdown-script-preview>
         <template value="screenplay">
           <sparkdown-script-preview content-padding="0 0 68px 0"></sparkdown-script-preview>
+        </template>
+        <template value="game">
         </template>
       </s-router>
     </s-box>

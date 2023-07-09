@@ -1,8 +1,4 @@
 export interface SparkScreenplayConfig {
-  game_preview_synchronized_with_cursor?: boolean;
-  screenplay_preview_synchronized_with_cursor?: boolean;
-  screenplay_preview_theme?: string;
-  screenplay_preview_texture?: boolean;
   screenplay_print_scene_headers_bold?: boolean;
   screenplay_print_sections?: boolean;
   screenplay_print_synopses?: boolean;
@@ -20,6 +16,4 @@ export interface SparkScreenplayConfig {
   screenplay_print_watermark?: string;
   screenplay_print_bookmarks?: boolean;
   screenplay_print_bookmarks_for_invisible_sections?: boolean;
-  editor_parenthetical_newline_helper?: boolean;
-  editor_refresh_stats_on_save?: boolean;
 }

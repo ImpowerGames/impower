@@ -15,7 +15,7 @@ import {
 } from "vscode-languageserver-protocol";
 
 import { languageClientConfig } from "../extensions/languageClient";
-import { DidParseParams } from "../types/DidParseTextDocument";
+import { DidParseTextDocumentParams } from "../types/DidParseTextDocument";
 import { getClientCompletionInfo } from "../utils/getClientCompletionInfo";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
 import { getClientDiagnostics } from "../utils/getClientDiagnostics";
@@ -106,8 +106,8 @@ export default class LanguageClientPluginValue implements PluginValue {
     this.updateDiagnostics(this._view, params.diagnostics);
   };
 
-  handleParse = async (params: DidParseParams) => {
-    if (params.uri !== this._textDocument.uri) {
+  handleParse = async (params: DidParseTextDocumentParams) => {
+    if (params.textDocument.uri !== this._textDocument.uri) {
       return;
     }
     this.updateFoldingRanges(this._view);

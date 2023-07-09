@@ -8,7 +8,7 @@ export interface CenteredSpec extends ReplaceSpec {
 }
 
 export default class CenteredWidget extends ReplaceWidget<CenteredSpec> {
-  toDOM() {
+  override toDOM() {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.textAlign = "center";

@@ -30,8 +30,8 @@ import {
 } from "vscode-languageserver-protocol";
 
 import {
-  DidParseParams,
   DidParseTextDocument,
+  DidParseTextDocumentParams,
 } from "../types/DidParseTextDocument";
 import { LanguageClientOptions } from "../types/LanguageClientOptions";
 import ConsoleLogger from "./ConsoleLogger";
@@ -176,7 +176,7 @@ export default class LanguageServerConnection {
     return this._publishDiagnosticsEvent;
   }
 
-  protected _parseEvent = new Event<DidParseParams>();
+  protected _parseEvent = new Event<DidParseTextDocumentParams>();
   get parseEvent() {
     return this._parseEvent;
   }

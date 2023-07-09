@@ -42,11 +42,11 @@ const webExtensionConfig = {
       // Webpack 5 no longer polyfills Node.js core modules automatically.
       // see https://webpack.js.org/configuration/resolve/#resolvefallback
       // for the list of Node.js core module polyfills.
-      assert: require.resolve("assert/"),
-      buffer: require.resolve("buffer/"),
       child_process: false,
       crypto: false,
       fs: false,
+      assert: require.resolve("assert/"),
+      buffer: require.resolve("buffer/"),
       os: require.resolve("os-browserify/browser"),
       path: require.resolve("path-browserify"),
       stream: require.resolve("readable-stream"),
@@ -59,11 +59,10 @@ const webExtensionConfig = {
       {
         test: /\.ts$/,
         exclude: /node_modules/,
-        use: [
-          {
-            loader: "ts-loader",
-          },
-        ],
+        loader: "esbuild-loader",
+        options: {
+          target: "es2020",
+        },
       },
       // bundle and load afm font files verbatim
       { test: /\.afm$/, type: "asset/source" },
@@ -101,9 +100,12 @@ const webExtensionConfig = {
     }),
     new CopyPlugin({
       patterns: [
-        { from: "src/webviews", to: "webviews" },
-        { from: "src/data", to: "data" },
+        { from: "data", to: "data" },
         { from: "node_modules/@vscode/codicons/dist", to: "data" },
+        {
+          from: "node_modules/@impower/sparkdown-language-server/dist",
+          to: "workers",
+        },
       ],
     }),
   ],

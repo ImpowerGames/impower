@@ -38,6 +38,7 @@ const PREVIEW_THEME: {
       inset: "0 -96px", // 96px ≈ 1 inch
       backgroundColor: "rgb(235, 234, 232)",
       backgroundImage: "var(--screenplay-preview-texture)",
+      zIndex: "-1",
     },
   },
   ".cm-lineWrapping": {

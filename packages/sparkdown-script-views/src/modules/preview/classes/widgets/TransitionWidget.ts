@@ -8,7 +8,7 @@ export interface TransitionSpec extends ReplaceSpec {
 }
 
 export default class TransitionWidget extends ReplaceWidget<TransitionSpec> {
-  toDOM() {
+  override toDOM() {
     const container = document.createElement("div");
     container.classList.add("cm-line");
     container.style.textAlign = "right";

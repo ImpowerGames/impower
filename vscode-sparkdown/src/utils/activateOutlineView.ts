@@ -1,28 +1,24 @@
 import * as vscode from "vscode";
+import { SparkdownOutlineFileDecorationProvider } from "../providers/SparkdownOutlineFileDecorationProvider";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
-import { SparkdownSymbolProvider } from "../providers/Symbols";
-import { outlineDecorationProvider } from "../state/outlineDecorationProvider";
-import { outlineViewProviderState } from "../state/outlineViewProviderState";
+import { SparkdownSymbolProvider } from "../providers/SparkdownSymbolProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { changeSparkdownUIPersistence, uiPersistence } from "./persistence";
 
 export const activateOutlineView = (context: vscode.ExtensionContext): void => {
-  if (!outlineViewProviderState.provider) {
-    outlineViewProviderState.provider = new SparkdownOutlineTreeDataProvider(
-      context
-    );
-  }
-  const outlineViewProvider = outlineViewProviderState.provider;
   // Register Outline view
   vscode.window.registerTreeDataProvider(
     "sparkdown-outline",
-    outlineViewProvider
+    SparkdownOutlineTreeDataProvider.instance
   );
-  outlineViewProvider.treeView = vscode.window.createTreeView(
-    "sparkdown-outline",
-    { treeDataProvider: outlineViewProvider, showCollapseAll: true }
+  SparkdownOutlineTreeDataProvider.instance.treeView =
+    vscode.window.createTreeView("sparkdown-outline", {
+      treeDataProvider: SparkdownOutlineTreeDataProvider.instance,
+      showCollapseAll: true,
+    });
+  vscode.window.registerFileDecorationProvider(
+    SparkdownOutlineFileDecorationProvider.instance
   );
-  vscode.window.registerFileDecorationProvider(outlineDecorationProvider);
 
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.outline.visibleitems", () => {
@@ -86,7 +82,7 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
           visibleSynopses
         );
         const uri = getActiveSparkdownDocument();
-        outlineViewProvider.update(uri);
+        SparkdownOutlineTreeDataProvider.instance.update(context, uri);
       });
       quickPick.show();
     })
@@ -94,15 +90,17 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.outline.reveal", () => {
       const uri = getActiveSparkdownDocument();
-      outlineViewProvider.reveal(uri);
+      SparkdownOutlineTreeDataProvider.instance.reveal(uri);
     })
   );
   //Setup symbols (outline)
-  vscode.languages.registerDocumentSymbolProvider(
-    { language: "sparkdown" },
-    new SparkdownSymbolProvider()
+  context.subscriptions.push(
+    vscode.languages.registerDocumentSymbolProvider(
+      { language: "sparkdown" },
+      new SparkdownSymbolProvider()
+    )
   );
 
   const uri = getActiveSparkdownDocument();
-  outlineDecorationProvider.update(uri);
+  SparkdownOutlineFileDecorationProvider.instance.update(uri);
 };

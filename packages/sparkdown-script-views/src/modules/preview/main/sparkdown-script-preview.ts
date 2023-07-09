@@ -1,5 +1,14 @@
 import { EditorView } from "@codemirror/view";
-import { Range } from "vscode-languageserver-protocol";
+import {
+  DidChangeTextDocument,
+  DidOpenTextDocument,
+  FocusedEditor,
+  HoveredOffPreview,
+  HoveredOnPreview,
+  ScrolledEditor,
+  ScrolledPreview,
+  TextDocumentIdentifier,
+} from "@impower/spark-editor-protocol/src";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
@@ -10,13 +19,7 @@ import css from "./sparkdown-script-preview.css";
 import html from "./sparkdown-script-preview.html";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap([
-    "editor-edited-event",
-    "editor-scrolled-event",
-    "preview-scrolled-event",
-    "focused-line-event",
-    "content-padding",
-  ]),
+  ...getAttributeNameMap(["content-padding"]),
 };
 
 export default class SparkScreenplayPreview
@@ -43,82 +46,6 @@ export default class SparkScreenplayPreview
     return css;
   }
 
-  /**
-   * The event that this component will listen for to update the screenplay.
-   *
-   * Defaults to `editor-edited`
-   */
-  get editorEditedEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkScreenplayPreview.attributes.editorEditedEvent
-      ) || "editor-edited"
-    );
-  }
-  set editorEditedEvent(value) {
-    this.setStringAttribute(
-      SparkScreenplayPreview.attributes.editorEditedEvent,
-      value
-    );
-  }
-
-  /**
-   * The event that this component will listen for that fires when the editor is scrolled.
-   *
-   * Defaults to `editor-edited`
-   */
-  get editorScrolledEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkScreenplayPreview.attributes.editorScrolledEvent
-      ) || "editor-scrolled"
-    );
-  }
-  set editorScrolledEvent(value) {
-    this.setStringAttribute(
-      SparkScreenplayPreview.attributes.editorScrolledEvent,
-      value
-    );
-  }
-
-  /**
-   * The event that this component will fire when the user scrolls the screenplay.
-   *
-   * Defaults to `preview-scrolled`
-   */
-  get previewScrolledEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkScreenplayPreview.attributes.previewScrolledEvent
-      ) || "preview-scrolled"
-    );
-  }
-  set previewScrolledEvent(value) {
-    this.setStringAttribute(
-      SparkScreenplayPreview.attributes.previewScrolledEvent,
-      value
-    );
-  }
-
-  /**
-   * The event this component fires when the user focuses a line in the screenplay.
-   *
-   * Defaults to `focused-line`
-   */
-  get focusedLineEvent(): string {
-    return (
-      this.getStringAttribute(
-        SparkScreenplayPreview.attributes.focusedLineEvent
-      ) || "focused-line"
-    );
-  }
-  set focusedLineEvent(value) {
-    this.setStringAttribute(
-      SparkScreenplayPreview.attributes.focusedLineEvent,
-      value
-    );
-  }
-
   get contentPadding() {
     return this.getStringAttribute(
       SparkScreenplayPreview.attributes.contentPadding
@@ -135,34 +62,21 @@ export default class SparkScreenplayPreview
     return this.getElementByClass("editor");
   }
 
-  get scrollerEl() {
-    return this.getElementByClass("cm-scroller");
-  }
+  protected _textDocument?: TextDocumentIdentifier;
 
   protected _view?: EditorView;
 
   protected _resizeObserver?: ResizeObserver;
 
-  protected _firstVisibleLine = 0;
+  protected _startVisibleLineNumber = 0;
 
-  protected _lastVisibleLine = 0;
+  protected _endVisibleLineNumber = 0;
 
   protected _scrollTop = 0;
 
   protected _viewportHeight = 0;
 
   protected _pointerOverScroller = false;
-
-  emit(event: string, detail: any) {
-    this.dispatchEvent(
-      new CustomEvent(event, {
-        bubbles: true,
-        cancelable: false,
-        composed: true,
-        detail,
-      })
-    );
-  }
 
   protected override onConnected(): void {
     const editorEl = this.editorEl;
@@ -172,23 +86,20 @@ export default class SparkScreenplayPreview
         contentPadding,
       });
     }
+    window.addEventListener("message", this.handleMessage);
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
-    window.addEventListener(this.editorEditedEvent, this.handleEdited);
-    window.addEventListener(
-      this.editorScrolledEvent,
-      this.handleEditorScrolled
-    );
   }
 
   protected override onParsed(): void {
-    if (this.scrollerEl) {
-      this._resizeObserver?.observe(this.scrollerEl);
-      this.scrollerEl?.addEventListener("scroll", this.handlePointerScroll);
-      this.scrollerEl?.addEventListener(
+    const view = this._view;
+    if (view) {
+      this._resizeObserver?.observe(view.scrollDOM);
+      view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
+      view.scrollDOM.addEventListener(
         "pointerenter",
         this.handlePointerEnterScroller
       );
-      this.scrollerEl?.addEventListener(
+      view.scrollDOM.addEventListener(
         "pointerleave",
         this.handlePointerLeaveScroller
       );
@@ -196,35 +107,80 @@ export default class SparkScreenplayPreview
   }
 
   protected override onDisconnected(): void {
+    window.removeEventListener("message", this.handleMessage);
     this._resizeObserver?.disconnect();
-    window.removeEventListener(this.editorEditedEvent, this.handleEdited);
-    window.removeEventListener(
-      this.editorScrolledEvent,
-      this.handleEditorScrolled
-    );
-    this.scrollerEl?.removeEventListener("scroll", this.handlePointerScroll);
-    this.scrollerEl?.removeEventListener(
-      "pointerenter",
-      this.handlePointerEnterScroller
-    );
-    this.scrollerEl?.removeEventListener(
-      "pointerleave",
-      this.handlePointerLeaveScroller
-    );
+    const view = this._view;
+    if (view) {
+      view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
+      view.scrollDOM.removeEventListener(
+        "pointerenter",
+        this.handlePointerEnterScroller
+      );
+      view.scrollDOM.removeEventListener(
+        "pointerleave",
+        this.handlePointerLeaveScroller
+      );
+    }
   }
 
-  protected handleEdited = (e: Event): void => {
-    if (e instanceof CustomEvent && e.detail) {
-      const detail = e.detail;
-      const transaction = detail;
-      const contentChanges: { range?: Range; text: string }[] =
-        detail.contentChanges;
+  protected handleMessage = (e: MessageEvent): void => {
+    const message = e.data;
+    if (DidOpenTextDocument.is(message)) {
+      const params = message.params;
+      const textDocument = params.textDocument;
+      this._textDocument = textDocument;
       const view = this._view;
-      if (view && transaction) {
+      if (view) {
         const doc = view.state.doc;
-        const changes = getClientChanges(doc, contentChanges);
-        const transaction = { changes };
-        view.dispatch(transaction);
+        view.dispatch({
+          changes: [
+            {
+              from: 0,
+              to: doc.length,
+              insert: textDocument.text,
+            },
+          ],
+        });
+      }
+    }
+    if (DidChangeTextDocument.is(message)) {
+      const params = message.params;
+      const textDocument = params.textDocument;
+      if (textDocument.uri === this._textDocument?.uri) {
+        const contentChanges = params.contentChanges;
+        const view = this._view;
+        if (view) {
+          const doc = view.state.doc;
+          const changes = getClientChanges(doc, contentChanges);
+          view.dispatch({ changes });
+        }
+      }
+    }
+    if (FocusedEditor.is(message)) {
+      const params = message.params;
+      const textDocument = params.textDocument;
+      this._textDocument = textDocument;
+    }
+    if (ScrolledEditor.is(message)) {
+      const params = message.params;
+      const textDocument = params.textDocument;
+      if (textDocument.uri === this._textDocument?.uri) {
+        const view = this._view;
+        if (view) {
+          const doc = view.state.doc;
+          const startLineNumber = params.range.start.line + 1;
+          const endLineNumber = params.range.end.line + 1;
+          if (endLineNumber === doc.lines) {
+            view.scrollDOM.scrollTop = Number.MAX_SAFE_INTEGER;
+          } else {
+            const pos = doc.line(Math.max(1, startLineNumber)).from;
+            view.dispatch({
+              effects: EditorView.scrollIntoView(pos, {
+                y: "start",
+              }),
+            });
+          }
+        }
       }
     }
   };
@@ -239,10 +195,24 @@ export default class SparkScreenplayPreview
 
   protected handlePointerEnterScroller = (): void => {
     this._pointerOverScroller = true;
+    if (this._textDocument) {
+      window.postMessage(
+        HoveredOnPreview.create({
+          textDocument: this._textDocument,
+        })
+      );
+    }
   };
 
   protected handlePointerLeaveScroller = (): void => {
     this._pointerOverScroller = false;
+    if (this._textDocument) {
+      window.postMessage(
+        HoveredOffPreview.create({
+          textDocument: this._textDocument,
+        })
+      );
+    }
   };
 
   protected handlePointerScroll = (e: Event): void => {
@@ -250,59 +220,40 @@ export default class SparkScreenplayPreview
       const scrollEl = e.target as HTMLElement;
       const scrollTop =
         scrollEl?.scrollTop != null ? scrollEl?.scrollTop : window.scrollY;
-      const scrollDirection = scrollTop - this._scrollTop;
       this._scrollTop = scrollTop;
       const scrollBottom = scrollTop + this._viewportHeight;
       const view = this._view;
       if (view) {
         const doc = view.state.doc;
         const firstVisibleLineFrom = view.lineBlockAtHeight(scrollTop).from;
-        const firstVisibleLine: number | undefined =
-          doc.lineAt(firstVisibleLineFrom).number;
+        const startLine = doc.lineAt(firstVisibleLineFrom);
+        const startLineNumber: number | undefined = startLine.number;
         const lastVisibleLineFrom = view.lineBlockAtHeight(scrollBottom).from;
-        const lastVisibleLine = doc.lineAt(lastVisibleLineFrom).number;
+        const endLine = doc.lineAt(lastVisibleLineFrom);
+        const endLineNumber = endLine.number;
+        const endLineLength = endLine.to - endLine.from;
         if (
-          firstVisibleLine !== this._firstVisibleLine ||
-          lastVisibleLine !== this._lastVisibleLine
+          startLineNumber !== this._startVisibleLineNumber ||
+          endLineNumber !== this._endVisibleLineNumber
         ) {
-          this._firstVisibleLine = firstVisibleLine;
-          this._lastVisibleLine = lastVisibleLine;
-          this.emit(this.previewScrolledEvent, {
-            firstVisibleLine,
-            lastVisibleLine,
-            scrollDirection,
-          });
-        }
-      }
-    }
-  };
-
-  protected handleEditorScrolled = (e: Event): void => {
-    if (!this._pointerOverScroller) {
-      if (e instanceof CustomEvent && e.detail) {
-        const detail = e.detail;
-        const firstVisibleLine = detail.firstVisibleLine;
-        const lastVisibleLine = detail.lastVisibleLine;
-        if (this._view) {
-          const doc = this._view.state.doc;
-          if (lastVisibleLine === doc.lines) {
-            if (lastVisibleLine >= 1 && lastVisibleLine <= doc.lines) {
-              const pos = doc.line(lastVisibleLine).to;
-              this._view.dispatch({
-                effects: EditorView.scrollIntoView(pos, {
-                  y: "end",
-                }),
-              });
-            }
-          } else {
-            if (firstVisibleLine >= 1 && firstVisibleLine <= doc.lines) {
-              const pos = doc.line(firstVisibleLine).from;
-              this._view.dispatch({
-                effects: EditorView.scrollIntoView(pos, {
-                  y: "start",
-                }),
-              });
-            }
+          this._startVisibleLineNumber = startLineNumber;
+          this._endVisibleLineNumber = endLineNumber;
+          if (this._textDocument) {
+            window.postMessage(
+              ScrolledPreview.create({
+                textDocument: this._textDocument,
+                range: {
+                  start: {
+                    line: startLineNumber - 1,
+                    character: 0,
+                  },
+                  end: {
+                    line: endLineNumber - 1,
+                    character: Math.max(0, endLineLength - 1),
+                  },
+                },
+              })
+            );
           }
         }
       }

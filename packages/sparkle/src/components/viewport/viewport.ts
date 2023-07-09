@@ -121,18 +121,7 @@ export default class Viewport
         passive: true,
       }
     );
-    const constrainedEvent = this.constrainedEvent;
-    if (constrainedEvent) {
-      window.addEventListener(constrainedEvent, this.handleConstrained, {
-        passive: true,
-      });
-    }
-    const unconstrainedEvent = this.unconstrainedEvent;
-    if (unconstrainedEvent) {
-      window.addEventListener(unconstrainedEvent, this.handleUnconstrained, {
-        passive: true,
-      });
-    }
+    window.addEventListener("message", this.handleMessage);
   }
 
   protected override onDisconnected(): void {
@@ -144,30 +133,24 @@ export default class Viewport
       "resize",
       this.handleViewportChange
     );
-    const constrainedEvent = this.constrainedEvent;
-    if (constrainedEvent) {
-      window.removeEventListener(constrainedEvent, this.handleConstrained);
-    }
-    const unconstrainedEvent = this.unconstrainedEvent;
-    if (unconstrainedEvent) {
-      window.removeEventListener(unconstrainedEvent, this.handleUnconstrained);
-    }
+    window.removeEventListener("message", this.handleMessage);
   }
 
-  handleConstrained = () => {
-    this._constrained = true;
-    if (window.visualViewport) {
-      const maxHeight = `${window.visualViewport.height - this._offsetPx}px`;
-      this.root.style.setProperty("max-height", maxHeight);
+  protected handleMessage = (e: MessageEvent): void => {
+    if (e.data.method === this.unconstrainedEvent) {
+      this._constrained = false;
+      this.root.style.setProperty("max-height", null);
+    }
+    if (e.data.method === this.constrainedEvent) {
+      this._constrained = true;
+      if (window.visualViewport) {
+        const maxHeight = `${window.visualViewport.height - this._offsetPx}px`;
+        this.root.style.setProperty("max-height", maxHeight);
+      }
     }
   };
 
-  handleUnconstrained = () => {
-    this._constrained = false;
-    this.root.style.setProperty("max-height", null);
-  };
-
-  handleViewportChange = (event: Event) => {
+  protected handleViewportChange = (event: Event) => {
     if (this._pendingViewportUpdate) {
       window.cancelAnimationFrame(this._pendingViewportUpdate);
     }

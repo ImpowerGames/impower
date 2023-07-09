@@ -3,7 +3,7 @@ import { NodeType } from "@lezer/common";
 import { Tag, highlightTree } from "@lezer/highlight";
 import { MarkupBlock } from "../types/MarkupBlock";
 
-const getSyntaxHighlightedHtml = (
+export const getSyntaxHighlightedHtml = (
   str: string,
   language: Language,
   highlighter: {
@@ -27,7 +27,7 @@ const getSyntaxHighlightedHtml = (
   return html;
 };
 
-const getMarkupHtml = (
+export const getMarkupHtml = (
   m: MarkupBlock,
   language: Language,
   highlighter: {
@@ -35,10 +35,9 @@ const getMarkupHtml = (
     scope?(node: NodeType): boolean;
   }
 ) => {
-  const content = m.markdown
+  return m.markdown
     ? getSyntaxHighlightedHtml(m.value, language, highlighter)
     : m.value;
-  return `<div style="margin:${m.margin ?? 0}">${content}</div>`;
 };
 
 const getFormattedHTML = (
@@ -49,7 +48,12 @@ const getFormattedHTML = (
     scope?(node: NodeType): boolean;
   }
 ) => {
-  return lines.map((m) => getMarkupHtml(m, language, highlighter)).join("");
+  return lines
+    .map((m) => {
+      const content = getMarkupHtml(m, language, highlighter);
+      return `<div style="margin:${m.margin ?? 0}">${content}</div>`;
+    })
+    .join("");
 };
 
 export default getFormattedHTML;

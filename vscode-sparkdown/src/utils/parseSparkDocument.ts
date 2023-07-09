@@ -2,12 +2,13 @@ import * as vscode from "vscode";
 import { GameSparkParser } from "../classes/GameSparkParser";
 import { fileState } from "../state/fileState";
 import { parseState } from "../state/parseState";
-import { updateGamePreviews } from "./updateGamePreviews";
 import { updateOutline } from "./updateOutline";
-import { updateScreenplayPreviews } from "./updateScreenplayPreviews";
 import { updateStatus } from "./updateStatus";
 
-export const parseSparkDocument = (document: vscode.TextDocument) => {
+export const parseSparkDocument = (
+  context: vscode.ExtensionContext,
+  document: vscode.TextDocument
+) => {
   performance.mark("parseSparkDocument-start");
   const structs = fileState[document.uri.toString()]?.assets;
   const program = GameSparkParser.instance.parse(document.getText(), {
@@ -15,9 +16,8 @@ export const parseSparkDocument = (document: vscode.TextDocument) => {
   });
   parseState.lastParsedUri = document.uri.toString();
   parseState.parsedPrograms[parseState.lastParsedUri] = program;
-  updateScreenplayPreviews(document);
-  updateGamePreviews(document);
-  updateOutline(document);
+  // TODO: updateGamePreviews(document);
+  updateOutline(context, document);
   updateStatus(
     program?.metadata?.actionDuration || 0,
     program?.metadata?.dialogueDuration || 0

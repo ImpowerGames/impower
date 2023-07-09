@@ -1,10 +1,18 @@
 import * as vscode from "vscode";
 import { fileStat } from "../utils/fileStat";
-import { getEditor } from "../utils/getEditor";
+import { getVisibleEditor } from "../utils/getVisibleEditor";
 
 export class SparkdownCommandFileDecorationProvider
   implements vscode.FileDecorationProvider
 {
+  private static _instance: SparkdownCommandFileDecorationProvider;
+  static get instance(): SparkdownCommandFileDecorationProvider {
+    if (!this._instance) {
+      this._instance = new SparkdownCommandFileDecorationProvider();
+    }
+    return this._instance;
+  }
+
   public readonly onDidChangeFileDecorationsEmitter: vscode.EventEmitter<
     undefined | vscode.Uri | vscode.Uri[]
   > = new vscode.EventEmitter<undefined | vscode.Uri | vscode.Uri[]>();
@@ -67,7 +75,7 @@ export class SparkdownCommandFileDecorationProvider
     this.uris = {};
     this._commandUris = {};
     this._commandStats = {};
-    const editor = getEditor(uri);
+    const editor = getVisibleEditor(uri);
     if (uri && editor) {
       const filename = editor.document.fileName.replace(/(\.[^.]*)$/, "");
       this._commandUris.pdf = vscode.Uri.file(`${filename}.pdf`);

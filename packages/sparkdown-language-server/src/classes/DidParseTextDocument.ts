@@ -5,17 +5,19 @@ import {
   ProtocolNotificationType,
 } from "vscode-languageserver";
 
-export interface DidParseParams {
-  /**
-   * The URI for which diagnostic information is reported.
-   */
-  uri: DocumentUri;
-  /**
-   * Optional the version number of the document the diagnostics are published for.
-   *
-   * @since 3.15.0
-   */
-  version?: number;
+export interface DidParseTextDocumentParams {
+  textDocument: {
+    /**
+     * The URI for which diagnostic information is reported.
+     */
+    uri: DocumentUri;
+    /**
+     * Optional the version number of the document the diagnostics are published for.
+     *
+     * @since 3.15.0
+     */
+    version?: number;
+  };
   /**
    * The parsed program for the text document.
    */
@@ -25,8 +27,8 @@ export interface DidParseParams {
 export class DidParseTextDocument {
   static readonly method = "textDocument/didParse";
   static readonly messageDirection = MessageDirection.serverToClient;
-  static readonly type: ProtocolNotificationType<DidParseParams, void> =
-    new ProtocolNotificationType<DidParseParams, void>(
-      DidParseTextDocument.method
-    );
+  static readonly type = new ProtocolNotificationType<
+    DidParseTextDocumentParams,
+    void
+  >(DidParseTextDocument.method);
 }

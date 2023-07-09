@@ -1,6 +1,6 @@
 export const suffixes = {
-  error: "#!",
-  warning: "#?",
+  error: "#e",
+  warning: "#w",
   info: "#i",
   "": "",
 };
