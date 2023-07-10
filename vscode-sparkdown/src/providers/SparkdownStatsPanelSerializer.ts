@@ -2,8 +2,8 @@ import { SparkScreenplayConfig } from "@impower/spark-screenplay/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
 import { parseState } from "../state/parseState";
+import { getEditor } from "../utils/getEditor";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
-import { getVisibleEditor } from "../utils/getVisibleEditor";
 import { getWebviewUri } from "../utils/getWebviewUri";
 import { readTextFile } from "../utils/readTextFile";
 import { retrieveScreenPlayStatistics } from "../utils/statistics";
@@ -151,7 +151,7 @@ async function loadWebView(
     content: config,
   });
 
-  const activeEditor = getVisibleEditor(docuri);
+  const activeEditor = getEditor(docuri);
   if (!activeEditor) {
     return;
   }
@@ -159,7 +159,7 @@ async function loadWebView(
   statspanel.webview.onDidReceiveMessage(async (message) => {
     if (message.command === "sparkdown.revealLine") {
       const sourceLine = message.content;
-      let editor = getVisibleEditor(vscode.Uri.parse(message.uri));
+      let editor = getEditor(vscode.Uri.parse(message.uri));
       if (editor === undefined) {
         const doc = await vscode.workspace.openTextDocument(
           vscode.Uri.parse(message.uri)
@@ -186,7 +186,7 @@ async function loadWebView(
     if (message.command === "sparkdown.selectLines") {
       const startline = Math.floor(message.content.start);
       const endline = Math.floor(message.content.end);
-      let editor = getVisibleEditor(vscode.Uri.parse(message.uri));
+      let editor = getEditor(vscode.Uri.parse(message.uri));
       if (!editor) {
         const doc = await vscode.workspace.openTextDocument(
           vscode.Uri.parse(message.uri)

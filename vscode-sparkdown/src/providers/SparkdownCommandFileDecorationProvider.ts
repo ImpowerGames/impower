@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { fileStat } from "../utils/fileStat";
-import { getVisibleEditor } from "../utils/getVisibleEditor";
+import { getEditor } from "../utils/getEditor";
 
 export class SparkdownCommandFileDecorationProvider
   implements vscode.FileDecorationProvider
@@ -75,7 +75,7 @@ export class SparkdownCommandFileDecorationProvider
     this.uris = {};
     this._commandUris = {};
     this._commandStats = {};
-    const editor = getVisibleEditor(uri);
+    const editor = getEditor(uri);
     if (uri && editor) {
       const filename = editor.document.fileName.replace(/(\.[^.]*)$/, "");
       this._commandUris.pdf = vscode.Uri.file(`${filename}.pdf`);

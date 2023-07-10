@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
 import { createFileExportTreeItem } from "../utils/createFileExportTreeItem";
 import { fileStat } from "../utils/fileStat";
-import { getVisibleEditor } from "../utils/getVisibleEditor";
+import { getEditor } from "../utils/getEditor";
 
 export class SparkdownCommandTreeDataProvider
   implements vscode.TreeDataProvider<vscode.TreeItem>
@@ -148,7 +148,7 @@ export class SparkdownCommandTreeDataProvider
     if (!uri) {
       return;
     }
-    const editor = getVisibleEditor(uri);
+    const editor = getEditor(uri);
     if (!editor) {
       return;
     }

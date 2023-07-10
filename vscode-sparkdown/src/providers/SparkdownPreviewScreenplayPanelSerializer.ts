@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { getVisibleEditor } from "../utils/getVisibleEditor";
+import { getEditor } from "../utils/getEditor";
 import { SparkdownPreviewScreenplayPanelManager } from "./SparkdownPreviewScreenplayPanelManager";
 
 export class SparkdownPreviewScreenplayPanelSerializer
@@ -14,9 +14,9 @@ export class SparkdownPreviewScreenplayPanelSerializer
     console.log(state);
     if (state) {
       const documentUri = vscode.Uri.parse(state.textDocument.uri);
-      const editor = getVisibleEditor(documentUri);
+      const editor = getEditor(documentUri);
       if (editor) {
-        await SparkdownPreviewScreenplayPanelManager.instance.loadPanel(
+        await SparkdownPreviewScreenplayPanelManager.instance.initializePanel(
           this._context.extensionUri,
           editor.document,
           panel

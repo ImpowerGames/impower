@@ -1,8 +1,8 @@
 import { StructureItem } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
 import { parseState } from "../state/parseState";
+import { getEditor } from "../utils/getEditor";
 import { getSuffixFromState } from "../utils/getSuffixFromState";
-import { getVisibleEditor } from "../utils/getVisibleEditor";
 import { uiPersistence } from "../utils/persistence";
 
 export class SparkdownOutlineTreeDataProvider
@@ -157,7 +157,7 @@ export class SparkdownOutlineTreeDataProvider
   }
 
   update(context: vscode.ExtensionContext, uri?: vscode.Uri): void {
-    const editor = getVisibleEditor(uri);
+    const editor = getEditor(uri);
     const program = editor
       ? parseState.parsedPrograms[editor.document.uri.toString()]
       : parseState.parsedPrograms[parseState.lastParsedUri];
@@ -175,7 +175,7 @@ export class SparkdownOutlineTreeDataProvider
     if (!this._treeRoot) {
       return;
     }
-    const editor = getVisibleEditor(uri);
+    const editor = getEditor(uri);
     if (!editor) {
       return;
     }

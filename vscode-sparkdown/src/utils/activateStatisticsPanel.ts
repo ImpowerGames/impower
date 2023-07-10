@@ -4,7 +4,7 @@ import {
   SparkdownStatsPanelSerializer,
 } from "../providers/SparkdownStatsPanelSerializer";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getVisibleEditor } from "./getVisibleEditor";
+import { getEditor } from "./getEditor";
 
 export const activateStatisticsPanel = (
   context: vscode.ExtensionContext
@@ -16,7 +16,7 @@ export const activateStatisticsPanel = (
       if (!uri) {
         return;
       }
-      const editor = getVisibleEditor(uri);
+      const editor = getEditor(uri);
       if (!editor) {
         return;
       }

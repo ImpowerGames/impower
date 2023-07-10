@@ -2,8 +2,8 @@ import * as vscode from "vscode";
 import { SparkdownPreviewScreenplayPanelManager } from "../providers/SparkdownPreviewScreenplayPanelManager";
 import { SparkdownPreviewScreenplayPanelSerializer } from "../providers/SparkdownPreviewScreenplayPanelSerializer";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
+import { getEditor } from "./getEditor";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
-import { getVisibleEditor } from "./getVisibleEditor";
 
 export const activatePreviewScreenplayPanel = (
   context: vscode.ExtensionContext
@@ -15,7 +15,7 @@ export const activatePreviewScreenplayPanel = (
       if (!uri) {
         return;
       }
-      const editor = getVisibleEditor(uri);
+      const editor = getEditor(uri);
       if (!editor) {
         return;
       }
@@ -28,8 +28,8 @@ export const activatePreviewScreenplayPanel = (
   // Notify screenplay preview whenever screenplay configuration is changed
   context.subscriptions.push(
     vscode.workspace.onDidChangeConfiguration((change) => {
-      if (change.affectsConfiguration("sparkdown.screenplay")) {
-        SparkdownPreviewScreenplayPanelManager.instance.notifyConfiguredScreenplay();
+      if (change.affectsConfiguration("sparkdown")) {
+        SparkdownPreviewScreenplayPanelManager.instance.notifyConfiguredWorkspace();
       }
     })
   );

@@ -10,8 +10,8 @@ import { activateLanguageClient } from "./utils/activateLanguageClient";
 import { activateOutlineView } from "./utils/activateOutlineView";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
 import { getActiveSparkdownDocument } from "./utils/getActiveSparkdownDocument";
+import { getEditor } from "./utils/getEditor";
 import { getSparkdownPreviewConfig } from "./utils/getSparkdownPreviewConfig";
-import { getVisibleEditor } from "./utils/getVisibleEditor";
 import { parseSparkDocument } from "./utils/parseSparkDocument";
 import { activateUIPersistence } from "./utils/persistence";
 import { registerTyping } from "./utils/registerTyping";
@@ -37,7 +37,7 @@ export const activate = async (
   if (!uri) {
     return;
   }
-  const editor = getVisibleEditor(uri);
+  const editor = getEditor(uri);
   if (!editor) {
     return;
   }

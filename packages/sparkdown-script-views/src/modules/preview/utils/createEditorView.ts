@@ -1,4 +1,3 @@
-import { syntaxTreeAvailable } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import debounce from "../../../cm-language-client/utils/debounce";
@@ -17,9 +16,8 @@ interface EditorConfig {
   stabilizationDuration?: number;
   onFocus?: () => void;
   onBlur?: () => void;
-  onReady?: () => void;
+  onIdle?: () => void;
   onHeightChanged?: () => void;
-  onHeightStabilized?: () => void;
 }
 
 const createEditorView = (
@@ -31,13 +29,9 @@ const createEditorView = (
   const stabilizationDuration = 200;
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
-  const onReady = config?.onReady;
-  const onHeightStabilized = config?.onHeightStabilized ?? (() => {});
+  const onIdle = config?.onIdle ?? (() => {});
   const onHeightChanged = config?.onHeightChanged;
-  const debouncedHeightChanged = debounce(
-    onHeightStabilized,
-    stabilizationDuration
-  );
+  const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const startState = EditorState.create({
     doc,
     extensions: [
@@ -46,13 +40,9 @@ const createEditorView = (
       EditorView.theme(PREVIEW_THEME),
       EditorView.lineWrapping,
       EditorView.updateListener.of((u) => {
-        const parsed = syntaxTreeAvailable(u.state);
+        debouncedIdle();
         if (u.heightChanged) {
           onHeightChanged?.();
-          debouncedHeightChanged();
-        }
-        if (parsed) {
-          onReady?.();
         }
         if (u.focusChanged) {
           if (u.view.hasFocus) {

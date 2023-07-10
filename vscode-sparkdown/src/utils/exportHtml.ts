@@ -3,10 +3,10 @@ import * as vscode from "vscode";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
+import { getEditor } from "./getEditor";
 import { getFonts } from "./getFonts";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
-import { getVisibleEditor } from "./getVisibleEditor";
 import { writeFile } from "./writeFile";
 
 export const exportHtml = async (
@@ -16,7 +16,7 @@ export const exportHtml = async (
   if (!uri) {
     return;
   }
-  const editor = getVisibleEditor(uri);
+  const editor = getEditor(uri);
   if (!editor) {
     return;
   }

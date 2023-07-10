@@ -7,7 +7,7 @@ import { exportHtml } from "./exportHtml";
 import { exportJson } from "./exportJson";
 import { exportPdf } from "./exportPdf";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
-import { getVisibleEditor } from "./getVisibleEditor";
+import { getEditor } from "./getEditor";
 import { shiftScenes } from "./shiftScenes";
 export const activateCommandView = (context: vscode.ExtensionContext): void => {
   // Register Commands view
@@ -35,7 +35,7 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
       if (!uri) {
         return;
       }
-      const editor = getVisibleEditor(uri);
+      const editor = getEditor(uri);
       if (!editor) {
         return;
       }
@@ -69,7 +69,7 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
     if (!uri) {
       return;
     }
-    const editor = getVisibleEditor(uri);
+    const editor = getEditor(uri);
     if (!editor) {
       return;
     }

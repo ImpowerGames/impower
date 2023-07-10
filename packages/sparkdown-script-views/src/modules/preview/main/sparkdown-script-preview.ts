@@ -1,15 +1,15 @@
 import { EditorView } from "@codemirror/view";
 import {
-  ConnectedScreenplayPreview,
-  DidChangeTextDocument,
-  FocusedEditor,
-  HoveredOffPreview,
-  HoveredOnPreview,
-  InitializeScreenplay,
-  LoadedScreenplayPreview,
+  ConnectedPreviewNotification,
+  DidChangeTextDocumentNotification,
+  FocusedEditorNotification,
+  HoveredOffPreviewNotification,
+  HoveredOnPreviewNotification,
+  LoadedPreviewNotification,
+  LoadPreviewRequest,
   Range,
-  ScrolledEditor,
-  ScrolledPreview,
+  ScrolledEditorNotification,
+  ScrolledPreviewNotification,
   TextDocumentIdentifier,
 } from "@impower/spark-editor-protocol/src";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
@@ -91,13 +91,12 @@ export default class SparkScreenplayPreview
       const contentPadding = getBoxValues(this.contentPadding);
       this._view = createEditorView(editorEl, {
         contentPadding,
-        stabilizationDuration: 500,
-        onHeightStabilized: this.handleHeightStabilized,
+        onIdle: this.handleIdle,
       });
     }
     window.addEventListener("message", this.handleMessage);
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
-    window.postMessage(ConnectedScreenplayPreview.message({}));
+    window.postMessage(ConnectedPreviewNotification.message({}));
   }
 
   protected override onParsed(): void {
@@ -135,7 +134,7 @@ export default class SparkScreenplayPreview
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (InitializeScreenplay.is(message)) {
+    if (LoadPreviewRequest.is(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const visibleRange = params.visibleRange;
@@ -161,7 +160,7 @@ export default class SparkScreenplayPreview
         });
       }
     }
-    if (DidChangeTextDocument.is(message)) {
+    if (DidChangeTextDocumentNotification.is(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       if (textDocument.uri === this._textDocument?.uri) {
@@ -173,12 +172,12 @@ export default class SparkScreenplayPreview
         }
       }
     }
-    if (FocusedEditor.is(message)) {
+    if (FocusedEditorNotification.is(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       this._textDocument = textDocument;
     }
-    if (ScrolledEditor.is(message)) {
+    if (ScrolledEditorNotification.is(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const range = params.range;
@@ -209,12 +208,12 @@ export default class SparkScreenplayPreview
     }
   }
 
-  protected handleHeightStabilized = (): void => {
+  protected handleIdle = (): void => {
     if (this._initialized && !this._loaded) {
       this._loaded = true;
       if (this._textDocument) {
         window.postMessage(
-          LoadedScreenplayPreview.message({
+          LoadedPreviewNotification.message({
             textDocument: this._textDocument,
           })
         );
@@ -234,7 +233,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = true;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOnPreview.message({
+        HoveredOnPreviewNotification.message({
           textDocument: this._textDocument,
         })
       );
@@ -245,7 +244,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = false;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOffPreview.message({
+        HoveredOffPreviewNotification.message({
           textDocument: this._textDocument,
         })
       );
@@ -277,7 +276,7 @@ export default class SparkScreenplayPreview
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
             window.postMessage(
-              ScrolledPreview.message({
+              ScrolledPreviewNotification.message({
                 textDocument: this._textDocument,
                 range: {
                   start: {

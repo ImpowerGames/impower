@@ -1,10 +1,10 @@
 import {
-  ConnectedScreenplayPreview,
-  HoveredOffPreview,
-  HoveredOnPreview,
-  LoadedScreenplayPreview,
-  ScrolledPreview,
-  SelectedPreview,
+  ConnectedPreviewNotification,
+  HoveredOffPreviewNotification,
+  HoveredOnPreviewNotification,
+  LoadedPreviewNotification,
+  ScrolledPreviewNotification,
+  SelectedPreviewNotification,
 } from "@impower/spark-editor-protocol/src/index.js";
 import SparkdownScriptPreview from "@impower/sparkdown-script-views/src/modules/preview/index.js";
 import Sparkle from "@impower/sparkle/src/index.js";
@@ -69,24 +69,24 @@ const load = async () => {
 load();
 
 window.addEventListener("message", (e: MessageEvent) => {
-  if (LoadedScreenplayPreview.is(e.data)) {
+  if (ConnectedPreviewNotification.is(e.data)) {
+    vscode.postMessage(e.data);
+  }
+  if (LoadedPreviewNotification.is(e.data)) {
     document.body.classList.add("ready");
     vscode.setState({ textDocument: e.data.params.textDocument });
     vscode.postMessage(e.data);
   }
-  if (ConnectedScreenplayPreview.is(e.data)) {
+  if (ScrolledPreviewNotification.is(e.data)) {
     vscode.postMessage(e.data);
   }
-  if (ScrolledPreview.is(e.data)) {
+  if (SelectedPreviewNotification.is(e.data)) {
     vscode.postMessage(e.data);
   }
-  if (SelectedPreview.is(e.data)) {
+  if (HoveredOnPreviewNotification.is(e.data)) {
     vscode.postMessage(e.data);
   }
-  if (HoveredOnPreview.is(e.data)) {
-    vscode.postMessage(e.data);
-  }
-  if (HoveredOffPreview.is(e.data)) {
+  if (HoveredOffPreviewNotification.is(e.data)) {
     vscode.postMessage(e.data);
   }
 });
