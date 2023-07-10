@@ -150,6 +150,7 @@ const decorate = (state: EditorState) => {
   let inDualDialogue = false;
   let dialogueFrom = 0;
   let dialogueContent: MarkupBlock[] = [];
+  let frontMatterFrom = 0;
   let frontMatterPositionContent: Record<string, MarkupBlock[]> = {};
   tree.iterate({
     from: 0,
@@ -159,6 +160,7 @@ const decorate = (state: EditorState) => {
       const from = nodeRef.node.from;
       const to = nodeRef.node.to;
       if (type.name === NODE_NAMES.FrontMatter) {
+        frontMatterFrom = from;
         frontMatterPositionContent = {};
         return true;
       }
@@ -177,6 +179,9 @@ const decorate = (state: EditorState) => {
                 to: captureTo,
                 value,
                 markdown: true,
+                attributes: {
+                  style: "min-height: 1em",
+                },
               });
             }
           },
@@ -185,11 +190,11 @@ const decorate = (state: EditorState) => {
         const lastCaptureBlock = captureBlocks[captureBlocks.length - 1];
         if (firstCaptureBlock) {
           firstCaptureBlock.attributes = {
-            style: "padding: 1em 0 0 0",
+            style: "margin: 1em 0 0 0",
           };
         }
         if (lastCaptureBlock) {
-          lastCaptureBlock.attributes = { style: "padding: 0 0 1em 0" };
+          lastCaptureBlock.attributes = { style: "margin: 0 0 1em 0" };
         }
         const position = FRONTMATTER_POSITIONS[type.name];
         if (position) {
@@ -200,7 +205,7 @@ const decorate = (state: EditorState) => {
       }
       if (type.name === NODE_NAMES.FrontMatter_end) {
         specs.push({
-          from,
+          from: frontMatterFrom,
           to,
           block: true,
           widget: TitlePageWidget,
