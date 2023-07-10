@@ -34,10 +34,12 @@ export const activatePreviewScreenplayPanel = (
     })
   );
   context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument((document) => {
-      SparkdownPreviewScreenplayPanelManager.instance.notifyOpenedTextDocument(
-        document
-      );
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (editor) {
+        SparkdownPreviewScreenplayPanelManager.instance.notifyFocusedTextDocument(
+          editor.document
+        );
+      }
     })
   );
   context.subscriptions.push(

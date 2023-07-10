@@ -2,7 +2,6 @@ import {
   ConfigureScreenplay,
   ConnectedScreenplayPreview,
   DidChangeTextDocument,
-  DidOpenTextDocument,
   HoveredOffPreview,
   HoveredOnPreview,
   InitializeScreenplay,
@@ -31,17 +30,31 @@ export class SparkdownPreviewScreenplayPanelManager {
     return this._instance;
   }
 
-  hovering = false;
-
-  protected readonly _panels: Map<string, WebviewPanel> = new Map();
-
-  getPanel(documentUri: vscode.Uri) {
-    return this._panels.get(documentUri.toString());
+  protected _panel?: WebviewPanel;
+  get panel() {
+    return this._panel;
   }
 
-  getAllPanels() {
-    return Array.from(this._panels);
+  protected _document?: vscode.TextDocument;
+  get document() {
+    return this._document;
   }
+
+  _hovering = false;
+  get hovering() {
+    return this._hovering;
+  }
+
+  _connected = false;
+  get connected() {
+    return this._connected;
+  }
+
+  protected _viewType = "sparkdown-preview-screenplay";
+
+  protected _panelTitle = "Screenplay Preview";
+
+  protected _viewColumn = ViewColumn.Two;
 
   showPanel(extensionUri: Uri, document: vscode.TextDocument) {
     if (document.languageId !== "sparkdown") {
@@ -50,16 +63,33 @@ export class SparkdownPreviewScreenplayPanelManager {
       );
       return undefined;
     }
-    const panel = this.getPanel(document.uri);
-    if (panel) {
-      panel.reveal(ViewColumn.One);
+    if (this._panel) {
+      const viewColumn = this._viewColumn;
+      this._panel.reveal(viewColumn);
     } else {
       this.createPanel(extensionUri, document);
     }
   }
 
-  async loadPanel(extensionUri: Uri, documentUri: Uri, panel: WebviewPanel) {
-    const editor = getVisibleEditor(documentUri);
+  protected createPanel(extensionUri: Uri, document: vscode.TextDocument) {
+    const viewType = this._viewType;
+    const panelTitle = this._panelTitle;
+    const viewColumn = this._viewColumn;
+    const panel = window.createWebviewPanel(viewType, panelTitle, viewColumn, {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+      localResourceRoots: [Uri.joinPath(extensionUri, "out")],
+    });
+    this.loadPanel(extensionUri, document, panel);
+  }
+
+  async loadPanel(
+    extensionUri: Uri,
+    document: vscode.TextDocument,
+    panel: WebviewPanel
+  ) {
+    this._document = document;
+    this._panel = panel;
     panel.iconPath = {
       light: vscode.Uri.joinPath(extensionUri, "icon-lang.png"),
       dark: vscode.Uri.joinPath(extensionUri, "icon-lang.png"),
@@ -68,30 +98,16 @@ export class SparkdownPreviewScreenplayPanelManager {
 
     panel.webview.onDidReceiveMessage(async (message) => {
       if (ConnectedScreenplayPreview.is(message)) {
-        const configuration = getSparkdownPreviewConfig(documentUri);
-        if (editor) {
-          const visibleRange = editor.visibleRanges[0]!;
-          const selectedRange = editor.selection;
-          panel.webview.postMessage(
-            InitializeScreenplay.message({
-              textDocument: {
-                uri: editor.document.uri.toString(),
-                languageId: editor.document.languageId,
-                version: editor.document.version,
-                text: editor.document.getText(),
-              },
-              visibleRange: getServerRange(visibleRange),
-              selectedRange: getServerRange(selectedRange),
-              options: getScreenplayOptions(configuration),
-            })
-          );
+        this._connected = true;
+        if (this._document) {
+          this.initialize(panel, this._document);
         }
       }
       if (HoveredOnPreview.is(message)) {
-        this.hovering = true;
+        this._hovering = true;
       }
       if (HoveredOffPreview.is(message)) {
-        this.hovering = false;
+        this._hovering = false;
       }
       if (ScrolledPreview.is(message)) {
         const documentUri = getUri(message.params.textDocument.uri);
@@ -128,38 +144,39 @@ export class SparkdownPreviewScreenplayPanelManager {
       }
     });
     panel.onDidDispose(() => {
-      this.deletePanel(documentUri);
-    });
-    this.setPanel(documentUri, panel);
-  }
-
-  notifyConfiguredScreenplay() {
-    this._panels.forEach((panel, documentUri) => {
-      const configuration = getSparkdownPreviewConfig(
-        vscode.Uri.parse(documentUri)
-      );
-      panel.webview.postMessage(
-        ConfigureScreenplay.message({
-          textDocument: { uri: documentUri.toString() },
-          options: getScreenplayOptions(configuration),
-        })
-      );
+      this._panel = undefined;
     });
   }
 
-  notifyOpenedTextDocument(document: vscode.TextDocument) {
-    const panel = this.getPanel(document.uri);
-    if (panel) {
-      panel.webview.postMessage(
-        DidOpenTextDocument.message({
-          textDocument: {
-            uri: document.uri.toString(),
-            languageId: document.languageId,
-            version: document.version,
-            text: document.getText(),
-          },
-        })
-      );
+  initialize(panel: WebviewPanel, document: vscode.TextDocument) {
+    this._document = document;
+    this._panel = panel;
+    const editor = getVisibleEditor(document.uri);
+    const configuration = getSparkdownPreviewConfig(document.uri);
+    const visibleRange = editor?.visibleRanges[0];
+    const selectedRange = editor?.selection;
+    panel.webview.postMessage(
+      InitializeScreenplay.message({
+        textDocument: {
+          uri: document.uri.toString(),
+          languageId: document.languageId,
+          version: document.version,
+          text: document.getText(),
+        },
+        visibleRange: visibleRange ? getServerRange(visibleRange) : undefined,
+        selectedRange: selectedRange
+          ? getServerRange(selectedRange)
+          : undefined,
+        options: getScreenplayOptions(configuration),
+      })
+    );
+  }
+
+  notifyFocusedTextDocument(document: vscode.TextDocument) {
+    if (this._panel) {
+      if (this._connected) {
+        this.initialize(this._panel, document);
+      }
     }
   }
 
@@ -167,64 +184,63 @@ export class SparkdownPreviewScreenplayPanelManager {
     document: vscode.TextDocument,
     contentChanges: readonly vscode.TextDocumentContentChangeEvent[]
   ) {
-    const panel = this.getPanel(document.uri);
-    if (panel) {
-      panel.webview.postMessage(
-        DidChangeTextDocument.message({
-          textDocument: {
-            uri: document.uri.toString(),
-          },
-          contentChanges: contentChanges.map((c) => ({
-            range: getServerRange(c.range),
-            text: c.text,
-          })),
-        })
-      );
+    if (document.uri.toString() === this._document?.uri.toString()) {
+      if (this._panel) {
+        this._panel.webview.postMessage(
+          DidChangeTextDocument.message({
+            textDocument: {
+              uri: document.uri.toString(),
+            },
+            contentChanges: contentChanges.map((c) => ({
+              range: getServerRange(c.range),
+              text: c.text,
+            })),
+          })
+        );
+      }
+    }
+  }
+
+  notifyConfiguredScreenplay() {
+    if (this._document) {
+      if (this._panel) {
+        const configuration = getSparkdownPreviewConfig(
+          getUri(this._document.uri.toString())
+        );
+        this._panel.webview.postMessage(
+          ConfigureScreenplay.message({
+            textDocument: { uri: this._document.uri.toString() },
+            options: getScreenplayOptions(configuration),
+          })
+        );
+      }
     }
   }
 
   notifySelectedEditor(document: vscode.TextDocument, range: vscode.Range) {
-    const panel = this.getPanel(document.uri);
-    if (panel) {
-      panel.webview.postMessage(
-        SelectedEditor.message({
-          textDocument: { uri: document.uri.toString() },
-          range: getServerRange(range),
-        })
-      );
+    if (document.uri.toString() === this._document?.uri.toString()) {
+      if (this._panel) {
+        this._panel.webview.postMessage(
+          SelectedEditor.message({
+            textDocument: { uri: document.uri.toString() },
+            range: getServerRange(range),
+          })
+        );
+      }
     }
   }
 
   notifyScrolledEditor(document: vscode.TextDocument, range: vscode.Range) {
-    const panel = this.getPanel(document.uri);
-    if (panel) {
-      panel.webview.postMessage(
-        ScrolledEditor.message({
-          textDocument: { uri: document.uri.toString() },
-          range: getServerRange(range),
-        })
-      );
+    if (document.uri.toString() === this._document?.uri.toString()) {
+      if (this._panel) {
+        this._panel.webview.postMessage(
+          ScrolledEditor.message({
+            textDocument: { uri: document.uri.toString() },
+            range: getServerRange(range),
+          })
+        );
+      }
     }
-  }
-
-  protected createPanel(extensionUri: Uri, document: vscode.TextDocument) {
-    const viewType = "sparkdown-preview-screenplay";
-    let panelTitle = `Screenplay Preview`;
-    const viewColumn = ViewColumn.Two;
-    const panel = window.createWebviewPanel(viewType, panelTitle, viewColumn, {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [Uri.joinPath(extensionUri, "out")],
-    });
-    this.loadPanel(extensionUri, document.uri, panel);
-  }
-
-  protected deletePanel(documentUri: vscode.Uri) {
-    return this._panels.delete(documentUri.toString());
-  }
-
-  protected setPanel(documentUri: vscode.Uri, panel: WebviewPanel) {
-    return this._panels.set(documentUri.toString(), panel);
   }
 
   protected getWebviewContent(webview: vscode.Webview, extensionUri: Uri) {

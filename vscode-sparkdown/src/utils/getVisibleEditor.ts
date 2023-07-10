@@ -6,7 +6,11 @@ export const getVisibleEditor = (
   if (!uri) {
     return undefined;
   }
-  //search visible text editors
+  if (
+    vscode.window.activeTextEditor?.document.uri.toString() === uri.toString()
+  ) {
+    return vscode.window.activeTextEditor;
+  }
   for (let i = 0; i < vscode.window.visibleTextEditors.length; i++) {
     if (
       vscode.window.visibleTextEditors[i]?.document.uri.toString() ===
@@ -15,6 +19,5 @@ export const getVisibleEditor = (
       return vscode.window.visibleTextEditors[i];
     }
   }
-  //the editor was not visible
   return undefined;
 };

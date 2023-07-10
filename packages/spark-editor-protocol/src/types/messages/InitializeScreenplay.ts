@@ -5,8 +5,8 @@ import { TextDocumentItem } from "../TextDocumentItem";
 
 export interface InitializeScreenplayParams {
   textDocument: TextDocumentItem;
-  visibleRange: Range;
-  selectedRange: Range;
+  visibleRange?: Range;
+  selectedRange?: Range;
   options: ScreenplayOptions;
 }
 
