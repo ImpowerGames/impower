@@ -5,6 +5,7 @@ export type HoveredOffPreviewMethod =
   typeof HoveredOffPreviewNotification.method;
 
 export interface HoveredOffPreviewParams {
+  type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
 }
 

@@ -96,7 +96,9 @@ export default class SparkScreenplayPreview
     }
     window.addEventListener("message", this.handleMessage);
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
-    window.postMessage(ConnectedPreviewNotification.message({}));
+    window.postMessage(
+      ConnectedPreviewNotification.message({ type: "screenplay" })
+    );
   }
 
   protected override onParsed(): void {
@@ -214,6 +216,7 @@ export default class SparkScreenplayPreview
       if (this._textDocument) {
         window.postMessage(
           LoadedPreviewNotification.message({
+            type: "screenplay",
             textDocument: this._textDocument,
           })
         );
@@ -234,6 +237,7 @@ export default class SparkScreenplayPreview
     if (this._textDocument) {
       window.postMessage(
         HoveredOnPreviewNotification.message({
+          type: "screenplay",
           textDocument: this._textDocument,
         })
       );
@@ -245,6 +249,7 @@ export default class SparkScreenplayPreview
     if (this._textDocument) {
       window.postMessage(
         HoveredOffPreviewNotification.message({
+          type: "screenplay",
           textDocument: this._textDocument,
         })
       );
@@ -277,6 +282,7 @@ export default class SparkScreenplayPreview
           if (this._textDocument) {
             window.postMessage(
               ScrolledPreviewNotification.message({
+                type: "screenplay",
                 textDocument: this._textDocument,
                 range: {
                   start: {

@@ -16,7 +16,7 @@ export function isHTMLElement(value: any): value is HTMLElement {
 }
 
 export function isElement(value: any): value is Element {
-  return value instanceof getWindow(value).Element;
+  return value && value instanceof getWindow(value).Element;
 }
 
 export function isShadowRoot(node: Node): node is ShadowRoot {

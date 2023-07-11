@@ -1,12 +1,8 @@
-import { SparkStruct, SparkToken } from "../../../../sparkdown/src";
+import { SparkProgram, SparkStruct } from "../../../../sparkdown/src";
 import { getSparkStruct } from "./getSparkStruct";
 
 export const getPreviewStruct = (
-  program: {
-    tokens: SparkToken[];
-    metadata: { lines: { tokens: number[] }[] };
-    structs?: Record<string, SparkStruct>;
-  },
+  program: SparkProgram,
   line: number
 ): SparkStruct | null | undefined => {
   if (!program) {
@@ -15,7 +11,7 @@ export const getPreviewStruct = (
   if (!line) {
     return undefined;
   }
-  let tokenIndex = program.metadata?.lines[line]?.tokens?.[0] || -1;
+  let tokenIndex = program.metadata?.lines?.[line]?.tokens?.[0] || -1;
   let token = program.tokens[tokenIndex];
   if (!token) {
     return null;

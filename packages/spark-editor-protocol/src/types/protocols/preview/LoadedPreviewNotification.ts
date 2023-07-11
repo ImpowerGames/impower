@@ -2,6 +2,7 @@ import { NotificationMessage } from "../../base/NotificationMessage";
 import { TextDocumentIdentifier } from "../TextDocumentIdentifier";
 
 export interface LoadedPreviewParams {
+  type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
 }
 

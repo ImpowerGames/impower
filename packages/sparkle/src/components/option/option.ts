@@ -12,14 +12,12 @@ import SparkleElement, {
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import { getKeys } from "../../utils/getKeys";
-import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
-import css from "./button.css";
-import html from "./button.html";
+import css from "./option.css";
+import html from "./option.html";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-badge",
-  "s-progress-circle",
   "s-ripple",
   "s-icon",
 ]);
@@ -27,6 +25,7 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, Icons.all()),
+  "active-icon": (v: string) => getCssIcon(v, Icons.all()),
   spacing: getCssSize,
   size: getCssSize,
 };
@@ -34,13 +33,10 @@ const DEFAULT_TRANSFORMERS = {
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
-    "href",
-    "target",
-    "type",
+    "active",
+    "value",
     "autofocus",
     "disabled",
-    "loading",
-    "variant",
     "label",
     "action",
     ...getKeys(DEFAULT_TRANSFORMERS),
@@ -48,13 +44,13 @@ const DEFAULT_ATTRIBUTES = {
 };
 
 /**
- * Buttons represent actions that are available to the user.
+ * Options represent actions that are available to the user.
  */
-export default class Button
+export default class Option
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-button";
+  static override tagName = "s-option";
 
   static override dependencies = DEFAULT_DEPENDENCIES;
 
@@ -71,16 +67,11 @@ export default class Button
   }
 
   override get html() {
-    return Button.augmentHtml(
-      this.href
-        ? html.replace("<button ", "<a ").replace("</button>", "</a>")
-        : html,
-      DEFAULT_DEPENDENCIES
-    );
+    return Option.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   override get css() {
-    return Button.augmentCss(css, DEFAULT_DEPENDENCIES);
+    return Option.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   override get transformers() {
@@ -88,110 +79,84 @@ export default class Button
   }
 
   /**
-   * Whether or not the content of this button should be replaced with a loading spinner.
+   * Draws the option in an active state.
    */
-  get loading(): boolean {
-    return this.getBooleanAttribute(Button.attributes.loading);
+  get active(): boolean {
+    return this.getBooleanAttribute(Option.attributes.active);
   }
-  set loading(value) {
-    this.setStringAttribute(Button.attributes.loading, value);
+  set active(value: boolean) {
+    this.setBooleanAttribute(Option.attributes.active, value);
   }
 
   /**
-   * The default behavior of the button. Possible values are:
-   *
-   * `submit`: The button submits the form data to the server.
-   * `reset`: The button resets all the controls to their initial values.
-   * `button`: The button has no default behavior, and does nothing when pressed by default.
+   * The value this option is associated with.
    */
-  get type(): string | null {
-    return this.getStringAttribute(Button.attributes.type);
+  get value(): string | null {
+    return this.getStringAttribute(Option.attributes.value);
   }
-  set type(value) {
-    this.setStringAttribute(Button.attributes.type, value);
-  }
-
-  /**
-   * The URL that the link button points to.
-   */
-  get href(): string | null {
-    return this.getStringAttribute(Button.attributes.href);
-  }
-  set href(value) {
-    this.setStringAttribute(Button.attributes.href, value);
-  }
-
-  /**
-   * Where to display the linked `href` URL for a link button. Common options
-   * include `_blank` to open in a new tab.
-   */
-  get target(): string | null {
-    return this.getStringAttribute(Button.attributes.target);
-  }
-  set target(value) {
-    this.setStringAttribute(Button.attributes.target, value);
-  }
-
-  /**
-   * Determines the overall look of the button.
-   */
-  get variant(): "filled" | "tonal" | "outlined" | "text" | null {
-    return this.getStringAttribute(Button.attributes.variant);
-  }
-  set variant(value) {
-    this.setStringAttribute(Button.attributes.variant, value);
+  set value(value) {
+    this.setStringAttribute(Option.attributes.value, value);
   }
 
   /**
    * The name of the icon to display.
    */
   get icon(): IconName | string | null {
-    return this.getStringAttribute(Button.attributes.icon);
+    return this.getStringAttribute(Option.attributes.icon);
   }
   set icon(value) {
-    this.setStringAttribute(Button.attributes.icon, value);
+    this.setStringAttribute(Option.attributes.icon, value);
   }
 
   /**
-   * The size of the button.
+   * The name of the icon to display when this option is active.
+   */
+  get activeIcon(): IconName | string | null {
+    return this.getStringAttribute(Option.attributes.activeIcon);
+  }
+  set activeIcon(value) {
+    this.setStringAttribute(Option.attributes.activeIcon, value);
+  }
+  /**
+   * The size of the option.
    *
    * Default is `md`.
    */
   get size(): SizeName | string | null {
-    return this.getStringAttribute(Button.attributes.size);
+    return this.getStringAttribute(Option.attributes.size);
   }
   set size(value) {
-    this.setStringAttribute(Button.attributes.size, value);
+    this.setStringAttribute(Option.attributes.size, value);
   }
 
   /**
    * The spacing between the icon and the label.
    */
   get spacing(): SizeName | string | null {
-    return this.getStringAttribute(Button.attributes.spacing);
+    return this.getStringAttribute(Option.attributes.spacing);
   }
   set spacing(value) {
-    this.setStringAttribute(Button.attributes.spacing, value);
+    this.setStringAttribute(Option.attributes.spacing, value);
   }
 
   /**
-   * The button label.
+   * The option label.
    */
   get label(): string | null {
-    return this.getStringAttribute(Button.attributes.label);
+    return this.getStringAttribute(Option.attributes.label);
   }
   set label(value) {
-    this.setStringAttribute(Button.attributes.label, value);
+    this.setStringAttribute(Option.attributes.label, value);
   }
 
   /**
-   * The action to perform when clicking this button.
+   * The action to perform when clicking this option.
    */
   get action(): string | null {
-    return this.getStringAttribute(Button.attributes.action);
+    return this.getStringAttribute(Option.attributes.action);
   }
   set action(value) {
-    this.setStringAttribute(Button.attributes.action, value);
+    this.setStringAttribute(Option.attributes.action, value);
   }
 
   get labelEl(): HTMLElement | null {
@@ -202,18 +167,16 @@ export default class Button
     return this.getElementByClass("icon");
   }
 
-  get spinnerEl(): HTMLElement | null {
-    return this.getElementByClass("spinner");
+  get inactiveIconEl(): HTMLElement | null {
+    return this.getElementByClass("inactive-icon");
   }
 
-  get progressCircle(): ProgressCircle | null {
-    return this.getElementByTag<ProgressCircle>(
-      Button.dependencies.progressCircle
-    );
+  get activeIconEl(): HTMLElement | null {
+    return this.getElementByClass("active-icon");
   }
 
   get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Button.dependencies.ripple);
+    return this.getElementByTag<Ripple>(Option.dependencies.ripple);
   }
 
   protected override onAttributeChanged(
@@ -222,28 +185,19 @@ export default class Button
     newValue: string
   ): void {
     if (
-      name === Button.attributes.ariaHasPopup ||
-      name === Button.attributes.ariaExpanded ||
-      name === Button.attributes.href ||
-      name === Button.attributes.target ||
-      name === Button.attributes.type ||
-      name === Button.attributes.autofocus
+      name === Option.attributes.ariaHasPopup ||
+      name === Option.attributes.ariaExpanded ||
+      name === Option.attributes.autofocus
     ) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === Button.attributes.disabled) {
+    if (name === Option.attributes.disabled) {
       const ripple = this.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === Button.attributes.loading) {
-      const ripple = this.ripple;
-      if (ripple) {
-        ripple.hidden = newValue != null;
-      }
-    }
-    if (name === Button.attributes.mask) {
+    if (name === Option.attributes.mask) {
       const ripple = this.ripple;
       if (ripple) {
         if (newValue) {
@@ -253,32 +207,13 @@ export default class Button
         }
       }
     }
-    if (name === Button.attributes.icon) {
+    if (name === Option.attributes.icon) {
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
     }
-    if (name === Button.attributes.loading) {
-      const loading = newValue != null;
-      const ripple = this.ripple;
-      const labelEl = this.labelEl;
-      const iconEl = this.iconEl;
-      const spinnerEl = this.spinnerEl;
-      if (ripple) {
-        ripple.hidden = loading;
-      }
-      if (labelEl) {
-        labelEl.ariaHidden = loading ? "true" : null;
-      }
-      if (iconEl) {
-        iconEl.ariaHidden = loading ? "true" : null;
-      }
-      if (spinnerEl) {
-        spinnerEl.hidden = !loading;
-      }
-    }
-    if (name === Button.attributes.label) {
+    if (name === Option.attributes.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label);
@@ -347,7 +282,7 @@ export default class Button
   protected override onContentAssigned(children: Element[]): void {
     const nodes = children;
     nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === Button.dependencies.badge) {
+      if (node.nodeName.toLowerCase() === Option.dependencies.badge) {
         const el = node as HTMLElement;
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }
@@ -357,6 +292,6 @@ export default class Button
 
 declare global {
   interface HTMLElementTagNameMap {
-    "s-button": Button;
+    "s-option": Option;
   }
 }

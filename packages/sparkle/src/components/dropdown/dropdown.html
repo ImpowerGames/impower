@@ -1,0 +1,6 @@
+<div class="root" part="root" aria-describedby="dropdown">
+  <slot class="content-slot"></slot>
+</div>
+<dialog class="popup" part="popup" id="dropdown" role="listbox" inert hidden>
+  <slot class="options-slot" name="options"></slot>
+</dialog>

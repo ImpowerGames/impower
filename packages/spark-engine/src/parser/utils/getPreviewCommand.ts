@@ -1,19 +1,9 @@
-import {
-  getSectionAtLine,
-  SparkSection,
-  SparkStruct,
-  SparkToken,
-} from "../../../../sparkdown/src";
+import { getSectionAtLine, SparkProgram } from "../../../../sparkdown/src";
 import { CommandData } from "../../data";
 import { generateCommand } from "./generateCommand";
 
 export const getPreviewCommand = (
-  program: {
-    tokens: SparkToken[];
-    metadata: { lines: { tokens: number[] }[] };
-    sections?: Record<string, SparkSection>;
-    structs?: Record<string, SparkStruct>;
-  },
+  program: SparkProgram,
   line: number
 ): CommandData | null | undefined => {
   if (!program) {
@@ -22,7 +12,7 @@ export const getPreviewCommand = (
   if (!line) {
     return undefined;
   }
-  let tokenIndex = program.metadata?.lines[line]?.tokens?.[0] || -1;
+  let tokenIndex = program.metadata?.lines?.[line]?.tokens?.[0] ?? -1;
   let token = program.tokens[tokenIndex];
   if (!token) {
     return null;

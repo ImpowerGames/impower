@@ -22,8 +22,8 @@
   --margin: 4px;
   --padding-tb: 12px;
   --padding-lr: 16px;
-  --enter: var(--s-animation-enter);
-  --exit: var(--s-animation-exit);
+  --enter: var(--s-animation-enter-fade);
+  --exit: var(--s-animation-exit-fade);
 }
 
 :host > .root {

@@ -267,7 +267,7 @@ export default class Tooltip
 
     this.emit(OPENING_EVENT);
 
-    await animationsComplete(this.root);
+    await animationsComplete(el);
 
     this.emit(OPENED_EVENT);
   }
@@ -280,7 +280,7 @@ export default class Tooltip
 
     this.emit(CLOSING_EVENT);
 
-    await animationsComplete(this.root);
+    await animationsComplete(el);
 
     if (el) {
       el.hidden = true;

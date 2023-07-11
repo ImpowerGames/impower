@@ -5,11 +5,11 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { offsetParent } from "../../utils/composed-offset-position";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import { computePosition } from "./floating-ui/core/src/computePosition";
 import { flip } from "./floating-ui/core/src/middleware/flip";
 import { offset } from "./floating-ui/core/src/middleware/offset";
 import { shift } from "./floating-ui/core/src/middleware/shift";
 import { size } from "./floating-ui/core/src/middleware/size";
+import { computePosition } from "./floating-ui/dom/src";
 import { platform } from "./floating-ui/dom/src/platform";
 import css from "./popup.css";
 import html from "./popup.html";
@@ -344,10 +344,6 @@ export default class Popup
     return this.getElementByClass("popup");
   }
 
-  get popupSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("popup-slot");
-  }
-
   protected _intersectionObserver?: IntersectionObserver;
 
   protected override onAttributeChanged(
@@ -378,16 +374,13 @@ export default class Popup
 
   protected override onParsed(): void {
     this.start();
+    window.addEventListener("resize", this.update);
   }
 
   protected override onDisconnected(): void {
     this._intersectionObserver?.disconnect();
     this.stop();
-  }
-
-  getElementById(id: string | null): HTMLElement | undefined {
-    const root = this.getRootNode() as Document | ShadowRoot;
-    return id ? root.getElementById(id) || undefined : undefined;
+    window.removeEventListener("resize", this.update);
   }
 
   override onContentAssigned() {
@@ -458,6 +451,7 @@ export default class Popup
             const { rects } = args;
             const syncWidth = this.sync === "width" || this.sync === "both";
             const syncHeight = this.sync === "height" || this.sync === "both";
+            console.log(rects);
             popupEl.style.width = syncWidth ? `${rects.reference.width}px` : "";
             popupEl.style.height = syncHeight
               ? `${rects.reference.height}px`
@@ -473,9 +467,12 @@ export default class Popup
 
     // Then we flip
     if (!this.disableAutoFlip) {
+      const flipBoundary = this.flipBoundary;
       middleware.push(
         flip({
-          boundary: this.getElementById(this.flipBoundary),
+          boundary: flipBoundary
+            ? this.getElementById(flipBoundary)
+            : undefined,
           // @ts-expect-error - We're converting a string attribute to an array here
           fallbackPlacements: this.flipFallbackPlacements,
           fallbackStrategy:
@@ -489,9 +486,12 @@ export default class Popup
 
     // Then we shift
     if (!this.disableAutoShift) {
+      const shiftBoundary = this.shiftBoundary;
       middleware.push(
         shift({
-          boundary: this.getElementById(this.shiftBoundary),
+          boundary: shiftBoundary
+            ? this.getElementById(shiftBoundary)
+            : undefined,
           padding: this.shiftPadding || 0,
         })
       );
@@ -499,9 +499,12 @@ export default class Popup
 
     // Now we adjust the size as needed
     if (this.autoSize) {
+      const autoSizeBoundary = this.autoSizeBoundary;
       middleware.push(
         size({
-          boundary: this.getElementById(this.autoSizeBoundary),
+          boundary: autoSizeBoundary
+            ? this.getElementById(autoSizeBoundary)
+            : undefined,
           padding: this.autoSizePadding || 0,
           apply: (args: {
             availableWidth: number;

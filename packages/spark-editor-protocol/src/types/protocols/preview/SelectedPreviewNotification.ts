@@ -5,6 +5,7 @@ import { TextDocumentIdentifier } from "../TextDocumentIdentifier";
 export type SelectedPreviewMethod = typeof SelectedPreviewNotification.method;
 
 export interface SelectedPreviewParams {
+  type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
   range: Range;
 }

@@ -1,6 +1,8 @@
 import { NotificationMessage } from "../../base/NotificationMessage";
 
-export interface ConnectedPreviewParams {}
+export interface ConnectedPreviewParams {
+  type: "game" | "screenplay";
+}
 
 export type ConnectedPreviewPreviewMethod =
   typeof ConnectedPreviewNotification.method;

@@ -97,49 +97,59 @@ export class SparkdownPreviewScreenplayPanelManager {
 
     panel.webview.onDidReceiveMessage(async (message) => {
       if (ConnectedPreviewNotification.is(message)) {
-        this._connected = true;
-        if (this._document) {
-          this.loadDocument(panel, this._document);
+        if (message.params.type === "screenplay") {
+          this._connected = true;
+          if (this._document) {
+            this.loadDocument(panel, this._document);
+          }
         }
       }
       if (HoveredOnPreviewNotification.is(message)) {
-        this._hovering = true;
+        if (message.params.type === "screenplay") {
+          this._hovering = true;
+        }
       }
       if (HoveredOffPreviewNotification.is(message)) {
-        this._hovering = false;
+        if (message.params.type === "screenplay") {
+          this._hovering = false;
+        }
       }
       if (ScrolledPreviewNotification.is(message)) {
-        const documentUri = getUri(message.params.textDocument.uri);
-        const range = getClientRange(message.params.range);
-        const cfg = getSparkdownPreviewConfig(documentUri);
-        const syncedWithCursor =
-          cfg.screenplay_preview_synchronized_with_cursor;
-        if (syncedWithCursor) {
-          const editor = getEditor(documentUri);
-          if (editor) {
-            editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+        if (message.params.type === "screenplay") {
+          const documentUri = getUri(message.params.textDocument.uri);
+          const range = getClientRange(message.params.range);
+          const cfg = getSparkdownPreviewConfig(documentUri);
+          const syncedWithCursor =
+            cfg.screenplay_preview_synchronized_with_cursor;
+          if (syncedWithCursor) {
+            const editor = getEditor(documentUri);
+            if (editor) {
+              editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
+            }
           }
         }
       }
       if (SelectedPreviewNotification.is(message)) {
-        const documentUri = getUri(message.params.textDocument.uri);
-        const range = getClientRange(message.params.range);
-        let editor = getEditor(documentUri);
-        if (editor === undefined) {
-          const doc = await vscode.workspace.openTextDocument(documentUri);
-          editor = await vscode.window.showTextDocument(doc);
-        } else {
-          await vscode.window.showTextDocument(
-            editor.document,
-            editor.viewColumn,
-            false
+        if (message.params.type === "screenplay") {
+          const documentUri = getUri(message.params.textDocument.uri);
+          const range = getClientRange(message.params.range);
+          let editor = getEditor(documentUri);
+          if (editor === undefined) {
+            const doc = await vscode.workspace.openTextDocument(documentUri);
+            editor = await vscode.window.showTextDocument(doc);
+          } else {
+            await vscode.window.showTextDocument(
+              editor.document,
+              editor.viewColumn,
+              false
+            );
+          }
+          editor.selection = new vscode.Selection(range.start, range.end);
+          editor.revealRange(
+            range,
+            vscode.TextEditorRevealType.InCenterIfOutsideViewport
           );
         }
-        editor.selection = new vscode.Selection(range.start, range.end);
-        editor.revealRange(
-          range,
-          vscode.TextEditorRevealType.InCenterIfOutsideViewport
-        );
       }
     });
     panel.onDidDispose(() => {
@@ -155,6 +165,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     const selectedRange = editor?.selection;
     panel.webview.postMessage(
       LoadPreviewRequest.message({
+        type: "screenplay",
         textDocument: {
           uri: document.uri.toString(),
           languageId: document.languageId,
@@ -326,15 +337,6 @@ export class SparkdownPreviewScreenplayPanelManager {
             body.ready {
               opacity: 1;
               transition: 0.25s opacity;
-            }
-
-            body {
-              --s-color-tab-active: var(--s-color-neutral-100);
-              --s-color-tab-inactive: hsl(0 0% 45%);
-              --s-color-fab-fg: white;
-              --s-color-fab-bg: var(--vscode-custom-button-background);
-              --s-color-primary-bg: var(--vscode-custom-editor-navigation-background);
-              --s-color-panel: var(--vscode-custom-editor-background);
             }
           </style>
         </head>

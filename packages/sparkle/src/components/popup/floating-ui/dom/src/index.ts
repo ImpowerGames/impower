@@ -1,4 +1,4 @@
-import { computePosition as computePositionCore } from "../../core";
+import { computePosition as computePositionCore } from "../../core/src";
 
 import { platform } from "./platform";
 import type {
@@ -40,7 +40,7 @@ export {
   offset,
   shift,
   size,
-} from "../../core";
+} from "../../core/src";
 export { autoUpdate } from "./autoUpdate";
 export { platform } from "./platform";
 export { getOverflowAncestors } from "./utils/getOverflowAncestors";

@@ -42,7 +42,6 @@ export const DEFAULT_SPARKLE_TRANSFORMERS = {
 export const DEFAULT_SPARKLE_ATTRIBUTES = {
   rtl: "rtl",
   disabled: "disabled",
-  loading: "loading",
   navigation: "navigation",
   ...getAttributeNameMap(getKeys(STYLE_TRANSFORMERS)),
   ...ARIA_PROPERTY_NAME_MAP,
@@ -97,16 +96,6 @@ export default class SparkleElement
   }
   set disabled(value) {
     this.setStringAttribute(SparkleElement.attributes.disabled, value);
-  }
-
-  /**
-   * Whether or not the element is loading.
-   */
-  get loading(): boolean {
-    return this.getBooleanAttribute(SparkleElement.attributes.loading);
-  }
-  set loading(value) {
-    this.setStringAttribute(SparkleElement.attributes.loading, value);
   }
 
   /**

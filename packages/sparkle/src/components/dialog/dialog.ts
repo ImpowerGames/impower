@@ -138,7 +138,7 @@ export default class Dialog
     this.setStringAttribute(Dialog.attributes.confirm, value);
   }
 
-  get dialog(): HTMLDialogElement {
+  get dialogEl(): HTMLDialogElement {
     return this.root as HTMLDialogElement;
   }
 
@@ -240,8 +240,8 @@ export default class Dialog
     if (confirmButton) {
       confirmButton.hidden = confirm == null;
     }
-    this.dialog.addEventListener("click", this.handleLightDismiss);
-    this.dialog.addEventListener("close", this.handleEscapeClose);
+    this.dialogEl.addEventListener("click", this.handleLightDismiss);
+    this.dialogEl.addEventListener("close", this.handleEscapeClose);
     this.cancelButton?.addEventListener("click", this.handleClickClose);
     this.confirmButton?.addEventListener("click", this.handleClickClose);
     if (this.shadowRoot) {
@@ -285,8 +285,8 @@ export default class Dialog
 
   protected override onDisconnected(): void {
     unlockBodyScrolling(this);
-    this.dialog.removeEventListener("click", this.handleLightDismiss);
-    this.dialog.removeEventListener("close", this.handleEscapeClose);
+    this.dialogEl.removeEventListener("click", this.handleLightDismiss);
+    this.dialogEl.removeEventListener("close", this.handleEscapeClose);
     this.cancelButton?.removeEventListener("click", this.handleClickClose);
     this.confirmButton?.removeEventListener("click", this.handleClickClose);
     if (this.shadowRoot) {
@@ -351,7 +351,7 @@ export default class Dialog
 
   protected handleLightDismiss = (e: Event) => {
     const el = e.target as HTMLElement;
-    if (el === this.dialog && this.dismissable) {
+    if (el === this.dialogEl && this.dismissable) {
       this.close("dismiss");
     }
   };
@@ -361,10 +361,10 @@ export default class Dialog
     this.root.inert = false;
     this.setAttribute("loaded", "");
     if (modal) {
-      this.dialog.showModal();
+      this.dialogEl.showModal();
       lockBodyScrolling(this);
     } else {
-      this.dialog.show();
+      this.dialogEl.show();
     }
 
     const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
@@ -390,13 +390,13 @@ export default class Dialog
   protected handleClose = async (
     returnValue?: string
   ): Promise<string | undefined> => {
-    this.dialog.inert = true;
+    this.dialogEl.inert = true;
     this.open = false;
     this.emit(CLOSING_EVENT);
 
     await animationsComplete(this.root);
 
-    this.dialog.close();
+    this.dialogEl.close();
 
     this.emit(CLOSED_EVENT);
     return returnValue;

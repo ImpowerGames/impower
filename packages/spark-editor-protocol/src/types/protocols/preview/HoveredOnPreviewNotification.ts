@@ -4,6 +4,7 @@ import { TextDocumentIdentifier } from "../TextDocumentIdentifier";
 export type HoveredOnPreviewMethod = typeof HoveredOnPreviewNotification.method;
 
 export interface HoveredOnPreviewParams {
+  type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
 }
 

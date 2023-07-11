@@ -5,6 +5,7 @@ import { TextDocumentIdentifier } from "../TextDocumentIdentifier";
 export type ScrolledPreviewMethod = typeof ScrolledPreviewNotification.method;
 
 export interface ScrolledPreviewParams {
+  type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
   range: Range;
 }

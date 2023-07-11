@@ -6,8 +6,10 @@ import Circle from "../components/circle/circle";
 import Collapsible from "../components/collapsible/collapsible";
 import Dialog from "../components/dialog/dialog";
 import Divider from "../components/divider/divider";
+import Dropdown from "../components/dropdown/dropdown";
 import Hidden from "../components/hidden/hidden";
 import Icon from "../components/icon/icon";
+import Option from "../components/option/option";
 import Popup from "../components/popup/popup";
 import ProgressBar from "../components/progress-bar/progress-bar";
 import ProgressCircle from "../components/progress-circle/progress-circle";
@@ -40,9 +42,11 @@ const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-badge": Badge,
   "s-collapsible": Collapsible,
   "s-button": Button,
+  "s-option": Option,
   "s-tab": Tab,
   "s-tabs": Tabs,
   "s-tooltip": Tooltip,
+  "s-dropdown": Dropdown,
   "s-toast-stack": ToastStack,
   "s-toast": Toast,
   "s-dialog": Dialog,

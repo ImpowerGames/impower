@@ -4,6 +4,7 @@ import { Range } from "../Range";
 import { TextDocumentItem } from "../TextDocumentItem";
 
 export interface LoadPreviewParams {
+  type: "game" | "screenplay";
   textDocument: TextDocumentItem;
   visibleRange?: Range;
   selectedRange?: Range;

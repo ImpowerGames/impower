@@ -199,7 +199,7 @@
   --s-tooltip-line-height: 1.4;
   --s-tooltip-font-weight: normal;
   --s-tooltip-color: var(--s-color-neutral-80);
-  --s-tooltip-background-color: var(--s-color-neutral-10);
+  --s-tooltip-background-color: var(--s-color-neutral-30);
   --s-tooltip-border-radius: 6px;
   --s-tooltip-arrow-size: 6px;
 

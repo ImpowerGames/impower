@@ -7,8 +7,10 @@ import Circle from "./components/circle/_circle";
 import Collapsible from "./components/collapsible/_collapsible";
 import Dialog from "./components/dialog/_dialog";
 import Divider from "./components/divider/_divider";
+import Dropdown from "./components/dropdown/_dropdown";
 import Hidden from "./components/hidden/_hidden";
 import Icon from "./components/icon/_icon";
+import Option from "./components/option/_option";
 import Popup from "./components/popup/_popup";
 import ProgressBar from "./components/progress-bar/_progress-bar";
 import ProgressCircle from "./components/progress-circle/_progress-circle";
@@ -85,9 +87,11 @@ const components = {
   "s-badge": style(Badge),
   "s-collapsible": style(Collapsible),
   "s-button": style(Button),
+  "s-option": style(Option),
   "s-tab": style(Tab),
   "s-tabs": style(Tabs),
   "s-tooltip": style(Tooltip),
+  "s-dropdown": style(Dropdown),
   "s-toast-stack": style(ToastStack),
   "s-toast": style(Toast),
   "s-dialog": style(Dialog),
