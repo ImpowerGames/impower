@@ -12,13 +12,13 @@ if (PRODUCTION) {
 
 /** @type BuildOptions */
 const config = {
-  entryPoints: ["./src/sparkdown-language-server.ts"],
+  entryPoints: ["./src/opfs-workspace.ts"],
   outdir: OUTDIR,
   bundle: true,
   minify: PRODUCTION,
   sourcemap: !PRODUCTION,
   mainFields: ["module", "main"],
-  external: ["vscode", "commonjs"],
+  external: ["commonjs"],
 };
 
 (async () => {
