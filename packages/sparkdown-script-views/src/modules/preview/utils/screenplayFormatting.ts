@@ -42,7 +42,6 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
     borderBottom: "1px solid #00000033",
   },
   { tag: tags.regexp, fontWeight: "bold" },
-  { tag: tags.special(tags.monospace), display: "block", textAlign: "center" },
   { tag: tags.labelName, display: "block", textAlign: "right" },
 
   { tag: tags.comment, display: "none" },
@@ -305,10 +304,23 @@ const decorate = (state: EditorState) => {
       if (type.name === NODE_NAMES.Action) {
         return false;
       }
-      if (type.name === NODE_NAMES.Centered) {
-        return false;
-      }
-      if (type.name === NODE_NAMES.CenteredAngle) {
+      if (
+        type.name === NODE_NAMES.Centered ||
+        type.name === NODE_NAMES.CenteredAngle
+      ) {
+        specs.push({
+          from,
+          to,
+          content: [
+            {
+              from,
+              to,
+              attributes: {
+                style: "text-align: center;",
+              },
+            },
+          ],
+        });
         return false;
       }
       if (type.name === NODE_NAMES.PageBreak) {
