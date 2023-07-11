@@ -517,7 +517,6 @@ export default class Dropdown
 
   protected setupOptions(children: Element[]): void {
     this.unbindOptions();
-    console.log(children);
     this._options = children.filter(
       (el) => el.tagName.toLowerCase() === Dropdown.dependencies.option
     ) as Option[];
