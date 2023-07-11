@@ -12,7 +12,7 @@
     "prod": "tsx ./esbuild.ts --production",
     "build": "npm run prod",
     "start": "node ./out/api/index.js",
-    "preinstall": "npm run install-sparkdown-script-views && npm run install-sparkdown-language-server"
+    "ci-install": "npm run install-sparkdown-script-views && npm run install-sparkdown-language-server && npm ci"
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.3.0-beta.2",

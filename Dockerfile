@@ -1,7 +1,7 @@
 FROM node:20-slim as builder
 WORKDIR /usr/src/app
 COPY . .
-RUN cd ./impower-dev && npm run preinstall && npm ci && npm run build && cd ../
+RUN cd ./impower-dev && npm run ci-install && npm run build && cd ../
 
 FROM node:20-slim
 WORKDIR /usr/src/app
