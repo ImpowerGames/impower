@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "kill": "kill-port 8080",
-    "install-sparkdown-script-view": "cd ../packages/sparkdown-script-view && npm ci && cd ../../impower-dev",
+    "install-sparkdown-script-views": "cd ../packages/sparkdown-script-views && npm ci && cd ../../impower-dev",
     "install-sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm ci && cd ../../impower-dev",
     "build-sparkdown-language-server": "cd ../packages/sparkdown-language-server && node ./esbuild.js --outdir=../../impower-dev/out/public && cd ../../impower-dev",
     "build-workers": "npm run build-sparkdown-language-server",
@@ -12,7 +12,7 @@
     "prod": "tsx ./esbuild.ts --production",
     "build": "npm run prod",
     "start": "node ./out/api/index.js",
-    "preinstall": "npm run install-sparkdown-script-view && npm run install-sparkdown-language-server"
+    "preinstall": "npm run install-sparkdown-script-views && npm run install-sparkdown-language-server"
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.3.0-beta.2",
