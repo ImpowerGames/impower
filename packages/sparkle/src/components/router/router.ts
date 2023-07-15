@@ -17,6 +17,7 @@ const ENTER_EVENT = "enter";
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
+    "active",
     "enter-event",
     "exit-event",
     "swipeable",
@@ -55,6 +56,16 @@ export default class Router
 
   override get css() {
     return Router.augmentCss(css);
+  }
+
+  /**
+   * The value of the active route.
+   */
+  get active(): string | null {
+    return this.getStringAttribute(Router.attributes.active);
+  }
+  set active(value) {
+    this.setStringAttribute(Router.attributes.active, value);
   }
 
   /**
@@ -168,11 +179,15 @@ export default class Router
   }
 
   get headerSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("header-slot");
+    return this.getSlotByName("header");
+  }
+
+  get headerTemplatesSlot(): HTMLSlotElement | null {
+    return this.getSlotByName("header-templates");
   }
 
   get headerTemplates(): HTMLTemplateElement[] {
-    const slot = this.headerSlot;
+    const slot = this.headerTemplatesSlot;
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(
@@ -183,11 +198,15 @@ export default class Router
   }
 
   get footerSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("footer-slot");
+    return this.getSlotByName("footer");
+  }
+
+  get footerTemplatesSlot(): HTMLSlotElement | null {
+    return this.getSlotByName("footer-templates");
   }
 
   get footerTemplates(): HTMLTemplateElement[] {
-    const slot = this.footerSlot;
+    const slot = this.footerTemplatesSlot;
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(
@@ -216,6 +235,9 @@ export default class Router
   protected override onConnected(): void {
     this.root?.addEventListener(this.exitEvent, this.handleChanging);
     this.root?.addEventListener(this.enterEvent, this.handleChanged);
+    if (this.active) {
+      this.loadRoute(this.active);
+    }
   }
 
   protected override onDisconnected(): void {
@@ -280,7 +302,10 @@ export default class Router
       cancelAnimations(this.enterFadeEl);
       cancelAnimations(this.enterTransformEl);
       this.playEnterTransition();
-      this.loadRoute(newValue);
+      const targetSlotName =
+        this.unmount === "on-enter" ? "new-content" : undefined;
+      this.loadRoute(newValue, targetSlotName);
+      this.active = newValue;
       this.root.removeAttribute("mounting");
       this.emit(ENTER_EVENT);
       await animationsComplete(this.enterFadeEl, this.enterTransformEl);
@@ -306,13 +331,21 @@ export default class Router
     this.updateState("entering");
   }
 
-  loadContent(newValue: string | null): Node | null {
+  loadContent(newValue: string | null, slotName?: string): Node | null {
     if (newValue) {
       const template = this.findTemplate(this.contentTemplates, newValue);
       if (template) {
-        const targetSlotName =
-          this.unmount === "on-enter" ? "new-content" : undefined;
-        return this.loadTemplate(template, targetSlotName);
+        return this.loadTemplate(template, slotName);
+      }
+    }
+    return null;
+  }
+
+  loadHeader(newValue: string | null): Node | null {
+    if (newValue) {
+      const template = this.findTemplate(this.headerTemplates, newValue);
+      if (template) {
+        return this.loadTemplate(template, "header");
       }
     }
     return null;
@@ -328,10 +361,11 @@ export default class Router
     return null;
   }
 
-  loadRoute(newValue: string | null): void {
+  loadRoute(newValue: string | null, slotName?: string): void {
     if (newValue !== this._loadedValue) {
       this._loadedValue = newValue;
-      this._loadedNode = this.loadContent(newValue);
+      this._loadedNode = this.loadContent(newValue, slotName);
+      this.loadHeader(newValue);
       this.loadFooter(newValue);
     }
   }

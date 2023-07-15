@@ -1,4 +1,4 @@
-<s-router directional>
+<s-router directional active="main">
   <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header" active="main">
     <s-box bg-color="panel" position="absolute" i="0 0 0 0" height="100vh" translate-y="-100%"></s-box>
     <s-tab color="tab-active" text-color="tab-inactive" text-color="tab-inactive" p="20" child-layout="row" icon="code"
@@ -10,11 +10,12 @@
       Scripts
     </s-tab>
   </s-tabs>
-  <se-script-editor file-path="logic/main.sd"></se-script-editor>
   <template value="main">
     <se-script-editor file-path="logic/main.sd"></se-script-editor>
   </template>
   <template value="scripts">
-    <se-scripts></se-scripts>
+    <se-file-list directory-path="logic/scripts">
+      <se-add-fab>Add Script</se-add-fab>
+    </se-file-list>
   </template>
 </s-router>

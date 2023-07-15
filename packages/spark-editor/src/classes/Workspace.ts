@@ -13,8 +13,71 @@ import {
 import { WorkspaceEntry } from "../../../spark-editor-protocol/src/types";
 
 export interface WorkspaceState {
-  window: string;
-  panel: string;
+  windows: {
+    setup: {
+      panel: "details" | "share";
+      panels: {
+        details: {
+          open?: string;
+          scrollIndex: number;
+        };
+        share: {
+          scrollIndex: number;
+        };
+      };
+    };
+    audio: {
+      panel: "sounds" | "music";
+      panels: {
+        sounds: {
+          open?: string;
+          scrollIndex: number;
+        };
+        music: {
+          open?: string;
+          scrollIndex: number;
+        };
+      };
+    };
+    displays: {
+      panel: "widgets" | "views";
+      panels: {
+        widgets: {
+          open?: string;
+          scrollIndex: number;
+        };
+        views: {
+          open?: string;
+          scrollIndex: number;
+        };
+      };
+    };
+    graphics: {
+      panel: "sprites" | "maps";
+      panels: {
+        sprites: {
+          open?: string;
+          scrollIndex: number;
+        };
+        maps: {
+          open?: string;
+          scrollIndex: number;
+        };
+      };
+    };
+    logic: {
+      panel: "main" | "scripts";
+      panels: {
+        main: {
+          scrollIndex: number;
+        };
+        scripts: {
+          open?: string;
+          scrollIndex: number;
+        };
+      };
+    };
+  };
 }
 
 export default class Workspace {

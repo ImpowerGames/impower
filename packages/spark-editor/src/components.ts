@@ -20,9 +20,9 @@ import Music from "./components/music/_music";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewPanel from "./components/preview-panel/_preview-panel";
+import Preview from "./components/preview/_preview";
 import ScreenplayPreview from "./components/screenplay-preview/_screenplay-preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
-import Scripts from "./components/scripts/_scripts";
 import Setup from "./components/setup/_setup";
 import Share from "./components/share/_share";
 import Sounds from "./components/sounds/_sounds";
@@ -63,7 +63,6 @@ const components = {
   "se-script-editor": style(ScriptEditor),
   "se-game-preview": style(GamePreview),
   "se-screenplay-preview": style(ScreenplayPreview),
-  "se-scripts": style(Scripts),
   "se-logic": style(Logic),
   "se-maps": style(Maps),
   "se-sprites": style(Sprites),
@@ -80,6 +79,7 @@ const components = {
   "se-setup": style(Setup),
   "se-demo": style(Demo),
   "se-main-panel": style(MainPanel),
+  "se-preview": style(Preview),
   "se-preview-panel": style(PreviewPanel),
   "se-notifications": style(Notifications),
   "se-header-navigation": style(HeaderNavigation),

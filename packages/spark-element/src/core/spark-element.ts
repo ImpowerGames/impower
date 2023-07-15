@@ -38,7 +38,7 @@ export default class SparkElement extends HTMLElement {
   }
 
   get html(): string {
-    return `<slot class="content-slot"></slot>`;
+    return `<slot></slot>`;
   }
 
   get css(): string {
@@ -179,6 +179,13 @@ export default class SparkElement extends HTMLElement {
     } else {
       this.removeAttribute(name);
     }
+  }
+
+  getSlotByName<T extends HTMLSlotElement>(name?: string): T | null {
+    if (name) {
+      return this.self.querySelector(`slot[name=${name}]`) || null;
+    }
+    return this.self.querySelector(`slot:not([name])`) || null;
   }
 
   getElementByTag<T extends HTMLElement>(name: string): T | null {

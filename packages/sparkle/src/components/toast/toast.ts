@@ -119,7 +119,7 @@ export default class Toast
   }
 
   get actionSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("action-slot");
+    return this.getSlotByName("action");
   }
 
   private _setup = false;

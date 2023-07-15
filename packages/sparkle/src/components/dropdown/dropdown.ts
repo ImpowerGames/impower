@@ -117,7 +117,7 @@ export default class Dropdown
   }
 
   get optionsSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("options-slot");
+    return this.getSlotByName("options");
   }
 
   get dialogEl(): HTMLDialogElement {

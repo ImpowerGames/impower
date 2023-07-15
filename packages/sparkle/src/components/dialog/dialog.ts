@@ -159,15 +159,15 @@ export default class Dialog
   }
 
   get labelSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("label-slot");
+    return this.getSlotByName("label");
   }
 
   get cancelSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("cancel-slot");
+    return this.getSlotByName("cancel");
   }
 
   get confirmSlot(): HTMLSlotElement | null {
-    return this.getElementByClass("confirm-slot");
+    return this.getSlotByName("confirm");
   }
 
   protected override onAttributeChanged(

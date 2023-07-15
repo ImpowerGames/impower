@@ -18,9 +18,9 @@ import Music from "./components/music/music";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewPanel from "./components/preview-panel/preview-panel";
+import Preview from "./components/preview/preview";
 import ScreenplayPreview from "./components/screenplay-preview/screenplay-preview";
 import ScriptEditor from "./components/script-editor/script-editor";
-import Scripts from "./components/scripts/scripts";
 import Setup from "./components/setup/setup";
 import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
@@ -39,7 +39,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-script-editor": ScriptEditor,
   "se-game-preview": GamePreview,
   "se-screenplay-preview": ScreenplayPreview,
-  "se-scripts": Scripts,
   "se-logic": Logic,
   "se-maps": Maps,
   "se-sprites": Sprites,
@@ -56,6 +55,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-setup": Setup,
   "se-demo": Demo,
   "se-main-panel": MainPanel,
+  "se-preview": Preview,
   "se-preview-panel": PreviewPanel,
   "se-notifications": Notifications,
   "se-header-navigation": HeaderNavigation,

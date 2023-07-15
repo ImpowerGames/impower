@@ -1,4 +1,4 @@
-<s-router directional>
+<s-router directional active="widgets">
   <s-tabs color="tab-active" height="panel-nav" bg-color="panel" position="sticky-top" slot="header" active="widgets">
     <s-box bg-color="panel" position="absolute" i="0 0 0 0" height="100vh" translate-y="-100%"></s-box>
     <s-tab color="tab-active" text-color="tab-inactive" p="20" child-layout="row" icon="shape" value="widgets" active>
@@ -8,7 +8,6 @@
       Views
     </s-tab>
   </s-tabs>
-  <se-widgets></se-widgets>
   <template value="widgets">
     <se-widgets></se-widgets>
   </template>
