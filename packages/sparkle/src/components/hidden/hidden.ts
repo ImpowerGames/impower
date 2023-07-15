@@ -1,5 +1,6 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
 import SparkleElement, {
@@ -10,7 +11,6 @@ import { SizeName } from "../../types/sizeName";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getBreakpointValue } from "../../utils/getBreakpointValue";
 import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
-import { getKeys } from "../../utils/getKeys";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import css from "./hidden.css";
 import html from "./hidden.html";

@@ -12,7 +12,6 @@ import FoldingSupport from "../classes/features/FoldingSupport";
 
 export interface LanguageClientConfig {
   connection: LanguageServerConnection;
-  textDocument: { uri: string; version: number };
   language: Language;
   highlighter: {
     style(tags: readonly Tag[]): string | null;

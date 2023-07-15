@@ -13,6 +13,7 @@ import {
   DidChangeTextDocumentParams,
   DidOpenTextDocumentNotification,
   DidOpenTextDocumentParams,
+  DidSaveTextDocumentNotification,
   DocumentColorParams,
   DocumentColorRequest,
   FoldingRangeParams,
@@ -176,9 +177,15 @@ export default class LanguageServerConnection {
     return this._publishDiagnosticsEvent;
   }
 
-  protected _parseEvent = new Event<DidParseTextDocumentParams>();
-  get parseEvent() {
-    return this._parseEvent;
+  protected _didOpenTextDocumentEvent = new Event<DidOpenTextDocumentParams>();
+  get didOpenTextDocumentEvent() {
+    return this._didOpenTextDocumentEvent;
+  }
+
+  protected _didParseTextDocumentEvent =
+    new Event<DidParseTextDocumentParams>();
+  get didParseTextDocumentEvent() {
+    return this._didParseTextDocumentEvent;
   }
 
   constructor(
@@ -215,8 +222,14 @@ export default class LanguageServerConnection {
     connection.onNotification(PublishDiagnosticsNotification.type, (params) => {
       this._publishDiagnosticsEvent.emit(params);
     });
+    connection.onNotification(
+      DidOpenTextDocumentNotification.type,
+      (params) => {
+        this._didOpenTextDocumentEvent.emit(params);
+      }
+    );
     connection.onNotification(DidParseTextDocument.type, (params) => {
-      this._parseEvent.emit(params);
+      this._didParseTextDocumentEvent.emit(params);
     });
     connection.listen();
     const result = await connection.sendRequest<InitializeResult>(
@@ -268,6 +281,10 @@ export default class LanguageServerConnection {
       DidChangeTextDocumentNotification.type,
       params
     );
+  }
+
+  notifyDidSaveTextDocument(params: DidChangeTextDocumentParams) {
+    return this.sendNotification(DidSaveTextDocumentNotification.type, params);
   }
 
   async requestDocumentColors(

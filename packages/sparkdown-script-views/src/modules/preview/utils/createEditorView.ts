@@ -1,7 +1,7 @@
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import debounce from "../../../cm-language-client/utils/debounce";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
+import debounce from "../../../utils/debounce";
 import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import screenplayFormatting from "./screenplayFormatting";
 

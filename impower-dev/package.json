@@ -6,13 +6,15 @@
     "kill": "kill-port 8080",
     "install-sparkdown-script-views": "cd ../packages/sparkdown-script-views && npm ci && cd ../../impower-dev",
     "install-sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm ci && cd ../../impower-dev",
+    "install-opfs-workspace": "cd ../packages/opfs-workspace && npm ci && cd ../../impower-dev",
     "build-sparkdown-language-server": "cd ../packages/sparkdown-language-server && node ./esbuild.js --outdir=../../impower-dev/out/public && cd ../../impower-dev",
-    "build-workers": "npm run build-sparkdown-language-server",
+    "build-opfs-workspace": "cd ../packages/opfs-workspace && node ./esbuild.js --outdir=../../impower-dev/out/public && cd ../../impower-dev",
+    "build-workers": "npm run build-sparkdown-language-server && npm run build-opfs-workspace",
     "dev": "tsx ./esbuild.ts --watch",
     "prod": "tsx ./esbuild.ts --production",
     "build": "npm run prod",
     "start": "node ./out/api/index.js",
-    "ci-install": "npm run install-sparkdown-language-server && npm run install-sparkdown-script-views && npm ci"
+    "preinstall": "npm run install-sparkdown-language-server && npm run install-opfs-workspace && npm run install-sparkdown-script-views"
   },
   "devDependencies": {
     "@adobe/css-tools": "^4.3.0-beta.2",
@@ -36,6 +38,7 @@
   "dependencies": {
     "@fastify/static": "^6.10.2",
     "@fastify/websocket": "^8.1.0",
+    "@impower/opfs-workspace": "file:../packages/opfs-workspace",
     "@impower/spark-editor": "file:../packages/spark-editor",
     "@impower/spark-element": "file:../packages/spark-element",
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",

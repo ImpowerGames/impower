@@ -36,5 +36,5 @@ wordPattern:
   flags: "u"
 
 indentationRules:
-  increaseIndentPattern: ^\s*.*(:|-)[ ]?(&amp;\w+)?([{][^}"']*|[(][^)"']*)?$
+  increaseIndentPattern: ^\s*.*([:])[ ]?(&amp;\w+)?([{][^}"']*|[(][^)"']*)?$
   decreaseIndentPattern: ^\s+[}]$|^\s*[-]{3,}\s*$

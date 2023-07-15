@@ -17,5 +17,5 @@ export interface RequestMessage<
   /**
    * The method's params.
    */
-  params: P;
+  params?: P;
 }

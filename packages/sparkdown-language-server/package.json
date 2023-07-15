@@ -18,8 +18,7 @@
   },
   "main": "dist/sparkdown-language-server.js",
   "scripts": {
-    "build": "node ./esbuild.js",
-    "postinstall": "node ./esbuild.js"
+    "build": "node ./esbuild.js"
   },
   "dependencies": {
     "@impower/spark-evaluate": "file:../spark-evaluate",

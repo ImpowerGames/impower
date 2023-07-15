@@ -5,8 +5,8 @@ import Audio from "./components/audio/audio";
 import Demo from "./components/demo/demo";
 import Details from "./components/details/details";
 import Displays from "./components/displays/displays";
-import Elements from "./components/elements/elements";
 import FileButton from "./components/file-button/file-button";
+import FileList from "./components/file-list/file-list";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import Graphics from "./components/graphics/graphics";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
@@ -17,11 +17,14 @@ import Music from "./components/music/music";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewPanel from "./components/preview-panel/preview-panel";
+import ScriptEditor from "./components/script-editor/script-editor";
+import Scripts from "./components/scripts/scripts";
 import Setup from "./components/setup/setup";
 import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
 import Sprites from "./components/sprites/sprites";
 import Views from "./components/views/views";
+import Widgets from "./components/widgets/widgets";
 import Main from "./main/spark-editor";
 import icons from "./styles/icons/icons.css";
 import theme from "./styles/theme/theme.css";
@@ -29,13 +32,16 @@ import theme from "./styles/theme/theme.css";
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-option-button": OptionButton,
   "se-file-button": FileButton,
+  "se-file-list": FileList,
   "se-add-fab": AddFab,
+  "se-script-editor": ScriptEditor,
+  "se-scripts": Scripts,
   "se-logic": Logic,
   "se-maps": Maps,
   "se-sprites": Sprites,
   "se-graphics": Graphics,
+  "se-widgets": Widgets,
   "se-views": Views,
-  "se-elements": Elements,
   "se-displays": Displays,
   "se-music": Music,
   "se-sounds": Sounds,

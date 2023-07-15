@@ -1,6 +1,7 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
@@ -12,7 +13,6 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
-import { getKeys } from "../../utils/getKeys";
 import type Ripple from "../ripple/ripple";
 import css from "./tab.css";
 import html from "./tab.html";

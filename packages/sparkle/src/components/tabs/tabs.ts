@@ -1,6 +1,7 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -8,7 +9,6 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import { animationsComplete } from "../../utils/animationsComplete";
-import { getKeys } from "../../utils/getKeys";
 import { getSlotChildren } from "../../utils/getSlotChildren";
 import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";

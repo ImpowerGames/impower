@@ -1,15 +1,17 @@
 import {
-  ConnectedPreviewNotification,
-  DidChangeTextDocumentNotification,
-  DidChangeWorkspaceConfigurationNotification,
-  HoveredOffPreviewNotification,
-  HoveredOnPreviewNotification,
-  LoadPreviewRequest,
-  ScrolledEditorNotification,
-  ScrolledPreviewNotification,
-  SelectedEditorNotification,
-  SelectedPreviewNotification,
-} from "@impower/spark-editor-protocol/src";
+  ScrolledEditor,
+  SelectedEditor,
+} from "@impower/spark-editor-protocol/src/protocols/editor";
+import {
+  ConnectedPreview,
+  HoveredOffPreview,
+  HoveredOnPreview,
+  LoadPreview,
+  ScrolledPreview,
+  SelectedPreview,
+} from "@impower/spark-editor-protocol/src/protocols/preview";
+import { DidChangeTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument";
+import { DidChangeConfiguration } from "@impower/spark-editor-protocol/src/protocols/workspace";
 import * as vscode from "vscode";
 import { Uri, ViewColumn, WebviewPanel, window } from "vscode";
 import { getClientRange } from "../utils/getClientRange";
@@ -96,7 +98,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     panel.webview.html = this.getWebviewContent(panel.webview, extensionUri);
 
     panel.webview.onDidReceiveMessage(async (message) => {
-      if (ConnectedPreviewNotification.is(message)) {
+      if (ConnectedPreview.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._connected = true;
           if (this._document) {
@@ -104,17 +106,17 @@ export class SparkdownPreviewScreenplayPanelManager {
           }
         }
       }
-      if (HoveredOnPreviewNotification.is(message)) {
+      if (HoveredOnPreview.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._hovering = true;
         }
       }
-      if (HoveredOffPreviewNotification.is(message)) {
+      if (HoveredOffPreview.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._hovering = false;
         }
       }
-      if (ScrolledPreviewNotification.is(message)) {
+      if (ScrolledPreview.isNotification(message)) {
         if (message.params.type === "screenplay") {
           const documentUri = getUri(message.params.textDocument.uri);
           const range = getClientRange(message.params.range);
@@ -129,7 +131,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           }
         }
       }
-      if (SelectedPreviewNotification.is(message)) {
+      if (SelectedPreview.isNotification(message)) {
         if (message.params.type === "screenplay") {
           const documentUri = getUri(message.params.textDocument.uri);
           const range = getClientRange(message.params.range);
@@ -163,8 +165,13 @@ export class SparkdownPreviewScreenplayPanelManager {
     const editor = getEditor(document.uri);
     const visibleRange = editor?.visibleRanges[0];
     const selectedRange = editor?.selection;
+    console.log(
+      "WORKSPACE",
+      vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString()
+    );
+    console.log("DOCUMENT", document.uri.toString());
     panel.webview.postMessage(
-      LoadPreviewRequest.message({
+      LoadPreview.request({
         type: "screenplay",
         textDocument: {
           uri: document.uri.toString(),
@@ -195,7 +202,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
         this._panel.webview.postMessage(
-          DidChangeTextDocumentNotification.message({
+          DidChangeTextDocument.notification({
             textDocument: {
               uri: document.uri.toString(),
             },
@@ -216,7 +223,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           getUri(this._document.uri.toString())
         );
         this._panel.webview.postMessage(
-          DidChangeWorkspaceConfigurationNotification.message({
+          DidChangeConfiguration.notification({
             settings: { ...configuration },
           })
         );
@@ -228,7 +235,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
         this._panel.webview.postMessage(
-          SelectedEditorNotification.message({
+          SelectedEditor.notification({
             textDocument: { uri: document.uri.toString() },
             range: getServerRange(range),
           })
@@ -241,7 +248,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
         this._panel.webview.postMessage(
-          ScrolledEditorNotification.message({
+          ScrolledEditor.notification({
             textDocument: { uri: document.uri.toString() },
             range: getServerRange(range),
           })

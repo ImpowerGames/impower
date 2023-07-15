@@ -7,8 +7,8 @@ import Audio from "./components/audio/_audio";
 import Demo from "./components/demo/_demo";
 import Details from "./components/details/_details";
 import Displays from "./components/displays/_displays";
-import Elements from "./components/elements/_elements";
 import FileButton from "./components/file-button/_file-button";
+import FileList from "./components/file-list/_file-list";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
 import Graphics from "./components/graphics/_graphics";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
@@ -19,11 +19,14 @@ import Music from "./components/music/_music";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewPanel from "./components/preview-panel/_preview-panel";
+import ScriptEditor from "./components/script-editor/_script-editor";
+import Scripts from "./components/scripts/_scripts";
 import Setup from "./components/setup/_setup";
 import Share from "./components/share/_share";
 import Sounds from "./components/sounds/_sounds";
 import Sprites from "./components/sprites/_sprites";
 import Views from "./components/views/_views";
+import Widgets from "./components/widgets/_widgets";
 import Main from "./main/_spark-editor";
 import coreCSS from "./styles/core/core.css";
 import Icons from "./styles/icons/_icons";
@@ -53,13 +56,16 @@ const components = {
   "se-normalize": Normalize,
   "se-option-button": style(OptionButton),
   "se-file-button": style(FileButton),
+  "se-file-list": style(FileList),
   "se-add-fab": style(AddFab),
+  "se-script-editor": style(ScriptEditor),
+  "se-scripts": style(Scripts),
   "se-logic": style(Logic),
   "se-maps": style(Maps),
   "se-sprites": style(Sprites),
   "se-graphics": style(Graphics),
+  "se-widgets": style(Widgets),
   "se-views": style(Views),
-  "se-elements": style(Elements),
   "se-displays": style(Displays),
   "se-music": style(Music),
   "se-sounds": style(Sounds),

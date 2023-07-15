@@ -1,12 +1,4 @@
 import { SparkDOMElement } from "@impower/spark-dom/src";
-import {
-  ConnectedPreviewNotification,
-  HoveredOffPreviewNotification,
-  HoveredOnPreviewNotification,
-  LoadedPreviewNotification,
-  ScrolledPreviewNotification,
-  SelectedPreviewNotification,
-} from "@impower/spark-editor-protocol/src/index.js";
 import { SparkContext, previewLine } from "@impower/spark-engine/src";
 
 declare var acquireVsCodeApi: any;

@@ -2,8 +2,9 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "es2020",
-    "lib": ["esnext", "dom"],
+    "lib": ["es2020", "DOM", "WebWorker"],
     "outDir": "dist",
+    "checkJs": true,
     "declaration": true,
     "skipLibCheck": true,
     "sourceMap": true,
@@ -22,14 +23,5 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "src/**/*",
-    "scripts/**/*",
-    "../spark-element/src/utils/getAttributeNameMap.ts",
-    "../spark-element/src/utils/convertToCamelCase.ts",
-    "../spark-element/src/utils/getDependencyNameMap.ts",
-    "../spark-element/src/types/camelCase.ts",
-    "../spark-element/src/types/properties.ts",
-    "../spark-element/src/utils/getUnitlessValue.ts"
-  ]
+  "include": ["src/**/*", "scripts/**/*"]
 }

@@ -35,7 +35,7 @@ export const activatePreviewScreenplayPanel = (
   );
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor) {
+      if (editor?.document.languageId === "sparkdown") {
         SparkdownPreviewScreenplayPanelManager.instance.notifyFocusedTextDocument(
           editor.document
         );
@@ -44,10 +44,12 @@ export const activatePreviewScreenplayPanel = (
   );
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((change) => {
-      SparkdownPreviewScreenplayPanelManager.instance.notifyChangedTextDocument(
-        change.document,
-        change.contentChanges
-      );
+      if (change.document.languageId === "sparkdown") {
+        SparkdownPreviewScreenplayPanelManager.instance.notifyChangedTextDocument(
+          change.document,
+          change.contentChanges
+        );
+      }
     })
   );
   // Notify screenplay preview whenever text editor selection (or cursor position) changed

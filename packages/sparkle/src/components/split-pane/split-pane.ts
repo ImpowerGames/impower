@@ -1,5 +1,6 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import SparkleElement, {
@@ -8,7 +9,6 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { SizeName } from "../../types/sizeName";
-import { getKeys } from "../../utils/getKeys";
 import css from "./split-pane.css";
 import html from "./split-pane.html";
 

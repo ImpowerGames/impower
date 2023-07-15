@@ -1,6 +1,6 @@
 {
   "name": "@impower/opfs-workspace",
-  "description": "A virtual workspace backed by Origin Private File System.",
+  "description": "A virtual workspace backed by the Origin Private File System.",
   "version": "1.0.0",
   "type": "module",
   "engines": {
@@ -18,10 +18,8 @@
   },
   "main": "dist/opfs-workspace.js",
   "scripts": {
-    "build": "node ./esbuild.js",
-    "postinstall": "node ./esbuild.js"
+    "build": "node ./esbuild.js"
   },
-  "dependencies": {},
   "devDependencies": {
     "esbuild": "^0.18.10"
   }

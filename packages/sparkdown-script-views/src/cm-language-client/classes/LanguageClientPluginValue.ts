@@ -11,6 +11,7 @@ import { Tag } from "@lezer/highlight";
 
 import {
   Diagnostic,
+  DidOpenTextDocumentParams,
   PublishDiagnosticsParams,
 } from "vscode-languageserver-protocol";
 
@@ -31,11 +32,14 @@ export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
 
   protected _connection: LanguageServerConnection;
-  protected _textDocument: { uri: string; version: number };
   protected _language: Language;
   protected _highlighter: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
+  };
+  protected _textDocument: { uri: string; version: number } = {
+    uri: "",
+    version: 0,
   };
 
   protected _supports: {
@@ -58,11 +62,8 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._connection = config.connection;
     this._language = config.language;
     this._highlighter = config.highlighter;
-    this._textDocument = config.textDocument;
 
     this.bind();
-
-    this.initialize(view.state.doc.toString());
   }
 
   destroy() {
@@ -70,48 +71,48 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   bind() {
-    this._connection.publishDiagnosticsEvent.addListener(
-      this.handleDiagnostics
+    this._connection.didOpenTextDocumentEvent.addListener(
+      this.handleDidOpenTextDocument
     );
-    this._connection.parseEvent.addListener(this.handleParse);
+    this._connection.didParseTextDocumentEvent.addListener(
+      this.handleDidParseTextDocument
+    );
+    this._connection.publishDiagnosticsEvent.addListener(
+      this.handlePublishDiagnostics
+    );
     this._supports.completion.addCompletionSource(this.handleCompletions);
   }
 
   unbind() {
-    this._connection.publishDiagnosticsEvent.removeListener(
-      this.handleDiagnostics
+    this._connection.didOpenTextDocumentEvent.removeListener(
+      this.handleDidOpenTextDocument
     );
-    this._connection.parseEvent.removeListener(this.handleParse);
+    this._connection.didParseTextDocumentEvent.removeListener(
+      this.handleDidParseTextDocument
+    );
+    this._connection.publishDiagnosticsEvent.removeListener(
+      this.handlePublishDiagnostics
+    );
     this._supports.completion.removeCompletionSource(this.handleCompletions);
   }
 
-  protected async initialize(text: string) {
-    if (this._connection.starting) {
-      await this._connection.starting;
-    }
-    this._connection.notifyDidOpenTextDocument({
-      textDocument: {
-        uri: this._textDocument.uri,
-        version: this._textDocument.version,
-        languageId: this._connection.id,
-        text,
-      },
-    });
-  }
-
-  handleDiagnostics = (params: PublishDiagnosticsParams) => {
-    if (params.uri !== this._textDocument.uri) {
-      return;
-    }
-    this.updateDiagnostics(this._view, params.diagnostics);
+  handleDidOpenTextDocument = (params: DidOpenTextDocumentParams) => {
+    this._textDocument = params.textDocument;
   };
 
-  handleParse = async (params: DidParseTextDocumentParams) => {
+  handleDidParseTextDocument = async (params: DidParseTextDocumentParams) => {
     if (params.textDocument.uri !== this._textDocument.uri) {
       return;
     }
     this.updateFoldingRanges(this._view);
     this.updateDocumentColors(this._view);
+  };
+
+  handlePublishDiagnostics = (params: PublishDiagnosticsParams) => {
+    if (params.uri !== this._textDocument.uri) {
+      return;
+    }
+    this.updateDiagnostics(this._view, params.diagnostics);
   };
 
   handleCompletions = async (

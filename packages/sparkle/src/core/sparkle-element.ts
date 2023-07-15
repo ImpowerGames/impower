@@ -1,6 +1,7 @@
 import SparkElement from "../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../spark-element/src/utils/getAttributeNameMap";
+import { getKeys } from "../../../spark-element/src/utils/getKeys";
 import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
 import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
@@ -21,7 +22,6 @@ import { RatioName } from "../types/ratioName";
 import { SizeName } from "../types/sizeName";
 import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
-import { getKeys } from "../utils/getKeys";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isFocusableElement } from "../utils/isFocusableElement";
 import { isServer } from "../utils/isServer";

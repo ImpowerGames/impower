@@ -1,27 +1,88 @@
+import {
+  ReadTextDocument,
+  ReadTextDocumentRequestMessage,
+} from "../../spark-editor-protocol/src/protocols/textDocument/messages/ReadTextDocument";
+import {
+  WriteTextDocument,
+  WriteTextDocumentRequestMessage,
+} from "../../spark-editor-protocol/src/protocols/textDocument/messages/WriteTextDocument";
+import {
+  WorkspaceDirectory,
+  WorkspaceDirectoryRequestMessage,
+} from "../../spark-editor-protocol/src/protocols/workspace/messages/WorkspaceDirectory";
+import { WorkspaceEntry } from "../../spark-editor-protocol/src/types";
+import { getDirectoryPathEntries } from "./utils/getDirectoryPathEntries";
+import { getDirectoryPathHandle } from "./utils/getDirectoryPathHandle";
+import { getFilePathHandle } from "./utils/getFilePathHandle";
+import { getParentPath } from "./utils/getParentPath";
+import { getPathFromUri } from "./utils/getPathFromUri";
+
 onmessage = async (e) => {
-  // retrieve message sent to work from main script
   const message = e.data;
+  if (WorkspaceDirectory.isRequest(message)) {
+    handleWorkspaceDirectory(message);
+  }
+  if (ReadTextDocument.isRequest(message)) {
+    handleReadTextDocument(message);
+  }
+  if (WriteTextDocument.isRequest(message)) {
+    handleWriteTextDocument(message);
+  }
+};
 
-  // Get handle to draft file in OPFS
+const handleWorkspaceDirectory = async (
+  message: WorkspaceDirectoryRequestMessage
+) => {
   const root = await navigator.storage.getDirectory();
-  const draftHandle = await root.getFileHandle("draft.txt", { create: true });
-  // Get sync access handle
-  const accessHandle = await draftHandle.createSyncAccessHandle();
+  const { directory } = message.params;
+  const relativePath = getPathFromUri(directory.uri);
+  const directoryHandle = await getDirectoryPathHandle(root, relativePath);
+  const parentPath = getParentPath(relativePath);
+  const entries: WorkspaceEntry[] = [];
+  const directoryEntries = await getDirectoryPathEntries(
+    directoryHandle,
+    parentPath
+  );
+  Object.values(directoryEntries).forEach((entry) => {
+    entries.push({
+      uri: entry.uri,
+      name: entry.name,
+      kind: entry.kind,
+    });
+  });
+  postMessage(WorkspaceDirectory.response(message.id, entries));
+};
 
-  // Get size of the file.
-  const fileSize = accessHandle.getSize();
-  // Read file content to a buffer.
+const handleReadTextDocument = async (
+  message: ReadTextDocumentRequestMessage
+) => {
+  const root = await navigator.storage.getDirectory();
+  const { textDocument } = message.params;
+  const relativePath = getPathFromUri(textDocument.uri);
+  const fileHandle = await getFilePathHandle(root, relativePath);
+  const syncAccessHandle = await fileHandle.createSyncAccessHandle();
+  const fileSize = syncAccessHandle.getSize();
   const buffer = new DataView(new ArrayBuffer(fileSize));
-  const readBuffer = accessHandle.read(buffer, { at: 0 });
+  syncAccessHandle.read(buffer, { at: 0 });
+  const decoder = new TextDecoder("utf-8");
+  const text = decoder.decode(buffer);
+  syncAccessHandle.flush();
+  syncAccessHandle.close();
+  postMessage(ReadTextDocument.response(message.id, text));
+};
 
-  // Write the message to the end of the file.
+const handleWriteTextDocument = async (
+  message: WriteTextDocumentRequestMessage
+) => {
+  const root = await navigator.storage.getDirectory();
+  const { textDocument, text } = message.params;
+  const relativePath = getPathFromUri(textDocument.uri);
+  const fileHandle = await getFilePathHandle(root, relativePath);
+  const syncAccessHandle = await fileHandle.createSyncAccessHandle();
   const encoder = new TextEncoder();
-  const encodedMessage = encoder.encode(message);
-  const writeBuffer = accessHandle.write(encodedMessage, { at: readBuffer });
-
-  // Persist changes to disk.
-  accessHandle.flush();
-
-  // Always close FileSystemSyncAccessHandle if done.
-  accessHandle.close();
+  const encodedText = encoder.encode(text);
+  syncAccessHandle.truncate(0);
+  syncAccessHandle.write(encodedText, { at: 0 });
+  syncAccessHandle.flush();
+  syncAccessHandle.close();
 };
