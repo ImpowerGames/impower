@@ -30,7 +30,7 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-option"]);
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
-    "value",
+    "active",
     "open",
     "anchor",
     "placement",
@@ -89,11 +89,11 @@ export default class Dropdown
   /**
    * The value of the active option.
    */
-  get value(): string | null {
-    return this.getStringAttribute(Dropdown.attributes.value);
+  get active(): string | null {
+    return this.getStringAttribute(Dropdown.attributes.active);
   }
-  set value(value) {
-    this.setStringAttribute(Dropdown.attributes.value, value);
+  set active(value) {
+    this.setStringAttribute(Dropdown.attributes.active, value);
   }
 
   override get placement():
@@ -168,7 +168,7 @@ export default class Dropdown
   }
 
   protected override onConnected(): void {
-    this._activatingValue = this.value;
+    this._activatingValue = this.active;
     this.dialogEl.addEventListener("click", this.handleLightDismiss);
     this.root.addEventListener("click", this.handleClick);
     this.root.addEventListener("keydown", this.handleKeyDown);
@@ -297,8 +297,8 @@ export default class Dropdown
   async activateOption(option: Option, animate: boolean): Promise<void> {
     const oldOption = this.options.find((option) => option.active);
     const newValue = option.value;
-    const changed = this.value !== newValue;
-    this.value = newValue;
+    const changed = this.active !== newValue;
+    this.active = newValue;
 
     if (oldOption === option) {
       return;

@@ -34,7 +34,7 @@ const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap([
     "indicator",
     "vertical",
-    "value",
+    "active",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -99,11 +99,11 @@ export default class Tabs
   /**
    * The value of the active tab.
    */
-  get value(): string | null {
-    return this.getStringAttribute(Tabs.attributes.value);
+  get active(): string | null {
+    return this.getStringAttribute(Tabs.attributes.active);
   }
-  set value(value) {
-    this.setStringAttribute(Tabs.attributes.value, value);
+  set active(value) {
+    this.setStringAttribute(Tabs.attributes.active, value);
   }
 
   /**
@@ -156,7 +156,7 @@ export default class Tabs
   }
 
   protected override onConnected(): void {
-    this._activatingValue = this.value;
+    this._activatingValue = this.active;
     const indicator = this.indicator;
     const indicatorEl = this.indicatorEl;
     if (indicatorEl) {
@@ -180,8 +180,8 @@ export default class Tabs
   async activateTab(tab: Tab, animate: boolean): Promise<void> {
     const oldTab = this.tabs.find((tab) => tab.active);
     const newValue = tab.value;
-    const changed = this.value !== newValue;
-    this.value = newValue;
+    const changed = this.active !== newValue;
+    this.active = newValue;
 
     if (oldTab === tab) {
       return;
