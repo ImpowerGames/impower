@@ -8,6 +8,7 @@ import Displays from "./components/displays/displays";
 import FileButton from "./components/file-button/file-button";
 import FileList from "./components/file-list/file-list";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
+import GamePreview from "./components/game-preview/game-preview";
 import Graphics from "./components/graphics/graphics";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import Logic from "./components/logic/logic";
@@ -17,6 +18,7 @@ import Music from "./components/music/music";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewPanel from "./components/preview-panel/preview-panel";
+import ScreenplayPreview from "./components/screenplay-preview/screenplay-preview";
 import ScriptEditor from "./components/script-editor/script-editor";
 import Scripts from "./components/scripts/scripts";
 import Setup from "./components/setup/setup";
@@ -35,6 +37,8 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-file-list": FileList,
   "se-add-fab": AddFab,
   "se-script-editor": ScriptEditor,
+  "se-game-preview": GamePreview,
+  "se-screenplay-preview": ScreenplayPreview,
   "se-scripts": Scripts,
   "se-logic": Logic,
   "se-maps": Maps,

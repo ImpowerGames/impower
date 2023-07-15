@@ -15,7 +15,8 @@
         initial="hide">
         <s-button variant="icon" icon="check" text-size="20"></s-button>
       </s-hidden>
-      <s-hidden position="absolute" i="0" hide-event="editor/focused" show-event="editor/unfocused" initial="show">
+      <s-hidden position="absolute" i="0" if-below="md" hide-event="editor/focused" show-event="editor/unfocused"
+        initial="show">
         <s-button variant="text" width="56" height="56" text-size="2xs" child-layout="column" color="primary-70">
           <s-icon icon="player-play" size="24" m-b="1"></s-icon>
           RUN

@@ -10,6 +10,7 @@ import Displays from "./components/displays/_displays";
 import FileButton from "./components/file-button/_file-button";
 import FileList from "./components/file-list/_file-list";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
+import GamePreview from "./components/game-preview/_game-preview";
 import Graphics from "./components/graphics/_graphics";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import Logic from "./components/logic/_logic";
@@ -19,6 +20,7 @@ import Music from "./components/music/_music";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewPanel from "./components/preview-panel/_preview-panel";
+import ScreenplayPreview from "./components/screenplay-preview/_screenplay-preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
 import Scripts from "./components/scripts/_scripts";
 import Setup from "./components/setup/_setup";
@@ -59,6 +61,8 @@ const components = {
   "se-file-list": style(FileList),
   "se-add-fab": style(AddFab),
   "se-script-editor": style(ScriptEditor),
+  "se-game-preview": style(GamePreview),
+  "se-screenplay-preview": style(ScreenplayPreview),
   "se-scripts": style(Scripts),
   "se-logic": style(Logic),
   "se-maps": style(Maps),

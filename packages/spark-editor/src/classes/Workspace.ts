@@ -12,7 +12,7 @@ import {
 } from "../../../spark-editor-protocol/src/protocols/workspace/messages/WorkspaceDirectory";
 import { WorkspaceEntry } from "../../../spark-editor-protocol/src/types";
 
-interface WorkspaceState {
+export interface WorkspaceState {
   window: string;
   panel: string;
 }

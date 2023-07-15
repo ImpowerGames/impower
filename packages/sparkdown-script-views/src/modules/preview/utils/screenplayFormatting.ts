@@ -60,6 +60,7 @@ const HIDDEN_NODE_NAMES = [
   "Condition",
   "Logic",
   "Import",
+  "Load",
   "Return",
   "Section",
 ];
