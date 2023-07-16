@@ -469,7 +469,7 @@ repository:
         name: entity.name.type.interface.section.sd
 
   Transition:
-    match: ([ \t]*)((?:^|.*[ ]+)(?:TO:|TO BLACK:|FADE OUT:|FADE IN:))([ ]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)((?:[^ ]+\b[ ]+){0,2}(?:TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.]))([ ]*)($|[/][/][ ]+.*)$
     captures:
       2:
         tag: labelName
