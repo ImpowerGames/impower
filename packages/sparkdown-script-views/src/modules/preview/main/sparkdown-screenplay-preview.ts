@@ -24,7 +24,7 @@ import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttri
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";
 import createEditorView from "../utils/createEditorView";
-import component from "./_sparkdown-script-preview";
+import component from "./_sparkdown-screenplay-preview";
 
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["content-padding"]),
@@ -35,7 +35,7 @@ export default class SparkScreenplayPreview
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static override async define(
-    tag = "sparkdown-script-preview",
+    tag = "sparkdown-screenplay-preview",
     dependencies?: Record<string, string>,
     useShadowDom = true
   ) {
@@ -321,6 +321,6 @@ export default class SparkScreenplayPreview
 
 declare global {
   interface HTMLElementTagNameMap {
-    "sparkdown-script-preview": SparkScreenplayPreview;
+    "sparkdown-screenplay-preview": SparkScreenplayPreview;
   }
 }

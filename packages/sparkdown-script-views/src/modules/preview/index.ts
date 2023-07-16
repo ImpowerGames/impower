@@ -1,7 +1,7 @@
-import Main from "./main/sparkdown-script-preview";
+import Main from "./main/sparkdown-screenplay-preview";
 
 export const DEFAULT_CONSTRUCTORS = {
-  "sparkdown-script-preview": Main,
+  "sparkdown-screenplay-preview": Main,
 } as const;
 
 interface InitOptions {

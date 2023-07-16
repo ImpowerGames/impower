@@ -6,7 +6,7 @@ import Workspace from "../../state/Workspace";
 import component from "./_screenplay-preview";
 
 const DEFAULT_DEPENDENCIES = {
-  "sparkdown-script-preview": "sparkdown-script-preview",
+  "sparkdown-screenplay-preview": "sparkdown-screenplay-preview",
 };
 
 const DEFAULT_ATTRIBUTES = {

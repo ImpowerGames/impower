@@ -2,7 +2,7 @@ import SEElement from "../../core/se-element";
 import component from "./_preview-panel";
 
 const DEFAULT_DEPENDENCIES = {
-  "sparkdown-script-preview": "sparkdown-script-preview",
+  "sparkdown-screenplay-preview": "sparkdown-screenplay-preview",
 };
 
 export default class PreviewPanel extends SEElement {

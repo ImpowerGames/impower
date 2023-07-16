@@ -3,7 +3,7 @@ import Workspace from "../../state/Workspace";
 import component from "./_preview";
 
 const DEFAULT_DEPENDENCIES = {
-  "sparkdown-script-preview": "sparkdown-script-preview",
+  "sparkdown-screenplay-preview": "sparkdown-screenplay-preview",
 };
 
 export default class Preview extends SEElement {
