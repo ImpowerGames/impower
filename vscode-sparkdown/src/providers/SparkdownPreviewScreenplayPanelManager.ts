@@ -205,6 +205,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           DidChangeTextDocument.notification({
             textDocument: {
               uri: document.uri.toString(),
+              version: document.version,
             },
             contentChanges: contentChanges.map((c) => ({
               range: getServerRange(c.range),
@@ -348,7 +349,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           </style>
         </head>
         <body>
-          <sparkdown-script-preview></sparkdown-script-preview>
+          <sparkdown-screenplay-preview></sparkdown-screenplay-preview>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>
