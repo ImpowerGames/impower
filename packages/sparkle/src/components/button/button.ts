@@ -14,8 +14,7 @@ import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
-import css from "./button.css";
-import html from "./button.html";
+import component from "./_button";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-badge",
@@ -70,16 +69,15 @@ export default class Button
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return Button.augmentHtml(
-      this.href
-        ? html.replace("<button ", "<a ").replace("</button>", "</a>")
-        : html,
-      DEFAULT_DEPENDENCIES
-    );
+  override get component() {
+    return component({ attrs: { href: this.href } });
   }
 
-  override get css() {
+  override transformHtml(html: string) {
+    return Button.augmentHtml(html, DEFAULT_DEPENDENCIES);
+  }
+
+  override transformCss(css: string) {
     return Button.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

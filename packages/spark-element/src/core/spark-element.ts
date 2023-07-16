@@ -2,6 +2,11 @@ import STYLES from "../caches/STYLE_CACHE";
 import normalizeCSS from "../styles/normalize/normalize.css";
 import { getUnitlessValue } from "../utils/getUnitlessValue";
 
+const DEFAULT_COMPONENT = {
+  html: `<slot></slot>`,
+  css: `:host{ display: contents }`,
+};
+
 export default class SparkElement extends HTMLElement {
   static useShadowDom = false;
 
@@ -37,12 +42,8 @@ export default class SparkElement extends HTMLElement {
     return customElements.whenDefined(this.tagName);
   }
 
-  get html(): string {
-    return `<slot></slot>`;
-  }
-
-  get css(): string {
-    return ":host{ display: contents }";
+  get component(): { html?: string; css?: string } {
+    return DEFAULT_COMPONENT;
   }
 
   private static _attributes: Record<string, string> = {};
@@ -80,8 +81,9 @@ export default class SparkElement extends HTMLElement {
 
   constructor() {
     super();
-    const html = this.transformHtml(this.html);
-    const css = this.transformCss(this.css);
+    const component = this.component;
+    const html = this.transformHtml(component.html ?? DEFAULT_COMPONENT.html);
+    const css = this.transformCss(component.css ?? DEFAULT_COMPONENT.css);
     if (SparkElement.useShadowDom) {
       const shadowRoot = this.attachShadow({
         mode: "open",
@@ -107,6 +109,32 @@ export default class SparkElement extends HTMLElement {
   }
 
   transformCss(css: string): string {
+    return css;
+  }
+
+  /**
+   * Replaces :host in css with tag aliases specified by `dependencies`.
+   *
+   * @param css - the original css.
+   * @param tags - the tags to replace. (If not specified, this defaults to the keys of the `dependencies` property.)
+   * @returns the augmented css.
+   */
+  static augmentCss(
+    css: string,
+    defaultDependencies?: Record<string, string>
+  ): string {
+    if (!this.useShadowDom) {
+      if (this.dependencies) {
+        Object.values({
+          default: this.tagName,
+          ...defaultDependencies,
+        }).forEach((newTagName) => {
+          if (newTagName) {
+            css.replace(/(:host)\(\s*(.+)\s*\)/g, `${newTagName}$2`);
+          }
+        });
+      }
+    }
     return css;
   }
 

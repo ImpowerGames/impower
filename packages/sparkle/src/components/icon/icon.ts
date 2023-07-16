@@ -10,8 +10,7 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
-import css from "./icon.css";
-import html from "./icon.html";
+import component from "./_icon";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -45,11 +44,11 @@ export default class Icon
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Icon.augmentCss(css);
   }
 

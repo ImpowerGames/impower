@@ -6,8 +6,7 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import Queue from "../../helpers/queue";
 import Toast from "../toast/toast";
-import css from "./toast-stack.css";
-import html from "./toast-stack.html";
+import component from "./_toast-stack";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
@@ -39,11 +38,15 @@ export default class ToastStack
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return ToastStack.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return ToastStack.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

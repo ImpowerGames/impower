@@ -1,5 +1,5 @@
 import SEElement from "../../core/se-element";
-import html from "./notifications.html";
+import component from "./_notifications";
 
 export default class Notifications extends SEElement {
   static override async define(
@@ -10,7 +10,7 @@ export default class Notifications extends SEElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 }

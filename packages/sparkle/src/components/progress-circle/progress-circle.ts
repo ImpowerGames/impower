@@ -8,8 +8,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
-import css from "./progress-circle.css";
-import html from "./progress-circle.html";
+import component from "./_progress-circle";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -45,11 +44,11 @@ export default class ProgressCircle
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return ProgressCircle.augmentCss(css);
   }
 

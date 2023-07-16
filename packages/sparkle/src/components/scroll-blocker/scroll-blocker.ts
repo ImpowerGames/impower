@@ -1,6 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
-import css from "./scroll-blocker.css";
-import html from "./scroll-blocker.html";
+import component from "./_scroll-blocker";
 
 /**
  * A Scroll Blocker to prevent page scrolls on safari when the on-screen keyboard is visible.
@@ -18,11 +17,11 @@ export default class ScrollBlocker extends SparkleElement {
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return ScrollBlocker.augmentCss(css);
   }
 

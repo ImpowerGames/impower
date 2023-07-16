@@ -7,8 +7,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
-import css from "./progress-bar.css";
-import html from "./progress-bar.html";
+import component from "./_progress-bar";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -43,11 +42,11 @@ export default class ProgressBar
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return ProgressBar.augmentCss(css);
   }
 

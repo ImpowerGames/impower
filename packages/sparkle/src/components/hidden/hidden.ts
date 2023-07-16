@@ -12,8 +12,7 @@ import { animationsComplete } from "../../utils/animationsComplete";
 import { getBreakpointValue } from "../../utils/getBreakpointValue";
 import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import css from "./hidden.css";
-import html from "./hidden.html";
+import component from "./_hidden";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -59,11 +58,11 @@ export default class Hidden
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Hidden.augmentCss(css);
   }
 

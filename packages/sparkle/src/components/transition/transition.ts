@@ -3,8 +3,7 @@ import getDependencyNameMap from "../../../../spark-element/src/utils/getDepende
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import css from "./transition.css";
-import html from "./transition.html";
+import component from "./_transition";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-router"]);
 const DEFAULT_ATTRIBUTES = {
@@ -34,11 +33,11 @@ export default class Transition
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Transition.augmentCss(css);
   }
 

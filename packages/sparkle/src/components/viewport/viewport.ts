@@ -8,8 +8,7 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import { getPixelValue } from "../../utils/getPixelValue";
-import css from "./viewport.css";
-import html from "./viewport.html";
+import component from "./_viewport";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -51,11 +50,11 @@ export default class Viewport
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Viewport.augmentCss(css);
   }
 

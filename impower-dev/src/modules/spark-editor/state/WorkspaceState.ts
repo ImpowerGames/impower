@@ -63,7 +63,6 @@ export interface WorkspaceState {
     };
   };
   preview: {
-    initialPanel: string;
     panel: string;
     panels: {
       game: {};

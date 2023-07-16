@@ -1791,32 +1791,6 @@ export default class SparkleElement
     return [];
   }
 
-  /**
-   * Replaces :host in css with tag aliases specified by `dependencies`.
-   *
-   * @param css - the original css.
-   * @param tags - the tags to replace. (If not specified, this defaults to the keys of the `dependencies` property.)
-   * @returns the augmented css.
-   */
-  static augmentCss(
-    css: string,
-    defaultDependencies?: Record<string, string>
-  ): string {
-    if (!this.useShadowDom) {
-      if (this.dependencies) {
-        Object.values({
-          default: this.tagName,
-          ...defaultDependencies,
-        }).forEach((newTagName) => {
-          if (newTagName) {
-            css.replace(/(:host)\(\s*(.+)\s*\)/g, `${newTagName}$2`);
-          }
-        });
-      }
-    }
-    return css;
-  }
-
   override focus(options?: FocusOptions | undefined): void {
     this.selfChildren?.forEach((el) => {
       if (el instanceof HTMLElement) {

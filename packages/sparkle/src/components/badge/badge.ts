@@ -3,8 +3,7 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import css from "./badge.css";
-import html from "./badge.html";
+import component from "./_badge";
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -32,11 +31,11 @@ export default class Badge
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Badge.augmentCss(css);
   }
 

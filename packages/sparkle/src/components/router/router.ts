@@ -8,8 +8,7 @@ import { animationsComplete } from "../../utils/animationsComplete";
 import { cancelAnimations } from "../../utils/cancelAnimations";
 import { getDirection } from "../../utils/getDirection";
 import { reverseAnimation } from "../../utils/reverseAnimation";
-import css from "./router.css";
-import html from "./router.html";
+import component from "./_router";
 
 const EXIT_EVENT = "exit";
 const ENTER_EVENT = "enter";
@@ -51,11 +50,11 @@ export default class Router
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Router.augmentCss(css);
   }
 

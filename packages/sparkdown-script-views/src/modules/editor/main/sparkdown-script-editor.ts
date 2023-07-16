@@ -25,8 +25,7 @@ import { DidParseTextDocumentParams } from "../../../cm-language-client/types/Di
 import debounce from "../../../utils/debounce";
 import createEditorView from "../utils/createEditorView";
 import { createSparkdownLanguageServerConnection } from "../utils/createSparkdownLanguageServerConnection";
-import css from "./sparkdown-script-editor.css";
-import html from "./sparkdown-script-editor.html";
+import component from "./_sparkdown-script-editor";
 
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["content-padding", "autosave-delay"]),
@@ -47,12 +46,9 @@ export default class SparkdownScriptEditor
   static override get attributes() {
     return DEFAULT_ATTRIBUTES;
   }
-  override get html() {
-    return html;
-  }
 
-  override get css() {
-    return css;
+  override get component() {
+    return component();
   }
 
   get contentPadding() {

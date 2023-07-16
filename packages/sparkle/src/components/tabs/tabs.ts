@@ -16,8 +16,7 @@ import { navPrevKey } from "../../utils/navPrevKey";
 import { navStartKey } from "../../utils/navStartKey";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import type Tab from "../tab/tab";
-import css from "./tabs.css";
-import html from "./tabs.html";
+import component from "./_tabs";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
@@ -62,11 +61,15 @@ export default class Tabs
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return Tabs.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Tabs.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

@@ -1,6 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
-import css from "./box.css";
-import html from "./box.html";
+import component from "./_box";
 
 /**
  * Boxes are basic surfaces for styling and laying out content.
@@ -16,11 +15,11 @@ export default class Box extends SparkleElement {
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Box.augmentCss(css);
   }
 }

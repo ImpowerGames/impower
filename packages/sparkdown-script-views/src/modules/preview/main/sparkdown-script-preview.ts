@@ -24,8 +24,7 @@ import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttri
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";
 import createEditorView from "../utils/createEditorView";
-import css from "./sparkdown-script-preview.css";
-import html from "./sparkdown-script-preview.html";
+import component from "./_sparkdown-script-preview";
 
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["content-padding"]),
@@ -47,12 +46,8 @@ export default class SparkScreenplayPreview
     return DEFAULT_ATTRIBUTES;
   }
 
-  override get html() {
-    return html;
-  }
-
-  override get css() {
-    return css;
+  override get component() {
+    return component();
   }
 
   get contentPadding() {

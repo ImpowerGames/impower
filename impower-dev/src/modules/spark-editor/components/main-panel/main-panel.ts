@@ -1,5 +1,5 @@
 import SEElement from "../../core/se-element";
-import html from "./main-panel.html";
+import component from "./_main-panel";
 
 export default class MainPanel extends SEElement {
   static override async define(
@@ -10,7 +10,7 @@ export default class MainPanel extends SEElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 }

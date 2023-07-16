@@ -10,8 +10,7 @@ import SparkleElement, {
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import css from "./collapsible.css";
-import html from "./collapsible.html";
+import component from "./_collapsible";
 
 const getCollapsedButtonWidth = (
   iconWidth: number,
@@ -60,11 +59,11 @@ export default class Collapsible
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Collapsible.augmentCss(css);
   }
 

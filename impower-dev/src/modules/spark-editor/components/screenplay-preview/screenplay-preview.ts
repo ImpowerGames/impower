@@ -3,7 +3,7 @@ import { Properties } from "../../../../../../packages/spark-element/src/types/p
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
 import Workspace from "../../state/Workspace";
-import html from "./screenplay-preview.html";
+import component from "./_screenplay-preview";
 
 const DEFAULT_DEPENDENCIES = {
   "sparkdown-script-preview": "sparkdown-script-preview",
@@ -29,7 +29,11 @@ export default class ScreenplayPreview
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 

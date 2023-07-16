@@ -7,8 +7,7 @@
 
 import SparkleElement from "../../core/sparkle-element";
 import { getDimensions } from "../../utils/getDimensions";
-import css from "./ripple.css";
-import html from "./ripple.html";
+import component from "./_ripple";
 
 const PRESS_GROW_MS = 450;
 const MINIMUM_PRESS_MS = 225;
@@ -47,11 +46,11 @@ export default class Ripple extends SparkleElement {
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Ripple.augmentCss(css);
   }
 

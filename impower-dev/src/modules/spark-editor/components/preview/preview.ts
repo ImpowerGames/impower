@@ -1,6 +1,6 @@
 import SEElement from "../../core/se-element";
 import Workspace from "../../state/Workspace";
-import component, { getModeTitle } from "./_preview";
+import component from "./_preview";
 
 const DEFAULT_DEPENDENCIES = {
   "sparkdown-script-preview": "sparkdown-script-preview",
@@ -15,11 +15,12 @@ export default class Preview extends SEElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return SEElement.augmentHtml(
-      component(Workspace.instance.state).html,
-      DEFAULT_DEPENDENCIES
-    );
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string): string {
+    return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   get modeTitleEl() {
@@ -42,7 +43,13 @@ export default class Preview extends SEElement {
         Workspace.instance.cacheState();
         const modeTitleEl = this.modeTitleEl;
         if (modeTitleEl) {
-          modeTitleEl.textContent = getModeTitle(mode);
+          const title =
+            mode === "screenplay"
+              ? "Screenplay Preview"
+              : mode === "game"
+              ? "Game Preview"
+              : "";
+          modeTitleEl.textContent = title;
         }
       }
     }

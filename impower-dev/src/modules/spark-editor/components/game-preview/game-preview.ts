@@ -3,7 +3,7 @@ import { Properties } from "../../../../../../packages/spark-element/src/types/p
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
 import Workspace from "../../state/Workspace";
-import html from "./game-preview.html";
+import component from "./_game-preview";
 
 const DEFAULT_DEPENDENCIES = {
   "spark-game-preview": "spark-game-preview",
@@ -29,8 +29,8 @@ export default class GamePreview
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
+  override get component() {
+    return component();
   }
 
   /**
@@ -41,6 +41,10 @@ export default class GamePreview
   }
   set filePath(value) {
     this.setStringAttribute(GamePreview.attributes.filePath, value);
+  }
+
+  override transformHtml(html: string) {
+    return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   protected override onAttributeChanged(

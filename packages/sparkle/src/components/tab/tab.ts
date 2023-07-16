@@ -14,8 +14,7 @@ import SparkleElement, {
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type Ripple from "../ripple/ripple";
-import css from "./tab.css";
-import html from "./tab.html";
+import component from "./_tab";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
@@ -61,11 +60,15 @@ export default class Tab
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return Tab.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Tab.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

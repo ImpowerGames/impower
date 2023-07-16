@@ -1,5 +1,5 @@
 import SEElement from "../../core/se-element";
-import html from "./preview-panel.html";
+import component from "./_preview-panel";
 
 const DEFAULT_DEPENDENCIES = {
   "sparkdown-script-preview": "sparkdown-script-preview",
@@ -14,7 +14,11 @@ export default class PreviewPanel extends SEElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 }

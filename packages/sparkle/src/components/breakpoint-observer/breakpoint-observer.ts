@@ -4,8 +4,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
-import css from "./breakpoint-observer.css";
-import html from "./breakpoint-observer.html";
+import component from "./_breakpoint-observer";
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -33,11 +32,11 @@ export default class BreakpointObserver
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return BreakpointObserver.augmentCss(css);
   }
 

@@ -5,14 +5,13 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { offsetParent } from "../../utils/composed-offset-position";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
+import component from "./_popup";
 import { flip } from "./floating-ui/core/src/middleware/flip";
 import { offset } from "./floating-ui/core/src/middleware/offset";
 import { shift } from "./floating-ui/core/src/middleware/shift";
 import { size } from "./floating-ui/core/src/middleware/size";
 import { computePosition } from "./floating-ui/dom/src";
 import { platform } from "./floating-ui/dom/src/platform";
-import css from "./popup.css";
-import html from "./popup.html";
 
 const REPOSITION_EVENT = "reposition";
 
@@ -64,11 +63,11 @@ export default class Popup
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Popup.augmentCss(css);
   }
 

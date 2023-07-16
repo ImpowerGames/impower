@@ -7,8 +7,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
-import css from "./circle.css";
-import html from "./circle.html";
+import component from "./_circle";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -41,11 +40,11 @@ export default class Circle
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Circle.augmentCss(css);
   }
 

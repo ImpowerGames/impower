@@ -4,7 +4,7 @@ import { Properties } from "../../../../../../packages/spark-element/src/types/p
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
 import Workspace from "../../state/Workspace";
-import html from "./script-editor.html";
+import component from "./_script-editor";
 
 const DEFAULT_DEPENDENCIES = {
   "sparkdown-script-editor": "sparkdown-script-editor",
@@ -30,7 +30,11 @@ export default class ScriptEditor
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 

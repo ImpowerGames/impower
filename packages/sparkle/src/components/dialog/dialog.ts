@@ -14,8 +14,7 @@ import {
   lockBodyScrolling,
   unlockBodyScrolling,
 } from "../../utils/bodyScrolling";
-import css from "./dialog.css";
-import html from "./dialog.html";
+import component from "./_dialog";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -65,11 +64,15 @@ export default class Dialog
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return Dialog.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Dialog.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

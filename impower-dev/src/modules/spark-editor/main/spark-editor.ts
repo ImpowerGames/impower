@@ -1,5 +1,5 @@
 import SEElement from "../core/se-element";
-import html from "./spark-editor.html";
+import component from "./_spark-editor";
 
 export default class SparkEditor extends SEElement {
   static override async define(
@@ -17,7 +17,7 @@ export default class SparkEditor extends SEElement {
     });
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 }

@@ -3,8 +3,7 @@ import { Properties } from "../../../../../../packages/spark-element/src/types/p
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
 import Workspace from "../../state/Workspace";
-import css from "./file-list.css";
-import html from "./file-list.html";
+import component from "./_file-list";
 
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["directory-path"]),
@@ -29,12 +28,8 @@ export default class FileList
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
-  }
-
-  override get css() {
-    return css;
+  override get component() {
+    return component();
   }
 
   /**

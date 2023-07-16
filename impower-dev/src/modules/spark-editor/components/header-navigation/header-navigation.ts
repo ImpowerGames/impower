@@ -1,5 +1,5 @@
 import SEElement from "../../core/se-element";
-import html from "./header-navigation.html";
+import component from "./_header-navigation";
 
 export default class HeaderNavigation extends SEElement {
   static override async define(
@@ -10,7 +10,7 @@ export default class HeaderNavigation extends SEElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html(): string {
-    return html;
+  override get component() {
+    return component();
   }
 }

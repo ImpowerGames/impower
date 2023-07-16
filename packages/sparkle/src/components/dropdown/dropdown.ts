@@ -15,8 +15,7 @@ import { navStartKey } from "../../utils/navStartKey";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import Option from "../option/option";
 import Popup from "../popup/popup";
-import css from "./dropdown.css";
-import html from "./dropdown.html";
+import component from "./_dropdown";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -78,11 +77,15 @@ export default class Dropdown
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return Dropdown.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Dropdown.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

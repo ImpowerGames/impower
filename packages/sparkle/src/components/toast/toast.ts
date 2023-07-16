@@ -10,8 +10,7 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
-import css from "./toast.css";
-import html from "./toast.html";
+import component from "./_toast";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -53,11 +52,15 @@ export default class Toast
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return Toast.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Toast.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

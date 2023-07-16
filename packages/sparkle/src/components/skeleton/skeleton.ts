@@ -7,8 +7,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
-import css from "./skeleton.css";
-import html from "./skeleton.html";
+import component from "./_skeleton";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -41,11 +40,11 @@ export default class Skeleton
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Skeleton.augmentCss(css);
   }
 

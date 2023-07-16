@@ -6,8 +6,7 @@ import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import Popup from "../popup/popup";
-import css from "./tooltip.css";
-import html from "./tooltip.html";
+import component from "./_tooltip";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -70,11 +69,15 @@ export default class Tooltip
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return Tooltip.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Tooltip.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 

@@ -1,5 +1,5 @@
 import SEElement from "../../core/se-element";
-import html from "./option-button.html";
+import component from "./_option-button";
 
 export default class OptionButton extends SEElement {
   static override async define(
@@ -10,7 +10,7 @@ export default class OptionButton extends SEElement {
     return super.define(tag, dependencies, useShadowDom);
   }
 
-  override get html() {
-    return html;
+  override get component() {
+    return component();
   }
 }
