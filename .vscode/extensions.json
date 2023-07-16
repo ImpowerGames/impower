@@ -9,6 +9,7 @@
     "pflannery.vscode-versionlens",
     "dotjoshjohnson.xml",
     "ms-azuretools.vscode-docker",
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+    "bierner.lit-html"
   ]
 }

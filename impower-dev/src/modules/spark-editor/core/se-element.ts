@@ -1,4 +1,4 @@
-import SparkElement from "../../../spark-element/src/core/spark-element";
+import SparkElement from "../../../../../packages/spark-element/src/core/spark-element";
 import coreCSS from "../styles/core/core.css";
 import normalizeCSS from "../styles/normalize/normalize.css";
 

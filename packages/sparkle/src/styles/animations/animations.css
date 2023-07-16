@@ -7,8 +7,8 @@
   --s-animation-bounce: bounce 1s linear infinite;
   --s-animation-shake-x: shake-x 0.75s cubic-bezier(0, 0, 0, 1);
   --s-animation-shake-y: shake-y 0.75s cubic-bezier(0, 0, 0, 1);
-  --s-animation-fade-in: fade-in 100ms linear;
-  --s-animation-fade-out: fade-out 100ms linear;
+  --s-animation-fade-in: fade-in 150ms linear;
+  --s-animation-fade-out: fade-out 150ms linear;
   --s-animation-scale-up: scale-up 100ms ease-out;
   --s-animation-scale-down: scale-down 100ms ease-out;
   --s-animation-slide-out-up: slide-out-up 100ms ease-out;

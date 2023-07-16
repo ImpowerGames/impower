@@ -16,7 +16,7 @@ interface DirectoryEntry {
   handle: FileSystemDirectoryHandle;
 }
 
-export const getDirectoryPathEntries = async (
+export const getDirectoryEntries = async (
   directoryHandle: FileSystemDirectoryHandle,
   directoryPath: string
 ) => {
@@ -55,7 +55,7 @@ export const getDirectoryPathEntries = async (
             name: directoryHandle.name,
             kind: directoryHandle.kind,
             uri: nestedPath,
-            entries: await getDirectoryPathEntries(directoryHandle, nestedPath),
+            entries: await getDirectoryEntries(directoryHandle, nestedPath),
             handle: directoryHandle,
           };
         })()

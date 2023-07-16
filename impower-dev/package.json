@@ -39,7 +39,6 @@
     "@fastify/static": "^6.10.2",
     "@fastify/websocket": "^8.1.0",
     "@impower/opfs-workspace": "file:../packages/opfs-workspace",
-    "@impower/spark-editor": "file:../packages/spark-editor",
     "@impower/spark-element": "file:../packages/spark-element",
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
     "@impower/sparkdown-script-views": "file:../packages/sparkdown-script-views",

@@ -2,10 +2,10 @@ import { historyField } from "@codemirror/commands";
 import { syntaxTreeAvailable } from "@codemirror/language";
 import {
   Annotation,
-  ChangeSet,
   EditorSelection,
   EditorState,
   Text,
+  Transaction,
 } from "@codemirror/state";
 import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 import { foldedField } from "../../../cm-folded/foldedField";
@@ -54,10 +54,10 @@ interface EditorConfig {
   onFocus?: () => void;
   onBlur?: () => void;
   onEdit?: (change: {
+    transaction: Transaction;
+    annotations: Annotation<any>[];
     before: Text;
     after: Text;
-    changes: ChangeSet;
-    annotations: Annotation<any>[];
   }) => void;
 }
 

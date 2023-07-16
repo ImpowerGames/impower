@@ -40,6 +40,8 @@ const pagesInDir = `${indir}/pages`;
 
 const localDependencies = `node_modules/@impower`;
 
+const watchDirs = [`${indir}/modules`];
+
 const args = process.argv.slice(2);
 const WATCH = args.includes("--watch");
 const PRODUCTION = args.includes("--production");
@@ -301,7 +303,14 @@ const watchFiles = async () => {
   console.log(YELLOW, `Watching for changes...`);
   chokidar
     .watch(
-      [publicInDir, apiInDir, localDependencies, componentsInDir, pagesInDir],
+      [
+        publicInDir,
+        apiInDir,
+        localDependencies,
+        componentsInDir,
+        pagesInDir,
+        ...watchDirs,
+      ],
       {
         ignoreInitial: true,
         followSymlinks: true,

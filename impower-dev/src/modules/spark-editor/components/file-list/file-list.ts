@@ -1,8 +1,8 @@
-import { WorkspaceEntry } from "../../../../spark-editor-protocol/src/types";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import Workspace from "../../classes/Workspace";
+import { WorkspaceEntry } from "../../../../../../packages/spark-editor-protocol/src/types";
+import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
+import Workspace from "../../state/Workspace";
 import css from "./file-list.css";
 import html from "./file-list.html";
 

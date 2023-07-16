@@ -4,7 +4,7 @@ import type { Element } from "parse5/dist/tree-adapters/default";
 import expandComponents from "./expandComponents.js";
 
 const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
-const nanoid = customAlphabet(alphabet, 7);
+const nanoid = customAlphabet(alphabet, 14);
 
 const expandHtml = (
   html: string,

@@ -17,6 +17,7 @@ const ENTER_EVENT = "enter";
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
+    "key",
     "active",
     "enter-event",
     "exit-event",
@@ -56,6 +57,16 @@ export default class Router
 
   override get css() {
     return Router.augmentCss(css);
+  }
+
+  /**
+   * The unique key that identifies this router.
+   */
+  get key(): string | null {
+    return this.getStringAttribute(Router.attributes.key);
+  }
+  set key(value) {
+    this.setStringAttribute(Router.attributes.key, value);
   }
 
   /**
@@ -307,7 +318,7 @@ export default class Router
       this.loadRoute(newValue, targetSlotName);
       this.active = newValue;
       this.root.removeAttribute("mounting");
-      this.emit(ENTER_EVENT);
+      this.emit(ENTER_EVENT, { key: this.key, value: newValue });
       await animationsComplete(this.enterFadeEl, this.enterTransformEl);
       if (this.interrupted(newValue)) {
         return;
@@ -415,7 +426,7 @@ export default class Router
               e.detail.newRect,
               true
             );
-            this.emit(EXIT_EVENT, { ...e.detail, direction });
+            this.emit(EXIT_EVENT, { key: this.key, ...e.detail, direction });
             this.exitRoute(direction);
           }
         }

@@ -1,84 +1,18 @@
 import {
   ReadTextDocument,
   ReadTextDocumentParams,
-} from "../../../spark-editor-protocol/src/protocols/textDocument/messages/ReadTextDocument";
+} from "../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/ReadTextDocument";
 import {
   WriteTextDocument,
   WriteTextDocumentParams,
-} from "../../../spark-editor-protocol/src/protocols/textDocument/messages/WriteTextDocument";
+} from "../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/WriteTextDocument";
 import {
   WorkspaceDirectory,
   WorkspaceDirectoryParams,
-} from "../../../spark-editor-protocol/src/protocols/workspace/messages/WorkspaceDirectory";
-import { WorkspaceEntry } from "../../../spark-editor-protocol/src/types";
-
-export interface WorkspaceState {
-  windows: {
-    setup: {
-      panel: "details" | "share";
-      panels: {
-        details: {
-          open?: string;
-          scrollIndex: number;
-        };
-        share: {
-          scrollIndex: number;
-        };
-      };
-    };
-    audio: {
-      panel: "sounds" | "music";
-      panels: {
-        sounds: {
-          open?: string;
-          scrollIndex: number;
-        };
-        music: {
-          open?: string;
-          scrollIndex: number;
-        };
-      };
-    };
-    displays: {
-      panel: "widgets" | "views";
-      panels: {
-        widgets: {
-          open?: string;
-          scrollIndex: number;
-        };
-        views: {
-          open?: string;
-          scrollIndex: number;
-        };
-      };
-    };
-    graphics: {
-      panel: "sprites" | "maps";
-      panels: {
-        sprites: {
-          open?: string;
-          scrollIndex: number;
-        };
-        maps: {
-          open?: string;
-          scrollIndex: number;
-        };
-      };
-    };
-    logic: {
-      panel: "main" | "scripts";
-      panels: {
-        main: {
-          scrollIndex: number;
-        };
-        scripts: {
-          open?: string;
-          scrollIndex: number;
-        };
-      };
-    };
-  };
-}
+} from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/WorkspaceDirectory";
+import { WorkspaceEntry } from "../../../../../packages/spark-editor-protocol/src/types";
+import { WorkspaceState } from "./WorkspaceState";
+import DEFAULT_WORKSPACE_STATE from "./workspace.json";
 
 export default class Workspace {
   private static _instance: Workspace;
@@ -97,9 +31,25 @@ export default class Workspace {
   // TODO: Allow user to own more than one project
   protected _project = "default";
 
+  protected _state: WorkspaceState;
+  get state() {
+    return this._state;
+  }
+
+  constructor() {
+    const cachedState = localStorage.getItem(this.getWorkspaceUri());
+    this._state = cachedState
+      ? (JSON.parse(cachedState) as WorkspaceState)
+      : DEFAULT_WORKSPACE_STATE;
+  }
+
   getWorkspaceUri(path: string = "") {
     const suffix = path ? `/${path}` : "";
     return `file:///${this._uid}/projects/${this._project}${suffix}`;
+  }
+
+  cacheState() {
+    localStorage.setItem(this.getWorkspaceUri(), JSON.stringify(this._state));
   }
 
   async getWorkspaceDirectory(

@@ -1,20 +1,20 @@
-import { DidOpenTextDocument } from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidOpenTextDocument";
-import { DidSaveTextDocument } from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidSaveTextDocument";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import Workspace from "../../classes/Workspace";
+import { DidOpenTextDocument } from "../../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DidOpenTextDocument";
+import { DidSaveTextDocument } from "../../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DidSaveTextDocument";
+import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
-import html from "./game-preview.html";
+import Workspace from "../../state/Workspace";
+import html from "./script-editor.html";
 
 const DEFAULT_DEPENDENCIES = {
-  "spark-game-preview": "spark-game-preview",
+  "sparkdown-script-editor": "sparkdown-script-editor",
 };
 
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["file-path"]),
 };
 
-export default class GamePreview
+export default class ScriptEditor
   extends SEElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
@@ -23,7 +23,7 @@ export default class GamePreview
   }
 
   static override async define(
-    tag = "se-game-preview",
+    tag = "se-script-editor",
     dependencies = DEFAULT_DEPENDENCIES,
     useShadowDom = true
   ) {
@@ -38,10 +38,10 @@ export default class GamePreview
    * The file path to read from and write to.
    */
   get filePath(): string | null {
-    return this.getStringAttribute(GamePreview.attributes.filePath);
+    return this.getStringAttribute(ScriptEditor.attributes.filePath);
   }
   set filePath(value) {
-    this.setStringAttribute(GamePreview.attributes.filePath, value);
+    this.setStringAttribute(ScriptEditor.attributes.filePath, value);
   }
 
   protected override onAttributeChanged(
@@ -49,7 +49,7 @@ export default class GamePreview
     _oldValue: string,
     newValue: string
   ): void {
-    if (name === GamePreview.attributes.filePath) {
+    if (name === ScriptEditor.attributes.filePath) {
       this.loadFile(newValue);
     }
   }

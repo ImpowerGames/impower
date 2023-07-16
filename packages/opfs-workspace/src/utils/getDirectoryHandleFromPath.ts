@@ -1,5 +1,5 @@
-export const getDirectoryPathHandle = async (
-  rootHandle: FileSystemDirectoryHandle,
+export const getDirectoryHandleFromPath = async (
+  root: FileSystemDirectoryHandle,
   relativePath: string
 ): Promise<FileSystemDirectoryHandle> => {
   const path = relativePath.startsWith(".")
@@ -8,9 +8,9 @@ export const getDirectoryPathHandle = async (
   const parts = path.split("/");
   for (let i = 0; i < parts.length; i += 1) {
     const name = parts[i]!;
-    rootHandle = await rootHandle.getDirectoryHandle(name, {
+    root = await root.getDirectoryHandle(name, {
       create: true,
     });
   }
-  return rootHandle;
+  return root;
 };

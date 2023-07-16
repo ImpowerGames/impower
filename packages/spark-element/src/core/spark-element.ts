@@ -80,24 +80,34 @@ export default class SparkElement extends HTMLElement {
 
   constructor() {
     super();
+    const html = this.transformHtml(this.html);
+    const css = this.transformCss(this.css);
     if (SparkElement.useShadowDom) {
       const shadowRoot = this.attachShadow({
         mode: "open",
         delegatesFocus: true,
       });
-      shadowRoot.innerHTML = this.html;
+      shadowRoot.innerHTML = html;
       STYLES.adopt(shadowRoot, normalizeCSS);
-      this.sharedStyles.forEach((css) => {
-        STYLES.adopt(shadowRoot, css);
+      this.sharedStyles.forEach((c) => {
+        STYLES.adopt(shadowRoot, c);
       });
-      STYLES.adopt(shadowRoot, this.css);
+      STYLES.adopt(shadowRoot, css);
     } else {
       STYLES.adopt(this.ownerDocument, normalizeCSS);
-      this.sharedStyles.forEach((css) => {
-        STYLES.adopt(this.ownerDocument, css);
+      this.sharedStyles.forEach((c) => {
+        STYLES.adopt(this.ownerDocument, c);
       });
-      STYLES.adopt(this.ownerDocument, this.css);
+      STYLES.adopt(this.ownerDocument, css);
     }
+  }
+
+  transformHtml(html: string): string {
+    return html;
+  }
+
+  transformCss(css: string): string {
+    return css;
   }
 
   /**

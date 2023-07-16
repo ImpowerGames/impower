@@ -1,20 +1,19 @@
-import { DidOpenTextDocument } from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidOpenTextDocument";
-import { DidSaveTextDocument } from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidSaveTextDocument";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import Workspace from "../../classes/Workspace";
+import { DidOpenTextDocument } from "../../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DidOpenTextDocument";
+import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
-import html from "./script-editor.html";
+import Workspace from "../../state/Workspace";
+import html from "./screenplay-preview.html";
 
 const DEFAULT_DEPENDENCIES = {
-  "sparkdown-script-editor": "sparkdown-script-editor",
+  "sparkdown-script-preview": "sparkdown-script-preview",
 };
 
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["file-path"]),
 };
 
-export default class ScriptEditor
+export default class ScreenplayPreview
   extends SEElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
@@ -23,7 +22,7 @@ export default class ScriptEditor
   }
 
   static override async define(
-    tag = "se-script-editor",
+    tag = "se-screenplay-preview",
     dependencies = DEFAULT_DEPENDENCIES,
     useShadowDom = true
   ) {
@@ -38,10 +37,10 @@ export default class ScriptEditor
    * The file path to read from and write to.
    */
   get filePath(): string | null {
-    return this.getStringAttribute(ScriptEditor.attributes.filePath);
+    return this.getStringAttribute(ScreenplayPreview.attributes.filePath);
   }
   set filePath(value) {
-    this.setStringAttribute(ScriptEditor.attributes.filePath, value);
+    this.setStringAttribute(ScreenplayPreview.attributes.filePath, value);
   }
 
   protected override onAttributeChanged(
@@ -49,31 +48,16 @@ export default class ScriptEditor
     _oldValue: string,
     newValue: string
   ): void {
-    if (name === ScriptEditor.attributes.filePath) {
+    if (name === ScreenplayPreview.attributes.filePath) {
       this.loadFile(newValue);
     }
   }
 
   protected override onConnected(): void {
     this.loadFile(this.filePath);
-    window.addEventListener("message", this.handleMessage);
   }
 
-  protected override onDisconnected(): void {
-    window.removeEventListener("message", this.handleMessage);
-  }
-
-  protected handleMessage = (e: MessageEvent): void => {
-    const message = e.data;
-    if (DidSaveTextDocument.isNotification(message)) {
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const text = params.text;
-      if (text != null) {
-        Workspace.instance.writeTextDocument({ textDocument, text });
-      }
-    }
-  };
+  protected override onDisconnected(): void {}
 
   async loadFile(filePath: string | null) {
     if (!filePath) {
