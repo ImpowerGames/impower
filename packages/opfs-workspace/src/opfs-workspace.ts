@@ -19,7 +19,7 @@ import { getPathFromUri } from "./utils/getPathFromUri";
 import { getSyncAccessHandleFromUri } from "./utils/getSyncAccessHandleFromUri";
 
 class State {
-  static syncAccessHandles: Record<string, FileSystemSyncAccessHandle> = {};
+  static syncing: Record<string, { handle: FileSystemSyncAccessHandle }> = {};
 }
 
 onmessage = async (e) => {
@@ -76,15 +76,18 @@ const handleWriteTextDocument = async (
 ) => {
   const root = await navigator.storage.getDirectory();
   const { textDocument, text } = message.params;
+  const existingSync = State.syncing[textDocument.uri];
   const syncAccessHandle =
-    State.syncAccessHandles[textDocument.uri] ||
+    existingSync?.handle ||
     (await getSyncAccessHandleFromUri(root, textDocument.uri));
-  State.syncAccessHandles[textDocument.uri] = syncAccessHandle;
+  State.syncing[textDocument.uri] = {
+    handle: syncAccessHandle,
+  };
   const encoder = new TextEncoder();
   const encodedText = encoder.encode(text);
   syncAccessHandle.truncate(0);
   syncAccessHandle.write(encodedText, { at: 0 });
   syncAccessHandle.flush();
   syncAccessHandle.close();
-  delete State.syncAccessHandles[textDocument.uri];
+  delete State.syncing[textDocument.uri];
 };

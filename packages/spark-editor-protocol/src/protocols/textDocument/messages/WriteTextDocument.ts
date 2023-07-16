@@ -7,7 +7,7 @@ import { uuid } from "../../../utils/uuid";
 
 export interface WriteTextDocumentParams {
   /**
-   * The document that should be writeed.
+   * The document that should be written.
    */
   textDocument: TextDocumentIdentifier;
   /**
