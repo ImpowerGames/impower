@@ -128,7 +128,7 @@
         "editor.suggestSelection": "first",
         "editor.insertSpaces": true,
         "editor.tabSize": 2,
-        "editor.bracketPairColorization.enabled": true,
+        "editor.bracketPairColorization.enabled": false,
         "editor.guides.bracketPairs": true,
         "editor.guides.highlightActiveIndentation": true,
         "editor.guides.bracketPairsHorizontal": false,
