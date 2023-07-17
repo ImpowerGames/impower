@@ -1,4 +1,5 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -6,8 +7,10 @@ import SparkleElement, {
 import component from "./_transition";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-router"]);
+
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
+  ...getAttributeNameMap(["router"]),
 };
 
 /**
@@ -31,6 +34,18 @@ export default class Transition
     useShadowDom = true
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies, useShadowDom);
+  }
+
+  /**
+   * The unique key that identifies the router that this transition will respond to.
+   *
+   * If not specified, the transition will occur for all router changes
+   */
+  get router(): string | null {
+    return this.getStringAttribute(Transition.attributes.router);
+  }
+  set router(value) {
+    this.setStringAttribute(Transition.attributes.router, value);
   }
 
   override get component() {
@@ -58,7 +73,13 @@ export default class Transition
   protected handleExit = (e: Event): void => {
     if (e instanceof CustomEvent) {
       if (this.shadowRoot) {
-        this.updateState("exiting");
+        const routerKey = this.router;
+        if (
+          !routerKey ||
+          (e.detail.key && (e.detail.key as string).startsWith(routerKey))
+        ) {
+          this.updateState("exiting");
+        }
       }
     }
   };
@@ -66,7 +87,13 @@ export default class Transition
   protected handleEnter = (e: Event): void => {
     if (e instanceof CustomEvent) {
       if (this.shadowRoot) {
-        this.updateState("entering");
+        const routerKey = this.router;
+        if (
+          !routerKey ||
+          (e.detail.key && (e.detail.key as string).startsWith(routerKey))
+        ) {
+          this.updateState("entering");
+        }
       }
     }
   };

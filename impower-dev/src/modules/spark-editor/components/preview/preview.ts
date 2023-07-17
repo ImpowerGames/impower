@@ -40,7 +40,6 @@ export default class Preview extends SEElement {
       if (e.detail.key === "preview") {
         const mode = e.detail.value;
         Workspace.instance.state.preview.panel = mode;
-        Workspace.instance.cacheState();
         const modeTitleEl = this.modeTitleEl;
         if (modeTitleEl) {
           const title =

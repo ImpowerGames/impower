@@ -144,8 +144,8 @@ export default class Tabs
     if (name === Tabs.attributes.indicator) {
       this.updateTabs(false);
       const indicatorEl = this.indicatorEl;
-      if (indicatorEl) {
-        indicatorEl.hidden = newValue === "none";
+      if (indicatorEl && newValue === "none") {
+        indicatorEl.hidden = true;
       }
     }
     if (name === Tabs.attributes.vertical) {
@@ -162,8 +162,8 @@ export default class Tabs
     this._activatingValue = this.active;
     const indicator = this.indicator;
     const indicatorEl = this.indicatorEl;
-    if (indicatorEl) {
-      indicatorEl.hidden = indicator === "none";
+    if (indicatorEl && indicator === "none") {
+      indicatorEl.hidden = true;
     }
     const vertical = this.vertical;
     this.updateRootAttribute(
@@ -268,7 +268,8 @@ export default class Tabs
     } else {
       indicator.style.setProperty("width", `${size}px`);
     }
-    indicator.style.setProperty("display", "flex");
+
+    indicator.hidden = false;
 
     await nextAnimationFrame();
     if (this.interrupted(newValue)) {
@@ -282,7 +283,7 @@ export default class Tabs
       return;
     }
 
-    indicator.style.setProperty("display", "none");
+    indicator.hidden = true;
 
     tab.state = null;
     if (oldTab) {

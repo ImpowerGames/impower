@@ -37,19 +37,12 @@ export default class Workspace {
   }
 
   constructor() {
-    const cachedState = localStorage.getItem(this.getWorkspaceUri());
-    this._state = cachedState
-      ? (JSON.parse(cachedState) as WorkspaceState)
-      : DEFAULT_WORKSPACE_STATE;
+    this._state = DEFAULT_WORKSPACE_STATE;
   }
 
   getWorkspaceUri(path: string = "") {
     const suffix = path ? `/${path}` : "";
     return `file:///${this._uid}/projects/${this._project}${suffix}`;
-  }
-
-  cacheState() {
-    localStorage.setItem(this.getWorkspaceUri(), JSON.stringify(this._state));
   }
 
   async getWorkspaceDirectory(

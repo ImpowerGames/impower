@@ -1,4 +1,5 @@
 import SEElement from "../../core/se-element";
+import Workspace from "../../state/Workspace";
 import component from "./_graphics";
 
 export default class Graphics extends SEElement {
@@ -11,6 +12,23 @@ export default class Graphics extends SEElement {
   }
 
   override get component() {
-    return component();
+    return component({ store: Workspace.instance.state });
   }
+
+  protected override onConnected(): void {
+    this.ownerDocument.addEventListener("enter", this.handleEnter);
+  }
+
+  protected override onDisconnected(): void {
+    this.ownerDocument.removeEventListener("enter", this.handleEnter);
+  }
+
+  handleEnter = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (e.detail.key === "window/graphics") {
+        const mode = e.detail.value;
+        Workspace.instance.state.graphics.panel = mode;
+      }
+    }
+  };
 }
