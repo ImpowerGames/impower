@@ -138,8 +138,8 @@ export default class TextmateLanguage {
       closeBrackets(),
       keymap.of([...closeBracketsKeymap]),
       indentService.of((context, pos) => {
-        const prevLine = context.lineAt(pos - 1);
-        const prevText = prevLine.text;
+        const prevLine = pos > 0 ? context.lineAt(pos - 1) : undefined;
+        const prevText = prevLine?.text || "";
         const prevIndentSize = prevText.match(INDENT_REGEX)?.[0].length ?? 0;
         const indentationRules = configDefinition?.indentationRules;
         const decreaseIndentPattern = indentationRules?.decreaseIndentPattern;
