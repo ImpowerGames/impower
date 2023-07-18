@@ -33,9 +33,9 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
         },
         {
           alwaysShow: true,
-          label: "Synopses",
+          label: "Labels",
           detail: "= Any line which starts like this",
-          picked: uiPersistence.outline_visibleSynopses,
+          picked: uiPersistence.outline_visibleLabels,
         },
         {
           alwaysShow: true,
@@ -55,7 +55,7 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
       quickPick.onDidChangeSelection((e) => {
         let visibleScenes = false;
         let visibleSections = false;
-        let visibleSynopses = false;
+        let visibleLabels = false;
         let visibleNotes = false;
         for (let i = 0; i < e.length; i++) {
           if (e[i]?.label === "Notes") {
@@ -67,8 +67,8 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
           if (e[i]?.label === "Sections") {
             visibleSections = true;
           }
-          if (e[i]?.label === "Synopses") {
-            visibleSynopses = true;
+          if (e[i]?.label === "Labels") {
+            visibleLabels = true;
           }
         }
         changeSparkdownUIPersistence("outline_visibleNotes", visibleNotes);
@@ -77,10 +77,7 @@ export const activateOutlineView = (context: vscode.ExtensionContext): void => {
           "outline_visibleSections",
           visibleSections
         );
-        changeSparkdownUIPersistence(
-          "outline_visibleSynopses",
-          visibleSynopses
-        );
+        changeSparkdownUIPersistence("outline_visibleLabels", visibleLabels);
         const uri = getActiveSparkdownDocument();
         SparkdownOutlineTreeDataProvider.instance.update(context, uri);
       });

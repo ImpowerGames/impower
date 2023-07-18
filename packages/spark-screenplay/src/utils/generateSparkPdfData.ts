@@ -59,7 +59,7 @@ export const generateSparkPdfData = (
           currentToken.type === "dialogue_asset" ||
           currentToken.type === "action_asset")) ||
       (!config.screenplay_print_sections && currentToken.type === "section") ||
-      (!config.screenplay_print_synopses && currentToken.type === "synopsis")
+      (!config.screenplay_print_labels && currentToken.type === "label")
     ) {
       if (currentToken.type === "section") {
         //on the next scene header, add an invisible section (for keeping track of sections when creating bookmarks and generating pdf-side)

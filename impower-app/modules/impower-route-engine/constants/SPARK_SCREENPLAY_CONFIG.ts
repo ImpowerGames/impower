@@ -1,4 +1,4 @@
-import { SparkScreenplayConfig } from "../../../../spark-screenplay";
+import { SparkScreenplayConfig } from "../../../../packages/spark-screenplay/src";
 
 export const SPARK_SCREENPLAY_CONFIG: SparkScreenplayConfig = {
   screenplay_print_bookmarks_for_invisible_sections: true,
@@ -6,6 +6,6 @@ export const SPARK_SCREENPLAY_CONFIG: SparkScreenplayConfig = {
   screenplay_print_page_numbers: true,
   screenplay_print_scene_headers_bold: true,
   screenplay_print_scene_numbers: "left",
-  screenplay_print_synopses: true,
+  screenplay_print_labels: false,
   screenplay_print_title_page: true,
 };

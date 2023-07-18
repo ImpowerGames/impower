@@ -9,18 +9,18 @@ patterns:
   - { include: "#Image" }
   - { include: "#Audio" }
   - { include: "#PageBreak" }
-  - { include: "#Synopsis" }
+  - { include: "#Label" }
   - { include: "#FrontMatter" }
   - { include: "#Struct" }
   - { include: "#Variable" }
   - { include: "#Centered" }
   - { include: "#CenteredAngle" }
+  - { include: "#Load" }
   - { include: "#Jump" }
+  - { include: "#Import" }
   - { include: "#Condition" }
   - { include: "#Logic" }
   - { include: "#Choice" }
-  - { include: "#Import" }
-  - { include: "#Load" }
   - { include: "#Repeat" }
   - { include: "#Return" }
   - { include: "#Scene" }
@@ -46,7 +46,7 @@ repository:
   Image:
     tag: blockComment
     name: entity.image.sd
-    match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ ]*)($|[/][/][ ]+.*)($\n?)
+    match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ \t]*)($|[/][/][ \t]+.*)($\n?)
     captures:
       2:
         tag: definition(blockComment)
@@ -67,7 +67,7 @@ repository:
   Audio:
     tag: blockComment
     name: entity.audio.sd
-    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/][ ]+.*)($\n?)
+    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ \t]*)($|[/][/][ \t]+.*)($\n?)
     captures:
       2:
         tag: definition(blockComment)
@@ -88,7 +88,7 @@ repository:
   PageBreak:
     tag: meta
     name: entity.page-break.sd
-    match: ^([ \t]*)(===+)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)(===+)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: contentSeparator
@@ -97,32 +97,50 @@ repository:
         patterns:
           - { include: "#Comment" }
 
-  Synopsis:
-    tag: docComment
-    name: entity.synopsis.sd
-    match: ^([ \t]*)(?![=]{2,})([=])([ ]+)((?:(?![/][/][ ]+).)*)($|[/][/][ ]+.*)$
+  Label:
+    tag: meta
+    name: entity.label.sd
+    match: ^([ \t]*)([=])($|[ ]+)((?:(?![/][/][ ]+).)*)($|[/][/][ \t]+.*)$
     captures:
       2:
-        tag: definition(docComment)
-        name: comment.line.equal.synopsis.sd
+        tag: controlKeyword
+        name: keyword.control.label.sd
       4:
-        tag: docComment
-        name: comment.line.content.synopsis.sd
+        tag: controlKeyword
+        name: keyword.control.label.sd
       5:
+        patterns:
+          - { include: "#Comment" }
+
+  Load:
+    tag: meta
+    name: entity.load.sd
+    match: ^([ \t]*)([>][>])($|[ ]+)([^\n\r ]+|[{].+[}])?([ \t]*)($|[/][/][ \t]+.*)$
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.load.sd
+      4:
+        tag: heading
+        name: keyword.control.load.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.sd
+      6:
         patterns:
           - { include: "#Comment" }
 
   Jump:
     tag: meta
     name: entity.jump.sd
-    match: ^([ \t]*)([>])([ ]*)([^\n\r ]+|[{].+[}])?([ ]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([>])($|[ ]+)([^\n\r ]+|[{].+[}])?([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: keyword
         name: storage.type.jump.sd
       4:
         tag: heading
-        name: keyword.control.export.jump.sd
+        name: keyword.control.jump.sd
       5:
         tag: content
         name: markup.raw.whitespace.sd
@@ -133,7 +151,7 @@ repository:
   Centered:
     tag: monospace
     name: entity.centered.sd
-    match: ^([ \t]*)([|])([ ]+)?((?:(?![ ]+[|]).)*)([ ]*)([|])([ ]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([|])([ ]+)?((?:(?![ ]+[|]).)*)([ ]*)([|])([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: bracket
@@ -161,7 +179,7 @@ repository:
   CenteredAngle:
     tag: monospace
     name: entity.centered.sd
-    match: ^([ \t]*)([>])([ ]+)?((?:(?![ ]+[<]).)*)([ ]*)([<])([ ]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([>])([ ]+)?((?:(?![ ]+[<]).)*)([ ]*)([<])([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: bracket
@@ -186,10 +204,25 @@ repository:
         patterns:
           - { include: "#Comment" }
 
+  Import:
+    tag: meta
+    name: entity.import.sd
+    match: ^([ \t]*)([*])([ ]+)(import)($|[ ]+)($|["'].*)$
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.import.sd
+      4:
+        tag: moduleKeyword
+        name: keyword.control.import.sd
+      6:
+        patterns:
+          - { include: "#String" }
+
   Condition:
     tag: meta
     name: entity.condition.sd
-    match: ^([ \t]*)([*])($|[ ]+)($|if|elseif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[^\n\r:])+))?([ ]*)($|[:])([ ]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([*])($|[ ]+)($|if|elseif|else)(?:($|[ ]+)($|(?:[ ]+|`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*'|[^\n\r:])+))?([ ]*)($|[:])([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: keyword
@@ -223,7 +256,7 @@ repository:
           - { include: "#Expression" }
 
   Choice:
-    match: ^([ \t]*)([+-])($|[ ]+)(?:([^\n\r>]+))?([ ]*)(?:([>])([ ]*)((?:(?![/][/][ ]+).)*)?)?($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([+-])($|[ ]+)(?:([^\n\r>]+))?([ ]*)(?:([>])([ ]*)((?:(?![/][/][ ]+).)*)?)?($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: list
@@ -233,92 +266,18 @@ repository:
           - { include: "#InlineString" }
       6:
         tag: keyword
-        name: storage.type.jump.sd
+        name: storage.type.choice.sd
       8:
         tag: heading
-        name: keyword.control.export.jump.sd
+        name: keyword.control.choice.sd
       9:
         patterns:
           - { include: "#Comment" }
 
-  Import:
-    tag: meta
-    name: entity.import.sd
-    match: ^([ \t]*)(import)($|[ ]+)(?:(?:($|[*])($|[ ]+)(?:($|as)($|[ ]+))?)?(?:((?!from)[_a-zA-Z0-9]+)($|[ ]+))?(?:($|from|[_a-zA-Z0-9]+)($|[ ]+))?)?($|["'].*)$
-    captures:
-      2:
-        tag: moduleKeyword
-        name: keyword.control.import.sd
-      4:
-        patterns:
-          - { include: "#KeywordAll" }
-          - { include: "#VariableName" }
-      6:
-        patterns:
-          - { include: "#KeywordAs" }
-          - { include: "#VariableName" }
-      8:
-        patterns:
-          - { include: "#VariableName" }
-      10:
-        patterns:
-          - { include: "#KeywordFrom" }
-          - { include: "#VariableName" }
-      12:
-        patterns:
-          - { include: "#String" }
-
-  VariableName:
-    tag: variableName
-    name: variable.other.readwrite.alias.sd
-    match: ([_a-zA-Z]+[_a-zA-Z0-9]*)
-
-  KeywordAll:
-    tag: keyword
-    name: constant.language.import-export-all.sd
-    match: ([*])
-
-  KeywordAs:
-    tag: moduleKeyword
-    name: keyword.control.as.sd
-    match: (as)
-
-  KeywordFrom:
-    tag: moduleKeyword
-    name: keyword.control.from.sd
-    match: (from)
-
-  Load:
-    tag: meta
-    name: entity.load.sd
-    match: ^([ \t]*)(load)($|[ ]+)(?:(?:($|[*])($|[ ]+)(?:($|as)($|[ ]+))?)?(?:((?!from)[_a-zA-Z0-9]+)($|[ ]+))?(?:($|from|[_a-zA-Z0-9]+)($|[ ]+))?)?($|["'].*)$
-    captures:
-      2:
-        tag: moduleKeyword
-        name: keyword.control.load.sd
-      4:
-        patterns:
-          - { include: "#KeywordAll" }
-          - { include: "#VariableName" }
-      6:
-        patterns:
-          - { include: "#KeywordAs" }
-          - { include: "#VariableName" }
-      8:
-        patterns:
-          - { include: "#VariableName" }
-      10:
-        patterns:
-          - { include: "#KeywordFrom" }
-          - { include: "#VariableName" }
-      12:
-        patterns:
-          - { include: "#String" }
-
   Struct:
     tag: meta
     name: entity.struct.sd
-    begin: ^([ \t]*)(@)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ \t]*)($|[/][/][ ]+.*)$
+    begin: ^([ \t]*)(@)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)(?:([(])([ ]*)($|[_a-zA-Z]+[_a-zA-Z0-9]*)([ ]*)($|[)]))?([ ]*)([:]?)([ \t]*)($|[/][/][ \t]+.*)$
     beginCaptures:
       2:
         tag: definitionKeyword
@@ -378,7 +337,7 @@ repository:
   Repeat:
     tag: meta
     name: entity.repeat.sd
-    match: ^([ \t]*)([\^])([ \t]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([\^])([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: keyword
@@ -408,7 +367,7 @@ repository:
   Scene:
     tag: regexp
     name: string.regexp.scene.sd
-    match: ^([ \t]*)([.](?![. ])|INT[.](?:$|[ ]+)|EXT[.](?:$|[ ]+)|INT[.]?[/]EXT[.](?:$|[ ]+))($|(?:(?![ ][-]).)*)($|[ ]+)($|[-])($|[ ]+)($|(?:(?![/][/][ ]+).)*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([.](?![. ])|INT[.](?:$|[ ]+)|EXT[.](?:$|[ ]+)|INT[.]?[/]EXT[.](?:$|[ ]+))($|(?:(?![ ][-]).)*)($|[ ]+)($|[-])($|[ ]+)($|(?:(?![/][/][ ]+).)*)($|[/][/][ \t]+.*)$
     captures:
       2:
         patterns:
@@ -447,17 +406,17 @@ repository:
   Section:
     tag: definition(heading)
     name: entity.section.sd
-    match: ^([ \t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\n\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ \t]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\n\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: punctuation
-        name: keyword.control.export.section.sd
+        name: keyword.control.section.sd
       3:
         tag: punctuation
         name: markup.raw.whitespace.sd
       4:
         tag: special(heading)
-        name: keyword.control.export.section.sd
+        name: keyword.control.section.sd
       6:
         patterns:
           - { include: "#Expression" }
@@ -469,15 +428,15 @@ repository:
         name: entity.name.type.interface.section.sd
 
   Transition:
-    match: ^([ \t]*)((?:[^ ]+\b[ ]+){0,2}(?:TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.]))([ ]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)((?:[^ \p{Ll}]+\b[ ]+){0,2}(?:TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.]))([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: labelName
-        name: keyword.control.flow.transition.sd
+        name: keyword.control.transition.sd
 
   Dialogue:
     name: entity.dialogue.sd
-    begin: ^([ \t]*)(?![!]|\[\[)(?!.*[.!:;_][ \t]*$)([\p{Lu}][^\p{Ll}\n\r*^()]+)([ ]*)([(][^)]*(?:$|[)]))?([ ]*)(\^)?([ ]*)($|[/][/][ ]+.*)$
+    begin: ^([ \t]*)([\p{Lu}][^\p{Ll}^()]+[\p{Lu}])([ \t]*)([(][^)]*(?:$|[)]))?([ \t]*)(\^)?([ \t]*)($|[/][/][ \t]+.*)$
     beginCaptures:
       2:
         tag: character
@@ -509,7 +468,7 @@ repository:
   Parenthetical:
     tag: tagName
     name: constant.character.escape.sd
-    match: ^([ \t]*)([(])([^()]*)([)])([ ]*)($|[/][/][ ]+.*)$
+    match: ^([ \t]*)([(])([^()]*)([)])([ \t]*)($|[/][/][ \t]+.*)$
     captures:
       2:
         tag: tagName
@@ -530,7 +489,7 @@ repository:
   DialogueImage:
     tag: blockComment
     name: entity.image.dialogue.sd
-    match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ ]*)($|[/][/][ ]+.*)($\n?)
+    match: ^([ \t]*)(\[{2})([^\]]*)(\]{2})([ \t]*)($|[/][/][ \t]+.*)($\n?)
     captures:
       2:
         tag: definition(blockComment)
@@ -551,7 +510,7 @@ repository:
   DialogueAudio:
     tag: blockComment
     name: entity.audio.dialogue.sd
-    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ ]*)($|[/][/][ ]+.*)($\n?)
+    match: ^([ \t]*)([(]{2})([^)]*)([)]{2})([ \t]*)($|[/][/][ \t]+.*)($\n?)
     captures:
       2:
         tag: definition(blockComment)
@@ -709,7 +668,7 @@ repository:
   FrontMatter:
     tag: meta
     name: entity.front-matter.sd
-    begin: ^([ \t]*)([-]{3,})([ \t]*)($|[/][/][ ]+.*)$
+    begin: ^([ \t]*)([-]{3,})([ \t]*)($|[/][/][ \t]+.*)$
     beginCaptures:
       2:
         tag: keyword
@@ -738,7 +697,7 @@ repository:
       - { include: "#BLEntry" }
       - { include: "#BREntry" }
       - { include: "#OtherEntry" }
-    end: ^([ \t]*)([-]{3,})([ \t]*)($|[/][/][ ]+.*)$
+    end: ^([ \t]*)([-]{3,})([ \t]*)($|[/][/][ \t]+.*)$
     endCaptures:
       2:
         tag: keyword
@@ -1080,7 +1039,7 @@ repository:
           - { include: "#Expression" }
 
   BlockMapIndented:
-    match: ^([ ]{2,}|[\t]+)(?![-])([^\n\r:]+)([:])([\t ]*)($|[/][/][ ]+.*)$
+    match: ^([ ]{2,}|[\t]+)(?![-])([^\n\r:]+)([:])([\t ]*)($|[/][/][ \t]+.*)$
     captures:
       1:
         tag: content

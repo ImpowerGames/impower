@@ -188,10 +188,10 @@ export const generateSparkScriptHtml = (
             push("");
           }
           break;
-        case "synopsis":
-          if (config.screenplay_print_synopses) {
+        case "label":
+          if (config.screenplay_print_labels) {
             push(
-              '<p class="haseditorline synopsis" id="sourceline_' +
+              '<p class="haseditorline label" id="sourceline_' +
                 line +
                 '" >' +
                 currentToken.html +

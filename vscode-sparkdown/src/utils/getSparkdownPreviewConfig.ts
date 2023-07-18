@@ -30,7 +30,7 @@ export const getSparkdownPreviewConfig = (
     screenplay_print_scene_headers_bold:
       screenplayConfig["formatting"].printSceneHeadersBold,
     screenplay_print_sections: screenplayConfig["markup"].printSectionHeaders,
-    screenplay_print_synopses: screenplayConfig["markup"].printSynopses,
+    screenplay_print_labels: screenplayConfig["markup"].printLabels,
     screenplay_print_notes: screenplayConfig["markup"].printNotes,
     screenplay_print_scene_numbers:
       screenplayConfig["numbering"].printSceneNumbers,

@@ -25,7 +25,7 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   comment: SparkToken;
   title: SparkToken;
   separator: SparkToken;
-  synopsis: SparkToken;
+  label: SparkToken;
   page_break: SparkToken;
   dialogue_asset: SparkDialogueAssetToken;
   action_asset: SparkActionAssetToken;

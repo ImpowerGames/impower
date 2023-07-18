@@ -54,19 +54,31 @@
             }
           },
           {
-            "scope": "keyword.control.flow.transition.sd",
+            "scope": "keyword.control.transition.sd",
             "settings": {
               "foreground": "#BEA3A3"
             }
           },
           {
-            "scope": "keyword.control.export.section.sd",
+            "scope": "keyword.control.section.sd",
             "settings": {
               "foreground": "#FF80F4"
             }
           },
           {
-            "scope": "keyword.control.export.jump.sd",
+            "scope": "keyword.control.label.sd",
+            "settings": {
+              "foreground": "#7C7CA6"
+            }
+          },
+          {
+            "scope": "keyword.control.load.sd",
+            "settings": {
+              "foreground": "#F9B8F9"
+            }
+          },
+          {
+            "scope": "keyword.control.jump.sd",
             "settings": {
               "foreground": "#F9B8F9"
             }
@@ -383,17 +395,17 @@
           "sparkdown.screenplay.markup.printSectionHeaders": {
             "type": "boolean",
             "default": false,
-            "description": "Print section headers in screenplay (lines that start with #)"
+            "description": "Print section headers in screenplay ( lines that start with # )"
           },
-          "sparkdown.screenplay.markup.printSynopses": {
+          "sparkdown.screenplay.markup.printLabels": {
             "type": "boolean",
-            "default": true,
-            "description": "Print synopses in screenplay (lines that start with =)"
+            "default": false,
+            "description": "Print labels in screenplay ( lines that start with = )"
           },
           "sparkdown.screenplay.markup.printNotes": {
             "type": "boolean",
             "default": false,
-            "description": "Print notes in screenplay (text enclosed between [[two brackets]])"
+            "description": "Print notes in screenplay ( text enclosed between [[two brackets]] or ((two parentheses)) )"
           },
           "sparkdown.screenplay.numbering.printSceneNumbers": {
             "type": "string",

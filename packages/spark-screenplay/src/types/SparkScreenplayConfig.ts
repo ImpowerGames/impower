@@ -1,7 +1,7 @@
 export interface SparkScreenplayConfig {
   screenplay_print_scene_headers_bold?: boolean;
   screenplay_print_sections?: boolean;
-  screenplay_print_synopses?: boolean;
+  screenplay_print_labels?: boolean;
   screenplay_print_notes?: boolean;
   screenplay_print_page_numbers?: boolean;
   screenplay_print_scene_numbers?: string;

@@ -29,7 +29,7 @@ export type SparkOtherTokenType =
   | "comment"
   | "title"
   | "separator"
-  | "synopsis"
+  | "label"
   | "separator"
   | "page_break"
   | "dialogue_end"

@@ -53,7 +53,7 @@ const HIDDEN_NODE_NAMES = [
   "Comment",
   "Image",
   "Audio",
-  "Synopsis",
+  "Label",
   "Struct",
   "Variable",
   "Jump",

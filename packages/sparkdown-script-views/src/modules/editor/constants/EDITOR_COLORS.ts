@@ -15,6 +15,7 @@ const EDITOR_COLORS = {
   operator: "#D0D0D0",
 
   comment: "#6A9955",
+  label: "#7C7CA6",
   sectionNameDefinition: "#FF80F4",
   sectionNameAccessor: "#F9B8F9",
   scene: "#FF8080",

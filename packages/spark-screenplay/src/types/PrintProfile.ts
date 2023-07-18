@@ -8,7 +8,7 @@ export type PrintableTokenType =
   | "dialogue"
   | "transition"
   | "centered"
-  | "synopsis"
+  | "label"
   | "section"
   | "note";
 
@@ -52,7 +52,7 @@ export interface PrintProfile
   dialogue: TokenPrintSettings;
   transition: TokenPrintSettings;
   centered: TokenPrintSettings;
-  synopsis: TokenPrintSettings;
+  label: TokenPrintSettings;
   section: TokenPrintSettings;
   note: TokenPrintSettings;
 }

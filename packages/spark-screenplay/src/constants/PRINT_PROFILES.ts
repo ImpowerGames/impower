@@ -59,7 +59,7 @@ const A4: PrintProfile = {
     style: "center",
     max: A4_DEFAULT_MAX,
   },
-  synopsis: {
+  label: {
     feed: 0.5,
     max: A4_DEFAULT_MAX,
     italic: true,
@@ -107,8 +107,8 @@ const USLETTER: PrintProfile = {
     ...A4.section,
     max: USLETTER_DEFAULT_MAX,
   },
-  synopsis: {
-    ...A4.synopsis,
+  label: {
+    ...A4.label,
     max: USLETTER_DEFAULT_MAX,
   },
 };

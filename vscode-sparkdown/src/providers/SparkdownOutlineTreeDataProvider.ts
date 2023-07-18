@@ -68,8 +68,8 @@ export class SparkdownOutlineTreeDataProvider
       case "scene":
         item = new SceneTreeItem(token, parent, context, uri);
         break;
-      case "synopsis":
-        item = new SynopsisTreeItem(token, parent, context, uri);
+      case "label":
+        item = new LabelTreeItem(token, parent, context, uri);
         break;
       default:
         item = new SceneTreeItem(token, parent, context, uri);
@@ -136,7 +136,7 @@ export class SparkdownOutlineTreeDataProvider
     if (!structure) {
       return root;
     }
-    // done this way to take care of root-level synopsis and notes
+    // done this way to take care of root-level label and notes
     const rootStructItem = structure?.[""];
     if (rootStructItem) {
       root.children.push(
@@ -282,7 +282,7 @@ class SceneTreeItem extends OutlineTreeItem {
   }
 }
 
-class SynopsisTreeItem extends OutlineTreeItem {
+class LabelTreeItem extends OutlineTreeItem {
   constructor(
     token: StructureItem,
     parent: OutlineTreeItem,
@@ -290,7 +290,7 @@ class SynopsisTreeItem extends OutlineTreeItem {
     uri?: vscode.Uri
   ) {
     super("", token.id, parent);
-    const iconFileName = `synopsis.svg`;
+    const iconFileName = `label.svg`;
     this.iconPath = vscode.Uri.joinPath(
       context.extensionUri,
       "out",

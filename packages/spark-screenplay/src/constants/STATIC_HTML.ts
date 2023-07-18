@@ -322,7 +322,7 @@ export const STATIC_HTML = `<!DOCTYPE html>
         margin-left: -30px;
       }
 
-      #workspace #script .page p.synopsis {
+      #workspace #script .page p.label {
         opacity: 0.4;
         margin-left: -20px;
         font-style: italic;

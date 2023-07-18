@@ -437,9 +437,9 @@ export const pdfGenerate = (
           }
         }
 
-        if (line.type === "synopsis") {
-          feed += print.synopsis.padding || 0;
-          if (print.synopsis.feed_with_last_section && afterSection) {
+        if (line.type === "label") {
+          feed += print.label.padding || 0;
+          if (print.label.feed_with_last_section && afterSection) {
             feed += currentSectionLevel * (print.section.level_indent || 0);
           } else {
             feed = print.action.feed;
@@ -540,7 +540,7 @@ export const pdfGenerate = (
       afterSection = true;
     } else if (
       line.type !== "separator" &&
-      line.type !== "synopsis" &&
+      line.type !== "label" &&
       line.type !== "page_break"
     ) {
       afterSection = false;

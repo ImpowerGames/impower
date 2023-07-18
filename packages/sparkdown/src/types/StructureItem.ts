@@ -4,7 +4,7 @@ interface Position {
 }
 
 export interface StructureItem {
-  type: "section" | "scene" | "synopsis";
+  type: "section" | "scene" | "label";
   info?: string;
   level?: number;
   text: string;

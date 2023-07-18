@@ -399,15 +399,8 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
     ),
     new CheatsheetItem(
       "=",
-      "Synopses are single lines prefixed by = an equals sign.",
-      "<span class='synopse'>= Player must hit all targets to win.</span>",
-      "Printed: ✔ | Executed: ✖"
-    ),
-    new CheatsheetItem(
-      "/* */",
-      "Boneyards are wrapped with /* boneyard markers */.",
-      "<span class='boneyard'>/*\nscore += 5\n*/</span>",
-      "Printed: ✖ | Executed: ✔"
+      "Labels are single lines prefixed by = an equals sign.",
+      "<span class='label'>= Player must hit all targets to win.</span>"
     ),
     new CheatsheetItem(
       "//",

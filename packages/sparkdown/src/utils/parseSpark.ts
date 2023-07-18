@@ -2332,9 +2332,9 @@ const hoistDeclarations = (
         from: context.from,
       });
       // TODO: support multiline expressions
-      const expression = stripInlineComments(match[12] || "");
+      const expression = stripInlineComments(match[6] || "");
       currentToken.content = getRawString(expression) || "";
-      const expressionFrom = currentToken.from + getStart(match, 12);
+      const expressionFrom = currentToken.from + getStart(match, 6);
       const expressionTo = expressionFrom + expression.length;
       addImport(
         program,
@@ -3052,11 +3052,11 @@ export const parseSpark = (
         currentToken.type = type;
         if (currentToken.type === type) {
           // TODO: support multiline expressions
-          const expression = stripInlineComments(match[12] || "");
+          const expression = stripInlineComments(match[6] || "");
           currentToken.content = getRawString(expression) || "";
         }
-      } else if ((match = currentToken.content.match(SPARK_REGEX.synopsis))) {
-        currentToken.type = "synopsis";
+      } else if ((match = currentToken.content.match(SPARK_REGEX.label))) {
+        currentToken.type = "label";
         currentToken.content = match[4] || "";
         program.metadata.structure ??= {};
         const latestSectionOrScene = getLastStructureItem(
@@ -3065,7 +3065,7 @@ export const parseSpark = (
         );
         if (latestSectionOrScene) {
           const structureItem: StructureItem = {
-            type: "synopsis",
+            type: "label",
             text: currentToken.content,
             id: latestSectionOrScene.id + "." + currentToken.line,
             range: {

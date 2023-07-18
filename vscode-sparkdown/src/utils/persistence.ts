@@ -2,14 +2,14 @@ import * as vscode from "vscode";
 
 export type SparkdownUIPersistence = {
   [key: string]: boolean;
-  outline_visibleSynopses: boolean;
+  outline_visibleLabels: boolean;
   outline_visibleNotes: boolean;
   outline_visibleSections: boolean;
   outline_visibleScenes: boolean;
 };
 
 export const uiPersistence: SparkdownUIPersistence = {
-  outline_visibleSynopses: true,
+  outline_visibleLabels: true,
   outline_visibleNotes: true,
   outline_visibleScenes: true,
   outline_visibleSections: true,
@@ -38,7 +38,7 @@ export const activateUIPersistence = function (
 
 export const changeSparkdownUIPersistence = function (
   key:
-    | "outline_visibleSynopses"
+    | "outline_visibleLabels"
     | "outline_visibleNotes"
     | "outline_visibleSections"
     | "outline_visibleScenes",
