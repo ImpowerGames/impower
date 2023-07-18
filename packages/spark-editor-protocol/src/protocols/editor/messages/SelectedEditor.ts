@@ -3,8 +3,9 @@ import {
   Range,
   TextDocumentIdentifier,
 } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type SelectedEditorMethod = typeof SelectedEditor.method;
+export type SelectedEditorMethod = typeof SelectedEditor.type.method;
 
 export interface SelectedEditorParams {
   textDocument: TextDocumentIdentifier;
@@ -14,18 +15,13 @@ export interface SelectedEditorParams {
 export interface SelectedEditorNotificationMessage
   extends NotificationMessage<SelectedEditorMethod, SelectedEditorParams> {}
 
-export class SelectedEditor {
-  static readonly method = "editor/selected";
-  static isNotification(obj: any): obj is SelectedEditorNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: SelectedEditorParams
-  ): SelectedEditorNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class SelectedEditorProtocolType extends NotificationProtocolType<
+  SelectedEditorNotificationMessage,
+  SelectedEditorParams
+> {
+  method = "editor/selected";
+}
+
+export abstract class SelectedEditor {
+  static readonly type = new SelectedEditorProtocolType();
 }

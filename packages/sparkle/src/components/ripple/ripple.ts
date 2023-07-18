@@ -139,19 +139,25 @@ export default class Ripple extends SparkleElement {
     this.startPressAnimation();
   };
 
-  handleClick = async () => {
-    if (this.pointerInitiated) {
-      this.endPressAnimation();
-    } else {
-      // keyboard synthesized click event
-      this.state = "keyboard_press";
-      this.updateAnimationPosition();
-      await this.startPressAnimation();
-      if (this.state !== "keyboard_press") {
-        return;
-      }
-      this.endPressAnimation();
+  handleClick = async (event: MouseEvent) => {
+    if (event.target !== this) {
+      return;
     }
+
+    try {
+      if (this.pointerInitiated) {
+        this.endPressAnimation();
+      } else {
+        // keyboard synthesized click event
+        this.state = "keyboard_press";
+        this.updateAnimationPosition();
+        await this.startPressAnimation();
+        if (this.state !== "keyboard_press") {
+          return;
+        }
+        this.endPressAnimation();
+      }
+    } catch {}
   };
 
   handlePointerLeave = () => {

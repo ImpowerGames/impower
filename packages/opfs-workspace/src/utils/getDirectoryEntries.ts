@@ -1,5 +1,5 @@
 interface FileEntry {
-  uri: string;
+  path: string;
   name: string;
   kind: "file";
   size: number;
@@ -9,7 +9,7 @@ interface FileEntry {
 }
 
 interface DirectoryEntry {
-  uri: string;
+  path: string;
   name: string;
   kind: "directory";
   entries: Record<string, FileEntry | DirectoryEntry>;
@@ -41,7 +41,7 @@ export const getDirectoryEntries = async (
             size: file.size,
             type: file.type,
             lastModified: file.lastModified,
-            uri: nestedPath,
+            path: nestedPath,
             handle: fileHandle,
           };
         })
@@ -54,7 +54,7 @@ export const getDirectoryEntries = async (
           return {
             name: directoryHandle.name,
             kind: directoryHandle.kind,
-            uri: nestedPath,
+            path: nestedPath,
             entries: await getDirectoryEntries(directoryHandle, nestedPath),
             handle: directoryHandle,
           };

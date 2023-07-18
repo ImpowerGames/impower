@@ -69,7 +69,7 @@ export default class ScriptEditor
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (DidSaveTextDocument.isNotification(message)) {
+    if (DidSaveTextDocument.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const text = params.text;
@@ -94,7 +94,7 @@ export default class ScriptEditor
       text: existingText,
     };
     window.postMessage(
-      DidOpenTextDocument.notification({
+      DidOpenTextDocument.type.notification({
         textDocument: textDocument,
       })
     );

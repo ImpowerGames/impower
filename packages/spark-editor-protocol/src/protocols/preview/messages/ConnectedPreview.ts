@@ -1,10 +1,11 @@
 import { NotificationMessage } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
 export interface ConnectedPreviewParams {
   type: "game" | "screenplay";
 }
 
-export type ConnectedPreviewPreviewMethod = typeof ConnectedPreview.method;
+export type ConnectedPreviewPreviewMethod = typeof ConnectedPreview.type.method;
 
 export interface ConnectedPreviewNotificationMessage
   extends NotificationMessage<
@@ -12,18 +13,13 @@ export interface ConnectedPreviewNotificationMessage
     ConnectedPreviewParams
   > {}
 
-export class ConnectedPreview {
-  static readonly method = "preview/connected";
-  static isNotification(obj: any): obj is ConnectedPreviewNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: ConnectedPreviewParams
-  ): ConnectedPreviewNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class ConnectedPreviewProtocolType extends NotificationProtocolType<
+  ConnectedPreviewNotificationMessage,
+  ConnectedPreviewParams
+> {
+  method = "preview/connected";
+}
+
+export abstract class ConnectedPreview {
+  static readonly type = new ConnectedPreviewProtocolType();
 }

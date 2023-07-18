@@ -2,12 +2,13 @@ import transformer from "../../../../packages/sparkle-style-transformer/src/inde
 import sparkleIconsCSS from "../../../../packages/sparkle/src/styles/icons/icons.css";
 import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns/patterns.css";
 import Access from "./components/access/_access";
-import AddFab from "./components/add-fab/_add-fab";
 import Audio from "./components/audio/_audio";
 import Demo from "./components/demo/_demo";
 import Details from "./components/details/_details";
 import Displays from "./components/displays/_displays";
-import FileButton from "./components/file-button/_file-button";
+import FileAddButton from "./components/file-add-button/_file-add-button";
+import FileItem from "./components/file-item/_file-item";
+import FileListEmpty from "./components/file-list-empty/_file-list-empty";
 import FileList from "./components/file-list/_file-list";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
 import GamePreview from "./components/game-preview/_game-preview";
@@ -23,6 +24,7 @@ import PreviewPanel from "./components/preview-panel/_preview-panel";
 import Preview from "./components/preview/_preview";
 import ScreenplayPreview from "./components/screenplay-preview/_screenplay-preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
+import Scripts from "./components/scripts/_scripts";
 import Setup from "./components/setup/_setup";
 import Share from "./components/share/_share";
 import Sounds from "./components/sounds/_sounds";
@@ -57,12 +59,14 @@ const components = {
   "se-theme": Theme,
   "se-normalize": Normalize,
   "se-option-button": style(OptionButton),
-  "se-file-button": style(FileButton),
+  "se-file-add-button": style(FileAddButton),
+  "se-file-item": style(FileItem),
+  "se-file-list-empty": style(FileListEmpty),
   "se-file-list": style(FileList),
-  "se-add-fab": style(AddFab),
   "se-script-editor": style(ScriptEditor),
   "se-game-preview": style(GamePreview),
   "se-screenplay-preview": style(ScreenplayPreview),
+  "se-scripts": style(Scripts),
   "se-logic": style(Logic),
   "se-maps": style(Maps),
   "se-sprites": style(Sprites),

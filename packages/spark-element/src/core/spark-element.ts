@@ -90,17 +90,17 @@ export default class SparkElement extends HTMLElement {
         delegatesFocus: true,
       });
       shadowRoot.innerHTML = html;
-      STYLES.adopt(shadowRoot, normalizeCSS);
+      STYLES.adoptStyles(shadowRoot, normalizeCSS);
       this.sharedStyles.forEach((c) => {
-        STYLES.adopt(shadowRoot, c);
+        STYLES.adoptStyles(shadowRoot, c);
       });
-      STYLES.adopt(shadowRoot, css);
+      STYLES.adoptStyles(shadowRoot, css);
     } else {
-      STYLES.adopt(this.ownerDocument, normalizeCSS);
+      STYLES.adoptStyles(this.ownerDocument, normalizeCSS);
       this.sharedStyles.forEach((c) => {
-        STYLES.adopt(this.ownerDocument, c);
+        STYLES.adoptStyles(this.ownerDocument, c);
       });
-      STYLES.adopt(this.ownerDocument, css);
+      STYLES.adoptStyles(this.ownerDocument, css);
     }
   }
 

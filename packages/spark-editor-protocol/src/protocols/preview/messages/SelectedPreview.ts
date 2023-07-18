@@ -3,8 +3,9 @@ import {
   Range,
   TextDocumentIdentifier,
 } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type SelectedPreviewMethod = typeof SelectedPreview.method;
+export type SelectedPreviewMethod = typeof SelectedPreview.type.method;
 
 export interface SelectedPreviewParams {
   type: "game" | "screenplay";
@@ -15,18 +16,13 @@ export interface SelectedPreviewParams {
 export interface SelectedPreviewNotificationMessage
   extends NotificationMessage<SelectedPreviewMethod, SelectedPreviewParams> {}
 
-export class SelectedPreview {
-  static readonly method = "preview/selected";
-  static isNotification(obj: any): obj is SelectedPreviewNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: SelectedPreviewParams
-  ): SelectedPreviewNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class SelectedPreviewProtocolType extends NotificationProtocolType<
+  SelectedPreviewNotificationMessage,
+  SelectedPreviewParams
+> {
+  method = "preview/selected";
+}
+
+export abstract class SelectedPreview {
+  static readonly type = new SelectedPreviewProtocolType();
 }

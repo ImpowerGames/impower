@@ -47,12 +47,10 @@ export default (state?: { store?: WorkspaceState }) => {
           </s-tab>
         </s-tabs>
         <template value="main">
-          <se-script-editor file-path="logic/main.sd"></se-script-editor>
+          <se-script-editor file-path="logic/main"></se-script-editor>
         </template>
         <template value="scripts">
-          <se-file-list directory-path="logic/scripts">
-            <se-add-fab>Add Script</se-add-fab>
-          </se-file-list>
+          <se-scripts></se-scripts>
         </template>
       </s-router>
     `,

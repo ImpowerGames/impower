@@ -2,8 +2,10 @@ import {
   DidCloseTextDocumentParams,
   NotificationMessage,
 } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type DidCloseTextDocumentMethod = typeof DidCloseTextDocument.method;
+export type DidCloseTextDocumentMethod =
+  typeof DidCloseTextDocument.type.method;
 
 export interface DidCloseTextDocumentNotificationMessage
   extends NotificationMessage<
@@ -11,20 +13,13 @@ export interface DidCloseTextDocumentNotificationMessage
     DidCloseTextDocumentParams
   > {}
 
-export class DidCloseTextDocument {
-  static readonly method = "textDocument/didClose";
-  static isNotification(
-    obj: any
-  ): obj is DidCloseTextDocumentNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: DidCloseTextDocumentParams
-  ): DidCloseTextDocumentNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class DidCloseTextDocumentProtocolType extends NotificationProtocolType<
+  DidCloseTextDocumentNotificationMessage,
+  DidCloseTextDocumentParams
+> {
+  method = "textDocument/didClose";
+}
+
+export abstract class DidCloseTextDocument {
+  static readonly type = new DidCloseTextDocumentProtocolType();
 }

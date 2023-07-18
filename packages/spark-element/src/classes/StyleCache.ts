@@ -1,31 +1,45 @@
+import { Graphic } from "../types/graphic";
+
 export default class StyleCache {
-  protected _cache: Record<string, CSSStyleSheet> = {};
+  protected _styles: Record<string, CSSStyleSheet> = {};
 
-  cache() {
-    return this._cache;
+  protected _icons: Record<string, Graphic> = {};
+
+  protected _patterns: Record<string, Graphic> = {};
+
+  get styles() {
+    return this._styles;
   }
 
-  clearCache() {
-    this._cache = {};
+  get icons() {
+    return this._icons;
   }
 
-  get(css: string) {
-    const cachedSheet = this._cache[css];
+  get patterns() {
+    return this._patterns;
+  }
+
+  clearStyles() {
+    this._styles = {};
+  }
+
+  getStyle(css: string) {
+    const cachedSheet = this._styles[css];
     if (cachedSheet) {
       return cachedSheet;
     }
     const sheet = new CSSStyleSheet();
     sheet.replaceSync(css);
-    this._cache[css] = sheet;
+    this._styles[css] = sheet;
     return sheet;
   }
 
-  adopt(el: Element | ShadowRoot | Document, css: string) {
+  adoptStyles(el: Element | ShadowRoot | Document, css: string) {
     try {
       const targetEl =
         el instanceof Document || el instanceof ShadowRoot ? el : el.shadowRoot;
       if (targetEl) {
-        targetEl.adoptedStyleSheets.push(this.get(css));
+        targetEl.adoptedStyleSheets.push(this.getStyle(css));
       }
     } catch {
       // Fallback to inline styles if constructable style sheets are not supported
@@ -37,5 +51,13 @@ export default class StyleCache {
         targetEl.appendChild(styleEl);
       }
     }
+  }
+
+  adoptIcons(shapes: Record<string, Graphic>) {
+    this._icons = { ...this._icons, ...shapes };
+  }
+
+  adoptPatterns(shapes: Record<string, Graphic>) {
+    this._patterns = { ...this._patterns, ...shapes };
   }
 }

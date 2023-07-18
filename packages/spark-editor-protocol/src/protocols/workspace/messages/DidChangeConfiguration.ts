@@ -2,8 +2,10 @@ import {
   DidChangeConfigurationParams,
   NotificationMessage,
 } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type DidChangeConfigurationMethod = typeof DidChangeConfiguration.method;
+export type DidChangeConfigurationMethod =
+  typeof DidChangeConfiguration.type.method;
 
 export interface DidChangeConfigurationNotificationMessage
   extends NotificationMessage<
@@ -11,20 +13,13 @@ export interface DidChangeConfigurationNotificationMessage
     DidChangeConfigurationParams
   > {}
 
-export class DidChangeConfiguration {
-  static readonly method = "workspace/didChangeConfiguration";
-  static isNotification(
-    obj: any
-  ): obj is DidChangeConfigurationNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: DidChangeConfigurationParams
-  ): DidChangeConfigurationNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class DidChangeConfigurationProtocolType extends NotificationProtocolType<
+  DidChangeConfigurationNotificationMessage,
+  DidChangeConfigurationParams
+> {
+  method = "workspace/didChangeConfiguration";
+}
+
+export abstract class DidChangeConfiguration {
+  static readonly type = new DidChangeConfigurationProtocolType();
 }

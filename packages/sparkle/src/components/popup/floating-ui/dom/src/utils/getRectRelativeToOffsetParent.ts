@@ -20,7 +20,7 @@ export function getRectRelativeToOffsetParent(
   let scroll = { scrollLeft: 0, scrollTop: 0 };
   const offsets = { x: 0, y: 0 };
 
-  if (isOffsetParentAnElement || (!isOffsetParentAnElement && !isFixed)) {
+  if (!isFixed && isOffsetParentAnElement) {
     if (
       getNodeName(offsetParent) !== "body" ||
       isOverflowElement(documentElement)

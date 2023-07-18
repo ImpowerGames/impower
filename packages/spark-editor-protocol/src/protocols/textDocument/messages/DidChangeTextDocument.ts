@@ -2,8 +2,10 @@ import {
   DidChangeTextDocumentParams,
   NotificationMessage,
 } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type DidChangeTextDocumentMethod = typeof DidChangeTextDocument.method;
+export type DidChangeTextDocumentMethod =
+  typeof DidChangeTextDocument.type.method;
 
 export interface DidChangeTextDocumentNotificationMessage
   extends NotificationMessage<
@@ -11,20 +13,13 @@ export interface DidChangeTextDocumentNotificationMessage
     DidChangeTextDocumentParams
   > {}
 
-export class DidChangeTextDocument {
-  static readonly method = "textDocument/didChange";
-  static isNotification(
-    obj: any
-  ): obj is DidChangeTextDocumentNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: DidChangeTextDocumentParams
-  ): DidChangeTextDocumentNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class DidChangeTextDocumentProtocolType extends NotificationProtocolType<
+  DidChangeTextDocumentNotificationMessage,
+  DidChangeTextDocumentParams
+> {
+  method = "textDocument/didChange";
+}
+
+export abstract class DidChangeTextDocument {
+  static readonly type = new DidChangeTextDocumentProtocolType();
 }

@@ -26,10 +26,6 @@
   --hover-opacity: var(--s-opacity-hover);
 }
 
-:host > .root {
-  --active-icon: var(--icon);
-}
-
 :host(:not([child-layout="row"])) {
   --child-gap: 4px;
 }
@@ -173,8 +169,8 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  -webkit-mask-image: var(--active-icon, none);
-  mask-image: var(--active-icon, none);
+  -webkit-mask-image: var(--active-icon, var(--icon), none);
+  mask-image: var(--active-icon, var(--icon), none);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;

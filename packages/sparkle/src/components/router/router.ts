@@ -413,20 +413,23 @@ export default class Router
         if (e.target instanceof HTMLElement) {
           const newValue = e.detail.value;
           if (newValue != null) {
-            this._loadingValue = newValue;
-            if (this._loadedValue == null) {
-              this._loadedValue =
-                this.contentTemplates?.[0]?.getAttribute("value") || null;
+            const templates = this.contentTemplates;
+            if (templates.some((t) => t.getAttribute("value") === newValue)) {
+              this._loadingValue = newValue;
+              if (this._loadedValue == null) {
+                this._loadedValue =
+                  templates?.[0]?.getAttribute("value") || null;
+              }
+              e.stopPropagation();
+              const direction = getDirection(
+                this.directional,
+                e.detail.oldRect,
+                e.detail.newRect,
+                true
+              );
+              this.emit(EXIT_EVENT, { key: this.key, ...e.detail, direction });
+              this.exitRoute(direction);
             }
-            e.stopPropagation();
-            const direction = getDirection(
-              this.directional,
-              e.detail.oldRect,
-              e.detail.newRect,
-              true
-            );
-            this.emit(EXIT_EVENT, { key: this.key, ...e.detail, direction });
-            this.exitRoute(direction);
           }
         }
       }
@@ -439,9 +442,12 @@ export default class Router
         if (e.target instanceof HTMLElement) {
           const newValue = e.detail.value;
           if (newValue != null) {
-            e.stopPropagation();
-            if (newValue === this._loadingValue) {
-              this.enterRoute(newValue);
+            const templates = this.contentTemplates;
+            if (templates.some((t) => t.getAttribute("value") === newValue)) {
+              e.stopPropagation();
+              if (newValue === this._loadingValue) {
+                this.enterRoute(newValue);
+              }
             }
           }
         }

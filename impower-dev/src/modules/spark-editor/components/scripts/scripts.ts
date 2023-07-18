@@ -1,9 +1,9 @@
 import SEElement from "../../core/se-element";
-import component from "./_add-fab";
+import component from "./_scripts";
 
-export default class AddFab extends SEElement {
+export default class Sounds extends SEElement {
   static override async define(
-    tag = "se-add-fab",
+    tag = "se-scripts",
     dependencies?: Record<string, string>,
     useShadowDom = true
   ) {

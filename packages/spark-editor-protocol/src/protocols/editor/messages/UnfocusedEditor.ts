@@ -1,6 +1,7 @@
 import { NotificationMessage, TextDocumentIdentifier } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type UnfocusedEditorMethod = typeof UnfocusedEditor.method;
+export type UnfocusedEditorMethod = typeof UnfocusedEditor.type.method;
 
 export interface UnfocusedEditorParams {
   textDocument: TextDocumentIdentifier;
@@ -9,18 +10,13 @@ export interface UnfocusedEditorParams {
 export interface UnfocusedEditorNotificationMessage
   extends NotificationMessage<UnfocusedEditorMethod, UnfocusedEditorParams> {}
 
-export class UnfocusedEditor {
-  static readonly method = "editor/unfocused";
-  static isNotification(obj: any): obj is UnfocusedEditorNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: UnfocusedEditorParams
-  ): UnfocusedEditorNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class UnfocusedEditorProtocolType extends NotificationProtocolType<
+  UnfocusedEditorNotificationMessage,
+  UnfocusedEditorParams
+> {
+  method = "editor/unfocused";
+}
+
+export abstract class UnfocusedEditor {
+  static readonly type = new UnfocusedEditorProtocolType();
 }

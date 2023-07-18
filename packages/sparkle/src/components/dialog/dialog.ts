@@ -1,9 +1,9 @@
+import STYLES from "../../../../spark-element/src/caches/STYLE_CACHE";
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
-import Icons from "../../configs/icons";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
@@ -26,7 +26,7 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
-  icon: (v: string) => getCssIcon(v, Icons.all()),
+  icon: (v: string) => getCssIcon(v, STYLES.icons),
 };
 
 const DEFAULT_ATTRIBUTES = {

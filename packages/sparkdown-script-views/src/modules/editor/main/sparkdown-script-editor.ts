@@ -112,7 +112,7 @@ export default class SparkdownScriptEditor
       const debouncedSave = debounce((text: Text) => {
         if (this._textDocument) {
           window.postMessage(
-            DidSaveTextDocument.notification({
+            DidSaveTextDocument.type.notification({
               textDocument: this._textDocument,
               text: text.toString(),
             })
@@ -130,7 +130,7 @@ export default class SparkdownScriptEditor
           this._editing = true;
           if (this._textDocument) {
             window.postMessage(
-              FocusedEditor.notification({
+              FocusedEditor.type.notification({
                 textDocument: this._textDocument,
               })
             );
@@ -140,7 +140,7 @@ export default class SparkdownScriptEditor
           this._editing = false;
           if (this._textDocument) {
             window.postMessage(
-              UnfocusedEditor.notification({
+              UnfocusedEditor.type.notification({
                 textDocument: this._textDocument,
               })
             );
@@ -156,7 +156,7 @@ export default class SparkdownScriptEditor
                 contentChanges: getServerChanges(before, transaction.changes),
               };
               window.postMessage(
-                DidChangeTextDocument.notification(changeParams)
+                DidChangeTextDocument.type.notification(changeParams)
               );
               this._languageServerConnection.notifyDidChangeTextDocument(
                 changeParams
@@ -195,7 +195,7 @@ export default class SparkdownScriptEditor
     if (this._editing) {
       if (this._textDocument) {
         window.postMessage(
-          UnfocusedEditor.notification({
+          UnfocusedEditor.type.notification({
             textDocument: this._textDocument,
           })
         );
@@ -223,11 +223,11 @@ export default class SparkdownScriptEditor
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (DidOpenTextDocument.isNotification(message)) {
+    if (DidOpenTextDocument.type.isNotification(message)) {
       const params = message.params;
       this.loadTextDocument(params.textDocument);
     }
-    if (ScrolledPreview.isNotification(message)) {
+    if (ScrolledPreview.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const range = params.range;
@@ -276,7 +276,7 @@ export default class SparkdownScriptEditor
   }
 
   protected handleParsed = (params: DidParseTextDocumentParams): void => {
-    window.postMessage(DidParseTextDocument.notification(params));
+    window.postMessage(DidParseTextDocument.type.notification(params));
   };
 
   protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
@@ -320,7 +320,7 @@ export default class SparkdownScriptEditor
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
             window.postMessage(
-              ScrolledEditor.notification({
+              ScrolledEditor.type.notification({
                 textDocument: this._textDocument,
                 range: {
                   start: {

@@ -2,9 +2,6 @@ import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
-import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
-import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import Icons from "../../configs/icons";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
@@ -16,11 +13,6 @@ const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
-
-const DEFAULT_TRANSFORMERS = {
-  icon: (v: string) => getCssIcon(v, Icons.all()),
-  spacing: getCssSize,
-};
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 

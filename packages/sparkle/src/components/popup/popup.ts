@@ -450,7 +450,6 @@ export default class Popup
             const { rects } = args;
             const syncWidth = this.sync === "width" || this.sync === "both";
             const syncHeight = this.sync === "height" || this.sync === "both";
-            console.log(rects);
             popupEl.style.width = syncWidth ? `${rects.reference.width}px` : "";
             popupEl.style.height = syncHeight
               ? `${rects.reference.height}px`

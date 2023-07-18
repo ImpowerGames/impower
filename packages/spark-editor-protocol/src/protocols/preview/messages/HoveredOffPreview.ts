@@ -1,6 +1,7 @@
 import { NotificationMessage, TextDocumentIdentifier } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type HoveredOffPreviewMethod = typeof HoveredOffPreview.method;
+export type HoveredOffPreviewMethod = typeof HoveredOffPreview.type.method;
 
 export interface HoveredOffPreviewParams {
   type: "game" | "screenplay";
@@ -13,18 +14,13 @@ export interface HoveredOffPreviewNotificationMessage
     HoveredOffPreviewParams
   > {}
 
-export class HoveredOffPreview {
-  static readonly method = "preview/hoveredOff";
-  static isNotification(obj: any): obj is HoveredOffPreviewNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: HoveredOffPreviewParams
-  ): HoveredOffPreviewNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class HoveredOffPreviewProtocolType extends NotificationProtocolType<
+  HoveredOffPreviewNotificationMessage,
+  HoveredOffPreviewParams
+> {
+  method = "preview/hoveredOff";
+}
+
+export abstract class HoveredOffPreview {
+  static readonly type = new HoveredOffPreviewProtocolType();
 }

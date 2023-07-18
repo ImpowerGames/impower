@@ -99,7 +99,9 @@ export default class SparkScreenplayPreview
     }
     window.addEventListener("message", this.handleMessage);
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
-    window.postMessage(ConnectedPreview.notification({ type: "screenplay" }));
+    window.postMessage(
+      ConnectedPreview.type.notification({ type: "screenplay" })
+    );
   }
 
   protected override onParsed(): void {
@@ -138,7 +140,7 @@ export default class SparkScreenplayPreview
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (DidOpenTextDocument.isNotification(message)) {
+    if (DidOpenTextDocument.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       this._textDocument = textDocument;
@@ -155,7 +157,7 @@ export default class SparkScreenplayPreview
         });
       }
     }
-    if (LoadPreview.isRequest(message)) {
+    if (LoadPreview.type.isRequest(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const visibleRange = params.visibleRange;
@@ -182,7 +184,7 @@ export default class SparkScreenplayPreview
         });
       }
     }
-    if (DidChangeTextDocument.isNotification(message)) {
+    if (DidChangeTextDocument.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       if (textDocument.uri === this._textDocument?.uri) {
@@ -194,12 +196,12 @@ export default class SparkScreenplayPreview
         }
       }
     }
-    if (FocusedEditor.isNotification(message)) {
+    if (FocusedEditor.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       this._textDocument = textDocument;
     }
-    if (ScrolledEditor.isNotification(message)) {
+    if (ScrolledEditor.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const range = params.range;
@@ -234,7 +236,7 @@ export default class SparkScreenplayPreview
     if (this._initialized && !this._loaded) {
       this._loaded = true;
       if (this._textDocument && this._loadingRequest != null) {
-        window.postMessage(LoadPreview.response(this._loadingRequest));
+        window.postMessage(LoadPreview.type.response(this._loadingRequest));
         this._loadingRequest = undefined;
       }
     }
@@ -252,7 +254,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = true;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOnPreview.notification({
+        HoveredOnPreview.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
         })
@@ -264,7 +266,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = false;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOffPreview.notification({
+        HoveredOffPreview.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
         })
@@ -297,7 +299,7 @@ export default class SparkScreenplayPreview
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
             window.postMessage(
-              ScrolledPreview.notification({
+              ScrolledPreview.type.notification({
                 type: "screenplay",
                 textDocument: this._textDocument,
                 range: {

@@ -20,39 +20,39 @@ load();
 let loadingRequest: number | string | undefined = undefined;
 
 window.addEventListener("message", (e: MessageEvent) => {
-  if (ConnectedPreview.isNotification(e.data)) {
+  if (ConnectedPreview.type.isNotification(e.data)) {
     if (e.data.params.type === "screenplay") {
       vscode.postMessage(e.data);
     }
   }
-  if (LoadPreview.isRequest(e.data)) {
+  if (LoadPreview.type.isRequest(e.data)) {
     if (e.data.params.type === "screenplay") {
       loadingRequest = e.data.id;
       vscode.setState({ textDocument: e.data.params.textDocument });
     }
   }
-  if (LoadPreview.isResponse(e.data)) {
+  if (LoadPreview.type.isResponse(e.data)) {
     if (e.data.id === loadingRequest) {
       document.body.classList.add("ready");
       vscode.postMessage(e.data);
     }
   }
-  if (ScrolledPreview.isNotification(e.data)) {
+  if (ScrolledPreview.type.isNotification(e.data)) {
     if (e.data.params.type === "screenplay") {
       vscode.postMessage(e.data);
     }
   }
-  if (SelectedPreview.isNotification(e.data)) {
+  if (SelectedPreview.type.isNotification(e.data)) {
     if (e.data.params.type === "screenplay") {
       vscode.postMessage(e.data);
     }
   }
-  if (HoveredOnPreview.isNotification(e.data)) {
+  if (HoveredOnPreview.type.isNotification(e.data)) {
     if (e.data.params.type === "screenplay") {
       vscode.postMessage(e.data);
     }
   }
-  if (HoveredOffPreview.isNotification(e.data)) {
+  if (HoveredOffPreview.type.isNotification(e.data)) {
     if (e.data.params.type === "screenplay") {
       vscode.postMessage(e.data);
     }

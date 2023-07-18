@@ -3,8 +3,9 @@ import {
   Range,
   TextDocumentIdentifier,
 } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type ScrolledEditorMethod = typeof ScrolledEditor.method;
+export type ScrolledEditorMethod = typeof ScrolledEditor.type.method;
 
 export interface ScrolledEditorParams {
   textDocument: TextDocumentIdentifier;
@@ -14,18 +15,13 @@ export interface ScrolledEditorParams {
 export interface ScrolledEditorNotificationMessage
   extends NotificationMessage<ScrolledEditorMethod, ScrolledEditorParams> {}
 
-export class ScrolledEditor {
-  static readonly method = "editor/scrolled";
-  static isNotification(obj: any): obj is ScrolledEditorNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: ScrolledEditorParams
-  ): ScrolledEditorNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class ScrolledEditorProtocolType extends NotificationProtocolType<
+  ScrolledEditorNotificationMessage,
+  ScrolledEditorParams
+> {
+  method = "editor/scrolled";
+}
+
+export abstract class ScrolledEditor {
+  static readonly type = new ScrolledEditorProtocolType();
 }

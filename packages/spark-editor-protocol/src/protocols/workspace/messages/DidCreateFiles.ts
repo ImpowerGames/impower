@@ -1,24 +1,20 @@
 import { CreateFilesParams, NotificationMessage } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type DidCreateFilesMethod = typeof DidCreateFiles.method;
+export type DidCreateFilesMethod = typeof DidCreateFiles.type.method;
 
 export interface DidCreateFilesNotificationMessage
   extends NotificationMessage<DidCreateFilesMethod, CreateFilesParams> {
   params: CreateFilesParams;
 }
 
-export class DidCreateFiles {
-  static readonly method = "workspace/didCreateFiles";
-  static isNotification(obj: any): obj is DidCreateFilesNotificationMessage {
-    return obj.method === this.method && obj.result === undefined;
-  }
-  static notification(
-    params: CreateFilesParams
-  ): DidCreateFilesNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class DidCreateFilesProtocolType extends NotificationProtocolType<
+  DidCreateFilesNotificationMessage,
+  CreateFilesParams
+> {
+  method = "workspace/didCreateFiles";
+}
+
+export abstract class DidCreateFiles {
+  static readonly type = new DidCreateFilesProtocolType();
 }

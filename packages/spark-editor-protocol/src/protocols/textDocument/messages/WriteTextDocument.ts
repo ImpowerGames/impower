@@ -3,7 +3,7 @@ import {
   ResponseMessage,
   TextDocumentIdentifier,
 } from "../../../types";
-import { uuid } from "../../../utils/uuid";
+import { RequestProtocolType } from "../../RequestProtocolType";
 
 export interface WriteTextDocumentParams {
   /**
@@ -16,7 +16,7 @@ export interface WriteTextDocumentParams {
   text: string;
 }
 
-export type WriteTextDocumentMethod = typeof WriteTextDocument.method;
+export type WriteTextDocumentMethod = typeof WriteTextDocument.type.method;
 
 export interface WriteTextDocumentRequestMessage
   extends RequestMessage<WriteTextDocumentMethod, WriteTextDocumentParams> {
@@ -28,30 +28,14 @@ export interface WriteTextDocumentResponseMessage
   result: null;
 }
 
-export class WriteTextDocument {
-  static readonly method = "textDocument/write";
-  static isRequest(obj: any): obj is WriteTextDocumentRequestMessage {
-    return obj.method === this.method && obj.result === undefined;
-  }
-  static isResponse(obj: any): obj is WriteTextDocumentResponseMessage {
-    return obj.method === this.method && obj.result !== undefined;
-  }
-  static request(
-    params: WriteTextDocumentParams
-  ): WriteTextDocumentRequestMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      id: uuid(),
-      params,
-    };
-  }
-  static response(id: number | string): WriteTextDocumentResponseMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      id,
-      result: null,
-    };
-  }
+class WriteTextDocumentProtocolType extends RequestProtocolType<
+  WriteTextDocumentRequestMessage,
+  WriteTextDocumentResponseMessage,
+  WriteTextDocumentParams
+> {
+  method = "textDocument/write";
+}
+
+export abstract class WriteTextDocument {
+  static readonly type = new WriteTextDocumentProtocolType();
 }

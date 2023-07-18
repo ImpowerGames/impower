@@ -1,6 +1,7 @@
 import { DidSaveTextDocumentParams, NotificationMessage } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type DidSaveTextDocumentMethod = typeof DidSaveTextDocument.method;
+export type DidSaveTextDocumentMethod = typeof DidSaveTextDocument.type.method;
 
 export interface DidSaveTextDocumentNotificationMessage
   extends NotificationMessage<
@@ -8,20 +9,13 @@ export interface DidSaveTextDocumentNotificationMessage
     DidSaveTextDocumentParams
   > {}
 
-export class DidSaveTextDocument {
-  static readonly method = "textDocument/didSave";
-  static isNotification(
-    obj: any
-  ): obj is DidSaveTextDocumentNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: DidSaveTextDocumentParams
-  ): DidSaveTextDocumentNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class DidSaveTextDocumentProtocolType extends NotificationProtocolType<
+  DidSaveTextDocumentNotificationMessage,
+  DidSaveTextDocumentParams
+> {
+  method = "textDocument/didSave";
+}
+
+export abstract class DidSaveTextDocument {
+  static readonly type = new DidSaveTextDocumentProtocolType();
 }

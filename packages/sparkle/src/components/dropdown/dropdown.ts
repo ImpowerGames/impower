@@ -225,20 +225,24 @@ export default class Dropdown
       return;
     }
 
-    this.dialogEl.showModal();
+    const dialogEl = this.dialogEl;
+
+    dialogEl.style.visibility = "hidden";
+    dialogEl.showModal();
     lockBodyScrolling(this);
 
     this.start();
 
-    const el = this.popupEl;
-    if (el) {
-      el.hidden = false;
-      el.inert = false;
-    }
+    dialogEl.hidden = false;
+    dialogEl.inert = false;
+
+    await nextAnimationFrame();
+
+    dialogEl.style.visibility = "visible";
 
     this.emit(OPENING_EVENT);
 
-    await animationsComplete(el);
+    await animationsComplete(dialogEl);
 
     this.emit(OPENED_EVENT);
   }
@@ -352,15 +356,22 @@ export default class Dropdown
   }
 
   async updateOptions(animate: boolean): Promise<void> {
-    await Promise.all(
-      this.options.map((option) => {
-        if (this._activatingValue === option.value) {
-          return this.activateOption(option, animate);
-        } else {
-          return this.deactivateOption(option);
-        }
-      })
-    );
+    if (this.active != null) {
+      await Promise.all(
+        this.options.map((option) => {
+          if (this._activatingValue === option.value) {
+            return this.activateOption(option, animate);
+          } else {
+            return this.deactivateOption(option);
+          }
+        })
+      );
+    } else {
+      const detail = { value: this._activatingValue };
+      this.emit(CHANGING_EVENT, detail);
+      await this.hide();
+      this.emit(CHANGED_EVENT, detail);
+    }
   }
 
   bindOptions(): void {

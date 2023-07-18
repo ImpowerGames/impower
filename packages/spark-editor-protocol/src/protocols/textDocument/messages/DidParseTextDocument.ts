@@ -1,7 +1,9 @@
 import type { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
 import { NotificationMessage, TextDocumentIdentifier } from "../../../types";
+import { NotificationProtocolType } from "../../NotificationProtocolType";
 
-export type DidParseTextDocumentMethod = typeof DidParseTextDocument.method;
+export type DidParseTextDocumentMethod =
+  typeof DidParseTextDocument.type.method;
 
 export interface DidParseTextDocumentParams {
   textDocument: TextDocumentIdentifier;
@@ -14,20 +16,13 @@ export interface DidParseTextDocumentNotificationMessage
     DidParseTextDocumentParams
   > {}
 
-export class DidParseTextDocument {
-  static readonly method = "textDocument/didParse";
-  static isNotification(
-    obj: any
-  ): obj is DidParseTextDocumentNotificationMessage {
-    return obj.method === this.method;
-  }
-  static notification(
-    params: DidParseTextDocumentParams
-  ): DidParseTextDocumentNotificationMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      params,
-    };
-  }
+class DidParseTextDocumentProtocolType extends NotificationProtocolType<
+  DidParseTextDocumentNotificationMessage,
+  DidParseTextDocumentParams
+> {
+  method = "textDocument/didParse";
+}
+
+export abstract class DidParseTextDocument {
+  static readonly type = new DidParseTextDocumentProtocolType();
 }

@@ -78,7 +78,7 @@ export default class ScreenplayPreview
       text: existingText,
     };
     window.postMessage(
-      DidOpenTextDocument.notification({
+      DidOpenTextDocument.type.notification({
         textDocument: textDocument,
       })
     );

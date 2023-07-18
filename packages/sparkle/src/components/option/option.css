@@ -26,7 +26,6 @@
 
 :host([value]) {
   --color: var(--s-color-neutral-70);
-  --active-icon: var(--icon);
 }
 
 :host([active]:not([disabled])) > .root {
@@ -194,8 +193,8 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  -webkit-mask-image: var(--active-icon, none);
-  mask-image: var(--active-icon, none);
+  -webkit-mask-image: var(--active-icon, var(--icon), none);
+  mask-image: var(--active-icon, var(--icon), none);
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;
   -webkit-mask-position: center;

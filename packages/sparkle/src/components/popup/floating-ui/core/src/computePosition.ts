@@ -83,7 +83,6 @@ export const computePosition: ComputePosition = async (
                 })
               : reset.rects;
         }
-
         ({ x, y } = computeCoordsFromPlacement(rects, statefulPlacement, rtl));
       }
 

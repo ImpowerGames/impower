@@ -4,13 +4,13 @@ import {
   URI,
   WorkspaceEntry,
 } from "../../../types";
-import { uuid } from "../../../utils/uuid";
+import { RequestProtocolType } from "../../RequestProtocolType";
 
 export interface WorkspaceDirectoryParams {
   directory: { uri: URI };
 }
 
-export type WorkspaceDirectoryMethod = typeof WorkspaceDirectory.method;
+export type WorkspaceDirectoryMethod = typeof WorkspaceDirectory.type.method;
 
 export interface WorkspaceDirectoryRequestMessage
   extends RequestMessage<WorkspaceDirectoryMethod, WorkspaceDirectoryParams> {
@@ -22,33 +22,23 @@ export interface WorkspaceDirectoryResponseMessage
   result: WorkspaceEntry[];
 }
 
-export class WorkspaceDirectory {
-  static readonly method = "workspace/directory";
-  static isRequest(obj: any): obj is WorkspaceDirectoryRequestMessage {
-    return obj.method === this.method && obj.result === undefined;
-  }
-  static isResponse(obj: any): obj is WorkspaceDirectoryResponseMessage {
-    return obj.method === this.method && obj.result !== undefined;
-  }
-  static request(
-    params: WorkspaceDirectoryParams
-  ): WorkspaceDirectoryRequestMessage {
-    return {
-      jsonrpc: "2.0",
-      method: this.method,
-      id: uuid(),
-      params,
-    };
-  }
-  static response(
+class WorkspaceDirectoryProtocolType extends RequestProtocolType<
+  WorkspaceDirectoryRequestMessage,
+  WorkspaceDirectoryResponseMessage,
+  WorkspaceDirectoryParams
+> {
+  method = "workspace/directory";
+  override response(
     id: number | string,
     result: WorkspaceEntry[]
   ): WorkspaceDirectoryResponseMessage {
     return {
-      jsonrpc: "2.0",
-      method: this.method,
-      id,
+      ...super.response(id),
       result,
     };
   }
+}
+
+export abstract class WorkspaceDirectory {
+  static readonly type = new WorkspaceDirectoryProtocolType();
 }

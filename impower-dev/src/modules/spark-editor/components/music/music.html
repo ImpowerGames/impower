@@ -1,16 +1,14 @@
 <s-box overflow-y="scroll">
   <s-box p="16 0" navigation="keyboard" grow>
-    <se-file-button>music_00</se-file-button>
-    <se-file-button>music_01</se-file-button>
-    <se-file-button>music_02</se-file-button>
-    <se-file-button>music_03</se-file-button>
-    <se-file-button>music_04</se-file-button>
-    <se-file-button>music_05</se-file-button>
-    <se-file-button>music_06</se-file-button>
-    <se-file-button>music_07</se-file-button>
-    <se-file-button>music_08</se-file-button>
-    <se-file-button>music_09</se-file-button>
-    <se-file-button>music_10</se-file-button>
+    <se-file-list directory-path="audio/music">
+      <se-file-list-empty slot="empty">
+        <s-icon icon="music 1" size="48" m="12"></s-icon>
+        No Music
+      </se-file-list-empty>
+      <template>
+        <se-file-item directory-path="audio/music"></se-file-item>
+      </template>
+    </se-file-list>
   </s-box>
-  <se-add-fab>Add Music</se-add-fab>
+  <se-file-add-button directory-path="audio/music" file-name="music_00">Add Music</se-file-add-button>
 </s-box>

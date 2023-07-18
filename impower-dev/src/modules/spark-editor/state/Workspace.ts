@@ -1,4 +1,8 @@
 import {
+  DeleteTextDocument,
+  DeleteTextDocumentParams,
+} from "../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DeleteTextDocument";
+import {
   ReadTextDocument,
   ReadTextDocumentParams,
 } from "../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/ReadTextDocument";
@@ -6,6 +10,8 @@ import {
   WriteTextDocument,
   WriteTextDocumentParams,
 } from "../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/WriteTextDocument";
+import { DidCreateFiles } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidCreateFiles";
+import { DidDeleteFiles } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidDeleteFiles";
 import {
   WorkspaceDirectory,
   WorkspaceDirectoryParams,
@@ -40,8 +46,8 @@ export default class Workspace {
     this._state = DEFAULT_WORKSPACE_STATE;
   }
 
-  getWorkspaceUri(path: string = "") {
-    const suffix = path ? `/${path}` : "";
+  getWorkspaceUri(...path: string[]) {
+    const suffix = path.length > 0 ? `/${path.join("/")}` : "";
     return `file:///${this._uid}/projects/${this._project}${suffix}`;
   }
 
@@ -49,10 +55,10 @@ export default class Workspace {
     params: WorkspaceDirectoryParams
   ): Promise<WorkspaceEntry[]> {
     return new Promise((resolve) => {
-      const request = WorkspaceDirectory.request(params);
+      const request = WorkspaceDirectory.type.request(params);
       this.worker.addEventListener("message", (event) => {
         const message = event.data;
-        if (WorkspaceDirectory.isResponse(message)) {
+        if (WorkspaceDirectory.type.isResponse(message)) {
           if (message.id === request.id) {
             resolve(message.result);
           }
@@ -64,10 +70,10 @@ export default class Workspace {
 
   async readTextDocument(params: ReadTextDocumentParams): Promise<string> {
     return new Promise((resolve) => {
-      const request = ReadTextDocument.request(params);
+      const request = ReadTextDocument.type.request(params);
       this.worker.addEventListener("message", (event) => {
         const message = event.data;
-        if (ReadTextDocument.isResponse(message)) {
+        if (ReadTextDocument.type.isResponse(message)) {
           if (message.id === request.id) {
             resolve(message.result);
           }
@@ -79,12 +85,37 @@ export default class Workspace {
 
   async writeTextDocument(params: WriteTextDocumentParams): Promise<null> {
     return new Promise((resolve) => {
-      const request = WriteTextDocument.request(params);
+      const request = WriteTextDocument.type.request(params);
       this.worker.addEventListener("message", (event) => {
         const message = event.data;
-        if (WriteTextDocument.isResponse(message)) {
+        if (WriteTextDocument.type.isResponse(message)) {
           if (message.id === request.id) {
             resolve(message.result);
+            window.postMessage(
+              DidCreateFiles.type.notification({
+                files: [{ uri: request.params.textDocument.uri }],
+              })
+            );
+          }
+        }
+      });
+      this.worker.postMessage(request);
+    });
+  }
+
+  async deleteTextDocument(params: DeleteTextDocumentParams): Promise<null> {
+    return new Promise((resolve) => {
+      const request = DeleteTextDocument.type.request(params);
+      this.worker.addEventListener("message", (event) => {
+        const message = event.data;
+        if (DeleteTextDocument.type.isResponse(message)) {
+          if (message.id === request.id) {
+            resolve(message.result);
+            window.postMessage(
+              DidDeleteFiles.type.notification({
+                files: [{ uri: request.params.textDocument.uri }],
+              })
+            );
           }
         }
       });

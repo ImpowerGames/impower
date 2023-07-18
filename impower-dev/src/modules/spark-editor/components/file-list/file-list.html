@@ -1,4 +1,9 @@
-<s-box overflow-y="scroll">
-  <s-box p="16 0" navigation="keyboard" grow></s-box>
+<div class="root" part="root">
   <slot></slot>
-</s-box>
+  <div class="empty" part="empty" hidden>
+    <slot name="empty">No Files Found</slot>
+  </div>
+  <div class="outlet" part="outlet" hidden>
+    <slot name="outlet"></slot>
+  </div>
+</div>

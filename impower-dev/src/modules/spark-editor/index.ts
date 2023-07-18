@@ -1,11 +1,13 @@
 import STYLES from "../../../../packages/spark-element/src/caches/STYLE_CACHE";
+import extractAllGraphics from "../../../../packages/sparkle-style-transformer/src/utils/extractAllGraphics";
 import Access from "./components/access/access";
-import AddFab from "./components/add-fab/add-fab";
 import Audio from "./components/audio/audio";
 import Demo from "./components/demo/demo";
 import Details from "./components/details/details";
 import Displays from "./components/displays/displays";
-import FileButton from "./components/file-button/file-button";
+import FileAddButton from "./components/file-add-button/file-add-button";
+import FileItem from "./components/file-item/file-item";
+import FileListEmpty from "./components/file-list-empty/file-list-empty";
 import FileList from "./components/file-list/file-list";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import GamePreview from "./components/game-preview/game-preview";
@@ -21,6 +23,7 @@ import PreviewPanel from "./components/preview-panel/preview-panel";
 import Preview from "./components/preview/preview";
 import ScreenplayPreview from "./components/screenplay-preview/screenplay-preview";
 import ScriptEditor from "./components/script-editor/script-editor";
+import Scripts from "./components/scripts/scripts";
 import Setup from "./components/setup/setup";
 import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
@@ -33,12 +36,14 @@ import theme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-option-button": OptionButton,
-  "se-file-button": FileButton,
+  "se-file-add-button": FileAddButton,
+  "se-file-item": FileItem,
+  "se-file-list-empty": FileListEmpty,
   "se-file-list": FileList,
-  "se-add-fab": AddFab,
   "se-script-editor": ScriptEditor,
   "se-game-preview": GamePreview,
   "se-screenplay-preview": ScreenplayPreview,
+  "se-scripts": Scripts,
   "se-logic": Logic,
   "se-maps": Maps,
   "se-sprites": Sprites,
@@ -85,8 +90,12 @@ export default abstract class SparkEditor {
       options?.constructors ?? DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
     const dependencies = options?.dependencies ?? {};
     Object.values(styles).forEach((css) => {
-      STYLES.adopt(document, css);
+      STYLES.adoptStyles(document, css);
     });
+    const icons = styles["icons"];
+    if (icons) {
+      STYLES.adoptIcons(extractAllGraphics("--s-icon-", icons));
+    }
     return Promise.all(
       Object.entries(constructors).map(([k, v]) =>
         v.define(dependencies?.[k] || k, dependencies as any, useShadowDom)

@@ -31,9 +31,9 @@
 :host > .popup {
   display: flex;
   isolation: isolate;
+  position: fixed;
   pointer-events: var(--interactable);
   z-index: var(--z);
-  position: var(--position);
   overflow-x: var(--overflow-x);
   overflow-y: var(--overflow-y);
   width: var(--width);
@@ -51,10 +51,6 @@
   max-height: var(--auto-size-available-height, none);
   filter: var(--shadow);
   will-change: transform;
-}
-
-:host > .popup.fixed {
-  position: fixed;
 }
 
 :host([open]) > .popup {
