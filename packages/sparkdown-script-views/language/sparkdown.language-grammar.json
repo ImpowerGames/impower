@@ -166,7 +166,7 @@
       "captures": {
         "2": {
           "tag": "contentSeparator",
-          "name": "entity.separator.sd"
+          "name": "keyword.separator.sd"
         },
         "3": {
           "patterns": [
@@ -180,7 +180,7 @@
     "Synopsis": {
       "tag": "docComment",
       "name": "entity.synopsis.sd",
-      "match": "^([ \\t]*)(?![=]{2,})([=])([ ]*)((?:(?![/][/][ ]+).)*)($|[/][/][ ]+.*)$",
+      "match": "^([ \\t]*)(?![=]{2,})([=])([ ]+)((?:(?![/][/][ ]+).)*)($|[/][/][ ]+.*)$",
       "captures": {
         "2": {
           "tag": "definition(docComment)",
@@ -762,7 +762,7 @@
     },
     "Dialogue": {
       "name": "entity.dialogue.sd",
-      "begin": "^([ \\t]*)(?![!]|\\[\\[)(?!.*[.!:;_][ \\t]*$)([^\\p{Ll}\\n\\r*^()]+)([ ]*)([(][^)]*(?:$|[)]))?([ ]*)(\\^)?([ ]*)($|[/][/][ ]+.*)$",
+      "begin": "^([ \\t]*)(?![!]|\\[\\[)(?!.*[.!:;_][ \\t]*$)([\\p{Lu}][^\\p{Ll}\\n\\r*^()]+)([ ]*)([(][^)]*(?:$|[)]))?([ ]*)(\\^)?([ ]*)($|[/][/][ ]+.*)$",
       "beginCaptures": {
         "2": {
           "tag": "character",

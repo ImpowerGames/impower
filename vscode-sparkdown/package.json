@@ -72,6 +72,12 @@
             }
           },
           {
+            "scope": "keyword.separator.sd",
+            "settings": {
+              "foreground": "#606080"
+            }
+          },
+          {
             "scope": "markup.bold",
             "settings": {
               "foreground": "#569CD6"
