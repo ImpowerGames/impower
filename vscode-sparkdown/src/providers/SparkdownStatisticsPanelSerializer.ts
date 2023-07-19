@@ -1,12 +1,12 @@
 import { SparkScreenplayConfig } from "@impower/spark-screenplay/src/index";
 import * as path from "path";
 import * as vscode from "vscode";
-import { parseState } from "../state/parseState";
 import { getEditor } from "../utils/getEditor";
 import { getSparkdownPreviewConfig } from "../utils/getSparkdownPreviewConfig";
 import { getWebviewUri } from "../utils/getWebviewUri";
 import { readTextFile } from "../utils/readTextFile";
 import { retrieveScreenPlayStatistics } from "../utils/statistics";
+import { SparkProgramManager } from "./SparkProgramManager";
 
 interface statisticsPanel {
   uri: string;
@@ -59,7 +59,7 @@ export async function refreshPanel(
     version: document.version,
     loading: true,
   });
-  const program = parseState.parsedPrograms[document.uri.toString()];
+  const program = SparkProgramManager.instance.get(document.uri);
   if (program) {
     const stats = await retrieveScreenPlayStatistics(
       context,
@@ -278,7 +278,7 @@ vscode.window.onDidChangeTextEditorSelection((change) => {
   }
 });
 
-export class SparkdownStatsPanelSerializer
+export class SparkdownStatisticsPanelSerializer
   implements vscode.WebviewPanelSerializer
 {
   context: vscode.ExtensionContext;

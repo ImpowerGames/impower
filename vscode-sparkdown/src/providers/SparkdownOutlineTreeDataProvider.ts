@@ -1,9 +1,8 @@
 import { StructureItem } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
-import { parseState } from "../state/parseState";
 import { getEditor } from "../utils/getEditor";
 import { getSuffixFromState } from "../utils/getSuffixFromState";
-import { uiPersistence } from "../utils/persistence";
+import { SparkProgramManager } from "./SparkProgramManager";
 
 export class SparkdownOutlineTreeDataProvider
   implements vscode.TreeDataProvider<vscode.TreeItem>
@@ -24,10 +23,16 @@ export class SparkdownOutlineTreeDataProvider
   treeView: vscode.TreeView<vscode.TreeItem> | undefined;
   protected _treeRoot: OutlineTreeItem | undefined;
 
+  constructor() {
+    this.treeView = vscode.window.createTreeView("sparkdown-outline", {
+      treeDataProvider: this,
+      showCollapseAll: true,
+    });
+  }
+
   getTreeItem(
     element: vscode.TreeItem
   ): vscode.TreeItem | Thenable<vscode.TreeItem> {
-    //throw new Error("Method not implemented.");
     return element;
   }
 
@@ -45,7 +50,6 @@ export class SparkdownOutlineTreeDataProvider
   }
 
   getParent(element: OutlineTreeItem): OutlineTreeItem {
-    // necessary for reveal() to work
     return element.parent as OutlineTreeItem;
   }
 
@@ -56,75 +60,47 @@ export class SparkdownOutlineTreeDataProvider
     context: vscode.ExtensionContext,
     uri?: vscode.Uri
   ): OutlineTreeItem | undefined {
-    const token = structure[id];
-    let item: OutlineTreeItem;
-    if (!token) {
+    const item = structure[id];
+    let treeItem: OutlineTreeItem;
+    if (!item) {
       return undefined;
     }
-    switch (token.type) {
+    switch (item.type) {
+      case "label":
+        treeItem = new LabelTreeItem(item, parent, context, uri);
+        break;
       case "section":
-        item = new SectionTreeItem(token, parent, context, uri);
+        treeItem = new SectionTreeItem(item, parent, context, uri);
         break;
       case "scene":
-        item = new SceneTreeItem(token, parent, context, uri);
-        break;
-      case "label":
-        item = new LabelTreeItem(token, parent, context, uri);
+        treeItem = new SceneTreeItem(item, parent, context, uri);
         break;
       default:
-        item = new SceneTreeItem(token, parent, context, uri);
+        treeItem = new SceneTreeItem(item, parent, context, uri);
         break;
     }
-
-    const passthrough =
-      (token.type === "section" && !uiPersistence.outline_visibleSections) ||
-      (token.type !== "section" && !uiPersistence.outline_visibleScenes);
-
-    item.children = [];
-
-    if (token.children) {
-      if (passthrough) {
-        parent.children.push(
-          ...token.children.map(
-            (id) =>
-              this.makeTreeItem(
-                structure,
-                id,
-                parent,
-                context,
-                uri
-              ) as OutlineTreeItem
-          )
-        );
-      } else {
-        item.children.push(
-          ...token.children.map(
-            (id) =>
-              this.makeTreeItem(
-                structure,
-                id,
-                item,
-                context,
-                uri
-              ) as OutlineTreeItem
-          )
-        );
-      }
-    }
-
-    if (item.children.length > 0) {
-      item.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
-    }
-
-    if (passthrough) {
-      parent.children = parent.children.sort(
-        (a, b) => a.lineNumber - b.lineNumber
+    treeItem.children = [];
+    if (item.children) {
+      treeItem.children.push(
+        ...item.children.map(
+          (id) =>
+            this.makeTreeItem(
+              structure,
+              id,
+              treeItem,
+              context,
+              uri
+            ) as OutlineTreeItem
+        )
       );
-      return undefined;
-    } else {
-      item.children = item.children.sort((a, b) => a.lineNumber - b.lineNumber);
-      return item;
     }
+    if (treeItem.children.length > 0) {
+      treeItem.collapsibleState = vscode.TreeItemCollapsibleState.Expanded;
+    }
+    treeItem.children = treeItem.children.sort(
+      (a, b) => a.lineNumber - b.lineNumber
+    );
+    return treeItem;
   }
 
   buildTree(
@@ -159,8 +135,8 @@ export class SparkdownOutlineTreeDataProvider
   update(context: vscode.ExtensionContext, uri?: vscode.Uri): void {
     const editor = getEditor(uri);
     const program = editor
-      ? parseState.parsedPrograms[editor.document.uri.toString()]
-      : parseState.parsedPrograms[parseState.lastParsedUri];
+      ? SparkProgramManager.instance.get(editor.document.uri)
+      : SparkProgramManager.instance.getLastParsed();
     const structure = program?.metadata?.structure || {};
     if (context) {
       this._treeRoot = this.buildTree(context, structure, uri);
@@ -231,65 +207,14 @@ class OutlineTreeItem extends vscode.TreeItem {
   }
 }
 
-class SectionTreeItem extends OutlineTreeItem {
-  constructor(
-    token: StructureItem,
-    parent: OutlineTreeItem,
-    context: vscode.ExtensionContext,
-    uri?: vscode.Uri
-  ) {
-    super(token.text, token.id, parent);
-    const sectionDepth = Math.min(token.level || 0, 5); //maximum depth is 5 - anything deeper is the same color as 5
-    const iconFileName = `section${sectionDepth}.svg`;
-    this.iconPath = vscode.Uri.joinPath(
-      context.extensionUri,
-      "out",
-      "data",
-      iconFileName
-    );
-    if (uri) {
-      this.resourceUri = vscode.Uri.joinPath(
-        uri,
-        [token.id, getSuffixFromState(token.state)].join(".")
-      );
-    }
-    this.tooltip = token.tooltip || "";
-  }
-}
-
-class SceneTreeItem extends OutlineTreeItem {
-  constructor(
-    token: StructureItem,
-    parent: OutlineTreeItem,
-    context: vscode.ExtensionContext,
-    uri?: vscode.Uri
-  ) {
-    super(token.text, token.id, parent);
-    const iconFileName = `scene.svg`;
-    this.iconPath = vscode.Uri.joinPath(
-      context.extensionUri,
-      "out",
-      "data",
-      iconFileName
-    );
-    if (uri) {
-      this.resourceUri = vscode.Uri.joinPath(
-        uri,
-        [token.id, getSuffixFromState(token.state)].join(".")
-      );
-    }
-    this.tooltip = token.tooltip || "";
-  }
-}
-
 class LabelTreeItem extends OutlineTreeItem {
   constructor(
-    token: StructureItem,
+    item: StructureItem,
     parent: OutlineTreeItem,
     context: vscode.ExtensionContext,
     uri?: vscode.Uri
   ) {
-    super("", token.id, parent);
+    super("", item.id, parent);
     const iconFileName = `label.svg`;
     this.iconPath = vscode.Uri.joinPath(
       context.extensionUri,
@@ -300,10 +225,61 @@ class LabelTreeItem extends OutlineTreeItem {
     if (uri) {
       this.resourceUri = vscode.Uri.joinPath(
         uri,
-        [token.id, getSuffixFromState(token.state)].join(".")
+        [item.id, getSuffixFromState(item.state)].join(".")
       );
     }
-    this.tooltip = token.tooltip || "";
-    this.description = token.text;
+    this.tooltip = item.tooltip || "";
+    this.description = item.text;
+  }
+}
+
+class SectionTreeItem extends OutlineTreeItem {
+  constructor(
+    item: StructureItem,
+    parent: OutlineTreeItem,
+    context: vscode.ExtensionContext,
+    uri?: vscode.Uri
+  ) {
+    super(item.text, item.id, parent);
+    const sectionDepth = Math.min(item.level ?? 0, 5); //maximum depth is 5 - anything deeper is the same color as 5
+    const iconFileName = `section${sectionDepth}.svg`;
+    this.iconPath = vscode.Uri.joinPath(
+      context.extensionUri,
+      "out",
+      "data",
+      iconFileName
+    );
+    if (uri) {
+      this.resourceUri = vscode.Uri.joinPath(
+        uri,
+        [item.id, getSuffixFromState(item.state)].join(".")
+      );
+    }
+    this.tooltip = item.tooltip || "";
+  }
+}
+
+class SceneTreeItem extends OutlineTreeItem {
+  constructor(
+    item: StructureItem,
+    parent: OutlineTreeItem,
+    context: vscode.ExtensionContext,
+    uri?: vscode.Uri
+  ) {
+    super(item.text, item.id, parent);
+    const iconFileName = `scene.svg`;
+    this.iconPath = vscode.Uri.joinPath(
+      context.extensionUri,
+      "out",
+      "data",
+      iconFileName
+    );
+    if (uri) {
+      this.resourceUri = vscode.Uri.joinPath(
+        uri,
+        [item.id, getSuffixFromState(item.state)].join(".")
+      );
+    }
+    this.tooltip = item.tooltip || "";
   }
 }

@@ -1,5 +1,5 @@
 import { SparkProgram } from "@impower/sparkdown/src/index";
-import { parseState } from "../state/parseState";
+import { SparkProgramManager } from "../providers/SparkProgramManager";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
 
@@ -10,8 +10,8 @@ export function getActiveParsedProgram(): SparkProgram | undefined {
   }
   const editor = getEditor(uri);
   if (editor) {
-    return parseState.parsedPrograms[editor.document.uri.toString()];
+    return SparkProgramManager.instance.get(editor.document.uri);
   } else {
-    return parseState.parsedPrograms[parseState.lastParsedUri];
+    return SparkProgramManager.instance.getLastParsed();
   }
 }

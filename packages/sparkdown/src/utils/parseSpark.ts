@@ -2055,7 +2055,7 @@ const hoistDeclarations = (
   newLineLength: number,
   lines: string[]
 ) => {
-  let currentLevel = 0;
+  let currentLevel = -1;
   let currentSectionId = "";
   let currentStructName = "";
   let currentFieldTokens: SparkStructFieldToken[] = [];
@@ -2101,7 +2101,42 @@ const hoistDeclarations = (
     context.text = text;
     const indent = getIndent(text);
 
-    if ((match = text.match(SPARK_REGEX.section))) {
+    if ((match = text.match(SPARK_REGEX.label))) {
+      const currentToken = createSparkToken("label", newLineLength, {
+        content: text,
+        line: context.line + (config?.lineOffset || 0),
+        from: context.from,
+      });
+      const level = 0;
+      const name = match[4] || "";
+      const nameFrom = currentToken.from + getStart(match, 4);
+      const nameTo = nameFrom + name.length;
+      const trimmedName = name.trim();
+      if (trimmedName) {
+        currentSectionId = `.${trimmedName}`;
+      }
+      currentLevel = level;
+      currentToken.level = level;
+      const newSection: SparkSection = {
+        ...createSparkSection(),
+        ...(program?.sections?.[currentSectionId] || EMPTY_OBJECT),
+        level: currentLevel,
+        from: currentToken.from,
+        to: currentToken.to,
+        line: currentToken.line,
+        type: "section",
+        returnType: "",
+        name: trimmedName,
+        variables: program?.sections?.[currentSectionId]?.variables || {},
+        triggers: program?.sections?.[currentSectionId]?.triggers || [],
+        children: program?.sections?.[currentSectionId]?.children || [],
+        tokens: program?.sections?.[currentSectionId]?.tokens || [],
+        value: 0,
+      };
+      if (newSection.name) {
+        addSection(program, currentSectionId, newSection, nameFrom, nameTo);
+      }
+    } else if ((match = text.match(SPARK_REGEX.section))) {
       const currentToken = createSparkToken("section", newLineLength, {
         content: text,
         line: context.line + (config?.lineOffset || 0),
@@ -2117,11 +2152,7 @@ const hoistDeclarations = (
       const returnTypeTo = returnTypeFrom + returnType.length;
       const trimmedName = name.trim();
       if (trimmedName) {
-        if (level === 0) {
-          currentSectionId = trimmedName;
-        } else if (level === 1) {
-          currentSectionId = `.${trimmedName}`;
-        } else if (level > currentLevel) {
+        if (level > currentLevel) {
           currentSectionId += `.${trimmedName}`;
         } else if (level < currentLevel) {
           const grandparentId = currentSectionId
@@ -2389,10 +2420,17 @@ export const parseSpark = (
   program.metadata.structure = {
     "": {
       type: "section",
-      level: 0,
+      level: -1,
       text: "",
       id: "",
       range: {
+        start: { line: 0, character: 0 },
+        end: {
+          line: lines.length - 1,
+          character: Math.max(0, lines[lines.length - 1]?.length ?? 0 - 1),
+        },
+      },
+      selectionRange: {
         start: { line: 0, character: 0 },
         end: { line: 0, character: 0 },
       },
@@ -2400,7 +2438,7 @@ export const parseSpark = (
     },
   };
 
-  let currentLevel = 0;
+  let currentLevel = -1;
   let currentScope: SparkScopeType | "" = "";
   let currentSectionId = "";
   let currentStructName = "";
@@ -2595,7 +2633,6 @@ export const parseSpark = (
         tokenCategory = "none";
       } else if (program.metadata?.firstScriptLine === undefined) {
         program.metadata.firstScriptLine = currentToken.line;
-        currentLevel = 0;
       }
 
       const extensions = config?.extensions || [];
@@ -2664,26 +2701,35 @@ export const parseSpark = (
           program.metadata.lines[currentToken.line] ??= {};
           program.metadata.lines[currentToken.line]!.scene = state.sceneIndex;
 
-          const latestSection = getLastStructureItem(
+          const latestSectionOrLabel = getLastStructureItem(
             program,
-            (t) => t?.type === "section"
+            (t) => t?.type === "section" || t?.type === "label"
           );
-          if (latestSection) {
+          if (latestSectionOrLabel) {
+            const selectionRange = {
+              start: { line: currentToken.line, character: 0 },
+              end: {
+                line: currentToken.line,
+                character: Math.max(0, text.length - 1),
+              },
+            };
             const structureItem: StructureItem = {
               type: "scene",
+              level: currentLevel + 1,
               info: currentToken.environment,
               text: currentToken.content,
-              id: latestSection.id + "." + currentToken.line,
+              id: latestSectionOrLabel.id + "." + currentToken.line,
               range: {
-                start: { line: currentToken.line, character: 0 },
-                end: {
-                  line: currentToken.line,
-                  character: currentToken.content.length,
-                },
+                start: { ...selectionRange.start },
+                end: { ...selectionRange.end },
               },
+              selectionRange,
               children: [],
             };
-            latestSection.children.push(structureItem.id);
+            latestSectionOrLabel.children.push(structureItem.id);
+            if (latestSectionOrLabel.level >= 0) {
+              latestSectionOrLabel.range.end = { ...selectionRange.start };
+            }
             program.metadata.structure ??= {};
             program.metadata.structure[structureItem.id] = structureItem;
           }
@@ -3057,29 +3103,49 @@ export const parseSpark = (
         }
       } else if ((match = currentToken.content.match(SPARK_REGEX.label))) {
         currentToken.type = "label";
-        currentToken.content = match[4] || "";
-        program.metadata.structure ??= {};
-        const latestSectionOrScene = getLastStructureItem(
-          program,
-          (t) => t?.type === "section" || t?.type === "scene"
-        );
-        if (latestSectionOrScene) {
-          const structureItem: StructureItem = {
-            type: "label",
-            text: currentToken.content,
-            id: latestSectionOrScene.id + "." + currentToken.line,
-            range: {
+        if (currentToken.type === "label") {
+          const name = match[4] || "";
+          const level = 0;
+          const trimmedName = name.trim();
+          currentToken.content = trimmedName;
+          if (trimmedName) {
+            currentSectionId = `.${trimmedName}`;
+          }
+          currentLevel = level;
+          currentToken.level = level;
+          const latestSectionOrLabel = getLastStructureItem(
+            program,
+            (t) =>
+              (t?.type === "section" || t?.type === "label") &&
+              (t?.level ?? 0) < currentLevel
+          );
+          if (latestSectionOrLabel) {
+            const selectionRange = {
               start: { line: currentToken.line, character: 0 },
               end: {
                 line: currentToken.line,
-                character: currentToken.content.length,
+                character: Math.max(0, text.length - 1),
               },
-            },
-            children: [],
-          };
-          latestSectionOrScene.children.push(structureItem.id);
-          program.metadata.structure ??= {};
-          program.metadata.structure[structureItem.id] = structureItem;
+            };
+            const structureItem: StructureItem = {
+              type: "label",
+              level: currentToken.level,
+              text: currentToken.content,
+              id: latestSectionOrLabel.id + "." + currentToken.line,
+              range: {
+                start: { ...selectionRange.start },
+                end: { ...selectionRange.end },
+              },
+              selectionRange,
+              children: [],
+            };
+            latestSectionOrLabel.children.push(structureItem.id);
+            if (latestSectionOrLabel.level >= 0) {
+              latestSectionOrLabel.range.end = { ...selectionRange.start };
+            }
+            program.metadata.structure ??= {};
+            program.metadata.structure[structureItem.id] = structureItem;
+          }
         }
       } else if ((match = currentToken.content.match(SPARK_REGEX.section))) {
         currentToken.type = "section";
@@ -3092,13 +3158,13 @@ export const parseSpark = (
           const markTo = markFrom + mark.length;
           const trimmedName = name.trim();
           currentToken.content = trimmedName;
-          if (level > currentLevel + 1) {
+          if (level > 1 && level > currentLevel + 1) {
             const validMark = "#".repeat(currentLevel + 1);
             const insert = `${validMark}`;
             diagnostic(
               program,
               currentToken,
-              `Child Section must be max ${validMark.length} levels deep`,
+              `Child Section must be level ${validMark.length} or less`,
               [
                 {
                   name: "FIX",
@@ -3123,11 +3189,7 @@ export const parseSpark = (
             }
           } else {
             if (trimmedName) {
-              if (level === 0) {
-                currentSectionId = trimmedName;
-              } else if (level === 1) {
-                currentSectionId = `.${trimmedName}`;
-              } else if (level > currentLevel) {
+              if (level > currentLevel) {
                 currentSectionId += `.${trimmedName}`;
               } else if (level < currentLevel) {
                 const grandparentId = currentSectionId
@@ -3144,30 +3206,38 @@ export const parseSpark = (
               }
             }
           }
-
           currentLevel = level;
           currentToken.level = level;
-
-          const latestSection = getLastStructureItem(
+          const latestSectionOrLabel = getLastStructureItem(
             program,
-            (t) => t?.type === "section" && (t?.level || 0) < currentLevel
+            (t) =>
+              (t?.type === "section" || t?.type === "label") &&
+              (t?.level || 0) < currentLevel
           );
-          if (latestSection) {
+          if (latestSectionOrLabel) {
+            const selectionRange = {
+              start: { line: currentToken.line, character: 0 },
+              end: {
+                line: currentToken.line,
+                character: Math.max(0, text.length - 1),
+              },
+            };
             const structureItem: StructureItem = {
               type: "section",
               level: currentToken.level,
               text: currentToken.content,
-              id: latestSection.id + "." + currentToken.line,
+              id: latestSectionOrLabel.id + "." + currentToken.line,
               range: {
-                start: { line: currentToken.line, character: 0 },
-                end: {
-                  line: currentToken.line,
-                  character: currentToken.content.length,
-                },
+                start: { ...selectionRange.start },
+                end: { ...selectionRange.end },
               },
+              selectionRange,
               children: [],
             };
-            latestSection.children.push(structureItem.id);
+            latestSectionOrLabel.children.push(structureItem.id);
+            if (latestSectionOrLabel.level >= 0) {
+              latestSectionOrLabel.range.end = { ...selectionRange.start };
+            }
             program.metadata.structure ??= {};
             program.metadata.structure[structureItem.id] = structureItem;
           }
@@ -3592,6 +3662,19 @@ export const parseSpark = (
   ) {
     program.tokens.pop();
   }
+
+  const latestSectionOrLabel = getLastStructureItem(program);
+  if (
+    latestSectionOrLabel &&
+    latestSectionOrLabel.level != null &&
+    latestSectionOrLabel.level >= 0
+  ) {
+    latestSectionOrLabel.range.end = {
+      line: currentToken.line,
+      character: Math.max(0, text.length - 1),
+    };
+  }
+
   const parseEndTime = Date.now();
   program.metadata.parseTime = parseEndTime;
   program.metadata.parseDuration = parseEndTime - parseStartTime;

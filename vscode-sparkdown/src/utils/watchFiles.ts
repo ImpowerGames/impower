@@ -2,7 +2,6 @@ import * as vscode from "vscode";
 import { assetExts, syncExts } from "../constants/extensions";
 import { fileSystemWatcherState } from "../state/fileSystemWatcherState";
 import { getWorkspaceRelativePath } from "./getWorkspaceRelativePath";
-import { parseSparkDocument } from "./parseSparkDocument";
 import { updateAssets } from "./updateAssets";
 import { updateCommands } from "./updateCommands";
 import { updateGamePreviews } from "./updateGamePreviews";
@@ -24,17 +23,17 @@ export const watchFiles = (
         vscode.workspace.createFileSystemWatcher(relativePath);
       state.assetsWatcher.onDidChange(async () => {
         await updateAssets(doc);
-        parseSparkDocument(context, doc);
+        // TODO: Request LSP Parse
         updateGamePreviews(doc);
       });
       state.assetsWatcher.onDidCreate(async () => {
         await updateAssets(doc);
-        parseSparkDocument(context, doc);
+        // TODO: Request LSP Parse
         updateGamePreviews(doc);
       });
       state.assetsWatcher.onDidDelete(async () => {
         await updateAssets(doc);
-        parseSparkDocument(context, doc);
+        // TODO: Request LSP Parse
         updateGamePreviews(doc);
       });
     }

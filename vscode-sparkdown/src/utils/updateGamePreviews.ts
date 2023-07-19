@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
-import { parseState } from "../state/parseState";
+import { SparkProgramManager } from "../providers/SparkProgramManager";
 
 export const updateGamePreviews = (doc: vscode.TextDocument) => {
   performance.mark("updateGamePreviews-start");
   const uri = doc.uri;
-  const program = parseState.parsedPrograms[uri.toString()];
+  const program = SparkProgramManager.instance.get(uri);
   console.log(program);
   // TODO:
   // const gamePreviewsToUpdate = getPreviewPanelsToUpdate("game", uri);

@@ -20,7 +20,7 @@ const getSceneCompletions = () => {
     {
       label: "INT.",
       labelDetails: { description: "Scene" },
-      kind: CompletionItemKind.Class,
+      kind: CompletionItemKind.Interface,
       documentation: {
         kind: MarkupKind.Markdown,
         value: getDocumentation("An indoor scene.", `INT. BEDROOM - NIGHT`),
@@ -29,7 +29,7 @@ const getSceneCompletions = () => {
     {
       label: "EXT.",
       labelDetails: { description: "Scene" },
-      kind: CompletionItemKind.Class,
+      kind: CompletionItemKind.Interface,
       documentation: {
         kind: MarkupKind.Markdown,
         value: getDocumentation("An outdoor scene.", `EXT. BEACH - DAY`),
@@ -38,7 +38,7 @@ const getSceneCompletions = () => {
     {
       label: "INT./EXT.",
       labelDetails: { description: "Scene" },
-      kind: CompletionItemKind.Class,
+      kind: CompletionItemKind.Interface,
       documentation: {
         kind: MarkupKind.Markdown,
         value: getDocumentation(

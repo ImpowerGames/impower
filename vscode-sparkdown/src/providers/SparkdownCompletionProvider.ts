@@ -3,8 +3,8 @@ import {
   TITLE_PAGE_DISPLAY,
 } from "@impower/sparkdown/src/index";
 import * as vscode from "vscode";
-import { parseState } from "../state/parseState";
 import { addForceSymbolToCharacter } from "../utils/addForceSymbolToCharacter";
+import { SparkProgramManager } from "./SparkProgramManager";
 
 function TimeofDayCompletion(
   input: string,
@@ -126,7 +126,7 @@ export class SparkdownCompletionProvider
     document: vscode.TextDocument,
     position: vscode.Position /* token: CancellationToken, context: CompletionContext*/
   ): vscode.CompletionItem[] {
-    const program = parseState.parsedPrograms[document.uri.toString()];
+    const program = SparkProgramManager.instance.get(document.uri);
     const completes: vscode.CompletionItem[] = [];
     const currentLine = document.getText(
       new vscode.Range(new vscode.Position(position.line, 0), position)

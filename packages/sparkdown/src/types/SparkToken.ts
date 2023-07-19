@@ -11,6 +11,7 @@ import {
   SparkDialogueAssetTokenType,
   SparkDialogueTokenType,
   SparkJumpTokenType,
+  SparkLabelTokenType,
   SparkOtherTokenType,
   SparkPositionTokenType,
   SparkReturnTokenType,
@@ -21,6 +22,11 @@ import {
   SparkTransitionTokenType,
   SparkVariableTokenType,
 } from "./SparkTokenType";
+
+export interface SparkLabelToken extends SparkLine {
+  type: SparkLabelTokenType;
+  level: number;
+}
 
 export interface SparkSectionToken extends SparkLine {
   type: SparkSectionTokenType;
@@ -153,6 +159,7 @@ export type SparkToken =
   | SparkChoiceToken
   | SparkJumpToken
   | SparkReturnToken
+  | SparkLabelToken
   | SparkSectionToken
   | SparkSceneToken
   | SparkPositionToken

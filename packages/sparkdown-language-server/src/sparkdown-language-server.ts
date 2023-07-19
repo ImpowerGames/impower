@@ -22,6 +22,7 @@ import getColorPresentations from "./utils/getColorPresentations";
 import getCompletions from "./utils/getCompletions";
 import getDocumentColors from "./utils/getDocumentColors";
 import getDocumentDiagnostics from "./utils/getDocumentDiagnostics";
+import getDocumentSymbols from "./utils/getDocumentSymbols";
 import getFoldingRanges from "./utils/getFoldingRanges";
 
 console.log("running sparkdown-language-server");
@@ -35,6 +36,7 @@ try {
     const capabilities: ServerCapabilities = {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       foldingRangeProvider: true,
+      documentSymbolProvider: true,
       colorProvider: true,
       completionProvider: {
         resolveProvider: true,
@@ -70,6 +72,14 @@ try {
     const document = documents.get(uri);
     const program = documents.program(uri);
     return getFoldingRanges(document, program);
+  });
+
+  // documentSymbolProvider
+  connection.onDocumentSymbol((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const program = documents.program(uri);
+    return getDocumentSymbols(document, program);
   });
 
   // colorProvider

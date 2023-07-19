@@ -228,12 +228,6 @@
     },
     "commands": [
       {
-        "command": "sparkdown.outline.visibleitems",
-        "title": "Change items visible in the outline",
-        "icon": "$(eye)",
-        "category": "Sparkdown"
-      },
-      {
         "command": "sparkdown.outline.reveal",
         "title": "Reveal cursor position",
         "category": "Sparkdown",
@@ -277,28 +271,8 @@
         "category": "Sparkdown"
       },
       {
-        "command": "sparkdown.overwriteSceneNumbers",
-        "title": "Number all scenes (overwrites existing scene numbers)",
-        "category": "Sparkdown"
-      },
-      {
-        "command": "sparkdown.updateSceneNumbers",
-        "title": "Number all scenes (keep existing scene numbers, insert missing ones)",
-        "category": "Sparkdown"
-      },
-      {
         "command": "sparkdown.statistics",
         "title": "View statistics",
-        "category": "Sparkdown"
-      },
-      {
-        "command": "sparkdown.shiftScenesUp",
-        "title": "Shift Scenes Up",
-        "category": "Sparkdown"
-      },
-      {
-        "command": "sparkdown.shiftScenesDown",
-        "title": "Shift Scenes Down",
         "category": "Sparkdown"
       }
     ],
@@ -319,18 +293,6 @@
         "command": "sparkdown.exportpdfdebug",
         "key": "f5",
         "mac": "f5",
-        "when": "editorLangId == sparkdown"
-      },
-      {
-        "command": "sparkdown.shiftScenesUp",
-        "key": "alt+up",
-        "mac": "alt+up",
-        "when": "editorLangId == sparkdown"
-      },
-      {
-        "command": "sparkdown.shiftScenesDown",
-        "key": "alt+down",
-        "mac": "alt+down",
         "when": "editorLangId == sparkdown"
       }
     ],
@@ -503,12 +465,13 @@
     ]
   },
   "scripts": {
+    "build-lsp": "cd ../packages/sparkdown-language-server && npm run build && cd ../../vscode-sparkdown",
     "install-screenplay": "cd ./webviews/screenplay-preview && npm ci && cd ../../",
     "build-screenplay": "cd ./webviews/screenplay-preview && npm run build && cd ../../",
     "package-screenplay": "cd ./webviews/screenplay-preview && npm run package && cd ../../",
     "postinstall": "npm run install-screenplay",
     "compile": "webpack",
-    "build": "npm run build-screenplay && npm run compile",
+    "build": "npm run build-lsp && npm run build-screenplay && npm run compile",
     "package": "npm run package-screenplay && webpack --mode production --devtool hidden-source-map",
     "pretest": "npm run build",
     "browser": "npm run build && vscode-test-web --browserType=chromium --extensionDevelopmentPath=. .",
