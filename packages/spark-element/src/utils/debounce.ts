@@ -3,7 +3,7 @@ const debounce = <T extends (...args: any[]) => void>(
   delay: number
 ): T => {
   let timeout = 0;
-  return ((...args: any[]): void => {
+  return ((...args: Parameters<T>) => {
     clearTimeout(timeout);
     timeout = window.setTimeout(() => {
       callback(...args);
