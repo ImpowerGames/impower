@@ -33,7 +33,7 @@ import {
 import {
   DidParseTextDocument,
   DidParseTextDocumentParams,
-} from "../types/DidParseTextDocument";
+} from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
 import { LanguageClientOptions } from "../types/LanguageClientOptions";
 import ConsoleLogger from "./ConsoleLogger";
 import { Event } from "./Event";
@@ -228,9 +228,12 @@ export default class LanguageServerConnection {
         this._didOpenTextDocumentEvent.emit(params);
       }
     );
-    connection.onNotification(DidParseTextDocument.type, (params) => {
-      this._didParseTextDocumentEvent.emit(params);
-    });
+    connection.onNotification(
+      DidParseTextDocument.method,
+      (params: DidParseTextDocumentParams) => {
+        this._didParseTextDocumentEvent.emit(params);
+      }
+    );
     connection.listen();
     const result = await connection.sendRequest<InitializeResult>(
       InitializeRequest.method,

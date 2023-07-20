@@ -1,20 +1,12 @@
-import { DeleteFilesParams, NotificationMessage } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { DeleteFilesParams } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type DidDeleteFilesMethod = typeof DidDeleteFiles.type.method;
-
-export interface DidDeleteFilesNotificationMessage
-  extends NotificationMessage<DidDeleteFilesMethod, DeleteFilesParams> {
-  params: DeleteFilesParams;
-}
-
-class DidDeleteFilesProtocolType extends NotificationProtocolType<
-  DidDeleteFilesNotificationMessage,
-  DeleteFilesParams
-> {
-  method = "workspace/didDeleteFiles";
-}
+export type DidDeleteFilesMethod = typeof DidDeleteFiles.method;
 
 export abstract class DidDeleteFiles {
-  static readonly type = new DidDeleteFilesProtocolType();
+  static readonly method = "workspace/didDeleteFiles";
+  static readonly type = new MessageProtocolNotificationType<
+    DidDeleteFilesMethod,
+    DeleteFilesParams
+  >(DidDeleteFiles.method);
 }

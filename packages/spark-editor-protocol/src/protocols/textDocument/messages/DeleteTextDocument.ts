@@ -1,9 +1,7 @@
-import {
-  RequestMessage,
-  ResponseMessage,
-  TextDocumentIdentifier,
-} from "../../../types";
-import { RequestProtocolType } from "../../RequestProtocolType";
+import { TextDocumentIdentifier } from "../../../types";
+import { MessageProtocolRequestType } from "../../MessageProtocolRequestType";
+
+export type DeleteTextDocumentMethod = typeof DeleteTextDocument.method;
 
 export interface DeleteTextDocumentParams {
   /**
@@ -12,26 +10,11 @@ export interface DeleteTextDocumentParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export type DeleteTextDocumentMethod = typeof DeleteTextDocument.type.method;
-
-export interface DeleteTextDocumentRequestMessage
-  extends RequestMessage<DeleteTextDocumentMethod, DeleteTextDocumentParams> {
-  params: DeleteTextDocumentParams;
-}
-
-export interface DeleteTextDocumentResponseMessage
-  extends ResponseMessage<DeleteTextDocumentMethod, null> {
-  result: null;
-}
-
-class DeleteTextDocumentProtocolType extends RequestProtocolType<
-  DeleteTextDocumentRequestMessage,
-  DeleteTextDocumentResponseMessage,
-  DeleteTextDocumentParams
-> {
-  method = "textDocument/delete";
-}
-
 export abstract class DeleteTextDocument {
-  static readonly type = new DeleteTextDocumentProtocolType();
+  static readonly method = "textDocument/delete";
+  static readonly type = new MessageProtocolRequestType<
+    DeleteTextDocumentMethod,
+    DeleteTextDocumentParams,
+    null
+  >(DeleteTextDocument.method);
 }

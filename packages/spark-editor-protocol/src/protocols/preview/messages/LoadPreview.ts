@@ -1,10 +1,7 @@
-import {
-  Range,
-  RequestMessage,
-  ResponseMessage,
-  TextDocumentItem,
-} from "../../../types";
-import { RequestProtocolType } from "../../RequestProtocolType";
+import { Range, TextDocumentItem } from "../../../types";
+import { MessageProtocolRequestType } from "../../MessageProtocolRequestType";
+
+export type LoadPreviewMethod = typeof LoadPreview.method;
 
 export interface LoadPreviewParams {
   type: "game" | "screenplay";
@@ -13,24 +10,11 @@ export interface LoadPreviewParams {
   selectedRange?: Range;
 }
 
-export type LoadPreviewMethod = typeof LoadPreview.type.method;
-
-export interface LoadPreviewRequestMessage
-  extends RequestMessage<LoadPreviewMethod, LoadPreviewParams> {
-  params: LoadPreviewParams;
-}
-
-export interface LoadPreviewResponseMessage
-  extends ResponseMessage<LoadPreviewMethod, null> {}
-
-class LoadPreviewProtocolType extends RequestProtocolType<
-  LoadPreviewRequestMessage,
-  LoadPreviewResponseMessage,
-  LoadPreviewParams
-> {
-  method = "preview/load";
-}
-
 export abstract class LoadPreview {
-  static readonly type = new LoadPreviewProtocolType();
+  static readonly method = "preview/load";
+  static readonly type = new MessageProtocolRequestType<
+    LoadPreviewMethod,
+    LoadPreviewParams,
+    null
+  >(LoadPreview.method);
 }

@@ -1,28 +1,26 @@
 import type { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
-import { NotificationMessage, TextDocumentIdentifier } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { VersionedTextDocumentIdentifier } from "../../../types";
+import { MessageDirection } from "../../../types/lsp/messages";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type DidParseTextDocumentMethod =
-  typeof DidParseTextDocument.type.method;
+export type DidParseTextDocumentMethod = typeof DidParseTextDocument.method;
 
 export interface DidParseTextDocumentParams {
-  textDocument: TextDocumentIdentifier;
+  /**
+   * The document that was parsed.
+   */
+  textDocument: VersionedTextDocumentIdentifier;
+  /**
+   * The parsed program.
+   */
   program: SparkProgram;
 }
 
-export interface DidParseTextDocumentNotificationMessage
-  extends NotificationMessage<
+export abstract class DidParseTextDocument {
+  static readonly method = "textDocument/didParse";
+  static readonly messageDirection = MessageDirection.serverToClient;
+  static readonly type = new MessageProtocolNotificationType<
     DidParseTextDocumentMethod,
     DidParseTextDocumentParams
-  > {}
-
-class DidParseTextDocumentProtocolType extends NotificationProtocolType<
-  DidParseTextDocumentNotificationMessage,
-  DidParseTextDocumentParams
-> {
-  method = "textDocument/didParse";
-}
-
-export abstract class DidParseTextDocument {
-  static readonly type = new DidParseTextDocumentProtocolType();
+  >(DidParseTextDocument.method);
 }

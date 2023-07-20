@@ -45,23 +45,21 @@ export class SparkdownCommandFileDecorationProvider
   provideFileDecoration(
     uri: vscode.Uri
   ): vscode.ProviderResult<vscode.FileDecoration> {
-    if (!this.uris[uri.path]) {
-      this.uris[uri.path] = uri;
-      const sourceStat = this._stat;
-      const commandStat = this._commandStats[uri.path];
-      const modified =
-        sourceStat &&
-        commandStat &&
-        (sourceStat?.mtime || 0) > (commandStat?.mtime || 0);
-      if (modified) {
-        return {
-          tooltip: `Source has new changes`,
-          color: new vscode.ThemeColor(
-            "gitDecoration.modifiedResourceForeground"
-          ),
-          badge: "*",
-        };
-      }
+    this.uris[uri.path] = uri;
+    const sourceStat = this._stat;
+    const commandStat = this._commandStats[uri.path];
+    const modified =
+      sourceStat &&
+      commandStat &&
+      (sourceStat?.mtime || 0) > (commandStat?.mtime || 0);
+    if (modified) {
+      return {
+        tooltip: `Source has new changes`,
+        color: new vscode.ThemeColor(
+          "gitDecoration.modifiedResourceForeground"
+        ),
+        badge: "*",
+      };
     }
     return {};
   }
@@ -95,6 +93,6 @@ export class SparkdownCommandFileDecorationProvider
       this._commandStats[this._commandUris.csv.path] = csvStat;
       this._commandStats[this._commandUris.json.path] = jsonStat;
     }
-    this.onDidChangeFileDecorationsEmitter.fire(undefined);
+    this.onDidChangeFileDecorationsEmitter.fire(uri);
   }
 }

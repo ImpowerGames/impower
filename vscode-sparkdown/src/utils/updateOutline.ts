@@ -4,11 +4,11 @@ import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineT
 
 export const updateOutline = (
   context: vscode.ExtensionContext,
-  doc: vscode.TextDocument
+  doc: vscode.TextDocument | undefined
 ) => {
   performance.mark("updateOutline-start");
-  SparkdownOutlineTreeDataProvider.instance.update(context, doc.uri);
-  SparkdownOutlineFileDecorationProvider.instance.update(doc.uri);
+  SparkdownOutlineTreeDataProvider.instance.update(context, doc?.uri);
+  SparkdownOutlineFileDecorationProvider.instance.update(doc?.uri);
   performance.mark("updateOutline-end");
   performance.measure(
     "updateOutline",

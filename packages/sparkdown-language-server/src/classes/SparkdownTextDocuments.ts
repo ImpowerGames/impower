@@ -1,5 +1,6 @@
 import {
   CancellationToken,
+  Connection,
   DidChangeTextDocumentParams,
   DidCloseTextDocumentParams,
   DidOpenTextDocumentParams,
@@ -16,12 +17,14 @@ import {
   WillSaveTextDocumentParams,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import {
-  ConnectionState,
-  TextDocumentConnection,
-} from "vscode-languageserver/lib/common/textDocuments";
+import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 
+import {
+  ParseTextDocument,
+  ParseTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/ParseTextDocument";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+
 import { EditorSparkParser } from "./EditorSparkParser";
 
 interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
@@ -73,6 +76,13 @@ export default class SparkdownTextDocuments<
     return this._willSaveWaitUntil;
   }
 
+  /**
+   * An event that fires when a text document has been parsed
+   */
+  public get onDidParse() {
+    return this._onDidParse.event;
+  }
+
   protected readonly _syncedPrograms = new Map<string, SparkProgram>();
 
   protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
@@ -84,12 +94,22 @@ export default class SparkdownTextDocuments<
     this._onDidParse = new Emitter<SparkProgramChangeEvent<T>>();
     this._parser = new EditorSparkParser();
   }
-  /**
-   * An event that fires when a text document has been parsed
-   */
-  public get onDidParse() {
-    return this._onDidParse.event;
+
+  parse(uri: string) {
+    const syncedDocument = this.__syncedDocuments.get(uri);
+    if (syncedDocument) {
+      const syncedProgram = this._parser.parse(syncedDocument.getText());
+      this._syncedPrograms.set(uri, syncedProgram);
+      this._onDidParse.fire(
+        Object.freeze({
+          document: syncedDocument,
+          program: syncedProgram,
+        })
+      );
+    }
+    return this._syncedPrograms.get(uri);
   }
+
   /**
    * Returns the sparkdown program for the given URI.
    * Returns undefined if the document is not managed by this instance.
@@ -98,13 +118,26 @@ export default class SparkdownTextDocuments<
    * @return the text document's sparkdown program or `undefined`.
    */
   public program(uri: string): SparkProgram | undefined {
-    return this._syncedPrograms.get(uri);
+    const existingProgram = this._syncedPrograms.get(uri);
+    if (existingProgram) {
+      return existingProgram;
+    }
+    return this.parse(uri);
   }
 
-  public override listen(connection: TextDocumentConnection): Disposable {
+  public override listen(connection: Connection): Disposable {
     (<ConnectionState>(<any>connection)).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
     const disposables: Disposable[] = [];
+    disposables.push(
+      connection.onRequest(
+        ParseTextDocument.method,
+        (params: ParseTextDocumentParams) => {
+          const uri = params.textDocument.uri;
+          return this.parse(uri);
+        }
+      )
+    );
     disposables.push(
       connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {
         const td = event.textDocument;
@@ -117,14 +150,7 @@ export default class SparkdownTextDocuments<
         this.__syncedDocuments.set(td.uri, document);
         const toFire = Object.freeze({ document });
         this.__onDidOpen.fire(toFire);
-        this.__onDidChangeContent.fire(toFire);
-        const syncedProgram = this._parser.parse(td.text);
-        this._syncedPrograms.set(td.uri, syncedProgram);
-        if (document && syncedProgram) {
-          this._onDidParse.fire(
-            Object.freeze({ document, program: syncedProgram })
-          );
-        }
+        this.parse(td.uri);
       })
     );
     disposables.push(
@@ -153,18 +179,7 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              if (syncedDocument) {
-                const syncedProgram = this._parser.parse(
-                  syncedDocument.getText()
-                );
-                this._syncedPrograms.set(td.uri, syncedProgram);
-                this._onDidParse.fire(
-                  Object.freeze({
-                    document: syncedDocument,
-                    program: syncedProgram,
-                  })
-                );
-              }
+              this.parse(td.uri);
             }
           }
         }

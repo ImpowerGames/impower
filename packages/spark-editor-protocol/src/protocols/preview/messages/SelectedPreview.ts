@@ -1,11 +1,7 @@
-import {
-  NotificationMessage,
-  Range,
-  TextDocumentIdentifier,
-} from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { Range, TextDocumentIdentifier } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type SelectedPreviewMethod = typeof SelectedPreview.type.method;
+export type SelectedPreviewMethod = typeof SelectedPreview.method;
 
 export interface SelectedPreviewParams {
   type: "game" | "screenplay";
@@ -13,16 +9,10 @@ export interface SelectedPreviewParams {
   range: Range;
 }
 
-export interface SelectedPreviewNotificationMessage
-  extends NotificationMessage<SelectedPreviewMethod, SelectedPreviewParams> {}
-
-class SelectedPreviewProtocolType extends NotificationProtocolType<
-  SelectedPreviewNotificationMessage,
-  SelectedPreviewParams
-> {
-  method = "preview/selected";
-}
-
 export abstract class SelectedPreview {
-  static readonly type = new SelectedPreviewProtocolType();
+  static readonly method = "preview/selected";
+  static readonly type = new MessageProtocolNotificationType<
+    SelectedPreviewMethod,
+    SelectedPreviewParams
+  >(SelectedPreview.method);
 }

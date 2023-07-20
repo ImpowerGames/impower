@@ -1,9 +1,7 @@
 import { Message } from "./Message";
 
-export interface RequestMessage<
-  M extends string = string,
-  P extends object = any
-> extends Message<M, P> {
+export interface RequestMessage<M extends string = string, P = any>
+  extends Message<M, P> {
   /**
    * The request id.
    */

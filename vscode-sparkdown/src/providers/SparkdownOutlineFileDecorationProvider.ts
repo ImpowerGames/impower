@@ -33,36 +33,30 @@ export class SparkdownOutlineFileDecorationProvider
   provideFileDecoration(
     uri: vscode.Uri
   ): vscode.ProviderResult<vscode.FileDecoration> {
-    if (!this.uris[uri.path]) {
-      this.uris[uri.path] = uri;
-      const state = getStateFromSuffix(uri.path);
-      if (state === "error") {
-        return {
-          tooltip: `Error`,
-          color: new vscode.ThemeColor(
-            "gitDecoration.deletedResourceForeground"
-          ),
-          badge: "×",
-        };
-      }
-      if (state === "warning") {
-        return {
-          tooltip: `Warning`,
-          color: new vscode.ThemeColor(
-            "gitDecoration.modifiedResourceForeground"
-          ),
-          badge: "!",
-        };
-      }
-      if (state === "info") {
-        return {
-          tooltip: `Info`,
-          color: new vscode.ThemeColor(
-            "gitDecoration.renamedResourceForeground"
-          ),
-          badge: "i",
-        };
-      }
+    this.uris[uri.path] = uri;
+    const state = getStateFromSuffix(uri.path);
+    if (state === "error") {
+      return {
+        tooltip: `Error`,
+        color: new vscode.ThemeColor("gitDecoration.deletedResourceForeground"),
+        // badge: "×",
+      };
+    }
+    if (state === "warning") {
+      return {
+        tooltip: `Warning`,
+        color: new vscode.ThemeColor(
+          "gitDecoration.modifiedResourceForeground"
+        ),
+        // badge: "!",
+      };
+    }
+    if (state === "info") {
+      return {
+        tooltip: `Info`,
+        color: new vscode.ThemeColor("gitDecoration.renamedResourceForeground"),
+        // badge: "i",
+      };
     }
     return {};
   }
@@ -74,6 +68,6 @@ export class SparkdownOutlineFileDecorationProvider
   async update(uri: vscode.Uri | undefined): Promise<void> {
     this.uri = uri;
     this.uris = {};
-    this.onDidChangeFileDecorationsEmitter.fire(undefined);
+    this.onDidChangeFileDecorationsEmitter.fire(uri);
   }
 }

@@ -1,11 +1,7 @@
-import {
-  NotificationMessage,
-  Range,
-  TextDocumentIdentifier,
-} from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { Range, TextDocumentIdentifier } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type ScrolledPreviewMethod = typeof ScrolledPreview.type.method;
+export type ScrolledPreviewMethod = typeof ScrolledPreview.method;
 
 export interface ScrolledPreviewParams {
   type: "game" | "screenplay";
@@ -13,16 +9,10 @@ export interface ScrolledPreviewParams {
   range: Range;
 }
 
-export interface ScrolledPreviewNotificationMessage
-  extends NotificationMessage<ScrolledPreviewMethod, ScrolledPreviewParams> {}
-
-class ScrolledPreviewProtocolType extends NotificationProtocolType<
-  ScrolledPreviewNotificationMessage,
-  ScrolledPreviewParams
-> {
-  method = "preview/scrolled";
-}
-
 export abstract class ScrolledPreview {
-  static readonly type = new ScrolledPreviewProtocolType();
+  static readonly method = "preview/scrolled";
+  static readonly type = new MessageProtocolNotificationType<
+    ScrolledPreviewMethod,
+    ScrolledPreviewParams
+  >(ScrolledPreview.method);
 }

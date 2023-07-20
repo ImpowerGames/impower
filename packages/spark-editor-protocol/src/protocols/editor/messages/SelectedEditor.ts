@@ -1,27 +1,17 @@
-import {
-  NotificationMessage,
-  Range,
-  TextDocumentIdentifier,
-} from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { Range, TextDocumentIdentifier } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type SelectedEditorMethod = typeof SelectedEditor.type.method;
+export type SelectedEditorMethod = typeof SelectedEditor.method;
 
 export interface SelectedEditorParams {
   textDocument: TextDocumentIdentifier;
   range: Range;
 }
 
-export interface SelectedEditorNotificationMessage
-  extends NotificationMessage<SelectedEditorMethod, SelectedEditorParams> {}
-
-class SelectedEditorProtocolType extends NotificationProtocolType<
-  SelectedEditorNotificationMessage,
-  SelectedEditorParams
-> {
-  method = "editor/selected";
-}
-
 export abstract class SelectedEditor {
-  static readonly type = new SelectedEditorProtocolType();
+  static readonly method = "editor/selected";
+  static readonly type = new MessageProtocolNotificationType<
+    SelectedEditorMethod,
+    SelectedEditorParams
+  >(SelectedEditor.method);
 }

@@ -10,6 +10,7 @@ import {
   DidChangeTextDocument,
   DidOpenTextDocument,
   DidParseTextDocument,
+  DidParseTextDocumentParams,
   DidSaveTextDocument,
 } from "../../../../../spark-editor-protocol/src/protocols/textDocument";
 import {
@@ -21,7 +22,6 @@ import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
 import { getServerChanges } from "../../../cm-language-client";
-import { DidParseTextDocumentParams } from "../../../cm-language-client/types/DidParseTextDocument";
 import debounce from "../../../utils/debounce";
 import createEditorView from "../utils/createEditorView";
 import { createSparkdownLanguageServerConnection } from "../utils/createSparkdownLanguageServerConnection";

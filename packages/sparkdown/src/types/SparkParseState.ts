@@ -8,5 +8,5 @@ export interface SparkParseState {
   choiceTokens?: SparkChoiceToken[];
   newLineLength?: number;
   prependNext?: boolean;
-  sceneIndex?: number;
+  sceneIndex: number;
 }

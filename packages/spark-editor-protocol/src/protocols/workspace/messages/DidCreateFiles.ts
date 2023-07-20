@@ -1,20 +1,12 @@
-import { CreateFilesParams, NotificationMessage } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { CreateFilesParams } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type DidCreateFilesMethod = typeof DidCreateFiles.type.method;
-
-export interface DidCreateFilesNotificationMessage
-  extends NotificationMessage<DidCreateFilesMethod, CreateFilesParams> {
-  params: CreateFilesParams;
-}
-
-class DidCreateFilesProtocolType extends NotificationProtocolType<
-  DidCreateFilesNotificationMessage,
-  CreateFilesParams
-> {
-  method = "workspace/didCreateFiles";
-}
+export type DidCreateFilesMethod = typeof DidCreateFiles.method;
 
 export abstract class DidCreateFiles {
-  static readonly type = new DidCreateFilesProtocolType();
+  static readonly method = "workspace/didCreateFiles";
+  static readonly type = new MessageProtocolNotificationType<
+    DidCreateFilesMethod,
+    CreateFilesParams
+  >(DidCreateFiles.method);
 }

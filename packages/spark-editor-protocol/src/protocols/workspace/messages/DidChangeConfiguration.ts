@@ -1,25 +1,12 @@
-import {
-  DidChangeConfigurationParams,
-  NotificationMessage,
-} from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { DidChangeConfigurationParams } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type DidChangeConfigurationMethod =
-  typeof DidChangeConfiguration.type.method;
-
-export interface DidChangeConfigurationNotificationMessage
-  extends NotificationMessage<
-    DidChangeConfigurationMethod,
-    DidChangeConfigurationParams
-  > {}
-
-class DidChangeConfigurationProtocolType extends NotificationProtocolType<
-  DidChangeConfigurationNotificationMessage,
-  DidChangeConfigurationParams
-> {
-  method = "workspace/didChangeConfiguration";
-}
+export type DidChangeConfigurationMethod = typeof DidChangeConfiguration.method;
 
 export abstract class DidChangeConfiguration {
-  static readonly type = new DidChangeConfigurationProtocolType();
+  static readonly method = "workspace/didChangeConfiguration";
+  static readonly type = new MessageProtocolNotificationType<
+    DidChangeConfigurationMethod,
+    DidChangeConfigurationParams
+  >(DidChangeConfiguration.method);
 }

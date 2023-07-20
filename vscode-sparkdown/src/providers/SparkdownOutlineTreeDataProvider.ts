@@ -132,7 +132,7 @@ export class SparkdownOutlineTreeDataProvider
     return root;
   }
 
-  update(context: vscode.ExtensionContext, uri?: vscode.Uri): void {
+  update(context: vscode.ExtensionContext, uri: vscode.Uri | undefined): void {
     const editor = getEditor(uri);
     const program = editor
       ? SparkProgramManager.instance.get(editor.document.uri)
@@ -144,7 +144,7 @@ export class SparkdownOutlineTreeDataProvider
     this.onDidChangeTreeDataEmitter.fire(null);
   }
 
-  reveal(uri?: vscode.Uri): void {
+  reveal(uri: vscode.Uri | undefined): void {
     if (!this.treeView) {
       return;
     }

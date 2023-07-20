@@ -1,26 +1,17 @@
-import { NotificationMessage, TextDocumentIdentifier } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { TextDocumentIdentifier } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type HoveredOffPreviewMethod = typeof HoveredOffPreview.type.method;
+export type HoveredOffPreviewMethod = typeof HoveredOffPreview.method;
 
 export interface HoveredOffPreviewParams {
   type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
 }
 
-export interface HoveredOffPreviewNotificationMessage
-  extends NotificationMessage<
+export abstract class HoveredOffPreview {
+  static readonly method = "preview/hoveredOff";
+  static readonly type = new MessageProtocolNotificationType<
     HoveredOffPreviewMethod,
     HoveredOffPreviewParams
-  > {}
-
-class HoveredOffPreviewProtocolType extends NotificationProtocolType<
-  HoveredOffPreviewNotificationMessage,
-  HoveredOffPreviewParams
-> {
-  method = "preview/hoveredOff";
-}
-
-export abstract class HoveredOffPreview {
-  static readonly type = new HoveredOffPreviewProtocolType();
+  >(HoveredOffPreview.method);
 }

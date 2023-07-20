@@ -1,21 +1,14 @@
-import { DidSaveTextDocumentParams, NotificationMessage } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { DidSaveTextDocumentParams } from "../../../types";
+import { MessageDirection } from "../../../types/lsp/messages";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type DidSaveTextDocumentMethod = typeof DidSaveTextDocument.type.method;
-
-export interface DidSaveTextDocumentNotificationMessage
-  extends NotificationMessage<
-    DidSaveTextDocumentMethod,
-    DidSaveTextDocumentParams
-  > {}
-
-class DidSaveTextDocumentProtocolType extends NotificationProtocolType<
-  DidSaveTextDocumentNotificationMessage,
-  DidSaveTextDocumentParams
-> {
-  method = "textDocument/didSave";
-}
+export type DidSaveTextDocumentMethod = typeof DidSaveTextDocument.method;
 
 export abstract class DidSaveTextDocument {
-  static readonly type = new DidSaveTextDocumentProtocolType();
+  static readonly method = "textDocument/didSave";
+  static readonly messageDirection = MessageDirection.clientToServer;
+  static readonly type = new MessageProtocolNotificationType<
+    DidSaveTextDocumentMethod,
+    DidSaveTextDocumentParams
+  >(DidSaveTextDocument.method);
 }

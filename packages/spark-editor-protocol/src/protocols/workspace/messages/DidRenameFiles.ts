@@ -1,20 +1,12 @@
-import { NotificationMessage, RenameFilesParams } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { RenameFilesParams } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type DidRenameFilesMethod = typeof DidRenameFiles.type.method;
-
-export interface DidRenameFilesNotificationMessage
-  extends NotificationMessage<DidRenameFilesMethod, RenameFilesParams> {
-  params: RenameFilesParams;
-}
-
-class DidRenameFilesProtocolType extends NotificationProtocolType<
-  DidRenameFilesNotificationMessage,
-  RenameFilesParams
-> {
-  method = "workspace/didRenameFiles";
-}
+export type DidRenameFilesMethod = typeof DidRenameFiles.method;
 
 export abstract class DidRenameFiles {
-  static readonly type = new DidRenameFilesProtocolType();
+  static readonly method = "workspace/didRenameFiles";
+  static readonly type = new MessageProtocolNotificationType<
+    DidRenameFilesMethod,
+    RenameFilesParams
+  >(DidRenameFiles.method);
 }

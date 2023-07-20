@@ -1,21 +1,14 @@
-import { DidOpenTextDocumentParams, NotificationMessage } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { DidOpenTextDocumentParams } from "../../../types";
+import { MessageDirection } from "../../../types/lsp/messages";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type DidOpenTextDocumentMethod = typeof DidOpenTextDocument.type.method;
-
-export interface DidOpenTextDocumentNotificationMessage
-  extends NotificationMessage<
-    DidOpenTextDocumentMethod,
-    DidOpenTextDocumentParams
-  > {}
-
-class DidOpenTextDocumentProtocolType extends NotificationProtocolType<
-  DidOpenTextDocumentNotificationMessage,
-  DidOpenTextDocumentParams
-> {
-  method = "textDocument/didOpen";
-}
+export type DidOpenTextDocumentMethod = typeof DidOpenTextDocument.method;
 
 export abstract class DidOpenTextDocument {
-  static readonly type = new DidOpenTextDocumentProtocolType();
+  static readonly method = "textDocument/didOpen";
+  static readonly messageDirection = MessageDirection.clientToServer;
+  static readonly type = new MessageProtocolNotificationType<
+    DidOpenTextDocumentMethod,
+    DidOpenTextDocumentParams
+  >(DidOpenTextDocument.method);
 }

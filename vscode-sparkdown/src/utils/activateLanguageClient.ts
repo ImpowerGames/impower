@@ -2,6 +2,8 @@ import {
   DidParseTextDocument,
   DidParseTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
+import { ParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/ParseTextDocument";
+import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import * as vscode from "vscode";
 import { SparkProgramManager } from "../providers/SparkProgramManager";
 import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManager";
@@ -13,15 +15,24 @@ export const activateLanguageClient = (
   context: vscode.ExtensionContext
 ): void => {
   const client = createSparkdownLanguageClient(context);
-  client.start();
-  const dispose = () => client.stop();
   client.onNotification(
-    DidParseTextDocument.type.method,
+    DidParseTextDocument.method,
     (params: DidParseTextDocumentParams) => {
       onParse(context, params);
     }
   );
+  client.start();
+  const dispose = () => client.stop();
   context.subscriptions.push({ dispose });
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (client.isRunning()) {
+        client.sendRequest<SparkProgram>(ParseTextDocument.method, {
+          textDocument: { uri: editor?.document.uri.toString() },
+        });
+      }
+    })
+  );
 };
 
 const onParse = (
@@ -32,7 +43,6 @@ const onParse = (
   const textDocument = params.textDocument;
   const editor = getEditor(textDocument.uri);
   const document = editor?.document;
-  console.log("PARSED", program);
   if (document) {
     // TODO: load assets from workspace
     // const structs = fileState[document.uri.toString()]?.assets;

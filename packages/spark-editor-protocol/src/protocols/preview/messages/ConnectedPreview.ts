@@ -1,25 +1,15 @@
-import { NotificationMessage } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
+
+export type ConnectedPreviewPreviewMethod = typeof ConnectedPreview.method;
 
 export interface ConnectedPreviewParams {
   type: "game" | "screenplay";
 }
 
-export type ConnectedPreviewPreviewMethod = typeof ConnectedPreview.type.method;
-
-export interface ConnectedPreviewNotificationMessage
-  extends NotificationMessage<
+export abstract class ConnectedPreview {
+  static readonly method = "preview/connected";
+  static readonly type = new MessageProtocolNotificationType<
     ConnectedPreviewPreviewMethod,
     ConnectedPreviewParams
-  > {}
-
-class ConnectedPreviewProtocolType extends NotificationProtocolType<
-  ConnectedPreviewNotificationMessage,
-  ConnectedPreviewParams
-> {
-  method = "preview/connected";
-}
-
-export abstract class ConnectedPreview {
-  static readonly type = new ConnectedPreviewProtocolType();
+  >(ConnectedPreview.method);
 }

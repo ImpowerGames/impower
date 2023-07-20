@@ -16,7 +16,8 @@ import {
 import {
   DidParseTextDocument,
   DidParseTextDocumentParams,
-} from "./classes/DidParseTextDocument";
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
+
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import getColorPresentations from "./utils/getColorPresentations";
 import getCompletions from "./utils/getCompletions";

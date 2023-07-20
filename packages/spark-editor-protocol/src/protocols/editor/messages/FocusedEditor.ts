@@ -1,22 +1,16 @@
-import { NotificationMessage, TextDocumentIdentifier } from "../../../types";
-import { NotificationProtocolType } from "../../NotificationProtocolType";
+import { TextDocumentIdentifier } from "../../../types";
+import { MessageProtocolNotificationType } from "../../MessageProtocolNotificationType";
 
-export type FocusedEditorMethod = typeof FocusedEditor.type.method;
+export type FocusedEditorMethod = typeof FocusedEditor.method;
 
 export interface FocusedEditorParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export interface FocusedEditorNotificationMessage
-  extends NotificationMessage<FocusedEditorMethod, FocusedEditorParams> {}
-
-class FocusedEditorProtocolType extends NotificationProtocolType<
-  FocusedEditorNotificationMessage,
-  FocusedEditorParams
-> {
-  method = "editor/focused";
-}
-
 export abstract class FocusedEditor {
-  static readonly type = new FocusedEditorProtocolType();
+  static readonly method = "editor/focused";
+  static readonly type = new MessageProtocolNotificationType<
+    FocusedEditorMethod,
+    FocusedEditorParams
+  >(FocusedEditor.method);
 }

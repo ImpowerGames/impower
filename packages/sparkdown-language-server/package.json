@@ -21,6 +21,7 @@
     "build": "node ./esbuild.js"
   },
   "dependencies": {
+    "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
     "@impower/spark-evaluate": "file:../spark-evaluate",
     "@impower/sparkdown": "file:../sparkdown",
     "colord": "^2.9.3",

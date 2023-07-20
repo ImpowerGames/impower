@@ -1,9 +1,7 @@
-import {
-  RequestMessage,
-  ResponseMessage,
-  TextDocumentIdentifier,
-} from "../../../types";
-import { RequestProtocolType } from "../../RequestProtocolType";
+import { TextDocumentIdentifier } from "../../../types";
+import { MessageProtocolRequestType } from "../../MessageProtocolRequestType";
+
+export type ReadTextDocumentMethod = typeof ReadTextDocument.method;
 
 export interface ReadTextDocumentParams {
   /**
@@ -12,35 +10,11 @@ export interface ReadTextDocumentParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export type ReadTextDocumentMethod = typeof ReadTextDocument.type.method;
-
-export interface ReadTextDocumentRequestMessage
-  extends RequestMessage<ReadTextDocumentMethod, ReadTextDocumentParams> {
-  params: ReadTextDocumentParams;
-}
-
-export interface ReadTextDocumentResponseMessage
-  extends ResponseMessage<ReadTextDocumentMethod, string> {
-  result: string;
-}
-
-class ReadTextDocumentProtocolType extends RequestProtocolType<
-  ReadTextDocumentRequestMessage,
-  ReadTextDocumentResponseMessage,
-  ReadTextDocumentParams
-> {
-  method = "textDocument/read";
-  override response(
-    id: number | string,
-    result: string
-  ): ReadTextDocumentResponseMessage {
-    return {
-      ...super.response(id),
-      result,
-    };
-  }
-}
-
 export abstract class ReadTextDocument {
-  static readonly type = new ReadTextDocumentProtocolType();
+  static readonly method = "textDocument/read";
+  static readonly type = new MessageProtocolRequestType<
+    ReadTextDocumentMethod,
+    ReadTextDocumentParams,
+    string
+  >(ReadTextDocument.method);
 }
