@@ -15,5 +15,5 @@ export interface RequestMessage<M extends string = string, P = any>
   /**
    * The method's params.
    */
-  params?: P;
+  params: P;
 }
