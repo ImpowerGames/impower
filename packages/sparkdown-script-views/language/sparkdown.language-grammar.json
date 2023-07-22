@@ -41,7 +41,7 @@
       "include": "#CenteredAngle"
     },
     {
-      "include": "#Load"
+      "include": "#Yield"
     },
     {
       "include": "#Jump"
@@ -199,36 +199,10 @@
         }
       }
     },
-    "Load": {
-      "tag": "meta",
-      "name": "entity.load.sd",
-      "match": "^([ \\t]*)([>][>])($|[ ]+)([^\\n\\r ]+|[{].+[}])?([ \\t]*)($|[/][/][ \\t]+.*)$",
-      "captures": {
-        "2": {
-          "tag": "keyword",
-          "name": "storage.type.load.sd"
-        },
-        "4": {
-          "tag": "heading",
-          "name": "keyword.control.load.sd"
-        },
-        "5": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.sd"
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Comment"
-            }
-          ]
-        }
-      }
-    },
-    "Jump": {
+    "Yield": {
       "tag": "meta",
       "name": "entity.jump.sd",
-      "match": "^([ \\t]*)([>])($|[ ]+)([^\\n\\r ]+|[{].+[}])?([ \\t]*)($|[/][/][ \\t]+.*)$",
+      "match": "^([ \\t]*)([>][>])([ ]*)([a-zA-Z]+[a-zA-Z0-9_]*|[{].+[}]|[!>^\\[\\]])(?:([(])(.*)([)]))?([ ]*)($|[/][/][ \\t]+.*)$",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -240,9 +214,65 @@
         },
         "5": {
           "tag": "content",
-          "name": "markup.raw.whitespace.sd"
+          "name": "meta.brace.round.sd"
         },
         "6": {
+          "patterns": [
+            {
+              "include": "#Expression"
+            }
+          ]
+        },
+        "7": {
+          "tag": "content",
+          "name": "meta.brace.round.sd"
+        },
+        "8": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.sd"
+        },
+        "9": {
+          "patterns": [
+            {
+              "include": "#Comment"
+            }
+          ]
+        }
+      }
+    },
+    "Jump": {
+      "tag": "meta",
+      "name": "entity.jump.sd",
+      "match": "^([ \\t]*)([>])($|[ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*|[{].+[}]|[!>^\\[\\]])(?:([(])(.*)([)]))?([ ]*)($|[/][/][ \\t]+.*)$",
+      "captures": {
+        "2": {
+          "tag": "keyword",
+          "name": "storage.type.jump.sd"
+        },
+        "4": {
+          "tag": "heading",
+          "name": "keyword.control.jump.sd"
+        },
+        "5": {
+          "tag": "content",
+          "name": "meta.brace.round.sd"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Expression"
+            }
+          ]
+        },
+        "7": {
+          "tag": "content",
+          "name": "meta.brace.round.sd"
+        },
+        "8": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.sd"
+        },
+        "9": {
           "patterns": [
             {
               "include": "#Comment"
@@ -342,7 +372,7 @@
     "Import": {
       "tag": "meta",
       "name": "entity.import.sd",
-      "match": "^([ \\t]*)([*])([ ]+)(import)($|[ ]+)($|[\"'].*)$",
+      "match": "^([ \\t]*)([@])([ ]+)(import)($|[ ]+)($|[\"'].*)$",
       "captures": {
         "2": {
           "tag": "keyword",
@@ -638,7 +668,7 @@
     "Section": {
       "tag": "definition(heading)",
       "name": "entity.section.sd",
-      "match": "^([ \\t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)($|[^\\n\\r:]+)?([:])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ \\t]*)($|[/][/][ \\t]+.*)$",
+      "match": "^([ \\t]*)(#+)($|[ ]+)($|[a-zA-Z]+[a-zA-Z0-9_]*)([ ]*)((?:(?![=][>]).)+)?([=][>])?([ ]*)($|[a-zA-Z]+[a-zA-Z0-9_]*)?([ \\t]*)($|[/][/][ \\t]+.*)$",
       "captures": {
         "2": {
           "tag": "punctuation",

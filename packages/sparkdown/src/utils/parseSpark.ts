@@ -3,6 +3,7 @@ import { SPARK_FLOW_TOKEN_TYPES } from "../constants/SPARK_FLOW_TOKEN_TYPES";
 import { SPARK_REGEX } from "../constants/SPARK_REGEX";
 import { SPARK_RESERVED_KEYWORDS } from "../constants/SPARK_RESERVED_KEYWORDS";
 import { SPARK_SCOPE_TYPES } from "../constants/SPARK_SCOPE_TYPES";
+import { SPARK_SYSTEM_METHODS } from "../constants/SPARK_SYSTEM_METHODS";
 import { TITLE_PAGE_DISPLAY } from "../constants/TITLE_PAGE_DISPLAY";
 import { defaultCompiler } from "../defaults/defaultCompiler";
 import { defaultFormatter } from "../defaults/defaultFormatter";
@@ -43,7 +44,6 @@ import { getScopedValueContext } from "./getScopedValueContext";
 import { getTo } from "./getTo";
 import { isSparkDisplayToken } from "./isSparkDisplayToken";
 import { isVariableType } from "./isVariableType";
-import { stripBlockComments } from "./stripBlockComments";
 import { stripInlineComments } from "./stripInlineComments";
 import { trimCharacterExtension } from "./trimCharacterExtension";
 import { updateObjectMap } from "./updateObjectMap";
@@ -474,7 +474,6 @@ const getSection = (
     return undefined;
   }
   const id = findSectionId(program.sections, currentSectionId, name);
-  const found = program.sections?.[id || ""];
   program.metadata.lines ??= [];
   program.metadata.lines[currentToken.line] ??= {};
   program.metadata.lines[currentToken.line]!.references ??= [];
@@ -484,11 +483,12 @@ const getSection = (
     name,
     id,
   });
+  const found = id ? program.sections?.[id] : undefined;
   if (!found) {
     diagnostic(
       program,
       currentToken,
-      `Cannot find ${type === "method" ? "section" : type} named '${name}'`,
+      `Cannot find ${type} named '${name}'`,
       undefined,
       from,
       to
@@ -1112,7 +1112,6 @@ const getStruct = (
     return undefined;
   }
   const id = findStructId(program.structs, name);
-  const found = program.structs?.[id || ""];
   program.metadata.lines ??= [];
   program.metadata.lines[currentToken.line] ??= {};
   program.metadata.lines[currentToken.line]!.references ??= [];
@@ -1122,6 +1121,7 @@ const getStruct = (
     name,
     id,
   });
+  const found = id ? program.structs?.[id] : undefined;
   if (!found) {
     diagnostic(
       program,
@@ -1163,7 +1163,6 @@ const getVariable = (
     return undefined;
   }
   const id = findVariableId(program.variables, currentSectionId, name);
-  const found = program.variables?.[id || ""];
   program.metadata.lines ??= [];
   program.metadata.lines[currentToken.line] ??= {};
   program.metadata.lines[currentToken.line]!.references ??= [];
@@ -1173,6 +1172,7 @@ const getVariable = (
     name,
     id,
   });
+  const found = id ? program.variables?.[id] : undefined;
   if (!found) {
     const itemType =
       typeof type === "string"
@@ -1367,7 +1367,7 @@ const addVariable = (
   name: string,
   type: string,
   valueText: string,
-  scope: "public" | "protected" | "private",
+  scope: "public" | "protected",
   parameter: boolean,
   line: number,
   nameFrom: number,
@@ -1378,8 +1378,7 @@ const addVariable = (
   valueTo: number
 ): SparkVariableType | null => {
   program.variables ??= {};
-  const prefix = scope === "private" ? "private-" : "";
-  const id = `${currentSectionId}.${prefix}${name}`;
+  const id = `${currentSectionId}.${name}`;
   if (
     !lintName(program, currentToken, currentSectionId, name, nameFrom, nameTo)
   ) {
@@ -1642,7 +1641,7 @@ const getParameterNames = (
             name,
             type,
             expression,
-            "private",
+            "protected",
             true,
             currentToken.line,
             nameFrom,
@@ -1962,9 +1961,66 @@ const processDisplayedContent = (
   checkNotes(program, currentToken);
 };
 
-const augmentResult = (program: SparkProgram, config?: SparkParserConfig) => {
+const augmentProgram = (program: SparkProgram, config?: SparkParserConfig) => {
   if (!program.objectMap) {
     program.objectMap = config?.augmentations?.objectMap ?? {};
+  }
+  program.scopes = Array.from(
+    new Set([...SPARK_SCOPE_TYPES, ...(config?.augmentations?.scopes || [])])
+  );
+  if (config?.files) {
+    config.files.forEach(({ name, src, type, ext }) => {
+      config.augmentations ??= {};
+      config.augmentations.structs ??= {};
+      config.augmentations.structs[name] = {
+        from: -1,
+        to: -1,
+        line: -1,
+        base: "",
+        type,
+        name,
+        fields: {
+          [".src"]: {
+            from: -1,
+            to: -1,
+            line: -1,
+            name: "src",
+            type: "string",
+            value: src,
+            valueText: `"${src}"`,
+          },
+          [".ext"]: {
+            from: -1,
+            to: -1,
+            line: -1,
+            name: "ext",
+            type: "string",
+            value: ext,
+            valueText: `"${ext}"`,
+          },
+          [".type"]: {
+            from: -1,
+            to: -1,
+            line: -1,
+            name: "type",
+            type: "string",
+            value: type,
+            valueText: `"${type}"`,
+          },
+        },
+      };
+      if (type === "script") {
+        config.augmentations.variables ??= {};
+        config.augmentations.variables[`.${name}`] = {
+          from: -1,
+          to: -1,
+          line: -1,
+          name,
+          type: "string",
+          value: src,
+        };
+      }
+    });
   }
   if (config?.augmentations?.variables) {
     Object.entries(config?.augmentations?.variables).forEach(([id, d]) => {
@@ -2362,7 +2418,7 @@ const hoistDeclarations = (
         currentToken,
         currentSectionId,
         match,
-        8
+        6
       );
       newSection.type = type;
       if (newSection.type !== "function" && newSection.type !== "detector") {
@@ -2463,6 +2519,24 @@ const hoistDeclarations = (
         latestSectionOrLabel.children.push(id);
         program.metadata.structure[id] = structureItem;
       }
+    } else if ((match = text.match(SPARK_REGEX.import))) {
+      const currentToken = createSparkToken("import", newLineLength, {
+        content: text,
+        line: context.line + (config?.lineOffset || 0),
+        from: context.from,
+      });
+      // TODO: support multiline expressions
+      const expression = stripInlineComments(match[6] || "");
+      currentToken.content = getRawString(expression) || "";
+      const expressionFrom = currentToken.from + getStart(match, 6);
+      const expressionTo = expressionFrom + expression.length;
+      addImport(
+        program,
+        expression,
+        currentToken.line,
+        expressionFrom,
+        expressionTo
+      );
     } else if ((match = text.match(SPARK_REGEX.struct))) {
       const type = match[4] || "";
       const name = match[6] || "";
@@ -2545,24 +2619,6 @@ const hoistDeclarations = (
           currentFieldTokens.push(currentToken);
         }
       }
-    } else if ((match = text.match(SPARK_REGEX.import))) {
-      const currentToken = createSparkToken("import", newLineLength, {
-        content: text,
-        line: context.line + (config?.lineOffset || 0),
-        from: context.from,
-      });
-      // TODO: support multiline expressions
-      const expression = stripInlineComments(match[6] || "");
-      currentToken.content = getRawString(expression) || "";
-      const expressionFrom = currentToken.from + getStart(match, 6);
-      const expressionTo = expressionFrom + expression.length;
-      addImport(
-        program,
-        expression,
-        currentToken.line,
-        expressionFrom,
-        expressionTo
-      );
     }
 
     const isSeparator =
@@ -2595,21 +2651,17 @@ export const parseSpark = (
     tokens: [],
     metadata: {},
     diagnostics: [],
+    sections: {
+      ...SPARK_SYSTEM_METHODS,
+    },
   };
 
   const parseStartTime = Date.now();
 
-  program.scopes = Array.from(
-    new Set([...SPARK_SCOPE_TYPES, ...(config?.augmentations?.scopes || [])])
-  );
-  augmentResult(program, config);
+  augmentProgram(program, config);
 
   if (!script) {
     return program;
-  }
-
-  if (config?.removeBlockComments) {
-    script = stripBlockComments(script);
   }
 
   const lines = script.split(/\r\n|\r|\n/);
@@ -3017,6 +3069,14 @@ export const parseSpark = (
             diagnostic(program, currentToken, message);
           }
         }
+      } else if ((match = currentToken.content.match(SPARK_REGEX.import))) {
+        const type = "import";
+        currentToken.type = type;
+        if (currentToken.type === type) {
+          // TODO: support multiline expressions
+          const expression = stripInlineComments(match[6] || "");
+          currentToken.content = getRawString(expression) || "";
+        }
       } else if ((match = currentToken.content.match(SPARK_REGEX.choice))) {
         currentToken.type = "choice";
         if (currentToken.type === "choice") {
@@ -3208,14 +3268,6 @@ export const parseSpark = (
           currentToken.name = name;
         }
         currentStructName = name;
-      } else if ((match = currentToken.content.match(SPARK_REGEX.import))) {
-        const type = "import";
-        currentToken.type = type;
-        if (currentToken.type === type) {
-          // TODO: support multiline expressions
-          const expression = stripInlineComments(match[6] || "");
-          currentToken.content = getRawString(expression) || "";
-        }
       } else if ((match = currentToken.content.match(SPARK_REGEX.label))) {
         currentToken.type = "label";
         if (currentToken.type === "label") {
@@ -3735,6 +3787,8 @@ export const parseSpark = (
   program.metadata.parseDuration = parseEndTime - parseStartTime;
   program.objectMap ??= {};
   updateObjectMap(program.objectMap, program.structs);
+
+  // console.log(program);
 
   return program;
 };

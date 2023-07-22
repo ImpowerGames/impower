@@ -14,11 +14,60 @@ import getDocumentation from "./getFencedCode";
 import getLineText from "./getLineText";
 import getUniqueOptions from "./getUniqueOptions";
 import isEmptyLine from "./isEmptyLine";
+import isPrevText from "./isPrevText";
+
+const getImageCompletions = (program: SparkProgram | undefined) => {
+  if (!program) {
+    return [];
+  }
+  return Object.entries(program?.objectMap?.["image"] || {}).map(
+    ([name, { src, type }]) => ({
+      label: name,
+      labelDetails: { description: type },
+      kind: CompletionItemKind.Constructor,
+      documentation: {
+        kind: MarkupKind.Markdown,
+        value: `![${name}](${src})`,
+      },
+    })
+  );
+};
+
+const getAudioCompletions = (program: SparkProgram | undefined) => {
+  if (!program) {
+    return [];
+  }
+  return Object.entries(program?.objectMap?.["audio"] || {}).map(
+    ([name, { src, type }]) => ({
+      label: name,
+      labelDetails: { description: type },
+      kind: CompletionItemKind.Constructor,
+      documentation: {
+        kind: MarkupKind.Markdown,
+        value: `![${name}](${src})`,
+      },
+    })
+  );
+};
+
+const getScriptCompletions = (program: SparkProgram | undefined) => {
+  if (!program) {
+    return [];
+  }
+  return Object.entries(program?.objectMap?.["script"] || {}).map(
+    ([name, { type }]) => ({
+      label: name,
+      labelDetails: { description: type },
+      kind: CompletionItemKind.Constructor,
+    })
+  );
+};
 
 const getSceneCompletions = () => {
   return [
     {
       label: "INT.",
+
       labelDetails: { description: "Scene" },
       kind: CompletionItemKind.Interface,
       documentation: {
@@ -152,6 +201,19 @@ const getCompletions = (
   const triggerCharacter = context?.triggerCharacter;
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopeName = program?.scopes?.[lineMetadata?.scope ?? -1];
+  if (triggerCharacter === "[") {
+    if (isPrevText(document, position, "[")) {
+      return getImageCompletions(program);
+    }
+  }
+  if (triggerCharacter === "(") {
+    if (isPrevText(document, position, "load")) {
+      return getScriptCompletions(program);
+    }
+    if (isPrevText(document, position, "(")) {
+      return getAudioCompletions(program);
+    }
+  }
   if (!scopeName) {
     const match = getBlockMatch(lineText);
     const blockType = getBlockType(match);

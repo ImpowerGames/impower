@@ -11,26 +11,24 @@ import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
 import { updateOutline } from "./updateOutline";
 
-export const activateLanguageClient = (
+export const activateLanguageClient = async (
   context: vscode.ExtensionContext
-): void => {
-  const client = createSparkdownLanguageClient(context);
+): Promise<void> => {
+  const client = await createSparkdownLanguageClient(context);
   client.onNotification(
     DidParseTextDocument.method,
     (params: DidParseTextDocumentParams) => {
       onParse(context, params);
     }
   );
-  client.start();
+  await client.start();
   const dispose = () => client.stop();
   context.subscriptions.push({ dispose });
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (client.isRunning()) {
-        client.sendRequest<SparkProgram>(ParseTextDocument.method, {
-          textDocument: { uri: editor?.document.uri.toString() },
-        });
-      }
+      client.sendRequest<SparkProgram>(ParseTextDocument.method, {
+        textDocument: { uri: editor?.document.uri.toString() },
+      });
     })
   );
 };
@@ -44,11 +42,6 @@ const onParse = (
   const editor = getEditor(textDocument.uri);
   const document = editor?.document;
   if (document) {
-    // TODO: load assets from workspace
-    // const structs = fileState[document.uri.toString()]?.assets;
-    // const program = GameSparkParser.instance.parse(document.getText(), {
-    //   augmentations: { structs },
-    // });
     SparkProgramManager.instance.update(document.uri, program);
     SparkdownStatusBarManager.instance.updateStatusBarItem(
       program?.metadata?.actionDuration ?? 0,

@@ -21,8 +21,8 @@ export const activate = async (
   activatePreviewScreenplayPanel(context);
   // activateGamePreviewPanel(context);
   // activateStatisticsPanel(context);
-  activateLanguageClient(context);
   activateFileWatcher(context);
+  activateLanguageClient(context);
   activateParentheticalNewlineHelper(context);
 };
 

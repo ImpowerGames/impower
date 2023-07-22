@@ -5,11 +5,6 @@ export const getScopedItemId = <T>(
   sectionId: string,
   name: string
 ): string | undefined => {
-  const foundPrivateId = `${sectionId}.private-${name}`;
-  const localFound = items?.[foundPrivateId];
-  if (localFound) {
-    return foundPrivateId;
-  }
   const ids = getAncestorIds(sectionId);
   const foundSectionId =
     ids.find((x) => Boolean(items?.[`${x}.${name}`])) || "";

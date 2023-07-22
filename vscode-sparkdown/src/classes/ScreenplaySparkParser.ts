@@ -16,7 +16,6 @@ export class ScreenplaySparkParser extends SparkParser {
       config || {
         compiler: compile,
         formatter: format,
-        removeBlockComments: true,
         skipTokens: ["condition"],
       }
     );

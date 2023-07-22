@@ -2,11 +2,13 @@ import {
   CancellationToken,
   Connection,
   DidChangeTextDocumentParams,
+  DidChangeWatchedFilesParams,
   DidCloseTextDocumentParams,
   DidOpenTextDocumentParams,
   DidSaveTextDocumentParams,
   Disposable,
   Emitter,
+  FileChangeType,
   RequestHandler,
   TextDocumentChangeEvent,
   TextDocumentSyncKind,
@@ -26,6 +28,18 @@ import {
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 import { EditorSparkParser } from "./EditorSparkParser";
+
+export const IMAGE_FILE_EXTENSIONS = [
+  "png",
+  "apng",
+  "jpeg",
+  "jpg",
+  "gif",
+  "svg",
+  "bmp",
+];
+export const AUDIO_FILE_EXTENSIONS = ["wav", "mp3", "mp4", "ogg"];
+export const SCRIPT_FILE_EXTENSIONS = ["sd", "spark", "sparkdown"];
 
 interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
   program: SparkProgram;
@@ -83,6 +97,21 @@ export default class SparkdownTextDocuments<
     return this._onDidParse.event;
   }
 
+  protected readonly _syncedPackages: Record<
+    string,
+    {
+      files: Record<
+        string,
+        {
+          name: string;
+          src: string;
+          ext: string;
+          type: string;
+        }
+      >;
+    }
+  > = {};
+
   protected readonly _syncedPrograms = new Map<string, SparkProgram>();
 
   protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
@@ -95,10 +124,97 @@ export default class SparkdownTextDocuments<
     this._parser = new EditorSparkParser();
   }
 
+  getDirectoryUri(uri: string): string {
+    return uri.split("/").slice(0, -1).join("/");
+  }
+
+  getFileName(uri: string): string {
+    return uri.split("/").slice(-1).join("").split(".")[0]!;
+  }
+
+  getFileUrl(uri: string): string {
+    return uri;
+  }
+
+  getFileType(uri: string): string {
+    const ext = this.getFileExtension(uri);
+    if (IMAGE_FILE_EXTENSIONS.includes(ext)) {
+      return "image";
+    }
+    if (AUDIO_FILE_EXTENSIONS.includes(ext)) {
+      return "audio";
+    }
+    if (SCRIPT_FILE_EXTENSIONS.includes(ext)) {
+      return "script";
+    }
+    return "text";
+  }
+
+  getFileExtension(uri: string): string {
+    return uri.split("/").slice(-1).join("").split(".")[1]!;
+  }
+
+  addFileToPackage(packageUri: string, fileUri: string) {
+    const packageManifest = this._syncedPackages[packageUri];
+    if (packageManifest) {
+      const name = this.getFileName(fileUri);
+      const src = this.getFileUrl(fileUri);
+      const type = this.getFileType(fileUri);
+      const ext = this.getFileExtension(fileUri);
+      if (name !== "package") {
+        packageManifest.files[fileUri] = { name, src, type, ext };
+      }
+    }
+  }
+
+  removeFileFromPackage(packageUri: string, fileUri: string) {
+    const packageManifest = this._syncedPackages[packageUri];
+    if (packageManifest) {
+      delete packageManifest.files[fileUri];
+    }
+  }
+
+  loadPackages(packages: { uri: string; files: { uri: string }[] }[]) {
+    packages.forEach((p) => {
+      this._syncedPackages[p.uri] = { files: {} };
+      p.files.forEach((f) => {
+        this.addFileToPackage(p.uri, f.uri);
+      });
+    });
+  }
+
+  getPackageUris(fileUri: string): string[] {
+    return Object.keys(this._syncedPackages).filter((uri) =>
+      fileUri.startsWith(this.getDirectoryUri(uri))
+    );
+  }
+
+  getClosestPackageUri(fileUri: string): string {
+    let closestPackageUri = "";
+    let closestDirectoryUri = "";
+    Object.keys(this._syncedPackages).forEach((packageUri) => {
+      const directoryUri = this.getDirectoryUri(packageUri);
+      if (
+        fileUri.startsWith(directoryUri) &&
+        directoryUri.length > closestDirectoryUri.length
+      ) {
+        closestDirectoryUri = directoryUri;
+        closestPackageUri = packageUri;
+      }
+    });
+    return closestPackageUri;
+  }
+
   parse(uri: string) {
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
-      const syncedProgram = this._parser.parse(syncedDocument.getText());
+      const packageUri = this.getClosestPackageUri(uri);
+      const files = Object.values(
+        this._syncedPackages[packageUri]?.files || {}
+      );
+      const syncedProgram = this._parser.parse(syncedDocument.getText(), {
+        files,
+      });
       this._syncedPrograms.set(uri, syncedProgram);
       this._onDidParse.fire(
         Object.freeze({
@@ -123,6 +239,22 @@ export default class SparkdownTextDocuments<
       return existingProgram;
     }
     return this.parse(uri);
+  }
+
+  onCreatedFile(fileUri: string) {
+    const packageUris = this.getPackageUris(fileUri);
+    packageUris.forEach((packageUri) => {
+      this.addFileToPackage(packageUri, fileUri);
+    });
+    console.log("onCreatedFile", fileUri, this._syncedPackages);
+  }
+
+  onDeletedFile(fileUri: string) {
+    const packageUris = this.getPackageUris(fileUri);
+    packageUris.forEach((packageUri) => {
+      this.removeFileFromPackage(packageUri, fileUri);
+    });
+    console.log("onDeletedFile", fileUri, this._syncedPackages);
   }
 
   public override listen(connection: Connection): Disposable {
@@ -228,6 +360,25 @@ export default class SparkdownTextDocuments<
           this.__onDidSave.fire(Object.freeze({ document: syncedDocument }));
         }
       })
+    );
+    disposables.push(
+      connection.onDidChangeWatchedFiles(
+        (params: DidChangeWatchedFilesParams) => {
+          const changes = params.changes;
+          changes.forEach((change) => {
+            switch (change.type) {
+              case FileChangeType.Created:
+                this.onCreatedFile(change.uri);
+                break;
+              case FileChangeType.Changed:
+                break;
+              case FileChangeType.Deleted:
+                this.onDeletedFile(change.uri);
+                break;
+            }
+          });
+        }
+      )
     );
     return Disposable.create(() => {
       disposables.forEach((disposable) => disposable.dispose());

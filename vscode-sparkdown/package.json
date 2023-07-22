@@ -72,7 +72,7 @@
             }
           },
           {
-            "scope": "keyword.control.load.sd",
+            "scope": "keyword.control.yield.sd",
             "settings": {
               "foreground": "#F9B8F9"
             }
@@ -298,24 +298,6 @@
     ],
     "configuration": [
       {
-        "order": 22,
-        "id": "sparkdown-language-server",
-        "title": "Sparkdown Language Server",
-        "properties": {
-          "sparkdown.trace.server": {
-            "type": "string",
-            "scope": "window",
-            "enum": [
-              "off",
-              "messages",
-              "verbose"
-            ],
-            "default": "verbose",
-            "description": "Traces the communication between VS Code and the sparkdown language server."
-          }
-        }
-      },
-      {
         "title": "Sparkdown Preview",
         "type": "object",
         "properties": {
@@ -461,6 +443,24 @@
             "description": "Automatically refresh the statistics panel when you save the document"
           }
         }
+      },
+      {
+        "title": "Sparkdown Language Server",
+        "id": "sparkdown-language-server",
+        "order": 22,
+        "properties": {
+          "sparkdown.trace.server": {
+            "type": "string",
+            "scope": "window",
+            "enum": [
+              "off",
+              "messages",
+              "verbose"
+            ],
+            "default": "verbose",
+            "description": "Traces the communication between VS Code and the sparkdown language server."
+          }
+        }
       }
     ]
   },
@@ -504,8 +504,8 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "@impower/spark-evaluate": "file:../packages/spark-evaluate",
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
+    "@impower/spark-evaluate": "file:../packages/spark-evaluate",
     "@impower/spark-screenplay": "file:../packages/spark-screenplay",
     "@impower/sparkdown": "file:../packages/sparkdown",
     "@impower/sparkdown-language-server": "file:../packages/sparkdown-language-server",
@@ -515,7 +515,6 @@
     "iconv-lite": "^0.6.3",
     "pdfkit": "^0.13.0",
     "textbox-for-pdfkit": "^0.2.1",
-    "vscode-languageclient": "^8.1.0",
-    "yaml": "^2.3.1"
+    "vscode-languageclient": "^8.1.0"
   }
 }

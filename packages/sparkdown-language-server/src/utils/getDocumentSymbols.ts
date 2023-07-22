@@ -8,6 +8,13 @@ const getDocumentSymbol = (
   structure: Record<string, StructureItem>,
   item: StructureItem
 ): DocumentSymbol => {
+  const children: DocumentSymbol[] = [];
+  item.children.forEach((child) => {
+    const s = structure[child];
+    if (s?.text) {
+      children.push(getDocumentSymbol(structure, structure[child]!));
+    }
+  });
   return {
     name: item.text,
     kind:
@@ -18,9 +25,7 @@ const getDocumentSymbol = (
         : SymbolKind.Interface,
     range: item.range,
     selectionRange: item.selectionRange,
-    children: item.children.map((child) =>
-      getDocumentSymbol(structure, structure[child]!)
-    ),
+    children,
   };
 };
 
@@ -34,14 +39,14 @@ const getDocumentSymbols = (
     return symbols;
   }
   Object.values(structure).forEach((item) => {
-    if (item.level === 0) {
+    if (item.level === 0 && item.text) {
       symbols.push(getDocumentSymbol(structure, item));
     }
   });
   // If no root labels exist, treat all level 1 sections as roots
   if (symbols.length === 0) {
     Object.values(structure).forEach((item) => {
-      if (item.level === 1) {
+      if (item.level === 1 && item.text) {
         symbols.push(getDocumentSymbol(structure, item));
       }
     });

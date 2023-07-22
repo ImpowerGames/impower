@@ -33,7 +33,12 @@ try {
   const messageWriter = new BrowserMessageWriter(self);
   const connection = createConnection(messageReader, messageWriter);
 
-  connection.onInitialize((_params: InitializeParams): InitializeResult => {
+  const documents = new SparkdownTextDocuments(TextDocument);
+
+  connection.onInitialize((params: InitializeParams): InitializeResult => {
+    const { initializationOptions } = params;
+    const { packages } = initializationOptions;
+    documents.loadPackages(packages);
     const capabilities: ServerCapabilities = {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       foldingRangeProvider: true,
@@ -41,7 +46,7 @@ try {
       colorProvider: true,
       completionProvider: {
         resolveProvider: true,
-        triggerCharacters: [".", "\n", "\r", "-", " "],
+        triggerCharacters: [".", "\n", "\r", "-", " ", "(", "["],
         completionItem: {
           labelDetailsSupport: true,
         },
@@ -49,8 +54,6 @@ try {
     };
     return { capabilities };
   });
-
-  const documents = new SparkdownTextDocuments(TextDocument);
 
   // parseProvider
   documents.onDidParse((change) => {

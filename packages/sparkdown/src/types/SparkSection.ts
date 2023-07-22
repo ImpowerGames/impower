@@ -3,7 +3,7 @@ import { SparkToken } from "./SparkToken";
 import { SparkVariable } from "./SparkVariable";
 
 export interface SparkSection extends SparkRange {
-  type: "label" | "section" | "function" | "method" | "detector";
+  type: "section" | "function" | "method" | "detector";
   name: string;
   from: number;
   to: number;
