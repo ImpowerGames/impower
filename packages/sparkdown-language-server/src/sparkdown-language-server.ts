@@ -1,6 +1,7 @@
 import type {
   CompletionItem,
   CompletionParams,
+  HoverParams,
   InitializeParams,
   InitializeResult,
   ServerCapabilities,
@@ -25,6 +26,7 @@ import getDocumentColors from "./utils/getDocumentColors";
 import getDocumentDiagnostics from "./utils/getDocumentDiagnostics";
 import getDocumentSymbols from "./utils/getDocumentSymbols";
 import getFoldingRanges from "./utils/getFoldingRanges";
+import getHover from "./utils/getHover";
 
 console.log("running sparkdown-language-server");
 
@@ -44,6 +46,7 @@ try {
       foldingRangeProvider: true,
       documentSymbolProvider: true,
       colorProvider: true,
+      hoverProvider: true,
       completionProvider: {
         resolveProvider: true,
         triggerCharacters: [".", "\n", "\r", "-", " ", "(", "["],
@@ -97,14 +100,22 @@ try {
     return getColorPresentations(params.color);
   });
 
+  // hoverProvider
+  connection.onHover((params: HoverParams) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const program = documents.program(uri);
+    return getHover(document, program, params.position);
+  });
+
   // completionProvider
-  connection.onCompletion((params: CompletionParams): CompletionItem[] => {
+  connection.onCompletion((params: CompletionParams) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.program(uri);
     return getCompletions(document, program, params.position, params.context);
   });
-  connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+  connection.onCompletionResolve((item: CompletionItem) => {
     return item;
   });
 
