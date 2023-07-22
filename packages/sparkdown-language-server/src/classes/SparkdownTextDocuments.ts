@@ -161,9 +161,7 @@ export default class SparkdownTextDocuments<
       const src = this.getFileUrl(fileUri);
       const type = this.getFileType(fileUri);
       const ext = this.getFileExtension(fileUri);
-      if (name !== "package") {
-        packageManifest.files[fileUri] = { name, src, type, ext };
-      }
+      packageManifest.files[fileUri] = { name, src, type, ext };
     }
   }
 
@@ -178,7 +176,9 @@ export default class SparkdownTextDocuments<
     packages.forEach((p) => {
       this._syncedPackages[p.uri] = { files: {} };
       p.files.forEach((f) => {
-        this.addFileToPackage(p.uri, f.uri);
+        if (!f.uri.endsWith("package.sd")) {
+          this.addFileToPackage(p.uri, f.uri);
+        }
       });
     });
   }
@@ -242,19 +242,26 @@ export default class SparkdownTextDocuments<
   }
 
   onCreatedFile(fileUri: string) {
-    const packageUris = this.getPackageUris(fileUri);
-    packageUris.forEach((packageUri) => {
-      this.addFileToPackage(packageUri, fileUri);
-    });
-    console.log("onCreatedFile", fileUri, this._syncedPackages);
+    if (fileUri.endsWith("package.sd")) {
+      this._syncedPackages[fileUri] = { files: {} };
+      // TODO: send readFiles request to client to populate files list
+    } else {
+      const packageUris = this.getPackageUris(fileUri);
+      packageUris.forEach((packageUri) => {
+        this.addFileToPackage(packageUri, fileUri);
+      });
+    }
   }
 
   onDeletedFile(fileUri: string) {
-    const packageUris = this.getPackageUris(fileUri);
-    packageUris.forEach((packageUri) => {
-      this.removeFileFromPackage(packageUri, fileUri);
-    });
-    console.log("onDeletedFile", fileUri, this._syncedPackages);
+    if (this._syncedPackages[fileUri]) {
+      delete this._syncedPackages[fileUri];
+    } else {
+      const packageUris = this.getPackageUris(fileUri);
+      packageUris.forEach((packageUri) => {
+        this.removeFileFromPackage(packageUri, fileUri);
+      });
+    }
   }
 
   public override listen(connection: Connection): Disposable {
