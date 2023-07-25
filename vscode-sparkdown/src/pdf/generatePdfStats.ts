@@ -24,6 +24,5 @@ export const generatePdfStats = (
     stats.pageCountReal++;
   });
   pdfGenerate(doc, pdfData, encode, stats.lineMap);
-  console.log(stats.lineMap);
   return stats;
 };

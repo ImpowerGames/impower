@@ -7,12 +7,14 @@ import {
   LanguageServerConnection,
   languageClient,
 } from "../../../cm-language-client";
+import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { TextmateLanguage } from "../../../cm-textmate";
 import EDITOR_HIGHLIGHTS from "../constants/EDITOR_HIGHLIGHTS";
 
 export const sparkdownLanguageExtension = (config: {
   textDocument: { uri: string; version: number };
   connection: LanguageServerConnection;
+  fileSystemReader?: FileSystemReader;
 }): Extension => {
   const languageSupport = new TextmateLanguage({
     name: "sparkdown",
@@ -20,14 +22,16 @@ export const sparkdownLanguageExtension = (config: {
     grammarDefinition: grammarData,
     snippetsDefinition: snippetsData,
   }).load();
-  const connection = config.connection;
   const textDocument = config.textDocument;
+  const connection = config.connection;
+  const fileSystemReader = config.fileSystemReader;
   return [
     languageSupport,
     syntaxHighlighting(EDITOR_HIGHLIGHTS),
     languageClient({
-      connection,
       textDocument,
+      connection,
+      fileSystemReader,
       language: languageSupport.language,
       highlighter: EDITOR_HIGHLIGHTS,
     }),

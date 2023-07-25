@@ -14,6 +14,6 @@ export abstract class ReadFile {
   static readonly type = new MessageProtocolRequestType<
     ReadFileMethod,
     ReadFileParams,
-    string
+    ArrayBuffer
   >(ReadFile.method);
 }

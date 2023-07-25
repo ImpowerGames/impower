@@ -70,7 +70,7 @@ export default class Button
   }
 
   override get component() {
-    return component({ attrs: { href: this.href } });
+    return component({ attrs: { type: this.type, href: this.href } });
   }
 
   override transformHtml(html: string) {
@@ -101,6 +101,8 @@ export default class Button
    * `submit`: The button submits the form data to the server.
    * `reset`: The button resets all the controls to their initial values.
    * `button`: The button has no default behavior, and does nothing when pressed by default.
+   * `container`: The button is a container for an element that cannot be nested inside a true `button` element
+   * (Component will be wrapped in `div` instead of `button`).
    */
   get type(): string | null {
     return this.getStringAttribute(Button.attributes.type);
@@ -111,6 +113,7 @@ export default class Button
 
   /**
    * The URL that the link button points to.
+   * (Component will be wrapped in `a` instead of `button`)
    */
   get href(): string | null {
     return this.getStringAttribute(Button.attributes.href);
@@ -304,7 +307,6 @@ export default class Button
   }
 
   protected handleClick = (e: MouseEvent): void => {
-    e.preventDefault();
     const action = this.action;
     if (action) {
       const [id, attr] = action.split(":");

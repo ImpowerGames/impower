@@ -40,6 +40,7 @@ export type SparkOtherTokenType =
   | "boneyard_start"
   | "boneyard_end"
   | "repeat"
+  | "css"
   | "import"
   | "more"
   | "unknown"

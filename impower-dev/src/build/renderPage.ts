@@ -1,3 +1,4 @@
+import { ComponentState } from "./ComponentState.js";
 import expandHtml from "./expandHtml.js";
 import populateDocument from "./populateDocument.js";
 
@@ -14,7 +15,7 @@ const renderPage = (
   },
   components?: Record<
     string,
-    () => { css?: string; html?: string; js?: string }
+    (state?: ComponentState) => { css?: string; html?: string; js?: string }
   >
 ): string => {
   const { html, css, js, mjs, cssPath, jsPath, mjsPath } = pageComponent();

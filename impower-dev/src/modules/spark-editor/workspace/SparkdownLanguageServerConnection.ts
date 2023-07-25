@@ -4,39 +4,18 @@ import {
   createMessageConnection,
 } from "vscode-jsonrpc/browser";
 import {
-  CancellationToken,
   ClientCapabilities,
-  CompletionParams,
-  CompletionRequest,
   DiagnosticTag,
-  DidChangeTextDocumentNotification,
-  DidChangeTextDocumentParams,
-  DidOpenTextDocumentNotification,
-  DidOpenTextDocumentParams,
-  DidSaveTextDocumentNotification,
-  DocumentColorParams,
-  DocumentColorRequest,
-  FoldingRangeParams,
-  FoldingRangeRequest,
-  HoverParams,
-  HoverRequest,
+  Disposable,
   InitializeRequest,
   InitializeResult,
   MessageConnection,
-  NotificationType,
-  PublishDiagnosticsNotification,
-  PublishDiagnosticsParams,
-  RequestType,
+  NotificationHandler,
   ServerCapabilities,
 } from "vscode-languageserver-protocol";
 
-import {
-  DidParseTextDocument,
-  DidParseTextDocumentParams,
-} from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
-import { LanguageClientOptions } from "../types/LanguageClientOptions";
 import ConsoleLogger from "./ConsoleLogger";
-import { Event } from "./Event";
+import { LanguageClientOptions } from "./LanguageClientOptions";
 
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   workspace: {
@@ -77,10 +56,14 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
         // resolveSupport: { properties: ["documentation", "detail"] },
       },
     },
-    // hover: {
-    //   dynamicRegistration: true,
-    //   contentFormat: ["plaintext", "markdown"],
-    // },
+    hover: {
+      dynamicRegistration: true,
+      contentFormat: ["plaintext", "markdown"],
+    },
+    documentSymbol: {
+      dynamicRegistration: true,
+      hierarchicalDocumentSymbolSupport: true,
+    },
     // signatureHelp: {
     //   dynamicRegistration: true,
     //   signatureInformation: {
@@ -114,10 +97,6 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
     // documentHighlight: {
     //   dynamicRegistration: true,
     // },
-    // documentSymbol: {
-    //   dynamicRegistration: true,
-    //   hierarchicalDocumentSymbolSupport: true,
-    // },
     // codeAction: {
     //   dynamicRegistration: true,
     //   dataSupport: true,
@@ -141,7 +120,7 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
   },
 };
 
-export default class LanguageServerConnection {
+export default class SparkdownLanguageServerConnection {
   protected _options: LanguageClientOptions;
 
   protected _worker: Worker;
@@ -151,6 +130,9 @@ export default class LanguageServerConnection {
   protected _writer: BrowserMessageWriter;
 
   protected _connection?: MessageConnection;
+  get connection() {
+    return this._connection;
+  }
 
   protected _name: string;
   get name() {
@@ -172,22 +154,6 @@ export default class LanguageServerConnection {
     return this._starting;
   }
 
-  protected _publishDiagnosticsEvent = new Event<PublishDiagnosticsParams>();
-  get publishDiagnosticsEvent() {
-    return this._publishDiagnosticsEvent;
-  }
-
-  protected _didOpenTextDocumentEvent = new Event<DidOpenTextDocumentParams>();
-  get didOpenTextDocumentEvent() {
-    return this._didOpenTextDocumentEvent;
-  }
-
-  protected _didParseTextDocumentEvent =
-    new Event<DidParseTextDocumentParams>();
-  get didParseTextDocumentEvent() {
-    return this._didParseTextDocumentEvent;
-  }
-
   constructor(
     id: string,
     name: string,
@@ -198,11 +164,10 @@ export default class LanguageServerConnection {
     this._name = name;
     this._options = {
       capabilities: CLIENT_CAPABILITIES,
-      initializationOptions: null,
-      processId: null,
-      workspaceFolders: null,
-      rootUri: "file:///",
       ...(clientOptions || {}),
+      initializationOptions: {
+        ...(clientOptions?.initializationOptions || {}),
+      },
     };
     this._worker = worker;
     this._reader = new BrowserMessageReader(this._worker);
@@ -219,21 +184,6 @@ export default class LanguageServerConnection {
     connection.onClose(() => {
       this.stop();
     });
-    connection.onNotification(PublishDiagnosticsNotification.type, (params) => {
-      this._publishDiagnosticsEvent.emit(params);
-    });
-    connection.onNotification(
-      DidOpenTextDocumentNotification.type,
-      (params) => {
-        this._didOpenTextDocumentEvent.emit(params);
-      }
-    );
-    connection.onNotification(
-      DidParseTextDocument.method,
-      (params: DidParseTextDocumentParams) => {
-        this._didParseTextDocumentEvent.emit(params);
-      }
-    );
     connection.listen();
     const result = await connection.sendRequest<InitializeResult>(
       InitializeRequest.method,
@@ -244,77 +194,37 @@ export default class LanguageServerConnection {
     return result;
   }
 
-  async stop() {
+  stop() {
     this._connection?.dispose();
   }
 
-  protected async sendNotification<P>(
-    type: NotificationType<P>,
-    params?: P
-  ): Promise<void> {
+  onNotification<P>(
+    method: string,
+    handler: NotificationHandler<P>
+  ): Disposable {
+    if (!this._connection) {
+      throw new Error("Connection could not be established");
+    }
+    return this._connection.onNotification(method, handler);
+  }
+
+  async sendNotification<P>(method: string, params?: P): Promise<void> {
     if (this._starting) {
       await this._starting;
     }
     if (!this._connection) {
       throw new Error("Connection could not be established");
     }
-    return this._connection.sendNotification(type, params);
+    return this._connection.sendNotification(method, params);
   }
 
-  protected async sendRequest<P, R, E>(
-    type: RequestType<P, R, E>,
-    params: P,
-    token?: CancellationToken
-  ): Promise<R> {
+  async sendRequest<P, R>(method: string, params: P): Promise<R> {
     if (this._starting) {
       await this._starting;
     }
     if (!this._connection) {
       throw new Error("Connection could not be established");
     }
-    return this._connection.sendRequest(type, params, token);
-  }
-
-  notifyDidOpenTextDocument(params: DidOpenTextDocumentParams) {
-    return this.sendNotification(DidOpenTextDocumentNotification.type, params);
-  }
-
-  notifyDidChangeTextDocument(params: DidChangeTextDocumentParams) {
-    return this.sendNotification(
-      DidChangeTextDocumentNotification.type,
-      params
-    );
-  }
-
-  notifyDidSaveTextDocument(params: DidChangeTextDocumentParams) {
-    return this.sendNotification(DidSaveTextDocumentNotification.type, params);
-  }
-
-  async requestDocumentColors(
-    params: DocumentColorParams,
-    token?: CancellationToken | undefined
-  ) {
-    return this.sendRequest(DocumentColorRequest.type, params, token);
-  }
-
-  async requestFoldingRanges(
-    params: FoldingRangeParams,
-    token?: CancellationToken | undefined
-  ) {
-    return this.sendRequest(FoldingRangeRequest.type, params, token);
-  }
-
-  async requestHovers(
-    params: HoverParams,
-    token?: CancellationToken | undefined
-  ) {
-    return this.sendRequest(HoverRequest.type, params, token);
-  }
-
-  async requestCompletions(
-    params: CompletionParams,
-    token?: CancellationToken | undefined
-  ) {
-    return this.sendRequest(CompletionRequest.type, params, token);
+    return this._connection.sendRequest(method, params);
   }
 }

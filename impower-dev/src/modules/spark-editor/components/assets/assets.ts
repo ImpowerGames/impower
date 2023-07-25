@@ -1,9 +1,9 @@
 import SEElement from "../../core/se-element";
-import component from "./_file-list-empty";
+import component from "./_assets";
 
-export default class FileAddButton extends SEElement {
+export default class Assets extends SEElement {
   static override async define(
-    tag = "se-file-list-empty",
+    tag = "se-assets",
     dependencies?: Record<string, string>,
     useShadowDom = true
   ) {

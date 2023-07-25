@@ -3,6 +3,7 @@ import {
   DidParseTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
 import { ParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/ParseTextDocument";
+import { DidWatchFiles } from "@impower/spark-editor-protocol/src/protocols/workspace";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import * as vscode from "vscode";
 import { SparkProgramManager } from "../providers/SparkProgramManager";
@@ -14,7 +15,13 @@ import { updateOutline } from "./updateOutline";
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext
 ): Promise<void> => {
-  const client = await createSparkdownLanguageClient(context);
+  const filePattern = "**/*.{sd,svg,png,midi,wav}";
+  const fileWatcher = vscode.workspace.createFileSystemWatcher(filePattern);
+  const client = await createSparkdownLanguageClient(context, {
+    synchronize: {
+      fileEvents: fileWatcher,
+    },
+  });
   client.onNotification(
     DidParseTextDocument.method,
     (params: DidParseTextDocumentParams) => {
@@ -22,8 +29,7 @@ export const activateLanguageClient = async (
     }
   );
   await client.start();
-  const dispose = () => client.stop();
-  context.subscriptions.push({ dispose });
+  context.subscriptions.push({ dispose: () => client.stop() });
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
       client.sendRequest<SparkProgram>(ParseTextDocument.method, {
@@ -31,6 +37,10 @@ export const activateLanguageClient = async (
       });
     })
   );
+  const fileUris = await vscode.workspace.findFiles(filePattern);
+  client.sendNotification(DidWatchFiles.method, {
+    files: fileUris.map((fileUri) => ({ uri: fileUri.toString() })),
+  });
 };
 
 const onParse = (

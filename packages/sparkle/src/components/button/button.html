@@ -1,4 +1,5 @@
 <button class="root" part="root">
+  <slot name="before"></slot>
   <div class="ripple" part="ripple">
     <slot name="ripple">
       <s-ripple></s-ripple>
@@ -17,4 +18,5 @@
       <s-progress-circle></s-progress-circle>
     </slot>
   </div>
+  <slot name="after"></slot>
 </button>

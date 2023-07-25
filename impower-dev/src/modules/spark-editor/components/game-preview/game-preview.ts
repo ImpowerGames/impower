@@ -2,7 +2,7 @@ import { DidOpenTextDocument } from "../../../../../../packages/spark-editor-pro
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
-import Workspace from "../../state/Workspace";
+import Workspace from "../../workspace/Workspace";
 import component from "./_game-preview";
 
 const DEFAULT_DEPENDENCIES = {

@@ -274,7 +274,29 @@
 
   /* Elements */
   --s-color-bg: hsl(0 0% 0%);
+  --s-color-bg-00: hsl(0 0% 0% / 0%);
+  --s-color-bg-01: hsl(0 0% 0% / 1%);
+  --s-color-bg-02: hsl(0 0% 0% / 2%);
+  --s-color-bg-03: hsl(0 0% 0% / 3%);
+  --s-color-bg-04: hsl(0 0% 0% / 4%);
+  --s-color-bg-05: hsl(0 0% 0% / 5%);
+  --s-color-bg-06: hsl(0 0% 0% / 6%);
+  --s-color-bg-07: hsl(0 0% 0% / 7%);
+  --s-color-bg-08: hsl(0 0% 0% / 8%);
+  --s-color-bg-09: hsl(0 0% 0% / 9%);
+  --s-color-bg-10: hsl(0 0% 0% / 10%);
   --s-color-fg: hsl(0 0% 100%);
+  --s-color-fg-00: hsl(0 0% 100% / 0%);
+  --s-color-fg-01: hsl(0 0% 100% / 1%);
+  --s-color-fg-02: hsl(0 0% 100% / 2%);
+  --s-color-fg-03: hsl(0 0% 100% / 3%);
+  --s-color-fg-04: hsl(0 0% 100% / 4%);
+  --s-color-fg-05: hsl(0 0% 100% / 5%);
+  --s-color-fg-06: hsl(0 0% 100% / 6%);
+  --s-color-fg-07: hsl(0 0% 100% / 7%);
+  --s-color-fg-08: hsl(0 0% 100% / 8%);
+  --s-color-fg-09: hsl(0 0% 100% / 9%);
+  --s-color-fg-10: hsl(0 0% 100% / 10%);
   --s-color-content: hsl(0 0% 100% / 80%);
   --s-color-contrast: hsl(0 0% 0% / 80%);
   --s-color-divider: hsl(0 0% 100% / 6%);

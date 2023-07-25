@@ -269,3 +269,18 @@
 :host([icon]) > .root > .icon {
   display: flex;
 }
+
+:host > .root label {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+  border-radius: inherit;
+}
+
+:host > .root input {
+  border-radius: inherit;
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+}

@@ -1,6 +1,7 @@
 import { parseFragment as fragment } from "parse5";
 import type { Attribute } from "parse5/dist/common/token";
 import type { Element } from "parse5/dist/tree-adapters/default";
+import { ComponentState } from "./ComponentState";
 
 const attrsArrayToMap = (attrs: Attribute[]): Record<string, string> => {
   const obj: Record<string, string> = {};
@@ -12,15 +13,10 @@ const expandComponent = (data?: {
   name?: string;
   components?: Record<
     string,
-    () => { css?: string; html?: string; js?: string }
+    (state?: ComponentState) => { css?: string; html?: string; js?: string }
   >;
   attrs?: Attribute[];
-  state?: {
-    attrs?: Record<string, string>;
-    context?: Record<string, unknown>;
-    store?: Record<string, unknown>;
-    instanceID?: string;
-  };
+  state?: ComponentState;
 }): Element => {
   const name = data?.name ?? "";
   const components = data?.components ?? {};
@@ -31,7 +27,7 @@ const expandComponent = (data?: {
   const component = components[name];
 
   if (component && typeof component === "function") {
-    const { html } = component();
+    const { html } = component(state);
     return fragment(html || "") as Element;
   } else {
     throw new Error(`Could not find the template function for ${name}`);

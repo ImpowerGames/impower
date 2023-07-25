@@ -1,5 +1,5 @@
 import { html } from "../../core/html";
-import { WorkspaceState } from "../../state/WorkspaceState";
+import { WorkspaceState } from "../../workspace/WorkspaceState";
 
 export default (state?: { store?: WorkspaceState }) => {
   const mode = state?.store?.logic?.panel || "main";
@@ -47,7 +47,7 @@ export default (state?: { store?: WorkspaceState }) => {
           </s-tab>
         </s-tabs>
         <template value="main">
-          <se-script-editor file-path="logic/main"></se-script-editor>
+          <se-script-editor file-path="logic/main.sd"></se-script-editor>
         </template>
         <template value="scripts">
           <se-scripts></se-scripts>

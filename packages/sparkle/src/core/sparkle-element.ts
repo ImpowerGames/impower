@@ -467,78 +467,6 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `outline-top-width` of this element.
-   *
-   * @summary o-width-t
-   */
-  get outlineWidthT(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineWidthT);
-  }
-  set outlineWidthT(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineWidthT, value);
-  }
-
-  /**
-   * Sets the `outline-right-width` of this element.
-   *
-   * @summary o-width-r
-   */
-  get outlineWidthR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineWidthR);
-  }
-  set outlineWidthR(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineWidthR, value);
-  }
-
-  /**
-   * Sets the `outline-bottom-width` of this element.
-   *
-   * @summary o-width-b
-   */
-  get outlineWidthB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineWidthB);
-  }
-  set outlineWidthB(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineWidthB, value);
-  }
-
-  /**
-   * Sets the `outline-left-width` of this element.
-   *
-   * @summary o-width-l
-   */
-  get outlineWidthL(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineWidthL);
-  }
-  set outlineWidthL(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineWidthL, value);
-  }
-
-  /**
-   * Sets the `outline-left-width` and `outline-right-width` of this element.
-   *
-   * @summary o-width-lr
-   */
-  get outlineWidthLR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineWidthLR);
-  }
-  set outlineWidthLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineWidthLR, value);
-  }
-
-  /**
-   * Sets the `outline-top-width` and `outline-bottom-width` of this element.
-   *
-   * @summary o-width-tb
-   */
-  get outlineWidthTB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineWidthTB);
-  }
-  set outlineWidthTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineWidthTB, value);
-  }
-
-  /**
    * Sets the `outline-color` of this element.
    */
   get outlineColor(): "" | ColorName | string | null {
@@ -549,75 +477,15 @@ export default class SparkleElement
   }
 
   /**
-   * Sets the `outline-top-color` of this element.
+   * Sets the `outline-style` of this element.
    *
-   * @summary o-color-t
+   * @summary o-style
    */
-  get outlineColorT(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineColorT);
+  get outlineStyle(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.outlineStyle);
   }
-  set outlineColorT(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineColorT, value);
-  }
-
-  /**
-   * Sets the `outline-right-color` of this element.
-   *
-   * @summary o-color-r
-   */
-  get outlineColorR(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineColorR);
-  }
-  set outlineColorR(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineColorR, value);
-  }
-
-  /**
-   * Sets the `outline-bottom-color` of this element.
-   *
-   * @summary o-color-b
-   */
-  get outlineColorB(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineColorB);
-  }
-  set outlineColorB(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineColorB, value);
-  }
-
-  /**
-   * Sets the `outline-left-color` of this element.
-   *
-   * @summary o-color-l
-   */
-  get outlineColorL(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineColorL);
-  }
-  set outlineColorL(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineColorL, value);
-  }
-
-  /**
-   * Sets the `outline-top-color` and `outline-bottom-color` of this element.
-   *
-   * @summary o-color-tb
-   */
-  get outlineColorTB(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineColorTB);
-  }
-  set outlineColorTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineColorTB, value);
-  }
-
-  /**
-   * Sets the `outline-left-color` and `outline-right-color` of this element.
-   *
-   * @summary o-color-lr
-   */
-  get outlineColorLR(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineColorLR);
-  }
-  set outlineColorLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineColorLR, value);
+  set outlineStyle(value) {
+    this.setStringAttribute(SparkleElement.attributes.outlineStyle, value);
   }
 
   /**
@@ -784,6 +652,90 @@ export default class SparkleElement
   }
   set borderColorLR(value) {
     this.setStringAttribute(SparkleElement.attributes.borderColorLR, value);
+  }
+
+  /**
+   * Sets the `border-style` of this element.
+   *
+   * @summary b-style
+   */
+  get borderStyle(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.borderStyle);
+  }
+  set borderStyle(value) {
+    this.setStringAttribute(SparkleElement.attributes.borderStyle, value);
+  }
+
+  /**
+   * Sets the `border-top-style` of this element.
+   *
+   * @summary b-style-t
+   */
+  get borderStyleT(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.borderStyleT);
+  }
+  set borderStyleT(value) {
+    this.setStringAttribute(SparkleElement.attributes.borderStyleT, value);
+  }
+
+  /**
+   * Sets the `border-right-style` of this element.
+   *
+   * @summary b-style-r
+   */
+  get borderStyleR(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.borderStyleR);
+  }
+  set borderStyleR(value) {
+    this.setStringAttribute(SparkleElement.attributes.borderStyleR, value);
+  }
+
+  /**
+   * Sets the `border-bottom-style` of this element.
+   *
+   * @summary b-style-b
+   */
+  get borderStyleB(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.borderStyleB);
+  }
+  set borderStyleB(value) {
+    this.setStringAttribute(SparkleElement.attributes.borderStyleB, value);
+  }
+
+  /**
+   * Sets the `border-left-style` of this element.
+   *
+   * @summary b-style-l
+   */
+  get borderStyleL(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.borderStyleL);
+  }
+  set borderStyleL(value) {
+    this.setStringAttribute(SparkleElement.attributes.borderStyleL, value);
+  }
+
+  /**
+   * Sets the `border-left-style` and `border-right-style` of this element.
+   *
+   * @summary b-style-lr
+   */
+  get borderStyleLR(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.borderStyleLR);
+  }
+  set borderStyleLR(value) {
+    this.setStringAttribute(SparkleElement.attributes.borderStyleLR, value);
+  }
+
+  /**
+   * Sets the `border-top-style` and `border-bottom-style` of this element.
+   *
+   * @summary b-style-tb
+   */
+  get borderStyleTB(): "" | SizeName | string | null {
+    return this.getStringAttribute(SparkleElement.attributes.borderStyleTB);
+  }
+  set borderStyleTB(value) {
+    this.setStringAttribute(SparkleElement.attributes.borderStyleTB, value);
   }
 
   /**

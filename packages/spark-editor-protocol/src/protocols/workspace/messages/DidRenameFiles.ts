@@ -3,10 +3,12 @@ import { MessageProtocolNotificationType } from "../../MessageProtocolNotificati
 
 export type DidRenameFilesMethod = typeof DidRenameFiles.method;
 
+export interface DidRenameFilesParams extends RenameFilesParams {}
+
 export abstract class DidRenameFiles {
   static readonly method = "workspace/didRenameFiles";
   static readonly type = new MessageProtocolNotificationType<
     DidRenameFilesMethod,
-    RenameFilesParams
+    DidRenameFilesParams
   >(DidRenameFiles.method);
 }

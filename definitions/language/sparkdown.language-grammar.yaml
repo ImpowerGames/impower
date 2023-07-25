@@ -17,6 +17,7 @@ patterns:
   - { include: "#CenteredAngle" }
   - { include: "#Yield" }
   - { include: "#Jump" }
+  - { include: "#CSS" }
   - { include: "#Import" }
   - { include: "#Condition" }
   - { include: "#Logic" }
@@ -221,6 +222,21 @@ repository:
       8:
         patterns:
           - { include: "#Comment" }
+
+  CSS:
+    tag: meta
+    name: entity.css.sd
+    match: ^([ \t]*)([@])([ ]+)(css)($|[ ]+)($|["'].*)$
+    captures:
+      2:
+        tag: keyword
+        name: storage.type.css.sd
+      4:
+        tag: moduleKeyword
+        name: keyword.control.css.sd
+      6:
+        patterns:
+          - { include: "#String" }
 
   Import:
     tag: meta

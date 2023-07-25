@@ -1,6 +1,7 @@
 import { Language } from "@codemirror/language";
 import { NodeType } from "@lezer/common";
 import { highlightTree, Tag } from "@lezer/highlight";
+import { MARKDOWN_REGEX } from "../constants/MARKDOWN_REGEX";
 
 const getSyntaxHighlightedHtml = (
   str: string,
@@ -25,28 +26,6 @@ const getSyntaxHighlightedHtml = (
   return html;
 };
 
-const REGEX = {
-  header: /(#+)(.*)/gim,
-  image: /!\[([^[]+)\]\(([^)]+)\)/gim,
-  link: /\[([^[]+)\]\(([^)]+)\)/gim,
-  bold: /(\*\*|__)(.*?)\1/gim,
-  italic: /(\*|_)(.*?)\1/gim,
-  quote: /:"(.*?)":/gim,
-  fenced_code_backtick: /([`]{3})([\S]*)([\s]?)([\s\S]+)([`]{3})/gim,
-  fenced_code_tilde: /([~]{3})([\S]*)([\s]?)([\s\S]+)([~]{3})/gim,
-  inline_code: /`([^`]+)`/gim,
-  list_unordered: /\*+(.*)?/gim,
-  list_ordered: /[0-9]+\.(.*)/gim,
-  strikethrough: /~~(.*?)~~/gim,
-  horizontal_rule: /\n-{5,}/gim,
-  blockquote: /\n(&gt;|>)(.*)/gim,
-  paragraph: /(^|\n\n)((?:(?!\n\n)[\s\S])*)/gim,
-  paragraph_ignore: /^<\/?(ul|ol|li|h|p|bl|code|table|tr|td)/i,
-  fix_list_unordered: /<\/ul>\s?<ul>/gim,
-  fix_list_ordered: /<\/ol>\s<ol>/gim,
-  fix_blockquote: /<\/blockquote>\s?<blockquote>/gim,
-} as const;
-
 const getRules = (
   language: Language,
   highlighter: {
@@ -58,46 +37,45 @@ const getRules = (
   replacer: (substring: string, ...args: any[]) => string;
 }[] => [
   {
-    regex: REGEX.header,
+    regex: MARKDOWN_REGEX.header,
     replacer: (_match, $1, $2) => {
       const h = $1.trim().length;
       return `<h${h}>${$2.trim()}</h${h}>`;
     },
   },
   {
-    regex: REGEX.image,
+    regex: MARKDOWN_REGEX.image,
     replacer: (_match, $1, $2) => {
       return `<img src="${$2}" alt="${$1}">`;
     },
   },
   {
-    regex: REGEX.link,
+    regex: MARKDOWN_REGEX.link,
     replacer: (_match, $1, $2) => {
       return `<a href="${$2}">${$1}</a>`;
     },
   },
   {
-    regex: REGEX.bold,
+    regex: MARKDOWN_REGEX.bold,
     replacer: (_match, _$1, $2) => {
       return `<strong>${$2}</strong>`;
     },
   },
   {
-    regex: REGEX.italic,
+    regex: MARKDOWN_REGEX.italic,
     replacer: (_match, _$1, $2) => {
       return `<em>${$2}</em>`;
     },
   },
   {
-    regex: REGEX.quote,
+    regex: MARKDOWN_REGEX.quote,
     replacer: (_match, $1, _$2) => {
       return `<q>${$1}</q>`;
     },
   },
   {
-    regex: REGEX.fenced_code_backtick,
+    regex: MARKDOWN_REGEX.fenced_code_backtick,
     replacer: (_match, _$1, $2, _$3, $4) => {
-      console.log($2, language.name);
       const content =
         $2 === language.name
           ? getSyntaxHighlightedHtml($4, language, highlighter)
@@ -106,9 +84,8 @@ const getRules = (
     },
   },
   {
-    regex: REGEX.fenced_code_tilde,
+    regex: MARKDOWN_REGEX.fenced_code_tilde,
     replacer: (_match, _$1, $2, _$3, $4) => {
-      console.log($2, language.name);
       const content =
         $2 === language.name
           ? getSyntaxHighlightedHtml($4, language, highlighter)
@@ -117,68 +94,68 @@ const getRules = (
     },
   },
   {
-    regex: REGEX.inline_code,
+    regex: MARKDOWN_REGEX.inline_code,
     replacer: (_match, $1, _$2) => {
       return `<code>${$1}</code>`;
     },
   },
   {
-    regex: REGEX.list_unordered,
+    regex: MARKDOWN_REGEX.list_unordered,
     replacer: (_match, $1, _$2) => {
       return `<ul><li>${$1.trim()}</li></ul>`;
     },
   },
   {
-    regex: REGEX.list_ordered,
+    regex: MARKDOWN_REGEX.list_ordered,
     replacer: (_match, $1, _$2) => {
       return `<ol><li>${$1.trim()}</li></ol>`;
     },
   },
   {
-    regex: REGEX.horizontal_rule,
+    regex: MARKDOWN_REGEX.horizontal_rule,
     replacer: () => {
       return "<hr />";
     },
   },
   {
-    regex: REGEX.strikethrough,
+    regex: MARKDOWN_REGEX.strikethrough,
     replacer: (_match, $1, _$2) => {
       return `<del>${$1}</del>`;
     },
   },
   {
-    regex: REGEX.blockquote,
+    regex: MARKDOWN_REGEX.blockquote,
     replacer: (_$match, _$1, $2) => {
       return `<blockquote>${$2}</blockquote>`;
     },
   },
   {
-    regex: REGEX.paragraph,
+    regex: MARKDOWN_REGEX.paragraph,
     replacer: (_$match, _$1, $2) => {
       let trimmed = $2.trim();
       if (!trimmed) {
         return "";
       }
-      if (REGEX.paragraph_ignore.test(trimmed)) {
+      if (MARKDOWN_REGEX.paragraph_ignore.test(trimmed)) {
         return `\n${trimmed}\n`;
       }
       return `<p>${trimmed}</p>`;
     },
   },
   {
-    regex: REGEX.fix_list_unordered,
+    regex: MARKDOWN_REGEX.fix_list_unordered,
     replacer: (_$match, _$1) => {
       return "";
     },
   },
   {
-    regex: REGEX.fix_list_ordered,
+    regex: MARKDOWN_REGEX.fix_list_ordered,
     replacer: (_$match, _$1) => {
       return "";
     },
   },
   {
-    regex: REGEX.fix_blockquote,
+    regex: MARKDOWN_REGEX.fix_blockquote,
     replacer: (_$match, _$1) => {
       return "";
     },

@@ -3,10 +3,12 @@ import { MessageProtocolNotificationType } from "../../MessageProtocolNotificati
 
 export type DidDeleteFilesMethod = typeof DidDeleteFiles.method;
 
+export interface DidDeleteFilesParams extends DeleteFilesParams {}
+
 export abstract class DidDeleteFiles {
   static readonly method = "workspace/didDeleteFiles";
   static readonly type = new MessageProtocolNotificationType<
     DidDeleteFilesMethod,
-    DeleteFilesParams
+    DidDeleteFilesParams
   >(DidDeleteFiles.method);
 }

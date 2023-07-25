@@ -165,11 +165,6 @@ export class SparkdownPreviewScreenplayPanelManager {
     const editor = getEditor(document.uri);
     const visibleRange = editor?.visibleRanges[0];
     const selectedRange = editor?.selection;
-    console.log(
-      "WORKSPACE",
-      vscode.workspace.getWorkspaceFolder(document.uri)?.uri.toString()
-    );
-    console.log("DOCUMENT", document.uri.toString());
     panel.webview.postMessage(
       LoadPreview.type.request({
         type: "screenplay",

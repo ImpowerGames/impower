@@ -1,7 +1,7 @@
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
-import Workspace from "../../state/Workspace";
+import Workspace from "../../workspace/Workspace";
 import component from "./_file-item";
 
 const DEFAULT_ATTRIBUTES = {
@@ -67,10 +67,12 @@ export default class FileItem
         if (e.detail.value === "delete") {
           const filename = this.fileName;
           if (filename) {
-            Workspace.instance.deleteTextDocument({
-              textDocument: {
-                uri: Workspace.instance.getWorkspaceUri(directory, filename),
-              },
+            Workspace.instance.deleteFiles({
+              files: [
+                {
+                  uri: Workspace.instance.getWorkspaceUri(directory, filename),
+                },
+              ],
             });
           }
         }

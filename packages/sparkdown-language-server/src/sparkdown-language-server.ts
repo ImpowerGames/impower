@@ -37,10 +37,7 @@ try {
 
   const documents = new SparkdownTextDocuments(TextDocument);
 
-  connection.onInitialize((params: InitializeParams): InitializeResult => {
-    const { initializationOptions } = params;
-    const { packages } = initializationOptions;
-    documents.loadPackages(packages);
+  connection.onInitialize((_params: InitializeParams): InitializeResult => {
     const capabilities: ServerCapabilities = {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       foldingRangeProvider: true,
@@ -113,7 +110,13 @@ try {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.program(uri);
-    return getCompletions(document, program, params.position, params.context);
+    const result = getCompletions(
+      document,
+      program,
+      params.position,
+      params.context
+    );
+    return result;
   });
   connection.onCompletionResolve((item: CompletionItem) => {
     return item;

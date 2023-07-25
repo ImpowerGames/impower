@@ -129,6 +129,23 @@
   border-end-end-radius: var(--c-br, var(--corner-br, 8px)) !important;
 }
 
+:is([o-color], [outline-color]) > .root {
+  outline-style: solid;
+  outline-color: var(
+    --o-color,
+    var(--outline-color, hsl(0 100% 100% / 50%))
+  ) !important;
+}
+
+:is([o-width], [outline-width]) > .root {
+  outline-style: solid;
+  outline-width: var(--o-width, var(--outline-width, 8px)) !important;
+}
+
+:is([o-style], [outline-style]) > .root {
+  outline-style: var(--o-style, var(--outline-style, solid)) !important;
+}
+
 :is([b-color], [border-color]) > .root {
   border-style: solid;
   border-color: var(
@@ -220,6 +237,46 @@
   border-inline-end-width: var(
     --b-width-r,
     var(--border-width-r, 8px)
+  ) !important;
+}
+
+:is([b-style], [border-style]) > .root {
+  border-style: var(--b-style, var(--border-style, solid)) !important;
+}
+:is([b-style-tb], [border-style-tb]) > .root {
+  border-block-style: var(
+    --b-style-tb,
+    var(--border-style-tb, solid)
+  ) !important;
+}
+:is([b-style-lr], [border-style-lr]) > .root {
+  border-inline-style: var(
+    --b-style-lr,
+    var(--border-style-lr, solid)
+  ) !important;
+}
+:is([b-style-t], [border-style-t]) > .root {
+  border-block-start-style: var(
+    --b-style-t,
+    var(--border-style-t, solid)
+  ) !important;
+}
+:is([b-style-b], [border-style-b]) > .root {
+  border-block-end-style: var(
+    --b-style-b,
+    var(--border-style-b, solid)
+  ) !important;
+}
+:is([b-style-l], [border-style-l]) > .root {
+  border-inline-start-style: var(
+    --b-style-l,
+    var(--border-style-l, solid)
+  ) !important;
+}
+:is([b-style-r], [border-style-r]) > .root {
+  border-inline-end-style: var(
+    --b-style-r,
+    var(--border-style-r, solid)
   ) !important;
 }
 
@@ -603,7 +660,7 @@ button::after {
   transition-property: outline-offset, opacity;
   transition-duration: var(--focus-duration);
   transition-timing-function: ease;
-  outline-offset: calc(-1 * var(--s-focus-ring-width));
+  outline-offset: calc(-2 * var(--s-focus-ring-width));
   pointer-events: none;
 }
 button.focused::after {
@@ -627,6 +684,8 @@ button.focused.pressed::after {
 
 slot {
   border-radius: inherit;
+  background-color: inherit;
+  color: inherit;
 }
 
 * slot {

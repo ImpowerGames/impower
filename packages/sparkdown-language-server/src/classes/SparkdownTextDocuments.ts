@@ -25,6 +25,10 @@ import {
   ParseTextDocument,
   ParseTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/ParseTextDocument";
+import {
+  DidWatchFiles,
+  DidWatchFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/messages/DidWatchFiles";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 import { EditorSparkParser } from "./EditorSparkParser";
@@ -100,6 +104,7 @@ export default class SparkdownTextDocuments<
   protected readonly _syncedPackages: Record<
     string,
     {
+      directory: string;
       files: Record<
         string,
         {
@@ -132,10 +137,6 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[0]!;
   }
 
-  getFileUrl(uri: string): string {
-    return uri;
-  }
-
   getFileType(uri: string): string {
     const ext = this.getFileExtension(uri);
     if (IMAGE_FILE_EXTENSIONS.includes(ext)) {
@@ -158,10 +159,9 @@ export default class SparkdownTextDocuments<
     const packageManifest = this._syncedPackages[packageUri];
     if (packageManifest) {
       const name = this.getFileName(fileUri);
-      const src = this.getFileUrl(fileUri);
       const type = this.getFileType(fileUri);
       const ext = this.getFileExtension(fileUri);
-      packageManifest.files[fileUri] = { name, src, type, ext };
+      packageManifest.files[fileUri] = { name, type, ext, src: fileUri };
     }
   }
 
@@ -170,23 +170,6 @@ export default class SparkdownTextDocuments<
     if (packageManifest) {
       delete packageManifest.files[fileUri];
     }
-  }
-
-  loadPackages(packages: { uri: string; files: { uri: string }[] }[]) {
-    packages.forEach((p) => {
-      this._syncedPackages[p.uri] = { files: {} };
-      p.files.forEach((f) => {
-        if (!f.uri.endsWith("package.sd")) {
-          this.addFileToPackage(p.uri, f.uri);
-        }
-      });
-    });
-  }
-
-  getPackageUris(fileUri: string): string[] {
-    return Object.keys(this._syncedPackages).filter((uri) =>
-      fileUri.startsWith(this.getDirectoryUri(uri))
-    );
   }
 
   getClosestPackageUri(fileUri: string): string {
@@ -209,11 +192,12 @@ export default class SparkdownTextDocuments<
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
       const packageUri = this.getClosestPackageUri(uri);
-      const files = Object.values(
-        this._syncedPackages[packageUri]?.files || {}
-      );
+      const packageFiles = this._syncedPackages[packageUri]?.files;
+      const files = packageFiles ? Object.values(packageFiles) : undefined;
       const syncedProgram = this._parser.parse(syncedDocument.getText(), {
-        files,
+        augmentations: {
+          files,
+        },
       });
       this._syncedPrograms.set(uri, syncedProgram);
       this._onDidParse.fire(
@@ -243,13 +227,14 @@ export default class SparkdownTextDocuments<
 
   onCreatedFile(fileUri: string) {
     if (fileUri.endsWith("package.sd")) {
-      this._syncedPackages[fileUri] = { files: {} };
+      this._syncedPackages[fileUri] = {
+        directory: this.getDirectoryUri(fileUri),
+        files: {},
+      };
       // TODO: send readFiles request to client to populate files list
     } else {
-      const packageUris = this.getPackageUris(fileUri);
-      packageUris.forEach((packageUri) => {
-        this.addFileToPackage(packageUri, fileUri);
-      });
+      const packageUri = this.getClosestPackageUri(fileUri);
+      this.addFileToPackage(packageUri, fileUri);
     }
   }
 
@@ -257,10 +242,8 @@ export default class SparkdownTextDocuments<
     if (this._syncedPackages[fileUri]) {
       delete this._syncedPackages[fileUri];
     } else {
-      const packageUris = this.getPackageUris(fileUri);
-      packageUris.forEach((packageUri) => {
-        this.removeFileFromPackage(packageUri, fileUri);
-      });
+      const packageUri = this.getClosestPackageUri(fileUri);
+      this.removeFileFromPackage(packageUri, fileUri);
     }
   }
 
@@ -268,6 +251,28 @@ export default class SparkdownTextDocuments<
     (<ConnectionState>(<any>connection)).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
     const disposables: Disposable[] = [];
+    disposables.push(
+      connection.onNotification(
+        DidWatchFiles.method,
+        (params: DidWatchFilesParams) => {
+          const files = params.files;
+          files.forEach((file) => {
+            if (file.uri.endsWith("package.sd")) {
+              this._syncedPackages[file.uri] = {
+                directory: this.getDirectoryUri(file.uri),
+                files: {},
+              };
+            }
+          });
+          files.forEach((file) => {
+            if (!file.uri.endsWith("package.sd")) {
+              const packageUri = this.getClosestPackageUri(file.uri);
+              this.addFileToPackage(packageUri, file.uri);
+            }
+          });
+        }
+      )
+    );
     disposables.push(
       connection.onRequest(
         ParseTextDocument.method,

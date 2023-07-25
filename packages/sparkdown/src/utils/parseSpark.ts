@@ -7,6 +7,7 @@ import { SPARK_SYSTEM_METHODS } from "../constants/SPARK_SYSTEM_METHODS";
 import { TITLE_PAGE_DISPLAY } from "../constants/TITLE_PAGE_DISPLAY";
 import { defaultCompiler } from "../defaults/defaultCompiler";
 import { defaultFormatter } from "../defaults/defaultFormatter";
+import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 import { SparkColorMetadata } from "../types/SparkColorMetadata";
 import { SparkAction } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
@@ -586,42 +587,59 @@ const getArgumentValues = (
         extraArgIndices.push(index);
       }
       if (expression) {
-        const [ids, context] = getScopedValueContext(
-          currentSectionId,
-          program.sections
-        );
-        const colorMetadata = getColorMetadata(expression, expressionFrom);
-        if (colorMetadata) {
-          program.metadata.colors ??= [];
-          program.metadata.colors?.push(colorMetadata);
-        }
-        const compiler = config?.compiler || defaultCompiler;
-        const [result, diagnostics, references] = compiler(expression, context);
-        if (references?.length > 0) {
-          for (let i = 0; i < references.length; i += 1) {
-            const r = references[i];
-            if (r) {
-              const from = expressionFrom + r.from;
-              const to = expressionFrom + r.to;
-              program.metadata.lines ??= [];
-              program.metadata.lines[currentToken.line] ??= {};
-              program.metadata.lines[currentToken.line]!.references ??= [];
-              program.metadata.lines[currentToken.line]!.references!?.push({
-                from,
-                to,
-                name: r.content,
-                id: ids[r.content],
-              });
+        let result = undefined;
+        let diagnostics: CompilerDiagnostic[] | undefined = undefined;
+        let references: CompilerDiagnostic[] | undefined = undefined;
+        const struct = findStruct(program.structs, expression);
+        if (struct) {
+          result = { name: struct.name, type: struct.type };
+        } else {
+          const [ids, context] = getScopedValueContext(
+            currentSectionId,
+            program.sections
+          );
+          const colorMetadata = getColorMetadata(expression, expressionFrom);
+          if (colorMetadata) {
+            program.metadata.colors ??= [];
+            program.metadata.colors?.push(colorMetadata);
+          }
+          const compiler = config?.compiler || defaultCompiler;
+          [result, diagnostics, references] = compiler(expression, context);
+          if (references?.length > 0) {
+            for (let i = 0; i < references.length; i += 1) {
+              const r = references[i];
+              if (r) {
+                const from = expressionFrom + r.from;
+                const to = expressionFrom + r.to;
+                program.metadata.lines ??= [];
+                program.metadata.lines[currentToken.line] ??= {};
+                program.metadata.lines[currentToken.line]!.references ??= [];
+                program.metadata.lines[currentToken.line]!.references!?.push({
+                  from,
+                  to,
+                  name: r.content,
+                  id: ids[r.content],
+                });
+              }
             }
           }
         }
-        if (diagnostics?.length > 0) {
+        if (diagnostics && diagnostics.length > 0) {
           for (let i = 0; i < diagnostics.length; i += 1) {
             const d = diagnostics[i];
             if (d) {
               const from = expressionFrom + d.from;
               const to = expressionFrom + d.to;
-              diagnostic(program, currentToken, d.message, undefined, from, to);
+              if (program.files) {
+                diagnostic(
+                  program,
+                  currentToken,
+                  d.message,
+                  undefined,
+                  from,
+                  to
+                );
+              }
             }
           }
         } else if (parameter) {
@@ -1106,7 +1124,7 @@ const getStruct = (
   name: string,
   from: number,
   to: number,
-  severity: "error" | "warning" | "info" = "error"
+  severity: "error" | "warning" | "info" | null
 ): SparkStruct | undefined => {
   if (!name) {
     return undefined;
@@ -1123,27 +1141,31 @@ const getStruct = (
   });
   const found = id ? program.structs?.[id] : undefined;
   if (!found) {
-    diagnostic(
-      program,
-      currentToken,
-      `Cannot find ${type || "struct"} named '${name}'`,
-      undefined,
-      from,
-      to,
-      severity
-    );
+    if (severity) {
+      diagnostic(
+        program,
+        currentToken,
+        `Cannot find ${type || "struct"} named '${name}'`,
+        undefined,
+        from,
+        to,
+        severity
+      );
+    }
     return undefined;
   }
   if (type && found.type !== type) {
-    diagnostic(
-      program,
-      currentToken,
-      `'${name}' is not ${prefixArticle(type)}`,
-      [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-      from,
-      to,
-      severity
-    );
+    if (severity) {
+      diagnostic(
+        program,
+        currentToken,
+        `'${name}' is not ${prefixArticle(type)}`,
+        [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+        from,
+        to,
+        severity
+      );
+    }
     return undefined;
   }
   return found;
@@ -1310,7 +1332,7 @@ const addStruct = (
     declaration: true,
   });
   if (base) {
-    getStruct(program, currentToken, type, base, baseFrom, baseTo);
+    getStruct(program, currentToken, type, base, baseFrom, baseTo, "error");
   }
   const existing = program?.structs?.[id];
   const item: SparkStruct = {
@@ -1326,7 +1348,7 @@ const addStruct = (
   program.structs[id] = item;
 };
 
-const addImport = (
+const addCss = (
   program: SparkProgram,
   valueText: string,
   line: number,
@@ -1335,7 +1357,7 @@ const addImport = (
 ): void => {
   program.structs ??= {};
   const value = getRawString(valueText);
-  const name = "import";
+  const name = "css";
   const existing = program?.structs?.[name];
   const fieldId = existing?.fields
     ? Object.keys(existing?.fields).length?.toString()
@@ -1346,7 +1368,7 @@ const addImport = (
     to: valueTo,
     line,
     base: "",
-    type: "import",
+    type: "css",
     name,
     fields: {
       ...(existing?.fields || EMPTY_OBJECT),
@@ -1730,7 +1752,15 @@ const checkNotes = (program: SparkProgram, currentToken: SparkToken): void => {
         const from = currentToken.from + startIndex;
         const to = from + noteMatch.length - 4;
         if (name) {
-          getStruct(program, currentToken, type, name, from, to, "warning");
+          getStruct(
+            program,
+            currentToken,
+            type,
+            name,
+            from,
+            to,
+            program.files ? "warning" : null
+          );
         }
       }
     }
@@ -1754,7 +1784,15 @@ const pushAssets = (
       const from = currentToken.from + startIndex;
       const to = from + noteMatch.length - 4;
       if (name) {
-        getStruct(program, currentToken, type, name, from, to, "warning");
+        getStruct(
+          program,
+          currentToken,
+          type,
+          name,
+          from,
+          to,
+          program.files ? "warning" : null
+        );
       }
       state.assets ??= [];
       state.assets.push({ name });
@@ -1968,8 +2006,9 @@ const augmentProgram = (program: SparkProgram, config?: SparkParserConfig) => {
   program.scopes = Array.from(
     new Set([...SPARK_SCOPE_TYPES, ...(config?.augmentations?.scopes || [])])
   );
-  if (config?.files) {
-    config.files.forEach(({ name, src, type, ext }) => {
+  if (config?.augmentations?.files) {
+    program.files = config.augmentations.files;
+    config.augmentations.files.forEach(({ name, src, type, ext }) => {
       config.augmentations ??= {};
       config.augmentations.structs ??= {};
       config.augmentations.structs[name] = {
@@ -2009,17 +2048,6 @@ const augmentProgram = (program: SparkProgram, config?: SparkParserConfig) => {
           },
         },
       };
-      if (type === "script") {
-        config.augmentations.variables ??= {};
-        config.augmentations.variables[`.${name}`] = {
-          from: -1,
-          to: -1,
-          line: -1,
-          name,
-          type: "string",
-          value: src,
-        };
-      }
     });
   }
   if (config?.augmentations?.variables) {
@@ -2519,8 +2547,8 @@ const hoistDeclarations = (
         latestSectionOrLabel.children.push(id);
         program.metadata.structure[id] = structureItem;
       }
-    } else if ((match = text.match(SPARK_REGEX.import))) {
-      const currentToken = createSparkToken("import", newLineLength, {
+    } else if ((match = text.match(SPARK_REGEX.css))) {
+      const currentToken = createSparkToken("css", newLineLength, {
         content: text,
         line: context.line + (config?.lineOffset || 0),
         from: context.from,
@@ -2530,7 +2558,7 @@ const hoistDeclarations = (
       currentToken.content = getRawString(expression) || "";
       const expressionFrom = currentToken.from + getStart(match, 6);
       const expressionTo = expressionFrom + expression.length;
-      addImport(
+      addCss(
         program,
         expression,
         currentToken.line,
@@ -3069,8 +3097,8 @@ export const parseSpark = (
             diagnostic(program, currentToken, message);
           }
         }
-      } else if ((match = currentToken.content.match(SPARK_REGEX.import))) {
-        const type = "import";
+      } else if ((match = currentToken.content.match(SPARK_REGEX.css))) {
+        const type = "css";
         currentToken.type = type;
         if (currentToken.type === type) {
           // TODO: support multiline expressions

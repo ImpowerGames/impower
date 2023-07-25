@@ -5,13 +5,17 @@ import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
 
 import LanguageClientPluginValue from "../classes/LanguageClientPluginValue";
-import LanguageServerConnection from "../classes/LanguageServerConnection";
 import ColorSupport from "../classes/features/ColorSupport";
 import CompletionSupport from "../classes/features/CompletionSupport";
 import FoldingSupport from "../classes/features/FoldingSupport";
+import HoverSupport from "../classes/features/HoverSupport";
+import { FileSystemReader } from "../types/FileSystemReader";
+import { LanguageServerConnection } from "../types/LanguageServerConnection";
 
 export interface LanguageClientConfig {
+  textDocument: { uri: string; version: number };
   connection: LanguageServerConnection;
+  fileSystemReader?: FileSystemReader;
   language: Language;
   highlighter: {
     style(tags: readonly Tag[]): string | null;
@@ -37,6 +41,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
   const folding = new FoldingSupport();
   const color = new ColorSupport();
   const completion = new CompletionSupport();
+  const hover = new HoverSupport();
   return [
     languageClientConfig.of(config),
     ViewPlugin.define((view) => {
@@ -44,12 +49,14 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
         folding,
         color,
         completion,
+        hover,
       });
       return plugin;
     }),
     folding.load(),
     color.load(),
     completion.load(),
+    hover.load(),
   ];
 };
 

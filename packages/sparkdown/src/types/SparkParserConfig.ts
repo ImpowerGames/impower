@@ -6,12 +6,6 @@ import { SparkTokenType } from "./SparkTokenType";
 interface SparkAugmentations extends Partial<SparkProgram> {}
 
 export interface SparkParserConfig {
-  files?: {
-    name: string;
-    src: string;
-    ext: string;
-    type: string;
-  }[];
   augmentations?: SparkAugmentations;
   lineOffset?: number;
   skipTokens?: SparkTokenType[];

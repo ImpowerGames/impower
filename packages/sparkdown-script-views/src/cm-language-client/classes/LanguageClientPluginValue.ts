@@ -10,43 +10,69 @@ import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
 
 import {
+  ColorInformation,
+  CompletionItem,
+  CompletionList,
+  CompletionRequest,
   Diagnostic,
-  DidOpenTextDocumentParams,
+  Disposable,
+  DocumentColorRequest,
+  FoldingRange,
+  FoldingRangeRequest,
+  Hover,
+  HoverRequest,
+  MarkupContent,
+  PublishDiagnosticsNotification,
   PublishDiagnosticsParams,
 } from "vscode-languageserver-protocol";
 
+import {
+  DidParseTextDocument,
+  DidParseTextDocumentParams,
+} from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
 import { languageClientConfig } from "../extensions/languageClient";
-import { DidParseTextDocumentParams } from "../types/DidParseTextDocument";
-import { getClientCompletionInfo } from "../utils/getClientCompletionInfo";
+import { FileSystemReader } from "../types/FileSystemReader";
+import { LanguageServerConnection } from "../types/LanguageServerConnection";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
 import { getClientDiagnostics } from "../utils/getClientDiagnostics";
+import { getClientMarkupContent } from "../utils/getClientMarkupContent";
+import { getClientMarkupDom } from "../utils/getClientMarkupDom";
 import { getServerCompletionContext } from "../utils/getServerCompletionContext";
 import { offsetToPosition } from "../utils/offsetToPosition";
+import { positionToOffset } from "../utils/positionToOffset";
 import { prefixMatch } from "../utils/prefixMatch";
-import type LanguageServerConnection from "./LanguageServerConnection";
 import ColorSupport from "./features/ColorSupport";
 import CompletionSupport from "./features/CompletionSupport";
 import FoldingSupport from "./features/FoldingSupport";
+import HoverSupport, {
+  HoverContext,
+  HoverResult,
+} from "./features/HoverSupport";
 
 export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
 
   protected _connection: LanguageServerConnection;
+
+  protected _fileSystemReader: FileSystemReader;
+
   protected _language: Language;
+
   protected _highlighter: {
     style(tags: readonly Tag[]): string | null;
     scope?(node: NodeType): boolean;
   };
-  protected _textDocument: { uri: string; version: number } = {
-    uri: "",
-    version: 0,
-  };
+
+  protected _textDocument: { uri: string; version: number };
 
   protected _supports: {
     folding: FoldingSupport;
     color: ColorSupport;
     completion: CompletionSupport;
+    hover: HoverSupport;
   };
+
+  protected _disposables: Disposable[] = [];
 
   constructor(
     view: EditorView,
@@ -54,12 +80,15 @@ export default class LanguageClientPluginValue implements PluginValue {
       folding: FoldingSupport;
       color: ColorSupport;
       completion: CompletionSupport;
+      hover: HoverSupport;
     }
   ) {
     this._view = view;
     this._supports = supports;
     const config = view.state.facet(languageClientConfig);
+    this._textDocument = config.textDocument;
     this._connection = config.connection;
+    this._fileSystemReader = config.fileSystemReader;
     this._language = config.language;
     this._highlighter = config.highlighter;
 
@@ -71,34 +100,32 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   bind() {
-    this._connection.didOpenTextDocumentEvent.addListener(
-      this.handleDidOpenTextDocument
+    this._disposables.push(
+      this._connection.onNotification(
+        PublishDiagnosticsNotification.method,
+        (params: PublishDiagnosticsParams) => {
+          this.handlePublishDiagnostics(params);
+        }
+      )
     );
-    this._connection.didParseTextDocumentEvent.addListener(
-      this.handleDidParseTextDocument
-    );
-    this._connection.publishDiagnosticsEvent.addListener(
-      this.handlePublishDiagnostics
+    this._disposables.push(
+      this._connection.onNotification(
+        DidParseTextDocument.method,
+        (params: DidParseTextDocumentParams) => {
+          this.handleDidParseTextDocument(params);
+        }
+      )
     );
     this._supports.completion.addCompletionSource(this.handleCompletions);
+    this._supports.hover.addHoverSource(this.handleHovers);
   }
 
   unbind() {
-    this._connection.didOpenTextDocumentEvent.removeListener(
-      this.handleDidOpenTextDocument
-    );
-    this._connection.didParseTextDocumentEvent.removeListener(
-      this.handleDidParseTextDocument
-    );
-    this._connection.publishDiagnosticsEvent.removeListener(
-      this.handlePublishDiagnostics
-    );
+    this._disposables.forEach((d) => d.dispose());
+    this._disposables = [];
     this._supports.completion.removeCompletionSource(this.handleCompletions);
+    this._supports.hover.removeHoverSource(this.handleHovers);
   }
-
-  handleDidOpenTextDocument = (params: DidOpenTextDocumentParams) => {
-    this._textDocument = params.textDocument;
-  };
 
   handleDidParseTextDocument = async (params: DidParseTextDocumentParams) => {
     if (params.textDocument.uri !== this._textDocument.uri) {
@@ -132,11 +159,12 @@ export default class LanguageClientPluginValue implements PluginValue {
     if (!serverContext) {
       return null;
     }
-    const result = await this._connection.requestCompletions({
-      textDocument: this._textDocument,
-      position,
-      context: serverContext,
-    });
+    const result: CompletionList | CompletionItem[] | null =
+      await this._connection.sendRequest(CompletionRequest.method, {
+        textDocument: this._textDocument,
+        position,
+        context: serverContext,
+      });
     if (!result) {
       return null;
     }
@@ -168,13 +196,29 @@ export default class LanguageClientPluginValue implements PluginValue {
           sortText: sortText ?? label,
           filterText: filterText ?? label,
         };
+        [[]];
         if (documentation) {
-          completion.info = getClientCompletionInfo(
-            detail,
-            documentation,
-            this._language,
-            this._highlighter
-          );
+          completion.info = async () => {
+            let content = documentation;
+            let destroy: (() => void) | undefined = undefined;
+            if (typeof content !== "string") {
+              const { value, kind, urls } = await getClientMarkupContent(
+                content,
+                this._fileSystemReader
+              );
+              content = { value, kind };
+              destroy = () => {
+                urls.forEach((url) => URL.revokeObjectURL(url));
+              };
+            }
+            const dom = getClientMarkupDom({
+              detail,
+              content,
+              language: this._language,
+              highlighter: this._highlighter,
+            });
+            return { dom, destroy };
+          };
         }
         return completion;
       }
@@ -205,6 +249,54 @@ export default class LanguageClientPluginValue implements PluginValue {
     };
   };
 
+  handleHovers = async (
+    clientContext: HoverContext
+  ): Promise<HoverResult | null> => {
+    if (this._connection.starting) {
+      await this._connection.starting;
+    }
+    const position = offsetToPosition(
+      clientContext.view.state.doc,
+      clientContext.pos
+    );
+    const result: Hover = await this._connection.sendRequest(
+      HoverRequest.method,
+      {
+        textDocument: this._textDocument,
+        position,
+      }
+    );
+    if (!result) {
+      return null;
+    }
+    const contents = result.contents as MarkupContent;
+    const range = result.range;
+    const from = range?.start
+      ? positionToOffset(clientContext.view.state.doc, range.start)
+      : clientContext.pos;
+    const to = range?.end
+      ? positionToOffset(clientContext.view.state.doc, range.end)
+      : clientContext.pos;
+    const { value, kind, urls } = await getClientMarkupContent(
+      contents,
+      this._fileSystemReader
+    );
+    const dom = getClientMarkupDom({
+      content: { value, kind },
+      language: this._language,
+      highlighter: this._highlighter,
+    });
+    const destroy = () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+    return {
+      from,
+      to,
+      dom,
+      destroy,
+    };
+  };
+
   updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
     const transaction = setDiagnostics(
       view.state,
@@ -214,9 +306,10 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   async updateFoldingRanges(view: EditorView) {
-    const result = await this._connection.requestFoldingRanges({
-      textDocument: this._textDocument,
-    });
+    const result: FoldingRange[] = await this._connection.sendRequest(
+      FoldingRangeRequest.method,
+      { textDocument: this._textDocument }
+    );
     if (result) {
       const transaction = this._supports.folding.transaction(
         view.state,
@@ -227,38 +320,11 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   async updateDocumentColors(view: EditorView) {
-    const result = await this._connection.requestDocumentColors({
-      textDocument: this._textDocument,
-    });
+    const result: ColorInformation[] = await this._connection.sendRequest(
+      DocumentColorRequest.method,
+      { textDocument: this._textDocument }
+    );
     const transaction = this._supports.color.transaction(view.state, result);
     view.dispatch(transaction);
   }
-
-  // async requestHoverTooltip(
-  //   view: EditorView,
-  //   { line, character }: { line: number; character: number }
-  // ): Promise<Tooltip | null> {
-  //   if (!this.client.ready || !this.client.capabilities!.hoverProvider)
-  //     return null;
-
-  //   this.sendChange({ documentText: view.state.doc.toString() });
-  //   const result = await this.client.textDocumentHover({
-  //     textDocument: { uri: this.documentUri },
-  //     position: { line, character },
-  //   });
-  //   if (!result) return null;
-  //   const { contents, range } = result;
-  //   let pos = posToOffset(view.state.doc, { line, character })!;
-  //   let end: number;
-  //   if (range) {
-  //     pos = posToOffset(view.state.doc, range.start)!;
-  //     end = posToOffset(view.state.doc, range.end);
-  //   }
-  //   if (pos === null) return null;
-  //   const dom = document.createElement("div");
-  //   dom.classList.add("documentation");
-  //    dom.innerHTML = formatContents(contents);
-  //   else dom.textContent = formatContents(contents);
-  //   return { pos, end, create: (view) => ({ dom }), above: true };
-  // }
 }

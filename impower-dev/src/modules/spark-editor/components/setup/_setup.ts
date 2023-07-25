@@ -1,5 +1,5 @@
 import { html } from "../../core/html";
-import { WorkspaceState } from "../../state/WorkspaceState";
+import { WorkspaceState } from "../../workspace/WorkspaceState";
 
 export default (state?: { store?: WorkspaceState }) => {
   const mode = state?.store?.setup?.panel || "details";
@@ -37,11 +37,22 @@ export default (state?: { store?: WorkspaceState }) => {
             text-color="tab-inactive"
             p="20"
             child-layout="row"
-            icon="arrow-bar-up"
+            icon="share"
             value="share"
             ${mode === "share" ? "active" : ""}
           >
             Share
+          </s-tab>
+          <s-tab
+            color="tab-active"
+            text-color="tab-inactive"
+            p="20"
+            child-layout="row"
+            icon="triangle-square-circle"
+            value="assets"
+            ${mode === "assets" ? "active" : ""}
+          >
+            Assets
           </s-tab>
         </s-tabs>
         <se-details></se-details>
@@ -50,6 +61,9 @@ export default (state?: { store?: WorkspaceState }) => {
         </template>
         <template value="share">
           <se-share></se-share>
+        </template>
+        <template value="assets">
+          <se-assets></se-assets>
         </template>
       </s-router>
     `,

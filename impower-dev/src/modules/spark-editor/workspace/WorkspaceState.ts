@@ -9,6 +9,9 @@ export interface WorkspaceState {
       share: {
         scrollIndex: number;
       };
+      assets: {
+        scrollIndex: number;
+      };
     };
   };
   audio: {

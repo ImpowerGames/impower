@@ -1,14 +1,12 @@
-const getUniqueName = (
+const getUniqueFileName = (
   names: string[],
   defaultName: string,
   ignoreIndex?: number,
   maxCollisionsAllowed?: number
 ): string => {
-  const numberSuffix = defaultName.match(/\d+$/)?.[0];
-  const padStart = numberSuffix?.length ?? 2;
-  const baseName = numberSuffix
-    ? defaultName.replace(numberSuffix, "")
-    : defaultName;
+  const defaultIndexStr = defaultName.match(/\d+/)?.[0];
+  const extIndex = defaultName.indexOf(".");
+  const padStart = defaultIndexStr?.length ?? 2;
   let key = defaultName;
   let suffix = 0;
   let collisionCount = 0;
@@ -23,7 +21,14 @@ const getUniqueName = (
         if (name && name.toLowerCase() === key.toLowerCase()) {
           collision = true;
           suffix += 1;
-          key = baseName + suffix.toString().padStart(padStart, "0");
+          const indexStr = suffix.toString().padStart(padStart, "0");
+          key = defaultIndexStr
+            ? defaultName.replace(defaultIndexStr, indexStr)
+            : extIndex >= 0
+            ? defaultName.slice(0, extIndex) +
+              indexStr +
+              defaultName.slice(extIndex)
+            : defaultName + indexStr;
         }
       }
     }
@@ -35,7 +40,7 @@ const getUniqueName = (
     collisionCount += 1;
   }
 
-  return `${baseName}#`;
+  return defaultName;
 };
 
-export default getUniqueName;
+export default getUniqueFileName;

@@ -1,5 +1,6 @@
 import { getScopedContext } from "./getScopedContext";
 
+// TODO: Also include struct objects in scopedContext
 export const getScopedValueContext = <
   T extends {
     name: string;

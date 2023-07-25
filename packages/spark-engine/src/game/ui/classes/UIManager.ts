@@ -121,21 +121,21 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       structNames?.length > 0
         ? structNames
         : [
-            ...Object.keys(objectMap?.["import"] || {}),
+            ...Object.keys(objectMap?.["css"] || {}),
             ...Object.keys(objectMap?.["animation"] || {}),
             ...Object.keys(objectMap?.["style"] || {}),
           ];
     validStructNames.forEach((structName) => {
       if (structName) {
-        if (structName === "import") {
-          const importStructObj = objectMap?.["import"]?.[structName];
-          if (importStructObj) {
+        if (structName === "css") {
+          const cssStructObj = objectMap?.["css"]?.[structName];
+          if (cssStructObj) {
             const structEl = this.constructStyleElement(
               structName,
-              importStructObj
+              cssStructObj
             );
             if (structEl) {
-              const properties = getAllProperties(importStructObj);
+              const properties = getAllProperties(cssStructObj);
               structEl.setImportContent(properties);
             }
           }

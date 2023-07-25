@@ -20,4 +20,28 @@ export default class SparkEditor extends SEElement {
   override get component() {
     return component();
   }
+
+  protected override onConnected(): void {
+    window.addEventListener("dragenter", this.handleDragEnter);
+    window.addEventListener("dragover", this.handleDragOver);
+    window.addEventListener("drop", this.handleDrop);
+  }
+
+  protected override onDisconnected(): void {
+    window.removeEventListener("dragenter", this.handleDragEnter);
+    window.removeEventListener("dragover", this.handleDragOver);
+    window.removeEventListener("drop", this.handleDrop);
+  }
+
+  handleDragEnter = async (e: Event) => {
+    e.preventDefault();
+  };
+
+  handleDragOver = async (e: Event) => {
+    e.preventDefault();
+  };
+
+  handleDrop = async (e: Event) => {
+    e.preventDefault();
+  };
 }

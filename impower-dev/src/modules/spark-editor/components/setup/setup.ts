@@ -1,5 +1,5 @@
 import SEElement from "../../core/se-element";
-import Workspace from "../../state/Workspace";
+import Workspace from "../../workspace/Workspace";
 import component from "./_setup";
 
 export default class Setup extends SEElement {

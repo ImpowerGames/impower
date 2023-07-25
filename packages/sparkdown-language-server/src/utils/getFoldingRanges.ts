@@ -33,10 +33,12 @@ const getFoldingRanges = (
       if (!curr.name) {
         return;
       }
-      result.push({
-        startLine: curr.line,
-        endLine: getSectionEndLine(sectionIndex),
-      });
+      if (curr.line >= 0) {
+        result.push({
+          startLine: curr.line,
+          endLine: getSectionEndLine(sectionIndex),
+        });
+      }
     });
   }
   // Support indentation folding

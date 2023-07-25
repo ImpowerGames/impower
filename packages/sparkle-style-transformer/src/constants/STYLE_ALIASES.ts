@@ -9,6 +9,10 @@ const STYLE_ALIASES = {
   "c-br": "corner-br",
   "c-bl": "corner-bl",
 
+  "o-width": "outline-width",
+  "o-color": "outline-color",
+  "o-style": "outline-style",
+
   "b-width": "border-width",
   "b-width-t": "border-width-t",
   "b-width-r": "border-width-r",
@@ -16,7 +20,6 @@ const STYLE_ALIASES = {
   "b-width-l": "border-width-l",
   "b-width-lr": "border-width-lr",
   "b-width-tb": "border-width-tb",
-
   "b-color": "border-color",
   "b-color-t": "border-color-t",
   "b-color-r": "border-color-r",
@@ -24,6 +27,13 @@ const STYLE_ALIASES = {
   "b-color-l": "border-color-l",
   "b-color-lr": "border-color-lr",
   "b-color-tb": "border-color-tb",
+  "b-style": "border-style",
+  "b-style-t": "border-style-t",
+  "b-style-r": "border-style-r",
+  "b-style-b": "border-style-b",
+  "b-style-l": "border-style-l",
+  "b-style-lr": "border-style-lr",
+  "b-style-tb": "border-style-tb",
 
   i: "inset",
   "i-t": "inset-t",

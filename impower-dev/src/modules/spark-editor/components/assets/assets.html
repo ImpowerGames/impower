@@ -1,0 +1,19 @@
+<s-box overflow-y="scroll">
+  <s-box p="16 0" navigation="keyboard" grow>
+    <se-file-list directory-path="assets" accept="image/*, audio/*, video/*, .txt">
+      <se-file-list-border slot="empty">
+        <s-icon icon="triangle-square-circle 1" size="48" m="12"></s-icon>
+        No Assets
+      </se-file-list-border>
+      <s-box m="16 24 0 24" corner="8" border-color="white" border-width="1" border-style="dashed" child-align="center"
+        child-justify="center" height="100%" text-size="md" bg-color="fg-04" grow slot="dragover">
+        <s-icon icon="files 1" size="48" m="12"></s-icon>
+        Drop Files
+      </s-box>
+      <template>
+        <se-file-item directory-path="assets"></se-file-item>
+      </template>
+    </se-file-list>
+  </s-box>
+  <se-file-upload-button directory-path="assets">Upload File</se-file-upload-button>
+</s-box>

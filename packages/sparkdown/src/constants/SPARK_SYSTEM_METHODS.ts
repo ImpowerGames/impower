@@ -18,7 +18,7 @@ export const SPARK_SYSTEM_METHODS = {
         line: -1,
         parameter: true,
         name: "filename",
-        type: "string",
+        type: "object",
         value: "",
       },
     },

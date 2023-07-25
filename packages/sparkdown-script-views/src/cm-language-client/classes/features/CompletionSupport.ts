@@ -9,6 +9,9 @@ const completionTheme = EditorView.baseTheme({
     fontSize: "0.96em",
     border: `solid 1px #FFFFFF21`,
   },
+  "& .cm-tooltip img": {
+    width: "320px",
+  },
   "& .cm-tooltip.cm-tooltip-autocomplete": {
     minWidth: "min(90vw, 400px)",
   },

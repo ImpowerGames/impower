@@ -2,14 +2,16 @@ import transformer from "../../../../packages/sparkle-style-transformer/src/inde
 import sparkleIconsCSS from "../../../../packages/sparkle/src/styles/icons/icons.css";
 import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns/patterns.css";
 import Access from "./components/access/_access";
+import Assets from "./components/assets/_assets";
 import Audio from "./components/audio/_audio";
 import Demo from "./components/demo/_demo";
 import Details from "./components/details/_details";
 import Displays from "./components/displays/_displays";
 import FileAddButton from "./components/file-add-button/_file-add-button";
 import FileItem from "./components/file-item/_file-item";
-import FileListEmpty from "./components/file-list-empty/_file-list-empty";
+import FileListBorder from "./components/file-list-border/_file-list-border";
 import FileList from "./components/file-list/_file-list";
+import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
 import GamePreview from "./components/game-preview/_game-preview";
 import Graphics from "./components/graphics/_graphics";
@@ -59,13 +61,15 @@ const components = {
   "se-theme": Theme,
   "se-normalize": Normalize,
   "se-option-button": style(OptionButton),
+  "se-file-upload-button": style(FileUploadButton),
   "se-file-add-button": style(FileAddButton),
   "se-file-item": style(FileItem),
-  "se-file-list-empty": style(FileListEmpty),
+  "se-file-list-border": style(FileListBorder),
   "se-file-list": style(FileList),
   "se-script-editor": style(ScriptEditor),
   "se-game-preview": style(GamePreview),
   "se-screenplay-preview": style(ScreenplayPreview),
+  "se-assets": style(Assets),
   "se-scripts": style(Scripts),
   "se-logic": style(Logic),
   "se-maps": style(Maps),

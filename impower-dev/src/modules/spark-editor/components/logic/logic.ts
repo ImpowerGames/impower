@@ -1,5 +1,5 @@
 import SEElement from "../../core/se-element";
-import Workspace from "../../state/Workspace";
+import Workspace from "../../workspace/Workspace";
 import component from "./_logic";
 
 const DEFAULT_DEPENDENCIES = {

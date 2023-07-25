@@ -236,7 +236,9 @@ export default class SparkScreenplayPreview
     if (this._initialized && !this._loaded) {
       this._loaded = true;
       if (this._textDocument && this._loadingRequest != null) {
-        window.postMessage(LoadPreview.type.response(this._loadingRequest));
+        window.postMessage(
+          LoadPreview.type.response(this._loadingRequest, null)
+        );
         this._loadingRequest = undefined;
       }
     }

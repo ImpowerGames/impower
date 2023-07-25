@@ -10,6 +10,7 @@ import {
 import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { LanguageServerConnection } from "../../../cm-language-client";
+import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
@@ -25,8 +26,8 @@ import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
 
 interface EditorConfig {
   connection: LanguageServerConnection;
-  textDocument: { uri: string; version: number };
-  doc?: string;
+  fileSystemReader?: FileSystemReader;
+  textDocument: { uri: string; version: number; text: string };
   disableBodyScrollLocking?: number;
   contentPadding?: {
     top?: number;
@@ -67,6 +68,7 @@ const createEditorView = (
 ): EditorView => {
   const textDocument = config.textDocument;
   const connection = config.connection;
+  const fileSystemReader = config.fileSystemReader;
   const disableBodyScrollLocking = config?.disableBodyScrollLocking;
   const contentPadding = config?.contentPadding;
   const defaultState = config?.defaultState;
@@ -79,7 +81,7 @@ const createEditorView = (
   const getEditorState = config?.getEditorState;
   const setEditorState = config?.setEditorState;
   const onEdit = config?.onEdit;
-  const doc = config?.doc ?? "";
+  const doc = config?.textDocument.text ?? "";
   const selection =
     defaultState?.selection != null
       ? EditorSelection.fromJSON(defaultState?.selection)
@@ -116,7 +118,11 @@ const createEditorView = (
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
       scrollMargins(contentPadding),
-      sparkdownLanguageExtension({ textDocument, connection }),
+      sparkdownLanguageExtension({
+        textDocument,
+        connection,
+        fileSystemReader,
+      }),
       EditorView.updateListener.of((u) => {
         const parsed = syntaxTreeAvailable(u.state);
         if (parsed) {

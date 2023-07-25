@@ -22,7 +22,6 @@ export const exportJson = async (): Promise<void> => {
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("json");
   const sparkdown = editor.document.getText();
   const result = GameSparkParser.instance.parse(sparkdown);
-  console.log(result);
   const output = generateSparkJsonData(result);
   await writeFile(fsPath, output);
   SparkdownCommandTreeDataProvider.instance.notifyExportEnded("json");

@@ -1,6 +1,7 @@
 import { customAlphabet } from "nanoid";
 import { parse, serialize } from "parse5";
 import type { Element } from "parse5/dist/tree-adapters/default";
+import { ComponentState } from "./ComponentState.js";
 import expandComponents from "./expandComponents.js";
 
 const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
@@ -11,7 +12,7 @@ const expandHtml = (
   options?: {
     components?: Record<
       string,
-      () => { css?: string; html?: string; js?: string }
+      (state?: ComponentState) => { css?: string; html?: string; js?: string }
     >;
     store?: Record<string, unknown>;
     uuid?: (size?: number | undefined) => string;

@@ -1,4 +1,5 @@
 import type { Element } from "parse5/dist/tree-adapters/default";
+import { ComponentState } from "./ComponentState.js";
 import expandComponent from "./expandComponent.js";
 import fillSlots from "./fillSlots.js";
 import isCustomElement from "./isCustomElement.js";
@@ -8,7 +9,7 @@ const expandComponents = (
   options: {
     components: Record<
       string,
-      () => { css?: string; html?: string; js?: string }
+      (state?: ComponentState) => { css?: string; html?: string; js?: string }
     >;
     store: Record<string, unknown>;
     uuid: (size?: number | undefined) => string;

@@ -2,6 +2,7 @@ import getCssAnimation from "../utils/getCssAnimation.js";
 import getCssBgAlign from "../utils/getCssBgAlign.js";
 import getCssBgFit from "../utils/getCssBgFit.js";
 import getCssBlend from "../utils/getCssBlend.js";
+import getCssBorderStyle from "../utils/getCssBorderStyle.js";
 import getCssChildAlign from "../utils/getCssChildAlign.js";
 import getCssChildJustify from "../utils/getCssChildJustify.js";
 import getCssChildLayout from "../utils/getCssChildLayout.js";
@@ -18,6 +19,7 @@ import getCssImage from "../utils/getCssImage.js";
 import getCssInteractable from "../utils/getCssInteractable.js";
 import getCssInvisible from "../utils/getCssInvisible.js";
 import getCssMask from "../utils/getCssMask.js";
+import getCssOutlineStyle from "../utils/getCssOutlineStyle.js";
 import getCssOverflow from "../utils/getCssOverflow.js";
 import getCssPattern from "../utils/getCssPattern.js";
 import getCssPosition from "../utils/getCssPosition.js";
@@ -82,19 +84,8 @@ const STYLE_TRANSFORMERS = {
   "inset-tb": getCssSize,
 
   "outline-width": getCssSize,
-  "outline-width-t": getCssSize,
-  "outline-width-r": getCssSize,
-  "outline-width-b": getCssSize,
-  "outline-width-l": getCssSize,
-  "outline-width-lr": getCssSize,
-  "outline-width-tb": getCssSize,
   "outline-color": getCssColor,
-  "outline-color-t": getCssColor,
-  "outline-color-r": getCssColor,
-  "outline-color-b": getCssColor,
-  "outline-color-l": getCssColor,
-  "outline-color-lr": getCssColor,
-  "outline-color-tb": getCssColor,
+  "outline-style": getCssOutlineStyle,
 
   "border-width": getCssSize,
   "border-width-t": getCssSize,
@@ -110,6 +101,13 @@ const STYLE_TRANSFORMERS = {
   "border-color-l": getCssColor,
   "border-color-lr": getCssColor,
   "border-color-tb": getCssColor,
+  "border-style": getCssBorderStyle,
+  "border-style-t": getCssBorderStyle,
+  "border-style-r": getCssBorderStyle,
+  "border-style-b": getCssBorderStyle,
+  "border-style-l": getCssBorderStyle,
+  "border-style-lr": getCssBorderStyle,
+  "border-style-tb": getCssBorderStyle,
 
   margin: getCssSize,
   "margin-t": getCssSize,
