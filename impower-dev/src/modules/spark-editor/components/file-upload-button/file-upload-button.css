@@ -22,13 +22,14 @@
 }
 
 :host input::after {
+  border-radius: 9999px;
   content: "";
   position: absolute;
   inset: 0;
   background-color: var(--color);
 }
 
-:host input {
+:host input::after {
   --focus-duration: 50ms;
   position: absolute;
   inset: 0;
@@ -39,13 +40,13 @@
   outline-offset: calc(-2 * var(--s-focus-ring-width));
   pointer-events: none;
 }
-:host input:focus-visible {
+:host input:focus-visible::after {
   outline: var(--s-color-focus) var(--s-focus-ring-style)
     var(--s-focus-ring-width);
   outline-offset: 0;
   -webkit-mask: none;
   mask: none;
 }
-:host input:active:focus-visible {
+:host input:active:focus-visible::after {
   outline-offset: calc((-1 * var(--s-focus-ring-width)) - 2px);
 }
