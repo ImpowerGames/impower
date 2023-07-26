@@ -1,4 +1,4 @@
-import { DidOpenTextDocument } from "../../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DidOpenTextDocument";
+import { LoadPreview } from "../../../../../../packages/spark-editor-protocol/src/protocols/preview";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -71,15 +71,15 @@ export default class ScreenplayPreview
     const existingText = await Workspace.instance.readTextDocument({
       textDocument: { uri },
     });
-    const textDocument = {
-      uri,
-      languageId: "sparkdown",
-      version: 0,
-      text: existingText,
-    };
     window.postMessage(
-      DidOpenTextDocument.type.notification({
-        textDocument: textDocument,
+      LoadPreview.type.request({
+        type: "screenplay",
+        textDocument: {
+          uri,
+          languageId: "sparkdown",
+          version: 0,
+          text: existingText,
+        },
       })
     );
   }

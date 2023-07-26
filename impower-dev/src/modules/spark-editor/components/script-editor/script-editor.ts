@@ -1,4 +1,4 @@
-import { DidOpenTextDocument } from "../../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DidOpenTextDocument";
+import { LoadEditor } from "../../../../../../packages/spark-editor-protocol/src/protocols/editor/messages/LoadEditor";
 import { DidSaveTextDocument } from "../../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DidSaveTextDocument";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
@@ -87,15 +87,14 @@ export default class ScriptEditor
     const existingText = await Workspace.instance.readTextDocument({
       textDocument: { uri },
     });
-    const textDocument = {
-      uri,
-      languageId: "sparkdown",
-      version: 0,
-      text: existingText,
-    };
     window.postMessage(
-      DidOpenTextDocument.type.notification({
-        textDocument: textDocument,
+      LoadEditor.type.request({
+        textDocument: {
+          uri,
+          languageId: "sparkdown",
+          version: 0,
+          text: existingText,
+        },
       })
     );
   }

@@ -1,3 +1,4 @@
+import { MessageProtocolRequestType } from "../../../../../packages/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import {
   ReadTextDocument,
   ReadTextDocumentParams,
@@ -29,9 +30,8 @@ import {
 import {
   FileChangeType,
   NotificationMessage,
-  RequestMessage,
+  WorkspaceEntry,
 } from "../../../../../packages/spark-editor-protocol/src/types";
-import { isResponse } from "../../../../../packages/spark-editor-protocol/src/utils/isResponse";
 import SparkdownLanguageServerConnection from "./SparkdownLanguageServerConnection";
 import { WorkspaceState } from "./WorkspaceState";
 import DEFAULT_WORKSPACE_STATE from "./workspace.json";
@@ -115,15 +115,17 @@ name: ${this._projectName}
   }
 
   protected async sendRequestToFileSystem<M extends string, P, R>(
-    request: RequestMessage<M, P>,
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
     transfer: Transferable[] = []
   ): Promise<R> {
     return new Promise((resolve) => {
+      const request = type.request(params);
       this._fileSystemWorker.addEventListener(
         "message",
         (event) => {
           const message = event.data;
-          if (isResponse<M, R>(message, request.method)) {
+          if (type.isResponse(message)) {
             if (message.id === request.id) {
               resolve(message.result);
             }
@@ -150,15 +152,16 @@ name: ${this._projectName}
     window.postMessage(notification);
   }
 
-  async getWorkspaceEntries(params: WorkspaceDirectoryParams) {
-    return this.sendRequestToFileSystem(
-      WorkspaceDirectory.type.request(params)
-    );
+  async getWorkspaceEntries(
+    params: WorkspaceDirectoryParams
+  ): Promise<WorkspaceEntry[]> {
+    return this.sendRequestToFileSystem(WorkspaceDirectory.type, params);
   }
 
   async createFiles(params: CreateFilesParams) {
     const result = await this.sendRequestToFileSystem(
-      CreateFiles.type.request(params),
+      CreateFiles.type,
+      params,
       params.files.map((file) => file.data)
     );
     const createMessage = DidCreateFiles.type.notification({
@@ -178,9 +181,7 @@ name: ${this._projectName}
   }
 
   async deleteFiles(params: DeleteFilesParams) {
-    const result = await this.sendRequestToFileSystem(
-      DeleteFiles.type.request(params)
-    );
+    const result = await this.sendRequestToFileSystem(DeleteFiles.type, params);
     const deleteMessage = DidDeleteFiles.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
     });
@@ -198,14 +199,14 @@ name: ${this._projectName}
   }
 
   async readFile(params: ReadFileParams) {
-    return this.sendRequestToFileSystem(ReadFile.type.request(params));
+    return this.sendRequestToFileSystem(ReadFile.type, params);
   }
 
   async writeTextDocument(params: WriteTextDocumentParams) {
-    return this.sendRequestToFileSystem(WriteTextDocument.type.request(params));
+    return this.sendRequestToFileSystem(WriteTextDocument.type, params);
   }
 
   async readTextDocument(params: ReadTextDocumentParams) {
-    return this.sendRequestToFileSystem(ReadTextDocument.type.request(params));
+    return this.sendRequestToFileSystem(ReadTextDocument.type, params);
   }
 }

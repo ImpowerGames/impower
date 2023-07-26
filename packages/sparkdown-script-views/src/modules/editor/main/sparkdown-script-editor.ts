@@ -1,12 +1,10 @@
 import { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { Disposable } from "vscode-languageserver-protocol";
-import {
-  DidChangeTextDocumentNotification,
-  DidOpenTextDocumentNotification,
-} from "vscode-languageserver-protocol/lib/common/protocol";
+import { DidChangeTextDocumentNotification } from "vscode-languageserver-protocol/lib/common/protocol";
 import {
   FocusedEditor,
+  LoadEditor,
   ScrolledEditor,
   UnfocusedEditor,
 } from "../../../../../spark-editor-protocol/src/protocols/editor";
@@ -172,7 +170,7 @@ export default class SparkdownScriptEditor
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (DidOpenTextDocument.type.isNotification(message)) {
+    if (LoadEditor.type.isRequest(message)) {
       const params = message.params;
       this.loadTextDocument(params.textDocument);
     }
@@ -187,70 +185,72 @@ export default class SparkdownScriptEditor
   };
 
   protected loadTextDocument(textDocument: TextDocumentItem) {
-    this._textDocument = textDocument;
-    const editorEl = this.editorEl;
-    if (editorEl) {
-      const debouncedSave = debounce((text: Text) => {
-        if (this._textDocument) {
-          window.postMessage(
-            DidSaveTextDocument.type.notification({
-              textDocument: this._textDocument,
-              text: text.toString(),
-            })
-          );
-        }
-      }, this.autosaveDelay);
-      this._view = createEditorView(editorEl, {
-        connection: SparkdownScriptEditor.languageServerConnection,
-        fileSystemReader: SparkdownScriptEditor.fileSystemReader,
-        textDocument: this._textDocument,
-        contentPadding: getBoxValues(this.contentPadding),
-        onFocus: () => {
-          this._editing = true;
+    if (this._textDocument?.uri !== textDocument.uri) {
+      this._textDocument = textDocument;
+      const editorEl = this.editorEl;
+      if (editorEl) {
+        const debouncedSave = debounce((text: Text) => {
           if (this._textDocument) {
             window.postMessage(
-              FocusedEditor.type.notification({
+              DidSaveTextDocument.type.notification({
                 textDocument: this._textDocument,
+                text: text.toString(),
               })
             );
           }
-        },
-        onBlur: () => {
-          this._editing = false;
-          if (this._textDocument) {
-            window.postMessage(
-              UnfocusedEditor.type.notification({
-                textDocument: this._textDocument,
-              })
-            );
-          }
-        },
-        onEdit: (e) => {
-          const { before, transaction } = e;
-          if (transaction.docChanged) {
+        }, this.autosaveDelay);
+        this._view = createEditorView(editorEl, {
+          connection: SparkdownScriptEditor.languageServerConnection,
+          fileSystemReader: SparkdownScriptEditor.fileSystemReader,
+          textDocument: this._textDocument,
+          contentPadding: getBoxValues(this.contentPadding),
+          onFocus: () => {
+            this._editing = true;
             if (this._textDocument) {
-              this._textDocument.version += 1;
-              const changeParams = {
-                textDocument: this._textDocument,
-                contentChanges: getServerChanges(before, transaction.changes),
-              };
               window.postMessage(
-                DidChangeTextDocument.type.notification(changeParams)
+                FocusedEditor.type.notification({
+                  textDocument: this._textDocument,
+                })
               );
-              SparkdownScriptEditor.languageServerConnection.sendNotification(
-                DidChangeTextDocumentNotification.method,
-                changeParams
-              );
-              debouncedSave(e.after);
             }
-          }
-        },
-      });
+          },
+          onBlur: () => {
+            this._editing = false;
+            if (this._textDocument) {
+              window.postMessage(
+                UnfocusedEditor.type.notification({
+                  textDocument: this._textDocument,
+                })
+              );
+            }
+          },
+          onEdit: (e) => {
+            const { before, transaction } = e;
+            if (transaction.docChanged) {
+              if (this._textDocument) {
+                this._textDocument.version += 1;
+                const changeParams = {
+                  textDocument: this._textDocument,
+                  contentChanges: getServerChanges(before, transaction.changes),
+                };
+                window.postMessage(
+                  DidChangeTextDocument.type.notification(changeParams)
+                );
+                SparkdownScriptEditor.languageServerConnection.sendNotification(
+                  DidChangeTextDocumentNotification.method,
+                  changeParams
+                );
+                debouncedSave(e.after);
+              }
+            }
+          },
+        });
+      }
+      SparkdownScriptEditor.languageServerConnection.sendNotification(
+        DidOpenTextDocument.method,
+        { textDocument }
+      );
     }
-    SparkdownScriptEditor.languageServerConnection.sendNotification(
-      DidOpenTextDocumentNotification.method,
-      { textDocument }
-    );
   }
 
   protected revealRange(range: Range) {

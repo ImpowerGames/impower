@@ -10,10 +10,7 @@ import {
   LoadPreview,
   ScrolledPreview,
 } from "../../../../../spark-editor-protocol/src/protocols/preview";
-import {
-  DidChangeTextDocument,
-  DidOpenTextDocument,
-} from "../../../../../spark-editor-protocol/src/protocols/textDocument";
+import { DidChangeTextDocument } from "../../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidChangeTextDocument";
 import {
   Range,
   TextDocumentIdentifier,
@@ -140,23 +137,6 @@ export default class SparkScreenplayPreview
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (DidOpenTextDocument.type.isNotification(message)) {
-      const params = message.params;
-      const textDocument = params.textDocument;
-      this._textDocument = textDocument;
-      const view = this._view;
-      if (view) {
-        view.dispatch({
-          changes: [
-            {
-              from: 0,
-              to: view.state.doc.length,
-              insert: textDocument.text,
-            },
-          ],
-        });
-      }
-    }
     if (LoadPreview.type.isRequest(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
