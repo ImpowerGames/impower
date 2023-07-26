@@ -1907,19 +1907,19 @@ export interface DidChangeWatchedFilesParams {
 /**
  * The file event type
  */
-export declare namespace FileChangeType {
+export namespace FileChangeType {
   /**
    * The file got created.
    */
-  const Created = 1;
+  export const Created = 1;
   /**
    * The file got changed.
    */
-  const Changed = 2;
+  export const Changed = 2;
   /**
    * The file got deleted.
    */
-  const Deleted = 3;
+  export const Deleted = 3;
 }
 export declare type FileChangeType = 1 | 2 | 3;
 /**

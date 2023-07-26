@@ -2,6 +2,8 @@ import { RequestMessage, ResponseMessage } from "../types";
 import { uuid } from "../utils/uuid";
 
 import { ProtocolRequestType } from "../types/lsp/messages";
+import { isRequest } from "../utils/isRequest";
+import { isResponse } from "../utils/isResponse";
 
 export class MessageProtocolRequestType<
   M extends string,
@@ -12,10 +14,10 @@ export class MessageProtocolRequestType<
     super(method);
   }
   isRequest(obj: any): obj is RequestMessage<M, P> {
-    return obj.method === this.method && obj.result === undefined;
+    return isRequest(obj, this.method);
   }
   isResponse(obj: any): obj is ResponseMessage<M, R> {
-    return obj.method === this.method && obj.result !== undefined;
+    return isResponse(obj, this.method);
   }
   request(params: P): RequestMessage<M, P> {
     return {

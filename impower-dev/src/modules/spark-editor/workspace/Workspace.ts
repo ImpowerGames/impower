@@ -1,4 +1,3 @@
-import { MessageProtocolRequestType } from "../../../../../packages/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import {
   ReadTextDocument,
   ReadTextDocumentParams,
@@ -15,6 +14,7 @@ import {
   DeleteFiles,
   DeleteFilesParams,
 } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DeleteFiles";
+import { DidChangeWatchedFiles } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidChangeWatchedFiles";
 import { DidCreateFiles } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidCreateFiles";
 import { DidDeleteFiles } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidDeleteFiles";
 import { DidWatchFiles } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidWatchFiles";
@@ -26,6 +26,12 @@ import {
   WorkspaceDirectory,
   WorkspaceDirectoryParams,
 } from "../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/WorkspaceDirectory";
+import {
+  FileChangeType,
+  NotificationMessage,
+  RequestMessage,
+} from "../../../../../packages/spark-editor-protocol/src/types";
+import { isResponse } from "../../../../../packages/spark-editor-protocol/src/utils/isResponse";
 import SparkdownLanguageServerConnection from "./SparkdownLanguageServerConnection";
 import { WorkspaceState } from "./WorkspaceState";
 import DEFAULT_WORKSPACE_STATE from "./workspace.json";
@@ -108,18 +114,16 @@ name: ${this._projectName}
     return `${this._scheme}${this._uid}/projects/${this._projectId}${suffix}`;
   }
 
-  async request<M extends string, P, R>(
-    type: MessageProtocolRequestType<M, P, R>,
-    params: P,
+  protected async sendRequestToFileSystem<M extends string, P, R>(
+    request: RequestMessage<M, P>,
     transfer: Transferable[] = []
   ): Promise<R> {
     return new Promise((resolve) => {
-      const request = type.request(params);
       this._fileSystemWorker.addEventListener(
         "message",
         (event) => {
           const message = event.data;
-          if (type.isResponse(message)) {
+          if (isResponse<M, R>(message, request.method)) {
             if (message.id === request.id) {
               resolve(message.result);
             }
@@ -131,43 +135,77 @@ name: ${this._projectName}
     });
   }
 
+  protected async sendNotificationToLanguageServer<M extends string, P>(
+    notification: NotificationMessage<M, P>
+  ): Promise<void> {
+    this.languageServerConnection.sendNotification<P>(
+      notification.method,
+      notification.params
+    );
+  }
+
+  protected async sendNotificationToWindow<M extends string, P>(
+    notification: NotificationMessage<M, P>
+  ): Promise<void> {
+    window.postMessage(notification);
+  }
+
   async getWorkspaceEntries(params: WorkspaceDirectoryParams) {
-    return this.request(WorkspaceDirectory.type, params);
+    return this.sendRequestToFileSystem(
+      WorkspaceDirectory.type.request(params)
+    );
   }
 
   async createFiles(params: CreateFilesParams) {
-    const result = await this.request(
-      CreateFiles.type,
-      params,
+    const result = await this.sendRequestToFileSystem(
+      CreateFiles.type.request(params),
       params.files.map((file) => file.data)
     );
-    window.postMessage(
-      DidCreateFiles.type.notification({
-        files: params.files.map((file) => ({ uri: file.uri })),
-      })
-    );
+    const createMessage = DidCreateFiles.type.notification({
+      files: params.files.map((file) => ({ uri: file.uri })),
+    });
+    const changeMessage = DidChangeWatchedFiles.type.notification({
+      changes: params.files.map((file) => ({
+        uri: file.uri,
+        type: FileChangeType.Created,
+      })),
+    });
+    this.sendNotificationToLanguageServer(createMessage);
+    this.sendNotificationToLanguageServer(changeMessage);
+    this.sendNotificationToWindow(createMessage);
+    this.sendNotificationToWindow(changeMessage);
     return result;
   }
 
   async deleteFiles(params: DeleteFilesParams) {
-    const result = await this.request(DeleteFiles.type, params);
-    window.postMessage(
-      DidDeleteFiles.type.notification({
-        files: params.files.map((file) => ({ uri: file.uri })),
-      })
+    const result = await this.sendRequestToFileSystem(
+      DeleteFiles.type.request(params)
     );
+    const deleteMessage = DidDeleteFiles.type.notification({
+      files: params.files.map((file) => ({ uri: file.uri })),
+    });
+    const changeMessage = DidChangeWatchedFiles.type.notification({
+      changes: params.files.map((file) => ({
+        uri: file.uri,
+        type: FileChangeType.Deleted,
+      })),
+    });
+    this.sendNotificationToLanguageServer(deleteMessage);
+    this.sendNotificationToLanguageServer(changeMessage);
+    this.sendNotificationToWindow(deleteMessage);
+    this.sendNotificationToWindow(changeMessage);
     return result;
   }
 
   async readFile(params: ReadFileParams) {
-    return this.request(ReadFile.type, params);
+    return this.sendRequestToFileSystem(ReadFile.type.request(params));
   }
 
   async writeTextDocument(params: WriteTextDocumentParams) {
-    return this.request(WriteTextDocument.type, params);
+    return this.sendRequestToFileSystem(WriteTextDocument.type.request(params));
   }
 
   async readTextDocument(params: ReadTextDocumentParams) {
-    return this.request(ReadTextDocument.type, params);
+    return this.sendRequestToFileSystem(ReadTextDocument.type.request(params));
   }
 }
