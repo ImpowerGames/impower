@@ -1,5 +1,5 @@
-import { Range } from "@impower/spark-editor-protocol/src/types";
 import * as vscode from "vscode";
+import { Range } from "vscode-languageclient";
 
 export const getClientRange = (range: Range): vscode.Range =>
   new vscode.Range(

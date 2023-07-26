@@ -1,5 +1,5 @@
+import { ProtocolNotificationType } from "vscode-languageserver-protocol";
 import { NotificationMessage } from "../types";
-import { ProtocolNotificationType } from "../types/lsp/messages";
 
 export class MessageProtocolNotificationType<
   M extends string,

@@ -12,7 +12,7 @@ export default class Graphics extends SEElement {
   }
 
   override get component() {
-    return component({ store: Workspace.instance.state });
+    return component({ store: Workspace.window.state });
   }
 
   protected override onConnected(): void {
@@ -27,7 +27,7 @@ export default class Graphics extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/graphics") {
         const mode = e.detail.value;
-        Workspace.instance.state.graphics.panel = mode;
+        Workspace.window.openPanel("graphics", mode);
       }
     }
   };

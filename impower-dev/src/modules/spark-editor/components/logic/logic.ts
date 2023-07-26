@@ -16,7 +16,7 @@ export default class Logic extends SEElement {
   }
 
   override get component() {
-    return component({ store: Workspace.instance.state });
+    return component({ store: Workspace.window.state });
   }
 
   override transformHtml(html: string) {
@@ -35,7 +35,7 @@ export default class Logic extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/logic") {
         const mode = e.detail.value;
-        Workspace.instance.state.logic.panel = mode;
+        Workspace.window.openPanel("logic", mode);
       }
     }
   };

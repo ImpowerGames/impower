@@ -21,14 +21,11 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 
-import {
-  ParseTextDocument,
-  ParseTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/ParseTextDocument";
+import { ParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocument";
 import {
   DidWatchFiles,
   DidWatchFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/messages/DidWatchFiles";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFiles";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 import { EditorSparkParser } from "./EditorSparkParser";
@@ -253,7 +250,7 @@ export default class SparkdownTextDocuments<
     const disposables: Disposable[] = [];
     disposables.push(
       connection.onNotification(
-        DidWatchFiles.method,
+        DidWatchFiles.type,
         (params: DidWatchFilesParams) => {
           const files = params.files;
           files.forEach((file) => {
@@ -274,13 +271,10 @@ export default class SparkdownTextDocuments<
       )
     );
     disposables.push(
-      connection.onRequest(
-        ParseTextDocument.method,
-        (params: ParseTextDocumentParams) => {
-          const uri = params.textDocument.uri;
-          return this.parse(uri);
-        }
-      )
+      connection.onRequest(ParseTextDocument.type, (params) => {
+        const uri = params.textDocument.uri;
+        return this.parse(uri);
+      })
     );
     disposables.push(
       connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {

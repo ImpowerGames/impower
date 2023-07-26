@@ -1,7 +1,7 @@
-import { DidCreateFiles } from "../../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidCreateFiles";
-import { DidDeleteFiles } from "../../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidDeleteFiles";
-import { DidRenameFiles } from "../../../../../../packages/spark-editor-protocol/src/protocols/workspace/messages/DidRenameFiles";
-import { WorkspaceEntry } from "../../../../../../packages/spark-editor-protocol/src/types";
+import { DidCreateFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFiles.js";
+import { DidDeleteFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFiles.js";
+import { DidRenameFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFiles.js";
+import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -120,7 +120,7 @@ export default class FileList
     const message = e.data;
     const directory = this.directoryPath;
     if (directory) {
-      const directoryUri = Workspace.instance.getWorkspaceUri(directory);
+      const directoryUri = Workspace.fs.getWorkspaceUri(directory);
       if (
         DidCreateFiles.type.isNotification(message) ||
         DidDeleteFiles.type.isNotification(message)
@@ -190,12 +190,12 @@ export default class FileList
           const validFileName = getValidFileName(file.name);
           const data = await file.arrayBuffer();
           return {
-            uri: Workspace.instance.getWorkspaceUri(directory, validFileName),
+            uri: Workspace.fs.getWorkspaceUri(directory, validFileName),
             data,
           };
         })
       );
-      await Workspace.instance.createFiles({
+      await Workspace.fs.createFiles({
         files,
       });
     }
@@ -206,8 +206,8 @@ export default class FileList
       this._entries = [];
       return;
     }
-    this._entries = await Workspace.instance.getWorkspaceEntries({
-      directory: { uri: Workspace.instance.getWorkspaceUri(directory) },
+    this._entries = await Workspace.fs.getWorkspaceEntries({
+      directory: { uri: Workspace.fs.getWorkspaceUri(directory) },
     });
     const outletSlot = this.outletSlot;
     const template = this.contentTemplates?.[0];

@@ -8,10 +8,10 @@ const load = async () => {
   await Promise.allSettled([
     Sparkle.init(),
     SparkdownScriptEditor.init({
-      languageServerConnection: Workspace.instance.languageServerConnection,
+      languageServerConnection: Workspace.lsp.connection,
       fileSystemReader: {
-        scheme: Workspace.instance.scheme,
-        read: (uri: string) => Workspace.instance.readFile({ file: { uri } }),
+        scheme: Workspace.fs.scheme,
+        read: (uri: string) => Workspace.fs.readFile({ file: { uri } }),
       },
     }),
     SparkdownScriptPreview.init(),

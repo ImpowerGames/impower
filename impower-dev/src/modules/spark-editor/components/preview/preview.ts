@@ -39,7 +39,7 @@ export default class Preview extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "preview") {
         const mode = e.detail.value;
-        Workspace.instance.state.preview.panel = mode;
+        Workspace.window.openPanel("preview", mode);
         const modeTitleEl = this.modeTitleEl;
         if (modeTitleEl) {
           const title =

@@ -18,6 +18,8 @@
   },
   "main": "dist/sparkdown-language-server.js",
   "scripts": {
+    "install-spark-editor-protocol": "cd ../spark-editor-protocol && npm ci && cd ../sparkdown-language-server",
+    "preinstall": "npm run install-spark-editor-protocol",
     "build": "node ./esbuild.js"
   },
   "dependencies": {

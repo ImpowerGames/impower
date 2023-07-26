@@ -4,17 +4,21 @@ import { ViewPlugin } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
 
+import {
+  MessageConnection,
+  ServerCapabilities,
+} from "vscode-languageserver-protocol";
 import LanguageClientPluginValue from "../classes/LanguageClientPluginValue";
 import ColorSupport from "../classes/features/ColorSupport";
 import CompletionSupport from "../classes/features/CompletionSupport";
 import FoldingSupport from "../classes/features/FoldingSupport";
 import HoverSupport from "../classes/features/HoverSupport";
 import { FileSystemReader } from "../types/FileSystemReader";
-import { LanguageServerConnection } from "../types/LanguageServerConnection";
 
 export interface LanguageClientConfig {
   textDocument: { uri: string; version: number };
-  connection: LanguageServerConnection;
+  connection: MessageConnection;
+  serverCapabilities: ServerCapabilities;
   fileSystemReader?: FileSystemReader;
   language: Language;
   highlighter: {

@@ -1,8 +1,4 @@
 import type {
-  CompletionItem,
-  CompletionParams,
-  HoverParams,
-  InitializeParams,
   InitializeResult,
   ServerCapabilities,
 } from "vscode-languageserver";
@@ -14,10 +10,7 @@ import {
   createConnection,
 } from "vscode-languageserver/browser";
 
-import {
-  DidParseTextDocument,
-  DidParseTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
+import { DidParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocument";
 
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import getColorPresentations from "./utils/getColorPresentations";
@@ -37,7 +30,7 @@ try {
 
   const documents = new SparkdownTextDocuments(TextDocument);
 
-  connection.onInitialize((_params: InitializeParams): InitializeResult => {
+  connection.onInitialize((_params): InitializeResult => {
     const capabilities: ServerCapabilities = {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       foldingRangeProvider: true,
@@ -57,14 +50,13 @@ try {
 
   // parseProvider
   documents.onDidParse((change) => {
-    const params: DidParseTextDocumentParams = {
+    connection.sendNotification(DidParseTextDocument.type, {
       textDocument: {
         uri: change.document.uri,
         version: change.document.version,
       },
       program: change.program,
-    };
-    connection.sendNotification(DidParseTextDocument.method, params);
+    });
     connection.sendDiagnostics(
       getDocumentDiagnostics(change.document, change.program)
     );
@@ -98,7 +90,7 @@ try {
   });
 
   // hoverProvider
-  connection.onHover((params: HoverParams) => {
+  connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.program(uri);
@@ -106,7 +98,7 @@ try {
   });
 
   // completionProvider
-  connection.onCompletion((params: CompletionParams) => {
+  connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
     const program = documents.program(uri);
@@ -118,7 +110,7 @@ try {
     );
     return result;
   });
-  connection.onCompletionResolve((item: CompletionItem) => {
+  connection.onCompletionResolve((item) => {
     return item;
   });
 

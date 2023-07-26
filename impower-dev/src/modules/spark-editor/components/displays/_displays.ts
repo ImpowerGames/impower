@@ -1,5 +1,5 @@
 import { html } from "../../core/html";
-import { WorkspaceState } from "../../workspace/WorkspaceState";
+import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state?: { store?: WorkspaceState }) => {
   const mode = state?.store?.displays?.panel || "widgets";

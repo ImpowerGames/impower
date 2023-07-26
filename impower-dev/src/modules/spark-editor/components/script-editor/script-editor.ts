@@ -1,5 +1,5 @@
-import { LoadEditor } from "../../../../../../packages/spark-editor-protocol/src/protocols/editor/messages/LoadEditor";
-import { DidSaveTextDocument } from "../../../../../../packages/spark-editor-protocol/src/protocols/textDocument/messages/DidSaveTextDocument";
+import { LoadEditor } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditor.js";
+import { DidSaveTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocument.js";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -74,7 +74,7 @@ export default class ScriptEditor
       const textDocument = params.textDocument;
       const text = params.text;
       if (text != null) {
-        Workspace.instance.writeTextDocument({ textDocument, text });
+        Workspace.fs.writeTextDocument({ textDocument, text });
       }
     }
   };
@@ -83,10 +83,11 @@ export default class ScriptEditor
     if (!filePath) {
       return;
     }
-    const uri = Workspace.instance.getWorkspaceUri(filePath);
-    const existingText = await Workspace.instance.readTextDocument({
+    const uri = Workspace.fs.getWorkspaceUri(filePath);
+    const existingText = await Workspace.fs.readTextDocument({
       textDocument: { uri },
     });
+    await Workspace.lsp.starting;
     window.postMessage(
       LoadEditor.type.request({
         textDocument: {

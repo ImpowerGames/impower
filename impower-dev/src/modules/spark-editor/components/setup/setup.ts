@@ -12,7 +12,7 @@ export default class Setup extends SEElement {
   }
 
   override get component() {
-    return component({ store: Workspace.instance.state });
+    return component({ store: Workspace.window.state });
   }
 
   protected override onConnected(): void {
@@ -27,7 +27,7 @@ export default class Setup extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/setup") {
         const mode = e.detail.value;
-        Workspace.instance.state.setup.panel = mode;
+        Workspace.window.openPanel("setup", mode);
       }
     }
   };

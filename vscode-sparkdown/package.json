@@ -465,11 +465,12 @@
     ]
   },
   "scripts": {
+    "install-lsp": "cd ../packages/sparkdown-language-server && npm ci && cd ../../vscode-sparkdown",
     "build-lsp": "cd ../packages/sparkdown-language-server && npm run build && cd ../../vscode-sparkdown",
     "install-screenplay": "cd ./webviews/screenplay-preview && npm ci && cd ../../",
     "build-screenplay": "cd ./webviews/screenplay-preview && npm run build && cd ../../",
     "package-screenplay": "cd ./webviews/screenplay-preview && npm run package && cd ../../",
-    "postinstall": "npm run install-screenplay",
+    "preinstall": "npm run install-lsp && npm run install-screenplay",
     "compile": "webpack",
     "build": "npm run build-lsp && npm run build-screenplay && npm run compile",
     "package": "npm run package-screenplay && webpack --mode production --devtool hidden-source-map",

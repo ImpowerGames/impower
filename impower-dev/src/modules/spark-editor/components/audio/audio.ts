@@ -12,7 +12,7 @@ export default class Audio extends SEElement {
   }
 
   override get component() {
-    return component({ store: Workspace.instance.state });
+    return component({ store: Workspace.window.state });
   }
 
   protected override onConnected(): void {
@@ -27,7 +27,7 @@ export default class Audio extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/audio") {
         const mode = e.detail.value;
-        Workspace.instance.state.audio.panel = mode;
+        Workspace.window.openPanel("audio", mode);
       }
     }
   };

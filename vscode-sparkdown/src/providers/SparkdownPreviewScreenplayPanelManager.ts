@@ -1,17 +1,13 @@
-import {
-  ScrolledEditor,
-  SelectedEditor,
-} from "@impower/spark-editor-protocol/src/protocols/editor";
-import {
-  ConnectedPreview,
-  HoveredOffPreview,
-  HoveredOnPreview,
-  LoadPreview,
-  ScrolledPreview,
-  SelectedPreview,
-} from "@impower/spark-editor-protocol/src/protocols/preview";
-import { DidChangeTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument";
-import { DidChangeConfiguration } from "@impower/spark-editor-protocol/src/protocols/workspace";
+import { ScrolledEditor } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditor";
+import { SelectedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditor";
+import { ConnectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreview";
+import { HoveredOffPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreview";
+import { HoveredOnPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreview";
+import { LoadPreview } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreview";
+import { ScrolledPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreview";
+import { SelectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreview";
+import { DidChangeTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocument";
+import { DidChangeConfiguration } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfiguration";
 import * as vscode from "vscode";
 import { Uri, ViewColumn, WebviewPanel, window } from "vscode";
 import { getClientRange } from "../utils/getClientRange";

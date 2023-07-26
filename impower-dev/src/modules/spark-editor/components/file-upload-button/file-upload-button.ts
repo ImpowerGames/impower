@@ -92,12 +92,12 @@ export default class FileAddButton
           const validFileName = getValidFileName(file.name);
           const data = await file.arrayBuffer();
           return {
-            uri: Workspace.instance.getWorkspaceUri(directory, validFileName),
+            uri: Workspace.fs.getWorkspaceUri(directory, validFileName),
             data,
           };
         })
       );
-      await Workspace.instance.createFiles({
+      await Workspace.fs.createFiles({
         files,
       });
     }

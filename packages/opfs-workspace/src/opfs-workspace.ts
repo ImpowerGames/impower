@@ -1,10 +1,10 @@
-import { ReadTextDocument } from "../../spark-editor-protocol/src/protocols/textDocument/messages/ReadTextDocument";
-import { WriteTextDocument } from "../../spark-editor-protocol/src/protocols/textDocument/messages/WriteTextDocument";
-import { CreateFiles } from "../../spark-editor-protocol/src/protocols/workspace/messages/CreateFiles";
-import { DeleteFiles } from "../../spark-editor-protocol/src/protocols/workspace/messages/DeleteFiles";
-import { ReadFile } from "../../spark-editor-protocol/src/protocols/workspace/messages/ReadFile";
-import { WorkspaceDirectory } from "../../spark-editor-protocol/src/protocols/workspace/messages/WorkspaceDirectory";
-import { WorkspaceEntry } from "../../spark-editor-protocol/src/types";
+import { ReadTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocument.js";
+import { WriteTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocument.js";
+import { CreateFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFiles.js";
+import { DeleteFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFiles.js";
+import { ReadFile } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFile.js";
+import { WorkspaceDirectory } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectory.js";
+import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import { getAllFiles } from "./utils/getAllFiles";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileHandleFromUri } from "./utils/getFileHandleFromUri";

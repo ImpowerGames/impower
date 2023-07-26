@@ -66,16 +66,16 @@ export default class FileAddButton
     if (!directory) {
       return;
     }
-    const entries = await Workspace.instance.getWorkspaceEntries({
-      directory: { uri: Workspace.instance.getWorkspaceUri() },
+    const entries = await Workspace.fs.getWorkspaceEntries({
+      directory: { uri: Workspace.fs.getWorkspaceUri() },
     });
     const fileNames = entries.map((e) => e.uri.split("/").slice(-1).join(""));
     const fileName = this.fileName || directory.split("/").slice(-1).join("");
     const uniqueFileName = getUniqueFileName(fileNames, fileName);
-    await Workspace.instance.createFiles({
+    await Workspace.fs.createFiles({
       files: [
         {
-          uri: Workspace.instance.getWorkspaceUri(directory, uniqueFileName),
+          uri: Workspace.fs.getWorkspaceUri(directory, uniqueFileName),
           data: new ArrayBuffer(0),
         },
       ],

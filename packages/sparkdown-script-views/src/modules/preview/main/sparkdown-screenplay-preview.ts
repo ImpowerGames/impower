@@ -1,20 +1,13 @@
 import { EditorView } from "@codemirror/view";
-import {
-  FocusedEditor,
-  ScrolledEditor,
-} from "../../../../../spark-editor-protocol/src/protocols/editor";
-import {
-  ConnectedPreview,
-  HoveredOffPreview,
-  HoveredOnPreview,
-  LoadPreview,
-  ScrolledPreview,
-} from "../../../../../spark-editor-protocol/src/protocols/preview";
-import { DidChangeTextDocument } from "../../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidChangeTextDocument";
-import {
-  Range,
-  TextDocumentIdentifier,
-} from "../../../../../spark-editor-protocol/src/types";
+import { FocusedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditor";
+import { ScrolledEditor } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditor";
+import { ConnectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreview";
+import { HoveredOffPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreview";
+import { HoveredOnPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreview";
+import { LoadPreview } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreview";
+import { ScrolledPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreview";
+import { Range, TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import { DidChangeTextDocument } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocument";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";

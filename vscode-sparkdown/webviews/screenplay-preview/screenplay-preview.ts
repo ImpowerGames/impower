@@ -1,11 +1,9 @@
-import {
-  ConnectedPreview,
-  HoveredOffPreview,
-  HoveredOnPreview,
-  LoadPreview,
-  ScrolledPreview,
-  SelectedPreview,
-} from "@impower/spark-editor-protocol/src/protocols/preview/index.js";
+import { ConnectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreview.js";
+import { HoveredOffPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreview.js";
+import { HoveredOnPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreview.js";
+import { LoadPreview } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreview.js";
+import { ScrolledPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreview.js";
+import { SelectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreview.js";
 import SparkdownScriptPreview from "@impower/sparkdown-script-views/src/modules/preview/index.js";
 
 declare var acquireVsCodeApi: any;

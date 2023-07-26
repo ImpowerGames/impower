@@ -1,4 +1,4 @@
-import { LanguageServerConnection } from "../../cm-language-client";
+import { MessageConnection } from "vscode-languageserver-protocol";
 import { FileSystemReader } from "../../cm-language-client/types/FileSystemReader";
 import Main from "./main/sparkdown-script-editor";
 
@@ -10,7 +10,7 @@ interface InitOptions {
   useShadowDom?: boolean;
   constructors?: typeof DEFAULT_CONSTRUCTORS;
   dependencies?: Record<string, string>;
-  languageServerConnection: LanguageServerConnection;
+  languageServerConnection: MessageConnection;
   fileSystemReader: FileSystemReader;
 }
 

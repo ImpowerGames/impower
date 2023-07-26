@@ -1,33 +1,24 @@
 import { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { Disposable } from "vscode-languageserver-protocol";
-import { DidChangeTextDocumentNotification } from "vscode-languageserver-protocol/lib/common/protocol";
+import { FocusedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditor";
+import { LoadEditor } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditor";
+import { ScrolledEditor } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditor";
+import { UnfocusedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditor";
+import { ScrolledPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreview";
+import { DidChangeTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocument";
+import { DidOpenTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocument";
+import { DidSaveTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocument";
 import {
-  FocusedEditor,
-  LoadEditor,
-  ScrolledEditor,
-  UnfocusedEditor,
-} from "../../../../../spark-editor-protocol/src/protocols/editor";
-import { ScrolledPreview } from "../../../../../spark-editor-protocol/src/protocols/preview";
-import {
-  DidChangeTextDocument,
-  DidOpenTextDocument,
-  DidParseTextDocument,
-  DidParseTextDocumentParams,
-  DidSaveTextDocument,
-} from "../../../../../spark-editor-protocol/src/protocols/textDocument";
-import {
+  MessageConnection,
   Range,
   TextDocumentItem,
-} from "../../../../../spark-editor-protocol/src/types";
+} from "vscode-languageserver-protocol";
+import { DidChangeTextDocumentNotification } from "vscode-languageserver-protocol/lib/common/protocol";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
-import {
-  LanguageServerConnection,
-  getServerChanges,
-} from "../../../cm-language-client";
+import { getServerChanges } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import debounce from "../../../utils/debounce";
 import createEditorView from "../utils/createEditorView";
@@ -41,7 +32,7 @@ export default class SparkdownScriptEditor
   extends SparkElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static languageServerConnection: LanguageServerConnection;
+  static languageServerConnection: MessageConnection;
 
   static fileSystemReader: FileSystemReader;
 
@@ -108,18 +99,8 @@ export default class SparkdownScriptEditor
 
   protected _pointerOverScroller = false;
 
-  protected _disposables: Disposable[] = [];
-
   protected override onConnected(): void {
     window.addEventListener("message", this.handleMessage);
-    this._disposables.push(
-      SparkdownScriptEditor.languageServerConnection.onNotification(
-        DidParseTextDocument.method,
-        (params: DidParseTextDocumentParams) => {
-          this.handleParsed(params);
-        }
-      )
-    );
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
   }
 
@@ -150,8 +131,6 @@ export default class SparkdownScriptEditor
         );
       }
     }
-    this._disposables.forEach((d) => d.dispose());
-    this._disposables = [];
     this._resizeObserver?.disconnect();
     const view = this._view;
     if (view) {
@@ -237,7 +216,7 @@ export default class SparkdownScriptEditor
                   DidChangeTextDocument.type.notification(changeParams)
                 );
                 SparkdownScriptEditor.languageServerConnection.sendNotification(
-                  DidChangeTextDocumentNotification.method,
+                  DidChangeTextDocumentNotification.type,
                   changeParams
                 );
                 debouncedSave(e.after);
@@ -247,7 +226,7 @@ export default class SparkdownScriptEditor
         });
       }
       SparkdownScriptEditor.languageServerConnection.sendNotification(
-        DidOpenTextDocument.method,
+        DidOpenTextDocument.type,
         { textDocument }
       );
     }
@@ -273,10 +252,6 @@ export default class SparkdownScriptEditor
       }
     }
   }
-
-  protected handleParsed = (params: DidParseTextDocumentParams): void => {
-    window.postMessage(DidParseTextDocument.type.notification(params));
-  };
 
   protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
     const entry = entries?.[0];

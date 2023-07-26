@@ -10,29 +10,23 @@ import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
 
 import {
-  ColorInformation,
   CompletionItem,
   CompletionList,
   CompletionRequest,
   Diagnostic,
   Disposable,
   DocumentColorRequest,
-  FoldingRange,
   FoldingRangeRequest,
-  Hover,
   HoverRequest,
   MarkupContent,
+  MessageConnection,
   PublishDiagnosticsNotification,
-  PublishDiagnosticsParams,
+  ServerCapabilities,
 } from "vscode-languageserver-protocol";
 
-import {
-  DidParseTextDocument,
-  DidParseTextDocumentParams,
-} from "../../../../spark-editor-protocol/src/protocols/textDocument/messages/DidParseTextDocument";
+import { DidParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocument.js";
 import { languageClientConfig } from "../extensions/languageClient";
 import { FileSystemReader } from "../types/FileSystemReader";
-import { LanguageServerConnection } from "../types/LanguageServerConnection";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
 import { getClientDiagnostics } from "../utils/getClientDiagnostics";
 import { getClientMarkupContent } from "../utils/getClientMarkupContent";
@@ -52,7 +46,9 @@ import HoverSupport, {
 export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
 
-  protected _connection: LanguageServerConnection;
+  protected _connection: MessageConnection;
+
+  protected _serverCapabilities: ServerCapabilities;
 
   protected _fileSystemReader: FileSystemReader;
 
@@ -88,6 +84,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     const config = view.state.facet(languageClientConfig);
     this._textDocument = config.textDocument;
     this._connection = config.connection;
+    this._serverCapabilities = config.serverCapabilities;
     this._fileSystemReader = config.fileSystemReader;
     this._language = config.language;
     this._highlighter = config.highlighter;
@@ -102,19 +99,23 @@ export default class LanguageClientPluginValue implements PluginValue {
   bind() {
     this._disposables.push(
       this._connection.onNotification(
-        PublishDiagnosticsNotification.method,
-        (params: PublishDiagnosticsParams) => {
-          this.handlePublishDiagnostics(params);
+        PublishDiagnosticsNotification.type,
+        (params) => {
+          if (params.uri !== this._textDocument.uri) {
+            return;
+          }
+          this.updateDiagnostics(this._view, params.diagnostics);
         }
       )
     );
     this._disposables.push(
-      this._connection.onNotification(
-        DidParseTextDocument.method,
-        (params: DidParseTextDocumentParams) => {
-          this.handleDidParseTextDocument(params);
+      this._connection.onNotification(DidParseTextDocument.type, (params) => {
+        if (params.textDocument.uri !== this._textDocument.uri) {
+          return;
         }
-      )
+        this.updateFoldingRanges(this._view);
+        this.updateDocumentColors(this._view);
+      })
     );
     this._supports.completion.addCompletionSource(this.handleCompletions);
     this._supports.hover.addHoverSource(this.handleHovers);
@@ -127,40 +128,22 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._supports.hover.removeHoverSource(this.handleHovers);
   }
 
-  handleDidParseTextDocument = async (params: DidParseTextDocumentParams) => {
-    if (params.textDocument.uri !== this._textDocument.uri) {
-      return;
-    }
-    this.updateFoldingRanges(this._view);
-    this.updateDocumentColors(this._view);
-  };
-
-  handlePublishDiagnostics = (params: PublishDiagnosticsParams) => {
-    if (params.uri !== this._textDocument.uri) {
-      return;
-    }
-    this.updateDiagnostics(this._view, params.diagnostics);
-  };
-
   handleCompletions = async (
     clientContext: CompletionContext
   ): Promise<CompletionResult | null> => {
-    if (this._connection.starting) {
-      await this._connection.starting;
-    }
     const position = offsetToPosition(
       clientContext.state.doc,
       clientContext.pos
     );
     const serverContext = getServerCompletionContext(
-      this._connection.serverCapabilities,
+      this._serverCapabilities,
       clientContext
     );
     if (!serverContext) {
       return null;
     }
     const result: CompletionList | CompletionItem[] | null =
-      await this._connection.sendRequest(CompletionRequest.method, {
+      await this._connection.sendRequest(CompletionRequest.type, {
         textDocument: this._textDocument,
         position,
         context: serverContext,
@@ -252,20 +235,14 @@ export default class LanguageClientPluginValue implements PluginValue {
   handleHovers = async (
     clientContext: HoverContext
   ): Promise<HoverResult | null> => {
-    if (this._connection.starting) {
-      await this._connection.starting;
-    }
     const position = offsetToPosition(
       clientContext.view.state.doc,
       clientContext.pos
     );
-    const result: Hover = await this._connection.sendRequest(
-      HoverRequest.method,
-      {
-        textDocument: this._textDocument,
-        position,
-      }
-    );
+    const result = await this._connection.sendRequest(HoverRequest.type, {
+      textDocument: this._textDocument,
+      position,
+    });
     if (!result) {
       return null;
     }
@@ -306,8 +283,8 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   async updateFoldingRanges(view: EditorView) {
-    const result: FoldingRange[] = await this._connection.sendRequest(
-      FoldingRangeRequest.method,
+    const result = await this._connection.sendRequest(
+      FoldingRangeRequest.type,
       { textDocument: this._textDocument }
     );
     if (result) {
@@ -320,8 +297,8 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   async updateDocumentColors(view: EditorView) {
-    const result: ColorInformation[] = await this._connection.sendRequest(
-      DocumentColorRequest.method,
+    const result = await this._connection.sendRequest(
+      DocumentColorRequest.type,
       { textDocument: this._textDocument }
     );
     const transaction = this._supports.color.transaction(view.state, result);

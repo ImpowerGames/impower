@@ -12,7 +12,7 @@ export default class Displays extends SEElement {
   }
 
   override get component() {
-    return component({ store: Workspace.instance.state });
+    return component({ store: Workspace.window.state });
   }
 
   protected override onConnected(): void {
@@ -27,7 +27,7 @@ export default class Displays extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/displays") {
         const mode = e.detail.value;
-        Workspace.instance.state.displays.panel = mode;
+        Workspace.window.openPanel("displays", mode);
       }
     }
   };

@@ -1,6 +1,9 @@
 {
   "name": "@impower/spark-editor-protocol",
   "displayName": "Spark Preview Protocol",
-  "description": "JSON RPC protocol for messages between a sparkdown editor and preview.",
-  "version": "0.0.1"
+  "description": "JSON RPC protocol for messages sent to and from the spark editor.",
+  "version": "0.0.1",
+  "dependencies": {
+    "vscode-languageserver-protocol": "^3.17.3"
+  }
 }

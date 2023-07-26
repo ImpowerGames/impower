@@ -67,10 +67,10 @@ export default class FileItem
         if (e.detail.value === "delete") {
           const filename = this.fileName;
           if (filename) {
-            Workspace.instance.deleteFiles({
+            Workspace.fs.deleteFiles({
               files: [
                 {
-                  uri: Workspace.instance.getWorkspaceUri(directory, filename),
+                  uri: Workspace.fs.getWorkspaceUri(directory, filename),
                 },
               ],
             });

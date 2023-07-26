@@ -1,4 +1,4 @@
-import { LoadPreview } from "../../../../../../packages/spark-editor-protocol/src/protocols/preview";
+import { LoadPreview } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreview.js";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -67,8 +67,8 @@ export default class ScreenplayPreview
     if (!filePath) {
       return;
     }
-    const uri = Workspace.instance.getWorkspaceUri(filePath);
-    const existingText = await Workspace.instance.readTextDocument({
+    const uri = Workspace.fs.getWorkspaceUri(filePath);
+    const existingText = await Workspace.fs.readTextDocument({
       textDocument: { uri },
     });
     window.postMessage(

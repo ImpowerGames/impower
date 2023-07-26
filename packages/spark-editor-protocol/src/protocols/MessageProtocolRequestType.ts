@@ -1,9 +1,8 @@
+import { ProtocolRequestType } from "vscode-languageserver-protocol";
 import { RequestMessage, ResponseMessage } from "../types";
-import { uuid } from "../utils/uuid";
-
-import { ProtocolRequestType } from "../types/lsp/messages";
 import { isRequest } from "../utils/isRequest";
 import { isResponse } from "../utils/isResponse";
+import { uuid } from "../utils/uuid";
 
 export class MessageProtocolRequestType<
   M extends string,
