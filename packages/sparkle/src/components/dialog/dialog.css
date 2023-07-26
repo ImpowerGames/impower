@@ -144,6 +144,7 @@
   font-weight: var(--title-text-weight);
   font-size: var(--title-text-size);
   line-height: var(--title-text-leading);
+  margin: 0;
 }
 :host([label]) > .root > .form > .header > .label {
   display: flex;
@@ -158,20 +159,6 @@
 }
 :host > .root > .form > .footer > .menu:only-child {
   margin-inline-start: auto;
-}
-
-:host > .root > .form > menu > .cancel {
-  display: none;
-}
-:host([cancel]) .root > .form > menu > .cancel {
-  display: flex;
-}
-
-:host > .root > .form > menu > .confirm {
-  display: none;
-}
-:host([confirm]) .root > .form > menu > .confirm {
-  display: flex;
 }
 
 @keyframes fade-in-overlay {

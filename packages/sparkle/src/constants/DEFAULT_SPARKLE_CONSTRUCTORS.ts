@@ -6,6 +6,7 @@ import Circle from "../components/circle/circle";
 import Collapsible from "../components/collapsible/collapsible";
 import Dialog from "../components/dialog/dialog";
 import Divider from "../components/divider/divider";
+import Drawer from "../components/drawer/drawer";
 import Dropdown from "../components/dropdown/dropdown";
 import Hidden from "../components/hidden/hidden";
 import Icon from "../components/icon/icon";
@@ -49,6 +50,7 @@ const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-dropdown": Dropdown,
   "s-toast-stack": ToastStack,
   "s-toast": Toast,
+  "s-drawer": Drawer,
   "s-dialog": Dialog,
   "s-split-pane": SplitPane,
   "s-transition": Transition,

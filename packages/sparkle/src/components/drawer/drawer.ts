@@ -9,8 +9,7 @@ import {
   lockBodyScrolling,
   unlockBodyScrolling,
 } from "../../utils/bodyScrolling";
-import css from "./drawer.css";
-import html from "./drawer.html";
+import component from "./_drawer";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -22,7 +21,7 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["open", "dismissable"]),
+  ...getAttributeNameMap(["open"]),
 };
 
 /**
@@ -48,11 +47,15 @@ export default class Drawer
     return super.define(tagName, dependencies, useShadowDom);
   }
 
-  override get html() {
+  override get component() {
+    return component();
+  }
+
+  override transformHtml(html: string) {
     return Drawer.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  override get css() {
+  override transformCss(css: string) {
     return Drawer.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
@@ -65,16 +68,6 @@ export default class Drawer
   }
   set open(value: boolean) {
     this.setBooleanAttribute(Drawer.attributes.open, value);
-  }
-
-  /**
-   * Indicates whether or not the drawer can be dismissed by clicking the backdrop behind it.
-   */
-  get dismissable(): boolean {
-    return this.getBooleanAttribute(Drawer.attributes.dismissable);
-  }
-  set dismissable(value) {
-    this.setStringAttribute(Drawer.attributes.dismissable, value);
   }
 
   get dialog(): HTMLDialogElement {
@@ -114,7 +107,7 @@ export default class Drawer
 
   protected handleLightDismiss = (e: Event) => {
     const el = e.target as HTMLElement;
-    if (el === this.dialog && this.dismissable) {
+    if (el === this.dialog) {
       this.close("dismiss");
     }
   };
