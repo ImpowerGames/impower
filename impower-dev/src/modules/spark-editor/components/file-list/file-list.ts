@@ -1,6 +1,4 @@
-import { DidCreateFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFiles.js";
-import { DidDeleteFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFiles.js";
-import { DidRenameFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFiles.js";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
@@ -121,26 +119,11 @@ export default class FileList
     const directory = this.directoryPath;
     if (directory) {
       const directoryUri = Workspace.fs.getWorkspaceUri(directory);
-      if (
-        DidCreateFiles.type.isNotification(message) ||
-        DidDeleteFiles.type.isNotification(message)
-      ) {
+      if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
         const params = message.params;
-        const files = params.files;
-        const changedFileInDirectory = files.some((file) =>
+        const changes = params.changes;
+        const changedFileInDirectory = changes.some((file) =>
           file.uri.startsWith(directoryUri)
-        );
-        if (changedFileInDirectory) {
-          this.loadEntries(directory);
-        }
-      }
-      if (DidRenameFiles.type.isNotification(message)) {
-        const params = message.params;
-        const files = params.files;
-        const changedFileInDirectory = files.some(
-          (file) =>
-            file.oldUri.startsWith(directoryUri) ||
-            file.newUri.startsWith(directoryUri)
         );
         if (changedFileInDirectory) {
           this.loadEntries(directory);

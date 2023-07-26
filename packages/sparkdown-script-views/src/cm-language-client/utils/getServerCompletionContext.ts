@@ -1,9 +1,9 @@
 import { CompletionContext as ClientCompletionContext } from "@codemirror/autocomplete";
+import { CompletionTriggerKind } from "@impower/spark-editor-protocol/src/enums/CompletionTriggerKind";
 import {
-  CompletionTriggerKind,
   ServerCapabilities,
   CompletionContext as ServerCompletionContext,
-} from "vscode-languageserver-protocol";
+} from "@impower/spark-editor-protocol/src/types";
 
 export const getServerCompletionContext = (
   serverCapabilities: ServerCapabilities<any> | undefined,

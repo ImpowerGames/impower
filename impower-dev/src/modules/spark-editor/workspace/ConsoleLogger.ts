@@ -1,4 +1,4 @@
-import { Logger } from "vscode-languageserver-protocol";
+import { Logger } from "@impower/spark-editor-protocol/src/types";
 
 export default class ConsoleLogger implements Logger {
   error(message: string) {

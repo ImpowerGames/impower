@@ -6,25 +6,21 @@ import {
 import { Language } from "@codemirror/language";
 import { setDiagnostics } from "@codemirror/lint";
 import { EditorView, PluginValue } from "@codemirror/view";
-import { NodeType } from "@lezer/common";
-import { Tag } from "@lezer/highlight";
-
+import { CompletionMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/CompletionMessage.js";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
+import { DocumentColorMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage.js";
+import { FoldingRangeMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage.js";
+import { HoverMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/HoverMessage.js";
+import { PublishDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage.js";
 import {
-  CompletionItem,
-  CompletionList,
-  CompletionRequest,
   Diagnostic,
   Disposable,
-  DocumentColorRequest,
-  FoldingRangeRequest,
-  HoverRequest,
   MarkupContent,
   MessageConnection,
-  PublishDiagnosticsNotification,
   ServerCapabilities,
-} from "vscode-languageserver-protocol";
-
-import { DidParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocument.js";
+} from "@impower/spark-editor-protocol/src/types";
+import { NodeType } from "@lezer/common";
+import { Tag } from "@lezer/highlight";
 import { languageClientConfig } from "../extensions/languageClient";
 import { FileSystemReader } from "../types/FileSystemReader";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
@@ -99,7 +95,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   bind() {
     this._disposables.push(
       this._connection.onNotification(
-        PublishDiagnosticsNotification.type,
+        PublishDiagnosticsMessage.type,
         (params) => {
           if (params.uri !== this._textDocument.uri) {
             return;
@@ -109,13 +105,16 @@ export default class LanguageClientPluginValue implements PluginValue {
       )
     );
     this._disposables.push(
-      this._connection.onNotification(DidParseTextDocument.type, (params) => {
-        if (params.textDocument.uri !== this._textDocument.uri) {
-          return;
+      this._connection.onNotification(
+        DidParseTextDocumentMessage.type,
+        (params) => {
+          if (params.textDocument.uri !== this._textDocument.uri) {
+            return;
+          }
+          this.updateFoldingRanges(this._view);
+          this.updateDocumentColors(this._view);
         }
-        this.updateFoldingRanges(this._view);
-        this.updateDocumentColors(this._view);
-      })
+      )
     );
     this._supports.completion.addCompletionSource(this.handleCompletions);
     this._supports.hover.addHoverSource(this.handleHovers);
@@ -142,12 +141,11 @@ export default class LanguageClientPluginValue implements PluginValue {
     if (!serverContext) {
       return null;
     }
-    const result: CompletionList | CompletionItem[] | null =
-      await this._connection.sendRequest(CompletionRequest.type, {
-        textDocument: this._textDocument,
-        position,
-        context: serverContext,
-      });
+    const result = await this._connection.sendRequest(CompletionMessage.type, {
+      textDocument: this._textDocument,
+      position,
+      context: serverContext,
+    });
     if (!result) {
       return null;
     }
@@ -239,7 +237,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       clientContext.view.state.doc,
       clientContext.pos
     );
-    const result = await this._connection.sendRequest(HoverRequest.type, {
+    const result = await this._connection.sendRequest(HoverMessage.type, {
       textDocument: this._textDocument,
       position,
     });
@@ -284,7 +282,7 @@ export default class LanguageClientPluginValue implements PluginValue {
 
   async updateFoldingRanges(view: EditorView) {
     const result = await this._connection.sendRequest(
-      FoldingRangeRequest.type,
+      FoldingRangeMessage.type,
       { textDocument: this._textDocument }
     );
     if (result) {
@@ -298,7 +296,7 @@ export default class LanguageClientPluginValue implements PluginValue {
 
   async updateDocumentColors(view: EditorView) {
     const result = await this._connection.sendRequest(
-      DocumentColorRequest.type,
+      DocumentColorMessage.type,
       { textDocument: this._textDocument }
     );
     const transaction = this._supports.color.transaction(view.state, result);

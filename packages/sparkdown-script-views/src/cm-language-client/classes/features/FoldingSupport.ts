@@ -18,7 +18,7 @@ import {
   ViewUpdate,
   keymap,
 } from "@codemirror/view";
-import { FoldingRange } from "vscode-languageserver-protocol";
+import { FoldingRange } from "@impower/spark-editor-protocol/src/types";
 import { FeatureSupport } from "../../types/FeatureSupport";
 
 const foldingTheme = EditorView.baseTheme({

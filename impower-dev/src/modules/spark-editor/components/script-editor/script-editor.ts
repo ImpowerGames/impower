@@ -1,5 +1,5 @@
-import { LoadEditor } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditor.js";
-import { DidSaveTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocument.js";
+import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
+import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage.js";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -69,7 +69,7 @@ export default class ScriptEditor
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (DidSaveTextDocument.type.isNotification(message)) {
+    if (DidSaveTextDocumentMessage.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const text = params.text;
@@ -89,7 +89,7 @@ export default class ScriptEditor
     });
     await Workspace.lsp.starting;
     window.postMessage(
-      LoadEditor.type.request({
+      LoadEditorMessage.type.request({
         textDocument: {
           uri,
           languageId: "sparkdown",

@@ -1,9 +1,9 @@
-import { ReadTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocument.js";
-import { WriteTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocument.js";
-import { CreateFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFiles.js";
-import { DeleteFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFiles.js";
-import { ReadFile } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFile.js";
-import { WorkspaceDirectory } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectory.js";
+import { ReadTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocumentMessage.js";
+import { WriteTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
+import { CreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFilesMessage.js";
+import { DeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFilesMessage.js";
+import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
+import { WorkspaceDirectoryMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import { getAllFiles } from "./utils/getAllFiles";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
@@ -20,7 +20,7 @@ class State {
 
 onmessage = async (e) => {
   const message = e.data;
-  if (WorkspaceDirectory.type.isRequest(message)) {
+  if (WorkspaceDirectoryMessage.type.isRequest(message)) {
     const root = await navigator.storage.getDirectory();
     const { directory } = message.params;
     const relativePath = getPathFromUri(directory.uri);
@@ -36,18 +36,18 @@ onmessage = async (e) => {
       const uri = getUriFromPath(entry.path);
       entries.push({ uri });
     });
-    postMessage(WorkspaceDirectory.type.response(message.id, entries));
+    postMessage(WorkspaceDirectoryMessage.type.response(message.id, entries));
   }
-  if (ReadFile.type.isRequest(message)) {
+  if (ReadFileMessage.type.isRequest(message)) {
     const root = await navigator.storage.getDirectory();
     const { file } = message.params;
     const fileHandle = await getFileHandleFromUri(root, file.uri);
     const fileRef = await fileHandle.getFile();
     const buffer = await fileRef.arrayBuffer();
-    const response = ReadFile.type.response(message.id, buffer);
+    const response = ReadFileMessage.type.response(message.id, buffer);
     postMessage(response, [response.result]);
   }
-  if (ReadTextDocument.type.isRequest(message)) {
+  if (ReadTextDocumentMessage.type.isRequest(message)) {
     const root = await navigator.storage.getDirectory();
     const { textDocument } = message.params;
     const fileHandle = await getFileHandleFromUri(root, textDocument.uri);
@@ -55,9 +55,9 @@ onmessage = async (e) => {
     const buffer = await fileRef.arrayBuffer();
     const decoder = new TextDecoder("utf-8");
     const text = decoder.decode(buffer);
-    postMessage(ReadTextDocument.type.response(message.id, text));
+    postMessage(ReadTextDocumentMessage.type.response(message.id, text));
   }
-  if (WriteTextDocument.type.isRequest(message)) {
+  if (WriteTextDocumentMessage.type.isRequest(message)) {
     const root = await navigator.storage.getDirectory();
     const { textDocument, text } = message.params;
     const existingSync = State.syncing[textDocument.uri];
@@ -74,9 +74,9 @@ onmessage = async (e) => {
     syncAccessHandle.flush();
     syncAccessHandle.close();
     delete State.syncing[textDocument.uri];
-    postMessage(WriteTextDocument.type.response(message.id, null));
+    postMessage(WriteTextDocumentMessage.type.response(message.id, null));
   }
-  if (CreateFiles.type.isRequest(message)) {
+  if (CreateFilesMessage.type.isRequest(message)) {
     const root = await navigator.storage.getDirectory();
     const { files } = message.params;
     await Promise.all(
@@ -96,9 +96,9 @@ onmessage = async (e) => {
         delete State.syncing[file.uri];
       })
     );
-    postMessage(CreateFiles.type.response(message.id, null));
+    postMessage(CreateFilesMessage.type.response(message.id, null));
   }
-  if (DeleteFiles.type.isRequest(message)) {
+  if (DeleteFilesMessage.type.isRequest(message)) {
     const root = await navigator.storage.getDirectory();
     const { files } = message.params;
     await Promise.all(
@@ -112,6 +112,6 @@ onmessage = async (e) => {
         directoryHandle.removeEntry(getFileName(relativePath));
       })
     );
-    postMessage(DeleteFiles.type.response(message.id, null));
+    postMessage(DeleteFilesMessage.type.response(message.id, null));
   }
 };

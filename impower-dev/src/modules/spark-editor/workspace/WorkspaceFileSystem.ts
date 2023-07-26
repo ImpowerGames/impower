@@ -1,34 +1,34 @@
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import {
-  ReadTextDocument,
+  ReadTextDocumentMessage,
   ReadTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocument.js";
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocumentMessage.js";
 import {
-  WriteTextDocument,
+  WriteTextDocumentMessage,
   WriteTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocument.js";
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
 import {
-  CreateFiles,
+  CreateFilesMessage,
   CreateFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFiles.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFilesMessage.js";
 import {
-  DeleteFiles,
+  DeleteFilesMessage,
   DeleteFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFiles";
-import { DidChangeWatchedFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFiles.js";
-import { DidCreateFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFiles.js";
-import { DidDeleteFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFiles.js";
-import { DidWatchFiles } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFiles.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFilesMessage.js";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
+import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
+import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
 import {
-  ReadFile,
+  ReadFileMessage,
   ReadFileParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFile.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
 import {
-  WorkspaceDirectory,
+  WorkspaceDirectoryMessage,
   WorkspaceDirectoryParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectory.js";
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
-import { FileChangeType } from "vscode-languageserver-protocol";
 import WorkspaceLanguageServerProtocol from "./WorkspaceLanguageServerProtocol";
 import WorkspaceWindow from "./WorkspaceWindow";
 
@@ -88,7 +88,7 @@ name: ${this._projectName}
     const entries = await this.getWorkspaceEntries({
       directory: { uri: directoryUri },
     });
-    this._lsp.connection.sendNotification(DidWatchFiles.type, {
+    this._lsp.connection.sendNotification(DidWatchFilesMessage.type, {
       files: entries,
     });
   }
@@ -124,19 +124,19 @@ name: ${this._projectName}
   async getWorkspaceEntries(
     params: WorkspaceDirectoryParams
   ): Promise<WorkspaceEntry[]> {
-    return this.sendRequest(WorkspaceDirectory.type, params);
+    return this.sendRequest(WorkspaceDirectoryMessage.type, params);
   }
 
   async createFiles(params: CreateFilesParams) {
     const result = await this.sendRequest(
-      CreateFiles.type,
+      CreateFilesMessage.type,
       params,
       params.files.map((file) => file.data)
     );
-    const createMessage = DidCreateFiles.type.notification({
+    const createMessage = DidCreateFilesMessage.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
     });
-    const changeMessage = DidChangeWatchedFiles.type.notification({
+    const changeMessage = DidChangeWatchedFilesMessage.type.notification({
       changes: params.files.map((file) => ({
         uri: file.uri,
         type: FileChangeType.Created,
@@ -156,11 +156,11 @@ name: ${this._projectName}
   }
 
   async deleteFiles(params: DeleteFilesParams) {
-    const result = await this.sendRequest(DeleteFiles.type, params);
-    const deleteMessage = DidDeleteFiles.type.notification({
+    const result = await this.sendRequest(DeleteFilesMessage.type, params);
+    const deleteMessage = DidDeleteFilesMessage.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
     });
-    const changeMessage = DidChangeWatchedFiles.type.notification({
+    const changeMessage = DidChangeWatchedFilesMessage.type.notification({
       changes: params.files.map((file) => ({
         uri: file.uri,
         type: FileChangeType.Deleted,
@@ -180,14 +180,14 @@ name: ${this._projectName}
   }
 
   async readFile(params: ReadFileParams) {
-    return this.sendRequest(ReadFile.type, params);
+    return this.sendRequest(ReadFileMessage.type, params);
   }
 
   async writeTextDocument(params: WriteTextDocumentParams) {
-    return this.sendRequest(WriteTextDocument.type, params);
+    return this.sendRequest(WriteTextDocumentMessage.type, params);
   }
 
   async readTextDocument(params: ReadTextDocumentParams) {
-    return this.sendRequest(ReadTextDocument.type, params);
+    return this.sendRequest(ReadTextDocumentMessage.type, params);
   }
 }

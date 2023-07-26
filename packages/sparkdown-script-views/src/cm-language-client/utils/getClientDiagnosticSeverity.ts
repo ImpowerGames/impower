@@ -1,4 +1,4 @@
-import { DiagnosticSeverity } from "vscode-languageserver-protocol";
+import { DiagnosticSeverity } from "@impower/spark-editor-protocol/src/enums/DiagnosticSeverity";
 
 export const getClientDiagnosticSeverity = (
   s: DiagnosticSeverity | undefined

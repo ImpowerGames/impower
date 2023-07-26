@@ -1,4 +1,4 @@
-import { LoadPreview } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreview.js";
+import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -72,7 +72,7 @@ export default class ScreenplayPreview
       textDocument: { uri },
     });
     window.postMessage(
-      LoadPreview.type.request({
+      LoadPreviewMessage.type.request({
         type: "screenplay",
         textDocument: {
           uri,

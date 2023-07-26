@@ -1,4 +1,13 @@
 import {
+  ParseTextDocumentMessage,
+  ParseTextDocumentParams,
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocumentMessage.js";
+import {
+  DidWatchFilesMessage,
+  DidWatchFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
+import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import {
   CancellationToken,
   Connection,
   DidChangeTextDocumentParams,
@@ -20,14 +29,6 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
-
-import { ParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocument";
-import {
-  DidWatchFiles,
-  DidWatchFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFiles";
-import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-
 import { EditorSparkParser } from "./EditorSparkParser";
 
 export const IMAGE_FILE_EXTENSIONS = [
@@ -250,7 +251,7 @@ export default class SparkdownTextDocuments<
     const disposables: Disposable[] = [];
     disposables.push(
       connection.onNotification(
-        DidWatchFiles.type,
+        DidWatchFilesMessage.method,
         (params: DidWatchFilesParams) => {
           const files = params.files;
           files.forEach((file) => {
@@ -271,10 +272,13 @@ export default class SparkdownTextDocuments<
       )
     );
     disposables.push(
-      connection.onRequest(ParseTextDocument.type, (params) => {
-        const uri = params.textDocument.uri;
-        return this.parse(uri);
-      })
+      connection.onRequest(
+        ParseTextDocumentMessage.method,
+        (params: ParseTextDocumentParams) => {
+          const uri = params.textDocument.uri;
+          return this.parse(uri);
+        }
+      )
     );
     disposables.push(
       connection.onDidOpenTextDocument((event: DidOpenTextDocumentParams) => {

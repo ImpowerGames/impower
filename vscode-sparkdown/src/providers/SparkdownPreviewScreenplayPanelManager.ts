@@ -1,13 +1,13 @@
-import { ScrolledEditor } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditor";
-import { SelectedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditor";
-import { ConnectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreview";
-import { HoveredOffPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreview";
-import { HoveredOnPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreview";
-import { LoadPreview } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreview";
-import { ScrolledPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreview";
-import { SelectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreview";
-import { DidChangeTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocument";
-import { DidChangeConfiguration } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfiguration";
+import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage.js";
+import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
+import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage.js";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
+import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
+import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
+import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage.js";
+import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage.js";
+import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage.js";
 import * as vscode from "vscode";
 import { Uri, ViewColumn, WebviewPanel, window } from "vscode";
 import { getClientRange } from "../utils/getClientRange";
@@ -94,7 +94,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     panel.webview.html = this.getWebviewContent(panel.webview, extensionUri);
 
     panel.webview.onDidReceiveMessage(async (message) => {
-      if (ConnectedPreview.type.isNotification(message)) {
+      if (ConnectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._connected = true;
           if (this._document) {
@@ -102,17 +102,17 @@ export class SparkdownPreviewScreenplayPanelManager {
           }
         }
       }
-      if (HoveredOnPreview.type.isNotification(message)) {
+      if (HoveredOnPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._hovering = true;
         }
       }
-      if (HoveredOffPreview.type.isNotification(message)) {
+      if (HoveredOffPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._hovering = false;
         }
       }
-      if (ScrolledPreview.type.isNotification(message)) {
+      if (ScrolledPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           const documentUri = getUri(message.params.textDocument.uri);
           const range = getClientRange(message.params.range);
@@ -127,7 +127,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           }
         }
       }
-      if (SelectedPreview.type.isNotification(message)) {
+      if (SelectedPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           const documentUri = getUri(message.params.textDocument.uri);
           const range = getClientRange(message.params.range);
@@ -162,7 +162,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     const visibleRange = editor?.visibleRanges[0];
     const selectedRange = editor?.selection;
     panel.webview.postMessage(
-      LoadPreview.type.request({
+      LoadPreviewMessage.type.request({
         type: "screenplay",
         textDocument: {
           uri: document.uri.toString(),
@@ -193,7 +193,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
         this._panel.webview.postMessage(
-          DidChangeTextDocument.type.notification({
+          DidChangeTextDocumentMessage.type.notification({
             textDocument: {
               uri: document.uri.toString(),
               version: document.version,
@@ -215,7 +215,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           getUri(this._document.uri.toString())
         );
         this._panel.webview.postMessage(
-          DidChangeConfiguration.type.notification({
+          DidChangeConfigurationMessage.type.notification({
             settings: { ...configuration },
           })
         );
@@ -227,7 +227,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
         this._panel.webview.postMessage(
-          SelectedEditor.type.notification({
+          SelectedEditorMessage.type.notification({
             textDocument: { uri: document.uri.toString() },
             range: getServerRange(range),
           })
@@ -240,7 +240,7 @@ export class SparkdownPreviewScreenplayPanelManager {
     if (document.uri.toString() === this._document?.uri.toString()) {
       if (this._panel) {
         this._panel.webview.postMessage(
-          ScrolledEditor.type.notification({
+          ScrolledEditorMessage.type.notification({
             textDocument: { uri: document.uri.toString() },
             range: getServerRange(range),
           })

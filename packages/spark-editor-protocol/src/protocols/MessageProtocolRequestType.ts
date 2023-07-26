@@ -1,5 +1,6 @@
 import { ProtocolRequestType } from "vscode-languageserver-protocol";
-import { RequestMessage, ResponseMessage } from "../types";
+import { RequestMessage } from "../types/base/RequestMessage";
+import { ResponseMessage } from "../types/base/ResponseMessage";
 import { isRequest } from "../utils/isRequest";
 import { isResponse } from "../utils/isResponse";
 import { uuid } from "../utils/uuid";

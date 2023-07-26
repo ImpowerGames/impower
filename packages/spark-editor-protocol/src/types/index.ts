@@ -1,6 +1,4 @@
-export * from "./base/Message";
-export * from "./base/NotificationMessage";
-export * from "./base/RequestMessage";
-export * from "./base/ResponseError";
-export * from "./base/ResponseMessage";
+export type * from "vscode-jsonrpc";
+export type * from "vscode-languageserver-protocol";
+export type * from "vscode-languageserver-types";
 export * from "./workspace/WorkspaceEntry";

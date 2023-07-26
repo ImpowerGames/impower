@@ -18,8 +18,6 @@
   },
   "main": "dist/opfs-workspace.js",
   "scripts": {
-    "install-spark-editor-protocol": "cd ../spark-editor-protocol && npm ci && cd ../opfs-workspace",
-    "preinstall": "npm run install-spark-editor-protocol",
     "build": "node ./esbuild.js"
   },
   "devDependencies": {

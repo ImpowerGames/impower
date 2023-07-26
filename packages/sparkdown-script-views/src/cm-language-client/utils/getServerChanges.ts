@@ -1,8 +1,5 @@
 import { ChangeSet, Text } from "@codemirror/state";
-import {
-  Range,
-  TextDocumentContentChangeEvent,
-} from "vscode-languageserver-protocol";
+import { TextDocumentContentChangeEvent } from "@impower/spark-editor-protocol/src/types";
 import { offsetToPosition } from "./offsetToPosition";
 
 export const getServerChanges = (
@@ -12,10 +9,10 @@ export const getServerChanges = (
   const contentChanges: TextDocumentContentChangeEvent[] = [];
   changes.iterChanges((fromA, toA, _fromB, _toB, inserted) => {
     contentChanges.push({
-      range: Range.create(
-        offsetToPosition(doc, fromA),
-        offsetToPosition(doc, toA)
-      ),
+      range: {
+        start: offsetToPosition(doc, fromA),
+        end: offsetToPosition(doc, toA),
+      },
       text: inserted.toString(),
     });
   });

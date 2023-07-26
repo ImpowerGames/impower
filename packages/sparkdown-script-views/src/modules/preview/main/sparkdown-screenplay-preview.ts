@@ -1,13 +1,16 @@
 import { EditorView } from "@codemirror/view";
-import { FocusedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditor";
-import { ScrolledEditor } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditor";
-import { ConnectedPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreview";
-import { HoveredOffPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreview";
-import { HoveredOnPreview } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreview";
-import { LoadPreview } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreview";
-import { ScrolledPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreview";
-import { Range, TextDocumentIdentifier } from "vscode-languageserver-protocol";
-import { DidChangeTextDocument } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocument";
+import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage.js";
+import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
+import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
+import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage.js";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
+import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
+import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
+import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage.js";
+import {
+  Range,
+  TextDocumentIdentifier,
+} from "@impower/spark-editor-protocol/src/types";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
@@ -90,7 +93,7 @@ export default class SparkScreenplayPreview
     window.addEventListener("message", this.handleMessage);
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
     window.postMessage(
-      ConnectedPreview.type.notification({ type: "screenplay" })
+      ConnectedPreviewMessage.type.notification({ type: "screenplay" })
     );
   }
 
@@ -130,7 +133,7 @@ export default class SparkScreenplayPreview
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (LoadPreview.type.isRequest(message)) {
+    if (LoadPreviewMessage.type.isRequest(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const visibleRange = params.visibleRange;
@@ -157,7 +160,7 @@ export default class SparkScreenplayPreview
         });
       }
     }
-    if (DidChangeTextDocument.type.isNotification(message)) {
+    if (DidChangeTextDocumentMessage.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       if (textDocument.uri === this._textDocument?.uri) {
@@ -169,12 +172,12 @@ export default class SparkScreenplayPreview
         }
       }
     }
-    if (FocusedEditor.type.isNotification(message)) {
+    if (FocusedEditorMessage.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       this._textDocument = textDocument;
     }
-    if (ScrolledEditor.type.isNotification(message)) {
+    if (ScrolledEditorMessage.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const range = params.range;
@@ -210,7 +213,7 @@ export default class SparkScreenplayPreview
       this._loaded = true;
       if (this._textDocument && this._loadingRequest != null) {
         window.postMessage(
-          LoadPreview.type.response(this._loadingRequest, null)
+          LoadPreviewMessage.type.response(this._loadingRequest, null)
         );
         this._loadingRequest = undefined;
       }
@@ -229,7 +232,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = true;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOnPreview.type.notification({
+        HoveredOnPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
         })
@@ -241,7 +244,7 @@ export default class SparkScreenplayPreview
     this._pointerOverScroller = false;
     if (this._textDocument) {
       window.postMessage(
-        HoveredOffPreview.type.notification({
+        HoveredOffPreviewMessage.type.notification({
           type: "screenplay",
           textDocument: this._textDocument,
         })
@@ -274,7 +277,7 @@ export default class SparkScreenplayPreview
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
             window.postMessage(
-              ScrolledPreview.type.notification({
+              ScrolledPreviewMessage.type.notification({
                 type: "screenplay",
                 textDocument: this._textDocument,
                 range: {

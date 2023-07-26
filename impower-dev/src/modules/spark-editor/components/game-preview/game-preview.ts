@@ -1,4 +1,4 @@
-import { DidOpenTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocument.js";
+import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -78,7 +78,8 @@ export default class GamePreview
       text: existingText,
     };
     window.postMessage(
-      DidOpenTextDocument.type.notification({
+      LoadPreviewMessage.type.request({
+        type: "game",
         textDocument: textDocument,
       })
     );

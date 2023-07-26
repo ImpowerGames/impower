@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "es2020",
-    "lib": ["esnext"],
+    "lib": ["esnext", "WebWorker"],
     "outDir": "dist",
     "skipLibCheck": true,
     "sourceMap": true,

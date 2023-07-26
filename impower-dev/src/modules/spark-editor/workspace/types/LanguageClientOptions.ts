@@ -1,7 +1,7 @@
 import {
   DocumentSelector,
   InitializeParams,
-} from "vscode-languageserver-protocol";
+} from "@impower/spark-editor-protocol/src/types";
 
 export interface LanguageClientOptions extends Partial<InitializeParams> {
   documentSelector?: DocumentSelector | string[];

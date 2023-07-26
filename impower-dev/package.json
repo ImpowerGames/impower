@@ -5,9 +5,9 @@
   "scripts": {
     "kill": "kill-port 8080",
     "install-spark-editor-protocol": "cd ../packages/spark-editor-protocol && npm ci && cd ../../impower-dev",
-    "install-sparkdown-script-views": "cd ../packages/sparkdown-script-views && npm run preinstall && npm ci && cd ../../impower-dev",
-    "install-sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm run preinstall && npm ci && cd ../../impower-dev",
-    "install-opfs-workspace": "cd ../packages/opfs-workspace && npm run preinstall && npm ci && cd ../../impower-dev",
+    "install-sparkdown-script-views": "cd ../packages/sparkdown-script-views && npm ci && cd ../../impower-dev",
+    "install-sparkdown-language-server": "cd ../packages/sparkdown-language-server && npm ci && cd ../../impower-dev",
+    "install-opfs-workspace": "cd ../packages/opfs-workspace && npm ci && cd ../../impower-dev",
     "preinstall": "npm run install-spark-editor-protocol && npm run install-sparkdown-language-server && npm run install-opfs-workspace && npm run install-sparkdown-script-views",
     "build-sparkdown-language-server": "cd ../packages/sparkdown-language-server && node ./esbuild.js --outdir=../../impower-dev/out/public && cd ../../impower-dev",
     "build-opfs-workspace": "cd ../packages/opfs-workspace && node ./esbuild.js --outdir=../../impower-dev/out/public && cd ../../impower-dev",
@@ -46,7 +46,6 @@
     "@impower/sparkle": "file:../packages/sparkle",
     "fastify": "^4.18.0",
     "nanoid": "^4.0.2",
-    "pino": "^8.14.1",
-    "vscode-languageserver-protocol": "^3.17.3"
+    "pino": "^8.14.1"
   }
 }

@@ -1,18 +1,13 @@
-import {
-  BrowserMessageReader,
-  BrowserMessageWriter,
-  createMessageConnection,
-} from "vscode-jsonrpc/browser";
+import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
+import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
   ClientCapabilities,
-  DiagnosticTag,
-  InitializeRequest,
   InitializeResult,
   MessageConnection,
   ServerCapabilities,
-} from "vscode-languageserver-protocol";
-
-import { DidParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocument";
+} from "@impower/spark-editor-protocol/src/types";
+import { createBrowserMessageConnection } from "@impower/spark-editor-protocol/src/utils/createBrowserMessageConnection";
 import ConsoleLogger from "./ConsoleLogger";
 import WorkspaceWindow from "./WorkspaceWindow";
 
@@ -134,10 +129,6 @@ export default class WorkspaceLanguageServerProtocol {
     return this._id;
   }
 
-  protected _reader: BrowserMessageReader;
-
-  protected _writer: BrowserMessageWriter;
-
   protected _connection: MessageConnection;
   get connection() {
     return this._connection;
@@ -155,18 +146,18 @@ export default class WorkspaceLanguageServerProtocol {
 
   constructor(window: WorkspaceWindow) {
     this._window = window;
-    this._reader = new BrowserMessageReader(this._worker);
-    this._writer = new BrowserMessageWriter(this._worker);
-    this._connection = createMessageConnection(
-      this._reader,
-      this._writer,
+    this._connection = createBrowserMessageConnection(
+      this._worker,
       new ConsoleLogger()
     );
-    this._connection.onNotification(DidParseTextDocument.type, (params) => {
-      this._window.sendNotification(
-        DidParseTextDocument.type.notification(params)
-      );
-    });
+    this._connection.onNotification(
+      DidParseTextDocumentMessage.type,
+      (params) => {
+        this._window.sendNotification(
+          DidParseTextDocumentMessage.type.notification(params)
+        );
+      }
+    );
     this._connection.onClose(() => {
       this.stop();
     });
@@ -176,7 +167,7 @@ export default class WorkspaceLanguageServerProtocol {
 
   async start(): Promise<InitializeResult> {
     const result = await this._connection.sendRequest<InitializeResult>(
-      InitializeRequest.method,
+      InitializeMessage.method,
       {
         capabilities: CLIENT_CAPABILITIES,
       }

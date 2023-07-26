@@ -1,3 +1,4 @@
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
 import type {
   InitializeResult,
   ServerCapabilities,
@@ -9,9 +10,6 @@ import {
   TextDocumentSyncKind,
   createConnection,
 } from "vscode-languageserver/browser";
-
-import { DidParseTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocument";
-
 import SparkdownTextDocuments from "./classes/SparkdownTextDocuments";
 import getColorPresentations from "./utils/getColorPresentations";
 import getCompletions from "./utils/getCompletions";
@@ -50,7 +48,7 @@ try {
 
   // parseProvider
   documents.onDidParse((change) => {
-    connection.sendNotification(DidParseTextDocument.type, {
+    connection.sendNotification(DidParseTextDocumentMessage.method, {
       textDocument: {
         uri: change.document.uri,
         version: change.document.version,

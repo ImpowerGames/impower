@@ -1,19 +1,18 @@
 import { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { FocusedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditor";
-import { LoadEditor } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditor";
-import { ScrolledEditor } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditor";
-import { UnfocusedEditor } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditor";
-import { ScrolledPreview } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreview";
-import { DidChangeTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocument";
-import { DidOpenTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocument";
-import { DidSaveTextDocument } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocument";
+import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage.js";
+import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
+import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
+import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage.js";
+import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
+import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage.js";
+import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage.js";
+import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage.js";
 import {
   MessageConnection,
   Range,
   TextDocumentItem,
-} from "vscode-languageserver-protocol";
-import { DidChangeTextDocumentNotification } from "vscode-languageserver-protocol/lib/common/protocol";
+} from "@impower/spark-editor-protocol/src/types";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
@@ -125,7 +124,7 @@ export default class SparkdownScriptEditor
     if (this._editing) {
       if (this._textDocument) {
         window.postMessage(
-          UnfocusedEditor.type.notification({
+          UnfocusedEditorMessage.type.notification({
             textDocument: this._textDocument,
           })
         );
@@ -149,11 +148,11 @@ export default class SparkdownScriptEditor
 
   protected handleMessage = (e: MessageEvent): void => {
     const message = e.data;
-    if (LoadEditor.type.isRequest(message)) {
+    if (LoadEditorMessage.type.isRequest(message)) {
       const params = message.params;
       this.loadTextDocument(params.textDocument);
     }
-    if (ScrolledPreview.type.isNotification(message)) {
+    if (ScrolledPreviewMessage.type.isNotification(message)) {
       const params = message.params;
       const textDocument = params.textDocument;
       const range = params.range;
@@ -171,7 +170,7 @@ export default class SparkdownScriptEditor
         const debouncedSave = debounce((text: Text) => {
           if (this._textDocument) {
             window.postMessage(
-              DidSaveTextDocument.type.notification({
+              DidSaveTextDocumentMessage.type.notification({
                 textDocument: this._textDocument,
                 text: text.toString(),
               })
@@ -187,7 +186,7 @@ export default class SparkdownScriptEditor
             this._editing = true;
             if (this._textDocument) {
               window.postMessage(
-                FocusedEditor.type.notification({
+                FocusedEditorMessage.type.notification({
                   textDocument: this._textDocument,
                 })
               );
@@ -197,7 +196,7 @@ export default class SparkdownScriptEditor
             this._editing = false;
             if (this._textDocument) {
               window.postMessage(
-                UnfocusedEditor.type.notification({
+                UnfocusedEditorMessage.type.notification({
                   textDocument: this._textDocument,
                 })
               );
@@ -213,10 +212,10 @@ export default class SparkdownScriptEditor
                   contentChanges: getServerChanges(before, transaction.changes),
                 };
                 window.postMessage(
-                  DidChangeTextDocument.type.notification(changeParams)
+                  DidChangeTextDocumentMessage.type.notification(changeParams)
                 );
                 SparkdownScriptEditor.languageServerConnection.sendNotification(
-                  DidChangeTextDocumentNotification.type,
+                  DidChangeTextDocumentMessage.type,
                   changeParams
                 );
                 debouncedSave(e.after);
@@ -226,7 +225,7 @@ export default class SparkdownScriptEditor
         });
       }
       SparkdownScriptEditor.languageServerConnection.sendNotification(
-        DidOpenTextDocument.type,
+        DidOpenTextDocumentMessage.type,
         { textDocument }
       );
     }
@@ -294,7 +293,7 @@ export default class SparkdownScriptEditor
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
             window.postMessage(
-              ScrolledEditor.type.notification({
+              ScrolledEditorMessage.type.notification({
                 textDocument: this._textDocument,
                 range: {
                   start: {
