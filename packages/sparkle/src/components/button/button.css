@@ -271,16 +271,18 @@
 }
 
 :host > .root label {
+  border-radius: inherit;
   pointer-events: auto;
   position: absolute;
   inset: 0;
   cursor: pointer;
-  border-radius: inherit;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
 }
 
 :host > .root input {
-  border-radius: inherit;
-  pointer-events: auto;
   position: absolute;
-  inset: 0;
+  opacity: 0;
 }

@@ -7,6 +7,7 @@ import Circle from "./components/circle/_circle";
 import Collapsible from "./components/collapsible/_collapsible";
 import Dialog from "./components/dialog/_dialog";
 import Divider from "./components/divider/_divider";
+import Drawer from "./components/drawer/_drawer";
 import Dropdown from "./components/dropdown/_dropdown";
 import Hidden from "./components/hidden/_hidden";
 import Icon from "./components/icon/_icon";
@@ -94,6 +95,7 @@ const components = {
   "s-dropdown": style(Dropdown),
   "s-toast-stack": style(ToastStack),
   "s-toast": style(Toast),
+  "s-drawer": style(Drawer),
   "s-dialog": style(Dialog),
   "s-split-pane": style(SplitPane),
   "s-transition": style(Transition),

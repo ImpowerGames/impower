@@ -5,8 +5,6 @@ import getValidFileName from "../../utils/getValidFileName";
 import Workspace from "../../workspace/Workspace";
 import component from "./_file-upload-button";
 
-const DRAGOVER_CLASS = "dragover";
-
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["directory-path", "file-name"]),
 };
@@ -52,26 +50,18 @@ export default class FileAddButton
   }
 
   get buttonEl() {
-    return this.getElementByTag<HTMLButtonElement>("button");
-  }
-
-  get inputEl() {
-    return this.getElementByTag<HTMLInputElement>("input");
-  }
-
-  get labelEl() {
-    return this.getElementByTag<HTMLLabelElement>("label");
+    return this.getElementByTag("s-button");
   }
 
   protected override onConnected(): void {
-    this.inputEl?.addEventListener("change", this.handleChange);
+    this.buttonEl?.addEventListener("change", this.handleInputChange);
   }
 
   protected override onDisconnected(): void {
-    this.inputEl?.removeEventListener("change", this.handleChange);
+    this.buttonEl?.removeEventListener("change", this.handleInputChange);
   }
 
-  handleChange = async (e: Event) => {
+  handleInputChange = async (e: Event) => {
     const event = e as Event & {
       target: HTMLInputElement & EventTarget;
     };

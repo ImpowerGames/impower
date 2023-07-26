@@ -1,4 +1,4 @@
-import { html } from "../../core/html";
+import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state?: { store?: WorkspaceState }) => {

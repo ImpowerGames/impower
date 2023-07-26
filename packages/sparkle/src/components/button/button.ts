@@ -35,6 +35,8 @@ const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap([
     "href",
     "target",
+    "accept",
+    "multiple",
     "type",
     "autofocus",
     "disabled",
@@ -70,7 +72,14 @@ export default class Button
   }
 
   override get component() {
-    return component({ attrs: { type: this.type, href: this.href } });
+    return component({
+      attrs: {
+        type: this.type,
+        href: this.href,
+        accept: this.accept,
+        multiple: this.multiple,
+      },
+    });
   }
 
   override transformHtml(html: string) {
@@ -101,6 +110,7 @@ export default class Button
    * `submit`: The button submits the form data to the server.
    * `reset`: The button resets all the controls to their initial values.
    * `button`: The button has no default behavior, and does nothing when pressed by default.
+   * `file`: The button allows uploading a file.
    * `container`: The button is a container for an element that cannot be nested inside a true `button` element
    * (Component will be wrapped in `div` instead of `button`).
    */
@@ -131,6 +141,28 @@ export default class Button
   }
   set target(value) {
     this.setStringAttribute(Button.attributes.target, value);
+  }
+
+  /**
+   * The file types that this button will accept.
+   * (Component will be wrapped in `div` instead of `button`)
+   */
+  get accept(): string | null {
+    return this.getStringAttribute(Button.attributes.accept);
+  }
+  set accept(value) {
+    this.setStringAttribute(Button.attributes.accept, value);
+  }
+
+  /**
+   * The file types that this button will accept.
+   * (Component will be wrapped in `div` instead of `button`)
+   */
+  get multiple(): string | null {
+    return this.getStringAttribute(Button.attributes.multiple);
+  }
+  set multiple(value) {
+    this.setStringAttribute(Button.attributes.multiple, value);
   }
 
   /**
@@ -205,6 +237,10 @@ export default class Button
 
   get spinnerEl(): HTMLElement | null {
     return this.getElementByClass("spinner");
+  }
+
+  get inputEl(): HTMLElement | null {
+    return this.getElementByTag("input");
   }
 
   get progressCircle(): ProgressCircle | null {
@@ -297,11 +333,21 @@ export default class Button
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
+    const inputEl = this.inputEl;
+    if (inputEl) {
+      inputEl.addEventListener("change", this.handleInputChange);
+      this.bindFocus(inputEl);
+    }
     this.ripple?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
   }
 
   protected override onDisconnected(): void {
+    const inputEl = this.inputEl;
+    if (inputEl) {
+      inputEl.removeEventListener("change", this.handleInputChange);
+      this.unbindFocus(inputEl);
+    }
     this.ripple?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
@@ -342,6 +388,19 @@ export default class Button
         }
       }
     }
+  };
+
+  protected handleInputChange = (e: Event): void => {
+    const propagatableEvent = new Event(e.type, {
+      bubbles: true,
+      cancelable: false,
+      composed: true,
+    });
+    Object.defineProperty(propagatableEvent, "target", {
+      writable: false,
+      value: e.target,
+    });
+    this.dispatchEvent(propagatableEvent);
   };
 
   protected override onContentAssigned(children: Element[]): void {

@@ -1,12 +1,9 @@
 <s-box position="sticky-bottom">
   <s-transition router="window" self-align="stretch">
     <s-collapsible m="24 16" c="full" collapsed="scrolled" position="relative">
-      <s-button color="fab-bg" text-color="fab-fg" text-weight="normal" icon="upload" size="lg" corner="full">
-        <input id="file" name="file" type="file" accept="image/*, audio/*, video/*, .txt" multiple slot="before">
+      <s-button type="file" accept="image/*, audio/*, video/*, .txt" multiple color="fab-bg" text-color="fab-fg"
+        text-weight="normal" icon="upload" size="lg" corner="full">
         <slot></slot>
-        <label for="file" slot="after">
-          <s-ripple corner="full"></s-ripple>
-        </label>
       </s-button>
     </s-collapsible>
   </s-transition>

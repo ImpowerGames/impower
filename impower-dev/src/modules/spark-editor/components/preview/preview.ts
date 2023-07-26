@@ -16,7 +16,7 @@ export default class Preview extends SEElement {
   }
 
   override get component() {
-    return component();
+    return component({ store: Workspace.window.state });
   }
 
   override transformHtml(html: string): string {

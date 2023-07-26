@@ -651,7 +651,7 @@
   mask: var(--mask, none) !important;
 }
 
-button::after {
+.root::after {
   --focus-duration: 50ms;
   position: absolute;
   inset: 0;
@@ -663,14 +663,14 @@ button::after {
   outline-offset: calc(-2 * var(--s-focus-ring-width));
   pointer-events: none;
 }
-button.focused::after {
+.root.focused::after {
   outline: var(--s-color-focus) var(--s-focus-ring-style)
     var(--s-focus-ring-width);
   outline-offset: calc(-1 * var(--s-focus-ring-width));
   -webkit-mask: none;
   mask: none;
 }
-button.focused.pressed::after {
+.root.focused.pressed::after {
   outline-offset: calc((-1 * var(--s-focus-ring-width)) - 2px);
 }
 
