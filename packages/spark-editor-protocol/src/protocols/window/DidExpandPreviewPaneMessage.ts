@@ -5,9 +5,9 @@ export type DidExpandPreviewPaneMethod =
 
 export interface DidExpandPreviewPaneParams {}
 
-export abstract class DidExpandPreviewPaneMessage {
-  static readonly method = "window/didExpandPreviewPane";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace DidExpandPreviewPaneMessage {
+  export const method = "window/didExpandPreviewPane";
+  export const type = new MessageProtocolNotificationType<
     DidExpandPreviewPaneMethod,
     DidExpandPreviewPaneParams
   >(DidExpandPreviewPaneMessage.method);

@@ -1,4 +1,4 @@
-import { TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import { TextDocumentIdentifier } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type ReadTextDocumentMethod = typeof ReadTextDocumentMessage.method;
@@ -10,9 +10,9 @@ export interface ReadTextDocumentParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export abstract class ReadTextDocumentMessage {
-  static readonly method = "textDocument/read";
-  static readonly type = new MessageProtocolRequestType<
+export namespace ReadTextDocumentMessage {
+  export const method = "textDocument/read";
+  export const type = new MessageProtocolRequestType<
     ReadTextDocumentMethod,
     ReadTextDocumentParams,
     string

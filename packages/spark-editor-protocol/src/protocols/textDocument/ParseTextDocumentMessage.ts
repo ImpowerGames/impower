@@ -1,5 +1,5 @@
-import { TextDocumentIdentifier } from "vscode-languageserver-protocol";
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import { TextDocumentIdentifier } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type ParseTextDocumentMethod = typeof ParseTextDocumentMessage.method;
@@ -11,9 +11,9 @@ export interface ParseTextDocumentParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export abstract class ParseTextDocumentMessage {
-  static readonly method = "textDocument/parse";
-  static readonly type = new MessageProtocolRequestType<
+export namespace ParseTextDocumentMessage {
+  export const method = "textDocument/parse";
+  export const type = new MessageProtocolRequestType<
     ParseTextDocumentMethod,
     ParseTextDocumentParams,
     SparkProgram

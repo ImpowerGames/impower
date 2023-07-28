@@ -1,11 +1,11 @@
-import { WorkspaceFolder } from "vscode-languageserver-protocol";
+import { WorkspaceFolder } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type WorkspaceFoldersMethod = typeof WorkspaceFoldersMessage.method;
 
-export abstract class WorkspaceFoldersMessage {
-  static readonly method = "workspace/workspaceFolders";
-  static readonly type = new MessageProtocolRequestType<
+export namespace WorkspaceFoldersMessage {
+  export const method = "workspace/workspaceFolders";
+  export const type = new MessageProtocolRequestType<
     WorkspaceFoldersMethod,
     undefined,
     WorkspaceFolder[]

@@ -1,8 +1,5 @@
-import {
-  MessageDirection,
-  VersionedTextDocumentIdentifier,
-} from "vscode-languageserver-protocol";
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import { VersionedTextDocumentIdentifier } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidParseTextDocumentMethod =
@@ -19,10 +16,9 @@ export interface DidParseTextDocumentParams {
   program: SparkProgram;
 }
 
-export abstract class DidParseTextDocumentMessage {
-  static readonly method = "textDocument/didParse";
-  static readonly messageDirection = MessageDirection.serverToClient;
-  static readonly type = new MessageProtocolNotificationType<
+export namespace DidParseTextDocumentMessage {
+  export const method = "textDocument/didParse";
+  export const type = new MessageProtocolNotificationType<
     DidParseTextDocumentMethod,
     DidParseTextDocumentParams
   >(DidParseTextDocumentMessage.method);

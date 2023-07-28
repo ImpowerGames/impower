@@ -3,7 +3,7 @@ import {
   BrowserMessageWriter,
   createMessageConnection,
 } from "vscode-jsonrpc/browser";
-import { Logger } from "vscode-languageserver-protocol";
+import { Logger } from "../types";
 
 export const createBrowserMessageConnection = (
   worker: Worker,

@@ -1,13 +1,13 @@
-import { RenameFilesParams } from "vscode-languageserver-protocol";
+import { RenameFilesParams } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidRenameFilesMethod = typeof DidRenameFilesMessage.method;
 
 export interface DidRenameFilesParams extends RenameFilesParams {}
 
-export abstract class DidRenameFilesMessage {
-  static readonly method = "workspace/didRenameFiles";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace DidRenameFilesMessage {
+  export const method = "workspace/didRenameFiles";
+  export const type = new MessageProtocolNotificationType<
     DidRenameFilesMethod,
     DidRenameFilesParams
   >(DidRenameFilesMessage.method);

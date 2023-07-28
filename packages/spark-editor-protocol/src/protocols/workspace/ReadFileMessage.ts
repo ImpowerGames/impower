@@ -9,9 +9,9 @@ export interface ReadFileParams {
   file: { uri: string };
 }
 
-export abstract class ReadFileMessage {
-  static readonly method = "workspace/readFile";
-  static readonly type = new MessageProtocolRequestType<
+export namespace ReadFileMessage {
+  export const method = "workspace/readFile";
+  export const type = new MessageProtocolRequestType<
     ReadFileMethod,
     ReadFileParams,
     ArrayBuffer

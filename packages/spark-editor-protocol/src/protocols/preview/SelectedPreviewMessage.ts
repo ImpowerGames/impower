@@ -1,4 +1,4 @@
-import { Range, TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import { Range, TextDocumentIdentifier } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type SelectedPreviewMethod = typeof SelectedPreviewMessage.method;
@@ -9,9 +9,9 @@ export interface SelectedPreviewParams {
   range: Range;
 }
 
-export abstract class SelectedPreviewMessage {
-  static readonly method = "preview/selected";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace SelectedPreviewMessage {
+  export const method = "preview/selected";
+  export const type = new MessageProtocolNotificationType<
     SelectedPreviewMethod,
     SelectedPreviewParams
   >(SelectedPreviewMessage.method);

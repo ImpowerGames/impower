@@ -14,9 +14,9 @@ export interface DeleteFilesParams {
   }[];
 }
 
-export abstract class DeleteFilesMessage {
-  static readonly method = "workspace/deleteFiles";
-  static readonly type = new MessageProtocolRequestType<
+export namespace DeleteFilesMessage {
+  export const method = "workspace/deleteFiles";
+  export const type = new MessageProtocolRequestType<
     DeleteFilesMethod,
     DeleteFilesParams,
     null

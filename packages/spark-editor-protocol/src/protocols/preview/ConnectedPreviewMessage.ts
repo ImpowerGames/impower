@@ -7,9 +7,9 @@ export interface ConnectedPreviewParams {
   type: "game" | "screenplay";
 }
 
-export abstract class ConnectedPreviewMessage {
-  static readonly method = "preview/connected";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace ConnectedPreviewMessage {
+  export const method = "preview/connected";
+  export const type = new MessageProtocolNotificationType<
     ConnectedPreviewPreviewMethod,
     ConnectedPreviewParams
   >(ConnectedPreviewMessage.method);

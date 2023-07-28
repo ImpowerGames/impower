@@ -1,4 +1,4 @@
-import { URI } from "vscode-languageserver-protocol";
+import { URI } from "../../types";
 import { WorkspaceEntry } from "../../types/workspace/WorkspaceEntry";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
@@ -8,9 +8,9 @@ export interface WorkspaceDirectoryParams {
   directory: { uri: URI };
 }
 
-export abstract class WorkspaceDirectoryMessage {
-  static readonly method = "workspace/directory";
-  static readonly type = new MessageProtocolRequestType<
+export namespace WorkspaceDirectoryMessage {
+  export const method = "workspace/directory";
+  export const type = new MessageProtocolRequestType<
     WorkspaceDirectoryMethod,
     WorkspaceDirectoryParams,
     WorkspaceEntry[]

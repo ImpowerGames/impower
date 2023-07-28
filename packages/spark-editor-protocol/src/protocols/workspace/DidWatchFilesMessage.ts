@@ -17,9 +17,9 @@ export interface DidWatchFilesParams {
   files: FileWatch[];
 }
 
-export abstract class DidWatchFilesMessage {
-  static readonly method = "workspace/didWatchFiles";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace DidWatchFilesMessage {
+  export const method = "workspace/didWatchFiles";
+  export const type = new MessageProtocolNotificationType<
     DidWatchFilesMethod,
     DidWatchFilesParams
   >(DidWatchFilesMessage.method);

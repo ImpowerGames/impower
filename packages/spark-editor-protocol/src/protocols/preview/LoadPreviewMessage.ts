@@ -1,4 +1,4 @@
-import { Range, TextDocumentItem } from "vscode-languageserver-protocol";
+import { Range, TextDocumentItem } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type LoadPreviewMethod = typeof LoadPreviewMessage.method;
@@ -10,9 +10,9 @@ export interface LoadPreviewParams {
   selectedRange?: Range;
 }
 
-export abstract class LoadPreviewMessage {
-  static readonly method = "preview/load";
-  static readonly type = new MessageProtocolRequestType<
+export namespace LoadPreviewMessage {
+  export const method = "preview/load";
+  export const type = new MessageProtocolRequestType<
     LoadPreviewMethod,
     LoadPreviewParams,
     null

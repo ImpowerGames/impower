@@ -1,4 +1,4 @@
-import { TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import { TextDocumentIdentifier } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type HoveredOffPreviewMethod = typeof HoveredOffPreviewMessage.method;
@@ -8,9 +8,9 @@ export interface HoveredOffPreviewParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export abstract class HoveredOffPreviewMessage {
-  static readonly method = "preview/hoveredOff";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace HoveredOffPreviewMessage {
+  export const method = "preview/hoveredOff";
+  export const type = new MessageProtocolNotificationType<
     HoveredOffPreviewMethod,
     HoveredOffPreviewParams
   >(HoveredOffPreviewMessage.method);

@@ -1,16 +1,12 @@
-import {
-  DidSaveTextDocumentParams,
-  MessageDirection,
-} from "vscode-languageserver-protocol";
+import { DidSaveTextDocumentParams } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidSaveTextDocumentMethod =
   typeof DidSaveTextDocumentMessage.method;
 
-export abstract class DidSaveTextDocumentMessage {
-  static readonly method = "textDocument/didSave";
-  static readonly messageDirection = MessageDirection.clientToServer;
-  static readonly type = new MessageProtocolNotificationType<
+export namespace DidSaveTextDocumentMessage {
+  export const method = "textDocument/didSave";
+  export const type = new MessageProtocolNotificationType<
     DidSaveTextDocumentMethod,
     DidSaveTextDocumentParams
   >(DidSaveTextDocumentMessage.method);

@@ -18,9 +18,9 @@ export interface CreateFilesParams {
   }[];
 }
 
-export abstract class CreateFilesMessage {
-  static readonly method = "workspace/createFiles";
-  static readonly type = new MessageProtocolRequestType<
+export namespace CreateFilesMessage {
+  export const method = "workspace/createFiles";
+  export const type = new MessageProtocolRequestType<
     CreateFilesMethod,
     CreateFilesParams,
     null

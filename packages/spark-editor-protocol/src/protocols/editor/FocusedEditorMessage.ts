@@ -1,4 +1,4 @@
-import { TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import { TextDocumentIdentifier } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type FocusedEditorMethod = typeof FocusedEditorMessage.method;
@@ -7,9 +7,9 @@ export interface FocusedEditorParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export abstract class FocusedEditorMessage {
-  static readonly method = "editor/focused";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace FocusedEditorMessage {
+  export const method = "editor/focused";
+  export const type = new MessageProtocolNotificationType<
     FocusedEditorMethod,
     FocusedEditorParams
   >(FocusedEditorMessage.method);

@@ -1,11 +1,11 @@
-import { Hover, HoverParams } from "vscode-languageserver-protocol";
+import { Hover, HoverParams } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type HoverMethod = typeof HoverMessage.method;
 
-export abstract class HoverMessage {
-  static readonly method = "textDocument/hover";
-  static readonly type = new MessageProtocolRequestType<
+export namespace HoverMessage {
+  export const method = "textDocument/hover";
+  export const type = new MessageProtocolRequestType<
     HoverMethod,
     HoverParams,
     Hover | null

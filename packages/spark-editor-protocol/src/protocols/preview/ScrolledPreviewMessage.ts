@@ -1,4 +1,4 @@
-import { Range, TextDocumentIdentifier } from "vscode-languageserver-protocol";
+import { Range, TextDocumentIdentifier } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type ScrolledPreviewMethod = typeof ScrolledPreviewMessage.method;
@@ -9,9 +9,9 @@ export interface ScrolledPreviewParams {
   range: Range;
 }
 
-export abstract class ScrolledPreviewMessage {
-  static readonly method = "preview/scrolled";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace ScrolledPreviewMessage {
+  export const method = "preview/scrolled";
+  export const type = new MessageProtocolNotificationType<
     ScrolledPreviewMethod,
     ScrolledPreviewParams
   >(ScrolledPreviewMessage.method);

@@ -1,12 +1,12 @@
-import { DidChangeConfigurationParams } from "vscode-languageserver-protocol";
+import { DidChangeConfigurationParams } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type DidChangeConfigurationMethod =
   typeof DidChangeConfigurationMessage.method;
 
-export abstract class DidChangeConfigurationMessage {
-  static readonly method = "workspace/didChangeConfiguration";
-  static readonly type = new MessageProtocolNotificationType<
+export namespace DidChangeConfigurationMessage {
+  export const method = "workspace/didChangeConfiguration";
+  export const type = new MessageProtocolNotificationType<
     DidChangeConfigurationMethod,
     DidChangeConfigurationParams
   >(DidChangeConfigurationMessage.method);
