@@ -6,21 +6,21 @@ import {
 import { Language } from "@codemirror/language";
 import { setDiagnostics } from "@codemirror/lint";
 import { EditorView, PluginValue } from "@codemirror/view";
-import { CompletionMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/CompletionMessage.js";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
-import { DocumentColorMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage.js";
-import { FoldingRangeMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage.js";
-import { HoverMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/HoverMessage.js";
-import { PublishDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage.js";
+import { NodeType } from "@lezer/common";
+import { Tag } from "@lezer/highlight";
+import { CompletionMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
+import { DidParseTextDocumentMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { DocumentColorMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage";
+import { FoldingRangeMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage";
+import { HoverMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/HoverMessage";
+import { PublishDiagnosticsMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import {
   Diagnostic,
   Disposable,
   MarkupContent,
   MessageConnection,
   ServerCapabilities,
-} from "@impower/spark-editor-protocol/src/types";
-import { NodeType } from "@lezer/common";
-import { Tag } from "@lezer/highlight";
+} from "../../../../spark-editor-protocol/src/types";
 import { languageClientConfig } from "../extensions/languageClient";
 import { FileSystemReader } from "../types/FileSystemReader";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
@@ -42,7 +42,7 @@ import HoverSupport, {
 export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
 
-  protected _connection: MessageConnection;
+  protected _serverConnection: MessageConnection;
 
   protected _serverCapabilities: ServerCapabilities;
 
@@ -79,7 +79,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._supports = supports;
     const config = view.state.facet(languageClientConfig);
     this._textDocument = config.textDocument;
-    this._connection = config.connection;
+    this._serverConnection = config.serverConnection;
     this._serverCapabilities = config.serverCapabilities;
     this._fileSystemReader = config.fileSystemReader;
     this._language = config.language;
@@ -94,7 +94,7 @@ export default class LanguageClientPluginValue implements PluginValue {
 
   bind() {
     this._disposables.push(
-      this._connection.onNotification(
+      this._serverConnection.onNotification(
         PublishDiagnosticsMessage.type,
         (params) => {
           if (params.uri !== this._textDocument.uri) {
@@ -105,7 +105,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       )
     );
     this._disposables.push(
-      this._connection.onNotification(
+      this._serverConnection.onNotification(
         DidParseTextDocumentMessage.type,
         (params) => {
           if (params.textDocument.uri !== this._textDocument.uri) {
@@ -141,11 +141,14 @@ export default class LanguageClientPluginValue implements PluginValue {
     if (!serverContext) {
       return null;
     }
-    const result = await this._connection.sendRequest(CompletionMessage.type, {
-      textDocument: this._textDocument,
-      position,
-      context: serverContext,
-    });
+    const result = await this._serverConnection.sendRequest(
+      CompletionMessage.type,
+      {
+        textDocument: this._textDocument,
+        position,
+        context: serverContext,
+      }
+    );
     if (!result) {
       return null;
     }
@@ -237,7 +240,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       clientContext.view.state.doc,
       clientContext.pos
     );
-    const result = await this._connection.sendRequest(HoverMessage.type, {
+    const result = await this._serverConnection.sendRequest(HoverMessage.type, {
       textDocument: this._textDocument,
       position,
     });
@@ -281,7 +284,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   async updateFoldingRanges(view: EditorView) {
-    const result = await this._connection.sendRequest(
+    const result = await this._serverConnection.sendRequest(
       FoldingRangeMessage.type,
       { textDocument: this._textDocument }
     );
@@ -295,7 +298,7 @@ export default class LanguageClientPluginValue implements PluginValue {
   }
 
   async updateDocumentColors(view: EditorView) {
-    const result = await this._connection.sendRequest(
+    const result = await this._serverConnection.sendRequest(
       DocumentColorMessage.type,
       { textDocument: this._textDocument }
     );

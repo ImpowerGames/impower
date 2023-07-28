@@ -6,7 +6,7 @@ import PREVIEW_THEME from "../constants/PREVIEW_THEME";
 import screenplayFormatting from "./screenplayFormatting";
 
 interface EditorConfig {
-  doc?: string;
+  textDocument: { uri: string; version: number; text: string };
   contentPadding?: {
     top?: number;
     bottom?: number;
@@ -24,7 +24,7 @@ const createEditorView = (
   parent: HTMLElement,
   config?: EditorConfig
 ): EditorView => {
-  const doc = config?.doc;
+  const textDocument = config?.textDocument;
   const contentPadding = config?.contentPadding;
   const stabilizationDuration = 200;
   const onBlur = config?.onBlur;
@@ -33,7 +33,7 @@ const createEditorView = (
   const onHeightChanged = config?.onHeightChanged;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const startState = EditorState.create({
-    doc,
+    doc: textDocument?.text,
     extensions: [
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),

@@ -16,6 +16,9 @@ import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
 import component from "./_button";
 
+const CHANGING_EVENT = "changing";
+const CHANGED_EVENT = "changed";
+
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-badge",
   "s-progress-circle",
@@ -43,7 +46,7 @@ const DEFAULT_ATTRIBUTES = {
     "loading",
     "variant",
     "label",
-    "action",
+    "value",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -218,13 +221,13 @@ export default class Button
   }
 
   /**
-   * The action to perform when clicking this button.
+   * The value this button will emit when clicked.
    */
-  get action(): string | null {
-    return this.getStringAttribute(Button.attributes.action);
+  get value(): string | null {
+    return this.getStringAttribute(Button.attributes.value);
   }
-  set action(value) {
-    this.setStringAttribute(Button.attributes.action, value);
+  set value(value) {
+    this.setStringAttribute(Button.attributes.value, value);
   }
 
   get labelEl(): HTMLElement | null {
@@ -353,40 +356,12 @@ export default class Button
   }
 
   protected handleClick = (e: MouseEvent): void => {
-    const action = this.action;
-    if (action) {
-      const [id, attr] = action.split(":");
-      if (id && attr) {
-        const siblings =
-          (this.parentElement?.childNodes as NodeListOf<HTMLElement>) || [];
-        const element = [
-          this.parentElement,
-          this.parentElement?.parentElement,
-          ...Array.from(siblings),
-        ].find(
-          (sibling) =>
-            (sibling as HTMLElement)?.getAttribute?.("id") === id.trim()
-        );
-        if (element) {
-          const [attrName, attrValue] = attr.split("=");
-          if (attrName) {
-            if (attrName.startsWith("!") && !attrValue) {
-              const attr = attrName.slice(1);
-              if (element.getAttribute(attr) != null) {
-                element.removeAttribute(attr);
-              } else {
-                element.setAttribute(attr, attrValue || "");
-              }
-            } else {
-              if (attrValue === "null") {
-                element.removeAttribute(attrName);
-              } else {
-                element.setAttribute(attrName, attrValue || "");
-              }
-            }
-          }
-        }
-      }
+    const value = this.value;
+    if (value) {
+      const rect = this.root?.getBoundingClientRect();
+      const detail = { oldRect: rect, newRect: rect, value };
+      this.emit(CHANGING_EVENT, detail);
+      this.emit(CHANGED_EVENT, detail);
     }
   };
 
@@ -417,5 +392,9 @@ export default class Button
 declare global {
   interface HTMLElementTagNameMap {
     "s-button": Button;
+  }
+  interface HTMLElementEventMap {
+    changing: CustomEvent;
+    changed: CustomEvent;
   }
 }

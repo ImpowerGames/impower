@@ -1,18 +1,19 @@
 import { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { FocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/FocusedEditorMessage.js";
-import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
-import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
-import { UnfocusedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage.js";
-import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
-import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage.js";
-import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage.js";
-import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage.js";
+import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
+import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
+import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { UnfocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
+import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
+import { DidChangeTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import { DidOpenTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
+import { DidSaveTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
 import {
   MessageConnection,
   Range,
+  ServerCapabilities,
   TextDocumentItem,
-} from "@impower/spark-editor-protocol/src/types";
+} from "../../../../../spark-editor-protocol/src/types";
 import SparkElement from "../../../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
@@ -32,6 +33,8 @@ export default class SparkdownScriptEditor
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static languageServerConnection: MessageConnection;
+
+  static languageServerCapabilities: ServerCapabilities;
 
   static fileSystemReader: FileSystemReader;
 
@@ -99,7 +102,11 @@ export default class SparkdownScriptEditor
   protected _pointerOverScroller = false;
 
   protected override onConnected(): void {
-    window.addEventListener("message", this.handleMessage);
+    window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
+    window.addEventListener(
+      ScrolledEditorMessage.method,
+      this.handleScrolledPreview
+    );
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
   }
 
@@ -120,10 +127,15 @@ export default class SparkdownScriptEditor
   }
 
   protected override onDisconnected(): void {
-    window.removeEventListener("message", this.handleMessage);
+    window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
+    window.removeEventListener(
+      ScrolledEditorMessage.method,
+      this.handleScrolledPreview
+    );
     if (this._editing) {
       if (this._textDocument) {
-        window.postMessage(
+        this.emit(
+          UnfocusedEditorMessage.method,
           UnfocusedEditorMessage.type.notification({
             textDocument: this._textDocument,
           })
@@ -146,89 +158,106 @@ export default class SparkdownScriptEditor
     }
   }
 
-  protected handleMessage = (e: MessageEvent): void => {
-    const message = e.data;
-    if (LoadEditorMessage.type.isRequest(message)) {
-      const params = message.params;
-      this.loadTextDocument(params.textDocument);
+  protected handleLoadEditor = (e: Event): void => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (LoadEditorMessage.type.isRequest(message)) {
+        const params = message.params;
+        const textDocument = params.textDocument;
+        if (textDocument.uri !== this._textDocument?.uri) {
+          this.loadTextDocument(textDocument);
+        }
+      }
     }
-    if (ScrolledPreviewMessage.type.isNotification(message)) {
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const range = params.range;
-      if (textDocument.uri === this._textDocument?.uri) {
-        this.revealRange(range);
+  };
+
+  protected handleScrolledPreview = (e: Event): void => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (ScrolledPreviewMessage.type.isNotification(message)) {
+        const params = message.params;
+        const textDocument = params.textDocument;
+        const range = params.range;
+        if (textDocument.uri === this._textDocument?.uri) {
+          this.revealRange(range);
+        }
       }
     }
   };
 
   protected loadTextDocument(textDocument: TextDocumentItem) {
-    if (this._textDocument?.uri !== textDocument.uri) {
-      this._textDocument = textDocument;
-      const editorEl = this.editorEl;
-      if (editorEl) {
-        const debouncedSave = debounce((text: Text) => {
+    if (this._view) {
+      this._view.destroy();
+    }
+    this._textDocument = textDocument;
+    const editorEl = this.editorEl;
+    if (editorEl) {
+      const debouncedSave = debounce((text: Text) => {
+        if (this._textDocument) {
+          this.emit(
+            DidSaveTextDocumentMessage.method,
+            DidSaveTextDocumentMessage.type.notification({
+              textDocument: this._textDocument,
+              text: text.toString(),
+            })
+          );
+        }
+      }, this.autosaveDelay);
+      this._view = createEditorView(editorEl, {
+        serverConnection: SparkdownScriptEditor.languageServerConnection,
+        serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
+        fileSystemReader: SparkdownScriptEditor.fileSystemReader,
+        textDocument: this._textDocument,
+        contentPadding: getBoxValues(this.contentPadding),
+        onFocus: () => {
+          this._editing = true;
           if (this._textDocument) {
-            window.postMessage(
-              DidSaveTextDocumentMessage.type.notification({
+            this.emit(
+              FocusedEditorMessage.method,
+              FocusedEditorMessage.type.notification({
                 textDocument: this._textDocument,
-                text: text.toString(),
               })
             );
           }
-        }, this.autosaveDelay);
-        this._view = createEditorView(editorEl, {
-          connection: SparkdownScriptEditor.languageServerConnection,
-          fileSystemReader: SparkdownScriptEditor.fileSystemReader,
-          textDocument: this._textDocument,
-          contentPadding: getBoxValues(this.contentPadding),
-          onFocus: () => {
-            this._editing = true;
+        },
+        onBlur: () => {
+          this._editing = false;
+          if (this._textDocument) {
+            this.emit(
+              UnfocusedEditorMessage.method,
+              UnfocusedEditorMessage.type.notification({
+                textDocument: this._textDocument,
+              })
+            );
+          }
+        },
+        onEdit: (e) => {
+          const { before, transaction } = e;
+          if (transaction.docChanged) {
             if (this._textDocument) {
-              window.postMessage(
-                FocusedEditorMessage.type.notification({
-                  textDocument: this._textDocument,
-                })
+              this._textDocument.version += 1;
+              const changeParams = {
+                textDocument: this._textDocument,
+                contentChanges: getServerChanges(before, transaction.changes),
+              };
+              this.emit(
+                DidChangeTextDocumentMessage.method,
+                DidChangeTextDocumentMessage.type.notification(changeParams)
               );
-            }
-          },
-          onBlur: () => {
-            this._editing = false;
-            if (this._textDocument) {
-              window.postMessage(
-                UnfocusedEditorMessage.type.notification({
-                  textDocument: this._textDocument,
-                })
+              SparkdownScriptEditor.languageServerConnection.sendNotification(
+                DidChangeTextDocumentMessage.type,
+                changeParams
               );
+              debouncedSave(e.after);
             }
-          },
-          onEdit: (e) => {
-            const { before, transaction } = e;
-            if (transaction.docChanged) {
-              if (this._textDocument) {
-                this._textDocument.version += 1;
-                const changeParams = {
-                  textDocument: this._textDocument,
-                  contentChanges: getServerChanges(before, transaction.changes),
-                };
-                window.postMessage(
-                  DidChangeTextDocumentMessage.type.notification(changeParams)
-                );
-                SparkdownScriptEditor.languageServerConnection.sendNotification(
-                  DidChangeTextDocumentMessage.type,
-                  changeParams
-                );
-                debouncedSave(e.after);
-              }
-            }
-          },
-        });
-      }
-      SparkdownScriptEditor.languageServerConnection.sendNotification(
-        DidOpenTextDocumentMessage.type,
-        { textDocument }
-      );
+          }
+        },
+      });
     }
+    SparkdownScriptEditor.languageServerConnection.sendNotification(
+      DidOpenTextDocumentMessage.type,
+      { textDocument }
+    );
   }
 
   protected revealRange(range: Range) {
@@ -292,7 +321,8 @@ export default class SparkdownScriptEditor
           this._startVisibleLineNumber = startLineNumber;
           this._endVisibleLineNumber = endLineNumber;
           if (this._textDocument) {
-            window.postMessage(
+            this.emit(
+              ScrolledEditorMessage.method,
               ScrolledEditorMessage.type.notification({
                 textDocument: this._textDocument,
                 range: {

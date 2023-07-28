@@ -1,126 +1,90 @@
-import { SparkDOMElement } from "@impower/spark-dom/src";
-import { SparkContext, previewLine } from "@impower/spark-engine/src";
+import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
+import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage.js";
+import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
+import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
+import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
+import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage.js";
+import SparkGamePreview from "@impower/spark-game-preview/src/index.js";
 
 declare var acquireVsCodeApi: any;
 
 const vscode = acquireVsCodeApi();
 
+let loadingRequest: number | string | undefined = undefined;
+
 const load = async () => {
-  await Promise.allSettled([SparkdownScriptPreview.init()]);
+  window.addEventListener(ConnectedPreviewMessage.method, (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (ConnectedPreviewMessage.type.isNotification(message)) {
+        if (message.params.type === "game") {
+          vscode.postMessage(message);
+        }
+      }
+    }
+  });
+  window.addEventListener(LoadPreviewMessage.method, (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (LoadPreviewMessage.type.isRequest(message)) {
+        if (message.params.type === "game") {
+          loadingRequest = message.id;
+          vscode.setState({ textDocument: message.params.textDocument });
+        }
+      }
+    }
+  });
+  window.addEventListener(LoadPreviewMessage.method, (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (LoadPreviewMessage.type.isResponse(message)) {
+        if (message.id === loadingRequest) {
+          document.body.classList.add("ready");
+          vscode.postMessage(message);
+        }
+      }
+    }
+  });
+  window.addEventListener(ScrolledPreviewMessage.method, (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (ScrolledPreviewMessage.type.isNotification(message)) {
+        if (message.params.type === "game") {
+          vscode.postMessage(message);
+        }
+      }
+    }
+  });
+  window.addEventListener(SelectedPreviewMessage.method, (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (SelectedPreviewMessage.type.isNotification(message)) {
+        if (message.params.type === "game") {
+          vscode.postMessage(message);
+        }
+      }
+    }
+  });
+  window.addEventListener(HoveredOnPreviewMessage.method, (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (HoveredOnPreviewMessage.type.isNotification(message)) {
+        if (message.params.type === "game") {
+          vscode.postMessage(message);
+        }
+      }
+    }
+  });
+  window.addEventListener(HoveredOffPreviewMessage.method, (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (HoveredOffPreviewMessage.type.isNotification(message)) {
+        if (message.params.type === "game") {
+          vscode.postMessage(message);
+        }
+      }
+    }
+  });
+  await Promise.allSettled([SparkGamePreview.init()]);
 };
 load();
-
-window.addEventListener("message", (e: MessageEvent) => {
-  if (ConnectedPreviewNotification.is(e.data)) {
-    if (e.data.params.type === "game") {
-      vscode.postMessage(e.data);
-    }
-  }
-  if (LoadedPreviewNotification.is(e.data)) {
-    if (e.data.params.type === "game") {
-      document.body.classList.add("ready");
-      vscode.setState({ textDocument: e.data.params.textDocument });
-      vscode.postMessage(e.data);
-    }
-  }
-  if (ScrolledPreviewNotification.is(e.data)) {
-    if (e.data.params.type === "game") {
-      vscode.postMessage(e.data);
-    }
-  }
-  if (SelectedPreviewNotification.is(e.data)) {
-    if (e.data.params.type === "game") {
-      vscode.postMessage(e.data);
-    }
-  }
-  if (HoveredOnPreviewNotification.is(e.data)) {
-    if (e.data.params.type === "game") {
-      vscode.postMessage(e.data);
-    }
-  }
-  if (HoveredOffPreviewNotification.is(e.data)) {
-    if (e.data.params.type === "game") {
-      vscode.postMessage(e.data);
-    }
-  }
-});
-
-let state = {
-  textDocument: { uri: "" },
-  program: undefined,
-  lastPreviewedLine: -1,
-};
-
-const previousState = vscode.getState();
-if (previousState != undefined) {
-  state = previousState;
-}
-
-const cachedFiles = {};
-
-const cacheFiles = async (objectMap) => {
-  await Promise.all([
-    ...Object.entries(objectMap?.["image"] || {}).map(([, asset]) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = resolve;
-        img.onerror = resolve;
-        const src = asset?.src || "";
-        img.src = src;
-        cachedFiles[src] = img;
-      });
-    }),
-    ...Object.entries(objectMap?.["audio"] || {}).map(([, asset]) => {
-      return new Promise((resolve) => {
-        const audio = new Audio();
-        audio.onload = resolve;
-        audio.onerror = resolve;
-        const src = asset?.src || "";
-        audio.src = src;
-        cachedFiles[src] = audio;
-      });
-    }),
-  ]);
-};
-
-let sparkContext;
-let root = new SparkDOMElement(document.getElementById("ui-overlay"));
-
-window.addEventListener("message", (event) => {
-  if (event.data.command === "sparkdown.updateParsedJson") {
-    state.program = JSON.parse(event.data.content);
-    const createElement = (type) => {
-      return new SparkDOMElement(document.createElement(type));
-    };
-    sparkContext = new SparkContext(state.program, {
-      config: {
-        ui: { root, createElement },
-      },
-      ...(config || {}),
-    });
-    cacheFiles(state.program.objectMap);
-    if (state.lastPreviewedLine >= 0) {
-      previewLine(
-        sparkContext,
-        state.program,
-        state.lastPreviewedLine,
-        true,
-        false
-      );
-    }
-    vscode.setState(state);
-  } else if (event.data.command === "sparkdown.setstate") {
-    if (event.data.uri !== undefined) {
-      state.textDocument.uri = event.data.uri;
-    }
-    vscode.setState(state);
-  } else if (event.data.command === "sparkdown.showsourceline") {
-    state.lastPreviewedLine = event.data.content;
-    previewLine(sparkContext, state.program, event.data.content, true, false);
-    vscode.setState(state);
-  } else if (event.data.command === "sparkdown.highlightline") {
-    state.lastPreviewedLine = event.data.content;
-    previewLine(sparkContext, state.program, event.data.content, true, false);
-    vscode.setState(state);
-  }
-});

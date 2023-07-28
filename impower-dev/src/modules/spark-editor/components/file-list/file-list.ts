@@ -99,7 +99,10 @@ export default class FileList
 
   protected override onConnected(): void {
     this.loadEntries(this.directoryPath);
-    window.addEventListener("message", this.handleMessage);
+    window.addEventListener(
+      DidChangeWatchedFilesMessage.method,
+      this.handleDidChangeWatchedFiles
+    );
     this.root.addEventListener("dragenter", this.handleDragEnter);
     this.root.addEventListener("dragleave", this.handleDragLeave);
     this.root.addEventListener("dragover", this.handleDragOver);
@@ -107,26 +110,31 @@ export default class FileList
   }
 
   protected override onDisconnected(): void {
-    window.removeEventListener("message", this.handleMessage);
+    window.removeEventListener(
+      DidChangeWatchedFilesMessage.method,
+      this.handleDidChangeWatchedFiles
+    );
     this.root.removeEventListener("dragenter", this.handleDragEnter);
     this.root.removeEventListener("dragleave", this.handleDragLeave);
     this.root.removeEventListener("dragover", this.handleDragOver);
     this.root.removeEventListener("drop", this.handleDrop);
   }
 
-  protected handleMessage = (e: MessageEvent): void => {
-    const message = e.data;
-    const directory = this.directoryPath;
-    if (directory) {
-      const directoryUri = Workspace.fs.getWorkspaceUri(directory);
-      if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-        const params = message.params;
-        const changes = params.changes;
-        const changedFileInDirectory = changes.some((file) =>
-          file.uri.startsWith(directoryUri)
-        );
-        if (changedFileInDirectory) {
-          this.loadEntries(directory);
+  protected handleDidChangeWatchedFiles = (e: Event): void => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      const directory = this.directoryPath;
+      if (directory) {
+        const directoryUri = Workspace.fs.getWorkspaceUri(directory);
+        if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
+          const params = message.params;
+          const changes = params.changes;
+          const changedFileInDirectory = changes.some((file) =>
+            file.uri.startsWith(directoryUri)
+          );
+          if (changedFileInDirectory) {
+            this.loadEntries(directory);
+          }
         }
       }
     }
@@ -206,6 +214,7 @@ export default class FileList
             const fileName = entry.uri.split("/").slice(-1).join("");
             const displayName = fileName.split(".")[0] ?? "";
             child.appendChild(document.createTextNode(displayName));
+            child.setAttribute("directory-path", directory);
             child.setAttribute("file-name", fileName);
           }
           outletSlot.appendChild(templateContent);

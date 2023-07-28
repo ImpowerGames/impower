@@ -9,7 +9,6 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { createBrowserMessageConnection } from "@impower/spark-editor-protocol/src/utils/createBrowserMessageConnection";
 import ConsoleLogger from "./ConsoleLogger";
-import WorkspaceWindow from "./WorkspaceWindow";
 
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   workspace: {
@@ -115,8 +114,6 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
 };
 
 export default class WorkspaceLanguageServerProtocol {
-  protected _window: WorkspaceWindow;
-
   protected _worker = new Worker("/public/sparkdown-language-server.js");
 
   protected _name = "Sparkdown Language Server";
@@ -144,8 +141,7 @@ export default class WorkspaceLanguageServerProtocol {
     return this._starting;
   }
 
-  constructor(window: WorkspaceWindow) {
-    this._window = window;
+  constructor() {
     this._connection = createBrowserMessageConnection(
       this._worker,
       new ConsoleLogger()
@@ -153,7 +149,8 @@ export default class WorkspaceLanguageServerProtocol {
     this._connection.onNotification(
       DidParseTextDocumentMessage.type,
       (params) => {
-        this._window.sendNotification(
+        this.emit(
+          DidParseTextDocumentMessage.method,
           DidParseTextDocumentMessage.type.notification(params)
         );
       }
@@ -178,5 +175,16 @@ export default class WorkspaceLanguageServerProtocol {
 
   stop() {
     this._connection.dispose();
+  }
+
+  emit<T>(eventName: string, detail?: T): boolean {
+    return window.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: true,
+        cancelable: false,
+        composed: true,
+        detail,
+      })
+    );
   }
 }

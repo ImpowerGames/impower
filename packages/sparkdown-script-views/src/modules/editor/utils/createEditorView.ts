@@ -8,8 +8,11 @@ import {
   Transaction,
 } from "@codemirror/state";
 import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+import {
+  MessageConnection,
+  ServerCapabilities,
+} from "@impower/spark-editor-protocol/src/types";
 import { foldedField } from "../../../cm-folded/foldedField";
-import { LanguageServerConnection } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
@@ -25,7 +28,8 @@ import { lockBodyScrolling, unlockBodyScrolling } from "./bodyScrolling";
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
 
 interface EditorConfig {
-  connection: LanguageServerConnection;
+  serverConnection: MessageConnection;
+  serverCapabilities: ServerCapabilities;
   fileSystemReader?: FileSystemReader;
   textDocument: { uri: string; version: number; text: string };
   disableBodyScrollLocking?: number;
@@ -67,7 +71,8 @@ const createEditorView = (
   config: EditorConfig
 ): EditorView => {
   const textDocument = config.textDocument;
-  const connection = config.connection;
+  const serverConnection = config.serverConnection;
+  const serverCapabilities = config.serverCapabilities;
   const fileSystemReader = config.fileSystemReader;
   const disableBodyScrollLocking = config?.disableBodyScrollLocking;
   const contentPadding = config?.contentPadding;
@@ -120,7 +125,8 @@ const createEditorView = (
       scrollMargins(contentPadding),
       sparkdownLanguageExtension({
         textDocument,
-        connection,
+        serverConnection,
+        serverCapabilities,
         fileSystemReader,
       }),
       EditorView.updateListener.of((u) => {

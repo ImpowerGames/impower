@@ -1,17 +1,25 @@
 export interface WorkspaceState
-  extends Record<string, { panel: string; panels: Record<string, {}> }> {
+  extends Record<
+    string,
+    {
+      panel: string;
+      panels: Record<string, { scrollIndex?: number; editingPath?: string }>;
+    }
+  > {
   setup: {
     panel: string;
     panels: {
       details: {
-        open?: string;
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
       share: {
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
       assets: {
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
     };
   };
@@ -19,12 +27,12 @@ export interface WorkspaceState
     panel: string;
     panels: {
       sounds: {
-        open?: string;
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
       music: {
-        open?: string;
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
     };
   };
@@ -32,12 +40,12 @@ export interface WorkspaceState
     panel: string;
     panels: {
       widgets: {
-        open?: string;
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
       views: {
-        open?: string;
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
     };
   };
@@ -45,12 +53,12 @@ export interface WorkspaceState
     panel: string;
     panels: {
       sprites: {
-        open?: string;
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
       maps: {
-        open?: string;
         scrollIndex: number;
+        editingPath?: string;
       };
     };
   };
@@ -58,20 +66,26 @@ export interface WorkspaceState
     panel: string;
     panels: {
       main: {
-        scrollIndex: number;
+        scrollIndex?: number;
+        editingPath?: string;
       };
       scripts: {
-        open?: string;
         scrollIndex: number;
+        editingPath?: string;
       };
     };
   };
   preview: {
     panel: string;
     panels: {
-      game: {};
+      game: {
+        scrollIndex?: number;
+      };
       screenplay: {
-        scrollIndex: number;
+        scrollIndex?: number;
+      };
+      file: {
+        scrollIndex?: number;
       };
     };
   };

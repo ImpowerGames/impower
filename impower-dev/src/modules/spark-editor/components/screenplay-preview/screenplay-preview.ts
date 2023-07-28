@@ -71,7 +71,8 @@ export default class ScreenplayPreview
     const existingText = await Workspace.fs.readTextDocument({
       textDocument: { uri },
     });
-    window.postMessage(
+    this.emit(
+      LoadPreviewMessage.method,
       LoadPreviewMessage.type.request({
         type: "screenplay",
         textDocument: {

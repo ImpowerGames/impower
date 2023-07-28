@@ -8,12 +8,12 @@ export default abstract class Workspace {
     return this._window;
   }
 
-  static _lsp = new WorkspaceLanguageServerProtocol(this.window);
+  static _lsp = new WorkspaceLanguageServerProtocol();
   static get lsp() {
     return this._lsp;
   }
 
-  static _fs = new WorkspaceFileSystem(this.window, this.lsp);
+  static _fs = new WorkspaceFileSystem(this.lsp);
   static get fs() {
     return this._fs;
   }

@@ -1,9 +1,9 @@
 import {
   DidParseTextDocumentMessage,
   DidParseTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
-import { ParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocumentMessage.js";
-import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
+} from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { ParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocumentMessage";
+import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage";
 import * as vscode from "vscode";
 import { SparkProgramManager } from "../providers/SparkProgramManager";
 import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManager";

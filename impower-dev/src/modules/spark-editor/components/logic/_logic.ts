@@ -2,17 +2,19 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state?: { store?: WorkspaceState }) => {
-  const mode = state?.store?.logic?.panel || "main";
+  const panelMode = state?.store?.logic?.panel || "main";
+  const editingPath = state?.store?.logic?.panels.scripts.editingPath || "";
+  const editMode = editingPath ? "editor" : "list";
   return {
     html: html`
-      <s-router directional key="window/logic" active="${mode}">
+      <s-router directional key="window/logic" active="${panelMode}">
         <s-tabs
           color="tab-active"
           height="panel-nav"
           bg-color="panel"
           position="sticky-top"
+          active="${panelMode}"
           slot="header"
-          active="${mode}"
         >
           <s-box
             bg-color="panel"
@@ -29,7 +31,7 @@ export default (state?: { store?: WorkspaceState }) => {
             child-layout="row"
             icon="code"
             value="main"
-            ${mode === "main" ? "active" : ""}
+            ${panelMode === "main" ? "active" : ""}
           >
             Main
           </s-tab>
@@ -41,16 +43,33 @@ export default (state?: { store?: WorkspaceState }) => {
             child-layout="row"
             icon="file-code"
             value="scripts"
-            ${mode === "scripts" ? "active" : ""}
+            ${panelMode === "scripts" ? "active" : ""}
           >
             Scripts
           </s-tab>
         </s-tabs>
         <template value="main">
-          <se-script-editor file-path="logic/main.sd"></se-script-editor>
+          <se-script-editor
+            id="main-script-editor"
+            file-path="logic/main.sd"
+          ></se-script-editor>
         </template>
         <template value="scripts">
-          <se-scripts></se-scripts>
+          <s-router
+            directional="z"
+            key="window/logic/scripts"
+            active="${editMode}"
+          >
+            <template value="editor">
+              <se-script-editor
+                id="item-script-editor"
+                file-path="${editingPath}"
+              ></se-script-editor>
+            </template>
+            <template value="list">
+              <se-scripts></se-scripts>
+            </template>
+          </s-router>
         </template>
       </s-router>
     `,

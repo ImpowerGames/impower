@@ -1,19 +1,21 @@
 import { syntaxHighlighting } from "@codemirror/language";
 import { Extension } from "@codemirror/state";
+import {
+  MessageConnection,
+  ServerCapabilities,
+} from "@impower/spark-editor-protocol/src/types";
 import configData from "../../../../language/sparkdown.language-config.json";
 import grammarData from "../../../../language/sparkdown.language-grammar.json";
 import snippetsData from "../../../../language/sparkdown.language-snippets.json";
-import {
-  LanguageServerConnection,
-  languageClient,
-} from "../../../cm-language-client";
+import { languageClient } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { TextmateLanguage } from "../../../cm-textmate";
 import EDITOR_HIGHLIGHTS from "../constants/EDITOR_HIGHLIGHTS";
 
 export const sparkdownLanguageExtension = (config: {
   textDocument: { uri: string; version: number };
-  connection: LanguageServerConnection;
+  serverConnection: MessageConnection;
+  serverCapabilities: ServerCapabilities;
   fileSystemReader?: FileSystemReader;
 }): Extension => {
   const languageSupport = new TextmateLanguage({
@@ -23,14 +25,16 @@ export const sparkdownLanguageExtension = (config: {
     snippetsDefinition: snippetsData,
   }).load();
   const textDocument = config.textDocument;
-  const connection = config.connection;
+  const serverConnection = config.serverConnection;
+  const serverCapabilities = config.serverCapabilities;
   const fileSystemReader = config.fileSystemReader;
   return [
     languageSupport,
     syntaxHighlighting(EDITOR_HIGHLIGHTS),
     languageClient({
       textDocument,
-      connection,
+      serverConnection,
+      serverCapabilities,
       fileSystemReader,
       language: languageSupport.language,
       highlighter: EDITOR_HIGHLIGHTS,

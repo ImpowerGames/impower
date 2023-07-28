@@ -158,7 +158,14 @@ export default class Hidden
     window.addEventListener("resize", this.handleWindowResize, {
       passive: true,
     });
-    window.addEventListener("message", this.handleMessage);
+    const hideEvent = this.hideEvent;
+    const showEvent = this.showEvent;
+    if (hideEvent) {
+      window.addEventListener(hideEvent, this.handleHide);
+    }
+    if (showEvent) {
+      window.addEventListener(showEvent, this.handleShow);
+    }
   }
 
   protected override onParsed(): void {
@@ -167,7 +174,14 @@ export default class Hidden
 
   protected override onDisconnected(): void {
     window.removeEventListener("resize", this.handleWindowResize);
-    window.removeEventListener("message", this.handleMessage);
+    const hideEvent = this.hideEvent;
+    const showEvent = this.showEvent;
+    if (hideEvent) {
+      window.removeEventListener(hideEvent, this.handleHide);
+    }
+    if (showEvent) {
+      window.removeEventListener(showEvent, this.handleShow);
+    }
   }
 
   updateBreakpoint() {
@@ -231,8 +245,8 @@ export default class Hidden
     this.updateBreakpoint();
   };
 
-  protected handleMessage = (e: MessageEvent): void => {
-    if (e.data.method === this.hideEvent) {
+  protected handleHide = (e: Event): void => {
+    if (e instanceof CustomEvent) {
       this.cancelPending();
       const hideDelay = getCssDurationMS(this.hideDelay, 0);
       const conditionallyHide = () => {
@@ -249,7 +263,10 @@ export default class Hidden
         conditionallyHide();
       }
     }
-    if (e.data.method === this.showEvent) {
+  };
+
+  protected handleShow = (e: Event): void => {
+    if (e instanceof CustomEvent) {
       this.cancelPending();
       const showDelay = getCssDurationMS(this.showDelay, 0);
       const conditionallyShow = () => {

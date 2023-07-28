@@ -60,21 +60,29 @@ export default class ScriptEditor
 
   protected override onConnected(): void {
     this.loadFile(this.filePath);
-    window.addEventListener("message", this.handleMessage);
+    window.addEventListener(
+      DidSaveTextDocumentMessage.method,
+      this.handleDidSaveTextDocument
+    );
   }
 
   protected override onDisconnected(): void {
-    window.removeEventListener("message", this.handleMessage);
+    window.removeEventListener(
+      DidSaveTextDocumentMessage.method,
+      this.handleDidSaveTextDocument
+    );
   }
 
-  protected handleMessage = (e: MessageEvent): void => {
-    const message = e.data;
-    if (DidSaveTextDocumentMessage.type.isNotification(message)) {
-      const params = message.params;
-      const textDocument = params.textDocument;
-      const text = params.text;
-      if (text != null) {
-        Workspace.fs.writeTextDocument({ textDocument, text });
+  protected handleDidSaveTextDocument = (e: Event): void => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidSaveTextDocumentMessage.type.isNotification(message)) {
+        const params = message.params;
+        const textDocument = params.textDocument;
+        const text = params.text;
+        if (text != null) {
+          Workspace.fs.writeTextDocument({ textDocument, text });
+        }
       }
     }
   };
@@ -88,7 +96,8 @@ export default class ScriptEditor
       textDocument: { uri },
     });
     await Workspace.lsp.starting;
-    window.postMessage(
+    this.emit(
+      LoadEditorMessage.method,
       LoadEditorMessage.type.request({
         textDocument: {
           uri,

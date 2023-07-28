@@ -291,4 +291,15 @@ export default class SparkElement extends HTMLElement {
   }
 
   protected onDisconnected(): void {}
+
+  emit<T>(eventName: string, detail?: T): boolean {
+    return this.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: true,
+        cancelable: false,
+        composed: true,
+        detail,
+      })
+    );
+  }
 }

@@ -1,3 +1,4 @@
+import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
 import Workspace from "../../workspace/Workspace";
 import component from "./_preview";
@@ -38,14 +39,20 @@ export default class Preview extends SEElement {
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "preview") {
-        const mode = e.detail.value;
-        Workspace.window.openPanel("preview", mode);
+        const value = e.detail.value;
+        this.emit(
+          DidOpenPanelMessage.method,
+          DidOpenPanelMessage.type.notification({
+            pane: "preview",
+            panel: value,
+          })
+        );
         const modeTitleEl = this.modeTitleEl;
         if (modeTitleEl) {
           const title =
-            mode === "screenplay"
+            value === "screenplay"
               ? "Screenplay Preview"
-              : mode === "game"
+              : value === "game"
               ? "Game Preview"
               : "";
           modeTitleEl.textContent = title;

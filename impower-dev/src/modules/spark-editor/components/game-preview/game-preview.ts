@@ -77,7 +77,8 @@ export default class GamePreview
       version: 0,
       text: existingText,
     };
-    window.postMessage(
+    this.emit(
+      LoadPreviewMessage.method,
       LoadPreviewMessage.type.request({
         type: "game",
         textDocument: textDocument,

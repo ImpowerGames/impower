@@ -120,7 +120,14 @@ export default class Viewport
         passive: true,
       }
     );
-    window.addEventListener("message", this.handleMessage);
+    const constrainedEvent = this.constrainedEvent;
+    if (constrainedEvent) {
+      window.addEventListener(constrainedEvent, this.handleConstrained);
+    }
+    const unconstrainedEvent = this.unconstrainedEvent;
+    if (unconstrainedEvent) {
+      window.addEventListener(unconstrainedEvent, this.handleUnconstrained);
+    }
   }
 
   protected override onDisconnected(): void {
@@ -132,21 +139,27 @@ export default class Viewport
       "resize",
       this.handleViewportChange
     );
-    window.removeEventListener("message", this.handleMessage);
+    const constrainedEvent = this.constrainedEvent;
+    if (constrainedEvent) {
+      window.removeEventListener(constrainedEvent, this.handleConstrained);
+    }
+    const unconstrainedEvent = this.unconstrainedEvent;
+    if (unconstrainedEvent) {
+      window.removeEventListener(unconstrainedEvent, this.handleUnconstrained);
+    }
   }
 
-  protected handleMessage = (e: MessageEvent): void => {
-    if (e.data.method === this.unconstrainedEvent) {
-      this._constrained = false;
-      this.root.style.setProperty("max-height", null);
+  protected handleConstrained = (e: Event): void => {
+    this._constrained = true;
+    if (window.visualViewport) {
+      const maxHeight = `${window.visualViewport.height - this._offsetPx}px`;
+      this.root.style.setProperty("max-height", maxHeight);
     }
-    if (e.data.method === this.constrainedEvent) {
-      this._constrained = true;
-      if (window.visualViewport) {
-        const maxHeight = `${window.visualViewport.height - this._offsetPx}px`;
-        this.root.style.setProperty("max-height", maxHeight);
-      }
-    }
+  };
+
+  protected handleUnconstrained = (e: Event): void => {
+    this._constrained = false;
+    this.root.style.setProperty("max-height", null);
   };
 
   protected handleViewportChange = (event: Event) => {

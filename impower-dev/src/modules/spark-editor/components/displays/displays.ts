@@ -1,3 +1,4 @@
+import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
 import Workspace from "../../workspace/Workspace";
 import component from "./_displays";
@@ -26,8 +27,14 @@ export default class Displays extends SEElement {
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/displays") {
-        const mode = e.detail.value;
-        Workspace.window.openPanel("displays", mode);
+        const value = e.detail.value;
+        this.emit(
+          DidOpenPanelMessage.method,
+          DidOpenPanelMessage.type.notification({
+            pane: "displays",
+            panel: value,
+          })
+        );
       }
     }
   };

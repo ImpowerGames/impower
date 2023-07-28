@@ -2094,17 +2094,6 @@ export default class SparkleElement
     return value;
   }
 
-  emit<T>(eventName: string, detail?: T): boolean {
-    return this.dispatchEvent(
-      new CustomEvent(eventName, {
-        bubbles: true,
-        cancelable: false,
-        composed: true,
-        detail,
-      })
-    );
-  }
-
   closestAncestor(selector: string, el: Element = this): Element | null {
     if (!el || el instanceof Document || el instanceof Window) {
       return null;

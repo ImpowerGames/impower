@@ -48,19 +48,32 @@ export default class FileItem
     this.setStringAttribute(FileItem.attributes.fileName, value);
   }
 
+  get buttonEl() {
+    return this.getElementByTag("s-button");
+  }
+
   get dropdownEl() {
     return this.getElementById("dropdown");
   }
 
   protected override onConnected(): void {
-    this.dropdownEl?.addEventListener("changing", this.handleChanging);
+    this.buttonEl?.addEventListener("click", this.handleButtonClick);
+    this.dropdownEl?.addEventListener("changing", this.handleDropdownChanging);
   }
 
   protected override onDisconnected(): void {
-    this.dropdownEl?.addEventListener("changing", this.handleChanging);
+    this.buttonEl?.removeEventListener("click", this.handleButtonClick);
+    this.dropdownEl?.removeEventListener(
+      "changing",
+      this.handleDropdownChanging
+    );
   }
 
-  handleChanging = async (e: Event) => {
+  handleButtonClick = (e: Event) => {
+    // TODO: dispatch DidOpenTextDocument notification
+  };
+
+  handleDropdownChanging = (e: Event) => {
     if (e instanceof CustomEvent) {
       const directory = this.directoryPath;
       if (directory) {

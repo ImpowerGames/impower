@@ -16,7 +16,7 @@ import { FileSystemReader } from "../types/FileSystemReader";
 
 export interface LanguageClientConfig {
   textDocument: { uri: string; version: number };
-  connection: MessageConnection;
+  serverConnection: MessageConnection;
   serverCapabilities: ServerCapabilities;
   fileSystemReader?: FileSystemReader;
   language: Language;

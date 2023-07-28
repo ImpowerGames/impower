@@ -1,3 +1,4 @@
+import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
 import Workspace from "../../workspace/Workspace";
 import component from "./_logic";
@@ -23,6 +24,14 @@ export default class Logic extends SEElement {
     return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
+  get mainScriptEditorEl(): HTMLElement | null {
+    return this.getElementById("main-script-editor");
+  }
+
+  get itemScriptEditorEl(): HTMLElement | null {
+    return this.getElementById("item-script-editor");
+  }
+
   protected override onConnected(): void {
     this.ownerDocument.addEventListener("enter", this.handleEnter);
   }
@@ -34,8 +43,14 @@ export default class Logic extends SEElement {
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/logic") {
-        const mode = e.detail.value;
-        Workspace.window.openPanel("logic", mode);
+        const value = e.detail.value;
+        this.emit(
+          DidOpenPanelMessage.method,
+          DidOpenPanelMessage.type.notification({
+            pane: "logic",
+            panel: value,
+          })
+        );
       }
     }
   };

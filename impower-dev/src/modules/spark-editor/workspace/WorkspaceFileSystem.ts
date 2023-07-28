@@ -30,11 +30,8 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import WorkspaceLanguageServerProtocol from "./WorkspaceLanguageServerProtocol";
-import WorkspaceWindow from "./WorkspaceWindow";
 
 export default class WorkspaceFileSystem {
-  protected _window: WorkspaceWindow;
-
   protected _lsp: WorkspaceLanguageServerProtocol;
 
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
@@ -61,10 +58,9 @@ export default class WorkspaceFileSystem {
     return this._projectName;
   }
 
-  constructor(window: WorkspaceWindow, lsp: WorkspaceLanguageServerProtocol) {
-    this.initialize();
-    this._window = window;
+  constructor(lsp: WorkspaceLanguageServerProtocol) {
     this._lsp = lsp;
+    this.initialize();
   }
 
   async initialize() {
@@ -93,9 +89,15 @@ name: ${this._projectName}
     });
   }
 
-  getWorkspaceUri(...path: string[]) {
-    const suffix = path.length > 0 ? `/${path.join("/")}` : "";
-    return `${this._scheme}${this._uid}/projects/${this._projectId}${suffix}`;
+  emit<T>(eventName: string, detail?: T): boolean {
+    return window.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: true,
+        cancelable: false,
+        composed: true,
+        detail,
+      })
+    );
   }
 
   protected async sendRequest<M extends string, P, R>(
@@ -119,6 +121,11 @@ name: ${this._projectName}
       );
       this._fileSystemWorker.postMessage(request, transfer);
     });
+  }
+
+  getWorkspaceUri(...path: string[]) {
+    const suffix = path.length > 0 ? `/${path.join("/")}` : "";
+    return `${this._scheme}${this._uid}/projects/${this._projectId}${suffix}`;
   }
 
   async getWorkspaceEntries(
@@ -150,8 +157,8 @@ name: ${this._projectName}
       changeMessage.method,
       changeMessage.params
     );
-    this._window.sendNotification(createMessage);
-    this._window.sendNotification(changeMessage);
+    this.emit(createMessage.method, createMessage);
+    this.emit(changeMessage.method, changeMessage);
     return result;
   }
 
@@ -174,8 +181,8 @@ name: ${this._projectName}
       changeMessage.method,
       changeMessage.params
     );
-    this._window.sendNotification(deleteMessage);
-    this._window.sendNotification(changeMessage);
+    this.emit(deleteMessage.method, deleteMessage);
+    this.emit(changeMessage.method, changeMessage);
     return result;
   }
 

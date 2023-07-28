@@ -1,13 +1,11 @@
-<s-box class="root">
-  <s-button class="button" p="0 32" height="56" corner="0" variant="text" size="lg" color="content" text-weight="normal"
-    child-justify="between" grow>
-    <slot></slot>
-    <s-dropdown id="dropdown">
-      <s-button class="more" color="inherit" opacity="0.5" variant="icon" icon="dots-vertical" m-r="-24"></s-button>
-      <slot slot="options">
-        <s-option icon="trash" value="delete">Delete</s-option>
-        <!--TODO: <s-option icon="pencil" value="rename">Rename</s-option> -->
-      </slot>
-    </s-dropdown>
-  </s-button>
-</s-box>
+<s-button class="root" id="item" p="0 32" width="100%" height="56" corner="0" variant="text" size="lg" color="content"
+  text-weight="normal" child-justify="between" value="editor" grow>
+  <slot></slot>
+  <s-dropdown id="dropdown">
+    <s-button id="more" color="inherit" opacity="0.5" variant="icon" icon="dots-vertical" m-r="-24"></s-button>
+    <slot slot="options">
+      <s-option icon="trash" value="delete">Delete</s-option>
+      <!--TODO: <s-option icon="pencil" value="rename">Rename</s-option> -->
+    </slot>
+  </s-dropdown>
+</s-button>

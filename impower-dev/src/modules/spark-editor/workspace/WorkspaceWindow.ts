@@ -1,7 +1,7 @@
-import { NotificationMessage } from "@impower/spark-editor-protocol/src/types";
+import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
+import { DEFAULT_WORKSPACE_STATE } from "./DEFAULT_WORKSPACE_STATE";
 import { ReadOnly } from "./types/ReadOnly";
 import { WorkspaceState } from "./types/WorkspaceState";
-import DEFAULT_WORKSPACE_STATE from "./workspace.json";
 
 export default class WorkspaceWindow {
   protected _state: WorkspaceState;
@@ -11,23 +11,27 @@ export default class WorkspaceWindow {
 
   constructor() {
     this._state = DEFAULT_WORKSPACE_STATE;
+    window.addEventListener(
+      DidOpenPanelMessage.method,
+      this.handleDidOpenPanel
+    );
   }
 
-  async sendNotification<M extends string, P>(
-    notification: NotificationMessage<M, P>
-  ): Promise<void> {
-    window.postMessage(notification);
-  }
-
-  openPanel(pane: string, panel: string) {
-    const paneState = this._state[pane];
-    if (!paneState) {
-      throw new Error(`Pane not recognized: ${pane}`);
+  handleDidOpenPanel = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidOpenPanelMessage.type.isNotification(message)) {
+        const { pane, panel } = message.params;
+        const paneState = this._state[pane];
+        if (!paneState) {
+          throw new Error(`Pane type not recognized: ${pane}`);
+        }
+        const panelState = paneState.panels[panel];
+        if (!panelState) {
+          throw new Error(`Panel type not recognized: ${panel}`);
+        }
+        paneState.panel = panel;
+      }
     }
-    const panelsState = paneState.panels[panel];
-    if (!panelsState) {
-      throw new Error(`Panel not recognized: ${panel}`);
-    }
-    paneState.panel = panel;
-  }
+  };
 }

@@ -10,7 +10,6 @@
     "@codemirror/lint": "^6.3.0",
     "@codemirror/search": "^6.5.0",
     "@codemirror/state": "^6.2.1",
-    "@codemirror/view": "^6.14.0",
-    "@impower/spark-editor-protocol": "file:../spark-editor-protocol"
+    "@codemirror/view": "^6.14.0"
   }
 }
