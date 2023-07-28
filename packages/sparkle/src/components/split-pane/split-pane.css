@@ -163,11 +163,11 @@
     pointer-events: auto;
     position: absolute;
     inset: 0;
-    transform: translate(0, 0);
     transition-property: transform, opacity;
     transition-duration: 200ms;
     transition-timing-function: ease-out;
     z-index: 1;
+    will-change: transform;
   }
 
   :host(:not([vertical])) > .root > .panel > .divider {
