@@ -2,7 +2,7 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state?: { store?: WorkspaceState }) => {
-  const mode = state?.store?.logic?.panel || "game";
+  const mode = state?.store?.preview?.panel || "game";
   return {
     html: html`
       <s-router key="preview" active="${mode}">
@@ -13,24 +13,45 @@ export default (state?: { store?: WorkspaceState }) => {
           child-layout="row"
           slot="header"
         >
-          <s-box
-            bg-color="panel"
-            position="absolute"
-            i="0 0 0 0"
-            height="100vh"
-            translate-y="-100%"
-          ></s-box>
-          <s-box width-min="56"></s-box>
-          <s-box p="16" text-size="lg" child-align="center" grow>
+          <s-box text-size="lg" child-layout="row" child-align="center" grow>
             <s-transition router="preview" exit="fade-out" enter="fade-in">
-              <div class="mode-title">Game Preview</div>
+              <s-box
+                id="game-toolbar"
+                child-layout="row"
+                child-align="center"
+                ${mode !== "game" ? "hidden" : ""}
+              >
+                <s-button
+                  variant="text"
+                  width="56"
+                  height="44"
+                  text-size="2xs"
+                  child-layout="column"
+                  color="primary-70"
+                >
+                  <s-icon icon="player-play" size="20" m-b="1"></s-icon>
+                  PLAY
+                </s-button>
+                <s-box p="16" text-align="center" grow>Game Preview</s-box>
+              </s-box>
+              <s-box
+                id="screenplay-toolbar"
+                child-layout="row"
+                child-align="center"
+                ${mode !== "screenplay" ? "hidden" : ""}
+              >
+                <s-box width="56"></s-box>
+                <s-box p="16" text-align="center" grow
+                  >Screenplay Preview</s-box
+                >
+              </s-box>
             </s-transition>
           </s-box>
           <s-dropdown active="${mode}">
             <s-button
               m="8"
               class="more"
-              color="inherit"
+              color="content"
               opacity="0.5"
               variant="icon"
               icon="dots-vertical"

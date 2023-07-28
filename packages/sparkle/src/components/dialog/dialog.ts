@@ -355,6 +355,7 @@ export default class Dialog
   protected handleLightDismiss = (e: Event) => {
     const el = e.target as HTMLElement;
     if (el === this.dialogEl && this.dismissable) {
+      e.stopPropagation();
       this.close("dismiss");
     }
   };
@@ -408,12 +409,14 @@ export default class Dialog
   protected handleEscapeClose = async (
     e: Event
   ): Promise<string | undefined> => {
+    e.stopPropagation();
     return this.handleClose("escape");
   };
 
   protected handleClickClose = async (
     e: Event
   ): Promise<string | undefined> => {
+    e.stopPropagation();
     const button = e.currentTarget as HTMLButtonElement;
     const returnValue = button?.getAttribute?.("id") ?? "";
     return this.handleClose(returnValue);

@@ -1,10 +1,8 @@
 <s-box position="sticky-bottom">
-  <s-transition router="window" self-align="stretch">
-    <s-collapsible m="24 16" collapsed="scrolled">
-      <s-button id="button" color="fab-bg" text-color="fab-fg" text-weight="normal" icon="plus" size="lg" corner="full">
-        <slot></slot>
-      </s-button>
-    </s-collapsible>
-  </s-transition>
+  <s-collapsible m="24 16" collapsed="scrolled">
+    <s-button id="button" color="fab-bg" text-color="fab-fg" text-weight="normal" icon="plus" size="lg" corner="full">
+      <slot></slot>
+    </s-button>
+  </s-collapsible>
   <s-box height="footer-nav"></s-box>
 </s-box>

@@ -32,6 +32,9 @@ const DEFAULT_ATTRIBUTES = {
     "vertical",
     "responsive",
     "primary",
+    "reveal",
+    "reveal-event",
+    "unreveal-event",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -104,9 +107,13 @@ export default class SplitPane
   /**
    * Automatically change pane of panels when they cannot fit side-by-side.
    *
+   * Set to `slide-left`, to slide the non-primary panel off the left side of the screen, when out of space.
+   * Set to `slide-right`, to slide the non-primary panel off the right side of the screen, when out of space.
+   * Set to `slide-up`, to slide the non-primary panel off the top side of the screen, when out of space.
+   * Set to `slide-down`, to slide the non-primary panel off the bottom side of the screen, when out of space.
    * Set to `hide`, to hide the non-primary panel, when out of space.
-   * Set to `flip`, to flip the orientation of the panels, when out of space.
-   * Set to `flip-reverse`, to flip the orientation and order of the panels, when out of space.
+   *
+   * When not provided, defaults to `slide-down`
    */
   get responsive(): "hide" | "flip" | "flip-reverse" | null {
     return this.getStringAttribute(SplitPane.attributes.responsive);
@@ -214,6 +221,66 @@ export default class SplitPane
   set indicatorWidth(value) {
     this.setStringAttribute(SplitPane.attributes.indicatorWidth, value);
   }
+
+  /**
+   * Reveal the hidden panel.
+   */
+  get reveal() {
+    return this.getBooleanAttribute(SplitPane.attributes.reveal);
+  }
+  set reveal(value) {
+    this.setBooleanAttribute(SplitPane.attributes.reveal, value);
+  }
+
+  /**
+   * The hidden panel will be revealed when this event is fired
+   */
+  get revealEvent(): string | null {
+    return this.getStringAttribute(SplitPane.attributes.revealEvent);
+  }
+  set revealEvent(value) {
+    this.setStringAttribute(SplitPane.attributes.revealEvent, value);
+  }
+
+  /**
+   * The viewport will be unrevealed when this event is fired
+   */
+  get unrevealEvent(): string | null {
+    return this.getStringAttribute(SplitPane.attributes.unrevealEvent);
+  }
+  set unrevealEvent(value) {
+    this.setStringAttribute(SplitPane.attributes.unrevealEvent, value);
+  }
+
+  protected override onConnected(): void {
+    const revealEvent = this.revealEvent;
+    if (revealEvent) {
+      window.addEventListener(revealEvent, this.handleRevealEvent);
+    }
+    const unrevealEvent = this.unrevealEvent;
+    if (unrevealEvent) {
+      window.addEventListener(unrevealEvent, this.handleUnrevealEvent);
+    }
+  }
+
+  protected override onDisconnected(): void {
+    const revealEvent = this.revealEvent;
+    if (revealEvent) {
+      window.removeEventListener(revealEvent, this.handleRevealEvent);
+    }
+    const unrevealEvent = this.unrevealEvent;
+    if (unrevealEvent) {
+      window.removeEventListener(unrevealEvent, this.handleUnrevealEvent);
+    }
+  }
+
+  handleRevealEvent = () => {
+    this.reveal = true;
+  };
+
+  handleUnrevealEvent = () => {
+    this.reveal = false;
+  };
 }
 
 declare global {

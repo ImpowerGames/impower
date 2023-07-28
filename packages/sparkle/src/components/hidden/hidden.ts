@@ -24,6 +24,8 @@ const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "initial",
+    "hide-below",
+    "hide-above",
     "if-below",
     "if-above",
     "hide-event",
@@ -59,7 +61,7 @@ export default class Hidden
   }
 
   override get component() {
-    return component();
+    return component({ attrs: { initial: this.initial } });
   }
 
   override transformCss(css: string) {
@@ -76,6 +78,26 @@ export default class Hidden
   }
   set initial(value) {
     this.setStringAttribute(Hidden.attributes.initial, value);
+  }
+
+  /**
+   * If provided, the element will be hidden when the width of the screen is below the specified breakpoint and shown otherwise.
+   */
+  get hideBelow(): SizeName | null {
+    return this.getStringAttribute(Hidden.attributes.hideBelow);
+  }
+  set hideBelow(value) {
+    this.setStringAttribute(Hidden.attributes.hideBelow, value);
+  }
+
+  /**
+   * If provided, the element will be hidden when the width of the screen is above the specified breakpoint and shown otherwise.
+   */
+  get hideAbove(): SizeName | null {
+    return this.getStringAttribute(Hidden.attributes.hideAbove);
+  }
+  set hideAbove(value) {
+    this.setStringAttribute(Hidden.attributes.hideAbove, value);
   }
 
   /**
@@ -154,17 +176,25 @@ export default class Hidden
 
   _showTransitionTimeout = 0;
 
+  _shown = false;
+
   protected override onConnected(): void {
+    if (this.initial === "hide") {
+      this.root.hidden = true;
+    } else {
+      this.root.hidden = false;
+    }
+    this._shown = !this.root.hidden;
     window.addEventListener("resize", this.handleWindowResize, {
       passive: true,
     });
     const hideEvent = this.hideEvent;
     const showEvent = this.showEvent;
     if (hideEvent) {
-      window.addEventListener(hideEvent, this.handleHide);
+      window.addEventListener(hideEvent, this.handleHideEvent);
     }
     if (showEvent) {
-      window.addEventListener(showEvent, this.handleShow);
+      window.addEventListener(showEvent, this.handleShowEvent);
     }
   }
 
@@ -177,42 +207,57 @@ export default class Hidden
     const hideEvent = this.hideEvent;
     const showEvent = this.showEvent;
     if (hideEvent) {
-      window.removeEventListener(hideEvent, this.handleHide);
+      window.removeEventListener(hideEvent, this.handleHideEvent);
     }
     if (showEvent) {
-      window.removeEventListener(showEvent, this.handleShow);
+      window.removeEventListener(showEvent, this.handleShowEvent);
     }
   }
 
-  updateBreakpoint() {
+  checkBreakpoint() {
     const breakpoint = getCurrentBreakpoint(window.innerWidth);
+    const hideBelow = this.hideBelow;
+    const hideAbove = this.hideAbove;
     this._breakpointValue = getBreakpointValue(breakpoint);
-  }
-
-  preConditionsSatisfied() {
-    const aboveBreakpoint = this.ifAbove;
-    const belowBreakpoint = this.ifBelow;
-    const aboveSatisfied =
-      aboveBreakpoint == null ||
-      this._breakpointValue > getBreakpointValue(aboveBreakpoint);
-    const belowSatisfied =
-      belowBreakpoint == null ||
-      this._breakpointValue < getBreakpointValue(belowBreakpoint);
-    return aboveSatisfied && belowSatisfied;
+    if (hideBelow) {
+      if (this._breakpointValue < getBreakpointValue(hideBelow)) {
+        this.hide();
+      } else {
+        this.show();
+      }
+    }
+    if (hideAbove) {
+      if (this._breakpointValue >= getBreakpointValue(hideAbove)) {
+        this.hide();
+      } else {
+        this.show();
+      }
+    }
   }
 
   async load() {
-    this.updateBreakpoint();
-    if (this.initial === "hide") {
-      this.hide();
-    } else {
-      this.show();
-    }
+    this.checkBreakpoint();
     await nextAnimationFrame();
     this.root.setAttribute("loaded", "");
   }
 
-  async hide() {
+  hide() {
+    if (this._shown) {
+      this._shown = false;
+      this.cancelPending();
+      const hideDelay = getCssDurationMS(this.hideDelay, 0);
+      if (hideDelay > 0) {
+        this._hideTransitionTimeout = window.setTimeout(
+          () => this.animateHide(),
+          hideDelay
+        );
+      } else {
+        this.animateHide();
+      }
+    }
+  }
+
+  async animateHide() {
     if (this.hideInstantly != null) {
       this.root.hidden = true;
       this.root.setAttribute("state", "hidden");
@@ -223,7 +268,23 @@ export default class Hidden
     }
   }
 
-  async show() {
+  show() {
+    if (!this._shown) {
+      this._shown = true;
+      this.cancelPending();
+      const showDelay = getCssDurationMS(this.showDelay, 0);
+      if (showDelay > 0) {
+        this._showTransitionTimeout = window.setTimeout(
+          () => this.animateShow(),
+          showDelay
+        );
+      } else {
+        this.animateShow();
+      }
+    }
+  }
+
+  async animateShow() {
     this.root.hidden = false;
     this.root.setAttribute("state", "mounting");
     await animationsComplete(this.root);
@@ -242,48 +303,36 @@ export default class Hidden
   }
 
   protected handleWindowResize = (): void => {
-    this.updateBreakpoint();
+    this.checkBreakpoint();
   };
 
-  protected handleHide = (e: Event): void => {
+  protected handleHideEvent = (e: Event): void => {
     if (e instanceof CustomEvent) {
-      this.cancelPending();
-      const hideDelay = getCssDurationMS(this.hideDelay, 0);
-      const conditionallyHide = () => {
-        if (this.preConditionsSatisfied()) {
-          this.hide();
-        }
-      };
-      if (hideDelay > 0) {
-        this._hideTransitionTimeout = window.setTimeout(
-          conditionallyHide,
-          hideDelay
-        );
-      } else {
-        conditionallyHide();
+      if (this.preConditionsSatisfied()) {
+        this.hide();
       }
     }
   };
 
-  protected handleShow = (e: Event): void => {
+  protected handleShowEvent = (e: Event): void => {
     if (e instanceof CustomEvent) {
-      this.cancelPending();
-      const showDelay = getCssDurationMS(this.showDelay, 0);
-      const conditionallyShow = () => {
-        if (this.preConditionsSatisfied()) {
-          this.show();
-        }
-      };
-      if (showDelay > 0) {
-        this._showTransitionTimeout = window.setTimeout(
-          conditionallyShow,
-          showDelay
-        );
-      } else {
-        conditionallyShow();
+      if (this.preConditionsSatisfied()) {
+        this.show();
       }
     }
   };
+
+  preConditionsSatisfied() {
+    const aboveBreakpoint = this.ifAbove;
+    const belowBreakpoint = this.ifBelow;
+    const aboveSatisfied =
+      aboveBreakpoint == null ||
+      this._breakpointValue > getBreakpointValue(aboveBreakpoint);
+    const belowSatisfied =
+      belowBreakpoint == null ||
+      this._breakpointValue < getBreakpointValue(belowBreakpoint);
+    return aboveSatisfied && belowSatisfied;
+  }
 }
 
 declare global {

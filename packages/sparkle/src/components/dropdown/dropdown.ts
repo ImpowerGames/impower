@@ -29,6 +29,7 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-option"]);
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
+    "key",
     "active",
     "open",
     "anchor",
@@ -87,6 +88,16 @@ export default class Dropdown
 
   override transformCss(css: string) {
     return Dropdown.augmentCss(css, DEFAULT_DEPENDENCIES);
+  }
+
+  /**
+   * Key that is included in all emitted events.
+   */
+  get key(): string | null {
+    return this.getStringAttribute(Dropdown.attributes.key);
+  }
+  set key(value) {
+    this.setStringAttribute(Dropdown.attributes.key, value);
   }
 
   /**
@@ -198,13 +209,15 @@ export default class Dropdown
   }
 
   protected handleLightDismiss = (e: Event) => {
+    e.stopPropagation();
     const el = e.target as HTMLElement;
     if (el === this.dialogEl) {
       this.hide();
     }
   };
 
-  private handleClick = (): void => {
+  private handleClick = (e: Event): void => {
+    e.stopPropagation();
     if (this.open) {
       this.hide();
     } else {
@@ -240,11 +253,11 @@ export default class Dropdown
 
     dialogEl.style.visibility = "visible";
 
-    this.emit(OPENING_EVENT);
+    this.emit(OPENING_EVENT, { key: this.key });
 
     await animationsComplete(dialogEl);
 
-    this.emit(OPENED_EVENT);
+    this.emit(OPENED_EVENT, { key: this.key });
   }
 
   async handleClose(): Promise<void> {
@@ -253,7 +266,7 @@ export default class Dropdown
       el.inert = true;
     }
 
-    this.emit(CLOSING_EVENT);
+    this.emit(CLOSING_EVENT, { key: this.key });
 
     await animationsComplete(el);
 
@@ -266,7 +279,7 @@ export default class Dropdown
 
     this.stop();
 
-    this.emit(CLOSED_EVENT);
+    this.emit(CLOSED_EVENT, { key: this.key });
   }
 
   /** Shows the dropdown. */
@@ -301,7 +314,7 @@ export default class Dropdown
     }
   }
 
-  async activateOption(option: Option, animate: boolean): Promise<void> {
+  async activateOption(option: Option): Promise<void> {
     const oldOption = this.options.find((option) => option.active);
     const newValue = option.value;
     const changed = this.active !== newValue;
@@ -318,7 +331,7 @@ export default class Dropdown
 
     const oldRect = oldOption?.root?.getBoundingClientRect();
     const newRect = option?.root?.getBoundingClientRect();
-    const detail = { oldRect, newRect, value: newValue };
+    const detail = { key: this.key, oldRect, newRect, value: newValue };
 
     if (changed) {
       this.emit(CHANGING_EVENT, detail);
@@ -355,19 +368,19 @@ export default class Dropdown
     option.active = false;
   }
 
-  async updateOptions(animate: boolean): Promise<void> {
+  async updateOptions(): Promise<void> {
     if (this.active != null) {
       await Promise.all(
         this.options.map((option) => {
           if (this._activatingValue === option.value) {
-            return this.activateOption(option, animate);
+            return this.activateOption(option);
           } else {
             return this.deactivateOption(option);
           }
         })
       );
     } else {
-      const detail = { value: this._activatingValue };
+      const detail = { key: this.key, value: this._activatingValue };
       this.emit(CHANGING_EVENT, detail);
       await this.hide();
       this.emit(CHANGED_EVENT, detail);
@@ -425,7 +438,7 @@ export default class Dropdown
         option.focus();
         if (activate) {
           this._activatingValue = option.value;
-          this.updateOptions(true);
+          this.updateOptions();
         }
       }
     }
@@ -473,7 +486,7 @@ export default class Dropdown
         ?.host as Option;
       if (this._pointerDownOnAnyOption) {
         this._activatingValue = option.value;
-        this.updateOptions(true);
+        this.updateOptions();
       }
     }
   };
@@ -525,7 +538,7 @@ export default class Dropdown
       const option = (e.currentTarget.getRootNode() as ShadowRoot)
         ?.host as Option;
       this._activatingValue = option.value;
-      this.updateOptions(true);
+      this.updateOptions();
     }
   };
 
@@ -535,7 +548,7 @@ export default class Dropdown
       (el) => el.tagName.toLowerCase() === Dropdown.dependencies.option
     ) as Option[];
     this.bindOptions();
-    this.updateOptions(false);
+    this.updateOptions();
   }
 }
 

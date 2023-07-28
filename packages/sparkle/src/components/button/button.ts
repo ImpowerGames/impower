@@ -3,6 +3,7 @@ import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
+import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
@@ -29,6 +30,8 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, STYLES.icons),
+  "active-icon": (v: string) => getCssIcon(v, STYLES.icons),
+  "active-color": getCssColor,
   spacing: getCssSize,
   size: getCssSize,
 };
@@ -36,6 +39,7 @@ const DEFAULT_TRANSFORMERS = {
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
+    "key",
     "href",
     "target",
     "accept",
@@ -47,6 +51,7 @@ const DEFAULT_ATTRIBUTES = {
     "variant",
     "label",
     "value",
+    "active",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -98,6 +103,16 @@ export default class Button
   }
 
   /**
+   * Key that is included in all emitted events.
+   */
+  get key(): string | null {
+    return this.getStringAttribute(Button.attributes.key);
+  }
+  set key(value) {
+    this.setStringAttribute(Button.attributes.key, value);
+  }
+
+  /**
    * Whether or not the content of this button should be replaced with a loading spinner.
    */
   get loading(): boolean {
@@ -110,14 +125,25 @@ export default class Button
   /**
    * The default behavior of the button. Possible values are:
    *
+   * `div`: The button is a `div` that looks like a button (the root tag will be `div` instead of `button`).
+   * `a`: The button behaves like a link (the root tag will be `a` instead of `button`).
+   * `file`: The button allows uploading a file (the root tag will be `label` instead of `button`).
+   * `toggle`: The button can be toggled between an active and inactive state.
    * `submit`: The button submits the form data to the server.
    * `reset`: The button resets all the controls to their initial values.
    * `button`: The button has no default behavior, and does nothing when pressed by default.
-   * `file`: The button allows uploading a file.
-   * `container`: The button is a container for an element that cannot be nested inside a true `button` element
-   * (Component will be wrapped in `div` instead of `button`).
+   *
+   * Defaults to `button`
    */
-  get type(): string | null {
+  get type():
+    | "div"
+    | "a"
+    | "file"
+    | "toggle"
+    | "submit"
+    | "reset"
+    | "button"
+    | null {
     return this.getStringAttribute(Button.attributes.type);
   }
   set type(value) {
@@ -169,7 +195,7 @@ export default class Button
   }
 
   /**
-   * Determines the overall look of the button.
+   * The overall look of the button.
    */
   get variant(): "filled" | "tonal" | "outlined" | "text" | null {
     return this.getStringAttribute(Button.attributes.variant);
@@ -186,6 +212,26 @@ export default class Button
   }
   set icon(value) {
     this.setStringAttribute(Button.attributes.icon, value);
+  }
+
+  /**
+   * The name of the icon to display when the button is toggled.
+   */
+  get activeIcon(): IconName | string | null {
+    return this.getStringAttribute(Button.attributes.activeIcon);
+  }
+  set activeIcon(value) {
+    this.setStringAttribute(Button.attributes.activeIcon, value);
+  }
+
+  /**
+   * The color when the button is toggled.
+   */
+  get activeColor(): IconName | string | null {
+    return this.getStringAttribute(Button.attributes.activeColor);
+  }
+  set activeColor(value) {
+    this.setStringAttribute(Button.attributes.activeColor, value);
   }
 
   /**
@@ -218,6 +264,16 @@ export default class Button
   }
   set label(value) {
     this.setStringAttribute(Button.attributes.label, value);
+  }
+
+  /**
+   * The toggle state of this button.
+   */
+  get active(): boolean {
+    return this.getBooleanAttribute(Button.attributes.active);
+  }
+  set active(value) {
+    this.setBooleanAttribute(Button.attributes.active, value);
   }
 
   /**
@@ -324,6 +380,13 @@ export default class Button
         this.setAssignedToSlot(label);
       }
     }
+    if (name === Button.attributes.active) {
+      const active = newValue != null;
+      this.updateRootAttribute(
+        Button.attributes.ariaChecked,
+        active ? "true" : "false"
+      );
+    }
   }
 
   protected override onConnected(): void {
@@ -357,18 +420,26 @@ export default class Button
 
   protected handleClick = (e: MouseEvent): void => {
     const value = this.value;
-    if (value) {
-      const rect = this.root?.getBoundingClientRect();
-      const detail = { oldRect: rect, newRect: rect, value };
-      this.emit(CHANGING_EVENT, detail);
-      this.emit(CHANGED_EVENT, detail);
+    const type = this.type;
+    if (type === "toggle") {
+      const newActive = !this.active;
+      this.active = newActive;
+      if (value) {
+        this.emitChange(newActive ? value : null);
+      } else {
+        this.emitChange(newActive ? "on" : null);
+      }
+    } else {
+      if (value) {
+        this.emitChange(value);
+      }
     }
   };
 
   protected handleInputChange = (e: Event): void => {
     const propagatableEvent = new Event(e.type, {
       bubbles: true,
-      cancelable: false,
+      cancelable: true,
       composed: true,
     });
     Object.defineProperty(propagatableEvent, "target", {
@@ -386,6 +457,13 @@ export default class Button
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }
     });
+  }
+
+  emitChange(value: string | null) {
+    const rect = this.root?.getBoundingClientRect();
+    const detail = { key: this.key, oldRect: rect, newRect: rect, value };
+    this.emit(CHANGING_EVENT, detail);
+    this.emit(CHANGED_EVENT, detail);
   }
 }
 

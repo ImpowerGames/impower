@@ -63,3 +63,7 @@
     var(--s-color-scrollbar-thumb, #0000001a);
   scrollbar-width: var(--s-scrollbar-thickness, thin);
 }
+
+[hidden] {
+  display: none !important;
+}

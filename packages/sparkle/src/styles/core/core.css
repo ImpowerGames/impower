@@ -347,7 +347,7 @@
 }
 
 [child-layout] > .root {
-  display: flex !important;
+  display: flex;
   flex-direction: var(--child-layout, row) !important;
 }
 [child-gap] > .root {

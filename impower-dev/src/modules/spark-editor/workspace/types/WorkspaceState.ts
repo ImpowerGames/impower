@@ -76,6 +76,7 @@ export interface WorkspaceState
     };
   };
   preview: {
+    revealed?: boolean;
     panel: string;
     panels: {
       game: {

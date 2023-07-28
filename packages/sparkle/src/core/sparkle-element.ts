@@ -24,7 +24,6 @@ import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isFocusableElement } from "../utils/isFocusableElement";
-import { isServer } from "../utils/isServer";
 import { navEndKey } from "../utils/navEndKey";
 import { navNextKey } from "../utils/navNextKey";
 import { navPrevKey } from "../utils/navPrevKey";
@@ -1798,9 +1797,6 @@ export default class SparkleElement
     el.addEventListener("pointerdown", this.onPointerDown);
     el.addEventListener("focus", this.onFocus);
     el.addEventListener("blur", this.onBlur);
-    if (!isServer()) {
-      el.addEventListener("click", this.onActivationClick);
-    }
   }
 
   protected unbindFocus(el: HTMLElement) {
@@ -1809,9 +1805,6 @@ export default class SparkleElement
     el.removeEventListener("pointerdown", this.onPointerDown);
     el.removeEventListener("focus", this.onFocus);
     el.removeEventListener("blur", this.onBlur);
-    if (!isServer()) {
-      el.removeEventListener("click", this.onActivationClick);
-    }
   }
 
   protected override attributeChangedCallback(

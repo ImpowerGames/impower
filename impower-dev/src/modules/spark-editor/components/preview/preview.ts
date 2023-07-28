@@ -24,8 +24,12 @@ export default class Preview extends SEElement {
     return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  get modeTitleEl() {
-    return this.getElementByClass("mode-title");
+  get gameToolbarEl() {
+    return this.getElementById("game-toolbar");
+  }
+
+  get screenplayToolbarEl() {
+    return this.getElementById("screenplay-toolbar");
   }
 
   protected override onConnected(): void {
@@ -40,6 +44,14 @@ export default class Preview extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "preview") {
         const value = e.detail.value;
+        const gameToolbarEl = this.gameToolbarEl;
+        if (gameToolbarEl) {
+          gameToolbarEl.hidden = value !== "game";
+        }
+        const screenplayToolbarEl = this.screenplayToolbarEl;
+        if (screenplayToolbarEl) {
+          screenplayToolbarEl.hidden = value !== "screenplay";
+        }
         this.emit(
           DidOpenPanelMessage.method,
           DidOpenPanelMessage.type.notification({
@@ -47,16 +59,6 @@ export default class Preview extends SEElement {
             panel: value,
           })
         );
-        const modeTitleEl = this.modeTitleEl;
-        if (modeTitleEl) {
-          const title =
-            value === "screenplay"
-              ? "Screenplay Preview"
-              : value === "game"
-              ? "Game Preview"
-              : "";
-          modeTitleEl.textContent = title;
-        }
       }
     }
   };

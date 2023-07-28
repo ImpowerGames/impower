@@ -23,6 +23,7 @@ import Music from "./components/music/_music";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewPanel from "./components/preview-panel/_preview-panel";
+import PreviewToggleButton from "./components/preview-toggle-button/_preview-toggle-button";
 import Preview from "./components/preview/_preview";
 import ScreenplayPreview from "./components/screenplay-preview/_screenplay-preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
@@ -90,6 +91,7 @@ const components = {
   "se-preview": style(Preview),
   "se-preview-panel": style(PreviewPanel),
   "se-notifications": style(Notifications),
+  "se-preview-toggle-button": style(PreviewToggleButton),
   "se-header-navigation": style(HeaderNavigation),
   "se-footer-navigation": style(FooterNavigation),
   "spark-editor": style(Main),

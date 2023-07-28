@@ -31,6 +31,7 @@ const DEFAULT_TRANSFORMERS = {
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
+    "key",
     "indicator",
     "vertical",
     "active",
@@ -75,6 +76,16 @@ export default class Tabs
 
   override get transformers() {
     return DEFAULT_TRANSFORMERS;
+  }
+
+  /**
+   * Key that is included in all emitted events.
+   */
+  get key(): string | null {
+    return this.getStringAttribute(Tabs.attributes.key);
+  }
+  set key(value) {
+    this.setStringAttribute(Tabs.attributes.key, value);
   }
 
   /**
@@ -197,7 +208,7 @@ export default class Tabs
 
     const oldRect = oldTab?.root?.getBoundingClientRect();
     const newRect = tab?.root?.getBoundingClientRect();
-    const detail = { oldRect, newRect, value: newValue };
+    const detail = { key: this.key, oldRect, newRect, value: newValue };
 
     if (changed) {
       this.emit(CHANGING_EVENT, detail);

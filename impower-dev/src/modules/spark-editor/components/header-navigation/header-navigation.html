@@ -1,6 +1,7 @@
 <s-box position="relative" bg-color="primary-bg" z="2">
   <s-scroll-blocker></s-scroll-blocker>
-  <s-box height="header-nav" p="0 8 0 32" child-layout="row" child-align="center">
+  <s-box height="header-nav" p="0 8 0 0" child-layout="row" child-align="center">
+    <s-button width="56" height="56" variant="icon" icon="menu" text-size="xl" color="fg"></s-button>
     <s-box grow>
       <s-button variant="text" text-size="lg" text-weight="500" color="fg" p="0 4" m="0 -4" self-align="start">
         Project Name
@@ -9,18 +10,14 @@
         Synced Locally
       </s-box>
     </s-box>
-
     <s-box position="relative" width="56" height="56">
-      <s-hidden position="absolute" i="0" if-below="md" hide-event="editor/unfocused" show-event="editor/focused"
-        initial="hide">
-        <s-button variant="icon" icon="check" text-size="20"></s-button>
-      </s-hidden>
-      <s-hidden position="absolute" i="0" if-below="md" hide-event="editor/focused" show-event="editor/unfocused"
-        initial="show">
-        <s-button variant="text" width="56" height="56" text-size="2xs" child-layout="column" color="primary-70">
-          <s-icon icon="player-play" size="24" m-b="1"></s-icon>
-          RUN
-        </s-button>
+      <s-hidden initial="hide" hide-above="md">
+        <s-hidden initial="hide" hide-event="editor/unfocused" show-event="editor/focused" position="absolute" i="0">
+          <s-button variant="icon" icon="check" text-size="20"></s-button>
+        </s-hidden>
+        <s-hidden hide-event="editor/focused" show-event="editor/unfocused" position="absolute" i="0">
+          <se-preview-toggle-button></se-preview-toggle-button>
+        </s-hidden>
       </s-hidden>
     </s-box>
   </s-box>

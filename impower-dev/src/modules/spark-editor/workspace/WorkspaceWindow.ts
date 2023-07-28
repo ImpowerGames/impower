@@ -1,3 +1,5 @@
+import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
+import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DEFAULT_WORKSPACE_STATE } from "./DEFAULT_WORKSPACE_STATE";
 import { ReadOnly } from "./types/ReadOnly";
@@ -31,6 +33,12 @@ export default class WorkspaceWindow {
           throw new Error(`Panel type not recognized: ${panel}`);
         }
         paneState.panel = panel;
+      }
+      if (DidExpandPreviewPaneMessage.type.isNotification(message)) {
+        this._state.preview.revealed = true;
+      }
+      if (DidCollapsePreviewPaneMessage.type.isNotification(message)) {
+        this._state.preview.revealed = false;
       }
     }
   };

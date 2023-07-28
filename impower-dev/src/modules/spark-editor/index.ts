@@ -22,6 +22,7 @@ import Music from "./components/music/music";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewPanel from "./components/preview-panel/preview-panel";
+import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
 import Preview from "./components/preview/preview";
 import ScreenplayPreview from "./components/screenplay-preview/screenplay-preview";
 import ScriptEditor from "./components/script-editor/script-editor";
@@ -67,6 +68,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-preview": Preview,
   "se-preview-panel": PreviewPanel,
   "se-notifications": Notifications,
+  "se-preview-toggle-button": PreviewToggleButton,
   "se-header-navigation": HeaderNavigation,
   "se-footer-navigation": FooterNavigation,
   "spark-editor": Main,

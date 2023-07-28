@@ -8,7 +8,7 @@ export interface DidOpenPanelParams {
 }
 
 export abstract class DidOpenPanelMessage {
-  static readonly method = "workspace/didOpenPanel";
+  static readonly method = "window/didOpenPanel";
   static readonly type = new MessageProtocolNotificationType<
     DidOpenPanelMethod,
     DidOpenPanelParams

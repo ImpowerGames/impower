@@ -27,11 +27,9 @@
 }
 :host(:not([vertical])) > .root {
   flex-direction: row;
-  container-type: inline-size;
 }
 :host([vertical]) > .root {
   flex-direction: column;
-  container-type: size;
 }
 
 :host > .root > .panel {
@@ -147,25 +145,63 @@
   min-height: var(--min-panel-height);
 }
 
-/* If the container is less than 600px */
-@container (max-width: 600px) {
+/* If the window width is less than 600px */
+@media (max-width: 600px) {
+  :host(
+      :not([vertical], [primary="end"]):is(
+          [responsive=""],
+          [responsive="slide-left"],
+          [responsive="slide-right"],
+          [responsive="slide-top"],
+          [responsive="slide-bottom"]
+        )
+    )
+    > .root
+    > .end {
+    pointer-events: auto;
+    position: absolute;
+    inset: 0;
+    transform: translate(0, 0);
+    transition: transform 150ms ease-out;
+    z-index: 1;
+  }
+
   :host(:not([vertical])) > .root > .panel > .divider {
     display: none;
   }
 
   /* Hide end panel */
   :host(
-      :not([vertical], [primary="end"]):is([responsive=""], [responsive="hide"])
+      :not([vertical], [primary="end"]):is(
+          [responsive=""],
+          [responsive="slide-down"]
+        )
     )
+    > .root
+    > .end {
+    transform: translate(0, 100vh);
+  }
+  :host(:not([vertical], [primary="end"]):is([responsive="slide-up"]))
+    > .root
+    > .end {
+    transform: translate(0, -100vh);
+  }
+  :host(:not([vertical], [primary="end"]):is([responsive="slide-left"]))
+    > .root
+    > .end {
+    transform: translate(-100vw, 0);
+  }
+  :host(:not([vertical], [primary="end"]):is([responsive="slide-right"]))
+    > .root
+    > .end {
+    transform: translate(100vw, 0);
+  }
+  :host(:not([vertical], [primary="end"]):is([responsive="hide"]))
     > .root
     > .end {
     display: none;
   }
-  :host(
-      :not([vertical], [primary="end"]):is([responsive=""], [responsive="hide"])
-    )
-    > .root
-    > .panel {
+  :host(:not([vertical], [primary="end"]):is([responsive])) > .root > .panel {
     min-width: 100%;
   }
   :host(:not([vertical])) > .root > .panel > .start {
@@ -177,17 +213,52 @@
 
   /* Hide start panel */
   :host(
-      :not([vertical])[primary="end"]:is([responsive=""], [responsive="hide"])
+      :not([vertical])[primary="end"]:is(
+          [responsive=""],
+          [responsive="slide-down"]
+        )
     )
+    > .root
+    > .panel {
+    transform: translate(0, 100vh);
+  }
+  :host(:not([vertical])[primary="end"]:is([responsive="slide-up"]))
+    > .root
+    > .panel {
+    transform: translate(0, -100vh);
+  }
+  :host(:not([vertical])[primary="end"]:is([responsive="slide-left"]))
+    > .root
+    > .panel {
+    transform: translate(-100vw, 0);
+  }
+  :host(:not([vertical])[primary="end"]:is([responsive="slide-right"]))
+    > .root
+    > .panel {
+    transform: translate(100vw, 0);
+  }
+  :host(:not([vertical])[primary="end"]:is([responsive="hide"]))
     > .root
     > .panel {
     display: none;
   }
-  :host(
-      :not([vertical])[primary="end"]:is([responsive=""], [responsive="hide"])
-    )
+  :host(:not([vertical])[primary="end"]:is([responsive])) > .root > .end {
+    min-width: 100%;
+  }
+
+  /* Reveal end panel */
+  :host([reveal]:not([vertical], [primary="end"]):is([responsive], ))
     > .root
     > .end {
-    min-width: 100%;
+    display: flex;
+    transform: translate(0);
+  }
+
+  /* Reveal start panel */
+  :host([reveal]:not([vertical])[primary="end"]:is([responsive]))
+    > .root
+    > .panel {
+    display: flex;
+    transform: translate(0);
   }
 }

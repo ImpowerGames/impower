@@ -180,8 +180,6 @@ export default class Tab
         Tab.attributes.ariaDisabled,
         newValue != null ? "true" : "false"
       );
-    }
-    if (name === Tab.attributes.disabled) {
       const ripple = this.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
