@@ -27,9 +27,11 @@
 }
 :host(:not([vertical])) > .root {
   flex-direction: row;
+  container-type: inline-size;
 }
 :host([vertical]) > .root {
   flex-direction: column;
+  container-type: size;
 }
 
 :host > .root > .panel {
@@ -145,8 +147,8 @@
   min-height: var(--min-panel-height);
 }
 
-/* If the window width is less than 600px */
-@media (max-width: 600px) {
+/* If the container is less than 600px */
+@container (max-width: 600px) {
   :host(
       :not([vertical], [primary="end"]):is(
           [responsive=""],
