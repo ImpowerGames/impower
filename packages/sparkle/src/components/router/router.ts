@@ -427,7 +427,7 @@ export default class Router
                 e.detail.newRect,
                 true
               );
-              this.emit(EXIT_EVENT, { key: this.key, ...e.detail, direction });
+              this.emit(EXIT_EVENT, { ...e.detail, key: this.key, direction });
               this.exitRoute(direction);
             }
           }

@@ -76,7 +76,6 @@ export default class Transition
         const routerKey = this.router;
         if (
           !routerKey ||
-          !e.detail.key ||
           (e.detail.key && (e.detail.key as string).startsWith(routerKey))
         ) {
           this.updateState("exiting");
@@ -91,7 +90,6 @@ export default class Transition
         const routerKey = this.router;
         if (
           !routerKey ||
-          !e.detail.key ||
           (e.detail.key && (e.detail.key as string).startsWith(routerKey))
         ) {
           this.updateState("entering");
