@@ -93,7 +93,7 @@ name: ${this._projectName}
     return window.dispatchEvent(
       new CustomEvent(eventName, {
         bubbles: true,
-        cancelable: false,
+        cancelable: true,
         composed: true,
         detail,
       })

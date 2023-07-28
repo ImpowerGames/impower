@@ -296,7 +296,7 @@ export default class SparkElement extends HTMLElement {
     return this.dispatchEvent(
       new CustomEvent(eventName, {
         bubbles: true,
-        cancelable: false,
+        cancelable: true,
         composed: true,
         detail,
       })

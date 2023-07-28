@@ -82,7 +82,7 @@ const emit = <T>(eventName: string, detail?: T): boolean => {
   return window.dispatchEvent(
     new CustomEvent(eventName, {
       bubbles: true,
-      cancelable: false,
+      cancelable: true,
       composed: true,
       detail,
     })
