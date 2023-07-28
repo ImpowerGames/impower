@@ -164,7 +164,9 @@
     position: absolute;
     inset: 0;
     transform: translate(0, 0);
-    transition: transform 150ms ease-out;
+    transition-property: transform, opacity;
+    transition-duration: 200ms;
+    transition-timing-function: ease-out;
     z-index: 1;
   }
 
