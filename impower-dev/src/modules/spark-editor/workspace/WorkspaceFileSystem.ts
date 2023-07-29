@@ -143,6 +143,15 @@ name: ${this._projectName}
     return `${this._scheme}${this._uid}/projects/${this._projectId}${suffix}`;
   }
 
+  getFileName(uri: string) {
+    return uri.split("/").slice(-1).join("");
+  }
+
+  getDisplayName(uri: string) {
+    const fileName = this.getFileName(uri);
+    return fileName.split(".")[0] ?? "";
+  }
+
   async getFilesInDirectory(directoryPath: string): Promise<string[]> {
     await this.initializing;
     return (

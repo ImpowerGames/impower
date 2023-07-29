@@ -63,17 +63,18 @@ export default class FileAddButton
       return;
     }
     const fileUris = await Workspace.fs.getFilesInDirectory(directoryPath);
-    const fileNames = fileUris.map((uri) => uri.split("/").slice(-1).join(""));
-    const fileName =
-      this.fileName || directoryPath.split("/").slice(-1).join("");
-    const uniqueFileName = getUniqueFileName(fileNames, fileName);
-    await Workspace.fs.createFiles({
-      files: [
-        {
-          uri: Workspace.fs.getWorkspaceUri(directoryPath, uniqueFileName),
-          data: new ArrayBuffer(0),
-        },
-      ],
-    });
+    const fileNames = fileUris.map((uri) => Workspace.fs.getFileName(uri));
+    const fileName = this.fileName;
+    if (fileName) {
+      const uniqueFileName = getUniqueFileName(fileNames, fileName);
+      await Workspace.fs.createFiles({
+        files: [
+          {
+            uri: Workspace.fs.getWorkspaceUri(directoryPath, uniqueFileName),
+            data: new ArrayBuffer(0),
+          },
+        ],
+      });
+    }
   };
 }

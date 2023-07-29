@@ -212,8 +212,8 @@ export default class FileList
     outletSlot?.replaceChildren();
     if (outletSlot) {
       this._uris.forEach((uri) => {
-        const fileName = uri.split("/").slice(-1).join("");
-        const displayName = fileName.split(".")[0] ?? "";
+        const fileName = Workspace.fs.getFileName(uri);
+        const displayName = Workspace.fs.getDisplayName(uri);
         const template = document.createElement("template");
         template.innerHTML = html`
           <se-file-item
