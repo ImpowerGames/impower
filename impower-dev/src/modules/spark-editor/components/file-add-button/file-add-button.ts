@@ -49,16 +49,12 @@ export default class FileAddButton
     this.setStringAttribute(FileAddButton.attributes.fileName, value);
   }
 
-  get buttonEl() {
-    return this.getElementById("button");
-  }
-
   protected override onConnected(): void {
-    this.buttonEl?.addEventListener("click", this.handleClick);
+    this.addEventListener("click", this.handleClick);
   }
 
   protected override onDisconnected(): void {
-    this.buttonEl?.removeEventListener("click", this.handleClick);
+    this.removeEventListener("click", this.handleClick);
   }
 
   handleClick = async (e: MouseEvent) => {
