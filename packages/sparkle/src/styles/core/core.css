@@ -485,18 +485,21 @@
 [text-overflow] > .root {
   text-overflow: var(--text-overflow, clip) !important;
 }
+[text-overflow=""] > .root {
+  white-space: nowrap;
+}
 [text-overflow="wrap"] > .root {
   white-space: break-spaces;
 }
-
-:is(
-    [text-overflow=""],
-    [text-overflow="visible"],
-    [text-overflow="clip"],
-    [text-overflow="ellipsis"],
-
-  )
-  > .root {
+[text-overflow="visible"] > .root {
+  white-space: nowrap;
+}
+[text-overflow="clip"] > .root {
+  white-space: nowrap;
+}
+[text-overflow="ellipsis"] > .root {
+  display: block;
+  overflow: hidden;
   white-space: nowrap;
 }
 [text-color] > .root {

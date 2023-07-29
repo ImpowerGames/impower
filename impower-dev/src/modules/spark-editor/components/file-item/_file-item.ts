@@ -7,7 +7,6 @@ export default (state: { attrs?: { "directory-path": string | null } }) => {
       <s-button
         class="root"
         id="item"
-        p="0 32"
         width="100%"
         height="56"
         corner="0"
@@ -15,12 +14,26 @@ export default (state: { attrs?: { "directory-path": string | null } }) => {
         size="lg"
         color="fg-80"
         text-weight="normal"
-        child-justify="between"
+        position="relative"
         value="${directoryPath}"
-        grow
       >
-        <slot></slot>
-        <s-box m-r="-32">
+        <s-box
+          position="absolute"
+          i="0"
+          child-layout="row"
+          child-align="center"
+        >
+          <s-box
+            position="relative"
+            height="100%"
+            child-layout="row"
+            child-align="center"
+            grow
+          >
+            <s-box p="0 0 0 32" position="absolute" text-overflow="ellipsis">
+              <slot></slot>
+            </s-box>
+          </s-box>
           <se-file-options-button></se-file-options-button>
         </s-box>
       </s-button>
