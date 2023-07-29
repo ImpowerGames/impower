@@ -47,7 +47,7 @@ export default class SparkdownScriptEditor
   }
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   override get component() {

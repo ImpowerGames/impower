@@ -3,15 +3,11 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssProportion from "../../../../sparkle-style-transformer/src/utils/getCssProportion";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import component from "./_progress-circle";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   size: getCssSize,
   "track-width": getCssSize,
   "indicator-width": getCssSize,
@@ -19,7 +15,6 @@ const DEFAULT_TRANSFORMERS = {
 };
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap(["value", ...getKeys(DEFAULT_TRANSFORMERS)]),
 };
 
@@ -33,7 +28,11 @@ export default class ProgressCircle
   static override tagName = "s-progress-circle";
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   static override async define(
@@ -50,10 +49,6 @@ export default class ProgressCircle
 
   override transformCss(css: string) {
     return ProgressCircle.augmentCss(css);
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
   }
 
   /**

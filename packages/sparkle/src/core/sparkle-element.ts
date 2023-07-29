@@ -58,16 +58,16 @@ export default class SparkleElement
     return DEFAULT_SPARKLE_ATTRIBUTES;
   }
 
-  override get sharedStyles(): string[] {
-    return [keyframesCSS, normalizeCSS, scopedCoreCSS];
+  get transformers(): Record<string, (v: string) => string> {
+    return DEFAULT_SPARKLE_TRANSFORMERS;
   }
 
   get aliases(): Record<string, string> {
     return STYLE_ALIASES;
   }
 
-  get transformers(): Record<string, (v: string) => string> {
-    return DEFAULT_SPARKLE_TRANSFORMERS;
+  override get sharedStyles(): string[] {
+    return [keyframesCSS, normalizeCSS, scopedCoreCSS];
   }
 
   static get observedAttributes() {

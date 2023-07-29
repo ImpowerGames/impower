@@ -149,15 +149,7 @@
 
 /* If the container is less than 600px */
 @container (max-width: 600px) {
-  :host(
-      :not([vertical], [primary="end"]):is(
-          [responsive=""],
-          [responsive="slide-left"],
-          [responsive="slide-right"],
-          [responsive="slide-top"],
-          [responsive="slide-bottom"]
-        )
-    )
+  :host([responsive]:not([vertical], [primary="end"], [responsive="hide"]))
     > .root
     > .end {
     pointer-events: auto;
@@ -175,37 +167,31 @@
   }
 
   /* Hide end panel */
-  :host(
-      :not([vertical], [primary="end"]):is(
-          [responsive=""],
-          [responsive="slide-down"]
-        )
-    )
+  :host(:not([vertical], [primary="end"])[responsive=""]) > .root > .end,
+  :host(:not([vertical], [primary="end"])[responsive="slide-down"])
     > .root
     > .end {
     transform: translate(0, 100vh);
   }
-  :host(:not([vertical], [primary="end"]):is([responsive="slide-up"]))
+  :host(:not([vertical], [primary="end"])[responsive="slide-up"])
     > .root
     > .end {
     transform: translate(0, -100vh);
   }
-  :host(:not([vertical], [primary="end"]):is([responsive="slide-left"]))
+  :host(:not([vertical], [primary="end"])[responsive="slide-left"])
     > .root
     > .end {
     transform: translate(-100vw, 0);
   }
-  :host(:not([vertical], [primary="end"]):is([responsive="slide-right"]))
+  :host(:not([vertical], [primary="end"])[responsive="slide-right"])
     > .root
     > .end {
     transform: translate(100vw, 0);
   }
-  :host(:not([vertical], [primary="end"]):is([responsive="hide"]))
-    > .root
-    > .end {
+  :host(:not([vertical], [primary="end"])[responsive="hide"]) > .root > .end {
     display: none;
   }
-  :host(:not([vertical], [primary="end"]):is([responsive])) > .root > .panel {
+  :host(:not([vertical], [primary="end"])[responsive]) > .root > .panel {
     min-width: 100%;
   }
   :host(:not([vertical])) > .root > .panel > .start {
@@ -216,52 +202,42 @@
   }
 
   /* Hide start panel */
-  :host(
-      :not([vertical])[primary="end"]:is(
-          [responsive=""],
-          [responsive="slide-down"]
-        )
-    )
+  :host([primary="end"]:not([vertical])[responsive=""]) > .root > .panel,
+  :host([primary="end"]:not([vertical])[responsive="slide-down"])
     > .root
     > .panel {
     transform: translate(0, 100vh);
   }
-  :host(:not([vertical])[primary="end"]:is([responsive="slide-up"]))
+  :host([primary="end"]:not([vertical])[responsive="slide-up"])
     > .root
     > .panel {
     transform: translate(0, -100vh);
   }
-  :host(:not([vertical])[primary="end"]:is([responsive="slide-left"]))
+  :host([primary="end"]:not([vertical])[responsive="slide-left"])
     > .root
     > .panel {
     transform: translate(-100vw, 0);
   }
-  :host(:not([vertical])[primary="end"]:is([responsive="slide-right"]))
+  :host([primary="end"]:not([vertical])[responsive="slide-right"])
     > .root
     > .panel {
     transform: translate(100vw, 0);
   }
-  :host(:not([vertical])[primary="end"]:is([responsive="hide"]))
-    > .root
-    > .panel {
+  :host([primary="end"]:not([vertical])[responsive="hide"]) > .root > .panel {
     display: none;
   }
-  :host(:not([vertical])[primary="end"]:is([responsive])) > .root > .end {
+  :host([primary="end"]:not([vertical])[responsive]) > .root > .end {
     min-width: 100%;
   }
 
   /* Reveal end panel */
-  :host([reveal]:not([vertical], [primary="end"]):is([responsive], ))
-    > .root
-    > .end {
+  :host([reveal]:not([vertical], [primary="end"])[responsive]) > .root > .end {
     display: flex;
     transform: translate(0);
   }
 
   /* Reveal start panel */
-  :host([reveal]:not([vertical])[primary="end"]:is([responsive]))
-    > .root
-    > .panel {
+  :host([reveal][primary="end"]:not([vertical])[responsive]) > .root > .panel {
     display: flex;
     transform: translate(0);
   }

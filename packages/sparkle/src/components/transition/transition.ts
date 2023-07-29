@@ -1,15 +1,12 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import component from "./_transition";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-router"]);
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap(["router"]),
 };
 
@@ -25,7 +22,7 @@ export default class Transition
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(

@@ -4,9 +4,7 @@ import getDependencyNameMap from "../../../../spark-element/src/utils/getDepende
 import { getUnitlessValue } from "../../../../spark-element/src/utils/getUnitlessValue";
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssEase from "../../../../sparkle-style-transformer/src/utils/getCssEase";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
@@ -32,7 +30,6 @@ const getCollapsedIconOffset = (
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap(["collapsed", "sentinel"]),
 };
 
@@ -48,7 +45,7 @@ export default class Collapsible
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(

@@ -3,16 +3,12 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { SizeName } from "../../types/sizeName";
 import component from "./_split-pane";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "min-panel-width": getCssSize,
   "min-panel-height": getCssSize,
   "resizer-color": getCssColor,
@@ -27,7 +23,6 @@ const DEFAULT_TRANSFORMERS = {
 };
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "vertical",
     "responsive",
@@ -49,7 +44,11 @@ export default class SplitPane
   static override tagName = "s-split-pane";
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   static override async define(
@@ -66,10 +65,6 @@ export default class SplitPane
 
   override transformCss(css: string) {
     return SplitPane.augmentCss(css);
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
   }
 
   /**

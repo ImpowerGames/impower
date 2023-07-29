@@ -2,20 +2,15 @@ import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import component from "./_circle";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   size: getCssSize,
 };
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([...getKeys(DEFAULT_TRANSFORMERS)]),
 };
 
@@ -29,7 +24,11 @@ export default class Circle
   static override tagName = "s-circle";
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   static override async define(
@@ -46,10 +45,6 @@ export default class Circle
 
   override transformCss(css: string) {
     return Circle.augmentCss(css);
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
   }
 
   /**

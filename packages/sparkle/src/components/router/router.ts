@@ -1,9 +1,7 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getCssAnimation from "../../../../sparkle-style-transformer/src/utils/getCssAnimation";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { cancelAnimations } from "../../utils/cancelAnimations";
 import { getDirection } from "../../utils/getDirection";
@@ -14,7 +12,6 @@ const EXIT_EVENT = "exit";
 const ENTER_EVENT = "enter";
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "key",
     "active",
@@ -39,7 +36,7 @@ export default class Router
   static override tagName = "s-router";
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(

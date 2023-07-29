@@ -3,10 +3,7 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getBreakpointValue } from "../../utils/getBreakpointValue";
@@ -15,13 +12,11 @@ import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import component from "./_hidden";
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "hide-delay": getCssDuration,
   "show-delay": getCssDuration,
 };
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "initial",
     "hide-below",
@@ -45,11 +40,11 @@ export default class Hidden
   static override tagName = "s-hidden";
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   override get transformers() {
-    return DEFAULT_TRANSFORMERS;
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   static override async define(

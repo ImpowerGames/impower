@@ -36,7 +36,7 @@ export default class SparkScreenplayPreview
   }
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   override get component() {

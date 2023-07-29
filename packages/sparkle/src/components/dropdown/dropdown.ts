@@ -1,7 +1,6 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import {
   lockBodyScrolling,
@@ -27,7 +26,6 @@ const CHANGED_EVENT = "changed";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-option"]);
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "key",
     "active",
@@ -67,7 +65,7 @@ export default class Dropdown
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(

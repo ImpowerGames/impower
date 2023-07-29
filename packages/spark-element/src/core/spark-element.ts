@@ -112,6 +112,19 @@ export default class SparkElement extends HTMLElement {
     return css;
   }
 
+  getDefinedAttributeValues(
+    attributeNames: string[]
+  ): Record<string, string | null> {
+    const attrs: Record<string, string | null> = {};
+    attributeNames.forEach((attr) => {
+      const value = this.getAttribute(attr);
+      if (value != null) {
+        attrs[attr] = value;
+      }
+    });
+    return attrs;
+  }
+
   /**
    * Replaces :host in css with tag aliases specified by `dependencies`.
    *
@@ -130,7 +143,12 @@ export default class SparkElement extends HTMLElement {
           ...defaultDependencies,
         }).forEach((newTagName) => {
           if (newTagName) {
-            css.replace(/(:host)\(\s*(.+)\s*\)/g, `${newTagName}$2`);
+            css
+              .replace(
+                /(:host)[(]\s*([^>{]+)\s*[)](\s*(?:$|[>]|[{]))/g,
+                `${newTagName}$2$3`
+              )
+              .replace(/(:host)/g, `${newTagName}`);
           }
         });
       }

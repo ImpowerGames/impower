@@ -7,10 +7,7 @@ import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssC
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-  DEFAULT_SPARKLE_TRANSFORMERS,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type ProgressCircle from "../progress-circle/progress-circle";
@@ -28,7 +25,6 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([
 ]);
 
 const DEFAULT_TRANSFORMERS = {
-  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, STYLES.icons),
   "active-icon": (v: string) => getCssIcon(v, STYLES.icons),
   "active-color": getCssColor,
@@ -37,7 +33,6 @@ const DEFAULT_TRANSFORMERS = {
 };
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "key",
     "href",
@@ -68,7 +63,11 @@ export default class Button
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+  }
+
+  override get transformers() {
+    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
   }
 
   static override async define(
@@ -96,10 +95,6 @@ export default class Button
 
   override transformCss(css: string) {
     return Button.augmentCss(css, DEFAULT_DEPENDENCIES);
-  }
-
-  override get transformers() {
-    return DEFAULT_TRANSFORMERS;
   }
 
   /**

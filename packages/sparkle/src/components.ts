@@ -48,13 +48,13 @@ const config = {
   icons: [iconsCSS],
 };
 
-type Component = () => { html?: string; css?: string };
+type Component = (state: any) => { html?: string; css?: string };
 
 const style = (component: Component): Component => {
-  const data = component();
-  const html = data.html ? transformer(data.html, config) : data.html;
-  const css = data.css;
-  return () => {
+  return (state: any) => {
+    const data = component(state);
+    const html = data.html ? transformer(data.html, config) : data.html;
+    const css = data.css;
     return { html, css };
   };
 };

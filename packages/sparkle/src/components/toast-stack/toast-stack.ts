@@ -1,9 +1,7 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import SparkleElement, {
-  DEFAULT_SPARKLE_ATTRIBUTES,
-} from "../../core/sparkle-element";
+import SparkleElement from "../../core/sparkle-element";
 import Queue from "../../helpers/queue";
 import Toast from "../toast/toast";
 import component from "./_toast-stack";
@@ -11,7 +9,6 @@ import component from "./_toast-stack";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
 const DEFAULT_ATTRIBUTES = {
-  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap(["alert"]),
 };
 
@@ -27,7 +24,7 @@ export default class ToastStack
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
