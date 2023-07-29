@@ -58,9 +58,19 @@ export default class WorkspaceFileSystem {
     return this._projectName;
   }
 
+  protected _uris = new Set<string>();
+  get uris() {
+    return Array.from(this._uris);
+  }
+
+  protected _initializing?: Promise<WorkspaceEntry[]>;
+  get initializing() {
+    return this._initializing;
+  }
+
   constructor(lsp: WorkspaceLanguageServerProtocol) {
     this._lsp = lsp;
-    this.initialize();
+    this._initializing = this.initialize();
   }
 
   async initialize() {
@@ -87,6 +97,7 @@ name: ${this._projectName}
     this._lsp.connection.sendNotification(DidWatchFilesMessage.type, {
       files: entries,
     });
+    return entries;
   }
 
   emit<T>(eventName: string, detail?: T): boolean {
@@ -128,7 +139,14 @@ name: ${this._projectName}
     return `${this._scheme}${this._uid}/projects/${this._projectId}${suffix}`;
   }
 
-  async getWorkspaceEntries(
+  async getFilesInDirectory(directoryPath: string): Promise<string[]> {
+    await this.initializing;
+    return this.uris.filter((uri) =>
+      uri.startsWith(this.getWorkspaceUri(directoryPath))
+    );
+  }
+
+  protected async getWorkspaceEntries(
     params: WorkspaceDirectoryParams
   ): Promise<WorkspaceEntry[]> {
     return this.sendRequest(WorkspaceDirectoryMessage.type, params);
@@ -140,6 +158,9 @@ name: ${this._projectName}
       params,
       params.files.map((file) => file.data)
     );
+    params.files.forEach((file) => {
+      this._uris.add(file.uri);
+    });
     const createMessage = DidCreateFilesMessage.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
     });
@@ -164,6 +185,9 @@ name: ${this._projectName}
 
   async deleteFiles(params: DeleteFilesParams) {
     const result = await this.sendRequest(DeleteFilesMessage.type, params);
+    params.files.forEach((file) => {
+      this._uris.delete(file.uri);
+    });
     const deleteMessage = DidDeleteFilesMessage.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
     });

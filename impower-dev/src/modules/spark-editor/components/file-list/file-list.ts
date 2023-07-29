@@ -1,5 +1,4 @@
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
-import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import { html } from "../../../../../../packages/spark-element/src/utils/html";
@@ -92,7 +91,7 @@ export default class FileList
     return this.getSlotByName("outlet");
   }
 
-  protected _entries?: WorkspaceEntry[];
+  protected _uris?: string[];
 
   protected _dragging = false;
 
@@ -132,9 +131,9 @@ export default class FileList
   protected handleDidChangeWatchedFiles = (e: Event): void => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      const directory = this.directoryPath;
-      if (directory) {
-        const directoryUri = Workspace.fs.getWorkspaceUri(directory);
+      const directoryPath = this.directoryPath;
+      if (directoryPath) {
+        const directoryUri = Workspace.fs.getWorkspaceUri(directoryPath);
         if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
           const params = message.params;
           const changes = params.changes;
@@ -142,7 +141,7 @@ export default class FileList
             file.uri.startsWith(directoryUri)
           );
           if (changedFileInDirectory) {
-            this.loadEntries(directory);
+            this.loadEntries(directoryPath);
           }
         }
       }
@@ -203,36 +202,32 @@ export default class FileList
 
   async loadEntries(directoryPath: string | null) {
     if (!directoryPath) {
-      this._entries = [];
+      this._uris = [];
       return;
     }
-    this._entries = await Workspace.fs.getWorkspaceEntries({
-      directory: { uri: Workspace.fs.getWorkspaceUri(directoryPath) },
-    });
+    this._uris = await Workspace.fs.getFilesInDirectory(directoryPath);
     const pane = this.pane || "";
     const panel = this.panel || "";
     const outletSlot = this.outletSlot;
     outletSlot?.replaceChildren();
-    if (this._entries.length > 0) {
-      if (outletSlot) {
-        this._entries.forEach((entry) => {
-          const fileName = entry.uri.split("/").slice(-1).join("");
-          const displayName = fileName.split(".")[0] ?? "";
-          const template = document.createElement("template");
-          template.innerHTML = html`
-            <se-file-item
-              pane="${pane}"
-              panel="${panel}"
-              directory-path="${directoryPath}"
-              file-name="${fileName}"
-            >
-              ${displayName}
-            </se-file-item>
-          `;
-          const templateContent = template.content.cloneNode(true);
-          outletSlot.appendChild(templateContent);
-        });
-      }
+    if (outletSlot) {
+      this._uris.forEach((uri) => {
+        const fileName = uri.split("/").slice(-1).join("");
+        const displayName = fileName.split(".")[0] ?? "";
+        const template = document.createElement("template");
+        template.innerHTML = html`
+          <se-file-item
+            pane="${pane}"
+            panel="${panel}"
+            directory-path="${directoryPath}"
+            file-name="${fileName}"
+          >
+            ${displayName}
+          </se-file-item>
+        `;
+        const templateContent = template.content.cloneNode(true);
+        outletSlot.appendChild(templateContent);
+      });
     }
     this.updateState();
   }
@@ -241,10 +236,10 @@ export default class FileList
     if (this._dragging && this.accept) {
       return "dragover";
     }
-    if (this._entries && this._entries.length > 0) {
+    if (this._uris && this._uris.length > 0) {
       return "list";
     }
-    if (this._entries && this._entries.length === 0) {
+    if (this._uris && this._uris.length === 0) {
       return "empty";
     }
     return null;
