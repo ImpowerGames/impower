@@ -20,7 +20,6 @@ import { MaskName } from "../types/maskName";
 import { PatternName } from "../types/patternName";
 import { RatioName } from "../types/ratioName";
 import { SizeName } from "../types/sizeName";
-import { dispatchActivationClick, isActivationClick } from "../utils/events";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { isFocusableElement } from "../utils/isFocusableElement";
@@ -1773,14 +1772,6 @@ export default class SparkleElement
 
   protected onBlur = () => {
     this.showFocusRing(false);
-  };
-
-  private readonly onActivationClick = (event: MouseEvent) => {
-    if (!isActivationClick(event)) {
-      return;
-    }
-    this.focus();
-    dispatchActivationClick(this.root);
   };
 
   protected onPressed = () => {
