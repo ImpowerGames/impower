@@ -2,6 +2,7 @@ export const getDirection = (
   axis: string | null | undefined,
   oldRect: DOMRect | undefined,
   newRect: DOMRect,
+  fallbackDelta: number,
   reverse?: boolean
 ) => {
   if (axis == null) {
@@ -10,7 +11,7 @@ export const getDirection = (
   if (axis === "z") {
     const oldX = oldRect?.x ?? 0;
     const newX = newRect.x;
-    const delta = newX - oldX;
+    const delta = newX - oldX || fallbackDelta;
     if (delta < 0) {
       return reverse ? "out" : "in";
     }
@@ -19,7 +20,7 @@ export const getDirection = (
   if (axis === "y") {
     const oldY = oldRect?.y ?? 0;
     const newY = newRect.y;
-    const delta = newY - oldY;
+    const delta = newY - oldY || fallbackDelta;
     if (delta < 0) {
       return reverse ? "down" : "up";
     }
@@ -27,7 +28,7 @@ export const getDirection = (
   }
   const oldX = oldRect?.x ?? 0;
   const newX = newRect.x;
-  const delta = newX - oldX;
+  const delta = newX - oldX || fallbackDelta;
   if (delta < 0) {
     return reverse ? "right" : "left";
   }

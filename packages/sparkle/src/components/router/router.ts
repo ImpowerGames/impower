@@ -408,10 +408,17 @@ export default class Router
     if (e instanceof CustomEvent && e.detail) {
       if (this.shadowRoot) {
         if (e.target instanceof HTMLElement) {
+          const oldValue = this._loadedValue;
           const newValue = e.detail.value;
           if (newValue != null) {
             const templates = this.contentTemplates;
-            if (templates.some((t) => t.getAttribute("value") === newValue)) {
+            const oldIndex = templates.findIndex(
+              (t) => t.getAttribute("value") === oldValue
+            );
+            const newIndex = templates.findIndex(
+              (t) => t.getAttribute("value") === newValue
+            );
+            if (newIndex >= 0) {
               this._loadingValue = newValue;
               if (this._loadedValue == null) {
                 this._loadedValue =
@@ -422,6 +429,7 @@ export default class Router
                 this.directional,
                 e.detail.oldRect,
                 e.detail.newRect,
+                newIndex - oldIndex,
                 true
               );
               this.emit(EXIT_EVENT, { ...e.detail, key: this.key, direction });
@@ -440,7 +448,10 @@ export default class Router
           const newValue = e.detail.value;
           if (newValue != null) {
             const templates = this.contentTemplates;
-            if (templates.some((t) => t.getAttribute("value") === newValue)) {
+            const newIndex = templates.findIndex(
+              (t) => t.getAttribute("value") === newValue
+            );
+            if (newIndex >= 0) {
               e.stopPropagation();
               if (newValue === this._loadingValue) {
                 this.enterRoute(newValue);
