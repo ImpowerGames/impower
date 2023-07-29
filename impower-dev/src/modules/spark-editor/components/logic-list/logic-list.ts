@@ -1,12 +1,16 @@
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_displays";
+import component from "./_logic-list";
 
-export default class Displays extends SEElement {
+const DEFAULT_DEPENDENCIES = {
+  "sparkdown-script-editor": "sparkdown-script-editor",
+};
+
+export default class LogicList extends SEElement {
   static override async define(
-    tag = "se-displays",
-    dependencies?: Record<string, string>,
+    tag = "se-logic-list",
+    dependencies = DEFAULT_DEPENDENCIES,
     useShadowDom = true
   ) {
     return super.define(tag, dependencies, useShadowDom);
@@ -14,6 +18,10 @@ export default class Displays extends SEElement {
 
   override get component() {
     return component({ store: Workspace.window.state });
+  }
+
+  override transformHtml(html: string) {
+    return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   protected override onConnected(): void {
@@ -26,12 +34,12 @@ export default class Displays extends SEElement {
 
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (e.detail.key === "window/displays") {
+      if (e.detail.key === "window/logic/panel") {
         const value = e.detail.value;
         this.emit(
           DidOpenPanelMessage.method,
           DidOpenPanelMessage.type.notification({
-            pane: "displays",
+            pane: "logic",
             panel: value,
           })
         );

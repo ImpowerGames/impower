@@ -2,7 +2,7 @@ import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
-import Workspace from "../../workspace/Workspace";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_game-preview";
 
 const DEFAULT_DEPENDENCIES = {
@@ -18,7 +18,7 @@ export default class GamePreview
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(

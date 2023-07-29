@@ -7,14 +7,19 @@ import Demo from "./components/demo/demo";
 import Details from "./components/details/details";
 import Displays from "./components/displays/displays";
 import FileAddButton from "./components/file-add-button/file-add-button";
+import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
 import FileItem from "./components/file-item/file-item";
 import FileListBorder from "./components/file-list-border/file-list-border";
 import FileList from "./components/file-list/file-list";
+import FileOptionsButton from "./components/file-options-button/file-options-button";
 import FileUploadButton from "./components/file-upload-button/file-upload-button";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import GamePreview from "./components/game-preview/game-preview";
 import Graphics from "./components/graphics/graphics";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
+import LogicList from "./components/logic-list/logic-list";
+import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
+import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import Logic from "./components/logic/logic";
 import MainPanel from "./components/main-panel/main-panel";
 import Maps from "./components/maps/maps";
@@ -26,7 +31,6 @@ import PreviewToggleButton from "./components/preview-toggle-button/preview-togg
 import Preview from "./components/preview/preview";
 import ScreenplayPreview from "./components/screenplay-preview/screenplay-preview";
 import ScriptEditor from "./components/script-editor/script-editor";
-import Scripts from "./components/scripts/scripts";
 import Setup from "./components/setup/setup";
 import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
@@ -39,6 +43,8 @@ import theme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-option-button": OptionButton,
+  "se-file-options-button": FileOptionsButton,
+  "se-file-editor-navigation": FileEditorNavigation,
   "se-file-upload-button": FileUploadButton,
   "se-file-add-button": FileAddButton,
   "se-file-item": FileItem,
@@ -48,7 +54,9 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-game-preview": GamePreview,
   "se-screenplay-preview": ScreenplayPreview,
   "se-assets": Assets,
-  "se-scripts": Scripts,
+  "se-logic-scripts-editor": LogicScriptsEditor,
+  "se-logic-scripts-list": LogicScriptsList,
+  "se-logic-list": LogicList,
   "se-logic": Logic,
   "se-maps": Maps,
   "se-sprites": Sprites,

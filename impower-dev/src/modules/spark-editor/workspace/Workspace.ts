@@ -2,19 +2,8 @@ import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import WorkspaceLanguageServerProtocol from "./WorkspaceLanguageServerProtocol";
 import WorkspaceWindow from "./WorkspaceWindow";
 
-export default abstract class Workspace {
-  static _window = new WorkspaceWindow();
-  static get window() {
-    return this._window;
-  }
-
-  static _lsp = new WorkspaceLanguageServerProtocol();
-  static get lsp() {
-    return this._lsp;
-  }
-
-  static _fs = new WorkspaceFileSystem(this.lsp);
-  static get fs() {
-    return this._fs;
-  }
+export namespace Workspace {
+  export const lsp = new WorkspaceLanguageServerProtocol();
+  export const fs = new WorkspaceFileSystem(Workspace.lsp);
+  export const window = new WorkspaceWindow();
 }

@@ -2,17 +2,17 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const mode = state?.store?.audio?.panel || "sounds";
+  const panelMode = state?.store?.logic?.panel || "main";
   return {
     html: html`
-      <s-router directional key="window/audio" active="${mode}">
+      <s-router key="window/logic/panel" directional active="${panelMode}">
         <s-tabs
           color="tab-active"
           height="panel-nav"
           bg-color="panel"
           position="sticky-top"
+          active="${panelMode}"
           slot="header"
-          active="${mode}"
         >
           <s-box
             bg-color="panel"
@@ -27,11 +27,11 @@ export default (state: { store?: WorkspaceState }) => {
             text-color="tab-inactive"
             p="20"
             child-layout="row"
-            icon="wave-saw"
-            value="sounds"
-            ${mode === "sounds" ? "active" : ""}
+            icon="code"
+            value="main"
+            ${panelMode === "main" ? "active" : ""}
           >
-            Sounds
+            Main
           </s-tab>
           <s-tab
             color="tab-active"
@@ -39,18 +39,18 @@ export default (state: { store?: WorkspaceState }) => {
             text-color="tab-inactive"
             p="20"
             child-layout="row"
-            icon="music"
-            value="music"
-            ${mode === "music" ? "active" : ""}
+            icon="file-code"
+            value="scripts"
+            ${panelMode === "scripts" ? "active" : ""}
           >
-            Music
+            Scripts
           </s-tab>
         </s-tabs>
-        <template value="sounds">
-          <se-sounds></se-sounds>
+        <template value="main">
+          <se-script-editor file-path="logic/main.sd"></se-script-editor>
         </template>
-        <template value="music">
-          <se-music></se-music>
+        <template value="scripts">
+          <se-logic-scripts-list></se-logic-scripts-list>
         </template>
       </s-router>
     `,

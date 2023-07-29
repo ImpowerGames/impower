@@ -2,7 +2,7 @@ import { Properties } from "../../../../../../packages/spark-element/src/types/p
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
 import getUniqueFileName from "../../utils/getUniqueFileName";
-import Workspace from "../../workspace/Workspace";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_file-add-button";
 
 const DEFAULT_ATTRIBUTES = {
@@ -14,7 +14,7 @@ export default class FileAddButton
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(

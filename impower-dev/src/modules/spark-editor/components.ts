@@ -8,14 +8,19 @@ import Demo from "./components/demo/_demo";
 import Details from "./components/details/_details";
 import Displays from "./components/displays/_displays";
 import FileAddButton from "./components/file-add-button/_file-add-button";
+import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
 import FileItem from "./components/file-item/_file-item";
 import FileListBorder from "./components/file-list-border/_file-list-border";
 import FileList from "./components/file-list/_file-list";
+import FileOptionsButton from "./components/file-options-button/_file-options-button";
 import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
 import GamePreview from "./components/game-preview/_game-preview";
 import Graphics from "./components/graphics/_graphics";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
+import LogicList from "./components/logic-list/_logic-list";
+import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
+import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
 import Logic from "./components/logic/_logic";
 import MainPanel from "./components/main-panel/_main-panel";
 import Maps from "./components/maps/_maps";
@@ -27,7 +32,6 @@ import PreviewToggleButton from "./components/preview-toggle-button/_preview-tog
 import Preview from "./components/preview/_preview";
 import ScreenplayPreview from "./components/screenplay-preview/_screenplay-preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
-import Scripts from "./components/scripts/_scripts";
 import Setup from "./components/setup/_setup";
 import Share from "./components/share/_share";
 import Sounds from "./components/sounds/_sounds";
@@ -46,13 +50,13 @@ const config = {
   patterns: [sparklePatternsCSS],
 };
 
-type Component = () => { html?: string; css?: string };
+type Component = (state: any) => { html?: string; css?: string };
 
 const style = (component: Component): Component => {
-  const data = component();
-  const html = data.html ? transformer(data.html, config) : data.html;
-  const css = data.css || coreCSS;
-  return () => {
+  return (state: any) => {
+    const data = component(state);
+    const html = data.html ? transformer(data.html, config) : data.html;
+    const css = data.css || coreCSS;
     return { html, css };
   };
 };
@@ -62,6 +66,8 @@ const components = {
   "se-theme": Theme,
   "se-normalize": Normalize,
   "se-option-button": style(OptionButton),
+  "se-file-options-button": style(FileOptionsButton),
+  "se-file-editor-navigation": style(FileEditorNavigation),
   "se-file-upload-button": style(FileUploadButton),
   "se-file-add-button": style(FileAddButton),
   "se-file-item": style(FileItem),
@@ -71,7 +77,9 @@ const components = {
   "se-game-preview": style(GamePreview),
   "se-screenplay-preview": style(ScreenplayPreview),
   "se-assets": style(Assets),
-  "se-scripts": style(Scripts),
+  "se-logic-scripts-editor": style(LogicScriptsEditor),
+  "se-logic-scripts-list": style(LogicScriptsList),
+  "se-logic-list": style(LogicList),
   "se-logic": style(Logic),
   "se-maps": style(Maps),
   "se-sprites": style(Sprites),

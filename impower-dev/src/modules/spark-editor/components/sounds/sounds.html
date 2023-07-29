@@ -1,13 +1,10 @@
 <s-box overflow-y="scroll">
   <s-box p="16 0" navigation="keyboard" grow>
-    <se-file-list directory-path="audio/sounds">
+    <se-file-list pane="audio" panel="sounds" directory-path="audio/sounds">
       <se-file-list-border slot="empty">
         <s-icon icon="wave-saw 1" size="48" m="12"></s-icon>
         No Sounds
       </se-file-list-border>
-      <template>
-        <se-file-item directory-path="audio/sounds"></se-file-item>
-      </template>
     </se-file-list>
   </s-box>
   <se-file-add-button directory-path="audio/sounds" file-name="sound_00.sd">Add Sound</se-file-add-button>

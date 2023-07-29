@@ -1,7 +1,7 @@
 import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
-export default (state?: { store?: WorkspaceState }) => {
+export default (state: { store?: WorkspaceState }) => {
   const mode = state?.store?.graphics?.panel || "sprites";
   return {
     html: html`

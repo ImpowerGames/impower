@@ -1,6 +1,6 @@
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
-import Workspace from "../../workspace/Workspace";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_audio";
 
 export default class Audio extends SEElement {

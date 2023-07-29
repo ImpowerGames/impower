@@ -2,76 +2,77 @@ export interface WorkspaceState
   extends Record<
     string,
     {
+      view?: string;
       panel: string;
-      panels: Record<string, { scrollIndex?: number; editingPath?: string }>;
+      panels: Record<string, { scrollIndex?: number; openFilePath?: string }>;
     }
   > {
   setup: {
     panel: string;
     panels: {
       details: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
       };
       share: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
       };
       assets: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
       };
     };
   };
   audio: {
+    view: string;
     panel: string;
     panels: {
       sounds: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
+        openFilePath: string;
       };
       music: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
+        openFilePath: string;
       };
     };
   };
   displays: {
+    view: string;
     panel: string;
     panels: {
       widgets: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
+        openFilePath: string;
       };
       views: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
+        openFilePath: string;
       };
     };
   };
   graphics: {
+    view: string;
     panel: string;
     panels: {
       sprites: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
+        openFilePath: string;
       };
       maps: {
         scrollIndex: number;
-        editingPath?: string;
+        openFilePath: string;
       };
     };
   };
   logic: {
+    view: string;
     panel: string;
     panels: {
       main: {
-        scrollIndex?: number;
-        editingPath?: string;
+        scrollIndex: number;
       };
       scripts: {
         scrollIndex: number;
-        editingPath?: string;
+        openFilePath: string;
       };
     };
   };
@@ -79,15 +80,11 @@ export interface WorkspaceState
     revealed?: boolean;
     panel: string;
     panels: {
-      game: {
-        scrollIndex?: number;
-      };
+      game: {};
       screenplay: {
-        scrollIndex?: number;
+        scrollIndex: number;
       };
-      file: {
-        scrollIndex?: number;
-      };
+      file: {};
     };
   };
 }

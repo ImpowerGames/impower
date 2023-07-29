@@ -2,14 +2,15 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
+import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import SEElement from "../../core/se-element";
 import getValidFileName from "../../utils/getValidFileName";
 import { verifyFileType } from "../../utils/verifyFileType";
-import Workspace from "../../workspace/Workspace";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_file-list";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["directory-path", "accept"]),
+  ...getAttributeNameMap(["pane", "panel", "directory-path", "accept"]),
 };
 
 /**
@@ -20,7 +21,7 @@ export default class FileList
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -33,6 +34,26 @@ export default class FileList
 
   override get component() {
     return component();
+  }
+
+  /**
+   * The pane where this file list is displayed.
+   */
+  get pane(): string | null {
+    return this.getStringAttribute(FileList.attributes.pane);
+  }
+  set pane(value) {
+    this.setStringAttribute(FileList.attributes.pane, value);
+  }
+
+  /**
+   * The panel where this file list is displayed.
+   */
+  get panel(): string | null {
+    return this.getStringAttribute(FileList.attributes.panel);
+  }
+  set panel(value) {
+    this.setStringAttribute(FileList.attributes.panel, value);
   }
 
   /**
@@ -53,18 +74,6 @@ export default class FileList
   }
   set accept(value) {
     this.setStringAttribute(FileList.attributes.accept, value);
-  }
-
-  get contentTemplates(): HTMLTemplateElement[] {
-    const slot = this.contentSlot;
-    if (slot) {
-      return slot
-        .assignedElements()
-        .filter(
-          (el): el is HTMLTemplateElement => el instanceof HTMLTemplateElement
-        );
-    }
-    return [];
   }
 
   get emptyEl() {
@@ -172,8 +181,8 @@ export default class FileList
 
   async upload(fileArray: File[]) {
     if (fileArray) {
-      const directory = this.directoryPath;
-      if (!directory) {
+      const directoryPath = this.directoryPath;
+      if (!directoryPath) {
         return;
       }
       const files = await Promise.all(
@@ -181,7 +190,7 @@ export default class FileList
           const validFileName = getValidFileName(file.name);
           const data = await file.arrayBuffer();
           return {
-            uri: Workspace.fs.getWorkspaceUri(directory, validFileName),
+            uri: Workspace.fs.getWorkspaceUri(directoryPath, validFileName),
             data,
           };
         })
@@ -192,31 +201,35 @@ export default class FileList
     }
   }
 
-  async loadEntries(directory: string | null) {
-    if (!directory) {
+  async loadEntries(directoryPath: string | null) {
+    if (!directoryPath) {
       this._entries = [];
       return;
     }
     this._entries = await Workspace.fs.getWorkspaceEntries({
-      directory: { uri: Workspace.fs.getWorkspaceUri(directory) },
+      directory: { uri: Workspace.fs.getWorkspaceUri(directoryPath) },
     });
+    const pane = this.pane || "";
+    const panel = this.panel || "";
     const outletSlot = this.outletSlot;
-    const template = this.contentTemplates?.[0];
     outletSlot?.replaceChildren();
     if (this._entries.length > 0) {
-      if (outletSlot && template) {
+      if (outletSlot) {
         this._entries.forEach((entry) => {
+          const fileName = entry.uri.split("/").slice(-1).join("");
+          const displayName = fileName.split(".")[0] ?? "";
+          const template = document.createElement("template");
+          template.innerHTML = html`
+            <se-file-item
+              pane="${pane}"
+              panel="${panel}"
+              directory-path="${directoryPath}"
+              file-name="${fileName}"
+            >
+              ${displayName}
+            </se-file-item>
+          `;
           const templateContent = template.content.cloneNode(true);
-          const child = Array.from(templateContent.childNodes).filter(
-            (n): n is HTMLElement => n instanceof HTMLElement
-          )?.[0];
-          if (child) {
-            const fileName = entry.uri.split("/").slice(-1).join("");
-            const displayName = fileName.split(".")[0] ?? "";
-            child.appendChild(document.createTextNode(displayName));
-            child.setAttribute("directory-path", directory);
-            child.setAttribute("file-name", fileName);
-          }
           outletSlot.appendChild(templateContent);
         });
       }

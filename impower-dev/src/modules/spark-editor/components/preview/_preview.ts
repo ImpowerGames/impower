@@ -1,7 +1,7 @@
 import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
-export default (state?: { store?: WorkspaceState }) => {
+export default (state: { store?: WorkspaceState }) => {
   const mode = state?.store?.preview?.panel || "game";
   return {
     html: html`
@@ -51,8 +51,7 @@ export default (state?: { store?: WorkspaceState }) => {
             <s-button
               m="8"
               class="more"
-              color="content"
-              opacity="0.5"
+              color="fg-50"
               variant="icon"
               icon="dots-vertical"
             ></s-button>

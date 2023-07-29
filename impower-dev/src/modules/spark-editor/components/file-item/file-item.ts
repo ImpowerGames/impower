@@ -1,11 +1,12 @@
+import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
-import Workspace from "../../workspace/Workspace";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_file-item";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["directory-path", "file-name"]),
+  ...getAttributeNameMap(["pane", "panel", "directory-path", "file-name"]),
 };
 
 export default class FileItem
@@ -13,7 +14,7 @@ export default class FileItem
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
   }
 
   static override async define(
@@ -25,7 +26,27 @@ export default class FileItem
   }
 
   override get component() {
-    return component();
+    return component({ attrs: { "directory-path": this.directoryPath } });
+  }
+
+  /**
+   * The pane where this file is displayed.
+   */
+  get pane(): string | null {
+    return this.getStringAttribute(FileItem.attributes.pane);
+  }
+  set pane(value) {
+    this.setStringAttribute(FileItem.attributes.pane, value);
+  }
+
+  /**
+   * The panel where this file is displayed.
+   */
+  get panel(): string | null {
+    return this.getStringAttribute(FileItem.attributes.panel);
+  }
+  set panel(value) {
+    this.setStringAttribute(FileItem.attributes.panel, value);
   }
 
   /**
@@ -58,34 +79,49 @@ export default class FileItem
 
   protected override onConnected(): void {
     this.buttonEl?.addEventListener("click", this.handleButtonClick);
-    this.dropdownEl?.addEventListener("changing", this.handleDropdownChanging);
+    this.addEventListener("changing", this.handleChanging);
   }
 
   protected override onDisconnected(): void {
     this.buttonEl?.removeEventListener("click", this.handleButtonClick);
-    this.dropdownEl?.removeEventListener(
-      "changing",
-      this.handleDropdownChanging
-    );
+    this.removeEventListener("changing", this.handleChanging);
+  }
+
+  getFilePath() {
+    const directoryPath = this.directoryPath;
+    const fileName = this.fileName;
+    if (directoryPath && fileName) {
+      return `${directoryPath}/${fileName}`;
+    }
+    return undefined;
   }
 
   handleButtonClick = (e: Event) => {
-    // TODO: dispatch DidOpenTextDocument notification
+    e.stopPropagation();
+    const filePath = this.getFilePath();
+    const pane = this.pane;
+    const panel = this.panel;
+    if (pane && panel && filePath) {
+      this.emit(
+        DidOpenFileEditorMessage.method,
+        DidOpenFileEditorMessage.type.notification({
+          pane,
+          panel,
+          filePath,
+        })
+      );
+    }
   };
 
-  handleDropdownChanging = (e: Event) => {
+  handleChanging = (e: Event) => {
     if (e instanceof CustomEvent) {
-      const directory = this.directoryPath;
-      if (directory) {
-        if (e.detail.value === "delete") {
-          const filename = this.fileName;
-          if (filename) {
+      if (e.detail.key === "file-options") {
+        const filePath = this.getFilePath();
+        if (filePath) {
+          const uri = Workspace.fs.getWorkspaceUri(filePath);
+          if (e.detail.value === "delete") {
             Workspace.fs.deleteFiles({
-              files: [
-                {
-                  uri: Workspace.fs.getWorkspaceUri(directory, filename),
-                },
-              ],
+              files: [{ uri }],
             });
           }
         }
