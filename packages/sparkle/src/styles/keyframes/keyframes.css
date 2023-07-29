@@ -172,13 +172,13 @@
 
 @keyframes exit-out {
   to {
-    transform: perspective(1000px) translateZ(-50px);
+    transform: scale(0.99);
   }
 }
 
 @keyframes exit-in {
   to {
-    transform: perspective(1000px) translateZ(50px);
+    transform: scale(1.1);
   }
 }
 
@@ -238,19 +238,19 @@
 
 @keyframes enter-out {
   from {
-    transform: perspective(1000px) translateZ(50px);
+    transform: scale(1.1);
   }
   to {
-    transform: perspective(1000px) translateZ(0);
+    transform: scale(1);
   }
 }
 
 @keyframes enter-in {
   from {
-    transform: perspective(1000px) translateZ(-50px);
+    transform: scale(0.99);
   }
   to {
-    transform: perspective(1000px) translateZ(0);
+    transform: scale(1);
   }
 }
 
