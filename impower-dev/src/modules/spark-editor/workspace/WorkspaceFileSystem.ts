@@ -218,10 +218,6 @@ name: ${this._projectName}
     return result;
   }
 
-  async readFile(params: ReadFileParams) {
-    return this.sendRequest(ReadFileMessage.type, params);
-  }
-
   async writeTextDocument(params: WriteTextDocumentParams) {
     const result = await this.sendRequest(
       WriteTextDocumentMessage.type,
@@ -237,6 +233,10 @@ name: ${this._projectName}
     });
     this.emit(changeMessage.method, changeMessage);
     return result;
+  }
+
+  async readFile(params: ReadFileParams) {
+    return this.sendRequest(ReadFileMessage.type, params);
   }
 
   async readTextDocument(params: ReadTextDocumentParams) {
