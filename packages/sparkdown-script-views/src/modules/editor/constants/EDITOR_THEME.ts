@@ -46,7 +46,7 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
   },
   ".cm-gutters": {
-    minWidth: "64px",
+    minWidth: "48px",
     backgroundColor: "transparent",
     color: EDITOR_COLORS.lineNumber,
     border: "none",

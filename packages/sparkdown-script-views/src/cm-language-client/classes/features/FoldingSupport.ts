@@ -133,12 +133,13 @@ export default class FoldingSupport implements FeatureSupport<FoldingRange[]> {
           dom.textContent = "⌵";
           dom.style.position = "relative";
           dom.style.top = "-1px";
+          dom.style.textAlign = "center";
           if (open) {
             dom.className = "cm-fold-open";
             dom.style.opacity = "0.5";
           } else {
             dom.className = "cm-fold-closed";
-            dom.style.transform = "translateX(-4px) rotate(-90deg)";
+            dom.style.transform = "translateX(-2px) rotate(-90deg)";
             dom.style.opacity = "1";
           }
           return dom;
