@@ -20,7 +20,7 @@ export default (state: { attrs?: { "directory-path": string | null } }) => {
         grow
       >
         <slot></slot>
-        <s-box m-r="-24">
+        <s-box m-r="-32">
           <se-file-options-button></se-file-options-button>
         </s-box>
       </s-button>
