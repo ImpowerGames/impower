@@ -223,7 +223,20 @@ name: ${this._projectName}
   }
 
   async writeTextDocument(params: WriteTextDocumentParams) {
-    return this.sendRequest(WriteTextDocumentMessage.type, params);
+    const result = await this.sendRequest(
+      WriteTextDocumentMessage.type,
+      params
+    );
+    const changeMessage = DidChangeWatchedFilesMessage.type.notification({
+      changes: [
+        {
+          uri: params.textDocument.uri,
+          type: FileChangeType.Changed,
+        },
+      ],
+    });
+    this.emit(changeMessage.method, changeMessage);
+    return result;
   }
 
   async readTextDocument(params: ReadTextDocumentParams) {
