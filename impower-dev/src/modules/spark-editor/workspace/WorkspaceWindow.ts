@@ -162,8 +162,7 @@ export default class WorkspaceWindow {
     return panelState;
   }
 
-  getActiveScriptEditor(): { uri: string; visibleRange?: Range } {
-    const pane = "logic";
+  getActiveEditor(pane: string): { uri: string; visibleRange?: Range } {
     const panelState = this.getOpenedPanelState(pane);
     const filePath = panelState.openFilePath || "";
     const uri = this._fs.getWorkspaceUri(filePath);

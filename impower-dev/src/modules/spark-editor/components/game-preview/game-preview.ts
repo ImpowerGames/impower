@@ -50,7 +50,7 @@ export default class GamePreview extends SEElement {
   };
 
   async loadFile() {
-    const { uri, visibleRange } = Workspace.window.getActiveScriptEditor();
+    const { uri, visibleRange } = Workspace.window.getActiveEditor("logic");
     const existingText = await Workspace.fs.readTextDocument({
       textDocument: { uri },
     });
