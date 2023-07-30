@@ -165,8 +165,12 @@ export default class SparkdownScriptEditor
       );
       window.addEventListener("scroll", this.handlePointerScroll);
       view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
-      view.dom.addEventListener("mouseenter", this.handlePointerEnterScroller);
-      view.dom.addEventListener("touchstart", this.handlePointerEnterScroller);
+      view.dom.addEventListener("mouseenter", this.handlePointerEnterScroller, {
+        passive: true,
+      });
+      view.dom.addEventListener("touchstart", this.handlePointerEnterScroller, {
+        passive: true,
+      });
     }
   }
 

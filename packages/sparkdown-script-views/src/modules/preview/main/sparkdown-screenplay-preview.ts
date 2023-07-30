@@ -141,11 +141,13 @@ export default class SparkScreenplayPreview
         scrollDOM.addEventListener("scroll", this.handlePointerScroll);
         view.dom.addEventListener(
           "mouseenter",
-          this.handlePointerEnterScroller
+          this.handlePointerEnterScroller,
+          { passive: true }
         );
         view.dom.addEventListener(
           "touchstart",
-          this.handlePointerEnterScroller
+          this.handlePointerEnterScroller,
+          { passive: true }
         );
       }
     }
