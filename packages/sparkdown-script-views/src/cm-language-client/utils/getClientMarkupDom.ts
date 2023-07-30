@@ -1,10 +1,10 @@
 import { Language } from "@codemirror/language";
+import { NodeType } from "@lezer/common";
+import { Tag } from "@lezer/highlight";
 import {
   MarkupContent,
   MarkupKind,
-} from "@impower/spark-editor-protocol/src/types";
-import { NodeType } from "@lezer/common";
-import { Tag } from "@lezer/highlight";
+} from "../../../../spark-editor-protocol/src/types";
 import { getMarkdownHtml } from "./getMarkdownHtml";
 
 const createNode = (

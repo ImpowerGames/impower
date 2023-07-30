@@ -14,7 +14,7 @@ const PREVIEW_THEME: {
   ".cm-scroller": {
     fontFamily: "Courier Prime",
     fontSize: "1rem",
-    overflowY: "scroll",
+    overflow: "visible",
     position: "relative",
     "&:before": {
       // Force scroller to always be able to scroll,

@@ -3,7 +3,7 @@ import { Extension } from "@codemirror/state";
 import {
   MessageConnection,
   ServerCapabilities,
-} from "@impower/spark-editor-protocol/src/types";
+} from "../../../../../spark-editor-protocol/src/types";
 import configData from "../../../../language/sparkdown.language-config.json";
 import grammarData from "../../../../language/sparkdown.language-grammar.json";
 import snippetsData from "../../../../language/sparkdown.language-snippets.json";

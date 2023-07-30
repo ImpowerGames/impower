@@ -7,7 +7,7 @@ import screenplayFormatting from "./screenplayFormatting";
 
 interface EditorConfig {
   textDocument: { uri: string; version: number; text: string };
-  contentPadding?: {
+  scrollMargin?: {
     top?: number;
     bottom?: number;
     left?: number;
@@ -25,7 +25,7 @@ const createEditorView = (
   config?: EditorConfig
 ): EditorView => {
   const textDocument = config?.textDocument;
-  const contentPadding = config?.contentPadding;
+  const scrollMargin = config?.scrollMargin;
   const stabilizationDuration = 200;
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
@@ -52,7 +52,7 @@ const createEditorView = (
           }
         }
       }),
-      scrollMargins(contentPadding),
+      scrollMargins(scrollMargin),
       screenplayFormatting(),
     ],
   });

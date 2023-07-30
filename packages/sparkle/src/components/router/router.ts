@@ -17,6 +17,7 @@ const DEFAULT_ATTRIBUTES = {
     "active",
     "enter-event",
     "exit-event",
+    "event-source",
     "swipeable",
     "directional",
     "unmount",
@@ -73,6 +74,18 @@ export default class Router
   }
   set active(value) {
     this.setStringAttribute(Router.attributes.active, value);
+  }
+
+  /**
+   * The element to listen to.
+   *
+   * Defaults to `this`
+   */
+  get eventSource(): "this" | "window" {
+    return this.getStringAttribute(Router.attributes.eventSource) || "this";
+  }
+  set eventSource(value) {
+    this.setStringAttribute(Router.attributes.eventSource, value);
   }
 
   /**
@@ -240,16 +253,18 @@ export default class Router
   protected _exit_fade = "";
 
   protected override onConnected(): void {
-    this.root?.addEventListener(this.exitEvent, this.handleChanging);
-    this.root?.addEventListener(this.enterEvent, this.handleChanged);
+    const eventSourceEl = this.eventSource === "window" ? window : this;
+    eventSourceEl.addEventListener(this.exitEvent, this.handleChanging);
+    eventSourceEl.addEventListener(this.enterEvent, this.handleChanged);
     if (this.active) {
       this.loadRoute(this.active);
     }
   }
 
   protected override onDisconnected(): void {
-    this.root?.removeEventListener(this.exitEvent, this.handleChanging);
-    this.root?.removeEventListener(this.enterEvent, this.handleChanged);
+    const eventSourceEl = this.eventSource === "window" ? window : this;
+    eventSourceEl.removeEventListener(this.exitEvent, this.handleChanging);
+    eventSourceEl.removeEventListener(this.enterEvent, this.handleChanged);
   }
 
   cacheAnimationNames(): void {

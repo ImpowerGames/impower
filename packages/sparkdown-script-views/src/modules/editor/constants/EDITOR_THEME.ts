@@ -12,8 +12,8 @@ const EDITOR_THEME: {
     fontSize: "1rem",
   },
   ".cm-scroller": {
-    overflowY: "scroll",
     position: "relative",
+    overflow: "visible",
     "&:before": {
       // Force scroller to always be able to scroll,
       // even if the content isn't long enough to warrant it.

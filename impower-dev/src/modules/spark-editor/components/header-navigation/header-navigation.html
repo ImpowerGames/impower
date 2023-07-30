@@ -1,6 +1,6 @@
-<s-box position="relative" bg-color="primary-bg" z="2">
+<s-box position="fixed-top" height="header-nav" child-justify="center" z="2" bg-color="primary-bg">
   <s-scroll-blocker></s-scroll-blocker>
-  <s-box height="header-nav" p="0 8 0 0" child-layout="row" child-align="center">
+  <s-box p="0 8 0 0" child-layout="row" child-align="center">
     <s-button width="56" height="56" variant="icon" icon="menu" text-size="xl" color="fg"></s-button>
     <s-box grow>
       <se-header-title-button></se-header-title-button>
@@ -19,5 +19,5 @@
       </s-hidden>
     </s-box>
   </s-box>
-  <s-divider></s-divider>
+  <s-divider position="absolute" i-b="0"></s-divider>
 </s-box>

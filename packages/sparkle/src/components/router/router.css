@@ -55,6 +55,7 @@
   display: flex;
   flex: 1 1 100%;
   animation: var(--exit) both;
+  transform-origin: var(--pivot, top center);
 }
 
 :host(:not([unmount="on-enter"])) > .root:not([state]) > .content > .old-fade {
@@ -119,6 +120,7 @@
   > .old-fade
   > .old-transform {
   animation: var(--enter) both;
+  transform-origin: var(--pivot, top center);
 }
 
 :host([unmount="on-enter"]) > .root > .content > .new-fade {
@@ -145,4 +147,5 @@
   > .new-fade
   > .new-transform {
   animation: var(--enter) both;
+  transform-origin: var(--pivot, top center);
 }

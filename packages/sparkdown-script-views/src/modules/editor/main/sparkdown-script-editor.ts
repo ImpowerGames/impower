@@ -20,12 +20,14 @@ import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttri
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
 import { getServerChanges } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
+import { closestAncestor } from "../../../utils/closestAncestor";
 import debounce from "../../../utils/debounce";
+import { isScrollable } from "../../../utils/isScrollable";
 import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-script-editor";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["content-padding", "autosave-delay"]),
+  ...getAttributeNameMap(["scroll-margin", "autosave-delay"]),
 };
 
 export default class SparkdownScriptEditor
@@ -54,14 +56,14 @@ export default class SparkdownScriptEditor
     return component();
   }
 
-  get contentPadding() {
+  get scrollMargin() {
     return this.getStringAttribute(
-      SparkdownScriptEditor.attributes.contentPadding
+      SparkdownScriptEditor.attributes.scrollMargin
     );
   }
-  set contentPadding(value) {
+  set scrollMargin(value) {
     this.setStringAttribute(
-      SparkdownScriptEditor.attributes.contentPadding,
+      SparkdownScriptEditor.attributes.scrollMargin,
       value
     );
   }
@@ -87,19 +89,31 @@ export default class SparkdownScriptEditor
 
   protected _view?: EditorView;
 
-  protected _resizeObserver?: ResizeObserver;
-
   protected _editing = false;
 
   protected _startVisibleLineNumber = 0;
 
   protected _endVisibleLineNumber = 0;
 
+  protected _domClientY = 0;
+
   protected _scrollTop = 0;
 
-  protected _viewportHeight = 0;
-
   protected _pointerOverScroller = false;
+
+  protected _possibleScroller?: HTMLElement | null;
+
+  protected _scrollMargin: {
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+  } = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
 
   protected override onConnected(): void {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
@@ -107,7 +121,6 @@ export default class SparkdownScriptEditor
       ScrolledPreviewMessage.method,
       this.handleScrolledPreview
     );
-    this._resizeObserver = new ResizeObserver(this.handleViewportResize);
   }
 
   protected override onDisconnected(): void {
@@ -134,13 +147,19 @@ export default class SparkdownScriptEditor
 
   protected bindView(view: EditorView) {
     if (view) {
-      this._resizeObserver?.observe(view.scrollDOM);
+      this._domClientY = view.dom.offsetTop;
+      this._possibleScroller = closestAncestor(`.scrollable`, view.scrollDOM);
+      this._possibleScroller?.addEventListener(
+        "scroll",
+        this.handlePointerScroll
+      );
+      window.addEventListener("scroll", this.handlePointerScroll);
       view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
-      view.scrollDOM.addEventListener(
+      view.dom.addEventListener(
         "pointerenter",
         this.handlePointerEnterScroller
       );
-      view.scrollDOM.addEventListener(
+      view.dom.addEventListener(
         "pointerleave",
         this.handlePointerLeaveScroller
       );
@@ -148,13 +167,17 @@ export default class SparkdownScriptEditor
   }
 
   protected unbindView(view: EditorView) {
-    this._resizeObserver?.disconnect();
+    this._possibleScroller?.removeEventListener(
+      "scroll",
+      this.handlePointerScroll
+    );
+    window.removeEventListener("scroll", this.handlePointerScroll);
     view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
-    view.scrollDOM.removeEventListener(
+    view.dom.removeEventListener(
       "pointerenter",
       this.handlePointerEnterScroller
     );
-    view.scrollDOM.removeEventListener(
+    view.dom.removeEventListener(
       "pointerleave",
       this.handlePointerLeaveScroller
     );
@@ -206,12 +229,13 @@ export default class SparkdownScriptEditor
           );
         }
       }, this.autosaveDelay);
+      this._scrollMargin = getBoxValues(this.scrollMargin);
       this._view = createEditorView(editorEl, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
         serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,
         textDocument: this._textDocument,
-        contentPadding: getBoxValues(this.contentPadding),
+        scrollMargin: this._scrollMargin,
         onFocus: () => {
           this._editing = true;
           if (this._textDocument) {
@@ -264,6 +288,46 @@ export default class SparkdownScriptEditor
     );
   }
 
+  getScrollTop(target: EventTarget | null) {
+    if (target instanceof HTMLElement) {
+      return target.scrollTop;
+    }
+    return window.scrollY;
+  }
+
+  getScrollClientHeight(target: EventTarget | null) {
+    if (target instanceof HTMLElement) {
+      return target.clientHeight;
+    }
+    return document.documentElement.clientHeight;
+  }
+
+  getScrollBottom(target: EventTarget) {
+    if (target instanceof HTMLElement) {
+      return target.scrollTop;
+    }
+    return window.scrollY;
+  }
+
+  scrollY(view: EditorView, y: number) {
+    const possibleScroller = this._possibleScroller;
+    const scroller = isScrollable(view.scrollDOM)
+      ? view.scrollDOM
+      : possibleScroller && isScrollable(possibleScroller)
+      ? possibleScroller
+      : document;
+    const scrollHeight =
+      scroller instanceof Document
+        ? document.documentElement.scrollHeight
+        : scroller.scrollHeight;
+    const validY = y === Infinity ? scrollHeight : y;
+    if (scroller instanceof Document) {
+      window.scrollTo(0, validY);
+    } else {
+      scroller.scrollTop = validY;
+    }
+  }
+
   protected revealRange(range: Range) {
     const view = this._view;
     if (view) {
@@ -271,9 +335,9 @@ export default class SparkdownScriptEditor
       const startLineNumber = range.start.line + 1;
       const endLineNumber = range.end.line + 1;
       if (startLineNumber <= 1) {
-        view.scrollDOM.scrollTop = 0;
+        this.scrollY(view, 0);
       } else if (endLineNumber >= doc.lines) {
-        view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+        this.scrollY(view, Infinity);
       } else {
         const pos = doc.line(Math.max(1, startLineNumber)).from;
         view.dispatch({
@@ -285,15 +349,11 @@ export default class SparkdownScriptEditor
     }
   }
 
-  protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
-    const entry = entries?.[0];
-    const viewportHeight = entry?.borderBoxSize?.[0]?.blockSize;
-    if (viewportHeight) {
-      this._viewportHeight = viewportHeight;
-    }
+  protected handlePointerEnterScroller = (): void => {
+    this._pointerOverScroller = true;
   };
 
-  protected handlePointerEnterScroller = (): void => {
+  protected handlePointerMoveScroller = (): void => {
     this._pointerOverScroller = true;
   };
 
@@ -303,17 +363,22 @@ export default class SparkdownScriptEditor
 
   protected handlePointerScroll = (e: Event): void => {
     if (this._pointerOverScroller) {
-      const scrollEl = e.target as HTMLElement;
-      const scrollTop =
-        scrollEl?.scrollTop != null ? scrollEl?.scrollTop : window.scrollY;
-      this._scrollTop = scrollTop;
-      const scrollBottom = scrollTop + this._viewportHeight;
+      const scrollTarget = e.target;
       const view = this._view;
       if (view) {
+        const scrollTop = this.getScrollTop(scrollTarget);
+        const scrollClientHeight = this.getScrollClientHeight(scrollTarget);
+        this._scrollTop = scrollTop;
+        const scrollMarginBottom = this._scrollMargin.bottom ?? 0;
+        const scrollBottom =
+          scrollTop +
+          scrollClientHeight -
+          this._domClientY -
+          scrollMarginBottom;
         const doc = view.state.doc;
         const firstVisibleLineFrom = view.lineBlockAtHeight(scrollTop).from;
         const startLine = doc.lineAt(firstVisibleLineFrom);
-        const startLineNumber: number | undefined = startLine.number;
+        const startLineNumber = scrollTop <= 0 ? 1 : startLine.number;
         const lastVisibleLineFrom = view.lineBlockAtHeight(scrollBottom).from;
         const endLine = doc.lineAt(lastVisibleLineFrom);
         const endLineNumber = endLine.number;

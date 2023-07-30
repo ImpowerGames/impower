@@ -6,7 +6,7 @@ import {
   TransactionSpec,
 } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
-import { ColorInformation } from "@impower/spark-editor-protocol/src/types";
+import { ColorInformation } from "../../../../../spark-editor-protocol/src/types";
 import { FeatureSupport } from "../../types/FeatureSupport";
 import { positionToOffset } from "../../utils/positionToOffset";
 import ColorSupportWidget, {

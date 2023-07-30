@@ -37,6 +37,8 @@
 :host > .root > .panel {
   position: relative;
   align-self: stretch;
+  display: flex;
+  flex-direction: column;
 }
 :host(:not([vertical])) > .root > .panel {
   max-width: calc(100% - var(--min-panel-width));
@@ -167,7 +169,6 @@
   }
 
   /* Hide end panel */
-  :host(:not([vertical], [primary="end"])[responsive=""]) > .root > .end,
   :host(:not([vertical], [primary="end"])[responsive="slide-down"])
     > .root
     > .end {
@@ -183,6 +184,7 @@
     > .end {
     transform: translate(-100vw, 0);
   }
+  :host(:not([vertical], [primary="end"])[responsive=""]) > .root > .end,
   :host(:not([vertical], [primary="end"])[responsive="slide-right"])
     > .root
     > .end {
@@ -194,15 +196,18 @@
   :host(:not([vertical], [primary="end"])[responsive]) > .root > .panel {
     min-width: 100%;
   }
-  :host(:not([vertical])) > .root > .panel > .start {
+  :host > .root > .panel > .start {
+    position: relative;
     inset: 0;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
   }
-  :host([vertical]) > .root > .panel > .start {
-    inset: 0;
+  :host > .root > .panel > .resize {
+    display: none;
   }
 
   /* Hide start panel */
-  :host([primary="end"]:not([vertical])[responsive=""]) > .root > .panel,
   :host([primary="end"]:not([vertical])[responsive="slide-down"])
     > .root
     > .panel {
@@ -218,6 +223,7 @@
     > .panel {
     transform: translate(-100vw, 0);
   }
+  :host([primary="end"]:not([vertical])[responsive=""]) > .root > .panel,
   :host([primary="end"]:not([vertical])[responsive="slide-right"])
     > .root
     > .panel {

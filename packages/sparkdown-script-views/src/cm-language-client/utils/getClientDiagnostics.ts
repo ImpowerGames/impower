@@ -1,6 +1,6 @@
 import { Diagnostic as ClientDiagnostic } from "@codemirror/lint";
 import { EditorState } from "@codemirror/state";
-import { Diagnostic as ServerDiagnostic } from "@impower/spark-editor-protocol/src/types";
+import { Diagnostic as ServerDiagnostic } from "../../../../spark-editor-protocol/src/types";
 import { getClientDiagnosticActions } from "./getClientDiagnosticActions";
 import { getClientDiagnosticSeverity } from "./getClientDiagnosticSeverity";
 import { positionToOffset } from "./positionToOffset";

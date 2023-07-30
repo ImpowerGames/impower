@@ -164,8 +164,12 @@ export default class Viewport
     this._pendingViewportUpdate = window.requestAnimationFrame(() => {
       const visualViewport = event.target as unknown as { height: number };
       if (visualViewport) {
-        const maxHeight = `${visualViewport.height - this._offsetPx}px`;
-        this.root.style.setProperty("max-height", maxHeight);
+        if (this._constrained) {
+          const maxHeight = `${visualViewport.height - this._offsetPx}px`;
+          this.root.style.setProperty("max-height", maxHeight);
+        } else {
+          this.root.style.setProperty("max-height", null);
+        }
       }
       this._pendingViewportUpdate = undefined;
     });

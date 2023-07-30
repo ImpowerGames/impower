@@ -11,7 +11,7 @@ import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
 import {
   MessageConnection,
   ServerCapabilities,
-} from "@impower/spark-editor-protocol/src/types";
+} from "../../../../../spark-editor-protocol/src/types";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
@@ -24,7 +24,6 @@ import {
   SerializableFoldedState,
   SerializableHistoryState,
 } from "../types/editor";
-import { lockBodyScrolling, unlockBodyScrolling } from "./bodyScrolling";
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
 
 interface EditorConfig {
@@ -32,8 +31,7 @@ interface EditorConfig {
   serverCapabilities: ServerCapabilities;
   fileSystemReader?: FileSystemReader;
   textDocument: { uri: string; version: number; text: string };
-  disableBodyScrollLocking?: number;
-  contentPadding?: {
+  scrollMargin?: {
     top?: number;
     bottom?: number;
     left?: number;
@@ -74,8 +72,7 @@ const createEditorView = (
   const serverConnection = config.serverConnection;
   const serverCapabilities = config.serverCapabilities;
   const fileSystemReader = config.fileSystemReader;
-  const disableBodyScrollLocking = config?.disableBodyScrollLocking;
-  const contentPadding = config?.contentPadding;
+  const scrollMargin = config?.scrollMargin;
   const defaultState = config?.defaultState;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
@@ -122,7 +119,7 @@ const createEditorView = (
       ...restoredExtensions,
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
-      scrollMargins(contentPadding),
+      scrollMargins(scrollMargin),
       sparkdownLanguageExtension({
         textDocument,
         serverConnection,
@@ -153,13 +150,6 @@ const createEditorView = (
           ? "redo"
           : undefined;
         const focused = u.view.hasFocus;
-        if (!disableBodyScrollLocking) {
-          if (focused) {
-            lockBodyScrolling();
-          } else {
-            unlockBodyScrolling();
-          }
-        }
         const snippet = Boolean(parent.querySelector(".cm-snippetField"));
         const lint = Boolean(parent.querySelector(".cm-panel-lint"));
         const selected =

@@ -1,8 +1,9 @@
-<s-viewport bg-color="panel" constrained-event="editor/focused" unconstrained-event="editor/unfocused" grow>
+<s-box bg-color="panel" grow>
   <se-header-navigation></se-header-navigation>
   <s-split-pane grow min-panel-width="300px" resizer-color="scrollbar-track" divider-offset="0" responsive
     reveal-event="window/didExpandPreviewPane" unreveal-event="window/didCollapsePreviewPane">
     <se-main-panel slot="start"></se-main-panel>
     <se-preview-panel slot="end"></se-preview-panel>
   </s-split-pane>
-</s-viewport>
+  <se-footer-navigation></se-footer-navigation>
+</s-box>

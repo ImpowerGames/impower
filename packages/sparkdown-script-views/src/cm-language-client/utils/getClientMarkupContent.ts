@@ -1,4 +1,4 @@
-import { MarkupContent } from "@impower/spark-editor-protocol/src/types";
+import { MarkupContent } from "../../../../spark-editor-protocol/src/types";
 import { MARKDOWN_REGEX } from "../constants/MARKDOWN_REGEX";
 import { FileSystemReader } from "../types/FileSystemReader";
 

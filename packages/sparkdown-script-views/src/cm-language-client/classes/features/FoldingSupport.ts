@@ -18,7 +18,7 @@ import {
   ViewUpdate,
   keymap,
 } from "@codemirror/view";
-import { FoldingRange } from "@impower/spark-editor-protocol/src/types";
+import { FoldingRange } from "../../../../../spark-editor-protocol/src/types";
 import { FeatureSupport } from "../../types/FeatureSupport";
 
 const foldingTheme = EditorView.baseTheme({
@@ -131,6 +131,7 @@ export default class FoldingSupport implements FeatureSupport<FoldingRange[]> {
         markerDOM: (open: boolean) => {
           const dom = document.createElement("span");
           dom.textContent = "⌵";
+          dom.style.fontSize = "0.9em";
           dom.style.position = "relative";
           dom.style.top = "-1px";
           dom.style.textAlign = "center";

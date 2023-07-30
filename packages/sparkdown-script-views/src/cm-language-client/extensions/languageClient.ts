@@ -1,12 +1,12 @@
 import { Language } from "@codemirror/language";
 import { Extension, Facet, combineConfig } from "@codemirror/state";
 import { ViewPlugin } from "@codemirror/view";
+import { NodeType } from "@lezer/common";
+import { Tag } from "@lezer/highlight";
 import {
   MessageConnection,
   ServerCapabilities,
-} from "@impower/spark-editor-protocol/src/types";
-import { NodeType } from "@lezer/common";
-import { Tag } from "@lezer/highlight";
+} from "../../../../spark-editor-protocol/src/types";
 import LanguageClientPluginValue from "../classes/LanguageClientPluginValue";
 import ColorSupport from "../classes/features/ColorSupport";
 import CompletionSupport from "../classes/features/CompletionSupport";
