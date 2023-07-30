@@ -81,7 +81,6 @@ export default class SparkElement extends HTMLElement {
 
   constructor() {
     super();
-    this.render();
     const component = this.component;
     const html = this.transformHtml(component.html ?? DEFAULT_COMPONENT.html);
     const css = this.transformCss(component.css ?? DEFAULT_COMPONENT.css);
