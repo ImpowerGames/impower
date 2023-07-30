@@ -1,32 +1,33 @@
+import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
+import { DidScrollPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidScrollPanelMessage";
+import { Range } from "@impower/spark-editor-protocol/src/types";
+import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import { ReadOnly } from "./types/ReadOnly";
 import { WorkspaceState } from "./types/WorkspaceState";
 
 export default class WorkspaceWindow {
+  protected _fs: WorkspaceFileSystem;
+
   protected _state: WorkspaceState;
   get state(): ReadOnly<WorkspaceState> {
     return this._state;
   }
 
-  constructor() {
+  constructor(fs: WorkspaceFileSystem) {
+    this._fs = fs;
     this._state = {
       setup: {
         panel: "details",
         panels: {
-          details: {
-            scrollIndex: 0,
-          },
-          share: {
-            scrollIndex: 0,
-          },
-          assets: {
-            scrollIndex: 0,
-          },
+          details: {},
+          share: {},
+          assets: {},
         },
       },
       audio: {
@@ -34,11 +35,9 @@ export default class WorkspaceWindow {
         panel: "sounds",
         panels: {
           sounds: {
-            scrollIndex: 0,
             openFilePath: "",
           },
           music: {
-            scrollIndex: 0,
             openFilePath: "",
           },
         },
@@ -48,11 +47,9 @@ export default class WorkspaceWindow {
         panel: "widgets",
         panels: {
           widgets: {
-            scrollIndex: 0,
             openFilePath: "",
           },
           views: {
-            scrollIndex: 0,
             openFilePath: "",
           },
         },
@@ -62,11 +59,9 @@ export default class WorkspaceWindow {
         panel: "sprites",
         panels: {
           sprites: {
-            scrollIndex: 0,
             openFilePath: "",
           },
           maps: {
-            scrollIndex: 0,
             openFilePath: "",
           },
         },
@@ -76,10 +71,9 @@ export default class WorkspaceWindow {
         panel: "main",
         panels: {
           main: {
-            scrollIndex: 0,
+            openFilePath: "logic/main.sd",
           },
           scripts: {
-            scrollIndex: 0,
             openFilePath: "",
           },
         },
@@ -88,119 +82,148 @@ export default class WorkspaceWindow {
         panel: "game",
         panels: {
           game: {},
-          screenplay: {
-            scrollIndex: 0,
-          },
+          screenplay: {},
           file: {},
         },
       },
     };
     window.addEventListener(
-      DidOpenPanelMessage.method,
-      this.handleDidOpenPanel
-    );
-    window.addEventListener(DidOpenViewMessage.method, this.handleDidOpenView);
-    window.addEventListener(
-      DidExpandPreviewPaneMessage.method,
-      this.handleDidExpandPreviewPane
-    );
-    window.addEventListener(
-      DidCollapsePreviewPaneMessage.method,
-      this.handleDidCollapsePreviewPane
-    );
-    window.addEventListener(
-      DidOpenFileEditorMessage.method,
-      this.handleDidOpenFileEditor
-    );
-    window.addEventListener(
-      DidCloseFileEditorMessage.method,
-      this.handleDidCloseFileEditor
+      ScrolledEditorMessage.method,
+      this.handleScrolledEditor
     );
   }
 
-  handleDidOpenPanel = (e: Event) => {
+  protected emit<T>(eventName: string, detail?: T): boolean {
+    return window.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail,
+      })
+    );
+  }
+
+  getFilePath(uri: string) {
+    return uri.replace(this._fs.getWorkspaceUri() + "/", "");
+  }
+
+  getPane(uri: string) {
+    const filePath = this.getFilePath(uri);
+    const uriParts = filePath.split("/");
+    return uriParts[0] || "";
+  }
+
+  getPanel(uri: string) {
+    const filePath = this.getFilePath(uri);
+    const uriParts = filePath.split("/");
+    const panel = uriParts[1];
+    return panel?.split(".")?.[0] || "";
+  }
+
+  protected handleScrolledEditor = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (DidOpenPanelMessage.type.isNotification(message)) {
-        const { pane, panel } = message.params;
-        const paneState = this._state[pane];
-        if (!paneState) {
-          throw new Error(`Pane type not recognized: ${pane}`);
-        }
-        const panelState = paneState.panels[panel];
-        if (!panelState) {
-          throw new Error(`Panel type not recognized: ${panel}`);
-        }
-        paneState.panel = panel;
+      if (ScrolledEditorMessage.type.isNotification(message)) {
+        const { textDocument, range } = message.params;
+        const uri = textDocument.uri;
+        const pane = this.getPane(uri);
+        const panel = this.getPanel(uri);
+        this.scrolledPanel(pane, panel, range);
       }
     }
   };
 
-  handleDidOpenView = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidOpenViewMessage.type.isNotification(message)) {
-        const { pane, view } = message.params;
-        const paneState = this._state[pane];
-        if (!paneState) {
-          throw new Error(`Pane type not recognized: ${pane}`);
-        }
-        paneState.view = view;
-      }
-    }
-  };
+  expandedPreviewPane() {
+    this._state.preview.revealed = true;
+    this.emit(
+      DidExpandPreviewPaneMessage.method,
+      DidExpandPreviewPaneMessage.type.notification({})
+    );
+  }
 
-  handleDidExpandPreviewPane = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidExpandPreviewPaneMessage.type.isNotification(message)) {
-        this._state.preview.revealed = true;
-      }
-    }
-  };
+  collapsedPreviewPane() {
+    this._state.preview.revealed = false;
+    this.emit(
+      DidCollapsePreviewPaneMessage.method,
+      DidCollapsePreviewPaneMessage.type.notification({})
+    );
+  }
 
-  handleDidCollapsePreviewPane = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidCollapsePreviewPaneMessage.type.isNotification(message)) {
-        this._state.preview.revealed = false;
-      }
+  openedPanel(pane: string, panel: string) {
+    const paneState = this._state[pane];
+    if (!paneState) {
+      throw new Error(`Pane type not recognized: ${pane}`);
     }
-  };
+    const panelState = paneState.panels[panel];
+    if (!panelState) {
+      throw new Error(`Panel type not recognized: ${panel}`);
+    }
+    paneState.panel = panel;
+    this.emit(
+      DidOpenPanelMessage.method,
+      DidOpenPanelMessage.type.notification({ pane, panel })
+    );
+  }
 
-  handleDidOpenFileEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidOpenFileEditorMessage.type.isNotification(message)) {
-        const { pane, panel, filePath } = message.params;
-        const paneState = this._state[pane];
-        if (!paneState) {
-          throw new Error(`Pane type not recognized: ${pane}`);
-        }
-        const panelState = paneState.panels[panel];
-        if (!panelState) {
-          throw new Error(`Panel type not recognized: ${panel}`);
-        }
-        panelState.openFilePath = filePath;
-      }
+  scrolledPanel(pane: string, panel: string, range: Range) {
+    const paneState = this._state[pane];
+    if (!paneState) {
+      throw new Error(`Pane type not recognized: ${pane}`);
     }
-  };
+    const panelState = paneState.panels[panel];
+    if (!panelState) {
+      throw new Error(`Panel type not recognized: ${panel}`);
+    }
+    panelState.visibleRange = JSON.parse(JSON.stringify(range));
+    this.emit(
+      DidScrollPanelMessage.method,
+      DidScrollPanelMessage.type.notification({ pane, panel, range })
+    );
+  }
 
-  handleDidCloseFileEditor = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidCloseFileEditorMessage.type.isNotification(message)) {
-        const { pane, panel } = message.params;
-        const paneState = this._state[pane];
-        if (!paneState) {
-          throw new Error(`Pane type not recognized: ${pane}`);
-        }
-        const panelState = paneState.panels[panel];
-        if (!panelState) {
-          throw new Error(`Panel type not recognized: ${panel}`);
-        }
-        panelState.openFilePath = "";
-      }
+  openedView(pane: string, view: string) {
+    const paneState = this._state[pane];
+    if (!paneState) {
+      throw new Error(`Pane type not recognized: ${pane}`);
     }
-  };
+    paneState.view = view;
+    this.emit(
+      DidOpenViewMessage.method,
+      DidOpenViewMessage.type.notification({ pane, view })
+    );
+  }
+
+  openedFileEditor(pane: string, panel: string, filePath: string) {
+    const paneState = this._state[pane];
+    if (!paneState) {
+      throw new Error(`Pane type not recognized: ${pane}`);
+    }
+    const panelState = paneState.panels[panel];
+    if (!panelState) {
+      throw new Error(`Panel type not recognized: ${panel}`);
+    }
+    panelState.openFilePath = filePath;
+    this.emit(
+      DidOpenFileEditorMessage.method,
+      DidOpenFileEditorMessage.type.notification({ pane, panel, filePath })
+    );
+  }
+
+  closedFileEditor(pane: string, panel: string) {
+    const paneState = this._state[pane];
+    if (!paneState) {
+      throw new Error(`Pane type not recognized: ${pane}`);
+    }
+    const panelState = paneState.panels[panel];
+    if (!panelState) {
+      throw new Error(`Panel type not recognized: ${panel}`);
+    }
+    panelState.openFilePath = "";
+    panelState.visibleRange = undefined;
+    this.emit(
+      DidCloseFileEditorMessage.method,
+      DidCloseFileEditorMessage.type.notification({ pane, panel })
+    );
+  }
 }

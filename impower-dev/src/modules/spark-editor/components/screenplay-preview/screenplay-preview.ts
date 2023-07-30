@@ -1,6 +1,5 @@
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
-import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
+import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_screenplay-preview";
@@ -9,18 +8,7 @@ const DEFAULT_DEPENDENCIES = {
   "sparkdown-screenplay-preview": "sparkdown-screenplay-preview",
 };
 
-const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["file-path"]),
-};
-
-export default class ScreenplayPreview
-  extends SEElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
-  }
-
+export default class ScreenplayPreview extends SEElement {
   static override async define(
     tag = "se-screenplay-preview",
     dependencies = DEFAULT_DEPENDENCIES,
@@ -37,36 +25,37 @@ export default class ScreenplayPreview
     return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
-  /**
-   * The file path to read from and write to.
-   */
-  get filePath(): string | null {
-    return this.getStringAttribute(ScreenplayPreview.attributes.filePath);
-  }
-  set filePath(value) {
-    this.setStringAttribute(ScreenplayPreview.attributes.filePath, value);
-  }
-
-  protected override onAttributeChanged(
-    name: string,
-    _oldValue: string,
-    newValue: string
-  ): void {
-    if (name === ScreenplayPreview.attributes.filePath) {
-      this.loadFile(newValue);
-    }
-  }
-
   protected override onConnected(): void {
-    this.loadFile(this.filePath);
+    this.loadFile();
+    window.addEventListener(
+      DidOpenFileEditorMessage.method,
+      this.handleDidOpenFileEditor
+    );
   }
 
-  protected override onDisconnected(): void {}
+  protected override onDisconnected(): void {
+    window.removeEventListener(
+      DidOpenFileEditorMessage.method,
+      this.handleDidOpenFileEditor
+    );
+  }
 
-  async loadFile(filePath: string | null) {
-    if (!filePath) {
-      return;
+  handleDidOpenFileEditor = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidOpenFileEditorMessage.type.isNotification(message)) {
+        this.loadFile();
+      }
     }
+  };
+
+  async loadFile() {
+    const filePath =
+      Workspace.window.state.logic.panels.scripts.openFilePath ||
+      Workspace.window.state.logic.panels.main.openFilePath;
+    const visibleRange =
+      Workspace.window.state.logic.panels.scripts.visibleRange ||
+      Workspace.window.state.logic.panels.main.visibleRange;
     const uri = Workspace.fs.getWorkspaceUri(filePath);
     const existingText = await Workspace.fs.readTextDocument({
       textDocument: { uri },
@@ -81,6 +70,7 @@ export default class ScreenplayPreview
           version: 0,
           text: existingText,
         },
+        visibleRange,
       })
     );
   }

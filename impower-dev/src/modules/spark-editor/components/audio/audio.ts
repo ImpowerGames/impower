@@ -1,4 +1,3 @@
-import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_audio";
@@ -28,10 +27,7 @@ export default class Audio extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/audio") {
         const value = e.detail.value;
-        this.emit(
-          DidOpenPanelMessage.method,
-          DidOpenPanelMessage.type.notification({ pane: "audio", panel: value })
-        );
+        Workspace.window.openedPanel("audio", value);
       }
     }
   };

@@ -71,6 +71,10 @@ export default class WorkspaceFileSystem {
   constructor(lsp: WorkspaceLanguageServerProtocol) {
     this._lsp = lsp;
     this._initializing = this.initialize();
+    this._fileSystemWorker.addEventListener(
+      "message",
+      this.handleWorkerMessage
+    );
   }
 
   async initialize() {
@@ -104,7 +108,7 @@ name: ${this._projectName}
     return entries;
   }
 
-  emit<T>(eventName: string, detail?: T): boolean {
+  protected emit<T>(eventName: string, detail?: T): boolean {
     return window.dispatchEvent(
       new CustomEvent(eventName, {
         bubbles: true,
@@ -115,6 +119,17 @@ name: ${this._projectName}
     );
   }
 
+  protected _messageQueue: Record<string, (result: any) => void> = {};
+
+  protected handleWorkerMessage = (event: MessageEvent) => {
+    const message = event.data;
+    const dispatch = this._messageQueue[message.id];
+    if (dispatch) {
+      dispatch(message.result);
+      delete this._messageQueue[message.id];
+    }
+  };
+
   protected async sendRequest<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
@@ -122,18 +137,7 @@ name: ${this._projectName}
   ): Promise<R> {
     return new Promise((resolve) => {
       const request = type.request(params);
-      this._fileSystemWorker.addEventListener(
-        "message",
-        (event) => {
-          const message = event.data;
-          if (type.isResponse(message)) {
-            if (message.id === request.id) {
-              resolve(message.result);
-            }
-          }
-        },
-        { once: true }
-      );
+      this._messageQueue[request.id] = resolve;
       this._fileSystemWorker.postMessage(request, transfer);
     });
   }

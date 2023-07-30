@@ -1,6 +1,5 @@
-import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
-import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import SEElement from "../../core/se-element";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_preview-toggle-button";
 
 export default class PreviewToggleButton extends SEElement {
@@ -27,15 +26,9 @@ export default class PreviewToggleButton extends SEElement {
   handleChanged = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.value) {
-        this.emit(
-          DidExpandPreviewPaneMessage.method,
-          DidExpandPreviewPaneMessage.type.notification({})
-        );
+        Workspace.window.expandedPreviewPane();
       } else {
-        this.emit(
-          DidCollapsePreviewPaneMessage.method,
-          DidCollapsePreviewPaneMessage.type.notification({})
-        );
+        Workspace.window.collapsedPreviewPane();
       }
     }
   };

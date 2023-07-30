@@ -6,7 +6,7 @@ export interface ResponseMessage<M extends string = string, R = any>
   /**
    * The request id.
    */
-  id: number | string | null;
+  id: number | string;
 
   /**
    * The result of a request. This member is REQUIRED on success.

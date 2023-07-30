@@ -48,8 +48,8 @@ onmessage = async (e) => {
     postMessage(response, [response.result]);
   }
   if (ReadTextDocumentMessage.type.isRequest(message)) {
-    const root = await navigator.storage.getDirectory();
     const { textDocument } = message.params;
+    const root = await navigator.storage.getDirectory();
     const fileHandle = await getFileHandleFromUri(root, textDocument.uri);
     const fileRef = await fileHandle.getFile();
     const buffer = await fileRef.arrayBuffer();

@@ -1,4 +1,3 @@
-import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_preview";
@@ -52,13 +51,7 @@ export default class Preview extends SEElement {
         if (screenplayToolbarEl) {
           screenplayToolbarEl.hidden = value !== "screenplay";
         }
-        this.emit(
-          DidOpenPanelMessage.method,
-          DidOpenPanelMessage.type.notification({
-            pane: "preview",
-            panel: value,
-          })
-        );
+        Workspace.window.openedPanel("preview", value);
       }
     }
   };

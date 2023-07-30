@@ -1,23 +1,34 @@
+interface Range {
+  start: { line: number; character: number };
+  end: { line: number; character: number };
+}
+
 export interface WorkspaceState
   extends Record<
     string,
     {
       view?: string;
       panel: string;
-      panels: Record<string, { scrollIndex?: number; openFilePath?: string }>;
+      panels: Record<
+        string,
+        {
+          visibleRange?: Range;
+          openFilePath?: string;
+        }
+      >;
     }
   > {
   setup: {
     panel: string;
     panels: {
       details: {
-        scrollIndex: number;
+        visibleRange?: Range;
       };
       share: {
-        scrollIndex: number;
+        visibleRange?: Range;
       };
       assets: {
-        scrollIndex: number;
+        visibleRange?: Range;
       };
     };
   };
@@ -26,11 +37,11 @@ export interface WorkspaceState
     panel: string;
     panels: {
       sounds: {
-        scrollIndex: number;
+        visibleRange?: Range;
         openFilePath: string;
       };
       music: {
-        scrollIndex: number;
+        visibleRange?: Range;
         openFilePath: string;
       };
     };
@@ -40,11 +51,11 @@ export interface WorkspaceState
     panel: string;
     panels: {
       widgets: {
-        scrollIndex: number;
+        visibleRange?: Range;
         openFilePath: string;
       };
       views: {
-        scrollIndex: number;
+        visibleRange?: Range;
         openFilePath: string;
       };
     };
@@ -54,11 +65,11 @@ export interface WorkspaceState
     panel: string;
     panels: {
       sprites: {
-        scrollIndex: number;
+        visibleRange?: Range;
         openFilePath: string;
       };
       maps: {
-        scrollIndex: number;
+        visibleRange?: Range;
         openFilePath: string;
       };
     };
@@ -68,10 +79,11 @@ export interface WorkspaceState
     panel: string;
     panels: {
       main: {
-        scrollIndex: number;
+        visibleRange?: Range;
+        openFilePath: string;
       };
       scripts: {
-        scrollIndex: number;
+        visibleRange?: Range;
         openFilePath: string;
       };
     };
@@ -82,7 +94,7 @@ export interface WorkspaceState
     panels: {
       game: {};
       screenplay: {
-        scrollIndex: number;
+        visibleRange?: Range;
       };
       file: {};
     };

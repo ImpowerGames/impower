@@ -1,4 +1,3 @@
-import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
@@ -98,18 +97,11 @@ export default class FileItem
 
   handleButtonClick = (e: Event) => {
     e.stopPropagation();
-    const filePath = this.getFilePath();
     const pane = this.pane;
     const panel = this.panel;
+    const filePath = this.getFilePath();
     if (pane && panel && filePath) {
-      this.emit(
-        DidOpenFileEditorMessage.method,
-        DidOpenFileEditorMessage.type.notification({
-          pane,
-          panel,
-          filePath,
-        })
-      );
+      Workspace.window.openedFileEditor(pane, panel, filePath);
     }
   };
 

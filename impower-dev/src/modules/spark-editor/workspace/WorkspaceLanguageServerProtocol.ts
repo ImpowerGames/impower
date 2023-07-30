@@ -177,7 +177,7 @@ export default class WorkspaceLanguageServerProtocol {
     this._connection.dispose();
   }
 
-  emit<T>(eventName: string, detail?: T): boolean {
+  protected emit<T>(eventName: string, detail?: T): boolean {
     return window.dispatchEvent(
       new CustomEvent(eventName, {
         bubbles: true,

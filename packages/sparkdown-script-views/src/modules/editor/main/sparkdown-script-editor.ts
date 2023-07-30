@@ -104,14 +104,35 @@ export default class SparkdownScriptEditor
   protected override onConnected(): void {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.addEventListener(
-      ScrolledEditorMessage.method,
+      ScrolledPreviewMessage.method,
       this.handleScrolledPreview
     );
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
   }
 
-  protected override onParsed(): void {
+  protected override onDisconnected(): void {
+    window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
+    window.removeEventListener(
+      ScrolledPreviewMessage.method,
+      this.handleScrolledPreview
+    );
+    if (this._editing) {
+      if (this._textDocument) {
+        this.emit(
+          UnfocusedEditorMessage.method,
+          UnfocusedEditorMessage.type.notification({
+            textDocument: this._textDocument,
+          })
+        );
+      }
+    }
     const view = this._view;
+    if (view) {
+      this.unbindView(view);
+    }
+  }
+
+  protected bindView(view: EditorView) {
     if (view) {
       this._resizeObserver?.observe(view.scrollDOM);
       view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
@@ -126,36 +147,18 @@ export default class SparkdownScriptEditor
     }
   }
 
-  protected override onDisconnected(): void {
-    window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
-    window.removeEventListener(
-      ScrolledEditorMessage.method,
-      this.handleScrolledPreview
-    );
-    if (this._editing) {
-      if (this._textDocument) {
-        this.emit(
-          UnfocusedEditorMessage.method,
-          UnfocusedEditorMessage.type.notification({
-            textDocument: this._textDocument,
-          })
-        );
-      }
-    }
+  protected unbindView(view: EditorView) {
     this._resizeObserver?.disconnect();
-    const view = this._view;
-    if (view) {
-      view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
-      view.scrollDOM.removeEventListener(
-        "pointerenter",
-        this.handlePointerEnterScroller
-      );
-      view.scrollDOM.removeEventListener(
-        "pointerleave",
-        this.handlePointerLeaveScroller
-      );
-      view.destroy();
-    }
+    view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
+    view.scrollDOM.removeEventListener(
+      "pointerenter",
+      this.handlePointerEnterScroller
+    );
+    view.scrollDOM.removeEventListener(
+      "pointerleave",
+      this.handlePointerLeaveScroller
+    );
+    view.destroy();
   }
 
   protected handleLoadEditor = (e: Event): void => {
@@ -253,6 +256,7 @@ export default class SparkdownScriptEditor
           }
         },
       });
+      this.bindView(this._view);
     }
     SparkdownScriptEditor.languageServerConnection.sendNotification(
       DidOpenTextDocumentMessage.type,

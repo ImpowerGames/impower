@@ -74,12 +74,10 @@ export default (state: { store?: WorkspaceState }) => {
           </s-dropdown>
         </s-box>
         <template value="game">
-          <se-game-preview file-path="logic/main.sd"></se-game-preview>
+          <se-game-preview></se-game-preview>
         </template>
         <template value="screenplay">
-          <se-screenplay-preview
-            file-path="logic/main.sd"
-          ></se-screenplay-preview>
+          <se-screenplay-preview></se-screenplay-preview>
         </template>
       </s-router>
     `,

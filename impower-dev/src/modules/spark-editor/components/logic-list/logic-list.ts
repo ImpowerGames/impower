@@ -1,4 +1,3 @@
-import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_logic-list";
@@ -35,14 +34,11 @@ export default class LogicList extends SEElement {
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/logic/panel") {
-        const value = e.detail.value;
-        this.emit(
-          DidOpenPanelMessage.method,
-          DidOpenPanelMessage.type.notification({
-            pane: "logic",
-            panel: value,
-          })
-        );
+        const panel = e.detail.value;
+        if (panel === "main") {
+          Workspace.window.openedFileEditor("logic", panel, "logic/main.sd");
+        }
+        Workspace.window.openedPanel("logic", panel);
       }
     }
   };

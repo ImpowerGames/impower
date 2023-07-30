@@ -309,12 +309,12 @@ export default class Router
       cancelAnimations(this.enterFadeEl);
       cancelAnimations(this.enterTransformEl);
       this.playEnterTransition();
+      this.emit(ENTER_EVENT, { key: this.key, value: newValue });
       const targetSlotName =
         this.unmount === "on-enter" ? "new-content" : undefined;
       this.loadRoute(newValue, targetSlotName);
       this.active = newValue;
       this.root.removeAttribute("mounting");
-      this.emit(ENTER_EVENT, { key: this.key, value: newValue });
       await animationsComplete(this.enterFadeEl, this.enterTransformEl);
       if (this.interrupted(newValue)) {
         return;

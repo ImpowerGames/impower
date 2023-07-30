@@ -1,4 +1,3 @@
-import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_logic-scripts-editor";
@@ -30,14 +29,10 @@ export default class LogicScriptsEditor extends SEElement {
 
   handleChanging = async (e: Event) => {
     if (e instanceof CustomEvent) {
+      const pane = "logic";
+      const panel = "scripts";
       if (e.detail.key === "close-file-editor") {
-        this.emit(
-          DidCloseFileEditorMessage.method,
-          DidCloseFileEditorMessage.type.notification({
-            pane: "logic",
-            panel: "scripts",
-          })
-        );
+        Workspace.window.closedFileEditor(pane, panel);
       }
       if (e.detail.key === "file-options") {
         const filePath = this.getFilePath();
@@ -47,13 +42,7 @@ export default class LogicScriptsEditor extends SEElement {
             await Workspace.fs.deleteFiles({
               files: [{ uri }],
             });
-            this.emit(
-              DidCloseFileEditorMessage.method,
-              DidCloseFileEditorMessage.type.notification({
-                pane: "logic",
-                panel: "scripts",
-              })
-            );
+            Workspace.window.closedFileEditor(pane, panel);
           }
         }
       }
