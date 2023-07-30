@@ -249,6 +249,10 @@ export default class SparkScreenplayPreview
     if (this._initialized && !this._loaded) {
       this._loaded = true;
       if (this._textDocument && this._loadingRequest != null) {
+        if (this._view) {
+          // Only fade in preview once formatting has finished being applied and height is stable
+          this._view.dom.style.opacity = "1";
+        }
         this.emit(
           LoadPreviewMessage.method,
           LoadPreviewMessage.type.response(this._loadingRequest, null)

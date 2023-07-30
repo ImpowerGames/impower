@@ -4,6 +4,8 @@ const PREVIEW_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&": {
+    transition: "opacity 0.25s",
+    opacity: 0,
     flex: 1,
     backgroundSize: "auto",
     backgroundRepeat: "repeat",
