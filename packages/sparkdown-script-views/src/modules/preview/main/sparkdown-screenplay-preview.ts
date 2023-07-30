@@ -217,30 +217,32 @@ export default class SparkScreenplayPreview
       this.bindView(this._view);
     }
     window.requestAnimationFrame(() => {
-      if (visibleRange) {
-        this.revealRange(visibleRange);
-      }
+      this.revealRange(visibleRange);
       this._initialized = true;
     });
   }
 
-  protected revealRange(range: Range) {
+  protected revealRange(range: Range | undefined) {
     const view = this._view;
     if (view) {
       const doc = view.state.doc;
-      const startLineNumber = range.start.line + 1;
-      const endLineNumber = range.end.line + 1;
-      if (startLineNumber <= 1) {
-        view.scrollDOM.scrollTop = 0;
-      } else if (endLineNumber >= doc.lines) {
-        view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+      if (range) {
+        const startLineNumber = range.start.line + 1;
+        const endLineNumber = range.end.line + 1;
+        if (startLineNumber <= 1) {
+          view.scrollDOM.scrollTop = 0;
+        } else if (endLineNumber >= doc.lines) {
+          view.scrollDOM.scrollTop = view.scrollDOM.scrollHeight;
+        } else {
+          const pos = doc.line(Math.max(1, startLineNumber)).from;
+          view.dispatch({
+            effects: EditorView.scrollIntoView(pos, {
+              y: "start",
+            }),
+          });
+        }
       } else {
-        const pos = doc.line(Math.max(1, startLineNumber)).from;
-        view.dispatch({
-          effects: EditorView.scrollIntoView(pos, {
-            y: "start",
-          }),
-        });
+        view.scrollDOM.scrollTop = 0;
       }
     }
   }

@@ -50,13 +50,7 @@ export default class ScreenplayPreview extends SEElement {
   };
 
   async loadFile() {
-    const filePath =
-      Workspace.window.state.logic.panels.scripts.openFilePath ||
-      Workspace.window.state.logic.panels.main.openFilePath;
-    const visibleRange =
-      Workspace.window.state.logic.panels.scripts.visibleRange ||
-      Workspace.window.state.logic.panels.main.visibleRange;
-    const uri = Workspace.fs.getWorkspaceUri(filePath);
+    const { uri, visibleRange } = Workspace.window.getActiveScriptEditor();
     const existingText = await Workspace.fs.readTextDocument({
       textDocument: { uri },
     });

@@ -55,10 +55,7 @@ export default class ScriptEditor extends SEElement {
   };
 
   async loadFile() {
-    const filePath =
-      Workspace.window.state.logic.panels.scripts.openFilePath ||
-      Workspace.window.state.logic.panels.main.openFilePath;
-    const uri = Workspace.fs.getWorkspaceUri(filePath);
+    const { uri, visibleRange } = Workspace.window.getActiveScriptEditor();
     const existingText = await Workspace.fs.readTextDocument({
       textDocument: { uri },
     });
@@ -72,6 +69,7 @@ export default class ScriptEditor extends SEElement {
           version: 0,
           text: existingText,
         },
+        visibleRange,
       })
     );
   }

@@ -1,23 +1,20 @@
-interface Range {
+export interface PanelState {
+  visibleRange?: Range | undefined;
+  openFilePath?: string | undefined;
+}
+
+export interface PaneState {
+  view?: string | undefined;
+  panel: string;
+  panels: Record<string, PanelState>;
+}
+
+export interface Range {
   start: { line: number; character: number };
   end: { line: number; character: number };
 }
 
-export interface WorkspaceState
-  extends Record<
-    string,
-    {
-      view?: string;
-      panel: string;
-      panels: Record<
-        string,
-        {
-          visibleRange?: Range;
-          openFilePath?: string;
-        }
-      >;
-    }
-  > {
+export interface WorkspaceState extends Record<string, PaneState> {
   setup: {
     panel: string;
     panels: {

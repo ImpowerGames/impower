@@ -104,35 +104,66 @@ export default class WorkspaceWindow {
     );
   }
 
-  getFilePath(uri: string) {
-    return uri.replace(this._fs.getWorkspaceUri() + "/", "");
-  }
-
-  getPane(uri: string) {
-    const filePath = this.getFilePath(uri);
-    const uriParts = filePath.split("/");
-    return uriParts[0] || "";
-  }
-
-  getPanel(uri: string) {
-    const filePath = this.getFilePath(uri);
-    const uriParts = filePath.split("/");
-    const panel = uriParts[1];
-    return panel?.split(".")?.[0] || "";
-  }
-
   protected handleScrolledEditor = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (ScrolledEditorMessage.type.isNotification(message)) {
         const { textDocument, range } = message.params;
         const uri = textDocument.uri;
-        const pane = this.getPane(uri);
-        const panel = this.getPanel(uri);
+        const pane = this.getPaneFromUri(uri);
+        const panel = this.getPanelFromUri(uri);
         this.scrolledPanel(pane, panel, range);
       }
     }
   };
+
+  getFilePathFromUri(uri: string) {
+    return uri.replace(this._fs.getWorkspaceUri() + "/", "");
+  }
+
+  getPaneFromUri(uri: string) {
+    const filePath = this.getFilePathFromUri(uri);
+    const uriParts = filePath.split("/");
+    return uriParts[0] || "";
+  }
+
+  getPanelFromUri(uri: string) {
+    const filePath = this.getFilePathFromUri(uri);
+    const uriParts = filePath.split("/");
+    const panel = uriParts[1];
+    return panel?.split(".")?.[0] || "";
+  }
+
+  getPaneState(pane: string) {
+    const paneState = this._state[pane];
+    if (!paneState) {
+      throw new Error(`Pane type not recognized: ${pane}`);
+    }
+    return paneState;
+  }
+
+  getPanelState(pane: string, panel: string) {
+    const paneState = this.getPaneState(pane);
+    const panelState = paneState.panels[panel];
+    if (!panelState) {
+      throw new Error(`Panel type not recognized: ${panel}`);
+    }
+    return panelState;
+  }
+
+  getOpenedPanel(pane: string) {
+    const paneState = this.getPaneState(pane);
+    return paneState.panel;
+  }
+
+  getActiveScriptEditor(): { uri: string; visibleRange?: Range } {
+    const pane = "logic";
+    const panel = this.getOpenedPanel(pane);
+    const panelState = this.getPanelState(pane, panel);
+    const filePath = panelState.openFilePath || "";
+    const uri = this._fs.getWorkspaceUri(filePath);
+    return { uri, visibleRange: panelState.visibleRange };
+  }
 
   expandedPreviewPane() {
     this._state.preview.revealed = true;
@@ -151,14 +182,8 @@ export default class WorkspaceWindow {
   }
 
   openedPanel(pane: string, panel: string) {
-    const paneState = this._state[pane];
-    if (!paneState) {
-      throw new Error(`Pane type not recognized: ${pane}`);
-    }
-    const panelState = paneState.panels[panel];
-    if (!panelState) {
-      throw new Error(`Panel type not recognized: ${panel}`);
-    }
+    const paneState = this.getPaneState(pane);
+    this.getPanelState(pane, panel);
     paneState.panel = panel;
     this.emit(
       DidOpenPanelMessage.method,
@@ -167,14 +192,7 @@ export default class WorkspaceWindow {
   }
 
   scrolledPanel(pane: string, panel: string, range: Range) {
-    const paneState = this._state[pane];
-    if (!paneState) {
-      throw new Error(`Pane type not recognized: ${pane}`);
-    }
-    const panelState = paneState.panels[panel];
-    if (!panelState) {
-      throw new Error(`Panel type not recognized: ${panel}`);
-    }
+    const panelState = this.getPanelState(pane, panel);
     panelState.visibleRange = JSON.parse(JSON.stringify(range));
     this.emit(
       DidScrollPanelMessage.method,
@@ -183,10 +201,7 @@ export default class WorkspaceWindow {
   }
 
   openedView(pane: string, view: string) {
-    const paneState = this._state[pane];
-    if (!paneState) {
-      throw new Error(`Pane type not recognized: ${pane}`);
-    }
+    const paneState = this.getPaneState(pane);
     paneState.view = view;
     this.emit(
       DidOpenViewMessage.method,
@@ -195,15 +210,12 @@ export default class WorkspaceWindow {
   }
 
   openedFileEditor(pane: string, panel: string, filePath: string) {
-    const paneState = this._state[pane];
-    if (!paneState) {
-      throw new Error(`Pane type not recognized: ${pane}`);
-    }
-    const panelState = paneState.panels[panel];
-    if (!panelState) {
-      throw new Error(`Panel type not recognized: ${panel}`);
-    }
+    const panelState = this.getPanelState(pane, panel);
     panelState.openFilePath = filePath;
+    panelState.visibleRange = {
+      start: { line: 0, character: 0 },
+      end: { line: 0, character: 0 },
+    };
     this.emit(
       DidOpenFileEditorMessage.method,
       DidOpenFileEditorMessage.type.notification({ pane, panel, filePath })
@@ -211,14 +223,7 @@ export default class WorkspaceWindow {
   }
 
   closedFileEditor(pane: string, panel: string) {
-    const paneState = this._state[pane];
-    if (!paneState) {
-      throw new Error(`Pane type not recognized: ${pane}`);
-    }
-    const panelState = paneState.panels[panel];
-    if (!panelState) {
-      throw new Error(`Panel type not recognized: ${panel}`);
-    }
+    const panelState = this.getPanelState(pane, panel);
     panelState.openFilePath = "";
     panelState.visibleRange = undefined;
     this.emit(
