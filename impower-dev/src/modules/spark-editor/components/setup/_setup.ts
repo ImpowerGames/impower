@@ -2,7 +2,7 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const mode = state?.store?.setup?.panel || "details";
+  const mode = state?.store?.panes?.setup?.panel || "details";
   return {
     html: html`
       <s-router key="window/setup" directional active="${mode}">

@@ -22,68 +22,71 @@ export default class WorkspaceWindow {
   constructor(fs: WorkspaceFileSystem) {
     this._fs = fs;
     this._state = {
-      setup: {
-        panel: "details",
-        panels: {
-          details: {},
-          share: {},
-          assets: {},
-        },
-      },
-      audio: {
-        view: "list",
-        panel: "sounds",
-        panels: {
-          sounds: {
-            openFilePath: "",
-          },
-          music: {
-            openFilePath: "",
+      header: { title: this._fs.projectName },
+      panes: {
+        setup: {
+          panel: "details",
+          panels: {
+            details: {},
+            share: {},
+            assets: {},
           },
         },
-      },
-      displays: {
-        view: "list",
-        panel: "widgets",
-        panels: {
-          widgets: {
-            openFilePath: "",
-          },
-          views: {
-            openFilePath: "",
-          },
-        },
-      },
-      graphics: {
-        view: "list",
-        panel: "sprites",
-        panels: {
-          sprites: {
-            openFilePath: "",
-          },
-          maps: {
-            openFilePath: "",
+        audio: {
+          view: "list",
+          panel: "sounds",
+          panels: {
+            sounds: {
+              openFilePath: "",
+            },
+            music: {
+              openFilePath: "",
+            },
           },
         },
-      },
-      logic: {
-        view: "list",
-        panel: "main",
-        panels: {
-          main: {
-            openFilePath: "logic/main.sd",
-          },
-          scripts: {
-            openFilePath: "",
+        displays: {
+          view: "list",
+          panel: "widgets",
+          panels: {
+            widgets: {
+              openFilePath: "",
+            },
+            views: {
+              openFilePath: "",
+            },
           },
         },
-      },
-      preview: {
-        panel: "game",
-        panels: {
-          game: {},
-          screenplay: {},
-          file: {},
+        graphics: {
+          view: "list",
+          panel: "sprites",
+          panels: {
+            sprites: {
+              openFilePath: "",
+            },
+            maps: {
+              openFilePath: "",
+            },
+          },
+        },
+        logic: {
+          view: "list",
+          panel: "main",
+          panels: {
+            main: {
+              openFilePath: "logic/main.sd",
+            },
+            scripts: {
+              openFilePath: "",
+            },
+          },
+        },
+        preview: {
+          panel: "game",
+          panels: {
+            game: {},
+            screenplay: {},
+            file: {},
+          },
         },
       },
     };
@@ -135,7 +138,7 @@ export default class WorkspaceWindow {
   }
 
   getPaneState(pane: string) {
-    const paneState = this._state[pane];
+    const paneState = this._state.panes[pane];
     if (!paneState) {
       throw new Error(`Pane type not recognized: ${pane}`);
     }
@@ -175,7 +178,7 @@ export default class WorkspaceWindow {
   }
 
   expandedPreviewPane() {
-    this._state.preview.revealed = true;
+    this._state.panes.preview.revealed = true;
     this.emit(
       DidExpandPreviewPaneMessage.method,
       DidExpandPreviewPaneMessage.type.notification({})
@@ -183,7 +186,7 @@ export default class WorkspaceWindow {
   }
 
   collapsedPreviewPane() {
-    this._state.preview.revealed = false;
+    this._state.panes.preview.revealed = false;
     this.emit(
       DidCollapsePreviewPaneMessage.method,
       DidCollapsePreviewPaneMessage.type.notification({})

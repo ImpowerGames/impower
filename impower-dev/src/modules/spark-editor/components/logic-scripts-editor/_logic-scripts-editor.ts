@@ -3,7 +3,7 @@ import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
   const openScriptFilePath =
-    state?.store?.logic?.panels?.scripts?.openFilePath || "";
+    state?.store?.panes?.logic?.panels?.scripts?.openFilePath || "";
   const fileName = openScriptFilePath.split("/").slice(-1).join("");
   const displayName = fileName.split(".")[0] ?? "";
   return {

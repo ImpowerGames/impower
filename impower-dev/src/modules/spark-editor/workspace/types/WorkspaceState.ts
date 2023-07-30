@@ -14,7 +14,7 @@ export interface Range {
   end: { line: number; character: number };
 }
 
-export interface WorkspaceState extends Record<string, PaneState> {
+export interface WorkspacePanes extends Record<string, PaneState> {
   setup: {
     panel: string;
     panels: {
@@ -96,4 +96,9 @@ export interface WorkspaceState extends Record<string, PaneState> {
       file: {};
     };
   };
+}
+
+export interface WorkspaceState {
+  header: { title: string };
+  panes: WorkspacePanes;
 }

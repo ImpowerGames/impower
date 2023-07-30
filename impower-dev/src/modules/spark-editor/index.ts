@@ -17,6 +17,7 @@ import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import GamePreview from "./components/game-preview/game-preview";
 import Graphics from "./components/graphics/graphics";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
+import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import LogicList from "./components/logic-list/logic-list";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
@@ -77,6 +78,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-preview-panel": PreviewPanel,
   "se-notifications": Notifications,
   "se-preview-toggle-button": PreviewToggleButton,
+  "se-header-title-button": HeaderTitleButton,
   "se-header-navigation": HeaderNavigation,
   "se-footer-navigation": FooterNavigation,
   "spark-editor": Main,

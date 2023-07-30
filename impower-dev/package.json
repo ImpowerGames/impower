@@ -46,6 +46,7 @@
     "@impower/sparkle": "file:../packages/sparkle",
     "fastify": "^4.18.0",
     "nanoid": "^4.0.2",
-    "pino": "^8.14.1"
+    "pino": "^8.14.1",
+    "yaml": "^2.3.1"
   }
 }

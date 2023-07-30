@@ -285,6 +285,7 @@
   --s-color-bg-08: hsl(0 0% 0% / 8%);
   --s-color-bg-09: hsl(0 0% 0% / 9%);
   --s-color-bg-10: hsl(0 0% 0% / 10%);
+  --s-color-bg-15: hsl(0 0% 0% / 15%);
   --s-color-bg-20: hsl(0 0% 0% / 20%);
   --s-color-bg-30: hsl(0 0% 0% / 30%);
   --s-color-bg-40: hsl(0 0% 0% / 40%);
@@ -305,6 +306,7 @@
   --s-color-fg-08: hsl(0 0% 100% / 8%);
   --s-color-fg-09: hsl(0 0% 100% / 9%);
   --s-color-fg-10: hsl(0 0% 100% / 10%);
+  --s-color-fg-15: hsl(0 0% 100% / 15%);
   --s-color-fg-20: hsl(0 0% 100% / 20%);
   --s-color-fg-30: hsl(0 0% 100% / 30%);
   --s-color-fg-40: hsl(0 0% 100% / 40%);

@@ -29,6 +29,7 @@ import {
   WorkspaceDirectoryParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
+import YAML from "yaml";
 import WorkspaceLanguageServerProtocol from "./WorkspaceLanguageServerProtocol";
 
 export default class WorkspaceFileSystem {
@@ -53,7 +54,7 @@ export default class WorkspaceFileSystem {
     return this._projectId;
   }
 
-  protected _projectName = "Untitled Project";
+  protected _projectName = "";
   get projectName() {
     return this._projectName;
   }
@@ -82,7 +83,17 @@ export default class WorkspaceFileSystem {
     const packageContent = await this.readTextDocument({
       textDocument: { uri: packageUri },
     });
-    if (!packageContent) {
+
+    if (packageContent) {
+      const trimmedPackageContent = packageContent.trim();
+      let validPackageContent = trimmedPackageContent.endsWith("---")
+        ? trimmedPackageContent.slice(0, -3)
+        : trimmedPackageContent;
+      const packageObj = YAML.parse(validPackageContent);
+      this._projectId = packageObj.id;
+      this._projectName = packageObj.name;
+    } else {
+      this._projectName = "Untitled Project";
       await this.writeTextDocument({
         textDocument: { uri: packageUri },
         text: `
@@ -98,9 +109,17 @@ name: ${this._projectName}
     const entries = await this.getWorkspaceEntries({
       directory: { uri: directoryUri },
     });
-    this._lsp.connection.sendNotification(DidWatchFilesMessage.type, {
+    const didWatchFilesParams = {
       files: entries,
-    });
+    };
+    this._lsp.connection.sendNotification(
+      DidWatchFilesMessage.type,
+      didWatchFilesParams
+    );
+    this.emit(
+      DidWatchFilesMessage.method,
+      DidWatchFilesMessage.type.notification(didWatchFilesParams)
+    );
     entries.forEach((entry) => {
       this._uris ??= new Set<string>();
       this._uris.add(entry.uri);

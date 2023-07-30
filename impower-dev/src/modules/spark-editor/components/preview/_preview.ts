@@ -2,7 +2,7 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const mode = state?.store?.preview?.panel || "game";
+  const mode = state?.store?.panes?.preview?.panel || "game";
   return {
     html: html`
       <s-router key="preview" active="${mode}">

@@ -18,6 +18,7 @@ import FooterNavigation from "./components/footer-navigation/_footer-navigation"
 import GamePreview from "./components/game-preview/_game-preview";
 import Graphics from "./components/graphics/_graphics";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
+import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import LogicList from "./components/logic-list/_logic-list";
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
@@ -100,6 +101,7 @@ const components = {
   "se-preview-panel": style(PreviewPanel),
   "se-notifications": style(Notifications),
   "se-preview-toggle-button": style(PreviewToggleButton),
+  "se-header-title-button": style(HeaderTitleButton),
   "se-header-navigation": style(HeaderNavigation),
   "se-footer-navigation": style(FooterNavigation),
   "spark-editor": style(Main),

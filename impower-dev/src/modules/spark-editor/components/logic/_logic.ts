@@ -2,7 +2,7 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const viewMode = state?.store?.logic?.view || "list";
+  const viewMode = state?.store?.panes?.logic?.view || "list";
   return {
     html: html`
       <s-router key="window/logic/view" directional="z" active="${viewMode}">

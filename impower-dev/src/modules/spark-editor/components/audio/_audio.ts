@@ -2,7 +2,7 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const mode = state?.store?.audio?.panel || "sounds";
+  const mode = state?.store?.panes?.audio?.panel || "sounds";
   return {
     html: html`
       <s-router directional key="window/audio" active="${mode}">

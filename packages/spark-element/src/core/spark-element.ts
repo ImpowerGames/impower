@@ -81,6 +81,7 @@ export default class SparkElement extends HTMLElement {
 
   constructor() {
     super();
+    this.render();
     const component = this.component;
     const html = this.transformHtml(component.html ?? DEFAULT_COMPONENT.html);
     const css = this.transformCss(component.css ?? DEFAULT_COMPONENT.css);
@@ -102,6 +103,18 @@ export default class SparkElement extends HTMLElement {
       });
       STYLES.adoptStyles(this.ownerDocument, css);
     }
+  }
+
+  render() {
+    this.disconnectedCallback();
+    const component = this.component;
+    const html = this.transformHtml(component.html ?? DEFAULT_COMPONENT.html);
+    if (this.shadowRoot) {
+      this.shadowRoot.innerHTML = html;
+    } else {
+      this.innerHTML = html;
+    }
+    this.connectedCallback();
   }
 
   transformHtml(html: string): string {
