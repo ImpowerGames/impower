@@ -73,6 +73,7 @@ html {
 @media (max-width: 600px) {
   html {
     overflow-y: scroll;
+    touch-action: pan-y;
     --touch-action: pan-y;
   }
 }
