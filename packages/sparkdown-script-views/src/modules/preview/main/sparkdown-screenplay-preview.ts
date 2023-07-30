@@ -83,7 +83,7 @@ export default class SparkScreenplayPreview
 
   protected _viewportHeight = 0;
 
-  protected _pointerOverScroller = false;
+  protected _userInitiatedScroll = false;
 
   protected override onConnected(): void {
     this._resizeObserver = new ResizeObserver(this.handleViewportResize);
@@ -298,7 +298,7 @@ export default class SparkScreenplayPreview
   };
 
   protected handlePointerEnterScroller = (): void => {
-    this._pointerOverScroller = true;
+    this._userInitiatedScroll = true;
     if (this._textDocument) {
       this.emit(
         HoveredOnPreviewMessage.method,
@@ -311,11 +311,11 @@ export default class SparkScreenplayPreview
   };
 
   protected handlePointerLeaveScroller = (): void => {
-    this._pointerOverScroller = false;
+    this._userInitiatedScroll = false;
   };
 
   protected handlePointerScroll = (e: Event): void => {
-    if (this._pointerOverScroller) {
+    if (this._userInitiatedScroll) {
       const scrollEl = e.target as HTMLElement;
       const scrollTop =
         scrollEl?.scrollTop != null ? scrollEl?.scrollTop : window.scrollY;

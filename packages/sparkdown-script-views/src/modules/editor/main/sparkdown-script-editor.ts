@@ -101,7 +101,7 @@ export default class SparkdownScriptEditor
 
   protected _scrollTop = 0;
 
-  protected _pointerOverScroller = false;
+  protected _userInitiatedScroll = false;
 
   protected _possibleScroller?: HTMLElement | null;
 
@@ -348,7 +348,7 @@ export default class SparkdownScriptEditor
   }
 
   protected handlePointerEnterScroller = (): void => {
-    this._pointerOverScroller = true;
+    this._userInitiatedScroll = true;
     if (this._textDocument) {
       this.emit(
         HoveredOnEditorMessage.method,
@@ -360,11 +360,11 @@ export default class SparkdownScriptEditor
   };
 
   protected handlePointerLeaveScroller = (): void => {
-    this._pointerOverScroller = false;
+    this._userInitiatedScroll = false;
   };
 
   protected handlePointerScroll = (e: Event): void => {
-    if (this._pointerOverScroller) {
+    if (this._userInitiatedScroll) {
       const scrollTarget = e.target;
       const view = this._view;
       if (view) {
