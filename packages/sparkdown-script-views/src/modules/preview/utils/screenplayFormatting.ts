@@ -146,12 +146,58 @@ const decorate = (state: EditorState) => {
   const doc = state.doc;
   const input = new DocInput(doc);
   const tree = LANGUAGE_SUPPORT.language.parser.parse(input);
+
+  let inFrontMatter = false;
+  let frontMatterFrom = 0;
+  let frontMatterPositionContent: Record<string, MarkupBlock[]> = {};
+
   let inDialogue = false;
   let inDualDialogue = false;
   let dialogueFrom = 0;
   let dialogueContent: MarkupBlock[] = [];
-  let frontMatterFrom = 0;
-  let frontMatterPositionContent: Record<string, MarkupBlock[]> = {};
+
+  const endFrontMatter = (to: number) => {
+    if (inFrontMatter) {
+      specs.push({
+        from: frontMatterFrom,
+        to,
+        block: true,
+        widget: TitlePageWidget,
+        language: LANGUAGE_SUPPORT.language,
+        highlighter: LANGUAGE_HIGHLIGHTS,
+        ...frontMatterPositionContent,
+      });
+    }
+    inFrontMatter = false;
+  };
+
+  const endDialogue = (to: number) => {
+    if (inDialogue) {
+      if (inDualDialogue) {
+        if (prevDialogueSpec) {
+          prevDialogueSpec.to = to - 1;
+          prevDialogueSpec.left = prevDialogueSpec.content;
+          prevDialogueSpec.right = dialogueContent;
+          prevDialogueSpec.content = undefined;
+        }
+      } else {
+        const spec: ReplaceSpec = {
+          from: dialogueFrom,
+          to: to - 1,
+          widget: DialogueWidget,
+          language: LANGUAGE_SUPPORT.language,
+          highlighter: LANGUAGE_HIGHLIGHTS,
+          block: true,
+          content: dialogueContent,
+        };
+        specs.push(spec);
+        prevDialogueSpec = spec;
+      }
+    }
+    inDialogue = false;
+    inDualDialogue = false;
+  };
+
   tree.iterate({
     from: 0,
     to: doc.length,
@@ -160,6 +206,7 @@ const decorate = (state: EditorState) => {
       const from = nodeRef.node.from;
       const to = nodeRef.node.to;
       if (type.name === NODE_NAMES.FrontMatter) {
+        inFrontMatter = true;
         frontMatterFrom = from;
         frontMatterPositionContent = {};
         return true;
@@ -204,15 +251,7 @@ const decorate = (state: EditorState) => {
         return false;
       }
       if (type.name === NODE_NAMES.FrontMatter_end) {
-        specs.push({
-          from: frontMatterFrom,
-          to,
-          block: true,
-          widget: TitlePageWidget,
-          language: LANGUAGE_SUPPORT.language,
-          highlighter: LANGUAGE_HIGHLIGHTS,
-          ...frontMatterPositionContent,
-        });
+        endFrontMatter(to);
         return false;
       }
       if (type.name === NODE_NAMES.Dialogue) {
@@ -223,30 +262,7 @@ const decorate = (state: EditorState) => {
         return true;
       }
       if (type.name === NODE_NAMES.Dialogue_end) {
-        if (inDialogue) {
-          if (inDualDialogue) {
-            if (prevDialogueSpec) {
-              prevDialogueSpec.to = to - 1;
-              prevDialogueSpec.left = prevDialogueSpec.content;
-              prevDialogueSpec.right = dialogueContent;
-              prevDialogueSpec.content = undefined;
-            }
-          } else {
-            const spec: ReplaceSpec = {
-              from: dialogueFrom,
-              to: to - 1,
-              widget: DialogueWidget,
-              language: LANGUAGE_SUPPORT.language,
-              highlighter: LANGUAGE_HIGHLIGHTS,
-              block: true,
-              content: dialogueContent,
-            };
-            specs.push(spec);
-            prevDialogueSpec = spec;
-          }
-        }
-        inDialogue = false;
-        inDualDialogue = false;
+        endDialogue(to);
         return false;
       }
       if (type.name === NODE_NAMES.Dialogue_begin_character) {
@@ -351,6 +367,8 @@ const decorate = (state: EditorState) => {
       return true;
     },
   });
+  endFrontMatter(doc.length);
+  endDialogue(doc.length);
   const decorations = specs.flatMap((b) => createDecorations(b, doc));
   return specs.length > 0 ? RangeSet.of(decorations) : Decoration.none;
 };
