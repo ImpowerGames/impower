@@ -31,7 +31,9 @@ const foldingTheme = EditorView.baseTheme({
     "--fold-open-color": "#cccccc",
     "--fold-closed-color": "#cccccc",
   },
-
+  "& .cm-foldGutter": {
+    width: "16px",
+  },
   "& .cm-foldGutter .cm-gutterElement .cm-fold-open": {
     color: "var(--fold-open-color)",
   },

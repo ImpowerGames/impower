@@ -285,7 +285,7 @@ export default class Router
       reverseAnimation(this.enterFadeEl, this._enter_fade);
       reverseAnimation(this.enterTransformEl, this._enter_transform);
     } else {
-      const directionSuffix = direction ? `-${direction}` : "-zoom";
+      const directionSuffix = direction ? `-${direction}` : "";
       const enter = getCssAnimation(this.enter, directionSuffix);
       this.updateRootCssVariable("enter", enter);
       const exit = getCssAnimation(this.exit, directionSuffix);
