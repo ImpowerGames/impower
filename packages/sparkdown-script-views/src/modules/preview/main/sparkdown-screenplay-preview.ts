@@ -1,7 +1,7 @@
 import { EditorView } from "@codemirror/view";
+import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage.js";
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage.js";
 import { ConnectedPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
-import { HoveredOffPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage.js";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
 import { LoadPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
@@ -93,6 +93,10 @@ export default class SparkScreenplayPreview
       this.handleDidChangeTextDocument
     );
     window.addEventListener(
+      HoveredOnEditorMessage.method,
+      this.handlePointerLeaveScroller
+    );
+    window.addEventListener(
       ScrolledEditorMessage.method,
       this.handleScrolledEditor
     );
@@ -110,6 +114,10 @@ export default class SparkScreenplayPreview
     window.removeEventListener(
       DidChangeTextDocumentMessage.method,
       this.handleDidChangeTextDocument
+    );
+    window.removeEventListener(
+      HoveredOnEditorMessage.method,
+      this.handlePointerLeaveScroller
     );
     window.removeEventListener(
       ScrolledEditorMessage.method,
@@ -132,12 +140,12 @@ export default class SparkScreenplayPreview
         this._resizeObserver?.observe(scrollDOM);
         scrollDOM.addEventListener("scroll", this.handlePointerScroll);
         view.dom.addEventListener(
-          "pointerenter",
+          "mouseenter",
           this.handlePointerEnterScroller
         );
         view.dom.addEventListener(
-          "pointerleave",
-          this.handlePointerLeaveScroller
+          "touchstart",
+          this.handlePointerEnterScroller
         );
       }
     }
@@ -149,12 +157,12 @@ export default class SparkScreenplayPreview
     if (scrollDOM) {
       scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
       view.dom.removeEventListener(
-        "pointerenter",
+        "mouseenter",
         this.handlePointerEnterScroller
       );
       view.dom.removeEventListener(
-        "pointerleave",
-        this.handlePointerLeaveScroller
+        "touchstart",
+        this.handlePointerEnterScroller
       );
     }
     view.destroy();
@@ -304,15 +312,6 @@ export default class SparkScreenplayPreview
 
   protected handlePointerLeaveScroller = (): void => {
     this._pointerOverScroller = false;
-    if (this._textDocument) {
-      this.emit(
-        HoveredOffPreviewMessage.method,
-        HoveredOffPreviewMessage.type.notification({
-          type: "screenplay",
-          textDocument: this._textDocument,
-        })
-      );
-    }
   };
 
   protected handlePointerScroll = (e: Event): void => {

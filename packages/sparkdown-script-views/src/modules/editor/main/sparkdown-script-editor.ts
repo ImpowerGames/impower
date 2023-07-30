@@ -1,9 +1,11 @@
 import { Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
+import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
 import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { UnfocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
+import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { DidChangeTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidOpenTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
@@ -118,6 +120,10 @@ export default class SparkdownScriptEditor
   protected override onConnected(): void {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.addEventListener(
+      HoveredOnPreviewMessage.method,
+      this.handlePointerLeaveScroller
+    );
+    window.addEventListener(
       ScrolledPreviewMessage.method,
       this.handleScrolledPreview
     );
@@ -125,6 +131,10 @@ export default class SparkdownScriptEditor
 
   protected override onDisconnected(): void {
     window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
+    window.removeEventListener(
+      HoveredOnPreviewMessage.method,
+      this.handlePointerLeaveScroller
+    );
     window.removeEventListener(
       ScrolledPreviewMessage.method,
       this.handleScrolledPreview
@@ -155,14 +165,8 @@ export default class SparkdownScriptEditor
       );
       window.addEventListener("scroll", this.handlePointerScroll);
       view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
-      view.dom.addEventListener(
-        "pointerenter",
-        this.handlePointerEnterScroller
-      );
-      view.dom.addEventListener(
-        "pointerleave",
-        this.handlePointerLeaveScroller
-      );
+      view.dom.addEventListener("mouseenter", this.handlePointerEnterScroller);
+      view.dom.addEventListener("touchstart", this.handlePointerEnterScroller);
     }
   }
 
@@ -173,14 +177,8 @@ export default class SparkdownScriptEditor
     );
     window.removeEventListener("scroll", this.handlePointerScroll);
     view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
-    view.dom.removeEventListener(
-      "pointerenter",
-      this.handlePointerEnterScroller
-    );
-    view.dom.removeEventListener(
-      "pointerleave",
-      this.handlePointerLeaveScroller
-    );
+    view.dom.removeEventListener("mouseenter", this.handlePointerEnterScroller);
+    view.dom.removeEventListener("touchstart", this.handlePointerEnterScroller);
     view.destroy();
   }
 
@@ -351,10 +349,14 @@ export default class SparkdownScriptEditor
 
   protected handlePointerEnterScroller = (): void => {
     this._pointerOverScroller = true;
-  };
-
-  protected handlePointerMoveScroller = (): void => {
-    this._pointerOverScroller = true;
+    if (this._textDocument) {
+      this.emit(
+        HoveredOnEditorMessage.method,
+        HoveredOnEditorMessage.type.notification({
+          textDocument: this._textDocument,
+        })
+      );
+    }
   };
 
   protected handlePointerLeaveScroller = (): void => {
