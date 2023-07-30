@@ -162,11 +162,16 @@ export default class WorkspaceWindow {
     return panelState;
   }
 
-  getActiveEditor(pane: string): { uri: string; visibleRange?: Range } {
+  getActiveEditor(
+    pane: string
+  ): { uri: string; visibleRange?: Range } | undefined {
     const panelState = this.getOpenedPanelState(pane);
-    const filePath = panelState.openFilePath || "";
-    const uri = this._fs.getWorkspaceUri(filePath);
-    return { uri, visibleRange: panelState.visibleRange };
+    const filePath = panelState.openFilePath;
+    if (filePath) {
+      const uri = this._fs.getWorkspaceUri(filePath);
+      return { uri, visibleRange: panelState.visibleRange };
+    }
+    return undefined;
   }
 
   expandedPreviewPane() {

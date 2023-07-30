@@ -35,10 +35,10 @@ export default class LogicList extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "window/logic/panel") {
         const panel = e.detail.value;
+        Workspace.window.openedPanel("logic", panel);
         if (panel === "main") {
           Workspace.window.openedFileEditor("logic", panel, "logic/main.sd");
         }
-        Workspace.window.openedPanel("logic", panel);
       }
     }
   };

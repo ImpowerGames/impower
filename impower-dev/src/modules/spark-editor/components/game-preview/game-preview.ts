@@ -50,22 +50,25 @@ export default class GamePreview extends SEElement {
   };
 
   async loadFile() {
-    const { uri, visibleRange } = Workspace.window.getActiveEditor("logic");
-    const existingText = await Workspace.fs.readTextDocument({
-      textDocument: { uri },
-    });
-    this.emit(
-      LoadPreviewMessage.method,
-      LoadPreviewMessage.type.request({
-        type: "game",
-        textDocument: {
-          uri,
-          languageId: "sparkdown",
-          version: 0,
-          text: existingText,
-        },
-        visibleRange,
-      })
-    );
+    const editor = Workspace.window.getActiveEditor("logic");
+    if (editor) {
+      const { uri, visibleRange } = editor;
+      const existingText = await Workspace.fs.readTextDocument({
+        textDocument: { uri },
+      });
+      this.emit(
+        LoadPreviewMessage.method,
+        LoadPreviewMessage.type.request({
+          type: "game",
+          textDocument: {
+            uri,
+            languageId: "sparkdown",
+            version: 0,
+            text: existingText,
+          },
+          visibleRange,
+        })
+      );
+    }
   }
 }

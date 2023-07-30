@@ -55,22 +55,25 @@ export default class ScriptEditor extends SEElement {
   };
 
   async loadFile() {
-    const { uri, visibleRange } = Workspace.window.getActiveEditor("logic");
-    const existingText = await Workspace.fs.readTextDocument({
-      textDocument: { uri },
-    });
-    await Workspace.lsp.starting;
-    this.emit(
-      LoadEditorMessage.method,
-      LoadEditorMessage.type.request({
-        textDocument: {
-          uri,
-          languageId: "sparkdown",
-          version: 0,
-          text: existingText,
-        },
-        visibleRange,
-      })
-    );
+    const editor = Workspace.window.getActiveEditor("logic");
+    if (editor) {
+      const { uri, visibleRange } = editor;
+      const existingText = await Workspace.fs.readTextDocument({
+        textDocument: { uri },
+      });
+      await Workspace.lsp.starting;
+      this.emit(
+        LoadEditorMessage.method,
+        LoadEditorMessage.type.request({
+          textDocument: {
+            uri,
+            languageId: "sparkdown",
+            version: 0,
+            text: existingText,
+          },
+          visibleRange,
+        })
+      );
+    }
   }
 }
