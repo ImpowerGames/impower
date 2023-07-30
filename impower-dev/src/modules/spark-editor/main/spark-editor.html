@@ -1,10 +1,10 @@
 <s-box bg-color="panel" grow>
+  <s-box bg-color="panel" position="absolute" i="0 0 0 0" height="100vh" translate-y="100%"></s-box>
   <se-header-navigation></se-header-navigation>
   <s-split-pane grow min-panel-width="300px" resizer-color="scrollbar-track" divider-offset="0" responsive
     reveal-event="window/didExpandPreviewPane" unreveal-event="window/didCollapsePreviewPane">
     <se-main-panel slot="start"></se-main-panel>
     <se-preview-panel slot="end"></se-preview-panel>
   </s-split-pane>
-  <s-box bg-color="panel" position="absolute" i="0 0 0 0" height="100vh" translate-y="100%"></s-box>
   <se-footer-navigation></se-footer-navigation>
 </s-box>
