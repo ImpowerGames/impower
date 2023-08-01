@@ -11,7 +11,7 @@ const EDITOR_THEME: {
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
   },
-  ".cm-scroller": {
+  "& .cm-scroller": {
     position: "relative",
     overflow: "visible",
     "&:before": {
@@ -26,7 +26,7 @@ const EDITOR_THEME: {
       pointerEvents: "none",
     },
   },
-  ".cm-content": {
+  "& .cm-content": {
     caretColor: "white",
   },
   "&.cm-focused .cm-cursor": {
@@ -39,54 +39,54 @@ const EDITOR_THEME: {
   "&.cm-focused .cm-nonmatchingBracket": {
     backgroundColor: "transparent",
   },
-  ".cm-snippet & .cm-selectionMatch": {
+  "& .cm-snippet & .cm-selectionMatch": {
     backgroundColor: "transparent",
   },
-  ".cm-snippet & .cm-selectionMatch-main": {
+  "& .cm-snippet & .cm-selectionMatch-main": {
     backgroundColor: "transparent",
   },
-  ".cm-gutters": {
+  "& .cm-gutters": {
     minWidth: "48px",
     backgroundColor: "transparent",
     color: EDITOR_COLORS.lineNumber,
     border: "none",
     opacity: 0.7,
   },
-  ".cm-gutterElement *": {
+  "& .cm-gutterElement *": {
     userSelect: "none",
   },
-  ".cm-gutter.cm-lineNumbers": {
+  "& .cm-gutter.cm-lineNumbers": {
     minWidth: "32px",
   },
-  ".cm-gutter-lint": {
+  "& .cm-gutter-lint": {
     width: "1em",
   },
-  ".cm-foldGutter .cm-gutterElement span": {
+  "& .cm-foldGutter .cm-gutterElement span": {
     width: "1em",
     display: "inline-block",
   },
-  ".cm-lineNumbers .cm-gutterElement": {
+  "& .cm-lineNumbers .cm-gutterElement": {
     padding: "0 2px",
   },
-  ".cm-activeLine": {
+  "& .cm-activeLine": {
     backgroundColor: "#FFFFFF0F",
   },
-  ".cm-search.cm-panel": {
+  "& .cm-search.cm-panel": {
     left: 0,
     right: 0,
     padding: 0,
   },
-  ".cm-foldPlaceholder": {
+  "& .cm-foldPlaceholder": {
     backgroundColor: "transparent",
     border: "none",
     color: "grey",
-    margin: ".1em .4em 0",
+    margin: "& .1em .4em 0",
   },
-  ".cm-lineWrapping": {
+  "& .cm-lineWrapping": {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
-  ".cm-panel.cm-panel-lint": {
+  "& .cm-panel.cm-panel-lint": {
     "& ul": {
       "& [aria-selected]": {
         background_fallback: "#bdf",
@@ -100,199 +100,199 @@ const EDITOR_THEME: {
       color: "white",
     },
   },
-  ".cm-lintRange": {
+  "& .cm-lintRange": {
     backgroundSize: "auto",
   },
-  ".cm-lintRange-active": {
+  "& .cm-lintRange-active": {
     backgroundColor: "#ffdd991a",
   },
-  ".cm-completionMatchedText": {
+  "& .cm-completionMatchedText": {
     textDecoration: "none",
     color: EDITOR_COLORS.match,
   },
-  ".cm-completionLabel": {
+  "& .cm-completionLabel": {
     flex: 1,
   },
-  ".cm-completionDetail": {
+  "& .cm-completionDetail": {
     opacity: 0.55,
     fontSize: "0.85em",
     fontStyle: "normal",
     whiteSpace: "pre-wrap",
     lineHeight: "1",
   },
-  ".cm-completionIcon": {
+  "& .cm-completionIcon": {
     minWidth: "1.75em",
     textAlign: "center",
     padding: 0,
     paddingRight: "2px",
     margin: 0,
   },
-  ".cm-snippetFieldPosition": {
+  "& .cm-snippetFieldPosition": {
     border: "none",
   },
-  ".cm-completionIcon-choice_plus": {
+  "& .cm-completionIcon-choice_plus": {
     "&:after": {
       content: "'⊕'",
       color: EDITOR_COLORS.variableNameAccessor,
     },
   },
-  ".cm-completionIcon-choice_minus": {
+  "& .cm-completionIcon-choice_minus": {
     "&:after": {
       content: "'⊖'",
       color: EDITOR_COLORS.variableNameAccessor,
     },
   },
-  ".cm-completionIcon-section": {
+  "& .cm-completionIcon-section": {
     "&:after": { content: "'#'", color: EDITOR_COLORS.sectionNameDefinition },
   },
-  ".cm-completionIcon-ancestor": {
+  "& .cm-completionIcon-ancestor": {
     "&:after": {
       content: "'⮤'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-parent": {
+  "& .cm-completionIcon-parent": {
     "&:after": {
       content: "'⬑'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-child": {
+  "& .cm-completionIcon-child": {
     "&:after": {
       content: "'⤵'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-first_sibling": {
+  "& .cm-completionIcon-first_sibling": {
     "&:after": {
       content: "'↱'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-last_sibling": {
+  "& .cm-completionIcon-last_sibling": {
     "&:after": {
       content: "'↳'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-next": {
+  "& .cm-completionIcon-next": {
     "&:after": {
       content: "'⭳'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-top": {
+  "& .cm-completionIcon-top": {
     "&:after": {
       content: "'⭱'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-quit": {
+  "& .cm-completionIcon-quit": {
     "&:after": { content: "'×'", color: EDITOR_COLORS.sectionNameDefinition },
   },
-  ".cm-completionIcon-option": {
+  "& .cm-completionIcon-option": {
     "&:after": {
       content: "'☱'",
       color: EDITOR_COLORS.keyword,
     },
   },
-  ".cm-completionIcon-string": {
+  "& .cm-completionIcon-string": {
     "&:after": {
       content: `'α'`,
       color: EDITOR_COLORS.keyword,
     },
   },
-  ".cm-completionIcon-number": {
+  "& .cm-completionIcon-number": {
     "&:after": {
       content: "'#'",
       color: EDITOR_COLORS.keyword,
     },
   },
-  ".cm-completionIcon-boolean": {
+  "& .cm-completionIcon-boolean": {
     "&:after": {
       content: "'?'",
       color: EDITOR_COLORS.keyword,
     },
   },
-  ".cm-completionIcon-array": {
+  "& .cm-completionIcon-array": {
     "&:after": {
       content: `'[]'`,
       color: EDITOR_COLORS.keyword,
     },
   },
-  ".cm-completionIcon-object": {
+  "& .cm-completionIcon-object": {
     "&:after": {
       content: "'{}'",
       color: EDITOR_COLORS.keyword,
     },
   },
-  ".cm-completionIcon-type": {
+  "& .cm-completionIcon-type": {
     "&:after": {
       content: "'ν'",
       color: EDITOR_COLORS.keyword,
     },
   },
-  ".cm-completionIcon-variable": {
+  "& .cm-completionIcon-variable": {
     "&:after": {
       content: "'𝑥'",
       color: EDITOR_COLORS.variableNameAccessor,
     },
   },
-  ".cm-completionIcon-parameter": {
+  "& .cm-completionIcon-parameter": {
     "&:after": {
       content: "'ρ'",
       color: EDITOR_COLORS.variableNameDefinition,
     },
   },
-  ".cm-completionIcon-trigger": {
+  "& .cm-completionIcon-trigger": {
     "&:after": {
       content: "'𝑡'",
       color: EDITOR_COLORS.trigger,
     },
   },
-  ".cm-completionIcon-asset": {
+  "& .cm-completionIcon-asset": {
     "&:after": { content: "'Ꭿ'", color: EDITOR_COLORS.asset },
   },
-  ".cm-completionIcon-struct": {
+  "& .cm-completionIcon-struct": {
     "&:after": { content: "'ʂ'", color: EDITOR_COLORS.struct },
   },
-  ".cm-completionIcon-tag": {
+  "& .cm-completionIcon-tag": {
     "&:after": { content: "'Ť'", color: EDITOR_COLORS.tag },
   },
-  ".cm-completionIcon-class": {
+  "& .cm-completionIcon-class": {
     "&:after": { content: "'○'", color: EDITOR_COLORS.dialogue },
   },
-  ".cm-completionIcon-method": {
+  "& .cm-completionIcon-method": {
     "&:after": {
       content: "'m'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-function": {
+  "& .cm-completionIcon-function": {
     "&:after": {
       content: "'ƒ'",
       color: EDITOR_COLORS.sectionNameDefinition,
     },
   },
-  ".cm-completionIcon-character": {
+  "& .cm-completionIcon-character": {
     "&:after": { content: "'𝐶'", color: EDITOR_COLORS.dialogueCharacter },
   },
-  ".cm-completionIcon-transition": {
+  "& .cm-completionIcon-transition": {
     "&:after": { content: "'Ŧ'", color: EDITOR_COLORS.transition },
   },
-  ".cm-completionIcon-scene": {
+  "& .cm-completionIcon-scene": {
     "&:after": { content: "'Տ'", color: EDITOR_COLORS.scene },
   },
-  ".cm-completionIcon-condition": {
+  "& .cm-completionIcon-condition": {
     "&:after": { content: "'✓'", color: EDITOR_COLORS.condition },
   },
-  ".cm-completionIcon-module": {
+  "& .cm-completionIcon-module": {
     "&:after": { content: "'⩀'", color: EDITOR_COLORS.variableNameAccessor },
   },
-  ".cm-diagnosticText": {
+  "& .cm-diagnosticText": {
     marginRight: "16px",
   },
-  ".cm-diagnosticAction": {
+  "& .cm-diagnosticAction": {
     backgroundColor: "transparent",
     fontWeight: "600",
     padding: "0",
@@ -302,24 +302,27 @@ const EDITOR_THEME: {
     marginLeft: "0",
     marginRight: "8px",
   },
-  ".cm-lint-marker": {
+  "& .cm-lint-marker": {
     display: "none",
     width: "0.8em",
     height: "0.8em",
   },
-  ".cm-lint & .cm-lint-marker": {
+  "& .cm-lint & .cm-lint-marker": {
     display: "block",
     width: "0.8em",
     height: "0.8em",
   },
-  ".cm-tooltip": {
+  "& .cm-tooltip": {
     backgroundColor: EDITOR_COLORS.tooltip,
   },
-  ".cm-tooltip-autocomplete ul li[aria-selected]": {
+  "& .cm-tooltip-autocomplete ul li[aria-selected]": {
     background: EDITOR_COLORS.selected,
   },
-  ".cm-valueInfo": {
+  "& .cm-valueInfo": {
     fontFamily: "monospace",
+  },
+  "& .cm-highlightSpace": {
+    opacity: "0.5",
   },
 };
 

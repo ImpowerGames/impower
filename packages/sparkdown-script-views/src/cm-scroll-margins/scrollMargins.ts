@@ -27,15 +27,5 @@ export const scrollMargins = (config: ScrollMarginsConfig = {}): Extension => {
         }),
     }
   );
-  return [
-    marginPlugin,
-    EditorView.baseTheme({
-      ".cm-content": {
-        ...(config?.top ? { paddingTop: `${config.top}px` } : {}),
-        ...(config?.bottom ? { paddingBottom: `${config.bottom}px` } : {}),
-        ...(config?.left ? { paddingLeft: `${config.left}px` } : {}),
-        ...(config?.right ? { paddingRight: `${config.right}px` } : {}),
-      },
-    }),
-  ];
+  return [marginPlugin];
 };

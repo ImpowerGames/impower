@@ -1,5 +1,4 @@
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
-import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage.js";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
@@ -59,16 +58,6 @@ const load = async () => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "screenplay") {
-          vscode.postMessage(message);
-        }
-      }
-    }
-  });
-  window.addEventListener(HoveredOffPreviewMessage.method, (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (HoveredOffPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           vscode.postMessage(message);
         }

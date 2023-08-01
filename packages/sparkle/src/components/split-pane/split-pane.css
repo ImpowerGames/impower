@@ -241,10 +241,20 @@
     display: flex;
     transform: translate(0);
   }
+  :host([reveal]:not([vertical], [primary="end"])[responsive="hide"])
+    > .root
+    > .panel {
+    display: none;
+  }
 
   /* Reveal start panel */
   :host([reveal][primary="end"]:not([vertical])[responsive]) > .root > .panel {
     display: flex;
     transform: translate(0);
+  }
+  :host([reveal][primary="end"]:not([vertical])[responsive="hide"])
+    > .root
+    > .panel {
+    display: none;
   }
 }

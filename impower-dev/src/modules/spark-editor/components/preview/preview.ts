@@ -2,14 +2,10 @@ import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_preview";
 
-const DEFAULT_DEPENDENCIES = {
-  "sparkdown-screenplay-preview": "sparkdown-screenplay-preview",
-};
-
 export default class Preview extends SEElement {
   static override async define(
     tag = "se-preview",
-    dependencies = DEFAULT_DEPENDENCIES,
+    dependencies?: Record<string, string>,
     useShadowDom = true
   ) {
     return super.define(tag, dependencies, useShadowDom);
@@ -17,10 +13,6 @@ export default class Preview extends SEElement {
 
   override get component() {
     return component({ store: Workspace.window.state });
-  }
-
-  override transformHtml(html: string): string {
-    return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   get gameToolbarEl() {

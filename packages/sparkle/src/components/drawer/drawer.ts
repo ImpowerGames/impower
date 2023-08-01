@@ -3,10 +3,6 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import SparkleElement from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
-import {
-  lockBodyScrolling,
-  unlockBodyScrolling,
-} from "../../utils/bodyScrolling";
 import component from "./_drawer";
 
 const CLOSING_EVENT = "closing";
@@ -90,13 +86,9 @@ export default class Drawer
 
   protected override onParsed(): void {
     this.root.hidden = !this.open;
-    if (this.open) {
-      lockBodyScrolling(this);
-    }
   }
 
   protected override onDisconnected(): void {
-    unlockBodyScrolling(this);
     this.dialog.removeEventListener("click", this.handleLightDismiss);
     this.dialog.removeEventListener("close", this.handleEscapeClose);
     this.emit(REMOVED_EVENT);
@@ -115,7 +107,6 @@ export default class Drawer
     this.setAttribute("loaded", "");
     if (modal) {
       this.dialog.showModal();
-      lockBodyScrolling(this);
     } else {
       this.dialog.show();
     }

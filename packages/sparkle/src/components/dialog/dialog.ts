@@ -7,10 +7,6 @@ import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIc
 import SparkleElement from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { animationsComplete } from "../../utils/animationsComplete";
-import {
-  lockBodyScrolling,
-  unlockBodyScrolling,
-} from "../../utils/bodyScrolling";
 import component from "./_dialog";
 
 const CLOSING_EVENT = "closing";
@@ -276,13 +272,9 @@ export default class Dialog
 
   protected override onParsed(): void {
     this.root.hidden = !this.open;
-    if (this.open) {
-      lockBodyScrolling(this);
-    }
   }
 
   protected override onDisconnected(): void {
-    unlockBodyScrolling(this);
     this.dialogEl.removeEventListener("click", this.handleLightDismiss);
     this.dialogEl.removeEventListener("close", this.handleEscapeClose);
     this.cancelButton?.removeEventListener("click", this.handleClickClose);
@@ -361,7 +353,6 @@ export default class Dialog
     this.setAttribute("loaded", "");
     if (modal) {
       this.dialogEl.showModal();
-      lockBodyScrolling(this);
     } else {
       this.dialogEl.show();
     }

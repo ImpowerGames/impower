@@ -4,14 +4,10 @@ import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_game-preview";
 
-const DEFAULT_DEPENDENCIES = {
-  "spark-game-preview": "spark-game-preview",
-};
-
 export default class GamePreview extends SEElement {
   static override async define(
     tag = "se-game-preview",
-    dependencies = DEFAULT_DEPENDENCIES,
+    dependencies?: Record<string, string>,
     useShadowDom = true
   ) {
     return super.define(tag, dependencies, useShadowDom);
@@ -19,10 +15,6 @@ export default class GamePreview extends SEElement {
 
   override get component() {
     return component();
-  }
-
-  override transformHtml(html: string) {
-    return SEElement.augmentHtml(html, DEFAULT_DEPENDENCIES);
   }
 
   protected override onConnected(): void {

@@ -2,10 +2,6 @@ import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import { animationsComplete } from "../../utils/animationsComplete";
-import {
-  lockBodyScrolling,
-  unlockBodyScrolling,
-} from "../../utils/bodyScrolling";
 import { waitForEvent } from "../../utils/events";
 import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";
@@ -240,7 +236,6 @@ export default class Dropdown
 
     dialogEl.style.visibility = "hidden";
     dialogEl.showModal();
-    lockBodyScrolling(this);
 
     this.start();
 
@@ -273,7 +268,6 @@ export default class Dropdown
     }
 
     this.dialogEl.close();
-    unlockBodyScrolling(this);
 
     this.stop();
 

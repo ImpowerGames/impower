@@ -4,8 +4,11 @@ import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/
 import { ConnectedPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage.js";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage.js";
 import { LoadPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
+import { RevealPreviewRangeMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/RevealPreviewRangeMessage.js";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
 import { DidChangeTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage.js";
+import { DidCollapsePreviewPaneMessage } from "../../../../../spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage.js";
+import { DidExpandPreviewPaneMessage } from "../../../../../spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage.js";
 import {
   Range,
   TextDocumentIdentifier,
@@ -17,12 +20,15 @@ import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttri
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";
 import { closestAncestor } from "../../../utils/closestAncestor.js";
-import { getScrollableParent } from "../../../utils/getScrollableParent.js";
+import { getScrollClientHeight } from "../../../utils/getScrollClientHeight.js";
+import { getScrollTop } from "../../../utils/getScrollTop.js";
+import { getVisibleRange } from "../../../utils/getVisibleRange.js";
+import { scrollY } from "../../../utils/scrollY";
 import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-screenplay-preview";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["scroll-margin"]),
+  ...getAttributeNameMap(["scroll-margin", "content-padding"]),
 };
 
 export default class SparkScreenplayPreview
@@ -57,11 +63,21 @@ export default class SparkScreenplayPreview
     );
   }
 
+  get contentPadding() {
+    return this.getStringAttribute(
+      SparkScreenplayPreview.attributes.contentPadding
+    );
+  }
+  set contentPadding(value) {
+    this.setStringAttribute(
+      SparkScreenplayPreview.attributes.contentPadding,
+      value
+    );
+  }
+
   get editorEl() {
     return this.getElementByClass("editor");
   }
-
-  protected _textDocument?: TextDocumentIdentifier;
 
   protected _loadingRequest?: number | string;
 
@@ -69,25 +85,48 @@ export default class SparkScreenplayPreview
 
   protected _loaded = false;
 
+  protected _textDocument?: TextDocumentIdentifier;
+
   protected _view?: EditorView;
 
-  protected _resizeObserver?: ResizeObserver;
+  protected _possibleScroller?: HTMLElement | null;
 
-  protected _startVisibleLineNumber = 0;
+  protected _visibleRange?: Range;
 
-  protected _endVisibleLineNumber = 0;
-
-  protected _scrollDOM?: HTMLElement;
-
-  protected _scrollTop = 0;
-
-  protected _viewportHeight = 0;
+  protected _domClientY = 0;
 
   protected _userInitiatedScroll = false;
 
+  protected _contentPadding: {
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+  } = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
+
+  protected _scrollMargin: {
+    top?: number;
+    bottom?: number;
+    left?: number;
+    right?: number;
+  } = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
+
   protected override onConnected(): void {
-    this._resizeObserver = new ResizeObserver(this.handleViewportResize);
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
+    window.addEventListener(
+      RevealPreviewRangeMessage.method,
+      this.handleRevealPreviewRange
+    );
     window.addEventListener(
       DidChangeTextDocumentMessage.method,
       this.handleDidChangeTextDocument
@@ -95,6 +134,14 @@ export default class SparkScreenplayPreview
     window.addEventListener(
       HoveredOnEditorMessage.method,
       this.handlePointerLeaveScroller
+    );
+    window.addEventListener(
+      DidExpandPreviewPaneMessage.method,
+      this.handleExpandPreviewPane
+    );
+    window.addEventListener(
+      DidCollapsePreviewPaneMessage.method,
+      this.handleCollapsePreviewPane
     );
     window.addEventListener(
       ScrolledEditorMessage.method,
@@ -112,12 +159,24 @@ export default class SparkScreenplayPreview
       this.handleLoadPreview
     );
     window.removeEventListener(
+      RevealPreviewRangeMessage.method,
+      this.handleRevealPreviewRange
+    );
+    window.removeEventListener(
       DidChangeTextDocumentMessage.method,
       this.handleDidChangeTextDocument
     );
     window.removeEventListener(
       HoveredOnEditorMessage.method,
       this.handlePointerLeaveScroller
+    );
+    window.removeEventListener(
+      DidExpandPreviewPaneMessage.method,
+      this.handleExpandPreviewPane
+    );
+    window.removeEventListener(
+      DidCollapsePreviewPaneMessage.method,
+      this.handleCollapsePreviewPane
     );
     window.removeEventListener(
       ScrolledEditorMessage.method,
@@ -130,43 +189,35 @@ export default class SparkScreenplayPreview
   }
 
   protected bindView(view: EditorView) {
-    if (view) {
-      this._scrollDOM =
-        (closestAncestor(`:is([overflow-x], [overflow-y])`, view.scrollDOM)
-          ?.shadowRoot?.firstElementChild as HTMLElement) ||
-        getScrollableParent(this.getRootNode().parentElement);
-      const scrollDOM = this._scrollDOM;
-      if (scrollDOM) {
-        this._resizeObserver?.observe(scrollDOM);
-        scrollDOM.addEventListener("scroll", this.handlePointerScroll);
-        view.dom.addEventListener(
-          "mouseenter",
-          this.handlePointerEnterScroller,
-          { passive: true }
-        );
-        view.dom.addEventListener(
-          "touchstart",
-          this.handlePointerEnterScroller,
-          { passive: true }
-        );
-      }
-    }
+    this._domClientY = view.dom.offsetTop;
+    this._possibleScroller = closestAncestor(`.scrollable`, view.scrollDOM);
+    this._possibleScroller?.addEventListener(
+      "scroll",
+      this.handlePointerScroll
+    );
+    window.addEventListener("scroll", this.handlePointerScroll);
+    view.scrollDOM.addEventListener("scroll", this.handlePointerScroll);
+    view.dom.addEventListener("touchstart", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    view.dom.addEventListener("mouseenter", this.handlePointerEnterScroller, {
+      passive: true,
+    });
+    view.dom.addEventListener("mouseleave", this.handlePointerLeaveScroller, {
+      passive: true,
+    });
   }
 
   protected unbindView(view: EditorView) {
-    this._resizeObserver?.disconnect();
-    const scrollDOM = this._scrollDOM;
-    if (scrollDOM) {
-      scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
-      view.dom.removeEventListener(
-        "mouseenter",
-        this.handlePointerEnterScroller
-      );
-      view.dom.removeEventListener(
-        "touchstart",
-        this.handlePointerEnterScroller
-      );
-    }
+    this._possibleScroller?.removeEventListener(
+      "scroll",
+      this.handlePointerScroll
+    );
+    window.removeEventListener("scroll", this.handlePointerScroll);
+    view.scrollDOM.removeEventListener("scroll", this.handlePointerScroll);
+    view.dom.removeEventListener("touchstart", this.handlePointerEnterScroller);
+    view.dom.removeEventListener("mouseenter", this.handlePointerEnterScroller);
+    view.dom.removeEventListener("mouseleave", this.handlePointerLeaveScroller);
     view.destroy();
   }
 
@@ -180,6 +231,28 @@ export default class SparkScreenplayPreview
         this._loadingRequest = message.id;
         if (textDocument.uri !== this._textDocument?.uri) {
           this.loadTextDocument(textDocument, visibleRange);
+        }
+      }
+    }
+  };
+
+  protected handleExpandPreviewPane = (): void => {
+    this.revealRange(this._visibleRange);
+  };
+
+  protected handleCollapsePreviewPane = (): void => {
+    this._userInitiatedScroll = false;
+  };
+
+  protected handleRevealPreviewRange = (e: Event): void => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (RevealPreviewRangeMessage.type.isRequest(message)) {
+        const params = message.params;
+        const textDocument = params.textDocument;
+        const range = params.range;
+        if (textDocument.uri !== this._textDocument?.uri) {
+          this.revealRange(range);
         }
       }
     }
@@ -207,6 +280,7 @@ export default class SparkScreenplayPreview
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (ScrolledEditorMessage.type.isNotification(message)) {
+        this._userInitiatedScroll = false;
         const params = message.params;
         const textDocument = params.textDocument;
         const range = params.range;
@@ -229,13 +303,15 @@ export default class SparkScreenplayPreview
     this._textDocument = textDocument;
     const editorEl = this.editorEl;
     if (editorEl) {
-      const scrollMargin = getBoxValues(this.scrollMargin);
+      this._scrollMargin = getBoxValues(this.scrollMargin);
+      this._contentPadding = getBoxValues(this.contentPadding);
       if (this._view) {
         this._view.destroy();
       }
       this._view = createEditorView(editorEl, {
         textDocument,
-        scrollMargin,
+        scrollMargin: this._scrollMargin,
+        contentPadding: this._contentPadding,
         onIdle: this.handleIdle,
       });
       this.bindView(this._view);
@@ -249,27 +325,30 @@ export default class SparkScreenplayPreview
   protected revealRange(range: Range | undefined) {
     const view = this._view;
     if (view) {
-      const doc = view.state.doc;
-      const scrollDOM = this._scrollDOM;
-      if (scrollDOM) {
-        if (range) {
-          const startLineNumber = range.start.line + 1;
-          const endLineNumber = range.end.line + 1;
-          if (startLineNumber <= 1) {
-            scrollDOM.scrollTop = 0;
-          } else if (endLineNumber >= doc.lines) {
-            scrollDOM.scrollTop = scrollDOM.scrollHeight;
-          } else {
-            const pos = doc.line(Math.max(1, startLineNumber)).from;
-            view.dispatch({
-              effects: EditorView.scrollIntoView(pos, {
-                y: "start",
-              }),
-            });
-          }
+      if (range) {
+        const doc = view.state.doc;
+        const startLineNumber = range.start.line + 1;
+        const endLineNumber = range.end.line + 1;
+        if (startLineNumber <= 1) {
+          scrollY(0, this._possibleScroller, view.scrollDOM);
+        } else if (endLineNumber >= doc.lines) {
+          scrollY(Infinity, this._possibleScroller, view.scrollDOM);
         } else {
-          scrollDOM.scrollTop = 0;
+          const pos = doc.line(Math.max(1, startLineNumber)).from;
+          view.dispatch({
+            effects: EditorView.scrollIntoView(pos, {
+              y: "start",
+            }),
+          });
         }
+        if (
+          range.start.line !== this._visibleRange?.start?.line ||
+          range.end.line !== this._visibleRange?.end?.line
+        ) {
+          this._visibleRange = range;
+        }
+      } else {
+        scrollY(0, this._possibleScroller, view.scrollDOM);
       }
     }
   }
@@ -288,14 +367,6 @@ export default class SparkScreenplayPreview
         );
         this._loadingRequest = undefined;
       }
-    }
-  };
-
-  protected handleViewportResize = (entries: ResizeObserverEntry[]): void => {
-    const entry = entries?.[0];
-    const viewportHeight = entry?.borderBoxSize?.[0]?.blockSize;
-    if (viewportHeight) {
-      this._viewportHeight = viewportHeight;
     }
   };
 
@@ -318,43 +389,27 @@ export default class SparkScreenplayPreview
 
   protected handlePointerScroll = (e: Event): void => {
     if (this._userInitiatedScroll) {
-      const scrollEl = e.target as HTMLElement;
-      const scrollTop =
-        scrollEl?.scrollTop != null ? scrollEl?.scrollTop : window.scrollY;
-      this._scrollTop = scrollTop;
-      const scrollBottom = scrollTop + this._viewportHeight;
+      const scrollTarget = e.target;
       const view = this._view;
       if (view) {
-        const doc = view.state.doc;
-        const firstVisibleLineFrom = view.lineBlockAtHeight(scrollTop).from;
-        const startLine = doc.lineAt(firstVisibleLineFrom);
-        const startLineNumber = scrollTop <= 0 ? 1 : startLine.number;
-        const lastVisibleLineFrom = view.lineBlockAtHeight(scrollBottom).from;
-        const endLine = doc.lineAt(lastVisibleLineFrom);
-        const endLineNumber = endLine.number;
-        const endLineLength = endLine.to - endLine.from;
+        const scrollClientHeight = getScrollClientHeight(scrollTarget);
+        const insetBottom = this._contentPadding.bottom ?? 0;
+        const scrollTop = getScrollTop(scrollTarget);
+        const scrollBottom =
+          scrollTop + scrollClientHeight - this._domClientY - insetBottom;
+        const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);
         if (
-          startLineNumber !== this._startVisibleLineNumber ||
-          endLineNumber !== this._endVisibleLineNumber
+          visibleRange.start.line !== this._visibleRange?.start?.line ||
+          visibleRange.end.line !== this._visibleRange?.end?.line
         ) {
-          this._startVisibleLineNumber = startLineNumber;
-          this._endVisibleLineNumber = endLineNumber;
+          this._visibleRange = visibleRange;
           if (this._textDocument) {
             this.emit(
               ScrolledPreviewMessage.method,
               ScrolledPreviewMessage.type.notification({
                 type: "screenplay",
                 textDocument: this._textDocument,
-                range: {
-                  start: {
-                    line: startLineNumber - 1,
-                    character: 0,
-                  },
-                  end: {
-                    line: endLineNumber - 1,
-                    character: Math.max(0, endLineLength - 1),
-                  },
-                },
+                range: visibleRange,
               })
             );
           }

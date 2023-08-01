@@ -1,7 +1,6 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConnectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ConnectedPreviewMessage";
-import { HoveredOffPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOffPreviewMessage";
 import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
@@ -105,11 +104,6 @@ export class SparkdownPreviewScreenplayPanelManager {
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
         if (message.params.type === "screenplay") {
           this._hovering = true;
-        }
-      }
-      if (HoveredOffPreviewMessage.type.isNotification(message)) {
-        if (message.params.type === "screenplay") {
-          this._hovering = false;
         }
       }
       if (ScrolledPreviewMessage.type.isNotification(message)) {
@@ -340,7 +334,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           </style>
         </head>
         <body>
-          <sparkdown-screenplay-preview></sparkdown-screenplay-preview>
+          <sparkdown-screenplay-preview content-padding="0 24px 0 24px"></sparkdown-screenplay-preview>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>

@@ -11,7 +11,7 @@ const PREVIEW_THEME: {
     backgroundRepeat: "repeat",
     color: "#333",
   },
-  ".cm-scroller": {
+  "& .cm-scroller": {
     fontFamily: "Courier Prime",
     fontSize: "1rem",
     overflow: "visible",
@@ -28,8 +28,8 @@ const PREVIEW_THEME: {
       pointerEvents: "none",
     },
   },
-  ".cm-content": {
-    padding: "68px 24px 136px 24px", // 24px ≈ 0.25 inch
+  "& .cm-content": {
+    paddingInline: "24px", // 24px ≈ 0.25 inch
     margin: "auto",
     maxWidth: "664px",
     minHeight: "calc(96px * 11)", // US-Letter height = 11 inch
@@ -43,7 +43,7 @@ const PREVIEW_THEME: {
       zIndex: "-1",
     },
   },
-  ".cm-lineWrapping": {
+  "& .cm-lineWrapping": {
     overflowWrap: "break-word",
     whiteSpace: "pre-wrap",
   },
