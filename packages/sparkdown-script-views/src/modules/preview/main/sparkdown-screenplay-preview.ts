@@ -27,6 +27,8 @@ import { scrollY } from "../../../utils/scrollY";
 import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-screenplay-preview";
 
+const CONTENT_PADDING_TOP = 68;
+
 const DEFAULT_ATTRIBUTES = {
   ...getAttributeNameMap(["scroll-margin"]),
 };
@@ -377,7 +379,7 @@ export default class SparkScreenplayPreview
       if (view) {
         const scrollClientHeight = getScrollClientHeight(scrollTarget);
         const insetBottom = this._scrollMargin.bottom ?? 0;
-        const scrollTop = getScrollTop(scrollTarget);
+        const scrollTop = getScrollTop(scrollTarget) - CONTENT_PADDING_TOP;
         const scrollBottom =
           scrollTop + scrollClientHeight - this._domClientY - insetBottom;
         const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);

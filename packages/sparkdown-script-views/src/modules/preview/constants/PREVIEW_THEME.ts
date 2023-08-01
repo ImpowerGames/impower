@@ -30,7 +30,7 @@ const PREVIEW_THEME: {
     },
   },
   "& .cm-content": {
-    padding: "0 24px 68px 24px", // 24px ≈ 0.25 inch
+    padding: "68px 24px 68px 24px", // 24px ≈ 0.25 inch
     margin: "auto",
     maxWidth: "664px",
     minHeight: "calc(96px * 11)", // US-Letter height = 11 inch

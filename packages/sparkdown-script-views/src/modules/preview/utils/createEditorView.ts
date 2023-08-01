@@ -53,8 +53,8 @@ const createEditorView = (
         }
       }),
       screenplayFormatting(),
-      // lineNumbers(),
       scrollMargins(scrollMargin),
+      // lineNumbers(),
     ],
   });
   const view = new EditorView({
