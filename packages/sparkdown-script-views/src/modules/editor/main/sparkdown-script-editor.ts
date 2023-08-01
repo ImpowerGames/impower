@@ -403,6 +403,7 @@ export default class SparkdownScriptEditor
           visibleRange.start.line !== this._visibleRange?.start?.line ||
           visibleRange.end.line !== this._visibleRange?.end?.line
         ) {
+          console.log("editor", visibleRange.start.line, visibleRange.end.line);
           this._visibleRange = visibleRange;
           if (this._textDocument) {
             this.emit(

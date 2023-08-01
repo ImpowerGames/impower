@@ -376,6 +376,11 @@ export default class SparkScreenplayPreview
           visibleRange.start.line !== this._visibleRange?.start?.line ||
           visibleRange.end.line !== this._visibleRange?.end?.line
         ) {
+          console.log(
+            "preview",
+            visibleRange.start.line,
+            visibleRange.end.line
+          );
           this._visibleRange = visibleRange;
           if (this._textDocument) {
             this.emit(
