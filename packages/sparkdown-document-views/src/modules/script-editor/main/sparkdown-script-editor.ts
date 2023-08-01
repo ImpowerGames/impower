@@ -89,10 +89,6 @@ export default class SparkdownScriptEditor
     );
   }
 
-  get editorEl() {
-    return this.getElementByClass("editor");
-  }
-
   protected _loadingRequest?: string | number;
 
   protected _initialized = false;
@@ -287,8 +283,8 @@ export default class SparkdownScriptEditor
     this._initialized = false;
     this._loaded = false;
     this._textDocument = textDocument;
-    const editorEl = this.editorEl;
-    if (editorEl) {
+    const root = this.root;
+    if (root) {
       const debouncedSave = debounce((text: Text) => {
         if (this._textDocument) {
           this.emit(
@@ -301,7 +297,7 @@ export default class SparkdownScriptEditor
         }
       }, this.autosaveDelay);
       this._scrollMargin = getBoxValues(this.scrollMargin);
-      this._view = createEditorView(editorEl, {
+      this._view = createEditorView(root, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
         serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,

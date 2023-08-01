@@ -1,5 +1,6 @@
-import SparkdownScriptEditor from "@impower/sparkdown-script-views/src/modules/editor/index.js";
-import SparkdownScriptPreview from "@impower/sparkdown-script-views/src/modules/preview/index.js";
+import SparkWebPlayer from "@impower/spark-web-player/src/index.js";
+import SparkdownScreenplayPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/index.js";
+import SparkdownScriptEditor from "@impower/sparkdown-document-views/src/modules/script-editor/index.js";
 import Sparkle from "@impower/sparkle/src/index.js";
 import SparkEditor from "../modules/spark-editor/index";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
@@ -7,6 +8,7 @@ import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 const load = async () => {
   await Promise.allSettled([
     Sparkle.init(),
+    SparkWebPlayer.init(),
     SparkdownScriptEditor.init({
       languageServerConnection: Workspace.lsp.connection,
       fileSystemReader: {
@@ -14,7 +16,7 @@ const load = async () => {
         read: (uri: string) => Workspace.fs.readFile({ file: { uri } }),
       },
     }),
-    SparkdownScriptPreview.init(),
+    SparkdownScreenplayPreview.init(),
     SparkEditor.init(),
   ]);
   document.body.classList.add("ready");

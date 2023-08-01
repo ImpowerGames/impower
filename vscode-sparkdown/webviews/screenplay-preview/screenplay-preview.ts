@@ -3,7 +3,7 @@ import { HoveredOnPreviewMessage } from "@impower/spark-editor-protocol/src/prot
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
 import { ScrolledPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage.js";
 import { SelectedPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/SelectedPreviewMessage.js";
-import SparkdownScriptPreview from "@impower/sparkdown-script-views/src/modules/preview/index.js";
+import SparkdownScriptPreview from "@impower/sparkdown-document-views/src/modules/screenplay-preview/index.js";
 
 declare var acquireVsCodeApi: any;
 

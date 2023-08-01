@@ -65,10 +65,6 @@ export default class SparkScreenplayPreview
     );
   }
 
-  get editorEl() {
-    return this.getElementByClass("editor");
-  }
-
   protected _loadingRequest?: number | string;
 
   protected _initialized = false;
@@ -284,13 +280,13 @@ export default class SparkScreenplayPreview
     this._initialized = false;
     this._loaded = false;
     this._textDocument = textDocument;
-    const editorEl = this.editorEl;
-    if (editorEl) {
+    const root = this.root;
+    if (root) {
       this._scrollMargin = getBoxValues(this.scrollMargin);
       if (this._view) {
         this._view.destroy();
       }
-      this._view = createEditorView(editorEl, {
+      this._view = createEditorView(root, {
         textDocument,
         scrollMargin: this._scrollMargin,
         onIdle: this.handleIdle,

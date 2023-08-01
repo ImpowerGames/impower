@@ -1,7 +1,7 @@
 {
-  "name": "@impower/sparkdown-script-views",
-  "displayName": "Sparkdown Script Views",
-  "description": "Web components for viewing and editing sparkdown scripts. Includes a text editor and screenplay previewer.",
+  "name": "@impower/sparkdown-document-views",
+  "displayName": "Sparkdown Document Views",
+  "description": "Web components for viewing and editing sparkdown documents. Includes a text editor and screenplay previewer.",
   "version": "0.0.1",
   "dependencies": {
     "@codemirror/autocomplete": "^6.8.1",

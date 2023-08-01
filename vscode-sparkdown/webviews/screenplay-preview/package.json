@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@impower/spark-editor-protocol": "file:../../../packages/spark-editor-protocol",
-    "@impower/sparkdown-script-views": "file:../../../packages/sparkdown-script-views"
+    "@impower/sparkdown-document-views": "file:../../../packages/sparkdown-document-views"
   },
   "scripts": {
     "build": "node ./esbuild.js",
