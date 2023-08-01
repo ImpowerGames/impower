@@ -5,13 +5,14 @@ const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&": {
+    fontFamily: "Courier Prime Sans",
     color: EDITOR_COLORS.foreground,
     backgroundColor: EDITOR_COLORS.background,
     flex: 1,
-    fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
   },
   "& .cm-scroller": {
+    fontFamily: "Courier Prime Sans",
     position: "relative",
     overflow: "visible",
     "&:before": {

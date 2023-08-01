@@ -4,6 +4,7 @@ const PREVIEW_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&": {
+    fontFamily: "Courier Prime",
     transition: "opacity 0.25s",
     opacity: 0,
     flex: 1,
