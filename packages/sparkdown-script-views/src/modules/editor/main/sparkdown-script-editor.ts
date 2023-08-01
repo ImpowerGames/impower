@@ -35,11 +35,7 @@ import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-script-editor";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap([
-    "scroll-margin",
-    "content-padding",
-    "autosave-delay",
-  ]),
+  ...getAttributeNameMap(["scroll-margin", "autosave-delay"]),
 };
 
 export default class SparkdownScriptEditor
@@ -80,18 +76,6 @@ export default class SparkdownScriptEditor
     );
   }
 
-  get contentPadding() {
-    return this.getStringAttribute(
-      SparkdownScriptEditor.attributes.contentPadding
-    );
-  }
-  set contentPadding(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.contentPadding,
-      value
-    );
-  }
-
   get autosaveDelay() {
     return (
       this.getNumberAttribute(SparkdownScriptEditor.attributes.autosaveDelay) ??
@@ -124,18 +108,6 @@ export default class SparkdownScriptEditor
   protected _userInitiatedScroll = false;
 
   protected _scrollMargin: {
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
-  } = {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  };
-
-  protected _contentPadding: {
     top?: number;
     bottom?: number;
     left?: number;
@@ -311,14 +283,12 @@ export default class SparkdownScriptEditor
         }
       }, this.autosaveDelay);
       this._scrollMargin = getBoxValues(this.scrollMargin);
-      this._contentPadding = getBoxValues(this.contentPadding);
       this._view = createEditorView(editorEl, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
         serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,
         textDocument: this._textDocument,
         scrollMargin: this._scrollMargin,
-        contentPadding: this._contentPadding,
         onFocus: () => {
           this._editing = true;
           if (this._textDocument) {
@@ -425,7 +395,7 @@ export default class SparkdownScriptEditor
       if (view) {
         const scrollTop = getScrollTop(scrollTarget);
         const scrollClientHeight = getScrollClientHeight(scrollTarget);
-        const insetBottom = this._contentPadding.bottom ?? 0;
+        const insetBottom = this._scrollMargin.bottom ?? 0;
         const scrollBottom =
           scrollTop + scrollClientHeight - this._domClientY - insetBottom;
         const visibleRange = getVisibleRange(view, scrollTop, scrollBottom);

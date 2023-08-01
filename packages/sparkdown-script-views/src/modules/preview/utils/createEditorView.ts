@@ -13,12 +13,6 @@ interface EditorConfig {
     left?: number;
     right?: number;
   };
-  contentPadding?: {
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
-  };
   stabilizationDuration?: number;
   onFocus?: () => void;
   onBlur?: () => void;
@@ -32,7 +26,6 @@ const createEditorView = (
 ): EditorView => {
   const textDocument = config?.textDocument;
   const scrollMargin = config?.scrollMargin;
-  const contentPadding = config?.contentPadding;
   const stabilizationDuration = 200;
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
@@ -62,22 +55,6 @@ const createEditorView = (
       screenplayFormatting(),
       // lineNumbers(),
       scrollMargins(scrollMargin),
-      EditorView.baseTheme({
-        "& .cm-content": {
-          ...(contentPadding?.top != null
-            ? { paddingTop: `${contentPadding.top}px` }
-            : {}),
-          ...(contentPadding?.bottom != null
-            ? { paddingBottom: `${contentPadding.bottom}px` }
-            : {}),
-          ...(contentPadding?.left != null
-            ? { paddingLeft: `${contentPadding.left}px` }
-            : {}),
-          ...(contentPadding?.right != null
-            ? { paddingRight: `${contentPadding.right}px` }
-            : {}),
-        },
-      }),
     ],
   });
   const view = new EditorView({

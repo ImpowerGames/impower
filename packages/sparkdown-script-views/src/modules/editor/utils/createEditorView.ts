@@ -37,12 +37,6 @@ interface EditorConfig {
     left?: number;
     right?: number;
   };
-  contentPadding?: {
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
-  };
   defaultState?: SerializableEditorState;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
@@ -79,7 +73,6 @@ const createEditorView = (
   const serverCapabilities = config.serverCapabilities;
   const fileSystemReader = config.fileSystemReader;
   const scrollMargin = config?.scrollMargin;
-  const contentPadding = config?.contentPadding;
   const defaultState = config?.defaultState;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
@@ -127,22 +120,6 @@ const createEditorView = (
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
       scrollMargins(scrollMargin),
-      EditorView.baseTheme({
-        ".cm-content": {
-          ...(contentPadding?.top != null
-            ? { paddingTop: `${contentPadding.top}px` }
-            : {}),
-          ...(contentPadding?.bottom != null
-            ? { paddingBottom: `${contentPadding.bottom}px` }
-            : {}),
-          ...(contentPadding?.left != null
-            ? { paddingLeft: `${contentPadding.left}px` }
-            : {}),
-          ...(contentPadding?.right != null
-            ? { paddingRight: `${contentPadding.right}px` }
-            : {}),
-        },
-      }),
       sparkdownLanguageExtension({
         textDocument,
         serverConnection,

@@ -334,7 +334,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           </style>
         </head>
         <body>
-          <sparkdown-screenplay-preview content-padding="0 24px 0 24px"></sparkdown-screenplay-preview>
+          <sparkdown-screenplay-preview></sparkdown-screenplay-preview>
           <script type="module" nonce="${scriptNonce}" src="${jsMainUri}"></script>
         </body>
       </html>

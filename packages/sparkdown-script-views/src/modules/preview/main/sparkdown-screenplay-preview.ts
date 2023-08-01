@@ -28,7 +28,7 @@ import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-screenplay-preview";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["scroll-margin", "content-padding"]),
+  ...getAttributeNameMap(["scroll-margin"]),
 };
 
 export default class SparkScreenplayPreview
@@ -63,18 +63,6 @@ export default class SparkScreenplayPreview
     );
   }
 
-  get contentPadding() {
-    return this.getStringAttribute(
-      SparkScreenplayPreview.attributes.contentPadding
-    );
-  }
-  set contentPadding(value) {
-    this.setStringAttribute(
-      SparkScreenplayPreview.attributes.contentPadding,
-      value
-    );
-  }
-
   get editorEl() {
     return this.getElementByClass("editor");
   }
@@ -96,18 +84,6 @@ export default class SparkScreenplayPreview
   protected _domClientY = 0;
 
   protected _userInitiatedScroll = false;
-
-  protected _contentPadding: {
-    top?: number;
-    bottom?: number;
-    left?: number;
-    right?: number;
-  } = {
-    top: 0,
-    bottom: 0,
-    left: 0,
-    right: 0,
-  };
 
   protected _scrollMargin: {
     top?: number;
@@ -304,14 +280,12 @@ export default class SparkScreenplayPreview
     const editorEl = this.editorEl;
     if (editorEl) {
       this._scrollMargin = getBoxValues(this.scrollMargin);
-      this._contentPadding = getBoxValues(this.contentPadding);
       if (this._view) {
         this._view.destroy();
       }
       this._view = createEditorView(editorEl, {
         textDocument,
         scrollMargin: this._scrollMargin,
-        contentPadding: this._contentPadding,
         onIdle: this.handleIdle,
       });
       this.bindView(this._view);
@@ -393,7 +367,7 @@ export default class SparkScreenplayPreview
       const view = this._view;
       if (view) {
         const scrollClientHeight = getScrollClientHeight(scrollTarget);
-        const insetBottom = this._contentPadding.bottom ?? 0;
+        const insetBottom = this._scrollMargin.bottom ?? 0;
         const scrollTop = getScrollTop(scrollTarget);
         const scrollBottom =
           scrollTop + scrollClientHeight - this._domClientY - insetBottom;

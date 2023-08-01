@@ -28,6 +28,7 @@ const EDITOR_THEME: {
   },
   "& .cm-content": {
     caretColor: "white",
+    padding: "0 0 68px 0",
   },
   "&.cm-focused .cm-cursor": {
     borderLeftColor: "white",
