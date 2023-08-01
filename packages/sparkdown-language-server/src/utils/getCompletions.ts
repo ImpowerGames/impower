@@ -37,7 +37,7 @@ const getAudioCompletions = (program: SparkProgram | undefined) => {
     return [];
   }
   return Object.entries(program?.objectMap?.["audio"] || {}).map(
-    ([name, { src, type }]) => ({
+    ([name, { type }]) => ({
       label: name,
       labelDetails: { description: type },
       kind: CompletionItemKind.Constructor,
