@@ -40,10 +40,10 @@ const EDITOR_THEME: {
   "&.cm-focused .cm-nonmatchingBracket": {
     backgroundColor: "transparent",
   },
-  "& .cm-snippet & .cm-selectionMatch": {
+  "& .cm-snippet .cm-selectionMatch": {
     backgroundColor: "transparent",
   },
-  "& .cm-snippet & .cm-selectionMatch-main": {
+  "& .cm-snippet .cm-selectionMatch-main": {
     backgroundColor: "transparent",
   },
   "& .cm-gutters": {
@@ -81,7 +81,7 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
     border: "none",
     color: "grey",
-    margin: "& .1em .4em 0",
+    margin: ".1em .4em 0",
   },
   "& .cm-lineWrapping": {
     overflowWrap: "break-word",
