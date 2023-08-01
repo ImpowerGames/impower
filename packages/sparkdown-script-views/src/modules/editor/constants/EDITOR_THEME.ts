@@ -324,7 +324,10 @@ const EDITOR_THEME: {
     fontFamily: "monospace",
   },
   "& .cm-highlightSpace": {
-    opacity: "0.5",
+    "&:before": {
+      transform: "translateX(-2px)",
+      opacity: "0.5",
+    },
   },
 };
 

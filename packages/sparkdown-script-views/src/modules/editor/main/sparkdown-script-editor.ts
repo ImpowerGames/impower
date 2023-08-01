@@ -257,8 +257,13 @@ export default class SparkdownScriptEditor
         const params = message.params;
         const textDocument = params.textDocument;
         const range = params.range;
+        const target = params.target;
         if (textDocument.uri === this._textDocument?.uri) {
-          this.revealRange(range);
+          if (target === "element") {
+            this.revealRange(range);
+          } else {
+            this.cacheVisibleRange(range);
+          }
         }
       }
     }
@@ -341,6 +346,15 @@ export default class SparkdownScriptEditor
     );
   }
 
+  protected cacheVisibleRange(range: Range | undefined) {
+    if (
+      range?.start?.line !== this._visibleRange?.start?.line ||
+      range?.end?.line !== this._visibleRange?.end?.line
+    ) {
+      this._visibleRange = range;
+    }
+  }
+
   protected revealRange(range: Range | undefined) {
     const view = this._view;
     if (view) {
@@ -360,17 +374,11 @@ export default class SparkdownScriptEditor
             }),
           });
         }
-        if (
-          range.start.line !== this._visibleRange?.start?.line ||
-          range.end.line !== this._visibleRange?.end?.line
-        ) {
-          this._visibleRange = range;
-        }
       } else {
         scrollY(0, this._possibleScroller, view.scrollDOM);
       }
     }
-    console.log("reveal editor", range?.start.line, range?.end.line);
+    this.cacheVisibleRange(range);
   }
 
   protected handlePointerEnterScroller = (): void => {
@@ -404,18 +412,16 @@ export default class SparkdownScriptEditor
           visibleRange.start.line !== this._visibleRange?.start?.line ||
           visibleRange.end.line !== this._visibleRange?.end?.line
         ) {
-          console.log(
-            "scroll editor",
-            visibleRange.start.line,
-            visibleRange.end.line
-          );
-          this._visibleRange = visibleRange;
+          const target =
+            scrollTarget instanceof HTMLElement ? "element" : "document";
+          this.cacheVisibleRange(visibleRange);
           if (this._textDocument) {
             this.emit(
               ScrolledEditorMessage.method,
               ScrolledEditorMessage.type.notification({
                 textDocument: this._textDocument,
                 range: visibleRange,
+                target,
               })
             );
           }

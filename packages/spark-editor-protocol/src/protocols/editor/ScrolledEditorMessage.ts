@@ -6,6 +6,7 @@ export type ScrolledEditorMethod = typeof ScrolledEditorMessage.method;
 export interface ScrolledEditorParams {
   textDocument: TextDocumentIdentifier;
   range: Range;
+  target: string;
 }
 
 export namespace ScrolledEditorMessage {

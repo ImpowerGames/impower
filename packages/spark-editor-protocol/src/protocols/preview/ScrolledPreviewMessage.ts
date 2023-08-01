@@ -7,6 +7,7 @@ export interface ScrolledPreviewParams {
   type: "game" | "screenplay";
   textDocument: TextDocumentIdentifier;
   range: Range;
+  target: string;
 }
 
 export namespace ScrolledPreviewMessage {

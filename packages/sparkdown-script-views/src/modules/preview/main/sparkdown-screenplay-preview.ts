@@ -260,8 +260,13 @@ export default class SparkScreenplayPreview
         const params = message.params;
         const textDocument = params.textDocument;
         const range = params.range;
+        const target = params.target;
         if (textDocument.uri === this._textDocument?.uri) {
-          this.revealRange(range);
+          if (target === "element") {
+            this.revealRange(range);
+          } else {
+            this.cacheVisibleRange(range);
+          }
         }
       }
     }
@@ -296,6 +301,15 @@ export default class SparkScreenplayPreview
     });
   }
 
+  protected cacheVisibleRange(range: Range | undefined) {
+    if (
+      range?.start?.line !== this._visibleRange?.start?.line ||
+      range?.end?.line !== this._visibleRange?.end?.line
+    ) {
+      this._visibleRange = range;
+    }
+  }
+
   protected revealRange(range: Range | undefined) {
     const view = this._view;
     if (view) {
@@ -315,17 +329,11 @@ export default class SparkScreenplayPreview
             }),
           });
         }
-        if (
-          range.start.line !== this._visibleRange?.start?.line ||
-          range.end.line !== this._visibleRange?.end?.line
-        ) {
-          this._visibleRange = range;
-        }
       } else {
         scrollY(0, this._possibleScroller, view.scrollDOM);
       }
     }
-    console.log("reveal preview", range?.start.line, range?.end.line);
+    this.cacheVisibleRange(range);
   }
 
   protected handleIdle = (): void => {
@@ -377,12 +385,9 @@ export default class SparkScreenplayPreview
           visibleRange.start.line !== this._visibleRange?.start?.line ||
           visibleRange.end.line !== this._visibleRange?.end?.line
         ) {
-          console.log(
-            "scroll preview",
-            visibleRange.start.line,
-            visibleRange.end.line
-          );
-          this._visibleRange = visibleRange;
+          const target =
+            scrollTarget instanceof HTMLElement ? "element" : "document";
+          this.cacheVisibleRange(visibleRange);
           if (this._textDocument) {
             this.emit(
               ScrolledPreviewMessage.method,
@@ -390,6 +395,7 @@ export default class SparkScreenplayPreview
                 type: "screenplay",
                 textDocument: this._textDocument,
                 range: visibleRange,
+                target,
               })
             );
           }
