@@ -57,7 +57,8 @@ export default (state: { store?: WorkspaceState }) => {
             </s-box>
             <s-dropdown active="${mode}">
               <s-button
-                m="8"
+                width="56"
+                height="56"
                 class="more"
                 color="fg-50"
                 variant="icon"
