@@ -10,7 +10,6 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { getBlockMatch } from "@impower/sparkdown/src/utils/getBlockMatch";
 import { getBlockType } from "@impower/sparkdown/src/utils/getBlockType";
-import getDocumentation from "./getFencedCode";
 import getLineText from "./getLineText";
 import getUniqueOptions from "./getUniqueOptions";
 import isEmptyLine from "./isEmptyLine";
@@ -42,10 +41,6 @@ const getAudioCompletions = (program: SparkProgram | undefined) => {
       label: name,
       labelDetails: { description: type },
       kind: CompletionItemKind.Constructor,
-      documentation: {
-        kind: MarkupKind.Markdown,
-        value: `![${name}](${src})`,
-      },
     })
   );
 };
@@ -70,31 +65,16 @@ const getSceneCompletions = () => {
 
       labelDetails: { description: "Scene" },
       kind: CompletionItemKind.Interface,
-      documentation: {
-        kind: MarkupKind.Markdown,
-        value: getDocumentation("An indoor scene.", `INT. BEDROOM - NIGHT`),
-      },
     },
     {
       label: "EXT.",
       labelDetails: { description: "Scene" },
       kind: CompletionItemKind.Interface,
-      documentation: {
-        kind: MarkupKind.Markdown,
-        value: getDocumentation("An outdoor scene.", `EXT. BEACH - DAY`),
-      },
     },
     {
       label: "INT./EXT.",
       labelDetails: { description: "Scene" },
       kind: CompletionItemKind.Interface,
-      documentation: {
-        kind: MarkupKind.Markdown,
-        value: getDocumentation(
-          "A scene that is intercut between indoors and outdoors.",
-          `INT./EXT. PHONE BOOTH`
-        ),
-      },
     },
   ];
 };
@@ -123,13 +103,6 @@ const getCharacterCompletions = (
   }
   const labelDetails = { description: "Dialogue" };
   const kind = CompletionItemKind.Constant;
-  const documentation = {
-    kind: MarkupKind.Markdown,
-    value: getDocumentation(
-      "Dialogue is represented with an UPPERCASE character name followed by a line of text.",
-      `JEFFERY\nDo you know where we are?`
-    ),
-  };
   const result: CompletionItem[] = [];
   recentCharacters.forEach((name, index) => {
     result.push({
@@ -137,7 +110,6 @@ const getCharacterCompletions = (
       insertText: name + "\n",
       labelDetails,
       kind,
-      documentation,
       sortText: `${index}`,
     });
   });
@@ -148,7 +120,6 @@ const getCharacterCompletions = (
         insertText: name + "\n",
         labelDetails,
         kind,
-        documentation,
       });
     }
   });
