@@ -5,9 +5,10 @@ const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
   "&": {
+    opacity: 0,
+    transition: "opacity 0.25s",
     fontFamily: "Courier Prime Sans",
     color: EDITOR_COLORS.foreground,
-    backgroundColor: EDITOR_COLORS.background,
     flex: 1,
     fontSize: "1rem",
   },

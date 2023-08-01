@@ -93,6 +93,12 @@ export default class SparkdownScriptEditor
     return this.getElementByClass("editor");
   }
 
+  protected _loadingRequest?: string | number;
+
+  protected _initialized = false;
+
+  protected _loaded = false;
+
   protected _editing = false;
 
   protected _textDocument?: TextDocumentItem;
@@ -220,8 +226,10 @@ export default class SparkdownScriptEditor
       if (LoadEditorMessage.type.isRequest(message)) {
         const params = message.params;
         const textDocument = params.textDocument;
+        const visibleRange = params.visibleRange;
+        this._loadingRequest = message.id;
         if (textDocument.uri !== this._textDocument?.uri) {
-          this.loadTextDocument(textDocument);
+          this.loadTextDocument(textDocument, visibleRange);
         }
       }
     }
@@ -269,10 +277,15 @@ export default class SparkdownScriptEditor
     }
   };
 
-  protected loadTextDocument(textDocument: TextDocumentItem) {
+  protected loadTextDocument(
+    textDocument: TextDocumentItem,
+    visibleRange: Range | undefined
+  ) {
     if (this._view) {
       this._view.destroy();
     }
+    this._initialized = false;
+    this._loaded = false;
     this._textDocument = textDocument;
     const editorEl = this.editorEl;
     if (editorEl) {
@@ -294,6 +307,7 @@ export default class SparkdownScriptEditor
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,
         textDocument: this._textDocument,
         scrollMargin: this._scrollMargin,
+        onIdle: this.handleIdle,
         onFocus: () => {
           this._editing = true;
           if (this._textDocument) {
@@ -344,6 +358,10 @@ export default class SparkdownScriptEditor
       DidOpenTextDocumentMessage.type,
       { textDocument }
     );
+    window.requestAnimationFrame(() => {
+      this.revealRange(visibleRange);
+      this._initialized = true;
+    });
   }
 
   protected cacheVisibleRange(range: Range | undefined) {
@@ -380,6 +398,23 @@ export default class SparkdownScriptEditor
     }
     this.cacheVisibleRange(range);
   }
+
+  protected handleIdle = (): void => {
+    if (this._initialized && !this._loaded) {
+      this._loaded = true;
+      if (this._textDocument && this._loadingRequest != null) {
+        if (this._view) {
+          // Only fade in once formatting has finished being applied and height is stable
+          this._view.dom.style.opacity = "1";
+        }
+        this.emit(
+          LoadEditorMessage.method,
+          LoadEditorMessage.type.response(this._loadingRequest, null)
+        );
+        this._loadingRequest = undefined;
+      }
+    }
+  };
 
   protected handlePointerEnterScroller = (): void => {
     this._userInitiatedScroll = true;

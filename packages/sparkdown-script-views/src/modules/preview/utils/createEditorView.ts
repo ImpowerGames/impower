@@ -26,7 +26,7 @@ const createEditorView = (
 ): EditorView => {
   const textDocument = config?.textDocument;
   const scrollMargin = config?.scrollMargin;
-  const stabilizationDuration = 200;
+  const stabilizationDuration = config?.stabilizationDuration ?? 200;
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
   const onIdle = config?.onIdle ?? (() => {});

@@ -16,6 +16,7 @@ import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
+import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
 import {
@@ -38,6 +39,7 @@ interface EditorConfig {
     right?: number;
   };
   defaultState?: SerializableEditorState;
+  stabilizationDuration?: number;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
   getCursor?: () => {
@@ -56,6 +58,8 @@ interface EditorConfig {
   onViewUpdate?: (update: ViewUpdate) => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  onIdle?: () => void;
+  onHeightChanged?: () => void;
   onEdit?: (change: {
     transaction: Transaction;
     annotations: Annotation<any>[];
@@ -74,10 +78,14 @@ const createEditorView = (
   const fileSystemReader = config.fileSystemReader;
   const scrollMargin = config?.scrollMargin;
   const defaultState = config?.defaultState;
+  const stabilizationDuration = config?.stabilizationDuration ?? 200;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
+  const onIdle = config?.onIdle ?? (() => {});
+  const onHeightChanged = config?.onHeightChanged;
+  const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const getCursor = config?.getCursor;
   const setCursor = config?.setCursor;
   const getEditorState = config?.getEditorState;
@@ -130,6 +138,10 @@ const createEditorView = (
         const parsed = syntaxTreeAvailable(u.state);
         if (parsed) {
           onReady?.();
+        }
+        debouncedIdle();
+        if (u.heightChanged) {
+          onHeightChanged?.();
         }
         onViewUpdate?.(u);
         const json: {
