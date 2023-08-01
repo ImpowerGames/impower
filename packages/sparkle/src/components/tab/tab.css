@@ -39,6 +39,7 @@
   pointer-events: var(--interactable);
   user-select: var(--selectable);
   display: flex;
+  flex-basis: 0;
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
   justify-content: var(--child-justify);
