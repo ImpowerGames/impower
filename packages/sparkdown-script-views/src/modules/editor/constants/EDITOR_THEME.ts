@@ -309,7 +309,7 @@ const EDITOR_THEME: {
     width: "0.8em",
     height: "0.8em",
   },
-  "& .cm-lint & .cm-lint-marker": {
+  "& .cm-lint .cm-lint-marker": {
     display: "block",
     width: "0.8em",
     height: "0.8em",
