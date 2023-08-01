@@ -325,6 +325,7 @@ export default class SparkScreenplayPreview
         scrollY(0, this._possibleScroller, view.scrollDOM);
       }
     }
+    console.log("reveal preview", range?.start.line, range?.end.line);
   }
 
   protected handleIdle = (): void => {
@@ -377,7 +378,7 @@ export default class SparkScreenplayPreview
           visibleRange.end.line !== this._visibleRange?.end?.line
         ) {
           console.log(
-            "preview",
+            "scroll preview",
             visibleRange.start.line,
             visibleRange.end.line
           );
