@@ -9,6 +9,11 @@ import {
   WriteTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
 import {
+  BuildFilesMessage,
+  BuildFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/BuildFilesMessage.js";
+import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
+import {
   CreateFilesMessage,
   CreateFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFilesMessage.js";
@@ -30,9 +35,12 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import YAML from "yaml";
+import WorkspaceConfiguration from "./WorkspaceConfiguration";
 import WorkspaceLanguageServerProtocol from "./WorkspaceLanguageServerProtocol";
 
 export default class WorkspaceFileSystem {
+  protected _configuration: WorkspaceConfiguration;
+
   protected _lsp: WorkspaceLanguageServerProtocol;
 
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
@@ -69,7 +77,11 @@ export default class WorkspaceFileSystem {
     return this._initializing;
   }
 
-  constructor(lsp: WorkspaceLanguageServerProtocol) {
+  constructor(
+    lsp: WorkspaceLanguageServerProtocol,
+    configuration: WorkspaceConfiguration
+  ) {
+    this._configuration = configuration;
     this._lsp = lsp;
     this._initializing = this.initialize();
     this._fileSystemWorker.addEventListener(
@@ -142,10 +154,23 @@ name: ${this._projectName}
 
   protected handleWorkerMessage = (event: MessageEvent) => {
     const message = event.data;
-    const dispatch = this._messageQueue[message.id];
-    if (dispatch) {
-      dispatch(message.result);
-      delete this._messageQueue[message.id];
+    if (ConfigurationMessage.type.isRequest(message)) {
+      const params = message.params;
+      const result = params.items.map((item) => {
+        if (item.section === "sparkdown") {
+          return this._configuration.settings;
+        }
+        return {};
+      });
+      this._fileSystemWorker.postMessage(
+        ConfigurationMessage.type.response(message.id, result)
+      );
+    } else {
+      const dispatch = this._messageQueue[message.id];
+      if (dispatch) {
+        dispatch(message.result);
+        delete this._messageQueue[message.id];
+      }
     }
   };
 
@@ -170,7 +195,7 @@ name: ${this._projectName}
     return uri.split("/").slice(-1).join("");
   }
 
-  getDisplayName(uri: string) {
+  getName(uri: string) {
     const fileName = this.getFileName(uri);
     return fileName.split(".")[0] ?? "";
   }
@@ -188,6 +213,24 @@ name: ${this._projectName}
     params: WorkspaceDirectoryParams
   ): Promise<WorkspaceEntry[]> {
     return this.sendRequest(WorkspaceDirectoryMessage.type, params);
+  }
+
+  async buildAll(entryUri: string) {
+    await this.initializing;
+    const uris = this.uris;
+    if (!uris) {
+      throw new Error("Workspace must be initialized before building");
+    }
+    const targetUris = uris.includes(entryUri) ? uris : [entryUri, ...uris];
+    const files = targetUris.map((uri) => ({ uri }));
+    return this.buildFiles({
+      files,
+    });
+  }
+
+  async buildFiles(params: BuildFilesParams) {
+    const result = await this.sendRequest(BuildFilesMessage.type, params);
+    return result;
   }
 
   async createFiles(params: CreateFilesParams) {

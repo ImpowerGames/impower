@@ -7,6 +7,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import {
   BrowserMessageReader,
   BrowserMessageWriter,
+  ConfigurationRequest,
   TextDocumentSyncKind,
   createConnection,
 } from "vscode-languageserver/browser";
@@ -44,6 +45,13 @@ try {
       },
     };
     return { capabilities };
+  });
+
+  connection.onInitialized(async () => {
+    const settings = await connection.sendRequest(ConfigurationRequest.type, {
+      items: [{ section: "sparkdown" }],
+    });
+    documents.loadConfiguration(settings);
   });
 
   // parseProvider

@@ -7,7 +7,10 @@ import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssC
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type ProgressCircle from "../progress-circle/progress-circle";
@@ -25,7 +28,9 @@ const DEFAULT_DEPENDENCIES = getDependencyNameMap([
 ]);
 
 const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, STYLES.icons),
+  "pressed-icon": (v: string) => getCssIcon(v, STYLES.icons),
   "active-icon": (v: string) => getCssIcon(v, STYLES.icons),
   "active-color": getCssColor,
   spacing: getCssSize,
@@ -33,6 +38,7 @@ const DEFAULT_TRANSFORMERS = {
 };
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "key",
     "href",
@@ -63,11 +69,11 @@ export default class Button
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   static override async define(
@@ -207,6 +213,16 @@ export default class Button
   }
   set icon(value) {
     this.setStringAttribute(Button.attributes.icon, value);
+  }
+
+  /**
+   * The name of the icon to display when the button is pressed.
+   */
+  get pressedIcon(): IconName | string | null {
+    return this.getStringAttribute(Button.attributes.pressedIcon);
+  }
+  set pressedIcon(value) {
+    this.setStringAttribute(Button.attributes.pressedIcon, value);
   }
 
   /**

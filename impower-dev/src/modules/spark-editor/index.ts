@@ -14,7 +14,6 @@ import FileList from "./components/file-list/file-list";
 import FileOptionsButton from "./components/file-options-button/file-options-button";
 import FileUploadButton from "./components/file-upload-button/file-upload-button";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
-import GamePreview from "./components/game-preview/game-preview";
 import Graphics from "./components/graphics/graphics";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
@@ -27,10 +26,14 @@ import Maps from "./components/maps/maps";
 import Music from "./components/music/music";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
+import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-toolbar";
+import PreviewGame from "./components/preview-game/preview-game";
+import PreviewOptionsDropdown from "./components/preview-options-dropdown/preview-options-dropdown";
 import PreviewPanel from "./components/preview-panel/preview-panel";
+import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/preview-screenplay-toolbar";
+import PreviewScreenplay from "./components/preview-screenplay/preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
 import Preview from "./components/preview/preview";
-import ScreenplayPreview from "./components/screenplay-preview/screenplay-preview";
 import ScriptEditor from "./components/script-editor/script-editor";
 import Setup from "./components/setup/setup";
 import Share from "./components/share/share";
@@ -52,8 +55,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-file-list-border": FileListBorder,
   "se-file-list": FileList,
   "se-script-editor": ScriptEditor,
-  "se-game-preview": GamePreview,
-  "se-screenplay-preview": ScreenplayPreview,
   "se-assets": Assets,
   "se-logic-scripts-editor": LogicScriptsEditor,
   "se-logic-scripts-list": LogicScriptsList,
@@ -74,10 +75,15 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-setup": Setup,
   "se-demo": Demo,
   "se-main-panel": MainPanel,
+  "se-preview-game-toolbar": PreviewGameToolbar,
+  "se-preview-game": PreviewGame,
+  "se-preview-screenplay-toolbar": PreviewScreenplayToolbar,
+  "se-preview-screenplay": PreviewScreenplay,
+  "se-preview-options-dropdown": PreviewOptionsDropdown,
+  "se-preview-toggle-button": PreviewToggleButton,
   "se-preview": Preview,
   "se-preview-panel": PreviewPanel,
   "se-notifications": Notifications,
-  "se-preview-toggle-button": PreviewToggleButton,
   "se-header-title-button": HeaderTitleButton,
   "se-header-navigation": HeaderNavigation,
   "se-footer-navigation": FooterNavigation,

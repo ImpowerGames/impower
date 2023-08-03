@@ -2260,7 +2260,7 @@ const hoistDeclarations = (
     if ((match = text.match(SPARK_REGEX.label))) {
       const currentToken = createSparkToken("label", newLineLength, {
         content: text,
-        line: context.line + (config?.lineOffset || 0),
+        line: context.line,
         from: context.from,
       });
       const level = 0;
@@ -2326,7 +2326,7 @@ const hoistDeclarations = (
     } else if ((match = text.match(SPARK_REGEX.section))) {
       const currentToken = createSparkToken("section", newLineLength, {
         content: text,
-        line: context.line + (config?.lineOffset || 0),
+        line: context.line,
         from: context.from,
       });
       const level = match[2]?.length || 0;
@@ -2459,7 +2459,7 @@ const hoistDeclarations = (
       let expression = match[10] || "";
       const currentToken = createSparkToken(type, newLineLength, {
         content: text,
-        line: context.line + (config?.lineOffset || 0),
+        line: context.line,
         from: context.from,
       });
       const typeFrom = currentToken.from + getStart(match, 4);
@@ -2495,7 +2495,7 @@ const hoistDeclarations = (
     } else if ((match = text.match(SPARK_REGEX.scene))) {
       const currentToken = createSparkToken("scene", newLineLength, {
         content: text,
-        line: context.line + (config?.lineOffset || 0),
+        line: context.line,
         from: context.from,
       });
       currentToken.content = getSceneDisplayedContent(match);
@@ -2550,7 +2550,7 @@ const hoistDeclarations = (
     } else if ((match = text.match(SPARK_REGEX.css))) {
       const currentToken = createSparkToken("css", newLineLength, {
         content: text,
-        line: context.line + (config?.lineOffset || 0),
+        line: context.line,
         from: context.from,
       });
       // TODO: support multiline expressions
@@ -2572,7 +2572,7 @@ const hoistDeclarations = (
       const colon = match[14] || "";
       const currentToken = createSparkToken("struct", newLineLength, {
         content: text,
-        line: context.line + (config?.lineOffset || 0),
+        line: context.line,
         from: context.from,
       });
       if (colon) {
@@ -2604,7 +2604,7 @@ const hoistDeclarations = (
       if ((match = text.match(SPARK_REGEX.struct_field))) {
         const currentToken = createSparkToken("struct_field", newLineLength, {
           content: text,
-          line: context.line + (config?.lineOffset || 0),
+          line: context.line,
           from: context.from,
         });
         const mark = match[2] || "";
@@ -2733,7 +2733,7 @@ export const parseSpark = (
 
     currentToken = createSparkToken("comment", state.newLineLength, {
       content: text,
-      line: context.line + (config?.lineOffset || 0),
+      line: context.line,
       from: context.from,
     });
     currentToken.content = text;

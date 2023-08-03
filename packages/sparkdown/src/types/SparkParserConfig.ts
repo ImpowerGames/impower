@@ -7,7 +7,6 @@ interface SparkAugmentations extends Partial<SparkProgram> {}
 
 export interface SparkParserConfig {
   augmentations?: SparkAugmentations;
-  lineOffset?: number;
   skipTokens?: SparkTokenType[];
   compiler?: (
     expr: string,

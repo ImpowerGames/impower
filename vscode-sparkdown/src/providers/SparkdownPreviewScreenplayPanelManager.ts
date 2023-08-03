@@ -237,6 +237,7 @@ export class SparkdownPreviewScreenplayPanelManager {
           ScrolledEditorMessage.type.notification({
             textDocument: { uri: document.uri.toString() },
             range: getServerRange(range),
+            target: "element",
           })
         );
       }

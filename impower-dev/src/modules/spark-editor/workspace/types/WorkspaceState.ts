@@ -1,5 +1,6 @@
-export interface PanelState {
+export interface PanelState extends Record<string, any> {
   visibleRange?: Range | undefined;
+  selectedRange?: Range | undefined;
   openFilePath?: string | undefined;
 }
 
@@ -89,7 +90,13 @@ export interface WorkspacePanes extends Record<string, PaneState> {
     revealed?: boolean;
     panel: string;
     panels: {
-      game: {};
+      page: {};
+      game: {
+        running?: boolean;
+        paused?: boolean;
+        debugConsole?: boolean;
+        compiling?: boolean;
+      };
       screenplay: {
         visibleRange?: Range;
       };

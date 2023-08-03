@@ -4,7 +4,10 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { animationsComplete } from "../../utils/animationsComplete";
 import component from "./_dialog";
@@ -18,10 +21,12 @@ const REMOVED_EVENT = "removed";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
 const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, STYLES.icons),
 };
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "open",
     "dismissable",
@@ -44,11 +49,11 @@ export default class Dialog
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   static override async define(

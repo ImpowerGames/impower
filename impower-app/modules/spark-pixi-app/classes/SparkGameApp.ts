@@ -1,4 +1,4 @@
-import { SparkContext } from "../../../../spark-engine";
+import { SparkContext } from "../../../../spark-engine/src";
 import { Application, ApplicationOptions } from "../plugins/app";
 import { MainScene } from "./scenes/MainScene";
 import { SoundScene } from "./scenes/SoundScene";

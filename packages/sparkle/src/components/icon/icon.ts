@@ -4,17 +4,22 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import component from "./_icon";
 
 const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, STYLES.icons),
   size: getCssSize,
 };
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap(["icon", "size", ...getKeys(DEFAULT_TRANSFORMERS)]),
 };
 
@@ -28,11 +33,11 @@ export default class Icon
   static override tagName = "s-icon";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   static override async define(

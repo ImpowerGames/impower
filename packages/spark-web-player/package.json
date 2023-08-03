@@ -1,0 +1,12 @@
+{
+  "name": "@impower/spark-web-player",
+  "displayName": "Spark Web Player",
+  "description": "Web component that allows users to play spark games.",
+  "version": "0.0.1",
+  "dependencies": {
+    "three": "^0.155.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.155.0"
+  }
+}

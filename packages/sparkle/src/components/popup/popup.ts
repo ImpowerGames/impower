@@ -1,6 +1,8 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+} from "../../core/sparkle-element";
 import { offsetParent } from "../../utils/composed-offset-position";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import component from "./_popup";
@@ -14,6 +16,7 @@ import { platform } from "./floating-ui/dom/src/platform";
 const REPOSITION_EVENT = "reposition";
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "open",
     "anchor",
@@ -49,7 +52,7 @@ export default class Popup
   static override tagName = "s-popup";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

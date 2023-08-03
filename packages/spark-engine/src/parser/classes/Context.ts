@@ -68,25 +68,35 @@ export class Context<
     return this._contexts;
   }
 
-  constructor(program: SparkProgram, config: ContextConfig<G, C, S, R>) {
+  constructor(
+    programs: Record<string, SparkProgram>,
+    config: ContextConfig<G, C, S, R>
+  ) {
     this._runner = config.runner || (new GameRunner() as R);
     this._editable = config?.editable || false;
-    this._game = this.load(program, config);
+    this._game = this.load(programs, config);
   }
 
-  load(program: SparkProgram, config: ContextConfig<G, C, S, R>): G {
-    const activeLine = config?.activeLine || 0;
+  load(
+    programs: Record<string, SparkProgram>,
+    config: ContextConfig<G, C, S, R>
+  ): G {
+    const entryProgramId = config?.entryProgram || "";
+    const entryLine = config?.entryLine || 0;
+    const program = entryProgramId
+      ? programs[entryProgramId]
+      : Object.values(programs)[0];
+    if (!program) {
+      throw new Error(`Could not find program with id: ${entryProgramId}`);
+    }
     const blockMap = generateSectionBlocks(program?.sections || {});
-    const [startBlockId] = getSectionAtLine(
-      activeLine,
-      program?.sections || {}
-    );
+    const [startBlockId] = getSectionAtLine(entryLine, program?.sections || {});
     const startRuntimeBlock = blockMap?.[startBlockId];
     let startCommandIndex = 0;
     const startCommands = Object.values(startRuntimeBlock?.commands || {});
     for (let i = 1; i < startCommands?.length || 0; i += 1) {
       const command = startCommands[i];
-      if (command && command.check !== "close" && command.line > activeLine) {
+      if (command && command.check !== "close" && command.line > entryLine) {
         break;
       } else {
         startCommandIndex = i;

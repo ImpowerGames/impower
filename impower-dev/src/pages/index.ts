@@ -21,4 +21,5 @@ const load = async () => {
   ]);
   document.body.classList.add("ready");
 };
+
 load();

@@ -14,7 +14,7 @@ export default class FileAddButton
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

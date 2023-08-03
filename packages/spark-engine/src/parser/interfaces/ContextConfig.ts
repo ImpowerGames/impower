@@ -7,7 +7,8 @@ export interface ContextConfig<
   S extends GameState = GameState,
   R extends GameRunner<G> = GameRunner<G>
 > {
-  activeLine?: number;
+  entryProgram?: string;
+  entryLine?: number;
   editable?: boolean;
   config?: C;
   state?: S;

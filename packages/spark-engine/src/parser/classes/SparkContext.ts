@@ -11,8 +11,11 @@ export class SparkContext<
   S extends SparkGameState = SparkGameState,
   R extends SparkGameRunner<G> = SparkGameRunner<G>
 > extends Context<G, C, S, R> {
-  constructor(program: SparkProgram, config?: SparkContextConfig<G, C, S, R>) {
-    super(program, {
+  constructor(
+    programs: Record<string, SparkProgram>,
+    config?: SparkContextConfig<G, C, S, R>
+  ) {
+    super(programs, {
       defaults: STRUCT_DEFAULTS,
       runner: new SparkGameRunner<G>() as R,
       createGame: (c?: C, s?: S) => new SparkGame(c, s) as G,

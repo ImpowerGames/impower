@@ -1,11 +1,16 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
+import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
+import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
+import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
+import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
-import { DidScrollPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidScrollPanelMessage";
 import { Range } from "@impower/spark-editor-protocol/src/types";
 import WorkspaceFileSystem from "./WorkspaceFileSystem";
 import { ReadOnly } from "./types/ReadOnly";
@@ -83,6 +88,7 @@ export default class WorkspaceWindow {
         preview: {
           panel: "game",
           panels: {
+            page: {},
             game: {},
             screenplay: {},
             file: {},
@@ -93,6 +99,10 @@ export default class WorkspaceWindow {
     window.addEventListener(
       ScrolledEditorMessage.method,
       this.handleScrolledEditor
+    );
+    window.addEventListener(
+      SelectedEditorMessage.method,
+      this.handleSelectedEditor
     );
   }
 
@@ -115,7 +125,22 @@ export default class WorkspaceWindow {
         const uri = textDocument.uri;
         const pane = this.getPaneFromUri(uri);
         const panel = this.getPanelFromUri(uri);
-        this.scrolledPanel(pane, panel, range);
+        const panelState = this.getPanelState(pane, panel);
+        panelState.visibleRange = JSON.parse(JSON.stringify(range));
+      }
+    }
+  };
+
+  protected handleSelectedEditor = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (SelectedEditorMessage.type.isNotification(message)) {
+        const { textDocument, range } = message.params;
+        const uri = textDocument.uri;
+        const pane = this.getPaneFromUri(uri);
+        const panel = this.getPanelFromUri(uri);
+        const panelState = this.getPanelState(pane, panel);
+        panelState.selectedRange = JSON.parse(JSON.stringify(range));
       }
     }
   };
@@ -167,12 +192,16 @@ export default class WorkspaceWindow {
 
   getActiveEditor(
     pane: string
-  ): { uri: string; visibleRange?: Range } | undefined {
+  ): { uri: string; visibleRange?: Range; selectedRange?: Range } | undefined {
     const panelState = this.getOpenedPanelState(pane);
     const filePath = panelState.openFilePath;
     if (filePath) {
       const uri = this._fs.getWorkspaceUri(filePath);
-      return { uri, visibleRange: panelState.visibleRange };
+      return {
+        uri,
+        visibleRange: panelState.visibleRange,
+        selectedRange: panelState.selectedRange,
+      };
     }
     return undefined;
   }
@@ -200,15 +229,6 @@ export default class WorkspaceWindow {
     this.emit(
       DidOpenPanelMessage.method,
       DidOpenPanelMessage.type.notification({ pane, panel })
-    );
-  }
-
-  scrolledPanel(pane: string, panel: string, range: Range) {
-    const panelState = this.getPanelState(pane, panel);
-    panelState.visibleRange = JSON.parse(JSON.stringify(range));
-    this.emit(
-      DidScrollPanelMessage.method,
-      DidScrollPanelMessage.type.notification({ pane, panel, range })
     );
   }
 
@@ -242,5 +262,57 @@ export default class WorkspaceWindow {
       DidCloseFileEditorMessage.method,
       DidCloseFileEditorMessage.type.notification({ pane, panel })
     );
+  }
+
+  startGame() {
+    this._state.panes.preview.panels.game.running = true;
+    this.emit(StartGameMessage.method, StartGameMessage.type.request({}));
+    if (this._state.panes.preview.panels.game.paused) {
+      this.unpauseGame();
+    }
+  }
+
+  stopGame() {
+    this._state.panes.preview.panels.game.running = false;
+    this.emit(StopGameMessage.method, StopGameMessage.type.request({}));
+  }
+
+  pauseGame() {
+    this._state.panes.preview.panels.game.paused = true;
+    this.emit(PauseGameMessage.method, PauseGameMessage.type.request({}));
+  }
+
+  unpauseGame() {
+    this._state.panes.preview.panels.game.paused = false;
+    this.emit(UnpauseGameMessage.method, UnpauseGameMessage.type.request({}));
+  }
+
+  stepGame(deltaMS: number) {
+    if (deltaMS < 0) {
+      const paused = this._state.panes.preview.panels.game.paused;
+      if (!paused) {
+        this.pauseGame();
+      }
+    }
+    this.emit(
+      StepGameMessage.method,
+      StepGameMessage.type.request({ deltaMS })
+    );
+  }
+
+  toggleGameRunning() {
+    if (this._state.panes.preview.panels.game.running) {
+      this.stopGame();
+    } else {
+      this.startGame();
+    }
+  }
+
+  toggleGamePaused() {
+    if (this._state.panes.preview.panels.game.paused) {
+      this.unpauseGame();
+    } else {
+      this.pauseGame();
+    }
   }
 }

@@ -6,9 +6,9 @@ import sparkElementComponents from "../../../packages/spark-element/src/componen
 import sparkEditorComponents from "../modules/spark-editor/components";
 
 export default {
-  ...sparkWebPlayerComponents,
   ...sparkElementComponents,
   ...sparkleComponents,
+  ...sparkWebPlayerComponents,
   ...sparkdownScriptEditorComponents,
   ...sparkdownScriptPreviewComponents,
   ...sparkEditorComponents,

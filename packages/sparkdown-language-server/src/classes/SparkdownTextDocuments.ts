@@ -10,6 +10,7 @@ import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   CancellationToken,
   Connection,
+  DidChangeConfigurationParams,
   DidChangeTextDocumentParams,
   DidChangeWatchedFilesParams,
   DidCloseTextDocumentParams,
@@ -31,17 +32,9 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 import { EditorSparkParser } from "./EditorSparkParser";
 
-export const IMAGE_FILE_EXTENSIONS = [
-  "png",
-  "apng",
-  "jpeg",
-  "jpg",
-  "gif",
-  "svg",
-  "bmp",
-];
-export const AUDIO_FILE_EXTENSIONS = ["wav", "mp3", "mp4", "ogg"];
-export const SCRIPT_FILE_EXTENSIONS = ["sd", "spark", "sparkdown"];
+const globToRegex = (glob: string) => {
+  return RegExp(glob.replace(/[.]/g, "[.]").replace(/[*]/g, ".*"), "i");
+};
 
 interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
   program: SparkProgram;
@@ -121,10 +114,37 @@ export default class SparkdownTextDocuments<
 
   protected readonly _parser: EditorSparkParser;
 
+  protected _scriptFilePattern: RegExp[] = [];
+
+  protected _imageFilePattern: RegExp[] = [];
+
+  protected _audioFilePattern: RegExp[] = [];
+
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
     this._onDidParse = new Emitter<SparkProgramChangeEvent<T>>();
     this._parser = new EditorSparkParser();
+  }
+
+  loadConfiguration(settings: any) {
+    const scriptFiles = settings?.scriptFiles;
+    if (scriptFiles) {
+      this._scriptFilePattern = scriptFiles.map((glob: string) =>
+        globToRegex(glob)
+      );
+    }
+    const imageFiles = settings?.imageFiles;
+    if (imageFiles) {
+      this._imageFilePattern = imageFiles.map((glob: string) =>
+        globToRegex(glob)
+      );
+    }
+    const audioFiles = settings?.audioFiles;
+    if (audioFiles) {
+      this._audioFilePattern = audioFiles.map((glob: string) =>
+        globToRegex(glob)
+      );
+    }
   }
 
   getDirectoryUri(uri: string): string {
@@ -136,14 +156,13 @@ export default class SparkdownTextDocuments<
   }
 
   getFileType(uri: string): string {
-    const ext = this.getFileExtension(uri);
-    if (IMAGE_FILE_EXTENSIONS.includes(ext)) {
+    if (this._imageFilePattern.some((pattern) => pattern.test(uri))) {
       return "image";
     }
-    if (AUDIO_FILE_EXTENSIONS.includes(ext)) {
+    if (this._audioFilePattern.some((pattern) => pattern.test(uri))) {
       return "audio";
     }
-    if (SCRIPT_FILE_EXTENSIONS.includes(ext)) {
+    if (this._scriptFilePattern.some((pattern) => pattern.test(uri))) {
       return "script";
     }
     return "text";
@@ -249,6 +268,14 @@ export default class SparkdownTextDocuments<
     (<ConnectionState>(<any>connection)).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
     const disposables: Disposable[] = [];
+    disposables.push(
+      connection.onDidChangeConfiguration(
+        (event: DidChangeConfigurationParams) => {
+          const settings = event.settings;
+          this.loadConfiguration(settings);
+        }
+      )
+    );
     disposables.push(
       connection.onNotification(
         DidWatchFilesMessage.method,

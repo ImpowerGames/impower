@@ -14,6 +14,7 @@ import {
 } from "../../../../../spark-editor-protocol/src/types";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
+import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
 import debounce from "../../../utils/debounce";
@@ -42,23 +43,21 @@ interface EditorConfig {
   stabilizationDuration?: number;
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
-  getCursor?: () => {
-    anchor: number;
-    head: number;
-    fromLine: number;
-    toLine: number;
-  };
-  setCursor?: (range: {
-    anchor: number;
-    head: number;
-    fromLine: number;
-    toLine: number;
-  }) => void;
   onReady?: () => void;
   onViewUpdate?: (update: ViewUpdate) => void;
   onFocus?: () => void;
   onBlur?: () => void;
   onIdle?: () => void;
+  onSelectionChanged?: (range: {
+    start: {
+      line: number;
+      character: number;
+    };
+    end: {
+      line: number;
+      character: number;
+    };
+  }) => void;
   onHeightChanged?: () => void;
   onEdit?: (change: {
     transaction: Transaction;
@@ -84,10 +83,9 @@ const createEditorView = (
   const onBlur = config?.onBlur;
   const onFocus = config?.onFocus;
   const onIdle = config?.onIdle ?? (() => {});
+  const onSelectionChanged = config?.onSelectionChanged;
   const onHeightChanged = config?.onHeightChanged;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
-  const getCursor = config?.getCursor;
-  const setCursor = config?.setCursor;
   const getEditorState = config?.getEditorState;
   const setEditorState = config?.setEditorState;
   const onEdit = config?.onEdit;
@@ -142,6 +140,17 @@ const createEditorView = (
         debouncedIdle();
         if (u.heightChanged) {
           onHeightChanged?.();
+        }
+        if (u.selectionSet) {
+          const cursorRange = u.state.selection.main;
+          const anchor = cursorRange?.anchor;
+          const head = cursorRange?.head;
+          const startPos = Math.min(anchor, head);
+          const endPos = Math.max(anchor, head);
+          onSelectionChanged?.({
+            start: offsetToPosition(u.state.doc, startPos),
+            end: offsetToPosition(u.state.doc, endPos),
+          });
         }
         onViewUpdate?.(u);
         const json: {
@@ -203,25 +212,6 @@ const createEditorView = (
           }
         }
         setEditorState?.(editorState);
-        const cursorRange = u.state.selection.main;
-        const anchor = cursorRange?.anchor;
-        const head = cursorRange?.head;
-        const fromLine = u.state.doc.lineAt(anchor)?.number;
-        const toLine = u.state.doc.lineAt(head)?.number;
-        const cursor = getCursor?.();
-        if (
-          cursor?.fromLine !== fromLine ||
-          cursor?.toLine !== toLine ||
-          cursor?.anchor !== anchor ||
-          cursor?.head !== head
-        ) {
-          setCursor?.({
-            anchor,
-            head,
-            fromLine,
-            toLine,
-          });
-        }
       }),
     ],
   });

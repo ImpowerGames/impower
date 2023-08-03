@@ -2,15 +2,20 @@ import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import component from "./_skeleton";
 
 const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "sheen-color": getCssColor,
 };
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([...getKeys(DEFAULT_TRANSFORMERS)]),
 };
 
@@ -24,11 +29,11 @@ export default class Skeleton
   static override tagName = "s-skeleton";
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   static override async define(

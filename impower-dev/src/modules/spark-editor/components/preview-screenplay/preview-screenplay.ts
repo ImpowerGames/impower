@@ -1,12 +1,12 @@
-import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_game-preview";
+import component from "./_preview-screenplay";
 
-export default class GamePreview extends SEElement {
+export default class PreviewScreenplay extends SEElement {
   static override async define(
-    tag = "se-game-preview",
+    tag = "se-preview-screenplay",
     dependencies?: Record<string, string>,
     useShadowDom = true
   ) {
@@ -51,7 +51,7 @@ export default class GamePreview extends SEElement {
       this.emit(
         LoadPreviewMessage.method,
         LoadPreviewMessage.type.request({
-          type: "game",
+          type: "screenplay",
           textDocument: {
             uri,
             languageId: "sparkdown",

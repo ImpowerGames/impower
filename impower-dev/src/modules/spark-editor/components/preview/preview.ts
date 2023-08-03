@@ -15,14 +15,6 @@ export default class Preview extends SEElement {
     return component({ store: Workspace.window.state });
   }
 
-  get gameToolbarEl() {
-    return this.getElementById("game-toolbar");
-  }
-
-  get screenplayToolbarEl() {
-    return this.getElementById("screenplay-toolbar");
-  }
-
   protected override onConnected(): void {
     this.ownerDocument.addEventListener("enter", this.handleEnter);
   }
@@ -35,14 +27,6 @@ export default class Preview extends SEElement {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "preview") {
         const value = e.detail.value;
-        const gameToolbarEl = this.gameToolbarEl;
-        if (gameToolbarEl) {
-          gameToolbarEl.hidden = value !== "game";
-        }
-        const screenplayToolbarEl = this.screenplayToolbarEl;
-        if (screenplayToolbarEl) {
-          screenplayToolbarEl.hidden = value !== "screenplay";
-        }
         Workspace.window.openedPanel("preview", value);
       }
     }

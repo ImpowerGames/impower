@@ -7,7 +7,10 @@ import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssC
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type Ripple from "../ripple/ripple";
@@ -16,6 +19,7 @@ import component from "./_tab";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
 const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v, STYLES.icons),
   "active-icon": (v: string) => getCssIcon(v, STYLES.icons),
   "icon-size": getCssSize,
@@ -23,6 +27,7 @@ const DEFAULT_TRANSFORMERS = {
 };
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "active",
     "value",
@@ -44,11 +49,11 @@ export default class Tab
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   static override async define(

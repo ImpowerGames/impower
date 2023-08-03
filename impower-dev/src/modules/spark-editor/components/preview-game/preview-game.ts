@@ -1,12 +1,12 @@
-import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
+import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_screenplay-preview";
+import component from "./_preview-game";
 
-export default class ScreenplayPreview extends SEElement {
+export default class GamePreview extends SEElement {
   static override async define(
-    tag = "se-screenplay-preview",
+    tag = "se-preview-game",
     dependencies?: Record<string, string>,
     useShadowDom = true
   ) {
@@ -44,21 +44,16 @@ export default class ScreenplayPreview extends SEElement {
   async loadFile() {
     const editor = Workspace.window.getActiveEditor("logic");
     if (editor) {
-      const { uri, visibleRange } = editor;
-      const existingText = await Workspace.fs.readTextDocument({
-        textDocument: { uri },
-      });
+      const { uri, selectedRange } = editor;
+      const { programs } = await Workspace.fs.buildAll(uri);
       this.emit(
-        LoadPreviewMessage.method,
-        LoadPreviewMessage.type.request({
-          type: "screenplay",
-          textDocument: {
-            uri,
-            languageId: "sparkdown",
-            version: 0,
-            text: existingText,
+        LoadGameMessage.method,
+        LoadGameMessage.type.request({
+          programs,
+          config: {
+            entryProgram: Workspace.fs.getName(uri),
+            entryLine: selectedRange?.start?.line ?? 0,
           },
-          visibleRange,
         })
       );
     }

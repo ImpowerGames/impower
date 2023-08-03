@@ -15,7 +15,6 @@ import FileList from "./components/file-list/_file-list";
 import FileOptionsButton from "./components/file-options-button/_file-options-button";
 import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
-import GamePreview from "./components/game-preview/_game-preview";
 import Graphics from "./components/graphics/_graphics";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
@@ -28,10 +27,14 @@ import Maps from "./components/maps/_maps";
 import Music from "./components/music/_music";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
+import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
+import PreviewGame from "./components/preview-game/_preview-game";
+import PreviewOptionsDropdown from "./components/preview-options-dropdown/_preview-options-dropdown";
 import PreviewPanel from "./components/preview-panel/_preview-panel";
+import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_preview-screenplay-toolbar";
+import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/_preview-toggle-button";
 import Preview from "./components/preview/_preview";
-import ScreenplayPreview from "./components/screenplay-preview/_screenplay-preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
 import Setup from "./components/setup/_setup";
 import Share from "./components/share/_share";
@@ -75,8 +78,10 @@ const components = {
   "se-file-list-border": style(FileListBorder),
   "se-file-list": style(FileList),
   "se-script-editor": style(ScriptEditor),
-  "se-game-preview": style(GamePreview),
-  "se-screenplay-preview": style(ScreenplayPreview),
+  "se-preview-game-toolbar": style(PreviewGameToolbar),
+  "se-preview-game": style(PreviewGame),
+  "se-preview-screenplay-toolbar": style(PreviewScreenplayToolbar),
+  "se-preview-screenplay": style(PreviewScreenplay),
   "se-assets": style(Assets),
   "se-logic-scripts-editor": style(LogicScriptsEditor),
   "se-logic-scripts-list": style(LogicScriptsList),
@@ -97,10 +102,11 @@ const components = {
   "se-setup": style(Setup),
   "se-demo": style(Demo),
   "se-main-panel": style(MainPanel),
+  "se-preview-toggle-button": style(PreviewToggleButton),
+  "se-preview-options-dropdown": style(PreviewOptionsDropdown),
   "se-preview": style(Preview),
   "se-preview-panel": style(PreviewPanel),
   "se-notifications": style(Notifications),
-  "se-preview-toggle-button": style(PreviewToggleButton),
   "se-header-title-button": style(HeaderTitleButton),
   "se-header-navigation": style(HeaderNavigation),
   "se-footer-navigation": style(FooterNavigation),

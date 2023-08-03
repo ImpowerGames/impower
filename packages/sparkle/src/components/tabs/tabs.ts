@@ -3,7 +3,10 @@ import getAttributeNameMap from "../../../../spark-element/src/utils/getAttribut
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import SparkleElement from "../../core/sparkle-element";
+import SparkleElement, {
+  DEFAULT_SPARKLE_ATTRIBUTES,
+  DEFAULT_SPARKLE_TRANSFORMERS,
+} from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getSlotChildren } from "../../utils/getSlotChildren";
@@ -21,10 +24,12 @@ const CHANGED_EVENT = "changed";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
 const DEFAULT_TRANSFORMERS = {
+  ...DEFAULT_SPARKLE_TRANSFORMERS,
   "indicator-width": getCssSize,
 };
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "key",
     "indicator",
@@ -46,11 +51,11 @@ export default class Tabs
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
-    return { ...super.transformers, ...DEFAULT_TRANSFORMERS };
+    return DEFAULT_TRANSFORMERS;
   }
 
   static override async define(
@@ -137,8 +142,6 @@ export default class Tabs
   get navEl(): HTMLElement | null {
     return this.getElementByClass("nav");
   }
-
-  protected _pointerDownOnAnyTab?: boolean;
 
   protected _activatingValue: string | null = null;
 
@@ -311,19 +314,10 @@ export default class Tabs
 
   bindTabs(): void {
     this.tabs.forEach((tab) => {
-      tab.root.addEventListener("pointerdown", this.handlePointerDownTab, {
-        passive: true,
-      });
-      tab.root.addEventListener("pointerenter", this.handlePointerEnterTab, {
-        passive: true,
-      });
       tab.root.addEventListener("keydown", this.handleKeyDownTab, {
         passive: true,
       });
       tab.root.addEventListener("click", this.handleClickTab, {
-        passive: true,
-      });
-      window.addEventListener("pointerup", this.handlePointerUp, {
         passive: true,
       });
     });
@@ -331,11 +325,8 @@ export default class Tabs
 
   unbindTabs(): void {
     this.tabs.forEach((tab) => {
-      tab.root.removeEventListener("pointerdown", this.handlePointerDownTab);
-      tab.root.removeEventListener("pointerenter", this.handlePointerEnterTab);
       tab.root.removeEventListener("keydown", this.handleKeyDownTab);
       tab.root.removeEventListener("click", this.handleClickTab);
-      window.removeEventListener("pointerup", this.handlePointerUp);
     });
   }
 
@@ -383,24 +374,6 @@ export default class Tabs
       }
     }
   }
-
-  handlePointerDownTab = (e: PointerEvent): void => {
-    this._pointerDownOnAnyTab = true;
-  };
-
-  handlePointerEnterTab = (e: PointerEvent): void => {
-    if (e.currentTarget instanceof HTMLElement) {
-      const tab = (e.currentTarget.getRootNode() as ShadowRoot)?.host as Tab;
-      if (this._pointerDownOnAnyTab) {
-        this._activatingValue = tab.value;
-        this.updateTabs(true);
-      }
-    }
-  };
-
-  handlePointerUp = (e: PointerEvent): void => {
-    this._pointerDownOnAnyTab = false;
-  };
 
   handleKeyDownTab = (e: KeyboardEvent): void => {
     if (e.currentTarget instanceof HTMLElement) {

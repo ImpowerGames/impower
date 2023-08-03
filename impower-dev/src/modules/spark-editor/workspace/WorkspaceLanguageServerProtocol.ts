@@ -1,14 +1,18 @@
 import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
+import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
+import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
+  ConfigurationParams,
   InitializeResult,
   MessageConnection,
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
 import { createBrowserMessageConnection } from "@impower/spark-editor-protocol/src/utils/createBrowserMessageConnection";
 import ConsoleLogger from "./ConsoleLogger";
+import WorkspaceConfiguration from "./WorkspaceConfiguration";
 
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   workspace: {
@@ -114,6 +118,8 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
 };
 
 export default class WorkspaceLanguageServerProtocol {
+  protected _configuration: WorkspaceConfiguration;
+
   protected _worker = new Worker("/public/sparkdown-language-server.js");
 
   protected _name = "Sparkdown Language Server";
@@ -141,10 +147,23 @@ export default class WorkspaceLanguageServerProtocol {
     return this._starting;
   }
 
-  constructor() {
+  constructor(configuration: WorkspaceConfiguration) {
+    this._configuration = configuration;
     this._connection = createBrowserMessageConnection(
       this._worker,
       new ConsoleLogger()
+    );
+    this._connection.onRequest(
+      ConfigurationMessage.method,
+      (params: ConfigurationParams) => {
+        const result = params.items.map((item) => {
+          if (item.section === "sparkdown") {
+            return this._configuration.settings;
+          }
+          return {};
+        });
+        return result;
+      }
     );
     this._connection.onNotification(
       DidParseTextDocumentMessage.type,
@@ -170,6 +189,7 @@ export default class WorkspaceLanguageServerProtocol {
       }
     );
     this._serverCapabilities = result.capabilities;
+    this._connection.sendNotification(InitializedMessage.method, {});
     return result;
   }
 

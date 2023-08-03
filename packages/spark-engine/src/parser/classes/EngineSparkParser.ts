@@ -17,7 +17,6 @@ export default class EngineSparkParser extends SparkParser {
       compiler: compile,
       formatter: format,
       extensions: [processBeatmap],
-      lineOffset: 1,
       ...(config || {}),
     });
   }

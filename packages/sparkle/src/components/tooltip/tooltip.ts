@@ -2,6 +2,7 @@ import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import Popup from "../popup/popup";
@@ -15,6 +16,7 @@ const OPENED_EVENT = "opened";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "open",
     "anchor",
@@ -56,7 +58,7 @@ export default class Tooltip
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(

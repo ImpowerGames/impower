@@ -5,6 +5,7 @@ import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src
 import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { RevealEditorRangeMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/RevealEditorRangeMessage";
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
+import { SelectedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { UnfocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
@@ -57,7 +58,7 @@ export default class SparkdownScriptEditor
   }
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   override get component() {
@@ -345,6 +346,18 @@ export default class SparkdownScriptEditor
               );
               debouncedSave(e.after);
             }
+          }
+        },
+        onSelectionChanged: (range) => {
+          const uri = this._textDocument?.uri;
+          if (uri) {
+            this.emit(
+              SelectedEditorMessage.method,
+              SelectedEditorMessage.type.notification({
+                textDocument: { uri },
+                range,
+              })
+            );
           }
         },
       });

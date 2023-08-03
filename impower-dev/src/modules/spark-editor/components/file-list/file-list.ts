@@ -20,7 +20,7 @@ export default class FileList
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -213,7 +213,7 @@ export default class FileList
     if (outletSlot) {
       this._uris.forEach((uri) => {
         const fileName = Workspace.fs.getFileName(uri);
-        const displayName = Workspace.fs.getDisplayName(uri);
+        const displayName = Workspace.fs.getName(uri);
         const template = document.createElement("template");
         template.innerHTML = html`
           <se-file-item

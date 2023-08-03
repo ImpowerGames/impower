@@ -1,6 +1,7 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import { navEndKey } from "../../utils/navEndKey";
@@ -22,6 +23,7 @@ const CHANGED_EVENT = "changed";
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-option"]);
 
 const DEFAULT_ATTRIBUTES = {
+  ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
     "key",
     "active",
@@ -61,7 +63,7 @@ export default class Dropdown
   static override dependencies = DEFAULT_DEPENDENCIES;
 
   static override get attributes() {
-    return { ...super.attributes, ...DEFAULT_ATTRIBUTES };
+    return DEFAULT_ATTRIBUTES;
   }
 
   static override async define(
@@ -136,8 +138,6 @@ export default class Dropdown
   get options(): Option[] {
     return this._options;
   }
-
-  protected _pointerDownOnAnyOption?: boolean;
 
   protected _activatingValue: string | null = null;
 
@@ -381,27 +381,10 @@ export default class Dropdown
 
   bindOptions(): void {
     this.options.forEach((option) => {
-      option.root.addEventListener(
-        "pointerdown",
-        this.handlePointerDownOption,
-        {
-          passive: true,
-        }
-      );
-      option.root.addEventListener(
-        "pointerenter",
-        this.handlePointerEnterOption,
-        {
-          passive: true,
-        }
-      );
       option.root.addEventListener("keydown", this.handleKeyDownOption, {
         passive: true,
       });
       option.root.addEventListener("click", this.handleClickOption, {
-        passive: true,
-      });
-      window.addEventListener("pointerup", this.handlePointerUp, {
         passive: true,
       });
     });
@@ -409,17 +392,8 @@ export default class Dropdown
 
   unbindOptions(): void {
     this.options.forEach((option) => {
-      option.root.removeEventListener(
-        "pointerdown",
-        this.handlePointerDownOption
-      );
-      option.root.removeEventListener(
-        "pointerenter",
-        this.handlePointerEnterOption
-      );
       option.root.removeEventListener("keydown", this.handleKeyDownOption);
       option.root.removeEventListener("click", this.handleClickOption);
-      window.removeEventListener("pointerup", this.handlePointerUp);
     });
   }
 
@@ -467,25 +441,6 @@ export default class Dropdown
       }
     }
   }
-
-  handlePointerDownOption = (e: PointerEvent): void => {
-    this._pointerDownOnAnyOption = true;
-  };
-
-  handlePointerEnterOption = (e: PointerEvent): void => {
-    if (e.currentTarget instanceof HTMLElement) {
-      const option = (e.currentTarget.getRootNode() as ShadowRoot)
-        ?.host as Option;
-      if (this._pointerDownOnAnyOption) {
-        this._activatingValue = option.value;
-        this.updateOptions();
-      }
-    }
-  };
-
-  handlePointerUp = (e: PointerEvent): void => {
-    this._pointerDownOnAnyOption = false;
-  };
 
   handleKeyDownOption = (e: KeyboardEvent): void => {
     if (e.currentTarget instanceof HTMLElement) {

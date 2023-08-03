@@ -84,7 +84,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
           files?.data,
           {
             editable: modeRef.current === "Edit",
-            activeLine: activeLineRef.current,
+            entryLine: activeLineRef.current,
             state: {
               debug: {
                 debugging: debuggingRef.current,
@@ -114,7 +114,7 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
         filesRef.current?.data,
         {
           editable: mode === "Edit",
-          activeLine: activeLineRef.current,
+          entryLine: activeLineRef.current,
           state: {
             debug: {
               debugging: debuggingRef.current,
