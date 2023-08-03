@@ -31,6 +31,7 @@ const DEFAULT_ATTRIBUTES = {
     "hide-event",
     "show-event",
     "hide-instantly",
+    "show-instantly",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -141,13 +142,23 @@ export default class Hidden
   }
 
   /**
-   * The hide transition duration
+   * Disable the hide transition
    */
   get hideInstantly(): string | null {
     return this.getStringAttribute(Hidden.attributes.hideInstantly);
   }
   set hideInstantly(value) {
     this.setStringAttribute(Hidden.attributes.hideInstantly, value);
+  }
+
+  /**
+   * Disable the show transition
+   */
+  get showInstantly(): string | null {
+    return this.getStringAttribute(Hidden.attributes.showInstantly);
+  }
+  set showInstantly(value) {
+    this.setStringAttribute(Hidden.attributes.showInstantly, value);
   }
 
   /**
@@ -188,13 +199,17 @@ export default class Hidden
     window.addEventListener("resize", this.handleWindowResize, {
       passive: true,
     });
-    const hideEvent = this.hideEvent;
-    const showEvent = this.showEvent;
-    if (hideEvent) {
-      window.addEventListener(hideEvent, this.handleHideEvent);
+    const hideEvents = this.hideEvent?.split(" ");
+    const showEvents = this.showEvent?.split(" ");
+    if (hideEvents) {
+      hideEvents.forEach((hideEvent) => {
+        window.addEventListener(hideEvent, this.handleHideEvent);
+      });
     }
-    if (showEvent) {
-      window.addEventListener(showEvent, this.handleShowEvent);
+    if (showEvents) {
+      showEvents.forEach((showEvent) => {
+        window.addEventListener(showEvent, this.handleShowEvent);
+      });
     }
   }
 
@@ -204,18 +219,23 @@ export default class Hidden
 
   protected override onDisconnected(): void {
     window.removeEventListener("resize", this.handleWindowResize);
-    const hideEvent = this.hideEvent;
-    const showEvent = this.showEvent;
-    if (hideEvent) {
-      window.removeEventListener(hideEvent, this.handleHideEvent);
+    const hideEvents = this.hideEvent?.split(" ");
+    const showEvents = this.showEvent?.split(" ");
+    if (hideEvents) {
+      hideEvents.forEach((hideEvent) => {
+        window.removeEventListener(hideEvent, this.handleHideEvent);
+      });
     }
-    if (showEvent) {
-      window.removeEventListener(showEvent, this.handleShowEvent);
+    if (showEvents) {
+      showEvents.forEach((showEvent) => {
+        window.removeEventListener(showEvent, this.handleShowEvent);
+      });
     }
   }
 
   checkBreakpoint() {
     const breakpoint = getCurrentBreakpoint(window.innerWidth);
+    const ifBelow = this.ifBelow;
     const hideBelow = this.hideBelow;
     const hideAbove = this.hideAbove;
     this._breakpointValue = getBreakpointValue(breakpoint);
@@ -231,6 +251,13 @@ export default class Hidden
         this.hide();
       } else {
         this.show();
+      }
+    }
+    if (ifBelow) {
+      if (this._breakpointValue >= getBreakpointValue(ifBelow)) {
+        if (!this._shown) {
+          this.show();
+        }
       }
     }
   }
@@ -285,12 +312,17 @@ export default class Hidden
   }
 
   async animateShow() {
-    this.root.hidden = false;
-    this.root.setAttribute("state", "mounting");
-    await animationsComplete(this.root);
-    this.root.setAttribute("state", "showing");
-    await animationsComplete(this.root);
-    this.root.setAttribute("state", "shown");
+    if (this.showInstantly != null) {
+      this.root.hidden = false;
+      this.root.setAttribute("state", "shown");
+    } else {
+      this.root.hidden = false;
+      this.root.setAttribute("state", "mounting");
+      await animationsComplete(this.root);
+      this.root.setAttribute("state", "showing");
+      await animationsComplete(this.root);
+      this.root.setAttribute("state", "shown");
+    }
   }
 
   async cancelPending() {
