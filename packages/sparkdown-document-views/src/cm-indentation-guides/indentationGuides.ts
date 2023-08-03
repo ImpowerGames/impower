@@ -54,6 +54,10 @@ const indentationGuideTheme = EditorView.baseTheme({
     pointerEvents: "none",
     zIndex: "-1",
   },
+
+  ".cm-indent-guides .cm-highlightSpace::before": {
+    display: "none",
+  },
 });
 
 function createGradient(
