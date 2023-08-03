@@ -75,6 +75,7 @@ export default class Application {
     this._camera = new PerspectiveCamera(50, width / height);
     this._camera.position.z = 1;
     this._orbit = new OrbitControls(this._camera, this._view);
+    this._orbit.enabled = false;
 
     this._renderer.setSize(width, height);
 
@@ -207,8 +208,8 @@ export default class Application {
     if (this.ticker) {
       this.ticker.speed = 0;
     }
-    this.orbit.saveState();
-    this.orbit.enabled = true;
+    this._orbit.saveState();
+    this._orbit.enabled = true;
     this.scenes.forEach((scene) => {
       if (scene?.active) {
         scene.pause();
@@ -217,8 +218,8 @@ export default class Application {
   }
 
   unpause(): void {
-    this.orbit.enabled = false;
-    this.orbit.reset();
+    this._orbit.enabled = false;
+    this._orbit.reset();
     this.scenes.forEach((scene) => {
       if (scene?.active) {
         scene.unpause();
@@ -241,7 +242,10 @@ export default class Application {
 
     this._timeMS += deltaMS;
 
-    this._orbit.update();
+    if (deltaMS === 0) {
+      this._orbit.update();
+    }
+
     const mainScene = this._scenes.get("main");
     if (mainScene) {
       this._renderer.render(mainScene, this._camera);
