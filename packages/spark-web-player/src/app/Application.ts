@@ -55,7 +55,7 @@ export default class Application {
     return this._camera;
   }
 
-  protected _orbit: OrbitControls;
+  protected _orbit?: OrbitControls;
   get orbit() {
     return this._orbit;
   }
@@ -74,8 +74,6 @@ export default class Application {
 
     this._camera = new PerspectiveCamera(50, width / height);
     this._camera.position.z = 1;
-    this._orbit = new OrbitControls(this._camera, this._view);
-    this._orbit.enabled = false;
 
     this._renderer.setSize(width, height);
 
@@ -208,8 +206,7 @@ export default class Application {
     if (this.ticker) {
       this.ticker.speed = 0;
     }
-    this._orbit.saveState();
-    this._orbit.enabled = true;
+    this.enableOrbitControls();
     this.scenes.forEach((scene) => {
       if (scene?.active) {
         scene.pause();
@@ -218,8 +215,7 @@ export default class Application {
   }
 
   unpause(): void {
-    this._orbit.enabled = false;
-    this._orbit.reset();
+    this.disableOrbitControls();
     this.scenes.forEach((scene) => {
       if (scene?.active) {
         scene.unpause();
@@ -242,7 +238,7 @@ export default class Application {
 
     this._timeMS += deltaMS;
 
-    if (deltaMS === 0) {
+    if (this._orbit) {
       this._orbit.update();
     }
 
@@ -270,4 +266,17 @@ export default class Application {
   protected onUpdate = (deltaMS: number) => {
     this.update(deltaMS);
   };
+
+  enableOrbitControls() {
+    this._orbit = new OrbitControls(this._camera, this._view);
+    this._orbit.saveState();
+  }
+
+  disableOrbitControls() {
+    if (this._orbit) {
+      this._orbit.reset();
+      this._orbit.dispose();
+      this._orbit = undefined;
+    }
+  }
 }
