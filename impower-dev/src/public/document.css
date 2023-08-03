@@ -87,6 +87,7 @@ body {
   flex-direction: column;
   font-size: 0.875rem;
   font-family: var(--s-font-sans);
+  min-height: 100dvh;
 }
 
 main {
