@@ -149,8 +149,8 @@
   min-height: var(--min-panel-height);
 }
 
-/* If the container is less than 600px */
-@container (max-width: 600px) {
+/* If the container is less than 960px */
+@container (max-width: 960px) {
   :host([responsive]:not([vertical], [primary="end"], [responsive="hide"]))
     > .root
     > .end {

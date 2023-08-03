@@ -71,7 +71,7 @@ html {
   overflow: hidden;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 960px) {
   html {
     overflow-y: scroll;
     touch-action: pan-y;

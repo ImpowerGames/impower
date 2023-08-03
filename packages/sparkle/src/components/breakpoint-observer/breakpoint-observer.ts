@@ -79,7 +79,7 @@ export default class BreakpointObserver
   }
 
   /**
-   * The sm breakpoint.
+   * The md breakpoint.
    *
    * Defaults to `960px`.
    */

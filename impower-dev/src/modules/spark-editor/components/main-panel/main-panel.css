@@ -8,7 +8,7 @@
   flex-direction: column;
 }
 
-@media (min-width: 600px) {
+@media (min-width: 960px) {
   :host > .scrollable {
     overflow-y: scroll;
     overflow-x: clip;
