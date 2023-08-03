@@ -2,7 +2,7 @@ import { SparkProgram } from "../../../../sparkdown/src";
 import { SparkGame, SparkGameConfig, SparkGameState } from "../../game";
 import { SparkGameRunner } from "../../runner";
 import { STRUCT_DEFAULTS } from "../constants/STRUCT_DEFAULTS";
-import { SparkContextConfig } from "../interfaces/SparkContextConfig";
+import { SparkContextOptions } from "../interfaces/SparkContextOptions";
 import { Context } from "./Context";
 
 export class SparkContext<
@@ -13,7 +13,7 @@ export class SparkContext<
 > extends Context<G, C, S, R> {
   constructor(
     programs: Record<string, SparkProgram>,
-    config?: SparkContextConfig<G, C, S, R>
+    config?: SparkContextOptions<G, C, S, R>
   ) {
     super(programs, {
       defaults: STRUCT_DEFAULTS,

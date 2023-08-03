@@ -4,6 +4,7 @@
 
 :host * {
   pointer-events: auto;
+  touch-action: none;
 }
 
 :host > .root {

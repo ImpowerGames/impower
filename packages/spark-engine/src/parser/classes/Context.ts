@@ -7,7 +7,7 @@ import { CommandData } from "../../data";
 import { Block, Game, GameConfig, GameState } from "../../game";
 import { CommandRunner } from "../../runner";
 import { GameRunner } from "../../runner/classes/GameRunner";
-import { ContextConfig } from "../interfaces/ContextConfig";
+import { ContextOptions } from "../interfaces/ContextOptions";
 import { generateSectionBlocks } from "../utils/generateSectionBlocks";
 
 export class Context<
@@ -70,19 +70,19 @@ export class Context<
 
   constructor(
     programs: Record<string, SparkProgram>,
-    config: ContextConfig<G, C, S, R>
+    options: ContextOptions<G, C, S, R>
   ) {
-    this._runner = config.runner || (new GameRunner() as R);
-    this._editable = config?.editable || false;
-    this._game = this.load(programs, config);
+    this._runner = options.runner || (new GameRunner() as R);
+    this._editable = options?.editable || false;
+    this._game = this.load(programs, options);
   }
 
   load(
     programs: Record<string, SparkProgram>,
-    config: ContextConfig<G, C, S, R>
+    options: ContextOptions<G, C, S, R>
   ): G {
-    const entryProgramId = config?.entryProgram || "";
-    const entryLine = config?.entryLine || 0;
+    const entryProgramId = options?.entryProgram || "";
+    const entryLine = options?.entryLine || 0;
     const program = entryProgramId
       ? programs[entryProgramId]
       : Object.values(programs)[0];
@@ -103,19 +103,19 @@ export class Context<
       }
     }
     const c = {
-      ...(config?.config || {}),
+      ...(options?.config || {}),
       logic: { blockMap },
       struct: { objectMap: program.objectMap },
     } as C;
     const s = {
-      ...(config?.state || {}),
+      ...(options?.state || {}),
       logic: {
-        ...(config?.state?.logic || {}),
+        ...(options?.state?.logic || {}),
         activeParentBlockId: startBlockId,
         activeCommandIndex: startCommandIndex,
       },
     } as S;
-    const game = config.createGame?.(c, s) || (new Game(c, s) as G);
+    const game = options.createGame?.(c, s) || (new Game(c, s) as G);
     Object.entries(game?.logic?.config?.blockMap).forEach(
       ([blockId, block]) => {
         const [ids, valueMap] = getScopedValueContext(

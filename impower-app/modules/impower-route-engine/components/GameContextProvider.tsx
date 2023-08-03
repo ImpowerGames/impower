@@ -5,7 +5,7 @@ import {
   FileData,
   IElement,
   SparkContext,
-  SparkContextConfig,
+  SparkContextOptions,
   getScriptAugmentations,
 } from "../../../../spark-engine";
 import { GameContext } from "../contexts/gameContext";
@@ -15,7 +15,7 @@ const createSparkContext = (
   root: SparkDOMElement,
   script: string,
   files: Record<string, FileData>,
-  config?: Partial<SparkContextConfig>
+  config?: Partial<SparkContextOptions>
 ): SparkContext => {
   const augmentations = getScriptAugmentations(files);
   const parsed = EngineSparkParser.instance.parse(script, { augmentations });

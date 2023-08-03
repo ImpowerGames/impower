@@ -1,3 +1,4 @@
+import { SparkDOMElement } from "../../../spark-dom/src";
 import { LoadGameMessage } from "../../../spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { PauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "../../../spark-editor-protocol/src/protocols/game/StartGameMessage";
@@ -7,7 +8,7 @@ import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols
 import SparkElement from "../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../spark-element/src/utils/getAttributeNameMap";
-import { SparkContext, SparkContextConfig } from "../../../spark-engine/src";
+import { SparkContext, SparkContextOptions } from "../../../spark-engine/src";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import Application from "../app/Application";
 import component from "./_spark-web-player";
@@ -36,7 +37,11 @@ export default class SparkWebPlayer
     return component();
   }
 
-  get gameEl() {
+  get sparkRootEl() {
+    return this.getElementById("spark-root");
+  }
+
+  get sparkGameEl() {
     return this.getElementById("spark-game");
   }
 
@@ -71,12 +76,12 @@ export default class SparkWebPlayer
       if (LoadGameMessage.type.isRequest(message)) {
         const params = message.params;
         const programs = params.programs;
-        const config = params.config;
+        const options = params.options;
         const programMap: Record<string, SparkProgram> = {};
         programs.forEach((p) => {
           programMap[p.name] = p.program;
         });
-        this.loadGame(programMap, config);
+        this.loadGame(programMap, options);
         this.emit(
           LoadGameMessage.method,
           LoadGameMessage.type.response(message.id, null)
@@ -89,7 +94,7 @@ export default class SparkWebPlayer
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (StartGameMessage.type.isRequest(message)) {
-        const gameDOM = this.gameEl;
+        const gameDOM = this.sparkGameEl;
         if (gameDOM && this._context) {
           this._app = new Application(gameDOM, this._context);
         }
@@ -145,9 +150,24 @@ export default class SparkWebPlayer
 
   loadGame(
     programs: Record<string, SparkProgram>,
-    config?: SparkContextConfig
+    options?: SparkContextOptions
   ) {
-    this._context = new SparkContext(programs, config);
+    const createElement = (type: string) => {
+      return new SparkDOMElement(document.createElement(type));
+    };
+    const sparkRootEl = this.sparkRootEl;
+    if (sparkRootEl) {
+      this._context = new SparkContext(programs, {
+        config: {
+          ui: {
+            root: new SparkDOMElement(sparkRootEl),
+            createElement,
+          },
+          ...(options?.config || {}),
+        },
+        ...(options || {}),
+      });
+    }
   }
 }
 

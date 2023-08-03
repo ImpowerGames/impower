@@ -50,7 +50,7 @@ export default class GamePreview extends SEElement {
         LoadGameMessage.method,
         LoadGameMessage.type.request({
           programs,
-          config: {
+          options: {
             entryProgram: Workspace.fs.getName(uri),
             entryLine: selectedRange?.start?.line ?? 0,
           },
