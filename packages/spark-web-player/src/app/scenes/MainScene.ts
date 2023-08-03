@@ -4,12 +4,17 @@ import { Mesh } from "three/src/objects/Mesh.js";
 import Scene from "../Scene";
 
 export default class MainScene extends Scene {
-  protected _mesh = new Mesh(
-    new BoxGeometry(0.2, 0.2, 0.2),
-    new MeshNormalMaterial()
-  );
+  protected _geometry = new BoxGeometry(0.2, 0.2, 0.2);
 
-  override init(): void {
+  protected _material = new MeshNormalMaterial();
+
+  protected _mesh = new Mesh(this._geometry, this._material);
+
+  override async load() {
+    return [this._geometry, this._material];
+  }
+
+  override init() {
     this.add(this._mesh);
   }
 

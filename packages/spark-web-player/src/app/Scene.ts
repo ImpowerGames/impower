@@ -1,6 +1,7 @@
 import * as THREE from "three/src/scenes/Scene.js";
 import { SparkContext } from "../../../spark-engine/src";
 import Application from "./Application";
+import { Disposable } from "./Disposable";
 
 export default class Scene extends THREE.Scene {
   protected _context: SparkContext;
@@ -113,8 +114,9 @@ export default class Scene extends THREE.Scene {
     return {};
   }
 
-  async load(): Promise<void> {
+  async load(): Promise<Disposable[]> {
     // NoOp
+    return [];
   }
 
   init(): void {
@@ -149,7 +151,7 @@ export default class Scene extends THREE.Scene {
     // NoOp
   }
 
-  destroy(): void {
+  dispose(): void {
     // NoOp
   }
 

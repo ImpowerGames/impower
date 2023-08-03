@@ -1,4 +1,5 @@
 import { SparkContext } from "../../../spark-engine/src";
+import { Disposable } from "./Disposable";
 import Scene from "./Scene";
 import Ticker from "./Ticker";
 import PerspectiveCamera from "./cameras/PerspectiveCamera";
@@ -59,6 +60,8 @@ export default class Application {
   get orbit() {
     return this._orbit;
   }
+
+  protected _disposables: Disposable[] = [];
 
   protected _timeMS = 0;
 
@@ -156,7 +159,8 @@ export default class Application {
     // });
     await Promise.all(
       Array.from(this.scenes).map(async ([, scene]): Promise<void> => {
-        await scene.load();
+        const disposables = await scene.load();
+        this._disposables.push(...disposables);
       })
     );
     Array.from(this.scenes).map(async ([, scene]): Promise<void> => {
@@ -184,7 +188,10 @@ export default class Application {
     this.resizeObserver.disconnect();
     this.scenes.forEach((scene) => {
       scene.unbind();
-      scene.destroy();
+      scene.dispose();
+    });
+    this._disposables.forEach((d) => {
+      d.dispose();
     });
     if (this.context) {
       this.context.end();
