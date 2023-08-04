@@ -31,6 +31,7 @@ export default class HeaderTitleButton extends SEElement {
     const nameInputEl = this.nameInputEl;
     if (nameInputEl) {
       nameInputEl.select();
+      nameInputEl.addEventListener("keydown", this.handleKeyDownNameInput);
       nameInputEl.addEventListener("blur", this.handleBlurNameInput);
     }
     const nameButtonEl = this.nameButtonEl;
@@ -46,6 +47,7 @@ export default class HeaderTitleButton extends SEElement {
   protected override onDisconnected(): void {
     const nameInputEl = this.nameInputEl;
     if (nameInputEl) {
+      nameInputEl.removeEventListener("keydown", this.handleKeyDownNameInput);
       nameInputEl.removeEventListener("blur", this.handleBlurNameInput);
     }
     const nameButtonEl = this.nameButtonEl;
@@ -65,6 +67,15 @@ export default class HeaderTitleButton extends SEElement {
   handleClickNameButton = () => {
     Workspace.window.startEditingProjectName();
     this.render();
+  };
+
+  handleKeyDownNameInput = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      const target = e.target as HTMLInputElement;
+      const name = target.value;
+      Workspace.window.finishEditingProjectName(name);
+      this.render();
+    }
   };
 
   handleBlurNameInput = (e: Event) => {
