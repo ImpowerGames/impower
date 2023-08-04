@@ -2,10 +2,10 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const mode = state?.store?.panes?.displays?.panel || "widgets";
+  const panel = state?.store?.panes?.displays?.panel || "widgets";
   return {
     html: html`
-      <s-router directional key="window/displays" active="${mode}">
+      <s-router directional key="window/displays" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"
@@ -15,7 +15,7 @@ export default (state: { store?: WorkspaceState }) => {
             translate-y="-100%"
           ></s-box>
           <s-box height="header-nav"></s-box>
-          <s-tabs color="tab-active" height="panel-nav" active="${mode}">
+          <s-tabs color="tab-active" height="panel-nav" active="${panel}">
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
@@ -23,7 +23,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="shape"
               value="widgets"
-              ${mode === "widgets" ? "active" : ""}
+              ${panel === "widgets" ? "active" : ""}
             >
               Widgets
             </s-tab>
@@ -34,7 +34,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="template"
               value="views"
-              ${mode === "views" ? "active" : ""}
+              ${panel === "views" ? "active" : ""}
             >
               Views
             </s-tab>

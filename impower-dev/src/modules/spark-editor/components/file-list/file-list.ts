@@ -1,7 +1,6 @@
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
-import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import SEElement from "../../core/se-element";
 import getValidFileName from "../../utils/getValidFileName";
 import { verifyFileType } from "../../utils/verifyFileType";
@@ -214,19 +213,13 @@ export default class FileList
       this._uris.forEach((uri) => {
         const fileName = Workspace.fs.getFileName(uri);
         const displayName = Workspace.fs.getName(uri);
-        const template = document.createElement("template");
-        template.innerHTML = html`
-          <se-file-item
-            pane="${pane}"
-            panel="${panel}"
-            directory-path="${directoryPath}"
-            file-name="${fileName}"
-          >
-            ${displayName}
-          </se-file-item>
-        `;
-        const templateContent = template.content.cloneNode(true);
-        outletSlot.appendChild(templateContent);
+        const fileItem = document.createElement("se-file-item");
+        fileItem.setAttribute("pane", pane);
+        fileItem.setAttribute("panel", panel);
+        fileItem.setAttribute("directory-path", directoryPath);
+        fileItem.setAttribute("file-name", fileName);
+        fileItem.textContent = displayName;
+        outletSlot.appendChild(fileItem);
       });
     }
     this.updateState();

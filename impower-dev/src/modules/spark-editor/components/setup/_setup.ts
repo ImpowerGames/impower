@@ -2,10 +2,10 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const mode = state?.store?.panes?.setup?.panel || "details";
+  const panel = state?.store?.panes?.setup?.panel || "details";
   return {
     html: html`
-      <s-router key="window/setup" directional active="${mode}">
+      <s-router key="window/setup" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"
@@ -15,7 +15,7 @@ export default (state: { store?: WorkspaceState }) => {
             translate-y="-100%"
           ></s-box>
           <s-box height="header-nav"></s-box>
-          <s-tabs color="tab-active" height="panel-nav" active="${mode}">
+          <s-tabs color="tab-active" height="panel-nav" active="${panel}">
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
@@ -23,7 +23,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="info-circle"
               value="details"
-              ${mode === "details" ? "active" : ""}
+              ${panel === "details" ? "active" : ""}
             >
               Details
             </s-tab>
@@ -34,7 +34,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="share"
               value="share"
-              ${mode === "share" ? "active" : ""}
+              ${panel === "share" ? "active" : ""}
             >
               Share
             </s-tab>
@@ -45,7 +45,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="triangle-square-circle"
               value="assets"
-              ${mode === "assets" ? "active" : ""}
+              ${panel === "assets" ? "active" : ""}
             >
               Assets
             </s-tab>

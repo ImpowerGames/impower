@@ -2,10 +2,10 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const panelMode = state?.store?.panes?.logic?.panel || "main";
+  const panel = state?.store?.panes?.logic?.panel || "main";
   return {
     html: html`
-      <s-router key="window/logic/panel" directional active="${panelMode}">
+      <s-router key="window/logic/panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"
@@ -15,7 +15,7 @@ export default (state: { store?: WorkspaceState }) => {
             translate-y="-100%"
           ></s-box>
           <s-box height="header-nav"></s-box>
-          <s-tabs color="tab-active" height="panel-nav" active="${panelMode}">
+          <s-tabs color="tab-active" height="panel-nav" active="${panel}">
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
@@ -24,7 +24,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="code"
               value="main"
-              ${panelMode === "main" ? "active" : ""}
+              ${panel === "main" ? "active" : ""}
             >
               Main
             </s-tab>
@@ -36,7 +36,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="file-code"
               value="scripts"
-              ${panelMode === "scripts" ? "active" : ""}
+              ${panel === "scripts" ? "active" : ""}
             >
               Scripts
             </s-tab>

@@ -3,8 +3,9 @@ import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
   const panel = state?.store?.panes?.preview?.panel || "game";
-  const gameComponent = html`<se-preview-game></se-preview-game>`;
-  const screenplayComponent = html`<se-preview-screenplay></se-preview-screenplay>`;
+  const gameComponent = () => html`<se-preview-game></se-preview-game>`;
+  const screenplayComponent = () =>
+    html`<se-preview-screenplay></se-preview-screenplay>`;
   return {
     html: html`
       <s-router key="preview" active="${panel}">

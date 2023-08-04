@@ -1,4 +1,18 @@
+import { sanitize } from "./sanitize";
+
 export const html = (
-  strings: readonly string[] | ArrayLike<string>,
-  ...rest: string[]
-) => String.raw({ raw: strings }, ...rest);
+  raw: readonly string[] | ArrayLike<string>,
+  ...substitutions: (false | number | string | (() => string))[]
+) =>
+  String.raw(
+    { raw },
+    ...substitutions.map((s) =>
+      s == null || s === false
+        ? ""
+        : typeof s === "number"
+        ? String(s)
+        : typeof s === "function"
+        ? s()
+        : sanitize(s)
+    )
+  );

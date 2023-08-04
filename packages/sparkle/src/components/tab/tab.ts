@@ -146,7 +146,7 @@ export default class Tab
     this.setStringAttribute(Tab.attributes.state, value);
   }
 
-  get ripple(): Ripple | null {
+  get rippleEl(): Ripple | null {
     return this.getElementByTag<Ripple>(Tab.dependencies.ripple);
   }
 
@@ -180,13 +180,13 @@ export default class Tab
         Tab.attributes.ariaDisabled,
         newValue != null ? "true" : "false"
       );
-      const ripple = this.ripple;
+      const ripple = this.rippleEl;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Tab.attributes.mask) {
-      const ripple = this.ripple;
+      const ripple = this.rippleEl;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -212,7 +212,7 @@ export default class Tab
   }
 
   protected override onConnected(): void {
-    this.ripple?.bind?.(this.root);
+    this.rippleEl?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
     const icon = this.icon;
     const iconEl = this.iconEl;
@@ -228,7 +228,7 @@ export default class Tab
   }
 
   protected override onDisconnected(): void {
-    this.ripple?.unbind?.(this.root);
+    this.rippleEl?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
 

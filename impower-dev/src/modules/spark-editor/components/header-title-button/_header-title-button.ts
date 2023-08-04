@@ -6,7 +6,7 @@ export default (state: { store?: WorkspaceState }) => {
   const label = "Project Name";
   const name = state?.store?.header?.projectName ?? "";
   const editingName = state?.store?.header?.editingProjectName;
-  const nameButton = html`
+  const nameButton = () => html`
     <s-button
       id="name-button"
       variant="text"
@@ -19,7 +19,7 @@ export default (state: { store?: WorkspaceState }) => {
       ${name}
     </s-button>
   `;
-  const nameInput = html`
+  const nameInput = () => html`
     <s-input
       id="name-input"
       text-size="lg"
@@ -34,7 +34,7 @@ export default (state: { store?: WorkspaceState }) => {
       width="100%"
     ></s-input>
   `;
-  const nameSkeleton = html`
+  const nameSkeleton = () => html`
     <s-skeleton id="name-skeleton">Untitled Project</s-skeleton>
   `;
   return {

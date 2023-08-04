@@ -42,7 +42,7 @@ export default (state?: {
         </div>
         ${
           type === "file"
-            ? html`
+            ? () => html`
                 <input
                   type="${type}"
                   ${accept ? `accept="${accept}"` : ""}

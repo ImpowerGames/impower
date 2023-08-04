@@ -13,7 +13,7 @@
   --min-color-stop-length: 75%;
 }
 
-:host([disabled]) > .root::after {
+:host([animation="none"]) > .root::after {
   visibility: hidden;
 }
 

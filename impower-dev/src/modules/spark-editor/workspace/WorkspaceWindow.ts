@@ -19,6 +19,8 @@ import { Workspace } from "./Workspace";
 import { ReadOnly } from "./types/ReadOnly";
 import { WorkspaceState } from "./types/WorkspaceState";
 
+const FILENAME_SANITIZER_REGEX = /[\\/:"*?<>|`=]/g;
+
 export default class WorkspaceWindow {
   protected _state: WorkspaceState;
   get state(): ReadOnly<WorkspaceState> {
@@ -317,7 +319,8 @@ export default class WorkspaceWindow {
   }
 
   loadProject(project: { id: string; name: string }) {
-    this._state.header.projectName = project.name;
+    const validName = project.name.replace(FILENAME_SANITIZER_REGEX, "");
+    this._state.header.projectName = validName;
     this.emit(
       DidLoadProjectMessage.method,
       DidLoadProjectMessage.type.notification(project)
@@ -333,12 +336,13 @@ export default class WorkspaceWindow {
   }
 
   async finishEditingProjectName(name: string) {
+    const validName = name.replace(FILENAME_SANITIZER_REGEX, "");
     this._state.header.editingProjectName = false;
-    this._state.header.projectName = name;
-    await Workspace.fs.updateProjectName(name);
+    this._state.header.projectName = validName;
+    await Workspace.fs.updateProjectName(validName);
     this.emit(
       DidEditProjectNameMessage.method,
-      DidEditProjectNameMessage.type.notification({ name })
+      DidEditProjectNameMessage.type.notification({ name: validName })
     );
   }
 }

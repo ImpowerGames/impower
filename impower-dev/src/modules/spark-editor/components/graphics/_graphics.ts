@@ -2,10 +2,10 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  const mode = state?.store?.panes?.graphics?.panel || "sprites";
+  const panel = state?.store?.panes?.graphics?.panel || "sprites";
   return {
     html: html`
-      <s-router directional key="window/graphics" active="${mode}">
+      <s-router directional key="window/graphics" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"
@@ -15,7 +15,7 @@ export default (state: { store?: WorkspaceState }) => {
             translate-y="-100%"
           ></s-box>
           <s-box height="header-nav"></s-box>
-          <s-tabs color="tab-active" height="panel-nav" active="${mode}">
+          <s-tabs color="tab-active" height="panel-nav" active="${panel}">
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
@@ -23,7 +23,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="pacman"
               value="sprites"
-              ${mode === "sprites" ? "active" : ""}
+              ${panel === "sprites" ? "active" : ""}
             >
               Sprites
             </s-tab>
@@ -34,7 +34,7 @@ export default (state: { store?: WorkspaceState }) => {
               child-layout="row"
               icon="wall"
               value="maps"
-              ${mode === "maps" ? "active" : ""}
+              ${panel === "maps" ? "active" : ""}
             >
               Maps
             </s-tab>

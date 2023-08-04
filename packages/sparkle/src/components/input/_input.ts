@@ -5,6 +5,7 @@ export default (state: {
   attrs: {
     type: string | null;
     name: string | null;
+    autofocus: boolean;
     autocomplete: string | null;
     autocorrect: string | null;
     autocapitalize: string | null;
@@ -22,44 +23,56 @@ export default (state: {
   };
 }) => {
   const label = state?.attrs?.label ?? "";
-  const type = state?.attrs?.type ? `type="${state.attrs.type}"` : "";
-  const name = state?.attrs?.name ? `name="${state.attrs.name}"` : "";
-  const autocomplete = state?.attrs?.autocomplete
-    ? `autocomplete="${state?.attrs?.autocomplete}"`
+  const type = state?.attrs?.type ?? "";
+  const name = state?.attrs?.name ?? "";
+  const autofocus = state?.attrs?.autofocus ?? "";
+  const autocomplete = state?.attrs?.autocomplete ?? "";
+  const autocorrect = state?.attrs?.autocorrect ?? "";
+  const autocapitalize = state?.attrs?.autocapitalize ?? "";
+  const pattern = state?.attrs?.pattern ?? "";
+  const maxLength = state?.attrs?.maxLength ?? "";
+  const minLength = state?.attrs?.minLength ?? "";
+  const inputMode = state?.attrs?.inputMode ?? "";
+  const enterKeyHint = state?.attrs?.enterKeyHint ?? "";
+  const spellcheck = (state?.attrs?.spellcheck ? "true" : "false") ?? "";
+  const readonly = state?.attrs?.readonly ?? "";
+  const required = state?.attrs?.required ?? "";
+  const defaultValue = state?.attrs?.defaultValue || state?.attrs?.value || "";
+  const typeAttr = type ? () => html`type="${type}"` : "";
+  const nameAttr = name ? () => html`name="${name}"` : "";
+  const autofocusAttr = autofocus ? () => html`autofocus` : "";
+  const autocompleteAttr = autocomplete
+    ? () => html`autocomplete="${autocomplete}"`
     : "";
-  const autocorrect = state?.attrs?.autocorrect
-    ? `autocorrect="${state?.attrs?.autocorrect}"`
+  const autocorrectAttr = autocorrect
+    ? () => html`autocorrect="${autocorrect}"`
     : "";
-  const autocapitalize = state?.attrs?.autocapitalize
-    ? `autocapitalize="${state?.attrs?.autocapitalize}"`
+  const autocapitalizeAttr = autocapitalize
+    ? () => html`autocapitalize="${autocapitalize}"`
     : "";
-  const pattern = state?.attrs?.pattern
-    ? `pattern="${state.attrs.pattern}"`
+  const patternAttr = pattern ? () => html`pattern="${pattern}"` : "";
+  const maxlengthAttr = maxLength ? () => html`maxlength="${maxLength}"` : "";
+  const minlengthAttr = minLength ? () => html`minlength="${minLength}"` : "";
+  const placeholder = label ? () => html`placeholder="${label}"` : "";
+  const inputmodeAttr = inputMode ? () => html`inputmode="${inputMode}"` : "";
+  const enterkeyhintAttr = enterKeyHint
+    ? () => html`enterkeyhint="${enterKeyHint}"`
     : "";
-  const maxlength = state?.attrs?.maxLength
-    ? `maxlength="${state.attrs.maxLength}"`
+  const spellcheckAttr = spellcheck
+    ? () => html`spellcheck="${spellcheck}"`
     : "";
-  const minlength = state?.attrs?.minLength
-    ? `minlength="${state.attrs.minLength}"`
-    : "";
-  const placeholder = label ? `placeholder="${label}"` : "";
-  const inputmode = state?.attrs?.inputMode
-    ? `inputmode="${state.attrs.inputMode}"`
-    : "";
-  const enterkeyhint = state?.attrs?.enterKeyHint
-    ? `enterkeyhint="${state.attrs.enterKeyHint}"`
-    : "";
-  const spellcheck = state?.attrs?.spellcheck
-    ? `spellcheck="${state.attrs.spellcheck}"`
-    : "";
-  const readonly = state?.attrs?.readonly ? "readonly" : "";
-  const required = state?.attrs?.required ? "required" : "";
-  const defaultValue = state?.attrs?.defaultValue || state?.attrs?.value;
-  const value = defaultValue ? `value="${defaultValue}"` : "";
+  const readonlyAttr = readonly ? () => html`readonly` : "";
+  const requiredAttr = required ? () => html`required` : "";
+  const valueAttr = defaultValue ? () => html`value="${defaultValue}"` : "";
   return {
     css,
     html: html`
-      <label class="root" part="root">
+      <label class="root" part="root" aria-label="${label}">
+        <div class="ripple" part="ripple">
+          <slot name="ripple">
+            <s-ripple animation="none"></s-ripple>
+          </slot>
+        </div>
         <span class="prefix" part="prefix">
           <slot name="prefix"></slot>
         </span>
@@ -67,21 +80,22 @@ export default (state: {
           id="form-control-input"
           class="input"
           part="input"
-          ${type}
-          ${name}
-          ${autocomplete}
-          ${autocorrect}
-          ${autocapitalize}
-          ${spellcheck}
-          ${pattern}
-          ${maxlength}
-          ${minlength}
-          ${inputmode}
-          ${enterkeyhint}
-          ${readonly}
-          ${required}
+          ${typeAttr}
+          ${nameAttr}
+          ${autofocusAttr}
+          ${autocompleteAttr}
+          ${autocorrectAttr}
+          ${autocapitalizeAttr}
+          ${spellcheckAttr}
+          ${patternAttr}
+          ${maxlengthAttr}
+          ${minlengthAttr}
+          ${inputmodeAttr}
+          ${enterkeyhintAttr}
+          ${readonlyAttr}
+          ${requiredAttr}
           ${placeholder}
-          ${value}
+          ${valueAttr}
         />
         <span class="suffix" part="suffix">
           <slot name="suffix"></slot>

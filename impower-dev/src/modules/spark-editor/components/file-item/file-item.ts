@@ -25,7 +25,7 @@ export default class FileItem
   }
 
   override get component() {
-    return component({ attrs: { "directory-path": this.directoryPath } });
+    return component();
   }
 
   /**

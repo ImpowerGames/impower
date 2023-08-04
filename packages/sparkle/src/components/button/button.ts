@@ -323,7 +323,7 @@ export default class Button
     );
   }
 
-  get ripple(): Ripple | null {
+  get rippleEl(): Ripple | null {
     return this.getElementByTag<Ripple>(Button.dependencies.ripple);
   }
 
@@ -343,19 +343,19 @@ export default class Button
       this.updateRootAttribute(name, newValue);
     }
     if (name === Button.attributes.disabled) {
-      const ripple = this.ripple;
+      const ripple = this.rippleEl;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Button.attributes.loading) {
-      const ripple = this.ripple;
+      const ripple = this.rippleEl;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Button.attributes.mask) {
-      const ripple = this.ripple;
+      const ripple = this.rippleEl;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -372,7 +372,7 @@ export default class Button
     }
     if (name === Button.attributes.loading) {
       const loading = newValue != null;
-      const ripple = this.ripple;
+      const ripple = this.rippleEl;
       const labelEl = this.labelEl;
       const iconEl = this.iconEl;
       const spinnerEl = this.spinnerEl;
@@ -419,7 +419,7 @@ export default class Button
       inputEl.addEventListener("change", this.handleInputChange);
       this.bindFocus(inputEl);
     }
-    this.ripple?.bind?.(this.root);
+    this.rippleEl?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
   }
 
@@ -429,7 +429,7 @@ export default class Button
       inputEl.removeEventListener("change", this.handleInputChange);
       this.unbindFocus(inputEl);
     }
-    this.ripple?.unbind?.(this.root);
+    this.rippleEl?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
 

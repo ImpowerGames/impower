@@ -4,11 +4,12 @@ import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 export default (state: { store?: WorkspaceState }) => {
   const running = state?.store?.panes?.preview?.panels?.game?.running;
   const paused = state?.store?.panes?.preview?.panels?.game?.paused;
-  const titleEl = html`<s-box text-align="center" grow>Game Preview</s-box>`;
-  const optionsButton = html`
+  const titleEl = () =>
+    html`<s-box text-align="center" grow>Game Preview</s-box>`;
+  const optionsButton = () => html`
     <se-preview-options-dropdown></se-preview-options-dropdown>
   `;
-  const fullscreenButton = html`
+  const fullscreenButton = () => html`
     <s-button
       id="fullscreen-button"
       width="48"
@@ -18,7 +19,7 @@ export default (state: { store?: WorkspaceState }) => {
       icon="maximize"
     ></s-button>
   `;
-  const playbackControls = html`
+  const playbackControls = () => html`
     <s-button
       id="step-backward-button"
       width="48"

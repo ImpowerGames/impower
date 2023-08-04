@@ -1,13 +1,18 @@
 import { Properties } from "../../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
+import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import SparkleElement from "../../core/sparkle-element.js";
+import type Ripple from "../ripple/ripple";
 import component from "./_input";
+
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -47,6 +52,8 @@ export default class Input
 {
   static override tagName = "s-input";
 
+  static override dependencies = DEFAULT_DEPENDENCIES;
+
   static override get attributes() {
     return DEFAULT_ATTRIBUTES;
   }
@@ -57,7 +64,7 @@ export default class Input
 
   static override async define(
     tagName?: string,
-    dependencies?: Record<string, string>,
+    dependencies = DEFAULT_DEPENDENCIES,
     useShadowDom = true
   ): Promise<CustomElementConstructor> {
     return super.define(tagName, dependencies, useShadowDom);
@@ -68,6 +75,7 @@ export default class Input
       attrs: {
         type: this.type,
         name: this.name,
+        autofocus: this.autofocus,
         autocomplete: this.autocomplete,
         autocorrect: this.autocorrect,
         autocapitalize: this.autocapitalize,
@@ -86,6 +94,13 @@ export default class Input
     });
   }
 
+  override transformHtml(html: string) {
+    return Input.augmentHtml(html, DEFAULT_DEPENDENCIES);
+  }
+
+  override transformCss(css: string) {
+    return Input.augmentCss(css, DEFAULT_DEPENDENCIES);
+  }
   /**
    * The type of input. Works the same as a native `<input>` element, but only a subset of types are supported. Defaults
    * to `text`.
@@ -248,6 +263,41 @@ export default class Input
 
   get inputEl() {
     return this.getElementByTag<HTMLInputElement>("input");
+  }
+
+  get rippleEl(): Ripple | null {
+    return this.getElementByTag<Ripple>(Input.dependencies.ripple);
+  }
+
+  protected override onAttributeChanged(
+    name: string,
+    oldValue: string,
+    newValue: string
+  ): void {
+    if (name === Input.attributes.disabled) {
+      const ripple = this.rippleEl;
+      if (ripple) {
+        ripple.hidden = newValue != null;
+      }
+    }
+    if (name === Input.attributes.mask) {
+      const ripple = this.rippleEl;
+      if (ripple) {
+        if (newValue) {
+          const mask = getCssMask(newValue);
+          ripple.root.style.webkitMask = mask;
+          ripple.root.style.mask = mask;
+        }
+      }
+    }
+  }
+
+  protected override onConnected(): void {
+    this.rippleEl?.bind?.(this.root);
+  }
+
+  protected override onDisconnected(): void {
+    this.rippleEl?.unbind?.(this.root);
   }
 }
 
