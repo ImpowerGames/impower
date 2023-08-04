@@ -7,27 +7,27 @@ import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/ga
 import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
+import { DidEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidEditProjectNameMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import { DidLoadProjectMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidLoadProjectMessage";
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
+import { WillEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillEditProjectNameMessage";
 import { Range } from "@impower/spark-editor-protocol/src/types";
-import WorkspaceFileSystem from "./WorkspaceFileSystem";
+import { Workspace } from "./Workspace";
 import { ReadOnly } from "./types/ReadOnly";
 import { WorkspaceState } from "./types/WorkspaceState";
 
 export default class WorkspaceWindow {
-  protected _fs: WorkspaceFileSystem;
-
   protected _state: WorkspaceState;
   get state(): ReadOnly<WorkspaceState> {
     return this._state;
   }
 
-  constructor(fs: WorkspaceFileSystem) {
-    this._fs = fs;
+  constructor() {
     this._state = {
-      header: { title: this._fs.projectName },
+      header: { projectName: "" },
       panes: {
         setup: {
           panel: "details",
@@ -146,7 +146,7 @@ export default class WorkspaceWindow {
   };
 
   getFilePathFromUri(uri: string) {
-    return uri.replace(this._fs.getWorkspaceUri() + "/", "");
+    return uri.replace(Workspace.fs.getWorkspaceUri() + "/", "");
   }
 
   getPaneFromUri(uri: string) {
@@ -196,7 +196,7 @@ export default class WorkspaceWindow {
     const panelState = this.getOpenedPanelState(pane);
     const filePath = panelState.openFilePath;
     if (filePath) {
-      const uri = this._fs.getWorkspaceUri(filePath);
+      const uri = Workspace.fs.getWorkspaceUri(filePath);
       return {
         uri,
         visibleRange: panelState.visibleRange,
@@ -314,5 +314,31 @@ export default class WorkspaceWindow {
     } else {
       this.pauseGame();
     }
+  }
+
+  loadProject(project: { id: string; name: string }) {
+    this._state.header.projectName = project.name;
+    this.emit(
+      DidLoadProjectMessage.method,
+      DidLoadProjectMessage.type.notification(project)
+    );
+  }
+
+  startEditingProjectName() {
+    this._state.header.editingProjectName = true;
+    this.emit(
+      WillEditProjectNameMessage.method,
+      WillEditProjectNameMessage.type.notification({})
+    );
+  }
+
+  async finishEditingProjectName(name: string) {
+    this._state.header.editingProjectName = false;
+    this._state.header.projectName = name;
+    await Workspace.fs.updateProjectName(name);
+    this.emit(
+      DidEditProjectNameMessage.method,
+      DidEditProjectNameMessage.type.notification({ name })
+    );
   }
 }

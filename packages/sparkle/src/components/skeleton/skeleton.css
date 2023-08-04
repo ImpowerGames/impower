@@ -5,8 +5,7 @@
   --color: var(--s-color-fg-05);
   --sheen-color: var(--s-color-fg-15);
   --width-min: 40px;
-  --width: 100%;
-  --grow: 1;
+  --grow: 0;
   --shrink: 0;
   --background-fit: 400% 100%;
   --corner: 9999px;

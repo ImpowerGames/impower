@@ -185,6 +185,20 @@
   --s-ratio-octave: 2;
 
   /*
+   * Spacing
+   */
+  --s-spacing-3xs: 2px;
+  --s-spacing-2xs: 4px;
+  --s-spacing-xs: 8px;
+  --s-spacing-sm: 12px;
+  --s-spacing-md: 16px;
+  --s-spacing-lg: 20px;
+  --s-spacing-xl: 28px;
+  --s-spacing-2xl: 36px;
+  --s-spacing-3xl: 48px;
+  --s-spacing-4xl: 72px;
+
+  /*
    * Elements
    */
 
@@ -209,14 +223,12 @@
   --s-button-font-size-lg: var(--s-font-size-md);
 
   /* Inputs */
-  --s-input-height-sm: 1.875rem; /* 30px */
-  --s-input-height-md: 2.5rem; /* 40px */
-  --s-input-height-lg: 3.125rem; /* 50px */
+  --s-input-height-sm: 28px;
+  --s-input-height-md: 40px;
+  --s-input-height-lg: 48px;
 
-  --s-input-background-color: var(--s-color-neutral-0);
-  --s-input-background-color-hover: var(--s-input-background-color);
-  --s-input-background-color-focus: var(--s-input-background-color);
-  --s-input-background-color-disabled: var(--s-color-neutral-20);
+  --s-input-background-color: var(--s-color-fg-05);
+
   --s-input-border-color: var(--s-color-neutral-40);
   --s-input-border-color-hover: var(--s-color-neutral-50);
   --s-input-border-color-focus: var(--s-color-primary-60);
@@ -237,30 +249,22 @@
   --s-input-font-size-lg: var(--s-font-size-lg);
   --s-input-letter-spacing: var(--s-letter-spacing-md);
 
-  --s-input-color: var(--s-color-neutral-80);
-  --s-input-color-hover: var(--s-color-neutral-80);
-  --s-input-color-focus: var(--s-color-neutral-80);
-  --s-input-color-disabled: var(--s-color-neutral-95);
-  --s-input-icon-color: var(--s-color-neutral-60);
-  --s-input-icon-color-hover: var(--s-color-neutral-70);
-  --s-input-icon-color-focus: var(--s-color-neutral-70);
-  --s-input-placeholder-color: var(--s-color-neutral-60);
-  --s-input-placeholder-color-disabled: var(--s-color-neutral-70);
   --s-input-spacing-sm: var(--s-spacing-sm);
   --s-input-spacing-md: var(--s-spacing-md);
   --s-input-spacing-lg: var(--s-spacing-lg);
 
+  --s-input-color: var(--s-color-neutral-90);
+  --s-input-color-hover: var(--s-color-neutral-90);
+  --s-input-color-focus: var(--s-color-neutral-80);
+  --s-input-color-disabled: var(--s-color-neutral-90);
+  --s-input-icon-color: var(--s-color-neutral-60);
+  --s-input-icon-color-hover: var(--s-color-neutral-70);
+  --s-input-icon-color-focus: var(--s-color-neutral-70);
+  --s-input-placeholder-color: var(--s-color-neutral-70);
+  --s-input-placeholder-color-disabled: var(--s-color-neutral-70);
+
   --s-input-focus-ring-color: hsl(198.6 88.7% 48.4% / 40%);
   --s-input-focus-ring-offset: 0;
-
-  --s-input-filled-background-color: var(--s-color-neutral-20);
-  --s-input-filled-background-color-hover: var(--s-color-neutral-20);
-  --s-input-filled-background-color-focus: var(--s-color-neutral-20);
-  --s-input-filled-background-color-disabled: var(--s-color-neutral-20);
-  --s-input-filled-color: var(--s-color-neutral-90);
-  --s-input-filled-color-hover: var(--s-color-neutral-90);
-  --s-input-filled-color-focus: var(--s-color-neutral-80);
-  --s-input-filled-color-disabled: var(--s-color-neutral-90);
 
   --s-input-label-font-size-sm: var(--s-font-size-sm);
   --s-input-label-font-size-md: var(--s-font-size-md);

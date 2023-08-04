@@ -35,14 +35,9 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
 import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import YAML from "yaml";
-import WorkspaceConfiguration from "./WorkspaceConfiguration";
-import WorkspaceLanguageServerProtocol from "./WorkspaceLanguageServerProtocol";
+import { Workspace } from "./Workspace";
 
 export default class WorkspaceFileSystem {
-  protected _configuration: WorkspaceConfiguration;
-
-  protected _lsp: WorkspaceLanguageServerProtocol;
-
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
 
   protected _scheme = "file:///";
@@ -56,15 +51,9 @@ export default class WorkspaceFileSystem {
     return this._uid;
   }
 
-  // TODO: Allow user to own more than one project
-  protected _projectId = "default";
-  get projectId() {
-    return this._projectId;
-  }
-
-  protected _projectName = "";
-  get projectName() {
-    return this._projectName;
+  protected _project?: { id: string; name: string } | undefined;
+  get project() {
+    return this._project;
   }
 
   protected _uris?: Set<string>;
@@ -77,12 +66,7 @@ export default class WorkspaceFileSystem {
     return this._initializing;
   }
 
-  constructor(
-    lsp: WorkspaceLanguageServerProtocol,
-    configuration: WorkspaceConfiguration
-  ) {
-    this._configuration = configuration;
-    this._lsp = lsp;
+  constructor() {
     this._initializing = this.initialize();
     this._fileSystemWorker.addEventListener(
       "message",
@@ -91,32 +75,14 @@ export default class WorkspaceFileSystem {
   }
 
   async initialize() {
-    const packageUri = this.getWorkspaceUri("package.sd");
-    const packageContent = await this.readTextDocument({
-      textDocument: { uri: packageUri },
-    });
-
-    if (packageContent) {
-      const trimmedPackageContent = packageContent.trim();
-      let validPackageContent = trimmedPackageContent.endsWith("---")
-        ? trimmedPackageContent.slice(0, -3)
-        : trimmedPackageContent;
-      const packageObj = YAML.parse(validPackageContent);
-      this._projectId = packageObj.id;
-      this._projectName = packageObj.name;
+    const project = await this.readProject();
+    if (project) {
+      this._project = project;
     } else {
-      this._projectName = "Untitled Project";
-      await this.writeTextDocument({
-        textDocument: { uri: packageUri },
-        text: `
----
-id: ${this._projectId}
-name: ${this._projectName}
----
-        `.trim(),
-      });
+      this._project = await this.createProject();
     }
-    await this._lsp.starting;
+    Workspace.window.loadProject(this._project);
+    await Workspace.lsp.starting;
     const directoryUri = this.getWorkspaceUri();
     const entries = await this.getWorkspaceEntries({
       directory: { uri: directoryUri },
@@ -124,7 +90,7 @@ name: ${this._projectName}
     const didWatchFilesParams = {
       files: entries,
     };
-    this._lsp.connection.sendNotification(
+    Workspace.lsp.connection.sendNotification(
       DidWatchFilesMessage.type,
       didWatchFilesParams
     );
@@ -132,6 +98,7 @@ name: ${this._projectName}
       DidWatchFilesMessage.method,
       DidWatchFilesMessage.type.notification(didWatchFilesParams)
     );
+    this._uris ??= new Set<string>();
     entries.forEach((entry) => {
       this._uris ??= new Set<string>();
       this._uris.add(entry.uri);
@@ -158,7 +125,7 @@ name: ${this._projectName}
       const params = message.params;
       const result = params.items.map((item) => {
         if (item.section === "sparkdown") {
-          return this._configuration.settings;
+          return Workspace.configuration.settings;
         }
         return {};
       });
@@ -188,7 +155,9 @@ name: ${this._projectName}
 
   getWorkspaceUri(...path: string[]) {
     const suffix = path.length > 0 ? `/${path.join("/")}` : "";
-    return `${this._scheme}${this._uid}/projects/${this._projectId}${suffix}`;
+    // TODO: Generate unique project id instead of "default" id
+    const projectId = "default";
+    return `${this._scheme}${this._uid}/projects/${projectId}${suffix}`;
   }
 
   getFileName(uri: string) {
@@ -213,6 +182,46 @@ name: ${this._projectName}
     params: WorkspaceDirectoryParams
   ): Promise<WorkspaceEntry[]> {
     return this.sendRequest(WorkspaceDirectoryMessage.type, params);
+  }
+
+  async readProject(): Promise<{ name: string; id: string } | undefined> {
+    const uri = this.getWorkspaceUri("package.sd");
+    const packageContent = await this.readTextDocument({
+      textDocument: { uri },
+    });
+    if (!packageContent) {
+      return undefined;
+    }
+    const trimmedPackageContent = packageContent.trim();
+    let validPackageContent = trimmedPackageContent.endsWith("---")
+      ? trimmedPackageContent.slice(0, -3)
+      : trimmedPackageContent;
+    const packageObj = YAML.parse(validPackageContent);
+    return packageObj;
+  }
+
+  async createProject() {
+    const uri = this.getWorkspaceUri("package.sd");
+    this._project = { id: "default", name: "Untitled Project" };
+    const text = `---\n${YAML.stringify(this._project)}\n---`;
+    await this.writeTextDocument({
+      textDocument: { uri },
+      text,
+    });
+    return this._project;
+  }
+
+  async updateProjectName(name: string) {
+    if (!this._project) {
+      throw new Error("No project loaded");
+    }
+    const uri = this.getWorkspaceUri("package.sd");
+    this._project.name = name;
+    const text = `---\n${YAML.stringify(this._project)}\n---`;
+    await this.writeTextDocument({
+      textDocument: { uri },
+      text,
+    });
   }
 
   async buildAll(entryUri: string) {
@@ -252,11 +261,11 @@ name: ${this._projectName}
         type: FileChangeType.Created,
       })),
     });
-    this._lsp.connection.sendNotification(
+    Workspace.lsp.connection.sendNotification(
       createMessage.method,
       createMessage.params
     );
-    this._lsp.connection.sendNotification(
+    Workspace.lsp.connection.sendNotification(
       changeMessage.method,
       changeMessage.params
     );
@@ -280,11 +289,11 @@ name: ${this._projectName}
         type: FileChangeType.Deleted,
       })),
     });
-    this._lsp.connection.sendNotification(
+    Workspace.lsp.connection.sendNotification(
       deleteMessage.method,
       deleteMessage.params
     );
-    this._lsp.connection.sendNotification(
+    Workspace.lsp.connection.sendNotification(
       changeMessage.method,
       changeMessage.params
     );

@@ -10,6 +10,7 @@ import Drawer from "../components/drawer/drawer";
 import Dropdown from "../components/dropdown/dropdown";
 import Hidden from "../components/hidden/hidden";
 import Icon from "../components/icon/icon";
+import Input from "../components/input/input";
 import Option from "../components/option/option";
 import Popup from "../components/popup/popup";
 import ProgressBar from "../components/progress-bar/progress-bar";
@@ -42,6 +43,7 @@ const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-skeleton": Skeleton,
   "s-badge": Badge,
   "s-collapsible": Collapsible,
+  "s-input": Input,
   "s-button": Button,
   "s-option": Option,
   "s-tab": Tab,

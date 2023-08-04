@@ -12,7 +12,7 @@ import {
 } from "@impower/spark-editor-protocol/src/types";
 import { createBrowserMessageConnection } from "@impower/spark-editor-protocol/src/utils/createBrowserMessageConnection";
 import ConsoleLogger from "./ConsoleLogger";
-import WorkspaceConfiguration from "./WorkspaceConfiguration";
+import { Workspace } from "./Workspace";
 
 const CLIENT_CAPABILITIES: ClientCapabilities = {
   workspace: {
@@ -118,8 +118,6 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
 };
 
 export default class WorkspaceLanguageServerProtocol {
-  protected _configuration: WorkspaceConfiguration;
-
   protected _worker = new Worker("/public/sparkdown-language-server.js");
 
   protected _name = "Sparkdown Language Server";
@@ -147,8 +145,7 @@ export default class WorkspaceLanguageServerProtocol {
     return this._starting;
   }
 
-  constructor(configuration: WorkspaceConfiguration) {
-    this._configuration = configuration;
+  constructor() {
     this._connection = createBrowserMessageConnection(
       this._worker,
       new ConsoleLogger()
@@ -158,7 +155,7 @@ export default class WorkspaceLanguageServerProtocol {
       (params: ConfigurationParams) => {
         const result = params.items.map((item) => {
           if (item.section === "sparkdown") {
-            return this._configuration.settings;
+            return Workspace.configuration.settings;
           }
           return {};
         });

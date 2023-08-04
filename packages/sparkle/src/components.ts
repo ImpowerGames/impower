@@ -11,6 +11,7 @@ import Drawer from "./components/drawer/_drawer";
 import Dropdown from "./components/dropdown/_dropdown";
 import Hidden from "./components/hidden/_hidden";
 import Icon from "./components/icon/_icon";
+import Input from "./components/input/_input";
 import Option from "./components/option/_option";
 import Popup from "./components/popup/_popup";
 import ProgressBar from "./components/progress-bar/_progress-bar";
@@ -87,6 +88,7 @@ const components = {
   "s-skeleton": style(Skeleton),
   "s-badge": style(Badge),
   "s-collapsible": style(Collapsible),
+  "s-input": style(Input),
   "s-button": style(Button),
   "s-option": style(Option),
   "s-tab": style(Tab),

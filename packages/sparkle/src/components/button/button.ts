@@ -297,16 +297,20 @@ export default class Button
     this.setStringAttribute(Button.attributes.value, value);
   }
 
-  get labelEl(): HTMLElement | null {
-    return this.getElementByClass("label");
-  }
-
   get iconEl(): HTMLElement | null {
     return this.getElementByClass("icon");
   }
 
   get spinnerEl(): HTMLElement | null {
     return this.getElementByClass("spinner");
+  }
+
+  get buttonEl(): HTMLElement | null {
+    return this.getElementByTag("button");
+  }
+
+  get labelEl(): HTMLElement | null {
+    return this.getElementByTag("label");
   }
 
   get inputEl(): HTMLElement | null {

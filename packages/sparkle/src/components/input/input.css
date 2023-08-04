@@ -1,0 +1,188 @@
+:host {
+  display: contents;
+}
+:host {
+  --child-layout: column;
+  --text-font: var(--s-input-font-family);
+  --text-weight: var(--s-input-font-weight);
+  --background-color: var(--s-input-background-color);
+  --color: var(--s-input-color);
+}
+
+:host([size="sm"]) > .root {
+  --padding-lr: var(--s-input-spacing-sm);
+}
+:host([size="md"]) > .root {
+  --padding-lr: var(--s-input-spacing-md);
+}
+:host([size="lg"]) > .root {
+  --padding-lr: var(--s-input-spacing-lg);
+}
+
+:host > .root {
+  display: flex;
+  flex-direction: var(--child-layout);
+  align-items: stretch;
+  justify-content: start;
+  position: relative;
+  font-family: var(--text-font);
+  font-weight: var(--text-weight);
+  letter-spacing: var(--s-input-letter-spacing);
+  vertical-align: middle;
+  overflow: hidden;
+  cursor: text;
+  transition: var(--s-transition-fast) color, var(--s-transition-fast) border,
+    var(--s-transition-fast) box-shadow,
+    var(--s-transition-fast) background-color;
+}
+
+:host > .root {
+  border: none;
+  background-color: var(--background-color);
+  color: var(--color);
+}
+
+:host([disabled]) > .root {
+  opacity: 0.5;
+  cursor: default;
+}
+
+:host > .root > .input {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  color: var(--color);
+  border: none;
+  background: inherit;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  cursor: inherit;
+  -webkit-appearance: none;
+  pointer-events: auto;
+  background-color: transparent;
+}
+
+:host > .root > .input::-webkit-search-decoration,
+:host > .root > .input::-webkit-search-cancel-button,
+:host > .root > .input::-webkit-search-results-button,
+:host > .root > .input::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+}
+
+:host > .root > .input:-webkit-autofill,
+:host > .root > .input:-webkit-autofill:hover,
+:host > .root > .input:-webkit-autofill:focus,
+:host > .root > .input:-webkit-autofill:active {
+  box-shadow: 0 0 0 var(--s-input-height-lg)
+    var(--s-input-background-color-hover) inset !important;
+  -webkit-text-fill-color: var(--s-color-primary-500);
+  caret-color: var(--s-input-color);
+}
+
+:host([variant="filled"]) > .root > .input:-webkit-autofill,
+:host([variant="filled"]) > .root > .input:-webkit-autofill:hover,
+:host([variant="filled"]) > .root > .input:-webkit-autofill:focus,
+:host([variant="filled"]) > .root > .input:-webkit-autofill:active {
+  box-shadow: 0 0 0 var(--s-input-height-lg) var(--s-input-background-color)
+    inset !important;
+}
+
+:host > .root > .input::placeholder {
+  color: var(--placeholder-color, var(--s-input-placeholder-color));
+  user-select: none;
+}
+
+:host(:not([disabled])) > .root > .input:hover {
+  color: var(--s-input-color-hover);
+}
+
+:host > .root > .input:focus {
+  outline: none;
+}
+
+:host > .root > .input > .prefix,
+:host > .root > .input > .suffix {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  cursor: default;
+}
+
+/*
+ * Size modifiers
+ */
+
+:host([size="sm"]) > .root {
+  border-radius: var(--s-input-border-radius-sm);
+  font-size: var(--text-size, var(--s-input-font-size-sm));
+  height: var(--s-input-height-sm);
+  padding-inline: var(--padding-lr);
+}
+
+:host([size="sm"]) > .root > .prefix ::slotted(*) {
+  margin-inline-start: var(--s-input-spacing-sm);
+}
+
+:host([size="sm"]) > .root > .suffix ::slotted(*) {
+  margin-inline-end: var(--s-input-spacing-sm);
+}
+
+:host > .root,
+:host([size="md"]) > .root {
+  border-radius: var(--s-input-border-radius-md);
+  font-size: var(--text-size, var(--s-input-font-size-md));
+  height: var(--s-input-height-md);
+  padding-inline: var(--padding-lr);
+}
+
+:host > .root > .prefix ::slotted(*),
+:host([size="md"]) > .root > .prefix ::slotted(*) {
+  margin-inline-start: var(--s-input-spacing-md);
+}
+
+:host > .root > .suffix ::slotted(*),
+:host([size="md"]) > .root > .suffix ::slotted(*) {
+  margin-inline-end: var(--s-input-spacing-md);
+}
+
+:host([size="lg"]) > .root {
+  border-radius: var(--s-input-border-radius-lg);
+  font-size: var(--text-size, var(--s-input-font-size-lg));
+  height: var(--s-input-height-lg);
+  padding-inline: var(--padding-lr);
+}
+
+:host([size="lg"]) > .root > .prefix ::slotted(*) {
+  margin-inline-start: var(--s-input-spacing-lg);
+}
+
+:host([size="lg"]) > .root > .suffix ::slotted(*) {
+  margin-inline-end: var(--s-input-spacing-lg);
+}
+
+/* Don't show the browser's password toggle in Edge */
+::-ms-reveal {
+  display: none;
+}
+
+/* Hide the built-in number spinner */
+:host([no-spin-buttons])
+  > .root
+  > input[type="number"]::-webkit-outer-spin-button,
+:host([no-spin-buttons])
+  > .root
+  > input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  display: none;
+}
+:host([no-spin-buttons]) > .root > input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+:host > .root > .label {
+  display: none;
+}
