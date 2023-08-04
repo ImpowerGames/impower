@@ -100,8 +100,9 @@ export default class Input
     | "tel"
     | "text"
     | "time"
-    | "url" {
-    return this.getStringAttribute(Input.attributes.type) || "text";
+    | "url"
+    | null {
+    return this.getStringAttribute(Input.attributes.type);
   }
   set type(value) {
     this.setStringAttribute(Input.attributes.type, value);
@@ -132,8 +133,15 @@ export default class Input
   }
 
   /** Pattern the value must match to be valid. */
-  get pattern(): "text" | "search" | "url" | "tel" | "email" | "password" {
-    return this.getStringAttribute(Input.attributes.pattern) || "text";
+  get pattern():
+    | "text"
+    | "search"
+    | "url"
+    | "tel"
+    | "email"
+    | "password"
+    | null {
+    return this.getStringAttribute(Input.attributes.pattern);
   }
   set pattern(value) {
     this.setStringAttribute(Input.attributes.pattern, value);
@@ -199,8 +207,8 @@ export default class Input
   }
 
   /** The input's size. */
-  get size(): "small" | "medium" | "large" {
-    return this.getStringAttribute(Input.attributes.size) || "medium";
+  get size(): "sm" | "md" | "lg" | null {
+    return this.getStringAttribute(Input.attributes.size);
   }
   set size(value) {
     this.setStringAttribute(Input.attributes.size, value);
