@@ -11,6 +11,7 @@ import Dropdown from "../components/dropdown/dropdown";
 import Hidden from "../components/hidden/hidden";
 import Icon from "../components/icon/icon";
 import Input from "../components/input/input";
+import List from "../components/list/list";
 import Option from "../components/option/option";
 import Popup from "../components/popup/popup";
 import ProgressBar from "../components/progress-bar/progress-bar";
@@ -31,6 +32,7 @@ import Viewport from "../components/viewport/viewport";
 const DEFAULT_SPARKLE_CONSTRUCTORS = {
   "s-hidden": Hidden,
   "s-box": Box,
+  "s-list": List,
   "s-viewport": Viewport,
   "s-scroll-blocker": ScrollBlocker,
   "s-circle": Circle,

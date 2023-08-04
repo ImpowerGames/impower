@@ -24,6 +24,7 @@ const DEFAULT_TRANSFORMERS = {
   "indicator-color": getCssColor,
   "indicator-width": getCssSize,
   "initial-size": getCssSize,
+  step: getCssSize,
 };
 
 const DEFAULT_ATTRIBUTES = {
@@ -252,6 +253,26 @@ export default class SplitPane
     this.setStringAttribute(SplitPane.attributes.unrevealEvent, value);
   }
 
+  /**
+   * The amount to resize the split pane when using keyboard keys to move the divider.
+   *
+   * Defaults to `32px`
+   */
+  get step(): string | null {
+    return this.getStringAttribute(SplitPane.attributes.step) || "32px";
+  }
+  set step(value) {
+    this.setStringAttribute(SplitPane.attributes.step, value);
+  }
+
+  get resizeEl() {
+    return this.getElementByClass("resize");
+  }
+
+  get dividerEl() {
+    return this.getElementByClass("divider");
+  }
+
   protected override onConnected(): void {
     const revealEvent = this.revealEvent;
     if (revealEvent) {
@@ -261,6 +282,7 @@ export default class SplitPane
     if (unrevealEvent) {
       window.addEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
+    this.dividerEl?.addEventListener("keydown", this.handleKeyDownDivider);
   }
 
   protected override onDisconnected(): void {
@@ -272,6 +294,7 @@ export default class SplitPane
     if (unrevealEvent) {
       window.removeEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
+    this.dividerEl?.removeEventListener("keydown", this.handleKeyDownDivider);
   }
 
   handleRevealEvent = () => {
@@ -280,6 +303,29 @@ export default class SplitPane
 
   handleUnrevealEvent = () => {
     this.reveal = false;
+  };
+
+  handleKeyDownDivider = (e: KeyboardEvent): void => {
+    const vertical = this.vertical;
+    const step = this.step;
+    const resizeEl = this.resizeEl;
+    if (resizeEl) {
+      if (vertical) {
+        if (e.key === "ArrowUp") {
+          resizeEl.style.height = `calc(${resizeEl.offsetHeight}px - ${step})`;
+        }
+        if (e.key === "ArrowDown") {
+          resizeEl.style.height = `calc(${resizeEl.offsetHeight}px + ${step})`;
+        }
+      } else {
+        if (e.key === "ArrowLeft") {
+          resizeEl.style.width = `calc(${resizeEl.offsetWidth}px - ${step})`;
+        }
+        if (e.key === "ArrowRight") {
+          resizeEl.style.width = `calc(${resizeEl.offsetWidth}px + ${step})`;
+        }
+      }
+    }
   };
 }
 

@@ -82,12 +82,8 @@ export default class FileList
     return this.getElementByClass("dragover");
   }
 
-  get outletEl() {
+  get listEl() {
     return this.getElementByClass("outlet");
-  }
-
-  get outletSlot() {
-    return this.getSlotByName("outlet");
   }
 
   protected _uris?: string[];
@@ -207,9 +203,9 @@ export default class FileList
     this._uris = await Workspace.fs.getFilesInDirectory(directoryPath);
     const pane = this.pane || "";
     const panel = this.panel || "";
-    const outletSlot = this.outletSlot;
-    outletSlot?.replaceChildren();
-    if (outletSlot) {
+    const outletEl = this.listEl;
+    outletEl?.replaceChildren();
+    if (outletEl) {
       this._uris.forEach((uri) => {
         const fileName = Workspace.fs.getFileName(uri);
         const displayName = Workspace.fs.getName(uri);
@@ -219,7 +215,7 @@ export default class FileList
         fileItem.setAttribute("directory-path", directoryPath);
         fileItem.setAttribute("file-name", fileName);
         fileItem.textContent = displayName;
-        outletSlot.appendChild(fileItem);
+        outletEl.appendChild(fileItem);
       });
     }
     this.updateState();
@@ -242,7 +238,7 @@ export default class FileList
     const state = this.getState();
     const emptyEl = this.emptyEl;
     const dragoverEl = this.dragoverEl;
-    const outletEl = this.outletEl;
+    const outletEl = this.listEl;
     const els = { empty: emptyEl, dragover: dragoverEl, list: outletEl };
     Object.entries(els).forEach(([k, v]) => {
       if (v) {

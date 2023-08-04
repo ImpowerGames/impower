@@ -120,8 +120,24 @@
   inset: var(--indicator-offset) 0 0 0;
   height: var(--indicator-width);
 }
-:host(:not([disabled])) > .root > .panel > .resize:hover + .divider::after,
-:host(:not([disabled])) > .root > .panel > .resize:active + .divider::after {
+:host(:not([disabled]))
+  > .root
+  > .panel
+  > .resize
+  + .start
+  + .divider:focus::after,
+:host(:not([disabled]))
+  > .root
+  > .panel
+  > .resize:hover
+  + .start
+  + .divider::after,
+:host(:not([disabled]))
+  > .root
+  > .panel
+  > .resize:active
+  + .start
+  + .divider::after {
   opacity: 1;
 }
 

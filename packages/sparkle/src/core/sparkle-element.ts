@@ -22,11 +22,6 @@ import { RatioName } from "../types/ratioName";
 import { SizeName } from "../types/sizeName";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
-import { isFocusableElement } from "../utils/isFocusableElement";
-import { navEndKey } from "../utils/navEndKey";
-import { navNextKey } from "../utils/navNextKey";
-import { navPrevKey } from "../utils/navPrevKey";
-import { navStartKey } from "../utils/navStartKey";
 import scopeCssToHost from "../utils/scopeCssToHost";
 import { updateAttribute } from "../utils/updateAttribute";
 
@@ -40,7 +35,6 @@ export const DEFAULT_SPARKLE_TRANSFORMERS = {
 export const DEFAULT_SPARKLE_ATTRIBUTES = {
   rtl: "rtl",
   disabled: "disabled",
-  navigation: "navigation",
   ...getAttributeNameMap(getKeys(STYLE_TRANSFORMERS)),
   ...ARIA_PROPERTY_NAME_MAP,
 };
@@ -1717,46 +1711,6 @@ export default class SparkleElement
     this.setStringAttribute(SparkleElement.attributes.enter, value);
   }
 
-  /**
-   * Allows keyboard navigation between the children of this element.
-   */
-  get navigation(): "" | "keyboard" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.navigation);
-  }
-  set navigation(value) {
-    this.setStringAttribute(SparkleElement.attributes.navigation, value);
-  }
-
-  get focusableChildren(): HTMLElement[] {
-    if (this.shadowRoot) {
-      const elements = this.contentSlot?.assignedElements({ flatten: true });
-      if (elements) {
-        return elements.filter(isFocusableElement);
-      }
-    }
-    const elements = this.contentSlot?.children;
-    if (elements) {
-      return Array.from(elements).filter(isFocusableElement);
-    }
-    return [];
-  }
-
-  override focus(options?: FocusOptions | undefined): void {
-    this.selfChildren?.forEach((el) => {
-      if (el instanceof HTMLElement) {
-        el.focus(options);
-      }
-    });
-  }
-
-  override blur(): void {
-    this.selfChildren?.forEach((el) => {
-      if (el instanceof HTMLElement) {
-        el.blur();
-      }
-    });
-  }
-
   protected showFocusRing = (visible: boolean) => {
     this.updateRootClass("focused", visible);
   };
@@ -1824,13 +1778,6 @@ export default class SparkleElement
         }
       }
     }
-    if (name === SparkleElement.attributes.navigation) {
-      if (newValue != null) {
-        this.bindNavigation();
-      } else {
-        this.unbindNavigation();
-      }
-    }
     super.attributeChangedCallback(name, oldValue, newValue);
   }
 
@@ -1845,11 +1792,6 @@ export default class SparkleElement
         Array.from(this.contentSlot?.children || [])
       );
     }
-    if (this.navigation != null) {
-      this.bindNavigation();
-    } else {
-      this.unbindNavigation();
-    }
     this.bindFocus(this.root);
     super.connectedCallback();
   }
@@ -1862,7 +1804,6 @@ export default class SparkleElement
       );
     }
     this.unbindFocus(this.root);
-    this.unbindNavigation();
     super.disconnectedCallback();
   }
 
@@ -1876,97 +1817,6 @@ export default class SparkleElement
   }
 
   protected onContentAssigned(children: Element[]): void {}
-
-  protected bindNavigation() {
-    this.focusableChildren.forEach((child) =>
-      child.addEventListener("keydown", this.onKeyDown)
-    );
-  }
-
-  protected unbindNavigation() {
-    this.focusableChildren.forEach((child) =>
-      child.removeEventListener("keydown", this.onKeyDown)
-    );
-  }
-
-  onKeyDown = (e: KeyboardEvent): void => {
-    const target = e.currentTarget;
-    if (this.navigation === "keyboard") {
-      if (target instanceof HTMLElement) {
-        const dir = this.childLayout;
-        switch (e.key) {
-          case navPrevKey(dir):
-            {
-              e.preventDefault();
-              this.focusPreviousChild(target);
-            }
-            break;
-          case navNextKey(dir):
-            {
-              e.preventDefault();
-              this.focusNextChild(target);
-            }
-            break;
-          case navStartKey():
-            {
-              const focusableChildren = this.focusableChildren;
-              const first = focusableChildren[0];
-              if (first) {
-                e.preventDefault();
-                first.focus();
-              }
-            }
-            break;
-          case navEndKey():
-            {
-              const focusableChildren = this.focusableChildren;
-              const last = focusableChildren[focusableChildren.length - 1];
-              if (last) {
-                e.preventDefault();
-                last.focus();
-              }
-            }
-            break;
-          default:
-            break;
-        }
-      }
-    }
-  };
-
-  focusPreviousChild(item: HTMLElement) {
-    const focusableChildren = this.focusableChildren;
-    const firstItem = focusableChildren[0];
-    const lastItem = focusableChildren[focusableChildren.length - 1];
-    if (item === firstItem) {
-      if (lastItem) {
-        lastItem.focus();
-      }
-    } else {
-      const index = focusableChildren.indexOf(item);
-      const prevItem = focusableChildren[index - 1];
-      if (prevItem) {
-        prevItem.focus();
-      }
-    }
-  }
-
-  focusNextChild(item: HTMLElement) {
-    const focusableChildren = this.focusableChildren;
-    const firstItem = focusableChildren[0];
-    const lastItem = focusableChildren[focusableChildren.length - 1];
-    if (item === lastItem) {
-      if (firstItem) {
-        firstItem.focus();
-      }
-    } else {
-      const index = focusableChildren.indexOf(item);
-      const nextItem = focusableChildren[index + 1];
-      if (nextItem) {
-        nextItem.focus();
-      }
-    }
-  }
 
   getAssignedToSlot<T extends ChildNode>(name?: string): T[] {
     if (this.shadowRoot) {

@@ -1,12 +1,12 @@
 <div class="root">
   <div class="panel" part="panel">
     <div class="resize"></div>
+    <div class="start" part="start">
+      <slot name="start"></slot>
+    </div>
     <div class="divider" part="divider" role="separator" aria-label="resize" aria-valuemin="0" aria-valuemax="100"
       tabindex="0">
       <slot></slot>
-    </div>
-    <div class="start" part="start">
-      <slot name="start"></slot>
     </div>
   </div>
   <div class="end" part="end">

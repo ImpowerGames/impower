@@ -5,7 +5,9 @@ export default (state: { store?: WorkspaceState }) => {
   const running = state?.store?.panes?.preview?.panels?.game?.running;
   const paused = state?.store?.panes?.preview?.panels?.game?.paused;
   const titleEl = () =>
-    html`<s-box text-align="center" grow>Game Preview</s-box>`;
+    html`<s-box child-justify="center" text-align="center" grow inert
+      >Game Preview</s-box
+    >`;
   const optionsButton = () => html`
     <se-preview-options-dropdown></se-preview-options-dropdown>
   `;
@@ -79,7 +81,7 @@ export default (state: { store?: WorkspaceState }) => {
           child-align="center"
           grow
         >
-          <s-box child-layout="row" child-align="center" grow>
+          <s-list child-layout="row" child-justify="center" grow>
             <s-button
               id="run-toggle-button"
               variant="text"
@@ -96,12 +98,12 @@ export default (state: { store?: WorkspaceState }) => {
               ></s-icon>
               ${running ? `STOP` : `PLAY`}
             </s-button>
-            <s-box child-layout="row" child-justify="center" grow>
-              ${running ? playbackControls : titleEl}
-            </s-box>
-          </s-box>
+            <s-box grow inert></s-box>
+            ${running ? playbackControls : titleEl}
+            <s-box grow inert></s-box>
+            ${running ? fullscreenButton : optionsButton}
+          </s-list>
         </s-box>
-        ${running ? fullscreenButton : optionsButton}
       </s-box>
     `,
   };

@@ -12,6 +12,7 @@ import Dropdown from "./components/dropdown/_dropdown";
 import Hidden from "./components/hidden/_hidden";
 import Icon from "./components/icon/_icon";
 import Input from "./components/input/_input";
+import List from "./components/list/_list";
 import Option from "./components/option/_option";
 import Popup from "./components/popup/_popup";
 import ProgressBar from "./components/progress-bar/_progress-bar";
@@ -76,6 +77,7 @@ const components = {
   "s-shadows": Shadows,
   "s-hidden": style(Hidden),
   "s-box": style(Box),
+  "s-list": style(List),
   "s-viewport": style(Viewport),
   "s-scroll-blocker": style(ScrollBlocker),
   "s-circle": style(Circle),
