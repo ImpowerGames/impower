@@ -1,7 +1,8 @@
 <se-notifications></se-notifications>
 <s-hidden if-below="lg" hide-event="window/didExpandPreviewPane" show-event="window/didCollapsePreviewPane"
   hide-instantly show-instantly>
-  <s-hidden if-below="lg" hide-event="editor/focused" show-event="editor/unfocused" hide-instantly show-delay="200ms">
+  <s-hidden if-below="lg" hide-event="editor/focused window/willEditProjectName"
+    show-event="editor/unfocused window/didEditProjectName" hide-instantly show-delay="200ms">
     <s-box height="footer-nav"></s-box>
     <s-box position="fixed-bottom">
       <s-box bg-color="primary-bg">
