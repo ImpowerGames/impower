@@ -9,10 +9,12 @@
     </s-box>
     <s-box position="relative" width="56" height="56">
       <s-hidden initial="hide" hide-above="lg">
-        <s-hidden initial="hide" hide-event="editor/unfocused" show-event="editor/focused" position="absolute" i="0">
+        <s-hidden initial="hide" hide-event="editor/unfocused window/didEditProjectName"
+          show-event="editor/focused window/willEditProjectName" position="absolute" i="0">
           <s-button variant="icon" icon="check" text-size="20"></s-button>
         </s-hidden>
-        <s-hidden hide-event="editor/focused" show-event="editor/unfocused" position="absolute" i="0">
+        <s-hidden hide-event="editor/focused window/willEditProjectName"
+          show-event="editor/unfocused window/didEditProjectName" position="absolute" i="0">
           <se-preview-toggle-button></se-preview-toggle-button>
         </s-hidden>
       </s-hidden>
