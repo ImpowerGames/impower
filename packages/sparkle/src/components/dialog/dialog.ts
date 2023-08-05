@@ -176,7 +176,7 @@ export default class Dialog
   ): void {
     if (name === Dialog.attributes.open) {
       if (newValue != null) {
-        this.handleOpen(true);
+        this.animateOpen(true);
       }
     }
     if (name === Dialog.attributes.icon) {
@@ -240,7 +240,7 @@ export default class Dialog
       confirmButton.hidden = confirm == null;
     }
     this.dialogEl.addEventListener("click", this.handleLightDismiss);
-    this.dialogEl.addEventListener("close", this.handleEscapeClose);
+    this.dialogEl.addEventListener("cancel", this.handleCancel);
     this.cancelButton?.addEventListener("click", this.handleClickClose);
     this.confirmButton?.addEventListener("click", this.handleClickClose);
     if (this.shadowRoot) {
@@ -281,7 +281,7 @@ export default class Dialog
 
   protected override onDisconnected(): void {
     this.dialogEl.removeEventListener("click", this.handleLightDismiss);
-    this.dialogEl.removeEventListener("close", this.handleEscapeClose);
+    this.dialogEl.removeEventListener("cancel", this.handleCancel);
     this.cancelButton?.removeEventListener("click", this.handleClickClose);
     this.confirmButton?.removeEventListener("click", this.handleClickClose);
     if (this.shadowRoot) {
@@ -352,7 +352,7 @@ export default class Dialog
     }
   };
 
-  protected async handleOpen(modal: boolean): Promise<void> {
+  protected async animateOpen(modal: boolean): Promise<void> {
     this.root.hidden = false;
     this.root.inert = false;
     this.setAttribute("loaded", "");
@@ -382,9 +382,9 @@ export default class Dialog
     this.emit(OPENED_EVENT);
   }
 
-  protected handleClose = async (
+  protected async animateClose(
     returnValue?: string
-  ): Promise<string | undefined> => {
+  ): Promise<string | undefined> {
     this.dialogEl.inert = true;
     this.open = false;
     this.emit(CLOSING_EVENT);
@@ -395,13 +395,12 @@ export default class Dialog
 
     this.emit(CLOSED_EVENT);
     return returnValue;
-  };
+  }
 
-  protected handleEscapeClose = async (
-    e: Event
-  ): Promise<string | undefined> => {
+  protected handleCancel = async (e: Event): Promise<string | undefined> => {
+    e.preventDefault();
     e.stopPropagation();
-    return this.handleClose("escape");
+    return this.animateClose("cancel");
   };
 
   protected handleClickClose = async (
@@ -410,7 +409,7 @@ export default class Dialog
     e.stopPropagation();
     const button = e.currentTarget as HTMLButtonElement;
     const returnValue = button?.getAttribute?.("id") ?? "";
-    return this.handleClose(returnValue);
+    return this.animateClose(returnValue);
   };
 
   /**
@@ -419,21 +418,21 @@ export default class Dialog
    * The argument, if provided, provides a return value.
    */
   async close(returnValue?: string): Promise<string | undefined> {
-    return this.handleClose(returnValue);
+    return this.animateClose(returnValue);
   }
 
   /**
    * Displays the dialog element.
    */
   async show(): Promise<void> {
-    return this.handleOpen(false);
+    return this.animateOpen(false);
   }
 
   /**
    * Displays the dialog element and prevents the user from interacting with anything behind the element.
    */
   async showModal(): Promise<void> {
-    return this.handleOpen(true);
+    return this.animateOpen(true);
   }
 }
 

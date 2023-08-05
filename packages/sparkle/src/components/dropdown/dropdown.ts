@@ -156,9 +156,9 @@ export default class Dropdown
         );
       }
       if (open) {
-        this.handleOpen();
+        this.animateOpen();
       } else {
-        this.handleClose();
+        this.animateClose();
       }
     }
     if (
@@ -225,7 +225,7 @@ export default class Dropdown
     this.hide();
   };
 
-  protected async handleOpen(): Promise<void> {
+  protected async animateOpen(): Promise<void> {
     if (this.disabled) {
       return;
     }
@@ -251,7 +251,7 @@ export default class Dropdown
     this.emit(OPENED_EVENT, { key: this.key });
   }
 
-  async handleClose(): Promise<void> {
+  async animateClose(): Promise<void> {
     const el = this.popupEl;
     if (el) {
       el.inert = true;
