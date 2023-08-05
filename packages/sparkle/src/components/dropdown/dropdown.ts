@@ -178,8 +178,8 @@ export default class Dropdown
   protected override onConnected(): void {
     this._activatingValue = this.active;
     this.dialogEl.addEventListener("click", this.handleLightDismiss);
+    this.dialogEl.addEventListener("cancel", this.handleCancel);
     this.root.addEventListener("click", this.handleClick);
-    this.root.addEventListener("keydown", this.handleKeyDown);
   }
 
   protected override onParsed(): void {
@@ -197,9 +197,9 @@ export default class Dropdown
   }
 
   protected override onDisconnected(): void {
-    this.dialogEl.addEventListener("click", this.handleLightDismiss);
+    this.dialogEl.removeEventListener("click", this.handleLightDismiss);
+    this.dialogEl.removeEventListener("cancel", this.handleCancel);
     this.root.removeEventListener("click", this.handleClick);
-    this.root.removeEventListener("keydown", this.handleKeyDown);
   }
 
   protected handleLightDismiss = (e: Event) => {
@@ -219,12 +219,10 @@ export default class Dropdown
     }
   };
 
-  private handleKeyDown = (event: KeyboardEvent): void => {
-    // Pressing escape when the target element has focus should dismiss the dropdown
-    if (this.open && event.key === "Escape") {
-      event.stopPropagation();
-      this.hide();
-    }
+  private handleCancel = (e: Event): void => {
+    e.preventDefault();
+    e.stopPropagation();
+    this.hide();
   };
 
   protected async handleOpen(): Promise<void> {
