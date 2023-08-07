@@ -14,7 +14,6 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
 import { WillEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillEditProjectNameMessage";
-import { Range } from "@impower/spark-editor-protocol/src/types";
 import { Workspace } from "./Workspace";
 import { ReadOnly } from "./types/ReadOnly";
 import { WorkspaceState } from "./types/WorkspaceState";
@@ -123,12 +122,12 @@ export default class WorkspaceWindow {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (ScrolledEditorMessage.type.isNotification(message)) {
-        const { textDocument, range } = message.params;
+        const { textDocument, visibleRange } = message.params;
         const uri = textDocument.uri;
         const pane = this.getPaneFromUri(uri);
         const panel = this.getPanelFromUri(uri);
         const panelState = this.getPanelState(pane, panel);
-        panelState.visibleRange = JSON.parse(JSON.stringify(range));
+        panelState.visibleRange = JSON.parse(JSON.stringify(visibleRange));
       }
     }
   };
@@ -137,12 +136,12 @@ export default class WorkspaceWindow {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (SelectedEditorMessage.type.isNotification(message)) {
-        const { textDocument, range } = message.params;
+        const { textDocument, selectedRange } = message.params;
         const uri = textDocument.uri;
         const pane = this.getPaneFromUri(uri);
         const panel = this.getPanelFromUri(uri);
         const panelState = this.getPanelState(pane, panel);
-        panelState.selectedRange = JSON.parse(JSON.stringify(range));
+        panelState.selectedRange = JSON.parse(JSON.stringify(selectedRange));
       }
     }
   };
@@ -192,17 +191,17 @@ export default class WorkspaceWindow {
     return panelState;
   }
 
-  getActiveEditor(
-    pane: string
-  ): { uri: string; visibleRange?: Range; selectedRange?: Range } | undefined {
+  async getActiveEditor(pane: string) {
+    await Workspace.fs.initializing;
     const panelState = this.getOpenedPanelState(pane);
     const filePath = panelState.openFilePath;
     if (filePath) {
       const uri = Workspace.fs.getWorkspaceUri(filePath);
+      const file = Workspace.fs.files![uri]!;
       return {
-        uri,
         visibleRange: panelState.visibleRange,
         selectedRange: panelState.selectedRange,
+        ...file,
       };
     }
     return undefined;

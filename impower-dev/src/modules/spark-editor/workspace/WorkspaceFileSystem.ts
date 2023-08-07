@@ -1,5 +1,6 @@
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
   ReadTextDocumentMessage,
   ReadTextDocumentParams,
@@ -8,10 +9,6 @@ import {
   WriteTextDocumentMessage,
   WriteTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
-import {
-  BuildFilesMessage,
-  BuildFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/BuildFilesMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
 import {
   CreateFilesMessage,
@@ -26,15 +23,16 @@ import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protoc
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
 import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
 import {
+  ReadDirectoryFilesMessage,
+  ReadDirectoryFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
+import {
   ReadFileMessage,
   ReadFileParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
-import {
-  WorkspaceDirectoryMessage,
-  WorkspaceDirectoryParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
-import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
+import { FileData } from "@impower/spark-editor-protocol/src/types";
 import YAML from "yaml";
+import type { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Workspace } from "./Workspace";
 
 export default class WorkspaceFileSystem {
@@ -56,12 +54,12 @@ export default class WorkspaceFileSystem {
     return this._project;
   }
 
-  protected _uris?: Set<string>;
-  get uris() {
-    return this._uris ? Array.from(this._uris) : undefined;
+  protected _files?: Record<string, FileData>;
+  get files() {
+    return this._files;
   }
 
-  protected _initializing?: Promise<WorkspaceEntry[]>;
+  protected _initializing?: Promise<FileData[]>;
   get initializing() {
     return this._initializing;
   }
@@ -84,11 +82,11 @@ export default class WorkspaceFileSystem {
     Workspace.window.loadProject(this._project);
     await Workspace.lsp.starting;
     const directoryUri = this.getWorkspaceUri();
-    const entries = await this.getWorkspaceEntries({
+    const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
     const didWatchFilesParams = {
-      files: entries,
+      files,
     };
     Workspace.lsp.connection.sendNotification(
       DidWatchFilesMessage.type,
@@ -98,12 +96,12 @@ export default class WorkspaceFileSystem {
       DidWatchFilesMessage.method,
       DidWatchFilesMessage.type.notification(didWatchFilesParams)
     );
-    this._uris ??= new Set<string>();
-    entries.forEach((entry) => {
-      this._uris ??= new Set<string>();
-      this._uris.add(entry.uri);
+    this._files ??= {};
+    files.forEach((data) => {
+      this._files ??= {};
+      this._files[data.uri] = data;
     });
-    return entries;
+    return files;
   }
 
   protected emit<T>(eventName: string, detail?: T): boolean {
@@ -132,6 +130,8 @@ export default class WorkspaceFileSystem {
       this._fileSystemWorker.postMessage(
         ConfigurationMessage.type.response(message.id, result)
       );
+    } else if (DidParseTextDocumentMessage.type.isNotification(message)) {
+      this.emit(DidParseTextDocumentMessage.method, message);
     } else {
       const dispatch = this._messageQueue[message.id];
       if (dispatch) {
@@ -169,19 +169,20 @@ export default class WorkspaceFileSystem {
     return fileName.split(".")[0] ?? "";
   }
 
-  async getFilesInDirectory(directoryPath: string): Promise<string[]> {
+  async getFileUrisInDirectory(directoryPath: string): Promise<string[]> {
     await this.initializing;
-    return (
-      this.uris?.filter((uri) =>
-        uri.startsWith(this.getWorkspaceUri(directoryPath))
-      ) || []
+    if (!this._files) {
+      return [];
+    }
+    return Object.keys(this._files).filter((uri) =>
+      uri.startsWith(this.getWorkspaceUri(directoryPath))
     );
   }
 
-  protected async getWorkspaceEntries(
-    params: WorkspaceDirectoryParams
-  ): Promise<WorkspaceEntry[]> {
-    return this.sendRequest(WorkspaceDirectoryMessage.type, params);
+  protected async readDirectoryFiles(
+    params: ReadDirectoryFilesParams
+  ): Promise<FileData[]> {
+    return this.sendRequest(ReadDirectoryFilesMessage.type, params);
   }
 
   async readProject(): Promise<{ name: string; id: string } | undefined> {
@@ -224,33 +225,15 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  async buildAll(entryUri: string) {
-    await this.initializing;
-    const uris = this.uris;
-    if (!uris) {
-      throw new Error("Workspace must be initialized before building");
-    }
-    const targetUris = uris.includes(entryUri) ? uris : [entryUri, ...uris];
-    const files = targetUris.map((uri) => ({ uri }));
-    return this.buildFiles({
-      files,
-    });
-  }
-
-  async buildFiles(params: BuildFilesParams) {
-    const result = await this.sendRequest(BuildFilesMessage.type, params);
-    return result;
-  }
-
   async createFiles(params: CreateFilesParams) {
     const result = await this.sendRequest(
       CreateFilesMessage.type,
       params,
       params.files.map((file) => file.data)
     );
-    params.files.forEach((file) => {
-      this._uris ??= new Set<string>();
-      this._uris.add(file.uri);
+    result.forEach((file) => {
+      this._files ??= {};
+      this._files[file.uri] = file;
     });
     const createMessage = DidCreateFilesMessage.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
@@ -277,8 +260,9 @@ export default class WorkspaceFileSystem {
   async deleteFiles(params: DeleteFilesParams) {
     const result = await this.sendRequest(DeleteFilesMessage.type, params);
     params.files.forEach((file) => {
-      this._uris ??= new Set<string>();
-      this._uris.delete(file.uri);
+      if (this._files) {
+        delete this._files[file.uri];
+      }
     });
     const deleteMessage = DidDeleteFilesMessage.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
@@ -315,6 +299,8 @@ export default class WorkspaceFileSystem {
         },
       ],
     });
+    this._files ??= {};
+    this._files[result.uri] = result;
     this.emit(changeMessage.method, changeMessage);
     return result;
   }
@@ -325,5 +311,16 @@ export default class WorkspaceFileSystem {
 
   async readTextDocument(params: ReadTextDocumentParams) {
     return this.sendRequest(ReadTextDocumentMessage.type, params);
+  }
+
+  async getPrograms() {
+    await Workspace.fs.initializing;
+    if (!Workspace.fs.files) {
+      throw new Error("Workspace File System not initialized.");
+    }
+    const programs = Object.values(Workspace.fs.files).filter(
+      (f): f is FileData & { program: SparkProgram } => Boolean(f.program)
+    );
+    return programs;
   }
 }

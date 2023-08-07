@@ -5,7 +5,8 @@ export type SelectedEditorMethod = typeof SelectedEditorMessage.method;
 
 export interface SelectedEditorParams {
   textDocument: TextDocumentIdentifier;
-  range: Range;
+  selectedRange: Range;
+  docChanged: boolean;
 }
 
 export namespace SelectedEditorMessage {

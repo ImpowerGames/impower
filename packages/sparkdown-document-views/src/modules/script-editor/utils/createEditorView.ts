@@ -48,15 +48,18 @@ interface EditorConfig {
   onFocus?: () => void;
   onBlur?: () => void;
   onIdle?: () => void;
-  onSelectionChanged?: (range: {
-    start: {
-      line: number;
-      character: number;
+  onSelectionChanged?: (update: {
+    selectedRange: {
+      start: {
+        line: number;
+        character: number;
+      };
+      end: {
+        line: number;
+        character: number;
+      };
     };
-    end: {
-      line: number;
-      character: number;
-    };
+    docChanged: boolean;
   }) => void;
   onHeightChanged?: () => void;
   onEdit?: (change: {
@@ -147,10 +150,12 @@ const createEditorView = (
           const head = cursorRange?.head;
           const startPos = Math.min(anchor, head);
           const endPos = Math.max(anchor, head);
-          onSelectionChanged?.({
+          const selectedRange = {
             start: offsetToPosition(u.state.doc, startPos),
             end: offsetToPosition(u.state.doc, endPos),
-          });
+          };
+          const docChanged = u.docChanged;
+          onSelectionChanged?.({ selectedRange, docChanged });
         }
         onViewUpdate?.(u);
         const json: {

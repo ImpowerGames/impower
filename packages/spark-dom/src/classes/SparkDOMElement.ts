@@ -7,18 +7,18 @@ export class SparkDOMElement implements IElement {
 
   protected _htmlElement: HTMLElement;
 
+  protected _id: string;
   get id(): string {
-    return this._htmlElement.id;
+    return this._id;
   }
-
   set id(value: string) {
+    this._id = value;
     this._htmlElement.id = value;
   }
 
   get className(): string {
     return this._htmlElement.className;
   }
-
   set className(value: string) {
     this._htmlElement.className = value;
   }
@@ -26,7 +26,6 @@ export class SparkDOMElement implements IElement {
   get textContent(): string {
     return this._htmlElement.textContent || "";
   }
-
   set textContent(value: string) {
     this._htmlElement.textContent = value;
   }
@@ -49,7 +48,8 @@ export class SparkDOMElement implements IElement {
 
   constructor(htmlElement: HTMLElement, ...children: SparkDOMElement[]) {
     this._htmlElement = htmlElement;
-    this._children = children;
+    this._id = htmlElement.id;
+    this._children = [...children];
   }
 
   cloneChild(index: number): IElement | undefined {
@@ -86,7 +86,7 @@ export class SparkDOMElement implements IElement {
   replaceChildren(...children: IElement[]): void {
     const newEls = children.map((x) => x as SparkDOMElement);
     this._htmlElement.replaceChildren(...newEls.map((x) => x._htmlElement));
-    this._children = newEls;
+    this._children = [...newEls];
   }
 
   observeSize(breakpoints: Record<string, number>): () => void {
@@ -202,7 +202,7 @@ export class SparkDOMElement implements IElement {
         .join(`\n  `);
       const fieldsContent = `{\n  ${content}\n}`;
       const theme = objectMap?.["theme"]?.[""];
-      const isBreakpointGroup = groupName && theme.breakpoints[groupName];
+      const isBreakpointGroup = groupName && theme?.breakpoints[groupName];
       const rootId = this.id?.split(".")?.[0] || "";
       const target = targetName === "*" ? targetName : `.${targetName}`;
       if (isBreakpointGroup) {

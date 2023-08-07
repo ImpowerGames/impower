@@ -1,4 +1,4 @@
-import { TextDocumentIdentifier } from "../../types";
+import { FileData, TextDocumentIdentifier } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type WriteTextDocumentMethod = typeof WriteTextDocumentMessage.method;
@@ -19,6 +19,6 @@ export namespace WriteTextDocumentMessage {
   export const type = new MessageProtocolRequestType<
     WriteTextDocumentMethod,
     WriteTextDocumentParams,
-    null
+    FileData
   >(WriteTextDocumentMessage.method);
 }

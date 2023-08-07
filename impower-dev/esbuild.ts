@@ -40,7 +40,12 @@ const pagesInDir = `${indir}/pages`;
 
 const localDependencies = `node_modules/@impower`;
 
-const watchDirs = [`${indir}/modules`];
+const watchDirs = [
+  `${indir}/modules`,
+  "../packages/spark-engine",
+  "../packages/sparkdown",
+  "../packages/spark-dom",
+];
 
 const args = process.argv.slice(2);
 const WATCH = args.includes("--watch");

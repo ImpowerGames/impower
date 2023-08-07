@@ -47,13 +47,16 @@ export default class ScriptEditor extends SEElement {
   };
 
   async loadFile() {
-    const editor = Workspace.window.getActiveEditor("logic");
+    const editor = await Workspace.window.getActiveEditor("logic");
     if (editor) {
       const { uri, visibleRange } = editor;
       const existingText = await Workspace.fs.readTextDocument({
         textDocument: { uri },
       });
       await Workspace.lsp.starting;
+      if (!Workspace.lsp.serverCapabilities) {
+        throw new Error("Language server not initialized.");
+      }
       this.emit(
         LoadEditorMessage.method,
         LoadEditorMessage.type.request({
@@ -64,6 +67,7 @@ export default class ScriptEditor extends SEElement {
             text: existingText,
           },
           visibleRange,
+          languageServerCapabilities: Workspace.lsp.serverCapabilities,
         })
       );
     }

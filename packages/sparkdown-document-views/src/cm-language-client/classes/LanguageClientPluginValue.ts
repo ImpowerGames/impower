@@ -9,7 +9,6 @@ import { EditorView, PluginValue } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
 import { CompletionMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
-import { DidParseTextDocumentMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import { DocumentColorMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage";
 import { FoldingRangeMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage";
 import { HoverMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/HoverMessage";
@@ -24,6 +23,7 @@ import {
 import { languageClientConfig } from "../extensions/languageClient";
 import { FileSystemReader } from "../types/FileSystemReader";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
+import { getClientCompletionValidFor } from "../utils/getClientCompletionValidFor";
 import { getClientDiagnostics } from "../utils/getClientDiagnostics";
 import { getClientMarkupContent } from "../utils/getClientMarkupContent";
 import { getClientMarkupDom } from "../utils/getClientMarkupDom";
@@ -101,16 +101,6 @@ export default class LanguageClientPluginValue implements PluginValue {
             return;
           }
           this.updateDiagnostics(this._view, params.diagnostics);
-        }
-      )
-    );
-    this._disposables.push(
-      this._serverConnection.onNotification(
-        DidParseTextDocumentMessage.type,
-        (params) => {
-          if (params.textDocument.uri !== this._textDocument.uri) {
-            return;
-          }
           this.updateFoldingRanges(this._view);
           this.updateDocumentColors(this._view);
         }
@@ -230,6 +220,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     return {
       from,
       options,
+      validFor: getClientCompletionValidFor(this._serverCapabilities),
     };
   };
 

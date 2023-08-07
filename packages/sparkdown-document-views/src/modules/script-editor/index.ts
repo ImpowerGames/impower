@@ -1,4 +1,4 @@
-import { MessageConnection } from "@impower/spark-editor-protocol/src/types";
+import { MessageConnection } from "../../../../spark-editor-protocol/src/types";
 import { FileSystemReader } from "../../cm-language-client/types/FileSystemReader";
 import Main from "./main/sparkdown-script-editor";
 

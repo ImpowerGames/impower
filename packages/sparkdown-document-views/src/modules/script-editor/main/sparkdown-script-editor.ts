@@ -32,11 +32,16 @@ import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
+import throttle from "../../../utils/throttle";
 import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-script-editor";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["scroll-margin", "autosave-delay"]),
+  ...getAttributeNameMap([
+    "scroll-margin",
+    "autosave-debounce-delay",
+    "autosave-throttle-delay",
+  ]),
 };
 
 export default class SparkdownScriptEditor
@@ -77,15 +82,30 @@ export default class SparkdownScriptEditor
     );
   }
 
-  get autosaveDelay() {
+  get autosaveDebounceDelay() {
     return (
-      this.getNumberAttribute(SparkdownScriptEditor.attributes.autosaveDelay) ??
-      500
+      this.getNumberAttribute(
+        SparkdownScriptEditor.attributes.autosaveDebounceDelay
+      ) ?? 100
     );
   }
-  set autosaveDelay(value) {
+  set autosaveDebounceDelay(value) {
     this.setNumberAttribute(
-      SparkdownScriptEditor.attributes.autosaveDelay,
+      SparkdownScriptEditor.attributes.autosaveDebounceDelay,
+      value
+    );
+  }
+
+  get autosaveThrottleDelay() {
+    return (
+      this.getNumberAttribute(
+        SparkdownScriptEditor.attributes.autosaveThrottleDelay
+      ) ?? 100
+    );
+  }
+  set autosaveThrottleDelay(value) {
+    this.setNumberAttribute(
+      SparkdownScriptEditor.attributes.autosaveThrottleDelay,
       value
     );
   }
@@ -224,7 +244,10 @@ export default class SparkdownScriptEditor
         const params = message.params;
         const textDocument = params.textDocument;
         const visibleRange = params.visibleRange;
+        const languageServerCapabilities = params.languageServerCapabilities;
         this._loadingRequest = message.id;
+        SparkdownScriptEditor.languageServerCapabilities =
+          languageServerCapabilities;
         if (textDocument.uri !== this._textDocument?.uri) {
           this.loadTextDocument(textDocument, visibleRange);
         }
@@ -246,7 +269,7 @@ export default class SparkdownScriptEditor
       if (RevealEditorRangeMessage.type.isRequest(message)) {
         const params = message.params;
         const textDocument = params.textDocument;
-        const range = params.range;
+        const range = params.visibleRange;
         if (textDocument.uri !== this._textDocument?.uri) {
           this.revealRange(range);
         }
@@ -286,6 +309,17 @@ export default class SparkdownScriptEditor
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
+      const throttledSave = throttle((text: Text) => {
+        if (this._textDocument) {
+          this.emit(
+            DidSaveTextDocumentMessage.method,
+            DidSaveTextDocumentMessage.type.notification({
+              textDocument: this._textDocument,
+              text: text.toString(),
+            })
+          );
+        }
+      }, this.autosaveThrottleDelay);
       const debouncedSave = debounce((text: Text) => {
         if (this._textDocument) {
           this.emit(
@@ -296,7 +330,7 @@ export default class SparkdownScriptEditor
             })
           );
         }
-      }, this.autosaveDelay);
+      }, this.autosaveDebounceDelay);
       this._scrollMargin = getBoxValues(this.scrollMargin);
       this._view = createEditorView(root, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
@@ -344,18 +378,20 @@ export default class SparkdownScriptEditor
                 DidChangeTextDocumentMessage.type,
                 changeParams
               );
+              throttledSave(e.after);
               debouncedSave(e.after);
             }
           }
         },
-        onSelectionChanged: (range) => {
+        onSelectionChanged: ({ selectedRange, docChanged }) => {
           const uri = this._textDocument?.uri;
           if (uri) {
             this.emit(
               SelectedEditorMessage.method,
               SelectedEditorMessage.type.notification({
                 textDocument: { uri },
-                range,
+                selectedRange,
+                docChanged,
               })
             );
           }
@@ -464,7 +500,7 @@ export default class SparkdownScriptEditor
               ScrolledEditorMessage.method,
               ScrolledEditorMessage.type.notification({
                 textDocument: this._textDocument,
-                range: visibleRange,
+                visibleRange,
                 target,
               })
             );

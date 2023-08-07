@@ -62,7 +62,7 @@ export default class FileAddButton
     if (!directoryPath) {
       return;
     }
-    const fileUris = await Workspace.fs.getFilesInDirectory(directoryPath);
+    const fileUris = await Workspace.fs.getFileUrisInDirectory(directoryPath);
     const fileNames = fileUris.map((uri) => Workspace.fs.getFileName(uri));
     const fileName = this.fileName;
     if (fileName) {

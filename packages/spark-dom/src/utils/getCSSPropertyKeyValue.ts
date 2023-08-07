@@ -33,7 +33,7 @@ export const getCSSPropertyKeyValue = (
   if (
     cssProp === "background-color" &&
     typeof cssValue === "string" &&
-    theme.colors[cssValue]
+    theme?.colors[cssValue]
   ) {
     return [cssProp, theme.colors[cssValue]];
   }

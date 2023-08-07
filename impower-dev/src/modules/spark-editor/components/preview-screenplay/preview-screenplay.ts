@@ -42,9 +42,9 @@ export default class PreviewScreenplay extends SEElement {
   };
 
   async loadFile() {
-    const editor = Workspace.window.getActiveEditor("logic");
+    const editor = await Workspace.window.getActiveEditor("logic");
     if (editor) {
-      const { uri, visibleRange } = editor;
+      const { uri, visibleRange, selectedRange } = editor;
       const existingText = await Workspace.fs.readTextDocument({
         textDocument: { uri },
       });
@@ -59,6 +59,7 @@ export default class PreviewScreenplay extends SEElement {
             text: existingText,
           },
           visibleRange,
+          selectedRange,
         })
       );
     }

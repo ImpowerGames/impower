@@ -1,3 +1,4 @@
+import { FileData } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type CreateFilesMethod = typeof CreateFilesMessage.method;
@@ -23,6 +24,6 @@ export namespace CreateFilesMessage {
   export const type = new MessageProtocolRequestType<
     CreateFilesMethod,
     CreateFilesParams,
-    null
+    FileData[]
   >(CreateFilesMessage.method);
 }

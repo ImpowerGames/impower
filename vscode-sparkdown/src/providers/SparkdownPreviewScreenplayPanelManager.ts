@@ -52,6 +52,8 @@ export class SparkdownPreviewScreenplayPanelManager {
 
   protected _viewColumn = ViewColumn.Two;
 
+  protected _selectedVersion?: number;
+
   showPanel(extensionUri: Uri, document: vscode.TextDocument) {
     if (document.languageId !== "sparkdown") {
       vscode.window.showErrorMessage(
@@ -223,9 +225,11 @@ export class SparkdownPreviewScreenplayPanelManager {
         this._panel.webview.postMessage(
           SelectedEditorMessage.type.notification({
             textDocument: { uri: document.uri.toString() },
-            range: getServerRange(range),
+            selectedRange: getServerRange(range),
+            docChanged: document.version !== this._selectedVersion,
           })
         );
+        this._selectedVersion = document.version;
       }
     }
   }
@@ -236,7 +240,7 @@ export class SparkdownPreviewScreenplayPanelManager {
         this._panel.webview.postMessage(
           ScrolledEditorMessage.type.notification({
             textDocument: { uri: document.uri.toString() },
-            range: getServerRange(range),
+            visibleRange: getServerRange(range),
             target: "element",
           })
         );

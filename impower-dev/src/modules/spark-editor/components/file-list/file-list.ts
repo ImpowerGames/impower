@@ -200,7 +200,7 @@ export default class FileList
       this._uris = [];
       return;
     }
-    this._uris = await Workspace.fs.getFilesInDirectory(directoryPath);
+    this._uris = await Workspace.fs.getFileUrisInDirectory(directoryPath);
     const pane = this.pane || "";
     const panel = this.panel || "";
     const outletEl = this.listEl;

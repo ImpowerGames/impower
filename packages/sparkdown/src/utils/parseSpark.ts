@@ -1716,7 +1716,7 @@ const pushToken = (
   const section = program.sections[currentSectionId] || createSparkSection();
   program.sections[currentSectionId] = section;
   if (updateLines) {
-    const tokenIndex = program.tokens.length;
+    const tokenIndex = program.tokens.length - 1;
     program.metadata.lines ??= [];
     program.metadata.lines[token.line] ??= {};
     program.metadata.lines[token.line]!.level = section.level;
@@ -2047,6 +2047,16 @@ const augmentProgram = (program: SparkProgram, config?: SparkParserConfig) => {
             valueText: `"${type}"`,
           },
         },
+      };
+      config.augmentations.variables ??= {};
+      config.augmentations.variables[`.${name}`] = {
+        from: -1,
+        to: -1,
+        line: -1,
+        name,
+        type: "string",
+        value: src,
+        scope: "public",
       };
     });
   }

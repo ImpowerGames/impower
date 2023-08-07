@@ -1,20 +1,21 @@
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
 import { ReadTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocumentMessage.js";
 import { WriteTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
-import { BuildFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/BuildFilesMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
 import { CreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFilesMessage.js";
 import { DeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFilesMessage.js";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage.js";
+import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
-import { WorkspaceDirectoryMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WorkspaceDirectoryMessage.js";
-import { WorkspaceEntry } from "@impower/spark-editor-protocol/src/types";
 import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
+import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import { SparkProgram } from "../../sparkdown/src/types/SparkProgram";
 import { getAllFiles } from "./utils/getAllFiles";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileExtension } from "./utils/getFileExtension";
 import { getFileHandleFromUri } from "./utils/getFileHandleFromUri";
 import { getFileName } from "./utils/getFileName";
+import { getName } from "./utils/getName";
 import { getParentPath } from "./utils/getParentPath";
 import { getPathFromUri } from "./utils/getPathFromUri";
 import { getSyncAccessHandleFromUri } from "./utils/getSyncAccessHandleFromUri";
@@ -29,7 +30,19 @@ class State {
   static scriptFilePattern: RegExp[] = [];
   static imageFilePattern: RegExp[] = [];
   static audioFilePattern: RegExp[] = [];
-  static urls: string[] = [];
+  static files: Record<
+    string,
+    {
+      uri: string;
+      name: string;
+      src: string;
+      ext: string;
+      type: string;
+      version: number;
+      text?: string;
+      program?: SparkProgram;
+    }
+  > = {};
 }
 
 const initialConfigurationMessage = ConfigurationMessage.type.request({
@@ -49,10 +62,24 @@ onmessage = async (e) => {
     const { settings } = message.params;
     loadConfiguration(settings);
   }
-  if (WorkspaceDirectoryMessage.type.isRequest(message)) {
+  if (ReadDirectoryFilesMessage.type.isRequest(message)) {
     const { directory } = message.params;
-    const entries = await listFiles(directory.uri);
-    postMessage(WorkspaceDirectoryMessage.type.response(message.id, entries));
+    const files = await readDirectoryFiles(directory.uri);
+    files.forEach((file) => {
+      if (file.text != null) {
+        const program = EngineSparkParser.instance.parse(file.text, {
+          augmentations: { files, objectMap: STRUCT_DEFAULTS },
+        });
+        file.program = program;
+        postMessage(
+          DidParseTextDocumentMessage.type.notification({
+            textDocument: { uri: file.uri, version: file.version },
+            program,
+          })
+        );
+      }
+    });
+    postMessage(ReadDirectoryFilesMessage.type.response(message.id, files));
   }
   if (ReadFileMessage.type.isRequest(message)) {
     const { file } = message.params;
@@ -67,23 +94,34 @@ onmessage = async (e) => {
   }
   if (WriteTextDocumentMessage.type.isRequest(message)) {
     const { textDocument, text } = message.params;
-    await writeTextDocument(textDocument.uri, text);
-    postMessage(WriteTextDocumentMessage.type.response(message.id, null));
+    const uri = textDocument.uri;
+    const file = await writeTextDocument(uri, text);
+    if (file) {
+      const program = EngineSparkParser.instance.parse(text, {
+        augmentations: {
+          files: Object.values(State.files),
+          objectMap: STRUCT_DEFAULTS,
+        },
+      });
+      file.program = program;
+      postMessage(
+        DidParseTextDocumentMessage.type.notification({
+          textDocument: { uri, version: file.version },
+          program,
+        })
+      );
+    }
+    postMessage(WriteTextDocumentMessage.type.response(message.id, file));
   }
   if (CreateFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
-    await createFiles(files);
-    postMessage(CreateFilesMessage.type.response(message.id, null));
+    const result = await createFiles(files);
+    postMessage(CreateFilesMessage.type.response(message.id, result));
   }
   if (DeleteFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
     await deleteFiles(files);
     postMessage(DeleteFilesMessage.type.response(message.id, null));
-  }
-  if (BuildFilesMessage.type.isRequest(message)) {
-    const { files } = message.params;
-    const result = await buildFiles(files);
-    postMessage(BuildFilesMessage.type.response(message.id, result));
   }
 };
 
@@ -108,19 +146,23 @@ const loadConfiguration = (settings: any) => {
   }
 };
 
-const listFiles = async (directoryUri: string) => {
+const readDirectoryFiles = async (directoryUri: string) => {
   const root = await navigator.storage.getDirectory();
   const relativePath = getPathFromUri(directoryUri);
   const directoryHandle = await getDirectoryHandleFromPath(root, relativePath);
   const directoryPath =
     getParentPath(relativePath) + "/" + directoryHandle.name;
   const directoryEntries = await getAllFiles(directoryHandle, directoryPath);
-  const entries: WorkspaceEntry[] = [];
-  directoryEntries.forEach((entry) => {
-    const uri = getUriFromPath(entry.path);
-    entries.push({ uri });
-  });
-  return entries;
+  const files = await Promise.all(
+    directoryEntries.map(async (entry) => {
+      const uri = getUriFromPath(entry.path);
+      if (!State.files[uri]) {
+        await readFile(uri);
+      }
+      return State.files[uri]!;
+    })
+  );
+  return files;
 };
 
 const readFile = async (fileUri: string) => {
@@ -128,6 +170,7 @@ const readFile = async (fileUri: string) => {
   const fileHandle = await getFileHandleFromUri(root, fileUri);
   const fileRef = await fileHandle.getFile();
   const buffer = await fileRef.arrayBuffer();
+  updateFileCache(fileUri, buffer, false);
   return buffer;
 };
 
@@ -135,6 +178,7 @@ const readTextDocument = async (fileUri: string) => {
   const buffer = await readFile(fileUri);
   const decoder = new TextDecoder("utf-8");
   const text = decoder.decode(buffer);
+  updateFileCache(fileUri, buffer, false);
   return text;
 };
 
@@ -153,12 +197,12 @@ const writeTextDocument = async (fileUri: string, text: string) => {
   syncAccessHandle.flush();
   syncAccessHandle.close();
   delete State.syncing[fileUri];
-  return text;
+  return updateFileCache(fileUri, encodedText, true);
 };
 
 const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
   const root = await navigator.storage.getDirectory();
-  await Promise.all(
+  return await Promise.all(
     files.map(async (file) => {
       const existingSync = State.syncing[file.uri];
       const syncAccessHandle =
@@ -173,6 +217,7 @@ const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
       syncAccessHandle.flush();
       syncAccessHandle.close();
       delete State.syncing[file.uri];
+      return updateFileCache(file.uri, file.data, true);
     })
   );
 };
@@ -188,6 +233,11 @@ const deleteFiles = async (files: { uri: string }[]) => {
         directoryPath
       );
       directoryHandle.removeEntry(getFileName(relativePath));
+      const existingFile = State.files[file.uri];
+      if (existingFile) {
+        URL.revokeObjectURL(existingFile.src);
+        delete State.files[file.uri];
+      }
     })
   );
 };
@@ -214,60 +264,38 @@ const getFileType = (uri: string) => {
     : "text";
 };
 
-const buildFiles = async (files: { uri: string }[]) => {
-  State.urls.forEach((url) => {
-    // Revoke old urls to prevent memory leak.
-    URL.revokeObjectURL(url);
-  });
-  State.urls = [];
-  const chunks: {
-    uri: string;
-    name: string;
-    src: string;
-    ext: string;
-    type: string;
-    text?: string;
-  }[] = await Promise.all(
-    files.map(async (file) => {
-      const uri = file.uri;
-      const name = getFileName(uri).split(".")[0]!;
-      const ext = getFileExtension(uri);
-      const type = getFileType(uri);
-      const buffer = await readFile(uri);
-      const src = URL.createObjectURL(new Blob([buffer]));
-      if (isScriptFile(uri)) {
-        const decoder = new TextDecoder("utf-8");
-        const text = decoder.decode(buffer);
-        return {
-          uri,
-          name,
-          src,
-          ext,
-          type,
-          text,
-        };
-      } else {
-        State.urls.push(src);
-        return {
-          uri,
-          name,
-          src,
-          ext,
-          type,
-        };
-      }
-    })
-  );
-  const programs: { uri: string; name: string; program: SparkProgram }[] = [];
-  chunks.forEach((chunk) => {
-    if (chunk.text != null) {
-      const program = EngineSparkParser.instance.parse(chunk.text, {
-        augmentations: { files: chunks },
-      });
-      programs.push({ uri: chunk.uri, name: chunk.name, program });
+const updateFileCache = (
+  uri: string,
+  buffer: ArrayBuffer,
+  overwrite: boolean
+) => {
+  const existingFile = State.files[uri];
+  let src = existingFile?.src;
+  if (!src || overwrite) {
+    if (src) {
+      URL.revokeObjectURL(src);
     }
-  });
-  return {
-    programs,
+    src = URL.createObjectURL(new Blob([buffer]));
+  }
+  const name = getName(uri);
+  const ext = getFileExtension(uri);
+  const type = getFileType(uri);
+  const oldVersion = existingFile?.version ?? 0;
+  const version = overwrite ? oldVersion + 1 : oldVersion;
+  const text = isScriptFile(uri)
+    ? new TextDecoder("utf-8").decode(buffer)
+    : undefined;
+  const program = existingFile?.program;
+  const file = {
+    uri,
+    name,
+    ext,
+    type,
+    src,
+    version,
+    text,
+    program,
   };
+  State.files[uri] = file;
+  return file;
 };

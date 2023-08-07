@@ -257,7 +257,7 @@ export default class SparkScreenplayPreview
         this._userInitiatedScroll = false;
         const params = message.params;
         const textDocument = params.textDocument;
-        const range = params.range;
+        const range = params.visibleRange;
         const target = params.target;
         if (textDocument.uri === this._textDocument?.uri) {
           if (target === "element") {

@@ -51,7 +51,7 @@ try {
     const settings = await connection.sendRequest(ConfigurationRequest.type, {
       items: [{ section: "sparkdown" }],
     });
-    documents.loadConfiguration(settings);
+    documents.loadConfiguration(settings[0]);
   });
 
   // parseProvider

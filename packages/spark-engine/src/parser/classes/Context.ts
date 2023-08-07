@@ -17,19 +17,16 @@ export class Context<
   R extends GameRunner<G> = GameRunner<G>
 > {
   private _game: G;
-
   public get game(): G {
     return this._game;
   }
 
   private _runner: R;
-
   public get runner(): R {
     return this._runner;
   }
 
   private _editable: boolean;
-
   public get editable(): boolean {
     return this._editable;
   }
@@ -51,7 +48,6 @@ export class Context<
       }[];
     };
   } = {};
-
   public get contexts(): {
     [id: string]: {
       ids: Record<string, string>;
@@ -68,13 +64,25 @@ export class Context<
     return this._contexts;
   }
 
+  private _programs: Record<string, SparkProgram>;
+  public get programs(): Record<string, SparkProgram> {
+    return this._programs;
+  }
+
+  private _entryProgramId: string;
+  public get entryProgramId(): string {
+    return this._entryProgramId;
+  }
+
   constructor(
     programs: Record<string, SparkProgram>,
     options: ContextOptions<G, C, S, R>
   ) {
+    this._programs = programs;
     this._runner = options.runner || (new GameRunner() as R);
     this._editable = options?.editable || false;
     this._game = this.load(programs, options);
+    this._entryProgramId = options.entryProgram || "";
   }
 
   load(
