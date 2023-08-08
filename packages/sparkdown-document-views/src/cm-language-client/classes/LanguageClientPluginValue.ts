@@ -174,16 +174,12 @@ export default class LanguageClientPluginValue implements PluginValue {
         if (documentation) {
           completion.info = async () => {
             let content = documentation;
-            let destroy: (() => void) | undefined = undefined;
             if (typeof content !== "string") {
-              const { value, kind, urls } = await getClientMarkupContent(
+              const { value, kind } = await getClientMarkupContent(
                 content,
                 this._fileSystemReader
               );
               content = { value, kind };
-              destroy = () => {
-                urls.forEach((url) => URL.revokeObjectURL(url));
-              };
             }
             const dom = getClientMarkupDom({
               detail,
@@ -191,7 +187,7 @@ export default class LanguageClientPluginValue implements PluginValue {
               language: this._language,
               highlighter: this._highlighter,
             });
-            return { dom, destroy };
+            return { dom };
           };
         }
         return completion;
@@ -246,7 +242,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     const to = range?.end
       ? positionToOffset(clientContext.view.state.doc, range.end)
       : clientContext.pos;
-    const { value, kind, urls } = await getClientMarkupContent(
+    const { value, kind } = await getClientMarkupContent(
       contents,
       this._fileSystemReader
     );
@@ -255,14 +251,10 @@ export default class LanguageClientPluginValue implements PluginValue {
       language: this._language,
       highlighter: this._highlighter,
     });
-    const destroy = () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    };
     return {
       from,
       to,
       dom,
-      destroy,
     };
   };
 

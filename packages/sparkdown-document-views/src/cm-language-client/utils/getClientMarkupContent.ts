@@ -18,7 +18,6 @@ export const getClientMarkupContent = async (
   content: MarkupContent,
   fileSystemReader: FileSystemReader
 ) => {
-  const urls: string[] = [];
   const kind = content.kind;
   const value = await replaceAsync(
     content.value,
@@ -26,9 +25,10 @@ export const getClientMarkupContent = async (
     async (_match, $1, $2) => {
       let src: string = $2;
       if (src.startsWith(fileSystemReader.scheme)) {
-        const buffer = await fileSystemReader.read(src);
-        src = URL.createObjectURL(new Blob([buffer]));
-        urls.push(src);
+        const fileSrc = await fileSystemReader.url(src);
+        if (fileSrc) {
+          src = fileSrc;
+        }
       }
       return `![${$1}](${src})`;
     }
@@ -36,6 +36,5 @@ export const getClientMarkupContent = async (
   return {
     kind,
     value,
-    urls,
   };
 };

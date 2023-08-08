@@ -13,7 +13,7 @@ const load = async () => {
       languageServerConnection: Workspace.lsp.connection,
       fileSystemReader: {
         scheme: Workspace.fs.scheme,
-        read: (uri: string) => Workspace.fs.readFile({ file: { uri } }),
+        url: async (uri: string) => Workspace.fs.getUrl(uri),
       },
     }),
     SparkdownScreenplayPreview.init(),

@@ -64,6 +64,8 @@ export default class WorkspaceFileSystem {
     return this._initializing;
   }
 
+  protected _cache: Record<string, HTMLElement> = {};
+
   constructor() {
     this._initializing = this.initialize();
     this._fileSystemWorker.addEventListener(
@@ -97,9 +99,10 @@ export default class WorkspaceFileSystem {
       DidWatchFilesMessage.type.notification(didWatchFilesParams)
     );
     this._files ??= {};
-    files.forEach((data) => {
+    files.forEach((file) => {
       this._files ??= {};
-      this._files[data.uri] = data;
+      this._files[file.uri] = file;
+      this.preloadFile(file);
     });
     return files;
   }
@@ -169,12 +172,18 @@ export default class WorkspaceFileSystem {
     return fileName.split(".")[0] ?? "";
   }
 
-  async getFileUrisInDirectory(directoryPath: string): Promise<string[]> {
+ protected async getFiles() {
+    
     await this.initializing;
     if (!this._files) {
-      return [];
+      throw new Error("Workspace File System not initialized.");
     }
-    return Object.keys(this._files).filter((uri) =>
+    return this._files
+  }
+
+  async getFileUrisInDirectory(directoryPath: string): Promise<string[]> {
+    const files = await this.getFiles();
+    return Object.keys(files).filter((uri) =>
       uri.startsWith(this.getWorkspaceUri(directoryPath))
     );
   }
@@ -234,6 +243,7 @@ export default class WorkspaceFileSystem {
     result.forEach((file) => {
       this._files ??= {};
       this._files[file.uri] = file;
+      this.preloadFile(file);
     });
     const createMessage = DidCreateFilesMessage.type.notification({
       files: params.files.map((file) => ({ uri: file.uri })),
@@ -262,6 +272,7 @@ export default class WorkspaceFileSystem {
     params.files.forEach((file) => {
       if (this._files) {
         delete this._files[file.uri];
+        delete this._cache[file.uri];
       }
     });
     const deleteMessage = DidDeleteFilesMessage.type.notification({
@@ -314,13 +325,45 @@ export default class WorkspaceFileSystem {
   }
 
   async getPrograms() {
-    await Workspace.fs.initializing;
-    if (!Workspace.fs.files) {
-      throw new Error("Workspace File System not initialized.");
-    }
-    const programs = Object.values(Workspace.fs.files).filter(
+    const files = await this.getFiles();
+    const programs = Object.values(files).filter(
       (f): f is FileData & { program: SparkProgram } => Boolean(f.program)
     );
     return programs;
+  }
+
+  async preloadFile(file: FileData) {
+    try {
+      await new Promise((resolve, reject) => {
+        if (file.type === "image") {
+          const img = new Image();
+          img.src = file.src;
+          img.onload = () => {
+            resolve(img);
+          };
+          img.onerror = () => {
+            reject(img);
+          };
+          this._cache[file.uri] = img;
+        } else if (file.type === "audio") {
+          const aud = new Audio();
+          aud.src = file.src;
+          aud.onload = () => {
+            resolve(aud);
+          };
+          aud.onerror = () => {
+            reject(aud);
+          };
+          this._cache[file.uri] = aud;
+        }
+      });
+    } catch (e) {
+      console.warn(e);
+    }
+  }
+
+  async getUrl(uri: string) {
+    const files = await this.getFiles();
+   return files[uri]?.src
   }
 }

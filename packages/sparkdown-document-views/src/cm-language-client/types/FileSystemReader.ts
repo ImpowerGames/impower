@@ -1,4 +1,4 @@
 export interface FileSystemReader {
   scheme: string;
-  read: (uri: string) => Promise<ArrayBuffer>;
+  url: (uri: string) => string | undefined | Promise<string | undefined>;
 }

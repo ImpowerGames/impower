@@ -254,7 +254,7 @@ const isAudioFile = (uri: string) => {
   return State.audioFilePattern.some((regexp) => regexp.test(uri));
 };
 
-const getFileType = (uri: string) => {
+const getType = (uri: string) => {
   return isImageFile(uri)
     ? "image"
     : isAudioFile(uri)
@@ -264,6 +264,11 @@ const getFileType = (uri: string) => {
     : "text";
 };
 
+const getContentType = (type: string, ext: string) => {
+  const encoding = type === "text" ? "plain" : ext === "svg" ? "svg+xml" : ext;
+  return `${type}/${encoding}`;
+};
+
 const updateFileCache = (
   uri: string,
   buffer: ArrayBuffer,
@@ -271,17 +276,19 @@ const updateFileCache = (
 ) => {
   const existingFile = State.files[uri];
   let src = existingFile?.src;
+  const name = getName(uri);
+  const ext = getFileExtension(uri);
+  const type = getType(uri);
+  const oldVersion = existingFile?.version ?? 0;
+  const version = overwrite ? oldVersion + 1 : oldVersion;
   if (!src || overwrite) {
     if (src) {
       URL.revokeObjectURL(src);
     }
-    src = URL.createObjectURL(new Blob([buffer]));
+    src = URL.createObjectURL(
+      new Blob([buffer], { type: getContentType(type, ext) })
+    );
   }
-  const name = getName(uri);
-  const ext = getFileExtension(uri);
-  const type = getFileType(uri);
-  const oldVersion = existingFile?.version ?? 0;
-  const version = overwrite ? oldVersion + 1 : oldVersion;
   const text = isScriptFile(uri)
     ? new TextDecoder("utf-8").decode(buffer)
     : undefined;

@@ -20,7 +20,7 @@ export interface HoverResult {
   from: number;
   to: number;
   dom: HTMLElement;
-  destroy: () => void;
+  destroy?: () => void;
 }
 
 export type HoverSource = (
