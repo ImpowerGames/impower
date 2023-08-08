@@ -1,5 +1,6 @@
 import { syntaxHighlighting } from "@codemirror/language";
-import { Extension } from "@codemirror/state";
+import { Extension, Prec } from "@codemirror/state";
+import { keymap } from "@codemirror/view";
 import {
   MessageConnection,
   ServerCapabilities,
@@ -11,6 +12,7 @@ import { languageClient } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { TextmateLanguage } from "../../../cm-textmate";
 import EDITOR_HIGHLIGHTS from "../constants/EDITOR_HIGHLIGHTS";
+import { sparkdownKeymap } from "./sparkdownKeymap";
 
 export const sparkdownLanguageExtension = (config: {
   textDocument: { uri: string; version: number };
@@ -39,5 +41,6 @@ export const sparkdownLanguageExtension = (config: {
       language: languageSupport.language,
       highlighter: EDITOR_HIGHLIGHTS,
     }),
+    Prec.highest(keymap.of(sparkdownKeymap)),
   ];
 };

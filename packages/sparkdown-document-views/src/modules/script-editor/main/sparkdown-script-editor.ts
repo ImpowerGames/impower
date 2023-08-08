@@ -1,4 +1,4 @@
-import { Text } from "@codemirror/state";
+import { EditorSelection, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
@@ -26,6 +26,7 @@ import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttri
 import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
 import { getServerChanges } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
+import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
 import { closestAncestor } from "../../../utils/closestAncestor";
 import debounce from "../../../utils/debounce";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
@@ -260,7 +261,7 @@ export default class SparkdownScriptEditor
   };
 
   protected handleCollapsePreviewPane = (): void => {
-    this.revealRange(this._visibleRange);
+    this.scrollToRange(this._visibleRange);
   };
 
   protected handleRevealEditorRange = (e: Event): void => {
@@ -269,9 +270,15 @@ export default class SparkdownScriptEditor
       if (RevealEditorRangeMessage.type.isRequest(message)) {
         const params = message.params;
         const textDocument = params.textDocument;
-        const range = params.visibleRange;
-        if (textDocument.uri !== this._textDocument?.uri) {
-          this.revealRange(range);
+        const visibleRange = params.visibleRange;
+        const selectedRange = params.selectedRange;
+        if (textDocument.uri === this._textDocument?.uri) {
+          if (visibleRange) {
+            this.scrollToRange(visibleRange);
+          }
+          if (selectedRange) {
+            this.selectRange(selectedRange, !visibleRange);
+          }
         }
       }
     }
@@ -288,7 +295,7 @@ export default class SparkdownScriptEditor
         const target = params.target;
         if (textDocument.uri === this._textDocument?.uri) {
           if (target === "element") {
-            this.revealRange(range);
+            this.scrollToRange(range);
           } else {
             this.cacheVisibleRange(range);
           }
@@ -404,7 +411,7 @@ export default class SparkdownScriptEditor
       { textDocument }
     );
     window.requestAnimationFrame(() => {
-      this.revealRange(visibleRange);
+      this.scrollToRange(visibleRange);
       this._initialized = true;
     });
   }
@@ -418,7 +425,7 @@ export default class SparkdownScriptEditor
     }
   }
 
-  protected revealRange(range: Range | undefined) {
+  protected scrollToRange(range: Range | undefined) {
     const view = this._view;
     if (view) {
       if (range) {
@@ -442,6 +449,23 @@ export default class SparkdownScriptEditor
       }
     }
     this.cacheVisibleRange(range);
+  }
+
+  protected selectRange(range: Range | undefined, scrollIntoView: boolean) {
+    const view = this._view;
+    if (view) {
+      if (range) {
+        const doc = view.state.doc;
+        const anchor = positionToOffset(doc, range.start);
+        const head = positionToOffset(doc, range.end);
+        view.dispatch({
+          selection: EditorSelection.create([
+            EditorSelection.range(anchor, head),
+          ]),
+          scrollIntoView,
+        });
+      }
+    }
   }
 
   protected handleIdle = (): void => {
