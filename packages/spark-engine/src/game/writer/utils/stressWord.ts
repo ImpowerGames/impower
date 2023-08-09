@@ -1,10 +1,6 @@
 import { Word } from "../types/Word";
 
-export const stressWord = (
-  word: Word,
-  contour: number[],
-  durationMultiplier: number = 1
-): void => {
+export const stressWord = (word: Word, contour: number[]): void => {
   const validContourLength = Math.max(1, contour.length);
   if (word.syllables.length < contour.length) {
     const combinedChunks = word.syllables.flatMap((s) => s.chunks);
@@ -16,7 +12,7 @@ export const stressWord = (
     let contourIndex = 0;
     combinedChunks.forEach((c, i) => {
       if (c.voiced) {
-        c.duration *= splitDurationMultiplier * durationMultiplier;
+        c.duration *= splitDurationMultiplier;
       }
       c.stressLevel = contour[contourIndex];
       if (i % divisionChunkLength === 0 && c.voiced) {
@@ -32,9 +28,6 @@ export const stressWord = (
       const progress = i / max;
       s.chunks.forEach((c) => {
         const contourIndex = Math.floor(progress * (validContourLength - 1));
-        if (c.voiced) {
-          c.duration *= durationMultiplier;
-        }
         c.stressLevel = contour[contourIndex];
       });
     });

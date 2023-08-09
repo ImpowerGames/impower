@@ -24,7 +24,7 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     pitchOffset?: Record<string, number>;
   } = {};
 
-  onTick?: (timeMS: number) => void;
+  onTick?: (deltaMS: number) => void;
 
   override init(game: G): void {
     executeDisplayCommand(game);
@@ -92,12 +92,12 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
         this.wasTyped = false;
         return true;
       }
-      let stoppedAt = game.ticker.state.elapsedMS / 1000;
-      this.onTick = (timeMS: number) => {
+      let msAfterStopped = 0;
+      this.onTick = (deltaMS: number) => {
         // Wait until typing sound has had enough time to fade out
         // So that it doesn't crackle when cut short
-        const elapsedSeconds = timeMS / 1000;
-        const elapsed = elapsedSeconds - stoppedAt;
+        msAfterStopped += deltaMS;
+        const elapsed = msAfterStopped / 1000;
         if (elapsed > 0.03) {
           this.wasTyped = true;
         }

@@ -3,23 +3,19 @@
 }
 
 :host * {
-  pointer-events: auto;
+  pointer-events: none;
   touch-action: none;
 }
 
 :host > .root {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
+  pointer-events: auto;
 }
 
 :host > .root > .wrapper {
-  position: absolute;
-  inset: 0;
-  color: white;
-}
-
-:host > .root > .wrapper > .ui {
   position: absolute;
   inset: 0;
   color: black;
@@ -34,7 +30,6 @@
 #spark-overlay {
   position: absolute;
   inset: 0;
-  pointer-events: none;
 }
 
 #spark-root {
@@ -42,11 +37,13 @@
   inset: 0;
   display: flex;
   flex-direction: column;
-  pointer-events: none;
 }
 
 #spark-game {
   position: absolute;
   inset: 0;
-  pointer-events: none;
+}
+
+#spark-game * {
+  pointer-events: auto;
 }

@@ -27,9 +27,9 @@ export default class Ticker {
     return this._startTime;
   }
 
-  protected _oldTime = 0;
+  protected _prevTime = 0;
   get oldTime() {
-    return this._oldTime;
+    return this._prevTime;
   }
 
   protected _deltaMS = 0;
@@ -61,9 +61,9 @@ export default class Ticker {
 
   start() {
     this._running = true;
-    this._oldTime = performance.now();
-    this._startTime = this._oldTime;
-    this.loop(0);
+    this._prevTime = performance.now();
+    this._startTime = this._prevTime;
+    this.loop(this._startTime);
   }
 
   stop() {
@@ -75,12 +75,12 @@ export default class Ticker {
       return;
     }
 
-    const fpsInterval = 1000 / this._maxFPS;
+    const frameIntervalMS = 1000 / this._maxFPS;
 
-    this._deltaMS = timeMS - this._oldTime;
+    this._deltaMS = timeMS - this._prevTime;
 
-    if (this._deltaMS > fpsInterval) {
-      this._oldTime = timeMS - (this._deltaMS % fpsInterval);
+    if (this._deltaMS > frameIntervalMS) {
+      this._prevTime = timeMS;
       this._elapsedTime = timeMS - this._startTime;
       this._frameCount += 1;
       this._callbacks.forEach((callback) => {

@@ -1,4 +1,5 @@
 import { Character } from "../types/Character";
+import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
 import { Writer } from "../types/Writer";
 import { getStressType } from "./getStressType";
@@ -8,12 +9,9 @@ import { stressWord } from "./stressWord";
 export const stressPhrases = (
   phrases: Phrase[],
   character: Character | undefined,
-  writer: Writer | undefined,
-  instant: boolean,
-  debug?: boolean
+  writer: Writer | undefined
 ): void => {
   const letterDelay = writer?.letterDelay ?? 0;
-  const letterFadeDuration = writer?.fadeDuration ?? 0;
   const maxSyllableLength = character?.prosody?.maxSyllableLength || 0;
   const weakWords = character?.prosody?.weakWords || [];
   const contractions = character?.prosody?.contractions || [];
@@ -22,7 +20,6 @@ export const stressPhrases = (
     ...contractions.map((c) => `${w}${c}`),
   ]);
 
-  let time = 0;
   phrases.forEach((phrase) => {
     const finalStressType = getStressType(phrase.text, character?.prosody);
     const inflection = character?.intonation[finalStressType || "statement"];
@@ -47,20 +44,28 @@ export const stressPhrases = (
         const minSyllableDuration = minSyllableLength * letterDelay;
         word.syllables.forEach((s) => {
           if (s.text.length < minSyllableLength) {
+            let syllableDuration = 0;
+            let lastVoicedChunk: Chunk | undefined = undefined;
             s.chunks.forEach((c) => {
+              syllableDuration += c.duration;
               if (c.voiced) {
-                c.duration = Math.max(
-                  c.duration,
-                  minSyllableDuration / s.text.length
-                );
+                lastVoicedChunk = c;
               }
             });
+            if (lastVoicedChunk) {
+              // Pad the end of the syllable to ensure the syllable duration is long enough
+              // (this can help prevent audio clicks for very short words)
+              if (syllableDuration < minSyllableDuration) {
+                (lastVoicedChunk as Chunk).duration +=
+                  minSyllableDuration - syllableDuration;
+              }
+            }
           }
         });
         if (word.italicized || word.bolded || word.underlined || word.yelled) {
           stressedWordFound = true;
           // Stress words with forced emphasis
-          stressWord(word, emphasisContour, 3);
+          stressWord(word, emphasisContour);
         } else if (!stressedWordFound) {
           const cleanedText = word.text.toLowerCase().trim();
           const isPossibleFocusWord = !weakWordVariants.includes(cleanedText);
@@ -136,25 +141,5 @@ export const stressPhrases = (
     }
 
     phrase.finalStressType = finalStressType;
-    phrase.chunks.forEach((c) => {
-      c.time = time;
-      if (c.element) {
-        c.element.style["transition"] = instant
-          ? "none"
-          : `opacity ${letterFadeDuration}s linear ${c.time}s`;
-      }
-      time += c.duration;
-
-      if (debug) {
-        if (c.element) {
-          if (c.startOfSyllable) {
-            c.element.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
-          }
-          if (c.punctuation) {
-            c.element.style["backgroundColor"] = `hsl(300, 100%, 80%)`;
-          }
-        }
-      }
-    });
   });
 };

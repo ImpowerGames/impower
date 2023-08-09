@@ -51,7 +51,7 @@ export const executeDisplayCommand = (
   },
   onFinished?: () => void,
   preview?: boolean
-): ((timeMS: number) => void) | undefined => {
+): ((deltaMS: number) => void) | undefined => {
   const type = data?.type || "";
   const assets = data?.assets || [];
 
@@ -98,8 +98,11 @@ export const executeDisplayCommand = (
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
 
-  const characterConfig = (objectMap?.["character"]?.[characterKey] ||
-    objectMap?.["character"]?.[type]) as Character;
+  const characterConfig = character
+    ? ((objectMap?.["character"]?.[characterKey] ||
+        objectMap?.["character"]?.[type] ||
+        objectMap?.["character"]?.[""]) as Character)
+    : undefined;
 
   const validCharacter =
     type === "dialogue" &&
@@ -144,7 +147,6 @@ export const executeDisplayCommand = (
     if (imageName && imageUrl) {
       portraitEl.style["backgroundImage"] = `url("${imageUrl}")`;
       portraitEl.style["backgroundRepeat"] = "no-repeat";
-      portraitEl.style["backgroundPosition"] = "center";
       portraitEl.style["display"] = null;
     } else {
       portraitEl.style["display"] = "none";
@@ -256,7 +258,8 @@ export const executeDisplayCommand = (
   const handleFinished = (): void => {
     for (let i = 0; i < allChunks.length; i += 1) {
       const chunk = allChunks[i];
-      if (chunk && chunk.element && chunk.element.style["opacity"] !== "1") {
+      if (chunk && chunk.element && chunk.element.style["display"] === "none") {
+        chunk.element.style["display"] = null;
         chunk.element.style["opacity"] = "1";
       }
     }
@@ -271,6 +274,8 @@ export const executeDisplayCommand = (
     }
     onFinished?.();
   };
+
+  let started = false;
 
   if (game) {
     if (instant) {
@@ -341,7 +346,7 @@ export const executeDisplayCommand = (
 
         // Determine the type of stress this phrase should have according to character prosody.
         const inflection =
-          characterConfig.intonation[phrase.finalStressType || "statement"];
+          characterConfig?.intonation[phrase.finalStressType || "statement"];
         const pitchRamp = inflection?.pitchRamp;
         const pitchAccel = inflection?.pitchAccel;
         const pitchJerk = inflection?.pitchJerk;
@@ -395,6 +400,11 @@ export const executeDisplayCommand = (
           voiceState.lastCharacter = characterKey;
         }
       }
+      allChunks.forEach((c) => {
+        if (c.element) {
+          c.element.style["display"] = null;
+        }
+      });
       // Start playing beeps
       game.sound.start(commandType, new SynthBuffer(tones).soundBuffer, () => {
         // Start typing letters
@@ -403,6 +413,7 @@ export const executeDisplayCommand = (
             c.element.style["opacity"] = "1";
           }
         });
+        started = true;
       });
     }
   }
@@ -412,17 +423,13 @@ export const executeDisplayCommand = (
       indicatorEl.style["opacity"] = "1";
     }
   }
-  let startTime: number | undefined;
+  let elapsedMS = 0;
   let finished = false;
-  const totalDuration = allChunks.reduce((p, c) => p + c.duration, 0);
-  const handleTick = (timeMS: number): void => {
-    if (!finished) {
-      const currTime = timeMS / 1000;
-      if (startTime === undefined) {
-        startTime = currTime;
-      }
-      const elapsed = currTime - startTime;
-      if (elapsed >= totalDuration) {
+  const totalDurationMS = allChunks.reduce((p, c) => p + c.duration * 1000, 0);
+  const handleTick = (deltaMS: number): void => {
+    if (started && !finished) {
+      elapsedMS += deltaMS;
+      if (elapsedMS >= totalDurationMS) {
         finished = true;
         handleFinished();
       }

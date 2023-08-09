@@ -23,7 +23,6 @@ interface InstanceContextData<
 
 export class GameRunner<G extends Game> {
   protected _blockRunner: BlockRunner<G> = new BlockRunner();
-
   public get blockRunner(): BlockRunner<G> {
     return this._blockRunner;
   }
@@ -38,11 +37,12 @@ export class GameRunner<G extends Game> {
     ConditionCommand: new ConditionCommandRunner(),
     AssignCommand: new AssignCommandRunner(),
   };
-
-  protected _commandRunnersList = Object.values(this._commandRunners);
-
+  protected _commandRunnersArray?: CommandRunner<G>[];
   public get commandRunners(): readonly CommandRunner<G>[] {
-    return this._commandRunnersList;
+    if (!this._commandRunnersArray) {
+      this._commandRunnersArray = Object.values(this._commandRunners);
+    }
+    return this._commandRunnersArray;
   }
 
   registerBlockRunner(_refTypeId: string, inspector: BlockRunner<G>): void {
@@ -51,7 +51,7 @@ export class GameRunner<G extends Game> {
 
   registerCommandRunner(refTypeId: string, inspector: CommandRunner<G>): void {
     this._commandRunners[refTypeId] = inspector;
-    this._commandRunnersList = Object.values(this._commandRunners);
+    this._commandRunnersArray = Object.values(this._commandRunners);
   }
 
   getRunner(typeLookup: {

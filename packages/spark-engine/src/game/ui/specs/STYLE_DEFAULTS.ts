@@ -158,6 +158,8 @@ export const STYLE_DEFAULTS = {
     left: 0,
     display: "flex",
     flexDirection: "column",
+    backgroundSize: "auto 100%",
+    backgroundPosition: "center",
   },
   ChoiceGroup: {
     position: "relative",

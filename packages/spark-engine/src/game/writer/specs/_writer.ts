@@ -4,7 +4,7 @@ import { Writer } from "../types/Writer";
 export const _writer: Create<Writer> = () => ({
   className: "Action",
   letterDelay: 0.02,
-  pauseScale: 3,
+  pauseScale: 5,
   fadeDuration: 0,
   clackSound: {
     shape: "brownnoise",

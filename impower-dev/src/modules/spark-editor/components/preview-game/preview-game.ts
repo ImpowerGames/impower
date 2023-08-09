@@ -88,7 +88,7 @@ export default class GamePreview extends SEElement {
         if (textDocument.uri === this._uri && !docChanged) {
           const newEntryLine = selectedRange?.start?.line ?? 0;
           if (newEntryLine !== this._entryLine) {
-            await this.loadPreview();
+            await this.loadFile();
           }
         }
       }
@@ -107,49 +107,39 @@ export default class GamePreview extends SEElement {
   debouncedLoadFile = debounce(() => this.loadFile(), 500);
 
   async loadFile() {
-    await this.loadGame();
-    await this.loadPreview();
-  }
-
-  async loadGame() {
-    const editor = await Workspace.window.getActiveEditor("logic");
-    if (editor) {
-      const { uri, selectedRange } = editor;
-      this._programs = await Workspace.fs.getPrograms();
-      this._entryProgram = Workspace.fs.getName(uri);
-      this._entryLine = selectedRange?.start?.line ?? 0;
-      this._uri = uri;
-      this.emit(
-        LoadGameMessage.method,
-        LoadGameMessage.type.request({
-          programs: Object.values(this._programs),
-          options: {
-            entryProgram: this._entryProgram,
-            entryLine: this._entryLine,
-          },
-        })
-      );
-    }
-  }
-
-  async loadPreview() {
-    const editor = await Workspace.window.getActiveEditor("logic");
-    if (editor) {
-      const { uri, version, text, visibleRange, selectedRange } = editor;
-      this.emit(
-        LoadPreviewMessage.method,
-        LoadPreviewMessage.type.request({
-          type: "game",
-          textDocument: {
-            uri,
-            languageId: "sparkdown",
-            version,
-            text: text!,
-          },
-          visibleRange,
-          selectedRange,
-        })
-      );
+    if (!Workspace.window.state.panes.preview.panels.game.running) {
+      const editor = await Workspace.window.getActiveEditor("logic");
+      if (editor) {
+        const { uri, version, text, visibleRange, selectedRange } = editor;
+        this._programs = await Workspace.fs.getPrograms();
+        this._entryProgram = Workspace.fs.getName(uri);
+        this._entryLine = selectedRange?.start?.line ?? 0;
+        this._uri = uri;
+        this.emit(
+          LoadGameMessage.method,
+          LoadGameMessage.type.request({
+            programs: Object.values(this._programs),
+            options: {
+              entryProgram: this._entryProgram,
+              entryLine: this._entryLine,
+            },
+          })
+        );
+        this.emit(
+          LoadPreviewMessage.method,
+          LoadPreviewMessage.type.request({
+            type: "game",
+            textDocument: {
+              uri,
+              languageId: "sparkdown",
+              version,
+              text: text!,
+            },
+            visibleRange,
+            selectedRange,
+          })
+        );
+      }
     }
   }
 

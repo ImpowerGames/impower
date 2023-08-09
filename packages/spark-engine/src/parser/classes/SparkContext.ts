@@ -13,13 +13,13 @@ export class SparkContext<
 > extends Context<G, C, S, R> {
   constructor(
     programs: Record<string, SparkProgram>,
-    config?: SparkContextOptions<G, C, S, R>
+    options?: SparkContextOptions<G, C, S, R>
   ) {
     super(programs, {
       defaults: STRUCT_DEFAULTS,
       runner: new SparkGameRunner<G>() as R,
       createGame: (c?: C, s?: S) => new SparkGame(c, s) as G,
-      ...(config || {}),
+      ...(options || {}),
     });
   }
 }

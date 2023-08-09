@@ -10,12 +10,39 @@ const populateAndStyleElement = (
   instant: boolean,
   style?: Record<string, string | null>
 ): IElement => {
+  spanEl.style["display"] = "none";
   spanEl.style["opacity"] = instant ? "1" : "0";
   Object.entries(style || {}).forEach(([k, v]) => {
     spanEl.style[k as "all"] = v as string;
   });
   spanEl.textContent = textContent;
   return spanEl;
+};
+
+const isWhitespace = (part: string) => {
+  if (!part) {
+    return false;
+  }
+  for (let i = 0; i < part.length; i += 1) {
+    const c = part[i]!;
+    if (c !== " " && c !== "\n" && c !== "\r" && c !== "\t") {
+      return false;
+    }
+  }
+  return true;
+};
+
+const isDash = (part: string) => {
+  if (!part) {
+    return false;
+  }
+  for (let i = 0; i < part.length; i += 1) {
+    const c = part[i]!;
+    if (c !== "-") {
+      return false;
+    }
+  }
+  return true;
 };
 
 export const write = (
@@ -44,6 +71,7 @@ export const write = (
   let word = "";
   const splitContent = content.split("");
   const marks: [string, number][] = [];
+  let dashLength = 0;
   let spaceLength = 0;
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
@@ -152,7 +180,7 @@ export const write = (
     }
     const voiced = voicedRegex.test(part);
     const punctuation = punctuationRegex.test(part);
-    if (part === " " || part === "\n" || part === "\r" || part === "\t") {
+    if (isWhitespace(part)) {
       word = "";
       spaceLength += 1;
       consecutiveLettersLength = 0;
@@ -171,17 +199,26 @@ export const write = (
         consecutiveLettersLength = 0;
       }
     }
+    if (isDash(part)) {
+      dashLength += 1;
+    } else {
+      dashLength = 0;
+    }
     const yelled = yelledRegex.test(word);
     const startOfEllipsis =
       consecutiveDotLength === 1 && tripleLookahead === "...";
     const ellipsis = startOfEllipsis || consecutiveDotLength > 1;
-    const isWordPause = spaceLength === 1;
-    const isPhrasePause = spaceLength > 1;
-    const duration =
-      isWordPause || isPhrasePause || yelled || punctuation
-        ? letterDelay * pauseScale
-        : letterDelay;
-    if (isPhrasePause) {
+    const isPhraseBoundary = spaceLength > 1;
+    const isEmDashBoundary = dashLength > 1;
+    const isEmDash = isEmDashBoundary || isDash(doubleLookahead);
+    const isPause = isPhraseBoundary || isWhitespace(doubleLookahead);
+    const duration = isEmDash
+      ? 0
+      : isPause || ellipsis
+      ? letterDelay * pauseScale
+      : letterDelay;
+
+    if (isPhraseBoundary) {
       phrasePauseLength += 1;
       phraseUnpauseLength = 0;
       if (phrasePauseLength === 1) {
@@ -288,7 +325,7 @@ export const write = (
     if (spaceLength === 1) {
       firstSpaceSpan = span;
     }
-    if ((isWordPause || isPhrasePause) && firstSpaceSpan && debug) {
+    if (spaceLength > 0 && firstSpaceSpan && debug) {
       // color pause span (longer time = darker color)
       firstSpaceSpan.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
         spaceLength / 5
@@ -332,8 +369,33 @@ export const write = (
       marks.pop();
     }
   }
+  if (character) {
+    stressPhrases(phrases, character, writer);
+  }
+  const letterFadeDuration = writer?.fadeDuration ?? 0;
+  let time = 0;
+  phrases.forEach((phrase) => {
+    phrase.chunks.forEach((c) => {
+      c.time = time;
+      if (c.element) {
+        c.element.style["transition"] = instant
+          ? "none"
+          : `opacity ${letterFadeDuration}s linear ${c.time}s`;
+      }
+      time += c.duration;
 
-  stressPhrases(phrases, character, writer, instant, debug);
+      if (debug) {
+        if (c.element) {
+          if (c.startOfSyllable) {
+            c.element.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
+          }
+          if (c.punctuation) {
+            c.element.style["backgroundColor"] = `hsl(300, 100%, 80%)`;
+          }
+        }
+      }
+    });
+  });
 
   return phrases;
 };

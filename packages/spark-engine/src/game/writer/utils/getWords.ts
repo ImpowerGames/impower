@@ -18,8 +18,8 @@ export const getWords = (phrase: Phrase): Word[] => {
       }
       word.italicized = word.italicized || chunk.italicized;
       word.bolded = word.bolded || chunk.bolded;
-      word.underlined = word.bolded || chunk.underlined;
-      word.yelled = word.bolded || chunk.yelled;
+      word.underlined = word.underlined || chunk.underlined;
+      word.yelled = word.yelled || chunk.yelled;
       const syllable = word.syllables[word.syllables.length - 1];
       if (syllable) {
         if (chunk.voiced) {
