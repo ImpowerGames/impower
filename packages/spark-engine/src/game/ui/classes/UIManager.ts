@@ -39,6 +39,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     super(initialEvents, initialConfig, initialState);
   }
 
+  override destroy(): void {
+    super.destroy();
+    this._config.root.replaceChildren();
+  }
+
   protected getId(...path: string[]): string {
     return path.join(".");
   }

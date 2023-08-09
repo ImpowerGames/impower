@@ -194,7 +194,7 @@ export default class Application {
       d.dispose();
     });
     if (this.context) {
-      this.context.end();
+      this.context.dispose();
     }
     if (removeView) {
       this.view.remove();

@@ -59,6 +59,10 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     }
   }
 
+  override onDestroy(_game: G): void {
+    this.onTick = undefined;
+  }
+
   override isFinished(
     game: G,
     data: DisplayCommandData,

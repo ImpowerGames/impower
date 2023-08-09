@@ -40,4 +40,8 @@ export class CommandRunner<
   isFinished(_game: G, _data: T, _context: CommandContext<G>): boolean | null {
     return true;
   }
+
+  onDestroy(_game: G): void {
+    // NoOp
+  }
 }

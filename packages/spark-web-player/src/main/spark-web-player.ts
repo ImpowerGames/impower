@@ -58,11 +58,11 @@ export default class SparkWebPlayer
 
   _root?: SparkDOMElement;
 
+  _programs: Record<string, SparkProgram> = {};
+
+  _options?: SparkContextOptions;
+
   protected override onConnected(): void {
-    const sparkRootEl = this.sparkRootEl;
-    if (sparkRootEl) {
-      this._root = new SparkDOMElement(sparkRootEl);
-    }
     window.addEventListener(LoadGameMessage.method, this.handleLoadGame);
     window.addEventListener(StartGameMessage.method, this.handleStartGame);
     window.addEventListener(StopGameMessage.method, this.handleStopGame);
@@ -95,11 +95,15 @@ export default class SparkWebPlayer
         const params = message.params;
         const programs = params.programs;
         const options = params.options;
-        const programMap: Record<string, SparkProgram> = {};
+        this._programs = {};
         programs.forEach((p) => {
-          programMap[p.name] = p.program;
+          this._programs[p.name] = p.program;
         });
-        this.loadGame(programMap, options);
+        this._options = options;
+        if (this._context) {
+          this._context.dispose();
+        }
+        this._context = this.loadGame();
         this.emit(
           LoadGameMessage.method,
           LoadGameMessage.type.response(message.id, null)
@@ -113,7 +117,11 @@ export default class SparkWebPlayer
       const message = e.detail;
       if (StartGameMessage.type.isRequest(message)) {
         const gameDOM = this.sparkGameEl;
-        if (gameDOM && this._context) {
+        if (this._context) {
+          this._context.dispose();
+        }
+        this._context = this.loadGame();
+        if (gameDOM) {
           this._app = new Application(gameDOM, this._context);
         }
       }
@@ -127,6 +135,10 @@ export default class SparkWebPlayer
         if (this._app) {
           this._app.destroy(true);
           this._app = undefined;
+        }
+        if (this._context) {
+          this._context.dispose();
+          this._context = undefined;
         }
       }
     }
@@ -183,31 +195,33 @@ export default class SparkWebPlayer
     }
   };
 
-  loadGame(
-    programs: Record<string, SparkProgram>,
-    options?: SparkContextOptions
-  ) {
+  loadGame() {
     const createElement = (type: string) => {
       return new SparkDOMElement(document.createElement(type));
     };
-    if (this._root) {
-      this._context = new SparkContext(programs, {
-        config: {
-          ui: {
-            root: this._root,
-            createElement,
-          },
-          ...(options?.config || {}),
-        },
-        ...(options || {}),
-      });
+    const programs = this._programs;
+    const options = this._options;
+    if (!this._root) {
+      this._root = new SparkDOMElement(this.sparkRootEl!);
     }
+    const context = new SparkContext(programs, {
+      config: {
+        ui: {
+          root: this._root,
+          createElement,
+        },
+        ...(options?.config || {}),
+      },
+      ...(options || {}),
+    });
+    return context;
   }
 
   updatePreview(line: number) {
-    if (this._context) {
-      previewLine(this._context, line, true, this._debugging);
+    if (!this._context) {
+      this._context = this.loadGame();
     }
+    previewLine(this._context, line, true, this._debugging);
   }
 }
 

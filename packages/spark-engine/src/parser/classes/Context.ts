@@ -166,7 +166,10 @@ export class Context<
     this.game.init();
   }
 
-  end(): void {
+  dispose(): void {
+    this.runner.commandRunners.forEach((r) => {
+      r.onDestroy(this.game);
+    });
     this.game.destroy();
   }
 
