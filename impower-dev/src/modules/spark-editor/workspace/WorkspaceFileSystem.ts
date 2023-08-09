@@ -32,7 +32,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import YAML from "yaml";
-import type { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
+import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Workspace } from "./Workspace";
 
 export default class WorkspaceFileSystem {
@@ -172,13 +172,12 @@ export default class WorkspaceFileSystem {
     return fileName.split(".")[0] ?? "";
   }
 
- protected async getFiles() {
-    
+  protected async getFiles() {
     await this.initializing;
     if (!this._files) {
       throw new Error("Workspace File System not initialized.");
     }
-    return this._files
+    return this._files;
   }
 
   async getFileUrisInDirectory(directoryPath: string): Promise<string[]> {
@@ -364,6 +363,6 @@ export default class WorkspaceFileSystem {
 
   async getUrl(uri: string) {
     const files = await this.getFiles();
-   return files[uri]?.src
+    return files[uri]?.src;
   }
 }

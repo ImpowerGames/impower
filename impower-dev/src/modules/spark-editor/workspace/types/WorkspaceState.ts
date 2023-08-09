@@ -1,3 +1,5 @@
+import { Range } from "@impower/spark-editor-protocol/src/types";
+
 export interface PanelState extends Record<string, any> {
   visibleRange?: Range | undefined;
   selectedRange?: Range | undefined;
@@ -8,11 +10,6 @@ export interface PaneState {
   view?: string | undefined;
   panel: string;
   panels: Record<string, PanelState>;
-}
-
-export interface Range {
-  start: { line: number; character: number };
-  end: { line: number; character: number };
 }
 
 export interface WorkspacePanes extends Record<string, PaneState> {
