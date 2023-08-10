@@ -1,4 +1,4 @@
-import { setProperty } from "./setProperty";
+import setProperty from "./setProperty";
 
 const build = <T>(
   obj: T,
@@ -33,7 +33,7 @@ const build = <T>(
   });
 };
 
-export const construct = <T>(
+const construct = <T>(
   defaultObject: T,
   structs: {
     [name: string]: {
@@ -47,3 +47,5 @@ export const construct = <T>(
   build(obj, structs, name);
   return obj as T;
 };
+
+export default construct;

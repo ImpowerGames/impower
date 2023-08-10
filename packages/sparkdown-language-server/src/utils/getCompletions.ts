@@ -8,8 +8,8 @@ import {
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { getBlockMatch } from "@impower/sparkdown/src/utils/getBlockMatch";
-import { getBlockType } from "@impower/sparkdown/src/utils/getBlockType";
+import getBlockMatch from "@impower/sparkdown/src/utils/getBlockMatch";
+import getBlockType from "@impower/sparkdown/src/utils/getBlockType";
 import getLineText from "./getLineText";
 import getUniqueOptions from "./getUniqueOptions";
 import isEmptyLine from "./isEmptyLine";

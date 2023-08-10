@@ -1,4 +1,4 @@
-export const getSectionAtLine = <T extends { line: number }>(
+const getSectionAtLine = <T extends { line: number }>(
   line: number,
   sections: Record<string, T>
 ): [string, T | undefined] => {
@@ -15,3 +15,5 @@ export const getSectionAtLine = <T extends { line: number }>(
   }
   return ["", sections?.[""]];
 };
+
+export default getSectionAtLine;

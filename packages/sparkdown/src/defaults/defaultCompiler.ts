@@ -1,7 +1,7 @@
-import { SPARK_REGEX } from "../constants/SPARK_REGEX";
+import SPARK_REGEX from "../constants/SPARK_REGEX";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 
-export const defaultCompiler = (
+const defaultCompiler = (
   expr: string,
   context?: Record<string, unknown>
 ): [unknown, CompilerDiagnostic[], CompilerDiagnostic[]] => {
@@ -48,3 +48,5 @@ export const defaultCompiler = (
   });
   return [undefined, diagnostics, references];
 };
+
+export default defaultCompiler;

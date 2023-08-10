@@ -1,12 +1,12 @@
-import { SPARK_DISPLAY_TOKEN_TYPES } from "../constants/SPARK_DISPLAY_TOKEN_TYPES";
-import { SPARK_FLOW_TOKEN_TYPES } from "../constants/SPARK_FLOW_TOKEN_TYPES";
-import { SPARK_REGEX } from "../constants/SPARK_REGEX";
-import { SPARK_RESERVED_KEYWORDS } from "../constants/SPARK_RESERVED_KEYWORDS";
-import { SPARK_SCOPE_TYPES } from "../constants/SPARK_SCOPE_TYPES";
-import { SPARK_SYSTEM_METHODS } from "../constants/SPARK_SYSTEM_METHODS";
-import { TITLE_PAGE_DISPLAY } from "../constants/TITLE_PAGE_DISPLAY";
-import { defaultCompiler } from "../defaults/defaultCompiler";
-import { defaultFormatter } from "../defaults/defaultFormatter";
+import SPARK_DISPLAY_TOKEN_TYPES from "../constants/SPARK_DISPLAY_TOKEN_TYPES";
+import SPARK_FLOW_TOKEN_TYPES from "../constants/SPARK_FLOW_TOKEN_TYPES";
+import SPARK_REGEX from "../constants/SPARK_REGEX";
+import SPARK_RESERVED_KEYWORDS from "../constants/SPARK_RESERVED_KEYWORDS";
+import SPARK_SCOPE_TYPES from "../constants/SPARK_SCOPE_TYPES";
+import SPARK_SYSTEM_METHODS from "../constants/SPARK_SYSTEM_METHODS";
+import TITLE_PAGE_DISPLAY from "../constants/TITLE_PAGE_DISPLAY";
+import defaultCompiler from "../defaults/defaultCompiler";
+import defaultFormatter from "../defaults/defaultFormatter";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 import { SparkColorMetadata } from "../types/SparkColorMetadata";
 import { SparkAction } from "../types/SparkDiagnostic";
@@ -32,22 +32,22 @@ import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkVariableType } from "../types/SparkVariableType";
 import { StructureItem } from "../types/StructureItem";
-import { calculateSpeechDuration } from "./calculateSpeechDuration";
-import { createSparkLine } from "./createSparkLine";
-import { createSparkSection } from "./createSparkSection";
-import { createSparkToken } from "./createSparkToken";
-import { getAncestorIds } from "./getAncestorIds";
-import { getExpressionCallMatch } from "./getExpressionCallMatch";
-import { getIndent } from "./getIndent";
-import { getScopedContext } from "./getScopedContext";
-import { getScopedItemId } from "./getScopedItemId";
-import { getScopedValueContext } from "./getScopedValueContext";
-import { getTo } from "./getTo";
-import { isSparkDisplayToken } from "./isSparkDisplayToken";
-import { isVariableType } from "./isVariableType";
-import { stripInlineComments } from "./stripInlineComments";
-import { trimCharacterExtension } from "./trimCharacterExtension";
-import { updateObjectMap } from "./updateObjectMap";
+import calculateSpeechDuration from "./calculateSpeechDuration";
+import createSparkLine from "./createSparkLine";
+import createSparkSection from "./createSparkSection";
+import createSparkToken from "./createSparkToken";
+import getAncestorIds from "./getAncestorIds";
+import getExpressionCallMatch from "./getExpressionCallMatch";
+import getIndent from "./getIndent";
+import getScopedContext from "./getScopedContext";
+import getScopedItemId from "./getScopedItemId";
+import getScopedValueContext from "./getScopedValueContext";
+import getTo from "./getTo";
+import isSparkDisplayToken from "./isSparkDisplayToken";
+import isVariableType from "./isVariableType";
+import stripInlineComments from "./stripInlineComments";
+import trimCharacterExtension from "./trimCharacterExtension";
+import updateObjectMap from "./updateObjectMap";
 
 const EMPTY_OBJECT = {};
 
@@ -2681,7 +2681,7 @@ const hoistDeclarations = (
   }
 };
 
-export const parseSpark = (
+const parseSpark = (
   script: string,
   config?: SparkParserConfig
 ): SparkProgram => {
@@ -3830,3 +3830,5 @@ export const parseSpark = (
 
   return program;
 };
+
+export default parseSpark;

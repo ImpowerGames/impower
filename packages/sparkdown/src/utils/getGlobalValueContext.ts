@@ -1,6 +1,6 @@
 import { SparkProgram } from "../types/SparkProgram";
 
-export const getGlobalValueContext = (
+const getGlobalValueContext = (
   program: SparkProgram
 ): Record<string, unknown> => {
   const sectionValues: Record<string, number> = {};
@@ -16,3 +16,5 @@ export const getGlobalValueContext = (
     ...variableValues,
   };
 };
+
+export default getGlobalValueContext;

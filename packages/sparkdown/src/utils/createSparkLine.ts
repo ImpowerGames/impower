@@ -1,6 +1,6 @@
 import { SparkLine } from "../types/SparkLine";
 
-export const createSparkLine = (obj?: Partial<SparkLine>): SparkLine => {
+const createSparkLine = (obj?: Partial<SparkLine>): SparkLine => {
   return {
     type: "comment",
     line: -1,
@@ -17,3 +17,5 @@ export const createSparkLine = (obj?: Partial<SparkLine>): SparkLine => {
     ...obj,
   };
 };
+
+export default createSparkLine;

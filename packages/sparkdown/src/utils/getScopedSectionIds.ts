@@ -1,8 +1,8 @@
-import { getAncestorIds } from "./getAncestorIds";
-import { getChildrenIds } from "./getChildrenIds";
-import { getSiblingIds } from "./getSiblingIds";
+import getAncestorIds from "./getAncestorIds";
+import getChildrenIds from "./getChildrenIds";
+import getSiblingIds from "./getSiblingIds";
 
-export const getScopedSectionIds = (
+const getScopedSectionIds = (
   sectionId: string,
   sections?: Record<
     string,
@@ -34,3 +34,5 @@ export const getScopedSectionIds = (
   });
   return result;
 };
+
+export default getScopedSectionIds;

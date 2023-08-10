@@ -1,7 +1,7 @@
-import { getScopedIds } from "./getScopedIds";
-import { getScopedSectionIds } from "./getScopedSectionIds";
+import getScopedIds from "./getScopedIds";
+import getScopedSectionIds from "./getScopedSectionIds";
 
-export const getScopedContext = <T>(
+const getScopedContext = <T>(
   itemsProp: "variables" | "sections",
   sectionId: string,
   sections?: Record<
@@ -39,3 +39,5 @@ export const getScopedContext = <T>(
   });
   return [ids, valueMap];
 };
+
+export default getScopedContext;

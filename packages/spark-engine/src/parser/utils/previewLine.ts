@@ -1,7 +1,5 @@
-import {
-  getScopedValueContext,
-  getSectionAtLine,
-} from "../../../../sparkdown/src";
+import getScopedValueContext from "../../../../sparkdown/src/utils/getScopedValueContext";
+import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { Context } from "../classes/Context";
 import { getPreviewCommand } from "./getPreviewCommand";
 import { getPreviewStruct } from "./getPreviewStruct";

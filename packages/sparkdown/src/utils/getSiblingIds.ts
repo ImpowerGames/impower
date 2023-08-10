@@ -1,4 +1,4 @@
-export const getSiblingIds = (
+const getSiblingIds = (
   sectionId: string,
   sections?: Record<string, { parent?: string; children?: string[] }>
 ): string[] => {
@@ -17,3 +17,5 @@ export const getSiblingIds = (
   }
   return result || [];
 };
+
+export default getSiblingIds;

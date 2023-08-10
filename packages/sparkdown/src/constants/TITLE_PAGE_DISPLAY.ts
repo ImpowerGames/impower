@@ -1,7 +1,7 @@
 import { SparkTitleKeyword } from "../types/SparkTitleKeyword";
 import { SparkTitlePosition } from "../types/SparkTitlePosition";
 
-export const TITLE_PAGE_DISPLAY: Record<
+const TITLE_PAGE_DISPLAY: Record<
   SparkTitleKeyword | SparkTitlePosition,
   {
     position: SparkTitlePosition;
@@ -38,3 +38,5 @@ export const TITLE_PAGE_DISPLAY: Record<
   header: { position: "hidden", order: -1 },
   footer: { position: "hidden", order: -1 },
 };
+
+export default TITLE_PAGE_DISPLAY;

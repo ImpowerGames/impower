@@ -1,4 +1,4 @@
-export const setProperty = (
+const setProperty = (
   obj: any,
   propertyPath: string,
   value: unknown
@@ -23,3 +23,5 @@ export const setProperty = (
   });
   return success;
 };
+
+export default setProperty;

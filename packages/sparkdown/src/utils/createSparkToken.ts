@@ -1,8 +1,8 @@
 import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
-import { getIndent } from "./getIndent";
-import { getTo } from "./getTo";
+import getIndent from "./getIndent";
+import getTo from "./getTo";
 
-export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
+const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
   type: K,
   newLineLength?: number,
   obj?: Partial<SparkTokenTypeMap[K]>
@@ -25,3 +25,5 @@ export const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
   t.type = type || "comment";
   return t;
 };
+
+export default createSparkToken;

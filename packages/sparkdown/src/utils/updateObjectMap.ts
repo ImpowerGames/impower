@@ -1,7 +1,7 @@
 import { SparkStruct } from "../types/SparkStruct";
-import { construct } from "./construct";
+import construct from "./construct";
 
-export const updateObjectMap = (
+const updateObjectMap = (
   objectMap: { [type: string]: Record<string, any> },
   structs?: Record<string, SparkStruct>
 ): void => {
@@ -20,3 +20,5 @@ export const updateObjectMap = (
     }
   });
 };
+
+export default updateObjectMap;

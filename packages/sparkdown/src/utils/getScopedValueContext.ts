@@ -1,7 +1,7 @@
-import { getScopedContext } from "./getScopedContext";
+import getScopedContext from "./getScopedContext";
 
 // TODO: Also include struct objects in scopedContext
-export const getScopedValueContext = <
+const getScopedValueContext = <
   T extends {
     name: string;
     parent?: string;
@@ -30,3 +30,5 @@ export const getScopedValueContext = <
     },
   ];
 };
+
+export default getScopedValueContext;

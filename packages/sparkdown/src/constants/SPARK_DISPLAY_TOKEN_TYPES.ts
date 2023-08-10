@@ -1,6 +1,6 @@
 import { SparkTokenType } from "../types/SparkTokenType";
 
-export const SPARK_DISPLAY_TOKEN_TYPES: readonly SparkTokenType[] = [
+const SPARK_DISPLAY_TOKEN_TYPES: readonly SparkTokenType[] = [
   "dialogue",
   "action",
   "centered",
@@ -10,3 +10,5 @@ export const SPARK_DISPLAY_TOKEN_TYPES: readonly SparkTokenType[] = [
   "action_asset",
   "dialogue_asset",
 ] as const;
+
+export default SPARK_DISPLAY_TOKEN_TYPES;

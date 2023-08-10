@@ -1,8 +1,8 @@
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
-import { parseSpark } from "../utils/parseSpark";
+import parseSpark from "../utils/parseSpark";
 
-export class SparkParser {
+export default class SparkParser {
   config: SparkParserConfig = {};
 
   constructor(config: SparkParserConfig) {

@@ -1,6 +1,6 @@
-import { getAncestorIds } from "./getAncestorIds";
+import getAncestorIds from "./getAncestorIds";
 
-export const getScopedItemId = <T>(
+const getScopedItemId = <T>(
   items: Record<string, T>,
   sectionId: string,
   name: string
@@ -14,3 +14,5 @@ export const getScopedItemId = <T>(
   }
   return undefined;
 };
+
+export default getScopedItemId;

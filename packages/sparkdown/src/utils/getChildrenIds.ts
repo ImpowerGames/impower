@@ -1,4 +1,4 @@
-export const getChildrenIds = <T extends { children?: string[] }>(
+const getChildrenIds = <T extends { children?: string[] }>(
   sectionId: string,
   sections?: Record<string, T>
 ): string[] => {
@@ -6,3 +6,5 @@ export const getChildrenIds = <T extends { children?: string[] }>(
   const section = sections?.[validSectionId];
   return section?.children || [];
 };
+
+export default getChildrenIds;

@@ -1,4 +1,4 @@
-import { SPARK_REGEX } from "../../../sparkdown/src";
+import SPARK_REGEX from "../../../sparkdown/src/constants/SPARK_REGEX";
 import { PdfDocument } from "../types/PdfDocument";
 import { TextOptions } from "../types/TextOptions";
 

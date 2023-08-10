@@ -1,9 +1,9 @@
 import {
-  createSparkToken,
   SparkLine,
   SparkToken,
   SparkTokenTypeMap,
 } from "../../../sparkdown/src";
+import createSparkToken from "../../../sparkdown/src/utils/createSparkToken";
 import { PrintProfile } from "../types/PrintProfile";
 
 export interface LineItem extends SparkLine {

@@ -1,5 +1,6 @@
 import { compile, format } from "@impower/spark-evaluate/src/index";
-import { SparkParser, SparkParserConfig } from "@impower/sparkdown/src/index";
+import SparkParser from "@impower/sparkdown/src/classes/SparkParser";
+import { SparkParserConfig } from "@impower/sparkdown/src/index";
 
 export class GameSparkParser extends SparkParser {
   private static _instance: GameSparkParser;

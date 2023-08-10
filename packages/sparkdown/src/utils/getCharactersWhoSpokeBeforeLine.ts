@@ -1,7 +1,7 @@
 import { SparkProgram } from "../types/SparkProgram";
-import { trimCharacterExtension } from "./trimCharacterExtension";
+import trimCharacterExtension from "./trimCharacterExtension";
 
-export const getCharactersWhoSpokeBeforeLine = (
+const getCharactersWhoSpokeBeforeLine = (
   program: SparkProgram,
   line: number
 ) => {
@@ -37,3 +37,5 @@ export const getCharactersWhoSpokeBeforeLine = (
   }
   return previousCharacters;
 };
+
+export default getCharactersWhoSpokeBeforeLine;

@@ -94,7 +94,7 @@ const convert = (obj: any, lines: string[], indent: string) => {
   }
 };
 
-export const yamlStringify = (
+const yamlStringify = (
   obj: any,
   lineSeparator = "\n",
   indent = "  "
@@ -103,3 +103,5 @@ export const yamlStringify = (
   convert(obj, lines, indent);
   return lines.join(lineSeparator);
 };
+
+export default yamlStringify;

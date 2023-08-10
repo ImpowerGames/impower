@@ -1,4 +1,4 @@
-export const getAncestorIds = (sectionId: string): string[] => {
+const getAncestorIds = (sectionId: string): string[] => {
   if (!sectionId) {
     return [""];
   }
@@ -11,3 +11,5 @@ export const getAncestorIds = (sectionId: string): string[] => {
   }
   return ids || [];
 };
+
+export default getAncestorIds;

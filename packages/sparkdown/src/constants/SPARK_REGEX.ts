@@ -35,7 +35,7 @@ export const SPARK_BLOCK_REGEX = {
 
 export type SparkBlockType = keyof typeof SPARK_BLOCK_REGEX;
 
-export const SPARK_REGEX = {
+const SPARK_REGEX = {
   ...SPARK_BLOCK_REGEX,
 
   front_matter_entry:
@@ -105,4 +105,4 @@ export const SPARK_REGEX = {
   link: /(\[?(\[)([^\][]*\[?[^\][]*\]?[^\][]*)(\])(\()(.+?)(?:\s+(["'])(.*?)\4)?(\)))/g,
 } as const;
 
-export type SparkRegexType = keyof typeof SPARK_REGEX;
+export default SPARK_REGEX;

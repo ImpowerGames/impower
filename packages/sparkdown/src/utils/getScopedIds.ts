@@ -1,6 +1,6 @@
-import { getAncestorIds } from "./getAncestorIds";
+import getAncestorIds from "./getAncestorIds";
 
-export const getScopedIds = (
+const getScopedIds = (
   sectionId: string,
   sections?: Record<
     string,
@@ -32,3 +32,5 @@ export const getScopedIds = (
   });
   return result;
 };
+
+export default getScopedIds;

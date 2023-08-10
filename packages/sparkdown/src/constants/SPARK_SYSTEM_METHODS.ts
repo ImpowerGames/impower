@@ -1,6 +1,6 @@
 import { SparkSection } from "../types/SparkSection";
 
-export const SPARK_SYSTEM_METHODS = {
+const SPARK_SYSTEM_METHODS = {
   ".load": {
     from: -1,
     to: -1,
@@ -24,3 +24,5 @@ export const SPARK_SYSTEM_METHODS = {
     },
   } as SparkSection,
 };
+
+export default SPARK_SYSTEM_METHODS;

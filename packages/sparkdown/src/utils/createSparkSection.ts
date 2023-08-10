@@ -1,6 +1,6 @@
 import { SparkSection } from "../types/SparkSection";
 
-export const createSparkSection = (): SparkSection => {
+const createSparkSection = (): SparkSection => {
   return {
     type: "section",
     name: "",
@@ -12,3 +12,5 @@ export const createSparkSection = (): SparkSection => {
     indent: -1,
   };
 };
+
+export default createSparkSection;

@@ -1,8 +1,6 @@
-import {
-  getScopedValueContext,
-  getSectionAtLine,
-  SparkProgram,
-} from "../../../../sparkdown/src";
+import { SparkProgram } from "../../../../sparkdown/src";
+import getScopedValueContext from "../../../../sparkdown/src/utils/getScopedValueContext";
+import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { CommandData } from "../../data";
 import { Block, Game, GameConfig, GameState } from "../../game";
 import { CommandRunner } from "../../runner";

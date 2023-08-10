@@ -3,13 +3,10 @@ import {
   LineStruct,
   SparkScreenplayConfig,
 } from "@impower/spark-screenplay/src/index";
-import {
-  calculateSpeechDuration,
-  isMonologue,
-  SPARK_REGEX,
-  SparkProgram,
-  StructureItem,
-} from "@impower/sparkdown/src/index";
+import SPARK_REGEX from "@impower/sparkdown/src/constants/SPARK_REGEX";
+import { SparkProgram, StructureItem } from "@impower/sparkdown/src/index";
+import calculateSpeechDuration from "@impower/sparkdown/src/utils/calculateSpeechDuration";
+import isMonologue from "@impower/sparkdown/src/utils/isMonologue";
 import * as vscode from "vscode";
 import { generatePdfStats } from "../pdf/generatePdfStats";
 import { getCharacterName } from "./getCharacterName";

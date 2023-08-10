@@ -1,6 +1,6 @@
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 
-export const defaultFormatter = (
+const defaultFormatter = (
   str: string,
   context?: Record<string, unknown>
 ): [string, CompilerDiagnostic[], CompilerDiagnostic[]] => {
@@ -39,3 +39,5 @@ export const defaultFormatter = (
   const result = str.replace(regex, replacer);
   return [result, diagnostics, possibleValues];
 };
+
+export default defaultFormatter;

@@ -1,7 +1,7 @@
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkSection } from "../types/SparkSection";
 
-export const getSectionAt = (
+const getSectionAt = (
   pos: number,
   program: SparkProgram
 ): [string, SparkSection | undefined] => {
@@ -17,3 +17,5 @@ export const getSectionAt = (
   }
   return ["", program?.sections?.[""]];
 };
+
+export default getSectionAt;

@@ -1,5 +1,6 @@
 import { compile, format } from "../../../../spark-evaluate/src";
-import { SparkParser, SparkParserConfig } from "../../../../sparkdown/src";
+import { SparkParserConfig } from "../../../../sparkdown/src";
+import SparkParser from "../../../../sparkdown/src/classes/SparkParser";
 import { processBeatmap } from "../../game/rhythm";
 
 export default class EngineSparkParser extends SparkParser {

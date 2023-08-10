@@ -1,6 +1,6 @@
 import { SparkSection } from "../types/SparkSection";
 
-export const getRelativeSection = (
+const getRelativeSection = (
   sectionId: string,
   sections: Record<string, SparkSection>,
   operator: ">" | "]" | "[" | "^"
@@ -41,3 +41,5 @@ export const getRelativeSection = (
 
   return [undefined, undefined];
 };
+
+export default getRelativeSection;

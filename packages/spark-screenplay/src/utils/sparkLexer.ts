@@ -1,4 +1,4 @@
-import { SPARK_REGEX, SparkRegexType } from "../../../sparkdown/src";
+import SPARK_REGEX from "../../../sparkdown/src/constants/SPARK_REGEX";
 import { LexerReplacements } from "../types/LexerReplacements";
 
 export const sparkLexer = (
@@ -11,7 +11,7 @@ export const sparkLexer = (
     return s;
   }
 
-  const styles: SparkRegexType[] = [
+  const styles = [
     "underline",
     "italic",
     "bold",
@@ -19,7 +19,7 @@ export const sparkLexer = (
     "italic_underline",
     "bold_underline",
     "bold_italic_underline",
-  ];
+  ] as const;
   let i = styles.length;
   let style;
   let match;

@@ -1,4 +1,5 @@
-import { getSectionAtLine, SparkProgram } from "../../../../sparkdown/src";
+import { SparkProgram } from "../../../../sparkdown/src";
+import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { CommandData } from "../../data";
 import { generateCommand } from "./generateCommand";
 

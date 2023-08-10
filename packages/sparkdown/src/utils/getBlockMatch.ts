@@ -1,6 +1,6 @@
 import { SPARK_BLOCK_REGEX } from "../constants/SPARK_REGEX";
 
-export const getBlockMatch = (lineText: string): string[] | null => {
+const getBlockMatch = (lineText: string): string[] | null => {
   const entries = Object.entries(SPARK_BLOCK_REGEX);
   for (let i = 0; i < entries.length; i += 1) {
     const entry = entries[i]!;
@@ -13,3 +13,5 @@ export const getBlockMatch = (lineText: string): string[] | null => {
   }
   return null;
 };
+
+export default getBlockMatch;
