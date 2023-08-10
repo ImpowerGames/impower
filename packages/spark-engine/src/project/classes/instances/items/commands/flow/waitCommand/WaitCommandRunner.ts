@@ -14,7 +14,7 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
     context: CommandContext<G>
   ): number[] {
     const { seconds } = data;
-    this.msTimers.set(data.reference.refId, 0);
+    this.msTimers.set(data.reference.id, 0);
     if (!seconds) {
       return super.onExecute(game, data, context);
     }
@@ -32,13 +32,12 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
     data: WaitCommandData,
     context: CommandContext<G>
   ): boolean | null {
-    const { seconds } = data;
+    const { seconds } = data.params;
     if (seconds === undefined || seconds === 0) {
       return super.isFinished(game, data, context);
     }
-    const blockState =
-      game.logic.state.blockStates[data.reference.parentContainerId];
-    const timeMS = this.msTimers.get(data.reference.refId) ?? 0;
+    const blockState = game.logic.state.blockStates[data.reference.parentId];
+    const timeMS = this.msTimers.get(data.reference.id) ?? 0;
     if (blockState) {
       if (seconds < 0) {
         return false;

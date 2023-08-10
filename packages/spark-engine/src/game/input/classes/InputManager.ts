@@ -1,9 +1,10 @@
+import { GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 
 export interface InputEvents extends Record<string, GameEvent> {
-  onPointerDown: GameEvent<number, string>;
-  onPointerUp: GameEvent<number, string>;
+  onPointerDown: GameEvent2<number, string>;
+  onPointerUp: GameEvent2<number, string>;
 }
 
 export interface InputConfig {}
@@ -26,8 +27,8 @@ export class InputManager extends Manager<
 > {
   constructor(config?: Partial<InputConfig>, state?: Partial<InputState>) {
     const initialEvents: InputEvents = {
-      onPointerDown: new GameEvent<number, string>(),
-      onPointerUp: new GameEvent<number, string>(),
+      onPointerDown: new GameEvent2<number, string>(),
+      onPointerUp: new GameEvent2<number, string>(),
     };
     const initialConfig: InputConfig = { ...(config || {}) };
     const initialState: InputState = {

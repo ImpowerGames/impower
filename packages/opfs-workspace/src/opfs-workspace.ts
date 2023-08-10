@@ -7,6 +7,7 @@ import { DeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage.js";
 import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
+import { FileData } from "@impower/spark-editor-protocol/src/types";
 import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
 import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import { SparkProgram } from "../../sparkdown/src/types/SparkProgram";
@@ -23,6 +24,15 @@ import { getUriFromPath } from "./utils/getUriFromPath";
 
 const globToRegex = (glob: string) => {
   return RegExp(glob.replace(/[.]/g, "[.]").replace(/[*]/g, ".*"), "i");
+};
+
+const parse = (file: FileData, files: FileData[]) => {
+  if (file.text != null) {
+    return EngineSparkParser.instance.parse(file.text, {
+      augmentations: { files, objectMap: STRUCT_DEFAULTS },
+    });
+  }
+  return undefined;
 };
 
 class State {
@@ -66,10 +76,8 @@ onmessage = async (e) => {
     const { directory } = message.params;
     const files = await readDirectoryFiles(directory.uri);
     files.forEach((file) => {
-      if (file.text != null) {
-        const program = EngineSparkParser.instance.parse(file.text, {
-          augmentations: { files, objectMap: STRUCT_DEFAULTS },
-        });
+      const program = parse(file, files);
+      if (program != null) {
         file.program = program;
         postMessage(
           DidParseTextDocumentMessage.type.notification({
@@ -97,19 +105,17 @@ onmessage = async (e) => {
     const uri = textDocument.uri;
     const file = await writeTextDocument(uri, text);
     if (file) {
-      const program = EngineSparkParser.instance.parse(text, {
-        augmentations: {
-          files: Object.values(State.files),
-          objectMap: STRUCT_DEFAULTS,
-        },
-      });
-      file.program = program;
-      postMessage(
-        DidParseTextDocumentMessage.type.notification({
-          textDocument: { uri, version: file.version },
-          program,
-        })
-      );
+      const files = Object.values(State.files);
+      const program = parse(file, files);
+      if (program) {
+        file.program = program;
+        postMessage(
+          DidParseTextDocumentMessage.type.notification({
+            textDocument: { uri, version: file.version },
+            program,
+          })
+        );
+      }
     }
     postMessage(WriteTextDocumentMessage.type.response(message.id, file));
   }

@@ -24,7 +24,7 @@ export class ConditionCommandRunner<G extends Game> extends CommandRunner<
     data: ConditionCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { check, value } = data;
+    const { check, value } = data.params;
     const { valueMap, index, commands } = context;
 
     if (check === "if") {
@@ -40,7 +40,7 @@ export class ConditionCommandRunner<G extends Game> extends CommandRunner<
       const shouldExecute = evaluate(value, valueMap);
       if (!shouldExecute) {
         const blockState =
-          game.logic.state.blockStates[data.reference.parentContainerId];
+          game.logic.state.blockStates[data.reference.parentId];
         if (blockState) {
           const prevCheck =
             commands?.[blockState.previousIndex]?.data?.["check"];

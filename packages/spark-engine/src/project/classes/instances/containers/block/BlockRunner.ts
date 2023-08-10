@@ -24,15 +24,10 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
    *
    * @return {boolean} True, if still executing. False, if finished, Null, if quit.
    */
-  update(
-    blockId: string,
-    context: BlockContext<G>,
-    game: G,
-    deltaMS: number
-  ): boolean | null {
+  update(blockId: string, context: BlockContext<G>, game: G): boolean | null {
     const { triggers, valueMap } = context;
 
-    game.logic.updateBlock(blockId, deltaMS);
+    game.logic.updateBlock(blockId);
 
     const blockState = game.logic.state.blockStates[blockId];
     if (!blockState) {
@@ -53,12 +48,7 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
 
       const shouldExecute = satisfiedTriggers?.length > 0;
 
-      game.logic.checkTriggers(
-        blockId,
-        shouldExecute,
-        satisfiedTriggers,
-        unsatisfiedTriggers
-      );
+      game.logic.checkTriggers(blockId, satisfiedTriggers, unsatisfiedTriggers);
 
       if (shouldExecute) {
         const block = game.logic.config.blockMap[blockId];
@@ -101,11 +91,10 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
     while (blockState.executingIndex < commands.length) {
       const command = commands[blockState.executingIndex];
       if (command) {
-        const commandId = command.data.reference.refId;
+        const commandId = command.data.reference.id;
         const commandIndex = blockState.executingIndex;
         const executionCount = blockState.commandExecutionCounts[commandId];
-        const from = command?.data?.from;
-        const line = command?.data?.line;
+        const source = command?.data?.source;
         const fastForward = blockState.startIndex > blockState.executingIndex;
         const changedVariables = game?.logic?.state?.changedVariables;
         const changedBlocks = game?.logic?.state?.changedBlocks;
@@ -129,13 +118,7 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
         ];
         context.debug = game?.debug?.state?.debugging;
         if (!blockState.isExecutingCommand) {
-          game.logic.executeCommand(
-            blockId,
-            commandId,
-            commandIndex,
-            from,
-            line
-          );
+          game.logic.executeCommand(blockId, commandId, source);
           let nextJumps: number[] = [];
           if (!fastForward) {
             nextJumps = command.runner.onExecute(game, command.data, {
@@ -144,13 +127,13 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
             });
           }
           if (nextJumps.length > 0) {
-            game.logic.commandJumpStackPush(blockId, nextJumps, from, line);
+            game.logic.commandJumpStackPush(blockId, nextJumps, source);
           }
           if (!blockState.isExecutingCommand) {
             return true;
           }
         }
-        if (!fastForward && command.data.waitUntilFinished) {
+        if (!fastForward && command.data.params.waitUntilFinished) {
           const finished = command.runner.isFinished(game, command.data, {
             ...context,
             index: blockState.executingIndex,
@@ -166,19 +149,18 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
           ...context,
           index: blockState.executingIndex,
         });
-        game.logic.finishCommand(blockId, commandId, commandIndex, from, line);
+        game.logic.finishCommand(blockId, commandId, commandIndex, source);
         if (blockState.commandJumpStack.length > 0) {
           const nextCommandIndex = game.logic.commandJumpStackPop(
             blockId,
-            from,
-            line
+            source
           );
           if (nextCommandIndex !== undefined) {
-            game.logic.goToCommandIndex(blockId, nextCommandIndex, from, line);
+            game.logic.goToCommandIndex(blockId, nextCommandIndex, source);
           }
         } else {
           const nextCommandIndex = blockState.executingIndex + 1;
-          game.logic.goToCommandIndex(blockId, nextCommandIndex, from, line);
+          game.logic.goToCommandIndex(blockId, nextCommandIndex, source);
         }
       }
     }

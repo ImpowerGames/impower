@@ -1,8 +1,9 @@
+import { GameEvent1 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 
 export interface PhysicsEvents extends Record<string, GameEvent> {
-  onTimeScaleChange: GameEvent<number>;
+  onTimeScaleChange: GameEvent1<number>;
 }
 
 export interface PhysicsConfig {}
@@ -16,7 +17,7 @@ export class PhysicsManager extends Manager<
 > {
   constructor(config?: Partial<PhysicsConfig>, state?: Partial<PhysicsState>) {
     const initialEvents: PhysicsEvents = {
-      onTimeScaleChange: new GameEvent<number>(),
+      onTimeScaleChange: new GameEvent1<number>(),
     };
     const initialConfig: PhysicsConfig = { ...(config || {}) };
     const initialState: PhysicsState = { ...(state || {}) };

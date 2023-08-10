@@ -1,3 +1,4 @@
+import { GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { getAllProperties } from "../../core/utils/getAllProperties";
@@ -11,7 +12,7 @@ const DEFAULT_STYLE_CLASS_NAME = "spark-style";
 const DEFAULT_CREATE_ELEMENT = (id: string) => new Element(id);
 
 export interface UIEvents extends Record<string, GameEvent> {
-  onCreateElement: GameEvent<string, string>;
+  onCreateElement: GameEvent2<string, string>;
 }
 
 export interface UIConfig {
@@ -26,7 +27,7 @@ export interface UIState {}
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   constructor(config?: Partial<UIConfig>, state?: Partial<UIState>) {
     const initialEvents: UIEvents = {
-      onCreateElement: new GameEvent<string, string>(),
+      onCreateElement: new GameEvent2<string, string>(),
     };
     const initialConfig: UIConfig = {
       styleClassName: DEFAULT_STYLE_CLASS_NAME,

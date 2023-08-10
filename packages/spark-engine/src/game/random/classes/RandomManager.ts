@@ -1,10 +1,11 @@
 import { randomizer, shuffle, uuid } from "../../../../../spark-evaluate/src";
+import { GameEvent1 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 
 export interface RandomEvents extends Record<string, GameEvent> {
-  onRegenerateSeed: GameEvent<string>;
-  onSetSeed: GameEvent<string>;
+  onRegenerateSeed: GameEvent1<string>;
+  onSetSeed: GameEvent1<string>;
 }
 
 export interface RandomConfig {
@@ -22,8 +23,8 @@ export class RandomManager extends Manager<
 > {
   constructor(config?: Partial<RandomConfig>, state?: Partial<RandomState>) {
     const initialEvents: RandomEvents = {
-      onRegenerateSeed: new GameEvent<string>(),
-      onSetSeed: new GameEvent<string>(),
+      onRegenerateSeed: new GameEvent1<string>(),
+      onSetSeed: new GameEvent1<string>(),
     };
     const initialConfig: RandomConfig = {
       randomizer: randomizer(""),

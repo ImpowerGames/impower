@@ -99,6 +99,7 @@ export default class SparkdownTextDocuments<
       files: Record<
         string,
         {
+          uri: string;
           name: string;
           src: string;
           ext: string;
@@ -178,7 +179,13 @@ export default class SparkdownTextDocuments<
       const name = this.getFileName(fileUri);
       const type = this.getFileType(fileUri);
       const ext = this.getFileExtension(fileUri);
-      packageManifest.files[fileUri] = { name, type, ext, src: fileUri };
+      packageManifest.files[fileUri] = {
+        uri: fileUri,
+        name,
+        type,
+        ext,
+        src: fileUri,
+      };
     }
   }
 

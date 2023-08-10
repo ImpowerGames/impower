@@ -6,11 +6,12 @@ import { TickerConfig, TickerManager, TickerState } from "../../ticker";
 import { UIConfig, UIManager, UIState } from "../../ui";
 import { ListenOnly } from "../types/ListenOnly";
 import { GameEvent } from "./GameEvent";
+import { GameEvent0 } from "./GameEvent0";
 import { Manager } from "./Manager";
 
 export interface GameEvents extends Record<string, GameEvent> {
-  onInit: GameEvent;
-  onDestroy: GameEvent;
+  onInit: GameEvent0;
+  onDestroy: GameEvent0;
 }
 
 export interface GameConfig {
@@ -65,8 +66,8 @@ export class Game {
   }
 
   protected _events: GameEvents = {
-    onInit: new GameEvent(),
-    onDestroy: new GameEvent(),
+    onInit: new GameEvent0(),
+    onDestroy: new GameEvent0(),
   };
 
   public get events(): ListenOnly<GameEvents> {

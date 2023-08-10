@@ -1,7 +1,5 @@
 import { CommandData } from "../../../command/CommandData";
+import { EnterCommandParams } from "./EnterCommandParams";
 
-export interface EnterCommandData extends CommandData<"EnterCommand"> {
-  value: string;
-  calls: Record<string, { name: string; values: string[] }>;
-  returnWhenFinished: boolean;
-}
+export interface EnterCommandData
+  extends CommandData<"EnterCommand", EnterCommandParams> {}

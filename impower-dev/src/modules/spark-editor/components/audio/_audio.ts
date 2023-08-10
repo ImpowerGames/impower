@@ -5,7 +5,7 @@ export default (state: { store?: WorkspaceState }) => {
   const panel = state?.store?.panes?.audio?.panel || "sounds";
   return {
     html: html`
-      <s-router directional key="window/audio" active="${panel}">
+      <s-router directional key="audio-panel" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"

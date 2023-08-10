@@ -1,4 +1,5 @@
 import { SparkDOMElement } from "../../../spark-dom/src";
+import { DidExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { LoadGameMessage } from "../../../spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { PauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "../../../spark-editor-protocol/src/protocols/game/StartGameMessage";
@@ -97,7 +98,7 @@ export default class SparkWebPlayer
         const options = params.options;
         this._programs = {};
         programs.forEach((p) => {
-          this._programs[p.name] = p.program;
+          this._programs[p.uri] = p.program;
         });
         this._options = options;
         if (this._context) {
@@ -213,6 +214,30 @@ export default class SparkWebPlayer
         ...(options?.config || {}),
       },
       ...(options || {}),
+    });
+    context.game.logic.events.onExecuteCommand.addListener((_id, source) => {
+      if (source) {
+        window.dispatchEvent(
+          new CustomEvent(DidExecuteGameCommandMessage.method, {
+            bubbles: true,
+            cancelable: true,
+            composed: true,
+            detail: DidExecuteGameCommandMessage.type.notification({
+              textDocument: { uri: source.file },
+              range: {
+                start: {
+                  line: source.line,
+                  character: 0,
+                },
+                end: {
+                  line: source.line,
+                  character: source.to - source.from,
+                },
+              },
+            }),
+          })
+        );
+      }
     });
     return context;
   }

@@ -52,8 +52,8 @@ export const executeDisplayCommand = (
   onFinished?: () => void,
   preview?: boolean
 ): ((deltaMS: number) => void) | undefined => {
-  const type = data?.type || "";
-  const assets = data?.assets || [];
+  const type = data?.params?.type || "";
+  const assets = data?.params?.assets || [];
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
@@ -89,11 +89,11 @@ export const executeDisplayCommand = (
     return undefined;
   }
 
-  const character = data?.character || "";
-  const parenthetical = data?.parenthetical || "";
-  const content = data?.content;
-  const autoAdvance = data?.autoAdvance;
-  const clearPreviousText = data?.clearPreviousText;
+  const character = data?.params?.character || "";
+  const parenthetical = data?.params?.parenthetical || "";
+  const content = data?.params?.content;
+  const autoAdvance = data?.params?.autoAdvance;
+  const clearPreviousText = data?.params?.clearPreviousText;
   const characterKey = character
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
@@ -118,7 +118,7 @@ export const executeDisplayCommand = (
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
   const [replaceTagsResult] = format(trimmedContent, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
-  const commandType = `${data?.reference?.refTypeId || ""}`;
+  const commandType = `${data?.reference?.typeId || ""}`;
 
   const instant = context?.instant || (writerConfig?.letterDelay ?? 0) === 0;
   const debug = context?.debug;

@@ -11,9 +11,12 @@ import { DidEditProjectNameMessage } from "@impower/spark-editor-protocol/src/pr
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import { DidLoadProjectMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidLoadProjectMessage";
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
+import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
 import { WillEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillEditProjectNameMessage";
+import { Range } from "@impower/spark-editor-protocol/src/types";
+import { SparkProgram } from "../../../../../packages/sparkdown/src";
 import { Workspace } from "./Workspace";
 import { ReadOnly } from "./types/ReadOnly";
 import { WorkspaceState } from "./types/WorkspaceState";
@@ -29,6 +32,7 @@ export default class WorkspaceWindow {
   constructor() {
     this._state = {
       header: { projectName: "" },
+      pane: "setup",
       panes: {
         setup: {
           panel: "details",
@@ -191,7 +195,21 @@ export default class WorkspaceWindow {
     return panelState;
   }
 
-  async getActiveEditor(pane: string) {
+  async getActiveEditor(pane: string): Promise<
+    | {
+        uri: string;
+        name: string;
+        src: string;
+        ext: string;
+        type: string;
+        version: number;
+        text?: string | undefined;
+        program?: SparkProgram | undefined;
+        visibleRange: Range | undefined;
+        selectedRange: Range | undefined;
+      }
+    | undefined
+  > {
     await Workspace.fs.initializing;
     const panelState = this.getOpenedPanelState(pane);
     const filePath = panelState.openFilePath;
@@ -220,6 +238,15 @@ export default class WorkspaceWindow {
     this.emit(
       DidCollapsePreviewPaneMessage.method,
       DidCollapsePreviewPaneMessage.type.notification({})
+    );
+  }
+
+  openedPane(pane: string) {
+    this.getPaneState(pane);
+    this._state.pane = pane;
+    this.emit(
+      DidOpenPaneMessage.method,
+      DidOpenPaneMessage.type.notification({ pane })
     );
   }
 

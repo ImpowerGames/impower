@@ -5,7 +5,7 @@ export default (state: { store?: WorkspaceState }) => {
   const panel = state?.store?.panes?.setup?.panel || "details";
   return {
     html: html`
-      <s-router key="window/setup" directional active="${panel}">
+      <s-router key="setup-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"

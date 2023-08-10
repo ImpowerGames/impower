@@ -5,7 +5,7 @@ export default (state: { store?: WorkspaceState }) => {
   const panel = state?.store?.panes?.graphics?.panel || "sprites";
   return {
     html: html`
-      <s-router directional key="window/graphics" active="${panel}">
+      <s-router directional key="graphics-panel" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"

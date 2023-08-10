@@ -1,5 +1,5 @@
-import { SparkProgram } from "../../../../sparkdown/src";
-import { CommandData } from "../../data";
+import type { SparkProgram } from "../../../../sparkdown/src";
+import type { CommandData } from "../../data";
 import { getPreviewCommand } from "./getPreviewCommand";
 
 export const getNextPreviewCommand = (
@@ -7,7 +7,9 @@ export const getNextPreviewCommand = (
   line: number
 ): CommandData | null | undefined => {
   const currentPreviewCommand = getPreviewCommand(program, line);
-  const currentLine = currentPreviewCommand ? currentPreviewCommand.line : line;
+  const currentLine = currentPreviewCommand
+    ? currentPreviewCommand.source.line
+    : line;
   const lastToken = program.tokens[program.tokens.length - 1];
   if (!lastToken) {
     return null;
@@ -16,7 +18,7 @@ export const getNextPreviewCommand = (
     const nextPreviewCommand = getPreviewCommand(program, i);
     if (
       nextPreviewCommand &&
-      nextPreviewCommand.line !== currentPreviewCommand?.line
+      nextPreviewCommand.source.line !== currentPreviewCommand?.source.line
     ) {
       return nextPreviewCommand;
     }

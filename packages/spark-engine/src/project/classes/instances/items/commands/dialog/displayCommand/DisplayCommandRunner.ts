@@ -68,19 +68,19 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     data: DisplayCommandData,
     context: CommandContext<G>
   ): boolean {
+    const { autoAdvance } = data.params;
     const prevDown = this.down;
     this.down = game.input.state.pointer.down.includes(0);
-    const blockState =
-      game.logic.state.blockStates[data.reference.parentContainerId];
+    const blockState = game.logic.state.blockStates[data.reference.parentId];
     if (!blockState) {
-      return true;
+      return false;
     }
     if (this.wasTyped && this.timeTypedMS < 0) {
       this.timeTypedMS = this.elapsedMS;
     }
     const timeMSSinceTyped = this.elapsedMS - this.timeTypedMS;
     if (
-      data.autoAdvance &&
+      autoAdvance &&
       this.wasTyped &&
       timeMSSinceTyped / 1000 >= this.autoDelay
     ) {

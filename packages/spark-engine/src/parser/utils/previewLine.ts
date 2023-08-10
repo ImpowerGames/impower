@@ -15,8 +15,8 @@ export const previewLine = (
     const objectMap = program?.objectMap || {};
     const runtimeCommand = getPreviewCommand(program, line);
     if (runtimeCommand) {
-      const commandRunner = context?.runner?.getRunner(
-        runtimeCommand.reference
+      const commandRunner = context?.runner?.getCommandRunner(
+        runtimeCommand.reference.typeId
       );
       if (commandRunner) {
         const [sectionId] = getSectionAtLine(line, program?.sections || {});

@@ -11,7 +11,7 @@ export class RepeatCommandRunner<G extends Game> extends CommandRunner<
     data: CommandData,
     context: CommandContext<G>
   ): number[] {
-    const id = data.reference.parentContainerId;
+    const id = data.reference.parentId;
 
     game.logic.executeBlock(id, id);
 

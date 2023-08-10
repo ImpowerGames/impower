@@ -25,7 +25,7 @@ export default class Audio extends SEElement {
 
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (e.detail.key === "window/audio") {
+      if (e.detail.key === "audio-panel") {
         const value = e.detail.value;
         Workspace.window.openedPanel("audio", value);
       }

@@ -26,6 +26,6 @@ export const getPreviewCommand = (
     return null;
   }
   const [sectionId] = getSectionAtLine(line, program?.sections || {});
-  const runtimeCommand = generateCommand(token, sectionId);
+  const runtimeCommand = generateCommand(token, "", sectionId);
   return runtimeCommand;
 };

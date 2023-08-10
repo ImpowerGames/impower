@@ -1,4 +1,5 @@
 import SEElement from "../../core/se-element";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_main-panel";
 
 export default class MainPanel extends SEElement {
@@ -13,4 +14,21 @@ export default class MainPanel extends SEElement {
   override get component() {
     return component();
   }
+
+  protected override onConnected(): void {
+    this.ownerDocument.addEventListener("enter", this.handleEnter);
+  }
+
+  protected override onDisconnected(): void {
+    this.ownerDocument.removeEventListener("enter", this.handleEnter);
+  }
+
+  handleEnter = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (e.detail.key === "pane") {
+        const value = e.detail.value;
+        Workspace.window.openedPane(value);
+      }
+    }
+  };
 }

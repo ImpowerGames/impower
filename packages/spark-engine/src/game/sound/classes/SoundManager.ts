@@ -1,3 +1,4 @@
+import { GameEvent1, GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
@@ -10,12 +11,12 @@ import { SynthConfig } from "../types/Synth";
 import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackState";
 
 export interface SoundEvents extends Record<string, GameEvent> {
-  onStarted: GameEvent<string, Float32Array>;
-  onPaused: GameEvent<string>;
-  onUnpaused: GameEvent<string>;
-  onStopped: GameEvent<string>;
-  onUpdate: GameEvent<number>;
-  onMidiEvent: GameEvent<string, MidiEvent>;
+  onStarted: GameEvent2<string, Float32Array>;
+  onPaused: GameEvent1<string>;
+  onUnpaused: GameEvent1<string>;
+  onStopped: GameEvent1<string>;
+  onUpdate: GameEvent1<number>;
+  onMidiEvent: GameEvent2<string, MidiEvent>;
 }
 
 export interface SoundConfig {
@@ -40,12 +41,12 @@ export class SoundManager extends Manager<
 
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
-      onStarted: new GameEvent<string, Float32Array>(),
-      onPaused: new GameEvent<string>(),
-      onUnpaused: new GameEvent<string>(),
-      onStopped: new GameEvent<string>(),
-      onUpdate: new GameEvent<number>(),
-      onMidiEvent: new GameEvent<string, MidiEvent>(),
+      onStarted: new GameEvent2<string, Float32Array>(),
+      onPaused: new GameEvent1<string>(),
+      onUnpaused: new GameEvent1<string>(),
+      onStopped: new GameEvent1<string>(),
+      onUpdate: new GameEvent1<number>(),
+      onMidiEvent: new GameEvent2<string, MidiEvent>(),
     };
     const initialConfig: SoundConfig = {
       synths: {},

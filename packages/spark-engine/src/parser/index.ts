@@ -8,6 +8,5 @@ export * from "./utils/getNextPreviewCommand";
 export * from "./utils/getPreviewCommand";
 export * from "./utils/getPreviewStruct";
 export * from "./utils/getPreviousPreviewCommand";
-export * from "./utils/getScriptAugmentations";
 export * from "./utils/getSparkStruct";
 export * from "./utils/previewLine";

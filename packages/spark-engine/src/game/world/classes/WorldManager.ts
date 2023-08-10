@@ -1,3 +1,4 @@
+import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { CameraState } from "../types/CameraState";
@@ -6,10 +7,10 @@ import { createCameraState } from "../utils/createCameraState";
 import { createEntityState } from "../utils/createEntityState";
 
 export interface WorldEvents extends Record<string, GameEvent> {
-  onSpawnEntity: GameEvent<string, string, EntityState>;
-  onDestroyEntity: GameEvent<string, string>;
-  onAddCamera: GameEvent<string, CameraState>;
-  onRemoveCamera: GameEvent<string>;
+  onSpawnEntity: GameEvent3<string, string, EntityState>;
+  onDestroyEntity: GameEvent2<string, string>;
+  onAddCamera: GameEvent2<string, CameraState>;
+  onRemoveCamera: GameEvent1<string>;
 }
 
 export interface WorldConfig {
@@ -30,10 +31,10 @@ export class WorldManager extends Manager<
 > {
   constructor(config?: Partial<WorldConfig>, state?: Partial<WorldState>) {
     const initialEvents: WorldEvents = {
-      onSpawnEntity: new GameEvent<string, string, EntityState>(),
-      onDestroyEntity: new GameEvent<string, string>(),
-      onAddCamera: new GameEvent<string, CameraState>(),
-      onRemoveCamera: new GameEvent<string>(),
+      onSpawnEntity: new GameEvent3<string, string, EntityState>(),
+      onDestroyEntity: new GameEvent2<string, string>(),
+      onAddCamera: new GameEvent2<string, CameraState>(),
+      onRemoveCamera: new GameEvent1<string>(),
     };
     const initialConfig: WorldConfig = {
       defaultCameras: {

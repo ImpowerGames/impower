@@ -1,10 +1,11 @@
+import { GameEvent1, GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 
 export interface TickerEvents extends Record<string, GameEvent> {
-  onAdded: GameEvent<string, (deltaMS: number) => void>;
-  onRemoved: GameEvent<string>;
-  onUpdate: GameEvent<number>;
+  onAdded: GameEvent2<string, (deltaMS: number) => void>;
+  onRemoved: GameEvent1<string>;
+  onUpdate: GameEvent1<number>;
 }
 
 export interface TickerConfig {
@@ -22,9 +23,9 @@ export class TickerManager extends Manager<
 > {
   constructor(config?: Partial<TickerConfig>, state?: Partial<TickerState>) {
     const initialEvents: TickerEvents = {
-      onAdded: new GameEvent<string, (deltaMS: number) => void>(),
-      onRemoved: new GameEvent<string>(),
-      onUpdate: new GameEvent<number>(),
+      onAdded: new GameEvent2<string, (deltaMS: number) => void>(),
+      onRemoved: new GameEvent1<string>(),
+      onUpdate: new GameEvent1<number>(),
     };
     const initialConfig: TickerConfig = {
       listeners: new Map(),

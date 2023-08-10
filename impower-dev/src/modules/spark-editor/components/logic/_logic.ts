@@ -5,7 +5,7 @@ export default (state: { store?: WorkspaceState }) => {
   const view = state?.store?.panes?.logic?.view || "list";
   return {
     html: html`
-      <s-router key="window/logic/view" active="${view}">
+      <s-router key="logic-view" active="${view}">
         <template value="list">
           <se-logic-list></se-logic-list>
         </template>

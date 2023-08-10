@@ -1,8 +1,9 @@
-import { SparkSection } from "../../../../sparkdown/src";
-import { Block } from "../../game";
+import type { SparkSection } from "../../../../sparkdown/src";
+import type { Block } from "../../game";
 import { generateCommand } from "./generateCommand";
 
 export const generateSectionBlocks = (
+  file: string,
   sections: Record<string, SparkSection>
 ): Record<string, Block> => {
   const blocks: Record<string, Block> = {};
@@ -14,9 +15,12 @@ export const generateSectionBlocks = (
     const block: Block = {
       indent: section.indent,
       index: section.index,
-      from: section.from,
-      to: section.to,
-      line: section.line,
+      source: {
+        file,
+        line: section.line,
+        from: section.from,
+        to: section.to,
+      },
       name: section.name,
       type: section.type,
       level: section.level,
@@ -27,12 +31,12 @@ export const generateSectionBlocks = (
       variables: section.variables,
     };
     section.tokens?.forEach((token) => {
-      const runtimeCommand = generateCommand(token, sectionId);
+      const runtimeCommand = generateCommand(token, file, sectionId);
       if (runtimeCommand) {
         if (!block.commands) {
           block.commands = {};
         }
-        block.commands[runtimeCommand.reference.refId] = runtimeCommand;
+        block.commands[runtimeCommand.reference.id] = runtimeCommand;
       }
     });
     blocks[sectionId] = block;

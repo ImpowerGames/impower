@@ -6,8 +6,11 @@ export interface InstanceData<
   R extends Reference<D> = Reference<D>
 > extends Record<string, unknown> {
   reference: R;
-  from: number;
-  to: number;
-  line: number;
+  source: {
+    file: string;
+    line: number;
+    from: number;
+    to: number;
+  };
   indent: number;
 }

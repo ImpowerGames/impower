@@ -12,13 +12,13 @@ export class ReturnCommandRunner<G extends Game> extends CommandRunner<
     data: ReturnCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { value } = data;
+    const { value } = data.params;
     const { valueMap } = context;
 
     const returnValue =
       typeof value === "object" ? evaluate(value, valueMap) : value;
 
-    const id = data.reference.parentContainerId;
+    const id = data.reference.parentId;
     game.logic.returnFromBlock(id, returnValue);
 
     return super.onExecute(game, data, context);

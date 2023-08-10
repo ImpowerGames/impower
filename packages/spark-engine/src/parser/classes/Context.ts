@@ -95,14 +95,21 @@ export class Context<
     if (!program) {
       throw new Error(`Could not find program with id: ${entryProgramId}`);
     }
-    const blockMap = generateSectionBlocks(program?.sections || {});
+    const blockMap = generateSectionBlocks(
+      entryProgramId,
+      program?.sections || {}
+    );
     const [startBlockId] = getSectionAtLine(entryLine, program?.sections || {});
     const startRuntimeBlock = blockMap?.[startBlockId];
     let startCommandIndex = 0;
     const startCommands = Object.values(startRuntimeBlock?.commands || {});
     for (let i = 1; i < startCommands?.length || 0; i += 1) {
       const command = startCommands[i];
-      if (command && command.check !== "close" && command.line > entryLine) {
+      if (
+        command &&
+        command.params?.check !== "close" &&
+        command.source.line > entryLine
+      ) {
         break;
       } else {
         startCommandIndex = i;
@@ -129,23 +136,25 @@ export class Context<
           game?.logic?.config?.blockMap as Record<string, Block>
         );
         const objectMap = game?.struct?.config?.objectMap;
+        const triggers = [...(block.triggers || [])];
+        const parameters =
+          Object.values(block.variables || {})
+            .filter((v) => v.parameter)
+            .map((p) => p.name) || [];
+        const commands: {
+          runner: CommandRunner<G>;
+          data: CommandData;
+        }[] = Object.entries(block.commands || {}).map(([k, v]) => {
+          const r = this.runner.getCommandRunner(v.reference.typeId);
+          return { runner: r as CommandRunner<G>, data: v as CommandData };
+        });
         this._contexts[blockId] = {
           ids,
           valueMap,
           objectMap,
-          triggers: [...(block.triggers || [])],
-          parameters:
-            Object.values(
-              (block.variables as Record<
-                string,
-                { name: string; parameter?: boolean }
-              >) || {}
-            )
-              .filter((v) => v.parameter)
-              .map((p) => p.name) || [],
-          commands: this.runner.getRuntimeData(
-            block.commands as Record<string, CommandData>
-          ),
+          triggers,
+          parameters,
+          commands,
         };
       }
     );
@@ -181,7 +190,7 @@ export class Context<
         for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
           const blockId = this.loadedBlockIds[i];
           if (blockId !== undefined) {
-            if (!this.updateBlock(blockId, deltaMS)) {
+            if (!this.updateBlock(blockId)) {
               return false; // Player quit the game
             }
           }
@@ -191,7 +200,7 @@ export class Context<
     return true;
   }
 
-  updateBlock(blockId: string, deltaMS: number): boolean {
+  updateBlock(blockId: string): boolean {
     const blockStates = this.game.logic.state?.blockStates;
     const variableStates = this.game.logic.state?.variableStates;
     const blockState = blockStates[blockId];
@@ -213,8 +222,7 @@ export class Context<
         const running = this.runner.blockRunner.update(
           blockId,
           context,
-          this.game,
-          deltaMS
+          this.game
         );
         if (running === null) {
           return false;

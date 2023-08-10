@@ -1,7 +1,7 @@
-import { ConfigReference } from "./configReference";
+import { ConfigReference } from "./ConfigReference";
 
 export interface PhysicsConfigReference
   extends ConfigReference<"PhysicsConfig"> {
-  refTypeId: "PhysicsConfig";
-  refId: "PhysicsConfig";
+  typeId: "PhysicsConfig";
+  id: "PhysicsConfig";
 }

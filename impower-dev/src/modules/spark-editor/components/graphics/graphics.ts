@@ -25,7 +25,7 @@ export default class Graphics extends SEElement {
 
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (e.detail.key === "window/graphics") {
+      if (e.detail.key === "graphics-panel") {
         const value = e.detail.value;
         Workspace.window.openedPanel("graphics", value);
       }

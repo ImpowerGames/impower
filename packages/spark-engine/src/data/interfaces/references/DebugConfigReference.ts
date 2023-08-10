@@ -1,6 +1,6 @@
-import { ConfigReference } from "./configReference";
+import { ConfigReference } from "./ConfigReference";
 
 export interface DebugConfigReference extends ConfigReference<"DebugConfig"> {
-  refTypeId: "DebugConfig";
-  refId: "DebugConfig";
+  typeId: "DebugConfig";
+  id: "DebugConfig";
 }

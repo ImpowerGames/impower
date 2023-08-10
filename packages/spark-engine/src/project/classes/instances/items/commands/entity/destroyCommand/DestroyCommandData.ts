@@ -1,5 +1,5 @@
 import { CommandData } from "../../../command/CommandData";
+import { DestroyCommandParams } from "./DestroyCommandParams";
 
-export interface DestroyCommandData extends CommandData<"DestroyCommand"> {
-  entity: string;
-}
+export interface DestroyCommandData
+  extends CommandData<"DestroyCommand", DestroyCommandParams> {}

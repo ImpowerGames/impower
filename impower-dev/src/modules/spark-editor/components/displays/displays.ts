@@ -25,7 +25,7 @@ export default class Displays extends SEElement {
 
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (e.detail.key === "window/displays") {
+      if (e.detail.key === "displays-panel") {
         const value = e.detail.value;
         Workspace.window.openedPanel("displays", value);
       }

@@ -1,12 +1,12 @@
-import { interpolate } from "../../core";
+import { GameEvent1, interpolate } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { TweenTiming } from "../types/TweenTiming";
 
 export interface TweenEvents extends Record<string, GameEvent> {
-  onAdded: GameEvent<string>;
-  onRemoved: GameEvent<string>;
-  onUpdate: GameEvent<number>;
+  onAdded: GameEvent1<string>;
+  onRemoved: GameEvent1<string>;
+  onUpdate: GameEvent1<number>;
 }
 
 export interface TweenConfig {
@@ -24,9 +24,9 @@ export class TweenManager extends Manager<
 > {
   constructor(config?: Partial<TweenConfig>, state?: Partial<TweenState>) {
     const initialEvents: TweenEvents = {
-      onAdded: new GameEvent<string>(),
-      onRemoved: new GameEvent<string>(),
-      onUpdate: new GameEvent<number>(),
+      onAdded: new GameEvent1<string>(),
+      onRemoved: new GameEvent1<string>(),
+      onUpdate: new GameEvent1<number>(),
     };
     const initialConfig: TweenConfig = {
       timings: new Map(),

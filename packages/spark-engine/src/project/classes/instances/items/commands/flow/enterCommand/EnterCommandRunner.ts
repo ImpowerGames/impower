@@ -17,7 +17,7 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
     data: EnterCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { value, calls, returnWhenFinished } = data;
+    const { value, calls, returnWhenFinished } = data.params;
     const { ids, valueMap, parameters } = context;
 
     if (!value) {
@@ -54,7 +54,7 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
       return super.onExecute(game, data, context);
     }
 
-    const parentId = data.reference.parentContainerId;
+    const parentId = data.reference.parentId;
     const latestValues = values?.map((v) => evaluate(v, valueMap));
 
     parameters?.forEach((parameterName, index) => {
@@ -63,8 +63,7 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
         game.logic.setVariableValue(
           parameterId,
           latestValues?.[index],
-          data.from,
-          data.line
+          data.source
         );
       }
     });

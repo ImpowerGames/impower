@@ -11,7 +11,7 @@ export class SpawnCommandRunner<G extends SparkGame> extends CommandRunner<
     data: SpawnCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { entity } = data;
+    const { entity } = data.params;
     const { ids } = context;
 
     const entityId = ids[entity];

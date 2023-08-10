@@ -30,8 +30,7 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
     data: ChoiceCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { value, calls, operator } = data;
-    const { index } = context;
+    const { value, calls, operator } = data.params;
 
     this.value = undefined;
     this.calls = undefined;
@@ -46,11 +45,8 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
       return super.onExecute(game, data, context);
     }
 
-    const from = data?.from;
-    const line = data?.line;
-    const blockId = data.reference.parentContainerId;
-    const commandId = data.reference.refId;
-    const commandIndex = index;
+    const blockId = data.reference.parentId;
+    const commandId = data.reference.id;
 
     const blockState = game?.logic?.state?.blockStates?.[blockId];
     const currentCount = blockState?.choiceChosenCounts?.[commandId] || 0;
@@ -64,9 +60,7 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
       this.chosenCount = game.logic.chooseChoice(
         blockId,
         commandId,
-        commandIndex,
-        from,
-        line
+        data.source
       );
       this.value = value || "";
       this.calls = calls;
@@ -132,7 +126,7 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
         return null;
       }
 
-      const executedByBlockId = data.reference.parentContainerId;
+      const executedByBlockId = data.reference.parentId;
       const latestValues = values?.map((v) => evaluate(v, valueMap));
 
       parameters?.forEach((parameterName, index) => {
@@ -141,13 +135,12 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
           game.logic.setVariableValue(
             parameterId,
             latestValues?.[index],
-            data.from,
-            data.line
+            data.source
           );
         }
       });
 
-      const parentId = data?.reference?.parentContainerId;
+      const parentId = data?.reference?.parentId;
       game.logic.stopBlock(parentId);
       game.logic.enterBlock(id, false, executedByBlockId);
     }

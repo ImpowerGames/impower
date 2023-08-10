@@ -1,7 +1,7 @@
+import { DocumentSource } from "./DocumentSource";
+
 export interface Block {
-  from: number;
-  to: number;
-  line: number;
+  source?: DocumentSource;
   indent: number;
   index: number;
   level: number;
@@ -10,6 +10,31 @@ export interface Block {
   parent?: string;
   children?: string[];
   triggers?: string[];
-  variables?: Record<string, { name: string; type: string; value: unknown }>;
-  commands?: Record<string, { line: number; check?: string }>;
+  variables?: Record<
+    string,
+    { name: string; type: string; value: unknown; parameter?: boolean }
+  >;
+  commands?: Record<
+    string,
+    {
+      reference: {
+        type: "Command";
+        id: string;
+        typeId: string;
+        parentId?: string;
+      };
+      source: {
+        file: string;
+        line: number;
+        from: number;
+        to: number;
+      };
+      indent: number;
+      params: {
+        check?: string;
+        waitUntilFinished: boolean;
+        assets?: string[];
+      };
+    }
+  >;
 }

@@ -1,7 +1,5 @@
-import { Severity } from "../../../../../../../data/enums/Severity";
 import { CommandData } from "../../../command/CommandData";
+import { LogCommandParams } from "./LogCommandParams";
 
-export interface LogCommandData extends CommandData<"LogCommand"> {
-  severity: Severity;
-  message: string;
-}
+export interface LogCommandData
+  extends CommandData<"LogCommand", LogCommandParams> {}

@@ -1,6 +1,6 @@
-import { ConfigReference } from "./configReference";
+import { ConfigReference } from "./ConfigReference";
 
 export interface ScaleConfigReference extends ConfigReference<"ScaleConfig"> {
-  refTypeId: "ScaleConfig";
-  refId: "ScaleConfig";
+  typeId: "ScaleConfig";
+  id: "ScaleConfig";
 }

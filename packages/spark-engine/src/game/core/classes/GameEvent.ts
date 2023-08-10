@@ -1,36 +1,38 @@
 import { IGameEvent } from "../types/IGameEvent";
 
 export class GameEvent<
-  T0 extends unknown = any,
-  T1 extends unknown = any,
-  T2 extends unknown = any,
-  T3 extends unknown = any,
-  T4 extends unknown = any
-> implements IGameEvent<T0, T1, T2, T3, T4>
+  P1 extends unknown = any,
+  P2 extends unknown = any,
+  P3 extends unknown = any,
+  P4 extends unknown = any,
+  P5 extends unknown = any
+> implements IGameEvent<P1, P2, P3, P4, P5>
 {
-  constructor() {}
+  protected _handlers: ((
+    p1?: P1,
+    p2?: P2,
+    p3?: P3,
+    p4?: P4,
+    p5?: P5
+  ) => void)[] = [];
 
-  private handlers: {
-    (arg0?: T0, arg1?: T1, arg2?: T2, arg3?: T3, arg4?: T4): void;
-  }[] = [];
-
-  public addListener(handler: {
-    (arg0?: T0, arg1?: T1, arg2?: T2, arg3?: T3, arg4?: T4): void;
-  }): void {
-    this.handlers.push(handler);
+  addListener(
+    handler: (p1?: P1, p2?: P2, p3?: P3, p4?: P4, p5?: P5) => void
+  ): void {
+    this._handlers.push(handler);
   }
 
-  public removeListener(handler: {
-    (arg0?: T0, arg1?: T1, arg2?: T2, arg3?: T3, arg4?: T4): void;
-  }): void {
-    this.handlers = this.handlers.filter((h) => h !== handler);
+  removeListener(
+    handler: (p1?: P1, p2?: P2, p3?: P3, p4?: P4, p5?: P5) => void
+  ): void {
+    this._handlers = this._handlers.filter((h) => h !== handler);
   }
 
-  public removeAllListeners(): void {
-    this.handlers = [];
+  removeAllListeners(): void {
+    this._handlers = [];
   }
 
-  public dispatch(arg0?: T0, arg1?: T1, arg2?: T2, arg3?: T3, arg4?: T4): void {
-    this.handlers.slice(0).forEach((h) => h(arg0, arg1, arg2, arg3, arg4));
+  dispatch(p1?: P1, p2?: P2, p3?: P3, p4?: P4, p5?: P5): void {
+    this._handlers.slice(0).forEach((h) => h(p1, p2, p3, p4, p5));
   }
 }

@@ -13,7 +13,7 @@ export class AssignCommandRunner<G extends Game> extends CommandRunner<
     data: AssignCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { variable, operator, value } = data;
+    const { variable, operator, value } = data.params;
     const { ids, valueMap } = context;
 
     const variableId = ids[variable];
@@ -25,7 +25,7 @@ export class AssignCommandRunner<G extends Game> extends CommandRunner<
     const rhs = evaluate(value, valueMap);
     const newValue = modifyValue(lhs, operator, rhs);
 
-    game.logic.setVariableValue(variableId, newValue, data.from, data.line);
+    game.logic.setVariableValue(variableId, newValue, data.source);
 
     return super.onExecute(game, data, context);
   }

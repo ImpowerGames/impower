@@ -1,13 +1,5 @@
-import { DisplayPosition } from "../../../../../../../data/enums/DisplayPosition";
-import { DisplayType } from "../../../../../../../data/enums/displayType";
 import { CommandData } from "../../../command/CommandData";
+import { DisplayCommandParams } from "./DisplayCommandParams";
 
-export interface DisplayCommandData extends CommandData<"DisplayCommand"> {
-  type: DisplayType;
-  position: DisplayPosition;
-  character: string;
-  parenthetical: string;
-  content: string;
-  autoAdvance: boolean;
-  clearPreviousText: boolean;
-}
+export interface DisplayCommandData
+  extends CommandData<"DisplayCommand", DisplayCommandParams> {}

@@ -26,7 +26,7 @@ export default class Logic extends SEElement {
 
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (e.detail.key === "window/logic/view") {
+      if (e.detail.key === "logic-view") {
         const value = e.detail.value;
         this.emit(
           DidOpenViewMessage.method,

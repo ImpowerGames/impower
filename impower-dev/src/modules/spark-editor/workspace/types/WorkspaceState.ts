@@ -104,5 +104,6 @@ export interface WorkspacePanes extends Record<string, PaneState> {
 
 export interface WorkspaceState {
   header: { projectName: string; editingProjectName?: boolean };
+  pane: string;
   panes: WorkspacePanes;
 }

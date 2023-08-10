@@ -1,4 +1,4 @@
-import { SparkProgram, SparkStruct } from "../../../../sparkdown/src";
+import type { SparkProgram, SparkStruct } from "../../../../sparkdown/src";
 import { getSparkStruct } from "./getSparkStruct";
 
 export const getPreviewStruct = (

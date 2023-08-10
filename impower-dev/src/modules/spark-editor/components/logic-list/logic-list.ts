@@ -25,7 +25,7 @@ export default class LogicList extends SEElement {
 
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
-      if (e.detail.key === "window/logic/panel") {
+      if (e.detail.key === "logic-panel") {
         const panel = e.detail.value;
         Workspace.window.openedPanel("logic", panel);
         if (panel === "main") {
