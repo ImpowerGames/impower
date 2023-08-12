@@ -1,10 +1,9 @@
-import { SparkContext } from "../../../spark-engine/src";
-import { Disposable } from "./Disposable";
+import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
 import Scene from "./Scene";
 import Ticker from "./Ticker";
-import PerspectiveCamera from "./cameras/PerspectiveCamera";
-import { OrbitControls } from "./controls/OrbitControls";
-import Renderer from "./renderers/Renderer";
+import PerspectiveCamera from "./render/cameras/PerspectiveCamera";
+import OrbitControls from "./render/controls/OrbitControls";
+import WebGLRenderer from "./render/renderers/WebGLRenderer";
 import MainScene from "./scenes/MainScene";
 import SoundScene from "./scenes/SoundScene";
 
@@ -39,7 +38,7 @@ export default class Application {
     return this._resizeObserver;
   }
 
-  protected _renderer = new Renderer({
+  protected _renderer = new WebGLRenderer({
     antialias: true,
   });
   get renderer() {
@@ -60,8 +59,6 @@ export default class Application {
   get orbit() {
     return this._orbit;
   }
-
-  protected _disposables: Disposable[] = [];
 
   protected _timeMS = 0;
 
@@ -116,8 +113,8 @@ export default class Application {
       !context || context?.editable
         ? {}
         : {
-            main: new MainScene(context, this),
-            sound: new SoundScene(context, this),
+            main: new MainScene(this),
+            sound: new SoundScene(this),
           };
     this.loadScenes(scenesToLoad).then(() => {
       this._ready = true;
@@ -157,14 +154,18 @@ export default class Application {
     //     );
     //   }
     // });
+    const scenesArray = Array.from(this.scenes.values());
     await Promise.all(
-      Array.from(this.scenes).map(async ([, scene]): Promise<void> => {
-        const disposables = await scene.load();
-        this._disposables.push(...disposables);
+      scenesArray.map(async (scene): Promise<void> => {
+        const objs = await scene.load();
+        objs.forEach((obj) => scene.add(obj));
       })
     );
-    Array.from(this.scenes).map(async ([, scene]): Promise<void> => {
-      scene.init();
+    scenesArray.forEach((scene) => {
+      scene.bind();
+    });
+    scenesArray.forEach((scene) => {
+      scene.start();
     });
     if (this.context.game.ui) {
       this.context.game.ui.hideUI(loadingUIName);
@@ -188,10 +189,7 @@ export default class Application {
     this.resizeObserver.disconnect();
     this.scenes.forEach((scene) => {
       scene.unbind();
-      scene.dispose();
-    });
-    this._disposables.forEach((d) => {
-      d.dispose();
+      scene.dispose().forEach((d) => d.dispose());
     });
     if (this.context) {
       this.context.dispose();

@@ -1,6 +1,6 @@
 import { Create } from "../../core/types/Create";
 import { Character } from "../types/Character";
-import { _intonation } from "./_intonation";
+import { _inflection } from "./_inflection";
 import { _prosody } from "./_prosody";
 
 export const _character: Create<Character> = () => ({
@@ -8,26 +8,17 @@ export const _character: Create<Character> = () => ({
   image: "",
   color: "",
   voiceSound: {
-    shape: "sine",
+    shape: "triangle",
     envelope: {
-      sustain: 0.049,
-      release: 0.001,
+      attack: 0.007,
+      decay: 0.003,
+      sustain: 0.04,
+      release: 0.01,
     },
     pitch: {
       frequency: 440,
     },
-    lowpass: {
-      cutoff: 4840,
-    },
-    distortion: {
-      on: true,
-    },
-    arpeggio: {
-      on: true,
-      rate: 54,
-      tones: [0, 9, 3],
-    },
   },
-  intonation: _intonation(),
+  inflection: _inflection(),
   prosody: _prosody(),
 });

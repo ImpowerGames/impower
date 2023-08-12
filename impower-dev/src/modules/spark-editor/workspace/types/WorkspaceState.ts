@@ -91,7 +91,7 @@ export interface WorkspacePanes extends Record<string, PaneState> {
       game: {
         running?: boolean;
         paused?: boolean;
-        debugConsole?: boolean;
+        debugging?: boolean;
         compiling?: boolean;
       };
       screenplay: {

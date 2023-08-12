@@ -15,7 +15,7 @@ const updateObjectMap = (
     }
     const typeMap = objectMap[structType];
     if (typeMap) {
-      const defaultObj = objectMap?.[""] || {};
+      const defaultObj = typeMap?.[""] || {};
       typeMap[structName] = construct(defaultObj, structs, structName);
     }
   });

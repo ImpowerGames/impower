@@ -1,145 +1,67 @@
 import { Character } from "../types/Character";
-import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
-import { Writer } from "../types/Writer";
-import { getStressType } from "./getStressType";
-import { getWords } from "./getWords";
-import { stressWord } from "./stressWord";
+import { getStressMatch } from "./getStressMatch";
 
 export const stressPhrases = (
   phrases: Phrase[],
-  character: Character | undefined,
-  writer: Writer | undefined
+  character: Character | undefined
 ): void => {
-  const letterDelay = writer?.letterDelay ?? 0;
-  const maxSyllableLength = character?.prosody?.maxSyllableLength || 0;
-  const weakWords = character?.prosody?.weakWords || [];
-  const contractions = character?.prosody?.contractions || [];
-  const weakWordVariants = weakWords.flatMap((w) => [
-    w,
-    ...contractions.map((c) => `${w}${c}`),
-  ]);
-
+  const lineIncrement = 0.5;
+  let lineLevel = (phrases.length - 1) * lineIncrement;
   phrases.forEach((phrase) => {
-    const finalStressType = getStressType(phrase.text, character?.prosody);
-    const inflection = character?.intonation[finalStressType || "statement"];
-    const downdriftIncrement = character?.intonation?.downdriftIncrement || 0;
-    const syllableFluctuation = character?.intonation?.syllableFluctuation || 0;
-    const dilation = inflection?.finalDilation;
-    const neutralLevel = inflection?.neutralLevel;
-    const finalContour = inflection?.finalContour || [];
-    const emphasisContour = inflection?.emphasisContour || finalContour;
+    const [finalStressType, punctuation] = getStressMatch(
+      phrase.text,
+      character?.prosody
+    );
+    const inflection = character?.inflection[
+      finalStressType || "statement"
+    ] || [0];
+    const emphasisScale = punctuation.length;
 
-    const words = getWords(phrase);
-
-    let currentNeutralLevel = neutralLevel || 0;
-    let stressedWordFound = false;
-    let terminalWordExists = false;
-    let fluctuationDirection = -1;
-    for (let i = words.length - 1; i >= 0; i -= 1) {
-      const word = words[i];
-      if (word && word.text) {
-        // Enforce a minimum duration for all syllables
-        const minSyllableLength = maxSyllableLength - 1;
-        const minSyllableDuration = minSyllableLength * letterDelay;
-        word.syllables.forEach((s) => {
-          if (s.text.length < minSyllableLength) {
-            let syllableDuration = 0;
-            let lastVoicedChunk: Chunk | undefined = undefined;
-            s.chunks.forEach((c) => {
-              syllableDuration += c.duration;
-              if (c.voiced) {
-                lastVoicedChunk = c;
-              }
-            });
-            if (lastVoicedChunk) {
-              // Pad the end of the syllable to ensure the syllable duration is long enough
-              // (this can help prevent audio clicks for very short words)
-              if (syllableDuration < minSyllableDuration) {
-                (lastVoicedChunk as Chunk).duration +=
-                  minSyllableDuration - syllableDuration;
-              }
-            }
-          }
-        });
-        if (word.italicized || word.bolded || word.underlined || word.yelled) {
-          stressedWordFound = true;
-          // Stress words with forced emphasis
-          stressWord(word, emphasisContour);
-        } else if (!stressedWordFound) {
-          const cleanedText = word.text.toLowerCase().trim();
-          const isPossibleFocusWord = !weakWordVariants.includes(cleanedText);
-          if (isPossibleFocusWord) {
-            stressedWordFound = true;
-            // If this word is followed by a terminal word,
-            // there is no need to include the terminal stress index when stressing this word
-            const stressContour = terminalWordExists
-              ? finalContour.slice(0, -1)
-              : finalContour;
-            stressWord(word, stressContour);
-          } else {
-            terminalWordExists = true;
-            // All words after the focus word are terminal words
-            word.syllables.forEach((s) => {
-              s.chunks.forEach((c) => {
-                const terminalStressIndex = finalContour.length - 1;
-                c.stressLevel = finalContour[terminalStressIndex];
-              });
-            });
-          }
-        }
-        word.syllables.forEach((s) => {
-          s.chunks.forEach((c) => {
-            if (c.stressLevel === undefined) {
-              c.stressLevel =
-                currentNeutralLevel +
-                fluctuationDirection * syllableFluctuation;
-              currentNeutralLevel += downdriftIncrement;
-            }
-          });
-          fluctuationDirection *= -1;
-        });
+    let inflectionIndex = inflection.length - 1;
+    for (let i = phrase.chunks.length - 1; i >= 0; i -= 1) {
+      const chunk = phrase.chunks[i]!;
+      const prevChunk = phrase.chunks[i - 1];
+      const nextChunk = phrase.chunks[i + 1];
+      const inflectionLevel = inflection[inflectionIndex]!;
+      chunk.stressLevel = lineLevel + inflectionLevel * emphasisScale;
+      if (
+        chunk.underlined ||
+        (chunk.char === " " && (prevChunk?.underlined || nextChunk?.underlined))
+      ) {
+        chunk.stressLevel += 1;
+      }
+      if (
+        chunk.bolded ||
+        (chunk.char === " " && (prevChunk?.bolded || nextChunk?.bolded))
+      ) {
+        chunk.stressLevel += 1;
+      }
+      if (
+        chunk.italicized ||
+        (chunk.char === " " && (prevChunk?.italicized || nextChunk?.italicized))
+      ) {
+        chunk.stressLevel += 1;
+      }
+      if (
+        chunk.yelled ||
+        (chunk.char === " " && (prevChunk?.yelled || nextChunk?.yelled))
+      ) {
+        chunk.stressLevel += 1;
+      }
+      if (chunk.startOfSyllable) {
+        inflectionIndex = Math.max(0, inflectionIndex - 1);
       }
     }
-
-    for (let i = 0; i < words.length; i += 1) {
-      const word = words[i];
-      if (word) {
-        word.syllables.forEach((s) => {
-          s.chunks.forEach((c) => {
-            c.stressLevel = (c.stressLevel || 0) - currentNeutralLevel;
-          });
-        });
-      }
+    if (phrase.text.endsWith("\n")) {
+      // Subsequent lines should either increase or decrease in pitch according to inflection slope.
+      const startLevel = inflection[0]!;
+      const endLevel = inflection[inflection.length - 1]!;
+      const inflectionSlope = endLevel - startLevel;
+      lineLevel =
+        inflectionSlope > 0
+          ? lineLevel + lineIncrement
+          : lineLevel - lineIncrement;
     }
-
-    let scaledFinalWord = false;
-    for (let i = words.length - 1; i >= 0; i -= 1) {
-      if (stressedWordFound && scaledFinalWord) {
-        // Nothing left to do
-        break;
-      }
-      const word = words[i];
-      if (word) {
-        if (word.text) {
-          if (!stressedWordFound) {
-            stressedWordFound = true;
-            // Just stress the last word of the phrase
-            stressWord(word, finalContour);
-          }
-        }
-        if (!scaledFinalWord) {
-          scaledFinalWord = true;
-          // Apply dilation to last word
-          word.syllables.forEach((s) => {
-            s.chunks.forEach((c) => {
-              c.duration *= dilation || 1;
-            });
-          });
-        }
-      }
-    }
-
-    phrase.finalStressType = finalStressType;
   });
 };

@@ -8,11 +8,9 @@
 }
 
 :host > .root {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
 }
 
 :host > .root > .wrapper {

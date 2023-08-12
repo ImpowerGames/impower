@@ -1,5 +1,8 @@
 import { SparkDOMElement } from "../../../spark-dom/src";
+import { ConfigureGameMessage } from "../../../spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { DidExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
+import { DisableGameDebugMessage } from "../../../spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
+import { EnableGameDebugMessage } from "../../../spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
 import { LoadGameMessage } from "../../../spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { PauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "../../../spark-editor-protocol/src/protocols/game/StartGameMessage";
@@ -10,11 +13,9 @@ import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols
 import SparkElement from "../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../spark-element/src/utils/getAttributeNameMap";
-import {
-  SparkContext,
-  SparkContextOptions,
-  previewLine,
-} from "../../../spark-engine/src";
+import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
+import { SparkContextOptions } from "../../../spark-engine/src/parser/interfaces/SparkContextOptions";
+import { previewLine } from "../../../spark-engine/src/parser/utils/previewLine";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import Application from "../app/Application";
 import component from "./_spark-web-player";
@@ -64,16 +65,32 @@ export default class SparkWebPlayer
   _options?: SparkContextOptions;
 
   protected override onConnected(): void {
+    window.addEventListener(
+      ConfigureGameMessage.method,
+      this.handleConfigureGame
+    );
     window.addEventListener(LoadGameMessage.method, this.handleLoadGame);
     window.addEventListener(StartGameMessage.method, this.handleStartGame);
     window.addEventListener(StopGameMessage.method, this.handleStopGame);
     window.addEventListener(PauseGameMessage.method, this.handlePauseGame);
     window.addEventListener(UnpauseGameMessage.method, this.handleUnpauseGame);
     window.addEventListener(StepGameMessage.method, this.handleStepGame);
+    window.addEventListener(
+      EnableGameDebugMessage.method,
+      this.handleEnableGameDebug
+    );
+    window.addEventListener(
+      DisableGameDebugMessage.method,
+      this.handleDisableGameDebug
+    );
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
   }
 
   protected override onDisconnected(): void {
+    window.removeEventListener(
+      ConfigureGameMessage.method,
+      this.handleConfigureGame
+    );
     window.removeEventListener(LoadGameMessage.method, this.handleLoadGame);
     window.removeEventListener(StartGameMessage.method, this.handleStartGame);
     window.removeEventListener(StopGameMessage.method, this.handleStopGame);
@@ -84,10 +101,33 @@ export default class SparkWebPlayer
     );
     window.removeEventListener(StepGameMessage.method, this.handleStepGame);
     window.removeEventListener(
+      EnableGameDebugMessage.method,
+      this.handleEnableGameDebug
+    );
+    window.removeEventListener(
+      DisableGameDebugMessage.method,
+      this.handleDisableGameDebug
+    );
+    window.removeEventListener(
       LoadPreviewMessage.method,
       this.handleLoadPreview
     );
   }
+
+  protected handleConfigureGame = async (e: Event): Promise<void> => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (ConfigureGameMessage.type.isRequest(message)) {
+        const params = message.params;
+        const settings = params.settings;
+        this._options = settings;
+        this.emit(
+          ConfigureGameMessage.method,
+          ConfigureGameMessage.type.response(message.id, null)
+        );
+      }
+    }
+  };
 
   protected handleLoadGame = async (e: Event): Promise<void> => {
     if (e instanceof CustomEvent) {
@@ -95,12 +135,10 @@ export default class SparkWebPlayer
       if (LoadGameMessage.type.isRequest(message)) {
         const params = message.params;
         const programs = params.programs;
-        const options = params.options;
         this._programs = {};
         programs.forEach((p) => {
           this._programs[p.uri] = p.program;
         });
-        this._options = options;
         if (this._context) {
           this._context.dispose();
         }
@@ -122,7 +160,7 @@ export default class SparkWebPlayer
           this._context.dispose();
         }
         this._context = this.loadGame();
-        if (gameDOM) {
+        if (gameDOM && this._context) {
           this._app = new Application(gameDOM, this._context);
         }
       }
@@ -179,6 +217,28 @@ export default class SparkWebPlayer
     }
   };
 
+  protected handleEnableGameDebug = async (e: Event): Promise<void> => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (EnableGameDebugMessage.type.isRequest(message)) {
+        if (this._context) {
+          this._context.game.debug.startDebugging();
+        }
+      }
+    }
+  };
+
+  protected handleDisableGameDebug = async (e: Event): Promise<void> => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DisableGameDebugMessage.type.isRequest(message)) {
+        if (this._context) {
+          this._context.game.debug.stopDebugging();
+        }
+      }
+    }
+  };
+
   protected handleLoadPreview = async (e: Event): Promise<void> => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
@@ -197,56 +257,61 @@ export default class SparkWebPlayer
   };
 
   loadGame() {
-    const createElement = (type: string) => {
-      return new SparkDOMElement(document.createElement(type));
-    };
     const programs = this._programs;
     const options = this._options;
-    if (!this._root) {
-      this._root = new SparkDOMElement(this.sparkRootEl!);
-    }
-    const context = new SparkContext(programs, {
-      config: {
-        ui: {
-          root: this._root,
-          createElement,
-        },
-        ...(options?.config || {}),
-      },
-      ...(options || {}),
-    });
-    context.game.logic.events.onExecuteCommand.addListener((_id, source) => {
-      if (source) {
-        window.dispatchEvent(
-          new CustomEvent(DidExecuteGameCommandMessage.method, {
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-            detail: DidExecuteGameCommandMessage.type.notification({
-              textDocument: { uri: source.file },
-              range: {
-                start: {
-                  line: source.line,
-                  character: 0,
-                },
-                end: {
-                  line: source.line,
-                  character: source.to - source.from,
-                },
-              },
-            }),
-          })
-        );
+    if (programs && options) {
+      const createElement = (type: string) => {
+        return new SparkDOMElement(document.createElement(type));
+      };
+      if (!this._root) {
+        this._root = new SparkDOMElement(this.sparkRootEl!);
       }
-    });
-    return context;
+      const context = new SparkContext(programs, {
+        config: {
+          ui: {
+            root: this._root,
+            createElement,
+          },
+          ...(options?.config || {}),
+        },
+        ...(options || {}),
+      });
+      context.game.logic.events.onExecuteCommand.addListener((_id, source) => {
+        if (source) {
+          window.dispatchEvent(
+            new CustomEvent(DidExecuteGameCommandMessage.method, {
+              bubbles: true,
+              cancelable: true,
+              composed: true,
+              detail: DidExecuteGameCommandMessage.type.notification({
+                textDocument: { uri: source.file },
+                range: {
+                  start: {
+                    line: source.line,
+                    character: 0,
+                  },
+                  end: {
+                    line: source.line,
+                    character: source.to - source.from,
+                  },
+                },
+              }),
+            })
+          );
+        }
+      });
+      return context;
+    }
+    return undefined;
   }
 
   updatePreview(line: number) {
     if (!this._context) {
       this._context = this.loadGame();
     }
-    previewLine(this._context, line, true, this._debugging);
+    if (this._context) {
+      previewLine(this._context, line, true, this._debugging);
+    }
   }
 }
 

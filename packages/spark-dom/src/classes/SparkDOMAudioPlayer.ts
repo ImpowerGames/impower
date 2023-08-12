@@ -1,27 +1,31 @@
-export class SparkDOMAudioPlayer {
-  protected _context: AudioContext;
+import { SynthBuffer } from "../../../spark-engine/src/game/sound/classes/SynthBuffer";
 
+export class SparkDOMAudioPlayer {
+  protected _gainNode: GainNode;
+
+  protected _context: AudioContext;
   public get context(): AudioContext {
     return this._context;
   }
 
-  protected _gainNode: GainNode;
-
   protected _sourceNode?: AudioBufferSourceNode;
-
   public get sourceNode(): AudioBufferSourceNode | undefined {
     return this._sourceNode;
   }
 
-  protected _soundBuffer?: Float32Array;
-
+  protected _soundBuffer: Float32Array;
   public get soundBuffer(): Float32Array | undefined {
     return this._soundBuffer;
   }
 
-  public set soundBuffer(value: Float32Array | undefined) {
+  public set soundBuffer(value: Float32Array) {
     this._soundBuffer = value;
     this.load();
+  }
+
+  protected _synthBuffer?: SynthBuffer;
+  public get synthBuffer(): SynthBuffer | undefined {
+    return this._synthBuffer;
   }
 
   public get currentTime(): number {
@@ -50,11 +54,16 @@ export class SparkDOMAudioPlayer {
 
   protected _pausedAt?: number;
 
-  constructor(soundBuffer?: Float32Array, audioContext?: AudioContext) {
+  constructor(sound: Float32Array | SynthBuffer, audioContext?: AudioContext) {
     this._context = audioContext || new AudioContext();
     this._gainNode = this._context.createGain();
     this._gainNode.connect(this._context.destination);
-    this._soundBuffer = soundBuffer;
+    if (sound instanceof Float32Array) {
+      this._soundBuffer = sound;
+    } else {
+      this._soundBuffer = sound.soundBuffer;
+      this._synthBuffer = sound;
+    }
     this.load();
   }
 

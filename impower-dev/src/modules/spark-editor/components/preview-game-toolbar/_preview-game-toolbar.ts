@@ -4,22 +4,34 @@ import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 export default (state: { store?: WorkspaceState }) => {
   const running = state?.store?.panes?.preview?.panels?.game?.running;
   const paused = state?.store?.panes?.preview?.panels?.game?.paused;
+  const debugging = state?.store?.panes?.preview?.panels?.game?.debugging;
   const titleEl = () =>
     html`<s-box child-justify="center" text-align="center" grow inert
       >Game Preview</s-box
     >`;
-  const optionsButton = () => html`
-    <se-preview-options-dropdown></se-preview-options-dropdown>
+  const modeButton = () => html`
+    <se-preview-mode-toggle></se-preview-mode-toggle>
   `;
-  const fullscreenButton = () => html`
-    <s-button
-      id="fullscreen-button"
-      width="48"
-      height="48"
-      color="fg-50"
-      variant="icon"
-      icon="maximize"
-    ></s-button>
+  const settingsDropdown = () => html`
+    <s-dropdown id="settings-dropdown">
+      <s-button
+        width="48"
+        height="48"
+        color="fg-50"
+        variant="icon"
+        icon="dots-vertical"
+      ></s-button>
+      <slot slot="options">
+        <s-option
+          key="debug"
+          type="toggle"
+          icon="bug-off"
+          active-icon="check"
+          ${debugging ? "active" : ""}
+          >Debugging</s-option
+        >
+      </slot>
+    </s-dropdown>
   `;
   const playbackControls = () => html`
     <s-button
@@ -101,7 +113,7 @@ export default (state: { store?: WorkspaceState }) => {
             <s-box grow inert></s-box>
             ${running ? playbackControls : titleEl}
             <s-box grow inert></s-box>
-            ${running ? fullscreenButton : optionsButton}
+            ${running ? settingsDropdown : modeButton}
           </s-list>
         </s-box>
       </s-box>

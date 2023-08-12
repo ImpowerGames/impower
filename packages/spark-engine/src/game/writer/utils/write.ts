@@ -1,5 +1,6 @@
 import { IElement } from "../../ui";
 import { Character } from "../types/Character";
+import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
 import { Writer } from "../types/Writer";
 import { stressPhrases } from "./stressPhrases";
@@ -54,20 +55,36 @@ export const write = (
   debug?: boolean,
   onCreateElement?: () => IElement
 ): Phrase[] => {
+  const beepSound = character?.voiceSound || writer?.clackSound;
+  const beepEnvelope = beepSound?.envelope;
+  const beepDuration = beepEnvelope
+    ? (beepEnvelope.attack ?? 0) +
+      (beepEnvelope.decay ?? 0) +
+      (beepEnvelope.sustain ?? 0) +
+      (beepEnvelope.release ?? 0)
+    : 0;
   const letterDelay = writer?.letterDelay ?? 0;
-  const pauseScale = writer?.pauseScale ?? 1;
-  const maxSyllableLength = character?.prosody?.maxSyllableLength || 0;
-  const voicedRegex = new RegExp(character?.prosody?.voiced || "", "u");
-  const yelledRegex = new RegExp(character?.prosody?.yelled || "", "u");
-  const punctuationRegex = new RegExp(
-    character?.prosody?.punctuation || "",
-    "u"
+  const phrasePause = writer?.phrasePauseScale ?? 1;
+  const stressPause = writer?.stressPauseScale ?? 1;
+  const yellPause = writer?.yellPauseScale ?? 1;
+  const punctuatePause = writer?.punctuatePauseScale ?? 1;
+  const syllableLength = Math.max(
+    writer?.minSyllableLength || 0,
+    Math.round(beepDuration / letterDelay)
   );
+  const voicedRegex = writer?.voiced
+    ? new RegExp(writer?.voiced, "u")
+    : undefined;
+  const yelledRegex = writer?.yelled
+    ? new RegExp(writer?.yelled, "u")
+    : undefined;
+  const punctuatedRegex = writer?.punctuated
+    ? new RegExp(writer?.punctuated, "u")
+    : undefined;
 
   const partEls: IElement[] = [];
   const phrases: Phrase[] = [];
   let consecutiveLettersLength = 0;
-  let consecutiveDotLength = 0;
   let word = "";
   const splitContent = content.split("");
   const marks: [string, number][] = [];
@@ -75,12 +92,13 @@ export const write = (
   let spaceLength = 0;
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
-  let firstSpaceSpan: IElement | undefined = undefined;
   const imageUrls = new Set<string>();
   const audioUrls = new Set<string>();
   let hideSpace = false;
+  let currChunk: Chunk | undefined = undefined;
   for (let i = 0; i < splitContent.length; ) {
     const part = splitContent[i] || "";
+    const nextPart = splitContent[i + 1] || "";
     const lastMark = marks[marks.length - 1]?.[0];
     const doubleLookahead = splitContent.slice(i, i + 2).join("");
     const tripleLookahead = splitContent.slice(i, i + 3).join("");
@@ -178,21 +196,14 @@ export const write = (
     if (span) {
       populateAndStyleElement(span, part || "", instant, style);
     }
-    const voiced = voicedRegex.test(part);
-    const punctuation = punctuationRegex.test(part);
+    const voiced = Boolean(voicedRegex?.test(part));
     if (isWhitespace(part)) {
       word = "";
       spaceLength += 1;
       consecutiveLettersLength = 0;
-      consecutiveDotLength = 0;
     } else {
       word += part;
       spaceLength = 0;
-      if (part === ".") {
-        consecutiveDotLength += 1;
-      } else {
-        consecutiveDotLength = 0;
-      }
       if (voiced) {
         consecutiveLettersLength += 1;
       } else {
@@ -204,138 +215,104 @@ export const write = (
     } else {
       dashLength = 0;
     }
-    const yelled = yelledRegex.test(word);
-    const startOfEllipsis =
-      consecutiveDotLength === 1 && tripleLookahead === "...";
-    const ellipsis = startOfEllipsis || consecutiveDotLength > 1;
-    const isPhraseBoundary = spaceLength > 1;
+    const yelled =
+      Boolean(yelledRegex?.test(word)) &&
+      (Boolean(yelledRegex?.test(nextPart)) || word.length > 1);
+    const tilde = part === "~";
     const isEmDashBoundary = dashLength > 1;
-    const isEmDash = isEmDashBoundary || isDash(doubleLookahead);
-    const isPause = isPhraseBoundary || isWhitespace(doubleLookahead);
-    const duration = isEmDash
-      ? 0
-      : isPause || ellipsis
-      ? letterDelay * pauseScale
+    const emDash = isEmDashBoundary || isDash(doubleLookahead);
+    const isPhraseBoundary =
+      spaceLength > 1 || (currChunk && currChunk.emDash && !emDash);
+    const isPhrasePause = isPhraseBoundary || isWhitespace(doubleLookahead);
+    const isStressPause: boolean = Boolean(
+      character &&
+        spaceLength === 1 &&
+        !isPhrasePause &&
+        currChunk &&
+        ((currChunk.underlined && !underlined) ||
+          (currChunk.bolded && !bolded) ||
+          (currChunk.italicized && !italicized) ||
+          (currChunk.tilde && !tilde))
+    );
+    const isYellPause: boolean = Boolean(
+      character &&
+        spaceLength === 1 &&
+        !isPhrasePause &&
+        currChunk &&
+        currChunk.yelled &&
+        !yelled
+    );
+
+    const duration: number = isPhrasePause
+      ? letterDelay * phrasePause
+      : isYellPause
+      ? letterDelay * yellPause
+      : isStressPause
+      ? letterDelay * stressPause
       : letterDelay;
 
     if (isPhraseBoundary) {
       phrasePauseLength += 1;
       phraseUnpauseLength = 0;
-      if (phrasePauseLength === 1) {
-        // start pause phrase
-        phrases.push({
-          text: part,
-          chunks: [
-            {
-              char: part,
-              duration,
-              element: span,
-              startOfWord: false,
-              startOfSyllable: false,
-              startOfEllipsis,
-              voiced,
-              italicized,
-              bolded,
-              underlined,
-              yelled,
-              ellipsis,
-              punctuation,
-            },
-          ],
-        });
-      } else {
-        // continue pause phrase
-        const currentPhrase = phrases[phrases.length - 1];
-        if (currentPhrase) {
-          currentPhrase.text += part;
-          currentPhrase.chunks.push({
-            char: part,
-            duration,
-            element: span,
-            startOfWord: false,
-            startOfSyllable: false,
-            startOfEllipsis,
-            voiced,
-            italicized,
-            bolded,
-            underlined,
-            yelled,
-            ellipsis,
-            punctuation,
-          });
-        }
-      }
     } else {
       phrasePauseLength = 0;
       phraseUnpauseLength += 1;
-      // determine beep
-      const charIndex = consecutiveLettersLength - 1;
-      const startOfSyllable =
-        charIndex === 0 ||
-        (charIndex > 0 && charIndex % maxSyllableLength === 0);
-      const startOfWord = consecutiveLettersLength === 1;
-      if (phraseUnpauseLength === 1) {
-        // start voiced phrase
-        phrases.push({
-          text: part,
-          chunks: [
-            {
-              char: part,
-              duration,
-              element: span,
-              startOfWord,
-              startOfSyllable,
-              startOfEllipsis,
-              voiced,
-              italicized,
-              bolded,
-              underlined,
-              yelled,
-              ellipsis,
-              punctuation,
-            },
-          ],
-        });
-      } else {
-        // continue voiced phrase
-        const currentPhrase = phrases[phrases.length - 1];
-        if (currentPhrase) {
-          currentPhrase.text += part;
-          currentPhrase.chunks.push({
-            char: part,
-            duration,
-            element: span,
-            startOfWord,
-            startOfSyllable,
-            startOfEllipsis,
-            voiced,
-            italicized,
-            bolded,
-            underlined,
-            yelled,
-            ellipsis,
-            punctuation,
-          });
-        }
+    }
+    // determine beep
+    const charIndex = phraseUnpauseLength - 1;
+    const startOfSyllable = charIndex % syllableLength === 0;
+    const startOfWord = consecutiveLettersLength === 1;
+    if (phraseUnpauseLength === 1) {
+      // start voiced phrase
+      currChunk = {
+        char: part,
+        duration,
+        element: span,
+        startOfWord,
+        startOfSyllable,
+        voiced,
+        yelled,
+        italicized,
+        bolded,
+        underlined,
+        emDash,
+        tilde,
+        punctuated: false,
+        sustained: false,
+      };
+      phrases.push({
+        text: part,
+        chunks: [currChunk],
+      });
+    } else {
+      // continue voiced phrase
+      const currentPhrase = phrases[phrases.length - 1];
+      if (currentPhrase) {
+        currentPhrase.text += part;
+        currChunk = {
+          char: part,
+          duration,
+          element: span,
+          startOfWord,
+          startOfSyllable,
+          voiced,
+          yelled,
+          italicized,
+          bolded,
+          underlined,
+          emDash,
+          tilde,
+          punctuated: false,
+          sustained: false,
+        };
+        currentPhrase.chunks.push(currChunk);
       }
     }
     if (span) {
       partEls[i] = span;
     }
-    if (spaceLength === 1) {
-      firstSpaceSpan = span;
-    }
-    if (spaceLength > 0 && firstSpaceSpan && debug) {
-      // color pause span (longer time = darker color)
-      firstSpaceSpan.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
-        spaceLength / 5
-      })`;
-    }
     if (spaceLength > 0) {
       if (hideSpace) {
-        if (firstSpaceSpan) {
-          firstSpaceSpan.textContent = "";
-        }
         if (span) {
           span.textContent = "";
         }
@@ -369,9 +346,33 @@ export const write = (
       marks.pop();
     }
   }
+  phrases.forEach((phrase) => {
+    // Erase any syllables that occur on any unvoiced chars at the end of phrases
+    // (whitespace, punctuation, etc).
+    for (let c = phrase.chunks.length - 1; c >= 0; c -= 1) {
+      const chunk = phrase.chunks[c]!;
+      if (!chunk.voiced) {
+        chunk.startOfSyllable = false;
+      } else {
+        break;
+      }
+    }
+    // Voice any phrases that are entirely composed of ellipsis.
+    if (punctuatedRegex?.test(phrase.text)) {
+      for (let c = 0; c < phrase.chunks.length; c += 1) {
+        const chunk = phrase.chunks[c]!;
+        if (!isWhitespace(chunk.char)) {
+          chunk.punctuated = true;
+          chunk.duration = letterDelay * punctuatePause;
+        }
+      }
+    }
+  });
+
   if (character) {
-    stressPhrases(phrases, character, writer);
+    stressPhrases(phrases, character);
   }
+
   const letterFadeDuration = writer?.fadeDuration ?? 0;
   let time = 0;
   phrases.forEach((phrase) => {
@@ -386,11 +387,15 @@ export const write = (
 
       if (debug) {
         if (c.element) {
-          if (c.startOfSyllable) {
-            c.element.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
+          if (c.duration > letterDelay) {
+            // color pauses (longer time = darker color)
+            c.element.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
+              0.5 - letterDelay / c.duration
+            })`;
           }
-          if (c.punctuation) {
-            c.element.style["backgroundColor"] = `hsl(300, 100%, 80%)`;
+          if (c.startOfSyllable) {
+            // color beeps
+            c.element.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
           }
         }
       }

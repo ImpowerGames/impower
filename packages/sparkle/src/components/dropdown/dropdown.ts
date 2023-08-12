@@ -349,7 +349,7 @@ export default class Dropdown
       this.emit(CHANGED_EVENT, detail);
     }
   }
-
+  
   interrupted(newValue: string | null): boolean {
     return this._activatingValue !== newValue;
   }
@@ -482,8 +482,10 @@ export default class Dropdown
     if (e.currentTarget instanceof HTMLElement) {
       const option = (e.currentTarget.getRootNode() as ShadowRoot)
         ?.host as Option;
-      this._activatingValue = option.value;
-      this.updateOptions();
+      if (option.type !== "toggle") {
+        this._activatingValue = option.value;
+        this.updateOptions();
+      }
     }
   };
 

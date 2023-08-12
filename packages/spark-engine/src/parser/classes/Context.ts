@@ -161,10 +161,6 @@ export class Context<
     this.runner.commandRunners.forEach((r) => {
       r.init(game);
     });
-    const objectMap = program.objectMap ?? {};
-    game.ui.loadTheme(objectMap);
-    game.ui.loadStyles(objectMap);
-    game.ui.loadUI(objectMap);
     this._game = game;
     return game;
   }

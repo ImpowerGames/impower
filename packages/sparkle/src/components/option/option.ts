@@ -15,6 +15,9 @@ import { SizeName } from "../../types/sizeName";
 import type Ripple from "../ripple/ripple";
 import component from "./_option";
 
+const CHANGING_EVENT = "changing";
+const CHANGED_EVENT = "changed";
+
 const DEFAULT_DEPENDENCIES = getDependencyNameMap([
   "s-badge",
   "s-ripple",
@@ -32,6 +35,9 @@ const DEFAULT_TRANSFORMERS = {
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
+    "key",
+    "type",
+    "href",
     "active",
     "value",
     "autofocus",
@@ -70,7 +76,7 @@ export default class Option
   }
 
   override get component() {
-    return component();
+    return component({ attrs: { type: this.type, href: this.href } });
   }
 
   override transformHtml(html: string) {
@@ -79,6 +85,43 @@ export default class Option
 
   override transformCss(css: string) {
     return Option.augmentCss(css, DEFAULT_DEPENDENCIES);
+  }
+
+  /**
+   * Key that is included in all emitted events.
+   */
+  get key(): string | null {
+    return this.getStringAttribute(Option.attributes.key);
+  }
+  set key(value) {
+    this.setStringAttribute(Option.attributes.key, value);
+  }
+
+  /**
+   * The default behavior of the button. Possible values are:
+   *
+   * `div`: The button is a `div` that looks like a button (the root tag will be `div` instead of `button`).
+   * `a`: The button behaves like a link (the root tag will be `a` instead of `button`).
+   * `toggle`: The button can be toggled between an active and inactive state.
+   *
+   * Defaults to `button`
+   */
+  get type(): "div" | "a" | "toggle" | null {
+    return this.getStringAttribute(Option.attributes.type);
+  }
+  set type(value) {
+    this.setStringAttribute(Option.attributes.type, value);
+  }
+
+  /**
+   * The URL that the link button points to.
+   * (Component will be wrapped in `a` instead of `button`)
+   */
+  get href(): string | null {
+    return this.getStringAttribute(Option.attributes.href);
+  }
+  set href(value) {
+    this.setStringAttribute(Option.attributes.href, value);
   }
 
   /**
@@ -190,7 +233,8 @@ export default class Option
     if (
       name === Option.attributes.ariaHasPopup ||
       name === Option.attributes.ariaExpanded ||
-      name === Option.attributes.autofocus
+      name === Option.attributes.autofocus ||
+      name === Option.attributes.href
     ) {
       this.updateRootAttribute(name, newValue);
     }
@@ -244,43 +288,25 @@ export default class Option
   }
 
   protected handleClick = (e: MouseEvent): void => {
-    e.preventDefault();
-    const action = this.action;
-    if (action) {
-      const [id, attr] = action.split(":");
-      if (id && attr) {
-        const siblings =
-          (this.parentElement?.childNodes as NodeListOf<HTMLElement>) || [];
-        const element = [
-          this.parentElement,
-          this.parentElement?.parentElement,
-          ...Array.from(siblings),
-        ].find(
-          (sibling) =>
-            (sibling as HTMLElement)?.getAttribute?.("id") === id.trim()
-        );
-        if (element) {
-          const [attrName, attrValue] = attr.split("=");
-          if (attrName) {
-            if (attrName.startsWith("!") && !attrValue) {
-              const attr = attrName.slice(1);
-              if (element.getAttribute(attr) != null) {
-                element.removeAttribute(attr);
-              } else {
-                element.setAttribute(attr, attrValue || "");
-              }
-            } else {
-              if (attrValue === "null") {
-                element.removeAttribute(attrName);
-              } else {
-                element.setAttribute(attrName, attrValue || "");
-              }
-            }
-          }
-        }
+    const value = this.value;
+    const type = this.type;
+    if (type === "toggle") {
+      const newActive = !this.active;
+      this.active = newActive;
+      if (value) {
+        this.emitChange(newActive ? value : null);
+      } else {
+        this.emitChange(newActive ? "on" : null);
       }
     }
   };
+
+  emitChange(value: string | null) {
+    const rect = this.root?.getBoundingClientRect();
+    const detail = { key: this.key, oldRect: rect, newRect: rect, value };
+    this.emit(CHANGING_EVENT, detail);
+    this.emit(CHANGED_EVENT, detail);
+  }
 
   protected override onContentAssigned(children: Element[]): void {
     const nodes = children;

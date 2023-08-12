@@ -1,41 +1,24 @@
-import { Character, Inflection } from "../../game";
+import { Character } from "../../game";
 import { RecursiveValidation } from "../types/RecursiveValidation";
 import { SYNTH_VALIDATION } from "./SYNTH_VALIDATION";
 
-const STRESS_VALIDATION: RecursiveValidation<Inflection> = {
-  phraseSlope: [0.01, 0, 1],
-  neutralLevel: [1, 0, 10],
-  finalContour: [1, 0, 10],
-  emphasisContour: [1, 0, 10],
-  finalDilation: [1, 1, 10],
-  pitchRamp: [0.01, -1, 1],
-  pitchAccel: [0.01, -1, 1],
-  pitchJerk: [0.01, -1, 1],
-  volumeRamp: [0.01, -1, 1],
-};
+const CONTOUR_VALIDATION = [1, 0, 10];
 
 export const CHARACTER_VALIDATION: RecursiveValidation<Character> = {
-  intonation: {
-    phrasePitchIncrement: [0.01, 0, 1],
-    phrasePitchMaxOffset: [0.01, 0, 1],
-    downdriftIncrement: [0.001, 0, 0.1],
-    syllableFluctuation: [0.01, 0, 1],
-    stressLevelSemitones: [0.01, 0, 1],
-    liltQuestion: STRESS_VALIDATION,
-    liltExclamation: STRESS_VALIDATION,
-    lilt: STRESS_VALIDATION,
-    resolvedAnxiousQuestion: STRESS_VALIDATION,
-    anxiousQuestion: STRESS_VALIDATION,
-    resolvedQuestion: STRESS_VALIDATION,
-    question: STRESS_VALIDATION,
-    exclamation: STRESS_VALIDATION,
-    comma: STRESS_VALIDATION,
-    partial: STRESS_VALIDATION,
-    anxious: STRESS_VALIDATION,
-    statement: STRESS_VALIDATION,
+  inflection: {
+    liltQuestion: CONTOUR_VALIDATION,
+    liltExclamation: CONTOUR_VALIDATION,
+    lilt: CONTOUR_VALIDATION,
+    resolvedAnxiousQuestion: CONTOUR_VALIDATION,
+    anxiousQuestion: CONTOUR_VALIDATION,
+    resolvedQuestion: CONTOUR_VALIDATION,
+    question: CONTOUR_VALIDATION,
+    exclamation: CONTOUR_VALIDATION,
+    comma: CONTOUR_VALIDATION,
+    partial: CONTOUR_VALIDATION,
+    anxious: CONTOUR_VALIDATION,
+    statement: CONTOUR_VALIDATION,
   },
-  prosody: {
-    maxSyllableLength: [1, 1, 5],
-  },
+  prosody: {},
   voiceSound: SYNTH_VALIDATION,
 };

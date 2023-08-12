@@ -1,11 +1,11 @@
 import { SparkProgram } from "../../../../sparkdown/src";
 import { SparkGame, SparkGameConfig, SparkGameState } from "../../game";
-import { SparkGameRunner } from "../../runner";
+import { SparkGameRunner } from "../../runner/classes/SparkGameRunner";
 import { STRUCT_DEFAULTS } from "../constants/STRUCT_DEFAULTS";
 import { SparkContextOptions } from "../interfaces/SparkContextOptions";
 import { Context } from "./Context";
 
-export class SparkContext<
+export default class SparkContext<
   G extends SparkGame = SparkGame,
   C extends SparkGameConfig = SparkGameConfig,
   S extends SparkGameState = SparkGameState,

@@ -45,10 +45,6 @@ export const executeDisplayCommand = (
     instant?: boolean;
     debug?: boolean;
   },
-  voiceState?: {
-    lastCharacter?: string;
-    phraseOffset?: Record<string, number>;
-  },
   onFinished?: () => void,
   preview?: boolean
 ): ((deltaMS: number) => void) | undefined => {
@@ -120,7 +116,7 @@ export const executeDisplayCommand = (
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
   const commandType = `${data?.reference?.typeId || ""}`;
 
-  const instant = context?.instant || (writerConfig?.letterDelay ?? 0) === 0;
+  const instant = context?.instant;
   const debug = context?.debug;
   const indicatorFadeDuration = writerConfigs?.["indicator"]?.fadeDuration || 0;
 
@@ -282,25 +278,19 @@ export const executeDisplayCommand = (
       game.sound.stop(commandType);
       handleFinished();
     } else {
-      const letterDelay = writerConfig?.letterDelay ?? 0;
+      const voiceSound = characterConfig?.voiceSound;
       const clackSound = writerConfig?.clackSound;
-      const voiceSound = characterConfig?.voiceSound || clackSound;
-      // Determine how much a character's pitch will raise between related phrases
-      const phrasePitchIncrement =
-        characterConfig?.intonation?.phrasePitchIncrement ?? 0;
-      const maxPhrasePitchOffset =
-        characterConfig?.intonation?.phrasePitchMaxOffset ?? 1;
-      const stressLevelIncrement =
-        characterConfig?.intonation?.stressLevelSemitones ?? 1;
+      const beepSound = voiceSound || clackSound;
+      const beepEnvelope = beepSound?.envelope;
+      const beepDuration = beepEnvelope
+        ? (beepEnvelope.attack ?? 0) +
+          (beepEnvelope.decay ?? 0) +
+          (beepEnvelope.sustain ?? 0) +
+          (beepEnvelope.release ?? 0)
+        : 0;
+      // Determine how much a character's pitch will be affected by stress level
+      const stressLevelIncrement = 0.5;
 
-      // As character continues to speak, their pitch should start at their previous ending pitch
-      let startingOffset =
-        voiceState?.lastCharacter === characterKey
-          ? voiceState?.phraseOffset?.[characterKey] || 0
-          : 0;
-      if (Math.abs(startingOffset) > maxPhrasePitchOffset) {
-        startingOffset = 0;
-      }
       const tones: Tone[] = phrases.flatMap((phrase): Tone[] => {
         let lastCharacterBeep:
           | ({
@@ -312,8 +302,8 @@ export const executeDisplayCommand = (
           time: number;
         } & Chunk &
           Partial<Tone>)[] = phrase.chunks.flatMap((c) => {
-          if (c.startOfSyllable) {
-            const sound = voiceSound ? clone(voiceSound) : voiceSound;
+          if (c.startOfSyllable || c.punctuated) {
+            const sound = c.punctuated ? clone(clackSound) : clone(beepSound);
             lastCharacterBeep = {
               ...c,
               synth: sound,
@@ -322,20 +312,8 @@ export const executeDisplayCommand = (
             };
             return [lastCharacterBeep];
           }
-          if (c.punctuation) {
-            const sound = voiceSound ? clone(clackSound) : clackSound;
-            const lastDisplayBeep = {
-              ...c,
-              synth: sound,
-              time: c.time || 0,
-              duration: letterDelay * 2,
-            };
-            return [lastDisplayBeep];
-          }
           if (lastCharacterBeep) {
-            if (c.voiced) {
-              lastCharacterBeep.duration += c.duration;
-            }
+            lastCharacterBeep.duration += c.duration;
           }
           return [];
         });
@@ -344,23 +322,10 @@ export const executeDisplayCommand = (
           return [];
         }
 
-        // Determine the type of stress this phrase should have according to character prosody.
-        const inflection =
-          characterConfig?.intonation[phrase.finalStressType || "statement"];
-        const pitchRamp = inflection?.pitchRamp;
-        const pitchAccel = inflection?.pitchAccel;
-        const pitchJerk = inflection?.pitchJerk;
-        const volumeRamp = inflection?.volumeRamp;
-        const phraseSlope = inflection?.phraseSlope || 0;
-
-        // The phrase should start at a higher or lower pitch according to phraseSlope
-        startingOffset += phrasePitchIncrement * phraseSlope;
-
-        let foundLastVoicedBeep = false;
-
         for (let i = phraseBeeps.length - 1; i >= 0; i -= 1) {
           const b = phraseBeeps[i];
           if (b) {
+            b.duration = b.sustained ? b.duration : beepDuration;
             if (b.synth) {
               const freq = convertPitchNoteToHertz(
                 b.pitchHertz || b.synth.pitch?.frequency || "A4"
@@ -368,45 +333,21 @@ export const executeDisplayCommand = (
               // Transpose waves according to stress contour
               b.pitchHertz = transpose(
                 freq,
-                startingOffset + (b.stressLevel || 0) * stressLevelIncrement
+                (b.stressLevel || 0) * stressLevelIncrement
               );
-              if (!foundLastVoicedBeep && b.voiced) {
-                // Bend last voiced beep
-                foundLastVoicedBeep = true;
-                if (!b.synth.pitch) {
-                  b.synth.pitch = {};
-                }
-                b.synth.pitch.frequencyRamp = pitchRamp;
-                b.synth.pitch.frequencyTorque = pitchAccel;
-                b.synth.pitch.frequencyJerk = pitchJerk;
-                if (!b.synth.envelope) {
-                  b.synth.envelope = {};
-                }
-                b.synth.envelope.volumeRamp = volumeRamp;
-              }
             }
           }
         }
 
         return phraseBeeps as Tone[];
       });
-      // Store character's ending pitch
-      if (voiceState) {
-        if (!voiceState.phraseOffset) {
-          voiceState.phraseOffset = {};
-        }
-        voiceState.phraseOffset[characterKey] = startingOffset;
-        if (characterKey) {
-          voiceState.lastCharacter = characterKey;
-        }
-      }
       allChunks.forEach((c) => {
         if (c.element) {
           c.element.style["display"] = null;
         }
       });
       // Start playing beeps
-      game.sound.start(commandType, new SynthBuffer(tones).soundBuffer, () => {
+      game.sound.start(commandType, new SynthBuffer(tones), () => {
         // Start typing letters
         allChunks.forEach((c) => {
           if (c.element) {

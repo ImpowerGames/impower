@@ -16,6 +16,10 @@ export default class PreviewGameToolbar extends SEElement {
     return component({ store: Workspace.window.state });
   }
 
+  get settingsDropdownEl() {
+    return this.getElementById("settings-dropdown");
+  }
+
   get runToggleButtonEl() {
     return this.getElementById("run-toggle-button");
   }
@@ -83,6 +87,10 @@ export default class PreviewGameToolbar extends SEElement {
       "pointerup",
       this.handlePointerUpStepForwardButton
     );
+    this.settingsDropdownEl?.addEventListener(
+      "changed",
+      this.handleSettingsDropdownChanged
+    );
   }
 
   protected override onDisconnected(): void {
@@ -125,6 +133,10 @@ export default class PreviewGameToolbar extends SEElement {
     this.stepForwardButtonEl?.removeEventListener(
       "pointerup",
       this.handlePointerUpStepForwardButton
+    );
+    this.settingsDropdownEl?.removeEventListener(
+      "changed",
+      this.handleSettingsDropdownChanged
     );
   }
 
@@ -172,6 +184,18 @@ export default class PreviewGameToolbar extends SEElement {
 
   handlePointerUpStepForwardButton = (e: Event) => {
     window.cancelAnimationFrame(this._controllingPlayback);
+  };
+
+  handleSettingsDropdownChanged = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      if (e.detail.key === "debug") {
+        if (e.detail.value) {
+          Workspace.window.enableDebugging();
+        } else {
+          Workspace.window.disableDebugging();
+        }
+      }
+    }
   };
 
   throttledStep(deltaMS: number) {

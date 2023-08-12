@@ -29,7 +29,7 @@ import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
 import PreviewGame from "./components/preview-game/_preview-game";
-import PreviewOptionsDropdown from "./components/preview-options-dropdown/_preview-options-dropdown";
+import PreviewOptionsDropdown from "./components/preview-mode-toggle/_preview-mode-toggle";
 import PreviewPanel from "./components/preview-panel/_preview-panel";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
@@ -103,7 +103,7 @@ const components = {
   "se-demo": style(Demo),
   "se-main-panel": style(MainPanel),
   "se-preview-toggle-button": style(PreviewToggleButton),
-  "se-preview-options-dropdown": style(PreviewOptionsDropdown),
+  "se-preview-mode-toggle": style(PreviewOptionsDropdown),
   "se-preview": style(Preview),
   "se-preview-panel": style(PreviewPanel),
   "se-notifications": style(Notifications),

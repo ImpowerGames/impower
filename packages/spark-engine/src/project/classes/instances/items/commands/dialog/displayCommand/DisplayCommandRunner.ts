@@ -19,11 +19,6 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
 
   elapsedMS = 0;
 
-  voiceState?: {
-    lastCharacter?: string;
-    pitchOffset?: Record<string, number>;
-  } = {};
-
   onTick?: (deltaMS: number) => void;
 
   override init(game: G): void {
@@ -40,15 +35,9 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     this.timeTypedMS = -1;
     this.elapsedMS = 0;
     this.down = game.input.state.pointer.down.includes(0);
-    this.onTick = executeDisplayCommand(
-      game,
-      data,
-      context,
-      this.voiceState,
-      () => {
-        this.wasTyped = true;
-      }
-    );
+    this.onTick = executeDisplayCommand(game, data, context, () => {
+      this.wasTyped = true;
+    });
     return super.onExecute(game, data, context);
   }
 
@@ -124,14 +113,7 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
       debug?: boolean;
     }
   ): boolean {
-    executeDisplayCommand(
-      game,
-      data,
-      context,
-      this.voiceState,
-      undefined,
-      true
-    );
+    executeDisplayCommand(game, data, context, undefined, true);
     return true;
   }
 }

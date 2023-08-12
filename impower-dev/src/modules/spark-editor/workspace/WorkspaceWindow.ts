@@ -1,5 +1,7 @@
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
+import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
 import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StartGameMessage";
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
@@ -342,6 +344,22 @@ export default class WorkspaceWindow {
     } else {
       this.pauseGame();
     }
+  }
+
+  enableDebugging() {
+    this._state.panes.preview.panels.game.debugging = true;
+    this.emit(
+      EnableGameDebugMessage.method,
+      EnableGameDebugMessage.type.request({})
+    );
+  }
+
+  disableDebugging() {
+    this._state.panes.preview.panels.game.debugging = false;
+    this.emit(
+      DisableGameDebugMessage.method,
+      DisableGameDebugMessage.type.request({})
+    );
   }
 
   loadProject(project: { id: string; name: string }) {

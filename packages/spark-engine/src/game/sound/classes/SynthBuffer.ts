@@ -3,39 +3,37 @@ import { fillArrayWithTones } from "../utils/fillArrayWithTones";
 
 export class SynthBuffer {
   protected _tones: Tone[];
-
   public get tones(): readonly Tone[] {
     return this._tones;
   }
 
   protected _soundBuffer: Float32Array;
-
   public get soundBuffer(): Float32Array {
     return this._soundBuffer;
   }
 
   protected _volumeBuffer: Float32Array;
-
   public get volumeBuffer(): Float32Array {
     return this._volumeBuffer;
   }
 
   protected _pitchBuffer: Float32Array;
-
   public get pitchBuffer(): Float32Array {
     return this._pitchBuffer;
   }
 
   protected _pitchRange: [number, number];
-
   public get pitchRange(): [number, number] {
     return this._pitchRange;
   }
 
   protected _durationInSamples: number;
-
   public get durationInSamples(): number {
     return this._durationInSamples;
+  }
+
+  public get length(): number {
+    return this._soundBuffer.length;
   }
 
   constructor(tones: Tone[], sampleRate = 44100) {

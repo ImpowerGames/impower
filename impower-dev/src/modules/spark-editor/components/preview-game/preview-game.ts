@@ -1,5 +1,6 @@
 import { RevealEditorRangeMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RevealEditorRangeMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { DidExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
@@ -11,7 +12,6 @@ import {
 } from "../../../../../../packages/spark-engine/src";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src";
 import SEElement from "../../core/se-element";
-import { debounce } from "../../utils/debounce";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_preview-game";
 
@@ -32,12 +32,12 @@ export default class GamePreview extends SEElement {
 
   _programs: { uri: string; name: string; program: SparkProgram }[] = [];
 
-  _entryProgram?: string;
-
   _entryLine = 0;
 
   protected override onConnected(): void {
+    this.configureGame();
     this.loadGame();
+    this.loadPreview();
     window.addEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
@@ -79,6 +79,7 @@ export default class GamePreview extends SEElement {
 
   handleDidChangeWatchedFiles = async (e: Event) => {
     if (e instanceof CustomEvent) {
+      await this.configureGame();
       await this.loadGame();
       await this.loadPreview();
     }
@@ -86,7 +87,9 @@ export default class GamePreview extends SEElement {
 
   handleDidOpenFileEditor = async (e: Event) => {
     if (e instanceof CustomEvent) {
-      this.debouncedLoadGame();
+      await this.configureGame();
+      await this.loadGame();
+      await this.loadPreview();
     }
   };
 
@@ -98,6 +101,7 @@ export default class GamePreview extends SEElement {
         if (textDocument.uri === this._uri && !docChanged) {
           const newEntryLine = selectedRange?.start?.line ?? 0;
           if (newEntryLine !== this._entryLine) {
+            await this.configureGame();
             await this.loadPreview();
           }
         }
@@ -130,26 +134,42 @@ export default class GamePreview extends SEElement {
     }
   };
 
-  debouncedLoadGame = debounce(() => this.loadGame(), 500);
+  async configureGame() {
+    const editor = await Workspace.window.getActiveEditor("logic");
+    if (editor) {
+      const { uri, selectedRange } = editor;
+      if (uri) {
+        this._programs = await Workspace.fs.getPrograms();
+        this._entryLine = selectedRange?.start?.line ?? 0;
+        this._uri = uri;
+        this.emit(
+          ConfigureGameMessage.method,
+          ConfigureGameMessage.type.request({
+            settings: {
+              entryProgram: uri,
+              entryLine: this._entryLine,
+            },
+          })
+        );
+      }
+    }
+  }
 
   async loadGame() {
     const editor = await Workspace.window.getActiveEditor("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
-      this._programs = await Workspace.fs.getPrograms();
-      this._entryProgram = uri;
-      this._entryLine = selectedRange?.start?.line ?? 0;
-      this._uri = uri;
-      this.emit(
-        LoadGameMessage.method,
-        LoadGameMessage.type.request({
-          programs: Object.values(this._programs),
-          options: {
-            entryProgram: this._entryProgram,
-            entryLine: this._entryLine,
-          },
-        })
-      );
+      if (uri) {
+        this._programs = await Workspace.fs.getPrograms();
+        this._entryLine = selectedRange?.start?.line ?? 0;
+        this._uri = uri;
+        this.emit(
+          LoadGameMessage.method,
+          LoadGameMessage.type.request({
+            programs: Object.values(this._programs),
+          })
+        );
+      }
     }
   }
 
@@ -158,20 +178,22 @@ export default class GamePreview extends SEElement {
       const editor = await Workspace.window.getActiveEditor("logic");
       if (editor) {
         const { uri, version, text, visibleRange, selectedRange } = editor;
-        this.emit(
-          LoadPreviewMessage.method,
-          LoadPreviewMessage.type.request({
-            type: "game",
-            textDocument: {
-              uri,
-              languageId: "sparkdown",
-              version,
-              text: text!,
-            },
-            visibleRange,
-            selectedRange,
-          })
-        );
+        if (uri) {
+          this.emit(
+            LoadPreviewMessage.method,
+            LoadPreviewMessage.type.request({
+              type: "game",
+              textDocument: {
+                uri,
+                languageId: "sparkdown",
+                version,
+                text: text!,
+              },
+              visibleRange,
+              selectedRange,
+            })
+          );
+        }
       }
     }
   }

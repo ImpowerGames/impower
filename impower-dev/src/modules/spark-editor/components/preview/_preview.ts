@@ -18,6 +18,14 @@ export default (state: { store?: WorkspaceState }) => {
             translate-y="-100%"
           ></s-box>
           <s-box height="header-nav"></s-box>
+          <s-box position="relative">
+            <s-box
+              position="absolute"
+              inset="0"
+              height="panel-nav"
+              bg-color="panel"
+            ></s-box>
+          </s-box>
         </s-box>
         ${panel === "screenplay" ? screenplayComponent : gameComponent}
         <template value="game">${gameComponent}</template>

@@ -9,9 +9,10 @@ import { SoundPlaybackControl } from "../types/MidiPlaybackState";
 import { MidiTrackState } from "../types/MidiTrackState";
 import { SynthConfig } from "../types/Synth";
 import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackState";
+import { SynthBuffer } from "./SynthBuffer";
 
 export interface SoundEvents extends Record<string, GameEvent> {
-  onStarted: GameEvent2<string, Float32Array>;
+  onStarted: GameEvent2<string, Float32Array | SynthBuffer>;
   onPaused: GameEvent1<string>;
   onUnpaused: GameEvent1<string>;
   onStopped: GameEvent1<string>;
@@ -23,7 +24,7 @@ export interface SoundConfig {
   synths: Record<string, SynthConfig>;
   sampleRate: number;
   midis: Map<string, Midi>;
-  sounds: Map<string, Float32Array>;
+  sounds: Map<string, Float32Array | SynthBuffer>;
 }
 
 export interface SoundState {
@@ -41,7 +42,7 @@ export class SoundManager extends Manager<
 
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
-      onStarted: new GameEvent2<string, Float32Array>(),
+      onStarted: new GameEvent2<string, Float32Array | SynthBuffer>(),
       onPaused: new GameEvent1<string>(),
       onUnpaused: new GameEvent1<string>(),
       onStopped: new GameEvent1<string>(),
@@ -62,7 +63,11 @@ export class SoundManager extends Manager<
     super(initialEvents, initialConfig, initialState);
   }
 
-  start(id: string, sound: Float32Array, onStarted?: () => void): void {
+  start(
+    id: string,
+    sound: Float32Array | SynthBuffer,
+    onStarted?: () => void
+  ): void {
     const sampleRate = this._config.sampleRate;
     const durationMS = (sound.length / sampleRate) * 1000;
     const controlState = {

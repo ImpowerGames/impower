@@ -1,34 +1,46 @@
+import { Object3D } from "three";
 import * as THREE from "three/src/scenes/Scene.js";
-import { SparkContext } from "../../../spark-engine/src";
+import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
 import Application from "./Application";
 import { Disposable } from "./Disposable";
 
 export default class Scene extends THREE.Scene {
-  protected _context: SparkContext;
-  public get context(): SparkContext {
-    return this._context;
-  }
-
   protected _app: Application;
 
-  protected _active = true;
-  public get active(): boolean {
-    return this._active;
-  }
-  public set active(value: boolean) {
-    this._active = value;
-  }
-
-  public get screen() {
+  get screen() {
     return this._app.screen;
   }
 
-  public get view() {
+  get view() {
     return this._app.view;
   }
 
-  public get renderer() {
+  get renderer() {
     return this._app.renderer;
+  }
+
+  get maxFPS(): number {
+    return this._app.ticker?.maxFPS;
+  }
+
+  get ticker() {
+    return this._app.ticker;
+  }
+
+  get camera() {
+    return this._app.camera;
+  }
+
+  get context(): SparkContext {
+    return this._app.context;
+  }
+
+  protected _active = true;
+  get active(): boolean {
+    return this._active;
+  }
+  set active(value: boolean) {
+    this._active = value;
   }
 
   // TODO:
@@ -37,89 +49,74 @@ export default class Scene extends THREE.Scene {
   //   return this._assets;
   // }
 
-  public get maxFPS(): number {
-    return this._app.ticker?.maxFPS;
-  }
-
-  public get ticker() {
-    return this._app.ticker;
-  }
-
-  public get camera() {
-    return this._app.camera;
-  }
-
   protected _pointerDown = false;
-  public get pointerDown(): boolean {
+  get pointerDown(): boolean {
     return this._pointerDown;
   }
 
   protected _pointerDownX = 0;
-  public get pointerDownX(): number {
+  get pointerDownX(): number {
     return this._pointerDownX;
   }
 
   protected _pointerDownY = 0;
-  public get pointerDownY(): number {
+  get pointerDownY(): number {
     return this._pointerDownY;
   }
 
   protected _dragging = false;
-  public get dragging(): boolean {
+  get dragging(): boolean {
     return this._dragging;
   }
 
   protected _mouseDragThreshold = 1;
-  public get mouseDragThreshold(): number {
+  get mouseDragThreshold(): number {
     return this._mouseDragThreshold;
   }
-  public set mouseDragThreshold(value: number) {
+  set mouseDragThreshold(value: number) {
     this._mouseDragThreshold = value;
   }
 
   protected _penDragThreshold = 2;
-  public get penDragThreshold(): number {
+  get penDragThreshold(): number {
     return this._penDragThreshold;
   }
-  public set penDragThreshold(value: number) {
+  set penDragThreshold(value: number) {
     this._penDragThreshold = value;
   }
 
   protected _touchDragThreshold = 4;
-  public get touchDragThreshold(): number {
+  get touchDragThreshold(): number {
     return this._touchDragThreshold;
   }
-  public set touchDragThreshold(value: number) {
+  set touchDragThreshold(value: number) {
     this._touchDragThreshold = value;
   }
 
   protected _time = 0;
-  public get time() {
+  get time() {
     return this._time;
   }
 
   constructor(
-    context: SparkContext,
     app: Application
     // assets: SparkAssets
   ) {
     super();
-    this._context = context;
     this._app = app;
     // this._assets = assets;
-    this.bind();
   }
 
   getRequiredAssets(): Record<string, { src: string; ext: string }> {
     return {};
   }
 
-  async load(): Promise<Disposable[]> {
+  async load(): Promise<Object3D[]> {
     // NoOp
     return [];
   }
 
-  init(): void {
+  start(): void {
     // NoOp
   }
 
@@ -151,8 +148,9 @@ export default class Scene extends THREE.Scene {
     // NoOp
   }
 
-  dispose(): void {
+  dispose(): Disposable[] {
     // NoOp
+    return [];
   }
 
   _onPointerDown = (event: PointerEvent): void => {
@@ -231,12 +229,16 @@ export default class Scene extends THREE.Scene {
     window.addEventListener("touchend", this._onTouchEnd);
   }
 
+  protected onBind(): void {}
+
   unbind(): void {
     this.view.removeEventListener("pointerdown", this._onPointerDown);
     this.view.removeEventListener("pointermove", this._onPointerMove);
     window.removeEventListener("mouseup", this._onPointerUp);
     window.removeEventListener("touchend", this._onTouchEnd);
   }
+
+  protected onUnbind(): void {}
 
   isPointerDown(): boolean {
     return this._pointerDown;
