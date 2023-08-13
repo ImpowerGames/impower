@@ -47,6 +47,8 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.comment, display: "none" },
   { tag: tags.blockComment, display: "none" },
   { tag: tags.docComment, display: "none" },
+
+  { tag: tags.macroName, display: "none" },
 ]);
 
 const HIDDEN_NODE_NAMES = [
@@ -76,8 +78,6 @@ const NODE_NAMES = {
   Dialogue_begin_parenthetical: "Dialogue_begin-c4",
   Dialogue_begin_dual: "Dialogue_begin-c6",
   Parenthetical: "Parenthetical",
-  DialogueImage: "DialogueImage",
-  DialogueAudio: "DialogueAudio",
   InlineString: "InlineString",
   Action: "Action",
   Centered: "Centered",

@@ -39,6 +39,7 @@ const EDITOR_COLORS = {
   number: "#B5CEA8",
   bool: "#569CD6",
   propertyName: "#EFC090",
+  macroName: "#4FC1FF",
   codeMark: "#FFBF00",
   codeText: "#FF8000",
 };

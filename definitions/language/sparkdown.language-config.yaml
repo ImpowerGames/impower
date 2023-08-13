@@ -18,17 +18,6 @@ autoClosingPairs:
   - open: "`"
     close: "`"
 
-surroundingPairs:
-  - ["{", "}"]
-  - ["[", "]"]
-  - ["(", ")"]
-  - ["_", "_"]
-  - ["~", "~"]
-  - ["*", "*"]
-  - ['"', '"']
-  - ["`", "`"]
-  - ["'", "'"]
-
 wordChars: "_'"
 
 wordPattern:

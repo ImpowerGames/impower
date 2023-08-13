@@ -103,21 +103,21 @@
       }
     },
     "Image": {
-      "tag": "blockComment",
+      "tag": "macroName",
       "name": "entity.image.sd",
       "match": "^([ \\t]*)(\\[{2})([^\\]]*)(\\]{2})([ \\t]*)($|[/][/][ \\t]+.*)($\\n?)",
       "captures": {
         "2": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.open.image.sd"
+          "tag": "definition(macroName)",
+          "name": "punctuation.definition.template-expression.begin.image.sd"
         },
         "3": {
-          "tag": "blockComment",
-          "name": "comment.block.content.image.sd"
+          "tag": "macroName",
+          "name": "variable.other.constant.image.sd"
         },
         "4": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.close.image.sd"
+          "tag": "definition(macroName)",
+          "name": "punctuation.definition.template-expression.end.image.sd"
         },
         "5": {
           "tag": "content",
@@ -133,21 +133,21 @@
       }
     },
     "Audio": {
-      "tag": "blockComment",
+      "tag": "macroName",
       "name": "entity.audio.sd",
       "match": "^([ \\t]*)([(]{2})([^)]*)([)]{2})([ \\t]*)($|[/][/][ \\t]+.*)($\\n?)",
       "captures": {
         "2": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.open.audio.sd"
+          "tag": "definition(macroName)",
+          "name": "punctuation.definition.template-expression.begin.audio.sd"
         },
         "3": {
-          "tag": "blockComment",
-          "name": "comment.block.content.audio.sd"
+          "tag": "macroName",
+          "name": "variable.other.constant.audio.sd"
         },
         "4": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.close.audio.sd"
+          "tag": "definition(macroName)",
+          "name": "punctuation.definition.template-expression.end.audio.sd"
         },
         "5": {
           "tag": "content",
@@ -769,10 +769,10 @@
           "include": "#Parenthetical"
         },
         {
-          "include": "#DialogueImage"
+          "include": "#Image"
         },
         {
-          "include": "#DialogueAudio"
+          "include": "#Audio"
         },
         {
           "include": "#InlineString"
@@ -806,66 +806,6 @@
         "5": {
           "tag": "content",
           "name": "markup.raw.whitespace.sd"
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Comment"
-            }
-          ]
-        }
-      }
-    },
-    "DialogueImage": {
-      "tag": "blockComment",
-      "name": "entity.image.dialogue.sd",
-      "match": "^([ \\t]*)(\\[{2})([^\\]]*)(\\]{2})([ \\t]*)($|[/][/][ \\t]+.*)($\\n?)",
-      "captures": {
-        "2": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.open.image.dialogue.sd"
-        },
-        "3": {
-          "tag": "blockComment",
-          "name": "comment.block.content.image.dialogue.sd"
-        },
-        "4": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.close.image.dialogue.sd"
-        },
-        "5": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.dialogue.sd"
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Comment"
-            }
-          ]
-        }
-      }
-    },
-    "DialogueAudio": {
-      "tag": "blockComment",
-      "name": "entity.audio.dialogue.sd",
-      "match": "^([ \\t]*)([(]{2})([^)]*)([)]{2})([ \\t]*)($|[/][/][ \\t]+.*)($\\n?)",
-      "captures": {
-        "2": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.open.audio.dialogue.sd"
-        },
-        "3": {
-          "tag": "blockComment",
-          "name": "comment.block.content.audio.dialogue.sd"
-        },
-        "4": {
-          "tag": "definition(blockComment)",
-          "name": "comment.block.close.audio.dialogue.sd"
-        },
-        "5": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.dialogue.sd"
         },
         "6": {
           "patterns": [

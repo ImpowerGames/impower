@@ -142,6 +142,7 @@
       "[sparkdown]": {
         "diffEditor.ignoreTrimWhitespace": false,
         "editor.wordWrap": "on",
+        "editor.suggest.snippetsPreventQuickSuggestions": false,
         "editor.wordBasedSuggestions": false,
         "editor.suggestSelection": "first",
         "editor.insertSpaces": true,

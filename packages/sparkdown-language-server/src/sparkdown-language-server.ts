@@ -22,6 +22,8 @@ import getHover from "./utils/getHover";
 
 console.log("running sparkdown-language-server");
 
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz".split("");
+
 try {
   const messageReader = new BrowserMessageReader(self);
   const messageWriter = new BrowserMessageWriter(self);
@@ -37,8 +39,17 @@ try {
       colorProvider: true,
       hoverProvider: true,
       completionProvider: {
-        resolveProvider: true,
-        triggerCharacters: [".", "\n", "\r", "-", " ", "(", "["],
+        triggerCharacters: [
+          ".",
+          "\n",
+          "\r",
+          "-",
+          " ",
+          "(",
+          "[",
+          ...ALPHABET,
+          ...ALPHABET.map((l) => l.toUpperCase()),
+        ],
         completionItem: {
           labelDetailsSupport: true,
         },
@@ -115,9 +126,6 @@ try {
       params.context
     );
     return result;
-  });
-  connection.onCompletionResolve((item) => {
-    return item;
   });
 
   documents.listen(connection);

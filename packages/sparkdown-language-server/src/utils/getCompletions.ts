@@ -11,9 +11,9 @@ import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import getBlockMatch from "@impower/sparkdown/src/utils/getBlockMatch";
 import getBlockType from "@impower/sparkdown/src/utils/getBlockType";
 import getLineText from "./getLineText";
+import getLineTextBefore from "./getLineTextBefore";
 import getUniqueOptions from "./getUniqueOptions";
 import isEmptyLine from "./isEmptyLine";
-import isPrevText from "./isPrevText";
 
 const getImageCompletions = (program: SparkProgram | undefined) => {
   if (!program) {
@@ -23,7 +23,7 @@ const getImageCompletions = (program: SparkProgram | undefined) => {
     ([name, { src, type }]) => ({
       label: name,
       labelDetails: { description: type },
-      kind: CompletionItemKind.Constructor,
+      kind: CompletionItemKind.Text,
       documentation: {
         kind: MarkupKind.Markdown,
         value: `![${name}](${src})`,
@@ -40,7 +40,7 @@ const getAudioCompletions = (program: SparkProgram | undefined) => {
     ([name, { type }]) => ({
       label: name,
       labelDetails: { description: type },
-      kind: CompletionItemKind.Constructor,
+      kind: CompletionItemKind.Text,
     })
   );
 };
@@ -163,27 +163,24 @@ const getCompletions = (
   program: SparkProgram | undefined,
   position: Position,
   context: CompletionContext | undefined
-): CompletionItem[] => {
+): CompletionItem[] | null | undefined => {
   if (!document) {
-    return [];
+    return undefined;
   }
   const lineText = getLineText(document, position);
   const prevLineText = getLineText(document, position, -1);
   const triggerCharacter = context?.triggerCharacter;
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopeName = program?.scopes?.[lineMetadata?.scope ?? -1];
-  if (triggerCharacter === "[") {
-    if (isPrevText(document, position, "[")) {
-      return getImageCompletions(program);
-    }
+  const lineTextBefore = getLineTextBefore(document, position).trim();
+  if (lineTextBefore.startsWith("[[")) {
+    return getImageCompletions(program);
   }
-  if (triggerCharacter === "(") {
-    if (isPrevText(document, position, "load")) {
-      return getScriptCompletions(program);
-    }
-    if (isPrevText(document, position, "(")) {
-      return getAudioCompletions(program);
-    }
+  if (lineTextBefore.startsWith("((")) {
+    return getAudioCompletions(program);
+  }
+  if (lineTextBefore.startsWith("> load(")) {
+    return getScriptCompletions(program);
   }
   if (!scopeName) {
     const match = getBlockMatch(lineText);
@@ -203,7 +200,7 @@ const getCompletions = (
       }
     }
   }
-  return [];
+  return undefined;
 };
 
 export default getCompletions;

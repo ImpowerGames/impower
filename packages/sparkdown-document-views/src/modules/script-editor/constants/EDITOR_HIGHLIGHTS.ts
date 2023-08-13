@@ -42,6 +42,7 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.number, color: c.number },
   { tag: tags.bool, color: c.bool },
   { tag: tags.string, color: c.string },
+  { tag: tags.macroName, color: c.macroName },
 
   { tag: tags.invalid, color: c.invalid },
 
