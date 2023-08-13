@@ -34,6 +34,7 @@ export interface IElement {
   setStyleContent: (
     targetName: string,
     properties: Record<string, any>,
+    breakpoints: Record<string, number>,
     objectMap: { [type: string]: Record<string, any> }
   ) => void;
 

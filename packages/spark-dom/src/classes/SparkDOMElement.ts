@@ -73,19 +73,29 @@ export class SparkDOMElement implements IElement {
 
   appendChild(child: IElement): void {
     const el = child as SparkDOMElement;
-    this._htmlElement.appendChild(el._htmlElement);
+    if (el._htmlElement.tagName === "STYLE" && child.id.endsWith(".css")) {
+      const head = document.documentElement.getElementsByTagName("head")?.[0];
+      if (head) {
+        head.appendChild(el._htmlElement);
+      }
+    } else {
+      this._htmlElement.appendChild(el._htmlElement);
+    }
     this._children.push(el);
   }
 
   removeChild(child: IElement): void {
     const el = child as SparkDOMElement;
-    this._htmlElement.removeChild(el._htmlElement);
+    el._htmlElement.remove();
     this._children = this._children.filter((x) => x !== child);
   }
 
   replaceChildren(...children: IElement[]): void {
     const newEls = children.map((x) => x as SparkDOMElement);
-    this._htmlElement.replaceChildren(...newEls.map((x) => x._htmlElement));
+    this._children.forEach((child) =>
+      (child as SparkDOMElement)._htmlElement.remove()
+    );
+    newEls.forEach((el) => this.appendChild(el));
     this._children = [...newEls];
   }
 
@@ -106,11 +116,8 @@ export class SparkDOMElement implements IElement {
           }
         }
         className = className.trim();
-        if (
-          entry.target.parentElement &&
-          entry.target.parentElement.className !== className
-        ) {
-          entry.target.parentElement.className = className;
+        if (entry.target && entry.target.className !== className) {
+          entry.target.className = className;
         }
       }
     });
@@ -165,6 +172,7 @@ export class SparkDOMElement implements IElement {
   setStyleContent(
     targetName: string,
     properties: Record<string, any>,
+    breakpoints: Record<string, number>,
     objectMap: { [type: string]: Record<string, any> }
   ): void {
     const groupMap: Record<string, Record<string, unknown>> = {};
@@ -201,8 +209,7 @@ export class SparkDOMElement implements IElement {
         })
         .join(`\n  `);
       const fieldsContent = `{\n  ${content}\n}`;
-      const theme = objectMap?.["theme"]?.[""];
-      const isBreakpointGroup = groupName && theme?.breakpoints[groupName];
+      const isBreakpointGroup = groupName && breakpoints[groupName];
       const rootId = this.id?.split(".")?.[0] || "";
       const target = targetName === "*" ? targetName : `.${targetName}`;
       if (isBreakpointGroup) {

@@ -10,6 +10,13 @@ const DEFAULT_ROOT_CLASS_NAME = "spark-root";
 const DEFAULT_UI_CLASS_NAME = "spark-ui";
 const DEFAULT_STYLE_CLASS_NAME = "spark-style";
 const DEFAULT_CREATE_ELEMENT = (id: string) => new Element(id);
+const DEFAULT_BREAKPOINTS = {
+  xs: 400,
+  sm: 600,
+  md: 960,
+  lg: 1280,
+  xl: 1920,
+};
 
 export interface UIEvents extends Record<string, GameEvent> {
   onCreateElement: GameEvent2<string, string>;
@@ -42,7 +49,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   override destroy(): void {
     super.destroy();
-    this._config.root.replaceChildren();
+    const uiRoot = this.getElement(this.getUIPath());
+    if (uiRoot) {
+      uiRoot.replaceChildren();
+    }
+    const styleRoot = this.getElement(this.getStylePath());
+    if (styleRoot) {
+      styleRoot.replaceChildren();
+    }
   }
 
   protected getId(...path: string[]): string {
@@ -101,13 +115,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   loadTheme(objectMap: { [type: string]: Record<string, any> }): void {
-    const breakpoints = objectMap?.["breakpoint"] || {
-      xs: 400,
-      sm: 600,
-      md: 960,
-      lg: 1280,
-      xl: 1920,
-    };
+    const breakpoints = objectMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
     if (breakpoints) {
       this._config.root.observeSize(breakpoints);
     }
@@ -154,7 +162,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(styleStructObj);
-            structEl.setStyleContent(structName, properties, objectMap);
+            const breakpoints =
+              objectMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+            structEl.setStyleContent(
+              structName,
+              properties,
+              breakpoints,
+              objectMap
+            );
           }
         }
         const animationStructObj = objectMap?.["animation"]?.[structName];

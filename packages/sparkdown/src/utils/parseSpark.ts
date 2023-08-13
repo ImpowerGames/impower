@@ -981,9 +981,9 @@ const getVariableExpressionValue = (
   if (!expression) {
     return undefined;
   }
-  const struct = findStruct(program.structs, expression);
-  if (struct) {
-    return { name: struct.name, type: struct.type };
+  const structFound = findStruct(program.structs, expression);
+  if (structFound) {
+    return { name: structFound.name, type: structFound.type };
   }
   const { name } = getExpressionCallNameAndValues(
     program,
@@ -1498,15 +1498,17 @@ const addField = (
     if (found) {
       lintNameUnique(program, currentToken, "field", found, nameFrom, nameTo);
     } else {
-      const value = getVariableExpressionValue(
-        program,
-        config,
-        currentToken,
-        currentSectionId,
-        valueText,
-        valueFrom,
-        valueTo
-      );
+      const value =
+        findVariable(program.variables, currentSectionId, valueText)?.value ??
+        getVariableExpressionValue(
+          program,
+          config,
+          currentToken,
+          currentSectionId,
+          valueText,
+          valueFrom,
+          valueTo
+        );
       const validValue = value != null ? value : "";
       const validType = typeof validValue as SparkVariableType;
       const existing = program?.structs?.[currentStructName]?.fields?.[id];

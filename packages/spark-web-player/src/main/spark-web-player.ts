@@ -10,7 +10,6 @@ import { StepGameMessage } from "../../../spark-editor-protocol/src/protocols/ga
 import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import SparkElement from "../../../spark-element/src/core/spark-element";
 import { Properties } from "../../../spark-element/src/types/properties";
 import getAttributeNameMap from "../../../spark-element/src/utils/getAttributeNameMap";
 import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
@@ -25,31 +24,40 @@ const DEFAULT_ATTRIBUTES = {
 };
 
 export default class SparkWebPlayer
-  extends SparkElement
+  extends HTMLElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override async define(
-    tag = "spark-web-player",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
+  static async define(tag = "spark-web-player") {
+    customElements.define(tag, this);
+    return customElements.whenDefined(tag);
   }
 
-  static override get attributes() {
+  static get attributes() {
     return DEFAULT_ATTRIBUTES;
   }
 
-  override get component() {
+  constructor() {
+    super();
+    const component = this.component;
+    const html = component.html;
+    const css = component.css;
+    this.innerHTML = `
+    <style>
+    ${css}
+    </style>
+    ${html}`;
+  }
+
+  get component() {
     return component();
   }
 
   get sparkRootEl() {
-    return this.getElementById("spark-root");
+    return this.querySelector<HTMLElement>(`#spark-root`);
   }
 
   get sparkGameEl() {
-    return this.getElementById("spark-game");
+    return this.querySelector<HTMLElement>(`#spark-game`);
   }
 
   _context?: SparkContext;
@@ -64,7 +72,7 @@ export default class SparkWebPlayer
 
   _options?: SparkContextOptions;
 
-  protected override onConnected(): void {
+  protected connectedCallback(): void {
     window.addEventListener(
       ConfigureGameMessage.method,
       this.handleConfigureGame
@@ -86,7 +94,7 @@ export default class SparkWebPlayer
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
   }
 
-  protected override onDisconnected(): void {
+  protected disconnectedCallback(): void {
     window.removeEventListener(
       ConfigureGameMessage.method,
       this.handleConfigureGame
@@ -312,6 +320,17 @@ export default class SparkWebPlayer
     if (this._context) {
       previewLine(this._context, line, true, this._debugging);
     }
+  }
+
+  emit<T>(eventName: string, detail?: T): boolean {
+    return this.dispatchEvent(
+      new CustomEvent(eventName, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        detail,
+      })
+    );
   }
 }
 

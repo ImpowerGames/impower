@@ -112,6 +112,7 @@ export class Element implements IElement {
   setStyleContent(
     _targetName: string,
     _properties: Record<string, any>,
+    _breakpoints: Record<string, number>,
     _objectMap: { [type: string]: Record<string, any> }
   ): void {}
 

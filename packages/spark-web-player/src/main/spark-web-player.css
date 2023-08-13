@@ -1,19 +1,19 @@
-:host {
+spark-web-player {
   display: contents;
 }
 
-:host * {
+spark-web-player * {
   pointer-events: none;
   touch-action: none;
 }
 
-:host > .root {
+spark-web-player > .root {
   position: absolute;
   inset: 0;
   overflow: hidden;
 }
 
-:host > .root > .wrapper {
+spark-web-player > .root > .wrapper {
   position: absolute;
   inset: 0;
   color: black;
