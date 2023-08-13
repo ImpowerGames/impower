@@ -31,7 +31,7 @@ const MARGIN_BEFORE = 32;
 const MARGIN_AFTER = 128;
 
 /** If true, the "left" (previous) side of a parse will be reused. */
-const REUSE_LEFT = false;
+const REUSE_LEFT = true;
 
 /** If true, the "right" (ahead) side of a parse will be reused. */
 const REUSE_RIGHT = false;
@@ -131,7 +131,7 @@ export default class GrammarParse implements PartialParse {
             }
           }
           const { chunk, index } = buffer.search(restartPos, 0);
-          if (chunk && chunk.from > 0 && index !== null) {
+          if (chunk && index !== null) {
             // split the buffer, reuse the left side
             const { left } = buffer.split(index);
             this.region.from = chunk.from;
