@@ -56,7 +56,7 @@ const generateDisplayCommand = (
       character: token.character || "",
       parenthetical: token.parenthetical || "",
       content: token.content,
-      assets: token.assets?.map(({ name }) => name),
+      assets: token.assets || [],
       autoAdvance: token.autoAdvance || false,
       clearPreviousText: token.clearPreviousText || false,
       waitUntilFinished: token.wait || false,

@@ -68,8 +68,12 @@ const setFoldables = (
     ...ranges.map((r) => {
       const effect = {
         kind: r.kind,
-        from: state.doc.line(r.startLine + 1).from,
-        to: state.doc.line(r.endLine + 1).to,
+        from: state.doc.line(
+          Math.max(1, Math.min(state.doc.lines, r.startLine + 1))
+        ).from,
+        to: state.doc.line(
+          Math.max(1, Math.min(state.doc.lines, r.endLine + 1))
+        ).to,
       };
       return addFoldableEffect.of(effect);
     })
@@ -87,7 +91,7 @@ const foldableDecorationsField = StateField.define<DecorationSet>({
       if (e.is(clearFoldablesEffect)) {
         decorations = Decoration.none;
       }
-      if (e.is(addFoldableEffect)) {
+      if (e.is(addFoldableEffect) && e.value.to > e.value.from) {
         decorations = decorations.update({
           add: [foldableMark.range(e.value.from, e.value.to)],
         });

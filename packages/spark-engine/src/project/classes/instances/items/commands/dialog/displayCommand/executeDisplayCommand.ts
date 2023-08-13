@@ -65,6 +65,11 @@ export const executeDisplayCommand = (
     structEl.removeState("hidden");
   }
 
+  const asset = assets?.[0];
+  const assetName = asset?.name || "";
+  const assetType = asset?.type || "";
+  const assetUrl = valueMap?.[assetName];
+
   const assetsOnly = type === "assets";
   if (assetsOnly) {
     const backgroundEl = game.ui.findFirstUIElement(
@@ -72,10 +77,8 @@ export const executeDisplayCommand = (
       writerConfigs?.["background"]?.className || "Background"
     );
     if (backgroundEl) {
-      const imageName = assets?.[0] || "";
-      const imageUrl = valueMap?.[imageName];
-      if (imageName && imageUrl) {
-        backgroundEl.style["backgroundImage"] = `url("${imageUrl}")`;
+      if (assetType === "image" && assetName && assetUrl) {
+        backgroundEl.style["backgroundImage"] = `url("${assetUrl}")`;
         backgroundEl.style["backgroundRepeat"] = "no-repeat";
         backgroundEl.style["display"] = null;
       } else {
@@ -138,10 +141,8 @@ export const executeDisplayCommand = (
   );
 
   if (portraitEl) {
-    const imageName = assets?.[0] || "";
-    const imageUrl = valueMap?.[imageName];
-    if (imageName && imageUrl) {
-      portraitEl.style["backgroundImage"] = `url("${imageUrl}")`;
+    if (assetType === "image" && assetName && assetUrl) {
+      portraitEl.style["backgroundImage"] = `url("${assetUrl}")`;
       portraitEl.style["backgroundRepeat"] = "no-repeat";
       portraitEl.style["display"] = null;
     } else {

@@ -1797,7 +1797,7 @@ const pushAssets = (
         );
       }
       state.assets ??= [];
-      state.assets.push({ name });
+      state.assets.push({ name, type });
     }
   }
 };

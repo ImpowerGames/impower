@@ -98,7 +98,7 @@ export interface SparkDisplayToken extends SparkLine {
   wait: boolean;
   autoAdvance: boolean;
   clearPreviousText: boolean;
-  assets?: { name: string }[];
+  assets?: { name: string; type: string }[];
   parenthetical?: string;
   position?: "left" | "right";
 }

@@ -24,7 +24,7 @@ const EDITOR_COLORS = {
   dialogueDual: "#D7BA7D",
   dialogueParenthetical: "#D7BA7D",
   pageBreak: "#606080",
-  formatting: "#79ABFF",
+  formatting: "#4FC1FF",
   condition: "#D197D9",
   import: "#D197D9",
   asset: "#79ABFF",
@@ -39,7 +39,7 @@ const EDITOR_COLORS = {
   number: "#B5CEA8",
   bool: "#569CD6",
   propertyName: "#EFC090",
-  macroName: "#4FC1FF",
+  macroName: "#79ABFF",
   codeMark: "#FFBF00",
   codeText: "#FF8000",
 };

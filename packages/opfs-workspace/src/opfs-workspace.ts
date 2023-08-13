@@ -28,9 +28,10 @@ const globToRegex = (glob: string) => {
 
 const parse = (file: FileData, files: FileData[]) => {
   if (file.text != null) {
-    return EngineSparkParser.instance.parse(file.text, {
+    const program = EngineSparkParser.instance.parse(file.text, {
       augmentations: { files, objectMap: STRUCT_DEFAULTS },
     });
+    return program;
   }
   return undefined;
 };

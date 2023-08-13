@@ -10,4 +10,5 @@ export interface DisplayCommandParams extends CommandParams {
   content: string;
   autoAdvance: boolean;
   clearPreviousText: boolean;
+  assets: { name: string; type: string }[];
 }
