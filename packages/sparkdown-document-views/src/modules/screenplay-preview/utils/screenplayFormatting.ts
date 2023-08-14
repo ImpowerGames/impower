@@ -175,7 +175,7 @@ const decorate = (state: EditorState) => {
     if (inDialogue) {
       if (inDualDialogue) {
         if (prevDialogueSpec) {
-          prevDialogueSpec.to = to - 1;
+          prevDialogueSpec.to = to - 2;
           prevDialogueSpec.left = prevDialogueSpec.content;
           prevDialogueSpec.right = dialogueContent;
           prevDialogueSpec.content = undefined;
