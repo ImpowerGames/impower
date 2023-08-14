@@ -470,7 +470,7 @@ repository:
 
   Dialogue:
     name: entity.dialogue.sd
-    begin: ^([ \t]*)([\p{Lu}][^\p{Ll}^()]+[\p{Lu}])([ \t]*)([(][^)]*(?:$|[)]))?([ \t]*)(\^)?([ \t]*)($|[/][/][ \t]+.*)$
+    begin: ^([ \t]*)([\p{Lu}][^\p{Ll}^()]+[\p{Lu}?])([ \t]*)([(][^)]*(?:$|[)]))?([ \t]*)(\^)?([ \t]*)($|[/][/][ \t]+.*)$
     beginCaptures:
       2:
         tag: character
