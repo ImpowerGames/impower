@@ -370,7 +370,7 @@ const decorate = (state: EditorState) => {
   endFrontMatter(doc.length);
   endDialogue(doc.length);
   const decorations = specs.flatMap((b) => createDecorations(b, doc));
-  return specs.length > 0 ? RangeSet.of(decorations) : Decoration.none;
+  return specs.length > 0 ? RangeSet.of(decorations, true) : Decoration.none;
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({
