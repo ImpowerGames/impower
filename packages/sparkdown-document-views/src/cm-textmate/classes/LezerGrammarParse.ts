@@ -123,14 +123,14 @@ export default class GrammarParse implements PartialParse {
 
         if (buffer) {
           // try to find a suitable chunk from the buffer to restart tokenization from
-          let restartPos = Math.max(0, this.region.edit!.from - 1);
+          let restartPos = this.region.edit!.from - 1;
           for (; restartPos >= f.from; restartPos -= 1) {
             if (this.region.input.read(restartPos, restartPos + 2) === "\n\n") {
               // Restart at previous empty line
               break;
             }
           }
-          const { chunk, index } = buffer.search(restartPos, 0);
+          const { chunk, index } = buffer.search(restartPos, 0, true);
           if (chunk && index !== null) {
             // split the buffer, reuse the left side
             const { left } = buffer.split(index);
