@@ -10,17 +10,19 @@ import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/wo
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
 import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
-import { SparkProgram } from "../../sparkdown/src/types/SparkProgram";
+import debounce from "./utils/debounce";
 import { getAllFiles } from "./utils/getAllFiles";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileExtension } from "./utils/getFileExtension";
+import { getFileHandleFromPath } from "./utils/getFileHandleFromPath";
 import { getFileHandleFromUri } from "./utils/getFileHandleFromUri";
 import { getFileName } from "./utils/getFileName";
 import { getName } from "./utils/getName";
 import { getParentPath } from "./utils/getParentPath";
 import { getPathFromUri } from "./utils/getPathFromUri";
-import { getSyncAccessHandleFromUri } from "./utils/getSyncAccessHandleFromUri";
 import { getUriFromPath } from "./utils/getUriFromPath";
+
+const WRITE_DELAY = 100;
 
 const globToRegex = (glob: string) => {
   return RegExp(glob.replace(/[.]/g, "[.]").replace(/[*]/g, ".*"), "i");
@@ -37,23 +39,18 @@ const parse = (file: FileData, files: FileData[]) => {
 };
 
 class State {
-  static syncing: Record<string, { handle: FileSystemSyncAccessHandle }> = {};
+  static writeQueue: Record<
+    string,
+    {
+      handler: (uri: string) => void;
+      content: ArrayBuffer;
+      listeners: ((file: FileData) => void)[];
+    }
+  > = {};
   static scriptFilePattern: RegExp[] = [];
   static imageFilePattern: RegExp[] = [];
   static audioFilePattern: RegExp[] = [];
-  static files: Record<
-    string,
-    {
-      uri: string;
-      name: string;
-      src: string;
-      ext: string;
-      type: string;
-      version: number;
-      text?: string;
-      program?: SparkProgram;
-    }
-  > = {};
+  static files: Record<string, FileData> = {};
 }
 
 const initialConfigurationMessage = ConfigurationMessage.type.request({
@@ -189,42 +186,52 @@ const readTextDocument = async (fileUri: string) => {
   return text;
 };
 
+const queueWrite = async (fileUri: string, content: ArrayBuffer) => {
+  return new Promise<FileData>((resolve) => {
+    if (!State.writeQueue[fileUri]) {
+      State.writeQueue[fileUri] = {
+        content,
+        listeners: [],
+        handler: debounce(_writeTextDocument, WRITE_DELAY),
+      };
+    }
+    const entry = State.writeQueue[fileUri];
+    entry!.content = content;
+    entry!.listeners.push(resolve);
+    entry!.handler(fileUri);
+  });
+};
+
 const writeTextDocument = async (fileUri: string, text: string) => {
-  const root = await navigator.storage.getDirectory();
-  const existingSync = State.syncing[fileUri];
-  const syncAccessHandle =
-    existingSync?.handle || (await getSyncAccessHandleFromUri(root, fileUri));
-  State.syncing[fileUri] = {
-    handle: syncAccessHandle,
-  };
   const encoder = new TextEncoder();
   const encodedText = encoder.encode(text);
+  return queueWrite(fileUri, encodedText);
+};
+
+const _writeTextDocument = async (fileUri: string) => {
+  const queued = State.writeQueue[fileUri]!;
+  const content = queued.content;
+  const listeners = queued.listeners;
+  const root = await navigator.storage.getDirectory();
+  const relativePath = getPathFromUri(fileUri);
+  const fileHandle = await getFileHandleFromPath(root, relativePath);
+  const syncAccessHandle = await fileHandle.createSyncAccessHandle();
   syncAccessHandle.truncate(0);
-  syncAccessHandle.write(encodedText, { at: 0 });
+  syncAccessHandle.write(content, { at: 0 });
   syncAccessHandle.flush();
   syncAccessHandle.close();
-  delete State.syncing[fileUri];
-  return updateFileCache(fileUri, encodedText, true);
+  const file = updateFileCache(fileUri, content, true);
+  listeners.forEach((l) => {
+    l(file);
+  });
+  queued.listeners = [];
 };
 
 const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
   const root = await navigator.storage.getDirectory();
   return await Promise.all(
     files.map(async (file) => {
-      const existingSync = State.syncing[file.uri];
-      const syncAccessHandle =
-        existingSync?.handle ||
-        (await getSyncAccessHandleFromUri(root, file.uri));
-      State.syncing[file.uri] = {
-        handle: syncAccessHandle,
-      };
-      syncAccessHandle.truncate(0);
-      const buffer = new DataView(file.data);
-      syncAccessHandle.write(buffer, { at: 0 });
-      syncAccessHandle.flush();
-      syncAccessHandle.close();
-      delete State.syncing[file.uri];
-      return updateFileCache(file.uri, file.data, true);
+      return queueWrite(file.uri, file.data);
     })
   );
 };

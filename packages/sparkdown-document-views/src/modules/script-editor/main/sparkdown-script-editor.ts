@@ -33,16 +33,11 @@ import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
-import throttle from "../../../utils/throttle";
 import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-script-editor";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap([
-    "scroll-margin",
-    "autosave-debounce-delay",
-    "autosave-throttle-delay",
-  ]),
+  ...getAttributeNameMap(["scroll-margin", "autosave-debounce-delay"]),
 };
 
 export default class SparkdownScriptEditor
@@ -93,20 +88,6 @@ export default class SparkdownScriptEditor
   set autosaveDebounceDelay(value) {
     this.setNumberAttribute(
       SparkdownScriptEditor.attributes.autosaveDebounceDelay,
-      value
-    );
-  }
-
-  get autosaveThrottleDelay() {
-    return (
-      this.getNumberAttribute(
-        SparkdownScriptEditor.attributes.autosaveThrottleDelay
-      ) ?? 100
-    );
-  }
-  set autosaveThrottleDelay(value) {
-    this.setNumberAttribute(
-      SparkdownScriptEditor.attributes.autosaveThrottleDelay,
       value
     );
   }
@@ -316,17 +297,6 @@ export default class SparkdownScriptEditor
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
-      const throttledSave = throttle((text: Text) => {
-        if (this._textDocument) {
-          this.emit(
-            DidSaveTextDocumentMessage.method,
-            DidSaveTextDocumentMessage.type.notification({
-              textDocument: this._textDocument,
-              text: text.toString(),
-            })
-          );
-        }
-      }, this.autosaveThrottleDelay);
       const debouncedSave = debounce((text: Text) => {
         if (this._textDocument) {
           this.emit(
@@ -385,7 +355,6 @@ export default class SparkdownScriptEditor
                 DidChangeTextDocumentMessage.type,
                 changeParams
               );
-              throttledSave(e.after);
               debouncedSave(e.after);
             }
           }
