@@ -1,4 +1,5 @@
 export interface MarkupBlock {
+  type: string;
   from: number;
   to: number;
   value?: string;

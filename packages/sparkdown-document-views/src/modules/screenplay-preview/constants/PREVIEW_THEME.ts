@@ -29,10 +29,13 @@ const PREVIEW_THEME: {
       pointerEvents: "none",
     },
   },
+  "& .cm-line": {
+    padding: 0,
+  },
   "& .cm-content": {
     padding: "68px 24px 68px 24px", // 24px ≈ 0.25 inch
     margin: "auto",
-    maxWidth: "664px",
+    maxWidth: "640px",
     minHeight: "calc(96px * 11)", // US-Letter height = 11 inch
     position: "relative",
     "&:before": {

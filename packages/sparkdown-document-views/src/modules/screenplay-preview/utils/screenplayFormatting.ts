@@ -16,6 +16,42 @@ import TitlePageWidget from "../classes/widgets/TitlePageWidget";
 import { MarkupBlock } from "../types/MarkupBlock";
 import { ReplaceSpec } from "../types/ReplaceSpec";
 
+const DIALOGUE_WIDTH = "60%";
+const CHARACTER_PADDING = "16%";
+const PARENTHETICAL_PADDING = "8%";
+
+const DUAL_DIALOGUE_WIDTH = "100%";
+const DUAL_CHARACTER_PADDING = "16%";
+const DUAL_PARENTHETICAL_PADDING = "8%";
+
+const getDialogueLineStyle = (type: string) => {
+  const dialogueWidth = DIALOGUE_WIDTH;
+  let paddingLeft = "0";
+  let paddingRight = "0";
+  if (type === "character") {
+    paddingLeft = CHARACTER_PADDING;
+  }
+  if (type === "parenthetical") {
+    paddingLeft = PARENTHETICAL_PADDING;
+    paddingRight = PARENTHETICAL_PADDING;
+  }
+  return `margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
+};
+
+const getDualDialogueLineStyle = (type: string) => {
+  const dialogueWidth = DUAL_DIALOGUE_WIDTH;
+  let paddingLeft = "0";
+  let paddingRight = "0";
+  if (type === "character") {
+    paddingLeft = DUAL_CHARACTER_PADDING;
+  }
+  if (type === "parenthetical") {
+    paddingLeft = DUAL_PARENTHETICAL_PADDING;
+    paddingRight = DUAL_PARENTHETICAL_PADDING;
+  }
+  return `margin: 0 auto; width: ${dialogueWidth}; padding: 0 ${paddingRight} 0 ${paddingLeft};`;
+};
+
 const LANGUAGE_SUPPORT = new TextmateLanguageSupport(
   "sparkdown",
   grammarDefinition
@@ -136,10 +172,6 @@ const createDecorations = (
   ];
 };
 
-const getDialogueLineStyle = (paddingLeft: string = "0") => {
-  return `margin: 0 auto; width: 68%; padding: 0 0 0 ${paddingLeft};`;
-};
-
 const decorate = (state: EditorState) => {
   let prevDialogueSpec: DialogueSpec | undefined = undefined;
   const specs: ReplaceSpec[] = [];
@@ -176,8 +208,14 @@ const decorate = (state: EditorState) => {
       if (inDualDialogue) {
         if (prevDialogueSpec) {
           prevDialogueSpec.to = to - 2;
-          prevDialogueSpec.left = prevDialogueSpec.content;
-          prevDialogueSpec.right = dialogueContent;
+          prevDialogueSpec.left = prevDialogueSpec.content?.map((b) => ({
+            ...b,
+            attributes: { style: getDualDialogueLineStyle(b.type) },
+          }));
+          prevDialogueSpec.right = dialogueContent?.map((b) => ({
+            ...b,
+            attributes: { style: getDualDialogueLineStyle(b.type) },
+          }));
           prevDialogueSpec.content = undefined;
         }
       } else {
@@ -222,6 +260,7 @@ const decorate = (state: EditorState) => {
               const captureTo = captureFrom + captureLength;
               const value = doc.sliceString(captureFrom, captureTo).trim();
               captureBlocks.push({
+                type: type.name,
                 from: captureFrom,
                 to: captureTo,
                 value,
@@ -268,11 +307,12 @@ const decorate = (state: EditorState) => {
       if (type.name === NODE_NAMES.Dialogue_begin_character) {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
+          type: "character",
           from,
           to,
           value,
           attributes: {
-            style: getDialogueLineStyle("23%"),
+            style: getDialogueLineStyle("character"),
           },
         });
         return false;
@@ -296,11 +336,12 @@ const decorate = (state: EditorState) => {
       if (type.name === NODE_NAMES.Parenthetical) {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
+          type: "parenthetical",
           from,
           to,
           value,
           attributes: {
-            style: getDialogueLineStyle("11%"),
+            style: getDialogueLineStyle("parenthetical"),
           },
         });
         return false;
@@ -308,12 +349,13 @@ const decorate = (state: EditorState) => {
       if (type.name === NODE_NAMES.InlineString && inDialogue) {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
+          type: "dialogue",
           from,
           to,
           value,
           markdown: true,
           attributes: {
-            style: getDialogueLineStyle(),
+            style: getDialogueLineStyle("dialogue"),
           },
         });
         return false;
@@ -330,6 +372,7 @@ const decorate = (state: EditorState) => {
           to,
           content: [
             {
+              type: type.name,
               from,
               to,
               attributes: {
