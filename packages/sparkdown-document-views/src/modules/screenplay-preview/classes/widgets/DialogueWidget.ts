@@ -6,7 +6,7 @@ import ReplaceWidget from "../ReplaceWidget";
 
 const DIALOGUE_CONTAINER_WIDTH = "60%";
 const DUAL_DIALOGUE_CONTAINER_WIDTH = "90%";
-const DUAL_DIALOGUE_BLOCK_WIDTH = "70%";
+const DUAL_DIALOGUE_BLOCK_WIDTH = "100%";
 
 export interface DialogueSpec extends ReplaceSpec {
   content?: MarkupBlock[];
