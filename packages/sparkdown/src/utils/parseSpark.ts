@@ -2180,13 +2180,36 @@ const updateFieldToken = (
   fieldToken.id = id;
 };
 
+const getCurrentSectionId = (
+  currentSectionId: string,
+  currentLevel: number,
+  trimmedName: string,
+  level: number
+) => {
+  if (level === 0) {
+    return trimmedName;
+  }
+  if (level === 1) {
+    return `.${trimmedName}`;
+  }
+  if (level > currentLevel) {
+    return currentSectionId + `.${trimmedName}`;
+  }
+  if (level < currentLevel) {
+    const grandparentId = currentSectionId.split(".").slice(0, -2).join(".");
+    return `${grandparentId}.${trimmedName}`;
+  }
+  const parentId = currentSectionId.split(".").slice(0, -1).join(".");
+  return `${parentId}.${trimmedName}`;
+};
+
 const hoistDeclarations = (
   program: SparkProgram,
   config: SparkParserConfig | undefined,
   newLineLength: number,
   lines: string[]
 ) => {
-  let currentLevel = -1;
+  let currentLevel = 0;
   let currentSectionId = "";
   let currentStructName = "";
   let currentSceneIndex = -1;
@@ -2277,12 +2300,8 @@ const hoistDeclarations = (
       });
       const level = 0;
       const name = match[4] || "";
-      const nameFrom = currentToken.from + getStart(match, 4);
-      const nameTo = nameFrom + name.length;
       const trimmedName = name.trim();
-      if (trimmedName) {
-        currentSectionId = `.${trimmedName}`;
-      }
+      currentSectionId = "";
       currentLevel = level;
       currentToken.level = level;
       const latestSectionOrLabel = getLastStructureItem(
@@ -2316,25 +2335,6 @@ const hoistDeclarations = (
         latestSectionOrLabel.children.push(id);
         program.metadata.structure[id] = structureItem;
       }
-      const newSection: SparkSection = {
-        ...createSparkSection(),
-        ...(program?.sections?.[currentSectionId] || EMPTY_OBJECT),
-        level: currentLevel,
-        from: currentToken.from,
-        to: currentToken.to,
-        line: currentToken.line,
-        type: "section",
-        returnType: "",
-        name: trimmedName,
-        variables: program?.sections?.[currentSectionId]?.variables || {},
-        triggers: program?.sections?.[currentSectionId]?.triggers || [],
-        children: program?.sections?.[currentSectionId]?.children || [],
-        tokens: program?.sections?.[currentSectionId]?.tokens || [],
-        value: 0,
-      };
-      if (newSection.name) {
-        addSection(program, currentSectionId, newSection, nameFrom, nameTo);
-      }
     } else if ((match = text.match(SPARK_REGEX.section))) {
       const currentToken = createSparkToken("section", newLineLength, {
         content: text,
@@ -2351,18 +2351,12 @@ const hoistDeclarations = (
       const returnTypeTo = returnTypeFrom + returnType.length;
       const trimmedName = name.trim();
       if (trimmedName) {
-        if (level > currentLevel) {
-          currentSectionId += `.${trimmedName}`;
-        } else if (level < currentLevel) {
-          const grandparentId = currentSectionId
-            .split(".")
-            .slice(0, -2)
-            .join(".");
-          currentSectionId = `${grandparentId}.${trimmedName}`;
-        } else {
-          const parentId = currentSectionId.split(".").slice(0, -1).join(".");
-          currentSectionId = `${parentId}.${trimmedName}`;
-        }
+        currentSectionId = getCurrentSectionId(
+          currentSectionId,
+          currentLevel,
+          trimmedName,
+          level
+        );
       }
       currentLevel = level;
       currentToken.level = level;
@@ -2710,7 +2704,7 @@ const parseSpark = (
 
   hoistDeclarations(program, config, newLineLength, lines);
 
-  let currentLevel = -1;
+  let currentLevel = 0;
   let currentScope: SparkScopeType | "" = "";
   let currentSectionId = "";
   let currentStructName = "";
@@ -3315,9 +3309,7 @@ const parseSpark = (
           const level = 0;
           const trimmedName = name.trim();
           currentToken.content = trimmedName;
-          if (trimmedName) {
-            currentSectionId = `.${trimmedName}`;
-          }
+          currentSectionId = "";
           currentLevel = level;
           currentToken.level = level;
         }
@@ -3363,21 +3355,12 @@ const parseSpark = (
             }
           } else {
             if (trimmedName) {
-              if (level > currentLevel) {
-                currentSectionId += `.${trimmedName}`;
-              } else if (level < currentLevel) {
-                const grandparentId = currentSectionId
-                  .split(".")
-                  .slice(0, -2)
-                  .join(".");
-                currentSectionId = `${grandparentId}.${trimmedName}`;
-              } else {
-                const parentId = currentSectionId
-                  .split(".")
-                  .slice(0, -1)
-                  .join(".");
-                currentSectionId = `${parentId}.${trimmedName}`;
-              }
+              currentSectionId = getCurrentSectionId(
+                currentSectionId,
+                currentLevel,
+                trimmedName,
+                level
+              );
             }
           }
           currentLevel = level;
