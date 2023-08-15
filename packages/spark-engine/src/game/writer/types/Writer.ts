@@ -13,7 +13,7 @@ export interface Writer {
   minSyllableLength: number;
   /** Words that are spoken aloud */
   voiced: string;
-  /** Words that are spoken aloud, pitched up, and paused after */
+  /** Words that are pitched up */
   yelled: string;
   /** Phrases where each char is punctuated with a clack sound */
   punctuated: string;

@@ -2,32 +2,32 @@ import { Create } from "../../core/types/Create";
 import { Prosody } from "../types/Prosody";
 
 export const _prosody: Create<Prosody> = () => ({
+  /** Yes(!) */
+  exclamation: /(?:^|\b)([!?]*[!][!?]*)[ "']*$/.source,
   /** Yes(~?) */
-  liltQuestion: /\b[^\t\n\r ~!?]*[~]+([!?]*[?][!?]*)[ ]*$/.source,
+  liltQuestion: /(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/.source,
   /** Yes(~!) */
-  liltExclamation: /\b[^\t\n\r ~!?]*[~]+([!]+)[ ]*$/.source,
+  liltExclamation: /(?:^|\b)[~]+([!]+)[ "']*$/.source,
   /** Yes(~) */
-  lilt: /\b[^\t\n\r ~]*([~]+)[ ]*$/.source,
+  lilt: /(?:^|\b)([~]+)[ ]*$/.source,
   /** Who's that(...?) */
   resolvedAnxiousQuestion:
-    /\b(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ ]*$/
+    /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ "']*$/
       .source,
   /** Who's that(?) */
   resolvedQuestion:
-    /\b(?:who|whose|who's|what|what's|when|when's|where|where's|why|why's|which|how|how's)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ ]*$/
+    /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ "']*$/
       .source,
   /** Yes(...?) */
-  anxiousQuestion: /\b[^\t\n\r .?]*[.][.][.]+([?]+)[ ]*$/.source,
+  anxiousQuestion: /(?:^|\b)[.][.][.]+([?]+)[ "']*$/.source,
   /** Yes(?) */
-  question: /\b[^\t\n\r !?]*([!?]*[?][!?]*)[ ]*$/.source,
-  /** Yes(!) */
-  exclamation: /\b[^\t\n\r !?]*([!]+)[ ]*$/.source,
+  question: /(?:^|\b)([!?]*[?][!?]*)[ "']*$/.source,
   /** Yes(,) */
-  comma: /\b[^\t\n\r ,]*([,])[ ]*$/.source,
+  comma: /(?:^|\b)([,])[ "']*$/.source,
   /** Yes(--) */
-  partial: /\b[^\t\n\r -]*[-]([-]+)[ ]*$/.source,
+  partial: /(?:^|\b)[-]([-]+)[ "']*$/.source,
   /** Yes(...) */
-  anxious: /\b[^\t\n\r .]*[.][.]([.]+)[ ]*$/.source,
+  anxious: /(?:^|\b)[.][.]([.]+)[ "']*$/.source,
   /** Yes(.) */
-  statement: /\b[^\t\n\r .]*([.])[ ]*$/.source,
+  statement: /(?:^|\b)([.])[ "']*$/.source,
 });

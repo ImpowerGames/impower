@@ -101,23 +101,34 @@ export const write = (
     const nextPart = splitContent[i + 1] || "";
     const lastMark = marks[marks.length - 1]?.[0];
     const doubleLookahead = splitContent.slice(i, i + 2).join("");
-    const tripleLookahead = splitContent.slice(i, i + 3).join("");
-    if (tripleLookahead === "***") {
-      if (lastMark === "***") {
+    if (part === "*") {
+      let mark = "";
+      let m = i;
+      while (splitContent[m] === "*") {
+        mark += splitContent[m];
+        m += 1;
+      }
+      if (lastMark === mark) {
         marks.pop();
       } else {
-        marks.push(["***", i]);
+        marks.push([mark, i]);
       }
-      i += 3;
+      i += mark.length;
       continue;
     }
-    if (doubleLookahead === "**") {
-      if (lastMark === "**") {
+    if (part === "_") {
+      let mark = "";
+      let m = i;
+      while (splitContent[m] === "_") {
+        mark += splitContent[m];
+        m += 1;
+      }
+      if (lastMark === mark) {
         marks.pop();
       } else {
-        marks.push(["**", i]);
+        marks.push([mark, i]);
       }
-      i += 2;
+      i += mark.length;
       continue;
     }
     if (doubleLookahead === "[[") {
@@ -161,35 +172,19 @@ export const write = (
       hideSpace = true;
       continue;
     }
-    if (part === "*") {
-      if (lastMark === "*") {
-        marks.pop();
-      } else {
-        marks.push([part, i]);
-      }
-      i += 1;
-      continue;
-    }
-    if (part === "_") {
-      if (lastMark === "_") {
-        marks.pop();
-      } else {
-        marks.push([part, i]);
-      }
-      i += 1;
-      continue;
-    }
     const markers = marks.map((x) => x[0]);
-    const underlined = markers.includes("_");
-    const isBoldedAndItalicized = markers.includes("***");
-    const isBolded = markers.includes("**");
-    const isItalicized = markers.includes("*");
-    const italicized = isBoldedAndItalicized || isItalicized;
-    const bolded = isBoldedAndItalicized || isBolded;
+    const activeUnderscoreMark = markers.find((m) => m.startsWith("_"));
+    const activeBoldItalicMark = markers.find((m) => m.startsWith("***"));
+    const isUnderlined = Boolean(activeUnderscoreMark);
+    const hasBoldItalicMark = Boolean(activeBoldItalicMark);
+    const hasBoldMark = markers.includes("**");
+    const hasItalicMark = markers.includes("*");
+    const isItalicized = hasBoldItalicMark || hasItalicMark;
+    const isBolded = hasBoldItalicMark || hasBoldMark;
     const style = {
-      textDecoration: underlined ? "underline" : null,
-      fontStyle: italicized ? "italic" : null,
-      fontWeight: bolded ? "bold" : null,
+      textDecoration: isUnderlined ? "underline" : null,
+      fontStyle: isItalicized ? "italic" : null,
+      fontWeight: isBolded ? "bold" : null,
       whiteSpace: part === "\n" ? "pre-wrap" : null,
     };
     const span = onCreateElement?.();
@@ -215,7 +210,7 @@ export const write = (
     } else {
       dashLength = 0;
     }
-    const yelled =
+    const isYelled =
       Boolean(yelledRegex?.test(word)) &&
       (Boolean(yelledRegex?.test(nextPart)) || word.length > 1);
     const tilde = part === "~";
@@ -229,24 +224,14 @@ export const write = (
         spaceLength === 1 &&
         !isPhrasePause &&
         currChunk &&
-        ((currChunk.underlined && !underlined) ||
-          (currChunk.bolded && !bolded) ||
-          (currChunk.italicized && !italicized) ||
+        ((currChunk.underlined && !isUnderlined) ||
+          (currChunk.bolded && !isBolded) ||
+          (currChunk.italicized && !isItalicized) ||
           (currChunk.tilde && !tilde))
-    );
-    const isYellPause: boolean = Boolean(
-      character &&
-        spaceLength === 1 &&
-        !isPhrasePause &&
-        currChunk &&
-        currChunk.yelled &&
-        !yelled
     );
 
     const duration: number = isPhrasePause
       ? letterDelay * phrasePause
-      : isYellPause
-      ? letterDelay * yellPause
       : isStressPause
       ? letterDelay * stressPause
       : letterDelay;
@@ -258,10 +243,25 @@ export const write = (
       phrasePauseLength = 0;
       phraseUnpauseLength += 1;
     }
-    // determine beep
+    // determine beep timing
     const charIndex = phraseUnpauseLength - 1;
     const startOfSyllable = charIndex % syllableLength === 0;
     const startOfWord = consecutiveLettersLength === 1;
+    // determine beep pitch
+    const yelled = isYelled ? 1 : 0;
+    const italicized = isItalicized ? 1 : 0;
+    const bolded =
+      isBolded && activeBoldItalicMark
+        ? activeBoldItalicMark.length
+        : isBolded
+        ? 2
+        : 0;
+    const underlined =
+      isUnderlined && activeUnderscoreMark
+        ? activeUnderscoreMark.length
+        : isUnderlined
+        ? 1
+        : 0;
     if (phraseUnpauseLength === 1) {
       // start voiced phrase
       currChunk = {
@@ -326,20 +326,20 @@ export const write = (
   // Invalidate any leftover open markers
   if (marks.length > 0) {
     while (marks.length > 0) {
-      const [lastMark, lastMarkIndex] = marks[marks.length - 1] || [];
+      const [lastMark, lastMarkIndex] = marks[marks.length - 1]! || [];
       const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
       invalidStyleEls.forEach((e) => {
-        if (lastMark === "***") {
+        if (lastMark.startsWith("***")) {
           e.style["fontWeight"] = null;
           e.style["fontStyle"] = null;
         }
-        if (lastMark === "**") {
+        if (lastMark.startsWith("**")) {
           e.style["fontWeight"] = null;
         }
-        if (lastMark === "*") {
+        if (lastMark.startsWith("*")) {
           e.style["fontStyle"] = null;
         }
-        if (lastMark === "_") {
+        if (lastMark.startsWith("_")) {
           e.style["textDecoration"] = null;
         }
       });
@@ -357,7 +357,7 @@ export const write = (
         break;
       }
     }
-    // Voice any phrases that are entirely composed of ellipsis.
+    // Voice any phrases that are entirely composed of punctuation.
     if (punctuatedRegex?.test(phrase.text)) {
       for (let c = 0; c < phrase.chunks.length; c += 1) {
         const chunk = phrase.chunks[c]!;

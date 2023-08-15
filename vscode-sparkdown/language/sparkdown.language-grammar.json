@@ -905,7 +905,7 @@
     "Bold": {
       "tag": "strong",
       "name": "markup.bold.sd",
-      "match": "([*][*])((?![*][*]).+)([*][*])",
+      "match": "([*][*])(.+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -936,7 +936,7 @@
     "Italic": {
       "tag": "emphasis",
       "name": "markup.italic.sd",
-      "match": "([*])([^*]+)([*])",
+      "match": "([*])(.+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -952,9 +952,6 @@
             },
             {
               "include": "#Underline"
-            },
-            {
-              "include": "#Bold"
             }
           ]
         },
@@ -967,7 +964,7 @@
     "Underline": {
       "tag": "link",
       "name": "markup.underline.sd",
-      "match": "([_])([^_]+)([_])",
+      "match": "([_]+)(.+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -998,7 +995,7 @@
     "Strikethrough": {
       "tag": "strikethrough",
       "name": "markup.strikethrough.sd",
-      "match": "([~][~])((?![~][~]).+)([~][~])",
+      "match": "([~][~]+)(.+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",

@@ -6,10 +6,10 @@ export interface Chunk {
   startOfWord: boolean;
   startOfSyllable: boolean;
   voiced: boolean;
-  yelled: boolean;
-  italicized: boolean;
-  bolded: boolean;
-  underlined: boolean;
+  yelled: number;
+  italicized: number;
+  bolded: number;
+  underlined: number;
   punctuated: boolean;
   emDash: boolean;
   tilde: boolean;

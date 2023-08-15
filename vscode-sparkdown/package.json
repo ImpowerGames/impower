@@ -102,6 +102,13 @@
             }
           },
           {
+            "scope": "markup.bold markup.italic",
+            "settings": {
+              "foreground": "#569CD6",
+              "fontStyle": "italic bold"
+            }
+          },
+          {
             "scope": "markup.underline",
             "settings": {
               "foreground": "#569CD6"
@@ -123,6 +130,13 @@
             "scope": "string markup.italic",
             "settings": {
               "foreground": "#CE9178"
+            }
+          },
+          {
+            "scope": "string markup.bold markup.italic",
+            "settings": {
+              "foreground": "#CE9178",
+              "fontStyle": "italic bold"
             }
           },
           {

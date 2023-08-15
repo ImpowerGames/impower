@@ -575,7 +575,7 @@ repository:
   Bold:
     tag: strong
     name: markup.bold.sd
-    match: ([*][*])((?![*][*]).+)([*][*])
+    match: ([*][*])(.+)(\1)
     captures:
       1:
         tag: bracket
@@ -593,7 +593,7 @@ repository:
   Italic:
     tag: emphasis
     name: markup.italic.sd
-    match: ([*])([^*]+)([*])
+    match: ([*])(.+)(\1)
     captures:
       1:
         tag: bracket
@@ -603,7 +603,6 @@ repository:
           - { include: "#Escape" }
           - { include: "#Raw" }
           - { include: "#Underline" }
-          - { include: "#Bold" }
       3:
         tag: bracket
         name: punctuation.definition.italic.sd
@@ -611,7 +610,7 @@ repository:
   Underline:
     tag: link
     name: markup.underline.sd
-    match: ([_])([^_]+)([_])
+    match: ([_]+)(.+)(\1)
     captures:
       1:
         tag: bracket
@@ -629,7 +628,7 @@ repository:
   Strikethrough:
     tag: strikethrough
     name: markup.strikethrough.sd
-    match: ([~][~])((?![~][~]).+)([~][~])
+    match: ([~][~]+)(.+)(\1)
     captures:
       1:
         tag: bracket
