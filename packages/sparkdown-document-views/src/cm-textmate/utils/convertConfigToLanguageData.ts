@@ -38,7 +38,6 @@ const convertConfigToLanguageData = (
       brackets: surroundBrackets.map(([open]) => open!),
       before: surroundBrackets.map(([_, close]) => close!).join(""),
     };
-    console.log("surroundBrackets", surroundBrackets);
   }
 
   if (wordChars) {
