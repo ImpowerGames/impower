@@ -5,7 +5,7 @@ export interface ConfigDefinition {
   };
   brackets?: string[][];
   autoClosingPairs?: { open: string; close: string; notIn?: string[] }[];
-  autoCloseBefore?: string;
+  surroundingPairs?: string[][];
   wordChars?: string;
   wordPattern?: {
     pattern: string;

@@ -22,6 +22,7 @@ import { LanguageData } from "../types/LanguageData";
 import { SnippetDefinition } from "../types/SnippetDefinition";
 import convertConfigToLanguageData from "../utils/convertConfigToLanguageData";
 import { removeUndefined } from "../utils/removeUndefined";
+import { surroundBrackets } from "../utils/surroundBrackets";
 import TextmateLanguageSupport from "./TextmateLanguageSupport";
 
 const INDENT_REGEX = /^(\s)*/;
@@ -136,6 +137,7 @@ export default class TextmateLanguage {
     const languageExtensions = [
       bracketMatching(),
       closeBrackets(),
+      surroundBrackets(),
       keymap.of([...closeBracketsKeymap]),
       indentService.of((context, pos) => {
         const prevLine = pos > 0 ? context.lineAt(pos - 1) : undefined;

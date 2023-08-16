@@ -6,8 +6,8 @@ const convertConfigToLanguageData = (
 ): LanguageData => {
   // process language data
   const comments = config?.comments;
-  const autoClosingPairs = config?.autoClosingPairs;
-  const autoCloseBefore = config?.autoCloseBefore;
+  const autoClosingPairs = config?.autoClosingPairs ?? [];
+  const surroundingPairs = config?.surroundingPairs ?? [];
   const wordChars = config?.wordChars;
 
   const data: LanguageData = {};
@@ -21,12 +21,26 @@ const convertConfigToLanguageData = (
       line: comments.lineComment,
     };
   }
-  if (autoClosingPairs || autoCloseBefore) {
+
+  if (autoClosingPairs) {
     data.closeBrackets = {
-      brackets: autoClosingPairs?.map(({ open }) => open),
-      before: autoCloseBefore,
+      brackets: autoClosingPairs.map(({ open }) => open),
+      before: autoClosingPairs.map(({ close }) => close).join(""),
     };
   }
+
+  if (surroundingPairs) {
+    const surroundBrackets = surroundingPairs.filter(
+      ([surroundOpen]) =>
+        !autoClosingPairs.some(({ open }) => surroundOpen === open)
+    );
+    data.surroundBrackets = {
+      brackets: surroundBrackets.map(([open]) => open!),
+      before: surroundBrackets.map(([_, close]) => close!).join(""),
+    };
+    console.log("surroundBrackets", surroundBrackets);
+  }
+
   if (wordChars) {
     data.wordChars = wordChars;
   }

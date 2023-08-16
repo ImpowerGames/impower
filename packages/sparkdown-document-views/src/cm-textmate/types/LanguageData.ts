@@ -9,5 +9,10 @@ export interface LanguageData {
     before?: string;
   };
 
+  surroundBrackets?: {
+    brackets?: string[];
+    before?: string;
+  };
+
   wordChars?: string;
 }
