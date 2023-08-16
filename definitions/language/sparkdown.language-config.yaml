@@ -1,5 +1,5 @@
 comments:
-  lineComment: "//"
+  lineComment: //
 
 brackets:
   - ["{", "}"]
@@ -30,11 +30,11 @@ surroundingPairs:
   - ["*", "*"]
   - ["|", "|"]
 
-wordChars: "_'"
+wordChars: _'
 
 wordPattern:
   pattern: (\p{L}|\p{N}|\p{Mn})(((\p{L}|\p{N}|\p{Mn})|[_])?(\p{L}|\p{N}|\p{Mn}))*
-  flags: "u"
+  flags: u
 
 indentationRules:
   increaseIndentPattern: ^\s*.*([:])[ ]?(&amp;\w+)?([{][^}"']*|[(][^)"']*)?$
