@@ -49,10 +49,13 @@ export default class ScriptEditor extends SEElement {
   async loadFile() {
     const editor = await Workspace.window.getActiveEditor("logic");
     if (editor) {
-      const { uri, visibleRange } = editor;
-      const existingText = await Workspace.fs.readTextDocument({
-        textDocument: { uri },
-      });
+      const uri = editor.uri || Workspace.fs.getWorkspaceUri("logic/main.sd");
+      const visibleRange = editor.visibleRange;
+      const existingText = uri
+        ? await Workspace.fs.readTextDocument({
+            textDocument: { uri },
+          })
+        : "";
       await Workspace.lsp.starting;
       if (!Workspace.lsp.serverCapabilities) {
         throw new Error("Language server not initialized.");
