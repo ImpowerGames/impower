@@ -3,7 +3,7 @@ import { Writer } from "../types/Writer";
 
 export const _writer: Create<Writer> = (obj?: Partial<Writer>) => ({
   className: "",
-  letterDelay: 0.022,
+  letterDelay: 0.025,
   phrasePauseScale: 5,
   stressPauseScale: 15,
   yellPauseScale: 8,
@@ -21,8 +21,8 @@ export const _writer: Create<Writer> = (obj?: Partial<Writer>) => ({
     pitch: { frequency: 9790 },
     arpeggio: { on: true, rate: 100, levels: [0.2, 0.1, 0.01] },
   },
-  hidden: "beat",
-  minSyllableLength: 4,
+  hidden: "(beat)",
+  minSyllableLength: 3,
   voiced: /([\p{L}\p{N}']+)/u.source,
   yelled: /^(\p{Lu}[^\p{Ll}\r\n]*)$/u.source,
   punctuated: /(?:^|\s)[.?!]{3,}(?:$|\s)/u.source,

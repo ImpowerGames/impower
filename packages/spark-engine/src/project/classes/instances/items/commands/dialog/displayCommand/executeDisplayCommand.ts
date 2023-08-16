@@ -29,11 +29,14 @@ const hideChoices = (
   });
 };
 
-const isHidden = (content: string, hiddenRegex?: string): boolean => {
-  if (!hiddenRegex) {
+const isHidden = (content: string, hidden?: string): boolean => {
+  if (!hidden) {
     return false;
   }
-  return new RegExp(`^[(]${hiddenRegex}[)]$`).test(content);
+  if (hidden === content) {
+    return true;
+  }
+  return new RegExp(hidden).test(content);
 };
 
 export const executeDisplayCommand = (

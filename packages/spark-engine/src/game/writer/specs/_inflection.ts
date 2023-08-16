@@ -3,40 +3,31 @@ import { Inflection } from "../types/Inflection";
 
 export const _inflection: Create<Inflection> = () => ({
   /**
-   *  5   ┌──
-   *  4   │
-   *  3   │
-   *  2 ──┘
-   *  1
-   *  0
-   * -1
-   *
-   *  Yes(!)
-   */
-  exclamation: [2, 5],
-  /**
-   *  4   ┌─┐
-   *  3   │ │
-   *  2   │ └──
+   *  5         ┌──
+   *  4       ┌─┘
+   *  3     ┌─┘
+   *  2   ┌─┘
    *  1 ──┘
    *  0
    * -1
    *
    *  Yes(~?)
    */
-  liltQuestion: [1, 4, 2],
+  liltQuestion: [1, 2, 3, 4, 5],
   /**
-   *  5   ┌─┐
-   *  4   │ └──
-   *  3   │
-   *  2   │
-   *  1 ──┘
+   *  7         ┌──
+   *  6       ┌─┘
+   *  5     ┌─┘
+   *  4   ┌─┘
+   *  3 ──┘
+   *  2
+   *  1
    *  0
    * -1
    *
    *  Yes(~!)
    */
-  liltExclamation: [1, 5, 4],
+  liltExclamation: [3, 4, 5, 6, 7],
   /**
    *  3   ┌─┐
    *  2   │ │
@@ -52,13 +43,21 @@ export const _inflection: Create<Inflection> = () => ({
    */
   lilt: [1, 3, -5],
   /**
-   *  2
+   *  5   ┌──
+   *  4   │
+   *  3   │
+   *  2 ──┘
+   *  1
+   *  0
+   * -1
+   *
+   *  Yes(!)
+   */
+  exclamation: [2, 5],
+  /**
    *  1
    *  0   ┌──
    * -1 ──┘
-   * -2
-   * -3
-   * -4
    *
    *  Who's that(...?)
    */

@@ -2,14 +2,14 @@ import { Create } from "../../core/types/Create";
 import { Prosody } from "../types/Prosody";
 
 export const _prosody: Create<Prosody> = () => ({
-  /** Yes(!) */
-  exclamation: /(?:^|\b)([!?]*[!][!?]*)[ "']*$/.source,
   /** Yes(~?) */
   liltQuestion: /(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/.source,
   /** Yes(~!) */
   liltExclamation: /(?:^|\b)[~]+([!]+)[ "']*$/.source,
   /** Yes(~) */
   lilt: /(?:^|\b)([~]+)[ ]*$/.source,
+  /** Yes(!) */
+  exclamation: /(?:^|\b)([!?]*[!][!?]*)[ "']*$/.source,
   /** Who's that(...?) */
   resolvedAnxiousQuestion:
     /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ "']*$/

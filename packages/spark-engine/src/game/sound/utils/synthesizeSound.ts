@@ -400,12 +400,13 @@ export const fillSoundBuffer = (
       ? frequency[0]
       : frequency) ?? synth.pitch.frequency;
   const pitch_phase = synth.pitch.phase;
-  const env_volume =
-    (typeof gain === "number"
+  const nodeGain =
+    typeof gain === "number"
       ? gain
       : gain && gain.length === 1
       ? gain[0]
-      : gain) ?? synth.envelope.volume;
+      : gain;
+  const env_volume = synth.envelope.volume;
   const env_delay_duration = synth.envelope.offset;
   const env_attack_duration = synth.envelope.attack;
   const env_decay_duration = synth.envelope.decay;
@@ -531,9 +532,10 @@ export const fillSoundBuffer = (
 
   // Fill buffer
   for (let i = startIndex; i < endIndex; i += 1) {
+    const volumeFactor = env_volume + envVolumeOffset;
     const sampleVolume =
-      (typeof env_volume === "number" ? env_volume : env_volume[i] ?? 0) +
-      envVolumeOffset;
+      (typeof nodeGain === "number" ? nodeGain : nodeGain?.[i] ?? 1) *
+      volumeFactor;
     const pitchFreqFactor = convertSemitonesToFrequencyFactor(
       pitchFreqOffset * 10
     );

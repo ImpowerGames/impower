@@ -11,4 +11,8 @@ export const WRITER_DEFAULTS = {
   dialogue: _writer({
     className: "Dialogue",
   }),
+  parenthetical: _writer({
+    className: "Parenthetical",
+    letterDelay: 0,
+  }),
 };
