@@ -13,14 +13,14 @@ export class SparkDOMAudioPlayer {
     return this._sourceNode;
   }
 
-  protected _soundBuffer: Float32Array;
+  protected _soundBuffer?: Float32Array;
   public get soundBuffer(): Float32Array | undefined {
     return this._soundBuffer;
   }
 
-  public set soundBuffer(value: Float32Array) {
-    this._soundBuffer = value;
-    this.load();
+  protected _audioBuffer?: AudioBuffer;
+  public get audioBuffer(): AudioBuffer | undefined {
+    return this._audioBuffer;
   }
 
   protected _synthBuffer?: SynthBuffer;
@@ -54,11 +54,16 @@ export class SparkDOMAudioPlayer {
 
   protected _pausedAt?: number;
 
-  constructor(sound: Float32Array | SynthBuffer, audioContext?: AudioContext) {
+  constructor(
+    sound: AudioBuffer | Float32Array | SynthBuffer,
+    audioContext?: AudioContext
+  ) {
     this._context = audioContext || new AudioContext();
     this._gainNode = this._context.createGain();
     this._gainNode.connect(this._context.destination);
-    if (sound instanceof Float32Array) {
+    if (sound instanceof AudioBuffer) {
+      this._audioBuffer = sound;
+    } else if (sound instanceof Float32Array) {
       this._soundBuffer = sound;
     } else {
       this._soundBuffer = sound.soundBuffer;
@@ -68,13 +73,15 @@ export class SparkDOMAudioPlayer {
   }
 
   protected load(): void {
-    if (this._soundBuffer) {
-      const sampleRate = this._context.sampleRate;
-      if (this._sourceNode) {
-        this._sourceNode.disconnect();
-      }
-      this._sourceNode = this._context.createBufferSource();
-      this._sourceNode.connect(this._gainNode);
+    const sampleRate = this._context.sampleRate;
+    if (this._sourceNode) {
+      this._sourceNode.disconnect();
+    }
+    this._sourceNode = this._context.createBufferSource();
+    this._sourceNode.connect(this._gainNode);
+    if (this._audioBuffer) {
+      this._sourceNode.buffer = this._audioBuffer;
+    } else if (this._soundBuffer) {
       const buffer = this._context.createBuffer(
         1,
         this._soundBuffer.length,

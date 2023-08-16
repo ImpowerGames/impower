@@ -1,5 +1,6 @@
 import { SparkDOMAudioPlayer } from "../../../../spark-dom/src/classes/SparkDOMAudioPlayer";
 import { SynthBuffer } from "../../../../spark-engine/src";
+import { Disposable } from "../Disposable";
 import Scene from "../Scene";
 
 export default class SoundScene extends Scene {
@@ -8,7 +9,6 @@ export default class SoundScene extends Scene {
   protected _instruments: Map<string, SparkDOMAudioPlayer> = new Map();
 
   override start() {
-    this.context.game.sound.config.sampleRate = this._audioContext.sampleRate;
     this.context.game.sound.config.synths =
       this.context.game.struct.config.objectMap["synth"] || {};
   }
@@ -37,8 +37,30 @@ export default class SoundScene extends Scene {
     this.context?.game?.sound?.events?.onStopped?.removeAllListeners();
   }
 
-  startInstrument(id: string, sound: Float32Array | SynthBuffer): void {
-    const instrument = new SparkDOMAudioPlayer(sound, this._audioContext);
+  override dispose(): Disposable[] {
+    this._instruments.forEach((instrument) => instrument.stop());
+    return [];
+  }
+
+  async getAudioBuffer(
+    sound: Float32Array | SynthBuffer | string
+  ): Promise<AudioBuffer | Float32Array | SynthBuffer> {
+    if (typeof sound === "string") {
+      const response = await fetch(sound);
+      const buffer = await response.arrayBuffer();
+      const decoded = await this._audioContext.decodeAudioData(buffer);
+      return decoded;
+    }
+    return sound;
+  }
+
+  async startInstrument(
+    id: string,
+    sound: Float32Array | SynthBuffer | string
+  ) {
+    const buffer = await this.getAudioBuffer(sound);
+    console.log(sound, buffer);
+    const instrument = new SparkDOMAudioPlayer(buffer, this._audioContext);
     instrument.start();
     this._instruments.set(id, instrument);
   }

@@ -53,6 +53,7 @@ export const executeDisplayCommand = (
 ): ((deltaMS: number) => void) | undefined => {
   const type = data?.params?.type || "";
   const assets = data?.params?.assets || [];
+  const commandType = data?.reference?.typeId || "";
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
@@ -71,7 +72,7 @@ export const executeDisplayCommand = (
   const asset = assets?.[0];
   const assetName = asset?.name || "";
   const assetType = asset?.type || "";
-  const assetUrl = valueMap?.[assetName];
+  const assetUrl = valueMap?.[assetName] as string;
 
   const assetsOnly = type === "assets";
   if (assetsOnly) {
@@ -87,6 +88,9 @@ export const executeDisplayCommand = (
       } else {
         backgroundEl.style["display"] = "none";
       }
+    }
+    if (assetType === "audio" && assetName && assetUrl) {
+      game.sound.start("music", assetUrl);
     }
     return undefined;
   }
@@ -120,7 +124,6 @@ export const executeDisplayCommand = (
   const trimmedContent = content?.trim() === "_" ? "" : content || "";
   const [replaceTagsResult] = format(trimmedContent, valueMap);
   const [evaluatedContent] = format(replaceTagsResult, valueMap);
-  const commandType = `${data?.reference?.typeId || ""}`;
 
   const instant = context?.instant;
   const debug = context?.debug;
@@ -151,6 +154,9 @@ export const executeDisplayCommand = (
     } else {
       portraitEl.style["display"] = "none";
     }
+  }
+  if (assetType === "audio" && assetName && assetUrl) {
+    game.sound.start(commandType, assetUrl);
   }
 
   hideChoices(game, structName, writerConfigs?.["choice"]);
