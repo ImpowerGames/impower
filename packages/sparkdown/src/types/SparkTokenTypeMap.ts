@@ -33,7 +33,6 @@ export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   dialogue_end: SparkToken;
   dual_dialogue_start: SparkToken;
   dual_dialogue_end: SparkToken;
-  lyric: SparkToken;
   note: SparkToken;
   boneyard_start: SparkToken;
   boneyard_end: SparkToken;

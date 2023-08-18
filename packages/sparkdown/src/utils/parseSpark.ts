@@ -1912,13 +1912,6 @@ const processDisplayedContent = (
   if (token.type !== "action") {
     token.content = token.content?.trimStart();
   }
-  if (token.content?.[0] === "~") {
-    const trimmedEndContent = token.content?.trimEnd();
-    const trimmedEndLength = token.content.length - trimmedEndContent.length;
-    const endSpaces =
-      trimmedEndLength > 0 ? token.content.slice(-trimmedEndLength) : "";
-    token.content = `*${trimmedEndContent.substring(1)}*${endSpaces}`;
-  }
   const matchingType =
     state.displayToken?.type === token?.type ||
     (dialogueOrAssetTypes.includes(state.displayToken?.type || "") &&
@@ -3698,13 +3691,6 @@ const parseSpark = (
       if (["scene", "transition"].includes(currentToken.type)) {
         currentToken.content = currentToken.content.toUpperCase();
         frontMatterStarted = true; // ignore title tags after first heading
-      }
-      if (
-        currentToken.content &&
-        currentToken.content[0] === "~" &&
-        currentToken.content[1] !== "~"
-      ) {
-        currentToken.content = `*${currentToken.content.substring(1)}*`;
       }
 
       if (currentToken.ignore) {

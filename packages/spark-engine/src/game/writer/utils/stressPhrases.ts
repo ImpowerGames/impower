@@ -32,7 +32,9 @@ export const stressPhrases = (
   phrases: Phrase[],
   character: Character | undefined
 ): void => {
+  const stressLevelIncrement = 0.5;
   const lineIncrement = 0.5;
+  // Speaker starts at max pitch and ends at their natural speaking pitch once arriving at the point of their speech.
   let lineLevel = (phrases.length - 1) * lineIncrement;
   phrases.forEach((phrase) => {
     const [finalStressType, punctuation] = getStressMatch(
@@ -52,26 +54,35 @@ export const stressPhrases = (
     let inflectionIndex = inflection.length - 1;
     for (let i = chunks.length - 1; i >= 0; i -= 1) {
       const chunk = chunks[i]!;
-      const inflectionLevel = inflection[inflectionIndex]!;
-      chunk.stressLevel = lineLevel + phraseLevel + inflectionLevel;
-      const underlineStressLevel = getFormattingStress(chunks, i, "underlined");
-      if (underlineStressLevel) {
-        chunk.stressLevel += underlineStressLevel;
-      }
-      const boldStressLevel = getFormattingStress(chunks, i, "bolded");
-      if (boldStressLevel) {
-        chunk.stressLevel += boldStressLevel;
-      }
-      const italicStressLevel = getFormattingStress(chunks, i, "italicized");
-      if (italicStressLevel) {
-        chunk.stressLevel += italicStressLevel;
-      }
-      const yelledStressLevel = getFormattingStress(chunks, i, "yelled");
-      if (yelledStressLevel) {
-        chunk.stressLevel += yelledStressLevel;
-      }
-      if (chunk.startOfSyllable) {
-        inflectionIndex = Math.max(0, inflectionIndex - 1);
+      const pitchWasManuallySet = chunk.pitch !== 0;
+      if (!pitchWasManuallySet) {
+        // Automatically infer appropriate pitch from inflection type and stress formatting
+        const inflectionLevel = inflection[inflectionIndex]!;
+        chunk.pitch = lineLevel + phraseLevel + inflectionLevel;
+        const underlineStressLevel = getFormattingStress(
+          chunks,
+          i,
+          "underlined"
+        );
+        if (underlineStressLevel) {
+          chunk.pitch += underlineStressLevel;
+        }
+        const boldStressLevel = getFormattingStress(chunks, i, "bolded");
+        if (boldStressLevel) {
+          chunk.pitch += boldStressLevel;
+        }
+        const italicStressLevel = getFormattingStress(chunks, i, "italicized");
+        if (italicStressLevel) {
+          chunk.pitch += italicStressLevel;
+        }
+        const yelledStressLevel = getFormattingStress(chunks, i, "yelled");
+        if (yelledStressLevel) {
+          chunk.pitch += yelledStressLevel;
+        }
+        if (chunk.startOfSyllable) {
+          inflectionIndex = Math.max(0, inflectionIndex - 1);
+        }
+        chunk.pitch *= stressLevelIncrement;
       }
     }
 
@@ -82,5 +93,12 @@ export const stressPhrases = (
           ? lineLevel + lineIncrement
           : lineLevel - lineIncrement;
     }
+
+    // console.log(
+    //   phrase.text,
+    //   phrase.chunks
+    //     .filter((c) => c.startOfSyllable || c.punctuated)
+    //     .map((c) => c.pitch)
+    // );
   });
 };

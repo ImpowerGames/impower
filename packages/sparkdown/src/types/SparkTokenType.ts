@@ -35,7 +35,6 @@ export type SparkOtherTokenType =
   | "dialogue_end"
   | "dual_dialogue_start"
   | "dual_dialogue_end"
-  | "lyric"
   | "note"
   | "boneyard_start"
   | "boneyard_end"

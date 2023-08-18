@@ -200,15 +200,6 @@ export const generateSparkScriptHtml = (
             push("");
           }
           break;
-        case "lyric":
-          append(
-            '<p class="haseditorline lyric" id="sourceline_' +
-              line +
-              '">' +
-              currentToken.html +
-              "</p>"
-          );
-          break;
 
         case "note":
           if (config.screenplay_print_notes) {

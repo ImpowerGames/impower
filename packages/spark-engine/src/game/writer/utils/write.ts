@@ -5,12 +5,17 @@ import { Phrase } from "../types/Phrase";
 import { Writer } from "../types/Writer";
 import { stressPhrases } from "./stressPhrases";
 
+const SINGLE_MARKERS = ["*", "_", "^"];
+
+const DOUBLE_MARKERS = ["~~", "==", "//", "\\\\", "||"];
+
 const populateAndStyleElement = (
   spanEl: IElement,
   textContent: string,
   instant: boolean,
   style?: Record<string, string | null>
 ): IElement => {
+  spanEl.style["position"] = "relative";
   spanEl.style["display"] = "none";
   spanEl.style["opacity"] = instant ? "1" : "0";
   Object.entries(style || {}).forEach(([k, v]) => {
@@ -64,9 +69,12 @@ export const write = (
       (beepEnvelope.release ?? 0)
     : 0;
   const letterDelay = writer?.letterDelay ?? 0;
+  const animationOffset = writer?.animationOffset ?? 0;
+  const floatingAnimation = writer?.floatingAnimation;
+  const tremblingAnimation = writer?.tremblingAnimation;
   const phrasePause = writer?.phrasePauseScale ?? 1;
+  const emDashPause = writer?.emDashPauseScale ?? 1;
   const stressPause = writer?.stressPauseScale ?? 1;
-  const yellPause = writer?.yellPauseScale ?? 1;
   const punctuatePause = writer?.punctuatePauseScale ?? 1;
   const syllableLength = Math.max(
     writer?.minSyllableLength || 0,
@@ -97,14 +105,14 @@ export const write = (
   let hideSpace = false;
   let currChunk: Chunk | undefined = undefined;
   for (let i = 0; i < splitContent.length; ) {
-    const part = splitContent[i] || "";
+    const char = splitContent[i] || "";
     const nextPart = splitContent[i + 1] || "";
     const lastMark = marks[marks.length - 1]?.[0];
     const doubleLookahead = splitContent.slice(i, i + 2).join("");
-    if (part === "*") {
+    if (SINGLE_MARKERS.includes(char)) {
       let mark = "";
       let m = i;
-      while (splitContent[m] === "*") {
+      while (splitContent[m] === char) {
         mark += splitContent[m];
         m += 1;
       }
@@ -116,10 +124,10 @@ export const write = (
       i += mark.length;
       continue;
     }
-    if (part === "_") {
+    if (DOUBLE_MARKERS.includes(doubleLookahead)) {
       let mark = "";
       let m = i;
-      while (splitContent[m] === "_") {
+      while (splitContent[m] === char) {
         mark += splitContent[m];
         m += 1;
       }
@@ -167,16 +175,22 @@ export const write = (
       i += 2;
       continue;
     }
-    if (part === "|") {
+    if (char === "|") {
       i += 1;
       hideSpace = true;
       continue;
     }
     const markers = marks.map((x) => x[0]);
-    const activeUnderscoreMark = markers.find((m) => m.startsWith("_"));
     const activeBoldItalicMark = markers.find((m) => m.startsWith("***"));
-    const isUnderlined = Boolean(activeUnderscoreMark);
+    const activeUnderlineMark = markers.find((m) => m.startsWith("_"));
+    const activePitchUpMark = markers.find((m) => m.startsWith("^"));
+    const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
+    const activeTremblingMark = markers.find((m) => m.startsWith("=="));
+    const activeFasterMark = markers.find((m) => m.startsWith("//"));
+    const activeSlowerMark = markers.find((m) => m.startsWith("\\\\"));
+    const activeInstantMark = markers.find((m) => m.startsWith("||"));
     const hasBoldItalicMark = Boolean(activeBoldItalicMark);
+    const isUnderlined = Boolean(activeUnderlineMark);
     const hasBoldMark = markers.includes("**");
     const hasItalicMark = markers.includes("*");
     const isItalicized = hasBoldItalicMark || hasItalicMark;
@@ -185,19 +199,19 @@ export const write = (
       textDecoration: isUnderlined ? "underline" : null,
       fontStyle: isItalicized ? "italic" : null,
       fontWeight: isBolded ? "bold" : null,
-      whiteSpace: part === "\n" ? "pre-wrap" : null,
+      whiteSpace: char === "\n" ? "pre-wrap" : null,
     };
     const span = onCreateElement?.();
     if (span) {
-      populateAndStyleElement(span, part || "", instant, style);
+      populateAndStyleElement(span, char || "", instant, style);
     }
-    const voiced = Boolean(voicedRegex?.test(part));
-    if (isWhitespace(part)) {
+    const voiced = Boolean(voicedRegex?.test(char));
+    if (isWhitespace(char)) {
       word = "";
       spaceLength += 1;
       consecutiveLettersLength = 0;
     } else {
-      word += part;
+      word += char;
       spaceLength = 0;
       if (voiced) {
         consecutiveLettersLength += 1;
@@ -205,7 +219,7 @@ export const write = (
         consecutiveLettersLength = 0;
       }
     }
-    if (isDash(part)) {
+    if (isDash(char)) {
       dashLength += 1;
     } else {
       dashLength = 0;
@@ -213,28 +227,10 @@ export const write = (
     const isYelled =
       Boolean(yelledRegex?.test(word)) &&
       (Boolean(yelledRegex?.test(nextPart)) || word.length > 1);
-    const tilde = part === "~";
+    const tilde = char === "~";
     const isEmDashBoundary = dashLength > 1;
     const emDash = isEmDashBoundary || isDash(doubleLookahead);
-    const isPhraseBoundary =
-      spaceLength > 1 || (currChunk && currChunk.emDash && !emDash);
-    const isPhrasePause = isPhraseBoundary || isWhitespace(doubleLookahead);
-    const isStressPause: boolean = Boolean(
-      character &&
-        spaceLength === 1 &&
-        !isPhrasePause &&
-        currChunk &&
-        ((currChunk.underlined && !isUnderlined) ||
-          (currChunk.bolded && !isBolded) ||
-          (currChunk.italicized && !isItalicized) ||
-          (currChunk.tilde && !tilde))
-    );
-
-    const duration: number = isPhrasePause
-      ? letterDelay * phrasePause
-      : isStressPause
-      ? letterDelay * stressPause
-      : letterDelay;
+    const isPhraseBoundary = spaceLength > 1;
 
     if (isPhraseBoundary) {
       phrasePauseLength += 1;
@@ -243,65 +239,113 @@ export const write = (
       phrasePauseLength = 0;
       phraseUnpauseLength += 1;
     }
-    // determine beep timing
-    const charIndex = phraseUnpauseLength - 1;
-    const startOfSyllable = charIndex % syllableLength === 0;
-    const startOfWord = consecutiveLettersLength === 1;
-    // determine beep pitch
+    // Determine beep pitch
     const yelled = isYelled ? 1 : 0;
+    // italicized level = number of `*`
     const italicized = isItalicized ? 1 : 0;
+    // bolded level = number of `*`
     const bolded =
       isBolded && activeBoldItalicMark
         ? activeBoldItalicMark.length
         : isBolded
         ? 2
         : 0;
+    // underlined level = number of `_`
     const underlined =
-      isUnderlined && activeUnderscoreMark
-        ? activeUnderscoreMark.length
+      isUnderlined && activeUnderlineMark
+        ? activeUnderlineMark.length
         : isUnderlined
         ? 1
         : 0;
+    // floating level = number of `~`
+    const floating = activeFloatingMark ? activeFloatingMark.length : 0;
+    // trembling level = number of `=`
+    const trembling = activeTremblingMark ? activeTremblingMark.length : 0;
+    // stress level = number of `^`
+    const pitch = activePitchUpMark ? activePitchUpMark.length : 0;
+
+    // Determine beep timing
+    const charIndex = phraseUnpauseLength - 1;
+    const startOfSyllable = charIndex % syllableLength === 0;
+    const startOfWord = consecutiveLettersLength === 1;
+    const speedFaster = activeFasterMark?.length ?? 1;
+    const speedSlower = activeSlowerMark?.length ?? 1;
+    const speedInstant = activeInstantMark ? 0 : 1;
+    const speedFloating = floating ? floating : 1;
+    const speedTrembling = trembling ? trembling : 1;
+    const speed =
+      (1 * speedInstant * speedFaster) /
+      speedSlower /
+      speedFloating /
+      speedTrembling;
+    const isPhrasePause = isPhraseBoundary || isWhitespace(doubleLookahead);
+    const isEmDashPause = currChunk && currChunk.emDash && !emDash;
+    const isStressPause: boolean = Boolean(
+      character &&
+        spaceLength === 1 &&
+        currChunk &&
+        ((currChunk.bolded && !isBolded) ||
+          (currChunk.italicized && !isItalicized) ||
+          (currChunk.underlined && !isUnderlined) ||
+          (currChunk.tilde && !tilde))
+    );
+    const duration: number =
+      (isPhrasePause
+        ? letterDelay * phrasePause
+        : isEmDashPause
+        ? letterDelay * emDashPause
+        : isStressPause
+        ? letterDelay * stressPause
+        : letterDelay) / speed;
+
     if (phraseUnpauseLength === 1) {
       // start voiced phrase
       currChunk = {
-        char: part,
+        char,
         duration,
+        speed,
         element: span,
         startOfWord,
         startOfSyllable,
         voiced,
         yelled,
-        italicized,
         bolded,
+        italicized,
         underlined,
+        floating,
+        trembling,
         emDash,
         tilde,
+        pitch,
         punctuated: false,
         sustained: false,
       };
       phrases.push({
-        text: part,
+        text: char,
         chunks: [currChunk],
       });
     } else {
       // continue voiced phrase
       const currentPhrase = phrases[phrases.length - 1];
       if (currentPhrase) {
-        currentPhrase.text += part;
+        currentPhrase.text += char;
         currChunk = {
-          char: part,
+          char,
           duration,
+          speed,
           element: span,
           startOfWord,
           startOfSyllable,
           voiced,
           yelled,
-          italicized,
           bolded,
+          italicized,
           underlined,
+          floating,
+          trembling,
           emDash,
           tilde,
+          pitch,
           punctuated: false,
           sustained: false,
         };
@@ -375,6 +419,8 @@ export const write = (
 
   const letterFadeDuration = writer?.fadeDuration ?? 0;
   let time = 0;
+  let floatingIndex = 0;
+  let tremblingIndex = 0;
   phrases.forEach((phrase) => {
     phrase.chunks.forEach((c) => {
       c.time = time;
@@ -382,6 +428,28 @@ export const write = (
         c.element.style["transition"] = instant
           ? "none"
           : `opacity ${letterFadeDuration}s linear ${c.time}s`;
+        if (c.floating && floatingAnimation) {
+          c.element.style["animation"] = floatingAnimation;
+          c.element.style["animation-delay"] = `${
+            floatingIndex * animationOffset
+          }s`;
+        }
+        if (c.floating) {
+          floatingIndex += 1;
+        } else {
+          floatingIndex = 0;
+        }
+        if (c.trembling && tremblingAnimation) {
+          c.element.style["animation"] = tremblingAnimation;
+          c.element.style["animation-delay"] = `${
+            tremblingIndex * animationOffset
+          }s`;
+        }
+        if (c.trembling) {
+          tremblingIndex += 1;
+        } else {
+          tremblingIndex = 0;
+        }
       }
       time += c.duration;
 

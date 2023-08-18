@@ -26,4 +26,61 @@ export const ANIMATION_DEFAULTS = {
       animationTimingFunction: "cubic-bezier(0,0,0.2,1)",
     },
   },
+  floating: {
+    "0%": {
+      top: "0",
+    },
+    "50%": {
+      top: "calc(1em / -4)",
+    },
+    "100%": {
+      top: "0",
+    },
+  },
+  trembling: {
+    "0%": {
+      left: "calc(1em / 60)",
+      top: "calc(1em / 60)",
+    },
+    "10%": {
+      left: "calc(-1em / 60)",
+      top: "calc(-2em / 60)",
+    },
+    "20%": {
+      left: "calc(-2em / 60)",
+      top: "calc(0em / 60)",
+    },
+    "30%": {
+      left: "calc(2em / 60)",
+      top: "calc(2em / 60)",
+    },
+    "40%": {
+      left: "calc(1em / 60)",
+      top: "calc(-1em / 60)",
+    },
+    "50%": {
+      left: "calc(-1em / 60)",
+      top: "calc(2em / 60)",
+    },
+    "60%": {
+      left: "calc(-2em / 60)",
+      top: "calc(1em / 60)",
+    },
+    "70%": {
+      left: "calc(2em / 60)",
+      top: "calc(1em / 60)",
+    },
+    "80%": {
+      left: "calc(-1em / 60)",
+      top: "calc(-1em / 60)",
+    },
+    "90%": {
+      left: "calc(1em / 60)",
+      top: "calc(2em / 60)",
+    },
+    "100%": {
+      left: "calc(1em / 60)",
+      top: "calc(-2em / 60)",
+    },
+  },
 };

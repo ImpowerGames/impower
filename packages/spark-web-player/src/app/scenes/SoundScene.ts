@@ -59,7 +59,6 @@ export default class SoundScene extends Scene {
     sound: Float32Array | SynthBuffer | string
   ) {
     const buffer = await this.getAudioBuffer(sound);
-    console.log(sound, buffer);
     const instrument = new SparkDOMAudioPlayer(buffer, this._audioContext);
     instrument.start();
     this._instruments.set(id, instrument);

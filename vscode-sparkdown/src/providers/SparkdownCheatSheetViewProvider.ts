@@ -180,11 +180,6 @@ const getCheatSheet = (): Record<string, CheatsheetItem[]> => {
       "Dual (aka simultaneous) dialogue is expressed by adding a caret ^ after the second Character element",
       "<span class='dialogue_character'>BRICK</span><span class='dialogue'>Screw retirement.</span><span class='dialogue_character'>\nSTEEL <mark class='caret'>^</mark></span><span class='dialogue'>Screw retirement.</span>"
     ),
-    new CheatsheetItem(
-      "~",
-      "Lyric lines start with a tilde ~",
-      "<span class='dialogue_character'>OOMPA LOOMPAS</span><span class='lyrics'>~Willy Wonka! Willy Wonka! The amazing chocolatier!</span>"
-    ),
   ];
 
   cheatSheet["Emphasis"] = [

@@ -58,13 +58,25 @@ const getRules = (
   {
     regex: MARKDOWN_REGEX.bold,
     replacer: (_match, _$1, $2) => {
-      return `<strong>${$2}</strong>`;
+      return `<b>${$2}</b>`;
     },
   },
   {
     regex: MARKDOWN_REGEX.italic,
     replacer: (_match, _$1, $2) => {
-      return `<em>${$2}</em>`;
+      return `<i>${$2}</i>`;
+    },
+  },
+  {
+    regex: MARKDOWN_REGEX.underline,
+    replacer: (_match, _$1, $2) => {
+      return `<u>${$2}</u>`;
+    },
+  },
+  {
+    regex: MARKDOWN_REGEX.emphasis,
+    replacer: (_match, $1, _$2) => {
+      return `<em>${$1}</em>`;
     },
   },
   {
@@ -115,12 +127,6 @@ const getRules = (
     regex: MARKDOWN_REGEX.horizontal_rule,
     replacer: () => {
       return "<hr />";
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.strikethrough,
-    replacer: (_match, $1, _$2) => {
-      return `<del>${$1}</del>`;
     },
   },
   {

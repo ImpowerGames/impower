@@ -8,6 +8,8 @@ export const _prosody: Create<Prosody> = () => ({
   liltExclamation: /(?:^|\b)[~]+([!]+)[ "']*$/.source,
   /** Yes(~) */
   lilt: /(?:^|\b)([~]+)[ ]*$/.source,
+  /** Yes(~...) */
+  anxiousLilt: /(?:^|\b)([~]+)[.][.][.]+[ "']*$/.source,
   /** Yes(!) */
   exclamation: /(?:^|\b)([!?]*[!][!?]*)[ "']*$/.source,
   /** Who's that(...?) */

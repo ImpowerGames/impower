@@ -298,9 +298,6 @@ export const executeDisplayCommand = (
           (beepEnvelope.sustain ?? 0) +
           (beepEnvelope.release ?? 0)
         : 0;
-      // Determine how much a character's pitch will be affected by stress level
-      const stressLevelIncrement = 0.5;
-
       const tones: Tone[] = phrases.flatMap((phrase): Tone[] => {
         let lastCharacterBeep:
           | ({
@@ -335,16 +332,13 @@ export const executeDisplayCommand = (
         for (let i = phraseBeeps.length - 1; i >= 0; i -= 1) {
           const b = phraseBeeps[i];
           if (b) {
-            b.duration = b.sustained ? b.duration : beepDuration;
+            b.duration = b.sustained ? b.duration : beepDuration / b.speed;
             if (b.synth) {
               const freq = convertPitchNoteToHertz(
                 b.pitchHertz || b.synth.pitch?.frequency || "A4"
               );
               // Transpose waves according to stress contour
-              b.pitchHertz = transpose(
-                freq,
-                (b.stressLevel || 0) * stressLevelIncrement
-              );
+              b.pitchHertz = transpose(freq, b.pitch || 0);
             }
           }
         }

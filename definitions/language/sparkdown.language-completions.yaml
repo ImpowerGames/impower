@@ -47,13 +47,6 @@
   documentation: "<span class='dialogue_character'>BRICK</span><span class='dialogue'>Screw retirement.</span><span class='dialogue_character'>\nSTEEL <mark class='caret'>^</mark></span><span class='dialogue'>Screw retirement.</span>"
   category: "Dialogue"
 
-"Lyrics":
-  prefix: "~"
-  body: "~${1:${TM_SELECTED_TEXT}}"
-  description: "A dialogue line that should be sung musically"
-  documentation: "<span class='dialogue_character'>JANE</span><span class='dialogue'>~Happy Birthday to you!\n~Happy Birthday to you!</span>"
-  category: "Dialogue"
-
 "Action":
   prefix: "!"
   body: "!${1:${TM_SELECTED_TEXT}}"

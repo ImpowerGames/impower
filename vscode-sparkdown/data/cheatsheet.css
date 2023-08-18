@@ -159,10 +159,6 @@ details[open] > summary::before {
 .label {
   color: #7c7ca6;
 }
-.lyrics {
-  color: #ce9178;
-  font-style: italic;
-}
 .load {
   color: transparent;
   font-family: sparkdown-font;

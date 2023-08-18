@@ -4,10 +4,13 @@ export interface Writer {
   className: string;
   hidden: string;
   letterDelay: number;
+  animationOffset: number;
   phrasePauseScale: number;
+  emDashPauseScale: number;
   stressPauseScale: number;
-  yellPauseScale: number;
   punctuatePauseScale: number;
+  floatingAnimation: string;
+  tremblingAnimation: string;
   fadeDuration: number;
   clackSound: SynthConfig;
   minSyllableLength: number;
