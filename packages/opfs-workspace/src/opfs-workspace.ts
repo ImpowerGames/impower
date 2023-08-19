@@ -43,7 +43,7 @@ class State {
     string,
     {
       handler: (uri: string) => void;
-      content: ArrayBuffer;
+      content: DataView | Uint8Array;
       listeners: ((file: FileData) => void)[];
     }
   > = {};
@@ -186,13 +186,13 @@ const readTextDocument = async (fileUri: string) => {
   return text;
 };
 
-const queueWrite = async (fileUri: string, content: ArrayBuffer) => {
+const queueWrite = async (fileUri: string, content: DataView | Uint8Array) => {
   return new Promise<FileData>((resolve) => {
     if (!State.writeQueue[fileUri]) {
       State.writeQueue[fileUri] = {
         content,
         listeners: [],
-        handler: debounce(_writeTextDocument, WRITE_DELAY),
+        handler: debounce(_writeFile, WRITE_DELAY),
       };
     }
     const entry = State.writeQueue[fileUri];
@@ -208,7 +208,7 @@ const writeTextDocument = async (fileUri: string, text: string) => {
   return queueWrite(fileUri, encodedText);
 };
 
-const _writeTextDocument = async (fileUri: string) => {
+const _writeFile = async (fileUri: string) => {
   const queued = State.writeQueue[fileUri]!;
   const content = queued.content;
   const listeners = queued.listeners;
@@ -220,7 +220,8 @@ const _writeTextDocument = async (fileUri: string) => {
   syncAccessHandle.write(content, { at: 0 });
   syncAccessHandle.flush();
   syncAccessHandle.close();
-  const file = updateFileCache(fileUri, content, true);
+  const arrayBuffer = content.buffer;
+  const file = updateFileCache(fileUri, arrayBuffer, true);
   listeners.forEach((l) => {
     l(file);
   });
@@ -231,7 +232,8 @@ const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
   const root = await navigator.storage.getDirectory();
   return await Promise.all(
     files.map(async (file) => {
-      return queueWrite(file.uri, file.data);
+      const buffer = new DataView(file.data);
+      return queueWrite(file.uri, buffer);
     })
   );
 };

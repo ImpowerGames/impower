@@ -357,7 +357,7 @@ export default class WorkspaceFileSystem {
         }
       });
     } catch (e) {
-      console.warn(e);
+      console.warn("Could not load: ", file.name, file.src);
     }
   }
 
