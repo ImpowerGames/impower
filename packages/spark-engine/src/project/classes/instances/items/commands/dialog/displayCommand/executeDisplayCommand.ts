@@ -53,7 +53,6 @@ export const executeDisplayCommand = (
 ): ((deltaMS: number) => void) | undefined => {
   const type = data?.params?.type || "";
   const assets = data?.params?.assets || [];
-  const commandType = data?.reference?.typeId || "";
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
