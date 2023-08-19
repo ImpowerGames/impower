@@ -71,12 +71,6 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
     textDecoration: "line-through",
   },
   { tag: tags.punctuation, display: "none" },
-  {
-    tag: tags.contentSeparator,
-    display: "block",
-    color: "transparent",
-    borderBottom: "1px solid #00000033",
-  },
   { tag: tags.regexp, fontWeight: "bold" },
   { tag: tags.labelName, display: "block", textAlign: "right" },
 
@@ -85,6 +79,14 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.docComment, display: "none" },
 
   { tag: tags.macroName, display: "none" },
+  { tag: tags.meta, display: "none" },
+
+  {
+    tag: tags.contentSeparator,
+    display: "block",
+    color: "transparent",
+    borderBottom: "1px solid #00000033",
+  },
 ]);
 
 const HIDDEN_NODE_NAMES = [
