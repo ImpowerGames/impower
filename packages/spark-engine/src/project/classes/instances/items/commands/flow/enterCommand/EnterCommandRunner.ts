@@ -25,7 +25,7 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
     }
 
     let id: string | undefined = "#";
-    let values: string[] = [];
+    let args: string[] = [];
 
     const constantCall = calls[""];
     if (constantCall) {
@@ -34,7 +34,7 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
         if (id == null) {
           id = constantCall.name;
         }
-        values = constantCall.values;
+        args = constantCall.args;
       }
     } else {
       const [sectionExpression] = format(value, valueMap);
@@ -44,7 +44,7 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
         if (id == null) {
           id = dynamicCall.name;
         }
-        values = dynamicCall.values;
+        args = dynamicCall.args;
       }
     }
 
@@ -55,14 +55,14 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
     }
 
     const parentId = data.reference.parentId;
-    const latestValues = values?.map((v) => evaluate(v, valueMap));
+    const latestArgs = args?.map((v) => evaluate(v, valueMap));
 
     parameters?.forEach((parameterName, index) => {
       const parameterId = ids[parameterName];
       if (parameterId) {
         game.logic.setVariableValue(
           parameterId,
-          latestValues?.[index],
+          latestArgs?.[index],
           data.source
         );
       }

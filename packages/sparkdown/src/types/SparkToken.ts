@@ -58,20 +58,20 @@ export interface SparkStructFieldToken extends SparkLine {
 export interface SparkJumpToken extends SparkLine {
   type: SparkJumpTokenType;
   value: string;
-  calls: Record<string, { name: string; values: string[] }>;
+  calls: Record<string, { name: string; args: string[] }>;
 }
 
 export interface SparkCallToken extends SparkLine {
   type: SparkCallTokenType;
   value: string;
-  calls: Record<string, { name: string; values: string[] }>;
+  calls: Record<string, { name: string; args: string[] }>;
 }
 
 export interface SparkChoiceToken extends SparkLine {
   type: SparkChoiceTokenType;
   operator: "+" | "start" | "end";
   value: string;
-  calls: Record<string, { name: string; values: string[] }>;
+  calls: Record<string, { name: string; args: string[] }>;
 }
 
 export interface SparkConditionToken extends SparkLine {
@@ -98,7 +98,7 @@ export interface SparkDisplayToken extends SparkLine {
   wait: boolean;
   autoAdvance: boolean;
   clearPreviousText: boolean;
-  assets?: { name: string; type: string }[];
+  assets?: { name: string; args: string[]; type: string }[];
   parenthetical?: string;
   position?: "left" | "right";
 }

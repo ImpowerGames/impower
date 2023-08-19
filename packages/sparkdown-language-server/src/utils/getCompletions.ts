@@ -15,6 +15,8 @@ import getLineTextBefore from "./getLineTextBefore";
 import getUniqueOptions from "./getUniqueOptions";
 import isEmptyLine from "./isEmptyLine";
 
+const WHITESPACE_REGEX = /\s/g;
+
 const getImageCompletions = (program: SparkProgram | undefined) => {
   if (!program) {
     return [];
@@ -23,7 +25,7 @@ const getImageCompletions = (program: SparkProgram | undefined) => {
     ([name, { src, type }]) => ({
       label: name,
       labelDetails: { description: type },
-      kind: CompletionItemKind.Text,
+      kind: CompletionItemKind.Constructor,
       documentation: {
         kind: MarkupKind.Markdown,
         value: `![${name}](${src})`,
@@ -40,9 +42,29 @@ const getAudioCompletions = (program: SparkProgram | undefined) => {
     ([name, { type }]) => ({
       label: name,
       labelDetails: { description: type },
-      kind: CompletionItemKind.Text,
+      kind: CompletionItemKind.Constructor,
     })
   );
+};
+
+const getAudioArgumentCompletions = (content: string) => {
+  const args = content.split(WHITESPACE_REGEX);
+  if (args.includes("stop")) {
+    return null;
+  }
+  if (args.includes("start")) {
+    return null;
+  }
+  return [
+    {
+      label: "stop",
+      kind: CompletionItemKind.Keyword,
+    },
+    {
+      label: "start",
+      kind: CompletionItemKind.Keyword,
+    },
+  ];
 };
 
 const getScriptCompletions = (program: SparkProgram | undefined) => {
@@ -172,14 +194,21 @@ const getCompletions = (
   const triggerCharacter = context?.triggerCharacter;
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopeName = program?.scopes?.[lineMetadata?.scope ?? -1];
-  const lineTextBefore = getLineTextBefore(document, position).trim();
-  if (lineTextBefore.startsWith("[[")) {
+  const lineTextBefore = getLineTextBefore(document, position);
+  const trimmedLineTextBefore = lineTextBefore.trim();
+  if (trimmedLineTextBefore.startsWith("[[")) {
     return getImageCompletions(program);
   }
-  if (lineTextBefore.startsWith("((")) {
-    return getAudioCompletions(program);
+  if (trimmedLineTextBefore.startsWith("((")) {
+    if (WHITESPACE_REGEX.test(lineTextBefore)) {
+      return getAudioArgumentCompletions(
+        trimmedLineTextBefore.replace("((", "")
+      );
+    } else {
+      return getAudioCompletions(program);
+    }
   }
-  if (lineTextBefore.startsWith("> load(")) {
+  if (trimmedLineTextBefore.startsWith("> load(")) {
     return getScriptCompletions(program);
   }
   if (!scopeName) {

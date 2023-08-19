@@ -71,6 +71,7 @@ export const executeDisplayCommand = (
 
   const asset = assets?.[0];
   const assetName = asset?.name || "";
+  const assetArgs = asset?.args || "";
   const assetType = asset?.type || "";
   const assetUrl = valueMap?.[assetName] as string;
 
@@ -90,7 +91,11 @@ export const executeDisplayCommand = (
       }
     }
     if (assetType === "audio" && assetName && assetUrl) {
-      game.sound.start("music", assetUrl);
+      if (assetArgs.includes("stop")) {
+        game.sound.stop("music");
+      } else {
+        game.sound.start("music", assetUrl);
+      }
     }
     return undefined;
   }
@@ -156,7 +161,11 @@ export const executeDisplayCommand = (
     }
   }
   if (assetType === "audio" && assetName && assetUrl) {
-    game.sound.start(commandType, assetUrl);
+    if (assetArgs.includes("stop")) {
+      game.sound.stop("voice");
+    } else {
+      game.sound.start("voice", assetUrl);
+    }
   }
 
   hideChoices(game, structName, writerConfigs?.["choice"]);
@@ -285,7 +294,7 @@ export const executeDisplayCommand = (
 
   if (game) {
     if (instant) {
-      game.sound.stop(commandType);
+      game.sound.stop("typewriter");
       handleFinished();
     } else {
       const voiceSound = characterConfig?.voiceSound;
@@ -351,7 +360,7 @@ export const executeDisplayCommand = (
         }
       });
       // Start playing beeps
-      game.sound.start(commandType, new SynthBuffer(tones), () => {
+      game.sound.start("typewriter", new SynthBuffer(tones), () => {
         // Start typing letters
         allChunks.forEach((c) => {
           if (c.element) {

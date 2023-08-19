@@ -53,6 +53,8 @@ const EMPTY_OBJECT = {};
 
 const SEVERITY_ORDER = ["info", "warning", "error"];
 
+const WHITESPACE_REGEX = /\s/g;
+
 const getColorMetadata = (
   expression: string,
   expressionFrom: number
@@ -695,9 +697,9 @@ const getExpressionCallNameAndValues = (
   type: "method" | "function",
   expression: string,
   expressionFrom: number
-): { name: string | undefined; values: string[] } => {
+): { name: string | undefined; args: string[] } => {
   if (expression === "!" || expression?.toLowerCase() === "!quit") {
-    return { name: "!", values: [] };
+    return { name: "!", args: [] };
   }
   if (expression === ">") {
     const block = program?.sections?.[currentSectionId];
@@ -723,10 +725,10 @@ const getExpressionCallNameAndValues = (
         expressionFrom + expression.length,
         "warning"
       );
-      return { name: expression, values: [] };
+      return { name: expression, args: [] };
     }
     const name = program?.sections?.[id]?.name;
-    return { name, values: [] };
+    return { name, args: [] };
   }
   if (expression === "[") {
     const parentId = program?.sections?.[currentSectionId]?.parent;
@@ -737,7 +739,7 @@ const getExpressionCallNameAndValues = (
       );
       if (id != null && id !== currentSectionId) {
         const name = program?.sections?.[id]?.name;
-        return { name, values: [] };
+        return { name, args: [] };
       }
     }
     diagnostic(
@@ -749,7 +751,7 @@ const getExpressionCallNameAndValues = (
       expressionFrom + expression.length,
       "warning"
     );
-    return { name: expression, values: [] };
+    return { name: expression, args: [] };
   }
   if (expression === "]") {
     const parentId = program?.sections?.[currentSectionId]?.parent;
@@ -761,7 +763,7 @@ const getExpressionCallNameAndValues = (
           .find((x) => program?.sections?.[x]?.type === "section");
         if (id != null && id !== currentSectionId) {
           const name = program?.sections?.[id]?.name;
-          return { name, values: [] };
+          return { name, args: [] };
         }
       }
     }
@@ -774,13 +776,13 @@ const getExpressionCallNameAndValues = (
       expressionFrom + expression.length,
       "warning"
     );
-    return { name: expression, values: [] };
+    return { name: expression, args: [] };
   }
   if (expression === "^") {
     const id = program?.sections?.[currentSectionId]?.parent;
     if (id != null) {
       const name = program?.sections?.[id]?.name;
-      return { name, values: [] };
+      return { name, args: [] };
     }
     diagnostic(
       program,
@@ -790,33 +792,33 @@ const getExpressionCallNameAndValues = (
       expressionFrom,
       expressionFrom + expression.length
     );
-    return { name: expression, values: [] };
+    return { name: expression, args: [] };
   }
   const match = getExpressionCallMatch(type, expression);
   if (match) {
     const name = match[2] || "";
     const nameSpace = match[3] || "";
-    const args = match[4] || "";
+    const argsString = match[4] || "";
     const nameFrom = expressionFrom + getStart(match, 2);
     const nameTo = nameFrom + name.length;
     const argsFrom = nameTo + nameSpace.length;
-    const argsTo = argsFrom + args.length;
-    const values = getArgumentValues(
+    const argsTo = argsFrom + argsString.length;
+    const args = getArgumentValues(
       program,
       config,
       currentToken,
       currentSectionId,
       type,
       name,
-      args,
+      argsString,
       nameFrom,
       nameTo,
       argsFrom,
       argsTo
     );
-    return { name, values };
+    return { name, args };
   }
-  return { name: undefined, values: [] };
+  return { name: undefined, args: [] };
 };
 
 const checkExpressionValue = (
@@ -901,11 +903,11 @@ const getSectionCalls = (
   type: "method" | "function",
   expression: string,
   expressionFrom: number
-): Record<string, { name: string; values: string[] }> => {
+): Record<string, { name: string; args: string[] }> => {
   if (!expression) {
     return {};
   }
-  const { name, values } = getExpressionCallNameAndValues(
+  const { name, args } = getExpressionCallNameAndValues(
     program,
     config,
     currentToken,
@@ -915,7 +917,7 @@ const getSectionCalls = (
     expressionFrom
   );
   if (name !== undefined) {
-    return { "": { name, values } };
+    return { "": { name, args } };
   }
   const [, context] = getScopedContext(
     "sections",
@@ -924,10 +926,10 @@ const getSectionCalls = (
   );
   const formatter = config?.formatter || defaultFormatter;
   const [, , possibleSectionExpressions] = formatter(expression, context);
-  const calls: Record<string, { name: string; values: string[] }> = {};
+  const calls: Record<string, { name: string; args: string[] }> = {};
   if (possibleSectionExpressions?.length > 0) {
     possibleSectionExpressions.forEach(({ content, from }) => {
-      const { name, values } = getExpressionCallNameAndValues(
+      const { name, args } = getExpressionCallNameAndValues(
         program,
         config,
         currentToken,
@@ -937,7 +939,7 @@ const getSectionCalls = (
         expressionFrom + from
       );
       if (name !== undefined) {
-        calls[content] = { name, values };
+        calls[content] = { name, args };
       } else {
         const trimmedStart = content.trimStart();
         const trimmedEnd = content.trimEnd();
@@ -1781,7 +1783,11 @@ const pushAssets = (
     for (let i = 0; i < noteMatches.length; i += 1) {
       const noteMatch = noteMatches[i]?.trim() || "";
       const type = noteMatch.startsWith("(") ? "audio" : "image";
-      const name = noteMatch.slice(2, noteMatch.length - 2);
+      const params = noteMatch
+        .slice(2, noteMatch.length - 2)
+        .split(WHITESPACE_REGEX);
+      const args = params.slice(1);
+      const name = params[0] || "";
       startIndex = str.indexOf(noteMatch, startIndex) + 2;
       const from = currentToken.from + startIndex;
       const to = from + noteMatch.length - 4;
@@ -1797,7 +1803,7 @@ const pushAssets = (
         );
       }
       state.assets ??= [];
-      state.assets.push({ name, type });
+      state.assets.push({ name, args, type });
     }
   }
 };

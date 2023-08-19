@@ -14,9 +14,9 @@ export const executeChoiceCommand = (
   index?: number,
   onClick?: () => void
 ): void => {
-  const content = data?.content || "";
-  const order = data?.order || 0;
-  const operator = data?.operator;
+  const content = data?.params?.content || "";
+  const order = data?.params?.order || 0;
+  const operator = data?.params?.operator;
 
   const valueMap = context?.valueMap || {};
   const objectMap = context?.objectMap || {};
