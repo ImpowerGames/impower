@@ -113,8 +113,8 @@ export default class Application {
       !context || context?.editable
         ? {}
         : {
-            main: new MainScene(this),
             sound: new SoundScene(this),
+            main: new MainScene(this),
           };
     this.loadScenes(scenesToLoad).then(() => {
       this._ready = true;

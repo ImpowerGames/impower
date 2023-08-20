@@ -38,8 +38,8 @@ export default class SoundScene extends Scene {
 
   override bind(): void {
     super.bind();
-    this.context?.game?.sound?.events?.onScheduled?.addListener((id, sound) =>
-      this.loadSound(id, sound)
+    this.context?.game?.sound?.events?.onScheduled?.addListener(
+      (id, sound, loop) => this.scheduleSound(id, sound, loop)
     );
     this.context?.game?.sound?.events?.onStarted?.addListener((ids) =>
       this.startSounds(ids)
@@ -96,6 +96,16 @@ export default class SoundScene extends Scene {
       this._audioPlayers.set(id, audioPlayer);
       this.context.game.sound.ready(id);
     }
+    return this._audioPlayers.get(id)!;
+  }
+
+  async scheduleSound(
+    id: string,
+    sound: Float32Array | SynthBuffer | string,
+    loop: boolean
+  ) {
+    const audioPlayer = await this.loadSound(id, sound);
+    audioPlayer.loop = loop;
   }
 
   startSounds(ids: string[]) {

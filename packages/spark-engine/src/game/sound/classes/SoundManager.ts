@@ -1,4 +1,4 @@
-import { GameEvent1, GameEvent2 } from "../../core";
+import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
@@ -14,7 +14,7 @@ import { SynthBuffer } from "./SynthBuffer";
 type SoundSource = Float32Array | SynthBuffer | string;
 
 export interface SoundEvents extends Record<string, GameEvent> {
-  onScheduled: GameEvent2<string, SoundSource>;
+  onScheduled: GameEvent3<string, SoundSource, boolean>;
   onStarted: GameEvent1<string[]>;
   onPaused: GameEvent1<string[]>;
   onUnpaused: GameEvent1<string[]>;
@@ -51,7 +51,7 @@ export class SoundManager extends Manager<
 
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
-      onScheduled: new GameEvent2<string, SoundSource>(),
+      onScheduled: new GameEvent3<string, SoundSource, boolean>(),
       onStarted: new GameEvent1<string[]>(),
       onPaused: new GameEvent1<string[]>(),
       onUnpaused: new GameEvent1<string[]>(),
@@ -128,7 +128,7 @@ export class SoundManager extends Manager<
       const callbacks = this._onStartedCallbacks.get(id);
       callbacks?.push(onStarted);
     }
-    this._events.onScheduled.dispatch(id, sound);
+    this._events.onScheduled.dispatch(id, sound, loop);
   }
 
   ready(id: string): void {
