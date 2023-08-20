@@ -38,7 +38,6 @@ export default class SoundScene extends Scene {
 
   override bind(): void {
     super.bind();
-    console.log("BIND SoundScene");
     this.context?.game?.sound?.events?.onScheduled?.addListener((id, sound) =>
       this.loadSound(id, sound)
     );
@@ -101,7 +100,6 @@ export default class SoundScene extends Scene {
 
   startSounds(ids: string[]) {
     const scheduledTime = this._audioContext.currentTime;
-    console.log("START", [...ids]);
     ids.forEach((id) => {
       const audioPlayer = this._audioPlayers.get(id);
       if (audioPlayer) {
