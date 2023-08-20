@@ -160,6 +160,9 @@ export const executeDisplayCommand = (
   );
 
   if (portraitEl) {
+    if (!assets.some((asset) => asset.type === "image")) {
+      portraitEl.style["display"] = "none";
+    }
     assets.forEach((asset) => {
       const assetName = asset.name;
       const assetArgs = asset.args;
@@ -169,8 +172,6 @@ export const executeDisplayCommand = (
         portraitEl.style["backgroundImage"] = `url("${assetUrl}")`;
         portraitEl.style["backgroundRepeat"] = "no-repeat";
         portraitEl.style["display"] = null;
-      } else {
-        portraitEl.style["display"] = "none";
       }
       if (assetType === "audio" && assetName && assetUrl) {
         if (assetArgs.includes("stop")) {
