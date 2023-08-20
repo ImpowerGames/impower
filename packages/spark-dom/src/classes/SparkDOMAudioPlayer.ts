@@ -44,7 +44,7 @@ export class SparkDOMAudioPlayer {
     }
   }
 
-  _loop = false;
+  protected _loop = false;
   public get loop() {
     return this._loop;
   }
