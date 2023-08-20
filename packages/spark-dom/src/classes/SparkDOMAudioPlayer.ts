@@ -38,10 +38,6 @@ export class SparkDOMAudioPlayer {
     return 0;
   }
 
-  public get isPlaying(): boolean {
-    return this._isPlaying;
-  }
-
   public set pitchBend(semitones: number) {
     if (this.sourceNode) {
       this.sourceNode.detune.value = ((semitones ?? 0) - 3) * 100;
@@ -63,7 +59,10 @@ export class SparkDOMAudioPlayer {
     return this._sourceNode?.buffer?.duration ?? 0;
   }
 
-  protected _isPlaying = false;
+  protected _started = false;
+  public get started(): boolean {
+    return this._started;
+  }
 
   protected _startedAt = 0;
 
@@ -114,7 +113,7 @@ export class SparkDOMAudioPlayer {
   }
 
   protected play(when: number, offsetInSeconds = 0, fadeDuration = 0): void {
-    this._isPlaying = true;
+    this._started = true;
     this.load();
     if (this._sourceNode) {
       const validOffset = Math.min(Math.max(0, offsetInSeconds), this.duration);
@@ -132,24 +131,26 @@ export class SparkDOMAudioPlayer {
   stop(when: number, fadeDuration = 0.05, onDisconnected?: () => void): void {
     this._pausedAt = 0;
     this._startedAt = 0;
-    let startTime = performance.now();
-    const targetSourceNode = this._sourceNode;
-    this.fade(when, 0, fadeDuration);
-    const disconnectAfterFade = () => {
-      if (performance.now() < startTime + fadeDuration + 0.001) {
-        window.requestAnimationFrame(disconnectAfterFade);
-      } else {
-        // Disconnect source node after finished fading out
-        if (this._sourceNode && this._sourceNode === targetSourceNode) {
-          this._sourceNode.stop(0);
-          this._sourceNode.disconnect();
-          this._sourceNode = undefined;
+    if (this._started) {
+      let startTime = performance.now();
+      const targetSourceNode = this._sourceNode;
+      this.fade(when, 0, fadeDuration);
+      const disconnectAfterFade = () => {
+        if (performance.now() < startTime + fadeDuration + 0.001) {
+          window.requestAnimationFrame(disconnectAfterFade);
+        } else {
+          // Disconnect source node after finished fading out
+          if (this._sourceNode && this._sourceNode === targetSourceNode) {
+            this._sourceNode.stop(0);
+            this._sourceNode.disconnect();
+            this._sourceNode = undefined;
+          }
+          this._started = false;
+          onDisconnected?.();
         }
-        this._isPlaying = false;
-        onDisconnected?.();
-      }
-    };
-    disconnectAfterFade();
+      };
+      disconnectAfterFade();
+    }
   }
 
   pause(when: number, fadeDuration = 0.025) {
@@ -167,7 +168,7 @@ export class SparkDOMAudioPlayer {
   }
 
   step(when: number, deltaSeconds: number) {
-    if (this._isPlaying) {
+    if (this._started) {
       this.start(when, when + deltaSeconds);
     }
   }
