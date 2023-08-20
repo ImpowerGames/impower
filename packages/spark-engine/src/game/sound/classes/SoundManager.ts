@@ -49,6 +49,10 @@ export class SoundManager extends Manager<
   private _onStartedCallbacks: Map<string, undefined | (() => void)[]> =
     new Map();
 
+  private _ready = new Set<string>();
+
+  private _startedGroups = new Set<string>();
+
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
       onScheduled: new GameEvent3<string, SoundSource, boolean>(),
@@ -82,7 +86,6 @@ export class SoundManager extends Manager<
     this._state.playbackStates[id] ??= {
       elapsedMS: -1,
       latestEvent: -1,
-      ready: false,
       scheduled: false,
       started: false,
       paused: false,
@@ -132,8 +135,7 @@ export class SoundManager extends Manager<
   }
 
   ready(id: string): void {
-    const controlState = this.getOrCreatePlaybackState(id);
-    controlState.ready = true;
+    this._ready.add(id);
   }
 
   pauseAll(layer: string): void {
@@ -180,17 +182,20 @@ export class SoundManager extends Manager<
   }
 
   stop(id: string): void {
-    const layer = this._state.playbackStates[id]?.layer;
-    if (layer) {
-      this._state.layers[layer] =
-        this._state.layers[layer]?.filter((x) => x != id) ?? [];
+    const controlState = this._state.playbackStates[id];
+    if (controlState) {
+      const layer = controlState.layer;
+      if (layer) {
+        this._state.layers[layer] =
+          this._state.layers[layer]?.filter((x) => x != id) ?? [];
+      }
+      const group = controlState.group;
+      if (group) {
+        this._state.groups[group] =
+          this._state.groups[group]?.filter((x) => x != id) ?? [];
+      }
+      delete this._state.playbackStates[id];
     }
-    const group = this._state.playbackStates[id]?.group;
-    if (group) {
-      this._state.groups[group] =
-        this._state.groups[group]?.filter((x) => x != id) ?? [];
-    }
-    delete this._state.playbackStates[id];
     this._config.sounds.delete(id);
     this._config.midis.delete(id);
     this._state.stopping.push(id);
@@ -204,7 +209,7 @@ export class SoundManager extends Manager<
     for (let i = 0; i < ids.length; i += 1) {
       const id = ids[i]!;
       const controlState = this._state.playbackStates[id];
-      if (!controlState || !controlState.ready || !controlState.scheduled) {
+      if (!controlState || !controlState.scheduled || !this._ready.has(id)) {
         return false;
       }
     }
@@ -212,13 +217,14 @@ export class SoundManager extends Manager<
   }
 
   override update(deltaMS: number): void {
+    this._startedGroups.clear();
     // Update sound playback
     this._config.sounds.forEach((_, id) => {
-      const controlState = this._state.playbackStates[id];
-      if (!controlState) {
+      if (!this._ready.has(id)) {
         return;
       }
-      if (!controlState.ready) {
+      const controlState = this._state.playbackStates[id];
+      if (!controlState) {
         return;
       }
       if (!controlState.scheduled) {
@@ -227,21 +233,28 @@ export class SoundManager extends Manager<
       if (controlState.paused) {
         return;
       }
-      if (!controlState.started) {
-        if (!controlState.group || this.groupIsReady(controlState.group)) {
+      if (controlState.started) {
+        controlState.elapsedMS += deltaMS;
+      } else {
+        if (controlState.group) {
+          if (this.groupIsReady(controlState.group)) {
+            controlState.started = true;
+            this._state.starting.push(id);
+            this._startedGroups.add(controlState.group);
+          }
+        } else {
           controlState.started = true;
           this._state.starting.push(id);
         }
       }
-      controlState.elapsedMS += deltaMS;
     });
     // Update midi playback
     this._config.midis.forEach((sound, id) => {
-      const controlState = this._state.playbackStates[id];
-      if (!controlState) {
+      if (!this._ready.has(id)) {
         return;
       }
-      if (!controlState.ready) {
+      const controlState = this._state.playbackStates[id];
+      if (!controlState) {
         return;
       }
       if (!controlState.scheduled) {
@@ -305,5 +318,8 @@ export class SoundManager extends Manager<
       this._events.onStopped.dispatch([...this._state.stopping]);
       this._state.stopping.length = 0;
     }
+    this._startedGroups.forEach((g) => {
+      delete this._state.groups[g];
+    });
   }
 }

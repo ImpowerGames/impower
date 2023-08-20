@@ -3,7 +3,6 @@ export interface SoundPlaybackControl {
   latestEvent: number;
   layer?: string;
   group?: string;
-  ready: boolean;
   scheduled: boolean;
   started: boolean;
   paused: boolean;
