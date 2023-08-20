@@ -44,7 +44,12 @@ export class SparkDOMAudioPlayer {
     }
   }
 
+  _loop = false;
+  public get loop() {
+    return this._loop;
+  }
   public set loop(value: boolean) {
+    this._loop = value;
     if (this.sourceNode) {
       this.sourceNode.loop = value;
     }
@@ -84,6 +89,7 @@ export class SparkDOMAudioPlayer {
       this._sourceNode.disconnect();
     }
     this._sourceNode = this._context.createBufferSource();
+    this._sourceNode.loop = this._loop;
     this._sourceNode.connect(this._gainNode);
     if (this._audioBuffer) {
       this._sourceNode.buffer = this._audioBuffer;
