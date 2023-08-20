@@ -39,9 +39,11 @@ const isHidden = (content: string, hidden?: string): boolean => {
   return new RegExp(hidden).test(content);
 };
 
+const audioGroup: { id: string; data: string }[] = [];
+
 export const executeDisplayCommand = (
   game: SparkGame,
-  data?: DisplayCommandData,
+  data: DisplayCommandData,
   context?: {
     valueMap: Record<string, unknown>;
     objectMap: { [type: string]: Record<string, any> };
@@ -51,50 +53,57 @@ export const executeDisplayCommand = (
   onFinished?: () => void,
   preview?: boolean
 ): ((deltaMS: number) => void) | undefined => {
-  const type = data?.params?.type || "";
-  const assets = data?.params?.assets || [];
+  const id = data.reference.id;
+  const type = data.params.type;
+  const assets = data.params.assets;
 
-  const valueMap = context?.valueMap || {};
-  const objectMap = context?.objectMap || {};
+  const valueMap = context?.valueMap;
+  const objectMap = context?.objectMap;
   const structName = "DISPLAY";
 
   const writerConfigs = objectMap?.["writer"] as Record<string, Writer>;
   const writerConfig = writerConfigs?.[type];
 
-  game.ui.loadUI(objectMap, structName);
+  audioGroup.length = 0;
+
+  if (objectMap) {
+    game.ui.loadUI(objectMap, structName);
+  }
   const structEl = game.ui.findFirstUIElement(structName);
 
   if (structEl) {
     structEl.removeState("hidden");
   }
 
-  const asset = assets?.[0];
-  const assetName = asset?.name || "";
-  const assetArgs = asset?.args || "";
-  const assetType = asset?.type || "";
-  const assetUrl = valueMap?.[assetName] as string;
+  const backgroundEl = game.ui.findFirstUIElement(
+    structName,
+    writerConfigs?.["background"]?.className || "Background"
+  );
 
   const assetsOnly = type === "assets";
   if (assetsOnly) {
-    const backgroundEl = game.ui.findFirstUIElement(
-      structName,
-      writerConfigs?.["background"]?.className || "Background"
-    );
-    if (backgroundEl) {
+    assets.forEach((asset) => {
+      const assetName = asset.name;
+      const assetArgs = asset.args;
+      const assetType = asset.type;
+      const assetUrl = valueMap?.[assetName] as string;
       if (assetType === "image" && assetName && assetUrl) {
-        backgroundEl.style["backgroundImage"] = `url("${assetUrl}")`;
-        backgroundEl.style["backgroundRepeat"] = "no-repeat";
-        backgroundEl.style["display"] = null;
-      } else {
-        backgroundEl.style["display"] = "none";
+        if (backgroundEl) {
+          backgroundEl.style["backgroundImage"] = `url("${assetUrl}")`;
+          backgroundEl.style["backgroundRepeat"] = "no-repeat";
+          backgroundEl.style["display"] = null;
+        }
       }
-    }
-    if (assetType === "audio" && assetName && assetUrl) {
-      if (assetArgs.includes("stop")) {
-        game.sound.stop("music");
-      } else {
-        game.sound.start("music", assetUrl, true);
+      if (assetType === "audio" && assetName && assetUrl) {
+        if (assetArgs.includes("stop")) {
+          game.sound.stop(assetName);
+        } else {
+          audioGroup.push({ id: assetName, data: assetUrl });
+        }
       }
+    });
+    if (audioGroup.length > 0) {
+      game.sound.scheduleGroup("music", id, audioGroup, true);
     }
     return undefined;
   }
@@ -151,19 +160,28 @@ export const executeDisplayCommand = (
   );
 
   if (portraitEl) {
-    if (assetType === "image" && assetName && assetUrl) {
-      portraitEl.style["backgroundImage"] = `url("${assetUrl}")`;
-      portraitEl.style["backgroundRepeat"] = "no-repeat";
-      portraitEl.style["display"] = null;
-    } else {
-      portraitEl.style["display"] = "none";
-    }
-  }
-  if (assetType === "audio" && assetName && assetUrl) {
-    if (assetArgs.includes("stop")) {
-      game.sound.stop("voice");
-    } else {
-      game.sound.start("voice", assetUrl, false);
+    assets.forEach((asset) => {
+      const assetName = asset.name;
+      const assetArgs = asset.args;
+      const assetType = asset.type;
+      const assetUrl = valueMap?.[assetName] as string;
+      if (assetType === "image" && assetName && assetUrl) {
+        portraitEl.style["backgroundImage"] = `url("${assetUrl}")`;
+        portraitEl.style["backgroundRepeat"] = "no-repeat";
+        portraitEl.style["display"] = null;
+      } else {
+        portraitEl.style["display"] = "none";
+      }
+      if (assetType === "audio" && assetName && assetUrl) {
+        if (assetArgs.includes("stop")) {
+          game.sound.stop(assetName);
+        } else {
+          audioGroup.push({ id: assetName, data: assetUrl });
+        }
+      }
+    });
+    if (audioGroup.length > 0) {
+      game.sound.scheduleGroup("voice", id, audioGroup, false);
     }
   }
 
@@ -293,7 +311,7 @@ export const executeDisplayCommand = (
 
   if (game) {
     if (instant) {
-      game.sound.stop("typewriter");
+      game.sound.stopAll("typewriter");
       handleFinished();
     } else {
       const voiceSound = characterConfig?.voiceSound;
@@ -359,15 +377,21 @@ export const executeDisplayCommand = (
         }
       });
       // Start playing beeps
-      game.sound.start("typewriter", new SynthBuffer(tones), false, () => {
-        // Start typing letters
-        allChunks.forEach((c) => {
-          if (c.element) {
-            c.element.style["opacity"] = "1";
-          }
-        });
-        started = true;
-      });
+      game.sound.schedule(
+        "typewriter",
+        id,
+        new SynthBuffer(tones),
+        false,
+        () => {
+          // Start typing letters
+          allChunks.forEach((c) => {
+            if (c.element) {
+              c.element.style["opacity"] = "1";
+            }
+          });
+          started = true;
+        }
+      );
     }
   }
   if (data) {

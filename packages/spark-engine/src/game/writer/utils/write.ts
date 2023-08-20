@@ -53,7 +53,7 @@ const isDash = (part: string) => {
 
 export const write = (
   content: string,
-  valueMap: Record<string, unknown>,
+  valueMap: Record<string, unknown> | undefined,
   writer: Writer | undefined,
   character: Character | undefined,
   instant = false,

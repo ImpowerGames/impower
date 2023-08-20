@@ -38,6 +38,10 @@ export class SparkDOMAudioPlayer {
     return 0;
   }
 
+  public get isPlaying(): boolean {
+    return this._isPlaying;
+  }
+
   public set pitchBend(semitones: number) {
     if (this.sourceNode) {
       this.sourceNode.detune.value = ((semitones ?? 0) - 3) * 100;
@@ -61,15 +65,15 @@ export class SparkDOMAudioPlayer {
 
   protected _isPlaying = false;
 
-  protected _startedAt?: number;
+  protected _startedAt = 0;
 
-  protected _pausedAt?: number;
+  protected _pausedAt = 0;
 
   constructor(
     sound: AudioBuffer | Float32Array | SynthBuffer,
-    audioContext?: AudioContext
+    audioContext: AudioContext
   ) {
-    this._context = audioContext || new AudioContext();
+    this._context = audioContext;
     this._gainNode = this._context.createGain();
     this._gainNode.connect(this._context.destination);
     if (sound instanceof AudioBuffer) {
@@ -104,33 +108,33 @@ export class SparkDOMAudioPlayer {
     }
   }
 
-  protected fade(value: number, duration: number): void {
-    const endTime = this._context.currentTime + (duration || 0);
+  protected fade(when: number, value: number, duration: number): void {
+    const endTime = when + (duration || 0);
     this._gainNode.gain.linearRampToValueAtTime(value, endTime);
   }
 
-  protected play(offsetInSeconds = 0, fadeDuration = 0): void {
+  protected play(when: number, offsetInSeconds = 0, fadeDuration = 0): void {
     this._isPlaying = true;
     this.load();
     if (this._sourceNode) {
       const validOffset = Math.min(Math.max(0, offsetInSeconds), this.duration);
-      this._sourceNode.start(0, validOffset);
-      this.fade(1, fadeDuration);
+      this._sourceNode.start(when, validOffset);
+      this.fade(when, 1, fadeDuration);
     }
   }
 
-  start(offset = 0): void {
-    this.play(offset);
-    this._startedAt = this._context.currentTime;
+  start(when: number, offset = 0): void {
+    this.play(when, offset);
+    this._startedAt = when;
     this._pausedAt = 0;
   }
 
-  stop(fadeDuration = 0.025, onDisconnected?: () => void): void {
+  stop(when: number, fadeDuration = 0.05, onDisconnected?: () => void): void {
     this._pausedAt = 0;
     this._startedAt = 0;
     let startTime = performance.now();
     const targetSourceNode = this._sourceNode;
-    this.fade(0, fadeDuration);
+    this.fade(when, 0, fadeDuration);
     const disconnectAfterFade = () => {
       if (performance.now() < startTime + fadeDuration + 0.001) {
         window.requestAnimationFrame(disconnectAfterFade);
@@ -148,23 +152,23 @@ export class SparkDOMAudioPlayer {
     disconnectAfterFade();
   }
 
-  pause(fadeDuration = 0.025) {
-    const startedAt = this._startedAt ?? 0;
-    const elapsed = this._context.currentTime - startedAt;
+  pause(when: number, fadeDuration = 0.025) {
+    const startedAt = this._startedAt;
+    const elapsed = when - startedAt;
     this.stop(fadeDuration);
     this._pausedAt = elapsed;
   }
 
-  unpause() {
-    const offset = this._pausedAt ?? 0;
-    this.play(offset);
-    this._startedAt = this._context.currentTime - offset;
+  unpause(when: number) {
+    const offset = this._pausedAt;
+    this.play(when, offset);
+    this._startedAt = when - offset;
     this._pausedAt = 0;
   }
 
-  step(deltaSeconds: number) {
+  step(when: number, deltaSeconds: number) {
     if (this._isPlaying) {
-      this.start(this.currentTime + deltaSeconds);
+      this.start(when, when + deltaSeconds);
     }
   }
 }

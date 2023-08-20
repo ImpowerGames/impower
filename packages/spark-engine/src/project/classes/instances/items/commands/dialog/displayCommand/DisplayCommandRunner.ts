@@ -21,10 +21,6 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
 
   onTick?: (deltaMS: number) => void;
 
-  override init(game: G): void {
-    executeDisplayCommand(game);
-  }
-
   override onExecute(
     game: G,
     data: DisplayCommandData,

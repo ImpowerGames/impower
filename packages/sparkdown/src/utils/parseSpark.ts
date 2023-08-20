@@ -1809,19 +1809,19 @@ const pushAssets = (
 };
 
 const saveAndClearAssets = (
-  currentToken: SparkToken,
+  token: SparkToken,
   state: SparkParseState
 ): void => {
   state.assets ??= [];
   const save = state.assets.length > 0;
   if (
     save &&
-    (currentToken.type === "assets" ||
-      currentToken.type === "dialogue" ||
-      currentToken.type === "action")
+    (token.type === "assets" ||
+      token.type === "dialogue" ||
+      token.type === "action")
   ) {
-    currentToken.assets ??= [];
-    currentToken.assets = [...currentToken.assets, ...state.assets];
+    token.assets ??= [];
+    token.assets = [...token.assets, ...state.assets];
   }
   state.assets.length = 0;
 };
@@ -2829,7 +2829,9 @@ const parseSpark = (
 
         dualRight = false;
         currentToken.type = "separator";
-        saveAndClearAssets(currentToken, state);
+        if (previousToken?.type === "assets") {
+          saveAndClearAssets(previousToken, state);
+        }
         pushToken(
           program,
           config,
@@ -2916,6 +2918,12 @@ const parseSpark = (
           ...currentToken,
           ...customToken,
         } as SparkToken;
+      } else if ((match = currentToken.content.match(SPARK_REGEX.comment))) {
+        const content = match[3] || "";
+        currentToken.type = "comment";
+        if (currentToken.type === "comment") {
+          currentToken.content = content;
+        }
       } else if ((match = currentToken.content.match(SPARK_REGEX.scene))) {
         currentToken.type = "scene";
         if (currentToken.type === "scene") {
@@ -3486,34 +3494,26 @@ const parseSpark = (
             state,
             currentToken
           );
-          saveAndClearAssets(currentToken, state);
         }
       } else {
-        if (
-          currentToken.content?.trim() === "/*" ||
-          currentToken.content?.trim() === "*/"
-        ) {
-          currentToken.ignore = true;
-        } else {
-          currentToken.type = "action";
-          if (currentToken.type === "action") {
-            if (previousToken?.type === "assets") {
-              previousToken.type = "action_asset" as "assets";
-              previousToken.skipToNextPreview = true;
-              currentToken.assets = previousToken.assets
-                ? [...previousToken.assets]
-                : [];
-            }
-            processDisplayedContent(
-              program,
-              config,
-              currentToken,
-              currentSectionId,
-              state,
-              currentToken
-            );
-            saveAndClearAssets(currentToken, state);
+        currentToken.type = "action";
+        if (currentToken.type === "action") {
+          if (previousToken?.type === "assets") {
+            previousToken.type = "action_asset" as "assets";
+            previousToken.skipToNextPreview = true;
+            currentToken.assets = previousToken.assets
+              ? [...previousToken.assets]
+              : [];
           }
+          processDisplayedContent(
+            program,
+            config,
+            currentToken,
+            currentSectionId,
+            state,
+            currentToken
+          );
+          saveAndClearAssets(currentToken, state);
         }
       }
     } else if (currentScope === "dialogue") {

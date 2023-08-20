@@ -155,6 +155,9 @@ export default class Application {
     //   }
     // });
     const scenesArray = Array.from(this.scenes.values());
+    scenesArray.forEach((scene) => {
+      scene.bind();
+    });
     await Promise.all(
       scenesArray.map(async (scene): Promise<void> => {
         const objs = await scene.load();
@@ -162,10 +165,10 @@ export default class Application {
       })
     );
     scenesArray.forEach((scene) => {
-      scene.bind();
+      scene.start();
     });
     scenesArray.forEach((scene) => {
-      scene.start();
+      scene.ready = true;
     });
     if (this.context.game.ui) {
       this.context.game.ui.hideUI(loadingUIName);
@@ -188,6 +191,7 @@ export default class Application {
     this.unbindView();
     this.resizeObserver.disconnect();
     this.scenes.forEach((scene) => {
+      scene.ready = false;
       scene.unbind();
       scene.dispose().forEach((d) => d.dispose());
     });
@@ -213,7 +217,7 @@ export default class Application {
     }
     this.enableOrbitControls();
     this.scenes.forEach((scene) => {
-      if (scene?.active) {
+      if (scene?.ready) {
         scene.pause();
       }
     });
@@ -222,7 +226,7 @@ export default class Application {
   unpause(): void {
     this.disableOrbitControls();
     this.scenes.forEach((scene) => {
-      if (scene?.active) {
+      if (scene?.ready) {
         scene.unpause();
       }
     });
@@ -234,7 +238,7 @@ export default class Application {
   protected update(deltaMS: number): void {
     if (this._ready) {
       this.scenes.forEach((scene) => {
-        if (scene?.active) {
+        if (scene?.ready) {
           scene.tick(deltaMS);
           scene.update(deltaMS);
         }
@@ -261,7 +265,7 @@ export default class Application {
 
   step(deltaMS: number): void {
     this.scenes.forEach((scene) => {
-      if (scene?.active) {
+      if (scene?.ready) {
         scene.step(deltaMS);
       }
     });

@@ -35,12 +35,12 @@ export default class Scene extends THREE.Scene {
     return this._app.context;
   }
 
-  protected _active = true;
-  get active(): boolean {
-    return this._active;
+  protected _ready = false;
+  get ready(): boolean {
+    return this._ready;
   }
-  set active(value: boolean) {
-    this._active = value;
+  set ready(value: boolean) {
+    this._ready = value;
   }
 
   // TODO:
