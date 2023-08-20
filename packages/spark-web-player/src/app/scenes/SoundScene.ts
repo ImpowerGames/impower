@@ -15,8 +15,8 @@ export default class SoundScene extends Scene {
 
   override bind(): void {
     super.bind();
-    this.context?.game?.sound?.events?.onStarted?.addListener((id, sound) =>
-      this.startInstrument(id, sound)
+    this.context?.game?.sound?.events?.onStarted?.addListener(
+      (id, sound, loop) => this.startInstrument(id, sound, loop)
     );
     this.context?.game?.sound?.events?.onPaused?.addListener((id) =>
       this.pauseInstrument(id)
@@ -56,10 +56,12 @@ export default class SoundScene extends Scene {
 
   async startInstrument(
     id: string,
-    sound: Float32Array | SynthBuffer | string
+    sound: Float32Array | SynthBuffer | string,
+    loop: boolean
   ) {
     const buffer = await this.getAudioBuffer(sound);
     const instrument = new SparkDOMAudioPlayer(buffer, this._audioContext);
+    instrument.loop = loop;
     instrument.start();
     this._instruments.set(id, instrument);
   }

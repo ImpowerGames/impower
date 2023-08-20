@@ -44,6 +44,12 @@ export class SparkDOMAudioPlayer {
     }
   }
 
+  public set loop(value: boolean) {
+    if (this.sourceNode) {
+      this.sourceNode.loop = value;
+    }
+  }
+
   public get duration(): number {
     return this._sourceNode?.buffer?.duration ?? 0;
   }

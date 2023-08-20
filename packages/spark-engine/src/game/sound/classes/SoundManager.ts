@@ -1,4 +1,4 @@
-import { GameEvent1, GameEvent2 } from "../../core";
+import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
@@ -12,7 +12,7 @@ import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackStat
 import { SynthBuffer } from "./SynthBuffer";
 
 export interface SoundEvents extends Record<string, GameEvent> {
-  onStarted: GameEvent2<string, Float32Array | SynthBuffer | string>;
+  onStarted: GameEvent3<string, Float32Array | SynthBuffer | string, boolean>;
   onPaused: GameEvent1<string>;
   onUnpaused: GameEvent1<string>;
   onStopped: GameEvent1<string>;
@@ -41,7 +41,11 @@ export class SoundManager extends Manager<
 
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
-      onStarted: new GameEvent2<string, Float32Array | SynthBuffer | string>(),
+      onStarted: new GameEvent3<
+        string,
+        Float32Array | SynthBuffer | string,
+        boolean
+      >(),
       onPaused: new GameEvent1<string>(),
       onUnpaused: new GameEvent1<string>(),
       onStopped: new GameEvent1<string>(),
@@ -64,13 +68,15 @@ export class SoundManager extends Manager<
   start(
     id: string,
     sound: Float32Array | SynthBuffer | string,
+    loop: boolean,
     onStarted?: () => void
   ): void {
-    const controlState = {
+    const controlState: SoundPlaybackControl = {
       elapsedMS: -1,
       latestEvent: -1,
       started: false,
       paused: false,
+      looping: loop,
     };
     this._state.playbackStates[id] = controlState;
     this._config.sounds.set(id, sound);
@@ -121,7 +127,7 @@ export class SoundManager extends Manager<
           this._callbacks.get(id)?.forEach((callback) => callback?.());
           this._callbacks.set(id, []);
         }
-        this._events.onStarted.dispatch(id, sound);
+        this._events.onStarted.dispatch(id, sound, controlState.looping);
       }
     });
     this._config.midis.forEach((sound, id) => {

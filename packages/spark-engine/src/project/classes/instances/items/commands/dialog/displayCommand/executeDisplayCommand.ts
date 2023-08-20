@@ -93,7 +93,7 @@ export const executeDisplayCommand = (
       if (assetArgs.includes("stop")) {
         game.sound.stop("music");
       } else {
-        game.sound.start("music", assetUrl);
+        game.sound.start("music", assetUrl, true);
       }
     }
     return undefined;
@@ -163,7 +163,7 @@ export const executeDisplayCommand = (
     if (assetArgs.includes("stop")) {
       game.sound.stop("voice");
     } else {
-      game.sound.start("voice", assetUrl);
+      game.sound.start("voice", assetUrl, false);
     }
   }
 
@@ -359,7 +359,7 @@ export const executeDisplayCommand = (
         }
       });
       // Start playing beeps
-      game.sound.start("typewriter", new SynthBuffer(tones), () => {
+      game.sound.start("typewriter", new SynthBuffer(tones), false, () => {
         // Start typing letters
         allChunks.forEach((c) => {
           if (c.element) {
