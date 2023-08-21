@@ -66,7 +66,7 @@ export default class SoundScene extends Scene {
 
   override dispose(): Disposable[] {
     this._audioPlayers.forEach((a) => {
-      if (a.isPlaying) {
+      if (a.started) {
         a.stop(0);
       }
     });
@@ -156,7 +156,7 @@ export default class SoundScene extends Scene {
   override step(deltaMS: number): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
-      if (audioPlayer.isPlaying) {
+      if (audioPlayer.started) {
         audioPlayer.step(scheduledTime, deltaMS);
       }
     });
@@ -165,7 +165,7 @@ export default class SoundScene extends Scene {
   override pause(): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
-      if (audioPlayer.isPlaying) {
+      if (audioPlayer.started) {
         audioPlayer.pause(scheduledTime);
       }
     });
@@ -174,7 +174,7 @@ export default class SoundScene extends Scene {
   override unpause(): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
-      if (audioPlayer.isPlaying) {
+      if (audioPlayer.started) {
         audioPlayer.unpause(scheduledTime);
       }
     });
