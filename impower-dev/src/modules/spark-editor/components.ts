@@ -16,6 +16,7 @@ import FileOptionsButton from "./components/file-options-button/_file-options-bu
 import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
 import Graphics from "./components/graphics/_graphics";
+import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import LogicList from "./components/logic-list/_logic-list";
@@ -40,6 +41,7 @@ import Setup from "./components/setup/_setup";
 import Share from "./components/share/_share";
 import Sounds from "./components/sounds/_sounds";
 import Sprites from "./components/sprites/_sprites";
+import SyncGoogleDrive from "./components/sync-google-drive/_sync-google-drive";
 import Views from "./components/views/_views";
 import Widgets from "./components/widgets/_widgets";
 import Main from "./main/_spark-editor";
@@ -107,6 +109,8 @@ const components = {
   "se-preview": style(Preview),
   "se-preview-panel": style(PreviewPanel),
   "se-notifications": style(Notifications),
+  "se-sync-google-drive": style(SyncGoogleDrive),
+  "se-header-menu-button": style(HeaderMenuButton),
   "se-header-title-button": style(HeaderTitleButton),
   "se-header-navigation": style(HeaderNavigation),
   "se-footer-navigation": style(FooterNavigation),

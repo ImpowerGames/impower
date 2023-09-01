@@ -18,6 +18,11 @@
   user-select: none;
 }
 
+button,
+[role="button"] {
+  pointer-events: auto;
+}
+
 *::-moz-focus-inner {
   border: none;
 }

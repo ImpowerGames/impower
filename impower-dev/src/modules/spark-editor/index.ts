@@ -15,6 +15,7 @@ import FileOptionsButton from "./components/file-options-button/file-options-but
 import FileUploadButton from "./components/file-upload-button/file-upload-button";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import Graphics from "./components/graphics/graphics";
+import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import LogicList from "./components/logic-list/logic-list";
@@ -39,6 +40,7 @@ import Setup from "./components/setup/setup";
 import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
 import Sprites from "./components/sprites/sprites";
+import SyncGoogleDrive from "./components/sync-google-drive/sync-google-drive";
 import Views from "./components/views/views";
 import Widgets from "./components/widgets/widgets";
 import Main from "./main/spark-editor";
@@ -84,6 +86,8 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-preview": Preview,
   "se-preview-panel": PreviewPanel,
   "se-notifications": Notifications,
+  "se-sync-google-drive": SyncGoogleDrive,
+  "se-header-menu-button": HeaderMenuButton,
   "se-header-title-button": HeaderTitleButton,
   "se-header-navigation": HeaderNavigation,
   "se-footer-navigation": FooterNavigation,

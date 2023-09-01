@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import chokidar from "chokidar";
+import * as dotenv from "dotenv";
 import { build } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import fs from "fs";
@@ -54,6 +55,18 @@ if (PRODUCTION) {
   process.env["NODE_ENV"] = "production";
 }
 
+if (!PRODUCTION) {
+  // During development, populate process.env with variables from local .env file
+  dotenv.config();
+}
+
+const BROWSER_VARIABLES: Record<string, string> = {};
+Object.entries(process.env).forEach(([key, value]) => {
+  if (key.startsWith("BROWSER_") && value) {
+    BROWSER_VARIABLES[`process.env.${key}`] = `"${value}"`;
+  }
+});
+
 const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
 
@@ -98,6 +111,7 @@ const buildApi = async () => {
       ".css": "text",
       ".svg": "text",
     },
+    external: ["@fastify/secure-session"],
     plugins: [
       esbuildPluginPino({ transports: PRODUCTION ? [] : ["pino-pretty"] }),
     ],
@@ -139,6 +153,7 @@ const buildPages = async () => {
       ".css": "text",
       ".svg": "text",
     },
+    define: BROWSER_VARIABLES,
   });
 };
 
@@ -167,6 +182,7 @@ const buildComponents = async () => {
       ".css": "text",
       ".svg": "text",
     },
+    define: BROWSER_VARIABLES,
   });
 };
 

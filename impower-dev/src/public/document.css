@@ -97,3 +97,7 @@ main {
   display: flex;
   flex-direction: column;
 }
+
+.picker * {
+  pointer-events: auto;
+}

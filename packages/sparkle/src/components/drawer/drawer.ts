@@ -78,6 +78,8 @@ export default class Drawer
     if (name === Drawer.attributes.open) {
       if (newValue != null) {
         this.handleOpen(true);
+      } else {
+        this.handleClose();
       }
     }
   }
@@ -139,6 +141,7 @@ export default class Drawer
     await animationsComplete(this.root);
 
     this.dialog.close();
+    this.root.hidden = true;
 
     this.emit(CLOSED_EVENT);
     return returnValue;

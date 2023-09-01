@@ -22,8 +22,8 @@
   --padding: 24px;
   --enter: var(--s-animation-open);
   --exit: var(--s-animation-close);
-  --mobile-enter: var(--s-animation-slide-in-up);
-  --mobile-exit: var(--s-animation-slide-out-down);
+  --mobile-enter: var(--s-animation-slide-in-up), var(--s-animation-fade-in);
+  --mobile-exit: var(--s-animation-slide-out-down), var(--s-animation-fade-out);
 }
 
 :host > .root {

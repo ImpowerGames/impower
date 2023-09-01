@@ -172,7 +172,7 @@ export default class WorkspaceFileSystem {
     return fileName.split(".")[0] ?? "";
   }
 
-  protected async getFiles() {
+  async getFiles() {
     await this.initializing;
     if (!this._files) {
       throw new Error("Workspace File System not initialized.");

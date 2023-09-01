@@ -5,5 +5,5 @@ RUN cd ./impower-dev && npm run preinstall && npm ci && npm run build && cd ../
 
 FROM node:20-slim
 WORKDIR /usr/src/app
-COPY --from=builder /usr/src/app/impower-dev/out ./out
-ENTRYPOINT [ "node", "out/api/index.js" ]
+COPY --from=builder /usr/src/app/impower-dev ./impower-dev
+ENTRYPOINT [ "node", "impower-dev/out/api/index.js" ]

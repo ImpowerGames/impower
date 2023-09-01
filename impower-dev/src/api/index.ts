@@ -1,7 +1,17 @@
-import Fastify, { FastifyServerOptions } from "fastify";
+import fastifyFormbody from "@fastify/formbody";
+import fastifyMultipart from "@fastify/multipart";
+import fastifySecureSession from "@fastify/secure-session";
+import Fastify, { FastifyInstance } from "fastify";
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
 import pino from "pino";
+import env from "./plugins/env.js";
 import livereload from "./plugins/livereload.js";
+import googleDriveSyncProvider from "./plugins/providers/googleDriveSyncProvider.js";
 import router from "./plugins/router.js";
+
+const DEV_HTTPS_KEY_PATH = join(process.cwd(), "https", "key.pem");
+const DEV_HTTPS_CERT_PATH = join(process.cwd(), "https", "cert.pem");
 
 const IS_GOOGLE_CLOUD_RUN = process.env["K_SERVICE"] !== undefined;
 const IS_PRODUCTION =
@@ -9,38 +19,72 @@ const IS_PRODUCTION =
 
 const reloader: { reload?: () => void } = {};
 
-const config: FastifyServerOptions = IS_PRODUCTION
-  ? {
-    logger: pino({
-      messageKey: "message",
-      formatters: {
-        level(label: string, number: number) {
-          return { severity: label };
+const app = IS_PRODUCTION
+  ? (Fastify({
+      logger: pino({
+        messageKey: "message",
+        formatters: {
+          level(label: string, number: number) {
+            return { severity: label };
+          },
+        },
+      }),
+      trustProxy: true,
+    }) as unknown as FastifyInstance)
+  : existsSync(DEV_HTTPS_KEY_PATH) && existsSync(DEV_HTTPS_CERT_PATH)
+  ? (Fastify({
+      http2: true,
+      https: {
+        key: readFileSync(DEV_HTTPS_KEY_PATH),
+        cert: readFileSync(DEV_HTTPS_CERT_PATH),
+      },
+      logger: {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            translateTime: "HH:MM:ss Z",
+            ignore: "pid,hostname",
+          },
         },
       },
-    }),
-    trustProxy: true,
-  }
-  : {
-    logger: {
-      transport: {
-        target: "pino-pretty",
-        options: {
-          translateTime: "HH:MM:ss Z",
-          ignore: "pid,hostname",
+    }) as unknown as FastifyInstance)
+  : (Fastify({
+      logger: {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            translateTime: "HH:MM:ss Z",
+            ignore: "pid,hostname",
+          },
         },
       },
-    },
-  };
-
-const app = Fastify(config);
-app.register(router);
-if (!IS_PRODUCTION) {
-  app.register(livereload, reloader);
-}
+    }) as unknown as FastifyInstance);
 
 export const startServer = async () => {
   try {
+    if (!IS_PRODUCTION) {
+      app.register(env);
+      await app.after();
+    }
+    const cookieKey = process.env["SERVER_SESSION_COOKIE_KEY"];
+    if (cookieKey) {
+      app.register(fastifySecureSession, {
+        key: Buffer.from(cookieKey, "hex"),
+        cookie: {
+          path: "/",
+          httpOnly: true,
+          sameSite: "strict",
+          secure: IS_PRODUCTION,
+        },
+      });
+    }
+    app.register(fastifyFormbody);
+    app.register(fastifyMultipart);
+    app.register(googleDriveSyncProvider);
+    app.register(router);
+    if (!IS_PRODUCTION) {
+      app.register(livereload, reloader);
+    }
     await app.ready();
     const port = Number(process.env["PORT"] || 8080);
     const host = IS_GOOGLE_CLOUD_RUN

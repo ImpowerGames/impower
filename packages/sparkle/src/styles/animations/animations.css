@@ -11,10 +11,10 @@
   --s-animation-fade-out: fade-out 150ms linear;
   --s-animation-scale-up: scale-up 100ms ease-out;
   --s-animation-scale-down: scale-down 100ms ease-out;
-  --s-animation-slide-out-up: slide-out-up 100ms ease-out;
-  --s-animation-slide-out-down: slide-out-down 100ms ease-out;
-  --s-animation-slide-out-left: slide-out-left 100ms ease-out;
-  --s-animation-slide-out-right: slide-out-right 100ms ease-out;
+  --s-animation-slide-out-up: slide-out-up 150ms ease-out;
+  --s-animation-slide-out-down: slide-out-down 150ms ease-out;
+  --s-animation-slide-out-left: slide-out-left 150ms ease-out;
+  --s-animation-slide-out-right: slide-out-right 150ms ease-out;
   --s-animation-slide-in-up: slide-in-up 100ms ease-out;
   --s-animation-slide-in-down: slide-in-down 100ms ease-out;
   --s-animation-slide-in-left: slide-in-left 100ms ease-out;
