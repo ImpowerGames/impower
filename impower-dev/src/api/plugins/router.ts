@@ -3,7 +3,7 @@ import { readFile } from "fs/promises";
 import { join } from "path";
 
 const router: FastifyPluginCallback = async (app, opts, next) => {
-  const publicFolder = join(process.cwd(), "out", "public");
+  const publicFolder = join(process.cwd(), "impower-dev", "out", "public");
   app.register(import("@fastify/static"), {
     root: publicFolder,
     prefix: "/public/",
