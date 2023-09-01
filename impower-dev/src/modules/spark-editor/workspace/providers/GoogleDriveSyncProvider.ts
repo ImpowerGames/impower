@@ -11,10 +11,14 @@ type DocsView = google.picker.DocsView & {
   setQuery(query: string): google.picker.DocsView;
 };
 
-const BROWSER_GOOGLE_PROJECT_ID = process.env["BROWSER_GOOGLE_PROJECT_ID"]!;
 const BROWSER_GOOGLE_API_KEY = process.env["BROWSER_GOOGLE_API_KEY"]!;
 const BROWSER_GOOGLE_OAUTH_CLIENT_ID =
   process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"]!;
+
+// App Id must match first part of OAuth Client Id
+// https://stackoverflow.com/a/17204637
+// https://stackoverflow.com/a/26285995
+const BROWSER_GOOGLE_APP_ID = BROWSER_GOOGLE_OAUTH_CLIENT_ID.split("-")[0]!;
 
 // Authorization scopes required to sync files to a google drive folder
 const SCOPES = [
@@ -134,7 +138,7 @@ export default class GoogleDriveSyncProvider {
       .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
       .enableFeature(google.picker.Feature.NAV_HIDDEN)
       .setDeveloperKey(BROWSER_GOOGLE_API_KEY)
-      .setAppId(BROWSER_GOOGLE_PROJECT_ID)
+      .setAppId(BROWSER_GOOGLE_APP_ID)
       .setTitle("Select a project file")
       .addView(view);
   }
@@ -188,7 +192,7 @@ export default class GoogleDriveSyncProvider {
     return new google.picker.PickerBuilder()
       .setSelectableMimeTypes("application/vnd.google-apps.folder")
       .setDeveloperKey(BROWSER_GOOGLE_API_KEY)
-      .setAppId(BROWSER_GOOGLE_PROJECT_ID)
+      .setAppId(BROWSER_GOOGLE_APP_ID)
       .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
       .addView(foldersView)
       .addView(sharedWithMeView)
