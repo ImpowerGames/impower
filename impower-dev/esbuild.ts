@@ -297,6 +297,8 @@ const buildWorkers = async () => {
 };
 
 const buildAll = async () => {
+  const envCount = Object.keys(BROWSER_VARIABLES).length;
+  console.log(STEP_COLOR, `Loaded ${envCount} browser environment variables.`);
   await clean();
   await copyPublic();
   await buildApi();
