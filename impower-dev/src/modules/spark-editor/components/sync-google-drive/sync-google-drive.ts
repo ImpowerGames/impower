@@ -142,7 +142,6 @@ export default class SyncGoogleDrive extends SEElement {
       if (accessToken) {
         this.emit("picking");
         const file = await provider.importProjectFile(accessToken);
-        console.log(file);
         if (file != null) {
           // TODO: Save file id, name, and chunks to WorkspaceFileSystem.currentProject
           // TODO: Save file !capabilities.canModifiyContent to WorkspaceFileSystem.currentProject.readonly
