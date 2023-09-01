@@ -32,9 +32,5 @@ availableSecrets:
       env: BROWSER_GOOGLE_API_KEY
     - versionName: projects/$PROJECT_ID/secrets/GOOGLE_OAUTH_CLIENT_ID/versions/1
       env: BROWSER_GOOGLE_OAUTH_CLIENT_ID
-    - versionName: projects/$PROJECT_ID/secrets/GOOGLE_OAUTH_CLIENT_SECRET/versions/1
-      env: SERVER_GOOGLE_OAUTH_CLIENT_SECRET
-    - versionName: projects/$PROJECT_ID/secrets/SESSION_COOKIE_KEY/versions/1
-      env: SERVER_SESSION_COOKIE_KEY
 images:
   - "gcr.io/$PROJECT_ID/impower:$COMMIT_SHA"
