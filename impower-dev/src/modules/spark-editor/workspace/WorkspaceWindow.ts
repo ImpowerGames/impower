@@ -494,10 +494,10 @@ export default class WorkspaceWindow {
     );
   }
 
-  finishEditingProjectName(projectId: string, name: string) {
+  async finishEditingProjectName(projectId: string, name: string) {
     this._state.header.editingProjectName = false;
     this._state.header.projectName = name;
-    Workspace.fs.writeProjectName(projectId, name);
+    await Workspace.fs.writeProjectName(projectId, name);
     this.emit(
       DidEditProjectNameMessage.method,
       DidEditProjectNameMessage.type.notification({ name })
