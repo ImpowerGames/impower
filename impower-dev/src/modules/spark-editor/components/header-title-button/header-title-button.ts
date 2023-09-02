@@ -1,4 +1,4 @@
-import { DidLoadProjectMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidLoadProjectMessage";
+import { DidLoadProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidLoadProjectNameMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_header-title-button";
@@ -39,8 +39,8 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.addEventListener("click", this.handleClickNameButton);
     }
     window.addEventListener(
-      DidLoadProjectMessage.method,
-      this.handleLoadProject
+      DidLoadProjectNameMessage.method,
+      this.handleLoadProjectName
     );
   }
 
@@ -55,12 +55,12 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.removeEventListener("click", this.handleClickNameButton);
     }
     window.removeEventListener(
-      DidLoadProjectMessage.method,
-      this.handleLoadProject
+      DidLoadProjectNameMessage.method,
+      this.handleLoadProjectName
     );
   }
 
-  handleLoadProject = () => {
+  handleLoadProjectName = () => {
     this.render();
   };
 
@@ -73,7 +73,7 @@ export default class HeaderTitleButton extends SEElement {
     if (e.key === "Enter") {
       const target = e.target as HTMLInputElement;
       const name = target.value;
-      Workspace.window.finishEditingProjectName(name);
+      Workspace.window.finishEditingProjectName(Workspace.project.id, name);
       this.render();
     }
   };
@@ -81,7 +81,7 @@ export default class HeaderTitleButton extends SEElement {
   handleBlurNameInput = (e: Event) => {
     const target = e.target as HTMLInputElement;
     const name = target.value;
-    Workspace.window.finishEditingProjectName(name);
+    Workspace.window.finishEditingProjectName(Workspace.project.id, name);
     this.render();
   };
 }

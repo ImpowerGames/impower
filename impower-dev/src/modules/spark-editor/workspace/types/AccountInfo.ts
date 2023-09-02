@@ -3,5 +3,8 @@ export interface AccountInfo {
   displayName: string;
   photoURL: string;
   email: string;
-  config: Record<string, {}>;
+  token: string;
+  expires: number;
+  scope: string;
+  consented: boolean;
 }

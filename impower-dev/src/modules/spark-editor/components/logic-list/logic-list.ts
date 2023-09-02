@@ -29,7 +29,7 @@ export default class LogicList extends SEElement {
         const panel = e.detail.value;
         Workspace.window.openedPanel("logic", panel);
         if (panel === "main") {
-          Workspace.window.openedFileEditor("logic", panel, "logic/main.sd");
+          Workspace.window.openedFileEditor("main.script");
         }
       }
     }

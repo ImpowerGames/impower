@@ -1,13 +1,17 @@
 import { Range } from "@impower/spark-editor-protocol/src/types";
 
 export interface PanelState extends Record<string, any> {
-  visibleRange?: Range | undefined;
-  selectedRange?: Range | undefined;
-  openFilePath?: string | undefined;
+  scrollIndex?: number;
+  activeEditor?: {
+    open?: boolean;
+    filename?: string;
+    visibleRange?: Range;
+    selectedRange?: Range;
+  };
 }
 
 export interface PaneState {
-  view?: string | undefined;
+  view?: string;
   panel: string;
   panels: Record<string, PanelState>;
 }
@@ -17,13 +21,25 @@ export interface WorkspacePanes extends Record<string, PaneState> {
     panel: string;
     panels: {
       details: {
-        visibleRange?: Range;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
       share: {
-        visibleRange?: Range;
+        scrollIndex?: number;
       };
       assets: {
-        visibleRange?: Range;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
     };
   };
@@ -32,12 +48,22 @@ export interface WorkspacePanes extends Record<string, PaneState> {
     panel: string;
     panels: {
       sounds: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
       music: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
     };
   };
@@ -46,12 +72,21 @@ export interface WorkspacePanes extends Record<string, PaneState> {
     panel: string;
     panels: {
       widgets: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
       views: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
     };
   };
@@ -60,12 +95,22 @@ export interface WorkspacePanes extends Record<string, PaneState> {
     panel: string;
     panels: {
       sprites: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
       maps: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
     };
   };
@@ -74,12 +119,22 @@ export interface WorkspacePanes extends Record<string, PaneState> {
     panel: string;
     panels: {
       main: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
       scripts: {
-        visibleRange?: Range;
-        openFilePath: string;
+        scrollIndex?: number;
+        activeEditor: {
+          open?: boolean;
+          filename?: string;
+          visibleRange?: Range;
+          selectedRange?: Range;
+        };
       };
     };
   };

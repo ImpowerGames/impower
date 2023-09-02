@@ -2,6 +2,9 @@ export default class SingletonPromise<
   T extends (...args: any[]) => Promise<any>
 > {
   protected _value?: any;
+  get value() {
+    return this._value;
+  }
 
   protected _promise?: Promise<Awaited<ReturnType<T>>>;
 

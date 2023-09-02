@@ -87,9 +87,15 @@ export default class GamePreview extends SEElement {
 
   handleDidOpenFileEditor = async (e: Event) => {
     if (e instanceof CustomEvent) {
-      await this.configureGame();
-      await this.loadGame();
-      await this.loadPreview();
+      const message = e.detail;
+      if (DidOpenFileEditorMessage.type.isNotification(message)) {
+        const { pane } = message.params;
+        if (pane === "logic") {
+          await this.configureGame();
+          await this.loadGame();
+          await this.loadPreview();
+        }
+      }
     }
   };
 
@@ -135,7 +141,10 @@ export default class GamePreview extends SEElement {
   };
 
   async configureGame() {
-    const editor = await Workspace.window.getActiveEditor("logic");
+    const editor = await Workspace.window.getOpenEditor(
+      Workspace.project.id,
+      "logic"
+    );
     if (editor) {
       const { uri, selectedRange } = editor;
       if (uri) {
@@ -156,7 +165,10 @@ export default class GamePreview extends SEElement {
   }
 
   async loadGame() {
-    const editor = await Workspace.window.getActiveEditor("logic");
+    const editor = await Workspace.window.getOpenEditor(
+      Workspace.project.id,
+      "logic"
+    );
     if (editor) {
       const { uri, selectedRange } = editor;
       if (uri) {
@@ -175,7 +187,10 @@ export default class GamePreview extends SEElement {
 
   async loadPreview() {
     if (!Workspace.window.state.panes.preview.panels.game.running) {
-      const editor = await Workspace.window.getActiveEditor("logic");
+      const editor = await Workspace.window.getOpenEditor(
+        Workspace.project.id,
+        "logic"
+      );
       if (editor) {
         const { uri, version, text, visibleRange, selectedRange } = editor;
         if (uri) {
@@ -199,7 +214,10 @@ export default class GamePreview extends SEElement {
   }
 
   async pageUp() {
-    const editor = await Workspace.window.getActiveEditor("logic");
+    const editor = await Workspace.window.getOpenEditor(
+      Workspace.project.id,
+      "logic"
+    );
     if (editor) {
       const { uri, selectedRange } = editor;
       const cached = this._programs.find((p) => p.uri === uri);
@@ -230,7 +248,10 @@ export default class GamePreview extends SEElement {
   }
 
   async pageDown() {
-    const editor = await Workspace.window.getActiveEditor("logic");
+    const editor = await Workspace.window.getOpenEditor(
+      Workspace.project.id,
+      "logic"
+    );
     if (editor) {
       const { uri, selectedRange } = editor;
       const cached = this._programs.find((p) => p.uri === uri);

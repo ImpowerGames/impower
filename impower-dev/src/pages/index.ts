@@ -20,6 +20,7 @@ const load = async () => {
     SparkEditor.init(),
   ]);
   document.body.classList.add("ready");
+  Workspace.window.loadProjectName(Workspace.project.id);
 };
 
 load();

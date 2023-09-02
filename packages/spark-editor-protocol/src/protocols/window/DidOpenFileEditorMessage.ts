@@ -5,7 +5,7 @@ export type DidOpenFileEditorMethod = typeof DidOpenFileEditorMessage.method;
 export interface DidOpenFileEditorParams {
   pane: string;
   panel: string;
-  filePath: string;
+  filename: string;
 }
 
 export namespace DidOpenFileEditorMessage {

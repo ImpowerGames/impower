@@ -33,7 +33,13 @@ import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments"
 import { EditorSparkParser } from "./EditorSparkParser";
 
 const globToRegex = (glob: string) => {
-  return RegExp(glob.replace(/[.]/g, "[.]").replace(/[*]/g, ".*"), "i");
+  return RegExp(
+    glob
+      .replace(/[.]/g, "[.]")
+      .replace(/[*]/g, ".*")
+      .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
+    "i"
+  );
 };
 
 interface SparkProgramChangeEvent<T> extends TextDocumentChangeEvent<T> {
@@ -250,7 +256,7 @@ export default class SparkdownTextDocuments<
   }
 
   onCreatedFile(fileUri: string) {
-    if (fileUri.endsWith("package.sd")) {
+    if (fileUri.endsWith("metadata.sd")) {
       this._syncedPackages[fileUri] = {
         directory: this.getDirectoryUri(fileUri),
         files: {},
@@ -289,7 +295,7 @@ export default class SparkdownTextDocuments<
         (params: DidWatchFilesParams) => {
           const files = params.files;
           files.forEach((file) => {
-            if (file.uri.endsWith("package.sd")) {
+            if (file.uri.endsWith("metadata.sd")) {
               this._syncedPackages[file.uri] = {
                 directory: this.getDirectoryUri(file.uri),
                 files: {},
@@ -297,7 +303,7 @@ export default class SparkdownTextDocuments<
             }
           });
           files.forEach((file) => {
-            if (!file.uri.endsWith("package.sd")) {
+            if (!file.uri.endsWith("metadata.sd")) {
               const packageUri = this.getClosestPackageUri(file.uri);
               this.addFileToPackage(packageUri, file.uri);
             }

@@ -11,19 +11,17 @@ import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/pr
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidEditProjectNameMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
-import { DidLoadProjectMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidLoadProjectMessage";
 import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
 import { WillEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillEditProjectNameMessage";
+import { DidLoadProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidLoadProjectNameMessage";
 import { Range } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
 import { Workspace } from "./Workspace";
 import { ReadOnly } from "./types/ReadOnly";
 import { WorkspaceState } from "./types/WorkspaceState";
-
-const FILENAME_SANITIZER_REGEX = /[\\/:"*?<>|`=]/g;
 
 export default class WorkspaceWindow {
   protected _state: WorkspaceState;
@@ -39,9 +37,13 @@ export default class WorkspaceWindow {
         setup: {
           panel: "details",
           panels: {
-            details: {},
+            details: {
+              activeEditor: {},
+            },
             share: {},
-            assets: {},
+            assets: {
+              activeEditor: {},
+            },
           },
         },
         audio: {
@@ -49,10 +51,12 @@ export default class WorkspaceWindow {
           panel: "sounds",
           panels: {
             sounds: {
-              openFilePath: "",
+              scrollIndex: 0,
+              activeEditor: {},
             },
             music: {
-              openFilePath: "",
+              scrollIndex: 0,
+              activeEditor: {},
             },
           },
         },
@@ -61,10 +65,12 @@ export default class WorkspaceWindow {
           panel: "widgets",
           panels: {
             widgets: {
-              openFilePath: "",
+              scrollIndex: 0,
+              activeEditor: {},
             },
             views: {
-              openFilePath: "",
+              scrollIndex: 0,
+              activeEditor: {},
             },
           },
         },
@@ -73,10 +79,12 @@ export default class WorkspaceWindow {
           panel: "sprites",
           panels: {
             sprites: {
-              openFilePath: "",
+              scrollIndex: 0,
+              activeEditor: {},
             },
             maps: {
-              openFilePath: "",
+              scrollIndex: 0,
+              activeEditor: {},
             },
           },
         },
@@ -85,10 +93,14 @@ export default class WorkspaceWindow {
           panel: "main",
           panels: {
             main: {
-              openFilePath: "logic/main.sd",
+              scrollIndex: 0,
+              activeEditor: {
+                filename: "main.script",
+              },
             },
             scripts: {
-              openFilePath: "",
+              scrollIndex: 0,
+              activeEditor: {},
             },
           },
         },
@@ -130,10 +142,16 @@ export default class WorkspaceWindow {
       if (ScrolledEditorMessage.type.isNotification(message)) {
         const { textDocument, visibleRange } = message.params;
         const uri = textDocument.uri;
-        const pane = this.getPaneFromUri(uri);
-        const panel = this.getPanelFromUri(uri);
-        const panelState = this.getPanelState(pane, panel);
-        panelState.visibleRange = JSON.parse(JSON.stringify(visibleRange));
+        const filename = uri.split("/").slice(-1).join("");
+        const pane = this.getPaneType(filename);
+        const panel = this.getPanelType(filename);
+        if (pane && panel) {
+          const panelState = this.getPanelState(pane, panel);
+          panelState.activeEditor ??= {};
+          panelState.activeEditor.visibleRange = JSON.parse(
+            JSON.stringify(visibleRange)
+          );
+        }
       }
     }
   };
@@ -144,30 +162,19 @@ export default class WorkspaceWindow {
       if (SelectedEditorMessage.type.isNotification(message)) {
         const { textDocument, selectedRange } = message.params;
         const uri = textDocument.uri;
-        const pane = this.getPaneFromUri(uri);
-        const panel = this.getPanelFromUri(uri);
-        const panelState = this.getPanelState(pane, panel);
-        panelState.selectedRange = JSON.parse(JSON.stringify(selectedRange));
+        const filename = uri.split("/").slice(-1).join("");
+        const pane = this.getPaneType(filename);
+        const panel = this.getPanelType(filename);
+        if (pane && panel) {
+          const panelState = this.getPanelState(pane, panel);
+          panelState.activeEditor ??= {};
+          panelState.activeEditor.selectedRange = JSON.parse(
+            JSON.stringify(selectedRange)
+          );
+        }
       }
     }
   };
-
-  getFilePathFromUri(uri: string) {
-    return uri.replace(Workspace.fs.getWorkspaceUri() + "/", "");
-  }
-
-  getPaneFromUri(uri: string) {
-    const filePath = this.getFilePathFromUri(uri);
-    const uriParts = filePath.split("/");
-    return uriParts[0] || "";
-  }
-
-  getPanelFromUri(uri: string) {
-    const filePath = this.getFilePathFromUri(uri);
-    const uriParts = filePath.split("/");
-    const panel = uriParts[1];
-    return panel?.split(".")?.[0] || "";
-  }
 
   getPaneState(pane: string) {
     const paneState = this._state.panes[pane];
@@ -197,7 +204,56 @@ export default class WorkspaceWindow {
     return panelState;
   }
 
-  async getActiveEditor(pane: string): Promise<
+  getPaneType(filename: string) {
+    const [, ext] = filename.split(".");
+    if (ext === "sound" || ext === "music") {
+      return "audio";
+    }
+    if (ext === "widget" || ext === "view") {
+      return "displays";
+    }
+    if (ext === "sprite" || ext === "map") {
+      return "graphics";
+    }
+    if (ext === "script") {
+      return "logic";
+    }
+    return null;
+  }
+
+  getPanelType(filename: string) {
+    const [, ext] = filename.split(".");
+    if (filename === "main.script") {
+      return "main";
+    }
+    if (ext === "sound") {
+      return "sounds";
+    }
+    if (ext === "music") {
+      return "music";
+    }
+    if (ext === "widget") {
+      return "widgets";
+    }
+    if (ext === "view") {
+      return "views";
+    }
+    if (ext === "sprite") {
+      return "sprites";
+    }
+    if (ext === "map") {
+      return "maps";
+    }
+    if (ext === "script") {
+      return "scripts";
+    }
+    return null;
+  }
+
+  async getActiveEditor(
+    projectId: string,
+    filename: string
+  ): Promise<
     | {
         uri: string;
         name: string;
@@ -212,15 +268,59 @@ export default class WorkspaceWindow {
       }
     | undefined
   > {
-    await Workspace.fs.initializing;
-    const panelState = this.getOpenedPanelState(pane);
-    const filePath = panelState.openFilePath;
-    if (filePath) {
-      const uri = Workspace.fs.getWorkspaceUri(filePath);
-      const file = Workspace.fs.files![uri]!;
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (pane && panel) {
+      const panelState = this.getPanelState(pane, panel);
+      if (
+        panelState.activeEditor &&
+        panelState.activeEditor.filename === filename
+      ) {
+        const files = await Workspace.fs.getFiles();
+        const uri = Workspace.fs.getFileUri(projectId, filename);
+        const file = files[uri]!;
+        return {
+          visibleRange: panelState.activeEditor.visibleRange,
+          selectedRange: panelState.activeEditor.selectedRange,
+          ...file,
+        };
+      }
+    }
+    return undefined;
+  }
+
+  async getOpenEditor(
+    projectId: string,
+    pane: string,
+    panel?: string
+  ): Promise<
+    | {
+        uri: string;
+        name: string;
+        src: string;
+        ext: string;
+        type: string;
+        version: number;
+        text?: string | undefined;
+        program?: SparkProgram | undefined;
+        visibleRange: Range | undefined;
+        selectedRange: Range | undefined;
+      }
+    | undefined
+  > {
+    const paneState = this.getPaneState(pane);
+    const openEditor = panel
+      ? this.getPanelState(pane, panel).activeEditor
+      : Object.values(paneState.panels)
+          .map((p) => p.activeEditor)
+          .find((e) => e && e.open);
+    if (openEditor?.open && openEditor?.filename) {
+      const files = await Workspace.fs.getFiles();
+      const uri = Workspace.fs.getFileUri(projectId, openEditor.filename);
+      const file = files[uri]!;
       return {
-        visibleRange: panelState.visibleRange,
-        selectedRange: panelState.selectedRange,
+        visibleRange: openEditor.visibleRange,
+        selectedRange: openEditor.selectedRange,
         ...file,
       };
     }
@@ -271,27 +371,41 @@ export default class WorkspaceWindow {
     );
   }
 
-  openedFileEditor(pane: string, panel: string, filePath: string) {
-    const panelState = this.getPanelState(pane, panel);
-    panelState.openFilePath = filePath;
-    panelState.visibleRange = {
-      start: { line: 0, character: 0 },
-      end: { line: 0, character: 0 },
-    };
-    this.emit(
-      DidOpenFileEditorMessage.method,
-      DidOpenFileEditorMessage.type.notification({ pane, panel, filePath })
-    );
+  openedFileEditor(filename: string) {
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (pane && panel) {
+      const panelState = this.getPanelState(pane, panel);
+      panelState.activeEditor ??= {};
+      panelState.activeEditor.open = true;
+      if (panelState.activeEditor.filename !== filename) {
+        panelState.activeEditor.filename = filename;
+        panelState.activeEditor.visibleRange = {
+          start: { line: 0, character: 0 },
+          end: { line: 0, character: 0 },
+        };
+        panelState.activeEditor.selectedRange = undefined;
+      }
+      this.emit(
+        DidOpenFileEditorMessage.method,
+        DidOpenFileEditorMessage.type.notification({ pane, panel, filename })
+      );
+    }
   }
 
-  closedFileEditor(pane: string, panel: string) {
-    const panelState = this.getPanelState(pane, panel);
-    panelState.openFilePath = "";
-    panelState.visibleRange = undefined;
-    this.emit(
-      DidCloseFileEditorMessage.method,
-      DidCloseFileEditorMessage.type.notification({ pane, panel })
-    );
+  closedFileEditor(filename: string) {
+    const pane = this.getPaneType(filename);
+    const panel = this.getPanelType(filename);
+    if (pane && panel) {
+      const panelState = this.getPanelState(pane, panel);
+      if (panelState.activeEditor) {
+        panelState.activeEditor.open = false;
+      }
+      this.emit(
+        DidCloseFileEditorMessage.method,
+        DidCloseFileEditorMessage.type.notification({ pane, panel })
+      );
+    }
   }
 
   startGame() {
@@ -362,12 +476,13 @@ export default class WorkspaceWindow {
     );
   }
 
-  loadProject(project: { id: string; name: string }) {
-    const validName = project.name.replace(FILENAME_SANITIZER_REGEX, "");
-    this._state.header.projectName = validName;
+  async loadProjectName(projectId: string) {
+    const name = await Workspace.fs.readProjectName(projectId);
+    this._state.header.editingProjectName = false;
+    this._state.header.projectName = name;
     this.emit(
-      DidLoadProjectMessage.method,
-      DidLoadProjectMessage.type.notification(project)
+      DidLoadProjectNameMessage.method,
+      DidLoadProjectNameMessage.type.notification({ name })
     );
   }
 
@@ -379,14 +494,13 @@ export default class WorkspaceWindow {
     );
   }
 
-  async finishEditingProjectName(name: string) {
-    const validName = name.replace(FILENAME_SANITIZER_REGEX, "");
+  finishEditingProjectName(projectId: string, name: string) {
     this._state.header.editingProjectName = false;
-    this._state.header.projectName = validName;
-    await Workspace.fs.updateProjectName(validName);
+    this._state.header.projectName = name;
+    Workspace.fs.writeProjectName(projectId, name);
     this.emit(
       DidEditProjectNameMessage.method,
-      DidEditProjectNameMessage.type.notification({ name: validName })
+      DidEditProjectNameMessage.type.notification({ name })
     );
   }
 }

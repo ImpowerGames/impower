@@ -1,9 +1,9 @@
 <s-box p="16 0" grow>
-  <se-file-list pane="logic" panel="scripts" directory-path="logic/scripts">
+  <se-file-list include="*.script" exclude="main.script">
     <se-file-list-border slot="empty">
       <s-icon icon="code 1" size="48" m="12"></s-icon>
       No Scripts
     </se-file-list-border>
   </se-file-list>
 </s-box>
-<se-file-add-button directory-path="logic/scripts" file-name="script_00.sd">Add Script</se-file-add-button>
+<se-file-add-button filename="script_00.script">Add Script</se-file-add-button>

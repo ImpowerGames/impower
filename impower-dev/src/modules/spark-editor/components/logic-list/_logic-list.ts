@@ -43,7 +43,7 @@ export default (state: { store?: WorkspaceState }) => {
           </s-tabs>
         </s-box>
         <template value="main">
-          <se-script-editor file-path="logic/main.sd"></se-script-editor>
+          <se-script-editor filename="main.script"></se-script-editor>
         </template>
         <template value="scripts">
           <se-logic-scripts-list></se-logic-scripts-list>

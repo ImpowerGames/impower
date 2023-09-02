@@ -1,10 +1,23 @@
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage.js";
+import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
+import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_script-editor";
 
-export default class ScriptEditor extends SEElement {
+const DEFAULT_ATTRIBUTES = {
+  ...getAttributeNameMap(["filename"]),
+};
+
+export default class ScriptEditor
+  extends SEElement
+  implements Properties<typeof DEFAULT_ATTRIBUTES>
+{
+  static override get attributes() {
+    return DEFAULT_ATTRIBUTES;
+  }
+
   static override async define(
     tag = "se-script-editor",
     dependencies?: Record<string, string>,
@@ -15,6 +28,13 @@ export default class ScriptEditor extends SEElement {
 
   override get component() {
     return component();
+  }
+
+  get filename(): string | null {
+    return this.getStringAttribute(ScriptEditor.attributes.filename);
+  }
+  set filename(value) {
+    this.setStringAttribute(ScriptEditor.attributes.filename, value);
   }
 
   protected override onConnected(): void {
@@ -47,9 +67,13 @@ export default class ScriptEditor extends SEElement {
   };
 
   async loadFile() {
-    const editor = await Workspace.window.getActiveEditor("logic");
+    const filename = this.filename || "main.script";
+    const editor = await Workspace.window.getActiveEditor(
+      Workspace.project.id,
+      filename
+    );
     if (editor) {
-      const uri = editor.uri || Workspace.fs.getWorkspaceUri("logic/main.sd");
+      const uri = editor.uri;
       const visibleRange = editor.visibleRange;
       const existingText = uri
         ? await Workspace.fs.readTextDocument({

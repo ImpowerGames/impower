@@ -5,7 +5,7 @@ import { Workspace } from "../../workspace/Workspace";
 import component from "./_file-item";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["pane", "panel", "directory-path", "file-name"]),
+  ...getAttributeNameMap(["filename"]),
 };
 
 export default class FileItem
@@ -28,44 +28,11 @@ export default class FileItem
     return component();
   }
 
-  /**
-   * The pane where this file is displayed.
-   */
-  get pane(): string | null {
-    return this.getStringAttribute(FileItem.attributes.pane);
+  get filename(): string | null {
+    return this.getStringAttribute(FileItem.attributes.filename);
   }
-  set pane(value) {
-    this.setStringAttribute(FileItem.attributes.pane, value);
-  }
-
-  /**
-   * The panel where this file is displayed.
-   */
-  get panel(): string | null {
-    return this.getStringAttribute(FileItem.attributes.panel);
-  }
-  set panel(value) {
-    this.setStringAttribute(FileItem.attributes.panel, value);
-  }
-
-  /**
-   * The directory path where this file is located.
-   */
-  get directoryPath(): string | null {
-    return this.getStringAttribute(FileItem.attributes.directoryPath);
-  }
-  set directoryPath(value) {
-    this.setStringAttribute(FileItem.attributes.directoryPath, value);
-  }
-
-  /**
-   * The name of the file.
-   */
-  get fileName(): string | null {
-    return this.getStringAttribute(FileItem.attributes.fileName);
-  }
-  set fileName(value) {
-    this.setStringAttribute(FileItem.attributes.fileName, value);
+  set filename(value) {
+    this.setStringAttribute(FileItem.attributes.filename, value);
   }
 
   get buttonEl() {
@@ -86,31 +53,20 @@ export default class FileItem
     this.removeEventListener("changing", this.handleChanging);
   }
 
-  getFilePath() {
-    const directoryPath = this.directoryPath;
-    const fileName = this.fileName;
-    if (directoryPath && fileName) {
-      return `${directoryPath}/${fileName}`;
-    }
-    return undefined;
-  }
-
   handleButtonClick = (e: Event) => {
     e.stopPropagation();
-    const pane = this.pane;
-    const panel = this.panel;
-    const filePath = this.getFilePath();
-    if (pane && panel && filePath) {
-      Workspace.window.openedFileEditor(pane, panel, filePath);
+    const filename = this.filename;
+    if (filename) {
+      Workspace.window.openedFileEditor(filename);
     }
   };
 
   handleChanging = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "file-options") {
-        const filePath = this.getFilePath();
-        if (filePath) {
-          const uri = Workspace.fs.getWorkspaceUri(filePath);
+        const filename = this.filename;
+        if (filename) {
+          const uri = Workspace.fs.getFileUri(Workspace.project.id, filename);
           if (e.detail.value === "delete") {
             Workspace.fs.deleteFiles({
               files: [{ uri }],

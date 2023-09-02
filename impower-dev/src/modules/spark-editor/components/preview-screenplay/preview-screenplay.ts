@@ -36,13 +36,19 @@ export default class PreviewScreenplay extends SEElement {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (DidOpenFileEditorMessage.type.isNotification(message)) {
-        this.loadFile();
+        const { pane } = message.params;
+        if (pane === "logic") {
+          this.loadFile();
+        }
       }
     }
   };
 
   async loadFile() {
-    const editor = await Workspace.window.getActiveEditor("logic");
+    const editor = await Workspace.window.getOpenEditor(
+      Workspace.project.id,
+      "logic"
+    );
     if (editor) {
       const { uri, visibleRange, selectedRange } = editor;
       const existingText = await Workspace.fs.readTextDocument({

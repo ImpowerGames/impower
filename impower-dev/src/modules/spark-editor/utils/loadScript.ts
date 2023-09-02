@@ -4,7 +4,9 @@ const loadScript = (src: string) => {
     script.async = true;
     script.defer = true;
     script.src = src;
-    script.onload = resolve;
+    script.onload = () => {
+      resolve(script);
+    };
     script.onerror = reject;
     document.head.appendChild(script);
   });

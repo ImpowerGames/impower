@@ -34,6 +34,7 @@ export default class HeaderMenuButton extends SEElement {
     this.openButtonEl?.addEventListener("click", this.handleClickOpenButton);
     this.closeButtonEl?.addEventListener("click", this.handleClickCloseButton);
     this.googleSyncEl?.addEventListener("picking", this.handlePicking);
+    this.googleSyncEl?.addEventListener("saved", this.handleSaved);
   }
 
   protected override onDisconnected(): void {
@@ -43,20 +44,32 @@ export default class HeaderMenuButton extends SEElement {
       this.handleClickCloseButton
     );
     this.googleSyncEl?.removeEventListener("picking", this.handlePicking);
+    this.googleSyncEl?.removeEventListener("saved", this.handleSaved);
   }
 
   handleClickOpenButton = () => {
-    const drawerEl = this.drawerEl;
-    drawerEl?.setAttribute("open", "");
+    this.openDrawer();
   };
 
   handleClickCloseButton = () => {
-    const drawerEl = this.drawerEl;
-    drawerEl?.removeAttribute("open");
+    this.closeDrawer();
   };
 
   handlePicking = () => {
+    this.closeDrawer();
+  };
+
+  handleSaved = () => {
+    this.closeDrawer();
+  };
+
+  openDrawer() {
+    const drawerEl = this.drawerEl;
+    drawerEl?.setAttribute("open", "");
+  }
+
+  closeDrawer() {
     const drawerEl = this.drawerEl;
     drawerEl?.removeAttribute("open");
-  };
+  }
 }

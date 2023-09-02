@@ -102,13 +102,11 @@ export default class GoogleDriveSyncProvider {
   }
 
   protected async loadGSIScript() {
-    await loadScript(GSI_SRC);
-    return null;
+    return loadScript(GSI_SRC);
   }
 
   protected async loadGAPIScript() {
-    await loadScript(GAPI_SRC);
-    return null;
+    return loadScript(GAPI_SRC);
   }
 
   protected async loadPickerScript() {
@@ -245,13 +243,52 @@ export default class GoogleDriveSyncProvider {
   }
 
   async getCurrentAccount() {
+    await this._gsiScriptRef.get();
     return this._accountRef.get();
   }
 
   async signIn() {
-    await this.requestPermission();
-    this._accountRef.reset();
-    return this._accountRef.get();
+    if (!this._gsiScriptRef.value) {
+      throw new Error("GSI script was not loaded.");
+    }
+    const account = this._accountRef.value;
+    const authClient = google.accounts.oauth2.initCodeClient({
+      client_id: BROWSER_GOOGLE_OAUTH_CLIENT_ID,
+      scope: SCOPES.join(" "),
+      ux_mode: UX_MODE,
+      redirect_uri: REDIRECT_URI,
+      login_hint: account?.email,
+    });
+    // Show a popup asking the user for consent to access their data
+    // (This must be executed synchronously at the same time as a user interaction,
+    // or else iOS Safari will block the popup)
+    authClient.requestCode();
+    return new Promise<AccountInfo | null>((resolve, reject) => {
+      const bindableAuthClient =
+        authClient as unknown as google.accounts.oauth2.CodeClientConfig;
+      bindableAuthClient.callback = async (response) => {
+        if (response.error) {
+          reject(response.error);
+        } else {
+          try {
+            await this.request<AccessInfo>(
+              "POST",
+              `/api/auth/signin`,
+              `code=${response.code}`,
+              "application/x-www-form-urlencoded"
+            );
+            this._accountRef.reset();
+            const accountInfo = await this._accountRef.get();
+            resolve(accountInfo);
+          } catch (err) {
+            reject(err);
+          }
+        }
+      };
+      bindableAuthClient.error_callback = (err) => {
+        reject(err);
+      };
+    });
   }
 
   async signOut() {
@@ -259,54 +296,8 @@ export default class GoogleDriveSyncProvider {
     await this.request("POST", `/api/auth/signout`);
   }
 
-  protected async requestPermission() {
-    await this._gsiScriptRef.get();
-    const account = await this._accountRef.get();
-    return new Promise<AccessInfo>((resolve, reject) => {
-      const authClient = google.accounts.oauth2.initCodeClient({
-        client_id: BROWSER_GOOGLE_OAUTH_CLIENT_ID,
-        scope: SCOPES.join(" "),
-        ux_mode: UX_MODE,
-        redirect_uri: REDIRECT_URI,
-        login_hint: account?.email,
-        callback: async (response) => {
-          if (response.error) {
-            reject(response.error);
-          } else {
-            try {
-              const access = await this.request<AccessInfo>(
-                "POST",
-                `/api/auth/signin`,
-                `code=${response.code}`,
-                "application/x-www-form-urlencoded"
-              );
-              resolve(access);
-            } catch (err) {
-              reject();
-            }
-          }
-        },
-        error_callback: (err) => {
-          reject(err);
-        },
-      });
-      // Prompt the user to select a Google Account and ask for consent to access their data
-      authClient.requestCode();
-    });
-  }
-
-  async getAccessToken() {
-    let access: AccessInfo = await this.request<AccessInfo>(
-      "GET",
-      `/api/auth/access`
-    );
-    if (!this.hasDriveAccess(access.scope)) {
-      access = await this.requestPermission();
-      if (!this.hasDriveAccess(access.scope)) {
-        return null;
-      }
-    }
-    return access.token;
+  async getAccess() {
+    return this.request<AccessInfo>("GET", `/api/auth/access`);
   }
 
   protected async getFile(fileId: string) {
@@ -335,10 +326,5 @@ export default class GoogleDriveSyncProvider {
       `/api/storage/file/${fileId}`,
       formData
     );
-  }
-
-  protected hasDriveAccess(scope: string) {
-    const grantedScopes = scope.split(" ");
-    return grantedScopes.includes("https://www.googleapis.com/auth/drive.file");
   }
 }

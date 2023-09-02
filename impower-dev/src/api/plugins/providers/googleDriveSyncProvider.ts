@@ -40,6 +40,11 @@ const ERROR = {
   },
 } as const;
 
+const hasSyncPermission = (scope: string = "") => {
+  const grantedScopes = scope.split(" ");
+  return grantedScopes.includes("https://www.googleapis.com/auth/drive.file");
+};
+
 /**
  * Only allow secure httpOnly sameSite requests
  */
@@ -121,7 +126,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       const token = res.credentials.access_token;
       const expires = res.credentials.expiry_date;
       const scope = res.credentials.scope;
-      return { token, expires, scope };
+      const consented = hasSyncPermission(scope);
+      return { token, expires, scope, consented };
     });
   });
   app.post("/api/auth/signout", async (request, reply) => {
@@ -149,13 +155,20 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       // Get user id
       const res = await auth.refreshAccessToken();
       const token = res.credentials.access_token!;
+      const expires = res.credentials.expiry_date;
+      const scope = res.credentials.scope;
       const tokenInfo = await auth.getTokenInfo(token);
       const uid = tokenInfo.sub!;
+      const consented = hasSyncPermission(scope);
       return {
         uid,
         displayName,
         photoURL,
         email,
+        token,
+        expires,
+        scope,
+        consented,
       };
     });
   });
@@ -165,7 +178,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       const token = res.credentials.access_token;
       const expires = res.credentials.expiry_date;
       const scope = res.credentials.scope;
-      return { token, expires, scope };
+      const consented = hasSyncPermission(scope);
+      return { token, expires, scope, consented };
     });
   });
   app.post<{
@@ -218,7 +232,11 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       const drive = google.drive({ version: "v3", auth });
       const res = await drive.files.update({
         fileId,
+        requestBody: {
+          originalFilename: name,
+        },
         media: {
+          mimeType,
           body: fileStream,
         },
         fields: FILE_FIELDS,

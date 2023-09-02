@@ -3,12 +3,13 @@ import { Properties } from "../../../../../../packages/spark-element/src/types/p
 import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
 import SEElement from "../../core/se-element";
 import getValidFileName from "../../utils/getValidFileName";
+import globToRegex from "../../utils/globToRegex";
 import { verifyFileType } from "../../utils/verifyFileType";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_file-list";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["pane", "panel", "directory-path", "accept"]),
+  ...getAttributeNameMap(["include", "exclude", "accept"]),
 };
 
 /**
@@ -35,33 +36,25 @@ export default class FileList
   }
 
   /**
-   * The pane where this file list is displayed.
+   * The glob filter that determines which project files will be included in the list.
+   * e.g. `*.script`
    */
-  get pane(): string | null {
-    return this.getStringAttribute(FileList.attributes.pane);
+  get include(): string | null {
+    return this.getStringAttribute(FileList.attributes.include);
   }
-  set pane(value) {
-    this.setStringAttribute(FileList.attributes.pane, value);
+  set include(value) {
+    this.setStringAttribute(FileList.attributes.include, value);
   }
 
   /**
-   * The panel where this file list is displayed.
+   * The glob filter that determines which project files will be excluded from the list.
+   * e.g. `main.script`
    */
-  get panel(): string | null {
-    return this.getStringAttribute(FileList.attributes.panel);
+  get exclude(): string | null {
+    return this.getStringAttribute(FileList.attributes.exclude);
   }
-  set panel(value) {
-    this.setStringAttribute(FileList.attributes.panel, value);
-  }
-
-  /**
-   * The directory path to read from.
-   */
-  get directoryPath(): string | null {
-    return this.getStringAttribute(FileList.attributes.directoryPath);
-  }
-  set directoryPath(value) {
-    this.setStringAttribute(FileList.attributes.directoryPath, value);
+  set exclude(value) {
+    this.setStringAttribute(FileList.attributes.exclude, value);
   }
 
   /**
@@ -95,13 +88,16 @@ export default class FileList
     _oldValue: string,
     newValue: string
   ): void {
-    if (name === FileList.attributes.directoryPath) {
-      this.loadEntries(newValue);
+    if (
+      name === FileList.attributes.include ||
+      name === FileList.attributes.exclude
+    ) {
+      this.loadEntries();
     }
   }
 
   protected override onConnected(): void {
-    this.loadEntries(this.directoryPath);
+    this.loadEntries();
     window.addEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
@@ -126,18 +122,18 @@ export default class FileList
   protected handleDidChangeWatchedFiles = (e: Event): void => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      const directoryPath = this.directoryPath;
-      if (directoryPath) {
-        const directoryUri = Workspace.fs.getWorkspaceUri(directoryPath);
-        if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-          const params = message.params;
-          const changes = params.changes;
-          const changedFileInDirectory = changes.some((file) =>
-            file.uri.startsWith(directoryUri)
-          );
-          if (changedFileInDirectory) {
-            this.loadEntries(directoryPath);
-          }
+      if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
+        const params = message.params;
+        const changes = params.changes;
+        const include = this.include;
+        const exclude = this.exclude;
+        const includeRegex = include ? globToRegex(include) : /.*/;
+        const excludeRegex = exclude ? globToRegex(exclude) : undefined;
+        const isRelevantChange = changes.some(
+          (file) => includeRegex.test(file.uri) && !excludeRegex?.test(file.uri)
+        );
+        if (isRelevantChange) {
+          this.loadEntries();
         }
       }
     }
@@ -175,16 +171,12 @@ export default class FileList
 
   async upload(fileArray: File[]) {
     if (fileArray) {
-      const directoryPath = this.directoryPath;
-      if (!directoryPath) {
-        return;
-      }
       const files = await Promise.all(
         fileArray.map(async (file) => {
           const validFileName = getValidFileName(file.name);
           const data = await file.arrayBuffer();
           return {
-            uri: Workspace.fs.getWorkspaceUri(directoryPath, validFileName),
+            uri: Workspace.fs.getFileUri(Workspace.project.id, validFileName),
             data,
           };
         })
@@ -195,25 +187,24 @@ export default class FileList
     }
   }
 
-  async loadEntries(directoryPath: string | null) {
-    if (!directoryPath) {
-      this._uris = [];
-      return;
-    }
-    this._uris = await Workspace.fs.getFileUrisInDirectory(directoryPath);
-    const pane = this.pane || "";
-    const panel = this.panel || "";
+  async loadEntries() {
+    const include = this.include;
+    const exclude = this.exclude;
+    const includeRegex = include ? globToRegex(include) : /.*/;
+    const excludeRegex = exclude ? globToRegex(exclude) : undefined;
+    const files = await Workspace.fs.getFiles();
+    const allUris = Object.keys(files);
+    this._uris = allUris.filter(
+      (uri) => includeRegex.test(uri) && !excludeRegex?.test(uri)
+    );
     const outletEl = this.listEl;
     outletEl?.replaceChildren();
     if (outletEl) {
       this._uris.forEach((uri) => {
-        const fileName = Workspace.fs.getFileName(uri);
-        const displayName = Workspace.fs.getName(uri);
+        const filename = Workspace.fs.getFilename(uri);
+        const displayName = Workspace.fs.getDisplayName(uri);
         const fileItem = document.createElement("se-file-item");
-        fileItem.setAttribute("pane", pane);
-        fileItem.setAttribute("panel", panel);
-        fileItem.setAttribute("directory-path", directoryPath);
-        fileItem.setAttribute("file-name", fileName);
+        fileItem.setAttribute("filename", filename);
         fileItem.textContent = displayName;
         outletEl.appendChild(fileItem);
       });

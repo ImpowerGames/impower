@@ -25,7 +25,13 @@ import { getUriFromPath } from "./utils/getUriFromPath";
 const WRITE_DELAY = 100;
 
 const globToRegex = (glob: string) => {
-  return RegExp(glob.replace(/[.]/g, "[.]").replace(/[*]/g, ".*"), "i");
+  return RegExp(
+    glob
+      .replace(/[.]/g, "[.]")
+      .replace(/[*]/g, ".*")
+      .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
+    "i"
+  );
 };
 
 const parse = (file: FileData, files: FileData[]) => {
@@ -154,9 +160,7 @@ const readDirectoryFiles = async (directoryUri: string) => {
   const root = await navigator.storage.getDirectory();
   const relativePath = getPathFromUri(directoryUri);
   const directoryHandle = await getDirectoryHandleFromPath(root, relativePath);
-  const directoryPath =
-    getParentPath(relativePath) + "/" + directoryHandle.name;
-  const directoryEntries = await getAllFiles(directoryHandle, directoryPath);
+  const directoryEntries = await getAllFiles(directoryHandle, relativePath);
   const files = await Promise.all(
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);

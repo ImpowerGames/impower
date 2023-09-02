@@ -33,63 +33,51 @@ import {
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import YAML from "yaml";
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
+import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
+
+const DEFAULT_PROJECT_NAME = "Untitled Project";
 
 export default class WorkspaceFileSystem {
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
+
+  protected _initialFilesRef = new SingletonPromise(
+    this.loadInitialFiles.bind(this)
+  );
+
+  protected _cache: Record<string, HTMLElement> = {};
 
   protected _scheme = "file:///";
   get scheme() {
     return this._scheme;
   }
 
-  // TODO: Allow user to sync their data with a storage provider (like Github, Google Drive, or Dropbox)
-  protected _uid = "anonymous";
-  get uid() {
-    return this._uid;
-  }
-
-  protected _project?: { id: string; name: string } | undefined;
-  get project() {
-    return this._project;
-  }
-
   protected _files?: Record<string, FileData>;
-  get files() {
-    return this._files;
-  }
-
-  protected _initializing?: Promise<FileData[]>;
-  get initializing() {
-    return this._initializing;
-  }
-
-  protected _cache: Record<string, HTMLElement> = {};
 
   constructor() {
-    this._initializing = this.initialize();
+    this._initialFilesRef.get();
     this._fileSystemWorker.addEventListener(
       "message",
       this.handleWorkerMessage
     );
   }
 
-  async initialize() {
-    const project = await this.readProject();
-    if (project) {
-      this._project = project;
-    } else {
-      this._project = await this.createProject();
-    }
-    Workspace.window.loadProject(this._project);
+  protected async loadInitialFiles() {
     await Workspace.lsp.starting;
-    const directoryUri = this.getWorkspaceUri();
+    const directoryUri = this.getDirectoryUri(Workspace.project.id);
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
     const didWatchFilesParams = {
       files,
     };
+    const result: Record<string, FileData> = {};
+    files.forEach((file) => {
+      this._files ??= {};
+      this._files[file.uri] = file;
+      result[file.uri] = file;
+      this.preloadFile(file);
+    });
     Workspace.lsp.connection.sendNotification(
       DidWatchFilesMessage.type,
       didWatchFilesParams
@@ -98,13 +86,7 @@ export default class WorkspaceFileSystem {
       DidWatchFilesMessage.method,
       DidWatchFilesMessage.type.notification(didWatchFilesParams)
     );
-    this._files ??= {};
-    files.forEach((file) => {
-      this._files ??= {};
-      this._files[file.uri] = file;
-      this.preloadFile(file);
-    });
-    return files;
+    return result;
   }
 
   protected emit<T>(eventName: string, detail?: T): boolean {
@@ -156,35 +138,29 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  getWorkspaceUri(...path: string[]) {
-    const suffix = path.length > 0 ? `/${path.join("/")}` : "";
-    // TODO: Generate unique project id instead of "default" id
-    const projectId = "default";
-    return `${this._scheme}${this._uid}/projects/${projectId}${suffix}`;
+  getDirectoryUri(projectId: string) {
+    return `${this._scheme}${projectId}`;
   }
 
-  getFileName(uri: string) {
+  getFileUri(projectId: string, filename: string) {
+    return `${this.getDirectoryUri(projectId)}/${filename}`;
+  }
+
+  getFilename(uri: string) {
     return uri.split("/").slice(-1).join("");
   }
 
-  getName(uri: string) {
-    const fileName = this.getFileName(uri);
+  getDisplayName(uri: string) {
+    const fileName = this.getFilename(uri);
     return fileName.split(".")[0] ?? "";
   }
 
   async getFiles() {
-    await this.initializing;
+    await this._initialFilesRef.get();
     if (!this._files) {
       throw new Error("Workspace File System not initialized.");
     }
     return this._files;
-  }
-
-  async getFileUrisInDirectory(directoryPath: string): Promise<string[]> {
-    const files = await this.getFiles();
-    return Object.keys(files).filter((uri) =>
-      uri.startsWith(this.getWorkspaceUri(directoryPath))
-    );
   }
 
   protected async readDirectoryFiles(
@@ -193,40 +169,63 @@ export default class WorkspaceFileSystem {
     return this.sendRequest(ReadDirectoryFilesMessage.type, params);
   }
 
-  async readProject(): Promise<{ name: string; id: string } | undefined> {
-    const uri = this.getWorkspaceUri("package.sd");
-    const packageContent = await this.readTextDocument({
+  protected async readProjectMetadata(
+    projectId: string
+  ): Promise<{ name: string } | null> {
+    const uri = this.getFileUri(projectId, "metadata.sd");
+    const metadataContent = await this.readTextDocument({
       textDocument: { uri },
     });
-    if (!packageContent) {
-      return undefined;
+    if (!metadataContent) {
+      return null;
     }
-    const trimmedPackageContent = packageContent.trim();
-    let validPackageContent = trimmedPackageContent.endsWith("---")
-      ? trimmedPackageContent.slice(0, -3)
-      : trimmedPackageContent;
-    const packageObj = YAML.parse(validPackageContent);
-    return packageObj;
+    const trimmedContent = metadataContent.trim();
+    let validContent = trimmedContent.endsWith("---")
+      ? trimmedContent.slice(0, -3)
+      : trimmedContent;
+    const metadata = YAML.parse(validContent);
+    return metadata;
   }
 
-  async createProject() {
-    const uri = this.getWorkspaceUri("package.sd");
-    this._project = { id: "default", name: "Untitled Project" };
-    const text = `---\n${YAML.stringify(this._project)}\n---`;
+  protected async writeProjectMetadata(
+    projectId: string,
+    metadata: { name: string }
+  ) {
+    const uri = this.getFileUri(projectId, "metadata.sd");
+    const text = `---\n${YAML.stringify(metadata)}\n---`;
     await this.writeTextDocument({
       textDocument: { uri },
       text,
     });
-    return this._project;
+    return metadata;
   }
 
-  async updateProjectName(name: string) {
-    if (!this._project) {
-      throw new Error("No project loaded");
-    }
-    const uri = this.getWorkspaceUri("package.sd");
-    this._project.name = name;
-    const text = `---\n${YAML.stringify(this._project)}\n---`;
+  async readProjectName(projectId: string) {
+    const metadata = (await this.readProjectMetadata(projectId)) ?? {
+      name: DEFAULT_PROJECT_NAME,
+    };
+    return metadata.name;
+  }
+
+  async writeProjectName(projectId: string, name: string) {
+    const metadata = (await this.readProjectMetadata(projectId)) ?? {
+      name: "",
+    };
+    metadata.name = name;
+    return this.writeProjectMetadata(projectId, metadata);
+  }
+
+  async readProjectContent(projectId: string) {
+    // TODO: Bundle OPFS chunk files into project content before creating blob
+    const uri = this.getFileUri(projectId, "main.script");
+    return Workspace.fs.readTextDocument({
+      textDocument: { uri },
+    });
+  }
+
+  async writeProjectContent(projectId: string, text: string) {
+    // TODO: Split project content into chunk files before caching in OPFS
+    const uri = this.getFileUri(projectId, "main.script");
     await this.writeTextDocument({
       textDocument: { uri },
       text,

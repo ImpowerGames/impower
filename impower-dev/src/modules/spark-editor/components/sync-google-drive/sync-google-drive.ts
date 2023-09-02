@@ -1,5 +1,6 @@
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
+import WorkspaceProject from "../../workspace/WorkspaceProject";
 import { AccountInfo } from "../../workspace/types/AccountInfo";
 import component from "./_sync-google-drive";
 
@@ -97,31 +98,24 @@ export default class SyncGoogleDrive extends SEElement {
     try {
       const provider = Workspace.sync.google;
       const accountInfo = await provider.getCurrentAccount();
-      if (accountInfo) {
-        await this.loadAuthenticatedUI(accountInfo);
-      } else {
-        await this.loadUnauthenticatedUI();
-      }
+      this.loadAccountUI(accountInfo);
     } catch (err: any) {
       console.error(err);
     }
   }
 
   handleRevoke = async () => {
-    await this.loadUnauthenticatedUI();
+    this.loadUnauthenticatedUI();
   };
 
   handleSignIn = async () => {
     try {
       const provider = Workspace.sync.google;
       const accountInfo = await provider.signIn();
-      if (accountInfo) {
-        await this.loadAuthenticatedUI(accountInfo);
-      } else {
-        await this.loadUnauthenticatedUI();
-      }
+      this.loadAccountUI(accountInfo);
     } catch (err: any) {
       console.error(err);
+      this.loadUnauthenticatedUI();
     }
   };
 
@@ -129,7 +123,9 @@ export default class SyncGoogleDrive extends SEElement {
     try {
       const provider = Workspace.sync.google;
       await provider.signOut();
-      await this.loadUnauthenticatedUI();
+      this.loadUnauthenticatedUI();
+      Workspace.project.loadProject(WorkspaceProject.LOCAL_ID);
+      await Workspace.window.loadProjectName(WorkspaceProject.LOCAL_ID);
     } catch (err: any) {
       console.error(err);
     }
@@ -137,20 +133,21 @@ export default class SyncGoogleDrive extends SEElement {
 
   handleImportProjectFile = async () => {
     try {
-      const provider = Workspace.sync.google;
-      const accessToken = await provider.getAccessToken();
-      if (accessToken) {
+      const syncProvider = Workspace.sync.google;
+      const access = await syncProvider.getAccess();
+      if (access.token) {
         this.emit("picking");
-        const file = await provider.importProjectFile(accessToken);
-        if (file != null) {
-          // TODO: Save file id, name, and chunks to WorkspaceFileSystem.currentProject
-          // TODO: Save file !capabilities.canModifiyContent to WorkspaceFileSystem.currentProject.readonly
-          await Workspace.fs.writeTextDocument({
-            textDocument: {
-              uri: Workspace.fs.getWorkspaceUri("logic/main.sd"),
-            },
-            text: file.data,
-          });
+        const file = await syncProvider.importProjectFile(access.token);
+        // TODO: Save file !capabilities.canModifiyContent to WorkspaceSync.readonly
+        if (file != null && file.id && file.name) {
+          const projectId = file.id;
+          const projectName = file.name.split(".")[0]!;
+          const projectContent = file.data;
+          // TODO: Block ui with loading spinner until all parts of project are loaded
+          Workspace.project.loadProject(projectId);
+          await Workspace.fs.writeProjectName(projectId, projectName);
+          await Workspace.fs.writeProjectContent(projectId, projectContent);
+          await Workspace.window.loadProjectName(projectId);
         }
         this.emit("picked", file);
       }
@@ -161,36 +158,46 @@ export default class SyncGoogleDrive extends SEElement {
 
   handleSaveProjectFile = async () => {
     try {
-      const provider = Workspace.sync.google;
-      const accessToken = await provider.getAccessToken();
-      if (accessToken) {
-        // TODO: Bundle opfs chunks into one project file
-        const buffer = await Workspace.fs.readFile({
-          file: { uri: Workspace.fs.getWorkspaceUri("logic/main.sd") },
+      const syncProvider = Workspace.sync.google;
+      const access = await syncProvider.getAccess();
+      if (access.token) {
+        const projectId = Workspace.project.id;
+        const name = await Workspace.fs.readProjectName(projectId);
+        const text = await Workspace.fs.readProjectContent(projectId);
+        const encoder = new TextEncoder();
+        const encodedText = encoder.encode(text);
+        const blob = new File([encodedText], `${name}.sd`, {
+          type: "text/plain",
         });
-        const blob = new File([buffer], "main.sd", { type: "text/plain" });
-        const currentProject = {
-          id: "18uhG5GUsHxgA-U92jkiN4c8H14zTsQdP",
-          readonly: false,
-        }; // TODO: Get from WorkspaceFileSystem.currentProject
-        if (currentProject && currentProject.id && !currentProject.readonly) {
+        // TODO: Ensure project is not readonly by checking WorkspaceSync.readonly
+        if (!Workspace.project.isLocal) {
           this.emit("saving");
-          const file = await provider.saveProjectFile(currentProject.id, blob);
+          const file = await syncProvider.saveProjectFile(projectId, blob);
           this.emit("saved", file);
         } else {
           this.emit("picking");
-          const file = await provider.exportProjectFile(accessToken, blob);
+          const file = await syncProvider.exportProjectFile(access.token, blob);
           this.emit("picked", file);
         }
-        // TODO: Save file id, name, and chunks to WorkspaceFileSystem.currentProject
-        // TODO: Save file !capabilities.canModifiyContent to WorkspaceFileSystem.currentProject.readonly
       }
     } catch (err: any) {
       console.error(err);
     }
   };
 
-  async loadAuthenticatedUI(accountInfo: AccountInfo) {
+  loadAccountUI(accountInfo: AccountInfo | null) {
+    if (accountInfo) {
+      if (accountInfo.consented) {
+        this.loadAuthenticatedUI(accountInfo);
+      } else {
+        this.loadUnauthenticatedUI("Grant Access To Google Drive");
+      }
+    } else {
+      this.loadUnauthenticatedUI();
+    }
+  }
+
+  loadAuthenticatedUI(accountInfo: AccountInfo) {
     if (accountInfo.photoURL) {
       this.accountAvatarEl.src = accountInfo.photoURL;
       this.accountAvatarEl.hidden = false;
@@ -213,7 +220,8 @@ export default class SyncGoogleDrive extends SEElement {
     this.unauthenticatedEl.hidden = true;
   }
 
-  async loadUnauthenticatedUI() {
+  loadUnauthenticatedUI(label: string = "Sync With Google Drive") {
+    this.signinButtonEl.textContent = label;
     this.contentEl.textContent = "";
     this.unauthenticatedEl.hidden = false;
     this.authenticatedEl.hidden = true;

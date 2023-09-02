@@ -6,7 +6,7 @@ import { Workspace } from "../../workspace/Workspace";
 import component from "./_file-add-button";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["directory-path", "file-name"]),
+  ...getAttributeNameMap(["filename"]),
 };
 
 export default class FileAddButton
@@ -30,23 +30,13 @@ export default class FileAddButton
   }
 
   /**
-   * The directory path to write to.
-   */
-  get directoryPath(): string | null {
-    return this.getStringAttribute(FileAddButton.attributes.directoryPath);
-  }
-  set directoryPath(value) {
-    this.setStringAttribute(FileAddButton.attributes.directoryPath, value);
-  }
-
-  /**
    * The name of the new file.
    */
-  get fileName(): string | null {
-    return this.getStringAttribute(FileAddButton.attributes.fileName);
+  get filename(): string | null {
+    return this.getStringAttribute(FileAddButton.attributes.filename);
   }
-  set fileName(value) {
-    this.setStringAttribute(FileAddButton.attributes.fileName, value);
+  set filename(value) {
+    this.setStringAttribute(FileAddButton.attributes.filename, value);
   }
 
   protected override onConnected(): void {
@@ -58,19 +48,16 @@ export default class FileAddButton
   }
 
   handleClick = async (e: MouseEvent) => {
-    const directoryPath = this.directoryPath;
-    if (!directoryPath) {
-      return;
-    }
-    const fileUris = await Workspace.fs.getFileUrisInDirectory(directoryPath);
-    const fileNames = fileUris.map((uri) => Workspace.fs.getFileName(uri));
-    const fileName = this.fileName;
-    if (fileName) {
-      const uniqueFileName = getUniqueFileName(fileNames, fileName);
+    const files = await Workspace.fs.getFiles();
+    const fileUris = Object.keys(files);
+    const filenames = fileUris.map((uri) => Workspace.fs.getFilename(uri));
+    const filename = this.filename;
+    if (filename) {
+      const uniqueFileName = getUniqueFileName(filenames, filename);
       await Workspace.fs.createFiles({
         files: [
           {
-            uri: Workspace.fs.getWorkspaceUri(directoryPath, uniqueFileName),
+            uri: Workspace.fs.getFileUri(Workspace.project.id, uniqueFileName),
             data: new ArrayBuffer(0),
           },
         ],

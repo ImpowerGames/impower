@@ -23,26 +23,27 @@ export default class LogicScriptsEditor extends SEElement {
     this.removeEventListener("changing", this.handleChanging);
   }
 
-  getFilePath() {
-    return Workspace.window.state?.logic?.panels?.scripts?.openFilePath || "";
+  getFilename() {
+    return (
+      Workspace.window.state?.panes?.logic?.panels?.scripts?.activeEditor
+        ?.filename || ""
+    );
   }
 
   handleChanging = async (e: Event) => {
     if (e instanceof CustomEvent) {
-      const pane = "logic";
-      const panel = "scripts";
+      const filename = this.getFilename();
       if (e.detail.key === "close-file-editor") {
-        Workspace.window.closedFileEditor(pane, panel);
+        Workspace.window.closedFileEditor(filename);
       }
       if (e.detail.key === "file-options") {
-        const filePath = this.getFilePath();
-        if (filePath) {
-          const uri = Workspace.fs.getWorkspaceUri(filePath);
+        if (filename) {
+          const uri = Workspace.fs.getFileUri(Workspace.project.id, filename);
           if (e.detail.value === "delete") {
             await Workspace.fs.deleteFiles({
               files: [{ uri }],
             });
-            Workspace.window.closedFileEditor(pane, panel);
+            Workspace.window.closedFileEditor(filename);
           }
         }
       }

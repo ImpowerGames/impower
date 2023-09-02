@@ -2,7 +2,9 @@ export const getDirectoryHandleFromPath = async (
   root: FileSystemDirectoryHandle,
   relativePath: string
 ): Promise<FileSystemDirectoryHandle> => {
-  const path = relativePath.startsWith(".")
+  const path = relativePath.startsWith("./")
+    ? relativePath.slice(2)
+    : relativePath.startsWith("/")
     ? relativePath.slice(1)
     : relativePath;
   const parts = path.split("/");
