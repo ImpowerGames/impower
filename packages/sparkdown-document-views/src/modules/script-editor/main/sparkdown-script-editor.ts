@@ -28,16 +28,16 @@ import { getServerChanges } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
 import { closestAncestor } from "../../../utils/closestAncestor";
-import debounce from "../../../utils/debounce";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
+import throttle from "../../../utils/throttle";
 import createEditorView from "../utils/createEditorView";
 import component from "./_sparkdown-script-editor";
 
 const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["scroll-margin", "autosave-debounce-delay"]),
+  ...getAttributeNameMap(["scroll-margin", "autosave-throttle-delay"]),
 };
 
 export default class SparkdownScriptEditor
@@ -78,16 +78,16 @@ export default class SparkdownScriptEditor
     );
   }
 
-  get autosaveDebounceDelay() {
+  get autosaveThrottleDelay() {
     return (
       this.getNumberAttribute(
-        SparkdownScriptEditor.attributes.autosaveDebounceDelay
+        SparkdownScriptEditor.attributes.autosaveThrottleDelay
       ) ?? 100
     );
   }
-  set autosaveDebounceDelay(value) {
+  set autosaveThrottleDelay(value) {
     this.setNumberAttribute(
-      SparkdownScriptEditor.attributes.autosaveDebounceDelay,
+      SparkdownScriptEditor.attributes.autosaveThrottleDelay,
       value
     );
   }
@@ -297,7 +297,7 @@ export default class SparkdownScriptEditor
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
-      const debouncedSave = debounce((text: Text) => {
+      const throttledSave = throttle((text: Text) => {
         if (this._textDocument) {
           this.emit(
             DidSaveTextDocumentMessage.method,
@@ -307,7 +307,7 @@ export default class SparkdownScriptEditor
             })
           );
         }
-      }, this.autosaveDebounceDelay);
+      }, this.autosaveThrottleDelay);
       this._scrollMargin = getBoxValues(this.scrollMargin);
       this._view = createEditorView(root, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
@@ -355,7 +355,7 @@ export default class SparkdownScriptEditor
                 DidChangeTextDocumentMessage.type,
                 changeParams
               );
-              debouncedSave(e.after);
+              throttledSave(e.after);
             }
           }
         },

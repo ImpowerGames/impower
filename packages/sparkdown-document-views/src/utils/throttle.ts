@@ -1,15 +1,25 @@
 const throttle = <T extends (...args: any[]) => void>(
   callback: T,
   delay: number
-): T => {
-  let lastTime = 0;
-  return ((...args: Parameters<T>) => {
-    const now = Date.now();
-    if (now - lastTime >= (delay ?? 0)) {
-      callback(...args);
-      lastTime = now;
+) => {
+  let inThrottle: boolean;
+  let lastFn: ReturnType<typeof setTimeout>;
+  let lastTime: number;
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      callback(args);
+      lastTime = Date.now();
+      inThrottle = true;
+    } else {
+      clearTimeout(lastFn);
+      lastFn = setTimeout(() => {
+        if (Date.now() - lastTime >= delay) {
+          callback(args);
+          lastTime = Date.now();
+        }
+      }, Math.max(delay - (Date.now() - lastTime), 0));
     }
-  }) as T;
+  };
 };
 
 export default throttle;

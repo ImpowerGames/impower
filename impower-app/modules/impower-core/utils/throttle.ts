@@ -1,13 +1,23 @@
-const throttle = <T extends (...args: unknown[]) => unknown>(
-  func: T,
-  timeFrame?: number
-): ((...args: unknown[]) => void) => {
-  let lastTime = 0;
-  return (...args: unknown[]): void => {
-    const now = Date.now();
-    if (now - lastTime >= timeFrame) {
-      func(...args);
-      lastTime = now;
+const throttle = <T extends (...args: any[]) => void>(
+  callback: T,
+  delay: number 
+) => {
+  let inThrottle: boolean;
+  let lastFn: ReturnType<typeof setTimeout>;
+  let lastTime: number;
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      callback(args);
+      lastTime = Date.now();
+      inThrottle = true;
+    } else {
+      clearTimeout(lastFn);
+      lastFn = setTimeout(() => {
+        if (Date.now() - lastTime >= delay) {
+          callback(args);
+          lastTime = Date.now();
+        }
+      }, Math.max(delay - (Date.now() - lastTime), 0));
     }
   };
 };
