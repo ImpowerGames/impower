@@ -81,9 +81,8 @@ const authenticated = async <T>(
   return secure(request, reply, async () => {
     const sessionCookieData = getSessionCookieData(request);
     if (!sessionCookieData?.refresh_token) {
-      return reply
-        .status(ERROR.UNAUTHENTICATED.status)
-        .send(ERROR.UNAUTHENTICATED.data);
+      reply.status(ERROR.UNAUTHENTICATED.status);
+      return ERROR.UNAUTHENTICATED.data;
     }
     const auth = new google.auth.OAuth2(
       process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
@@ -193,9 +192,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     const mimeType = data?.mimetype;
     const fileStream = data?.file;
     if (!name || !mimeType || !fileStream) {
-      return reply
-        .status(ERROR.INVALID_FILE_UPLOAD_REQUEST.status)
-        .send(ERROR.INVALID_FILE_UPLOAD_REQUEST.data);
+      reply.status(ERROR.INVALID_FILE_UPLOAD_REQUEST.status);
+      return ERROR.INVALID_FILE_UPLOAD_REQUEST.data;
     }
     return authenticated(request, reply, async (auth) => {
       const drive = google.drive({ version: "v3", auth });
@@ -224,9 +222,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     const mimeType = data?.mimetype;
     const fileStream = data?.file;
     if (!name || !mimeType || !fileStream) {
-      return reply
-        .status(ERROR.INVALID_FILE_UPLOAD_REQUEST.status)
-        .send(ERROR.INVALID_FILE_UPLOAD_REQUEST.data);
+      reply.status(ERROR.INVALID_FILE_UPLOAD_REQUEST.status);
+      return ERROR.INVALID_FILE_UPLOAD_REQUEST.data;
     }
     return authenticated(request, reply, async (auth) => {
       const drive = google.drive({ version: "v3", auth });
