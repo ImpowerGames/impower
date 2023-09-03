@@ -42,8 +42,8 @@ import getCssTextSize from "../utils/getCssTextSize.js";
 import getCssTextStrikethrough from "../utils/getCssTextStrikethrough.js";
 import getCssTextUnderline from "../utils/getCssTextUnderline.js";
 import getCssTextWeight from "../utils/getCssTextWeight.js";
+import getCssTextWhitespace from "../utils/getCssTextWhitespace.js";
 import getCssTranslate from "../utils/getCssTranslate.js";
-import getCssTextWhitespace from "../utils/getCssWhitespace.js";
 import getCssZ from "../utils/getCssZ.js";
 
 const get = (v: string) => v;
