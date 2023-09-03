@@ -284,6 +284,7 @@ export default class WorkspaceWindow {
           visibleRange: panelState.activeEditor.visibleRange,
           selectedRange: panelState.activeEditor.selectedRange,
           ...file,
+          uri,
         };
       }
     }
@@ -323,6 +324,7 @@ export default class WorkspaceWindow {
         visibleRange: openEditor.visibleRange,
         selectedRange: openEditor.selectedRange,
         ...file,
+        uri,
       };
     }
     return undefined;
