@@ -36,7 +36,7 @@ const DEFAULT_ATTRIBUTES = {
     "shift-boundary",
     "shift-padding",
     "auto-size",
-    "sync",
+    "sync-size",
     "auto-size-boundary",
     "auto-size-padding",
     "label",

@@ -22,7 +22,7 @@ import { getParentPath } from "./utils/getParentPath";
 import { getPathFromUri } from "./utils/getPathFromUri";
 import { getUriFromPath } from "./utils/getUriFromPath";
 
-const WRITE_DELAY = 100;
+const WRITE_DEBOUNCE_DELAY = 100;
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -196,7 +196,7 @@ const queueWrite = async (fileUri: string, content: DataView | Uint8Array) => {
       State.writeQueue[fileUri] = {
         content,
         listeners: [],
-        handler: debounce(_writeFile, WRITE_DELAY),
+        handler: debounce(_writeFile, WRITE_DEBOUNCE_DELAY),
       };
     }
     const entry = State.writeQueue[fileUri];

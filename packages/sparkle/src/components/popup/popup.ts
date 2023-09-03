@@ -36,7 +36,7 @@ const DEFAULT_ATTRIBUTES = {
     "shift-boundary",
     "shift-padding",
     "auto-size",
-    "sync",
+    "sync-size",
     "auto-size-boundary",
     "auto-size-padding",
   ]),
@@ -288,11 +288,11 @@ export default class Popup
   /**
    * Syncs the popup's width or height to that of the anchor element.
    */
-  get sync(): "width" | "height" | "both" | null {
-    return this.getStringAttribute(Popup.attributes.sync);
+  get syncSize(): "width" | "height" | "both" | null {
+    return this.getStringAttribute(Popup.attributes.syncSize);
   }
-  set sync(value) {
-    this.setStringAttribute(Popup.attributes.sync, value);
+  set syncSize(value) {
+    this.setStringAttribute(Popup.attributes.syncSize, value);
   }
 
   /**
@@ -441,15 +441,17 @@ export default class Popup
     ];
 
     // First we sync width/height
-    if (this.sync) {
+    if (this.syncSize) {
       middleware.push(
         size({
           apply: (args: {
             rects: { reference: { width: number; height: number } };
           }) => {
             const { rects } = args;
-            const syncWidth = this.sync === "width" || this.sync === "both";
-            const syncHeight = this.sync === "height" || this.sync === "both";
+            const syncWidth =
+              this.syncSize === "width" || this.syncSize === "both";
+            const syncHeight =
+              this.syncSize === "height" || this.syncSize === "both";
             popupEl.style.width = syncWidth ? `${rects.reference.width}px` : "";
             popupEl.style.height = syncHeight
               ? `${rects.reference.height}px`

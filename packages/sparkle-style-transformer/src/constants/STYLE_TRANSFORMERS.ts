@@ -42,6 +42,7 @@ import getCssTextSize from "../utils/getCssTextSize.js";
 import getCssTextStrikethrough from "../utils/getCssTextStrikethrough.js";
 import getCssTextUnderline from "../utils/getCssTextUnderline.js";
 import getCssTextWeight from "../utils/getCssTextWeight.js";
+import getCssTextWhitespace from "../utils/getCssTextWhitespace.js";
 import getCssTranslate from "../utils/getCssTranslate.js";
 import getCssZ from "../utils/getCssZ.js";
 
@@ -152,6 +153,7 @@ const STYLE_TRANSFORMERS = {
   "text-case": get,
   "text-align": getCssTextAlign,
   "text-overflow": getCssTextOverflow,
+  "text-whitespace": getCssTextWhitespace,
   "text-color": getCssColor,
   "text-stroke-color": getCssColor,
   "text-stroke-width": get,

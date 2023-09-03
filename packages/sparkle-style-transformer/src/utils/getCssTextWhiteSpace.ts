@@ -1,16 +1,8 @@
-const getCssTextWhiteSpace = (value: string): string => {
-  if (
-    value === "" ||
-    value == "visible" ||
-    value === "clip" ||
-    value === "ellipsis"
-  ) {
-    return "nowrap";
-  }
-  if (value === "wrap") {
-    return "break-spaces";
+const getCssTextWhitespace = (value: string): string => {
+  if (value === "") {
+    return "normal";
   }
   return value;
 };
 
-export default getCssTextWhiteSpace;
+export default getCssTextWhitespace;

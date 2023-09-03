@@ -45,7 +45,7 @@ const DEFAULT_ATTRIBUTES = {
     "shift-boundary",
     "shift-padding",
     "auto-size",
-    "sync",
+    "sync-size",
     "auto-size-boundary",
     "auto-size-padding",
   ]),
@@ -349,7 +349,7 @@ export default class Dropdown
       this.emit(CHANGED_EVENT, detail);
     }
   }
-  
+
   interrupted(newValue: string | null): boolean {
     return this._activatingValue !== newValue;
   }

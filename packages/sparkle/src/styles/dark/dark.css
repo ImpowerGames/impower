@@ -323,7 +323,7 @@
   --s-color-fg-70: hsl(0 0% 100% / 70%);
   --s-color-fg-80: hsl(0 0% 100% / 80%);
   --s-color-fg-90: hsl(0 0% 100% / 90%);
-  --s-color-divider: hsl(0 0% 100% / 6%);
+  --s-color-divider: hsl(0 0% 100% / 12%);
   --s-color-focus: var(--s-color-primary-80);
   --s-color-surface: var(--s-color-neutral-30);
   --s-color-surface-border: var(--s-color-fg-12);

@@ -21,6 +21,8 @@ const load = async () => {
   ]);
   document.body.classList.add("ready");
   Workspace.window.loadProjectName(Workspace.project.id);
+  const state = Workspace.project.isLocal ? "Saved to cache" : "Synced online";
+  Workspace.window.changePersistenceState(state);
 };
 
 load();

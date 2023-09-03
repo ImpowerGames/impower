@@ -16,6 +16,7 @@ import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
 import { WillEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillEditProjectNameMessage";
+import { DidChangePersistenceStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangePersistenceState";
 import { DidLoadProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidLoadProjectNameMessage";
 import { Range } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
@@ -31,7 +32,7 @@ export default class WorkspaceWindow {
 
   constructor() {
     this._state = {
-      header: { projectName: "" },
+      header: { projectName: "", persistenceState: "" },
       pane: "setup",
       panes: {
         setup: {
@@ -473,6 +474,14 @@ export default class WorkspaceWindow {
     this.emit(
       DisableGameDebugMessage.method,
       DisableGameDebugMessage.type.request({})
+    );
+  }
+
+  async changePersistenceState(state: string) {
+    this._state.header.persistenceState = state;
+    this.emit(
+      DidChangePersistenceStateMessage.method,
+      DidChangePersistenceStateMessage.type.notification({ state })
     );
   }
 

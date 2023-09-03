@@ -502,6 +502,9 @@
   overflow: hidden;
   white-space: nowrap;
 }
+[text-whitespace] > .root {
+  white-space: var(--text-whitespace, normal) !important;
+}
 [text-color] > .root {
   color: var(--text-color, white) !important;
 }

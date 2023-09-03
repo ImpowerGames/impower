@@ -2,9 +2,8 @@ import { html } from "../../../../../../packages/spark-element/src/utils/html";
 import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
-  // TODO: Re-render when received message to change header from WorkspaceWindow
   const label = "Project Name";
-  const name = state?.store?.header?.projectName ?? "";
+  const projectName = state?.store?.header?.projectName ?? "";
   const editingName = state?.store?.header?.editingProjectName;
   const nameButton = () => html`
     <s-button
@@ -16,7 +15,7 @@ export default (state: { store?: WorkspaceState }) => {
       p="0 4"
       m="0 -4"
     >
-      ${name}
+      ${projectName}
     </s-button>
   `;
   const nameInput = () => html`
@@ -28,7 +27,7 @@ export default (state: { store?: WorkspaceState }) => {
       m="0 -4"
       placeholder-color="fab-bg"
       color="fg"
-      value="${name}"
+      value="${projectName}"
       label="${label}"
       size="sm"
       width="100%"
@@ -40,7 +39,7 @@ export default (state: { store?: WorkspaceState }) => {
   return {
     html: html`
       <s-box child-layout="row" child-align="center" height="28">
-        ${name ? (editingName ? nameInput : nameButton) : nameSkeleton}
+        ${projectName ? (editingName ? nameInput : nameButton) : nameSkeleton}
       </s-box>
     `,
   };

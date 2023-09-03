@@ -1218,6 +1218,27 @@ export default class SparkleElement
   }
 
   /**
+   * Sets the desired `white-space` behavior.
+   *
+   * If not provided a value, defaults to `normal`.
+   */
+  get textWhitespace():
+    | ""
+    | "normal"
+    | "nowrap"
+    | "pre"
+    | "pre-wrap"
+    | "pre-line"
+    | "break-spaces"
+    | string
+    | null {
+    return this.getStringAttribute(SparkleElement.attributes.textWhitespace);
+  }
+  set textWhitespace(value) {
+    this.setStringAttribute(SparkleElement.attributes.textWhitespace, value);
+  }
+
+  /**
    * Sets the `color` of text rendered inside this element.
    */
   get textColor(): "" | "wrap" | "nowrap" | string | null {

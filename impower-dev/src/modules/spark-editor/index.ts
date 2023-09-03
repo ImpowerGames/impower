@@ -18,6 +18,7 @@ import Graphics from "./components/graphics/graphics";
 import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
+import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
 import LogicList from "./components/logic-list/logic-list";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
@@ -89,6 +90,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-sync-google-drive": SyncGoogleDrive,
   "se-header-menu-button": HeaderMenuButton,
   "se-header-title-button": HeaderTitleButton,
+  "se-header-title-caption": HeaderTitleCaption,
   "se-header-navigation": HeaderNavigation,
   "se-footer-navigation": FooterNavigation,
   "spark-editor": Main,

@@ -61,10 +61,6 @@ export default class SyncGoogleDrive extends SEElement {
     return this.getElementById("save-project-button")!;
   }
 
-  get contentEl() {
-    return this.getElementById("content")!;
-  }
-
   protected override onConnected(): void {
     this.load();
     Workspace.sync.google.addEventListener("revoke", this.handleRevoke);
@@ -222,7 +218,6 @@ export default class SyncGoogleDrive extends SEElement {
 
   loadUnauthenticatedUI(label: string = "Sync With Google Drive") {
     this.signinButtonEl.textContent = label;
-    this.contentEl.textContent = "";
     this.unauthenticatedEl.hidden = false;
     this.authenticatedEl.hidden = true;
   }

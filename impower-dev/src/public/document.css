@@ -60,6 +60,7 @@
 }
 
 :root {
+  color-scheme: dark;
   --screenplay-preview-texture: url("/public/noisetexture.png");
 }
 
