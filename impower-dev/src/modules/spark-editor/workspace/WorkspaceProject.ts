@@ -44,4 +44,11 @@ export default class WorkspaceProject {
       JSON.stringify(this._sync)
     );
   }
+
+  getPersistenceState() {
+    if (this.sync) {
+      return "Synced online";
+    }
+    return "Saved to cache";
+  }
 }

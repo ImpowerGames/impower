@@ -105,10 +105,8 @@ export default class Account extends SEElement {
       const provider = Workspace.sync.google;
       const accountInfo = await provider.getCurrentAccount();
       await Workspace.window.loadedProject(Workspace.project.id);
-      const state = Workspace.project.isLocal
-        ? "Saved to cache"
-        : "Synced online";
-      Workspace.window.changePersistenceState(state);
+      const state = Workspace.project.getPersistenceState();
+      Workspace.window.showProjectState(state);
       this.loadAccountUI(accountInfo);
       Workspace.window.unblockInteractions();
     } catch (err: any) {
@@ -134,12 +132,13 @@ export default class Account extends SEElement {
   handleSignOut = async () => {
     try {
       const provider = Workspace.sync.google;
-      Workspace.window.changePersistenceState("Loading...");
+      Workspace.window.showProjectState("Loading...");
       await provider.signOut();
       this.loadUnauthenticatedUI();
       Workspace.project.set(WorkspaceProject.LOCAL_ID, false);
       await Workspace.window.loadedProject(WorkspaceProject.LOCAL_ID);
-      Workspace.window.changePersistenceState("Saved to cache");
+      const state = Workspace.project.getPersistenceState();
+      Workspace.window.showProjectState(state);
     } catch (err: any) {
       console.error(err);
     }
@@ -156,7 +155,7 @@ export default class Account extends SEElement {
         if (fileId) {
           Workspace.window.blockInteractions();
           Workspace.window.unloadedProject();
-          Workspace.window.changePersistenceState("Loading...");
+          Workspace.window.showProjectState("Loading...");
           const file = await syncProvider.getFile(fileId);
           if (file != null && file.id && file.name) {
             const projectId = file.id;
@@ -193,7 +192,8 @@ export default class Account extends SEElement {
             }
             await Workspace.window.loadedProject(projectId);
           }
-          Workspace.window.changePersistenceState("Synced online");
+          const state = Workspace.project.getPersistenceState();
+          Workspace.window.showProjectState(state);
           Workspace.window.unblockInteractions();
         }
         this.emit("picked", fileId);
@@ -210,7 +210,7 @@ export default class Account extends SEElement {
       const token = access.token;
       if (token) {
         const projectId = Workspace.project.id;
-        Workspace.window.changePersistenceState("Syncing...");
+        Workspace.window.showProjectState("Syncing...");
         const name = await Workspace.fs.readProjectName(projectId);
         const text = await Workspace.fs.readProjectContent(projectId);
         if (!Workspace.project.sync) {
@@ -227,11 +227,12 @@ export default class Account extends SEElement {
           );
           this.emit("picked", file);
         }
-        Workspace.window.changePersistenceState("Synced online");
+        const state = Workspace.project.getPersistenceState();
+        Workspace.window.showProjectState(state);
       }
     } catch (err: any) {
       console.error(err);
-      Workspace.window.changePersistenceState("Error: Unable to sync");
+      Workspace.window.showProjectState("Error: Unable to sync");
     }
   };
 
@@ -246,7 +247,7 @@ export default class Account extends SEElement {
           if (file?.text != null) {
             // TODO: Bundle all scripts before syncing
             if (file.name === "main" && file.ext === "script") {
-              Workspace.window.changePersistenceState("Syncing...");
+              Workspace.window.showProjectState("Syncing...");
               this.emit("saving");
               const projectId = Workspace.project.id;
               const projectFile = await syncProvider.saveProjectFile(
@@ -254,7 +255,8 @@ export default class Account extends SEElement {
                 file.text
               );
               this.emit("saved", projectFile);
-              Workspace.window.changePersistenceState("Synced online");
+              const state = Workspace.project.getPersistenceState();
+              Workspace.window.showProjectState(state);
             }
           }
         }

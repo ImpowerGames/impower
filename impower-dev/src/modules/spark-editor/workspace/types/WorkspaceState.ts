@@ -161,7 +161,7 @@ export interface WorkspaceState {
   header: {
     projectName?: string;
     editingProjectName?: boolean;
-    persistenceState: string;
+    projectState: string;
   };
   pane: string;
   panes: WorkspacePanes;

@@ -33,7 +33,7 @@ export default class WorkspaceWindow {
 
   constructor() {
     this._state = {
-      header: { projectName: "", persistenceState: "" },
+      header: { projectName: "", projectState: "" },
       pane: "setup",
       panes: {
         setup: {
@@ -481,8 +481,8 @@ export default class WorkspaceWindow {
     );
   }
 
-  changePersistenceState(state: string) {
-    this._state.header.persistenceState = state;
+  showProjectState(state: string) {
+    this._state.header.projectState = state;
     this.emit(
       ChangedHeaderInfoMessage.method,
       ChangedHeaderInfoMessage.type.notification({})

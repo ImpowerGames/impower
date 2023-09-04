@@ -3,7 +3,7 @@ import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
   const projectName = state?.store?.header?.projectName ?? "";
-  const persistenceState = state?.store?.header?.persistenceState || "";
+  const projectState = state?.store?.header?.projectState || "";
   const stateSkeleton = () => html`
     <s-skeleton id="name-skeleton">Saved to cache</s-skeleton>
   `;
@@ -17,7 +17,7 @@ export default (state: { store?: WorkspaceState }) => {
         m-b="2px"
         text-color="fg-60"
       >
-        ${projectName && persistenceState ? persistenceState : stateSkeleton}
+        ${projectName && projectState ? projectState : stateSkeleton}
       </s-box>
     `,
   };
