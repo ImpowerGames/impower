@@ -102,8 +102,8 @@ export default class Account extends SEElement {
 
   async load() {
     try {
-      const provider = Workspace.sync.google;
-      const accountInfo = await provider.getCurrentAccount();
+      const syncProvider = Workspace.sync.google;
+      const accountInfo = await syncProvider.getCurrentAccount();
       await Workspace.window.loadedProject(Workspace.project.id);
       const state = Workspace.project.getPersistenceState();
       Workspace.window.showProjectState(state);
@@ -134,11 +134,11 @@ export default class Account extends SEElement {
       const provider = Workspace.sync.google;
       Workspace.window.showProjectState("Loading...");
       await provider.signOut();
-      this.loadUnauthenticatedUI();
       Workspace.project.set(WorkspaceProject.LOCAL_ID, false);
       await Workspace.window.loadedProject(WorkspaceProject.LOCAL_ID);
       const state = Workspace.project.getPersistenceState();
       Workspace.window.showProjectState(state);
+      this.loadUnauthenticatedUI();
     } catch (err: any) {
       console.error(err);
     }

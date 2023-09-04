@@ -28,7 +28,7 @@ export default class WorkspaceProject {
       this._id = LOCAL_PROJECT_ID;
     }
     const cachedSync = localStorage.getItem(CURRENT_PROJECT_SYNC_LOOKUP);
-    if (cachedSync) {
+    if (cachedSync && (cachedSync === "true" || cachedSync === "false")) {
       this._sync = Boolean(JSON.parse(cachedSync));
     } else {
       this._sync = false;
@@ -37,7 +37,7 @@ export default class WorkspaceProject {
 
   set(id: string, canSync: boolean) {
     this._id = id || LOCAL_PROJECT_ID;
-    this._sync = canSync;
+    this._sync = Boolean(canSync);
     localStorage.setItem(CURRENT_PROJECT_ID_LOOKUP, this._id);
     localStorage.setItem(
       CURRENT_PROJECT_SYNC_LOOKUP,
