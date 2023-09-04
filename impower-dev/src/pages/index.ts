@@ -6,11 +6,12 @@ import SparkEditor from "../modules/spark-editor/index";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
+  const languageServerConnection = await Workspace.lsp.getConnection();
   await Promise.allSettled([
     Sparkle.init(),
     SparkWebPlayer.init(),
     SparkdownScriptEditor.init({
-      languageServerConnection: Workspace.lsp.connection,
+      languageServerConnection,
       fileSystemReader: {
         scheme: Workspace.fs.scheme,
         url: async (uri: string) => Workspace.fs.getUrl(uri),
@@ -20,9 +21,6 @@ const load = async () => {
     SparkEditor.init(),
   ]);
   document.body.classList.add("ready");
-  Workspace.window.loadProjectName(Workspace.project.id);
-  const state = Workspace.project.isLocal ? "Saved to cache" : "Synced online";
-  Workspace.window.changePersistenceState(state);
 };
 
 load();

@@ -153,29 +153,26 @@ export default class GoogleDriveSyncProvider {
   async importProjectFile(accessToken: string) {
     const pickerBuilder = await this._importPickerBuilderRef.get();
     const importPicker = pickerBuilder.setOAuthToken(accessToken).build();
-    const result = await new Promise<(Storage.File & { data: string }) | null>(
-      (resolve, reject) => {
-        importPicker.setCallback(async (data) => {
-          try {
-            if (data.action === google.picker.Action.CANCEL) {
+    const result = await new Promise<string | null>((resolve, reject) => {
+      importPicker.setCallback(async (data) => {
+        try {
+          if (data.action === google.picker.Action.CANCEL) {
+            resolve(null);
+          } else if (data.action === google.picker.Action.PICKED) {
+            const document = data[google.picker.Response.DOCUMENTS][0];
+            const id = document?.[google.picker.Document.ID];
+            if (id) {
+              resolve(id);
+            } else {
               resolve(null);
-            } else if (data.action === google.picker.Action.PICKED) {
-              const document = data[google.picker.Response.DOCUMENTS][0];
-              const id = document?.[google.picker.Document.ID];
-              if (id) {
-                const data = await this.getFile(id);
-                resolve(data);
-              } else {
-                resolve(null);
-              }
             }
-          } catch (err) {
-            reject(err);
           }
-        });
-        importPicker.setVisible(true);
-      }
-    );
+        } catch (err) {
+          reject(err);
+        }
+      });
+      importPicker.setVisible(true);
+    });
     return result;
   }
 
@@ -216,7 +213,11 @@ export default class GoogleDriveSyncProvider {
     return blob;
   }
 
-  async exportProjectFile(accessToken: string, filename: string, content: string) {
+  async exportProjectFile(
+    accessToken: string,
+    filename: string,
+    content: string
+  ) {
     const pickerBuilder = await this._exportPickerBuilderRef.get();
     const exportPicker = pickerBuilder.setOAuthToken(accessToken).build();
     const result = await new Promise<Storage.File | null>((resolve, reject) => {
@@ -321,7 +322,7 @@ export default class GoogleDriveSyncProvider {
     return this.request<AccessInfo>("GET", `/api/auth/access`);
   }
 
-  protected async getFile(fileId: string) {
+  async getFile(fileId: string) {
     const result = await this.request<Storage.File & { data: string }>(
       "GET",
       `/api/storage/file/${fileId}`

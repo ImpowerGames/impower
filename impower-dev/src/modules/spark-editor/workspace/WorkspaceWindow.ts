@@ -7,6 +7,7 @@ import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/g
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
+import { ChangedHeaderInfoMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedHeaderInfoMessage";
 import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidEditProjectNameMessage";
@@ -15,9 +16,9 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
+import { WillBlockInteractionsMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillBlockInteractionsMessage";
 import { WillEditProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillEditProjectNameMessage";
-import { DidChangePersistenceStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangePersistenceState";
-import { DidLoadProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidLoadProjectNameMessage";
+import { WillUnblockInteractionsMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillUnblockInteractionsMessage";
 import { Range } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
 import { Workspace } from "./Workspace";
@@ -96,6 +97,7 @@ export default class WorkspaceWindow {
             main: {
               scrollIndex: 0,
               activeEditor: {
+                open: true,
                 filename: "main.script",
               },
             },
@@ -482,18 +484,27 @@ export default class WorkspaceWindow {
   changePersistenceState(state: string) {
     this._state.header.persistenceState = state;
     this.emit(
-      DidChangePersistenceStateMessage.method,
-      DidChangePersistenceStateMessage.type.notification({ state })
+      ChangedHeaderInfoMessage.method,
+      ChangedHeaderInfoMessage.type.notification({})
     );
   }
 
-  async loadProjectName(projectId: string) {
+  async unloadedProject() {
+    this._state.header.editingProjectName = false;
+    this._state.header.projectName = undefined;
+    this.emit(
+      ChangedHeaderInfoMessage.method,
+      ChangedHeaderInfoMessage.type.notification({})
+    );
+  }
+
+  async loadedProject(projectId: string) {
     const name = await Workspace.fs.readProjectName(projectId);
     this._state.header.editingProjectName = false;
     this._state.header.projectName = name;
     this.emit(
-      DidLoadProjectNameMessage.method,
-      DidLoadProjectNameMessage.type.notification({ name })
+      ChangedHeaderInfoMessage.method,
+      ChangedHeaderInfoMessage.type.notification({ name })
     );
   }
 
@@ -512,6 +523,20 @@ export default class WorkspaceWindow {
     this.emit(
       DidEditProjectNameMessage.method,
       DidEditProjectNameMessage.type.notification({ name })
+    );
+  }
+
+  blockInteractions() {
+    this.emit(
+      WillBlockInteractionsMessage.method,
+      WillBlockInteractionsMessage.type.request({})
+    );
+  }
+
+  unblockInteractions() {
+    this.emit(
+      WillUnblockInteractionsMessage.method,
+      WillUnblockInteractionsMessage.type.request({})
     );
   }
 }

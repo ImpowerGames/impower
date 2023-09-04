@@ -1,13 +1,14 @@
+import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
 import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import WorkspaceProject from "../../workspace/WorkspaceProject";
 import { AccountInfo } from "../../workspace/types/AccountInfo";
-import component from "./_sync-google-drive";
+import component from "./_account";
 
-export default class SyncGoogleDrive extends SEElement {
+export default class Account extends SEElement {
   static override async define(
-    tag = "se-sync-google-drive",
+    tag = "se-account",
     dependencies?: Record<string, string>,
     useShadowDom = true
   ) {
@@ -103,7 +104,13 @@ export default class SyncGoogleDrive extends SEElement {
     try {
       const provider = Workspace.sync.google;
       const accountInfo = await provider.getCurrentAccount();
+      await Workspace.window.loadedProject(Workspace.project.id);
+      const state = Workspace.project.isLocal
+        ? "Saved to cache"
+        : "Synced online";
+      Workspace.window.changePersistenceState(state);
       this.loadAccountUI(accountInfo);
+      Workspace.window.unblockInteractions();
     } catch (err: any) {
       console.error(err);
     }
@@ -131,7 +138,7 @@ export default class SyncGoogleDrive extends SEElement {
       await provider.signOut();
       this.loadUnauthenticatedUI();
       Workspace.project.set(WorkspaceProject.LOCAL_ID, false);
-      await Workspace.window.loadProjectName(WorkspaceProject.LOCAL_ID);
+      await Workspace.window.loadedProject(WorkspaceProject.LOCAL_ID);
       Workspace.window.changePersistenceState("Saved to cache");
     } catch (err: any) {
       console.error(err);
@@ -145,21 +152,51 @@ export default class SyncGoogleDrive extends SEElement {
       const token = access.token;
       if (token) {
         this.emit("picking");
-        const file = await syncProvider.importProjectFile(token);
-        if (file != null && file.id && file.name) {
-          const projectId = file.id;
-          const projectName = file.name.split(".")[0]!;
-          const projectContent = file.data;
-          const canSync = Boolean(file.capabilities?.canModifyContent);
-          // TODO: Block ui with loading spinner until all parts of project are loaded
+        const fileId = await syncProvider.importProjectFile(token);
+        if (fileId) {
+          Workspace.window.blockInteractions();
+          Workspace.window.unloadedProject();
           Workspace.window.changePersistenceState("Loading...");
-          Workspace.project.set(projectId, canSync);
-          await Workspace.fs.writeProjectName(projectId, projectName);
-          await Workspace.fs.writeProjectContent(projectId, projectContent);
-          await Workspace.window.loadProjectName(projectId);
+          const file = await syncProvider.getFile(fileId);
+          if (file != null && file.id && file.name) {
+            const projectId = file.id;
+            const projectName = file.name.split(".")[0]!;
+            const projectContent = file.data;
+            const canSync = Boolean(file.capabilities?.canModifyContent);
+            Workspace.project.set(projectId, canSync);
+            await Workspace.fs.writeProjectName(projectId, projectName);
+            await Workspace.fs.writeProjectContent(projectId, projectContent);
+            const editor = await Workspace.window.getOpenEditor(
+              Workspace.project.id,
+              "logic"
+            );
+            if (editor && editor.uri) {
+              const visibleRange = editor.visibleRange;
+              const text = await Workspace.fs.readTextDocument({
+                textDocument: { uri: editor.uri },
+              });
+              const languageServerCapabilities =
+                await Workspace.lsp.getServerCapabilities();
+              this.emit(
+                LoadEditorMessage.method,
+                LoadEditorMessage.type.request({
+                  textDocument: {
+                    uri: editor.uri,
+                    languageId: "sparkdown",
+                    version: 0,
+                    text,
+                  },
+                  visibleRange,
+                  languageServerCapabilities,
+                })
+              );
+            }
+            await Workspace.window.loadedProject(projectId);
+          }
           Workspace.window.changePersistenceState("Synced online");
+          Workspace.window.unblockInteractions();
         }
-        this.emit("picked", file);
+        this.emit("picked", fileId);
       }
     } catch (err: any) {
       console.error(err);

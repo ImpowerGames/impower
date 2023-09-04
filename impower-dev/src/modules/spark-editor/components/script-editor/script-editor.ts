@@ -75,15 +75,11 @@ export default class ScriptEditor
     if (editor) {
       const uri = editor.uri;
       const visibleRange = editor.visibleRange;
-      const existingText = uri
-        ? await Workspace.fs.readTextDocument({
-            textDocument: { uri },
-          })
-        : "";
-      await Workspace.lsp.starting;
-      if (!Workspace.lsp.serverCapabilities) {
-        throw new Error("Language server not initialized.");
-      }
+      const existingText = await Workspace.fs.readTextDocument({
+        textDocument: { uri },
+      });
+      const languageServerCapabilities =
+        await Workspace.lsp.getServerCapabilities();
       this.emit(
         LoadEditorMessage.method,
         LoadEditorMessage.type.request({
@@ -94,7 +90,7 @@ export default class ScriptEditor
             text: existingText,
           },
           visibleRange,
-          languageServerCapabilities: Workspace.lsp.serverCapabilities,
+          languageServerCapabilities,
         })
       );
     }

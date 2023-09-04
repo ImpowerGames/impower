@@ -1,4 +1,4 @@
-import { DidLoadProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidLoadProjectNameMessage";
+import { ChangedHeaderInfoMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedHeaderInfoMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_header-title-button";
@@ -39,7 +39,7 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.addEventListener("click", this.handleClickNameButton);
     }
     window.addEventListener(
-      DidLoadProjectNameMessage.method,
+      ChangedHeaderInfoMessage.method,
       this.handleLoadProjectName
     );
   }
@@ -55,7 +55,7 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.removeEventListener("click", this.handleClickNameButton);
     }
     window.removeEventListener(
-      DidLoadProjectNameMessage.method,
+      ChangedHeaderInfoMessage.method,
       this.handleLoadProjectName
     );
   }

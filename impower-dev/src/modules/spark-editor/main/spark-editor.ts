@@ -27,6 +27,10 @@ export default class SparkEditor extends SEElement {
     return this.getElementByTag("s-split-pane");
   }
 
+  get interactionBlockerEl() {
+    return this.getElementByTag("se-interaction-blocker");
+  }
+
   protected override onConnected(): void {
     window.addEventListener("dragenter", this.handleDragEnter);
     window.addEventListener("dragover", this.handleDragOver);
@@ -68,20 +72,10 @@ export default class SparkEditor extends SEElement {
   };
 
   handleDidExpandPreviewPane = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidExpandPreviewPaneMessage.type.isNotification(message)) {
-        this.splitPaneEl?.setAttribute("reveal", "");
-      }
-    }
+    this.splitPaneEl?.setAttribute("reveal", "");
   };
 
   handleDidCollapsePreviewPane = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidCollapsePreviewPaneMessage.type.isNotification(message)) {
-        this.splitPaneEl?.removeAttribute("reveal");
-      }
-    }
+    this.splitPaneEl?.removeAttribute("reveal");
   };
 }

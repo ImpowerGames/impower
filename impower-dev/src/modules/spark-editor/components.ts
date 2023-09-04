@@ -2,6 +2,7 @@ import transformer from "../../../../packages/sparkle-style-transformer/src/inde
 import sparkleIconsCSS from "../../../../packages/sparkle/src/styles/icons/icons.css";
 import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns/patterns.css";
 import Access from "./components/access/_access";
+import Account from "./components/account/_account";
 import Assets from "./components/assets/_assets";
 import Audio from "./components/audio/_audio";
 import Demo from "./components/demo/_demo";
@@ -20,6 +21,7 @@ import HeaderMenuButton from "./components/header-menu-button/_header-menu-butto
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
+import InteractionBlocker from "./components/interaction-blocker/_interaction-blocker";
 import LogicList from "./components/logic-list/_logic-list";
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
@@ -42,7 +44,6 @@ import Setup from "./components/setup/_setup";
 import Share from "./components/share/_share";
 import Sounds from "./components/sounds/_sounds";
 import Sprites from "./components/sprites/_sprites";
-import SyncGoogleDrive from "./components/sync-google-drive/_sync-google-drive";
 import Views from "./components/views/_views";
 import Widgets from "./components/widgets/_widgets";
 import Main from "./main/_spark-editor";
@@ -72,6 +73,7 @@ const components = {
   "se-icons": Icons,
   "se-theme": Theme,
   "se-normalize": Normalize,
+  "se-interaction-blocker": style(InteractionBlocker),
   "se-option-button": style(OptionButton),
   "se-file-options-button": style(FileOptionsButton),
   "se-file-editor-navigation": style(FileEditorNavigation),
@@ -110,7 +112,7 @@ const components = {
   "se-preview": style(Preview),
   "se-preview-panel": style(PreviewPanel),
   "se-notifications": style(Notifications),
-  "se-sync-google-drive": style(SyncGoogleDrive),
+  "se-account": style(Account),
   "se-header-menu-button": style(HeaderMenuButton),
   "se-header-title-button": style(HeaderTitleButton),
   "se-header-title-caption": style(HeaderTitleCaption),

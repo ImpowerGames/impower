@@ -390,9 +390,6 @@
 [interactable] > .root {
   pointer-events: var(--interactable, auto) !important;
 }
-:is([interactable=""], [interactable="auto"]) > .root {
-  cursor: pointer;
-}
 [selectable] > .root {
   user-select: var(--selectable, auto) !important;
 }

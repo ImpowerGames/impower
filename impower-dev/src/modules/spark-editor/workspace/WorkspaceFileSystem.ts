@@ -63,7 +63,7 @@ export default class WorkspaceFileSystem {
   }
 
   protected async loadInitialFiles() {
-    await Workspace.lsp.starting;
+    const connection = await Workspace.lsp.getConnection();
     const directoryUri = this.getDirectoryUri(Workspace.project.id);
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
@@ -78,10 +78,7 @@ export default class WorkspaceFileSystem {
       result[file.uri] = file;
       this.preloadFile(file);
     });
-    Workspace.lsp.connection.sendNotification(
-      DidWatchFilesMessage.type,
-      didWatchFilesParams
-    );
+    connection.sendNotification(DidWatchFilesMessage.type, didWatchFilesParams);
     this.emit(
       DidWatchFilesMessage.method,
       DidWatchFilesMessage.type.notification(didWatchFilesParams)
@@ -102,7 +99,7 @@ export default class WorkspaceFileSystem {
 
   protected _messageQueue: Record<string, (result: any) => void> = {};
 
-  protected handleWorkerMessage = (event: MessageEvent) => {
+  protected handleWorkerMessage = async (event: MessageEvent) => {
     const message = event.data;
     if (ConfigurationMessage.type.isRequest(message)) {
       const params = message.params;
@@ -123,7 +120,8 @@ export default class WorkspaceFileSystem {
       DidDeleteFilesMessage.type.isNotification(message) ||
       DidChangeWatchedFilesMessage.type.isNotification(message)
     ) {
-      Workspace.lsp.connection.sendNotification(message.method, message.params);
+      const connection = await Workspace.lsp.getConnection();
+      connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else {
       const resolve = this._messageQueue[message.id];

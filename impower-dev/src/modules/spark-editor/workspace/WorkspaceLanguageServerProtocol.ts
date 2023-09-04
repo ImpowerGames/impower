@@ -130,14 +130,8 @@ export default class WorkspaceLanguageServerProtocol {
   }
 
   protected _connection: MessageConnection;
-  get connection() {
-    return this._connection;
-  }
 
   protected _serverCapabilities?: ServerCapabilities;
-  get serverCapabilities() {
-    return this._serverCapabilities;
-  }
 
   protected _starting?: Promise<InitializeResult>;
   get starting() {
@@ -178,6 +172,22 @@ export default class WorkspaceLanguageServerProtocol {
     this._serverCapabilities = result.capabilities;
     this._connection.sendNotification(InitializedMessage.method, {});
     return result;
+  }
+
+  async getServerCapabilities(): Promise<ServerCapabilities> {
+    await this.starting;
+    if (!this._serverCapabilities) {
+      throw new Error("Language server not initialized.");
+    }
+    return this._serverCapabilities;
+  }
+
+  async getConnection(): Promise<MessageConnection> {
+    await this.starting;
+    if (!this._connection) {
+      throw new Error("Language server not initialized.");
+    }
+    return this._connection;
   }
 
   stop() {

@@ -1,5 +1,4 @@
-import { DidChangePersistenceStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangePersistenceState";
-import { DidLoadProjectNameMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidLoadProjectNameMessage";
+import { ChangedHeaderInfoMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedHeaderInfoMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_header-title-caption";
@@ -18,23 +17,12 @@ export default class HeaderTitleCaption extends SEElement {
   }
 
   protected override onConnected(): void {
-    window.addEventListener(
-      DidChangePersistenceStateMessage.method,
-      this.handleRender
-    );
-    window.addEventListener(
-      DidLoadProjectNameMessage.method,
-      this.handleRender
-    );
+    window.addEventListener(ChangedHeaderInfoMessage.method, this.handleRender);
   }
 
   protected override onDisconnected(): void {
     window.removeEventListener(
-      DidChangePersistenceStateMessage.method,
-      this.handleRender
-    );
-    window.removeEventListener(
-      DidLoadProjectNameMessage.method,
+      ChangedHeaderInfoMessage.method,
       this.handleRender
     );
   }

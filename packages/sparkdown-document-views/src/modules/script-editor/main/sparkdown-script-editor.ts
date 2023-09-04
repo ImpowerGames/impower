@@ -230,9 +230,7 @@ export default class SparkdownScriptEditor
         this._loadingRequest = message.id;
         SparkdownScriptEditor.languageServerCapabilities =
           languageServerCapabilities;
-        if (textDocument.uri !== this._textDocument?.uri) {
-          this.loadTextDocument(textDocument, visibleRange);
-        }
+        this.loadTextDocument(textDocument, visibleRange);
       }
     }
   };

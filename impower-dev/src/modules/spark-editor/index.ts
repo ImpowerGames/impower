@@ -1,6 +1,7 @@
 import STYLES from "../../../../packages/spark-element/src/caches/STYLE_CACHE";
 import extractAllGraphics from "../../../../packages/sparkle-style-transformer/src/utils/extractAllGraphics";
 import Access from "./components/access/access";
+import Account from "./components/account/account";
 import Assets from "./components/assets/assets";
 import Audio from "./components/audio/audio";
 import Demo from "./components/demo/demo";
@@ -19,6 +20,7 @@ import HeaderMenuButton from "./components/header-menu-button/header-menu-button
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
+import InteractionBlocker from "./components/interaction-blocker/interaction-blocker";
 import LogicList from "./components/logic-list/logic-list";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
@@ -41,7 +43,6 @@ import Setup from "./components/setup/setup";
 import Share from "./components/share/share";
 import Sounds from "./components/sounds/sounds";
 import Sprites from "./components/sprites/sprites";
-import SyncGoogleDrive from "./components/sync-google-drive/sync-google-drive";
 import Views from "./components/views/views";
 import Widgets from "./components/widgets/widgets";
 import Main from "./main/spark-editor";
@@ -49,6 +50,7 @@ import icons from "./styles/icons/icons.css";
 import theme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
+  "se-interaction-blocker": InteractionBlocker,
   "se-option-button": OptionButton,
   "se-file-options-button": FileOptionsButton,
   "se-file-editor-navigation": FileEditorNavigation,
@@ -87,7 +89,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = {
   "se-preview": Preview,
   "se-preview-panel": PreviewPanel,
   "se-notifications": Notifications,
-  "se-sync-google-drive": SyncGoogleDrive,
+  "se-account": Account,
   "se-header-menu-button": HeaderMenuButton,
   "se-header-title-button": HeaderTitleButton,
   "se-header-title-caption": HeaderTitleCaption,
