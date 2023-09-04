@@ -28,7 +28,7 @@ export default class WorkspaceProject {
       this._id = LOCAL_PROJECT_ID;
     }
     const cachedSync = localStorage.getItem(CURRENT_PROJECT_SYNC_LOOKUP);
-    if (cachedSync && (cachedSync === "true" || cachedSync === "false")) {
+    if (cachedSync === "true" || cachedSync === "false") {
       this._sync = Boolean(JSON.parse(cachedSync));
     } else {
       this._sync = false;
