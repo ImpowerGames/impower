@@ -1,12 +1,17 @@
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
 import { ReadTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocumentMessage.js";
 import { WriteTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
-import { CreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFilesMessage.js";
-import { DeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFilesMessage.js";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage.js";
+import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
+import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
+import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage.js";
 import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
+import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
+import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
 import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
@@ -14,7 +19,6 @@ import debounce from "./utils/debounce";
 import { getAllFiles } from "./utils/getAllFiles";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileExtension } from "./utils/getFileExtension";
-import { getFileHandleFromPath } from "./utils/getFileHandleFromPath";
 import { getFileHandleFromUri } from "./utils/getFileHandleFromUri";
 import { getFileName } from "./utils/getFileName";
 import { getName } from "./utils/getName";
@@ -22,7 +26,7 @@ import { getParentPath } from "./utils/getParentPath";
 import { getPathFromUri } from "./utils/getPathFromUri";
 import { getUriFromPath } from "./utils/getUriFromPath";
 
-const WRITE_DEBOUNCE_DELAY = 100;
+const WRITE_DEBOUNCE_DELAY = 300;
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -50,7 +54,7 @@ class State {
     {
       handler: (uri: string) => void;
       content: DataView | Uint8Array;
-      listeners: ((file: FileData) => void)[];
+      listeners: ((result: { data: FileData; created: boolean }) => void)[];
     }
   > = {};
   static scriptFilePattern: RegExp[] = [];
@@ -123,15 +127,15 @@ onmessage = async (e) => {
     }
     postMessage(WriteTextDocumentMessage.type.response(message.id, file));
   }
-  if (CreateFilesMessage.type.isRequest(message)) {
+  if (WillCreateFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
     const result = await createFiles(files);
-    postMessage(CreateFilesMessage.type.response(message.id, result));
+    postMessage(WillCreateFilesMessage.type.response(message.id, result));
   }
-  if (DeleteFilesMessage.type.isRequest(message)) {
+  if (WillDeleteFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
     await deleteFiles(files);
-    postMessage(DeleteFilesMessage.type.response(message.id, null));
+    postMessage(WillDeleteFilesMessage.type.response(message.id, null));
   }
 };
 
@@ -190,8 +194,11 @@ const readTextDocument = async (fileUri: string) => {
   return text;
 };
 
-const queueWrite = async (fileUri: string, content: DataView | Uint8Array) => {
-  return new Promise<FileData>((resolve) => {
+const enqueueWrite = async (
+  fileUri: string,
+  content: DataView | Uint8Array
+) => {
+  return new Promise<{ data: FileData; created: boolean }>((resolve) => {
     if (!State.writeQueue[fileUri]) {
       State.writeQueue[fileUri] = {
         content,
@@ -209,7 +216,8 @@ const queueWrite = async (fileUri: string, content: DataView | Uint8Array) => {
 const writeTextDocument = async (fileUri: string, text: string) => {
   const encoder = new TextEncoder();
   const encodedText = encoder.encode(text);
-  return queueWrite(fileUri, encodedText);
+  const result = await enqueueWrite(fileUri, encodedText);
+  return result.data;
 };
 
 const _writeFile = async (fileUri: string) => {
@@ -218,28 +226,57 @@ const _writeFile = async (fileUri: string) => {
   const listeners = queued.listeners;
   const root = await navigator.storage.getDirectory();
   const relativePath = getPathFromUri(fileUri);
-  const fileHandle = await getFileHandleFromPath(root, relativePath);
+  const directoryPath = getParentPath(relativePath);
+  const filename = getFileName(relativePath);
+  const directoryHandle = await getDirectoryHandleFromPath(root, directoryPath);
+  let created = false;
+  try {
+    await directoryHandle.getFileHandle(filename, { create: false });
+  } catch (err) {
+    // File does not exist yet
+    created = true;
+  }
+  const fileHandle = await directoryHandle.getFileHandle(filename, {
+    create: true,
+  });
   const syncAccessHandle = await fileHandle.createSyncAccessHandle();
   syncAccessHandle.truncate(0);
   syncAccessHandle.write(content, { at: 0 });
   syncAccessHandle.flush();
   syncAccessHandle.close();
   const arrayBuffer = content.buffer;
-  const file = updateFileCache(fileUri, arrayBuffer, true);
+  const data = updateFileCache(fileUri, arrayBuffer, true);
   listeners.forEach((l) => {
-    l(file);
+    l({ data, created });
   });
   queued.listeners = [];
+  postMessage(DidWriteFileMessage.type.notification({ file: data }));
 };
 
 const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
-  const root = await navigator.storage.getDirectory();
-  return await Promise.all(
+  const result = await Promise.all(
     files.map(async (file) => {
       const buffer = new DataView(file.data);
-      return queueWrite(file.uri, buffer);
+      return enqueueWrite(file.uri, buffer);
     })
   );
+  const createdResult = result.filter((r) => r.created);
+  postMessage(
+    DidCreateFilesMessage.type.notification({
+      files: createdResult.map((r) => ({
+        uri: r.data.uri,
+      })),
+    })
+  );
+  postMessage(
+    DidChangeWatchedFilesMessage.type.notification({
+      changes: result.map((r) => ({
+        uri: r.data.uri,
+        type: r.created ? FileChangeType.Created : FileChangeType.Changed,
+      })),
+    })
+  );
+  return result.map((r) => r.data);
 };
 
 const deleteFiles = async (files: { uri: string }[]) => {
@@ -258,6 +295,15 @@ const deleteFiles = async (files: { uri: string }[]) => {
         URL.revokeObjectURL(existingFile.src);
         delete State.files[file.uri];
       }
+    })
+  );
+  postMessage(DidDeleteFilesMessage.type.notification({ files }));
+  postMessage(
+    DidChangeWatchedFilesMessage.type.notification({
+      changes: files.map((file) => ({
+        uri: file.uri,
+        type: FileChangeType.Deleted,
+      })),
     })
   );
 };

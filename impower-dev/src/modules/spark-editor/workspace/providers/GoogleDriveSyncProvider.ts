@@ -1,3 +1,4 @@
+import { uuid } from "@impower/spark-editor-protocol/src/utils/uuid";
 import loadScript from "../../utils/loadScript";
 import SingletonPromise from "../SingletonPromise";
 import { AccessInfo } from "../types/AccessInfo";
@@ -41,6 +42,14 @@ const GSI_SRC = "https://accounts.google.com/gsi/client";
 const GAPI_SRC = "https://apis.google.com/js/api.js";
 
 export default class GoogleDriveSyncProvider {
+  protected _instanceId = uuid();
+  get instanceId() {
+    if (!this._instanceId) {
+      this._instanceId;
+    }
+    return this._instanceId;
+  }
+
   protected _gsiScriptRef = new SingletonPromise(this.loadGSIScript.bind(this));
 
   protected _gapiScriptRef = new SingletonPromise(
@@ -198,7 +207,16 @@ export default class GoogleDriveSyncProvider {
       .setTitle("Save to folder");
   }
 
-  async exportProjectFile(accessToken: string, blob: Blob) {
+  getTextBlob(name: string, content: string) {
+    const encoder = new TextEncoder();
+    const encodedText = encoder.encode(content);
+    const blob = new File([encodedText], name, {
+      type: "text/plain",
+    });
+    return blob;
+  }
+
+  async exportProjectFile(accessToken: string, filename: string, content: string) {
     const pickerBuilder = await this._exportPickerBuilderRef.get();
     const exportPicker = pickerBuilder.setOAuthToken(accessToken).build();
     const result = await new Promise<Storage.File | null>((resolve, reject) => {
@@ -208,7 +226,10 @@ export default class GoogleDriveSyncProvider {
             const document = data[google.picker.Response.DOCUMENTS][0];
             if (document) {
               const folderId = document[google.picker.Document.ID];
-              const data = await this.createFile(folderId, blob);
+              const data = await this.createFile(
+                folderId,
+                this.getTextBlob(filename, content)
+              );
               resolve(data);
             }
           }
@@ -222,8 +243,8 @@ export default class GoogleDriveSyncProvider {
     return result;
   }
 
-  async saveProjectFile(fileId: string, blob: Blob) {
-    return this.updateFile(fileId, blob);
+  async saveProjectFile(fileId: string, content: string) {
+    return this.updateFile(fileId, this.getTextBlob(this.instanceId, content));
   }
 
   protected async fetchAccount() {

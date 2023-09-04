@@ -479,7 +479,7 @@ export default class WorkspaceWindow {
     );
   }
 
-  async changePersistenceState(state: string) {
+  changePersistenceState(state: string) {
     this._state.header.persistenceState = state;
     this.emit(
       DidChangePersistenceStateMessage.method,

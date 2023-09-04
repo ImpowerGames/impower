@@ -1,3 +1,4 @@
+import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import WorkspaceProject from "../../workspace/WorkspaceProject";
@@ -74,6 +75,10 @@ export default class SyncGoogleDrive extends SEElement {
       "click",
       this.handleSaveProjectFile
     );
+    window.addEventListener(
+      DidWriteFileMessage.method,
+      this.handleDidWriteFile
+    );
   }
 
   protected override onDisconnected(): void {
@@ -87,6 +92,10 @@ export default class SyncGoogleDrive extends SEElement {
     this.saveProjectButtonEl.removeEventListener(
       "click",
       this.handleSaveProjectFile
+    );
+    window.removeEventListener(
+      DidWriteFileMessage.method,
+      this.handleDidWriteFile
     );
   }
 
@@ -118,10 +127,12 @@ export default class SyncGoogleDrive extends SEElement {
   handleSignOut = async () => {
     try {
       const provider = Workspace.sync.google;
+      Workspace.window.changePersistenceState("Loading...");
       await provider.signOut();
       this.loadUnauthenticatedUI();
-      Workspace.project.loadProject(WorkspaceProject.LOCAL_ID);
+      Workspace.project.set(WorkspaceProject.LOCAL_ID, false);
       await Workspace.window.loadProjectName(WorkspaceProject.LOCAL_ID);
+      Workspace.window.changePersistenceState("Saved to cache");
     } catch (err: any) {
       console.error(err);
     }
@@ -131,19 +142,22 @@ export default class SyncGoogleDrive extends SEElement {
     try {
       const syncProvider = Workspace.sync.google;
       const access = await syncProvider.getAccess();
-      if (access.token) {
+      const token = access.token;
+      if (token) {
         this.emit("picking");
-        const file = await syncProvider.importProjectFile(access.token);
-        // TODO: Save file !capabilities.canModifiyContent to WorkspaceSync.readonly
+        const file = await syncProvider.importProjectFile(token);
         if (file != null && file.id && file.name) {
           const projectId = file.id;
           const projectName = file.name.split(".")[0]!;
           const projectContent = file.data;
+          const canSync = Boolean(file.capabilities?.canModifyContent);
           // TODO: Block ui with loading spinner until all parts of project are loaded
-          Workspace.project.loadProject(projectId);
+          Workspace.window.changePersistenceState("Loading...");
+          Workspace.project.set(projectId, canSync);
           await Workspace.fs.writeProjectName(projectId, projectName);
           await Workspace.fs.writeProjectContent(projectId, projectContent);
           await Workspace.window.loadProjectName(projectId);
+          Workspace.window.changePersistenceState("Synced online");
         }
         this.emit("picked", file);
       }
@@ -156,28 +170,58 @@ export default class SyncGoogleDrive extends SEElement {
     try {
       const syncProvider = Workspace.sync.google;
       const access = await syncProvider.getAccess();
-      if (access.token) {
+      const token = access.token;
+      if (token) {
         const projectId = Workspace.project.id;
+        Workspace.window.changePersistenceState("Syncing...");
         const name = await Workspace.fs.readProjectName(projectId);
         const text = await Workspace.fs.readProjectContent(projectId);
-        const encoder = new TextEncoder();
-        const encodedText = encoder.encode(text);
-        const blob = new File([encodedText], `${name}.sd`, {
-          type: "text/plain",
-        });
-        // TODO: Ensure project is not readonly by checking WorkspaceSync.readonly
-        if (!Workspace.project.isLocal) {
+        if (!Workspace.project.sync) {
           this.emit("saving");
-          const file = await syncProvider.saveProjectFile(projectId, blob);
+          const file = await syncProvider.saveProjectFile(projectId, text);
           this.emit("saved", file);
         } else {
           this.emit("picking");
-          const file = await syncProvider.exportProjectFile(access.token, blob);
+          const filename = `${name}.sd`;
+          const file = await syncProvider.exportProjectFile(
+            token,
+            filename,
+            text
+          );
           this.emit("picked", file);
         }
+        Workspace.window.changePersistenceState("Synced online");
       }
     } catch (err: any) {
       console.error(err);
+      Workspace.window.changePersistenceState("Error: Unable to sync");
+    }
+  };
+
+  handleDidWriteFile = async (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidWriteFileMessage.type.isNotification(message)) {
+        const params = message.params;
+        const file = params.file;
+        if (!Workspace.project.isLocal) {
+          const syncProvider = Workspace.sync.google;
+          if (file?.text != null) {
+            // TODO: Bundle all scripts before syncing
+            if (file.name === "main" && file.ext === "script") {
+              Workspace.window.changePersistenceState("Syncing...");
+              this.emit("saving");
+              const projectId = Workspace.project.id;
+              const projectFile = await syncProvider.saveProjectFile(
+                projectId,
+                file.text
+              );
+              this.emit("saved", projectFile);
+              Workspace.window.changePersistenceState("Synced online");
+            }
+          }
+        }
+      }
     }
   };
 

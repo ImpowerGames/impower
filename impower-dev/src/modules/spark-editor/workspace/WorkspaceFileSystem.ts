@@ -1,4 +1,3 @@
-import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
@@ -10,18 +9,11 @@ import {
   WriteTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
-import {
-  CreateFilesMessage,
-  CreateFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/CreateFilesMessage.js";
-import {
-  DeleteFilesMessage,
-  DeleteFilesParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/DeleteFilesMessage.js";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
 import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
+import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage.js";
 import {
   ReadDirectoryFilesMessage,
   ReadDirectoryFilesParams,
@@ -30,6 +22,14 @@ import {
   ReadFileMessage,
   ReadFileParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
+import {
+  WillCreateFilesMessage,
+  WillCreateFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
+import {
+  WillDeleteFilesMessage,
+  WillDeleteFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import YAML from "yaml";
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
@@ -116,11 +116,19 @@ export default class WorkspaceFileSystem {
         ConfigurationMessage.type.response(message.id, result)
       );
     } else if (DidParseTextDocumentMessage.type.isNotification(message)) {
-      this.emit(DidParseTextDocumentMessage.method, message);
+      this.emit(message.method, message);
+    } else if (
+      DidWriteFileMessage.type.isNotification(message) ||
+      DidCreateFilesMessage.type.isNotification(message) ||
+      DidDeleteFilesMessage.type.isNotification(message) ||
+      DidChangeWatchedFilesMessage.type.isNotification(message)
+    ) {
+      Workspace.lsp.connection.sendNotification(message.method, message.params);
+      this.emit(message.method, message);
     } else {
-      const dispatch = this._messageQueue[message.id];
-      if (dispatch) {
-        dispatch(message.result);
+      const resolve = this._messageQueue[message.id];
+      if (resolve) {
+        resolve(message.result);
         delete this._messageQueue[message.id];
       }
     }
@@ -232,9 +240,9 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  async createFiles(params: CreateFilesParams) {
+  async createFiles(params: WillCreateFilesParams) {
     const result = await this.sendRequest(
-      CreateFilesMessage.type,
+      WillCreateFilesMessage.type,
       params,
       params.files.map((file) => file.data)
     );
@@ -243,55 +251,17 @@ export default class WorkspaceFileSystem {
       this._files[file.uri] = file;
       this.preloadFile(file);
     });
-    const createMessage = DidCreateFilesMessage.type.notification({
-      files: params.files.map((file) => ({ uri: file.uri })),
-    });
-    const changeMessage = DidChangeWatchedFilesMessage.type.notification({
-      changes: params.files.map((file) => ({
-        uri: file.uri,
-        type: FileChangeType.Created,
-      })),
-    });
-    Workspace.lsp.connection.sendNotification(
-      createMessage.method,
-      createMessage.params
-    );
-    Workspace.lsp.connection.sendNotification(
-      changeMessage.method,
-      changeMessage.params
-    );
-    this.emit(createMessage.method, createMessage);
-    this.emit(changeMessage.method, changeMessage);
     return result;
   }
 
-  async deleteFiles(params: DeleteFilesParams) {
-    const result = await this.sendRequest(DeleteFilesMessage.type, params);
+  async deleteFiles(params: WillDeleteFilesParams) {
+    const result = await this.sendRequest(WillDeleteFilesMessage.type, params);
     params.files.forEach((file) => {
       if (this._files) {
         delete this._files[file.uri];
         delete this._cache[file.uri];
       }
     });
-    const deleteMessage = DidDeleteFilesMessage.type.notification({
-      files: params.files.map((file) => ({ uri: file.uri })),
-    });
-    const changeMessage = DidChangeWatchedFilesMessage.type.notification({
-      changes: params.files.map((file) => ({
-        uri: file.uri,
-        type: FileChangeType.Deleted,
-      })),
-    });
-    Workspace.lsp.connection.sendNotification(
-      deleteMessage.method,
-      deleteMessage.params
-    );
-    Workspace.lsp.connection.sendNotification(
-      changeMessage.method,
-      changeMessage.params
-    );
-    this.emit(deleteMessage.method, deleteMessage);
-    this.emit(changeMessage.method, changeMessage);
     return result;
   }
 
@@ -300,17 +270,8 @@ export default class WorkspaceFileSystem {
       WriteTextDocumentMessage.type,
       params
     );
-    const changeMessage = DidChangeWatchedFilesMessage.type.notification({
-      changes: [
-        {
-          uri: params.textDocument.uri,
-          type: FileChangeType.Changed,
-        },
-      ],
-    });
     this._files ??= {};
     this._files[result.uri] = result;
-    this.emit(changeMessage.method, changeMessage);
     return result;
   }
 

@@ -3,8 +3,9 @@ import { getPathFromUri } from "./getPathFromUri";
 
 export const getFileHandleFromUri = async (
   root: FileSystemDirectoryHandle,
-  uri: string
+  uri: string,
+  create = true
 ): Promise<FileSystemFileHandle> => {
   const relativePath = getPathFromUri(uri);
-  return getFileHandleFromPath(root, relativePath);
+  return getFileHandleFromPath(root, relativePath, create);
 };
