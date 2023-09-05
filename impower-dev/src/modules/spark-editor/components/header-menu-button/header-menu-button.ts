@@ -22,8 +22,8 @@ export default class HeaderMenuButton extends SEElement {
     return this.getElementById("close-button");
   }
 
-  get googleSyncEl() {
-    return this.getElementById("google-sync");
+  get accountEl() {
+    return this.getElementById("account");
   }
 
   get drawerEl() {
@@ -33,8 +33,8 @@ export default class HeaderMenuButton extends SEElement {
   protected override onConnected(): void {
     this.openButtonEl?.addEventListener("click", this.handleClickOpenButton);
     this.closeButtonEl?.addEventListener("click", this.handleClickCloseButton);
-    this.googleSyncEl?.addEventListener("picking", this.handlePicking);
-    this.googleSyncEl?.addEventListener("saving", this.handleSaving);
+    this.accountEl?.addEventListener("picking", this.handlePicking);
+    this.accountEl?.addEventListener("saving", this.handleSaving);
   }
 
   protected override onDisconnected(): void {
@@ -43,8 +43,8 @@ export default class HeaderMenuButton extends SEElement {
       "click",
       this.handleClickCloseButton
     );
-    this.googleSyncEl?.removeEventListener("picking", this.handlePicking);
-    this.googleSyncEl?.removeEventListener("saving", this.handleSaving);
+    this.accountEl?.removeEventListener("picking", this.handlePicking);
+    this.accountEl?.removeEventListener("saving", this.handleSaving);
   }
 
   handleClickOpenButton = () => {
