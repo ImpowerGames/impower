@@ -98,20 +98,14 @@ export default class SparkdownTextDocuments<
     return this._onDidParse.event;
   }
 
-  protected readonly _syncedPackages: Record<
+  protected readonly _files: Record<
     string,
     {
-      directory: string;
-      files: Record<
-        string,
-        {
-          uri: string;
-          name: string;
-          src: string;
-          ext: string;
-          type: string;
-        }
-      >;
+      uri: string;
+      name: string;
+      src: string;
+      ext: string;
+      type: string;
     }
   > = {};
 
@@ -179,51 +173,10 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
-  addFileToPackage(packageUri: string, fileUri: string) {
-    const packageManifest = this._syncedPackages[packageUri];
-    if (packageManifest) {
-      const name = this.getFileName(fileUri);
-      const type = this.getFileType(fileUri);
-      const ext = this.getFileExtension(fileUri);
-      packageManifest.files[fileUri] = {
-        uri: fileUri,
-        name,
-        type,
-        ext,
-        src: fileUri,
-      };
-    }
-  }
-
-  removeFileFromPackage(packageUri: string, fileUri: string) {
-    const packageManifest = this._syncedPackages[packageUri];
-    if (packageManifest) {
-      delete packageManifest.files[fileUri];
-    }
-  }
-
-  getClosestPackageUri(fileUri: string): string {
-    let closestPackageUri = "";
-    let closestDirectoryUri = "";
-    Object.keys(this._syncedPackages).forEach((packageUri) => {
-      const directoryUri = this.getDirectoryUri(packageUri);
-      if (
-        fileUri.startsWith(directoryUri) &&
-        directoryUri.length > closestDirectoryUri.length
-      ) {
-        closestDirectoryUri = directoryUri;
-        closestPackageUri = packageUri;
-      }
-    });
-    return closestPackageUri;
-  }
-
   parse(uri: string) {
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
-      const packageUri = this.getClosestPackageUri(uri);
-      const packageFiles = this._syncedPackages[packageUri]?.files;
-      const files = packageFiles ? Object.values(packageFiles) : undefined;
+      const files = Object.values(this._files);
       const syncedProgram = this._parser.parse(syncedDocument.getText(), {
         augmentations: {
           files,
@@ -256,25 +209,20 @@ export default class SparkdownTextDocuments<
   }
 
   onCreatedFile(fileUri: string) {
-    if (fileUri.endsWith("metadata.sd")) {
-      this._syncedPackages[fileUri] = {
-        directory: this.getDirectoryUri(fileUri),
-        files: {},
-      };
-      // TODO: send readFiles request to client to populate files list
-    } else {
-      const packageUri = this.getClosestPackageUri(fileUri);
-      this.addFileToPackage(packageUri, fileUri);
-    }
+    const name = this.getFileName(fileUri);
+    const type = this.getFileType(fileUri);
+    const ext = this.getFileExtension(fileUri);
+    this._files[fileUri] = {
+      uri: fileUri,
+      name,
+      type,
+      ext,
+      src: fileUri,
+    };
   }
 
   onDeletedFile(fileUri: string) {
-    if (this._syncedPackages[fileUri]) {
-      delete this._syncedPackages[fileUri];
-    } else {
-      const packageUri = this.getClosestPackageUri(fileUri);
-      this.removeFileFromPackage(packageUri, fileUri);
-    }
+    delete this._files[fileUri];
   }
 
   public override listen(connection: Connection): Disposable {
@@ -295,18 +243,17 @@ export default class SparkdownTextDocuments<
         (params: DidWatchFilesParams) => {
           const files = params.files;
           files.forEach((file) => {
-            if (file.uri.endsWith("metadata.sd")) {
-              this._syncedPackages[file.uri] = {
-                directory: this.getDirectoryUri(file.uri),
-                files: {},
-              };
-            }
-          });
-          files.forEach((file) => {
-            if (!file.uri.endsWith("metadata.sd")) {
-              const packageUri = this.getClosestPackageUri(file.uri);
-              this.addFileToPackage(packageUri, file.uri);
-            }
+            const fileUri = file.uri;
+            const name = this.getFileName(fileUri);
+            const type = this.getFileType(fileUri);
+            const ext = this.getFileExtension(fileUri);
+            this._files[fileUri] = {
+              uri: fileUri,
+              name,
+              type,
+              ext,
+              src: fileUri,
+            };
           });
         }
       )

@@ -103,4 +103,6 @@
   --s-icon-brand-google-drive: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M12 10l-6 10l-3 -5l6 -10zM9 15h12l-3 5h-12M15 15l-6 -10h6l6 10z"></path></svg>');
 
   --s-icon-logout: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2M9 12h12l-3 -3M18 15l3 -3"></path></svg>');
+
+  --s-icon-refresh: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path></svg>');
 }

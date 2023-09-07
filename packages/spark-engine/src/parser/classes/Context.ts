@@ -93,7 +93,11 @@ export class Context<
       ? programs[entryProgramId]
       : Object.values(programs)[0];
     if (!program) {
-      throw new Error(`Could not find program with id: ${entryProgramId}`);
+      throw new Error(
+        `Could not find program with id '${entryProgramId}' in: ${Object.keys(
+          programs
+        )}`
+      );
     }
     const blockMap = generateSectionBlocks(
       entryProgramId,

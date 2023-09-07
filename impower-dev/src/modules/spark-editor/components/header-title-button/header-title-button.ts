@@ -1,4 +1,4 @@
-import { ChangedHeaderInfoMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedHeaderInfoMessage";
+import { ChangedProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedProjectStateMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_header-title-button";
@@ -39,8 +39,8 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.addEventListener("click", this.handleClickNameButton);
     }
     window.addEventListener(
-      ChangedHeaderInfoMessage.method,
-      this.handleLoadProjectName
+      ChangedProjectStateMessage.method,
+      this.handleRender
     );
   }
 
@@ -55,33 +55,33 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.removeEventListener("click", this.handleClickNameButton);
     }
     window.removeEventListener(
-      ChangedHeaderInfoMessage.method,
-      this.handleLoadProjectName
+      ChangedProjectStateMessage.method,
+      this.handleRender
     );
   }
 
-  handleLoadProjectName = () => {
+  handleRender = () => {
     this.render();
   };
 
   handleClickNameButton = () => {
     Workspace.window.startEditingProjectName();
-    this.render();
+    this.emit("input/focused");
   };
 
-  handleKeyDownNameInput = (e: KeyboardEvent) => {
+  handleKeyDownNameInput = async (e: KeyboardEvent) => {
     if (e.key === "Enter") {
       const target = e.target as HTMLInputElement;
       const name = target.value;
-      Workspace.window.finishEditingProjectName(Workspace.project.id, name);
-      this.render();
+      this.emit("input/unfocused");
+      await Workspace.window.finishEditingProjectName(name);
     }
   };
 
-  handleBlurNameInput = (e: Event) => {
+  handleBlurNameInput = async (e: Event) => {
     const target = e.target as HTMLInputElement;
     const name = target.value;
-    Workspace.window.finishEditingProjectName(Workspace.project.id, name);
-    this.render();
+    this.emit("input/unfocused");
+    await Workspace.window.finishEditingProjectName(name);
   };
 }

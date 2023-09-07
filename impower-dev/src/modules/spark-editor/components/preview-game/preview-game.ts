@@ -141,59 +141,54 @@ export default class GamePreview extends SEElement {
   };
 
   async configureGame() {
-    const editor = await Workspace.window.getOpenEditor(
-      Workspace.project.id,
-      "logic"
-    );
+    const editor = await Workspace.window.getOpenEditor("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
       if (uri) {
         this._programs = await Workspace.fs.getPrograms();
         this._entryLine = selectedRange?.start?.line ?? 0;
         this._uri = uri;
-        this.emit(
-          ConfigureGameMessage.method,
-          ConfigureGameMessage.type.request({
-            settings: {
-              entryProgram: uri,
-              entryLine: this._entryLine,
-            },
-          })
-        );
+        if (this._programs.length > 0) {
+          this.emit(
+            ConfigureGameMessage.method,
+            ConfigureGameMessage.type.request({
+              settings: {
+                entryProgram: uri,
+                entryLine: this._entryLine,
+              },
+            })
+          );
+        }
       }
     }
   }
 
   async loadGame() {
-    const editor = await Workspace.window.getOpenEditor(
-      Workspace.project.id,
-      "logic"
-    );
+    const editor = await Workspace.window.getOpenEditor("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
       if (uri) {
         this._programs = await Workspace.fs.getPrograms();
         this._entryLine = selectedRange?.start?.line ?? 0;
         this._uri = uri;
-        this.emit(
-          LoadGameMessage.method,
-          LoadGameMessage.type.request({
-            programs: Object.values(this._programs),
-          })
-        );
+        if (this._programs.length > 0) {
+          this.emit(
+            LoadGameMessage.method,
+            LoadGameMessage.type.request({
+              programs: this._programs,
+            })
+          );
+        }
       }
     }
   }
 
   async loadPreview() {
     if (!Workspace.window.state.panes.preview.panels.game.running) {
-      const editor = await Workspace.window.getOpenEditor(
-        Workspace.project.id,
-        "logic"
-      );
+      const editor = await Workspace.window.getOpenEditor("logic");
       if (editor) {
         const { uri, version, text, visibleRange, selectedRange } = editor;
-        if (uri) {
+        if (uri && this._programs.length > 0) {
           this.emit(
             LoadPreviewMessage.method,
             LoadPreviewMessage.type.request({
@@ -214,10 +209,7 @@ export default class GamePreview extends SEElement {
   }
 
   async pageUp() {
-    const editor = await Workspace.window.getOpenEditor(
-      Workspace.project.id,
-      "logic"
-    );
+    const editor = await Workspace.window.getOpenEditor("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
       const cached = this._programs.find((p) => p.uri === uri);
@@ -248,10 +240,7 @@ export default class GamePreview extends SEElement {
   }
 
   async pageDown() {
-    const editor = await Workspace.window.getOpenEditor(
-      Workspace.project.id,
-      "logic"
-    );
+    const editor = await Workspace.window.getOpenEditor("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
       const cached = this._programs.find((p) => p.uri === uri);

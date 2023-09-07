@@ -5,18 +5,12 @@
       <se-header-title-button></se-header-title-button>
       <se-header-title-caption></se-header-title-caption>
     </s-box>
-    <s-box position="relative" width="56" height="56">
-      <s-hidden initial="hide" hide-above="lg">
-        <s-hidden initial="hide" hide-event="editor/unfocused window/didEditProjectName"
-          show-event="editor/focused window/willEditProjectName" position="absolute" i="0">
-          <s-button variant="icon" icon="check" text-size="20"></s-button>
-        </s-hidden>
-        <s-hidden hide-event="editor/focused window/willEditProjectName"
-          show-event="editor/unfocused window/didEditProjectName" position="absolute" i="0">
-          <se-preview-toggle-button></se-preview-toggle-button>
-        </s-hidden>
-      </s-hidden>
-    </s-box>
+    <s-button id="sync-button" width="56" height="56" variant="icon" icon="refresh" text-size="20" color="fg"
+      hidden></s-button>
+    <s-hidden initial="hide" hide-above="lg">
+      <s-button id="done-button" width="56" height="56" variant="icon" icon="check" text-size="20" hidden></s-button>
+      <se-preview-toggle-button id="preview-button"></se-preview-toggle-button>
+    </s-hidden>
   </s-box>
   <s-divider position="absolute" i-b="0" bg-color="fg-06"></s-divider>
 </s-box>

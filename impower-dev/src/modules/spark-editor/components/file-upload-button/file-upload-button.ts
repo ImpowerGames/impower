@@ -39,20 +39,23 @@ export default class FileAddButton extends SEElement {
   };
 
   async upload(fileList: FileList) {
-    if (fileList) {
-      const files = await Promise.all(
-        Array.from(fileList).map(async (file) => {
-          const validFileName = getValidFileName(file.name);
-          const data = await file.arrayBuffer();
-          return {
-            uri: Workspace.fs.getFileUri(Workspace.project.id, validFileName),
-            data,
-          };
-        })
-      );
-      await Workspace.fs.createFiles({
-        files,
-      });
+    const projectId = Workspace.window.state.project.id;
+    if (projectId) {
+      if (fileList) {
+        const files = await Promise.all(
+          Array.from(fileList).map(async (file) => {
+            const validFileName = getValidFileName(file.name);
+            const data = await file.arrayBuffer();
+            return {
+              uri: Workspace.fs.getFileUri(projectId, validFileName),
+              data,
+            };
+          })
+        );
+        await Workspace.fs.createFiles({
+          files,
+        });
+      }
     }
   }
 }

@@ -3,8 +3,9 @@ import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
   const label = "Project Name";
-  const projectName = state?.store?.header?.projectName ?? "";
-  const editingName = state?.store?.header?.editingProjectName;
+  const projectName = state?.store?.project?.name ?? "";
+  const syncState = state?.store?.project?.syncState ?? "";
+  const editingName = state?.store?.project?.editingName;
   const nameButton = () => html`
     <s-button
       id="name-button"
@@ -39,7 +40,11 @@ export default (state: { store?: WorkspaceState }) => {
   return {
     html: html`
       <s-box child-layout="row" child-align="center" height="28">
-        ${projectName ? (editingName ? nameInput : nameButton) : nameSkeleton}
+        ${projectName && syncState
+          ? editingName
+            ? nameInput
+            : nameButton
+          : nameSkeleton}
       </s-box>
     `,
   };

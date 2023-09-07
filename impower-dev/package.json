@@ -48,7 +48,6 @@
     "@fastify/multipart": "^7.7.3",
     "@fastify/secure-session": "^6.2.0",
     "@fastify/static": "^6.10.2",
-    "@fastify/websocket": "^8.1.0",
     "@impower/opfs-workspace": "file:../packages/opfs-workspace",
     "@impower/spark-editor-protocol": "file:../packages/spark-editor-protocol",
     "@impower/spark-web-player": "file:../packages/spark-web-player",

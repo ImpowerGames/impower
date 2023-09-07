@@ -1,8 +1,6 @@
-import { DidBlockInteractionsMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidBlockInteractionsMessage";
-import { DidUnblockInteractionsMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidUnblockInteractionsMessage";
-import { WillBlockInteractionsMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillBlockInteractionsMessage";
-import { WillUnblockInteractionsMessage } from "@impower/spark-editor-protocol/src/protocols/window/WillUnblockInteractionsMessage";
+import { ChangedProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedProjectStateMessage";
 import SEElement from "../../core/se-element";
+import { Workspace } from "../../workspace/Workspace";
 import component from "./_interaction-blocker";
 
 export default class InteractionBlocker extends SEElement {
@@ -20,39 +18,28 @@ export default class InteractionBlocker extends SEElement {
 
   protected override onConnected(): void {
     window.addEventListener(
-      WillBlockInteractionsMessage.method,
-      this.handleWillBlockInteractions
-    );
-    window.addEventListener(
-      WillUnblockInteractionsMessage.method,
-      this.handleWillUnblockInteractions
+      ChangedProjectStateMessage.method,
+      this.handleChangedProjectState
     );
   }
 
   protected override onDisconnected(): void {
     window.removeEventListener(
-      WillBlockInteractionsMessage.method,
-      this.handleWillBlockInteractions
-    );
-    window.removeEventListener(
-      WillUnblockInteractionsMessage.method,
-      this.handleWillUnblockInteractions
+      ChangedProjectStateMessage.method,
+      this.handleChangedProjectState
     );
   }
 
-  handleWillBlockInteractions = async () => {
-    if (this) {
+  handleChangedProjectState = (e: Event) => {
+    if (
+      !Workspace.window.state.project.id ||
+      Workspace.window.state.project.syncState === "loading" ||
+      Workspace.window.state.project.syncState === "importing" ||
+      Workspace.window.state.project.syncState === "exporting"
+    ) {
       this.hidden = false;
-    }
-    const message = DidBlockInteractionsMessage.type.notification({});
-    this.emit(message.method, message);
-  };
-
-  handleWillUnblockInteractions = async () => {
-    if (this) {
+    } else {
       this.hidden = true;
     }
-    const message = DidUnblockInteractionsMessage.type.notification({});
-    this.emit(message.method, message);
   };
 }

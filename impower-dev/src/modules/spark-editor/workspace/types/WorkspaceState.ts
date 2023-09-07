@@ -157,11 +157,44 @@ export interface WorkspacePanes extends Record<string, PaneState> {
   };
 }
 
+export type SyncState =
+  | "cached"
+  | "unsaved"
+  | "saved"
+  | "loading"
+  | "importing"
+  | "exporting"
+  | "syncing"
+  | "load_error"
+  | "import_error"
+  | "export_error"
+  | "sync_error"
+  | "sync_conflict";
+
+export interface ProjectMetadata {
+  headRevisionId?: string;
+  remoteModifiedTime: number;
+  localModifiedTime?: number;
+  synced?: boolean;
+}
+
+export interface ProjectFile {
+  name: string;
+  metadata: ProjectMetadata;
+  content: string;
+}
+
 export interface WorkspaceState {
-  header: {
-    projectName?: string;
-    editingProjectName?: boolean;
-    projectState: string;
+  project: {
+    id?: string;
+    canSync?: boolean;
+    name?: string;
+    editingName?: boolean;
+    syncState?: SyncState;
+    conflict?: {
+      remote?: ProjectFile;
+      local?: ProjectFile;
+    };
   };
   pane: string;
   panes: WorkspacePanes;

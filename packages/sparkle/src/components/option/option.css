@@ -149,14 +149,6 @@
 :host(:not([child-layout="row"])[icon]) > .root > .icon {
   font-size: var(--icon-size);
 }
-:host(:not([child-layout="row"])[icon]) > .root > .icon {
-  transform: translateY(1px);
-}
-:host(:not([child-layout="row"])[icon][active]:not([disabled]))
-  > .root
-  > .icon {
-  transform: translateY(0px);
-}
 
 :host([icon]) > .root > .icon > .inactive-icon {
   position: absolute;

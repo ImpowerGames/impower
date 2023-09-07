@@ -1,8 +1,5 @@
-import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
-import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
-import WorkspaceProject from "../../workspace/WorkspaceProject";
 import { AccountInfo } from "../../workspace/types/AccountInfo";
 import component from "./_account";
 
@@ -55,12 +52,12 @@ export default class Account extends SEElement {
     return this.getElementById("upload-button")!;
   }
 
-  get loadProjectButtonEl() {
-    return this.getElementById("load-project-button")!;
+  get importProjectButtonEl() {
+    return this.getElementById("import-project-button")!;
   }
 
-  get saveProjectButtonEl() {
-    return this.getElementById("save-project-button")!;
+  get exportProjectButtonEl() {
+    return this.getElementById("export-project-button")!;
   }
 
   protected override onConnected(): void {
@@ -68,17 +65,13 @@ export default class Account extends SEElement {
     Workspace.sync.google.addEventListener("revoke", this.handleRevoke);
     this.signinButtonEl.addEventListener("click", this.handleSignIn);
     this.signoutButtonEl.addEventListener("click", this.handleSignOut);
-    this.loadProjectButtonEl.addEventListener(
+    this.importProjectButtonEl.addEventListener(
       "click",
       this.handleImportProjectFile
     );
-    this.saveProjectButtonEl.addEventListener(
+    this.exportProjectButtonEl.addEventListener(
       "click",
-      this.handleSaveProjectFile
-    );
-    window.addEventListener(
-      DidWriteFileMessage.method,
-      this.handleDidWriteFile
+      this.handleExportProjectFile
     );
   }
 
@@ -86,17 +79,13 @@ export default class Account extends SEElement {
     Workspace.sync.google.removeEventListener("revoke", this.handleRevoke);
     this.signinButtonEl.removeEventListener("click", this.handleSignIn);
     this.signoutButtonEl.removeEventListener("click", this.handleSignOut);
-    this.loadProjectButtonEl.removeEventListener(
+    this.importProjectButtonEl.removeEventListener(
       "click",
       this.handleImportProjectFile
     );
-    this.saveProjectButtonEl.removeEventListener(
+    this.exportProjectButtonEl.removeEventListener(
       "click",
-      this.handleSaveProjectFile
-    );
-    window.removeEventListener(
-      DidWriteFileMessage.method,
-      this.handleDidWriteFile
+      this.handleExportProjectFile
     );
   }
 
@@ -104,11 +93,8 @@ export default class Account extends SEElement {
     try {
       const syncProvider = Workspace.sync.google;
       const accountInfo = await syncProvider.getCurrentAccount();
-      await Workspace.window.loadedProject(Workspace.project.id);
-      const state = Workspace.project.getPersistenceState();
-      Workspace.window.showProjectState(state);
       this.loadAccountUI(accountInfo);
-      Workspace.window.unblockInteractions();
+      await Workspace.window.loadProject();
     } catch (err: any) {
       console.error(err);
     }
@@ -132,13 +118,10 @@ export default class Account extends SEElement {
   handleSignOut = async () => {
     try {
       const provider = Workspace.sync.google;
-      Workspace.window.showProjectState("Loading...");
+      Workspace.window.unloadProject();
       await provider.signOut();
-      Workspace.project.set(WorkspaceProject.LOCAL_ID, false);
-      await Workspace.window.loadedProject(WorkspaceProject.LOCAL_ID);
-      const state = Workspace.project.getPersistenceState();
-      Workspace.window.showProjectState(state);
-      this.loadUnauthenticatedUI();
+      const projectId = Workspace.LOCAL_PROJECT_ID;
+      Workspace.window.loadNewProject(projectId);
     } catch (err: any) {
       console.error(err);
     }
@@ -151,50 +134,10 @@ export default class Account extends SEElement {
       const token = access.token;
       if (token) {
         this.emit("picking");
-        const fileId = await syncProvider.importProjectFile(token);
+        const fileId = await syncProvider.pickProjectFile(token);
         if (fileId) {
-          Workspace.window.blockInteractions();
-          Workspace.window.unloadedProject();
-          Workspace.window.showProjectState("Loading...");
-          const file = await syncProvider.getFile(fileId);
-          if (file != null && file.id && file.name) {
-            const projectId = file.id;
-            const projectName = file.name.split(".")[0]!;
-            const projectContent = file.data;
-            const canSync = Boolean(file.capabilities?.canModifyContent);
-            Workspace.project.set(projectId, canSync);
-            await Workspace.fs.writeProjectName(projectId, projectName);
-            await Workspace.fs.writeProjectContent(projectId, projectContent);
-            const editor = await Workspace.window.getOpenEditor(
-              Workspace.project.id,
-              "logic"
-            );
-            if (editor && editor.uri) {
-              const visibleRange = editor.visibleRange;
-              const text = await Workspace.fs.readTextDocument({
-                textDocument: { uri: editor.uri },
-              });
-              const languageServerCapabilities =
-                await Workspace.lsp.getServerCapabilities();
-              this.emit(
-                LoadEditorMessage.method,
-                LoadEditorMessage.type.request({
-                  textDocument: {
-                    uri: editor.uri,
-                    languageId: "sparkdown",
-                    version: 0,
-                    text,
-                  },
-                  visibleRange,
-                  languageServerCapabilities,
-                })
-              );
-            }
-            await Workspace.window.loadedProject(projectId);
-          }
-          const state = Workspace.project.getPersistenceState();
-          Workspace.window.showProjectState(state);
-          Workspace.window.unblockInteractions();
+          Workspace.window.unloadProject();
+          Workspace.window.loadNewProject(fileId);
         }
         this.emit("picked", fileId);
       }
@@ -203,64 +146,24 @@ export default class Account extends SEElement {
     }
   };
 
-  handleSaveProjectFile = async () => {
+  handleExportProjectFile = async () => {
     try {
-      const syncProvider = Workspace.sync.google;
-      const access = await syncProvider.getAccess();
-      const token = access.token;
-      if (token) {
-        const projectId = Workspace.project.id;
-        Workspace.window.showProjectState("Syncing...");
-        const name = await Workspace.fs.readProjectName(projectId);
-        const text = await Workspace.fs.readProjectContent(projectId);
-        if (!Workspace.project.sync) {
-          this.emit("saving");
-          const file = await syncProvider.saveProjectFile(projectId, text);
-          this.emit("saved", file);
-        } else {
+      const projectId = Workspace.window.state.project.id;
+      if (projectId) {
+        const syncProvider = Workspace.sync.google;
+        const access = await syncProvider.getAccess();
+        const token = access.token;
+        if (token) {
           this.emit("picking");
-          const filename = `${name}.sd`;
-          const file = await syncProvider.exportProjectFile(
-            token,
-            filename,
-            text
-          );
-          this.emit("picked", file);
+          const folderId = await syncProvider.pickProjectFolder(token);
+          if (folderId) {
+            await Workspace.window.exportProject(folderId);
+          }
+          this.emit("picked", folderId);
         }
-        const state = Workspace.project.getPersistenceState();
-        Workspace.window.showProjectState(state);
       }
     } catch (err: any) {
       console.error(err);
-      Workspace.window.showProjectState("Error: Unable to sync");
-    }
-  };
-
-  handleDidWriteFile = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidWriteFileMessage.type.isNotification(message)) {
-        const params = message.params;
-        const file = params.file;
-        if (!Workspace.project.isLocal) {
-          const syncProvider = Workspace.sync.google;
-          if (file?.text != null) {
-            // TODO: Bundle all scripts before syncing
-            if (file.name === "main" && file.ext === "script") {
-              Workspace.window.showProjectState("Syncing...");
-              this.emit("saving");
-              const projectId = Workspace.project.id;
-              const projectFile = await syncProvider.saveProjectFile(
-                projectId,
-                file.text
-              );
-              this.emit("saved", projectFile);
-              const state = Workspace.project.getPersistenceState();
-              Workspace.window.showProjectState(state);
-            }
-          }
-        }
-      }
     }
   };
 

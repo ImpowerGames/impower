@@ -38,11 +38,14 @@ export default class LogicScriptsEditor extends SEElement {
       }
       if (e.detail.key === "file-options") {
         if (filename) {
-          const uri = Workspace.fs.getFileUri(Workspace.project.id, filename);
           if (e.detail.value === "delete") {
-            await Workspace.fs.deleteFiles({
-              files: [{ uri }],
-            });
+            const projectId = Workspace.window.state.project.id;
+            if (projectId) {
+              const uri = Workspace.fs.getFileUri(projectId, filename);
+              await Workspace.fs.deleteFiles({
+                files: [{ uri }],
+              });
+            }
             Workspace.window.closedFileEditor(filename);
           }
         }

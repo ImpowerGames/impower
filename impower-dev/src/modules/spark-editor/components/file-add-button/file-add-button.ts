@@ -48,20 +48,23 @@ export default class FileAddButton
   }
 
   handleClick = async (e: MouseEvent) => {
-    const files = await Workspace.fs.getFiles();
-    const fileUris = Object.keys(files);
-    const filenames = fileUris.map((uri) => Workspace.fs.getFilename(uri));
-    const filename = this.filename;
-    if (filename) {
-      const uniqueFileName = getUniqueFileName(filenames, filename);
-      await Workspace.fs.createFiles({
-        files: [
-          {
-            uri: Workspace.fs.getFileUri(Workspace.project.id, uniqueFileName),
-            data: new ArrayBuffer(0),
-          },
-        ],
-      });
+    const projectId = Workspace.window.state.project.id;
+    if (projectId) {
+      const files = await Workspace.fs.getFiles();
+      const fileUris = Object.keys(files);
+      const filenames = fileUris.map((uri) => Workspace.fs.getFilename(uri));
+      const filename = this.filename;
+      if (filename) {
+        const uniqueFileName = getUniqueFileName(filenames, filename);
+        await Workspace.fs.createFiles({
+          files: [
+            {
+              uri: Workspace.fs.getFileUri(projectId, uniqueFileName),
+              data: new ArrayBuffer(0),
+            },
+          ],
+        });
+      }
     }
   };
 }

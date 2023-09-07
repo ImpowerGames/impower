@@ -68,10 +68,7 @@ export default class ScriptEditor
 
   async loadFile() {
     const filename = this.filename || "main.script";
-    const editor = await Workspace.window.getActiveEditor(
-      Workspace.project.id,
-      filename
-    );
+    const editor = await Workspace.window.getActiveEditor(filename);
     if (editor) {
       const uri = editor.uri;
       const visibleRange = editor.visibleRange;

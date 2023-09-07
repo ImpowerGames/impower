@@ -45,10 +45,7 @@ export default class PreviewScreenplay extends SEElement {
   };
 
   async loadFile() {
-    const editor = await Workspace.window.getOpenEditor(
-      Workspace.project.id,
-      "logic"
-    );
+    const editor = await Workspace.window.getOpenEditor("logic");
     if (editor) {
       const { uri, visibleRange, selectedRange } = editor;
       const existingText = await Workspace.fs.readTextDocument({

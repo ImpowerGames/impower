@@ -1,4 +1,3 @@
-import { uuid } from "@impower/spark-editor-protocol/src/utils/uuid";
 import loadScript from "../../utils/loadScript";
 import SingletonPromise from "../SingletonPromise";
 import { AccessInfo } from "../types/AccessInfo";
@@ -41,15 +40,11 @@ const GSI_SRC = "https://accounts.google.com/gsi/client";
 // Google API Client Library
 const GAPI_SRC = "https://apis.google.com/js/api.js";
 
-export default class GoogleDriveSyncProvider {
-  protected _instanceId = uuid();
-  get instanceId() {
-    if (!this._instanceId) {
-      this._instanceId;
-    }
-    return this._instanceId;
-  }
+// Discovery doc URL for APIs
+const DISCOVERY_DOC =
+  "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest";
 
+export default class GoogleDriveSyncProvider {
   protected _gsiScriptRef = new SingletonPromise(this.loadGSIScript.bind(this));
 
   protected _gapiScriptRef = new SingletonPromise(
@@ -115,7 +110,14 @@ export default class GoogleDriveSyncProvider {
   }
 
   protected async loadGAPIScript() {
-    return loadScript(GAPI_SRC);
+    const result = await loadScript(GAPI_SRC);
+    gapi.load("client", async () => {
+      await gapi.client.init({
+        apiKey: BROWSER_GOOGLE_API_KEY,
+        discoveryDocs: [DISCOVERY_DOC],
+      });
+    });
+    return result;
   }
 
   protected async loadPickerScript() {
@@ -123,9 +125,7 @@ export default class GoogleDriveSyncProvider {
     await new Promise<void>((resolve, reject) => {
       gapi.load("client:picker", async () => {
         try {
-          await gapi.client.load(
-            "https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"
-          );
+          await gapi.client.load(DISCOVERY_DOC);
           resolve();
         } catch (err) {
           reject(err);
@@ -148,32 +148,6 @@ export default class GoogleDriveSyncProvider {
       .setAppId(BROWSER_GOOGLE_APP_ID)
       .setTitle("Select a project file")
       .addView(view);
-  }
-
-  async importProjectFile(accessToken: string) {
-    const pickerBuilder = await this._importPickerBuilderRef.get();
-    const importPicker = pickerBuilder.setOAuthToken(accessToken).build();
-    const result = await new Promise<string | null>((resolve, reject) => {
-      importPicker.setCallback(async (data) => {
-        try {
-          if (data.action === google.picker.Action.CANCEL) {
-            resolve(null);
-          } else if (data.action === google.picker.Action.PICKED) {
-            const document = data[google.picker.Response.DOCUMENTS][0];
-            const id = document?.[google.picker.Document.ID];
-            if (id) {
-              resolve(id);
-            } else {
-              resolve(null);
-            }
-          }
-        } catch (err) {
-          reject(err);
-        }
-      });
-      importPicker.setVisible(true);
-    });
-    return result;
   }
 
   protected async loadExportPicker() {
@@ -213,25 +187,43 @@ export default class GoogleDriveSyncProvider {
     return blob;
   }
 
-  async exportProjectFile(
-    accessToken: string,
-    filename: string,
-    content: string
-  ) {
+  async pickProjectFile(accessToken: string) {
+    const pickerBuilder = await this._importPickerBuilderRef.get();
+    const importPicker = pickerBuilder.setOAuthToken(accessToken).build();
+    const result = await new Promise<string | null>((resolve, reject) => {
+      importPicker.setCallback(async (data) => {
+        try {
+          if (data.action === google.picker.Action.CANCEL) {
+            resolve(null);
+          } else if (data.action === google.picker.Action.PICKED) {
+            const document = data[google.picker.Response.DOCUMENTS][0];
+            const id = document?.[google.picker.Document.ID];
+            if (id) {
+              resolve(id);
+            } else {
+              resolve(null);
+            }
+          }
+        } catch (err) {
+          reject(err);
+        }
+      });
+      importPicker.setVisible(true);
+    });
+    return result;
+  }
+
+  async pickProjectFolder(accessToken: string) {
     const pickerBuilder = await this._exportPickerBuilderRef.get();
     const exportPicker = pickerBuilder.setOAuthToken(accessToken).build();
-    const result = await new Promise<Storage.File | null>((resolve, reject) => {
+    const result = await new Promise<string | null>((resolve, reject) => {
       exportPicker.setCallback(async (data) => {
         try {
           if (data.action === google.picker.Action.PICKED) {
             const document = data[google.picker.Response.DOCUMENTS][0];
             if (document) {
               const folderId = document[google.picker.Document.ID];
-              const data = await this.createFile(
-                folderId,
-                this.getTextBlob(filename, content)
-              );
-              resolve(data);
+              resolve(folderId);
             }
           }
           resolve(null);
@@ -244,8 +236,12 @@ export default class GoogleDriveSyncProvider {
     return result;
   }
 
-  async saveProjectFile(fileId: string, content: string) {
-    return this.updateFile(fileId, this.getTextBlob(this.instanceId, content));
+  async createProjectFile(folderId: string, filename: string, content: string) {
+    return this.createFile(folderId, this.getTextBlob(filename, content));
+  }
+
+  async updateProjectFile(fileId: string, filename: string, content: string) {
+    return this.updateFile(fileId, this.getTextBlob(filename, content));
   }
 
   protected async fetchAccount() {
@@ -323,7 +319,7 @@ export default class GoogleDriveSyncProvider {
   }
 
   async getFile(fileId: string) {
-    const result = await this.request<Storage.File & { data: string }>(
+    const result = await this.request<Storage.File & { data?: string }>(
       "GET",
       `/api/storage/file/${fileId}`
     );

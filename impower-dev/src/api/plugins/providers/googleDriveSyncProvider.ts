@@ -230,7 +230,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       const res = await drive.files.update({
         fileId,
         requestBody: {
-          originalFilename: name,
+          name,
         },
         media: {
           mimeType,

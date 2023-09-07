@@ -31,12 +31,10 @@ import {
   WillDeleteFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
 import { FileData } from "@impower/spark-editor-protocol/src/types";
-import YAML from "yaml";
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
-
-const DEFAULT_PROJECT_NAME = "Untitled Project";
+import { ProjectMetadata } from "./types/WorkspaceState";
 
 export default class WorkspaceFileSystem {
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
@@ -64,13 +62,16 @@ export default class WorkspaceFileSystem {
 
   protected async loadInitialFiles() {
     const connection = await Workspace.lsp.getConnection();
-    const directoryUri = this.getDirectoryUri(Workspace.project.id);
+    const projectId =
+      Workspace.window.state.project.id || Workspace.LOCAL_PROJECT_ID;
+    const directoryUri = this.getDirectoryUri(projectId);
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
     });
     const didWatchFilesParams = {
       files,
     };
+    this._files ??= {};
     const result: Record<string, FileData> = {};
     files.forEach((file) => {
       this._files ??= {};
@@ -175,50 +176,45 @@ export default class WorkspaceFileSystem {
     return this.sendRequest(ReadDirectoryFilesMessage.type, params);
   }
 
-  protected async readProjectMetadata(
-    projectId: string
-  ): Promise<{ name: string } | null> {
-    const uri = this.getFileUri(projectId, "metadata.sd");
-    const metadataContent = await this.readTextDocument({
+  async readProjectName(projectId: string) {
+    const uri = this.getFileUri(projectId, ".name");
+    const name = await this.readTextDocument({
       textDocument: { uri },
     });
-    if (!metadataContent) {
-      return null;
+    if (!name) {
+      return Workspace.DEFAULT_PROJECT_NAME;
     }
-    const trimmedContent = metadataContent.trim();
-    let validContent = trimmedContent.endsWith("---")
-      ? trimmedContent.slice(0, -3)
-      : trimmedContent;
-    const metadata = YAML.parse(validContent);
-    return metadata;
+    return name;
   }
 
-  protected async writeProjectMetadata(
-    projectId: string,
-    metadata: { name: string }
-  ) {
-    const uri = this.getFileUri(projectId, "metadata.sd");
-    const text = `---\n${YAML.stringify(metadata)}\n---`;
+  async writeProjectName(projectId: string, name: string) {
+    const uri = this.getFileUri(projectId, ".name");
+    const text = name;
     await this.writeTextDocument({
       textDocument: { uri },
       text,
     });
+  }
+
+  async readProjectMetadata(projectId: string): Promise<ProjectMetadata> {
+    const uri = this.getFileUri(projectId, ".metadata");
+    const metadataContent = await this.readTextDocument({
+      textDocument: { uri },
+    });
+    if (!metadataContent) {
+      return {};
+    }
+    const metadata = JSON.parse(metadataContent);
     return metadata;
   }
 
-  async readProjectName(projectId: string) {
-    const metadata = (await this.readProjectMetadata(projectId)) ?? {
-      name: DEFAULT_PROJECT_NAME,
-    };
-    return metadata.name;
-  }
-
-  async writeProjectName(projectId: string, name: string) {
-    const metadata = (await this.readProjectMetadata(projectId)) ?? {
-      name: "",
-    };
-    metadata.name = name;
-    return this.writeProjectMetadata(projectId, metadata);
+  async writeProjectMetadata(projectId: string, metadata: ProjectMetadata) {
+    const uri = this.getFileUri(projectId, ".metadata");
+    const text = JSON.stringify(metadata).trim();
+    await this.writeTextDocument({
+      textDocument: { uri },
+      text,
+    });
   }
 
   async readProjectContent(projectId: string) {

@@ -66,11 +66,14 @@ export default class FileItem
       if (e.detail.key === "file-options") {
         const filename = this.filename;
         if (filename) {
-          const uri = Workspace.fs.getFileUri(Workspace.project.id, filename);
           if (e.detail.value === "delete") {
-            Workspace.fs.deleteFiles({
-              files: [{ uri }],
-            });
+            const projectId = Workspace.window.state.project.id;
+            if (projectId) {
+              const uri = Workspace.fs.getFileUri(projectId, filename);
+              Workspace.fs.deleteFiles({
+                files: [{ uri }],
+              });
+            }
           }
         }
       }

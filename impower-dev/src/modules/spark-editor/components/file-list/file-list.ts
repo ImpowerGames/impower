@@ -170,20 +170,23 @@ export default class FileList
   };
 
   async upload(fileArray: File[]) {
-    if (fileArray) {
-      const files = await Promise.all(
-        fileArray.map(async (file) => {
-          const validFileName = getValidFileName(file.name);
-          const data = await file.arrayBuffer();
-          return {
-            uri: Workspace.fs.getFileUri(Workspace.project.id, validFileName),
-            data,
-          };
-        })
-      );
-      await Workspace.fs.createFiles({
-        files,
-      });
+    const projectId = Workspace.window.state.project.id;
+    if (projectId) {
+      if (fileArray) {
+        const files = await Promise.all(
+          fileArray.map(async (file) => {
+            const validFileName = getValidFileName(file.name);
+            const data = await file.arrayBuffer();
+            return {
+              uri: Workspace.fs.getFileUri(projectId, validFileName),
+              data,
+            };
+          })
+        );
+        await Workspace.fs.createFiles({
+          files,
+        });
+      }
     }
   }
 
