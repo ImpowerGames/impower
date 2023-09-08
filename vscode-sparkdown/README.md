@@ -1,4 +1,3 @@
-
 # Functionality
 
 This is an extension for Visual Studio Code which allows you to create `spark` games and screenplays using [Sparkdown](https://github.com/ImpowerGames/impower/tree/main/sparkdown) syntax.
@@ -16,17 +15,17 @@ This is an extension for Visual Studio Code which allows you to create `spark` g
 
 # Usage
 
-1. Open any `.sparkdown` or `.sd` file in Visual Studio Code. 
+1. Open any `.script`, `.sparkdown`, or `.sd` file in Visual Studio Code.
 
 2. Click the ![Sparkdown](https://raw.githubusercontent.com/ImpowerGames/impower/deploy/dev/.github/images/sparkdown-vscode-icon.png) icon in the activitybar to open the Sparkdown Sidebar.
 
 ![Screenshot](https://raw.githubusercontent.com/ImpowerGames/impower/deploy/dev/.github/images/sparkdown-vscode-screenshot-00.png)
 
 > From the sidebar, you can...
+>
 > - Navigate through your screenplay using the `OUTLINE` panel.
 > - View the Live Preview, export your Screenplay, and more, using the `COMMANDS` panel.
 > - Quickly lookup sparkdown syntax in the `CHEAT SHEET` panel.
-
 
 # Extension Settings
 
@@ -48,4 +47,4 @@ This extension contributes the following settings:
 
 ## Thanks / Third-party licenses
 
- Forked from the wonderful extension [BetterFountain](https://github.com/piersdeseilligny/betterfountain) by Piers Deseilligny, covered by the [MIT License](https://github.com/piersdeseilligny/betterfountain/blob/master/LICENSE.md)
+Forked from the wonderful extension [BetterFountain](https://github.com/piersdeseilligny/betterfountain) by Piers Deseilligny, covered by the [MIT License](https://github.com/piersdeseilligny/betterfountain/blob/master/LICENSE.md)

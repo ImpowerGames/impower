@@ -1,5 +1,6 @@
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage.js";
-import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
+import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
+import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_preview-screenplay";
@@ -20,25 +21,43 @@ export default class PreviewScreenplay extends SEElement {
   protected override onConnected(): void {
     this.loadFile();
     window.addEventListener(
-      DidOpenFileEditorMessage.method,
-      this.handleDidOpenFileEditor
+      DidOpenTextDocumentMessage.method,
+      this.handleDidOpenTextDocument
+    );
+    window.addEventListener(
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
   protected override onDisconnected(): void {
     window.removeEventListener(
-      DidOpenFileEditorMessage.method,
-      this.handleDidOpenFileEditor
+      DidOpenTextDocumentMessage.method,
+      this.handleDidOpenTextDocument
+    );
+    window.removeEventListener(
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
-  handleDidOpenFileEditor = (e: Event) => {
+  handleDidOpenTextDocument = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (DidOpenFileEditorMessage.type.isNotification(message)) {
-        const { pane } = message.params;
-        if (pane === "logic") {
-          this.loadFile();
+      if (DidOpenTextDocumentMessage.type.isNotification(message)) {
+        this.loadFile();
+      }
+    }
+  };
+
+  protected handleDidChangeProjectState = async (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidChangeProjectStateMessage.type.isNotification(message)) {
+        const params = message.params;
+        const { changed } = params;
+        if (changed.includes("syncedAt")) {
+          await this.loadFile();
         }
       }
     }
@@ -48,9 +67,9 @@ export default class PreviewScreenplay extends SEElement {
     const editor = await Workspace.window.getOpenEditor("logic");
     if (editor) {
       const { uri, visibleRange, selectedRange } = editor;
-      const existingText = await Workspace.fs.readTextDocument({
-        textDocument: { uri },
-      });
+      const files = await Workspace.fs.getFiles();
+      const file = files[uri];
+      const existingText = file?.text || "";
       this.emit(
         LoadPreviewMessage.method,
         LoadPreviewMessage.type.request({

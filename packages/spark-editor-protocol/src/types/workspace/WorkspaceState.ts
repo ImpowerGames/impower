@@ -1,4 +1,11 @@
-import { Range } from "@impower/spark-editor-protocol/src/types";
+import type { Range } from "vscode-languageserver-protocol";
+
+export interface GameState {
+  running?: boolean;
+  paused?: boolean;
+  debugging?: boolean;
+  compiling?: boolean;
+}
 
 export interface PanelState extends Record<string, any> {
   scrollIndex?: number;
@@ -143,12 +150,7 @@ export interface WorkspacePanes extends Record<string, PaneState> {
     panel: string;
     panels: {
       page: {};
-      game: {
-        running?: boolean;
-        paused?: boolean;
-        debugging?: boolean;
-        compiling?: boolean;
-      };
+      game: GameState;
       screenplay: {
         visibleRange?: Range;
       };
@@ -173,29 +175,31 @@ export type SyncState =
 
 export interface ProjectMetadata {
   headRevisionId?: string;
-  remoteModifiedTime: number;
-  localModifiedTime?: number;
+  modifiedTime?: string;
   synced?: boolean;
 }
 
 export interface ProjectFile {
   name: string;
-  metadata: ProjectMetadata;
   content: string;
+  modifiedTime: string;
+}
+
+export interface ProjectState {
+  id?: string;
+  name?: string;
+  canModifyRemote?: boolean;
+  editingName?: boolean;
+  syncState?: SyncState;
+  syncedAt?: string;
+  conflict?: {
+    remote?: ProjectFile;
+    local?: ProjectFile;
+  };
 }
 
 export interface WorkspaceState {
-  project: {
-    id?: string;
-    canSync?: boolean;
-    name?: string;
-    editingName?: boolean;
-    syncState?: SyncState;
-    conflict?: {
-      remote?: ProjectFile;
-      local?: ProjectFile;
-    };
-  };
+  project: ProjectState;
   pane: string;
   panes: WorkspacePanes;
 }

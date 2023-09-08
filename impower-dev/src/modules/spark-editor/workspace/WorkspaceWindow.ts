@@ -7,7 +7,6 @@ import { StartGameMessage } from "@impower/spark-editor-protocol/src/protocols/g
 import { StepGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StepGameMessage";
 import { StopGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
-import { ChangedProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedProjectStateMessage";
 import { DidCloseFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCloseFileEditorMessage";
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
@@ -15,12 +14,16 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
-import { Range } from "@impower/spark-editor-protocol/src/types";
+import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
+import {
+  Range,
+  WorkspaceState,
+} from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { ReadOnly } from "./types/ReadOnly";
-import { SyncState, WorkspaceState } from "./types/WorkspaceState";
+import { Storage } from "./types/StorageTypes";
 
 const CURRENT_PROJECT_ID_LOOKUP = "project";
 
@@ -498,12 +501,13 @@ export default class WorkspaceWindow {
     this._state.project.id = id;
     this._state.project.name = undefined;
     this._state.project.syncState = "loading";
-    this._state.project.canSync = false;
+    this._state.project.canModifyRemote = false;
     this._state.project.editingName = false;
     this.emit(
-      ChangedProjectStateMessage.method,
-      ChangedProjectStateMessage.type.notification({
-        props: ["id", "name", "syncState", "canSync", "editingName"],
+      DidChangeProjectStateMessage.method,
+      DidChangeProjectStateMessage.type.notification({
+        changed: ["id", "name", "syncState", "canModifyRemote", "editingName"],
+        state: this._state.project,
       })
     );
   }
@@ -525,165 +529,285 @@ export default class WorkspaceWindow {
         this._state.project.id = id;
         this._state.project.editingName = false;
         this._state.project.name = name;
-        this._state.project.canSync = false;
+        this._state.project.canModifyRemote = false;
         this._state.project.syncState = "cached";
         this.emit(
-          ChangedProjectStateMessage.method,
-          ChangedProjectStateMessage.type.notification({
-            props: ["id", "name", "canSync", "syncState", "editingName"],
+          DidChangeProjectStateMessage.method,
+          DidChangeProjectStateMessage.type.notification({
+            changed: [
+              "id",
+              "name",
+              "canModifyRemote",
+              "syncState",
+              "editingName",
+            ],
+            state: this._state.project,
           })
         );
       } else {
-        await this.syncProject();
+        await this.syncProject(false);
       }
       this.cacheProjectId(id);
       return id;
     } catch (err) {
       console.warn(err);
-      this.setSyncState("load_error");
+      this._state.project.syncState = "load_error";
+      this.emit(
+        DidChangeProjectStateMessage.method,
+        DidChangeProjectStateMessage.type.notification({
+          changed: ["syncState"],
+          state: this._state.project,
+        })
+      );
     }
     return undefined;
   }
 
-  async syncProject() {
+  async syncProject(pushLocalChanges = true) {
     try {
       const id = this._state.project.id;
       if (id) {
-        this.setSyncState("syncing");
+        this._state.project.syncState = "syncing";
+        this.emit(
+          DidChangeProjectStateMessage.method,
+          DidChangeProjectStateMessage.type.notification({
+            changed: ["syncState"],
+            state: this._state.project,
+          })
+        );
         const files = await Workspace.fs.getFiles();
         // TODO: Bundle scripts before saving
         const filename = "main.script";
         const uri = Workspace.fs.getFileUri(id, filename);
-        const localProjectFile = files[uri];
-        let remoteProjectFile = await Workspace.sync.google.getFile(id);
-        if (remoteProjectFile && remoteProjectFile.id) {
-          const localName = await Workspace.fs.readProjectName(id);
+        const localProjectData = files[uri];
+        const remoteProjectFile = await Workspace.sync.google.getFile(id);
+        if (remoteProjectFile) {
+          const localProjectName = await Workspace.fs.readProjectName(id);
           const localMetadata = await Workspace.fs.readProjectMetadata(id);
-          const remoteProjectContent = remoteProjectFile.data;
+          const remoteProjectContent = remoteProjectFile.text;
           const remoteChanged =
             remoteProjectContent != null &&
             remoteProjectFile.headRevisionId !== localMetadata.headRevisionId;
-          const localProjectContent = localProjectFile?.text;
+          const localProjectContent = localProjectData?.text;
           const localChanged =
             localProjectContent != null && !localMetadata.synced;
-          if (remoteChanged && !localChanged) {
-            await Workspace.fs.writeProjectContent(id, remoteProjectContent);
-            const remoteName = remoteProjectFile.name!.split(".")[0]!;
-            await Workspace.fs.writeProjectName(id, remoteName);
-            await Workspace.fs.writeProjectMetadata(id, {
-              headRevisionId: remoteProjectFile.headRevisionId,
-              remoteModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              localModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              synced: true,
-            });
-            const canSync = Boolean(
+          const localProjectFile = {
+            id,
+            name: `${localProjectName}.pkg`,
+            text: localProjectContent,
+            headRevisionId: localMetadata.headRevisionId,
+            modifiedTime: localMetadata.modifiedTime,
+          };
+          if (!remoteChanged && localChanged) {
+            const canModifyRemote = Boolean(
               remoteProjectFile.capabilities?.canModifyContent
             );
-            this._state.project.name = remoteName;
-            this._state.project.canSync = canSync;
-            this._state.project.syncState = canSync ? "saved" : "cached";
-            this.setSyncState("saved");
-            this.emit(
-              ChangedProjectStateMessage.method,
-              ChangedProjectStateMessage.type.notification({
-                props: ["name", "canSync", "syncState"],
-              })
-            );
-          } else if (!remoteChanged && localChanged) {
-            remoteProjectFile = await Workspace.sync.google.updateProjectFile(
-              id,
-              `${localName}.sd`,
-              localProjectContent
-            );
-            const remoteName = remoteProjectFile.name!.split(".")[0]!;
-            await Workspace.fs.writeProjectName(id, remoteName);
-            await Workspace.fs.writeProjectMetadata(id, {
-              headRevisionId: remoteProjectFile.headRevisionId,
-              remoteModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              localModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              synced: true,
-            });
-            const canSync = Boolean(
-              remoteProjectFile.capabilities?.canModifyContent
-            );
-            this._state.project.name = remoteName;
-            this._state.project.canSync = canSync;
-            this._state.project.syncState = canSync ? "saved" : "cached";
-            this.setSyncState("saved");
-            this.emit(
-              ChangedProjectStateMessage.method,
-              ChangedProjectStateMessage.type.notification({
-                props: ["name", "canSync", "syncState"],
-              })
-            );
+            if (canModifyRemote && pushLocalChanges) {
+              await this.pushLocalChanges(localProjectFile);
+            } else {
+              this._state.project.name = localProjectName;
+              this._state.project.canModifyRemote = canModifyRemote;
+              this._state.project.syncState = "unsaved";
+              this.emit(
+                DidChangeProjectStateMessage.method,
+                DidChangeProjectStateMessage.type.notification({
+                  changed: ["name", "canModifyRemote", "syncState"],
+                  state: this._state.project,
+                })
+              );
+            }
+          } else if (remoteChanged && !localChanged) {
+            await this.pullRemoteChanges(remoteProjectFile);
           } else if (remoteChanged && localChanged) {
-            const remoteName = remoteProjectFile.name!.split(".")[0]!;
-            const remoteMetadata = {
-              headRevisionId: remoteProjectFile.headRevisionId,
-              remoteModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              localModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              synced: true,
-            };
-            this._state.project.name = localName || remoteName;
-            this._state.project.conflict ??= {};
-            this._state.project.conflict.remote = {
-              name: remoteName,
-              metadata: remoteMetadata,
-              content: remoteProjectContent,
-            };
-            this._state.project.conflict.local = {
-              name: localName,
-              metadata: localMetadata,
-              content: localProjectContent,
-            };
-            this.setSyncState("sync_conflict");
-            this.emit(
-              ChangedProjectStateMessage.method,
-              ChangedProjectStateMessage.type.notification({
-                props: ["syncState"],
-              })
+            await this.requireConflictResolution(
+              localProjectFile,
+              remoteProjectFile
             );
           } else {
-            const name = remoteProjectFile.name!.split(".")[0]!;
-            const canSync = Boolean(
-              remoteProjectFile.capabilities?.canModifyContent
-            );
-            this._state.project.name = name;
-            this._state.project.canSync = canSync;
-            this._state.project.syncState = canSync ? "saved" : "cached";
-            await Workspace.fs.writeProjectName(id, name);
-            await Workspace.fs.writeProjectMetadata(id, {
-              headRevisionId: remoteProjectFile.headRevisionId,
-              remoteModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              localModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-              synced: true,
-            });
-            this.setSyncState("saved");
-            this.emit(
-              ChangedProjectStateMessage.method,
-              ChangedProjectStateMessage.type.notification({
-                props: ["name", "canSync", "syncState"],
-              })
-            );
+            await this.setupProject(localProjectFile, remoteProjectFile);
           }
         } else {
-          this.setSyncState("sync_error");
+          this._state.project.syncState = "sync_error";
+          this.emit(
+            DidChangeProjectStateMessage.method,
+            DidChangeProjectStateMessage.type.notification({
+              changed: ["syncState"],
+              state: this._state.project,
+            })
+          );
         }
+        this._state.project.syncedAt = new Date().toISOString();
+        this.emit(
+          DidChangeProjectStateMessage.method,
+          DidChangeProjectStateMessage.type.notification({
+            changed: ["syncedAt"],
+            state: this._state.project,
+          })
+        );
       }
     } catch (err: any) {
       console.error(err);
-      this.setSyncState("sync_error");
+      this._state.project.syncState = "sync_error";
+      this.emit(
+        DidChangeProjectStateMessage.method,
+        DidChangeProjectStateMessage.type.notification({
+          changed: ["syncState"],
+          state: this._state.project,
+        })
+      );
     }
+  }
+
+  async pushLocalChanges(
+    localProjectFile: Storage.File & {
+      text?: string | undefined;
+    }
+  ) {
+    const id = localProjectFile.id!;
+    const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
+      id,
+      localProjectFile.name!,
+      localProjectFile.text!
+    );
+    const remoteName = remoteProjectFile.name!.split(".")[0]!;
+    await Workspace.fs.writeProjectName(id, remoteName);
+    await Workspace.fs.writeProjectMetadata(id, {
+      headRevisionId: remoteProjectFile.headRevisionId!,
+      modifiedTime: remoteProjectFile.modifiedTime!,
+      synced: true,
+    });
+    const canModifyRemote = Boolean(
+      remoteProjectFile.capabilities?.canModifyContent
+    );
+    this._state.project.name = remoteName;
+    this._state.project.canModifyRemote = canModifyRemote;
+    this._state.project.syncState = canModifyRemote ? "saved" : "cached";
+    this.emit(
+      DidChangeProjectStateMessage.method,
+      DidChangeProjectStateMessage.type.notification({
+        changed: ["name", "canModifyRemote", "syncState"],
+        state: this._state.project,
+      })
+    );
+    return remoteProjectFile;
+  }
+
+  async pullRemoteChanges(
+    remoteProjectFile: Storage.File & {
+      text?: string | undefined;
+    }
+  ) {
+    const id = remoteProjectFile.id!;
+    await Workspace.fs.writeProjectContent(id, remoteProjectFile.text || "");
+    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
+    await Workspace.fs.writeProjectName(id, remoteProjectName);
+    await Workspace.fs.writeProjectMetadata(id, {
+      headRevisionId: remoteProjectFile.headRevisionId!,
+      modifiedTime: remoteProjectFile.modifiedTime!,
+      synced: true,
+    });
+    const canModifyRemote = Boolean(
+      remoteProjectFile.capabilities?.canModifyContent
+    );
+    this._state.project.name = remoteProjectName;
+    this._state.project.canModifyRemote = canModifyRemote;
+    this._state.project.syncState = canModifyRemote ? "saved" : "cached";
+    this.emit(
+      DidChangeProjectStateMessage.method,
+      DidChangeProjectStateMessage.type.notification({
+        changed: ["name", "canModifyRemote", "syncState"],
+        state: this._state.project,
+      })
+    );
+  }
+
+  async requireConflictResolution(
+    localProjectFile: Storage.File & {
+      text?: string | undefined;
+    },
+    remoteProjectFile: Storage.File & {
+      text?: string | undefined;
+    }
+  ) {
+    const localProjectName = localProjectFile.name!.split(".")[0]!;
+    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
+    this._state.project.name = localProjectName || remoteProjectName;
+    this._state.project.conflict ??= {};
+    this._state.project.conflict.local = {
+      name: localProjectName,
+      content: localProjectFile.text!,
+      modifiedTime: localProjectFile.modifiedTime!,
+    };
+    this._state.project.conflict.remote = {
+      name: remoteProjectName,
+      content: remoteProjectFile.text!,
+      modifiedTime: remoteProjectFile.modifiedTime!,
+    };
+    this._state.project.syncState = "sync_conflict";
+    console.log(
+      this._state.project.conflict.local,
+      this._state.project.conflict.remote
+    );
+    this.emit(
+      DidChangeProjectStateMessage.method,
+      DidChangeProjectStateMessage.type.notification({
+        changed: ["syncState"],
+        state: this._state.project,
+      })
+    );
+  }
+
+  async setupProject(
+    localProjectFile: Storage.File & {
+      text?: string | undefined;
+    },
+    remoteProjectFile: Storage.File & {
+      text?: string | undefined;
+    }
+  ) {
+    const id = remoteProjectFile.id!;
+    const localProjectName = localProjectFile.name!.split(".")[0]!;
+    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
+    const canModifyRemote = Boolean(
+      remoteProjectFile.capabilities?.canModifyContent
+    );
+    if (localProjectName !== remoteProjectName) {
+      await Workspace.fs.writeProjectName(id, remoteProjectName);
+    }
+    if (localProjectFile.headRevisionId !== remoteProjectFile.headRevisionId) {
+      await Workspace.fs.writeProjectMetadata(id, {
+        headRevisionId: remoteProjectFile.headRevisionId!,
+        modifiedTime: remoteProjectFile.modifiedTime!,
+        synced: true,
+      });
+    }
+    this._state.project.name = remoteProjectName;
+    this._state.project.canModifyRemote = canModifyRemote;
+    this._state.project.syncState = canModifyRemote ? "saved" : "cached";
+    this.emit(
+      DidChangeProjectStateMessage.method,
+      DidChangeProjectStateMessage.type.notification({
+        changed: ["name", "canModifyRemote", "syncState"],
+        state: this._state.project,
+      })
+    );
   }
 
   async exportProject(folderId: string) {
     try {
       const projectId = this._state.project.id;
       if (projectId) {
-        this.setSyncState("exporting");
+        this._state.project.syncState = "exporting";
+        this.emit(
+          DidChangeProjectStateMessage.method,
+          DidChangeProjectStateMessage.type.notification({
+            changed: ["syncState"],
+            state: this._state.project,
+          })
+        );
         const projectName = await Workspace.fs.readProjectName(projectId);
         const projectContent = await Workspace.fs.readProjectContent(projectId);
-        const projectFilename = `${projectName}.sd`;
+        const projectFilename = `${projectName}.project`;
         const remoteProjectFile = await Workspace.sync.google.createProjectFile(
           folderId,
           projectFilename,
@@ -696,47 +820,60 @@ export default class WorkspaceWindow {
           );
           await Workspace.fs.writeProjectMetadata(remoteProjectFile.id, {
             headRevisionId: remoteProjectFile.headRevisionId,
-            remoteModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
-            localModifiedTime: Date.parse(remoteProjectFile.modifiedTime!),
+            modifiedTime: remoteProjectFile.modifiedTime!,
             synced: true,
           });
           this.loadNewProject(remoteProjectFile.id);
         } else {
-          this.setSyncState("cached");
+          this._state.project.syncState = "cached";
+          this.emit(
+            DidChangeProjectStateMessage.method,
+            DidChangeProjectStateMessage.type.notification({
+              changed: ["syncState"],
+              state: this._state.project,
+            })
+          );
         }
       }
     } catch (err: any) {
       console.error(err);
-      this.setSyncState("export_error");
+      this._state.project.syncState = "export_error";
+      this.emit(
+        DidChangeProjectStateMessage.method,
+        DidChangeProjectStateMessage.type.notification({
+          changed: ["syncState"],
+          state: this._state.project,
+        })
+      );
     }
   }
 
-  async requireProjectSync() {
+  async updateModificationTime() {
     const projectId = this._state.project.id;
-    const canSync = this._state.project.canSync;
-    if (projectId && canSync) {
-      this.setSyncState("unsaved");
+    const canModifyRemote = this._state.project.canModifyRemote;
+    if (projectId) {
       const metadata = await Workspace.fs.readProjectMetadata(projectId);
-      metadata.localModifiedTime = Date.now();
+      metadata.modifiedTime = new Date().toISOString();
       metadata.synced = false;
       await Workspace.fs.writeProjectMetadata(projectId, metadata);
+      this._state.project.syncState = canModifyRemote ? "unsaved" : "cached";
+      this.emit(
+        DidChangeProjectStateMessage.method,
+        DidChangeProjectStateMessage.type.notification({
+          changed: ["syncState"],
+          state: this._state.project,
+        })
+      );
     }
-  }
-
-  protected setSyncState(syncState: SyncState) {
-    this._state.project.syncState = syncState;
-    this.emit(
-      ChangedProjectStateMessage.method,
-      ChangedProjectStateMessage.type.notification({ props: ["syncState"] })
-    );
   }
 
   startEditingProjectName() {
     this._state.project.editingName = true;
     this.emit(
-      ChangedProjectStateMessage.method,
-      ChangedProjectStateMessage.type.notification({
-        props: ["editingName"],
+      DidChangeProjectStateMessage.method,
+      DidChangeProjectStateMessage.type.notification({
+        changed: ["editingName"],
+        state: this._state.project,
       })
     );
   }
@@ -746,9 +883,10 @@ export default class WorkspaceWindow {
     if (id) {
       this._state.project.editingName = false;
       this.emit(
-        ChangedProjectStateMessage.method,
-        ChangedProjectStateMessage.type.notification({
-          props: ["editingName"],
+        DidChangeProjectStateMessage.method,
+        DidChangeProjectStateMessage.type.notification({
+          changed: ["editingName"],
+          state: this._state.project,
         })
       );
       let changedName = name !== this._state.project.name;
@@ -756,14 +894,13 @@ export default class WorkspaceWindow {
         await Workspace.fs.writeProjectName(id, name);
         this._state.project.name = name;
         this.emit(
-          ChangedProjectStateMessage.method,
-          ChangedProjectStateMessage.type.notification({
-            props: ["name"],
+          DidChangeProjectStateMessage.method,
+          DidChangeProjectStateMessage.type.notification({
+            changed: ["name"],
+            state: this._state.project,
           })
         );
-        if (this._state.project.canSync) {
-          await Workspace.window.syncProject();
-        }
+        await this.updateModificationTime();
       }
       return changedName;
     }

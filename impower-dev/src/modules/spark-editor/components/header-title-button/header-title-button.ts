@@ -1,4 +1,4 @@
-import { ChangedProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedProjectStateMessage";
+import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_header-title-button";
@@ -39,8 +39,8 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.addEventListener("click", this.handleClickNameButton);
     }
     window.addEventListener(
-      ChangedProjectStateMessage.method,
-      this.handleRender
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
@@ -55,12 +55,12 @@ export default class HeaderTitleButton extends SEElement {
       nameButtonEl.removeEventListener("click", this.handleClickNameButton);
     }
     window.removeEventListener(
-      ChangedProjectStateMessage.method,
-      this.handleRender
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
-  handleRender = () => {
+  handleDidChangeProjectState = () => {
     this.render();
   };
 

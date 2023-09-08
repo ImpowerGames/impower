@@ -203,9 +203,7 @@ export default class SparkScreenplayPreview
         const textDocument = params.textDocument;
         const visibleRange = params.visibleRange;
         this._loadingRequest = message.id;
-        if (textDocument.uri !== this._textDocument?.uri) {
-          this.loadTextDocument(textDocument, visibleRange);
-        }
+        this.loadTextDocument(textDocument, visibleRange);
       }
     }
   };

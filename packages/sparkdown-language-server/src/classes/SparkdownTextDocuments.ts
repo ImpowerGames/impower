@@ -115,11 +115,11 @@ export default class SparkdownTextDocuments<
 
   protected readonly _parser: EditorSparkParser;
 
-  protected _scriptFilePattern: RegExp[] = [];
+  protected _scriptFilePattern?: RegExp;
 
-  protected _imageFilePattern: RegExp[] = [];
+  protected _imageFilePattern?: RegExp;
 
-  protected _audioFilePattern: RegExp[] = [];
+  protected _audioFilePattern?: RegExp;
 
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
@@ -130,21 +130,15 @@ export default class SparkdownTextDocuments<
   loadConfiguration(settings: any) {
     const scriptFiles = settings?.scriptFiles;
     if (scriptFiles) {
-      this._scriptFilePattern = scriptFiles.map((glob: string) =>
-        globToRegex(glob)
-      );
+      this._scriptFilePattern = globToRegex(scriptFiles);
     }
     const imageFiles = settings?.imageFiles;
     if (imageFiles) {
-      this._imageFilePattern = imageFiles.map((glob: string) =>
-        globToRegex(glob)
-      );
+      this._imageFilePattern = globToRegex(imageFiles);
     }
     const audioFiles = settings?.audioFiles;
     if (audioFiles) {
-      this._audioFilePattern = audioFiles.map((glob: string) =>
-        globToRegex(glob)
-      );
+      this._audioFilePattern = globToRegex(audioFiles);
     }
   }
 
@@ -157,13 +151,13 @@ export default class SparkdownTextDocuments<
   }
 
   getFileType(uri: string): string {
-    if (this._imageFilePattern.some((pattern) => pattern.test(uri))) {
+    if (this._imageFilePattern?.test(uri)) {
       return "image";
     }
-    if (this._audioFilePattern.some((pattern) => pattern.test(uri))) {
+    if (this._audioFilePattern?.test(uri)) {
       return "audio";
     }
-    if (this._scriptFilePattern.some((pattern) => pattern.test(uri))) {
+    if (this._scriptFilePattern?.test(uri)) {
       return "script";
     }
     return "text";

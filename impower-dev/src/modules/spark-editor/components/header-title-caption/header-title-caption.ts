@@ -1,4 +1,4 @@
-import { ChangedProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedProjectStateMessage";
+import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
 import SEElement from "../../core/se-element";
 import { Workspace } from "../../workspace/Workspace";
 import component from "./_header-title-caption";
@@ -18,19 +18,19 @@ export default class HeaderTitleCaption extends SEElement {
 
   protected override onConnected(): void {
     window.addEventListener(
-      ChangedProjectStateMessage.method,
-      this.handleRender
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
   protected override onDisconnected(): void {
     window.removeEventListener(
-      ChangedProjectStateMessage.method,
-      this.handleRender
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
-  handleRender = () => {
+  handleDidChangeProjectState = () => {
     this.render();
   };
 }

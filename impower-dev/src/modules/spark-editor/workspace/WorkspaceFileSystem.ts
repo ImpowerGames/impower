@@ -1,13 +1,5 @@
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
-import {
-  ReadTextDocumentMessage,
-  ReadTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocumentMessage.js";
-import {
-  WriteTextDocumentMessage,
-  WriteTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
@@ -19,10 +11,6 @@ import {
   ReadDirectoryFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
 import {
-  ReadFileMessage,
-  ReadFileParams,
-} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
-import {
   WillCreateFilesMessage,
   WillCreateFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
@@ -30,11 +18,14 @@ import {
   WillDeleteFilesMessage,
   WillDeleteFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
-import { FileData } from "@impower/spark-editor-protocol/src/types";
+import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage";
+import {
+  FileData,
+  ProjectMetadata,
+} from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
-import { ProjectMetadata } from "./types/WorkspaceState";
 
 export default class WorkspaceFileSystem {
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
@@ -43,7 +34,7 @@ export default class WorkspaceFileSystem {
     this.loadInitialFiles.bind(this)
   );
 
-  protected _cache: Record<string, HTMLElement> = {};
+  protected _assetCache: Record<string, HTMLElement> = {};
 
   protected _scheme = "file:///";
   get scheme() {
@@ -178,9 +169,9 @@ export default class WorkspaceFileSystem {
 
   async readProjectName(projectId: string) {
     const uri = this.getFileUri(projectId, ".name");
-    const name = await this.readTextDocument({
-      textDocument: { uri },
-    });
+    const files = await this.getFiles();
+    const file = files[uri];
+    const name = file?.text || "";
     if (!name) {
       return Workspace.DEFAULT_PROJECT_NAME;
     }
@@ -191,16 +182,15 @@ export default class WorkspaceFileSystem {
     const uri = this.getFileUri(projectId, ".name");
     const text = name;
     await this.writeTextDocument({
-      textDocument: { uri },
-      text,
+      textDocument: { uri, version: 0, text },
     });
   }
 
   async readProjectMetadata(projectId: string): Promise<ProjectMetadata> {
     const uri = this.getFileUri(projectId, ".metadata");
-    const metadataContent = await this.readTextDocument({
-      textDocument: { uri },
-    });
+    const files = await this.getFiles();
+    const file = files[uri];
+    const metadataContent = file?.text || "";
     if (!metadataContent) {
       return {};
     }
@@ -212,25 +202,23 @@ export default class WorkspaceFileSystem {
     const uri = this.getFileUri(projectId, ".metadata");
     const text = JSON.stringify(metadata).trim();
     await this.writeTextDocument({
-      textDocument: { uri },
-      text,
+      textDocument: { uri, version: 0, text },
     });
   }
 
   async readProjectContent(projectId: string) {
     // TODO: Bundle OPFS chunk files into project content before creating blob
     const uri = this.getFileUri(projectId, "main.script");
-    return Workspace.fs.readTextDocument({
-      textDocument: { uri },
-    });
+    const files = await this.getFiles();
+    const file = files[uri];
+    return file?.text || "";
   }
 
   async writeProjectContent(projectId: string, text: string) {
     // TODO: Split project content into chunk files before caching in OPFS
     const uri = this.getFileUri(projectId, "main.script");
-    await this.writeTextDocument({
-      textDocument: { uri },
-      text,
+    await Workspace.fs.writeTextDocument({
+      textDocument: { uri, version: 0, text },
     });
   }
 
@@ -253,28 +241,32 @@ export default class WorkspaceFileSystem {
     params.files.forEach((file) => {
       if (this._files) {
         delete this._files[file.uri];
-        delete this._cache[file.uri];
+        delete this._assetCache[file.uri];
       }
     });
     return result;
   }
 
-  async writeTextDocument(params: WriteTextDocumentParams) {
+  async writeTextDocument(params: {
+    textDocument: { uri: string; version: number; text: string };
+  }) {
+    const { textDocument } = params;
+    const encoder = new TextEncoder();
+    const encodedText = encoder.encode(textDocument.text);
     const result = await this.sendRequest(
-      WriteTextDocumentMessage.type,
-      params
+      WillWriteFileMessage.type,
+      {
+        file: {
+          uri: textDocument.uri,
+          version: textDocument.version,
+          data: encodedText.buffer,
+        },
+      },
+      [encodedText.buffer]
     );
     this._files ??= {};
     this._files[result.uri] = result;
     return result;
-  }
-
-  async readFile(params: ReadFileParams) {
-    return this.sendRequest(ReadFileMessage.type, params);
-  }
-
-  async readTextDocument(params: ReadTextDocumentParams) {
-    return this.sendRequest(ReadTextDocumentMessage.type, params);
   }
 
   async getPrograms() {
@@ -297,7 +289,7 @@ export default class WorkspaceFileSystem {
           img.onerror = () => {
             reject(img);
           };
-          this._cache[file.uri] = img;
+          this._assetCache[file.uri] = img;
         } else if (file.type === "audio") {
           const aud = new Audio();
           aud.src = file.src;
@@ -307,7 +299,7 @@ export default class WorkspaceFileSystem {
           aud.onerror = () => {
             reject(aud);
           };
-          this._cache[file.uri] = aud;
+          this._assetCache[file.uri] = aud;
         }
       });
     } catch (e) {

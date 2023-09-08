@@ -140,7 +140,7 @@ export default class GoogleDriveSyncProvider {
     const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
       .setMode(google.picker.DocsViewMode.LIST)
       .setMimeTypes("text/plain") as DocsView;
-    view.setQuery("*.sd");
+    view.setQuery(`title:.project`);
     return new google.picker.PickerBuilder()
       .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
       .enableFeature(google.picker.Feature.NAV_HIDDEN)
@@ -319,7 +319,7 @@ export default class GoogleDriveSyncProvider {
   }
 
   async getFile(fileId: string) {
-    const result = await this.request<Storage.File & { data?: string }>(
+    const result = await this.request<Storage.File & { text?: string }>(
       "GET",
       `/api/storage/file/${fileId}`
     );

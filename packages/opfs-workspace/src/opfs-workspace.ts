@@ -1,7 +1,5 @@
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
-import { ReadTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/ReadTextDocumentMessage.js";
-import { WriteTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/WriteTextDocumentMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage.js";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
@@ -12,6 +10,7 @@ import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/pr
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
 import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
+import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage.js";
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
 import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
@@ -26,7 +25,9 @@ import { getParentPath } from "./utils/getParentPath";
 import { getPathFromUri } from "./utils/getPathFromUri";
 import { getUriFromPath } from "./utils/getUriFromPath";
 
-const WRITE_DEBOUNCE_DELAY = 300;
+const MAGENTA = "\x1b[35m%s\x1b[0m";
+
+const WRITE_DEBOUNCE_DELAY = 100;
 
 const globToRegex = (glob: string) => {
   return RegExp(
@@ -53,13 +54,14 @@ class State {
     string,
     {
       handler: (uri: string) => void;
-      content: DataView | Uint8Array;
+      version: number;
+      buffer: DataView | Uint8Array;
       listeners: ((result: { data: FileData; created: boolean }) => void)[];
     }
   > = {};
-  static scriptFilePattern: RegExp[] = [];
-  static imageFilePattern: RegExp[] = [];
-  static audioFilePattern: RegExp[] = [];
+  static imageFilePattern?: RegExp;
+  static audioFilePattern?: RegExp;
+  static scriptFilePattern?: RegExp;
   static files: Record<string, FileData> = {};
 }
 
@@ -103,20 +105,16 @@ onmessage = async (e) => {
     const response = ReadFileMessage.type.response(message.id, buffer);
     postMessage(response, [response.result]);
   }
-  if (ReadTextDocumentMessage.type.isRequest(message)) {
-    const { textDocument } = message.params;
-    const text = await readTextDocument(textDocument.uri);
-    postMessage(ReadTextDocumentMessage.type.response(message.id, text));
-  }
-  if (WriteTextDocumentMessage.type.isRequest(message)) {
-    const { textDocument, text } = message.params;
-    const uri = textDocument.uri;
-    const file = await writeTextDocument(uri, text);
-    if (file) {
+  if (WillWriteFileMessage.type.isRequest(message)) {
+    const { file } = message.params;
+    const { uri, version, data } = file;
+    const buffer = new DataView(data);
+    const fileData = await writeFile(uri, version, buffer);
+    if (fileData.text != null) {
       const files = Object.values(State.files);
-      const program = parse(file, files);
+      const program = parse(fileData, files);
       if (program) {
-        file.program = program;
+        fileData.program = program;
         postMessage(
           DidParseTextDocumentMessage.type.notification({
             textDocument: { uri, version: file.version },
@@ -125,7 +123,7 @@ onmessage = async (e) => {
         );
       }
     }
-    postMessage(WriteTextDocumentMessage.type.response(message.id, file));
+    postMessage(WillWriteFileMessage.type.response(message.id, fileData));
   }
   if (WillCreateFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
@@ -142,21 +140,15 @@ onmessage = async (e) => {
 const loadConfiguration = (settings: any) => {
   const scriptFiles = settings?.scriptFiles;
   if (scriptFiles) {
-    State.scriptFilePattern = scriptFiles.map((glob: string) =>
-      globToRegex(glob)
-    );
+    State.scriptFilePattern = globToRegex(scriptFiles);
   }
   const imageFiles = settings?.imageFiles;
   if (imageFiles) {
-    State.imageFilePattern = imageFiles.map((glob: string) =>
-      globToRegex(glob)
-    );
+    State.imageFilePattern = globToRegex(imageFiles);
   }
   const audioFiles = settings?.audioFiles;
   if (audioFiles) {
-    State.audioFilePattern = audioFiles.map((glob: string) =>
-      globToRegex(glob)
-    );
+    State.audioFilePattern = globToRegex(audioFiles);
   }
 };
 
@@ -186,43 +178,40 @@ const readFile = async (fileUri: string) => {
   return buffer;
 };
 
-const readTextDocument = async (fileUri: string) => {
-  const buffer = await readFile(fileUri);
-  const decoder = new TextDecoder("utf-8");
-  const text = decoder.decode(buffer);
-  updateFileCache(fileUri, buffer, false);
-  return text;
-};
-
 const enqueueWrite = async (
   fileUri: string,
-  content: DataView | Uint8Array
+  version: number,
+  buffer: DataView | Uint8Array
 ) => {
   return new Promise<{ data: FileData; created: boolean }>((resolve) => {
     if (!State.writeQueue[fileUri]) {
       State.writeQueue[fileUri] = {
-        content,
+        buffer,
+        version,
         listeners: [],
-        handler: debounce(_writeFile, WRITE_DEBOUNCE_DELAY),
+        handler: debounce(write, WRITE_DEBOUNCE_DELAY),
       };
     }
     const entry = State.writeQueue[fileUri];
-    entry!.content = content;
+    entry!.buffer = buffer;
     entry!.listeners.push(resolve);
     entry!.handler(fileUri);
   });
 };
 
-const writeTextDocument = async (fileUri: string, text: string) => {
-  const encoder = new TextEncoder();
-  const encodedText = encoder.encode(text);
-  const result = await enqueueWrite(fileUri, encodedText);
+const writeFile = async (
+  uri: string,
+  version: number,
+  buffer: DataView | Uint8Array
+) => {
+  const result = await enqueueWrite(uri, version, buffer);
   return result.data;
 };
 
-const _writeFile = async (fileUri: string) => {
+const write = async (fileUri: string) => {
   const queued = State.writeQueue[fileUri]!;
-  const content = queued.content;
+  const buffer = queued.buffer;
+  const version = queued.version;
   const listeners = queued.listeners;
   const root = await navigator.storage.getDirectory();
   const relativePath = getPathFromUri(fileUri);
@@ -241,15 +230,16 @@ const _writeFile = async (fileUri: string) => {
   });
   const syncAccessHandle = await fileHandle.createSyncAccessHandle();
   syncAccessHandle.truncate(0);
-  syncAccessHandle.write(content, { at: 0 });
+  syncAccessHandle.write(buffer, { at: 0 });
   syncAccessHandle.flush();
   syncAccessHandle.close();
-  const arrayBuffer = content.buffer;
-  const data = updateFileCache(fileUri, arrayBuffer, true);
+  const arrayBuffer = buffer.buffer;
+  const data = updateFileCache(fileUri, arrayBuffer, true, version);
   listeners.forEach((l) => {
     l({ data, created });
   });
   queued.listeners = [];
+  console.log(MAGENTA, "WRITE", fileUri);
   postMessage(DidWriteFileMessage.type.notification({ file: data }));
 };
 
@@ -257,7 +247,7 @@ const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
   const result = await Promise.all(
     files.map(async (file) => {
       const buffer = new DataView(file.data);
-      return enqueueWrite(file.uri, buffer);
+      return enqueueWrite(file.uri, 0, buffer);
     })
   );
   const createdResult = result.filter((r) => r.created);
@@ -294,6 +284,7 @@ const deleteFiles = async (files: { uri: string }[]) => {
       if (existingFile) {
         URL.revokeObjectURL(existingFile.src);
         delete State.files[file.uri];
+        console.log(MAGENTA, "DELETE", file.uri);
       }
     })
   );
@@ -308,24 +299,12 @@ const deleteFiles = async (files: { uri: string }[]) => {
   );
 };
 
-const isScriptFile = (uri: string) => {
-  return State.scriptFilePattern.some((regexp) => regexp.test(uri));
-};
-
-const isImageFile = (uri: string) => {
-  return State.imageFilePattern.some((regexp) => regexp.test(uri));
-};
-
-const isAudioFile = (uri: string) => {
-  return State.audioFilePattern.some((regexp) => regexp.test(uri));
-};
-
 const getType = (uri: string) => {
-  return isImageFile(uri)
+  return State.imageFilePattern?.test(uri)
     ? "image"
-    : isAudioFile(uri)
+    : State.audioFilePattern?.test(uri)
     ? "audio"
-    : isScriptFile(uri)
+    : State.scriptFilePattern?.test(uri)
     ? "script"
     : "text";
 };
@@ -338,15 +317,14 @@ const getContentType = (type: string, ext: string) => {
 const updateFileCache = (
   uri: string,
   buffer: ArrayBuffer,
-  overwrite: boolean
+  overwrite: boolean,
+  version?: number
 ) => {
   const existingFile = State.files[uri];
   let src = existingFile?.src;
   const name = getName(uri);
   const ext = getFileExtension(uri);
   const type = getType(uri);
-  const oldVersion = existingFile?.version ?? 0;
-  const version = overwrite ? oldVersion + 1 : oldVersion;
   if (!src || overwrite) {
     if (src) {
       URL.revokeObjectURL(src);
@@ -355,9 +333,10 @@ const updateFileCache = (
       new Blob([buffer], { type: getContentType(type, ext) })
     );
   }
-  const text = isScriptFile(uri)
-    ? new TextDecoder("utf-8").decode(buffer)
-    : undefined;
+  const text =
+    type === "script" || type === "text"
+      ? new TextDecoder("utf-8").decode(buffer)
+      : undefined;
   const program = existingFile?.program;
   const file = {
     uri,
@@ -365,7 +344,7 @@ const updateFileCache = (
     ext,
     type,
     src,
-    version,
+    version: version ?? existingFile?.version ?? 0,
     text,
     program,
   };

@@ -257,7 +257,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
         fileId,
         alt: "media",
       });
-      return { ...res.data, data };
+      const text = typeof data === "string" ? data : undefined;
+      return { ...res.data, text };
     });
   });
   next();

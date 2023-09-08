@@ -1,5 +1,6 @@
 import { EditorSelection, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { TextDocumentSaveReason } from "../../../../../spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
 import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
@@ -10,8 +11,10 @@ import { UnfocusedEditorMessage } from "../../../../../spark-editor-protocol/src
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { DidChangeTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
+import { DidCloseTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidCloseTextDocumentMessage";
 import { DidOpenTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
+import { WillSaveTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/WillSaveTextDocumentMessage";
 import { DidCollapsePreviewPaneMessage } from "../../../../../spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "../../../../../spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
 import {
@@ -172,6 +175,10 @@ export default class SparkdownScriptEditor
     );
     if (this._editing) {
       if (this._textDocument) {
+        SparkdownScriptEditor.languageServerConnection.sendNotification(
+          DidCloseTextDocumentMessage.type,
+          { textDocument: this._textDocument }
+        );
         this.emit(
           UnfocusedEditorMessage.method,
           UnfocusedEditorMessage.type.notification({
@@ -297,6 +304,13 @@ export default class SparkdownScriptEditor
     if (root) {
       const throttledSave = throttle((text: Text) => {
         if (this._textDocument) {
+          this.emit(
+            WillSaveTextDocumentMessage.method,
+            WillSaveTextDocumentMessage.type.notification({
+              textDocument: this._textDocument,
+              reason: TextDocumentSaveReason.AfterDelay,
+            })
+          );
           this.emit(
             DidSaveTextDocumentMessage.method,
             DidSaveTextDocumentMessage.type.notification({

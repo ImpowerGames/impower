@@ -4,7 +4,7 @@ import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protoco
 import { DidExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenFileEditorMessage";
+import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import {
   getNextPreviewCommand,
@@ -43,8 +43,8 @@ export default class GamePreview extends SEElement {
       this.handleDidChangeWatchedFiles
     );
     window.addEventListener(
-      DidOpenFileEditorMessage.method,
-      this.handleDidOpenFileEditor
+      DidOpenTextDocumentMessage.method,
+      this.handleDidOpenTextDocument
     );
     window.addEventListener(
       SelectedEditorMessage.method,
@@ -63,8 +63,8 @@ export default class GamePreview extends SEElement {
       this.handleDidChangeWatchedFiles
     );
     window.removeEventListener(
-      DidOpenFileEditorMessage.method,
-      this.handleDidOpenFileEditor
+      DidOpenTextDocumentMessage.method,
+      this.handleDidOpenTextDocument
     );
     window.removeEventListener(
       SelectedEditorMessage.method,
@@ -85,16 +85,13 @@ export default class GamePreview extends SEElement {
     }
   };
 
-  handleDidOpenFileEditor = async (e: Event) => {
+  handleDidOpenTextDocument = async (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (DidOpenFileEditorMessage.type.isNotification(message)) {
-        const { pane } = message.params;
-        if (pane === "logic") {
-          await this.configureGame();
-          await this.loadGame();
-          await this.loadPreview();
-        }
+      if (DidOpenTextDocumentMessage.type.isNotification(message)) {
+        await this.configureGame();
+        await this.loadGame();
+        await this.loadPreview();
       }
     }
   };

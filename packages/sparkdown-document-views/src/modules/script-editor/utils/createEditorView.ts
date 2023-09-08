@@ -2,6 +2,7 @@ import { historyField } from "@codemirror/commands";
 import { syntaxTreeAvailable } from "@codemirror/language";
 import {
   Annotation,
+  Compartment,
   EditorSelection,
   EditorState,
   Text,
@@ -27,6 +28,8 @@ import {
   SerializableHistoryState,
 } from "../types/editor";
 import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
+
+export const readOnly = new Compartment();
 
 interface EditorConfig {
   serverConnection: MessageConnection;
@@ -128,6 +131,7 @@ const createEditorView = (
       ...restoredExtensions,
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
+      readOnly.of(EditorState.readOnly.of(false)),
       scrollMargins(scrollMargin),
       sparkdownLanguageExtension({
         textDocument,

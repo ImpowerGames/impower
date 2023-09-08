@@ -178,8 +178,9 @@
         ],
         "extensions": [
           ".sparkdown",
-          ".spark",
-          ".sd"
+          ".sd",
+          ".script",
+          ".project"
         ],
         "configuration": "./language/sparkdown.language-config.json",
         "icon": {
@@ -317,36 +318,19 @@
         "type": "object",
         "properties": {
           "sparkdown.scriptFiles": {
-            "type": "array",
-            "default": [
-              "*.sd",
-              "*.spark",
-              "*.sparkdown"
-            ],
-            "description": "Recognized file extensions for script files"
+            "type": "string",
+            "default": "*.{sparkdown,sd,script,project}",
+            "description": "Recognized filename patterns for script files"
           },
           "sparkdown.imageFiles": {
-            "type": "array",
-            "default": [
-              "*.png",
-              "*.apng",
-              "*.jpeg",
-              "*.jpg",
-              "*.gif",
-              "*.svg",
-              "*.bmp"
-            ],
-            "description": "Recognized file extensions for image files"
+            "type": "string",
+            "default": "*.{png,apng,jpeg,jpg,gif,bmp,svg}",
+            "description": "Recognized filename patterns for image files"
           },
           "sparkdown.audioFiles": {
             "type": "array",
-            "default": [
-              "*.wav",
-              "*.mp3",
-              "*.mp4",
-              "*.ogg"
-            ],
-            "description": "Recognized file extensions for audio files"
+            "default": "*.{mid,wav,mp3,ogg}",
+            "description": "Recognized filename patterns for audio files"
           }
         }
       },

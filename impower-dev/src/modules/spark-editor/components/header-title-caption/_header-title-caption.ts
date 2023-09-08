@@ -1,5 +1,5 @@
+import { WorkspaceState } from "@impower/spark-editor-protocol/src/types";
 import { html } from "../../../../../../packages/spark-element/src/utils/html";
-import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
   const projectName = state?.store?.project?.name ?? "";
@@ -42,7 +42,7 @@ export default (state: { store?: WorkspaceState }) => {
       ? "yellow"
       : "fg-60";
   const stateSkeleton = () => html`
-    <s-skeleton id="name-skeleton">Saved to cache</s-skeleton>
+    <s-skeleton id="name-skeleton">Saved in cache</s-skeleton>
   `;
   return {
     html: html`

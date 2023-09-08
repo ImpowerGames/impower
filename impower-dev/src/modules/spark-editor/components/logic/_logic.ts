@@ -1,5 +1,5 @@
+import { WorkspaceState } from "@impower/spark-editor-protocol/src/types";
 import { html } from "../../../../../../packages/spark-element/src/utils/html";
-import { WorkspaceState } from "../../workspace/types/WorkspaceState";
 
 export default (state: { store?: WorkspaceState }) => {
   const view = state?.store?.panes?.logic?.view || "list";

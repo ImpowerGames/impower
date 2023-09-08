@@ -1,6 +1,5 @@
-import { ChangedProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/window/ChangedProjectStateMessage";
+import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
 import SEElement from "../../core/se-element";
-import { Workspace } from "../../workspace/Workspace";
 import component from "./_interaction-blocker";
 
 export default class InteractionBlocker extends SEElement {
@@ -18,28 +17,35 @@ export default class InteractionBlocker extends SEElement {
 
   protected override onConnected(): void {
     window.addEventListener(
-      ChangedProjectStateMessage.method,
-      this.handleChangedProjectState
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
   protected override onDisconnected(): void {
     window.removeEventListener(
-      ChangedProjectStateMessage.method,
-      this.handleChangedProjectState
+      DidChangeProjectStateMessage.method,
+      this.handleDidChangeProjectState
     );
   }
 
-  handleChangedProjectState = (e: Event) => {
-    if (
-      !Workspace.window.state.project.id ||
-      Workspace.window.state.project.syncState === "loading" ||
-      Workspace.window.state.project.syncState === "importing" ||
-      Workspace.window.state.project.syncState === "exporting"
-    ) {
-      this.hidden = false;
-    } else {
-      this.hidden = true;
+  handleDidChangeProjectState = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidChangeProjectStateMessage.type.isNotification(message)) {
+        const params = message.params;
+        const { state } = params;
+        if (
+          !state.id ||
+          state.syncState === "loading" ||
+          state.syncState === "importing" ||
+          state.syncState === "exporting"
+        ) {
+          this.hidden = false;
+        } else {
+          this.hidden = true;
+        }
+      }
     }
   };
 }
