@@ -7,9 +7,9 @@ export interface ConfigureGameParams {
   settings: SparkContextOptions;
 }
 
-export namespace ConfigureGameMessage {
-  export const method = "game/configure";
-  export const type = new MessageProtocolRequestType<
+export class ConfigureGameMessage {
+  static readonly method = "game/configure";
+  static readonly type = new MessageProtocolRequestType<
     ConfigureGameMethod,
     ConfigureGameParams,
     null

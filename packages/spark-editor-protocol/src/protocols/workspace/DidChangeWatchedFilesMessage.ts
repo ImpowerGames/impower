@@ -4,9 +4,9 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type DidChangeWatchedFilesMethod =
   typeof DidChangeWatchedFilesMessage.method;
 
-export namespace DidChangeWatchedFilesMessage {
-  export const method = "workspace/didChangeWatchedFiles";
-  export const type = new MessageProtocolNotificationType<
+export class DidChangeWatchedFilesMessage {
+  static readonly method = "workspace/didChangeWatchedFiles";
+  static readonly type = new MessageProtocolNotificationType<
     DidChangeWatchedFilesMethod,
     DidChangeWatchedFilesParams
   >(DidChangeWatchedFilesMessage.method);

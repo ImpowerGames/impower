@@ -1,27 +1,12 @@
-import { customAlphabet } from "nanoid";
 import { parse, serialize } from "parse5";
 import type { Element } from "parse5/dist/tree-adapters/default";
-import { ComponentState } from "./ComponentState.js";
+import { ComponentSpec } from "./ComponentSpec";
 import expandComponents from "./expandComponents.js";
-
-const alphabet = "0123456789abcdefghijklmnopqrstuvwxyz";
-const nanoid = customAlphabet(alphabet, 14);
 
 const expandHtml = (
   html: string,
-  options?: {
-    components?: Record<
-      string,
-      (state?: ComponentState) => { css?: string; html?: string; js?: string }
-    >;
-    store?: Record<string, unknown>;
-    uuid?: (size?: number | undefined) => string;
-  }
+  components: Record<string, ComponentSpec>
 ): string => {
-  const components = options?.components ?? {};
-  const store = options?.store ?? {};
-  const uuid = options?.uuid ?? nanoid;
-
   const doc = parse(html);
 
   const htmlNode = doc.childNodes.find(
@@ -31,7 +16,7 @@ const expandHtml = (
     (node) => "tagName" in node && node.tagName === "body"
   ) as Element;
 
-  expandComponents(body, { components, store, uuid });
+  expandComponents(body, components);
 
   return serialize(body);
 };

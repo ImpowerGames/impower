@@ -11,9 +11,9 @@ export interface ParseTextDocumentParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export namespace ParseTextDocumentMessage {
-  export const method = "textDocument/parse";
-  export const type = new MessageProtocolRequestType<
+export class ParseTextDocumentMessage {
+  static readonly method = "textDocument/parse";
+  static readonly type = new MessageProtocolRequestType<
     ParseTextDocumentMethod,
     ParseTextDocumentParams,
     SparkProgram

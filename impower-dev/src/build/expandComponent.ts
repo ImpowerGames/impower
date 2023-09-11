@@ -1,36 +1,59 @@
 import { parseFragment as fragment } from "parse5";
 import type { Attribute } from "parse5/dist/common/token";
 import type { Element } from "parse5/dist/tree-adapters/default";
-import { ComponentState } from "./ComponentState";
+import { ComponentSpec } from "./ComponentSpec";
 
-const attrsArrayToMap = (attrs: Attribute[]): Record<string, string> => {
-  const obj: Record<string, string> = {};
-  [...attrs].forEach((attr) => (obj[attr.name] = attr.value));
+const convertKebabToCamelCase = (s: string): string =>
+  s.replace(/[-](\w\w$|\w)/g, (_, l) => l.toUpperCase());
+
+const getPropValue = (attrValue: string | null, defaultPropValue: unknown) => {
+  if (attrValue === undefined) {
+    return defaultPropValue;
+  } else if (attrValue === null) {
+    return defaultPropValue;
+  } else if (typeof defaultPropValue === "boolean") {
+    return attrValue != null;
+  } else if (typeof defaultPropValue === "number") {
+    return Number(attrValue);
+  } else {
+    return attrValue;
+  }
+};
+
+const attrsToProps = (
+  attrs: Attribute[],
+  defaultProps: Record<string, unknown>
+): Record<string, unknown> => {
+  const obj: Record<string, unknown> = {};
+  [...attrs].forEach((attr) => {
+    const attrName = attr.name;
+    const attrValue = attr.value;
+    const propName = convertKebabToCamelCase(attrName);
+    const defaultPropValue = defaultProps[propName];
+    obj[propName] = getPropValue(attrValue, defaultPropValue);
+  });
   return obj;
 };
 
-const expandComponent = (data?: {
-  name?: string;
-  components?: Record<
-    string,
-    (state?: ComponentState) => { css?: string; html?: string; js?: string }
-  >;
-  attrs?: Attribute[];
-  state?: ComponentState;
-}): Element => {
-  const name = data?.name ?? "";
-  const components = data?.components ?? {};
-  const attrs = attrsArrayToMap(data?.attrs || []);
-  const state = data?.state ?? {};
-  state.attrs = attrs;
-
+const expandComponent = (
+  name: string,
+  attrs: Attribute[],
+  components: Record<string, ComponentSpec>
+): Element => {
   const component = components[name];
 
-  if (component && typeof component === "function") {
-    const { html } = component(state);
-    return fragment(html || "") as Element;
+  if (component) {
+    const html = component.html || "";
+    const store = component.cache?.() || {};
+    const reducer = component.reducer || (() => ({}));
+    const defaultProps = component.props || {};
+    const defaultState = reducer(store) || {};
+    const props = { ...defaultProps, ...attrsToProps(attrs, defaultProps) };
+    const state = { ...defaultState };
+    const content = typeof html === "string" ? html : html({ props, state });
+    return fragment(content) as Element;
   } else {
-    throw new Error(`Could not find the template function for ${name}`);
+    throw new Error(`Could not find component spec for ${name}`);
   }
 };
 

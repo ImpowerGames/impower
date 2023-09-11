@@ -1,13 +1,13 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
-import component from "./_divider";
+import spec from "./_divider";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -26,9 +26,19 @@ export default class Divider
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-divider";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -36,50 +46,30 @@ export default class Divider
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Divider.augmentCss(css);
-  }
-
   /**
    * Whether or not the divider is vertical instead of horizontal.
    */
   get vertical(): boolean {
-    return this.getBooleanAttribute(Divider.attributes.vertical);
+    return this.getBooleanAttribute(Divider.attrs.vertical);
   }
   set vertical(value) {
-    this.setStringAttribute(Divider.attributes.vertical, value);
+    this.setStringAttribute(Divider.attrs.vertical, value);
   }
 
   /**
    * The size of the divider
    */
   get size(): SizeName | string | null {
-    return this.getStringAttribute(Divider.attributes.size);
+    return this.getStringAttribute(Divider.attrs.size);
   }
   set size(value) {
-    this.setStringAttribute(Divider.attributes.size, value);
+    this.setStringAttribute(Divider.attrs.size, value);
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Divider.attributes.vertical) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Divider.attrs.vertical) {
       this.updateRootAttribute(
-        Divider.attributes.ariaOrientation,
+        Divider.attrs.ariaOrientation,
         newValue != null ? "vertical" : "horizontal"
       );
     }

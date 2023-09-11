@@ -1,51 +1,59 @@
-import { WorkspaceState } from "@impower/spark-editor-protocol/src/types";
-import { html } from "../../../../../../packages/spark-element/src/utils/html";
+import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
+import { html, spec } from "../../../../../../packages/spec-component/src/spec";
+import css from "../../styles/shared";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
-export default (state: { store?: WorkspaceState }) => {
-  const projectName = state?.store?.project?.name ?? "";
-  const syncState = state?.store?.project?.syncState || "";
-  const syncStateInfo =
-    syncState === "cached"
-      ? "Saved in cache"
-      : syncState === "loading"
-      ? "Loading..."
-      : syncState === "importing"
-      ? "Importing..."
-      : syncState === "exporting"
-      ? "Exporting..."
-      : syncState === "syncing"
-      ? "Syncing..."
-      : syncState === "unsaved"
-      ? "Unsaved changes"
-      : syncState === "saved"
-      ? "Saved online"
-      : syncState === "load_error"
-      ? "Error: Unable to load project"
-      : syncState === "import_error"
-      ? "Error: Unable to import project"
-      : syncState === "export_error"
-      ? "Error: Unable to export project"
-      : syncState === "sync_error"
-      ? "Error: Unable to sync project"
-      : syncState === "sync_conflict"
-      ? "Sync Conflict"
-      : "";
-  const captionColor =
-    syncState === "unsaved"
-      ? "primary"
-      : syncState === "load_error" ||
-        syncState === "import_error" ||
-        syncState === "export_error" ||
-        syncState === "sync_error"
-      ? "red"
-      : syncState === "sync_conflict"
-      ? "yellow"
-      : "fg-60";
-  const stateSkeleton = () => html`
-    <s-skeleton id="name-skeleton">Saved in cache</s-skeleton>
-  `;
-  return {
-    html: html`
+export default spec({
+  tag: "se-header-title-caption",
+  css,
+  cache: WorkspaceCache.get,
+  reducer: (store?: WorkspaceStore) => ({
+    name: store?.project?.name || "",
+    syncState: store?.project?.syncState || "",
+  }),
+  html: ({ state }) => {
+    const { name, syncState } = state;
+    const syncStateInfo =
+      syncState === "cached"
+        ? "Saved in cache"
+        : syncState === "loading"
+        ? "Loading..."
+        : syncState === "importing"
+        ? "Importing..."
+        : syncState === "exporting"
+        ? "Exporting..."
+        : syncState === "syncing"
+        ? "Syncing..."
+        : syncState === "unsaved"
+        ? "Unsaved changes"
+        : syncState === "saved"
+        ? "Saved online"
+        : syncState === "load_error"
+        ? "Error: Unable to load project"
+        : syncState === "import_error"
+        ? "Error: Unable to import project"
+        : syncState === "export_error"
+        ? "Error: Unable to export project"
+        : syncState === "sync_error"
+        ? "Error: Unable to sync project"
+        : syncState === "sync_conflict"
+        ? "Sync Conflict"
+        : "";
+    const captionColor =
+      syncState === "unsaved"
+        ? "primary"
+        : syncState === "load_error" ||
+          syncState === "import_error" ||
+          syncState === "export_error" ||
+          syncState === "sync_error"
+        ? "red"
+        : syncState === "sync_conflict"
+        ? "yellow"
+        : "fg-60";
+    const stateSkeleton = () => html`
+      <s-skeleton id="name-skeleton">Saved in cache</s-skeleton>
+    `;
+    return html`
       <s-box
         child-layout="row"
         child-align="center"
@@ -54,8 +62,8 @@ export default (state: { store?: WorkspaceState }) => {
         m-b="2px"
         text-color="${captionColor}"
       >
-        ${projectName && syncStateInfo ? syncStateInfo : stateSkeleton}
+        ${name && syncStateInfo ? syncStateInfo : stateSkeleton}
       </s-box>
-    `,
-  };
-};
+    `;
+  },
+});

@@ -9,9 +9,9 @@ export interface RevealEditorRangeParams {
   selectedRange?: Range;
 }
 
-export namespace RevealEditorRangeMessage {
-  export const method = "editor/revealRange";
-  export const type = new MessageProtocolRequestType<
+export class RevealEditorRangeMessage {
+  static readonly method = "editor/revealRange";
+  static readonly type = new MessageProtocolRequestType<
     RevealEditorRangeMethod,
     RevealEditorRangeParams,
     null

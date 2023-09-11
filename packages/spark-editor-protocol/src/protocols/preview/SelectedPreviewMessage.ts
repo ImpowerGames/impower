@@ -9,9 +9,9 @@ export interface SelectedPreviewParams {
   range: Range;
 }
 
-export namespace SelectedPreviewMessage {
-  export const method = "preview/selected";
-  export const type = new MessageProtocolNotificationType<
+export class SelectedPreviewMessage {
+  static readonly method = "preview/selected";
+  static readonly type = new MessageProtocolNotificationType<
     SelectedPreviewMethod,
     SelectedPreviewParams
   >(SelectedPreviewMessage.method);

@@ -2,9 +2,9 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type UnpauseGameMethod = typeof UnpauseGameMessage.method;
 
-export namespace UnpauseGameMessage {
-  export const method = "game/unpause";
-  export const type = new MessageProtocolRequestType<
+export class UnpauseGameMessage {
+  static readonly method = "game/unpause";
+  static readonly type = new MessageProtocolRequestType<
     UnpauseGameMethod,
     {},
     null

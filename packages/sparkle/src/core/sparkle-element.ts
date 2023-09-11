@@ -1,16 +1,14 @@
-import SparkElement from "../../../spark-element/src/core/spark-element";
-import { Properties } from "../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../spark-element/src/utils/getKeys";
 import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYLE_ALIASES";
 import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
 import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
 import getCssTextStroke from "../../../sparkle-style-transformer/src/utils/getCssTextStroke";
-import Patterns from "../configs/patterns";
+import STYLES from "../../../spec-component/src/caches/STYLE_CACHE";
+import { Component } from "../../../spec-component/src/component";
+import { Properties } from "../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../spec-component/src/utils/getKeys";
+import getUnitlessValue from "../../../spec-component/src/utils/getUnitlessValue";
 import { ARIA_PROPERTY_NAME_MAP } from "../constants/ARIA_ATTRIBUTES";
-import coreCSS from "../styles/core/core.css";
-import keyframesCSS from "../styles/keyframes/keyframes.css";
-import normalizeCSS from "../styles/normalize/normalize.css";
 import { AnimationName } from "../types/animationName";
 import { ColorName } from "../types/colorName";
 import { EasingName } from "../types/easingName";
@@ -22,15 +20,10 @@ import { RatioName } from "../types/ratioName";
 import { SizeName } from "../types/sizeName";
 import { pointerPress, shouldShowStrongFocus } from "../utils/focus";
 import { isAssignedToSlot } from "../utils/isAssignedToSlot";
-import scopeCssToHost from "../utils/scopeCssToHost";
 import { updateAttribute } from "../utils/updateAttribute";
+import spec from "./_sparkle-element";
 
-const scopedCoreCSS = scopeCssToHost(coreCSS);
-
-export const DEFAULT_SPARKLE_TRANSFORMERS = {
-  ...STYLE_TRANSFORMERS,
-  "background-pattern": (v: string) => getCssPattern(v, Patterns.all()),
-};
+const DEFAULT_SPARKLE_DEPENDENCIES = {};
 
 export const DEFAULT_SPARKLE_ATTRIBUTES = {
   rtl: "rtl",
@@ -39,15 +32,24 @@ export const DEFAULT_SPARKLE_ATTRIBUTES = {
   ...ARIA_PROPERTY_NAME_MAP,
 };
 
+export const DEFAULT_SPARKLE_TRANSFORMERS = {
+  ...STYLE_TRANSFORMERS,
+  "background-pattern": (v: string) => getCssPattern(v, STYLES.patterns),
+};
+
 const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(
   getKeys(STYLE_ALIASES)
 );
 
 export default class SparkleElement
-  extends SparkElement
+  extends Component(spec)
   implements Properties<typeof DEFAULT_SPARKLE_ATTRIBUTES>
 {
-  static override get attributes() {
+  static get dependencies(): Record<string, string> {
+    return DEFAULT_SPARKLE_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_SPARKLE_ATTRIBUTES;
   }
 
@@ -59,13 +61,9 @@ export default class SparkleElement
     return STYLE_ALIASES;
   }
 
-  override get sharedStyles(): string[] {
-    return [keyframesCSS, normalizeCSS, scopedCoreCSS];
-  }
-
-  static get observedAttributes() {
+  static override get observedAttributes() {
     return Object.values({
-      ...this.attributes,
+      ...this.attrs,
       ...DEFAULT_SPARKLE_ALIAS_ATTRIBUTES,
     });
   }
@@ -74,50 +72,50 @@ export default class SparkleElement
    * Whether or not the element should display content right-to-left instead of the usual left-to-right.
    */
   get rtl(): boolean {
-    return this.getBooleanAttribute(SparkleElement.attributes.rtl);
+    return this.getBooleanAttribute(SparkleElement.attrs.rtl);
   }
   set rtl(value) {
-    this.setStringAttribute(SparkleElement.attributes.rtl, value);
+    this.setStringAttribute(SparkleElement.attrs.rtl, value);
   }
 
   /**
    * Whether or not the element is disabled.
    */
   get disabled(): boolean {
-    return this.getBooleanAttribute(SparkleElement.attributes.disabled);
+    return this.getBooleanAttribute(SparkleElement.attrs.disabled);
   }
   set disabled(value) {
-    this.setStringAttribute(SparkleElement.attributes.disabled, value);
+    this.setStringAttribute(SparkleElement.attrs.disabled, value);
   }
 
   /**
    * Sets the element's `visibility` to be hidden.
    */
   get invisible(): boolean | string {
-    return this.getConditionalAttribute(SparkleElement.attributes.invisible);
+    return this.getConditionalAttribute(SparkleElement.attrs.invisible);
   }
   set invisible(value) {
-    this.setStringAttribute(SparkleElement.attributes.invisible, value);
+    this.setStringAttribute(SparkleElement.attrs.invisible, value);
   }
 
   /**
    * Allows this element to capture `pointer-events`.
    */
   get interactable(): boolean | string {
-    return this.getConditionalAttribute(SparkleElement.attributes.interactable);
+    return this.getConditionalAttribute(SparkleElement.attrs.interactable);
   }
   set interactable(value) {
-    this.setStringAttribute(SparkleElement.attributes.interactable, value);
+    this.setStringAttribute(SparkleElement.attrs.interactable, value);
   }
 
   /**
    * Enables `user-select` so the user can select any text inside this element.
    */
   get selectable(): boolean | string {
-    return this.getConditionalAttribute(SparkleElement.attributes.selectable);
+    return this.getConditionalAttribute(SparkleElement.attrs.selectable);
   }
   set selectable(value) {
-    this.setStringAttribute(SparkleElement.attributes.selectable, value);
+    this.setStringAttribute(SparkleElement.attrs.selectable, value);
   }
 
   /**
@@ -132,20 +130,20 @@ export default class SparkleElement
     | "sticky"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.position);
+    return this.getStringAttribute(SparkleElement.attrs.position);
   }
   set position(value) {
-    this.setStringAttribute(SparkleElement.attributes.position, value);
+    this.setStringAttribute(SparkleElement.attrs.position, value);
   }
 
   /**
    * Sets a preferred `aspect-ratio` for the element.
    */
   get aspect(): "" | RatioName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.aspect);
+    return this.getStringAttribute(SparkleElement.attrs.aspect);
   }
   set aspect(value) {
-    this.setStringAttribute(SparkleElement.attributes.aspect, value);
+    this.setStringAttribute(SparkleElement.attrs.aspect, value);
   }
 
   /**
@@ -154,10 +152,10 @@ export default class SparkleElement
    * If not provided a value, defaults to `visible`.
    */
   get overflowX(): "" | "visible" | "scroll" | "clip" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.overflowX);
+    return this.getStringAttribute(SparkleElement.attrs.overflowX);
   }
   set overflowX(value) {
-    this.setStringAttribute(SparkleElement.attributes.overflowX, value);
+    this.setStringAttribute(SparkleElement.attrs.overflowX, value);
   }
 
   /**
@@ -166,10 +164,10 @@ export default class SparkleElement
    * If not provided a value, defaults to `visible`.
    */
   get overflowY(): "" | "visible" | "scroll" | "clip" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.overflowY);
+    return this.getStringAttribute(SparkleElement.attrs.overflowY);
   }
   set overflowY(value) {
-    this.setStringAttribute(SparkleElement.attributes.overflowY, value);
+    this.setStringAttribute(SparkleElement.attrs.overflowY, value);
   }
 
   /**
@@ -177,20 +175,20 @@ export default class SparkleElement
    * Elements with a larger z value appear on top of those with a smaller one.
    */
   get z(): "" | "0" | "1" | LayerName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.z);
+    return this.getStringAttribute(SparkleElement.attrs.z);
   }
   set z(value) {
-    this.setStringAttribute(SparkleElement.attributes.z, value);
+    this.setStringAttribute(SparkleElement.attrs.z, value);
   }
 
   /**
    * Sets this element's `width`.
    */
   get width(): "" | "100%" | "min-content" | "max-content" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.width);
+    return this.getStringAttribute(SparkleElement.attrs.width);
   }
   set width(value) {
-    this.setStringAttribute(SparkleElement.attributes.width, value);
+    this.setStringAttribute(SparkleElement.attrs.width, value);
   }
 
   /**
@@ -198,10 +196,10 @@ export default class SparkleElement
    * Prevents the element's width from becoming smaller than the value specified.
    */
   get widthMin(): "" | "100%" | "min-content" | "max-content" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.widthMin);
+    return this.getStringAttribute(SparkleElement.attrs.widthMin);
   }
   set widthMin(value) {
-    this.setStringAttribute(SparkleElement.attributes.widthMin, value);
+    this.setStringAttribute(SparkleElement.attrs.widthMin, value);
   }
 
   /**
@@ -209,20 +207,20 @@ export default class SparkleElement
    * Prevents the element's width from becoming larger than the value specified.
    */
   get widthMax(): "" | "100%" | "min-content" | "max-content" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.widthMax);
+    return this.getStringAttribute(SparkleElement.attrs.widthMax);
   }
   set widthMax(value) {
-    this.setStringAttribute(SparkleElement.attributes.widthMax, value);
+    this.setStringAttribute(SparkleElement.attrs.widthMax, value);
   }
 
   /**
    * Sets this element's `height`.
    */
   get height(): "" | "100%" | "min-content" | "max-content" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.height);
+    return this.getStringAttribute(SparkleElement.attrs.height);
   }
   set height(value) {
-    this.setStringAttribute(SparkleElement.attributes.height, value);
+    this.setStringAttribute(SparkleElement.attrs.height, value);
   }
 
   /**
@@ -230,10 +228,10 @@ export default class SparkleElement
    * Prevents the element's height from becoming smaller than the value specified.
    */
   get heightMin(): "" | "100%" | "min-content" | "max-content" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.heightMin);
+    return this.getStringAttribute(SparkleElement.attrs.heightMin);
   }
   set heightMin(value) {
-    this.setStringAttribute(SparkleElement.attributes.heightMin, value);
+    this.setStringAttribute(SparkleElement.attrs.heightMin, value);
   }
 
   /**
@@ -241,10 +239,10 @@ export default class SparkleElement
    * Prevents the element's height from becoming larger than the value specified.
    */
   get heightMax(): "" | "100%" | "min-content" | "max-content" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.heightMax);
+    return this.getStringAttribute(SparkleElement.attrs.heightMax);
   }
   set heightMax(value) {
-    this.setStringAttribute(SparkleElement.attributes.heightMax, value);
+    this.setStringAttribute(SparkleElement.attrs.heightMax, value);
   }
 
   /**
@@ -253,10 +251,10 @@ export default class SparkleElement
    * @summary c
    */
   get corner(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.corner);
+    return this.getStringAttribute(SparkleElement.attrs.corner);
   }
   set corner(value) {
-    this.setStringAttribute(SparkleElement.attributes.corner, value);
+    this.setStringAttribute(SparkleElement.attrs.corner, value);
   }
 
   /**
@@ -265,10 +263,10 @@ export default class SparkleElement
    * @summary c-t
    */
   get cornerT(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerT);
+    return this.getStringAttribute(SparkleElement.attrs.cornerT);
   }
   set cornerT(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerT, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerT, value);
   }
 
   /**
@@ -277,10 +275,10 @@ export default class SparkleElement
    * @summary c-r
    */
   get cornerR(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerR);
+    return this.getStringAttribute(SparkleElement.attrs.cornerR);
   }
   set cornerR(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerR, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerR, value);
   }
 
   /**
@@ -289,10 +287,10 @@ export default class SparkleElement
    * @summary c-b
    */
   get cornerB(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerB);
+    return this.getStringAttribute(SparkleElement.attrs.cornerB);
   }
   set cornerB(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerB, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerB, value);
   }
 
   /**
@@ -301,10 +299,10 @@ export default class SparkleElement
    * @summary c-l
    */
   get cornerL(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerL);
+    return this.getStringAttribute(SparkleElement.attrs.cornerL);
   }
   set cornerL(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerL, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerL, value);
   }
 
   /**
@@ -313,10 +311,10 @@ export default class SparkleElement
    * @summary c-tl
    */
   get cornerTL(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerTL);
+    return this.getStringAttribute(SparkleElement.attrs.cornerTL);
   }
   set cornerTL(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerTL, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerTL, value);
   }
 
   /**
@@ -325,10 +323,10 @@ export default class SparkleElement
    * @summary c-tr
    */
   get cornerTR(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerTR);
+    return this.getStringAttribute(SparkleElement.attrs.cornerTR);
   }
   set cornerTR(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerTR, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerTR, value);
   }
 
   /**
@@ -337,10 +335,10 @@ export default class SparkleElement
    * @summary c-br
    */
   get cornerBR(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerBR);
+    return this.getStringAttribute(SparkleElement.attrs.cornerBR);
   }
   set cornerBR(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerBR, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerBR, value);
   }
 
   /**
@@ -349,10 +347,10 @@ export default class SparkleElement
    * @summary c-bl
    */
   get cornerBL(): "" | SizeName | "full" | "circle" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.cornerBL);
+    return this.getStringAttribute(SparkleElement.attrs.cornerBL);
   }
   set cornerBL(value) {
-    this.setStringAttribute(SparkleElement.attributes.cornerBL, value);
+    this.setStringAttribute(SparkleElement.attrs.cornerBL, value);
   }
 
   /**
@@ -362,10 +360,10 @@ export default class SparkleElement
    * @summary i
    */
   get inset(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.inset);
+    return this.getStringAttribute(SparkleElement.attrs.inset);
   }
   set inset(value) {
-    this.setStringAttribute(SparkleElement.attributes.inset, value);
+    this.setStringAttribute(SparkleElement.attrs.inset, value);
   }
 
   /**
@@ -375,10 +373,10 @@ export default class SparkleElement
    * @summary i-t
    */
   get insetT(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.insetT);
+    return this.getStringAttribute(SparkleElement.attrs.insetT);
   }
   set insetT(value) {
-    this.setStringAttribute(SparkleElement.attributes.insetT, value);
+    this.setStringAttribute(SparkleElement.attrs.insetT, value);
   }
 
   /**
@@ -388,10 +386,10 @@ export default class SparkleElement
    * @summary i-r
    */
   get insetR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.insetR);
+    return this.getStringAttribute(SparkleElement.attrs.insetR);
   }
   set insetR(value) {
-    this.setStringAttribute(SparkleElement.attributes.insetR, value);
+    this.setStringAttribute(SparkleElement.attrs.insetR, value);
   }
 
   /**
@@ -401,10 +399,10 @@ export default class SparkleElement
    * @summary i-b
    */
   get insetB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.insetB);
+    return this.getStringAttribute(SparkleElement.attrs.insetB);
   }
   set insetB(value) {
-    this.setStringAttribute(SparkleElement.attributes.insetB, value);
+    this.setStringAttribute(SparkleElement.attrs.insetB, value);
   }
 
   /**
@@ -414,10 +412,10 @@ export default class SparkleElement
    * @summary i-l
    */
   get insetL(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.insetL);
+    return this.getStringAttribute(SparkleElement.attrs.insetL);
   }
   set insetL(value) {
-    this.setStringAttribute(SparkleElement.attributes.insetL, value);
+    this.setStringAttribute(SparkleElement.attrs.insetL, value);
   }
 
   /**
@@ -427,10 +425,10 @@ export default class SparkleElement
    * @summary i-lr
    */
   get insetLR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.insetLR);
+    return this.getStringAttribute(SparkleElement.attrs.insetLR);
   }
   set insetLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.insetLR, value);
+    this.setStringAttribute(SparkleElement.attrs.insetLR, value);
   }
 
   /**
@@ -440,10 +438,10 @@ export default class SparkleElement
    * @summary i-tb
    */
   get insetTB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.insetTB);
+    return this.getStringAttribute(SparkleElement.attrs.insetTB);
   }
   set insetTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.insetTB, value);
+    this.setStringAttribute(SparkleElement.attrs.insetTB, value);
   }
 
   /**
@@ -452,20 +450,20 @@ export default class SparkleElement
    * @summary o-width
    */
   get outlineWidth(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineWidth);
+    return this.getStringAttribute(SparkleElement.attrs.outlineWidth);
   }
   set outlineWidth(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineWidth, value);
+    this.setStringAttribute(SparkleElement.attrs.outlineWidth, value);
   }
 
   /**
    * Sets the `outline-color` of this element.
    */
   get outlineColor(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineColor);
+    return this.getStringAttribute(SparkleElement.attrs.outlineColor);
   }
   set outlineColor(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineColor, value);
+    this.setStringAttribute(SparkleElement.attrs.outlineColor, value);
   }
 
   /**
@@ -474,10 +472,10 @@ export default class SparkleElement
    * @summary o-style
    */
   get outlineStyle(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.outlineStyle);
+    return this.getStringAttribute(SparkleElement.attrs.outlineStyle);
   }
   set outlineStyle(value) {
-    this.setStringAttribute(SparkleElement.attributes.outlineStyle, value);
+    this.setStringAttribute(SparkleElement.attrs.outlineStyle, value);
   }
 
   /**
@@ -486,10 +484,10 @@ export default class SparkleElement
    * @summary b-width
    */
   get borderWidth(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderWidth);
+    return this.getStringAttribute(SparkleElement.attrs.borderWidth);
   }
   set borderWidth(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderWidth, value);
+    this.setStringAttribute(SparkleElement.attrs.borderWidth, value);
   }
 
   /**
@@ -498,10 +496,10 @@ export default class SparkleElement
    * @summary b-width-t
    */
   get borderWidthT(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderWidthT);
+    return this.getStringAttribute(SparkleElement.attrs.borderWidthT);
   }
   set borderWidthT(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderWidthT, value);
+    this.setStringAttribute(SparkleElement.attrs.borderWidthT, value);
   }
 
   /**
@@ -510,10 +508,10 @@ export default class SparkleElement
    * @summary b-width-r
    */
   get borderWidthR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderWidthR);
+    return this.getStringAttribute(SparkleElement.attrs.borderWidthR);
   }
   set borderWidthR(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderWidthR, value);
+    this.setStringAttribute(SparkleElement.attrs.borderWidthR, value);
   }
 
   /**
@@ -522,10 +520,10 @@ export default class SparkleElement
    * @summary b-width-b
    */
   get borderWidthB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderWidthB);
+    return this.getStringAttribute(SparkleElement.attrs.borderWidthB);
   }
   set borderWidthB(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderWidthB, value);
+    this.setStringAttribute(SparkleElement.attrs.borderWidthB, value);
   }
 
   /**
@@ -534,10 +532,10 @@ export default class SparkleElement
    * @summary b-width-l
    */
   get borderWidthL(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderWidthL);
+    return this.getStringAttribute(SparkleElement.attrs.borderWidthL);
   }
   set borderWidthL(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderWidthL, value);
+    this.setStringAttribute(SparkleElement.attrs.borderWidthL, value);
   }
 
   /**
@@ -546,10 +544,10 @@ export default class SparkleElement
    * @summary b-width-lr
    */
   get borderWidthLR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderWidthLR);
+    return this.getStringAttribute(SparkleElement.attrs.borderWidthLR);
   }
   set borderWidthLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderWidthLR, value);
+    this.setStringAttribute(SparkleElement.attrs.borderWidthLR, value);
   }
 
   /**
@@ -558,20 +556,20 @@ export default class SparkleElement
    * @summary b-width-tb
    */
   get borderWidthTB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderWidthTB);
+    return this.getStringAttribute(SparkleElement.attrs.borderWidthTB);
   }
   set borderWidthTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderWidthTB, value);
+    this.setStringAttribute(SparkleElement.attrs.borderWidthTB, value);
   }
 
   /**
    * Sets the `border-color` of this element.
    */
   get borderColor(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderColor);
+    return this.getStringAttribute(SparkleElement.attrs.borderColor);
   }
   set borderColor(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderColor, value);
+    this.setStringAttribute(SparkleElement.attrs.borderColor, value);
   }
 
   /**
@@ -580,10 +578,10 @@ export default class SparkleElement
    * @summary b-color-t
    */
   get borderColorT(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderColorT);
+    return this.getStringAttribute(SparkleElement.attrs.borderColorT);
   }
   set borderColorT(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderColorT, value);
+    this.setStringAttribute(SparkleElement.attrs.borderColorT, value);
   }
 
   /**
@@ -592,10 +590,10 @@ export default class SparkleElement
    * @summary b-color-r
    */
   get borderColorR(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderColorR);
+    return this.getStringAttribute(SparkleElement.attrs.borderColorR);
   }
   set borderColorR(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderColorR, value);
+    this.setStringAttribute(SparkleElement.attrs.borderColorR, value);
   }
 
   /**
@@ -604,10 +602,10 @@ export default class SparkleElement
    * @summary b-color-b
    */
   get borderColorB(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderColorB);
+    return this.getStringAttribute(SparkleElement.attrs.borderColorB);
   }
   set borderColorB(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderColorB, value);
+    this.setStringAttribute(SparkleElement.attrs.borderColorB, value);
   }
 
   /**
@@ -616,10 +614,10 @@ export default class SparkleElement
    * @summary b-color-l
    */
   get borderColorL(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderColorL);
+    return this.getStringAttribute(SparkleElement.attrs.borderColorL);
   }
   set borderColorL(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderColorL, value);
+    this.setStringAttribute(SparkleElement.attrs.borderColorL, value);
   }
 
   /**
@@ -628,10 +626,10 @@ export default class SparkleElement
    * @summary b-color-tb
    */
   get borderColorTB(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderColorTB);
+    return this.getStringAttribute(SparkleElement.attrs.borderColorTB);
   }
   set borderColorTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderColorTB, value);
+    this.setStringAttribute(SparkleElement.attrs.borderColorTB, value);
   }
 
   /**
@@ -640,10 +638,10 @@ export default class SparkleElement
    * @summary b-color-lr
    */
   get borderColorLR(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderColorLR);
+    return this.getStringAttribute(SparkleElement.attrs.borderColorLR);
   }
   set borderColorLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderColorLR, value);
+    this.setStringAttribute(SparkleElement.attrs.borderColorLR, value);
   }
 
   /**
@@ -652,10 +650,10 @@ export default class SparkleElement
    * @summary b-style
    */
   get borderStyle(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderStyle);
+    return this.getStringAttribute(SparkleElement.attrs.borderStyle);
   }
   set borderStyle(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderStyle, value);
+    this.setStringAttribute(SparkleElement.attrs.borderStyle, value);
   }
 
   /**
@@ -664,10 +662,10 @@ export default class SparkleElement
    * @summary b-style-t
    */
   get borderStyleT(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderStyleT);
+    return this.getStringAttribute(SparkleElement.attrs.borderStyleT);
   }
   set borderStyleT(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderStyleT, value);
+    this.setStringAttribute(SparkleElement.attrs.borderStyleT, value);
   }
 
   /**
@@ -676,10 +674,10 @@ export default class SparkleElement
    * @summary b-style-r
    */
   get borderStyleR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderStyleR);
+    return this.getStringAttribute(SparkleElement.attrs.borderStyleR);
   }
   set borderStyleR(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderStyleR, value);
+    this.setStringAttribute(SparkleElement.attrs.borderStyleR, value);
   }
 
   /**
@@ -688,10 +686,10 @@ export default class SparkleElement
    * @summary b-style-b
    */
   get borderStyleB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderStyleB);
+    return this.getStringAttribute(SparkleElement.attrs.borderStyleB);
   }
   set borderStyleB(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderStyleB, value);
+    this.setStringAttribute(SparkleElement.attrs.borderStyleB, value);
   }
 
   /**
@@ -700,10 +698,10 @@ export default class SparkleElement
    * @summary b-style-l
    */
   get borderStyleL(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderStyleL);
+    return this.getStringAttribute(SparkleElement.attrs.borderStyleL);
   }
   set borderStyleL(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderStyleL, value);
+    this.setStringAttribute(SparkleElement.attrs.borderStyleL, value);
   }
 
   /**
@@ -712,10 +710,10 @@ export default class SparkleElement
    * @summary b-style-lr
    */
   get borderStyleLR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderStyleLR);
+    return this.getStringAttribute(SparkleElement.attrs.borderStyleLR);
   }
   set borderStyleLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderStyleLR, value);
+    this.setStringAttribute(SparkleElement.attrs.borderStyleLR, value);
   }
 
   /**
@@ -724,10 +722,10 @@ export default class SparkleElement
    * @summary b-style-tb
    */
   get borderStyleTB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.borderStyleTB);
+    return this.getStringAttribute(SparkleElement.attrs.borderStyleTB);
   }
   set borderStyleTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.borderStyleTB, value);
+    this.setStringAttribute(SparkleElement.attrs.borderStyleTB, value);
   }
 
   /**
@@ -738,10 +736,10 @@ export default class SparkleElement
    * @summary m
    */
   get margin(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.margin);
+    return this.getStringAttribute(SparkleElement.attrs.margin);
   }
   set margin(value) {
-    this.setStringAttribute(SparkleElement.attributes.margin, value);
+    this.setStringAttribute(SparkleElement.attrs.margin, value);
   }
 
   /**
@@ -752,10 +750,10 @@ export default class SparkleElement
    * @summary m-t
    */
   get marginT(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.marginT);
+    return this.getStringAttribute(SparkleElement.attrs.marginT);
   }
   set marginT(value) {
-    this.setStringAttribute(SparkleElement.attributes.marginT, value);
+    this.setStringAttribute(SparkleElement.attrs.marginT, value);
   }
 
   /**
@@ -766,10 +764,10 @@ export default class SparkleElement
    * @summary m-r
    */
   get marginR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.marginR);
+    return this.getStringAttribute(SparkleElement.attrs.marginR);
   }
   set marginR(value) {
-    this.setStringAttribute(SparkleElement.attributes.marginR, value);
+    this.setStringAttribute(SparkleElement.attrs.marginR, value);
   }
 
   /**
@@ -780,10 +778,10 @@ export default class SparkleElement
    * @summary m-b
    */
   get marginB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.marginB);
+    return this.getStringAttribute(SparkleElement.attrs.marginB);
   }
   set marginB(value) {
-    this.setStringAttribute(SparkleElement.attributes.marginB, value);
+    this.setStringAttribute(SparkleElement.attrs.marginB, value);
   }
 
   /**
@@ -794,10 +792,10 @@ export default class SparkleElement
    * @summary m-l
    */
   get marginL(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.marginL);
+    return this.getStringAttribute(SparkleElement.attrs.marginL);
   }
   set marginL(value) {
-    this.setStringAttribute(SparkleElement.attributes.marginL, value);
+    this.setStringAttribute(SparkleElement.attrs.marginL, value);
   }
 
   /**
@@ -808,10 +806,10 @@ export default class SparkleElement
    * @summary m-lr
    */
   get marginLR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.marginLR);
+    return this.getStringAttribute(SparkleElement.attrs.marginLR);
   }
   set marginLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.marginLR, value);
+    this.setStringAttribute(SparkleElement.attrs.marginLR, value);
   }
 
   /**
@@ -822,10 +820,10 @@ export default class SparkleElement
    * @summary m-tb
    */
   get marginTB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.marginTB);
+    return this.getStringAttribute(SparkleElement.attrs.marginTB);
   }
   set marginTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.marginTB, value);
+    this.setStringAttribute(SparkleElement.attrs.marginTB, value);
   }
 
   /**
@@ -834,10 +832,10 @@ export default class SparkleElement
    * @summary p
    */
   get padding(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.padding);
+    return this.getStringAttribute(SparkleElement.attrs.padding);
   }
   set padding(value) {
-    this.setStringAttribute(SparkleElement.attributes.padding, value);
+    this.setStringAttribute(SparkleElement.attrs.padding, value);
   }
 
   /**
@@ -846,10 +844,10 @@ export default class SparkleElement
    * @summary p-t
    */
   get paddingT(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.paddingT);
+    return this.getStringAttribute(SparkleElement.attrs.paddingT);
   }
   set paddingT(value) {
-    this.setStringAttribute(SparkleElement.attributes.paddingT, value);
+    this.setStringAttribute(SparkleElement.attrs.paddingT, value);
   }
 
   /**
@@ -858,10 +856,10 @@ export default class SparkleElement
    * @summary p-r
    */
   get paddingR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.paddingR);
+    return this.getStringAttribute(SparkleElement.attrs.paddingR);
   }
   set paddingR(value) {
-    this.setStringAttribute(SparkleElement.attributes.paddingR, value);
+    this.setStringAttribute(SparkleElement.attrs.paddingR, value);
   }
 
   /**
@@ -870,10 +868,10 @@ export default class SparkleElement
    * @summary p-b
    */
   get paddingB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.paddingB);
+    return this.getStringAttribute(SparkleElement.attrs.paddingB);
   }
   set paddingB(value) {
-    this.setStringAttribute(SparkleElement.attributes.paddingB, value);
+    this.setStringAttribute(SparkleElement.attrs.paddingB, value);
   }
 
   /**
@@ -882,10 +880,10 @@ export default class SparkleElement
    * @summary p-l
    */
   get paddingL(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.paddingL);
+    return this.getStringAttribute(SparkleElement.attrs.paddingL);
   }
   set paddingL(value) {
-    this.setStringAttribute(SparkleElement.attributes.paddingL, value);
+    this.setStringAttribute(SparkleElement.attrs.paddingL, value);
   }
 
   /**
@@ -894,10 +892,10 @@ export default class SparkleElement
    * @summary p-lr
    */
   get paddingLR(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.paddingLR);
+    return this.getStringAttribute(SparkleElement.attrs.paddingLR);
   }
   set paddingLR(value) {
-    this.setStringAttribute(SparkleElement.attributes.paddingLR, value);
+    this.setStringAttribute(SparkleElement.attrs.paddingLR, value);
   }
 
   /**
@@ -906,10 +904,10 @@ export default class SparkleElement
    * @summary p-tb
    */
   get paddingTB(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.paddingTB);
+    return this.getStringAttribute(SparkleElement.attrs.paddingTB);
   }
   set paddingTB(value) {
-    this.setStringAttribute(SparkleElement.attributes.paddingTB, value);
+    this.setStringAttribute(SparkleElement.attrs.paddingTB, value);
   }
 
   /**
@@ -921,20 +919,20 @@ export default class SparkleElement
     | "row-reverse"
     | "column-reverse"
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.childLayout);
+    return this.getStringAttribute(SparkleElement.attrs.childLayout);
   }
   set childLayout(value) {
-    this.setStringAttribute(SparkleElement.attributes.childLayout, value);
+    this.setStringAttribute(SparkleElement.attrs.childLayout, value);
   }
 
   /**
    * Sets the `gap` between children.
    */
   get childGap(): "" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.childGap);
+    return this.getStringAttribute(SparkleElement.attrs.childGap);
   }
   set childGap(value) {
-    this.setStringAttribute(SparkleElement.attributes.childGap, value);
+    this.setStringAttribute(SparkleElement.attrs.childGap, value);
   }
 
   /**
@@ -953,10 +951,10 @@ export default class SparkleElement
     | "end"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.childAlign);
+    return this.getStringAttribute(SparkleElement.attrs.childAlign);
   }
   set childAlign(value) {
-    this.setStringAttribute(SparkleElement.attributes.childAlign, value);
+    this.setStringAttribute(SparkleElement.attrs.childAlign, value);
   }
 
   /**
@@ -978,10 +976,10 @@ export default class SparkleElement
     | "evenly"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.childJustify);
+    return this.getStringAttribute(SparkleElement.attrs.childJustify);
   }
   set childJustify(value) {
-    this.setStringAttribute(SparkleElement.attributes.childJustify, value);
+    this.setStringAttribute(SparkleElement.attrs.childJustify, value);
   }
 
   /**
@@ -996,10 +994,10 @@ export default class SparkleElement
     | "wrap-reverse"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.childOverflow);
+    return this.getStringAttribute(SparkleElement.attrs.childOverflow);
   }
   set childOverflow(value) {
-    this.setStringAttribute(SparkleElement.attributes.childOverflow, value);
+    this.setStringAttribute(SparkleElement.attrs.childOverflow, value);
   }
 
   /**
@@ -1011,10 +1009,10 @@ export default class SparkleElement
    * If not provided a value, defaults to `center`.
    */
   get selfAlign(): "" | "center" | "stretch" | "start" | "end" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.selfAlign);
+    return this.getStringAttribute(SparkleElement.attrs.selfAlign);
   }
   set selfAlign(value) {
-    this.setStringAttribute(SparkleElement.attributes.selfAlign, value);
+    this.setStringAttribute(SparkleElement.attrs.selfAlign, value);
   }
 
   /**
@@ -1027,10 +1025,10 @@ export default class SparkleElement
    * If not provided a value, defaults to `1`.
    */
   get grow(): "" | "0" | "1" | "2" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.grow);
+    return this.getStringAttribute(SparkleElement.attrs.grow);
   }
   set grow(value) {
-    this.setStringAttribute(SparkleElement.attributes.grow, value);
+    this.setStringAttribute(SparkleElement.attrs.grow, value);
   }
 
   /**
@@ -1042,30 +1040,30 @@ export default class SparkleElement
    * If not provided a value, defaults to `0`.
    */
   get shrink(): "" | "0" | "1" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.shrink);
+    return this.getStringAttribute(SparkleElement.attrs.shrink);
   }
   set shrink(value) {
-    this.setStringAttribute(SparkleElement.attributes.shrink, value);
+    this.setStringAttribute(SparkleElement.attrs.shrink, value);
   }
 
   /**
    * Sets the `color` of content rendered inside this element.
    */
   get color(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.color);
+    return this.getStringAttribute(SparkleElement.attrs.color);
   }
   set color(value) {
-    this.setStringAttribute(SparkleElement.attributes.color, value);
+    this.setStringAttribute(SparkleElement.attrs.color, value);
   }
 
   /**
    * Specifies which `font-family` this element will use to render text.
    */
   get textFont(): "" | "sans" | "serif" | "mono" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textFont);
+    return this.getStringAttribute(SparkleElement.attrs.textFont);
   }
   set textFont(value) {
-    this.setStringAttribute(SparkleElement.attributes.textFont, value);
+    this.setStringAttribute(SparkleElement.attrs.textFont, value);
   }
 
   /**
@@ -1085,10 +1083,10 @@ export default class SparkleElement
     | "9xl"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.textSize);
+    return this.getStringAttribute(SparkleElement.attrs.textSize);
   }
   set textSize(value) {
-    this.setStringAttribute(SparkleElement.attributes.textSize, value);
+    this.setStringAttribute(SparkleElement.attrs.textSize, value);
   }
 
   /**
@@ -1097,10 +1095,10 @@ export default class SparkleElement
    * This is commonly used to increase or decrease the distance between lines of text.
    */
   get textLeading(): "" | "none" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textLeading);
+    return this.getStringAttribute(SparkleElement.attrs.textLeading);
   }
   set textLeading(value) {
-    this.setStringAttribute(SparkleElement.attributes.textLeading, value);
+    this.setStringAttribute(SparkleElement.attrs.textLeading, value);
   }
 
   /**
@@ -1110,10 +1108,10 @@ export default class SparkleElement
    * Positive values cause letters to spread farther apart, while negative values bring letters closer together.
    */
   get textKerning(): "" | "none" | SizeName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textKerning);
+    return this.getStringAttribute(SparkleElement.attrs.textKerning);
   }
   set textKerning(value) {
-    this.setStringAttribute(SparkleElement.attributes.textKerning, value);
+    this.setStringAttribute(SparkleElement.attrs.textKerning, value);
   }
 
   /**
@@ -1132,40 +1130,40 @@ export default class SparkleElement
     | "black"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.textWeight);
+    return this.getStringAttribute(SparkleElement.attrs.textWeight);
   }
   set textWeight(value) {
-    this.setStringAttribute(SparkleElement.attributes.textWeight, value);
+    this.setStringAttribute(SparkleElement.attrs.textWeight, value);
   }
 
   /**
    * Sets the `text-style` of all text inside this element so that the text is italic.
    */
   get textItalic(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textItalic);
+    return this.getStringAttribute(SparkleElement.attrs.textItalic);
   }
   set textItalic(value) {
-    this.setStringAttribute(SparkleElement.attributes.textItalic, value);
+    this.setStringAttribute(SparkleElement.attrs.textItalic, value);
   }
 
   /**
    * Sets the `text-decoration` of all text inside this element so that a line renders underneath the text.
    */
   get textUnderline(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textUnderline);
+    return this.getStringAttribute(SparkleElement.attrs.textUnderline);
   }
   set textUnderline(value) {
-    this.setStringAttribute(SparkleElement.attributes.textUnderline, value);
+    this.setStringAttribute(SparkleElement.attrs.textUnderline, value);
   }
 
   /**
    * Sets the `text-decoration` of all text inside this element so that a line renders through the middle of the text.
    */
   get textStrikethrough(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textStrikethrough);
+    return this.getStringAttribute(SparkleElement.attrs.textStrikethrough);
   }
   set textStrikethrough(value) {
-    this.setStringAttribute(SparkleElement.attributes.textStrikethrough, value);
+    this.setStringAttribute(SparkleElement.attrs.textStrikethrough, value);
   }
 
   /**
@@ -1178,10 +1176,10 @@ export default class SparkleElement
     | "capitalize"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.textCase);
+    return this.getStringAttribute(SparkleElement.attrs.textCase);
   }
   set textCase(value) {
-    this.setStringAttribute(SparkleElement.attributes.textCase, value);
+    this.setStringAttribute(SparkleElement.attrs.textCase, value);
   }
 
   /**
@@ -1192,10 +1190,10 @@ export default class SparkleElement
    * If not provided a value, defaults to `center`.
    */
   get textAlign(): "" | "center" | "start" | "end" | "justify" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textAlign);
+    return this.getStringAttribute(SparkleElement.attrs.textAlign);
   }
   set textAlign(value) {
-    this.setStringAttribute(SparkleElement.attributes.textAlign, value);
+    this.setStringAttribute(SparkleElement.attrs.textAlign, value);
   }
 
   /**
@@ -1211,10 +1209,10 @@ export default class SparkleElement
     | "ellipsis"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.textOverflow);
+    return this.getStringAttribute(SparkleElement.attrs.textOverflow);
   }
   set textOverflow(value) {
-    this.setStringAttribute(SparkleElement.attributes.textOverflow, value);
+    this.setStringAttribute(SparkleElement.attrs.textOverflow, value);
   }
 
   /**
@@ -1232,30 +1230,30 @@ export default class SparkleElement
     | "break-spaces"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.textWhitespace);
+    return this.getStringAttribute(SparkleElement.attrs.textWhitespace);
   }
   set textWhitespace(value) {
-    this.setStringAttribute(SparkleElement.attributes.textWhitespace, value);
+    this.setStringAttribute(SparkleElement.attrs.textWhitespace, value);
   }
 
   /**
    * Sets the `color` of text rendered inside this element.
    */
   get textColor(): "" | "wrap" | "nowrap" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textColor);
+    return this.getStringAttribute(SparkleElement.attrs.textColor);
   }
   set textColor(value) {
-    this.setStringAttribute(SparkleElement.attributes.textColor, value);
+    this.setStringAttribute(SparkleElement.attrs.textColor, value);
   }
 
   /**
    * Uses `text-shadow` to create a colored stroke around the text.
    */
   get textStrokeColor(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.textStrokeColor);
+    return this.getStringAttribute(SparkleElement.attrs.textStrokeColor);
   }
   set textStrokeColor(value) {
-    this.setStringAttribute(SparkleElement.attributes.textStrokeColor, value);
+    this.setStringAttribute(SparkleElement.attrs.textStrokeColor, value);
   }
 
   /**
@@ -1276,25 +1274,20 @@ export default class SparkleElement
     | "10"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.textStrokeWidth);
+    return this.getStringAttribute(SparkleElement.attrs.textStrokeWidth);
   }
   set textStrokeWidth(value) {
-    this.setStringAttribute(SparkleElement.attributes.textStrokeWidth, value);
+    this.setStringAttribute(SparkleElement.attrs.textStrokeWidth, value);
   }
 
   /**
    * Sets the `text-underline-offset` of all underlined text inside this element.
    */
   get textUnderlineOffset(): "" | SizeName | string | null {
-    return this.getStringAttribute(
-      SparkleElement.attributes.textUnderlineOffset
-    );
+    return this.getStringAttribute(SparkleElement.attrs.textUnderlineOffset);
   }
   set textUnderlineOffset(value) {
-    this.setStringAttribute(
-      SparkleElement.attributes.textUnderlineOffset,
-      value
-    );
+    this.setStringAttribute(SparkleElement.attrs.textUnderlineOffset, value);
   }
 
   /**
@@ -1302,12 +1295,12 @@ export default class SparkleElement
    */
   get textDecorationThickness(): "" | SizeName | string | null {
     return this.getStringAttribute(
-      SparkleElement.attributes.textDecorationThickness
+      SparkleElement.attrs.textDecorationThickness
     );
   }
   set textDecorationThickness(value) {
     this.setStringAttribute(
-      SparkleElement.attributes.textDecorationThickness,
+      SparkleElement.attrs.textDecorationThickness,
       value
     );
   }
@@ -1318,10 +1311,10 @@ export default class SparkleElement
    * @summary bg-color
    */
   get backgroundColor(): "" | ColorName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.backgroundColor);
+    return this.getStringAttribute(SparkleElement.attrs.backgroundColor);
   }
   set backgroundColor(value) {
-    this.setStringAttribute(SparkleElement.attributes.backgroundColor, value);
+    this.setStringAttribute(SparkleElement.attrs.backgroundColor, value);
   }
 
   /**
@@ -1330,15 +1323,10 @@ export default class SparkleElement
    * @summary bg-gradient
    */
   get backgroundGradient(): "" | GradientName | string | null {
-    return this.getStringAttribute(
-      SparkleElement.attributes.backgroundGradient
-    );
+    return this.getStringAttribute(SparkleElement.attrs.backgroundGradient);
   }
   set backgroundGradient(value) {
-    this.setStringAttribute(
-      SparkleElement.attributes.backgroundGradient,
-      value
-    );
+    this.setStringAttribute(SparkleElement.attrs.backgroundGradient, value);
   }
 
   /**
@@ -1347,10 +1335,10 @@ export default class SparkleElement
    * @summary bg-pattern
    */
   get backgroundPattern(): "" | PatternName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.backgroundPattern);
+    return this.getStringAttribute(SparkleElement.attrs.backgroundPattern);
   }
   set backgroundPattern(value) {
-    this.setStringAttribute(SparkleElement.attributes.backgroundPattern, value);
+    this.setStringAttribute(SparkleElement.attrs.backgroundPattern, value);
   }
 
   /**
@@ -1359,10 +1347,10 @@ export default class SparkleElement
    * @summary bg-image
    */
   get backgroundImage(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.backgroundImage);
+    return this.getStringAttribute(SparkleElement.attrs.backgroundImage);
   }
   set backgroundImage(value) {
-    this.setStringAttribute(SparkleElement.attributes.backgroundImage, value);
+    this.setStringAttribute(SparkleElement.attrs.backgroundImage, value);
   }
 
   /**
@@ -1373,10 +1361,10 @@ export default class SparkleElement
    * @summary bg-repeat
    */
   get backgroundRepeat(): "" | "repeat" | "x" | "y" | "none" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.backgroundRepeat);
+    return this.getStringAttribute(SparkleElement.attrs.backgroundRepeat);
   }
   set backgroundRepeat(value) {
-    this.setStringAttribute(SparkleElement.attributes.backgroundRepeat, value);
+    this.setStringAttribute(SparkleElement.attrs.backgroundRepeat, value);
   }
 
   /**
@@ -1395,10 +1383,10 @@ export default class SparkleElement
     | "right"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.backgroundAlign);
+    return this.getStringAttribute(SparkleElement.attrs.backgroundAlign);
   }
   set backgroundAlign(value) {
-    this.setStringAttribute(SparkleElement.attributes.backgroundAlign, value);
+    this.setStringAttribute(SparkleElement.attrs.backgroundAlign, value);
   }
 
   /**
@@ -1411,10 +1399,10 @@ export default class SparkleElement
    * @summary bg-fit
    */
   get backgroundFit(): "" | "contain" | "cover" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.backgroundFit);
+    return this.getStringAttribute(SparkleElement.attrs.backgroundFit);
   }
   set backgroundFit(value) {
-    this.setStringAttribute(SparkleElement.attributes.backgroundFit, value);
+    this.setStringAttribute(SparkleElement.attrs.backgroundFit, value);
   }
 
   /**
@@ -1424,40 +1412,40 @@ export default class SparkleElement
    * If not provided a value, defaults to `circle`.
    */
   get mask(): "" | MaskName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.mask);
+    return this.getStringAttribute(SparkleElement.attrs.mask);
   }
   set mask(value) {
-    this.setStringAttribute(SparkleElement.attributes.mask, value);
+    this.setStringAttribute(SparkleElement.attrs.mask, value);
   }
 
   /**
    * Adds a `drop-shadow` `filter` to this element.
    */
   get shadow(): "" | "0" | "1" | "2" | "3" | "4" | "5" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.shadow);
+    return this.getStringAttribute(SparkleElement.attrs.shadow);
   }
   set shadow(value) {
-    this.setStringAttribute(SparkleElement.attributes.shadow, value);
+    this.setStringAttribute(SparkleElement.attrs.shadow, value);
   }
 
   /**
    * Adds an inner `box-shadow` to this element.
    */
   get shadowInset(): "" | "0" | "1" | "2" | "3" | "4" | "5" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.shadowInset);
+    return this.getStringAttribute(SparkleElement.attrs.shadowInset);
   }
   set shadowInset(value) {
-    this.setStringAttribute(SparkleElement.attributes.shadowInset, value);
+    this.setStringAttribute(SparkleElement.attrs.shadowInset, value);
   }
 
   /**
    * Applies a `backdrop-filter` to this element.
    */
   get filter(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.filter);
+    return this.getStringAttribute(SparkleElement.attrs.filter);
   }
   set filter(value) {
-    this.setStringAttribute(SparkleElement.attributes.filter, value);
+    this.setStringAttribute(SparkleElement.attrs.filter, value);
   }
 
   /**
@@ -1483,10 +1471,10 @@ export default class SparkleElement
     | "luminosity"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.blend);
+    return this.getStringAttribute(SparkleElement.attrs.blend);
   }
   set blend(value) {
-    this.setStringAttribute(SparkleElement.attributes.blend, value);
+    this.setStringAttribute(SparkleElement.attrs.blend, value);
   }
 
   /**
@@ -1494,130 +1482,130 @@ export default class SparkleElement
    * with 0 being fully transparent and 1 being fully opaque.
    */
   get opacity(): "" | "0" | "0.5" | "1" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.opacity);
+    return this.getStringAttribute(SparkleElement.attrs.opacity);
   }
   set opacity(value) {
-    this.setStringAttribute(SparkleElement.attributes.opacity, value);
+    this.setStringAttribute(SparkleElement.attrs.opacity, value);
   }
 
   /**
    * Sets an element's `transform` to move it along the x-axis.
    */
   get translateX(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.translateX);
+    return this.getStringAttribute(SparkleElement.attrs.translateX);
   }
   set translateX(value) {
-    this.setStringAttribute(SparkleElement.attributes.translateX, value);
+    this.setStringAttribute(SparkleElement.attrs.translateX, value);
   }
 
   /**
    * Sets an element's `transform` to move it along the y-axis.
    */
   get translateY(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.translateY);
+    return this.getStringAttribute(SparkleElement.attrs.translateY);
   }
   set translateY(value) {
-    this.setStringAttribute(SparkleElement.attributes.translateY, value);
+    this.setStringAttribute(SparkleElement.attrs.translateY, value);
   }
 
   /**
    * Sets an element's `transform` to move it along the z-axis.
    */
   get translateZ(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.translateZ);
+    return this.getStringAttribute(SparkleElement.attrs.translateZ);
   }
   set translateZ(value) {
-    this.setStringAttribute(SparkleElement.attributes.translateZ, value);
+    this.setStringAttribute(SparkleElement.attrs.translateZ, value);
   }
 
   /**
    * Sets an element's `transform` to rotate it around the x-axis.
    */
   get rotateX(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.rotateX);
+    return this.getStringAttribute(SparkleElement.attrs.rotateX);
   }
   set rotateX(value) {
-    this.setStringAttribute(SparkleElement.attributes.rotateX, value);
+    this.setStringAttribute(SparkleElement.attrs.rotateX, value);
   }
 
   /**
    * Sets an element's `transform` to rotate it around the y-axis.
    */
   get rotateY(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.rotateY);
+    return this.getStringAttribute(SparkleElement.attrs.rotateY);
   }
   set rotateY(value) {
-    this.setStringAttribute(SparkleElement.attributes.rotateY, value);
+    this.setStringAttribute(SparkleElement.attrs.rotateY, value);
   }
 
   /**
    * Sets an element's `transform` to rotate it around the z-axis.
    */
   get rotateZ(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.rotateZ);
+    return this.getStringAttribute(SparkleElement.attrs.rotateZ);
   }
   set rotateZ(value) {
-    this.setStringAttribute(SparkleElement.attributes.rotateZ, value);
+    this.setStringAttribute(SparkleElement.attrs.rotateZ, value);
   }
 
   /**
    * Sets an element's `rotate` angle.
    */
   get rotate(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.rotate);
+    return this.getStringAttribute(SparkleElement.attrs.rotate);
   }
   set rotate(value) {
-    this.setStringAttribute(SparkleElement.attributes.rotate, value);
+    this.setStringAttribute(SparkleElement.attrs.rotate, value);
   }
 
   /**
    * Sets an element's `transform` to scale it along the x-axis.
    */
   get scaleX(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.scaleX);
+    return this.getStringAttribute(SparkleElement.attrs.scaleX);
   }
   set scaleX(value) {
-    this.setStringAttribute(SparkleElement.attributes.scaleX, value);
+    this.setStringAttribute(SparkleElement.attrs.scaleX, value);
   }
 
   /**
    * Sets an element's `transform` to scale it along the y-axis.
    */
   get scaleY(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.scaleY);
+    return this.getStringAttribute(SparkleElement.attrs.scaleY);
   }
   set scaleY(value) {
-    this.setStringAttribute(SparkleElement.attributes.scaleY, value);
+    this.setStringAttribute(SparkleElement.attrs.scaleY, value);
   }
 
   /**
    * Sets an element's `transform` to scale it along the z-axis.
    */
   get scaleZ(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.scaleZ);
+    return this.getStringAttribute(SparkleElement.attrs.scaleZ);
   }
   set scaleZ(value) {
-    this.setStringAttribute(SparkleElement.attributes.scaleZ, value);
+    this.setStringAttribute(SparkleElement.attrs.scaleZ, value);
   }
 
   /**
    * Sets an element's `transform` to skew it along the x-axis.
    */
   get skewX(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.skewX);
+    return this.getStringAttribute(SparkleElement.attrs.skewX);
   }
   set skewX(value) {
-    this.setStringAttribute(SparkleElement.attributes.skewX, value);
+    this.setStringAttribute(SparkleElement.attrs.skewX, value);
   }
 
   /**
    * Sets an element's `transform` to skew it along the y-axis.
    */
   get skewY(): "" | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.skewY);
+    return this.getStringAttribute(SparkleElement.attrs.skewY);
   }
   set skewY(value) {
-    this.setStringAttribute(SparkleElement.attributes.skewY, value);
+    this.setStringAttribute(SparkleElement.attrs.skewY, value);
   }
 
   /**
@@ -1632,10 +1620,10 @@ export default class SparkleElement
     | "right"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.pivot);
+    return this.getStringAttribute(SparkleElement.attrs.pivot);
   }
   set pivot(value) {
-    this.setStringAttribute(SparkleElement.attributes.pivot, value);
+    this.setStringAttribute(SparkleElement.attrs.pivot, value);
   }
 
   /**
@@ -1659,10 +1647,10 @@ export default class SparkleElement
     | "1s"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.delay);
+    return this.getStringAttribute(SparkleElement.attrs.delay);
   }
   set delay(value) {
-    this.setStringAttribute(SparkleElement.attributes.delay, value);
+    this.setStringAttribute(SparkleElement.attrs.delay, value);
   }
 
   /**
@@ -1686,50 +1674,50 @@ export default class SparkleElement
     | "1s"
     | string
     | null {
-    return this.getStringAttribute(SparkleElement.attributes.duration);
+    return this.getStringAttribute(SparkleElement.attrs.duration);
   }
   set duration(value) {
-    this.setStringAttribute(SparkleElement.attributes.duration, value);
+    this.setStringAttribute(SparkleElement.attrs.duration, value);
   }
 
   /**
    * Specifies the `transition-timing-function` used for property changes.
    */
   get ease(): "" | EasingName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.ease);
+    return this.getStringAttribute(SparkleElement.attrs.ease);
   }
   set ease(value) {
-    this.setStringAttribute(SparkleElement.attributes.ease, value);
+    this.setStringAttribute(SparkleElement.attrs.ease, value);
   }
 
   /**
    * Applies an `animation` to this element.
    */
   get animation(): "" | AnimationName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.animation);
+    return this.getStringAttribute(SparkleElement.attrs.animation);
   }
   set animation(value) {
-    this.setStringAttribute(SparkleElement.attributes.animation, value);
+    this.setStringAttribute(SparkleElement.attrs.animation, value);
   }
 
   /**
    * Specifies an exit `animation` for this element.
    */
   get exit(): "" | AnimationName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.exit) || "exit";
+    return this.getStringAttribute(SparkleElement.attrs.exit) || "exit";
   }
   set exit(value) {
-    this.setStringAttribute(SparkleElement.attributes.exit, value);
+    this.setStringAttribute(SparkleElement.attrs.exit, value);
   }
 
   /**
    * Specifies an enter `animation` for this element.
    */
   get enter(): "" | AnimationName | string | null {
-    return this.getStringAttribute(SparkleElement.attributes.enter) || "enter";
+    return this.getStringAttribute(SparkleElement.attrs.enter) || "enter";
   }
   set enter(value) {
-    this.setStringAttribute(SparkleElement.attributes.enter, value);
+    this.setStringAttribute(SparkleElement.attrs.enter, value);
   }
 
   protected showFocusRing = (visible: boolean) => {
@@ -1773,7 +1761,7 @@ export default class SparkleElement
     el.removeEventListener("blur", this.onBlur);
   }
 
-  protected override attributeChangedCallback(
+  override attributeChangedCallback(
     name: string,
     oldValue: string,
     newValue: string
@@ -1791,8 +1779,8 @@ export default class SparkleElement
       if (transformer) {
         this.updateStyleAttribute(attrName, newValue, transformer);
         if (
-          attrName === SparkleElement.attributes.textStrokeWidth ||
-          attrName === SparkleElement.attributes.textStrokeColor
+          attrName === SparkleElement.attrs.textStrokeWidth ||
+          attrName === SparkleElement.attrs.textStrokeColor
         ) {
           const width = this.textStrokeWidth || "1";
           this.updateRootCssVariable("text-stroke", getCssTextStroke(width));
@@ -1802,7 +1790,7 @@ export default class SparkleElement
     super.attributeChangedCallback(name, oldValue, newValue);
   }
 
-  protected override connectedCallback(): void {
+  override connectedCallback(): void {
     if (this.shadowRoot) {
       this.contentSlot?.addEventListener(
         "slotchange",
@@ -1814,10 +1802,13 @@ export default class SparkleElement
       );
     }
     this.bindFocus(this.root);
+    window.setTimeout(() => {
+      this.onParsed();
+    });
     super.connectedCallback();
   }
 
-  protected override disconnectedCallback(): void {
+  override disconnectedCallback(): void {
     if (this.shadowRoot) {
       this.contentSlot?.removeEventListener(
         "slotchange",
@@ -1827,6 +1818,8 @@ export default class SparkleElement
     this.unbindFocus(this.root);
     super.disconnectedCallback();
   }
+
+  onParsed(): void {}
 
   protected handleContentSlotAssigned = (e: Event) => {
     const slot = e.currentTarget as HTMLSlotElement;
@@ -1938,17 +1931,6 @@ export default class SparkleElement
     }
   }
 
-  getConditionalAttribute(name: string): string | boolean {
-    const value = this.getAttribute(name);
-    if (value == null) {
-      return false;
-    }
-    if (value === "") {
-      return true;
-    }
-    return value;
-  }
-
   closestAncestor(selector: string, el: Element = this): Element | null {
     if (!el || el instanceof Document || el instanceof Window) {
       return null;
@@ -1962,5 +1944,70 @@ export default class SparkleElement
       return null;
     }
     return this.closestAncestor(selector, host);
+  }
+
+  getConditionalAttribute(name: string): string | boolean {
+    const value = this.getAttribute(name);
+    if (value == null) {
+      return false;
+    }
+    if (value === "") {
+      return true;
+    }
+    return value;
+  }
+
+  getBooleanAttribute<T extends boolean>(name: string): T {
+    const value = this.getAttribute(name);
+    return (value != null) as T;
+  }
+
+  setBooleanAttribute<T extends boolean>(name: string, value: T): void {
+    if (typeof value === "string") {
+      if (value === "") {
+        this.setAttribute(name, "");
+      } else {
+        this.removeAttribute(name);
+      }
+    } else if (value) {
+      this.setAttribute(name, "");
+    } else {
+      this.removeAttribute(name);
+    }
+  }
+
+  getStringAttribute<T extends string>(name: string): T | null {
+    const value = this.getAttribute(name);
+    return (value != null ? value : null) as T;
+  }
+
+  setStringAttribute<T extends string>(
+    name: T,
+    value: T | number | boolean | null
+  ): void {
+    if (typeof value === "boolean") {
+      if (value) {
+        this.setAttribute(name, "");
+      } else {
+        this.removeAttribute(name);
+      }
+    } else if (value != null) {
+      this.setAttribute(name, `${value}`);
+    } else {
+      this.removeAttribute(name);
+    }
+  }
+
+  getNumberAttribute(name: string, emptyValue = 0): number | null {
+    const value = this.getAttribute(name);
+    return value != null ? getUnitlessValue(value, emptyValue) : null;
+  }
+
+  setNumberAttribute(name: string, value: number | null): void | null {
+    if (value != null) {
+      this.setAttribute(name, String(value));
+    } else {
+      this.removeAttribute(name);
+    }
   }
 }

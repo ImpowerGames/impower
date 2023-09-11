@@ -12,20 +12,20 @@
   display: flex;
   flex: 1;
 }
-:host > .root[state] {
+:host > .root[status] {
   overflow-x: clip;
   overflow-y: clip;
 }
-:host > .root[state="exiting"]::after {
+:host > .root[status="exiting"]::after {
   content: "";
   position: absolute;
   inset: 0;
   /* Block input during exit animation */
   pointer-events: auto;
 }
-:host > .root[state="exiting"] {
+:host > .root[status="exiting"] {
   animation: var(--exit) both;
 }
-:host > .root[state="entering"] {
+:host > .root[status="entering"] {
   animation: var(--enter) both;
 }

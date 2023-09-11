@@ -1,5 +1,5 @@
 import SparkleElement from "../../core/sparkle-element";
-import component from "./_scroll-blocker";
+import spec from "./_scroll-blocker";
 
 /**
  * A Scroll Blocker to prevent page scrolls on safari when the on-screen keyboard is visible.
@@ -7,32 +7,26 @@ import component from "./_scroll-blocker";
  * (Because this hackery is the kind of shit that Safari forces us to resort to.)
  */
 export default class ScrollBlocker extends SparkleElement {
-  static override tagName = "s-scroll-blocker";
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+  static override get tag() {
+    return spec.tag;
   }
 
-  override get component() {
-    return component();
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
   }
 
-  override transformCss(css: string) {
-    return ScrollBlocker.augmentCss(css);
+  override get css() {
+    return this.getCSS(spec);
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.root.addEventListener("click", this.handleClick);
     this.root.addEventListener("pointerdown", this.handlePointerDown);
     this.root.addEventListener("touchstart", this.handleTouchStart);
     this.root.addEventListener("touchmove", this.handleTouchMove);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.root.removeEventListener("click", this.handleClick);
     this.root.removeEventListener("pointerdown", this.handlePointerDown);
     this.root.removeEventListener("touchstart", this.handleTouchStart);

@@ -1,12 +1,12 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
 import Popup from "../popup/popup";
-import component from "./_tooltip";
+import spec from "./_tooltip";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -53,42 +53,34 @@ export default class Tooltip
   extends Popup
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-tooltip";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return Tooltip.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Tooltip.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**
    * The tooltip's label. If you need to display HTML, use the `label` slot instead.
    */
   get label(): string | null {
-    return this.getStringAttribute(Tooltip.attributes.label);
+    return this.getStringAttribute(Tooltip.attrs.label);
   }
   set label(value) {
-    this.setStringAttribute(Tooltip.attributes.label, value);
+    this.setStringAttribute(Tooltip.attrs.label, value);
   }
 
   /**
@@ -99,52 +91,45 @@ export default class Tooltip
    * Default is `hover focus`.
    */
   get trigger(): string | null {
-    return this.getStringAttribute(Tooltip.attributes.trigger) || "hover focus";
+    return this.getStringAttribute(Tooltip.attrs.trigger) || "hover focus";
   }
   set trigger(value) {
-    this.setStringAttribute(Tooltip.attributes.trigger, value);
+    this.setStringAttribute(Tooltip.attrs.trigger, value);
   }
 
   /**
    * How long does the target have to be hovered before the tooltip will show.
    */
   get showDelay(): string | null {
-    return this.getStringAttribute(Tooltip.attributes.showDelay);
+    return this.getStringAttribute(Tooltip.attrs.showDelay);
   }
   set showDelay(value) {
-    this.setStringAttribute(Tooltip.attributes.showDelay, value);
+    this.setStringAttribute(Tooltip.attrs.showDelay, value);
   }
 
   /**
    * How long after the target is no longer hovered will the tooltip remain.
    */
   get hideDelay(): string | null {
-    return this.getStringAttribute(Tooltip.attributes.hideDelay);
+    return this.getStringAttribute(Tooltip.attrs.hideDelay);
   }
   set hideDelay(value) {
-    this.setStringAttribute(Tooltip.attributes.hideDelay, value);
+    this.setStringAttribute(Tooltip.attrs.hideDelay, value);
   }
 
   private hoverTimeout?: number;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
+  override onAttributeChanged(name: string, newValue: string): void {
     const tooltipEl = this.popupEl;
-    if (name === Tooltip.attributes.label) {
+    if (name === Tooltip.attrs.label) {
       if (tooltipEl) {
         tooltipEl.textContent = newValue;
       }
     }
-    if (name === Tooltip.attributes.open) {
+    if (name === Tooltip.attrs.open) {
       const open = newValue != null;
       if (tooltipEl) {
-        tooltipEl.setAttribute(
-          Tooltip.attributes.ariaLive,
-          open ? "polite" : "off"
-        );
+        tooltipEl.setAttribute(Tooltip.attrs.ariaLive, open ? "polite" : "off");
       }
       if (open) {
         this.handleOpen();
@@ -153,21 +138,21 @@ export default class Tooltip
       }
     }
     if (
-      name === Tooltip.attributes.label ||
-      name === Tooltip.attributes.distance ||
-      name === Tooltip.attributes.placement ||
-      name === Tooltip.attributes.skidding
+      name === Tooltip.attrs.label ||
+      name === Tooltip.attrs.distance ||
+      name === Tooltip.attrs.placement ||
+      name === Tooltip.attrs.skidding
     ) {
       this.reposition();
     }
-    if (name === Tooltip.attributes.disabled) {
+    if (name === Tooltip.attrs.disabled) {
       if (this.disabled && this.open) {
         this.hide();
       }
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.root.addEventListener("blur", this.handleBlur, true);
     this.root.addEventListener("focus", this.handleFocus, true);
     this.root.addEventListener("click", this.handleClick);
@@ -176,7 +161,7 @@ export default class Tooltip
     this.root.addEventListener("mouseout", this.handleMouseOut);
   }
 
-  protected override onParsed(): void {
+  override onParsed(): void {
     const popupEl = this.popupEl;
     if (popupEl) {
       popupEl.hidden = !this.open;
@@ -187,7 +172,7 @@ export default class Tooltip
     }
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.root.removeEventListener("blur", this.handleBlur, true);
     this.root.removeEventListener("focus", this.handleFocus, true);
     this.root.removeEventListener("click", this.handleClick);

@@ -4,9 +4,9 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type DidOpenTextDocumentMethod =
   typeof DidOpenTextDocumentMessage.method;
 
-export namespace DidOpenTextDocumentMessage {
-  export const method = "textDocument/didOpen";
-  export const type = new MessageProtocolNotificationType<
+export class DidOpenTextDocumentMessage {
+  static readonly method = "textDocument/didOpen";
+  static readonly type = new MessageProtocolNotificationType<
     DidOpenTextDocumentMethod,
     DidOpenTextDocumentParams
   >(DidOpenTextDocumentMessage.method);

@@ -1,12 +1,12 @@
-import STYLES from "../../../../spark-element/src/caches/STYLE_CACHE";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
@@ -14,7 +14,7 @@ import SparkleElement, {
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type Ripple from "../ripple/ripple";
-import component from "./_tab";
+import spec from "./_tab";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
@@ -32,7 +32,7 @@ const DEFAULT_ATTRIBUTES = {
     "active",
     "value",
     "disabled",
-    "state",
+    "status",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -44,11 +44,23 @@ export default class Tab
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-tab";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -56,94 +68,74 @@ export default class Tab
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return Tab.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Tab.augmentCss(css, DEFAULT_DEPENDENCIES);
-  }
-
   /**
    * Draws the tab in an active state.
    */
   get active(): boolean {
-    return this.getBooleanAttribute(Tab.attributes.active);
+    return this.getBooleanAttribute(Tab.attrs.active);
   }
   set active(value: boolean) {
-    this.setBooleanAttribute(Tab.attributes.active, value);
+    this.setBooleanAttribute(Tab.attrs.active, value);
   }
 
   /**
    * The value this tab is associated with.
    */
   get value(): string | null {
-    return this.getStringAttribute(Tab.attributes.value);
+    return this.getStringAttribute(Tab.attrs.value);
   }
   set value(value) {
-    this.setStringAttribute(Tab.attributes.value, value);
+    this.setStringAttribute(Tab.attrs.value, value);
   }
 
   /**
    * The name of the icon to display.
    */
   get icon(): IconName | string | null {
-    return this.getStringAttribute(Tab.attributes.icon);
+    return this.getStringAttribute(Tab.attrs.icon);
   }
   set icon(value) {
-    this.setStringAttribute(Tab.attributes.icon, value);
+    this.setStringAttribute(Tab.attrs.icon, value);
   }
 
   /**
    * The name of the icon to display when this tab is active.
    */
   get activeIcon(): IconName | string | null {
-    return this.getStringAttribute(Tab.attributes.activeIcon);
+    return this.getStringAttribute(Tab.attrs.activeIcon);
   }
   set activeIcon(value) {
-    this.setStringAttribute(Tab.attributes.activeIcon, value);
+    this.setStringAttribute(Tab.attrs.activeIcon, value);
   }
 
   /**
    * The background color when the tab is hovered.
    */
   get hoverColor(): SizeName | string | null {
-    return this.getStringAttribute(Tab.attributes.hoverColor);
+    return this.getStringAttribute(Tab.attrs.hoverColor);
   }
   set hoverColor(value) {
-    this.setStringAttribute(Tab.attributes.hoverColor, value);
+    this.setStringAttribute(Tab.attrs.hoverColor, value);
   }
 
   /**
    * The size of the icon.
    */
   get iconSize(): SizeName | string | null {
-    return this.getStringAttribute(Tab.attributes.iconSize);
+    return this.getStringAttribute(Tab.attrs.iconSize);
   }
   set iconSize(value) {
-    this.setStringAttribute(Tab.attributes.iconSize, value);
+    this.setStringAttribute(Tab.attrs.iconSize, value);
   }
 
   /**
    * Reflects if the tab is in the process of activating or deactivating.
    */
-  get state(): "activating" | "deactivating" | null {
-    return this.getStringAttribute(Tab.attributes.state);
+  get status(): "activating" | "deactivating" | null {
+    return this.getStringAttribute(Tab.attrs.status);
   }
-  set state(value) {
-    this.setStringAttribute(Tab.attributes.state, value);
+  set status(value) {
+    this.setStringAttribute(Tab.attrs.status, value);
   }
 
   get rippleEl(): Ripple | null {
@@ -166,18 +158,14 @@ export default class Tab
     return this.getElementByClass("active-icon");
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Tab.attributes.disabled) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Tab.attrs.disabled) {
       this.updateRootAttribute(
-        Tab.attributes.tabIndex,
+        Tab.attrs.tabIndex,
         newValue != null ? "-1" : "0"
       );
       this.updateRootAttribute(
-        Tab.attributes.ariaDisabled,
+        Tab.attrs.ariaDisabled,
         newValue != null ? "true" : "false"
       );
       const ripple = this.rippleEl;
@@ -185,7 +173,7 @@ export default class Tab
         ripple.hidden = newValue != null;
       }
     }
-    if (name === Tab.attributes.mask) {
+    if (name === Tab.attrs.mask) {
       const ripple = this.rippleEl;
       if (ripple) {
         if (newValue) {
@@ -195,23 +183,23 @@ export default class Tab
         }
       }
     }
-    if (name === Tab.attributes.icon) {
+    if (name === Tab.attrs.icon) {
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = name == null;
       }
     }
-    if (name === Tab.attributes.active) {
+    if (name === Tab.attrs.active) {
       const active = newValue != null;
       this.updateRootAttribute(
-        Tab.attributes.ariaSelected,
+        Tab.attrs.ariaSelected,
         active ? "true" : "false"
       );
-      this.updateRootAttribute(Tab.attributes.tabIndex, active ? "0" : "-1");
+      this.updateRootAttribute(Tab.attrs.tabIndex, active ? "0" : "-1");
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.rippleEl?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
     const icon = this.icon;
@@ -220,14 +208,11 @@ export default class Tab
       iconEl.hidden = icon == null;
     }
     const active = this.active;
-    this.updateRootAttribute(
-      Tab.attributes.ariaSelected,
-      active ? "true" : "false"
-    );
-    this.updateRootAttribute(Tab.attributes.tabIndex, active ? "0" : "-1");
+    this.updateRootAttribute(Tab.attrs.ariaSelected, active ? "true" : "false");
+    this.updateRootAttribute(Tab.attrs.tabIndex, active ? "0" : "-1");
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.rippleEl?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }

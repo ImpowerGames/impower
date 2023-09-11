@@ -4,9 +4,9 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type DidChangeConfigurationMethod =
   typeof DidChangeConfigurationMessage.method;
 
-export namespace DidChangeConfigurationMessage {
-  export const method = "workspace/didChangeConfiguration";
-  export const type = new MessageProtocolNotificationType<
+export class DidChangeConfigurationMessage {
+  static readonly method = "workspace/didChangeConfiguration";
+  static readonly type = new MessageProtocolNotificationType<
     DidChangeConfigurationMethod,
     DidChangeConfigurationParams
   >(DidChangeConfigurationMessage.method);

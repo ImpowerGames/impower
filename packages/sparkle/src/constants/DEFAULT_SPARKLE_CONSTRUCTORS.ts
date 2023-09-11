@@ -1,6 +1,5 @@
 import Badge from "../components/badge/badge";
 import Box from "../components/box/box";
-import BreakpointObserver from "../components/breakpoint-observer/breakpoint-observer";
 import Button from "../components/button/button";
 import Circle from "../components/circle/circle";
 import Collapsible from "../components/collapsible/collapsible";
@@ -29,37 +28,36 @@ import Tooltip from "../components/tooltip/tooltip";
 import Transition from "../components/transition/transition";
 import Viewport from "../components/viewport/viewport";
 
-const DEFAULT_SPARKLE_CONSTRUCTORS = {
-  "s-hidden": Hidden,
-  "s-box": Box,
-  "s-list": List,
-  "s-viewport": Viewport,
-  "s-scroll-blocker": ScrollBlocker,
-  "s-circle": Circle,
-  "s-icon": Icon,
-  "s-popup": Popup,
-  "s-divider": Divider,
-  "s-progress-bar": ProgressBar,
-  "s-progress-circle": ProgressCircle,
-  "s-ripple": Ripple,
-  "s-skeleton": Skeleton,
-  "s-badge": Badge,
-  "s-collapsible": Collapsible,
-  "s-input": Input,
-  "s-button": Button,
-  "s-option": Option,
-  "s-tab": Tab,
-  "s-tabs": Tabs,
-  "s-tooltip": Tooltip,
-  "s-dropdown": Dropdown,
-  "s-toast-stack": ToastStack,
-  "s-toast": Toast,
-  "s-drawer": Drawer,
-  "s-dialog": Dialog,
-  "s-split-pane": SplitPane,
-  "s-transition": Transition,
-  "s-router": Router,
-  "s-breakpoint-observer": BreakpointObserver,
-} as const;
+const DEFAULT_SPARKLE_CONSTRUCTORS = [
+  Hidden,
+  Box,
+  List,
+  Viewport,
+  ScrollBlocker,
+  Circle,
+  Icon,
+  Popup,
+  Divider,
+  ProgressBar,
+  ProgressCircle,
+  Ripple,
+  Skeleton,
+  Badge,
+  Collapsible,
+  Input,
+  Button,
+  Option,
+  Tab,
+  Tabs,
+  Tooltip,
+  Dropdown,
+  ToastStack,
+  Toast,
+  Drawer,
+  Dialog,
+  SplitPane,
+  Transition,
+  Router,
+] as const;
 
 export default DEFAULT_SPARKLE_CONSTRUCTORS;

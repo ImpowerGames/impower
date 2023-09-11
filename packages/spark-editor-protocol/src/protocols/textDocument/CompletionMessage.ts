@@ -3,9 +3,9 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type CompletionMethod = typeof CompletionMessage.method;
 
-export namespace CompletionMessage {
-  export const method = "textDocument/completion";
-  export const type = new MessageProtocolRequestType<
+export class CompletionMessage {
+  static readonly method = "textDocument/completion";
+  static readonly type = new MessageProtocolRequestType<
     CompletionMethod,
     CompletionParams,
     CompletionList | CompletionItem[] | null

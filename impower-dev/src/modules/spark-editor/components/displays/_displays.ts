@@ -1,10 +1,18 @@
-import { WorkspaceState } from "@impower/spark-editor-protocol/src/types";
-import { html } from "../../../../../../packages/spark-element/src/utils/html";
+import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
+import { html, spec } from "../../../../../../packages/spec-component/src/spec";
+import css from "../../styles/shared";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
-export default (state: { store?: WorkspaceState }) => {
-  const panel = state?.store?.panes?.displays?.panel || "widgets";
-  return {
-    html: html`
+export default spec({
+  tag: "se-displays",
+  css,
+  cache: WorkspaceCache.get,
+  reducer: (store?: WorkspaceStore) => ({
+    panel: store?.panes?.displays?.panel || "widgets",
+  }),
+  html: ({ state }) => {
+    const { panel } = state;
+    return html`
       <s-router directional key="displays-panel" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
@@ -47,6 +55,6 @@ export default (state: { store?: WorkspaceState }) => {
           <se-views></se-views>
         </template>
       </s-router>
-    `,
-  };
-};
+    `;
+  },
+});

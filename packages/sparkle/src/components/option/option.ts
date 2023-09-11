@@ -1,11 +1,11 @@
-import STYLES from "../../../../spark-element/src/caches/STYLE_CACHE";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
@@ -13,7 +13,7 @@ import SparkleElement, {
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type Ripple from "../ripple/ripple";
-import component from "./_option";
+import spec from "./_option";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
@@ -55,11 +55,29 @@ export default class Option
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-option";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, {
+      props: {
+        type: this.type,
+        href: this.href,
+      },
+      state: {},
+    });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -67,34 +85,14 @@ export default class Option
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component({ attrs: { type: this.type, href: this.href } });
-  }
-
-  override transformHtml(html: string) {
-    return Option.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Option.augmentCss(css, DEFAULT_DEPENDENCIES);
-  }
-
   /**
    * Key that is included in all emitted events.
    */
   get key(): string | null {
-    return this.getStringAttribute(Option.attributes.key);
+    return this.getStringAttribute(Option.attrs.key);
   }
   set key(value) {
-    this.setStringAttribute(Option.attributes.key, value);
+    this.setStringAttribute(Option.attrs.key, value);
   }
 
   /**
@@ -107,10 +105,10 @@ export default class Option
    * Defaults to `button`
    */
   get type(): "div" | "a" | "toggle" | null {
-    return this.getStringAttribute(Option.attributes.type);
+    return this.getStringAttribute(Option.attrs.type);
   }
   set type(value) {
-    this.setStringAttribute(Option.attributes.type, value);
+    this.setStringAttribute(Option.attrs.type, value);
   }
 
   /**
@@ -118,50 +116,50 @@ export default class Option
    * (Component will be wrapped in `a` instead of `button`)
    */
   get href(): string | null {
-    return this.getStringAttribute(Option.attributes.href);
+    return this.getStringAttribute(Option.attrs.href);
   }
   set href(value) {
-    this.setStringAttribute(Option.attributes.href, value);
+    this.setStringAttribute(Option.attrs.href, value);
   }
 
   /**
    * Draws the option in an active state.
    */
   get active(): boolean {
-    return this.getBooleanAttribute(Option.attributes.active);
+    return this.getBooleanAttribute(Option.attrs.active);
   }
   set active(value: boolean) {
-    this.setBooleanAttribute(Option.attributes.active, value);
+    this.setBooleanAttribute(Option.attrs.active, value);
   }
 
   /**
    * The value this option is associated with.
    */
   get value(): string | null {
-    return this.getStringAttribute(Option.attributes.value);
+    return this.getStringAttribute(Option.attrs.value);
   }
   set value(value) {
-    this.setStringAttribute(Option.attributes.value, value);
+    this.setStringAttribute(Option.attrs.value, value);
   }
 
   /**
    * The name of the icon to display.
    */
   get icon(): IconName | string | null {
-    return this.getStringAttribute(Option.attributes.icon);
+    return this.getStringAttribute(Option.attrs.icon);
   }
   set icon(value) {
-    this.setStringAttribute(Option.attributes.icon, value);
+    this.setStringAttribute(Option.attrs.icon, value);
   }
 
   /**
    * The name of the icon to display when this option is active.
    */
   get activeIcon(): IconName | string | null {
-    return this.getStringAttribute(Option.attributes.activeIcon);
+    return this.getStringAttribute(Option.attrs.activeIcon);
   }
   set activeIcon(value) {
-    this.setStringAttribute(Option.attributes.activeIcon, value);
+    this.setStringAttribute(Option.attrs.activeIcon, value);
   }
   /**
    * The size of the option.
@@ -169,40 +167,40 @@ export default class Option
    * Default is `md`.
    */
   get size(): SizeName | string | null {
-    return this.getStringAttribute(Option.attributes.size);
+    return this.getStringAttribute(Option.attrs.size);
   }
   set size(value) {
-    this.setStringAttribute(Option.attributes.size, value);
+    this.setStringAttribute(Option.attrs.size, value);
   }
 
   /**
    * The spacing between the icon and the label.
    */
   get spacing(): SizeName | string | null {
-    return this.getStringAttribute(Option.attributes.spacing);
+    return this.getStringAttribute(Option.attrs.spacing);
   }
   set spacing(value) {
-    this.setStringAttribute(Option.attributes.spacing, value);
+    this.setStringAttribute(Option.attrs.spacing, value);
   }
 
   /**
    * The option label.
    */
   get label(): string | null {
-    return this.getStringAttribute(Option.attributes.label);
+    return this.getStringAttribute(Option.attrs.label);
   }
   set label(value) {
-    this.setStringAttribute(Option.attributes.label, value);
+    this.setStringAttribute(Option.attrs.label, value);
   }
 
   /**
    * The action to perform when clicking this option.
    */
   get action(): string | null {
-    return this.getStringAttribute(Option.attributes.action);
+    return this.getStringAttribute(Option.attrs.action);
   }
   set action(value) {
-    this.setStringAttribute(Option.attributes.action, value);
+    this.setStringAttribute(Option.attrs.action, value);
   }
 
   get labelEl(): HTMLElement | null {
@@ -225,26 +223,22 @@ export default class Option
     return this.getElementByTag<Ripple>(Option.dependencies.ripple);
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
+  override onAttributeChanged(name: string, newValue: string): void {
     if (
-      name === Option.attributes.ariaHasPopup ||
-      name === Option.attributes.ariaExpanded ||
-      name === Option.attributes.autofocus ||
-      name === Option.attributes.href
+      name === Option.attrs.ariaHasPopup ||
+      name === Option.attrs.ariaExpanded ||
+      name === Option.attrs.autofocus ||
+      name === Option.attrs.href
     ) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === Option.attributes.disabled) {
+    if (name === Option.attrs.disabled) {
       const ripple = this.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === Option.attributes.mask) {
+    if (name === Option.attrs.mask) {
       const ripple = this.ripple;
       if (ripple) {
         if (newValue) {
@@ -254,13 +248,13 @@ export default class Option
         }
       }
     }
-    if (name === Option.attributes.icon) {
+    if (name === Option.attrs.icon) {
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
     }
-    if (name === Option.attributes.label) {
+    if (name === Option.attrs.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label);
@@ -268,7 +262,7 @@ export default class Option
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     const label = this.label;
     if (label) {
       this.setAssignedToSlot(label);
@@ -282,7 +276,7 @@ export default class Option
     this.root.addEventListener("click", this.handleClick);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.ripple?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }

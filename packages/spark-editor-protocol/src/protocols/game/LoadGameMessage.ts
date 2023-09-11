@@ -7,9 +7,9 @@ export interface LoadGameParams {
   programs: { uri: string; name: string; program: SparkProgram }[];
 }
 
-export namespace LoadGameMessage {
-  export const method = "game/load";
-  export const type = new MessageProtocolRequestType<
+export class LoadGameMessage {
+  static readonly method = "game/load";
+  static readonly type = new MessageProtocolRequestType<
     LoadGameMethod,
     LoadGameParams,
     null

@@ -2,9 +2,9 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type DisableGameDebugMethod = typeof DisableGameDebugMessage.method;
 
-export namespace DisableGameDebugMessage {
-  export const method = "game/disableDebug";
-  export const type = new MessageProtocolRequestType<
+export class DisableGameDebugMessage {
+  static readonly method = "game/disableDebug";
+  static readonly type = new MessageProtocolRequestType<
     DisableGameDebugMethod,
     {},
     null

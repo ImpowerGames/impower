@@ -1,6 +1,8 @@
 import transformer from "../../../../packages/sparkle-style-transformer/src/index";
 import sparkleIconsCSS from "../../../../packages/sparkle/src/styles/icons/icons.css";
 import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns/patterns.css";
+import { ComponentSpec } from "../../../../packages/spec-component/src/spec";
+import baseNormalize from "../../../../packages/spec-component/src/styles/normalize/normalize.css";
 import Access from "./components/access/_access";
 import Account from "./components/account/_account";
 import Assets from "./components/assets/_assets";
@@ -47,78 +49,82 @@ import Sprites from "./components/sprites/_sprites";
 import Views from "./components/views/_views";
 import Widgets from "./components/widgets/_widgets";
 import Main from "./main/_spark-editor";
-import coreCSS from "./styles/core/core.css";
-import Icons from "./styles/icons/_icons";
-import iconsCSS from "./styles/icons/icons.css";
-import Normalize from "./styles/normalize/_normalize";
-import Theme from "./styles/theme/_theme";
+import {
+  default as icons,
+  default as iconsCSS,
+} from "./styles/icons/icons.css";
+import normalize from "./styles/normalize/normalize.css";
+import theme from "./styles/theme/theme.css";
 
 const config = {
   icons: [sparkleIconsCSS, iconsCSS],
   patterns: [sparklePatternsCSS],
 };
 
-type Component = (state: any) => { html?: string; css?: string };
-
-const style = (component: Component): Component => {
-  return (state: any) => {
-    const data = component(state);
-    const html = data.html ? transformer(data.html, config) : data.html;
-    const css = data.css || coreCSS;
-    return { html, css };
+const style = <Props, State, Store>(
+  spec: ComponentSpec<Props, State, Store>
+): ComponentSpec<Props, State, Store> => {
+  return {
+    ...spec,
+    html: (context: { props: Props; state: State }) => {
+      const html = spec.html || "";
+      const content = typeof html === "string" ? html : html(context);
+      return transformer(content, config);
+    },
   };
 };
 
-const components = {
-  "se-icons": Icons,
-  "se-theme": Theme,
-  "se-normalize": Normalize,
-  "se-interaction-blocker": style(InteractionBlocker),
-  "se-option-button": style(OptionButton),
-  "se-file-options-button": style(FileOptionsButton),
-  "se-file-editor-navigation": style(FileEditorNavigation),
-  "se-file-upload-button": style(FileUploadButton),
-  "se-file-add-button": style(FileAddButton),
-  "se-file-item": style(FileItem),
-  "se-file-list-border": style(FileListBorder),
-  "se-file-list": style(FileList),
-  "se-script-editor": style(ScriptEditor),
-  "se-preview-game-toolbar": style(PreviewGameToolbar),
-  "se-preview-game": style(PreviewGame),
-  "se-preview-screenplay-toolbar": style(PreviewScreenplayToolbar),
-  "se-preview-screenplay": style(PreviewScreenplay),
-  "se-assets": style(Assets),
-  "se-logic-scripts-editor": style(LogicScriptsEditor),
-  "se-logic-scripts-list": style(LogicScriptsList),
-  "se-logic-list": style(LogicList),
-  "se-logic": style(Logic),
-  "se-maps": style(Maps),
-  "se-sprites": style(Sprites),
-  "se-graphics": style(Graphics),
-  "se-widgets": style(Widgets),
-  "se-views": style(Views),
-  "se-displays": style(Displays),
-  "se-music": style(Music),
-  "se-sounds": style(Sounds),
-  "se-audio": style(Audio),
-  "se-access": style(Access),
-  "se-details": style(Details),
-  "se-share": style(Share),
-  "se-setup": style(Setup),
-  "se-demo": style(Demo),
-  "se-main-panel": style(MainPanel),
-  "se-preview-toggle-button": style(PreviewToggleButton),
-  "se-preview-mode-toggle": style(PreviewOptionsDropdown),
-  "se-preview": style(Preview),
-  "se-preview-panel": style(PreviewPanel),
-  "se-notifications": style(Notifications),
-  "se-account": style(Account),
-  "se-header-menu-button": style(HeaderMenuButton),
-  "se-header-title-button": style(HeaderTitleButton),
-  "se-header-title-caption": style(HeaderTitleCaption),
-  "se-header-navigation": style(HeaderNavigation),
-  "se-footer-navigation": style(FooterNavigation),
-  "spark-editor": style(Main),
-} as const;
+const components = [
+  { tag: "", css: baseNormalize },
+  { tag: "", css: normalize },
+  { tag: "", css: theme },
+  { tag: "", css: icons },
+  style(InteractionBlocker),
+  style(OptionButton),
+  style(FileOptionsButton),
+  style(FileEditorNavigation),
+  style(FileUploadButton),
+  style(FileAddButton),
+  style(FileItem),
+  style(FileListBorder),
+  style(FileList),
+  style(ScriptEditor),
+  style(PreviewGameToolbar),
+  style(PreviewGame),
+  style(PreviewScreenplayToolbar),
+  style(PreviewScreenplay),
+  style(Assets),
+  style(LogicScriptsEditor),
+  style(LogicScriptsList),
+  style(LogicList),
+  style(Logic),
+  style(Maps),
+  style(Sprites),
+  style(Graphics),
+  style(Widgets),
+  style(Views),
+  style(Displays),
+  style(Music),
+  style(Sounds),
+  style(Audio),
+  style(Access),
+  style(Details),
+  style(Share),
+  style(Setup),
+  style(Demo),
+  style(MainPanel),
+  style(PreviewToggleButton),
+  style(PreviewOptionsDropdown),
+  style(Preview),
+  style(PreviewPanel),
+  style(Notifications),
+  style(Account),
+  style(HeaderMenuButton),
+  style(HeaderTitleButton),
+  style(HeaderTitleCaption),
+  style(HeaderNavigation),
+  style(FooterNavigation),
+  style(Main),
+] as const;
 
 export default components;

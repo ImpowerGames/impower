@@ -1,11 +1,11 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
-import component from "./_drawer";
+import spec from "./_drawer";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -27,32 +27,24 @@ export default class Drawer
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-drawer";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return Drawer.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Drawer.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**
@@ -60,22 +52,18 @@ export default class Drawer
    * use the `show()` and `hide()` methods and this attribute will reflect the drawer's open state.
    */
   get open(): boolean {
-    return this.getBooleanAttribute(Drawer.attributes.open);
+    return this.getBooleanAttribute(Drawer.attrs.open);
   }
   set open(value: boolean) {
-    this.setBooleanAttribute(Drawer.attributes.open, value);
+    this.setBooleanAttribute(Drawer.attrs.open, value);
   }
 
   get dialog(): HTMLDialogElement {
     return this.root as HTMLDialogElement;
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Drawer.attributes.open) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Drawer.attrs.open) {
       if (newValue != null) {
         this.handleOpen(true);
       } else {
@@ -84,16 +72,16 @@ export default class Drawer
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.dialog.addEventListener("click", this.handleLightDismiss);
     this.dialog.addEventListener("close", this.handleEscapeClose);
   }
 
-  protected override onParsed(): void {
+  override onParsed(): void {
     this.root.hidden = !this.open;
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.dialog.removeEventListener("click", this.handleLightDismiss);
     this.dialog.removeEventListener("close", this.handleEscapeClose);
     this.emit(REMOVED_EVENT);

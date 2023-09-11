@@ -7,9 +7,9 @@ export interface ReadDirectoryFilesParams {
   directory: { uri: URI };
 }
 
-export namespace ReadDirectoryFilesMessage {
-  export const method = "workspace/readDirectoryFiles";
-  export const type = new MessageProtocolRequestType<
+export class ReadDirectoryFilesMessage {
+  static readonly method = "workspace/readDirectoryFiles";
+  static readonly type = new MessageProtocolRequestType<
     ReadDirectoryFilesMethod,
     ReadDirectoryFilesParams,
     FileData[]

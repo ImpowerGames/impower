@@ -1,13 +1,13 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
-import component from "./_skeleton";
+import spec from "./_skeleton";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -26,9 +26,19 @@ export default class Skeleton
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-skeleton";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -36,30 +46,14 @@ export default class Skeleton
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Skeleton.augmentCss(css);
-  }
-
   /**
    * The color of the sheen.
    */
   get sheenColor(): ColorName | string | null {
-    return this.getStringAttribute(Skeleton.attributes.sheenColor);
+    return this.getStringAttribute(Skeleton.attrs.sheenColor);
   }
   set sheenColor(value) {
-    this.setStringAttribute(Skeleton.attributes.sheenColor, value);
+    this.setStringAttribute(Skeleton.attrs.sheenColor, value);
   }
 }
 

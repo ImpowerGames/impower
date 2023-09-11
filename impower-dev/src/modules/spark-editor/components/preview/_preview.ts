@@ -1,14 +1,22 @@
-import { WorkspaceState } from "@impower/spark-editor-protocol/src/types";
-import { html } from "../../../../../../packages/spark-element/src/utils/html";
+import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
+import { html, spec } from "../../../../../../packages/spec-component/src/spec";
+import css from "../../styles/shared";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
-export default (state: { store?: WorkspaceState }) => {
-  const panel = state?.store?.panes?.preview?.panel || "game";
-  const gameComponent = () => html`<se-preview-game></se-preview-game>`;
-  const screenplayComponent = () =>
-    html`<se-preview-screenplay></se-preview-screenplay>`;
-  return {
-    html: html`
-      <s-router key="preview" active="${panel}">
+export default spec({
+  tag: "se-preview",
+  css,
+  cache: WorkspaceCache.get,
+  reducer: (store?: WorkspaceStore) => ({
+    mode: store?.preview?.mode || "game",
+  }),
+  html: ({ state }) => {
+    const { mode } = state;
+    const gameComponent = () => html`<se-preview-game></se-preview-game>`;
+    const screenplayComponent = () =>
+      html`<se-preview-screenplay></se-preview-screenplay>`;
+    return html`
+      <s-router key="preview" active="${mode}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
           <s-box
             bg-color="panel"
@@ -27,10 +35,10 @@ export default (state: { store?: WorkspaceState }) => {
             ></s-box>
           </s-box>
         </s-box>
-        ${panel === "screenplay" ? screenplayComponent : gameComponent}
+        ${mode === "screenplay" ? screenplayComponent : gameComponent}
         <template value="game">${gameComponent}</template>
         <template value="screenplay">${screenplayComponent}</template>
       </s-router>
-    `,
-  };
-};
+    `;
+  },
+});

@@ -1,49 +1,16 @@
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
-import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
-import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_script-editor";
+import spec from "./_script-editor";
 
-const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["filename"]),
-};
-
-export default class ScriptEditor
-  extends SEElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tag = "se-script-editor",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  get filename(): string | null {
-    return this.getStringAttribute(ScriptEditor.attributes.filename);
-  }
-  set filename(value) {
-    this.setStringAttribute(ScriptEditor.attributes.filename, value);
-  }
-
+export default class ScriptEditor extends Component(spec) {
   protected _uri?: string;
 
   protected _version?: number;
 
-  protected override onConnected() {
+  override onConnected() {
     this.loadFile();
     window.addEventListener(
       DidChangeTextDocumentMessage.method,
@@ -53,13 +20,9 @@ export default class ScriptEditor
       DidSaveTextDocumentMessage.method,
       this.handleDidSaveTextDocument
     );
-    window.addEventListener(
-      DidChangeProjectStateMessage.method,
-      this.handleDidChangeProjectState
-    );
   }
 
-  protected override onDisconnected() {
+  override onDisconnected() {
     window.removeEventListener(
       DidChangeTextDocumentMessage.method,
       this.handleDidChangeTextDocument
@@ -67,10 +30,6 @@ export default class ScriptEditor
     window.removeEventListener(
       DidSaveTextDocumentMessage.method,
       this.handleDidSaveTextDocument
-    );
-    window.removeEventListener(
-      DidChangeProjectStateMessage.method,
-      this.handleDidChangeProjectState
     );
   }
 
@@ -109,22 +68,6 @@ export default class ScriptEditor
             });
             await Workspace.window.updateModificationTime();
           }
-        }
-      }
-    }
-  };
-
-  protected handleDidChangeProjectState = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidChangeProjectStateMessage.type.isNotification(message)) {
-        const params = message.params;
-        const { changed } = params;
-        if (changed.includes("syncState")) {
-          // TODO: make editor readonly while syncing
-        }
-        if (changed.includes("syncedAt")) {
-          await this.loadFile();
         }
       }
     }

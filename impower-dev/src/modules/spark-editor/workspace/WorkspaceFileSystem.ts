@@ -26,6 +26,8 @@ import {
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
+import { WorkspaceCache } from "./WorkspaceCache";
+import { WorkspaceConstants } from "./WorkspaceConstants";
 
 export default class WorkspaceFileSystem {
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
@@ -54,7 +56,7 @@ export default class WorkspaceFileSystem {
   protected async loadInitialFiles() {
     const connection = await Workspace.lsp.getConnection();
     const projectId =
-      Workspace.window.state.project.id || Workspace.LOCAL_PROJECT_ID;
+      WorkspaceCache.get().project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
     const directoryUri = this.getDirectoryUri(projectId);
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
@@ -173,7 +175,7 @@ export default class WorkspaceFileSystem {
     const file = files[uri];
     const name = file?.text || "";
     if (!name) {
-      return Workspace.DEFAULT_PROJECT_NAME;
+      return WorkspaceConstants.DEFAULT_PROJECT_NAME;
     }
     return name;
   }

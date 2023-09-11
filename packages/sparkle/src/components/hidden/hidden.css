@@ -22,10 +22,10 @@
   transition-duration: 0 !important;
 }
 
-:host > .root[state="hiding"] {
+:host > .root[status="hiding"] {
   opacity: 0;
 }
-:host > .root[state="hiding"]::after {
+:host > .root[status="hiding"]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -34,15 +34,15 @@
 }
 
 :host([initial="hide"]) > .root:not([loaded]),
-:host > .root[state="hidden"] {
+:host > .root[status="hidden"] {
   display: none;
 }
 
-:host > .root[loaded][state="mounting"] {
+:host > .root[loaded][status="mounting"] {
   display: flex;
   opacity: 0;
 }
 
-:host > .root[loaded]:is([state="showing"], [state="shown"]) {
+:host > .root[loaded]:is([status="showing"], [status="shown"]) {
   opacity: 1;
 }

@@ -6,10 +6,9 @@ import esbuildPluginPino from "esbuild-plugin-pino";
 import fs from "fs";
 import path from "path";
 import glob from "tiny-glob";
+import { ComponentSpec } from "./src/build/ComponentSpec";
+import getScopedCSS from "./src/build/getScopedCSS";
 import renderPage from "./src/build/renderPage";
-import scopeCss from "./src/build/scopeCss";
-
-type Component = () => { css?: string; html?: string | undefined };
 
 const RESET = "\x1b[0m";
 const STRING = "%s";
@@ -210,7 +209,8 @@ const expandPageComponents = async () => {
     let globalCSS = await fs.promises
       .readFile(globalCssInPath, "utf-8")
       .catch(() => "");
-    const components: Record<string, Component> = {};
+    const components: Record<string, ComponentSpec> = {};
+    const componentCSS = new Set<string>();
     await Promise.all(
       componentBundlePaths.map(async (bundlePath) => {
         const fileName = path.parse(bundlePath).name;
@@ -220,21 +220,28 @@ const expandPageComponents = async () => {
           const componentBundle = (
             await import(`./${bundlePath.replaceAll("\\", "/")}`)
           ).default;
-          Object.entries(componentBundle).forEach(([tagName, component]) => {
-            if (typeof component === "function") {
-              const { html, css } = component();
-              if (html) {
-                components[tagName] = component as Component;
+          if (Array.isArray(componentBundle)) {
+            componentBundle.forEach((spec: ComponentSpec) => {
+              if (spec.tag) {
+                components[spec.tag] = spec;
               }
-              if (css) {
-                const scope = html ? tagName : undefined;
-                globalCSS += scopeCss(css, scope) + "\n\n";
+              if (spec.css) {
+                const cssArray =
+                  typeof spec.css === "string" ? [spec.css] : spec.css;
+                cssArray.forEach((css) => {
+                  const scopedCSS =
+                    spec.html && spec.tag ? getScopedCSS(css, spec.tag) : css;
+                  componentCSS.add(scopedCSS);
+                });
               }
-            }
-          });
+            });
+          }
         }
       })
     );
+    componentCSS.forEach((css) => {
+      globalCSS += css + "\n\n";
+    });
     globalCSS += "html{opacity:1;}";
     await fs.promises.mkdir(publicOutDir, { recursive: true });
     await fs.promises.writeFile(globalCssOutPath, globalCSS, "utf-8");
@@ -257,8 +264,8 @@ const expandPageComponents = async () => {
           ? jsFilePath.replace(outdir, "")
           : "";
         let html = await fs.promises.readFile(src, "utf-8").catch(() => "");
-        const pageComponent = () => ({ html, cssPath, mjsPath });
-        html = renderPage(documentHtml, pageComponent, components);
+        const page = { html, cssPath, mjsPath };
+        html = renderPage(documentHtml, page, components);
         await fs.promises.mkdir(path.dirname(dest), { recursive: true });
         await fs.promises.writeFile(dest, html, "utf-8");
       })

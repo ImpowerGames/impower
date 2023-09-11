@@ -1,8 +1,8 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
@@ -16,7 +16,7 @@ import { navPrevKey } from "../../utils/navPrevKey";
 import { navStartKey } from "../../utils/navStartKey";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import type Tab from "../tab/tab";
-import component from "./_tabs";
+import spec from "./_tabs";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
@@ -46,11 +46,23 @@ export default class Tabs
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-tabs";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -58,34 +70,14 @@ export default class Tabs
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return Tabs.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Tabs.augmentCss(css, DEFAULT_DEPENDENCIES);
-  }
-
   /**
    * Key that is included in all emitted events.
    */
   get key(): string | null {
-    return this.getStringAttribute(Tabs.attributes.key);
+    return this.getStringAttribute(Tabs.attrs.key);
   }
   set key(value) {
-    this.setStringAttribute(Tabs.attributes.key, value);
+    this.setStringAttribute(Tabs.attrs.key, value);
   }
 
   /**
@@ -94,40 +86,40 @@ export default class Tabs
    * Defaults to "after".
    */
   get indicator(): "" | "before" | "after" | "none" | null {
-    return this.getStringAttribute(Tabs.attributes.indicator);
+    return this.getStringAttribute(Tabs.attrs.indicator);
   }
   set indicator(value) {
-    this.setStringAttribute(Tabs.attributes.indicator, value);
+    this.setStringAttribute(Tabs.attrs.indicator, value);
   }
 
   /**
    * Orients the tabs vertically.
    */
   get vertical(): boolean {
-    return this.getBooleanAttribute(Tabs.attributes.vertical);
+    return this.getBooleanAttribute(Tabs.attrs.vertical);
   }
   set vertical(value) {
-    this.setStringAttribute(Tabs.attributes.vertical, value);
+    this.setStringAttribute(Tabs.attrs.vertical, value);
   }
 
   /**
    * The value of the active tab.
    */
   get active(): string | null {
-    return this.getStringAttribute(Tabs.attributes.active);
+    return this.getStringAttribute(Tabs.attrs.active);
   }
   set active(value) {
-    this.setStringAttribute(Tabs.attributes.active, value);
+    this.setStringAttribute(Tabs.attrs.active, value);
   }
 
   /**
    * The width of the indicator.
    */
   get indicatorWidth(): SizeName | string | null {
-    return this.getStringAttribute(Tabs.attributes.indicatorWidth);
+    return this.getStringAttribute(Tabs.attrs.indicatorWidth);
   }
   set indicatorWidth(value) {
-    this.setStringAttribute(Tabs.attributes.indicatorWidth, value);
+    this.setStringAttribute(Tabs.attrs.indicatorWidth, value);
   }
 
   protected _tabs: Tab[] = [];
@@ -145,29 +137,25 @@ export default class Tabs
 
   protected _activatingValue: string | null = null;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Tabs.attributes.indicator) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Tabs.attrs.indicator) {
       this.updateTabs(false);
       const indicatorEl = this.indicatorEl;
       if (indicatorEl && newValue === "none") {
         indicatorEl.hidden = true;
       }
     }
-    if (name === Tabs.attributes.vertical) {
+    if (name === Tabs.attrs.vertical) {
       const vertical = newValue != null;
       this.updateRootAttribute(
-        Tabs.attributes.ariaOrientation,
+        Tabs.attrs.ariaOrientation,
         vertical ? "vertical" : "horizontal"
       );
       this.updateTabs(false);
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this._activatingValue = this.active;
     const indicator = this.indicator;
     const indicatorEl = this.indicatorEl;
@@ -176,16 +164,16 @@ export default class Tabs
     }
     const vertical = this.vertical;
     this.updateRootAttribute(
-      Tabs.attributes.ariaOrientation,
+      Tabs.attrs.ariaOrientation,
       vertical ? "vertical" : "horizontal"
     );
   }
 
-  protected override onParsed(): void {
+  override onParsed(): void {
     this.setupTabs(getSlotChildren(this, this.contentSlot));
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.unbindTabs();
   }
 
@@ -259,9 +247,9 @@ export default class Tabs
       return;
     }
 
-    tab.state = "activating";
+    tab.status = "activating";
     if (oldTab) {
-      oldTab.state = "deactivating";
+      oldTab.status = "deactivating";
     }
 
     const size = vertical ? tabEl.offsetHeight : tabEl.offsetWidth;
@@ -294,9 +282,9 @@ export default class Tabs
 
     indicator.hidden = true;
 
-    tab.state = null;
+    tab.status = null;
     if (oldTab) {
-      oldTab.state = null;
+      oldTab.status = null;
     }
   }
 

@@ -3,9 +3,9 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type ConfigurationMethod = typeof ConfigurationMessage.method;
 
-export namespace ConfigurationMessage {
-  export const method = "workspace/configuration";
-  export const type = new MessageProtocolRequestType<
+export class ConfigurationMessage {
+  static readonly method = "workspace/configuration";
+  static readonly type = new MessageProtocolRequestType<
     ConfigurationMethod,
     ConfigurationParams,
     LSPAny[]

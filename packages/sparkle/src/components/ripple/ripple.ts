@@ -7,7 +7,7 @@
 
 import SparkleElement from "../../core/sparkle-element";
 import { getDimensions } from "../../utils/getDimensions";
-import component from "./_ripple";
+import spec from "./_ripple";
 
 const PRESS_GROW_MS = 450;
 const MINIMUM_PRESS_MS = 225;
@@ -19,7 +19,7 @@ const PRESS_PSEUDO = "::after";
 const PRESS_EASE = "cubic-bezier(0.2, 0, 0, 1)";
 const ANIMATION_FILL = "forwards";
 
-type State = "touch_delay" | "pressing" | "keyboard_press";
+type RippleState = "touch_delay" | "pressing" | "keyboard_press";
 
 /**
  * Delay reacting to touch so that we do not show the ripple for a swipe or
@@ -36,22 +36,16 @@ const UNPRESSED_EVENT = "unpressed";
  * A ripple component.
  */
 export default class Ripple extends SparkleElement {
-  static override tagName = "s-ripple";
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+  static override get tag() {
+    return spec.tag;
   }
 
-  override get component() {
-    return component();
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
   }
 
-  override transformCss(css: string) {
-    return Ripple.augmentCss(css);
+  override get css() {
+    return this.getCSS(spec);
   }
 
   private _hovered = false;
@@ -85,19 +79,15 @@ export default class Ripple extends SparkleElement {
   private rippleScale = "";
   private initialSize = 0;
   private growAnimation?: Animation;
-  private state: State | null = null;
+  private rippleState: RippleState | null = null;
   private pointerInitiated = false;
   private startPointX = 0;
   private startPointY = 0;
   private endPointX = 0;
   private endPointY = 0;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === SparkleElement.attributes.hidden) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === SparkleElement.attrs.hidden) {
       if (newValue != null) {
         this.pressed = false;
       }
@@ -111,7 +101,7 @@ export default class Ripple extends SparkleElement {
 
     this.updateAnimationPosition(event);
 
-    this.state = "pressing";
+    this.rippleState = "pressing";
     this.pointerInitiated = true;
     this.startPressAnimation();
   };
@@ -125,16 +115,16 @@ export default class Ripple extends SparkleElement {
 
     // Wait to determine if this is a press or a drag.
     // If still touching this element after the delay, this is a press.
-    this.state = "touch_delay";
+    this.rippleState = "touch_delay";
 
     await new Promise((resolve) => {
       setTimeout(resolve, TOUCH_DELAY_MS);
     });
-    if (this.state !== "touch_delay") {
+    if (this.rippleState !== "touch_delay") {
       return;
     }
 
-    this.state = "pressing";
+    this.rippleState = "pressing";
     this.pointerInitiated = true;
     this.startPressAnimation();
   };
@@ -149,10 +139,10 @@ export default class Ripple extends SparkleElement {
         this.endPressAnimation();
       } else {
         // keyboard synthesized click event
-        this.state = "keyboard_press";
+        this.rippleState = "keyboard_press";
         this.updateAnimationPosition();
         await this.startPressAnimation();
-        if (this.state !== "keyboard_press") {
+        if (this.rippleState !== "keyboard_press") {
           return;
         }
         this.endPressAnimation();
@@ -286,7 +276,7 @@ export default class Ripple extends SparkleElement {
       (animation?.currentTime as number) ?? Infinity;
     if (pressAnimationPlayState >= MINIMUM_PRESS_MS) {
       this.pressed = false;
-      this.state = null;
+      this.rippleState = null;
       return;
     }
 
@@ -301,7 +291,7 @@ export default class Ripple extends SparkleElement {
     }
 
     this.pressed = false;
-    this.state = null;
+    this.rippleState = null;
   }
 }
 

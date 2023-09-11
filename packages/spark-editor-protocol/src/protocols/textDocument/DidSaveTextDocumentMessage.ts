@@ -4,9 +4,9 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type DidSaveTextDocumentMethod =
   typeof DidSaveTextDocumentMessage.method;
 
-export namespace DidSaveTextDocumentMessage {
-  export const method = "textDocument/didSave";
-  export const type = new MessageProtocolNotificationType<
+export class DidSaveTextDocumentMessage {
+  static readonly method = "textDocument/didSave";
+  static readonly type = new MessageProtocolNotificationType<
     DidSaveTextDocumentMethod,
     DidSaveTextDocumentParams
   >(DidSaveTextDocumentMessage.method);

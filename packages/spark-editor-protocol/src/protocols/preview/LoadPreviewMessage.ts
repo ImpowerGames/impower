@@ -10,9 +10,9 @@ export interface LoadPreviewParams {
   selectedRange?: Range;
 }
 
-export namespace LoadPreviewMessage {
-  export const method = "preview/load";
-  export const type = new MessageProtocolRequestType<
+export class LoadPreviewMessage {
+  static readonly method = "preview/load";
+  static readonly type = new MessageProtocolRequestType<
     LoadPreviewMethod,
     LoadPreviewParams,
     null

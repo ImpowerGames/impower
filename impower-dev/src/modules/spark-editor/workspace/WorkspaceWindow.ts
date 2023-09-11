@@ -14,118 +14,30 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
-import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
 import {
+  PaneType,
+  PanelType,
   Range,
-  WorkspaceState,
+  WorkspaceStore,
 } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
-import { ReadOnly } from "./types/ReadOnly";
+import { WorkspaceCache } from "./WorkspaceCache";
+import { WorkspaceConstants } from "./WorkspaceConstants";
 import { Storage } from "./types/StorageTypes";
 
-const CURRENT_PROJECT_ID_LOOKUP = "project";
-
 export default class WorkspaceWindow {
-  protected _state: WorkspaceState;
-  get state(): ReadOnly<WorkspaceState> {
-    return this._state;
-  }
-
   protected _loadProjectRef = new SingletonPromise(
     this._loadProject.bind(this)
   );
 
   constructor() {
-    const cachedProjectId = localStorage.getItem(CURRENT_PROJECT_ID_LOOKUP);
-    const id = cachedProjectId || Workspace.LOCAL_PROJECT_ID;
-    this._state = {
-      project: { id },
-      pane: "setup",
-      panes: {
-        setup: {
-          panel: "details",
-          panels: {
-            details: {
-              activeEditor: {},
-            },
-            share: {},
-            assets: {
-              activeEditor: {},
-            },
-          },
-        },
-        audio: {
-          view: "list",
-          panel: "sounds",
-          panels: {
-            sounds: {
-              scrollIndex: 0,
-              activeEditor: {},
-            },
-            music: {
-              scrollIndex: 0,
-              activeEditor: {},
-            },
-          },
-        },
-        displays: {
-          view: "list",
-          panel: "widgets",
-          panels: {
-            widgets: {
-              scrollIndex: 0,
-              activeEditor: {},
-            },
-            views: {
-              scrollIndex: 0,
-              activeEditor: {},
-            },
-          },
-        },
-        graphics: {
-          view: "list",
-          panel: "sprites",
-          panels: {
-            sprites: {
-              scrollIndex: 0,
-              activeEditor: {},
-            },
-            maps: {
-              scrollIndex: 0,
-              activeEditor: {},
-            },
-          },
-        },
-        logic: {
-          view: "list",
-          panel: "main",
-          panels: {
-            main: {
-              scrollIndex: 0,
-              activeEditor: {
-                open: true,
-                filename: "main.script",
-              },
-            },
-            scripts: {
-              scrollIndex: 0,
-              activeEditor: {},
-            },
-          },
-        },
-        preview: {
-          panel: "game",
-          panels: {
-            page: {},
-            game: {},
-            screenplay: {},
-            file: {},
-          },
-        },
-      },
-    };
+    const cachedProjectId = localStorage.getItem(
+      WorkspaceConstants.CURRENT_PROJECT_ID_LOOKUP
+    );
+    const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
+    this.cacheProjectId(id);
     window.addEventListener(
       ScrolledEditorMessage.method,
       this.handleScrolledEditor
@@ -137,8 +49,11 @@ export default class WorkspaceWindow {
   }
 
   protected cacheProjectId(id: string) {
-    this._state.project.id = id;
-    localStorage.setItem(CURRENT_PROJECT_ID_LOOKUP, id);
+    this.update({
+      ...WorkspaceCache.get(),
+      project: { ...WorkspaceCache.get().project, id },
+    });
+    localStorage.setItem(WorkspaceConstants.CURRENT_PROJECT_ID_LOOKUP, id);
   }
 
   protected emit<T>(eventName: string, detail?: T): boolean {
@@ -152,6 +67,11 @@ export default class WorkspaceWindow {
     );
   }
 
+  protected update(store: WorkspaceStore) {
+    WorkspaceCache.set(store);
+    return this.emit("update", store);
+  }
+
   protected handleScrolledEditor = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
@@ -162,11 +82,26 @@ export default class WorkspaceWindow {
         const pane = this.getPaneType(filename);
         const panel = this.getPanelType(filename);
         if (pane && panel) {
-          const panelState = this.getPanelState(pane, panel);
-          panelState.activeEditor ??= {};
-          panelState.activeEditor.visibleRange = JSON.parse(
-            JSON.stringify(visibleRange)
-          );
+          this.update({
+            ...WorkspaceCache.get(),
+            panes: {
+              ...WorkspaceCache.get().panes,
+              [pane]: {
+                ...WorkspaceCache.get().panes[pane],
+                panels: {
+                  ...WorkspaceCache.get().panes[pane].panels,
+                  [panel]: {
+                    ...WorkspaceCache.get().panes[pane].panels[panel],
+                    activeEditor: {
+                      ...WorkspaceCache.get().panes[pane].panels[panel]!
+                        .activeEditor,
+                      visibleRange,
+                    },
+                  },
+                },
+              },
+            },
+          });
         }
       }
     }
@@ -182,25 +117,40 @@ export default class WorkspaceWindow {
         const pane = this.getPaneType(filename);
         const panel = this.getPanelType(filename);
         if (pane && panel) {
-          const panelState = this.getPanelState(pane, panel);
-          panelState.activeEditor ??= {};
-          panelState.activeEditor.selectedRange = JSON.parse(
-            JSON.stringify(selectedRange)
-          );
+          this.update({
+            ...WorkspaceCache.get(),
+            panes: {
+              ...WorkspaceCache.get().panes,
+              [pane]: {
+                ...WorkspaceCache.get().panes[pane],
+                panels: {
+                  ...WorkspaceCache.get().panes[pane].panels,
+                  [panel]: {
+                    ...WorkspaceCache.get().panes[pane].panels[panel],
+                    activeEditor: {
+                      ...WorkspaceCache.get().panes[pane].panels[panel]!
+                        .activeEditor,
+                      selectedRange,
+                    },
+                  },
+                },
+              },
+            },
+          });
         }
       }
     }
   };
 
-  getPaneState(pane: string) {
-    const paneState = this._state.panes[pane];
+  getPaneState(pane: PaneType) {
+    const paneState = WorkspaceCache.get().panes[pane];
     if (!paneState) {
       throw new Error(`Pane type not recognized: ${pane}`);
     }
     return paneState;
   }
 
-  getPanelState(pane: string, panel: string) {
+  getPanelState(pane: PaneType, panel: PanelType) {
     const paneState = this.getPaneState(pane);
     const panelState = paneState.panels[panel];
     if (!panelState) {
@@ -209,12 +159,12 @@ export default class WorkspaceWindow {
     return panelState;
   }
 
-  getOpenedPanel(pane: string) {
+  getOpenedPanel(pane: PaneType) {
     const paneState = this.getPaneState(pane);
     return paneState.panel;
   }
 
-  getOpenedPanelState(pane: string) {
+  getOpenedPanelState(pane: PaneType) {
     const panel = this.getOpenedPanel(pane);
     const panelState = this.getPanelState(pane, panel);
     return panelState;
@@ -281,7 +231,7 @@ export default class WorkspaceWindow {
       }
     | undefined
   > {
-    const projectId = this._state.project.id;
+    const projectId = WorkspaceCache.get().project.id;
     if (projectId) {
       const pane = this.getPaneType(filename);
       const panel = this.getPanelType(filename);
@@ -307,8 +257,8 @@ export default class WorkspaceWindow {
   }
 
   async getOpenEditor(
-    pane: string,
-    panel?: string
+    pane: PaneType,
+    panel?: PanelType
   ): Promise<
     | {
         uri: string;
@@ -324,7 +274,7 @@ export default class WorkspaceWindow {
       }
     | undefined
   > {
-    const projectId = this._state.project.id;
+    const projectId = WorkspaceCache.get().project.id;
     if (projectId) {
       const paneState = this.getPaneState(pane);
       const openEditor = panel
@@ -347,44 +297,45 @@ export default class WorkspaceWindow {
     return undefined;
   }
 
-  expandedPreviewPane() {
-    this._state.panes.preview.revealed = true;
-    this.emit(
-      DidExpandPreviewPaneMessage.method,
-      DidExpandPreviewPaneMessage.type.notification({})
-    );
-  }
-
-  collapsedPreviewPane() {
-    this._state.panes.preview.revealed = false;
-    this.emit(
-      DidCollapsePreviewPaneMessage.method,
-      DidCollapsePreviewPaneMessage.type.notification({})
-    );
-  }
-
-  openedPane(pane: string) {
-    this.getPaneState(pane);
-    this._state.pane = pane;
+  openedPane(pane: PaneType) {
+    this.update({
+      ...WorkspaceCache.get(),
+      pane,
+    });
     this.emit(
       DidOpenPaneMessage.method,
       DidOpenPaneMessage.type.notification({ pane })
     );
   }
 
-  openedPanel(pane: string, panel: string) {
-    const paneState = this.getPaneState(pane);
-    this.getPanelState(pane, panel);
-    paneState.panel = panel;
+  openedPanel(pane: PaneType, panel: PanelType) {
+    this.update({
+      ...WorkspaceCache.get(),
+      panes: {
+        ...WorkspaceCache.get().panes,
+        [pane]: {
+          ...WorkspaceCache.get().panes[pane],
+          panel,
+        },
+      },
+    });
     this.emit(
       DidOpenPanelMessage.method,
       DidOpenPanelMessage.type.notification({ pane, panel })
     );
   }
 
-  openedView(pane: string, view: string) {
-    const paneState = this.getPaneState(pane);
-    paneState.view = view;
+  openedView(pane: PaneType, view: string) {
+    this.update({
+      ...WorkspaceCache.get(),
+      panes: {
+        ...WorkspaceCache.get().panes,
+        [pane]: {
+          ...WorkspaceCache.get().panes[pane],
+          view,
+        },
+      },
+    });
     this.emit(
       DidOpenViewMessage.method,
       DidOpenViewMessage.type.notification({ pane, view })
@@ -395,17 +346,41 @@ export default class WorkspaceWindow {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
-      const panelState = this.getPanelState(pane, panel);
-      panelState.activeEditor ??= {};
-      panelState.activeEditor.open = true;
-      if (panelState.activeEditor.filename !== filename) {
-        panelState.activeEditor.filename = filename;
-        panelState.activeEditor.visibleRange = {
-          start: { line: 0, character: 0 },
-          end: { line: 0, character: 0 },
-        };
-        panelState.activeEditor.selectedRange = undefined;
-      }
+      const activeEditor =
+        WorkspaceCache.get().panes[pane].panels[panel]?.activeEditor;
+      const didFileChange = activeEditor && activeEditor.filename !== filename;
+      const visibleRange = didFileChange
+        ? {
+            start: { line: 0, character: 0 },
+            end: { line: 0, character: 0 },
+          }
+        : activeEditor?.visibleRange;
+      const selectedRange = didFileChange
+        ? undefined
+        : activeEditor?.selectedRange;
+      this.update({
+        ...WorkspaceCache.get(),
+        panes: {
+          ...WorkspaceCache.get().panes,
+          [pane]: {
+            ...WorkspaceCache.get().panes[pane],
+            panels: {
+              ...WorkspaceCache.get().panes[pane].panels,
+              [panel]: {
+                ...WorkspaceCache.get().panes[pane].panels[panel],
+                activeEditor: {
+                  ...WorkspaceCache.get().panes[pane].panels[panel]!
+                    .activeEditor,
+                  open: true,
+                  filename,
+                  visibleRange,
+                  selectedRange,
+                },
+              },
+            },
+          },
+        },
+      });
       this.emit(
         DidOpenFileEditorMessage.method,
         DidOpenFileEditorMessage.type.notification({ pane, panel, filename })
@@ -417,10 +392,26 @@ export default class WorkspaceWindow {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
-      const panelState = this.getPanelState(pane, panel);
-      if (panelState.activeEditor) {
-        panelState.activeEditor.open = false;
-      }
+      this.update({
+        ...WorkspaceCache.get(),
+        panes: {
+          ...WorkspaceCache.get().panes,
+          [pane]: {
+            ...WorkspaceCache.get().panes[pane],
+            panels: {
+              ...WorkspaceCache.get().panes[pane].panels,
+              [panel]: {
+                ...WorkspaceCache.get().panes[pane].panels[panel],
+                activeEditor: {
+                  ...WorkspaceCache.get().panes[pane].panels[panel]!
+                    .activeEditor,
+                  open: false,
+                },
+              },
+            },
+          },
+        },
+      });
       this.emit(
         DidCloseFileEditorMessage.method,
         DidCloseFileEditorMessage.type.notification({ pane, panel })
@@ -428,32 +419,108 @@ export default class WorkspaceWindow {
     }
   }
 
+  expandedPreviewPane() {
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        revealed: true,
+      },
+    });
+    this.emit(
+      DidExpandPreviewPaneMessage.method,
+      DidExpandPreviewPaneMessage.type.notification({})
+    );
+  }
+
+  collapsedPreviewPane() {
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        revealed: false,
+      },
+    });
+    this.emit(
+      DidCollapsePreviewPaneMessage.method,
+      DidCollapsePreviewPaneMessage.type.notification({})
+    );
+  }
+
   startGame() {
-    this._state.panes.preview.panels.game.running = true;
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        modes: {
+          ...WorkspaceCache.get().preview.modes,
+          game: {
+            ...WorkspaceCache.get().preview.modes.game,
+            running: true,
+          },
+        },
+      },
+    });
     this.emit(StartGameMessage.method, StartGameMessage.type.request({}));
-    if (this._state.panes.preview.panels.game.paused) {
+    if (WorkspaceCache.get().preview.modes.game.paused) {
       this.unpauseGame();
     }
   }
 
   stopGame() {
-    this._state.panes.preview.panels.game.running = false;
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        modes: {
+          ...WorkspaceCache.get().preview.modes,
+          game: {
+            ...WorkspaceCache.get().preview.modes.game,
+            running: false,
+          },
+        },
+      },
+    });
     this.emit(StopGameMessage.method, StopGameMessage.type.request({}));
   }
 
   pauseGame() {
-    this._state.panes.preview.panels.game.paused = true;
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        modes: {
+          ...WorkspaceCache.get().preview.modes,
+          game: {
+            ...WorkspaceCache.get().preview.modes.game,
+            paused: true,
+          },
+        },
+      },
+    });
     this.emit(PauseGameMessage.method, PauseGameMessage.type.request({}));
   }
 
   unpauseGame() {
-    this._state.panes.preview.panels.game.paused = false;
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        modes: {
+          ...WorkspaceCache.get().preview.modes,
+          game: {
+            ...WorkspaceCache.get().preview.modes.game,
+            paused: false,
+          },
+        },
+      },
+    });
     this.emit(UnpauseGameMessage.method, UnpauseGameMessage.type.request({}));
   }
 
   stepGame(deltaMS: number) {
     if (deltaMS < 0) {
-      const paused = this._state.panes.preview.panels.game.paused;
+      const paused = WorkspaceCache.get().preview.modes.game.paused;
       if (!paused) {
         this.pauseGame();
       }
@@ -465,7 +532,7 @@ export default class WorkspaceWindow {
   }
 
   toggleGameRunning() {
-    if (this._state.panes.preview.panels.game.running) {
+    if (WorkspaceCache.get().preview.modes.game.running) {
       this.stopGame();
     } else {
       this.startGame();
@@ -473,7 +540,7 @@ export default class WorkspaceWindow {
   }
 
   toggleGamePaused() {
-    if (this._state.panes.preview.panels.game.paused) {
+    if (WorkspaceCache.get().preview.modes.game.paused) {
       this.unpauseGame();
     } else {
       this.pauseGame();
@@ -481,7 +548,19 @@ export default class WorkspaceWindow {
   }
 
   enableDebugging() {
-    this._state.panes.preview.panels.game.debugging = true;
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        modes: {
+          ...WorkspaceCache.get().preview.modes,
+          game: {
+            ...WorkspaceCache.get().preview.modes.game,
+            debugging: true,
+          },
+        },
+      },
+    });
     this.emit(
       EnableGameDebugMessage.method,
       EnableGameDebugMessage.type.request({})
@@ -489,7 +568,19 @@ export default class WorkspaceWindow {
   }
 
   disableDebugging() {
-    this._state.panes.preview.panels.game.debugging = false;
+    this.update({
+      ...WorkspaceCache.get(),
+      preview: {
+        ...WorkspaceCache.get().preview,
+        modes: {
+          ...WorkspaceCache.get().preview.modes,
+          game: {
+            ...WorkspaceCache.get().preview.modes.game,
+            debugging: false,
+          },
+        },
+      },
+    });
     this.emit(
       DisableGameDebugMessage.method,
       DisableGameDebugMessage.type.request({})
@@ -497,19 +588,18 @@ export default class WorkspaceWindow {
   }
 
   unloadProject() {
-    const id = Workspace.LOCAL_PROJECT_ID;
-    this._state.project.id = id;
-    this._state.project.name = undefined;
-    this._state.project.syncState = "loading";
-    this._state.project.canModifyRemote = false;
-    this._state.project.editingName = false;
-    this.emit(
-      DidChangeProjectStateMessage.method,
-      DidChangeProjectStateMessage.type.notification({
-        changed: ["id", "name", "syncState", "canModifyRemote", "editingName"],
-        state: this._state.project,
-      })
-    );
+    const id = WorkspaceConstants.LOCAL_PROJECT_ID;
+    this.update({
+      ...WorkspaceCache.get(),
+      project: {
+        ...WorkspaceCache.get().project,
+        id,
+        name: undefined,
+        syncState: "loading",
+        canModifyRemote: false,
+        editingName: false,
+      },
+    });
   }
 
   loadNewProject(id: string) {
@@ -523,27 +613,21 @@ export default class WorkspaceWindow {
 
   protected async _loadProject() {
     try {
-      const id = this._state.project.id || Workspace.LOCAL_PROJECT_ID;
-      if (id === Workspace.LOCAL_PROJECT_ID) {
+      const id =
+        WorkspaceCache.get().project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
+      if (id === WorkspaceConstants.LOCAL_PROJECT_ID) {
         const name = await Workspace.fs.readProjectName(id);
-        this._state.project.id = id;
-        this._state.project.editingName = false;
-        this._state.project.name = name;
-        this._state.project.canModifyRemote = false;
-        this._state.project.syncState = "cached";
-        this.emit(
-          DidChangeProjectStateMessage.method,
-          DidChangeProjectStateMessage.type.notification({
-            changed: [
-              "id",
-              "name",
-              "canModifyRemote",
-              "syncState",
-              "editingName",
-            ],
-            state: this._state.project,
-          })
-        );
+        this.update({
+          ...WorkspaceCache.get(),
+          project: {
+            ...WorkspaceCache.get().project,
+            id,
+            name,
+            syncState: "cached",
+            canModifyRemote: false,
+            editingName: false,
+          },
+        });
       } else {
         await this.syncProject(false);
       }
@@ -551,30 +635,28 @@ export default class WorkspaceWindow {
       return id;
     } catch (err) {
       console.warn(err);
-      this._state.project.syncState = "load_error";
-      this.emit(
-        DidChangeProjectStateMessage.method,
-        DidChangeProjectStateMessage.type.notification({
-          changed: ["syncState"],
-          state: this._state.project,
-        })
-      );
+      this.update({
+        ...WorkspaceCache.get(),
+        project: {
+          ...WorkspaceCache.get().project,
+          syncState: "load_error",
+        },
+      });
     }
     return undefined;
   }
 
   async syncProject(pushLocalChanges = true) {
     try {
-      const id = this._state.project.id;
+      const id = WorkspaceCache.get().project.id;
       if (id) {
-        this._state.project.syncState = "syncing";
-        this.emit(
-          DidChangeProjectStateMessage.method,
-          DidChangeProjectStateMessage.type.notification({
-            changed: ["syncState"],
-            state: this._state.project,
-          })
-        );
+        this.update({
+          ...WorkspaceCache.get(),
+          project: {
+            ...WorkspaceCache.get().project,
+            syncState: "syncing",
+          },
+        });
         const files = await Workspace.fs.getFiles();
         // TODO: Bundle scripts before saving
         const filename = "main.script";
@@ -605,16 +687,15 @@ export default class WorkspaceWindow {
             if (canModifyRemote && pushLocalChanges) {
               await this.pushLocalChanges(localProjectFile);
             } else {
-              this._state.project.name = localProjectName;
-              this._state.project.canModifyRemote = canModifyRemote;
-              this._state.project.syncState = "unsaved";
-              this.emit(
-                DidChangeProjectStateMessage.method,
-                DidChangeProjectStateMessage.type.notification({
-                  changed: ["name", "canModifyRemote", "syncState"],
-                  state: this._state.project,
-                })
-              );
+              this.update({
+                ...WorkspaceCache.get(),
+                project: {
+                  ...WorkspaceCache.get().project,
+                  name: localProjectName,
+                  canModifyRemote,
+                  syncState: "unsaved",
+                },
+              });
             }
           } else if (remoteChanged && !localChanged) {
             await this.pullRemoteChanges(remoteProjectFile);
@@ -627,34 +708,31 @@ export default class WorkspaceWindow {
             await this.setupProject(localProjectFile, remoteProjectFile);
           }
         } else {
-          this._state.project.syncState = "sync_error";
-          this.emit(
-            DidChangeProjectStateMessage.method,
-            DidChangeProjectStateMessage.type.notification({
-              changed: ["syncState"],
-              state: this._state.project,
-            })
-          );
+          this.update({
+            ...WorkspaceCache.get(),
+            project: {
+              ...WorkspaceCache.get().project,
+              syncState: "sync_error",
+            },
+          });
         }
-        this._state.project.syncedAt = new Date().toISOString();
-        this.emit(
-          DidChangeProjectStateMessage.method,
-          DidChangeProjectStateMessage.type.notification({
-            changed: ["syncedAt"],
-            state: this._state.project,
-          })
-        );
+        this.update({
+          ...WorkspaceCache.get(),
+          project: {
+            ...WorkspaceCache.get().project,
+            syncedAt: new Date().toISOString(),
+          },
+        });
       }
     } catch (err: any) {
       console.error(err);
-      this._state.project.syncState = "sync_error";
-      this.emit(
-        DidChangeProjectStateMessage.method,
-        DidChangeProjectStateMessage.type.notification({
-          changed: ["syncState"],
-          state: this._state.project,
-        })
-      );
+      this.update({
+        ...WorkspaceCache.get(),
+        project: {
+          ...WorkspaceCache.get().project,
+          syncState: "sync_error",
+        },
+      });
     }
   }
 
@@ -679,16 +757,15 @@ export default class WorkspaceWindow {
     const canModifyRemote = Boolean(
       remoteProjectFile.capabilities?.canModifyContent
     );
-    this._state.project.name = remoteName;
-    this._state.project.canModifyRemote = canModifyRemote;
-    this._state.project.syncState = canModifyRemote ? "saved" : "cached";
-    this.emit(
-      DidChangeProjectStateMessage.method,
-      DidChangeProjectStateMessage.type.notification({
-        changed: ["name", "canModifyRemote", "syncState"],
-        state: this._state.project,
-      })
-    );
+    this.update({
+      ...WorkspaceCache.get(),
+      project: {
+        ...WorkspaceCache.get().project,
+        name: remoteName,
+        canModifyRemote,
+        syncState: canModifyRemote ? "saved" : "cached",
+      },
+    });
     return remoteProjectFile;
   }
 
@@ -709,16 +786,15 @@ export default class WorkspaceWindow {
     const canModifyRemote = Boolean(
       remoteProjectFile.capabilities?.canModifyContent
     );
-    this._state.project.name = remoteProjectName;
-    this._state.project.canModifyRemote = canModifyRemote;
-    this._state.project.syncState = canModifyRemote ? "saved" : "cached";
-    this.emit(
-      DidChangeProjectStateMessage.method,
-      DidChangeProjectStateMessage.type.notification({
-        changed: ["name", "canModifyRemote", "syncState"],
-        state: this._state.project,
-      })
-    );
+    this.update({
+      ...WorkspaceCache.get(),
+      project: {
+        ...WorkspaceCache.get().project,
+        name: remoteProjectName,
+        canModifyRemote,
+        syncState: canModifyRemote ? "saved" : "cached",
+      },
+    });
   }
 
   async requireConflictResolution(
@@ -731,30 +807,26 @@ export default class WorkspaceWindow {
   ) {
     const localProjectName = localProjectFile.name!.split(".")[0]!;
     const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
-    this._state.project.name = localProjectName || remoteProjectName;
-    this._state.project.conflict ??= {};
-    this._state.project.conflict.local = {
-      name: localProjectName,
-      content: localProjectFile.text!,
-      modifiedTime: localProjectFile.modifiedTime!,
-    };
-    this._state.project.conflict.remote = {
-      name: remoteProjectName,
-      content: remoteProjectFile.text!,
-      modifiedTime: remoteProjectFile.modifiedTime!,
-    };
-    this._state.project.syncState = "sync_conflict";
-    console.log(
-      this._state.project.conflict.local,
-      this._state.project.conflict.remote
-    );
-    this.emit(
-      DidChangeProjectStateMessage.method,
-      DidChangeProjectStateMessage.type.notification({
-        changed: ["syncState"],
-        state: this._state.project,
-      })
-    );
+    this.update({
+      ...WorkspaceCache.get(),
+      project: {
+        ...WorkspaceCache.get().project,
+        name: localProjectName || remoteProjectName,
+        conflict: {
+          local: {
+            name: localProjectName,
+            content: localProjectFile.text!,
+            modifiedTime: localProjectFile.modifiedTime!,
+          },
+          remote: {
+            name: remoteProjectName,
+            content: remoteProjectFile.text!,
+            modifiedTime: remoteProjectFile.modifiedTime!,
+          },
+        },
+        syncState: "sync_conflict",
+      },
+    });
   }
 
   async setupProject(
@@ -781,30 +853,28 @@ export default class WorkspaceWindow {
         synced: true,
       });
     }
-    this._state.project.name = remoteProjectName;
-    this._state.project.canModifyRemote = canModifyRemote;
-    this._state.project.syncState = canModifyRemote ? "saved" : "cached";
-    this.emit(
-      DidChangeProjectStateMessage.method,
-      DidChangeProjectStateMessage.type.notification({
-        changed: ["name", "canModifyRemote", "syncState"],
-        state: this._state.project,
-      })
-    );
+    this.update({
+      ...WorkspaceCache.get(),
+      project: {
+        ...WorkspaceCache.get().project,
+        name: remoteProjectName,
+        canModifyRemote,
+        syncState: canModifyRemote ? "saved" : "cached",
+      },
+    });
   }
 
   async exportProject(folderId: string) {
     try {
-      const projectId = this._state.project.id;
+      const projectId = WorkspaceCache.get().project.id;
       if (projectId) {
-        this._state.project.syncState = "exporting";
-        this.emit(
-          DidChangeProjectStateMessage.method,
-          DidChangeProjectStateMessage.type.notification({
-            changed: ["syncState"],
-            state: this._state.project,
-          })
-        );
+        this.update({
+          ...WorkspaceCache.get(),
+          project: {
+            ...WorkspaceCache.get().project,
+            syncState: "exporting",
+          },
+        });
         const projectName = await Workspace.fs.readProjectName(projectId);
         const projectContent = await Workspace.fs.readProjectContent(projectId);
         const projectFilename = `${projectName}.project`;
@@ -825,81 +895,75 @@ export default class WorkspaceWindow {
           });
           this.loadNewProject(remoteProjectFile.id);
         } else {
-          this._state.project.syncState = "cached";
-          this.emit(
-            DidChangeProjectStateMessage.method,
-            DidChangeProjectStateMessage.type.notification({
-              changed: ["syncState"],
-              state: this._state.project,
-            })
-          );
+          this.update({
+            ...WorkspaceCache.get(),
+            project: {
+              ...WorkspaceCache.get().project,
+              syncState: "cached",
+            },
+          });
         }
       }
     } catch (err: any) {
       console.error(err);
-      this._state.project.syncState = "export_error";
-      this.emit(
-        DidChangeProjectStateMessage.method,
-        DidChangeProjectStateMessage.type.notification({
-          changed: ["syncState"],
-          state: this._state.project,
-        })
-      );
+      this.update({
+        ...WorkspaceCache.get(),
+        project: {
+          ...WorkspaceCache.get().project,
+          syncState: "export_error",
+        },
+      });
     }
   }
 
   async updateModificationTime() {
-    const projectId = this._state.project.id;
-    const canModifyRemote = this._state.project.canModifyRemote;
+    const projectId = WorkspaceCache.get().project.id;
+    const canModifyRemote = WorkspaceCache.get().project.canModifyRemote;
     if (projectId) {
       const metadata = await Workspace.fs.readProjectMetadata(projectId);
       metadata.modifiedTime = new Date().toISOString();
       metadata.synced = false;
       await Workspace.fs.writeProjectMetadata(projectId, metadata);
-      this._state.project.syncState = canModifyRemote ? "unsaved" : "cached";
-      this.emit(
-        DidChangeProjectStateMessage.method,
-        DidChangeProjectStateMessage.type.notification({
-          changed: ["syncState"],
-          state: this._state.project,
-        })
-      );
+      this.update({
+        ...WorkspaceCache.get(),
+        project: {
+          ...WorkspaceCache.get().project,
+          syncState: canModifyRemote ? "unsaved" : "cached",
+        },
+      });
     }
   }
 
   startEditingProjectName() {
-    this._state.project.editingName = true;
-    this.emit(
-      DidChangeProjectStateMessage.method,
-      DidChangeProjectStateMessage.type.notification({
-        changed: ["editingName"],
-        state: this._state.project,
-      })
-    );
+    this.update({
+      ...WorkspaceCache.get(),
+      project: {
+        ...WorkspaceCache.get().project,
+        editingName: true,
+      },
+    });
   }
 
   async finishEditingProjectName(name: string) {
-    const id = this._state.project.id;
+    const id = WorkspaceCache.get().project.id;
     if (id) {
-      this._state.project.editingName = false;
-      this.emit(
-        DidChangeProjectStateMessage.method,
-        DidChangeProjectStateMessage.type.notification({
-          changed: ["editingName"],
-          state: this._state.project,
-        })
-      );
-      let changedName = name !== this._state.project.name;
+      this.update({
+        ...WorkspaceCache.get(),
+        project: {
+          ...WorkspaceCache.get().project,
+          editingName: false,
+        },
+      });
+      let changedName = name !== WorkspaceCache.get().project.name;
       if (changedName) {
         await Workspace.fs.writeProjectName(id, name);
-        this._state.project.name = name;
-        this.emit(
-          DidChangeProjectStateMessage.method,
-          DidChangeProjectStateMessage.type.notification({
-            changed: ["name"],
-            state: this._state.project,
-          })
-        );
+        this.update({
+          ...WorkspaceCache.get(),
+          project: {
+            ...WorkspaceCache.get().project,
+            name,
+          },
+        });
         await this.updateModificationTime();
       }
       return changedName;

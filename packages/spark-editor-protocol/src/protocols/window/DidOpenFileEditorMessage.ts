@@ -8,9 +8,9 @@ export interface DidOpenFileEditorParams {
   filename: string;
 }
 
-export namespace DidOpenFileEditorMessage {
-  export const method = "window/didOpenFileEditor";
-  export const type = new MessageProtocolNotificationType<
+export class DidOpenFileEditorMessage {
+  static readonly method = "window/didOpenFileEditor";
+  static readonly type = new MessageProtocolNotificationType<
     DidOpenFileEditorMethod,
     DidOpenFileEditorParams
   >(DidOpenFileEditorMessage.method);

@@ -1,10 +1,10 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import component from "./_transition";
+import spec from "./_transition";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-router"]);
 
@@ -20,20 +20,24 @@ export default class Transition
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-transition";
-
-  static override dependencies = DEFAULT_DEPENDENCIES;
-
-  static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
+  static override get tag() {
+    return spec.tag;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
+    return DEFAULT_ATTRIBUTES;
   }
 
   /**
@@ -42,32 +46,24 @@ export default class Transition
    * If not specified, the transition will occur for all router changes
    */
   get router(): string | null {
-    return this.getStringAttribute(Transition.attributes.router);
+    return this.getStringAttribute(Transition.attrs.router);
   }
   set router(value) {
-    this.setStringAttribute(Transition.attributes.router, value);
+    this.setStringAttribute(Transition.attrs.router, value);
   }
 
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Transition.augmentCss(css);
-  }
-
-  protected override onConnected(): void {
+  override onConnected(): void {
     window.addEventListener("exit", this.handleExit);
     window.addEventListener("enter", this.handleEnter);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.removeEventListener("exit", this.handleExit);
     window.removeEventListener("enter", this.handleEnter);
   }
 
-  updateState(state: "entering" | "exiting" | null): void {
-    this.updateRootAttribute("state", state);
+  updateStatus(status: "entering" | "exiting" | null): void {
+    this.updateRootAttribute("status", status);
   }
 
   protected handleExit = (e: Event): void => {
@@ -78,7 +74,7 @@ export default class Transition
           !routerKey ||
           (e.detail.key && (e.detail.key as string).startsWith(routerKey))
         ) {
-          this.updateState("exiting");
+          this.updateStatus("exiting");
         }
       }
     }
@@ -92,7 +88,7 @@ export default class Transition
           !routerKey ||
           (e.detail.key && (e.detail.key as string).startsWith(routerKey))
         ) {
-          this.updateState("entering");
+          this.updateStatus("entering");
         }
       }
     }

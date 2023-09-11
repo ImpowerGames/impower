@@ -8,9 +8,9 @@ export interface RevealPreviewRangeParams {
   range: Range;
 }
 
-export namespace RevealPreviewRangeMessage {
-  export const method = "preview/revealRange";
-  export const type = new MessageProtocolRequestType<
+export class RevealPreviewRangeMessage {
+  static readonly method = "preview/revealRange";
+  static readonly type = new MessageProtocolRequestType<
     RevealPreviewRangeMethod,
     RevealPreviewRangeParams,
     null

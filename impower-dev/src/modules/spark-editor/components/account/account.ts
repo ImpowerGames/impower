@@ -1,21 +1,11 @@
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import { AccountInfo } from "../../workspace/types/AccountInfo";
-import component from "./_account";
+import spec from "./_account";
 
-export default class Account extends SEElement {
-  static override async define(
-    tag = "se-account",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
+export default class Account extends Component(spec) {
   get authenticatedEl() {
     return this.getElementById("authenticated")!;
   }
@@ -60,7 +50,7 @@ export default class Account extends SEElement {
     return this.getElementById("export-project-button")!;
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.load();
     Workspace.sync.google.addEventListener("revoke", this.handleRevoke);
     this.signinButtonEl.addEventListener("click", this.handleSignIn);
@@ -75,7 +65,7 @@ export default class Account extends SEElement {
     );
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     Workspace.sync.google.removeEventListener("revoke", this.handleRevoke);
     this.signinButtonEl.removeEventListener("click", this.handleSignIn);
     this.signoutButtonEl.removeEventListener("click", this.handleSignOut);
@@ -120,7 +110,7 @@ export default class Account extends SEElement {
       const provider = Workspace.sync.google;
       Workspace.window.unloadProject();
       await provider.signOut();
-      const projectId = Workspace.LOCAL_PROJECT_ID;
+      const projectId = WorkspaceConstants.LOCAL_PROJECT_ID;
       Workspace.window.loadNewProject(projectId);
     } catch (err: any) {
       console.error(err);
@@ -148,7 +138,7 @@ export default class Account extends SEElement {
 
   handleExportProjectFile = async () => {
     try {
-      const projectId = Workspace.window.state.project.id;
+      const projectId = WorkspaceCache.get().project.id;
       if (projectId) {
         const syncProvider = Workspace.sync.google;
         const access = await syncProvider.getAccess();

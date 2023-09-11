@@ -14,10 +14,8 @@ import {
   TextDocumentIdentifier,
   TextDocumentItem,
 } from "../../../../../spark-editor-protocol/src/types";
-import SparkElement from "../../../../../spark-element/src/core/spark-element";
-import { Properties } from "../../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
-import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
+import { Component } from "../../../../../spec-component/src/component";
+import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import { getClientChanges } from "../../../cm-language-client";
 import { closestAncestor } from "../../../utils/closestAncestor.js";
 import { getScrollClientHeight } from "../../../utils/getScrollClientHeight.js";
@@ -25,46 +23,11 @@ import { getScrollTop } from "../../../utils/getScrollTop.js";
 import { getVisibleRange } from "../../../utils/getVisibleRange.js";
 import { scrollY } from "../../../utils/scrollY";
 import createEditorView from "../utils/createEditorView";
-import component from "./_sparkdown-screenplay-preview";
+import spec from "./_sparkdown-screenplay-preview";
 
 const CONTENT_PADDING_TOP = 68;
 
-const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["scroll-margin"]),
-};
-
-export default class SparkScreenplayPreview
-  extends SparkElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override async define(
-    tag = "sparkdown-screenplay-preview",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  override get component() {
-    return component();
-  }
-
-  get scrollMargin() {
-    return this.getStringAttribute(
-      SparkScreenplayPreview.attributes.scrollMargin
-    );
-  }
-  set scrollMargin(value) {
-    this.setStringAttribute(
-      SparkScreenplayPreview.attributes.scrollMargin,
-      value
-    );
-  }
-
+export default class SparkScreenplayPreview extends Component(spec) {
   protected _loadingRequest?: number | string;
 
   protected _initialized = false;
@@ -95,7 +58,7 @@ export default class SparkScreenplayPreview
     right: 0,
   };
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
     window.addEventListener(
       RevealPreviewRangeMessage.method,
@@ -127,7 +90,7 @@ export default class SparkScreenplayPreview
     );
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.removeEventListener(
       LoadPreviewMessage.method,
       this.handleLoadPreview

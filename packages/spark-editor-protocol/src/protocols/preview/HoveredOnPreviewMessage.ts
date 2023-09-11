@@ -8,9 +8,9 @@ export interface HoveredOnPreviewParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export namespace HoveredOnPreviewMessage {
-  export const method = "preview/hoveredOn";
-  export const type = new MessageProtocolNotificationType<
+export class HoveredOnPreviewMessage {
+  static readonly method = "preview/hoveredOn";
+  static readonly type = new MessageProtocolNotificationType<
     HoveredOnPreviewMethod,
     HoveredOnPreviewParams
   >(HoveredOnPreviewMessage.method);

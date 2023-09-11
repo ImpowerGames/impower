@@ -1,16 +1,16 @@
-import STYLES from "../../../../spark-element/src/caches/STYLE_CACHE";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
+import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { animationsComplete } from "../../utils/animationsComplete";
-import component from "./_dialog";
+import spec from "./_dialog";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -44,11 +44,23 @@ export default class Dialog
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-dialog";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -56,85 +68,65 @@ export default class Dialog
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return Dialog.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Dialog.augmentCss(css, DEFAULT_DEPENDENCIES);
-  }
-
   /**
    * Indicates whether or not the dialog is open. You can toggle this attribute to show and hide the dialog, or you can
    * use the `show()` and `hide()` methods and this attribute will reflect the dialog's open state.
    */
   get open(): boolean {
-    return this.getBooleanAttribute(Dialog.attributes.open);
+    return this.getBooleanAttribute(Dialog.attrs.open);
   }
   set open(value: boolean) {
-    this.setBooleanAttribute(Dialog.attributes.open, value);
+    this.setBooleanAttribute(Dialog.attrs.open, value);
   }
 
   /**
    * Indicates whether or not the dialog can be dismissed by clicking the backdrop behind it.
    */
   get dismissable(): boolean {
-    return this.getBooleanAttribute(Dialog.attributes.dismissable);
+    return this.getBooleanAttribute(Dialog.attrs.dismissable);
   }
   set dismissable(value) {
-    this.setStringAttribute(Dialog.attributes.dismissable, value);
+    this.setStringAttribute(Dialog.attrs.dismissable, value);
   }
 
   /**
    * The name of the icon to display.
    */
   get icon(): IconName | string | null {
-    return this.getStringAttribute(Dialog.attributes.icon);
+    return this.getStringAttribute(Dialog.attrs.icon);
   }
   set icon(value) {
-    this.setStringAttribute(Dialog.attributes.icon, value);
+    this.setStringAttribute(Dialog.attrs.icon, value);
   }
 
   /**
    * The title text.
    */
   get label(): string | null {
-    return this.getStringAttribute(Dialog.attributes.label);
+    return this.getStringAttribute(Dialog.attrs.label);
   }
   set label(value) {
-    this.setStringAttribute(Dialog.attributes.label, value);
+    this.setStringAttribute(Dialog.attrs.label, value);
   }
 
   /**
    * The cancel text.
    */
   get cancel(): string | null {
-    return this.getStringAttribute(Dialog.attributes.cancel);
+    return this.getStringAttribute(Dialog.attrs.cancel);
   }
   set cancel(value) {
-    this.setStringAttribute(Dialog.attributes.cancel, value);
+    this.setStringAttribute(Dialog.attrs.cancel, value);
   }
 
   /**
    * The confirm text.
    */
   get confirm(): string | null {
-    return this.getStringAttribute(Dialog.attributes.confirm);
+    return this.getStringAttribute(Dialog.attrs.confirm);
   }
   set confirm(value) {
-    this.setStringAttribute(Dialog.attributes.confirm, value);
+    this.setStringAttribute(Dialog.attrs.confirm, value);
   }
 
   get dialogEl(): HTMLDialogElement {
@@ -169,24 +161,20 @@ export default class Dialog
     return this.getSlotByName("confirm");
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Dialog.attributes.open) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Dialog.attrs.open) {
       if (newValue != null) {
         this.animateOpen(true);
       }
     }
-    if (name === Dialog.attributes.icon) {
+    if (name === Dialog.attrs.icon) {
       const icon = newValue;
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = icon == null;
       }
     }
-    if (name === Dialog.attributes.label) {
+    if (name === Dialog.attrs.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label, "label");
@@ -196,7 +184,7 @@ export default class Dialog
         labelEl.hidden = label == null;
       }
     }
-    if (name === Dialog.attributes.cancel) {
+    if (name === Dialog.attrs.cancel) {
       const cancel = newValue;
       if (cancel) {
         this.setAssignedToSlot(cancel, "cancel");
@@ -206,7 +194,7 @@ export default class Dialog
         cancelButton.hidden = cancel == null;
       }
     }
-    if (name === Dialog.attributes.confirm) {
+    if (name === Dialog.attrs.confirm) {
       const confirm = newValue;
       if (confirm) {
         this.setAssignedToSlot(confirm, "confirm");
@@ -218,7 +206,7 @@ export default class Dialog
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     const icon = this.icon;
     const iconEl = this.iconEl;
     if (iconEl) {
@@ -275,11 +263,11 @@ export default class Dialog
     }
   }
 
-  protected override onParsed(): void {
+  override onParsed(): void {
     this.root.hidden = !this.open;
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.dialogEl.removeEventListener("click", this.handleLightDismiss);
     this.dialogEl.removeEventListener("cancel", this.handleCancel);
     this.cancelButton?.removeEventListener("click", this.handleClickClose);

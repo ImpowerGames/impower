@@ -7,9 +7,9 @@ export interface DidOpenViewParams {
   view: string;
 }
 
-export namespace DidOpenViewMessage {
-  export const method = "window/didOpenView";
-  export const type = new MessageProtocolNotificationType<
+export class DidOpenViewMessage {
+  static readonly method = "window/didOpenView";
+  static readonly type = new MessageProtocolNotificationType<
     DidOpenViewMethod,
     DidOpenViewParams
   >(DidOpenViewMessage.method);

@@ -1,15 +1,15 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { ColorName } from "../../types/colorName";
 import { SizeName } from "../../types/sizeName";
-import component from "./_split-pane";
+import spec from "./_split-pane";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -47,30 +47,24 @@ export default class SplitPane
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-split-pane";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
     return DEFAULT_TRANSFORMERS;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return SplitPane.augmentCss(css);
   }
 
   /**
@@ -79,30 +73,30 @@ export default class SplitPane
    * Defaults to `50vw` when horizontal and `50vh` when vertical.
    */
   get initialSize(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.initialSize);
+    return this.getStringAttribute(SplitPane.attrs.initialSize);
   }
   set initialSize(value) {
-    this.setStringAttribute(SplitPane.attributes.initialSize, value);
+    this.setStringAttribute(SplitPane.attrs.initialSize, value);
   }
 
   /**
    * The smallest width that the panels can be.
    */
   get minPanelWidth(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.minPanelWidth);
+    return this.getStringAttribute(SplitPane.attrs.minPanelWidth);
   }
   set minPanelWidth(value) {
-    this.setStringAttribute(SplitPane.attributes.minPanelWidth, value);
+    this.setStringAttribute(SplitPane.attrs.minPanelWidth, value);
   }
 
   /**
    * The smallest height that the panels can be.
    */
   get minPanelHeight(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.minPanelHeight);
+    return this.getStringAttribute(SplitPane.attrs.minPanelHeight);
   }
   set minPanelHeight(value) {
-    this.setStringAttribute(SplitPane.attributes.minPanelHeight, value);
+    this.setStringAttribute(SplitPane.attrs.minPanelHeight, value);
   }
 
   /**
@@ -117,140 +111,140 @@ export default class SplitPane
    * When not provided, defaults to `slide-down`
    */
   get responsive(): "hide" | "flip" | "flip-reverse" | null {
-    return this.getStringAttribute(SplitPane.attributes.responsive);
+    return this.getStringAttribute(SplitPane.attrs.responsive);
   }
   set responsive(value) {
-    this.setStringAttribute(SplitPane.attributes.responsive, value);
+    this.setStringAttribute(SplitPane.attrs.responsive, value);
   }
 
   /**
    * The primary panel.
    */
   get primary(): "start" | "end" | null {
-    return this.getStringAttribute(SplitPane.attributes.primary);
+    return this.getStringAttribute(SplitPane.attrs.primary);
   }
   set primary(value) {
-    this.setStringAttribute(SplitPane.attributes.primary, value);
+    this.setStringAttribute(SplitPane.attrs.primary, value);
   }
 
   /**
    * Draws the split panel in a vertical orientation with the start and end panels stacked.
    */
   get vertical(): boolean {
-    return this.getBooleanAttribute(SplitPane.attributes.vertical);
+    return this.getBooleanAttribute(SplitPane.attrs.vertical);
   }
   set vertical(value) {
-    this.setStringAttribute(SplitPane.attributes.vertical, value);
+    this.setStringAttribute(SplitPane.attrs.vertical, value);
   }
 
   /**
    * The color of the area in which drag events will be detected.
    */
   get resizerColor(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.resizerColor);
+    return this.getStringAttribute(SplitPane.attrs.resizerColor);
   }
   set resizerColor(value) {
-    this.setStringAttribute(SplitPane.attributes.resizerColor, value);
+    this.setStringAttribute(SplitPane.attrs.resizerColor, value);
   }
 
   /**
    * The width of the area in which drag events will be detected.
    */
   get resizerWidth(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.resizerWidth);
+    return this.getStringAttribute(SplitPane.attrs.resizerWidth);
   }
   set resizerWidth(value) {
-    this.setStringAttribute(SplitPane.attributes.resizerWidth, value);
+    this.setStringAttribute(SplitPane.attrs.resizerWidth, value);
   }
 
   /**
    * The color of the divider between the two panels.
    */
   get dividerColor(): ColorName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.dividerColor);
+    return this.getStringAttribute(SplitPane.attrs.dividerColor);
   }
   set dividerColor(value) {
-    this.setStringAttribute(SplitPane.attributes.dividerColor, value);
+    this.setStringAttribute(SplitPane.attrs.dividerColor, value);
   }
 
   /**
    * The opacity of the divider between the two panels.
    */
   get dividerOpacity(): string | null {
-    return this.getStringAttribute(SplitPane.attributes.dividerOpacity);
+    return this.getStringAttribute(SplitPane.attrs.dividerOpacity);
   }
   set dividerOpacity(value) {
-    this.setStringAttribute(SplitPane.attributes.dividerOpacity, value);
+    this.setStringAttribute(SplitPane.attrs.dividerOpacity, value);
   }
 
   /**
    * The offset of the divider between the two panels.
    */
   get dividerOffset(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.dividerOffset);
+    return this.getStringAttribute(SplitPane.attrs.dividerOffset);
   }
   set dividerOffset(value) {
-    this.setStringAttribute(SplitPane.attributes.dividerOffset, value);
+    this.setStringAttribute(SplitPane.attrs.dividerOffset, value);
   }
 
   /**
    * The width of the divider between the two panels.
    */
   get dividerWidth(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.dividerWidth);
+    return this.getStringAttribute(SplitPane.attrs.dividerWidth);
   }
   set dividerWidth(value) {
-    this.setStringAttribute(SplitPane.attributes.dividerWidth, value);
+    this.setStringAttribute(SplitPane.attrs.dividerWidth, value);
   }
 
   /**
    * The color of the indicator that appears when hovering or dragging the resizer.
    */
   get indicatorColor(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.indicatorColor);
+    return this.getStringAttribute(SplitPane.attrs.indicatorColor);
   }
   set indicatorColor(value) {
-    this.setStringAttribute(SplitPane.attributes.indicatorColor, value);
+    this.setStringAttribute(SplitPane.attrs.indicatorColor, value);
   }
 
   /**
    * The color of the indicator that appears when hovering or dragging the resizer.
    */
   get indicatorWidth(): SizeName | string | null {
-    return this.getStringAttribute(SplitPane.attributes.indicatorWidth);
+    return this.getStringAttribute(SplitPane.attrs.indicatorWidth);
   }
   set indicatorWidth(value) {
-    this.setStringAttribute(SplitPane.attributes.indicatorWidth, value);
+    this.setStringAttribute(SplitPane.attrs.indicatorWidth, value);
   }
 
   /**
    * Reveal the hidden panel.
    */
   get reveal() {
-    return this.getBooleanAttribute(SplitPane.attributes.reveal);
+    return this.getBooleanAttribute(SplitPane.attrs.reveal);
   }
   set reveal(value) {
-    this.setBooleanAttribute(SplitPane.attributes.reveal, value);
+    this.setBooleanAttribute(SplitPane.attrs.reveal, value);
   }
 
   /**
    * The hidden panel will be revealed when this event is fired
    */
   get revealEvent(): string | null {
-    return this.getStringAttribute(SplitPane.attributes.revealEvent);
+    return this.getStringAttribute(SplitPane.attrs.revealEvent);
   }
   set revealEvent(value) {
-    this.setStringAttribute(SplitPane.attributes.revealEvent, value);
+    this.setStringAttribute(SplitPane.attrs.revealEvent, value);
   }
 
   /**
    * The viewport will be unrevealed when this event is fired
    */
   get unrevealEvent(): string | null {
-    return this.getStringAttribute(SplitPane.attributes.unrevealEvent);
+    return this.getStringAttribute(SplitPane.attrs.unrevealEvent);
   }
   set unrevealEvent(value) {
-    this.setStringAttribute(SplitPane.attributes.unrevealEvent, value);
+    this.setStringAttribute(SplitPane.attrs.unrevealEvent, value);
   }
 
   /**
@@ -259,10 +253,10 @@ export default class SplitPane
    * Defaults to `32px`
    */
   get step(): string | null {
-    return this.getStringAttribute(SplitPane.attributes.step) || "32px";
+    return this.getStringAttribute(SplitPane.attrs.step) || "32px";
   }
   set step(value) {
-    this.setStringAttribute(SplitPane.attributes.step, value);
+    this.setStringAttribute(SplitPane.attrs.step, value);
   }
 
   get resizeEl() {
@@ -273,7 +267,7 @@ export default class SplitPane
     return this.getElementByClass("divider");
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     const revealEvent = this.revealEvent;
     if (revealEvent) {
       window.addEventListener(revealEvent, this.handleRevealEvent);
@@ -285,7 +279,7 @@ export default class SplitPane
     this.dividerEl?.addEventListener("keydown", this.handleKeyDownDivider);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     const revealEvent = this.revealEvent;
     if (revealEvent) {
       window.removeEventListener(revealEvent, this.handleRevealEvent);

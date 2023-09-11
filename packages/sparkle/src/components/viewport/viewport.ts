@@ -1,14 +1,14 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
 import { getPixelValue } from "../../utils/getPixelValue";
-import component from "./_viewport";
+import spec from "./_viewport";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -32,9 +32,19 @@ export default class Viewport
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-viewport";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -42,40 +52,24 @@ export default class Viewport
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Viewport.augmentCss(css);
-  }
-
   /**
    * The viewport will be constrained when this event is fired
    */
   get constrainedEvent(): string | null {
-    return this.getStringAttribute(Viewport.attributes.constrainedEvent);
+    return this.getStringAttribute(Viewport.attrs.constrainedEvent);
   }
   set constrainedEvent(value) {
-    this.setStringAttribute(Viewport.attributes.constrainedEvent, value);
+    this.setStringAttribute(Viewport.attrs.constrainedEvent, value);
   }
 
   /**
    * The viewport will be unconstrained when this event is fired
    */
   get unconstrainedEvent(): string | null {
-    return this.getStringAttribute(Viewport.attributes.unconstrainedEvent);
+    return this.getStringAttribute(Viewport.attrs.unconstrainedEvent);
   }
   set unconstrainedEvent(value) {
-    this.setStringAttribute(Viewport.attributes.unconstrainedEvent, value);
+    this.setStringAttribute(Viewport.attrs.unconstrainedEvent, value);
   }
 
   /**
@@ -83,10 +77,10 @@ export default class Viewport
    * in addition to the height of the virtual keyboard
    */
   get offset(): SizeName | null {
-    return this.getStringAttribute(Viewport.attributes.offset);
+    return this.getStringAttribute(Viewport.attrs.offset);
   }
   set offset(value) {
-    this.setStringAttribute(Viewport.attributes.offset, value);
+    this.setStringAttribute(Viewport.attrs.offset, value);
   }
 
   protected _offsetPx = 0;
@@ -95,17 +89,13 @@ export default class Viewport
 
   protected _constrained = false;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Viewport.attributes.offset) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Viewport.attrs.offset) {
       this._offsetPx = getPixelValue(this.root, "offset");
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     window.visualViewport?.addEventListener(
       "scroll",
       this.handleViewportChange,
@@ -130,7 +120,7 @@ export default class Viewport
     }
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.visualViewport?.removeEventListener(
       "scroll",
       this.handleViewportChange

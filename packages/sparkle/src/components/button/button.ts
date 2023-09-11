@@ -1,12 +1,12 @@
-import STYLES from "../../../../spark-element/src/caches/STYLE_CACHE";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
@@ -15,17 +15,12 @@ import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import type ProgressCircle from "../progress-circle/progress-circle";
 import type Ripple from "../ripple/ripple";
-import component from "./_button";
+import spec from "./_button";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
 
-const DEFAULT_DEPENDENCIES = getDependencyNameMap([
-  "s-badge",
-  "s-progress-circle",
-  "s-ripple",
-  "s-icon",
-]);
+const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-badge"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -64,11 +59,31 @@ export default class Button
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-button";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, {
+      props: {
+        type: this.type,
+        href: this.href,
+        accept: this.accept,
+        multiple: this.multiple,
+      },
+      state: {},
+    });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -76,51 +91,24 @@ export default class Button
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component({
-      attrs: {
-        type: this.type,
-        href: this.href,
-        accept: this.accept,
-        multiple: this.multiple,
-      },
-    });
-  }
-
-  override transformHtml(html: string) {
-    return Button.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Button.augmentCss(css, DEFAULT_DEPENDENCIES);
-  }
-
   /**
    * Key that is included in all emitted events.
    */
   get key(): string | null {
-    return this.getStringAttribute(Button.attributes.key);
+    return this.getStringAttribute(Button.attrs.key);
   }
   set key(value) {
-    this.setStringAttribute(Button.attributes.key, value);
+    this.setStringAttribute(Button.attrs.key, value);
   }
 
   /**
    * Whether or not the content of this button should be replaced with a loading spinner.
    */
   get loading(): boolean {
-    return this.getBooleanAttribute(Button.attributes.loading);
+    return this.getBooleanAttribute(Button.attrs.loading);
   }
   set loading(value) {
-    this.setStringAttribute(Button.attributes.loading, value);
+    this.setStringAttribute(Button.attrs.loading, value);
   }
 
   /**
@@ -145,10 +133,10 @@ export default class Button
     | "reset"
     | "button"
     | null {
-    return this.getStringAttribute(Button.attributes.type);
+    return this.getStringAttribute(Button.attrs.type);
   }
   set type(value) {
-    this.setStringAttribute(Button.attributes.type, value);
+    this.setStringAttribute(Button.attrs.type, value);
   }
 
   /**
@@ -156,10 +144,10 @@ export default class Button
    * (Component will be wrapped in `a` instead of `button`)
    */
   get href(): string | null {
-    return this.getStringAttribute(Button.attributes.href);
+    return this.getStringAttribute(Button.attrs.href);
   }
   set href(value) {
-    this.setStringAttribute(Button.attributes.href, value);
+    this.setStringAttribute(Button.attrs.href, value);
   }
 
   /**
@@ -167,10 +155,10 @@ export default class Button
    * include `_blank` to open in a new tab.
    */
   get target(): string | null {
-    return this.getStringAttribute(Button.attributes.target);
+    return this.getStringAttribute(Button.attrs.target);
   }
   set target(value) {
-    this.setStringAttribute(Button.attributes.target, value);
+    this.setStringAttribute(Button.attrs.target, value);
   }
 
   /**
@@ -178,10 +166,10 @@ export default class Button
    * (Component will be wrapped in `div` instead of `button`)
    */
   get accept(): string | null {
-    return this.getStringAttribute(Button.attributes.accept);
+    return this.getStringAttribute(Button.attrs.accept);
   }
   set accept(value) {
-    this.setStringAttribute(Button.attributes.accept, value);
+    this.setStringAttribute(Button.attrs.accept, value);
   }
 
   /**
@@ -189,60 +177,60 @@ export default class Button
    * (Component will be wrapped in `div` instead of `button`)
    */
   get multiple(): string | null {
-    return this.getStringAttribute(Button.attributes.multiple);
+    return this.getStringAttribute(Button.attrs.multiple);
   }
   set multiple(value) {
-    this.setStringAttribute(Button.attributes.multiple, value);
+    this.setStringAttribute(Button.attrs.multiple, value);
   }
 
   /**
    * The overall look of the button.
    */
   get variant(): "filled" | "tonal" | "outlined" | "text" | null {
-    return this.getStringAttribute(Button.attributes.variant);
+    return this.getStringAttribute(Button.attrs.variant);
   }
   set variant(value) {
-    this.setStringAttribute(Button.attributes.variant, value);
+    this.setStringAttribute(Button.attrs.variant, value);
   }
 
   /**
    * The name of the icon to display.
    */
   get icon(): IconName | string | null {
-    return this.getStringAttribute(Button.attributes.icon);
+    return this.getStringAttribute(Button.attrs.icon);
   }
   set icon(value) {
-    this.setStringAttribute(Button.attributes.icon, value);
+    this.setStringAttribute(Button.attrs.icon, value);
   }
 
   /**
    * The name of the icon to display when the button is pressed.
    */
   get pressedIcon(): IconName | string | null {
-    return this.getStringAttribute(Button.attributes.pressedIcon);
+    return this.getStringAttribute(Button.attrs.pressedIcon);
   }
   set pressedIcon(value) {
-    this.setStringAttribute(Button.attributes.pressedIcon, value);
+    this.setStringAttribute(Button.attrs.pressedIcon, value);
   }
 
   /**
    * The name of the icon to display when the button is toggled.
    */
   get activeIcon(): IconName | string | null {
-    return this.getStringAttribute(Button.attributes.activeIcon);
+    return this.getStringAttribute(Button.attrs.activeIcon);
   }
   set activeIcon(value) {
-    this.setStringAttribute(Button.attributes.activeIcon, value);
+    this.setStringAttribute(Button.attrs.activeIcon, value);
   }
 
   /**
    * The color when the button is toggled.
    */
   get activeColor(): IconName | string | null {
-    return this.getStringAttribute(Button.attributes.activeColor);
+    return this.getStringAttribute(Button.attrs.activeColor);
   }
   set activeColor(value) {
-    this.setStringAttribute(Button.attributes.activeColor, value);
+    this.setStringAttribute(Button.attrs.activeColor, value);
   }
 
   /**
@@ -251,50 +239,50 @@ export default class Button
    * Default is `md`.
    */
   get size(): SizeName | string | null {
-    return this.getStringAttribute(Button.attributes.size);
+    return this.getStringAttribute(Button.attrs.size);
   }
   set size(value) {
-    this.setStringAttribute(Button.attributes.size, value);
+    this.setStringAttribute(Button.attrs.size, value);
   }
 
   /**
    * The spacing between the icon and the label.
    */
   get spacing(): SizeName | string | null {
-    return this.getStringAttribute(Button.attributes.spacing);
+    return this.getStringAttribute(Button.attrs.spacing);
   }
   set spacing(value) {
-    this.setStringAttribute(Button.attributes.spacing, value);
+    this.setStringAttribute(Button.attrs.spacing, value);
   }
 
   /**
    * The button label.
    */
   get label(): string | null {
-    return this.getStringAttribute(Button.attributes.label);
+    return this.getStringAttribute(Button.attrs.label);
   }
   set label(value) {
-    this.setStringAttribute(Button.attributes.label, value);
+    this.setStringAttribute(Button.attrs.label, value);
   }
 
   /**
    * The toggle state of this button.
    */
   get active(): boolean {
-    return this.getBooleanAttribute(Button.attributes.active);
+    return this.getBooleanAttribute(Button.attrs.active);
   }
   set active(value) {
-    this.setBooleanAttribute(Button.attributes.active, value);
+    this.setBooleanAttribute(Button.attrs.active, value);
   }
 
   /**
    * The value this button will emit when clicked.
    */
   get value(): string | null {
-    return this.getStringAttribute(Button.attributes.value);
+    return this.getStringAttribute(Button.attrs.value);
   }
   set value(value) {
-    this.setStringAttribute(Button.attributes.value, value);
+    this.setStringAttribute(Button.attrs.value, value);
   }
 
   get iconEl(): HTMLElement | null {
@@ -317,44 +305,38 @@ export default class Button
     return this.getElementByTag("input");
   }
 
-  get progressCircle(): ProgressCircle | null {
-    return this.getElementByTag<ProgressCircle>(
-      Button.dependencies.progressCircle
-    );
+  get progressCircleEl(): ProgressCircle | null {
+    return this.getElementById<ProgressCircle>("progress-circle");
   }
 
   get rippleEl(): Ripple | null {
-    return this.getElementByTag<Ripple>(Button.dependencies.ripple);
+    return this.getElementById<Ripple>("ripple");
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
+  override onAttributeChanged(name: string, newValue: string): void {
     if (
-      name === Button.attributes.ariaHasPopup ||
-      name === Button.attributes.ariaExpanded ||
-      name === Button.attributes.href ||
-      name === Button.attributes.target ||
-      name === Button.attributes.type ||
-      name === Button.attributes.autofocus
+      name === Button.attrs.ariaHasPopup ||
+      name === Button.attrs.ariaExpanded ||
+      name === Button.attrs.href ||
+      name === Button.attrs.target ||
+      name === Button.attrs.type ||
+      name === Button.attrs.autofocus
     ) {
       this.updateRootAttribute(name, newValue);
     }
-    if (name === Button.attributes.disabled) {
+    if (name === Button.attrs.disabled) {
       const ripple = this.rippleEl;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === Button.attributes.loading) {
+    if (name === Button.attrs.loading) {
       const ripple = this.rippleEl;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
-    if (name === Button.attributes.mask) {
+    if (name === Button.attrs.mask) {
       const ripple = this.rippleEl;
       if (ripple) {
         if (newValue) {
@@ -364,13 +346,13 @@ export default class Button
         }
       }
     }
-    if (name === Button.attributes.icon) {
+    if (name === Button.attrs.icon) {
       const iconEl = this.iconEl;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
     }
-    if (name === Button.attributes.loading) {
+    if (name === Button.attrs.loading) {
       const loading = newValue != null;
       const ripple = this.rippleEl;
       const labelEl = this.labelEl;
@@ -389,22 +371,22 @@ export default class Button
         spinnerEl.hidden = !loading;
       }
     }
-    if (name === Button.attributes.label) {
+    if (name === Button.attrs.label) {
       const label = newValue;
       if (label) {
         this.setAssignedToSlot(label);
       }
     }
-    if (name === Button.attributes.active) {
+    if (name === Button.attrs.active) {
       const active = newValue != null;
       this.updateRootAttribute(
-        Button.attributes.ariaChecked,
+        Button.attrs.ariaChecked,
         active ? "true" : "false"
       );
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     const label = this.label;
     if (label) {
       this.setAssignedToSlot(label);
@@ -423,7 +405,7 @@ export default class Button
     this.root.addEventListener("click", this.handleClick);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     const inputEl = this.inputEl;
     if (inputEl) {
       inputEl.removeEventListener("change", this.handleInputChange);

@@ -14,11 +14,11 @@
   display: flex;
   flex: 1 1 100%;
 }
-:host > .root[state] {
+:host > .root[status] {
   overflow-x: clip;
   overflow-y: clip;
 }
-:host > .root[state="exiting"]::after {
+:host > .root[status="exiting"]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -35,10 +35,13 @@
 :host([unmount="on-enter"]) > .root > .content > .old-fade {
   display: contents;
 }
-:host([unmount="on-enter"]) > .root[state="entering"] > .content > .old-fade {
+:host([unmount="on-enter"]) > .root[status="entering"] > .content > .old-fade {
   display: none;
 }
-:host > .root:is([state="exiting"], [state="loading"]) > .content > .old-fade {
+:host
+  > .root:is([status="exiting"], [status="loading"])
+  > .content
+  > .old-fade {
   display: flex;
   flex: 1 1 100%;
   animation: var(--exit-fade) both;
@@ -48,7 +51,7 @@
   display: contents;
 }
 :host
-  > .root:is([state="exiting"], [state="loading"])
+  > .root:is([status="exiting"], [status="loading"])
   > .content
   > .old-fade
   > .old-transform {
@@ -58,26 +61,26 @@
   transform-origin: var(--pivot, top center);
 }
 
-:host(:not([unmount="on-enter"])) > .root:not([state]) > .content > .old-fade {
+:host(:not([unmount="on-enter"])) > .root:not([status]) > .content > .old-fade {
   display: contents;
 }
 :host(:not([unmount="on-enter"])) > .root > .content > .old-fade {
   transition-duration: 0s;
 }
 :host(:not([unmount="on-enter"]))
-  > .root[state="entering"][mounting]
+  > .root[status="entering"][mounting]
   > .content
   > .old-fade {
   animation-play-state: paused;
 }
 :host(:not([unmount="on-enter"]))
-  > .root[state="entering"]:not([mounting])
+  > .root[status="entering"]:not([mounting])
   > .content
   > .old-fade {
   animation-play-state: running;
 }
 :host(:not([unmount="on-enter"]))
-  > .root[state="entering"]
+  > .root[status="entering"]
   > .content
   > .old-fade {
   display: flex;
@@ -86,7 +89,7 @@
 }
 
 :host(:not([unmount="on-enter"]))
-  > .root:not([state])
+  > .root:not([status])
   > .content
   > .old-fade
   > .old-transform {
@@ -101,21 +104,21 @@
   flex: 1 1 100%;
 }
 :host(:not([unmount="on-enter"]))
-  > .root[state="entering"][mounting]
+  > .root[status="entering"][mounting]
   > .content
   > .old-fade
   > .old-transform {
   animation-play-state: paused;
 }
 :host(:not([unmount="on-enter"]))
-  > .root[state="entering"]:not([mounting])
+  > .root[status="entering"]:not([mounting])
   > .content
   > .old-fade
   > .old-transform {
   animation-play-state: running;
 }
 :host(:not([unmount="on-enter"]))
-  > .root[state="entering"]
+  > .root[status="entering"]
   > .content
   > .old-fade
   > .old-transform {
@@ -131,7 +134,7 @@
   inset: 0;
   pointer-events: none;
 }
-:host([unmount="on-enter"]) > .root[state="entering"] > .content > .new-fade {
+:host([unmount="on-enter"]) > .root[status="entering"] > .content > .new-fade {
   display: flex;
   flex: 1 1 100%;
   animation: var(--enter-fade) both;
@@ -142,7 +145,7 @@
   flex: 1 1 100%;
 }
 :host([unmount="on-enter"])
-  > .root[state="entering"]
+  > .root[status="entering"]
   > .content
   > .new-fade
   > .new-transform {

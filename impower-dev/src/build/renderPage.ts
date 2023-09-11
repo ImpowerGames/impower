@@ -1,10 +1,10 @@
-import { ComponentState } from "./ComponentState.js";
+import { ComponentSpec } from "./ComponentSpec";
 import expandHtml from "./expandHtml.js";
 import populateDocument from "./populateDocument.js";
 
 const renderPage = (
   documentHtml: string,
-  pageComponent: () => {
+  page: {
     css?: string;
     html?: string;
     js?: string;
@@ -13,13 +13,10 @@ const renderPage = (
     jsPath?: string;
     mjsPath?: string;
   },
-  components?: Record<
-    string,
-    (state?: ComponentState) => { css?: string; html?: string; js?: string }
-  >
+  components: Record<string, ComponentSpec>
 ): string => {
-  const { html, css, js, mjs, cssPath, jsPath, mjsPath } = pageComponent();
-  const expandedHtml = expandHtml(html || "", { components });
+  const { html, css, js, mjs, cssPath, jsPath, mjsPath } = page;
+  const expandedHtml = expandHtml(html || "", components);
   return populateDocument(documentHtml, {
     html: expandedHtml,
     css,

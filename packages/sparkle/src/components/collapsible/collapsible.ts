@@ -1,16 +1,16 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
-import { getUnitlessValue } from "../../../../spark-element/src/utils/getUnitlessValue";
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssEase from "../../../../sparkle-style-transformer/src/utils/getCssEase";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
+import getUnitlessValue from "../../../../spec-component/src/utils/getUnitlessValue";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { getScrollableParent } from "../../utils/getScrollableParent";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import component from "./_collapsible";
+import spec from "./_collapsible";
 
 const getCollapsedButtonWidth = (
   iconWidth: number,
@@ -43,38 +43,34 @@ export default class Collapsible
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-collapsible";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Collapsible.augmentCss(css);
   }
 
   /**
    * Collapses any child labels.
    */
   get collapsed(): "" | "scrolled" | null {
-    return this.getStringAttribute(Collapsible.attributes.collapsed);
+    return this.getStringAttribute(Collapsible.attrs.collapsed);
   }
   set collapsed(value) {
-    this.setStringAttribute(Collapsible.attributes.collapsed, value);
+    this.setStringAttribute(Collapsible.attrs.collapsed, value);
   }
 
   /**
@@ -84,12 +80,11 @@ export default class Collapsible
    */
   get sentinel(): string {
     return (
-      this.getStringAttribute(Collapsible.attributes.sentinel) ||
-      "scroll-sentinel"
+      this.getStringAttribute(Collapsible.attrs.sentinel) || "scroll-sentinel"
     );
   }
   set sentinel(value) {
-    this.setStringAttribute(Collapsible.attributes.sentinel, value);
+    this.setStringAttribute(Collapsible.attrs.sentinel, value);
   }
 
   protected _buttonEl: HTMLElement | null = null;
@@ -151,12 +146,8 @@ export default class Collapsible
 
   protected _cachedCSSVariables: Record<string, string> = {};
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Collapsible.attributes.collapsed) {
+  override onAttributeChanged(name: string, newValue: string) {
+    if (name === Collapsible.attrs.collapsed) {
       this.update(true);
       if (newValue === "scrolled") {
         const sentinelEl = this.sentinelEl;
@@ -168,12 +159,12 @@ export default class Collapsible
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected() {
     this._intersectionObserver = new IntersectionObserver(this.handleScroll);
     this._resizeObserver = new ResizeObserver(this.handleResize);
   }
 
-  protected override onParsed(): void {
+  override onParsed() {
     this.measure().then(() => this.update(false));
     if (this.collapsed === "scrolled") {
       const sentinelEl = this.sentinelEl;
@@ -188,7 +179,7 @@ export default class Collapsible
     }
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected() {
     this._intersectionObserver?.disconnect();
     this._resizeObserver?.disconnect();
   }

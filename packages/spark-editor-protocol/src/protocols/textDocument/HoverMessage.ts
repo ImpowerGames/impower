@@ -3,9 +3,9 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type HoverMethod = typeof HoverMessage.method;
 
-export namespace HoverMessage {
-  export const method = "textDocument/hover";
-  export const type = new MessageProtocolRequestType<
+export class HoverMessage {
+  static readonly method = "textDocument/hover";
+  static readonly type = new MessageProtocolRequestType<
     HoverMethod,
     HoverParams,
     Hover | null

@@ -1,10 +1,18 @@
-import { WorkspaceState } from "@impower/spark-editor-protocol/src/types";
-import { html } from "../../../../../../packages/spark-element/src/utils/html";
+import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
+import { html, spec } from "../../../../../../packages/spec-component/src/spec";
+import css from "../../styles/shared";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
-export default (state: { store?: WorkspaceState }) => {
-  const panel = state?.store?.panes?.preview?.panel || "game";
-  return {
-    html: html`
+export default spec({
+  tag: "se-preview-mode-toolbar",
+  css,
+  cache: WorkspaceCache.get,
+  reducer: (store?: WorkspaceStore) => ({
+    mode: store?.preview?.mode || "game",
+  }),
+  html: ({ state }) => {
+    const { mode } = state;
+    return html`
       <s-button
         type="toggle"
         width="48"
@@ -13,10 +21,10 @@ export default (state: { store?: WorkspaceState }) => {
         class="more"
         color="fg-50"
         variant="icon"
-        icon="${panel === "game" ? "gamepad" : "script"}"
-        active-icon="${panel === "game" ? "script" : "gamepad"}"
-        value="${panel === "game" ? "screenplay" : "game"}"
+        icon="${mode === "game" ? "gamepad" : "script"}"
+        active-icon="${mode === "game" ? "script" : "gamepad"}"
+        value="${mode === "game" ? "screenplay" : "game"}"
       ></s-button>
-    `,
-  };
-};
+    `;
+  },
+});

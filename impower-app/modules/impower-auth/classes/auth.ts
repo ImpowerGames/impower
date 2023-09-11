@@ -52,7 +52,7 @@ class Auth {
     return this.internal.currentUser?.uid || null;
   }
 
-  get attributes(): UserAttributes {
+  get attrs(): UserAttributes {
     const user = this.internal.currentUser;
     return {
       uid: user?.uid || null,

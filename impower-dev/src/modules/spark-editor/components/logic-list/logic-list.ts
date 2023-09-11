@@ -1,25 +1,13 @@
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_logic-list";
+import spec from "./_logic-list";
 
-export default class LogicList extends SEElement {
-  static override async define(
-    tag = "se-logic-list",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component({ store: Workspace.window.state });
-  }
-
-  protected override onConnected(): void {
+export default class LogicList extends Component(spec) {
+  override onConnected(): void {
     this.ownerDocument.addEventListener("enter", this.handleEnter);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.ownerDocument.removeEventListener("enter", this.handleEnter);
   }
 

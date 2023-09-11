@@ -1,9 +1,9 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
-import component from "./_badge";
+import spec from "./_badge";
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -17,36 +17,30 @@ export default class Badge
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-badge";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Badge.augmentCss(css);
   }
 
   /**
    * Determines if the badge should be floated over the left or right corner.
    */
   get float(): "left" | "right" | null {
-    return this.getStringAttribute(Badge.attributes.float);
+    return this.getStringAttribute(Badge.attrs.float);
   }
   set float(value) {
-    this.setStringAttribute(Badge.attributes.float, value);
+    this.setStringAttribute(Badge.attrs.float, value);
   }
 }
 

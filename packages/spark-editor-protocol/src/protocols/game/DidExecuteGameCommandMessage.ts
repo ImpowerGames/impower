@@ -9,9 +9,9 @@ export interface DidExecuteGameCommandParams {
   range: Range;
 }
 
-export namespace DidExecuteGameCommandMessage {
-  export const method = "game/didExecuteCommand";
-  export const type = new MessageProtocolNotificationType<
+export class DidExecuteGameCommandMessage {
+  static readonly method = "game/didExecuteCommand";
+  static readonly type = new MessageProtocolNotificationType<
     DidExecuteGameCommandMethod,
     DidExecuteGameCommandParams
   >(DidExecuteGameCommandMessage.method);

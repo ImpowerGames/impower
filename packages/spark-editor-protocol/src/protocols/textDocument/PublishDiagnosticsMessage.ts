@@ -3,9 +3,9 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 
 export type PublishDiagnosticsMethod = typeof PublishDiagnosticsMessage.method;
 
-export namespace PublishDiagnosticsMessage {
-  export const method = "textDocument/publishDiagnostics";
-  export const type = new MessageProtocolNotificationType<
+export class PublishDiagnosticsMessage {
+  static readonly method = "textDocument/publishDiagnostics";
+  static readonly type = new MessageProtocolNotificationType<
     PublishDiagnosticsMethod,
     PublishDiagnosticsParams
   >(PublishDiagnosticsMessage.method);

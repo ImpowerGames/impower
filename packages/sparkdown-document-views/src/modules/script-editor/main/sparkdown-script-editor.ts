@@ -23,10 +23,8 @@ import {
   ServerCapabilities,
   TextDocumentItem,
 } from "../../../../../spark-editor-protocol/src/types";
-import SparkElement from "../../../../../spark-element/src/core/spark-element";
-import { Properties } from "../../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../../spark-element/src/utils/getAttributeNameMap";
-import { getBoxValues } from "../../../../../spark-element/src/utils/getBoxValues";
+import { Component } from "../../../../../spec-component/src/component";
+import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
 import { getServerChanges } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
@@ -37,63 +35,14 @@ import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
 import throttle from "../../../utils/throttle";
 import createEditorView from "../utils/createEditorView";
-import component from "./_sparkdown-script-editor";
+import spec from "./_sparkdown-script-editor";
 
-const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["scroll-margin", "autosave-throttle-delay"]),
-};
-
-export default class SparkdownScriptEditor
-  extends SparkElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
+export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
 
   static languageServerCapabilities: ServerCapabilities;
 
   static fileSystemReader: FileSystemReader;
-
-  static override async define(
-    tag = "sparkdown-script-editor",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  override get component() {
-    return component();
-  }
-
-  get scrollMargin() {
-    return this.getStringAttribute(
-      SparkdownScriptEditor.attributes.scrollMargin
-    );
-  }
-  set scrollMargin(value) {
-    this.setStringAttribute(
-      SparkdownScriptEditor.attributes.scrollMargin,
-      value
-    );
-  }
-
-  get autosaveThrottleDelay() {
-    return (
-      this.getNumberAttribute(
-        SparkdownScriptEditor.attributes.autosaveThrottleDelay
-      ) ?? 100
-    );
-  }
-  set autosaveThrottleDelay(value) {
-    this.setNumberAttribute(
-      SparkdownScriptEditor.attributes.autosaveThrottleDelay,
-      value
-    );
-  }
 
   protected _loadingRequest?: string | number;
 
@@ -127,7 +76,7 @@ export default class SparkdownScriptEditor
     right: 0,
   };
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.addEventListener(
       RevealEditorRangeMessage.method,
@@ -151,7 +100,7 @@ export default class SparkdownScriptEditor
     );
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.removeEventListener(
       RevealEditorRangeMessage.method,

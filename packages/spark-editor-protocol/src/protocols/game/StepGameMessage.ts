@@ -6,9 +6,9 @@ export interface StepGameParams {
   deltaMS: number;
 }
 
-export namespace StepGameMessage {
-  export const method = "game/step";
-  export const type = new MessageProtocolRequestType<
+export class StepGameMessage {
+  static readonly method = "game/step";
+  static readonly type = new MessageProtocolRequestType<
     StepGameMethod,
     StepGameParams,
     null

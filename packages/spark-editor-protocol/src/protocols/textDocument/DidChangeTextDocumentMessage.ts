@@ -30,9 +30,9 @@ export interface DidChangeTextDocumentParams {
   contentChanges: TextDocumentContentChangeEvent[];
 }
 
-export namespace DidChangeTextDocumentMessage {
-  export const method = "textDocument/didChange";
-  export const type = new MessageProtocolNotificationType<
+export class DidChangeTextDocumentMessage {
+  static readonly method = "textDocument/didChange";
+  static readonly type = new MessageProtocolNotificationType<
     DidChangeTextDocumentMethod,
     DidChangeTextDocumentParams
   >(DidChangeTextDocumentMessage.method);

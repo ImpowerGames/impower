@@ -1,16 +1,16 @@
-import STYLES from "../../../../spark-element/src/caches/STYLE_CACHE";
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
-import component from "./_icon";
+import spec from "./_icon";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -30,9 +30,19 @@ export default class Icon
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-icon";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -40,50 +50,30 @@ export default class Icon
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Icon.augmentCss(css);
-  }
-
   /**
    * The name of the icon to display.
    */
   get icon(): IconName | string | null {
-    return this.getStringAttribute(Icon.attributes.icon);
+    return this.getStringAttribute(Icon.attrs.icon);
   }
   set icon(value) {
-    this.setStringAttribute(Icon.attributes.icon, value);
+    this.setStringAttribute(Icon.attrs.icon, value);
   }
 
   /**
    * Sets the size of an icon.
    */
   get size(): SizeName | string | null {
-    return this.getStringAttribute(Icon.attributes.size);
+    return this.getStringAttribute(Icon.attrs.size);
   }
   set size(value) {
-    this.setStringAttribute(Icon.attributes.size, value);
+    this.setStringAttribute(Icon.attrs.size, value);
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Icon.attributes.ariaLabel) {
-      this.updateRootAttribute(Icon.attributes.ariaHidden, Boolean(newValue));
-      this.updateRootAttribute(Icon.attributes.role, newValue ? "img" : null);
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Icon.attrs.ariaLabel) {
+      this.updateRootAttribute(Icon.attrs.ariaHidden, Boolean(newValue));
+      this.updateRootAttribute(Icon.attrs.role, newValue ? "img" : null);
     }
   }
 }

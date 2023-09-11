@@ -7,9 +7,9 @@ export interface DidOpenPanelParams {
   panel: string;
 }
 
-export namespace DidOpenPanelMessage {
-  export const method = "window/didOpenPanel";
-  export const type = new MessageProtocolNotificationType<
+export class DidOpenPanelMessage {
+  static readonly method = "window/didOpenPanel";
+  static readonly type = new MessageProtocolNotificationType<
     DidOpenPanelMethod,
     DidOpenPanelParams
   >(DidOpenPanelMessage.method);

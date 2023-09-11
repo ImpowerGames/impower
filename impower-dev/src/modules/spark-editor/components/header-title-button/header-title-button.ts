@@ -1,21 +1,8 @@
-import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_header-title-button";
+import spec from "./_header-title-button";
 
-export default class HeaderTitleButton extends SEElement {
-  static override async define(
-    tag = "se-header-title-button",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component({ store: Workspace.window.state });
-  }
-
+export default class HeaderTitleButton extends Component(spec) {
   get nameButtonEl() {
     return this.getElementById("name-button");
   }
@@ -27,7 +14,7 @@ export default class HeaderTitleButton extends SEElement {
     return input?.inputEl;
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     const nameInputEl = this.nameInputEl;
     if (nameInputEl) {
       nameInputEl.select();
@@ -38,13 +25,9 @@ export default class HeaderTitleButton extends SEElement {
     if (nameButtonEl) {
       nameButtonEl.addEventListener("click", this.handleClickNameButton);
     }
-    window.addEventListener(
-      DidChangeProjectStateMessage.method,
-      this.handleDidChangeProjectState
-    );
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     const nameInputEl = this.nameInputEl;
     if (nameInputEl) {
       nameInputEl.removeEventListener("keydown", this.handleKeyDownNameInput);
@@ -54,15 +37,7 @@ export default class HeaderTitleButton extends SEElement {
     if (nameButtonEl) {
       nameButtonEl.removeEventListener("click", this.handleClickNameButton);
     }
-    window.removeEventListener(
-      DidChangeProjectStateMessage.method,
-      this.handleDidChangeProjectState
-    );
   }
-
-  handleDidChangeProjectState = () => {
-    this.render();
-  };
 
   handleClickNameButton = () => {
     Workspace.window.startEditingProjectName();

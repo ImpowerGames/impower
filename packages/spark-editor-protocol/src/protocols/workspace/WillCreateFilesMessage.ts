@@ -7,9 +7,9 @@ export interface WillCreateFilesParams extends CreateFilesParams {
   files: (FileCreate & { data: ArrayBuffer })[];
 }
 
-export namespace WillCreateFilesMessage {
-  export const method = "workspace/willCreateFiles";
-  export const type = new MessageProtocolRequestType<
+export class WillCreateFilesMessage {
+  static readonly method = "workspace/willCreateFiles";
+  static readonly type = new MessageProtocolRequestType<
     WillCreateFilesMethod,
     WillCreateFilesParams,
     FileData[]

@@ -1,30 +1,19 @@
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import getValidFileName from "../../utils/getValidFileName";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_file-upload-button";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import spec from "./_file-upload-button";
 
-export default class FileAddButton extends SEElement {
-  static override async define(
-    tag = "se-file-add-button",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
+export default class FileAddButton extends Component(spec) {
   get buttonEl() {
     return this.getElementByTag("s-button");
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.buttonEl?.addEventListener("change", this.handleInputChange);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.buttonEl?.removeEventListener("change", this.handleInputChange);
   }
 
@@ -39,7 +28,7 @@ export default class FileAddButton extends SEElement {
   };
 
   async upload(fileList: FileList) {
-    const projectId = Workspace.window.state.project.id;
+    const projectId = WorkspaceCache.get().project.id;
     if (projectId) {
       if (fileList) {
         const files = await Promise.all(

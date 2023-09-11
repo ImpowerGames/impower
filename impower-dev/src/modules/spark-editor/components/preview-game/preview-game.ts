@@ -11,30 +11,19 @@ import {
   getPreviousPreviewCommand,
 } from "../../../../../../packages/spark-engine/src";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src";
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_preview-game";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import spec from "./_preview-game";
 
-export default class GamePreview extends SEElement {
-  static override async define(
-    tag = "se-preview-game",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
+export default class GamePreview extends Component(spec) {
   _uri = "";
 
   _programs: { uri: string; name: string; program: SparkProgram }[] = [];
 
   _entryLine = 0;
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.configureGame();
     this.loadGame();
     this.loadPreview();
@@ -57,7 +46,7 @@ export default class GamePreview extends SEElement {
     window.addEventListener("keydown", this.handleKeyDown);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.removeEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
@@ -181,7 +170,7 @@ export default class GamePreview extends SEElement {
   }
 
   async loadPreview() {
-    if (!Workspace.window.state.panes.preview.panels.game.running) {
+    if (!WorkspaceCache.get().preview.modes.game.running) {
       const editor = await Workspace.window.getOpenEditor("logic");
       if (editor) {
         const { uri, version, text, visibleRange, selectedRange } = editor;

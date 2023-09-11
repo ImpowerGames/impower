@@ -1,72 +1,13 @@
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
-import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
 import { verifyFileType } from "../../utils/verifyFileType";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_file-list";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import spec from "./_file-list";
 
-const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["include", "exclude", "accept"]),
-};
-
-/**
- * Progress bars are used to show the status of an ongoing operation.
- */
-export default class FileList
-  extends SEElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName = "se-file-list",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  /**
-   * The glob filter that determines which project files will be included in the list.
-   * e.g. `*.script`
-   */
-  get include(): string | null {
-    return this.getStringAttribute(FileList.attributes.include);
-  }
-  set include(value) {
-    this.setStringAttribute(FileList.attributes.include, value);
-  }
-
-  /**
-   * The glob filter that determines which project files will be excluded from the list.
-   * e.g. `main.script`
-   */
-  get exclude(): string | null {
-    return this.getStringAttribute(FileList.attributes.exclude);
-  }
-  set exclude(value) {
-    this.setStringAttribute(FileList.attributes.exclude, value);
-  }
-
-  /**
-   * The file types to accept when drag-and-dropping files for upload.
-   */
-  get accept(): string | null {
-    return this.getStringAttribute(FileList.attributes.accept);
-  }
-  set accept(value) {
-    this.setStringAttribute(FileList.attributes.accept, value);
-  }
-
+export default class FileList extends Component(spec) {
   get emptyEl() {
     return this.getElementByClass("empty");
   }
@@ -83,20 +24,13 @@ export default class FileList
 
   protected _dragging = false;
 
-  protected override onAttributeChanged(
-    name: string,
-    _oldValue: string,
-    newValue: string
-  ): void {
-    if (
-      name === FileList.attributes.include ||
-      name === FileList.attributes.exclude
-    ) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === FileList.attrs.include || name === FileList.attrs.exclude) {
       this.loadEntries();
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.loadEntries();
     window.addEventListener(
       DidChangeWatchedFilesMessage.method,
@@ -108,7 +42,7 @@ export default class FileList
     this.root.addEventListener("drop", this.handleDrop);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.removeEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
@@ -170,7 +104,7 @@ export default class FileList
   };
 
   async upload(fileArray: File[]) {
-    const projectId = Workspace.window.state.project.id;
+    const projectId = WorkspaceCache.get().project.id;
     if (projectId) {
       if (fileArray) {
         const files = await Promise.all(

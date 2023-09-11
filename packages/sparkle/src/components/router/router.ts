@@ -1,6 +1,6 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
 import getCssAnimation from "../../../../sparkle-style-transformer/src/utils/getCssAnimation";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
@@ -8,7 +8,7 @@ import { animationsComplete } from "../../utils/animationsComplete";
 import { cancelAnimations } from "../../utils/cancelAnimations";
 import { getDirection } from "../../utils/getDirection";
 import { reverseAnimation } from "../../utils/reverseAnimation";
-import component from "./_router";
+import spec from "./_router";
 
 const EXIT_EVENT = "exit";
 const ENTER_EVENT = "enter";
@@ -37,46 +37,40 @@ export default class Router
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-router";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Router.augmentCss(css);
   }
 
   /**
    * The unique key that identifies this router.
    */
   get key(): string | null {
-    return this.getStringAttribute(Router.attributes.key);
+    return this.getStringAttribute(Router.attrs.key);
   }
   set key(value) {
-    this.setStringAttribute(Router.attributes.key, value);
+    this.setStringAttribute(Router.attrs.key, value);
   }
 
   /**
    * The value of the active route.
    */
   get active(): string | null {
-    return this.getStringAttribute(Router.attributes.active);
+    return this.getStringAttribute(Router.attrs.active);
   }
   set active(value) {
-    this.setStringAttribute(Router.attributes.active, value);
+    this.setStringAttribute(Router.attrs.active, value);
   }
 
   /**
@@ -85,10 +79,10 @@ export default class Router
    * Defaults to `this`
    */
   get eventSource(): "this" | "window" {
-    return this.getStringAttribute(Router.attributes.eventSource) || "this";
+    return this.getStringAttribute(Router.attrs.eventSource) || "this";
   }
   set eventSource(value) {
-    this.setStringAttribute(Router.attributes.eventSource, value);
+    this.setStringAttribute(Router.attrs.eventSource, value);
   }
 
   /**
@@ -97,10 +91,10 @@ export default class Router
    * Defaults to `changing`
    */
   get exitEvent(): "changing" {
-    return this.getStringAttribute(Router.attributes.exitEvent) || "changing";
+    return this.getStringAttribute(Router.attrs.exitEvent) || "changing";
   }
   set exitEvent(value) {
-    this.setStringAttribute(Router.attributes.exitEvent, value);
+    this.setStringAttribute(Router.attrs.exitEvent, value);
   }
 
   /**
@@ -109,10 +103,10 @@ export default class Router
    * Defaults to `changed`
    */
   get enterEvent(): "changed" {
-    return this.getStringAttribute(Router.attributes.enterEvent) || "changed";
+    return this.getStringAttribute(Router.attrs.enterEvent) || "changed";
   }
   set enterEvent(value) {
-    this.setStringAttribute(Router.attributes.enterEvent, value);
+    this.setStringAttribute(Router.attrs.enterEvent, value);
   }
 
   /**
@@ -121,10 +115,10 @@ export default class Router
    * If not provided a value, defaults to `x`.
    */
   get directional(): "x" | "y" | "z" | null {
-    return this.getStringAttribute(Router.attributes.directional);
+    return this.getStringAttribute(Router.attrs.directional);
   }
   set directional(value) {
-    this.setStringAttribute(Router.attributes.directional, value);
+    this.setStringAttribute(Router.attrs.directional, value);
   }
 
   /**
@@ -133,10 +127,10 @@ export default class Router
    * Defaults to `on-exit`.
    */
   get unmount(): "on-exit" | "on-enter" | "never" | null {
-    return this.getStringAttribute(Router.attributes.unmount);
+    return this.getStringAttribute(Router.attrs.unmount);
   }
   set unmount(value) {
-    this.setStringAttribute(Router.attributes.unmount, value);
+    this.setStringAttribute(Router.attrs.unmount, value);
   }
 
   /**
@@ -149,10 +143,10 @@ export default class Router
    * If not provided a value, defaults to `pointer`.
    */
   get swipeable(): "pointer" | "touch" | "mouse" | null {
-    return this.getStringAttribute(Router.attributes.swipeable);
+    return this.getStringAttribute(Router.attrs.swipeable);
   }
   set swipeable(value) {
-    this.setStringAttribute(Router.attributes.swipeable, value);
+    this.setStringAttribute(Router.attrs.swipeable, value);
   }
 
   get oldFadeEl(): HTMLElement {
@@ -239,7 +233,7 @@ export default class Router
     return [];
   }
 
-  protected _state: "exiting" | "loading" | "entering" | null = null;
+  protected _status: "exiting" | "loading" | "entering" | null = null;
 
   protected _loadingValue: string | null = null;
 
@@ -255,7 +249,7 @@ export default class Router
 
   protected _exit_fade = "";
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     const eventSourceEl = this.eventSource === "window" ? window : this;
     eventSourceEl.addEventListener(this.exitEvent, this.handleChanging);
     eventSourceEl.addEventListener(this.enterEvent, this.handleChanged);
@@ -264,7 +258,7 @@ export default class Router
     }
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     const eventSourceEl = this.eventSource === "window" ? window : this;
     eventSourceEl.removeEventListener(this.exitEvent, this.handleChanging);
     eventSourceEl.removeEventListener(this.enterEvent, this.handleChanged);
@@ -283,7 +277,7 @@ export default class Router
   }
 
   async exitRoute(direction: string | null): Promise<void> {
-    if (this._state === "entering") {
+    if (this._status === "entering") {
       // already entering, so reverse enter animations
       reverseAnimation(this.enterFadeEl, this._enter_fade);
       reverseAnimation(this.enterTransformEl, this._enter_transform);
@@ -349,11 +343,11 @@ export default class Router
   }
 
   playExitTransition(): void {
-    this.updateState("exiting");
+    this.updateStatus("exiting");
   }
 
   playEnterTransition(): void {
-    this.updateState("entering");
+    this.updateStatus("entering");
   }
 
   loadContent(newValue: string | null, slotName?: string): Node | null {
@@ -396,12 +390,12 @@ export default class Router
   }
 
   endTransitions(): void {
-    this.updateState(null);
+    this.updateStatus(null);
   }
 
-  updateState(state: "exiting" | "loading" | "entering" | null): void {
-    this._state = state;
-    this.updateRootAttribute("state", state);
+  updateStatus(status: "exiting" | "loading" | "entering" | null): void {
+    this._status = status;
+    this.updateRootAttribute("status", status);
   }
 
   findTemplate(

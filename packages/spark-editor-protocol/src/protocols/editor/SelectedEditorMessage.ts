@@ -9,9 +9,9 @@ export interface SelectedEditorParams {
   docChanged: boolean;
 }
 
-export namespace SelectedEditorMessage {
-  export const method = "editor/selected";
-  export const type = new MessageProtocolNotificationType<
+export class SelectedEditorMessage {
+  static readonly method = "editor/selected";
+  static readonly type = new MessageProtocolNotificationType<
     SelectedEditorMethod,
     SelectedEditorParams
   >(SelectedEditorMessage.method);

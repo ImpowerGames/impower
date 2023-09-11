@@ -1,31 +1,20 @@
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_logic-scripts-editor";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import spec from "./_logic-scripts-editor";
 
-export default class LogicScriptsEditor extends SEElement {
-  static override async define(
-    tag = "se-logic-scripts-editor",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component({ store: Workspace.window.state });
-  }
-
-  protected override onConnected(): void {
+export default class LogicScriptsEditor extends Component(spec) {
+  override onConnected(): void {
     this.addEventListener("changing", this.handleChanging);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.removeEventListener("changing", this.handleChanging);
   }
 
   getFilename() {
     return (
-      Workspace.window.state?.panes?.logic?.panels?.scripts?.activeEditor
+      WorkspaceCache.get()?.panes?.logic?.panels?.scripts?.activeEditor
         ?.filename || ""
     );
   }
@@ -39,7 +28,7 @@ export default class LogicScriptsEditor extends SEElement {
       if (e.detail.key === "file-options") {
         if (filename) {
           if (e.detail.value === "delete") {
-            const projectId = Workspace.window.state.project.id;
+            const projectId = WorkspaceCache.get().project.id;
             if (projectId) {
               const uri = Workspace.fs.getFileUri(projectId, filename);
               await Workspace.fs.deleteFiles({

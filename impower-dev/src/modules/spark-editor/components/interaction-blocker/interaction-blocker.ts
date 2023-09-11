@@ -1,51 +1,18 @@
-import { DidChangeProjectStateMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeProjectStateMessage";
-import SEElement from "../../core/se-element";
-import component from "./_interaction-blocker";
+import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
+import { Component } from "../../../../../../packages/spec-component/src/component";
+import spec from "./_interaction-blocker";
 
-export default class InteractionBlocker extends SEElement {
-  static override async define(
-    tag = "se-interaction-blocker",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  protected override onConnected(): void {
-    window.addEventListener(
-      DidChangeProjectStateMessage.method,
-      this.handleDidChangeProjectState
-    );
-  }
-
-  protected override onDisconnected(): void {
-    window.removeEventListener(
-      DidChangeProjectStateMessage.method,
-      this.handleDidChangeProjectState
-    );
-  }
-
-  handleDidChangeProjectState = (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidChangeProjectStateMessage.type.isNotification(message)) {
-        const params = message.params;
-        const { state } = params;
-        if (
-          !state.id ||
-          state.syncState === "loading" ||
-          state.syncState === "importing" ||
-          state.syncState === "exporting"
-        ) {
-          this.hidden = false;
-        } else {
-          this.hidden = true;
-        }
-      }
+export default class InteractionBlocker extends Component(spec) {
+  override onUpdate(store: WorkspaceStore) {
+    const syncState = store.project.syncState;
+    if (
+      syncState === "loading" ||
+      syncState === "importing" ||
+      syncState === "exporting"
+    ) {
+      this.hidden = false;
+    } else {
+      this.hidden = true;
     }
-  };
+  }
 }

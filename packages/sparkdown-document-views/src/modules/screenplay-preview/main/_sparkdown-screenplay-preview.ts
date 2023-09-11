@@ -1,4 +1,10 @@
+import { spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "./sparkdown-screenplay-preview.css";
 import html from "./sparkdown-screenplay-preview.html";
 
-export default () => ({ html, css });
+export default spec({
+  tag: "sparkdown-screenplay-preview",
+  css,
+  props: { scrollMargin: "" },
+  html,
+});

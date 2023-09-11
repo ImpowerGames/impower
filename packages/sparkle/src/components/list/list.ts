@@ -4,28 +4,22 @@ import { navEndKey } from "../../utils/navEndKey";
 import { navNextKey } from "../../utils/navNextKey";
 import { navPrevKey } from "../../utils/navPrevKey";
 import { navStartKey } from "../../utils/navStartKey";
-import component from "./_list";
+import spec from "./_list";
 
 /**
  * Lists allow the user to navigate children in an accessible way.
  */
 export default class List extends SparkleElement {
-  static override tagName = "s-list";
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
+  static override get tag() {
+    return spec.tag;
   }
 
-  override get component() {
-    return component();
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
   }
 
-  override transformCss(css: string) {
-    return List.augmentCss(css);
+  override get css() {
+    return this.getCSS(spec);
   }
 
   get focusableChildren(): HTMLElement[] {
@@ -42,11 +36,11 @@ export default class List extends SparkleElement {
     return [];
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.bindNavigation();
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.unbindNavigation();
   }
 

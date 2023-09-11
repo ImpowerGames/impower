@@ -1,13 +1,13 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
-import component from "./_toast";
+import spec from "./_toast";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -28,32 +28,24 @@ export default class Toast
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-toast";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return Toast.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Toast.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**
@@ -61,20 +53,20 @@ export default class Toast
    * use the `show()` and `hide()` methods and this attribute will reflect the toast's open state.
    */
   get open(): boolean {
-    return this.getBooleanAttribute(Toast.attributes.open);
+    return this.getBooleanAttribute(Toast.attrs.open);
   }
   set open(value: boolean) {
-    this.setBooleanAttribute(Toast.attributes.open, value);
+    this.setBooleanAttribute(Toast.attrs.open, value);
   }
 
   /**
    * The message to display inside the toast.
    */
   get message(): string | null {
-    return this.getStringAttribute(Toast.attributes.message);
+    return this.getStringAttribute(Toast.attrs.message);
   }
   set message(value: string | null) {
-    this.setStringAttribute(Toast.attributes.message, value);
+    this.setStringAttribute(Toast.attrs.message, value);
   }
 
   /**
@@ -83,10 +75,10 @@ export default class Toast
    * (Clicking this button will dismiss the toast.)
    */
   get action(): string | null {
-    return this.getStringAttribute(Toast.attributes.action);
+    return this.getStringAttribute(Toast.attrs.action);
   }
   set action(value: string | null) {
-    this.setStringAttribute(Toast.attributes.action, value);
+    this.setStringAttribute(Toast.attrs.action, value);
   }
 
   /**
@@ -99,10 +91,10 @@ export default class Toast
    * Defaults to `4000`.
    */
   get timeout(): string | null {
-    return this.getStringAttribute(Toast.attributes.timeout);
+    return this.getStringAttribute(Toast.attrs.timeout);
   }
   set timeout(value: string | null) {
-    this.setStringAttribute(Toast.attributes.timeout, value);
+    this.setStringAttribute(Toast.attrs.timeout, value);
   }
 
   get buttonEl(): HTMLButtonElement | null {
@@ -121,12 +113,8 @@ export default class Toast
 
   private _autoHideTimeout?: number;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Toast.attributes.color) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Toast.attrs.color) {
       const buttonEl = this.buttonEl;
       if (buttonEl) {
         if (newValue != null) {
@@ -136,24 +124,24 @@ export default class Toast
         }
       }
     }
-    if (name === Toast.attributes.open) {
+    if (name === Toast.attrs.open) {
       const open = newValue != null;
       this.ariaHidden = open ? "false" : "true";
       const durationMS = getCssDurationMS(this.timeout, 4000);
       this.changeState(open, durationMS);
     }
-    if (name === Toast.attributes.timeout) {
+    if (name === Toast.attrs.timeout) {
       const open = this.open;
       const durationMS = getCssDurationMS(newValue, 4000);
       this.restartAutoClose(open, durationMS);
     }
-    if (name === Toast.attributes.message) {
+    if (name === Toast.attrs.message) {
       const message = newValue;
       if (message) {
         this.setAssignedToSlot(message);
       }
     }
-    if (name === Toast.attributes.action) {
+    if (name === Toast.attrs.action) {
       const action = newValue;
       if (action) {
         this.setAssignedToSlot(action, "action");
@@ -165,7 +153,7 @@ export default class Toast
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     const open = this.open;
     const durationMS = getCssDurationMS(this.timeout, 4000);
     this.changeState(open, durationMS);
@@ -197,7 +185,7 @@ export default class Toast
     }
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.root.removeEventListener("mousemove", this.handleHover);
     this.buttonEl?.removeEventListener("click", this.handleButtonClick);
     if (this.shadowRoot) {

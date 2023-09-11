@@ -7,9 +7,9 @@ export interface DidWriteFileParams {
   file: FileData;
 }
 
-export namespace DidWriteFileMessage {
-  export const method = "workspace/didWriteFile";
-  export const type = new MessageProtocolNotificationType<
+export class DidWriteFileMessage {
+  static readonly method = "workspace/didWriteFile";
+  static readonly type = new MessageProtocolNotificationType<
     DidWriteFileMethod,
     DidWriteFileParams
   >(DidWriteFileMessage.method);

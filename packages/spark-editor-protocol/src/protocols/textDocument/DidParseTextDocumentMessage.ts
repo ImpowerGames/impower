@@ -16,9 +16,9 @@ export interface DidParseTextDocumentParams {
   program: SparkProgram;
 }
 
-export namespace DidParseTextDocumentMessage {
-  export const method = "textDocument/didParse";
-  export const type = new MessageProtocolNotificationType<
+export class DidParseTextDocumentMessage {
+  static readonly method = "textDocument/didParse";
+  static readonly type = new MessageProtocolNotificationType<
     DidParseTextDocumentMethod,
     DidParseTextDocumentParams
   >(DidParseTextDocumentMessage.method);

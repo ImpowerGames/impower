@@ -1,12 +1,12 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import Queue from "../../helpers/queue";
 import Toast from "../toast/toast";
-import component from "./_toast-stack";
+import spec from "./_toast-stack";
 
 const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
@@ -22,32 +22,24 @@ export default class ToastStack
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-toast-stack";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return ToastStack.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return ToastStack.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**
@@ -58,22 +50,18 @@ export default class ToastStack
    *
    */
   get alert(): string | null {
-    return this.getStringAttribute(ToastStack.attributes.alert);
+    return this.getStringAttribute(ToastStack.attrs.alert);
   }
   set alert(value: string | null) {
-    this.setStringAttribute(ToastStack.attributes.alert, value);
+    this.setStringAttribute(ToastStack.attrs.alert, value);
   }
 
   protected _templates: HTMLTemplateElement[] = [];
 
   protected _queue = new Queue();
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === ToastStack.attributes.alert) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === ToastStack.attrs.alert) {
       if (newValue != null) {
         const [message, action, timeout, type] = newValue.split(";");
         if (message) {

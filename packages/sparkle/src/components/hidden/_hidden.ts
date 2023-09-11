@@ -1,18 +1,19 @@
-import { html } from "../../../../spark-element/src/utils/html";
+import { html, spec } from "../../../../spec-component/src/spec";
+import sharedCSS from "../../styles/shared";
 import css from "./hidden.css";
 
-export default (state?: {
-  attrs?: {
-    initial: string | null;
-  };
-}) => {
-  const initial = state?.attrs?.initial;
-  return {
-    css,
-    html: html`
+export default spec({
+  tag: "s-hidden",
+  css: [...sharedCSS, css],
+  props: {
+    initial: null as string | null,
+  },
+  html: ({ props }) => {
+    const { initial } = props;
+    return html`
       <div class="root" part="root" ${initial === "hide" ? "hidden" : ""}>
         <slot></slot>
       </div>
-    `,
-  };
-};
+    `;
+  },
+});

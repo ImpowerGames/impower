@@ -10,9 +10,9 @@ export interface LoadEditorParams {
   languageServerCapabilities: ServerCapabilities;
 }
 
-export namespace LoadEditorMessage {
-  export const method = "editor/load";
-  export const type = new MessageProtocolRequestType<
+export class LoadEditorMessage {
+  static readonly method = "editor/load";
+  static readonly type = new MessageProtocolRequestType<
     LoadEditorMethod,
     LoadEditorParams,
     null

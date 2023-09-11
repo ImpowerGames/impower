@@ -7,9 +7,9 @@ export interface DidCloseFileEditorParams {
   panel: string;
 }
 
-export namespace DidCloseFileEditorMessage {
-  export const method = "window/didCloseFileEditor";
-  export const type = new MessageProtocolNotificationType<
+export class DidCloseFileEditorMessage {
+  static readonly method = "window/didCloseFileEditor";
+  static readonly type = new MessageProtocolNotificationType<
     DidCloseFileEditorMethod,
     DidCloseFileEditorParams
   >(DidCloseFileEditorMessage.method);

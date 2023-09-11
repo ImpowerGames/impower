@@ -1,6 +1,6 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spark-element/src/utils/getDependencyNameMap";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
@@ -11,7 +11,7 @@ import { navStartKey } from "../../utils/navStartKey";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import Option from "../option/option";
 import Popup from "../popup/popup";
-import component from "./_dropdown";
+import spec from "./_dropdown";
 
 const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
@@ -58,52 +58,44 @@ export default class Dropdown
   extends Popup
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-dropdown";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override dependencies = DEFAULT_DEPENDENCIES;
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
 
-  static override get attributes() {
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get dependencies() {
+    return DEFAULT_DEPENDENCIES;
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies = DEFAULT_DEPENDENCIES,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformHtml(html: string) {
-    return Dropdown.augmentHtml(html, DEFAULT_DEPENDENCIES);
-  }
-
-  override transformCss(css: string) {
-    return Dropdown.augmentCss(css, DEFAULT_DEPENDENCIES);
   }
 
   /**
    * Key that is included in all emitted events.
    */
   get key(): string | null {
-    return this.getStringAttribute(Dropdown.attributes.key);
+    return this.getStringAttribute(Dropdown.attrs.key);
   }
   set key(value) {
-    this.setStringAttribute(Dropdown.attributes.key, value);
+    this.setStringAttribute(Dropdown.attrs.key, value);
   }
 
   /**
    * The value of the active option.
    */
   get active(): string | null {
-    return this.getStringAttribute(Dropdown.attributes.active);
+    return this.getStringAttribute(Dropdown.attrs.active);
   }
   set active(value) {
-    this.setStringAttribute(Dropdown.attributes.active, value);
+    this.setStringAttribute(Dropdown.attrs.active, value);
   }
 
   override get placement():
@@ -119,11 +111,11 @@ export default class Dropdown
     | "left"
     | "left-start"
     | "left-end" {
-    return this.getStringAttribute(Dropdown.attributes.placement) || "bottom";
+    return this.getStringAttribute(Dropdown.attrs.placement) || "bottom";
   }
 
   override get strategy(): "absolute" | "fixed" {
-    return this.getStringAttribute(Popup.attributes.strategy) || "fixed";
+    return this.getStringAttribute(Popup.attrs.strategy) || "fixed";
   }
 
   get optionsSlot(): HTMLSlotElement | null {
@@ -141,19 +133,12 @@ export default class Dropdown
 
   protected _activatingValue: string | null = null;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
+  override onAttributeChanged(name: string, newValue: string): void {
     const popupEl = this.popupEl;
-    if (name === Dropdown.attributes.open) {
+    if (name === Dropdown.attrs.open) {
       const open = newValue != null;
       if (popupEl) {
-        popupEl.setAttribute(
-          Dropdown.attributes.ariaLive,
-          open ? "polite" : "off"
-        );
+        popupEl.setAttribute(Dropdown.attrs.ariaLive, open ? "polite" : "off");
       }
       if (open) {
         this.animateOpen();
@@ -162,27 +147,27 @@ export default class Dropdown
       }
     }
     if (
-      name === Dropdown.attributes.distance ||
-      name === Dropdown.attributes.placement ||
-      name === Dropdown.attributes.skidding
+      name === Dropdown.attrs.distance ||
+      name === Dropdown.attrs.placement ||
+      name === Dropdown.attrs.skidding
     ) {
       this.reposition();
     }
-    if (name === Dropdown.attributes.disabled) {
+    if (name === Dropdown.attrs.disabled) {
       if (this.disabled && this.open) {
         this.hide();
       }
     }
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this._activatingValue = this.active;
     this.dialogEl.addEventListener("click", this.handleLightDismiss);
     this.dialogEl.addEventListener("cancel", this.handleCancel);
     this.root.addEventListener("click", this.handleClick);
   }
 
-  protected override onParsed(): void {
+  override onParsed(): void {
     const popupEl = this.popupEl;
     if (popupEl) {
       popupEl.hidden = !this.open;
@@ -196,7 +181,7 @@ export default class Dropdown
     }
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.dialogEl.removeEventListener("click", this.handleLightDismiss);
     this.dialogEl.removeEventListener("cancel", this.handleCancel);
     this.root.removeEventListener("click", this.handleClick);

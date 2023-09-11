@@ -5,9 +5,9 @@ export type DidDeleteFilesMethod = typeof DidDeleteFilesMessage.method;
 
 export interface DidDeleteFilesParams extends DeleteFilesParams {}
 
-export namespace DidDeleteFilesMessage {
-  export const method = "workspace/didDeleteFiles";
-  export const type = new MessageProtocolNotificationType<
+export class DidDeleteFilesMessage {
+  static readonly method = "workspace/didDeleteFiles";
+  static readonly type = new MessageProtocolNotificationType<
     DidDeleteFilesMethod,
     DidDeleteFilesParams
   >(DidDeleteFilesMessage.method);

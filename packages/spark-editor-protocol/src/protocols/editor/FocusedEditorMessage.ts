@@ -7,9 +7,9 @@ export interface FocusedEditorParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export namespace FocusedEditorMessage {
-  export const method = "editor/focused";
-  export const type = new MessageProtocolNotificationType<
+export class FocusedEditorMessage {
+  static readonly method = "editor/focused";
+  static readonly type = new MessageProtocolNotificationType<
     FocusedEditorMethod,
     FocusedEditorParams
   >(FocusedEditorMessage.method);

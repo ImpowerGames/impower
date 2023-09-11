@@ -5,9 +5,9 @@ export type WillRenameFilesMethod = typeof WillRenameFilesMessage.method;
 
 export interface WillRenameFilesParams extends RenameFilesParams {}
 
-export namespace WillRenameFilesMessage {
-  export const method = "workspace/willRenameFiles";
-  export const type = new MessageProtocolNotificationType<
+export class WillRenameFilesMessage {
+  static readonly method = "workspace/willRenameFiles";
+  static readonly type = new MessageProtocolNotificationType<
     WillRenameFilesMethod,
     WillRenameFilesParams
   >(WillRenameFilesMessage.method);

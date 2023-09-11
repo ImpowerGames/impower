@@ -1,16 +1,4 @@
-import SEElement from "../../core/se-element";
-import component from "./_share";
+import { Component } from "../../../../../../packages/spec-component/src/component";
+import spec from "./_share";
 
-export default class Share extends SEElement {
-  static override async define(
-    tag = "se-share",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-}
+export default class Share extends Component(spec) {}

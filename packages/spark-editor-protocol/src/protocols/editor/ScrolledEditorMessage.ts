@@ -9,9 +9,9 @@ export interface ScrolledEditorParams {
   target: string;
 }
 
-export namespace ScrolledEditorMessage {
-  export const method = "editor/scrolled";
-  export const type = new MessageProtocolNotificationType<
+export class ScrolledEditorMessage {
+  static readonly method = "editor/scrolled";
+  static readonly type = new MessageProtocolNotificationType<
     ScrolledEditorMethod,
     ScrolledEditorParams
   >(ScrolledEditorMessage.method);

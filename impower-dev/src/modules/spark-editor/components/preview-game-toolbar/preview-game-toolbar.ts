@@ -1,21 +1,10 @@
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import throttle from "../../utils/throttle";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_preview-game-toolbar";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import spec from "./_preview-game-toolbar";
 
-export default class PreviewGameToolbar extends SEElement {
-  static override async define(
-    tag = "se-preview-game-toolbar",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component({ store: Workspace.window.state });
-  }
-
+export default class PreviewGameToolbar extends Component(spec) {
   get settingsDropdownEl() {
     return this.getElementById("settings-dropdown");
   }
@@ -46,7 +35,7 @@ export default class PreviewGameToolbar extends SEElement {
 
   _controllingPlayback = 0;
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.runToggleButtonEl?.addEventListener(
       "click",
       this.handleClickRunToggleButton
@@ -93,7 +82,7 @@ export default class PreviewGameToolbar extends SEElement {
     );
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.runToggleButtonEl?.removeEventListener(
       "click",
       this.handleClickRunToggleButton
@@ -200,7 +189,7 @@ export default class PreviewGameToolbar extends SEElement {
 
   throttledStep(deltaMS: number) {
     if (deltaMS < 0) {
-      const paused = Workspace.window.state.panes.preview.panels.game.paused;
+      const paused = WorkspaceCache.get().preview.modes.game.paused;
       if (!paused) {
         Workspace.window.pauseGame();
       }

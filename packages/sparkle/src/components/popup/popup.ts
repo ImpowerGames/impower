@@ -1,11 +1,11 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import { offsetParent } from "../../utils/composed-offset-position";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import component from "./_popup";
+import spec from "./_popup";
 import { flip } from "./floating-ui/core/src/middleware/flip";
 import { offset } from "./floating-ui/core/src/middleware/offset";
 import { shift } from "./floating-ui/core/src/middleware/shift";
@@ -49,26 +49,20 @@ export default class Popup
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-popup";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return Popup.augmentCss(css);
   }
 
   /**
@@ -76,10 +70,10 @@ export default class Popup
    * reference to it here. If the anchor lives inside the popup, use the `anchor` slot instead.
    */
   get anchor(): string | null {
-    return this.getStringAttribute(Popup.attributes.anchor);
+    return this.getStringAttribute(Popup.attrs.anchor);
   }
   set anchor(value) {
-    this.setStringAttribute(Popup.attributes.anchor, value);
+    this.setStringAttribute(Popup.attrs.anchor, value);
   }
 
   /**
@@ -87,10 +81,10 @@ export default class Popup
    * down and the popup will be hidden.
    */
   get open(): boolean {
-    return this.getBooleanAttribute(Popup.attributes.open);
+    return this.getBooleanAttribute(Popup.attrs.open);
   }
   set open(value: boolean) {
-    this.setBooleanAttribute(Popup.attributes.open, value);
+    this.setBooleanAttribute(Popup.attrs.open, value);
   }
 
   /**
@@ -110,10 +104,10 @@ export default class Popup
     | "left"
     | "left-start"
     | "left-end" {
-    return this.getStringAttribute(Popup.attributes.placement) || "top";
+    return this.getStringAttribute(Popup.attrs.placement) || "top";
   }
   set placement(value) {
-    this.setStringAttribute(Popup.attributes.placement, value);
+    this.setStringAttribute(Popup.attrs.placement, value);
   }
 
   /**
@@ -121,30 +115,30 @@ export default class Popup
    * clipped, using a `fixed` position strategy can often workaround it.
    */
   get strategy(): "absolute" | "fixed" {
-    return this.getStringAttribute(Popup.attributes.strategy) || "absolute";
+    return this.getStringAttribute(Popup.attrs.strategy) || "absolute";
   }
   set strategy(value) {
-    this.setStringAttribute(Popup.attributes.strategy, value);
+    this.setStringAttribute(Popup.attrs.strategy, value);
   }
 
   /**
    * The distance in pixels from which to offset the panel away from its anchor.
    */
   get distance(): number | null {
-    return this.getNumberAttribute(Popup.attributes.distance) ?? 8;
+    return this.getNumberAttribute(Popup.attrs.distance) ?? 8;
   }
   set distance(value) {
-    this.setStringAttribute(Popup.attributes.distance, value);
+    this.setStringAttribute(Popup.attrs.distance, value);
   }
 
   /**
    * The distance in pixels from which to offset the panel along its anchor.
    */
   get skidding(): number | null {
-    return this.getNumberAttribute(Popup.attributes.skidding);
+    return this.getNumberAttribute(Popup.attrs.skidding);
   }
   set skidding(value) {
-    this.setStringAttribute(Popup.attributes.skidding, value);
+    this.setStringAttribute(Popup.attrs.skidding, value);
   }
 
   /**
@@ -153,10 +147,10 @@ export default class Popup
    * `::part(arrow)` in your stylesheet.
    */
   get arrow(): boolean {
-    return this.getBooleanAttribute(Popup.attributes.arrow);
+    return this.getBooleanAttribute(Popup.attrs.arrow);
   }
   set arrow(value) {
-    this.setStringAttribute(Popup.attributes.arrow, value);
+    this.setStringAttribute(Popup.attrs.arrow, value);
   }
 
   /**
@@ -165,10 +159,10 @@ export default class Popup
    * align the arrow to the start, end, or center of the popover instead.
    */
   get arrowPlacement(): "anchor" | "start" | "end" | "center" | null {
-    return this.getStringAttribute(Popup.attributes.arrowPlacement);
+    return this.getStringAttribute(Popup.attrs.arrowPlacement);
   }
   set arrowPlacement(value) {
-    this.setStringAttribute(Popup.attributes.arrowPlacement, value);
+    this.setStringAttribute(Popup.attrs.arrowPlacement, value);
   }
 
   /**
@@ -176,10 +170,10 @@ export default class Popup
    * this will prevent it from overflowing the corners.
    */
   get arrowPadding(): number | null {
-    return this.getNumberAttribute(Popup.attributes.arrowPadding);
+    return this.getNumberAttribute(Popup.attrs.arrowPadding);
   }
   set arrowPadding(value) {
-    this.setStringAttribute(Popup.attributes.arrowPadding, value);
+    this.setStringAttribute(Popup.attrs.arrowPadding, value);
   }
 
   /**
@@ -189,10 +183,10 @@ export default class Popup
    * You can use `flipFallbackPlacements` to further configure how the fallback placement is determined.
    */
   get disableAutoFlip(): boolean {
-    return this.getBooleanAttribute(Popup.attributes.disableAutoFlip);
+    return this.getBooleanAttribute(Popup.attrs.disableAutoFlip);
   }
   set disableAutoFlip(value) {
-    this.setStringAttribute(Popup.attributes.disableAutoFlip, value);
+    this.setStringAttribute(Popup.attrs.disableAutoFlip, value);
   }
 
   /**
@@ -201,10 +195,10 @@ export default class Popup
    * fallback strategy will be used instead.
    * */
   get flipFallbackPlacements(): string | null {
-    return this.getStringAttribute(Popup.attributes.flipFallbackPlacements);
+    return this.getStringAttribute(Popup.attrs.flipFallbackPlacements);
   }
   set flipFallbackPlacements(value) {
-    this.setStringAttribute(Popup.attributes.flipFallbackPlacements, value);
+    this.setStringAttribute(Popup.attrs.flipFallbackPlacements, value);
   }
 
   /**
@@ -213,10 +207,10 @@ export default class Popup
    * preferred.
    */
   get flipFallbackStrategy(): "best-fit" | "initial" | null {
-    return this.getStringAttribute(Popup.attributes.flipFallbackStrategy);
+    return this.getStringAttribute(Popup.attrs.flipFallbackStrategy);
   }
   set flipFallbackStrategy(value) {
-    this.setStringAttribute(Popup.attributes.flipFallbackStrategy, value);
+    this.setStringAttribute(Popup.attrs.flipFallbackStrategy, value);
   }
 
   /**
@@ -225,20 +219,20 @@ export default class Popup
    * change the boundary by passing a reference to one or more elements to this property.
    */
   get flipBoundary(): string | null {
-    return this.getStringAttribute(Popup.attributes.flipBoundary);
+    return this.getStringAttribute(Popup.attrs.flipBoundary);
   }
   set flipBoundary(value) {
-    this.setStringAttribute(Popup.attributes.flipBoundary, value);
+    this.setStringAttribute(Popup.attrs.flipBoundary, value);
   }
 
   /**
    * The amount of padding, in pixels, to exceed before the flip behavior will occur.
    */
   get flipPadding(): number | null {
-    return this.getNumberAttribute(Popup.attributes.flipPadding);
+    return this.getNumberAttribute(Popup.attrs.flipPadding);
   }
   set flipPadding(value) {
-    this.setStringAttribute(Popup.attributes.flipPadding, value);
+    this.setStringAttribute(Popup.attrs.flipPadding, value);
   }
 
   /**
@@ -247,10 +241,10 @@ export default class Popup
    * This disables that behavior.
    */
   get disableAutoShift(): boolean {
-    return this.getBooleanAttribute(Popup.attributes.disableAutoShift);
+    return this.getBooleanAttribute(Popup.attrs.disableAutoShift);
   }
   set disableAutoShift(value) {
-    this.setStringAttribute(Popup.attributes.disableAutoShift, value);
+    this.setStringAttribute(Popup.attrs.disableAutoShift, value);
   }
 
   /**
@@ -259,40 +253,40 @@ export default class Popup
    * change the boundary by passing a reference to one or more elements to this property.
    */
   get shiftBoundary(): string | null {
-    return this.getStringAttribute(Popup.attributes.shiftBoundary);
+    return this.getStringAttribute(Popup.attrs.shiftBoundary);
   }
   set shiftBoundary(value) {
-    this.setStringAttribute(Popup.attributes.shiftBoundary, value);
+    this.setStringAttribute(Popup.attrs.shiftBoundary, value);
   }
 
   /**
    * The amount of padding, in pixels, to exceed before the shift behavior will occur.
    */
   get shiftPadding(): number | null {
-    return this.getNumberAttribute(Popup.attributes.shiftPadding);
+    return this.getNumberAttribute(Popup.attrs.shiftPadding);
   }
   set shiftPadding(value) {
-    this.setStringAttribute(Popup.attributes.shiftPadding, value);
+    this.setStringAttribute(Popup.attrs.shiftPadding, value);
   }
 
   /**
    * When set, this will cause the popup to automatically resize itself to prevent it from overflowing.
    */
   get autoSize(): "horizontal" | "vertical" | "both" | null {
-    return this.getStringAttribute(Popup.attributes.autoSize);
+    return this.getStringAttribute(Popup.attrs.autoSize);
   }
   set autoSize(value) {
-    this.setStringAttribute(Popup.attributes.autoSize, value);
+    this.setStringAttribute(Popup.attrs.autoSize, value);
   }
 
   /**
    * Syncs the popup's width or height to that of the anchor element.
    */
   get syncSize(): "width" | "height" | "both" | null {
-    return this.getStringAttribute(Popup.attributes.syncSize);
+    return this.getStringAttribute(Popup.attrs.syncSize);
   }
   set syncSize(value) {
-    this.setStringAttribute(Popup.attributes.syncSize, value);
+    this.setStringAttribute(Popup.attrs.syncSize, value);
   }
 
   /**
@@ -301,20 +295,20 @@ export default class Popup
    * change the boundary by passing a reference to one or more elements to this property.
    */
   get autoSizeBoundary(): string | null {
-    return this.getStringAttribute(Popup.attributes.autoSizeBoundary);
+    return this.getStringAttribute(Popup.attrs.autoSizeBoundary);
   }
   set autoSizeBoundary(value) {
-    this.setStringAttribute(Popup.attributes.autoSizeBoundary, value);
+    this.setStringAttribute(Popup.attrs.autoSizeBoundary, value);
   }
 
   /**
    * The amount of padding, in pixels, to exceed before the auto-size behavior will occur.
    */
   get autoSizePadding(): number | null {
-    return this.getNumberAttribute(Popup.attributes.autoSizePadding);
+    return this.getNumberAttribute(Popup.attrs.autoSizePadding);
   }
   set autoSizePadding(value) {
-    this.setStringAttribute(Popup.attributes.autoSizePadding, value);
+    this.setStringAttribute(Popup.attrs.autoSizePadding, value);
   }
 
   get anchorEl(): HTMLElement | null {
@@ -345,12 +339,8 @@ export default class Popup
 
   protected _intersectionObserver?: IntersectionObserver;
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === Popup.attributes.strategy) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === Popup.attrs.strategy) {
       const fixed = newValue === "fixed";
       if (fixed) {
         this.popupEl?.classList.add("fixed");
@@ -360,7 +350,7 @@ export default class Popup
     }
 
     // Update the anchorEl when anchor changes
-    if (name === Popup.attributes.anchor) {
+    if (name === Popup.attrs.anchor) {
       this.setupAnchor();
     }
 
@@ -369,14 +359,14 @@ export default class Popup
     }
   }
 
-  protected override onConnected(): void {}
+  override onConnected(): void {}
 
-  protected override onParsed(): void {
+  override onParsed(): void {
     this.start();
     window.addEventListener("resize", this.update);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this._intersectionObserver?.disconnect();
     this.stop();
     window.removeEventListener("resize", this.update);

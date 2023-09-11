@@ -1,8 +1,8 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
@@ -12,7 +12,7 @@ import { animationsComplete } from "../../utils/animationsComplete";
 import { getBreakpointValue } from "../../utils/getBreakpointValue";
 import { getCurrentBreakpoint } from "../../utils/getCurrentBreakpoint";
 import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
-import component from "./_hidden";
+import spec from "./_hidden";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -43,30 +43,24 @@ export default class Hidden
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-hidden";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: { initial: this.initial }, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
   override get transformers() {
     return DEFAULT_TRANSFORMERS;
-  }
-
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component({ attrs: { initial: this.initial } });
-  }
-
-  override transformCss(css: string) {
-    return Hidden.augmentCss(css);
   }
 
   /**
@@ -75,110 +69,110 @@ export default class Hidden
    * Defaults to `show`.
    */
   get initial(): "hide" | "show" | null {
-    return this.getStringAttribute(Hidden.attributes.initial);
+    return this.getStringAttribute(Hidden.attrs.initial);
   }
   set initial(value) {
-    this.setStringAttribute(Hidden.attributes.initial, value);
+    this.setStringAttribute(Hidden.attrs.initial, value);
   }
 
   /**
    * If provided, the element will be hidden when the width of the screen is below the specified breakpoint and shown otherwise.
    */
   get hideBelow(): SizeName | null {
-    return this.getStringAttribute(Hidden.attributes.hideBelow);
+    return this.getStringAttribute(Hidden.attrs.hideBelow);
   }
   set hideBelow(value) {
-    this.setStringAttribute(Hidden.attributes.hideBelow, value);
+    this.setStringAttribute(Hidden.attrs.hideBelow, value);
   }
 
   /**
    * If provided, the element will be hidden when the width of the screen is above the specified breakpoint and shown otherwise.
    */
   get hideAbove(): SizeName | null {
-    return this.getStringAttribute(Hidden.attributes.hideAbove);
+    return this.getStringAttribute(Hidden.attrs.hideAbove);
   }
   set hideAbove(value) {
-    this.setStringAttribute(Hidden.attributes.hideAbove, value);
+    this.setStringAttribute(Hidden.attrs.hideAbove, value);
   }
 
   /**
    * If provided, the element will only listen for events when the width of the screen is below the specified breakpoint.
    */
   get ifBelow(): SizeName | null {
-    return this.getStringAttribute(Hidden.attributes.ifBelow);
+    return this.getStringAttribute(Hidden.attrs.ifBelow);
   }
   set ifBelow(value) {
-    this.setStringAttribute(Hidden.attributes.ifBelow, value);
+    this.setStringAttribute(Hidden.attrs.ifBelow, value);
   }
 
   /**
    * If provided, the element will only listen for events when the width of the screen is above the specified breakpoint.
    */
   get ifAbove(): SizeName | null {
-    return this.getStringAttribute(Hidden.attributes.ifAbove);
+    return this.getStringAttribute(Hidden.attrs.ifAbove);
   }
   set ifAbove(value) {
-    this.setStringAttribute(Hidden.attributes.ifAbove, value);
+    this.setStringAttribute(Hidden.attrs.ifAbove, value);
   }
 
   /**
    * The element will hide when this event is fired
    */
   get hideEvent(): string | null {
-    return this.getStringAttribute(Hidden.attributes.hideEvent);
+    return this.getStringAttribute(Hidden.attrs.hideEvent);
   }
   set hideEvent(value) {
-    this.setStringAttribute(Hidden.attributes.hideEvent, value);
+    this.setStringAttribute(Hidden.attrs.hideEvent, value);
   }
 
   /**
    * The element will be shown again when this event is fired
    */
   get showEvent(): string | null {
-    return this.getStringAttribute(Hidden.attributes.showEvent);
+    return this.getStringAttribute(Hidden.attrs.showEvent);
   }
   set showEvent(value) {
-    this.setStringAttribute(Hidden.attributes.showEvent, value);
+    this.setStringAttribute(Hidden.attrs.showEvent, value);
   }
 
   /**
    * Disable the hide transition
    */
   get hideInstantly(): string | null {
-    return this.getStringAttribute(Hidden.attributes.hideInstantly);
+    return this.getStringAttribute(Hidden.attrs.hideInstantly);
   }
   set hideInstantly(value) {
-    this.setStringAttribute(Hidden.attributes.hideInstantly, value);
+    this.setStringAttribute(Hidden.attrs.hideInstantly, value);
   }
 
   /**
    * Disable the show transition
    */
   get showInstantly(): string | null {
-    return this.getStringAttribute(Hidden.attributes.showInstantly);
+    return this.getStringAttribute(Hidden.attrs.showInstantly);
   }
   set showInstantly(value) {
-    this.setStringAttribute(Hidden.attributes.showInstantly, value);
+    this.setStringAttribute(Hidden.attrs.showInstantly, value);
   }
 
   /**
    * The delay before the element is hidden
    */
   get hideDelay(): string | null {
-    return this.getStringAttribute(Hidden.attributes.hideDelay);
+    return this.getStringAttribute(Hidden.attrs.hideDelay);
   }
   set hideDelay(value) {
-    this.setStringAttribute(Hidden.attributes.hideDelay, value);
+    this.setStringAttribute(Hidden.attrs.hideDelay, value);
   }
 
   /**
    * The delay before the element is shown again
    */
   get showDelay(): string | null {
-    return this.getStringAttribute(Hidden.attributes.showDelay);
+    return this.getStringAttribute(Hidden.attrs.showDelay);
   }
   set showDelay(value) {
-    this.setStringAttribute(Hidden.attributes.showDelay, value);
+    this.setStringAttribute(Hidden.attrs.showDelay, value);
   }
 
   _breakpointValue = 0;
@@ -189,7 +183,7 @@ export default class Hidden
 
   _shown = false;
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     if (this.initial === "hide") {
       this.root.hidden = true;
     } else {
@@ -213,11 +207,11 @@ export default class Hidden
     }
   }
 
-  protected override onParsed(): void {
+  override onParsed(): void {
     this.load();
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.removeEventListener("resize", this.handleWindowResize);
     const hideEvents = this.hideEvent?.split(" ");
     const showEvents = this.showEvent?.split(" ");
@@ -287,9 +281,9 @@ export default class Hidden
   async animateHide() {
     if (this.hideInstantly != null) {
       this.root.hidden = true;
-      this.root.setAttribute("state", "hidden");
+      this.root.setAttribute("status", "hidden");
     } else {
-      this.root.setAttribute("state", "hiding");
+      this.root.setAttribute("status", "hiding");
       await animationsComplete(this.root);
       this.root.hidden = true;
     }
@@ -314,14 +308,14 @@ export default class Hidden
   async animateShow() {
     if (this.showInstantly != null) {
       this.root.hidden = false;
-      this.root.setAttribute("state", "shown");
+      this.root.setAttribute("status", "shown");
     } else {
       this.root.hidden = false;
-      this.root.setAttribute("state", "mounting");
+      this.root.setAttribute("status", "mounting");
       await animationsComplete(this.root);
-      this.root.setAttribute("state", "showing");
+      this.root.setAttribute("status", "showing");
       await animationsComplete(this.root);
-      this.root.setAttribute("state", "shown");
+      this.root.setAttribute("status", "shown");
     }
   }
 

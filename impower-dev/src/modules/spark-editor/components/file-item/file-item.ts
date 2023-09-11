@@ -1,40 +1,9 @@
-import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_file-item";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import spec from "./_file-item";
 
-const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["filename"]),
-};
-
-export default class FileItem
-  extends SEElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tag = "se-file-item",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  get filename(): string | null {
-    return this.getStringAttribute(FileItem.attributes.filename);
-  }
-  set filename(value) {
-    this.setStringAttribute(FileItem.attributes.filename, value);
-  }
-
+export default class FileItem extends Component(spec) {
   get buttonEl() {
     return this.getElementByTag("s-button");
   }
@@ -43,12 +12,12 @@ export default class FileItem
     return this.getElementById("dropdown");
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     this.buttonEl?.addEventListener("click", this.handleButtonClick);
     this.addEventListener("changing", this.handleChanging);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.buttonEl?.removeEventListener("click", this.handleButtonClick);
     this.removeEventListener("changing", this.handleChanging);
   }
@@ -67,7 +36,7 @@ export default class FileItem
         const filename = this.filename;
         if (filename) {
           if (e.detail.value === "delete") {
-            const projectId = Workspace.window.state.project.id;
+            const projectId = WorkspaceCache.get().project.id;
             if (projectId) {
               const uri = Workspace.fs.getFileUri(projectId, filename);
               Workspace.fs.deleteFiles({

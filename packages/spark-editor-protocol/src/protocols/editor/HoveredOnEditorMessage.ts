@@ -7,9 +7,9 @@ export interface HoveredOnEditorParams {
   textDocument: TextDocumentIdentifier;
 }
 
-export namespace HoveredOnEditorMessage {
-  export const method = "editor/hoveredOn";
-  export const type = new MessageProtocolNotificationType<
+export class HoveredOnEditorMessage {
+  static readonly method = "editor/hoveredOn";
+  static readonly type = new MessageProtocolNotificationType<
     HoveredOnEditorMethod,
     HoveredOnEditorParams
   >(HoveredOnEditorMessage.method);

@@ -1,54 +1,20 @@
-import { Properties } from "../../../../../../packages/spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../../../packages/spark-element/src/utils/getAttributeNameMap";
-import SEElement from "../../core/se-element";
+import { Component } from "../../../../../../packages/spec-component/src/component";
 import getUniqueFileName from "../../utils/getUniqueFileName";
 import { Workspace } from "../../workspace/Workspace";
-import component from "./_file-add-button";
+import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import spec from "./_file-add-button";
 
-const DEFAULT_ATTRIBUTES = {
-  ...getAttributeNameMap(["filename"]),
-};
-
-export default class FileAddButton
-  extends SEElement
-  implements Properties<typeof DEFAULT_ATTRIBUTES>
-{
-  static override get attributes() {
-    return DEFAULT_ATTRIBUTES;
-  }
-
-  static override async define(
-    tag = "se-file-add-button",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  /**
-   * The name of the new file.
-   */
-  get filename(): string | null {
-    return this.getStringAttribute(FileAddButton.attributes.filename);
-  }
-  set filename(value) {
-    this.setStringAttribute(FileAddButton.attributes.filename, value);
-  }
-
-  protected override onConnected(): void {
+export default class FileAddButton extends Component(spec) {
+  override onConnected(): void {
     this.addEventListener("click", this.handleClick);
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     this.removeEventListener("click", this.handleClick);
   }
 
   handleClick = async (e: MouseEvent) => {
-    const projectId = Workspace.window.state.project.id;
+    const projectId = WorkspaceCache.get().project.id;
     if (projectId) {
       const files = await Workspace.fs.getFiles();
       const fileUris = Object.keys(files);

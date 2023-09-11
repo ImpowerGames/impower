@@ -1,26 +1,14 @@
 import { DidCollapsePreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
-import SEElement from "../core/se-element";
-import component from "./_spark-editor";
+import { Component } from "../../../../../packages/spec-component/src/component";
+import spec from "./_spark-editor";
 
-export default class SparkEditor extends SEElement {
-  static override async define(
-    tag = "spark-editor",
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ) {
-    return super.define(tag, dependencies, useShadowDom);
-  }
-
+export default class SparkEditor extends Component(spec) {
   constructor() {
     super();
     this.childNodes.forEach((n) => {
       n.remove();
     });
-  }
-
-  override get component() {
-    return component();
   }
 
   get splitPaneEl() {
@@ -31,7 +19,7 @@ export default class SparkEditor extends SEElement {
     return this.getElementByTag("se-interaction-blocker");
   }
 
-  protected override onConnected(): void {
+  override onConnected(): void {
     window.addEventListener("dragenter", this.handleDragEnter);
     window.addEventListener("dragover", this.handleDragOver);
     window.addEventListener("drop", this.handleDrop);
@@ -45,7 +33,7 @@ export default class SparkEditor extends SEElement {
     );
   }
 
-  protected override onDisconnected(): void {
+  override onDisconnected(): void {
     window.removeEventListener("dragenter", this.handleDragEnter);
     window.removeEventListener("dragover", this.handleDragOver);
     window.removeEventListener("drop", this.handleDrop);

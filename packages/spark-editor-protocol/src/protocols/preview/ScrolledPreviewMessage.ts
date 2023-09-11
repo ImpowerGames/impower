@@ -10,9 +10,9 @@ export interface ScrolledPreviewParams {
   target: string;
 }
 
-export namespace ScrolledPreviewMessage {
-  export const method = "preview/scrolled";
-  export const type = new MessageProtocolNotificationType<
+export class ScrolledPreviewMessage {
+  static readonly method = "preview/scrolled";
+  static readonly type = new MessageProtocolNotificationType<
     ScrolledPreviewMethod,
     ScrolledPreviewParams
   >(ScrolledPreviewMessage.method);

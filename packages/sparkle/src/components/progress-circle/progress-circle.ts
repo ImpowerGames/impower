@@ -1,14 +1,14 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssProportion from "../../../../sparkle-style-transformer/src/utils/getCssProportion";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
-import component from "./_progress-circle";
+import spec from "./_progress-circle";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -30,9 +30,19 @@ export default class ProgressCircle
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-progress-circle";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -40,70 +50,54 @@ export default class ProgressCircle
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return ProgressCircle.augmentCss(css);
-  }
-
   /**
    * The current progress as a percentage from 0 to 1, or 0% to 100%.
    */
   get value(): string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.value);
+    return this.getStringAttribute(ProgressCircle.attrs.value);
   }
   set value(value) {
-    this.setStringAttribute(ProgressCircle.attributes.value, value);
+    this.setStringAttribute(ProgressCircle.attrs.value, value);
   }
 
   /**
    * The size of the circle.
    */
   get size(): SizeName | string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.size);
+    return this.getStringAttribute(ProgressCircle.attrs.size);
   }
   set size(value) {
-    this.setStringAttribute(ProgressCircle.attributes.size, value);
+    this.setStringAttribute(ProgressCircle.attrs.size, value);
   }
 
   /**
    * The width of the track.
    */
   get trackWidth(): SizeName | string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.trackWidth);
+    return this.getStringAttribute(ProgressCircle.attrs.trackWidth);
   }
   set trackWidth(value) {
-    this.setStringAttribute(ProgressCircle.attributes.trackWidth, value);
+    this.setStringAttribute(ProgressCircle.attrs.trackWidth, value);
   }
 
   /**
    * The width of the indicator.
    */
   get indicatorWidth(): SizeName | string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.indicatorWidth);
+    return this.getStringAttribute(ProgressCircle.attrs.indicatorWidth);
   }
   set indicatorWidth(value) {
-    this.setStringAttribute(ProgressCircle.attributes.indicatorWidth, value);
+    this.setStringAttribute(ProgressCircle.attrs.indicatorWidth, value);
   }
 
   /**
    * The speed of the animation.
    */
   get speed(): string | null {
-    return this.getStringAttribute(ProgressCircle.attributes.speed);
+    return this.getStringAttribute(ProgressCircle.attrs.speed);
   }
   set speed(value) {
-    this.setStringAttribute(ProgressCircle.attributes.speed, value);
+    this.setStringAttribute(ProgressCircle.attrs.speed, value);
   }
 
   get indicatorEl(): HTMLElement | null {
@@ -114,18 +108,11 @@ export default class ProgressCircle
     return this.getElementByClass("label");
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === ProgressCircle.attributes.value) {
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === ProgressCircle.attrs.value) {
       const proportion = getCssProportion(newValue, 0);
       this.updateRootCssVariable(name, String(proportion));
-      this.updateRootAttribute(
-        ProgressCircle.attributes.ariaValueNow,
-        newValue
-      );
+      this.updateRootAttribute(ProgressCircle.attrs.ariaValueNow, newValue);
       const labelEl = this.labelEl;
       if (labelEl) {
         if (newValue != null) {

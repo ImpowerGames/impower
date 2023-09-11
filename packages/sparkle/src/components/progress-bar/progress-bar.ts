@@ -1,13 +1,13 @@
-import { Properties } from "../../../../spark-element/src/types/properties";
-import getAttributeNameMap from "../../../../spark-element/src/utils/getAttributeNameMap";
-import { getKeys } from "../../../../spark-element/src/utils/getKeys";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { Properties } from "../../../../spec-component/src/types/Properties";
+import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
+import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { SizeName } from "../../types/sizeName";
-import component from "./_progress-bar";
+import spec from "./_progress-bar";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -28,9 +28,19 @@ export default class ProgressBar
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
-  static override tagName = "s-progress-bar";
+  static override get tag() {
+    return spec.tag;
+  }
 
-  static override get attributes() {
+  override get html() {
+    return this.getHTML(spec, { props: {}, state: {} });
+  }
+
+  override get css() {
+    return this.getCSS(spec);
+  }
+
+  static override get attrs() {
     return DEFAULT_ATTRIBUTES;
   }
 
@@ -38,69 +48,49 @@ export default class ProgressBar
     return DEFAULT_TRANSFORMERS;
   }
 
-  static override async define(
-    tagName?: string,
-    dependencies?: Record<string, string>,
-    useShadowDom = true
-  ): Promise<CustomElementConstructor> {
-    return super.define(tagName, dependencies, useShadowDom);
-  }
-
-  override get component() {
-    return component();
-  }
-
-  override transformCss(css: string) {
-    return ProgressBar.augmentCss(css);
-  }
-
   /**
    * The current progress as a percentage, 0 to 100.
    */
   get value(): string | null {
-    return this.getStringAttribute(ProgressBar.attributes.value);
+    return this.getStringAttribute(ProgressBar.attrs.value);
   }
   set value(value) {
-    this.setStringAttribute(ProgressBar.attributes.value, value);
+    this.setStringAttribute(ProgressBar.attrs.value, value);
   }
 
   /**
    * The width of the track.
    */
   get trackWidth(): SizeName | string | null {
-    return this.getStringAttribute(ProgressBar.attributes.trackWidth);
+    return this.getStringAttribute(ProgressBar.attrs.trackWidth);
   }
   set trackWidth(value) {
-    this.setStringAttribute(ProgressBar.attributes.trackWidth, value);
+    this.setStringAttribute(ProgressBar.attrs.trackWidth, value);
   }
 
   /**
    * The width of the indicator.
    */
   get indicatorWidth(): SizeName | string | null {
-    return this.getStringAttribute(ProgressBar.attributes.indicatorWidth);
+    return this.getStringAttribute(ProgressBar.attrs.indicatorWidth);
   }
   set indicatorWidth(value) {
-    this.setStringAttribute(ProgressBar.attributes.indicatorWidth, value);
+    this.setStringAttribute(ProgressBar.attrs.indicatorWidth, value);
   }
 
   /**
    * The speed of the animation.
    */
   get speed(): string | null {
-    return this.getStringAttribute(ProgressBar.attributes.speed);
+    return this.getStringAttribute(ProgressBar.attrs.speed);
   }
   set speed(value) {
-    this.setStringAttribute(ProgressBar.attributes.speed, value);
+    this.setStringAttribute(ProgressBar.attrs.speed, value);
   }
 
-  protected override onAttributeChanged(
-    name: string,
-    oldValue: string,
-    newValue: string
-  ): void {
-    if (name === ProgressBar.attributes.value) {
-      this.updateRootAttribute(ProgressBar.attributes.ariaValueNow, newValue);
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === ProgressBar.attrs.value) {
+      this.updateRootAttribute(ProgressBar.attrs.ariaValueNow, newValue);
       this.updateRootCssVariable(
         name,
         newValue.endsWith("%") ? newValue : `${newValue}%`

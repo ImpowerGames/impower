@@ -11,9 +11,9 @@ export interface WillWriteFileParams {
   };
 }
 
-export namespace WillWriteFileMessage {
-  export const method = "workspace/willWriteFile";
-  export const type = new MessageProtocolRequestType<
+export class WillWriteFileMessage {
+  static readonly method = "workspace/willWriteFile";
+  static readonly type = new MessageProtocolRequestType<
     WillWriteFileMethod,
     WillWriteFileParams,
     FileData

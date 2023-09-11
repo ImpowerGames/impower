@@ -69,7 +69,7 @@
   color: var(--color) !important;
 }
 
-:host([active]:not([disabled], [state="activating"], [state="deactivating"]))
+:host([active]:not([disabled], [status="activating"], [status="deactivating"]))
   > .root::after {
   content: "";
   position: absolute;
