@@ -88,6 +88,7 @@ export default class ScriptEditor extends Component(spec) {
         await Workspace.lsp.getServerCapabilities();
       this._uri = uri;
       this._version = version;
+      console.log(editor, filename, this);
       this.emit(
         LoadEditorMessage.method,
         LoadEditorMessage.type.request({

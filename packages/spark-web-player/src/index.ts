@@ -1,12 +1,10 @@
+import { defineAll } from "../../spec-component/src/component";
 import Main from "./main/spark-web-player";
 
-export const DEFAULT_CONSTRUCTORS = {
-  "spark-web-player": Main,
-} as const;
+export const DEFAULT_CONSTRUCTORS = [Main] as const;
 
 interface InitOptions {
   constructors?: typeof DEFAULT_CONSTRUCTORS;
-  dependencies?: Record<string, string>;
 }
 
 export default abstract class SparkWebPlayer {
@@ -14,8 +12,6 @@ export default abstract class SparkWebPlayer {
     options?: InitOptions
   ): Promise<CustomElementConstructor[]> {
     const constructors = options?.constructors ?? DEFAULT_CONSTRUCTORS;
-    return Promise.all(
-      Object.entries(constructors).map(([k, v]) => v.define())
-    );
+    return defineAll(constructors);
   }
 }
