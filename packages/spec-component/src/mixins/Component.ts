@@ -6,7 +6,12 @@ import getPropValue from "../utils/getPropValue";
 
 class SpecComponent extends HTMLElement {}
 
-const Component = <Props, State, Store, T extends CustomElementConstructor>(
+const Component = <
+  Props = Record<string, unknown>,
+  State = Record<string, unknown>,
+  Store = Record<string, unknown>,
+  T extends CustomElementConstructor = CustomElementConstructor
+>(
   spec: ComponentSpec<Props, State, Store>,
   Base: T = SpecComponent as T
 ) => {
@@ -14,7 +19,9 @@ const Component = <Props, State, Store, T extends CustomElementConstructor>(
   const props = spec.props;
   const cache = spec.cache;
   const reduce = spec.reducer;
-  const updateEvent = spec.updateEvent || "update";
+  const css = spec.css;
+  const html = spec.html;
+  const updateEvent = spec.updateEvent;
 
   const propToAttrMap = {} as Record<keyof Props, string>;
   if (props) {
@@ -32,11 +39,11 @@ const Component = <Props, State, Store, T extends CustomElementConstructor>(
     #store?: Store;
 
     get state() {
-      return this.reduce(cache?.()) || ({} as State);
+      return this.reduce(cache.get());
     }
 
     get props() {
-      return Object.keys(props || {}).reduce((p, c) => {
+      return Object.keys(CustomElement.attrs).reduce((p, c) => {
         const propName = c as keyof Props;
         p[propName] = this[c as keyof this] as any;
         return p;
@@ -68,14 +75,14 @@ const Component = <Props, State, Store, T extends CustomElementConstructor>(
      * The css to adopt for this component.
      */
     get css() {
-      return this.getCSS(spec);
+      return css;
     }
 
     /**
      * The innerHTML for this component.
      */
     get html() {
-      return this.getHTML(spec, { props: this.props, state: this.state });
+      return html({ props: this.props, state: this.state });
     }
 
     /**
@@ -117,21 +124,8 @@ const Component = <Props, State, Store, T extends CustomElementConstructor>(
       }
     }
 
-    getCSS<Props, State, Store>(spec: ComponentSpec<Props, State, Store>) {
-      return typeof spec.css === "string" ? [spec.css] : spec.css || [];
-    }
-
-    getHTML<Props, State, Store>(
-      spec: ComponentSpec<Props, State, Store>,
-      context: { props: Props; state: State }
-    ) {
-      return typeof spec.html === "string"
-        ? spec.html
-        : spec.html?.(context) || "";
-    }
-
-    reduce(store?: Store): State | undefined {
-      return reduce?.(store);
+    reduce(store?: Store): State {
+      return reduce(store);
     }
 
     /**

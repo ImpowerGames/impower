@@ -4,10 +4,10 @@ export interface ComponentSpec<
   Store = Record<string, unknown>
 > {
   tag: `${string}-${string}`;
-  props?: Props;
-  cache?: () => Store;
-  reducer?: (store?: Store) => State;
-  html?: ((context: { props: Props; state: State }) => string) | string;
-  css?: string[] | string;
-  updateEvent?: string;
+  props: Props;
+  cache: { get: () => Store; set: (store: Store) => void };
+  reducer: (store?: Store) => State;
+  html: (context: { props: Props; state: State }) => string;
+  css: string[];
+  updateEvent: string;
 }

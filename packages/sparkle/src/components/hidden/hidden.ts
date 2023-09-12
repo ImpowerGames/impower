@@ -47,12 +47,19 @@ export default class Hidden
     return spec.tag;
   }
 
+  override get props() {
+    return {
+      ...super.props,
+      initial: this.initial,
+    };
+  }
+
   override get html() {
-    return this.getHTML(spec, { props: { initial: this.initial }, state: {} });
+    return spec.html({ props: this.props, state: this.state });
   }
 
   override get css() {
-    return this.getCSS(spec);
+    return spec.css;
   }
 
   static override get attrs() {

@@ -10,7 +10,7 @@ export default spec({
   props: {
     filename: "",
   },
-  cache: WorkspaceCache.get,
+  cache: WorkspaceCache,
   reducer: (store?: WorkspaceStore) => ({
     syncedAt: store?.project?.syncedAt || "",
   }),

@@ -41,6 +41,8 @@ const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(
   getKeys(STYLE_ALIASES)
 );
 
+type SparkleProps = Record<keyof typeof DEFAULT_SPARKLE_ATTRIBUTES, unknown>;
+
 export default class SparkleElement
   extends Component(spec)
   implements Properties<typeof DEFAULT_SPARKLE_ATTRIBUTES>
@@ -59,6 +61,10 @@ export default class SparkleElement
 
   get aliases(): Record<string, string> {
     return STYLE_ALIASES;
+  }
+
+  override get props() {
+    return super.props as SparkleProps;
   }
 
   static override get observedAttributes() {

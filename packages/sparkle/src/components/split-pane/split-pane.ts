@@ -52,11 +52,11 @@ export default class SplitPane
   }
 
   override get html() {
-    return this.getHTML(spec, { props: {}, state: {} });
+    return spec.html({ props: this.props, state: this.state });
   }
 
   override get css() {
-    return this.getCSS(spec);
+    return spec.css;
   }
 
   static override get attrs() {

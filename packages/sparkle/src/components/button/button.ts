@@ -63,20 +63,22 @@ export default class Button
     return spec.tag;
   }
 
+  override get props() {
+    return {
+      ...super.props,
+      type: this.type,
+      href: this.href,
+      accept: this.accept,
+      multiple: this.multiple,
+    };
+  }
+
   override get html() {
-    return this.getHTML(spec, {
-      props: {
-        type: this.type,
-        href: this.href,
-        accept: this.accept,
-        multiple: this.multiple,
-      },
-      state: {},
-    });
+    return spec.html({ props: this.props, state: this.state });
   }
 
   override get css() {
-    return this.getCSS(spec);
+    return spec.css;
   }
 
   static override get dependencies() {

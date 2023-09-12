@@ -43,14 +43,14 @@ const expandComponent = (
   const component = components[name];
 
   if (component) {
-    const html = component.html || "";
-    const store = component.cache?.() || {};
-    const reducer = component.reducer || (() => ({}));
-    const defaultProps = component.props || {};
-    const defaultState = reducer(store) || {};
+    const html = component.html;
+    const store = component.cache.get();
+    const reducer = component.reducer;
+    const defaultProps = component.props;
+    const defaultState = reducer(store);
     const props = { ...defaultProps, ...attrsToProps(attrs, defaultProps) };
     const state = { ...defaultState };
-    const content = typeof html === "string" ? html : html({ props, state });
+    const content = html({ props, state });
     return fragment(content) as Element;
   } else {
     throw new Error(`Could not find component spec for ${name}`);

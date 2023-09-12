@@ -6,7 +6,7 @@ import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 export default spec({
   tag: "se-preview",
   css,
-  cache: WorkspaceCache.get,
+  cache: WorkspaceCache,
   reducer: (store?: WorkspaceStore) => ({
     mode: store?.preview?.mode || "game",
   }),

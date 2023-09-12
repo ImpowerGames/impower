@@ -1,5 +1,5 @@
 import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
-import { ReadOnly } from "./types/ReadOnly";
+import { RecursiveReadonly } from "./types/RecursiveReadonly";
 
 export namespace WorkspaceCache {
   let _store: WorkspaceStore = {
@@ -91,7 +91,7 @@ export namespace WorkspaceCache {
     },
   };
 
-  export const get = () => _store as ReadOnly<WorkspaceStore>;
+  export const get = () => _store as RecursiveReadonly<WorkspaceStore>;
 
   export const set = (value: WorkspaceStore) => {
     _store = value;

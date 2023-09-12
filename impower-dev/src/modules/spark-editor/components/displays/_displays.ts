@@ -6,7 +6,7 @@ import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 export default spec({
   tag: "se-displays",
   css,
-  cache: WorkspaceCache.get,
+  cache: WorkspaceCache,
   reducer: (store?: WorkspaceStore) => ({
     panel: store?.panes?.displays?.panel || "widgets",
   }),

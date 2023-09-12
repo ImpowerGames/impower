@@ -5,6 +5,7 @@
     "noEmit": true,
     "lib": ["esnext", "dom", "dom.iterable", "webworker"],
     "sourceMap": true,
+    "declarationMap": true,
     "strict": false,
     "alwaysStrict": false,
     "noFallthroughCasesInSwitch": true,

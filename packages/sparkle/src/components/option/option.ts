@@ -59,18 +59,20 @@ export default class Option
     return spec.tag;
   }
 
+  override get props() {
+    return {
+      ...super.props,
+      type: this.type,
+      href: this.href,
+    };
+  }
+
   override get html() {
-    return this.getHTML(spec, {
-      props: {
-        type: this.type,
-        href: this.href,
-      },
-      state: {},
-    });
+    return spec.html({ props: this.props, state: this.state });
   }
 
   override get css() {
-    return this.getCSS(spec);
+    return spec.css;
   }
 
   static override get dependencies() {

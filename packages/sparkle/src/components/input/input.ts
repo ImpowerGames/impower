@@ -53,32 +53,34 @@ export default class Input
     return spec.tag;
   }
 
+  override get props() {
+    return {
+      ...super.props,
+      type: this.type,
+      name: this.name,
+      autofocus: this.autofocus,
+      autocomplete: this.autocomplete,
+      autocorrect: this.autocorrect,
+      autocapitalize: this.autocapitalize,
+      spellcheck: this.spellcheck,
+      maxLength: this.maxLength,
+      minLength: this.minLength,
+      pattern: this.pattern,
+      label: this.label,
+      enterKeyHint: this.enterKeyHint,
+      inputMode: this.inputMode,
+      readonly: this.readonly,
+      required: this.required,
+      value: this.value,
+    };
+  }
+
   override get html() {
-    return this.getHTML(spec, {
-      props: {
-        type: this.type,
-        name: this.name,
-        autofocus: this.autofocus,
-        autocomplete: this.autocomplete,
-        autocorrect: this.autocorrect,
-        autocapitalize: this.autocapitalize,
-        spellcheck: this.spellcheck,
-        maxLength: this.maxLength,
-        minLength: this.minLength,
-        pattern: this.pattern,
-        label: this.label,
-        enterKeyHint: this.enterKeyHint,
-        inputMode: this.inputMode,
-        readonly: this.readonly,
-        required: this.required,
-        value: this.value,
-      },
-      state: {},
-    });
+    return spec.html({ props: this.props, state: this.state });
   }
 
   override get css() {
-    return this.getCSS(spec);
+    return spec.css;
   }
 
   static override get dependencies() {

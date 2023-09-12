@@ -6,7 +6,7 @@ import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 export default spec({
   tag: "se-preview-game-toolbar",
   css,
-  cache: WorkspaceCache.get,
+  cache: WorkspaceCache,
   reducer: (store?: WorkspaceStore) => ({
     running: store?.preview?.modes?.game?.running || false,
     paused: store?.preview?.modes?.game?.paused || false,
