@@ -178,7 +178,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected handleLoadEditor = (e: Event): void => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      console.log("LOAD", message);
       if (LoadEditorMessage.type.isRequest(message)) {
         const params = message.params;
         const textDocument = params.textDocument;
