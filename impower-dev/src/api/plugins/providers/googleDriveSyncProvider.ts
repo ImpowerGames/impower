@@ -140,14 +140,11 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       const peopleService = google.people({ version: "v1", auth });
       const peopleResult = await peopleService.people.get({
         resourceName: "people/me",
-        personFields: "names,photos,emailAddresses",
+        personFields: "names,emailAddresses",
       });
       const displayName = peopleResult.data.names?.filter(
         (n) => n.metadata?.primary
       )?.[0]?.displayName;
-      const photoURL = peopleResult.data.photos?.filter(
-        (n) => n.metadata?.primary
-      )?.[0]?.url;
       const email = peopleResult.data.emailAddresses?.filter(
         (n) => n.metadata?.primary
       )?.[0]?.value;
@@ -162,7 +159,6 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       return {
         uid,
         displayName,
-        photoURL,
         email,
         token,
         expires,

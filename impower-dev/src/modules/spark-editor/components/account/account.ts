@@ -18,10 +18,6 @@ export default class Account extends Component(spec) {
     return this.getElementById("loaded-project")!;
   }
 
-  get accountAvatarEl() {
-    return this.getElementById<HTMLImageElement>("account-avatar")!;
-  }
-
   get accountNameEl() {
     return this.getElementById("account-name")!;
   }
@@ -170,12 +166,6 @@ export default class Account extends Component(spec) {
   }
 
   loadAuthenticatedUI(accountInfo: AccountInfo) {
-    if (accountInfo.photoURL) {
-      this.accountAvatarEl.src = accountInfo.photoURL;
-      this.accountAvatarEl.hidden = false;
-    } else {
-      this.accountAvatarEl.hidden = true;
-    }
     if (accountInfo.displayName) {
       this.accountNameEl.textContent = accountInfo.displayName;
       this.accountNameEl.hidden = false;
