@@ -35,9 +35,9 @@ export default class HeaderNavigation extends Component(spec) {
     window.removeEventListener("input/unfocused", this.handleInputUnfocused);
   }
 
-  override onUpdate(store: WorkspaceStore) {
-    const projectId = store.project.id;
-    const syncState = store.project.syncState;
+  override onUpdate(store?: WorkspaceStore) {
+    const projectId = store?.project?.id;
+    const syncState = store?.project?.syncState;
     if (!projectId || projectId === WorkspaceConstants.LOCAL_PROJECT_ID) {
       this.syncButtonEl.hidden = true;
     } else {

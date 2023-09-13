@@ -1,4 +1,4 @@
-import { EditorSelection, Text } from "@codemirror/state";
+import { EditorSelection, EditorState, Text } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { TextDocumentSaveReason } from "../../../../../spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
@@ -34,7 +34,10 @@ import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
 import throttle from "../../../utils/throttle";
-import createEditorView from "../utils/createEditorView";
+import createEditorView, {
+  editable,
+  readOnly,
+} from "../utils/createEditorView";
 import spec from "./_sparkdown-script-editor";
 
 export default class SparkdownScriptEditor extends Component(spec) {
@@ -139,6 +142,26 @@ export default class SparkdownScriptEditor extends Component(spec) {
     const view = this._view;
     if (view) {
       this.unbindView(view);
+    }
+  }
+
+  override onAttributeChanged(name: string, newValue: string): void {
+    if (name === SparkdownScriptEditor.attrs.readonly) {
+      if (newValue != null) {
+        this._view?.dispatch({
+          effects: [
+            readOnly.reconfigure(EditorState.readOnly.of(true)),
+            editable.reconfigure(EditorView.editable.of(false)),
+          ],
+        });
+      } else {
+        this._view?.dispatch({
+          effects: [
+            readOnly.reconfigure(EditorState.readOnly.of(false)),
+            editable.reconfigure(EditorView.editable.of(true)),
+          ],
+        });
+      }
     }
   }
 

@@ -5,8 +5,8 @@ import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
 export default spec({
   tag: "se-logic",
-  css,
   cache: WorkspaceCache,
+  css,
   reducer: (store?: WorkspaceStore) => ({
     view: store?.panes?.logic?.view || "list",
   }),

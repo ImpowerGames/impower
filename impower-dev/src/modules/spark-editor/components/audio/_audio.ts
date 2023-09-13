@@ -5,8 +5,8 @@ import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
 export default spec({
   tag: "se-audio",
-  css,
   cache: WorkspaceCache,
+  css,
   reducer: (store?: WorkspaceStore) => ({
     panel: store?.panes?.audio?.panel || "sounds",
   }),

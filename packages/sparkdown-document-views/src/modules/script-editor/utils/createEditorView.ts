@@ -31,6 +31,8 @@ import { sparkdownLanguageExtension } from "./sparkdownLanguageExtension";
 
 export const readOnly = new Compartment();
 
+export const editable = new Compartment();
+
 interface EditorConfig {
   serverConnection: MessageConnection;
   serverCapabilities: ServerCapabilities;
@@ -132,6 +134,7 @@ const createEditorView = (
       EditorView.theme(EDITOR_THEME, { dark: true }),
       EDITOR_EXTENSIONS,
       readOnly.of(EditorState.readOnly.of(false)),
+      editable.of(EditorView.editable.of(true)),
       scrollMargins(scrollMargin),
       sparkdownLanguageExtension({
         textDocument,

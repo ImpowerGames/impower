@@ -6,11 +6,11 @@ import html from "./script-editor.html";
 
 export default spec({
   tag: "se-script-editor",
+  cache: WorkspaceCache,
   css,
   props: {
     filename: "",
   },
-  cache: WorkspaceCache,
   reducer: (store?: WorkspaceStore) => ({
     syncedAt: store?.project?.syncedAt || "",
   }),

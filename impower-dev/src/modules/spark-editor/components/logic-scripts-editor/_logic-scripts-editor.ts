@@ -5,8 +5,8 @@ import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
 export default spec({
   tag: "se-logic-scripts-editor",
-  css,
   cache: WorkspaceCache,
+  css,
   reducer: (store?: WorkspaceStore) => ({
     filename:
       store?.panes?.logic?.panels?.scripts?.activeEditor?.filename || "",

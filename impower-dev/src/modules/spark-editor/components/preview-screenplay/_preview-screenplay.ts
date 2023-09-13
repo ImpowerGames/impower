@@ -6,8 +6,8 @@ import html from "./preview-screenplay.html";
 
 export default spec({
   tag: "se-preview-screenplay",
-  css,
   cache: WorkspaceCache,
+  css,
   reducer: (store?: WorkspaceStore) => ({
     syncedAt: store?.project?.syncedAt || "",
   }),

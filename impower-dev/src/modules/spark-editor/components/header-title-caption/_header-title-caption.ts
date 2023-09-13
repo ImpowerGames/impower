@@ -5,8 +5,8 @@ import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 
 export default spec({
   tag: "se-header-title-caption",
-  css,
   cache: WorkspaceCache,
+  css,
   reducer: (store?: WorkspaceStore) => ({
     name: store?.project?.name || "",
     syncState: store?.project?.syncState || "",

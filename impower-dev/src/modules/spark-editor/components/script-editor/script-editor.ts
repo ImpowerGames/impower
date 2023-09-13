@@ -1,14 +1,20 @@
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
+import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
+import { RecursiveReadonly } from "../../workspace/types/RecursiveReadonly";
 import spec from "./_script-editor";
 
 export default class ScriptEditor extends Component(spec) {
   protected _uri?: string;
 
   protected _version?: number;
+
+  get sparkdownScriptEditorEl() {
+    return this.getElementById("sparkdown-script-editor");
+  }
 
   override onConnected() {
     this.loadFile();
@@ -102,6 +108,14 @@ export default class ScriptEditor extends Component(spec) {
           languageServerCapabilities,
         })
       );
+    }
+  }
+
+  override onUpdate(store?: RecursiveReadonly<WorkspaceStore>): void {
+    if (store?.project?.syncState === "syncing") {
+      this.sparkdownScriptEditorEl?.setAttribute("readonly", "");
+    } else {
+      this.sparkdownScriptEditorEl?.removeAttribute("readonly");
     }
   }
 }

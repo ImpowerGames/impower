@@ -73,19 +73,24 @@ export default class FileList extends Component(spec) {
     }
   };
 
-  handleDragEnter = async (_e: Event) => {
+  handleDragEnter = async (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
     this._dragging = true;
     this.updateState();
   };
 
-  handleDragLeave = async (_e: Event) => {
+  handleDragLeave = async (e: Event) => {
+    e.preventDefault();
+    e.stopPropagation();
     this._dragging = false;
     this.updateState();
   };
 
   handleDragOver = async (e: Event) => {
-    this._dragging = true;
     e.preventDefault();
+    e.stopPropagation();
+    this._dragging = true;
     this.updateState();
   };
 
@@ -97,6 +102,7 @@ export default class FileList extends Component(spec) {
     );
     if (this._dragging && validFiles.length > 0) {
       event.preventDefault();
+      event.stopPropagation();
       this.upload(validFiles);
     }
     this._dragging = false;
@@ -150,14 +156,16 @@ export default class FileList extends Component(spec) {
   }
 
   getState() {
-    if (this._dragging && this.accept) {
-      return "dragover";
-    }
-    if (this._uris && this._uris.length > 0) {
-      return "list";
-    }
-    if (this._uris && this._uris.length === 0) {
-      return "empty";
+    if (WorkspaceCache.get().project.syncState !== "syncing") {
+      if (this._dragging && this.accept) {
+        return "dragover";
+      }
+      if (this._uris && this._uris.length > 0) {
+        return "list";
+      }
+      if (this._uris && this._uris.length === 0) {
+        return "empty";
+      }
     }
     return null;
   }

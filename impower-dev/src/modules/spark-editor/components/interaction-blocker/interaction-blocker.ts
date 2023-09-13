@@ -3,8 +3,8 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import spec from "./_interaction-blocker";
 
 export default class InteractionBlocker extends Component(spec) {
-  override onUpdate(store: WorkspaceStore) {
-    const syncState = store.project.syncState;
+  override onUpdate(store?: WorkspaceStore) {
+    const syncState = store?.project?.syncState;
     if (
       syncState === "loading" ||
       syncState === "importing" ||

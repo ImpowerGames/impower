@@ -18,7 +18,7 @@ const Component = <
   const tag = spec.tag;
   const props = spec.props;
   const cache = spec.cache;
-  const reduce = spec.reducer;
+  const reducer = spec.reducer;
   const css = spec.css;
   const html = spec.html;
   const updateEvent = spec.updateEvent;
@@ -36,7 +36,7 @@ const Component = <
 
     #initialized = false;
 
-    #store?: Store;
+    #store: Store = cache.get();
 
     get state() {
       return this.reduce(cache.get());
@@ -125,7 +125,7 @@ const Component = <
     }
 
     reduce(store?: Store): State {
-      return reduce(store);
+      return reducer(store);
     }
 
     /**
@@ -155,6 +155,7 @@ const Component = <
     connectedCallback(): void {
       if (!this.#initialized) {
         this.onInit();
+        this.onUpdate(cache.get());
         this.#initialized = true;
       }
       window.addEventListener(this.updateEvent, this.#handleUpdate);
@@ -187,30 +188,33 @@ const Component = <
     onInit() {}
 
     /**
-     * Invoked each time the update event is detected.
+     * Invoked when the component is first connected or the update event is detected.
      */
-    onUpdate(newStore: Store): void {}
+    onUpdate(store?: Store): void {}
 
     #handleUpdate = (e: Event): void => {
       if (e instanceof CustomEvent) {
         const newStore = e.detail as Store;
-        const oldState = this.reduce(this.#store);
+        const oldStore = this.#store;
+        const oldState = this.reduce(oldStore);
         const newState = this.reduce(newStore);
-        this.onUpdate(newStore);
         if (newState) {
           let rerender = false;
+          const changed: (keyof State)[] = [];
           Object.entries(newState).forEach(([k, v]) => {
             const key = k as keyof State;
             const oldValue = oldState?.[key];
             const newValue = v as any;
             if (oldValue !== newValue) {
               rerender = true;
+              changed.push(key);
             }
           });
           if (rerender) {
             this.render();
           }
         }
+        this.onUpdate(newStore);
         this.#store = newStore;
       }
     };
