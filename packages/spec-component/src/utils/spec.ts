@@ -6,18 +6,13 @@ const spec = <Props, State, Store>(
 ): ComponentSpec<Props, State, Store> => {
   return {
     tag: spec.tag,
+    context: spec.context,
+    state: spec.state || (() => ({} as State)),
     props: spec.props || ({} as Props),
-    cache: spec.cache || {
-      get: () => ({} as Store),
-      set: (store: Store) => {},
-    },
-    reducer: spec.reducer || (() => ({} as State)),
-    html: (context: { props: Props; state: State }) =>
-      typeof spec.html === "string"
-        ? spec.html || ""
-        : spec.html?.(context) || "",
+    html: (args: { props: Props; state: State; store?: Store }) =>
+      typeof spec.html === "string" ? spec.html || "" : spec.html?.(args) || "",
     css: typeof spec.css === "string" ? [spec.css] : spec.css || [],
-    updateEvent: spec.updateEvent || "update",
+    shadowDOM: true,
   };
 };
 

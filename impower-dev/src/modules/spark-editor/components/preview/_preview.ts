@@ -1,17 +1,13 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import WorkspaceContext from "../../workspace/WorkspaceContext";
 
 export default spec({
   tag: "se-preview",
-  cache: WorkspaceCache,
+  context: WorkspaceContext.instance,
   css,
-  reducer: (store?: WorkspaceStore) => ({
-    mode: store?.preview?.mode || "game",
-  }),
-  html: ({ state }) => {
-    const { mode } = state;
+  html: ({ store }) => {
+    const mode = store?.preview?.mode || "game";
     const gameComponent = () => html`<se-preview-game></se-preview-game>`;
     const screenplayComponent = () =>
       html`<se-preview-screenplay></se-preview-screenplay>`;

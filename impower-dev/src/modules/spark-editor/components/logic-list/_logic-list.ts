@@ -1,17 +1,13 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import WorkspaceContext from "../../workspace/WorkspaceContext";
 
 export default spec({
   tag: "se-logic-list",
-  cache: WorkspaceCache,
+  context: WorkspaceContext.instance,
   css,
-  reducer: (store?: WorkspaceStore) => ({
-    panel: store?.panes?.logic?.panel || "main",
-  }),
-  html: ({ state }) => {
-    const { panel } = state;
+  html: ({ store }) => {
+    const panel = store?.panes?.logic?.panel || "main";
     return html`
       <s-router key="logic-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">

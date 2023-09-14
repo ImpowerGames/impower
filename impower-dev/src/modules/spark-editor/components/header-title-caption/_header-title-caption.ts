@@ -1,13 +1,13 @@
 import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import WorkspaceContext from "../../workspace/WorkspaceContext";
 
 export default spec({
   tag: "se-header-title-caption",
-  cache: WorkspaceCache,
+  context: WorkspaceContext.instance,
   css,
-  reducer: (store?: WorkspaceStore) => ({
+  state: (store?: WorkspaceStore) => ({
     name: store?.project?.name || "",
     syncState: store?.project?.syncState || "",
   }),
@@ -26,8 +26,10 @@ export default spec({
         ? "Syncing..."
         : syncState === "unsaved"
         ? "Unsaved changes"
-        : syncState === "saved"
+        : syncState === "saved_online"
         ? "Saved online"
+        : syncState === "saved_offline"
+        ? "Saved offline"
         : syncState === "load_error"
         ? "Error: Unable to load project"
         : syncState === "import_error"

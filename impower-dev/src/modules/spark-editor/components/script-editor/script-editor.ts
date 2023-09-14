@@ -1,10 +1,8 @@
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import { RecursiveReadonly } from "../../workspace/types/RecursiveReadonly";
 import spec from "./_script-editor";
 
 export default class ScriptEditor extends Component(spec) {
@@ -111,8 +109,15 @@ export default class ScriptEditor extends Component(spec) {
     }
   }
 
-  override onUpdate(store?: RecursiveReadonly<WorkspaceStore>): void {
-    if (store?.project?.syncState === "syncing") {
+  override onUpdate(): void {
+    const store = this.context.get();
+    const syncState = store?.project?.syncState;
+    if (
+      syncState === "syncing" ||
+      syncState === "loading" ||
+      syncState === "importing" ||
+      syncState === "exporting"
+    ) {
       this.sparkdownScriptEditorEl?.setAttribute("readonly", "");
     } else {
       this.sparkdownScriptEditorEl?.removeAttribute("readonly");

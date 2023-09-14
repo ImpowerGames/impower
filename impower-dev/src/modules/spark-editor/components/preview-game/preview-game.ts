@@ -13,7 +13,6 @@ import {
 import { SparkProgram } from "../../../../../../packages/sparkdown/src";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 import spec from "./_preview-game";
 
 export default class GamePreview extends Component(spec) {
@@ -170,7 +169,9 @@ export default class GamePreview extends Component(spec) {
   }
 
   async loadPreview() {
-    if (!WorkspaceCache.get().preview.modes.game.running) {
+    const store = this.context.get();
+    const running = store.preview.modes.game.running;
+    if (!running) {
       const editor = await Workspace.window.getOpenEditor("logic");
       if (editor) {
         const { uri, version, text, visibleRange, selectedRange } = editor;

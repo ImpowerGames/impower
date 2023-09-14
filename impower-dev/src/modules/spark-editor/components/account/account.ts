@@ -1,6 +1,5 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import { AccountInfo } from "../../workspace/types/AccountInfo";
 import spec from "./_account";
@@ -134,7 +133,8 @@ export default class Account extends Component(spec) {
 
   handleExportProjectFile = async () => {
     try {
-      const projectId = WorkspaceCache.get().project.id;
+      const store = this.context.get();
+      const projectId = store?.project?.id;
       if (projectId) {
         const syncProvider = Workspace.sync.google;
         const access = await syncProvider.getAccess();

@@ -23,8 +23,8 @@ import {
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
-import { WorkspaceCache } from "./WorkspaceCache";
 import { WorkspaceConstants } from "./WorkspaceConstants";
+import WorkspaceContext from "./WorkspaceContext";
 import { Storage } from "./types/StorageTypes";
 
 export default class WorkspaceWindow {
@@ -48,10 +48,18 @@ export default class WorkspaceWindow {
     );
   }
 
+  get store() {
+    return WorkspaceContext.instance.get();
+  }
+
+  protected update(store: WorkspaceStore) {
+    WorkspaceContext.instance.set(store);
+  }
+
   protected cacheProjectId(id: string) {
     this.update({
-      ...WorkspaceCache.get(),
-      project: { ...WorkspaceCache.get().project, id },
+      ...this.store,
+      project: { ...this.store.project, id },
     });
     localStorage.setItem(WorkspaceConstants.CURRENT_PROJECT_ID_LOOKUP, id);
   }
@@ -67,11 +75,6 @@ export default class WorkspaceWindow {
     );
   }
 
-  protected update(store: WorkspaceStore) {
-    WorkspaceCache.set(store);
-    return this.emit("update", store);
-  }
-
   protected handleScrolledEditor = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
@@ -83,18 +86,17 @@ export default class WorkspaceWindow {
         const panel = this.getPanelType(filename);
         if (pane && panel) {
           this.update({
-            ...WorkspaceCache.get(),
+            ...this.store,
             panes: {
-              ...WorkspaceCache.get().panes,
+              ...this.store.panes,
               [pane]: {
-                ...WorkspaceCache.get().panes[pane],
+                ...this.store.panes[pane],
                 panels: {
-                  ...WorkspaceCache.get().panes[pane].panels,
+                  ...this.store.panes[pane].panels,
                   [panel]: {
-                    ...WorkspaceCache.get().panes[pane].panels[panel],
+                    ...this.store.panes[pane].panels[panel],
                     activeEditor: {
-                      ...WorkspaceCache.get().panes[pane].panels[panel]!
-                        .activeEditor,
+                      ...this.store.panes[pane].panels[panel]!.activeEditor,
                       visibleRange,
                     },
                   },
@@ -118,18 +120,17 @@ export default class WorkspaceWindow {
         const panel = this.getPanelType(filename);
         if (pane && panel) {
           this.update({
-            ...WorkspaceCache.get(),
+            ...this.store,
             panes: {
-              ...WorkspaceCache.get().panes,
+              ...this.store.panes,
               [pane]: {
-                ...WorkspaceCache.get().panes[pane],
+                ...this.store.panes[pane],
                 panels: {
-                  ...WorkspaceCache.get().panes[pane].panels,
+                  ...this.store.panes[pane].panels,
                   [panel]: {
-                    ...WorkspaceCache.get().panes[pane].panels[panel],
+                    ...this.store.panes[pane].panels[panel],
                     activeEditor: {
-                      ...WorkspaceCache.get().panes[pane].panels[panel]!
-                        .activeEditor,
+                      ...this.store.panes[pane].panels[panel]!.activeEditor,
                       selectedRange,
                     },
                   },
@@ -143,7 +144,7 @@ export default class WorkspaceWindow {
   };
 
   getPaneState(pane: PaneType) {
-    const paneState = WorkspaceCache.get().panes[pane];
+    const paneState = this.store.panes[pane];
     if (!paneState) {
       throw new Error(`Pane type not recognized: ${pane}`);
     }
@@ -231,7 +232,7 @@ export default class WorkspaceWindow {
       }
     | undefined
   > {
-    const projectId = WorkspaceCache.get().project.id;
+    const projectId = this.store.project.id;
     if (projectId) {
       const pane = this.getPaneType(filename);
       const panel = this.getPanelType(filename);
@@ -274,7 +275,7 @@ export default class WorkspaceWindow {
       }
     | undefined
   > {
-    const projectId = WorkspaceCache.get().project.id;
+    const projectId = this.store.project.id;
     if (projectId) {
       const paneState = this.getPaneState(pane);
       const openEditor = panel
@@ -299,7 +300,7 @@ export default class WorkspaceWindow {
 
   openedPane(pane: PaneType) {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       pane,
     });
     this.emit(
@@ -310,11 +311,11 @@ export default class WorkspaceWindow {
 
   openedPanel(pane: PaneType, panel: PanelType) {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       panes: {
-        ...WorkspaceCache.get().panes,
+        ...this.store.panes,
         [pane]: {
-          ...WorkspaceCache.get().panes[pane],
+          ...this.store.panes[pane],
           panel,
         },
       },
@@ -327,11 +328,11 @@ export default class WorkspaceWindow {
 
   openedView(pane: PaneType, view: string) {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       panes: {
-        ...WorkspaceCache.get().panes,
+        ...this.store.panes,
         [pane]: {
-          ...WorkspaceCache.get().panes[pane],
+          ...this.store.panes[pane],
           view,
         },
       },
@@ -346,8 +347,7 @@ export default class WorkspaceWindow {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
-      const activeEditor =
-        WorkspaceCache.get().panes[pane].panels[panel]?.activeEditor;
+      const activeEditor = this.store.panes[pane].panels[panel]?.activeEditor;
       const didFileChange = activeEditor && activeEditor.filename !== filename;
       const visibleRange = didFileChange
         ? {
@@ -359,18 +359,17 @@ export default class WorkspaceWindow {
         ? undefined
         : activeEditor?.selectedRange;
       this.update({
-        ...WorkspaceCache.get(),
+        ...this.store,
         panes: {
-          ...WorkspaceCache.get().panes,
+          ...this.store.panes,
           [pane]: {
-            ...WorkspaceCache.get().panes[pane],
+            ...this.store.panes[pane],
             panels: {
-              ...WorkspaceCache.get().panes[pane].panels,
+              ...this.store.panes[pane].panels,
               [panel]: {
-                ...WorkspaceCache.get().panes[pane].panels[panel],
+                ...this.store.panes[pane].panels[panel],
                 activeEditor: {
-                  ...WorkspaceCache.get().panes[pane].panels[panel]!
-                    .activeEditor,
+                  ...this.store.panes[pane].panels[panel]!.activeEditor,
                   open: true,
                   filename,
                   visibleRange,
@@ -393,18 +392,17 @@ export default class WorkspaceWindow {
     const panel = this.getPanelType(filename);
     if (pane && panel) {
       this.update({
-        ...WorkspaceCache.get(),
+        ...this.store,
         panes: {
-          ...WorkspaceCache.get().panes,
+          ...this.store.panes,
           [pane]: {
-            ...WorkspaceCache.get().panes[pane],
+            ...this.store.panes[pane],
             panels: {
-              ...WorkspaceCache.get().panes[pane].panels,
+              ...this.store.panes[pane].panels,
               [panel]: {
-                ...WorkspaceCache.get().panes[pane].panels[panel],
+                ...this.store.panes[pane].panels[panel],
                 activeEditor: {
-                  ...WorkspaceCache.get().panes[pane].panels[panel]!
-                    .activeEditor,
+                  ...this.store.panes[pane].panels[panel]!.activeEditor,
                   open: false,
                 },
               },
@@ -421,9 +419,9 @@ export default class WorkspaceWindow {
 
   expandedPreviewPane() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         revealed: true,
       },
     });
@@ -435,9 +433,9 @@ export default class WorkspaceWindow {
 
   collapsedPreviewPane() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         revealed: false,
       },
     });
@@ -449,33 +447,33 @@ export default class WorkspaceWindow {
 
   startGame() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         modes: {
-          ...WorkspaceCache.get().preview.modes,
+          ...this.store.preview.modes,
           game: {
-            ...WorkspaceCache.get().preview.modes.game,
+            ...this.store.preview.modes.game,
             running: true,
           },
         },
       },
     });
     this.emit(StartGameMessage.method, StartGameMessage.type.request({}));
-    if (WorkspaceCache.get().preview.modes.game.paused) {
+    if (this.store.preview.modes.game.paused) {
       this.unpauseGame();
     }
   }
 
   stopGame() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         modes: {
-          ...WorkspaceCache.get().preview.modes,
+          ...this.store.preview.modes,
           game: {
-            ...WorkspaceCache.get().preview.modes.game,
+            ...this.store.preview.modes.game,
             running: false,
           },
         },
@@ -486,13 +484,13 @@ export default class WorkspaceWindow {
 
   pauseGame() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         modes: {
-          ...WorkspaceCache.get().preview.modes,
+          ...this.store.preview.modes,
           game: {
-            ...WorkspaceCache.get().preview.modes.game,
+            ...this.store.preview.modes.game,
             paused: true,
           },
         },
@@ -503,13 +501,13 @@ export default class WorkspaceWindow {
 
   unpauseGame() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         modes: {
-          ...WorkspaceCache.get().preview.modes,
+          ...this.store.preview.modes,
           game: {
-            ...WorkspaceCache.get().preview.modes.game,
+            ...this.store.preview.modes.game,
             paused: false,
           },
         },
@@ -520,7 +518,7 @@ export default class WorkspaceWindow {
 
   stepGame(deltaMS: number) {
     if (deltaMS < 0) {
-      const paused = WorkspaceCache.get().preview.modes.game.paused;
+      const paused = this.store.preview.modes.game.paused;
       if (!paused) {
         this.pauseGame();
       }
@@ -532,7 +530,7 @@ export default class WorkspaceWindow {
   }
 
   toggleGameRunning() {
-    if (WorkspaceCache.get().preview.modes.game.running) {
+    if (this.store.preview.modes.game.running) {
       this.stopGame();
     } else {
       this.startGame();
@@ -540,7 +538,7 @@ export default class WorkspaceWindow {
   }
 
   toggleGamePaused() {
-    if (WorkspaceCache.get().preview.modes.game.paused) {
+    if (this.store.preview.modes.game.paused) {
       this.unpauseGame();
     } else {
       this.pauseGame();
@@ -549,13 +547,13 @@ export default class WorkspaceWindow {
 
   enableDebugging() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         modes: {
-          ...WorkspaceCache.get().preview.modes,
+          ...this.store.preview.modes,
           game: {
-            ...WorkspaceCache.get().preview.modes.game,
+            ...this.store.preview.modes.game,
             debugging: true,
           },
         },
@@ -569,13 +567,13 @@ export default class WorkspaceWindow {
 
   disableDebugging() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       preview: {
-        ...WorkspaceCache.get().preview,
+        ...this.store.preview,
         modes: {
-          ...WorkspaceCache.get().preview.modes,
+          ...this.store.preview.modes,
           game: {
-            ...WorkspaceCache.get().preview.modes.game,
+            ...this.store.preview.modes.game,
             debugging: false,
           },
         },
@@ -590,9 +588,9 @@ export default class WorkspaceWindow {
   unloadProject() {
     const id = WorkspaceConstants.LOCAL_PROJECT_ID;
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       project: {
-        ...WorkspaceCache.get().project,
+        ...this.store.project,
         id,
         name: undefined,
         syncState: "loading",
@@ -613,14 +611,13 @@ export default class WorkspaceWindow {
 
   protected async _loadProject() {
     try {
-      const id =
-        WorkspaceCache.get().project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
+      const id = this.store.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
       if (id === WorkspaceConstants.LOCAL_PROJECT_ID) {
         const name = await Workspace.fs.readProjectName(id);
         this.update({
-          ...WorkspaceCache.get(),
+          ...this.store,
           project: {
-            ...WorkspaceCache.get().project,
+            ...this.store.project,
             id,
             name,
             syncState: "cached",
@@ -636,9 +633,9 @@ export default class WorkspaceWindow {
     } catch (err) {
       console.warn(err);
       this.update({
-        ...WorkspaceCache.get(),
+        ...this.store,
         project: {
-          ...WorkspaceCache.get().project,
+          ...this.store.project,
           syncState: "load_error",
         },
       });
@@ -648,12 +645,12 @@ export default class WorkspaceWindow {
 
   async syncProject(pushLocalChanges = true) {
     try {
-      const id = WorkspaceCache.get().project.id;
+      const id = this.store.project.id;
       if (id) {
         this.update({
-          ...WorkspaceCache.get(),
+          ...this.store,
           project: {
-            ...WorkspaceCache.get().project,
+            ...this.store.project,
             syncState: "syncing",
           },
         });
@@ -688,9 +685,9 @@ export default class WorkspaceWindow {
               await this.pushLocalChanges(localProjectFile);
             } else {
               this.update({
-                ...WorkspaceCache.get(),
+                ...this.store,
                 project: {
-                  ...WorkspaceCache.get().project,
+                  ...this.store.project,
                   name: localProjectName,
                   canModifyRemote,
                   syncState: "unsaved",
@@ -709,27 +706,20 @@ export default class WorkspaceWindow {
           }
         } else {
           this.update({
-            ...WorkspaceCache.get(),
+            ...this.store,
             project: {
-              ...WorkspaceCache.get().project,
+              ...this.store.project,
               syncState: "sync_error",
             },
           });
         }
-        this.update({
-          ...WorkspaceCache.get(),
-          project: {
-            ...WorkspaceCache.get().project,
-            syncedAt: new Date().toISOString(),
-          },
-        });
       }
     } catch (err: any) {
       console.error(err);
       this.update({
-        ...WorkspaceCache.get(),
+        ...this.store,
         project: {
-          ...WorkspaceCache.get().project,
+          ...this.store.project,
           syncState: "sync_error",
         },
       });
@@ -758,12 +748,12 @@ export default class WorkspaceWindow {
       remoteProjectFile.capabilities?.canModifyContent
     );
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       project: {
-        ...WorkspaceCache.get().project,
+        ...this.store.project,
         name: remoteName,
         canModifyRemote,
-        syncState: canModifyRemote ? "saved" : "cached",
+        syncState: canModifyRemote ? "saved_online" : "cached",
       },
     });
     return remoteProjectFile;
@@ -787,12 +777,13 @@ export default class WorkspaceWindow {
       remoteProjectFile.capabilities?.canModifyContent
     );
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       project: {
-        ...WorkspaceCache.get().project,
+        ...this.store.project,
         name: remoteProjectName,
         canModifyRemote,
-        syncState: canModifyRemote ? "saved" : "cached",
+        syncState: canModifyRemote ? "saved_online" : "cached",
+        pulledAt: new Date().toISOString(),
       },
     });
   }
@@ -808,9 +799,9 @@ export default class WorkspaceWindow {
     const localProjectName = localProjectFile.name!.split(".")[0]!;
     const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       project: {
-        ...WorkspaceCache.get().project,
+        ...this.store.project,
         name: localProjectName || remoteProjectName,
         conflict: {
           local: {
@@ -854,24 +845,24 @@ export default class WorkspaceWindow {
       });
     }
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       project: {
-        ...WorkspaceCache.get().project,
+        ...this.store.project,
         name: remoteProjectName,
         canModifyRemote,
-        syncState: canModifyRemote ? "saved" : "cached",
+        syncState: canModifyRemote ? "saved_online" : "cached",
       },
     });
   }
 
   async exportProject(folderId: string) {
     try {
-      const projectId = WorkspaceCache.get().project.id;
+      const projectId = this.store.project.id;
       if (projectId) {
         this.update({
-          ...WorkspaceCache.get(),
+          ...this.store,
           project: {
-            ...WorkspaceCache.get().project,
+            ...this.store.project,
             syncState: "exporting",
           },
         });
@@ -896,9 +887,9 @@ export default class WorkspaceWindow {
           this.loadNewProject(remoteProjectFile.id);
         } else {
           this.update({
-            ...WorkspaceCache.get(),
+            ...this.store,
             project: {
-              ...WorkspaceCache.get().project,
+              ...this.store.project,
               syncState: "cached",
             },
           });
@@ -907,9 +898,9 @@ export default class WorkspaceWindow {
     } catch (err: any) {
       console.error(err);
       this.update({
-        ...WorkspaceCache.get(),
+        ...this.store,
         project: {
-          ...WorkspaceCache.get().project,
+          ...this.store.project,
           syncState: "export_error",
         },
       });
@@ -917,17 +908,17 @@ export default class WorkspaceWindow {
   }
 
   async updateModificationTime() {
-    const projectId = WorkspaceCache.get().project.id;
-    const canModifyRemote = WorkspaceCache.get().project.canModifyRemote;
+    const projectId = this.store.project.id;
+    const canModifyRemote = this.store.project.canModifyRemote;
     if (projectId) {
       const metadata = await Workspace.fs.readProjectMetadata(projectId);
       metadata.modifiedTime = new Date().toISOString();
       metadata.synced = false;
       await Workspace.fs.writeProjectMetadata(projectId, metadata);
       this.update({
-        ...WorkspaceCache.get(),
+        ...this.store,
         project: {
-          ...WorkspaceCache.get().project,
+          ...this.store.project,
           syncState: canModifyRemote ? "unsaved" : "cached",
         },
       });
@@ -936,31 +927,31 @@ export default class WorkspaceWindow {
 
   startEditingProjectName() {
     this.update({
-      ...WorkspaceCache.get(),
+      ...this.store,
       project: {
-        ...WorkspaceCache.get().project,
+        ...this.store.project,
         editingName: true,
       },
     });
   }
 
   async finishEditingProjectName(name: string) {
-    const id = WorkspaceCache.get().project.id;
+    const id = this.store.project.id;
     if (id) {
       this.update({
-        ...WorkspaceCache.get(),
+        ...this.store,
         project: {
-          ...WorkspaceCache.get().project,
+          ...this.store.project,
           editingName: false,
         },
       });
-      let changedName = name !== WorkspaceCache.get().project.name;
+      let changedName = name !== this.store.project.name;
       if (changedName) {
         await Workspace.fs.writeProjectName(id, name);
         this.update({
-          ...WorkspaceCache.get(),
+          ...this.store,
           project: {
-            ...WorkspaceCache.get().project,
+            ...this.store.project,
             name,
           },
         });

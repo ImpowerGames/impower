@@ -1,13 +1,13 @@
 import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import WorkspaceContext from "../../workspace/WorkspaceContext";
 
 export default spec({
   tag: "se-preview-game-toolbar",
-  cache: WorkspaceCache,
+  context: WorkspaceContext.instance,
   css,
-  reducer: (store?: WorkspaceStore) => ({
+  state: (store?: WorkspaceStore) => ({
     running: store?.preview?.modes?.game?.running || false,
     paused: store?.preview?.modes?.game?.paused || false,
     debugging: store?.preview?.modes?.game?.debugging || false,

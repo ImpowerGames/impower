@@ -1,17 +1,13 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import WorkspaceContext from "../../workspace/WorkspaceContext";
 
 export default spec({
   tag: "se-audio",
-  cache: WorkspaceCache,
+  context: WorkspaceContext.instance,
   css,
-  reducer: (store?: WorkspaceStore) => ({
-    panel: store?.panes?.audio?.panel || "sounds",
-  }),
-  html: ({ state }) => {
-    const { panel } = state;
+  html: ({ store }) => {
+    const panel = store?.panes?.audio?.panel || "sounds";
     return html`
       <s-router directional key="audio-panel" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">

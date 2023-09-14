@@ -4,7 +4,6 @@ import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
 import { verifyFileType } from "../../utils/verifyFileType";
 import { Workspace } from "../../workspace/Workspace";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 import spec from "./_file-list";
 
 export default class FileList extends Component(spec) {
@@ -110,7 +109,8 @@ export default class FileList extends Component(spec) {
   };
 
   async upload(fileArray: File[]) {
-    const projectId = WorkspaceCache.get().project.id;
+    const store = this.context.get();
+    const projectId = store?.project?.id;
     if (projectId) {
       if (fileArray) {
         const files = await Promise.all(
@@ -156,7 +156,9 @@ export default class FileList extends Component(spec) {
   }
 
   getState() {
-    if (WorkspaceCache.get().project.syncState !== "syncing") {
+    const store = this.context.get();
+    const syncState = store?.project?.syncState;
+    if (syncState !== "syncing") {
       if (this._dragging && this.accept) {
         return "dragover";
       }

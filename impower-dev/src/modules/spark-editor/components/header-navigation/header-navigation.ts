@@ -1,4 +1,3 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
@@ -35,7 +34,8 @@ export default class HeaderNavigation extends Component(spec) {
     window.removeEventListener("input/unfocused", this.handleInputUnfocused);
   }
 
-  override onUpdate(store?: WorkspaceStore) {
+  override onUpdate() {
+    const store = this.context.get();
     const projectId = store?.project?.id;
     const syncState = store?.project?.syncState;
     if (!projectId || projectId === WorkspaceConstants.LOCAL_PROJECT_ID) {
@@ -57,11 +57,20 @@ export default class HeaderNavigation extends Component(spec) {
         this.syncButtonEl.removeAttribute("animation");
         this.syncButtonEl.setAttribute("disabled", "");
         this.syncButtonEl.setAttribute("color", "yellow");
-      } else if (syncState === "syncing") {
+      } else if (
+        syncState === "syncing" ||
+        syncState === "loading" ||
+        syncState === "importing" ||
+        syncState === "exporting"
+      ) {
         this.syncButtonEl.setAttribute("animation", "spin");
         this.syncButtonEl.setAttribute("disabled", "");
         this.syncButtonEl.setAttribute("color", "fg");
-      } else if (syncState === "saved") {
+      } else if (syncState === "saved_online") {
+        this.syncButtonEl.removeAttribute("animation");
+        this.syncButtonEl.removeAttribute("disabled");
+        this.syncButtonEl.setAttribute("color", "fg");
+      } else if (syncState === "saved_offline") {
         this.syncButtonEl.removeAttribute("animation");
         this.syncButtonEl.removeAttribute("disabled");
         this.syncButtonEl.setAttribute("color", "fg");

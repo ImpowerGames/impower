@@ -1,6 +1,5 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 import spec from "./_file-item";
 
 export default class FileItem extends Component(spec) {
@@ -31,12 +30,13 @@ export default class FileItem extends Component(spec) {
   };
 
   handleChanging = (e: Event) => {
+    const store = this.context.get();
+    const projectId = store?.project?.id;
     if (e instanceof CustomEvent) {
       if (e.detail.key === "file-options") {
         const filename = this.filename;
         if (filename) {
           if (e.detail.value === "delete") {
-            const projectId = WorkspaceCache.get().project.id;
             if (projectId) {
               const uri = Workspace.fs.getFileUri(projectId, filename);
               Workspace.fs.deleteFiles({

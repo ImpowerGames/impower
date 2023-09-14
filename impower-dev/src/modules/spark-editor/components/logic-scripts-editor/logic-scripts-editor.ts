@@ -1,6 +1,5 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 import spec from "./_logic-scripts-editor";
 
 export default class LogicScriptsEditor extends Component(spec) {
@@ -13,13 +12,13 @@ export default class LogicScriptsEditor extends Component(spec) {
   }
 
   getFilename() {
-    return (
-      WorkspaceCache.get()?.panes?.logic?.panels?.scripts?.activeEditor
-        ?.filename || ""
-    );
+    const store = this.context.get();
+    return store?.panes?.logic?.panels?.scripts?.activeEditor?.filename || "";
   }
 
   handleChanging = async (e: Event) => {
+    const store = this.context.get();
+    const projectId = store?.project?.id;
     if (e instanceof CustomEvent) {
       const filename = this.getFilename();
       if (e.detail.key === "close-file-editor") {
@@ -28,7 +27,6 @@ export default class LogicScriptsEditor extends Component(spec) {
       if (e.detail.key === "file-options") {
         if (filename) {
           if (e.detail.value === "delete") {
-            const projectId = WorkspaceCache.get().project.id;
             if (projectId) {
               const uri = Workspace.fs.getFileUri(projectId, filename);
               await Workspace.fs.deleteFiles({

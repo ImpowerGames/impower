@@ -1,9 +1,7 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import getValidFileName from "../../utils/getValidFileName";
 import { Workspace } from "../../workspace/Workspace";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
-import { RecursiveReadonly } from "../../workspace/types/RecursiveReadonly";
+import WorkspaceContext from "../../workspace/WorkspaceContext";
 import spec from "./_file-upload-button";
 
 export default class FileAddButton extends Component(spec) {
@@ -30,7 +28,7 @@ export default class FileAddButton extends Component(spec) {
   };
 
   async upload(fileList: FileList) {
-    const projectId = WorkspaceCache.get().project.id;
+    const projectId = WorkspaceContext.instance.get().project.id;
     if (projectId) {
       if (fileList) {
         const files = await Promise.all(
@@ -50,8 +48,15 @@ export default class FileAddButton extends Component(spec) {
     }
   }
 
-  override onUpdate(store?: RecursiveReadonly<WorkspaceStore>): void {
-    if (store?.project?.syncState === "syncing") {
+  override onUpdate(): void {
+    const store = this.context.get();
+    const syncState = store?.project?.syncState;
+    if (
+      syncState === "syncing" ||
+      syncState === "loading" ||
+      syncState === "importing" ||
+      syncState === "exporting"
+    ) {
       this.buttonEl?.setAttribute("disabled", "");
     } else {
       this.buttonEl?.removeAttribute("disabled");

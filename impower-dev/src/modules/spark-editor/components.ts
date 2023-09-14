@@ -66,7 +66,7 @@ const style = <Props, State, Store>(
 ): ComponentSpec<Props, State, Store> => {
   return {
     ...spec,
-    html: (context: { props: Props; state: State }) => {
+    html: (context: { props: Props; state: State; store?: Store }) => {
       const html = spec.html || "";
       const content = typeof html === "string" ? html : html(context);
       return transformer(content, config);

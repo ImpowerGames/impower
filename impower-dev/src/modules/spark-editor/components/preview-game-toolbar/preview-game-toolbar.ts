@@ -1,7 +1,6 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import throttle from "../../utils/throttle";
 import { Workspace } from "../../workspace/Workspace";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
 import spec from "./_preview-game-toolbar";
 
 export default class PreviewGameToolbar extends Component(spec) {
@@ -131,12 +130,10 @@ export default class PreviewGameToolbar extends Component(spec) {
 
   handleClickRunToggleButton = (e: Event) => {
     Workspace.window.toggleGameRunning();
-    this.render();
   };
 
   handlePointerDownStepBackwardButton = (e: Event) => {
     this.throttledStep(-10);
-    this.render();
   };
 
   handlePointerUpStepBackwardButton = (e: Event) => {
@@ -145,7 +142,6 @@ export default class PreviewGameToolbar extends Component(spec) {
 
   handlePointerDownFastBackwardButton = (e: Event) => {
     this.throttledStep(-100);
-    this.render();
   };
 
   handlePointerUpFastBackwardButton = (e: Event) => {
@@ -154,12 +150,10 @@ export default class PreviewGameToolbar extends Component(spec) {
 
   handleClickPauseToggleButton = (e: Event) => {
     Workspace.window.toggleGamePaused();
-    this.render();
   };
 
   handlePointerDownFastForwardButton = (e: Event) => {
     this.throttledStep(100);
-    this.render();
   };
 
   handlePointerUpFastForwardButton = (e: Event) => {
@@ -168,7 +162,6 @@ export default class PreviewGameToolbar extends Component(spec) {
 
   handlePointerDownStepForwardButton = (e: Event) => {
     this.throttledStep(10);
-    this.render();
   };
 
   handlePointerUpStepForwardButton = (e: Event) => {
@@ -188,8 +181,9 @@ export default class PreviewGameToolbar extends Component(spec) {
   };
 
   throttledStep(deltaMS: number) {
+    const store = this.context.get();
+    const paused = store.preview.modes.game.paused;
     if (deltaMS < 0) {
-      const paused = WorkspaceCache.get().preview.modes.game.paused;
       if (!paused) {
         Workspace.window.pauseGame();
       }

@@ -1,8 +1,34 @@
 import STYLES from "../caches/STYLE_CACHE";
+import Context from "../classes/Context";
 import { ComponentSpec } from "../types/ComponentSpec";
 import augmentCSS from "../utils/augmentCSS";
 import convertCamelToKebabCase from "../utils/convertCamelToKebabCase";
 import getPropValue from "../utils/getPropValue";
+
+const reactive = <T extends (...args: any[]) => void>(
+  object: any,
+  callback: T
+) => {
+  if (object == null || typeof object !== "object") {
+    return object;
+  }
+  for (const property in object) {
+    object[property] = reactive(object[property], callback);
+  }
+  return new Proxy(object, {
+    get: (target, property) => {
+      return target[property];
+    },
+    set: (target, property, value) => {
+      if (target[property] !== value) {
+        target[property] = reactive(value, callback);
+        callback();
+        return true;
+      }
+      return false;
+    },
+  });
+};
 
 class SpecComponent extends HTMLElement {}
 
@@ -16,12 +42,12 @@ const Component = <
   Base: T = SpecComponent as T
 ) => {
   const tag = spec.tag;
+  const context = spec.context;
+  const state = spec.state;
   const props = spec.props;
-  const cache = spec.cache;
-  const reducer = spec.reducer;
   const css = spec.css;
   const html = spec.html;
-  const updateEvent = spec.updateEvent;
+  const shadowDOM = spec.shadowDOM;
 
   const propToAttrMap = {} as Record<keyof Props, string>;
   if (props) {
@@ -32,22 +58,40 @@ const Component = <
   }
 
   const cls = class CustomElement extends Base {
-    shadowDOM = true;
+    shadowDOM = shadowDOM;
 
     #initialized = false;
 
-    #store: Store = cache.get();
+    #html?: string;
 
-    get state() {
-      return this.reduce(cache.get());
+    #store?: Store = this.context?.get();
+
+    get context(): Context<Store> {
+      return context as Context<Store>;
     }
 
+    #state: State = reactive(
+      this.reduce(this.context?.get()),
+      this.render.bind(this)
+    );
+    get state(): State {
+      return this.#state;
+    }
+
+    #props: Props = Object.keys(CustomElement.attrs).reduce((obj, key) => {
+      const propName = key as keyof this;
+      Object.defineProperty(obj, propName, {
+        get: () => {
+          return this[propName];
+        },
+        set: (value) => {
+          this[propName] = value;
+        },
+      });
+      return obj;
+    }, {} as Props);
     get props() {
-      return Object.keys(CustomElement.attrs).reduce((p, c) => {
-        const propName = c as keyof Props;
-        p[propName] = this[c as keyof this] as any;
-        return p;
-      }, {} as Props);
+      return this.#props;
     }
 
     /**
@@ -82,14 +126,11 @@ const Component = <
      * The innerHTML for this component.
      */
     get html() {
-      return html({ props: this.props, state: this.state });
-    }
-
-    /**
-     * The event that will cause the component to potentially re-render if its state has changed.
-     */
-    get updateEvent() {
-      return updateEvent;
+      return html({
+        props: this.props,
+        state: this.state,
+        store: this.context?.get(),
+      });
     }
 
     get self(): ShadowRoot | HTMLElement {
@@ -106,17 +147,19 @@ const Component = <
 
     constructor(...args: any[]) {
       super();
+      const innerHTML = this.html;
+      this.#html = innerHTML;
       if (this.shadowDOM) {
         const shadowRoot = this.attachShadow({
           mode: "open",
           delegatesFocus: true,
         });
-        shadowRoot.innerHTML = this.html;
+        shadowRoot.innerHTML = innerHTML;
         this.css.forEach((c) => {
           STYLES.adoptStyle(shadowRoot, c);
         });
       } else {
-        this.innerHTML = this.html;
+        this.innerHTML = innerHTML;
         const tagName = this.tagName.toLowerCase();
         this.css.forEach((c) => {
           STYLES.adoptStyle(this.ownerDocument, augmentCSS(c, tagName));
@@ -125,7 +168,7 @@ const Component = <
     }
 
     reduce(store?: Store): State {
-      return reducer(store);
+      return state(store);
     }
 
     /**
@@ -155,10 +198,15 @@ const Component = <
     connectedCallback(): void {
       if (!this.#initialized) {
         this.onInit();
-        this.onUpdate(cache.get());
+        this.onUpdate();
         this.#initialized = true;
       }
-      window.addEventListener(this.updateEvent, this.#handleUpdate);
+      if (this.context) {
+        this.context.root.addEventListener(
+          this.context.event,
+          this.#handleUpdate
+        );
+      }
       this.onConnected();
     }
 
@@ -172,7 +220,12 @@ const Component = <
      * The callback that is invoked each time the custom element is disconnected from the document's DOM.
      */
     disconnectedCallback(): void {
-      window.removeEventListener(this.updateEvent, this.#handleUpdate);
+      if (this.context) {
+        this.context.root.removeEventListener(
+          this.context.event,
+          this.#handleUpdate
+        );
+      }
       this.onDisconnected();
     }
 
@@ -190,32 +243,37 @@ const Component = <
     /**
      * Invoked when the component is first connected or the update event is detected.
      */
-    onUpdate(store?: Store): void {}
+    onUpdate(): void {}
+
+    /**
+     * Invoked when the component is rendered.
+     */
+    onRender(): void {}
 
     #handleUpdate = (e: Event): void => {
       if (e instanceof CustomEvent) {
-        const newStore = e.detail as Store;
-        const oldStore = this.#store;
-        const oldState = this.reduce(oldStore);
-        const newState = this.reduce(newStore);
-        if (newState) {
-          let rerender = false;
-          const changed: (keyof State)[] = [];
-          Object.entries(newState).forEach(([k, v]) => {
-            const key = k as keyof State;
-            const oldValue = oldState?.[key];
-            const newValue = v as any;
-            if (oldValue !== newValue) {
-              rerender = true;
-              changed.push(key);
+        const newStore = this.context?.get();
+        if (newStore) {
+          const oldState = this.reduce(this.#store);
+          const newState = this.reduce(newStore);
+          this.#state = reactive(newState, this.render.bind(this));
+          this.#store = newStore;
+          if (newState) {
+            let rerender = false;
+            Object.entries(newState).forEach(([k, v]) => {
+              const key = k as keyof State;
+              const oldValue = oldState?.[key];
+              const newValue = v as any;
+              if (oldValue !== newValue) {
+                rerender = true;
+              }
+            });
+            if (rerender) {
+              this.render();
             }
-          });
-          if (rerender) {
-            this.render();
           }
+          this.onUpdate();
         }
-        this.onUpdate(newStore);
-        this.#store = newStore;
       }
     };
 
@@ -223,13 +281,18 @@ const Component = <
      * Re-renders the component using the component's latest props and state
      */
     render() {
-      this.disconnectedCallback();
-      if (this.shadowRoot) {
-        this.shadowRoot.innerHTML = this.html;
-      } else {
-        this.innerHTML = this.html;
+      const innerHTML = this.html;
+      if (innerHTML !== this.#html) {
+        this.#html = innerHTML;
+        this.disconnectedCallback();
+        if (this.shadowRoot) {
+          this.shadowRoot.innerHTML = innerHTML;
+        } else {
+          this.innerHTML = innerHTML;
+        }
+        this.connectedCallback();
+        this.onRender();
       }
-      this.connectedCallback();
     }
 
     /**

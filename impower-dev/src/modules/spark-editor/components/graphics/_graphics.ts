@@ -1,17 +1,13 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import { WorkspaceCache } from "../../workspace/WorkspaceCache";
+import WorkspaceContext from "../../workspace/WorkspaceContext";
 
 export default spec({
   tag: "se-graphics",
-  cache: WorkspaceCache,
+  context: WorkspaceContext.instance,
   css,
-  reducer: (store?: WorkspaceStore) => ({
-    panel: store?.panes?.graphics?.panel || "sprites",
-  }),
-  html: ({ state }) => {
-    const { panel } = state;
+  html: ({ store }) => {
+    const panel = store?.panes?.graphics?.panel || "sprites";
     return html`
       <s-router directional key="graphics-panel" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">

@@ -1,13 +1,17 @@
+import Context from "../classes/Context";
+
 export interface ComponentConfig<
   Props = Record<string, unknown>,
   State = Record<string, unknown>,
   Store = Record<string, unknown>
 > {
   tag: `${string}-${string}`;
+  context?: Context<Store>;
+  state?: (store?: Store) => State;
   props?: Props;
-  cache?: { get: () => Store; set: (store: Store) => void };
-  reducer?: (store?: Store) => State;
-  html?: ((context: { props: Props; state: State }) => string) | string;
+  html?:
+    | ((args: { props: Props; state: State; store?: Store }) => string)
+    | string;
   css?: string[] | string;
-  updateEvent?: string;
+  shadowDOM?: boolean;
 }

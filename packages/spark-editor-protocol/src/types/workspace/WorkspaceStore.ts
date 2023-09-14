@@ -18,7 +18,8 @@ export type PaneType = "setup" | "audio" | "displays" | "graphics" | "logic";
 export type SyncState =
   | "cached"
   | "unsaved"
-  | "saved"
+  | "saved_online"
+  | "saved_offline"
   | "loading"
   | "importing"
   | "exporting"
@@ -90,7 +91,7 @@ export interface ProjectState {
   canModifyRemote?: boolean;
   editingName?: boolean;
   syncState?: SyncState;
-  syncedAt?: string;
+  pulledAt?: string;
   conflict?: {
     remote?: ProjectFile;
     local?: ProjectFile;

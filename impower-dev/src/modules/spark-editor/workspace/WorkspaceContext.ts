@@ -1,8 +1,19 @@
 import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
+import Context from "../../../../../packages/spec-component/src/classes/Context";
 import { RecursiveReadonly } from "./types/RecursiveReadonly";
 
-export namespace WorkspaceCache {
-  let _store: WorkspaceStore = {
+export default class WorkspaceContext extends Context<WorkspaceStore> {
+  private static _instance: WorkspaceContext;
+  static get instance(): WorkspaceContext {
+    if (!this._instance) {
+      this._instance = new WorkspaceContext();
+    }
+    return this._instance;
+  }
+
+  readonly event = "update:workspace";
+
+  protected _store: WorkspaceStore = {
     project: { id: "" },
     pane: "setup",
     panes: {
@@ -91,9 +102,14 @@ export namespace WorkspaceCache {
     },
   };
 
-  export const get = () => _store as RecursiveReadonly<WorkspaceStore>;
+  override get(): RecursiveReadonly<WorkspaceStore> {
+    return this._store;
+  }
 
-  export const set = (value: WorkspaceStore) => {
-    _store = value;
-  };
+  override set(v: WorkspaceStore) {
+    this._store = v;
+    this.root.dispatchEvent(
+      new CustomEvent(this.event, { detail: this._store })
+    );
+  }
 }
