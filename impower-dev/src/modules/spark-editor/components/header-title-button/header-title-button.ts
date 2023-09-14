@@ -40,7 +40,7 @@ export default class HeaderTitleButton extends Component(spec) {
   }
 
   handleClickNameButton = () => {
-    Workspace.window.startEditingProjectName();
+    Workspace.window.startedEditingProjectName();
     this.emit("input/focused");
   };
 
@@ -49,7 +49,7 @@ export default class HeaderTitleButton extends Component(spec) {
       const target = e.target as HTMLInputElement;
       const name = target.value;
       this.emit("input/unfocused");
-      await Workspace.window.finishEditingProjectName(name);
+      await Workspace.window.finishedEditingProjectName(name);
     }
   };
 
@@ -57,6 +57,6 @@ export default class HeaderTitleButton extends Component(spec) {
     const target = e.target as HTMLInputElement;
     const name = target.value;
     this.emit("input/unfocused");
-    await Workspace.window.finishEditingProjectName(name);
+    await Workspace.window.finishedEditingProjectName(name);
   };
 }

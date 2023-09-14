@@ -445,6 +445,43 @@ export default class WorkspaceWindow {
     );
   }
 
+  startedEditingProjectName() {
+    this.update({
+      ...this.store,
+      project: {
+        ...this.store.project,
+        editingName: true,
+      },
+    });
+  }
+
+  async finishedEditingProjectName(name: string) {
+    const id = this.store.project.id;
+    if (id) {
+      this.update({
+        ...this.store,
+        project: {
+          ...this.store.project,
+          editingName: false,
+        },
+      });
+      let changedName = name !== this.store.project.name;
+      if (changedName) {
+        await Workspace.fs.writeProjectName(id, name);
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            name,
+          },
+        });
+        await this.updateModificationTime();
+      }
+      return changedName;
+    }
+    return false;
+  }
+
   startGame() {
     this.update({
       ...this.store,
@@ -923,42 +960,5 @@ export default class WorkspaceWindow {
         },
       });
     }
-  }
-
-  startEditingProjectName() {
-    this.update({
-      ...this.store,
-      project: {
-        ...this.store.project,
-        editingName: true,
-      },
-    });
-  }
-
-  async finishEditingProjectName(name: string) {
-    const id = this.store.project.id;
-    if (id) {
-      this.update({
-        ...this.store,
-        project: {
-          ...this.store.project,
-          editingName: false,
-        },
-      });
-      let changedName = name !== this.store.project.name;
-      if (changedName) {
-        await Workspace.fs.writeProjectName(id, name);
-        this.update({
-          ...this.store,
-          project: {
-            ...this.store.project,
-            name,
-          },
-        });
-        await this.updateModificationTime();
-      }
-      return changedName;
-    }
-    return false;
   }
 }
