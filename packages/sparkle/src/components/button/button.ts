@@ -397,19 +397,24 @@ export default class Button
   }
 
   protected handleClick = (e: MouseEvent) => {
-    const value = this.value;
-    const type = this.type;
-    if (type === "toggle") {
-      const newActive = !this.active;
-      this.active = newActive;
-      if (value) {
-        this.emitChange(newActive ? value : null);
-      } else {
-        this.emitChange(newActive ? "on" : null);
-      }
+    if (this.disabled) {
+      e.stopPropagation();
+      e.preventDefault();
     } else {
-      if (value) {
-        this.emitChange(value);
+      const value = this.value;
+      const type = this.type;
+      if (type === "toggle") {
+        const newActive = !this.active;
+        this.active = newActive;
+        if (value) {
+          this.emitChange(newActive ? value : null);
+        } else {
+          this.emitChange(newActive ? "on" : null);
+        }
+      } else {
+        if (value) {
+          this.emitChange(value);
+        }
       }
     }
   };

@@ -5,10 +5,11 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-header-title-caption",
   stores: { workspace },
-  context: ({ workspace }) => ({
-    name: workspace?.current?.project?.name || "",
-    syncState: workspace?.current?.project?.syncState || "",
-  }),
+  context: ({ workspace }) =>
+    ({
+      name: workspace?.current?.project?.name || "",
+      syncState: workspace?.current?.project?.syncState || "",
+    } as const),
   html: ({ context }) => {
     const { name, syncState } = context;
     const syncStateInfo =
@@ -24,18 +25,18 @@ export default spec({
         ? "Syncing..."
         : syncState === "unsaved"
         ? "Unsaved changes"
-        : syncState === "saved_online"
+        : syncState === "synced"
         ? "Saved online"
-        : syncState === "saved_offline"
-        ? "Saved offline"
+        : syncState === "offline"
+        ? "Cannot sync while offline"
         : syncState === "load_error"
-        ? "Error: Unable to load project"
+        ? "Error: Could not load project"
         : syncState === "import_error"
-        ? "Error: Unable to import project"
+        ? "Error: Could not import project"
         : syncState === "export_error"
-        ? "Error: Unable to export project"
+        ? "Error: Could not export project"
         : syncState === "sync_error"
-        ? "Error: Unable to sync project"
+        ? "Error: Could not sync project"
         : syncState === "sync_conflict"
         ? "Sync Conflict"
         : "";
@@ -47,7 +48,7 @@ export default spec({
           syncState === "export_error" ||
           syncState === "sync_error"
         ? "red"
-        : syncState === "sync_conflict"
+        : syncState === "sync_conflict" || syncState === "offline"
         ? "yellow"
         : "fg-60";
     const stateSkeleton = () => html`

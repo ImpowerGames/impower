@@ -91,11 +91,44 @@ const authenticated = async <T>(
     auth.setCredentials({ refresh_token: sessionCookieData.refresh_token });
     const data = await response(auth);
     setSessionCookieData(request, {
+      ...sessionCookieData,
       provider: "google",
       refresh_token: auth.credentials.refresh_token!,
     });
     return data;
   });
+};
+
+const getAccountInfo = async (auth: Auth.OAuth2Client) => {
+  // Get user profile info
+  const peopleService = google.people({ version: "v1", auth });
+  const peopleResult = await peopleService.people.get({
+    resourceName: "people/me",
+    personFields: "names,emailAddresses",
+  });
+  const displayName =
+    peopleResult.data.names?.filter((n) => n.metadata?.primary)?.[0]
+      ?.displayName || "";
+  const email =
+    peopleResult.data.emailAddresses?.filter((n) => n.metadata?.primary)?.[0]
+      ?.value || "";
+  // Get user id
+  const res = await auth.refreshAccessToken();
+  const token = res.credentials.access_token!;
+  const expires = res.credentials.expiry_date ?? 0;
+  const scope = res.credentials.scope || "";
+  const tokenInfo = await auth.getTokenInfo(token);
+  const uid = tokenInfo.sub!;
+  const consented = hasSyncPermission(scope);
+  return {
+    uid,
+    displayName,
+    email,
+    token,
+    expires,
+    scope,
+    consented,
+  };
 };
 
 const googleDriveSyncProvider: FastifyPluginCallback = async (
@@ -117,16 +150,13 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       );
       let { tokens } = await auth.getToken(code);
       auth.setCredentials(tokens);
+      const account = await getAccountInfo(auth);
       setSessionCookieData(request, {
+        ...account,
         provider: "google",
         refresh_token: auth.credentials.refresh_token!,
       });
-      const res = await auth.refreshAccessToken();
-      const token = res.credentials.access_token;
-      const expires = res.credentials.expiry_date;
-      const scope = res.credentials.scope;
-      const consented = hasSyncPermission(scope);
-      return { token, expires, scope, consented };
+      return account;
     });
   });
   app.post("/api/auth/signout", async (request, reply) => {
@@ -135,36 +165,37 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     });
   });
   app.get("/api/auth/account", async (request, reply) => {
-    return authenticated(request, reply, async (auth) => {
-      // Get user profile info
-      const peopleService = google.people({ version: "v1", auth });
-      const peopleResult = await peopleService.people.get({
-        resourceName: "people/me",
-        personFields: "names,emailAddresses",
-      });
-      const displayName = peopleResult.data.names?.filter(
-        (n) => n.metadata?.primary
-      )?.[0]?.displayName;
-      const email = peopleResult.data.emailAddresses?.filter(
-        (n) => n.metadata?.primary
-      )?.[0]?.value;
-      // Get user id
-      const res = await auth.refreshAccessToken();
-      const token = res.credentials.access_token!;
-      const expires = res.credentials.expiry_date;
-      const scope = res.credentials.scope;
-      const tokenInfo = await auth.getTokenInfo(token);
-      const uid = tokenInfo.sub!;
-      const consented = hasSyncPermission(scope);
-      return {
-        uid,
-        displayName,
-        email,
-        token,
-        expires,
-        scope,
-        consented,
-      };
+    return secure(request, reply, async () => {
+      const sessionCookieData = getSessionCookieData(request);
+      if (!sessionCookieData?.refresh_token) {
+        reply.status(ERROR.UNAUTHENTICATED.status);
+        return ERROR.UNAUTHENTICATED.data;
+      }
+      try {
+        const auth = new google.auth.OAuth2(
+          process.env["BROWSER_GOOGLE_OAUTH_CLIENT_ID"],
+          process.env["SERVER_GOOGLE_OAUTH_CLIENT_SECRET"]
+        );
+        auth.setCredentials({ refresh_token: sessionCookieData.refresh_token });
+        const account = await getAccountInfo(auth);
+        setSessionCookieData(request, {
+          ...account,
+          provider: "google",
+          refresh_token: auth.credentials.refresh_token!,
+        });
+        return account;
+      } catch {
+        return {
+          uid: sessionCookieData.uid,
+          displayName: sessionCookieData.displayName,
+          email: sessionCookieData.email,
+          scope: sessionCookieData.scope,
+          consented: sessionCookieData.consented,
+          expires: sessionCookieData.expires,
+          token: sessionCookieData.token,
+          offline: true,
+        };
+      }
     });
   });
   app.get("/api/auth/access", async (request, reply) => {

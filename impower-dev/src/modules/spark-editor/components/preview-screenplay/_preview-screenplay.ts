@@ -6,9 +6,10 @@ import html from "./preview-screenplay.html";
 export default spec({
   tag: "se-preview-screenplay",
   stores: { workspace },
-  context: ({ workspace }) => ({
-    pulledAt: workspace?.current?.project?.pulledAt || "",
-  }),
+  context: ({ workspace }) =>
+    ({
+      pulledAt: workspace?.current?.project?.pulledAt || "",
+    } as const),
   html,
   css,
 });

@@ -140,6 +140,13 @@ export default class Account extends Component(spec) {
     }
     this.ref.authenticated.hidden = false;
     this.ref.unauthenticated.hidden = true;
+    if (accountInfo.offline) {
+      this.ref.importProjectButton.setAttribute("disabled", "");
+      this.ref.exportProjectButton.setAttribute("disabled", "");
+    } else {
+      this.ref.importProjectButton.removeAttribute("disabled");
+      this.ref.exportProjectButton.removeAttribute("disabled");
+    }
   }
 
   loadUnauthenticatedUI(label: string = "Sync With Google Drive") {

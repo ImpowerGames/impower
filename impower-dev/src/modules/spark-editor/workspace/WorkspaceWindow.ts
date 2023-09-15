@@ -668,7 +668,7 @@ export default class WorkspaceWindow {
       this.cacheProjectId(id);
       return id;
     } catch (err) {
-      console.warn(err);
+      console.error(err);
       this.update({
         ...this.store,
         project: {
@@ -742,11 +742,14 @@ export default class WorkspaceWindow {
             await this.setupProject(localProjectFile, remoteProjectFile);
           }
         } else {
+          console.error(`Could not fetch remote project file: ${id}`);
+          const name = await Workspace.fs.readProjectName(id);
           this.update({
             ...this.store,
             project: {
               ...this.store.project,
-              syncState: "sync_error",
+              name,
+              syncState: "offline",
             },
           });
         }
@@ -790,7 +793,7 @@ export default class WorkspaceWindow {
         ...this.store.project,
         name: remoteName,
         canModifyRemote,
-        syncState: canModifyRemote ? "saved_online" : "cached",
+        syncState: canModifyRemote ? "synced" : "cached",
       },
     });
     return remoteProjectFile;
@@ -819,7 +822,7 @@ export default class WorkspaceWindow {
         ...this.store.project,
         name: remoteProjectName,
         canModifyRemote,
-        syncState: canModifyRemote ? "saved_online" : "cached",
+        syncState: canModifyRemote ? "synced" : "cached",
         pulledAt: new Date().toISOString(),
       },
     });
@@ -887,7 +890,7 @@ export default class WorkspaceWindow {
         ...this.store.project,
         name: remoteProjectName,
         canModifyRemote,
-        syncState: canModifyRemote ? "saved_online" : "cached",
+        syncState: canModifyRemote ? "synced" : "cached",
       },
     });
   }

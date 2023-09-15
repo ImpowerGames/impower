@@ -11,7 +11,7 @@ export default spec({
   },
   context: ({ workspace }) => ({
     pulledAt: workspace?.current?.project?.pulledAt || "",
-  }),
+  } as const),
   html,
   selectors: {
     sparkdownScriptEditor: "",

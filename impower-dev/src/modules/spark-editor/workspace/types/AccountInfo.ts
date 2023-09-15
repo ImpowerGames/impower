@@ -6,4 +6,5 @@ export interface AccountInfo {
   expires: number;
   scope: string;
   consented: boolean;
+  offline: boolean;
 }

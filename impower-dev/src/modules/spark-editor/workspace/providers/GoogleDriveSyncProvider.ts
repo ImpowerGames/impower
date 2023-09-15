@@ -111,10 +111,13 @@ export default class GoogleDriveSyncProvider {
 
   protected async loadGAPIScript() {
     const result = await loadScript(GAPI_SRC);
-    gapi.load("client", async () => {
-      await gapi.client.init({
-        apiKey: BROWSER_GOOGLE_API_KEY,
-        discoveryDocs: [DISCOVERY_DOC],
+    await new Promise<void>((resolve) => {
+      gapi.load("client", async () => {
+        await gapi.client.init({
+          apiKey: BROWSER_GOOGLE_API_KEY,
+          discoveryDocs: [DISCOVERY_DOC],
+        });
+        resolve();
       });
     });
     return result;
@@ -244,7 +247,7 @@ export default class GoogleDriveSyncProvider {
     return this.updateFile(fileId, this.getTextBlob(filename, content));
   }
 
-  protected async fetchAccount() {
+  protected async fetchAccount(): Promise<AccountInfo | null> {
     try {
       const account = await this.request<AccountInfo>(
         "GET",
@@ -261,7 +264,11 @@ export default class GoogleDriveSyncProvider {
   }
 
   async getCurrentAccount() {
-    await this._gsiScriptRef.get();
+    try {
+      await this._gsiScriptRef.get();
+    } catch (err) {
+      console.error(err);
+    }
     return this._accountRef.get();
   }
 

@@ -65,14 +65,14 @@ export default class HeaderNavigation extends Component(spec) {
         this.ref.syncButton.setAttribute("animation", "spin");
         this.ref.syncButton.setAttribute("disabled", "");
         this.ref.syncButton.setAttribute("color", "fg");
-      } else if (syncState === "saved_online") {
+      } else if (syncState === "synced") {
         this.ref.syncButton.removeAttribute("animation");
         this.ref.syncButton.removeAttribute("disabled");
         this.ref.syncButton.setAttribute("color", "fg");
-      } else if (syncState === "saved_offline") {
+      } else if (syncState === "offline") {
         this.ref.syncButton.removeAttribute("animation");
         this.ref.syncButton.removeAttribute("disabled");
-        this.ref.syncButton.setAttribute("color", "fg");
+        this.ref.syncButton.setAttribute("color", "yellow");
       } else if (syncState === "unsaved") {
         this.ref.syncButton.removeAttribute("animation");
         this.ref.syncButton.removeAttribute("disabled");
@@ -109,12 +109,17 @@ export default class HeaderNavigation extends Component(spec) {
   };
 
   startEditing() {
-    this.ref.doneButton.hidden = false;
     this.ref.previewButton.hidden = true;
+    this.ref.doneButton.hidden = false;
   }
 
-  finishEditing() {
-    this.ref.doneButton.hidden = true;
-    this.ref.previewButton.hidden = false;
+  async finishEditing() {
+    if (this.ref.previewButton.hidden) {
+      this.ref.previewButton.hidden = false;
+    }
+    if (!this.ref.doneButton.hidden) {
+      this.ref.doneButton.hidden = true;
+      await Workspace.window.syncProject();
+    }
   }
 }

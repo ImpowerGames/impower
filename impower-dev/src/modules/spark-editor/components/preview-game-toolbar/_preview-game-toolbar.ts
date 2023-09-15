@@ -5,11 +5,12 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-preview-game-toolbar",
   stores: { workspace },
-  context: ({ workspace }) => ({
-    running: workspace?.current?.preview?.modes?.game?.running || false,
-    paused: workspace?.current?.preview?.modes?.game?.paused || false,
-    debugging: workspace?.current?.preview?.modes?.game?.debugging || false,
-  }),
+  context: ({ workspace }) =>
+    ({
+      running: workspace?.current?.preview?.modes?.game?.running || false,
+      paused: workspace?.current?.preview?.modes?.game?.paused || false,
+      debugging: workspace?.current?.preview?.modes?.game?.debugging || false,
+    } as const),
   html: ({ context }) => {
     const { running, paused, debugging } = context;
     const titleEl = () =>

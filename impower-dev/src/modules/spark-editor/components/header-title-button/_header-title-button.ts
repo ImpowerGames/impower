@@ -5,11 +5,12 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-header-title-button",
   stores: { workspace },
-  context: ({ workspace }) => ({
-    name: workspace?.current?.project?.name || "",
-    syncState: workspace?.current?.project?.syncState || "",
-    editingName: workspace?.current?.project?.editingName || false,
-  }),
+  context: ({ workspace }) =>
+    ({
+      name: workspace?.current?.project?.name || "",
+      syncState: workspace?.current?.project?.syncState || "",
+      editingName: workspace?.current?.project?.editingName || false,
+    } as const),
   html: ({ context }) => {
     const { name, syncState, editingName } = context;
     const label = "Project Name";
