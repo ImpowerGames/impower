@@ -1,15 +1,17 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
-import html from "./header-navigation.html";
+import html from "./header-sync-conflict-toolbar.html";
 
 export default spec({
-  tag: "se-header-navigation",
+  tag: "se-header-sync-conflict-toolbar",
   stores: { workspace },
   html,
   selectors: {
-    doneButton: "",
-    previewButton: "",
+    pullButton: "",
+    pushButton: "",
+    pullDialog: "",
+    pushDialog: "",
   } as const,
   css,
 });

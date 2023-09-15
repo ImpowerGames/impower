@@ -247,6 +247,12 @@
   z-index: 1;
   transition-duration: var(--duration);
 }
+:host([text-overflow="ellipsis"]) > .root > .label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 :host([child-justify]) > .root > .label {
   flex-grow: var(--grow);
 }

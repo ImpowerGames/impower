@@ -53,6 +53,7 @@ const STYLE_TRANSFORMERS = {
 
   aspect: getCssRatio,
 
+  overflow: getCssOverflow,
   "overflow-x": getCssOverflow,
   "overflow-y": getCssOverflow,
 

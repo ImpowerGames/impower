@@ -20,6 +20,8 @@ import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import Graphics from "./components/graphics/graphics";
 import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
+import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/header-sync-conflict-toolbar";
+import HeaderSyncToolbar from "./components/header-sync-toolbar/header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/interaction-blocker";
@@ -92,6 +94,8 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   PreviewPanel,
   Notifications,
   Account,
+  HeaderSyncConflictToolbar,
+  HeaderSyncToolbar,
   HeaderMenuButton,
   HeaderTitleButton,
   HeaderTitleCaption,

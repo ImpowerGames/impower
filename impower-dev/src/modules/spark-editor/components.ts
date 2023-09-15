@@ -21,6 +21,8 @@ import FooterNavigation from "./components/footer-navigation/_footer-navigation"
 import Graphics from "./components/graphics/_graphics";
 import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
+import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/_header-sync-conflict-toolbar";
+import HeaderSyncToolbar from "./components/header-sync-toolbar/_header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/_interaction-blocker";
@@ -66,9 +68,9 @@ const style = <
   State extends Record<string, unknown> = Record<string, unknown>,
   Stores extends Record<string, any> = Record<string, any>,
   Context extends Record<string, unknown> = Record<string, unknown>,
-  Selectors extends Record<string, string | string[]> = Record<
+  Selectors extends Record<string, null | string | string[]> = Record<
     string,
-    string | string[]
+    null | string | string[]
   >
 >(
   spec: ComponentSpec<Props, State, Stores, Context, Selectors>
@@ -127,6 +129,8 @@ const components = [
   style(PreviewPanel),
   style(Notifications),
   style(Account),
+  style(HeaderSyncConflictToolbar),
+  style(HeaderSyncToolbar),
   style(HeaderMenuButton),
   style(HeaderTitleButton),
   style(HeaderTitleCaption),

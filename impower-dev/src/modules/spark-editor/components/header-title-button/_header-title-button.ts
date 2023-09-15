@@ -18,6 +18,8 @@ export default spec({
       <s-button
         id="nameButton"
         variant="text"
+        text-overflow="ellipsis"
+        text-align="left"
         text-size="lg"
         text-weight="500"
         color="fg"
@@ -30,6 +32,7 @@ export default spec({
     const nameInput = () => html`
       <s-input
         id="nameInput"
+        child-justify="start"
         text-size="lg"
         text-weight="500"
         p="0 4"
@@ -48,12 +51,16 @@ export default spec({
       <s-skeleton id="name-skeleton">Untitled Project</s-skeleton>
     `;
     return html`
-      <s-box child-layout="row" child-align="center" height="28">
-        ${name && syncState
-          ? editingName
-            ? nameInput
-            : nameButton
-          : nameSkeleton}
+      <s-box child-layout="row" child-align="center">
+        <s-box position="relative" height="28" width-max="600" grow>
+          <s-box position="absolute" i="0">
+            ${name && syncState
+              ? editingName
+                ? nameInput
+                : nameButton
+              : nameSkeleton}
+          </s-box>
+        </s-box>
       </s-box>
     `;
   },

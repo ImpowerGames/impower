@@ -38,6 +38,10 @@
   aspect-ratio: var(--aspect, 1) !important;
 }
 
+[overflow] > .root {
+  overflow: var(--overflow, scroll) !important;
+}
+
 [overflow-x] > .root {
   overflow-x: var(--overflow-x, scroll) !important;
 }

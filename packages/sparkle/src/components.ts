@@ -59,9 +59,9 @@ const style = <
   State extends Record<string, unknown> = Record<string, unknown>,
   Stores extends Record<string, any> = Record<string, any>,
   Context extends Record<string, unknown> = Record<string, unknown>,
-  Selectors extends Record<string, string | string[]> = Record<
+  Selectors extends Record<string, null | string | string[]> = Record<
     string,
-    string | string[]
+    null | string | string[]
   >
 >(
   spec: ComponentSpec<Props, State, Stores, Context, Selectors>

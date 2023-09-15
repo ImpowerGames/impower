@@ -147,6 +147,18 @@ export default class SparkleElement
   }
 
   /**
+   * Sets the desired `overflow` behavior for content that does not fit within this element's width or height.
+   *
+   * If not provided a value, defaults to `visible`.
+   */
+  get overflow(): "" | "visible" | "scroll" | "clip" | string | null {
+    return this.getStringAttribute(SparkleElement.attrs.overflow);
+  }
+  set overflow(value) {
+    this.setStringAttribute(SparkleElement.attrs.overflow, value);
+  }
+
+  /**
    * Sets the desired `overflow` behavior for content that does not fit within this element's width.
    *
    * If not provided a value, defaults to `visible`.
