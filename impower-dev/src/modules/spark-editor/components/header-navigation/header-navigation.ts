@@ -73,7 +73,7 @@ export default class HeaderNavigation extends Component(spec) {
         this.ref.syncButton.removeAttribute("animation");
         this.ref.syncButton.removeAttribute("disabled");
         this.ref.syncButton.setAttribute("color", "yellow");
-      } else if (syncState === "unsaved") {
+      } else if (syncState === "unsynced") {
         this.ref.syncButton.removeAttribute("animation");
         this.ref.syncButton.removeAttribute("disabled");
         this.ref.syncButton.setAttribute("color", "primary");

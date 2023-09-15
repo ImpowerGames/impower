@@ -727,7 +727,7 @@ export default class WorkspaceWindow {
                   ...this.store.project,
                   name: localProjectName,
                   canModifyRemote,
-                  syncState: "unsaved",
+                  syncState: "unsynced",
                 },
               });
             }
@@ -959,7 +959,7 @@ export default class WorkspaceWindow {
         ...this.store,
         project: {
           ...this.store.project,
-          syncState: canModifyRemote ? "unsaved" : "cached",
+          syncState: canModifyRemote ? "unsynced" : "cached",
         },
       });
     }

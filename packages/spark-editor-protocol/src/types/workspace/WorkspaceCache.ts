@@ -17,7 +17,7 @@ export type PaneType = "setup" | "audio" | "displays" | "graphics" | "logic";
 
 export type SyncState =
   | "cached"
-  | "unsaved"
+  | "unsynced"
   | "synced"
   | "offline"
   | "loading"

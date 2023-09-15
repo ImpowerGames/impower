@@ -23,10 +23,10 @@ export default spec({
         ? "Exporting..."
         : syncState === "syncing"
         ? "Syncing..."
-        : syncState === "unsaved"
-        ? "Unsaved changes"
+        : syncState === "unsynced"
+        ? "Unsynced changes"
         : syncState === "synced"
-        ? "Saved online"
+        ? "Synced online"
         : syncState === "offline"
         ? "Cannot sync while offline"
         : syncState === "load_error"
@@ -38,10 +38,10 @@ export default spec({
         : syncState === "sync_error"
         ? "Error: Could not sync project"
         : syncState === "sync_conflict"
-        ? "Sync Conflict"
+        ? "Sync conflict detected"
         : "";
     const captionColor =
-      syncState === "unsaved"
+      syncState === "unsynced"
         ? "primary"
         : syncState === "load_error" ||
           syncState === "import_error" ||
