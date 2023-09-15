@@ -1,3 +1,4 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import SparkleElement from "../../core/sparkle-element";
 import spec from "./_scroll-blocker";
 
@@ -12,43 +13,56 @@ export default class ScrollBlocker extends SparkleElement {
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  override onConnected(): void {
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
+  }
+
+  override onConnected() {
     this.root.addEventListener("click", this.handleClick);
     this.root.addEventListener("pointerdown", this.handlePointerDown);
     this.root.addEventListener("touchstart", this.handleTouchStart);
     this.root.addEventListener("touchmove", this.handleTouchMove);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.root.removeEventListener("click", this.handleClick);
     this.root.removeEventListener("pointerdown", this.handlePointerDown);
     this.root.removeEventListener("touchstart", this.handleTouchStart);
     this.root.removeEventListener("touchmove", this.handleTouchMove);
   }
 
-  protected handleClick = (e: MouseEvent): void => {
+  protected handleClick = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
   };
 
-  protected handlePointerDown = (e: PointerEvent): void => {
+  protected handlePointerDown = (e: PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
   };
 
-  protected handleTouchStart = (e: TouchEvent): void => {
+  protected handleTouchStart = (e: TouchEvent) => {
     e.stopPropagation();
     e.preventDefault();
   };
 
-  protected handleTouchMove = (e: TouchEvent): void => {
+  protected handleTouchMove = (e: TouchEvent) => {
     e.stopPropagation();
     e.preventDefault();
   };

@@ -4,6 +4,10 @@ import html from "./spark-web-player.html";
 
 export default spec({
   tag: "spark-web-player",
-  css,
   html,
+  selectors: {
+    sparkRoot: "#spark-root",
+    sparkGame: "#spark-game",
+  } as const,
+  css,
 });

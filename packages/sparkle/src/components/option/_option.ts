@@ -4,7 +4,6 @@ import css from "./option.css";
 
 export default spec({
   tag: "s-option",
-  css: [...sharedCSS, css],
   props: {
     type: null as string | null,
     href: null as string | null,
@@ -36,4 +35,13 @@ export default spec({
   </${tag}>
     `;
   },
+  selectors: {
+    label: ".label",
+    icon: ".icon",
+    inactiveIcon: ".inactive-icon",
+    activeIcon: ".active-icon",
+    ripple: "s-ripple",
+    badge: "s-badge",
+  } as const,
+  css: [...sharedCSS, css],
 });

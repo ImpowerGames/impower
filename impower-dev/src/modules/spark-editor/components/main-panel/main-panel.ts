@@ -3,11 +3,11 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_main-panel";
 
 export default class MainPanel extends Component(spec) {
-  override onConnected(): void {
+  override onConnected() {
     this.ownerDocument.addEventListener("enter", this.handleEnter);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.ownerDocument.removeEventListener("enter", this.handleEnter);
   }
 

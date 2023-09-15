@@ -1,14 +1,12 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import Queue from "../../helpers/queue";
 import Toast from "../toast/toast";
 import spec from "./_toast-stack";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-toast"]);
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -27,15 +25,24 @@ export default class ToastStack
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -60,7 +67,7 @@ export default class ToastStack
 
   protected _queue = new Queue();
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === ToastStack.attrs.alert) {
       if (newValue != null) {
         const [message, action, timeout, type] = newValue.split(";");
@@ -71,7 +78,7 @@ export default class ToastStack
     }
   }
 
-  protected override onContentAssigned(children: Element[]): void {
+  protected override onContentAssigned(children: Element[]) {
     this._templates = children.filter(
       (el) => el.tagName.toLowerCase() === "template"
     ) as HTMLTemplateElement[];
@@ -97,7 +104,7 @@ export default class ToastStack
     const template = this.getTemplate(type);
     const templateContent =
       template?.content?.cloneNode?.(true) ||
-      this.getElementByTag<Toast>(ToastStack.dependencies.toast) ||
+      this.getElementByTag<Toast>(this.selectors.toast) ||
       new Toast();
     const toast = this.root.appendChild(templateContent) as Toast;
     if (!toast) {

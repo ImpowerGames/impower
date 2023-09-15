@@ -1,6 +1,7 @@
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
@@ -35,11 +36,24 @@ export default class Icon
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -70,7 +84,7 @@ export default class Icon
     this.setStringAttribute(Icon.attrs.size, value);
   }
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Icon.attrs.ariaLabel) {
       this.updateRootAttribute(Icon.attrs.ariaHidden, Boolean(newValue));
       this.updateRootAttribute(Icon.attrs.role, newValue ? "img" : null);

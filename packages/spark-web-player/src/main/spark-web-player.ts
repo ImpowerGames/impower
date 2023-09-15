@@ -19,14 +19,6 @@ import Application from "../app/Application";
 import spec from "./_spark-web-player";
 
 export default class SparkWebPlayer extends Component(spec) {
-  get sparkRootEl() {
-    return this.getElementById("spark-root");
-  }
-
-  get sparkGameEl() {
-    return this.getElementById("spark-game");
-  }
-
   _context?: SparkContext;
 
   _app?: Application;
@@ -39,7 +31,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _options?: SparkContextOptions;
 
-  override onConnected(): void {
+  override onConnected() {
     window.addEventListener(
       ConfigureGameMessage.method,
       this.handleConfigureGame
@@ -61,7 +53,7 @@ export default class SparkWebPlayer extends Component(spec) {
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener(
       ConfigureGameMessage.method,
       this.handleConfigureGame
@@ -130,7 +122,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (StartGameMessage.type.isRequest(message)) {
-        const gameDOM = this.sparkGameEl;
+        const gameDOM = this.ref.sparkGame;
         if (this._context) {
           this._context.dispose();
         }
@@ -239,7 +231,7 @@ export default class SparkWebPlayer extends Component(spec) {
         return new SparkDOMElement(document.createElement(type));
       };
       if (!this._root) {
-        this._root = new SparkDOMElement(this.sparkRootEl!);
+        this._root = new SparkDOMElement(this.ref.sparkRoot!);
       }
       const context = new SparkContext(programs, {
         config: {

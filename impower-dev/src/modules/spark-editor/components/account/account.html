@@ -1,9 +1,9 @@
 <s-box id="authenticated" grow hidden>
-  <s-button id="import-project-button" icon="download" variant="text" p="16 24" spacing="24" size="lg" width="100%"
+  <s-button id="importProjectButton" icon="download" variant="text" p="16 24" spacing="24" size="lg" width="100%"
     color="fab-bg" text-color="fab-fg" text-weight="500" child-justify="start" corner="0" shadow="1" m="1">
     Load Project
   </s-button>
-  <s-button id="export-project-button" icon="upload" variant="text" p="16 24" spacing="24" size="lg" width="100%"
+  <s-button id="exportProjectButton" icon="upload" variant="text" p="16 24" spacing="24" size="lg" width="100%"
     color="fab-bg" text-color="fab-fg" text-weight="500" child-justify="start" corner="0" shadow="1" m="1">
     Save New Project
   </s-button>
@@ -13,18 +13,18 @@
       color="fab-bg" text-color="fab-fg" child-justify="start" corner="0" shadow="1" m="1">
       <s-box child-layout="row" child-align="center" overflow-x="hidden">
         <s-box child-layout="column" shrink="1">
-          <s-box id="account-name" text-size="md" text-weight="600" text-overflow="ellipsis"></s-box>
-          <s-box id="account-email" text-size="sm" text-weight="400" opacity="0.7" text-overflow="ellipsis"></s-box>
+          <s-box id="accountName" text-size="md" text-weight="600" text-overflow="ellipsis"></s-box>
+          <s-box id="accountEmail" text-size="sm" text-weight="400" opacity="0.7" text-overflow="ellipsis"></s-box>
         </s-box>
       </s-box>
     </s-button>
     <slot slot="options">
-      <s-option id="signout-button" icon="logout">Sign Out</s-option>
+      <s-option id="signoutButton" icon="logout">Sign Out</s-option>
     </slot>
   </s-dropdown>
 </s-box>
 <s-box id="unauthenticated" grow hidden>
-  <s-button id="signin-button" icon="brand-google-drive" variant="text" p="16 24" spacing="24" size="lg" width="100%"
+  <s-button id="signinButton" icon="brand-google-drive" variant="text" p="16 24" spacing="24" size="lg" width="100%"
     color="fab-bg" text-color="fab-fg" text-weight="500" child-justify="start" corner="0" shadow="1" m="1">
     Sync With Google Drive
   </s-button>

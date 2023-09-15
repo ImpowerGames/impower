@@ -1,5 +1,6 @@
 import getCssProportion from "../../../../sparkle-style-transformer/src/utils/getCssProportion";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
@@ -35,11 +36,24 @@ export default class ProgressCircle
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -100,20 +114,12 @@ export default class ProgressCircle
     this.setStringAttribute(ProgressCircle.attrs.speed, value);
   }
 
-  get indicatorEl(): HTMLElement | null {
-    return this.getElementByClass("indicator");
-  }
-
-  get labelEl(): HTMLElement | null {
-    return this.getElementByClass("label");
-  }
-
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === ProgressCircle.attrs.value) {
       const proportion = getCssProportion(newValue, 0);
       this.updateRootCssVariable(name, String(proportion));
       this.updateRootAttribute(ProgressCircle.attrs.ariaValueNow, newValue);
-      const labelEl = this.labelEl;
+      const labelEl = this.ref.label;
       if (labelEl) {
         if (newValue != null) {
           labelEl.textContent = `${proportion * 100}%`;

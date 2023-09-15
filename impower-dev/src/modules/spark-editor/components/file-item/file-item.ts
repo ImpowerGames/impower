@@ -3,21 +3,13 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_file-item";
 
 export default class FileItem extends Component(spec) {
-  get buttonEl() {
-    return this.getElementByTag("s-button");
-  }
-
-  get dropdownEl() {
-    return this.getElementById("dropdown");
-  }
-
-  override onConnected(): void {
-    this.buttonEl?.addEventListener("click", this.handleButtonClick);
+  override onConnected() {
+    this.ref.button.addEventListener("click", this.handleButtonClick);
     this.addEventListener("changing", this.handleChanging);
   }
 
-  override onDisconnected(): void {
-    this.buttonEl?.removeEventListener("click", this.handleButtonClick);
+  override onDisconnected() {
+    this.ref.button.removeEventListener("click", this.handleButtonClick);
     this.removeEventListener("changing", this.handleChanging);
   }
 
@@ -30,7 +22,7 @@ export default class FileItem extends Component(spec) {
   };
 
   handleChanging = (e: Event) => {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (e instanceof CustomEvent) {
       if (e.detail.key === "file-options") {

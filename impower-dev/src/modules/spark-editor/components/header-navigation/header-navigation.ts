@@ -4,20 +4,8 @@ import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import spec from "./_header-navigation";
 
 export default class HeaderNavigation extends Component(spec) {
-  get doneButtonEl() {
-    return this.getElementById("done-button")!;
-  }
-
-  get previewButtonEl() {
-    return this.getElementById("preview-button")!;
-  }
-
-  get syncButtonEl() {
-    return this.getElementById("sync-button")!;
-  }
-
-  override onConnected(): void {
-    this.syncButtonEl.addEventListener("click", this.handleClickSyncButton);
+  override onConnected() {
+    this.ref.syncButton.addEventListener("click", this.handleClickSyncButton);
     window.addEventListener("keydown", this.handleKeyDown);
     window.addEventListener("editor/focused", this.handleEditorFocused);
     window.addEventListener("editor/unfocused", this.handleEditorUnfocused);
@@ -25,8 +13,11 @@ export default class HeaderNavigation extends Component(spec) {
     window.addEventListener("input/unfocused", this.handleInputUnfocused);
   }
 
-  override onDisconnected(): void {
-    this.syncButtonEl.removeEventListener("click", this.handleClickSyncButton);
+  override onDisconnected() {
+    this.ref.syncButton.removeEventListener(
+      "click",
+      this.handleClickSyncButton
+    );
     window.removeEventListener("keydown", this.handleKeyDown);
     window.removeEventListener("editor/focused", this.handleEditorFocused);
     window.removeEventListener("editor/unfocused", this.handleEditorUnfocused);
@@ -34,50 +25,58 @@ export default class HeaderNavigation extends Component(spec) {
     window.removeEventListener("input/unfocused", this.handleInputUnfocused);
   }
 
-  override onUpdate() {
-    const store = this.context.get();
+  override onInit() {
+    this.setup();
+  }
+
+  override onStoreUpdate() {
+    this.setup();
+  }
+
+  setup() {
+    const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     const syncState = store?.project?.syncState;
     if (!projectId || projectId === WorkspaceConstants.LOCAL_PROJECT_ID) {
-      this.syncButtonEl.hidden = true;
+      this.ref.syncButton.hidden = true;
     } else {
-      this.syncButtonEl.hidden = false;
+      this.ref.syncButton.hidden = false;
       if (
         syncState === "load_error" ||
         syncState === "import_error" ||
         syncState === "export_error" ||
         syncState === "sync_error"
       ) {
-        this.syncButtonEl.removeAttribute("animation");
-        this.syncButtonEl.removeAttribute("disabled");
-        this.syncButtonEl.setAttribute("color", "red");
-        this.syncButtonEl.hidden = false;
+        this.ref.syncButton.removeAttribute("animation");
+        this.ref.syncButton.removeAttribute("disabled");
+        this.ref.syncButton.setAttribute("color", "red");
+        this.ref.syncButton.hidden = false;
       } else if (syncState === "sync_conflict") {
         // TODO: Replace sync button with conflict resolution buttons
-        this.syncButtonEl.removeAttribute("animation");
-        this.syncButtonEl.setAttribute("disabled", "");
-        this.syncButtonEl.setAttribute("color", "yellow");
+        this.ref.syncButton.removeAttribute("animation");
+        this.ref.syncButton.setAttribute("disabled", "");
+        this.ref.syncButton.setAttribute("color", "yellow");
       } else if (
         syncState === "syncing" ||
         syncState === "loading" ||
         syncState === "importing" ||
         syncState === "exporting"
       ) {
-        this.syncButtonEl.setAttribute("animation", "spin");
-        this.syncButtonEl.setAttribute("disabled", "");
-        this.syncButtonEl.setAttribute("color", "fg");
+        this.ref.syncButton.setAttribute("animation", "spin");
+        this.ref.syncButton.setAttribute("disabled", "");
+        this.ref.syncButton.setAttribute("color", "fg");
       } else if (syncState === "saved_online") {
-        this.syncButtonEl.removeAttribute("animation");
-        this.syncButtonEl.removeAttribute("disabled");
-        this.syncButtonEl.setAttribute("color", "fg");
+        this.ref.syncButton.removeAttribute("animation");
+        this.ref.syncButton.removeAttribute("disabled");
+        this.ref.syncButton.setAttribute("color", "fg");
       } else if (syncState === "saved_offline") {
-        this.syncButtonEl.removeAttribute("animation");
-        this.syncButtonEl.removeAttribute("disabled");
-        this.syncButtonEl.setAttribute("color", "fg");
+        this.ref.syncButton.removeAttribute("animation");
+        this.ref.syncButton.removeAttribute("disabled");
+        this.ref.syncButton.setAttribute("color", "fg");
       } else if (syncState === "unsaved") {
-        this.syncButtonEl.removeAttribute("animation");
-        this.syncButtonEl.removeAttribute("disabled");
-        this.syncButtonEl.setAttribute("color", "primary");
+        this.ref.syncButton.removeAttribute("animation");
+        this.ref.syncButton.removeAttribute("disabled");
+        this.ref.syncButton.setAttribute("color", "primary");
       }
     }
   }
@@ -110,12 +109,12 @@ export default class HeaderNavigation extends Component(spec) {
   };
 
   startEditing() {
-    this.doneButtonEl.hidden = false;
-    this.previewButtonEl.hidden = true;
+    this.ref.doneButton.hidden = false;
+    this.ref.previewButton.hidden = true;
   }
 
   finishEditing() {
-    this.doneButtonEl.hidden = true;
-    this.previewButtonEl.hidden = false;
+    this.ref.doneButton.hidden = true;
+    this.ref.previewButton.hidden = false;
   }
 }

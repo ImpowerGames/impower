@@ -5,6 +5,6 @@ import html from "./drawer.html";
 
 export default spec({
   tag: "s-drawer",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

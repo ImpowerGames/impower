@@ -5,6 +5,6 @@ import html from "./list.html";
 
 export default spec({
   tag: "s-list",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

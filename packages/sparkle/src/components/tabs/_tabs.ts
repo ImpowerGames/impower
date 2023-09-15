@@ -5,6 +5,11 @@ import html from "./tabs.html";
 
 export default spec({
   tag: "s-tabs",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    indicator: ".indicator",
+    nav: ".nav",
+    tab: "s-tab",
+  } as const,
+  css: [...sharedCSS, css],
 });

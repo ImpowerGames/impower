@@ -5,6 +5,9 @@ import html from "./collapsible.html";
 
 export default spec({
   tag: "s-collapsible",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    button: "s-button",
+  } as const,
+  css: [...sharedCSS, css],
 });

@@ -3,11 +3,11 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-toggle-button";
 
 export default class PreviewToggleButton extends Component(spec) {
-  override onConnected(): void {
+  override onConnected() {
     this.root.addEventListener("changed", this.handleChanged);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.root.removeEventListener("changed", this.handleChanged);
   }
 

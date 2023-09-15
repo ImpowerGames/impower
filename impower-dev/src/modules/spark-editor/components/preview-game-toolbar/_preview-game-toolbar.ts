@@ -1,19 +1,17 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-preview-game-toolbar",
-  context: WorkspaceContext.instance,
-  css,
-  state: (store?: WorkspaceStore) => ({
-    running: store?.preview?.modes?.game?.running || false,
-    paused: store?.preview?.modes?.game?.paused || false,
-    debugging: store?.preview?.modes?.game?.debugging || false,
+  stores: { workspace },
+  context: ({ workspace }) => ({
+    running: workspace?.current?.preview?.modes?.game?.running || false,
+    paused: workspace?.current?.preview?.modes?.game?.paused || false,
+    debugging: workspace?.current?.preview?.modes?.game?.debugging || false,
   }),
-  html: ({ state }) => {
-    const { running, paused, debugging } = state;
+  html: ({ context }) => {
+    const { running, paused, debugging } = context;
     const titleEl = () =>
       html`<s-box child-justify="center" text-align="center" grow inert
         >Game Preview</s-box
@@ -22,7 +20,7 @@ export default spec({
       <se-preview-mode-toggle></se-preview-mode-toggle>
     `;
     const settingsDropdown = () => html`
-      <s-dropdown id="settings-dropdown">
+      <s-dropdown id="settingsDropdown">
         <s-button
           width="48"
           height="48"
@@ -44,7 +42,7 @@ export default spec({
     `;
     const playbackControls = () => html`
       <s-button
-        id="step-backward-button"
+        id="stepBackwardButton"
         width="48"
         height="48"
         color="fg"
@@ -52,7 +50,7 @@ export default spec({
         icon="player-skip-back-fill"
       ></s-button>
       <s-button
-        id="fast-backward-button"
+        id="fastBackwardButton"
         width="48"
         height="48"
         color="fg"
@@ -60,7 +58,7 @@ export default spec({
         icon="player-track-prev-fill"
       ></s-button>
       <s-button
-        id="pause-toggle-button"
+        id="pauseToggleButton"
         width="48"
         height="48"
         color="fg"
@@ -69,7 +67,7 @@ export default spec({
         icon="${paused ? `player-play-fill` : `player-pause-fill`}"
       ></s-button>
       <s-button
-        id="fast-forward-button"
+        id="fastForwardButton"
         width="48"
         height="48"
         color="fg"
@@ -77,7 +75,7 @@ export default spec({
         icon="player-track-next-fill"
       ></s-button>
       <s-button
-        id="step-forward-button"
+        id="stepForwardButton"
         width="48"
         height="48"
         color="fg"
@@ -103,7 +101,7 @@ export default spec({
         >
           <s-list child-layout="row" child-justify="center" grow>
             <s-button
-              id="run-toggle-button"
+              id="runToggleButton"
               variant="text"
               width="48"
               height="44"
@@ -127,4 +125,14 @@ export default spec({
       </s-box>
     `;
   },
+  selectors: {
+    runToggleButton: "",
+    settingsDropdown: null,
+    stepBackwardButton: null,
+    fastBackwardButton: null,
+    pauseToggleButton: null,
+    fastForwardButton: null,
+    stepForwardButton: null,
+  } as const,
+  css,
 });

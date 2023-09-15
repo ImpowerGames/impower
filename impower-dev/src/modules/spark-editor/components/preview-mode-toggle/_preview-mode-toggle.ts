@@ -1,13 +1,12 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-preview-mode-toolbar",
-  context: WorkspaceContext.instance,
-  css,
-  html: ({ store }) => {
-    const mode = store?.preview?.mode || "game";
+  stores: { workspace },
+  html: ({ stores }) => {
+    const mode = stores?.workspace?.current?.preview?.mode || "game";
     return html`
       <s-button
         type="toggle"
@@ -23,4 +22,5 @@ export default spec({
       ></s-button>
     `;
   },
+  css,
 });

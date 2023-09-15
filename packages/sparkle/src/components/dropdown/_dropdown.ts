@@ -5,6 +5,10 @@ import html from "./dropdown.html";
 
 export default spec({
   tag: "s-dropdown",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    dialog: "dialog",
+    option: "s-option",
+  } as const,
+  css: [...sharedCSS, css],
 });

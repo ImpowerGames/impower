@@ -61,14 +61,22 @@ const config = {
   patterns: [sparklePatternsCSS],
 };
 
-const style = <Props, State, Store>(
-  spec: ComponentSpec<Props, State, Store>
-): ComponentSpec<Props, State, Store> => {
+const style = <
+  Props extends Record<string, unknown> = Record<string, unknown>,
+  State extends Record<string, unknown> = Record<string, unknown>,
+  Stores extends Record<string, any> = Record<string, any>,
+  Context extends Record<string, unknown> = Record<string, unknown>,
+  Selectors extends Record<string, string | string[]> = Record<
+    string,
+    string | string[]
+  >
+>(
+  spec: ComponentSpec<Props, State, Stores, Context, Selectors>
+): ComponentSpec<Props, State, Stores, Context, Selectors> => {
   return {
     ...spec,
-    html: (context: { props: Props; state: State; store?: Store }) => {
-      const html = spec.html || "";
-      const content = typeof html === "string" ? html : html(context);
+    html: (args) => {
+      const content = spec.html(args);
       return transformer(content, config);
     },
   };

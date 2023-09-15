@@ -1,3 +1,4 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import SparkleElement from "../../core/sparkle-element";
 import spec from "./_box";
 
@@ -10,11 +11,24 @@ export default class Box extends SparkleElement {
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 }
 

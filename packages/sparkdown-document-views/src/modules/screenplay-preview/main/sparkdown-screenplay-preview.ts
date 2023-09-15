@@ -58,7 +58,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     right: 0,
   };
 
-  override onConnected(): void {
+  override onConnected() {
     window.addEventListener(LoadPreviewMessage.method, this.handleLoadPreview);
     window.addEventListener(
       RevealPreviewRangeMessage.method,
@@ -90,7 +90,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     );
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener(
       LoadPreviewMessage.method,
       this.handleLoadPreview
@@ -158,7 +158,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     view.destroy();
   }
 
-  protected handleLoadPreview = (e: Event): void => {
+  protected handleLoadPreview = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (LoadPreviewMessage.type.isRequest(message)) {
@@ -171,15 +171,15 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
 
-  protected handleExpandPreviewPane = (): void => {
+  protected handleExpandPreviewPane = () => {
     this.revealRange(this._visibleRange);
   };
 
-  protected handleCollapsePreviewPane = (): void => {
+  protected handleCollapsePreviewPane = () => {
     this._userInitiatedScroll = false;
   };
 
-  protected handleRevealPreviewRange = (e: Event): void => {
+  protected handleRevealPreviewRange = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (RevealPreviewRangeMessage.type.isRequest(message)) {
@@ -193,7 +193,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
 
-  protected handleDidChangeTextDocument = (e: Event): void => {
+  protected handleDidChangeTextDocument = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (DidChangeTextDocumentMessage.type.isNotification(message)) {
@@ -211,7 +211,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
 
-  protected handleScrolledEditor = (e: Event): void => {
+  protected handleScrolledEditor = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (ScrolledEditorMessage.type.isNotification(message)) {
@@ -295,7 +295,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     this.cacheVisibleRange(range);
   }
 
-  protected handleIdle = (): void => {
+  protected handleIdle = () => {
     if (this._initialized && !this._loaded) {
       this._loaded = true;
       if (this._textDocument && this._loadingRequest != null) {
@@ -312,7 +312,7 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
 
-  protected handlePointerEnterScroller = (): void => {
+  protected handlePointerEnterScroller = () => {
     this._userInitiatedScroll = true;
     if (this._textDocument) {
       this.emit(
@@ -325,11 +325,11 @@ export default class SparkScreenplayPreview extends Component(spec) {
     }
   };
 
-  protected handlePointerLeaveScroller = (): void => {
+  protected handlePointerLeaveScroller = () => {
     this._userInitiatedScroll = false;
   };
 
-  protected handlePointerScroll = (e: Event): void => {
+  protected handlePointerScroll = (e: Event) => {
     if (this._userInitiatedScroll) {
       const scrollTarget = e.target;
       const view = this._view;

@@ -5,6 +5,6 @@ import html from "./circle.html";
 
 export default spec({
   tag: "s-circle",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

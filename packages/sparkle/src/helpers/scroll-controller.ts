@@ -49,7 +49,7 @@ export default class ScrollController<T extends ScrollHost> {
     scrollContainer.addEventListener("touchend", this.handleTouchEnd);
   }
 
-  hostDisconnected(): void {
+  hostDisconnected() {
     const host = this.host;
     const scrollContainer = host.scrollContainer;
 
@@ -73,7 +73,7 @@ export default class ScrollController<T extends ScrollHost> {
     debounce(this.handleScrollEnd, 100);
   }
 
-  handleScrollEnd = (): void => {
+  handleScrollEnd = () => {
     if (!this.pointers.size) {
       this.scrolling = false;
       this.host.scrollContainer.dispatchEvent(

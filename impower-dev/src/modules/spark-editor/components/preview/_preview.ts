@@ -1,13 +1,12 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-preview",
-  context: WorkspaceContext.instance,
-  css,
-  html: ({ store }) => {
-    const mode = store?.preview?.mode || "game";
+  stores: { workspace },
+  html: ({ stores }) => {
+    const mode = stores?.workspace?.current?.preview?.mode || "game";
     const gameComponent = () => html`<se-preview-game></se-preview-game>`;
     const screenplayComponent = () =>
       html`<se-preview-screenplay></se-preview-screenplay>`;
@@ -37,4 +36,5 @@ export default spec({
       </s-router>
     `;
   },
+  css,
 });

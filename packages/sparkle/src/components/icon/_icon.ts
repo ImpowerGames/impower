@@ -5,6 +5,6 @@ import html from "./icon.html";
 
 export default spec({
   tag: "s-icon",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

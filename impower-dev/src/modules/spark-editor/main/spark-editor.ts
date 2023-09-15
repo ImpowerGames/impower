@@ -11,15 +11,7 @@ export default class SparkEditor extends Component(spec) {
     });
   }
 
-  get splitPaneEl() {
-    return this.getElementByTag("s-split-pane");
-  }
-
-  get interactionBlockerEl() {
-    return this.getElementByTag("se-interaction-blocker");
-  }
-
-  override onConnected(): void {
+  override onConnected() {
     window.addEventListener("dragenter", this.handleDragEnter);
     window.addEventListener("dragover", this.handleDragOver);
     window.addEventListener("drop", this.handleDrop);
@@ -33,7 +25,7 @@ export default class SparkEditor extends Component(spec) {
     );
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener("dragenter", this.handleDragEnter);
     window.removeEventListener("dragover", this.handleDragOver);
     window.removeEventListener("drop", this.handleDrop);
@@ -60,10 +52,10 @@ export default class SparkEditor extends Component(spec) {
   };
 
   handleDidExpandPreviewPane = async (e: Event) => {
-    this.splitPaneEl?.setAttribute("reveal", "");
+    this.ref.splitPane.setAttribute("reveal", "");
   };
 
   handleDidCollapsePreviewPane = async (e: Event) => {
-    this.splitPaneEl?.removeAttribute("reveal");
+    this.ref.splitPane.removeAttribute("reveal");
   };
 }

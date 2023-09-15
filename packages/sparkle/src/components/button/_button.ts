@@ -4,7 +4,6 @@ import css from "./button.css";
 
 export default spec({
   tag: "s-button",
-  css: [...sharedCSS, css],
   props: {
     type: null as string | null,
     href: null as string | null,
@@ -35,13 +34,14 @@ export default spec({
     </div>
     <div class="spinner" part="spinner" aria-busy="true" aria-live="polite">
       <slot name="spinner">
-        <s-progress-circle id="progress-circle"></s-progress-circle>
+        <s-progress-circle></s-progress-circle>
       </slot>
     </div>
     ${
       type === "file"
         ? () => html`
             <input
+              id="input"
               type="${type}"
               ${accept ? `accept="${accept}"` : ""}
               ${multiple != null ? `multiple` : ""}
@@ -53,4 +53,13 @@ export default spec({
   </${tag}>
     `;
   },
+  selectors: {
+    input: null,
+    ripple: "s-ripple",
+    badge: "s-badge",
+    icon: ".icon",
+    label: ".label",
+    spinner: ".spinner",
+  } as const,
+  css: [...sharedCSS, css],
 });

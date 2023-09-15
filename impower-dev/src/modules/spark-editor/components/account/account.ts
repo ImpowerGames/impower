@@ -5,70 +5,30 @@ import { AccountInfo } from "../../workspace/types/AccountInfo";
 import spec from "./_account";
 
 export default class Account extends Component(spec) {
-  get authenticatedEl() {
-    return this.getElementById("authenticated")!;
-  }
-
-  get unauthenticatedEl() {
-    return this.getElementById("unauthenticated")!;
-  }
-
-  get loadedProjectEl() {
-    return this.getElementById("loaded-project")!;
-  }
-
-  get accountNameEl() {
-    return this.getElementById("account-name")!;
-  }
-
-  get accountEmailEl() {
-    return this.getElementById("account-email")!;
-  }
-
-  get signinButtonEl() {
-    return this.getElementById("signin-button")!;
-  }
-
-  get signoutButtonEl() {
-    return this.getElementById("signout-button")!;
-  }
-
-  get uploadButtonEl() {
-    return this.getElementById("upload-button")!;
-  }
-
-  get importProjectButtonEl() {
-    return this.getElementById("import-project-button")!;
-  }
-
-  get exportProjectButtonEl() {
-    return this.getElementById("export-project-button")!;
-  }
-
-  override onConnected(): void {
+  override onConnected() {
     this.load();
     Workspace.sync.google.addEventListener("revoke", this.handleRevoke);
-    this.signinButtonEl.addEventListener("click", this.handleSignIn);
-    this.signoutButtonEl.addEventListener("click", this.handleSignOut);
-    this.importProjectButtonEl.addEventListener(
+    this.ref.signinButton.addEventListener("click", this.handleSignIn);
+    this.ref.signoutButton.addEventListener("click", this.handleSignOut);
+    this.ref.importProjectButton.addEventListener(
       "click",
       this.handleImportProjectFile
     );
-    this.exportProjectButtonEl.addEventListener(
+    this.ref.exportProjectButton.addEventListener(
       "click",
       this.handleExportProjectFile
     );
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     Workspace.sync.google.removeEventListener("revoke", this.handleRevoke);
-    this.signinButtonEl.removeEventListener("click", this.handleSignIn);
-    this.signoutButtonEl.removeEventListener("click", this.handleSignOut);
-    this.importProjectButtonEl.removeEventListener(
+    this.ref.signinButton.removeEventListener("click", this.handleSignIn);
+    this.ref.signoutButton.removeEventListener("click", this.handleSignOut);
+    this.ref.importProjectButton.removeEventListener(
       "click",
       this.handleImportProjectFile
     );
-    this.exportProjectButtonEl.removeEventListener(
+    this.ref.exportProjectButton.removeEventListener(
       "click",
       this.handleExportProjectFile
     );
@@ -133,7 +93,7 @@ export default class Account extends Component(spec) {
 
   handleExportProjectFile = async () => {
     try {
-      const store = this.context.get();
+      const store = this.stores.workspace.current;
       const projectId = store?.project?.id;
       if (projectId) {
         const syncProvider = Workspace.sync.google;
@@ -167,24 +127,24 @@ export default class Account extends Component(spec) {
 
   loadAuthenticatedUI(accountInfo: AccountInfo) {
     if (accountInfo.displayName) {
-      this.accountNameEl.textContent = accountInfo.displayName;
-      this.accountNameEl.hidden = false;
+      this.ref.accountName.textContent = accountInfo.displayName;
+      this.ref.accountName.hidden = false;
     } else {
-      this.accountNameEl.hidden = true;
+      this.ref.accountName.hidden = true;
     }
     if (accountInfo.email) {
-      this.accountEmailEl.textContent = accountInfo.email;
-      this.accountEmailEl.hidden = false;
+      this.ref.accountEmail.textContent = accountInfo.email;
+      this.ref.accountEmail.hidden = false;
     } else {
-      this.accountEmailEl.hidden = true;
+      this.ref.accountEmail.hidden = true;
     }
-    this.authenticatedEl.hidden = false;
-    this.unauthenticatedEl.hidden = true;
+    this.ref.authenticated.hidden = false;
+    this.ref.unauthenticated.hidden = true;
   }
 
   loadUnauthenticatedUI(label: string = "Sync With Google Drive") {
-    this.signinButtonEl.textContent = label;
-    this.unauthenticatedEl.hidden = false;
-    this.authenticatedEl.hidden = true;
+    this.ref.signinButton.textContent = label;
+    this.ref.unauthenticated.hidden = false;
+    this.ref.authenticated.hidden = true;
   }
 }

@@ -5,6 +5,6 @@ import html from "./divider.html";
 
 export default spec({
   tag: "s-divider",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

@@ -1,12 +1,10 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
 import spec from "./_transition";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-router"]);
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -25,15 +23,24 @@ export default class Transition
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -52,21 +59,21 @@ export default class Transition
     this.setStringAttribute(Transition.attrs.router, value);
   }
 
-  override onConnected(): void {
+  override onConnected() {
     window.addEventListener("exit", this.handleExit);
     window.addEventListener("enter", this.handleEnter);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener("exit", this.handleExit);
     window.removeEventListener("enter", this.handleEnter);
   }
 
-  updateStatus(status: "entering" | "exiting" | null): void {
+  updateStatus(status: "entering" | "exiting" | null) {
     this.updateRootAttribute("status", status);
   }
 
-  protected handleExit = (e: Event): void => {
+  protected handleExit = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (this.shadowRoot) {
         const routerKey = this.router;
@@ -80,7 +87,7 @@ export default class Transition
     }
   };
 
-  protected handleEnter = (e: Event): void => {
+  protected handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (this.shadowRoot) {
         const routerKey = this.router;

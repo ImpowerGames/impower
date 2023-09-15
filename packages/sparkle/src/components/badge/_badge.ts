@@ -5,6 +5,6 @@ import html from "./badge.html";
 
 export default spec({
   tag: "s-badge",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

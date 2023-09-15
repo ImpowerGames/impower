@@ -5,7 +5,7 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-screenplay";
 
 export default class PreviewScreenplay extends Component(spec) {
-  override onConnected(): void {
+  override onConnected() {
     this.loadFile();
     window.addEventListener(
       DidOpenTextDocumentMessage.method,
@@ -13,7 +13,7 @@ export default class PreviewScreenplay extends Component(spec) {
     );
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener(
       DidOpenTextDocumentMessage.method,
       this.handleDidOpenTextDocument

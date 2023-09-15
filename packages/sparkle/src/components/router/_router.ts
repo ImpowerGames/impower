@@ -5,6 +5,13 @@ import html from "./router.html";
 
 export default spec({
   tag: "s-router",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    oldFade: ".old-fade",
+    oldTransform: ".old-transform",
+    newFade: ".new-fade",
+    newTransform: ".new-transform",
+    headerTemplatesSlot: "slot[name=header-templates]",
+  } as const,
+  css: [...sharedCSS, css],
 });

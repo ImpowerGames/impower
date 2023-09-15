@@ -1,4 +1,5 @@
 import getCssAnimation from "../../../../sparkle-style-transformer/src/utils/getCssAnimation";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import SparkleElement, {
@@ -42,11 +43,24 @@ export default class Router
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -149,38 +163,22 @@ export default class Router
     this.setStringAttribute(Router.attrs.swipeable, value);
   }
 
-  get oldFadeEl(): HTMLElement {
-    return this.getElementByClass("old-fade") as HTMLElement;
+  get exitFadeEl() {
+    return this.ref.oldFade;
   }
 
-  get oldTransformEl(): HTMLElement {
-    return this.getElementByClass("old-transform") as HTMLElement;
+  get exitTransformEl() {
+    return this.ref.oldTransform;
   }
 
-  get newFadeEl(): HTMLElement {
-    return this.getElementByClass("new-fade") as HTMLElement;
+  get enterFadeEl() {
+    return this.unmount === "on-enter" ? this.ref.newFade : this.ref.oldFade;
   }
 
-  get newTransformEl(): HTMLElement {
-    return this.getElementByClass("new-transform") as HTMLElement;
-  }
-
-  get exitFadeEl(): HTMLElement {
-    return this.oldFadeEl;
-  }
-
-  get exitTransformEl(): HTMLElement {
-    return this.oldTransformEl;
-  }
-
-  get enterFadeEl(): HTMLElement {
-    return this.unmount === "on-enter" ? this.newFadeEl : this.oldFadeEl;
-  }
-
-  get enterTransformEl(): HTMLElement {
+  get enterTransformEl() {
     return this.unmount === "on-enter"
-      ? this.newTransformEl
-      : this.oldTransformEl;
+      ? this.ref.newTransform
+      : this.ref.oldTransform;
   }
 
   get contentTemplates(): HTMLTemplateElement[] {
@@ -195,16 +193,8 @@ export default class Router
     return [];
   }
 
-  get headerSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("header");
-  }
-
-  get headerTemplatesSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("header-templates");
-  }
-
   get headerTemplates(): HTMLTemplateElement[] {
-    const slot = this.headerTemplatesSlot;
+    const slot = this.ref.headerTemplatesSlot;
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(
@@ -249,7 +239,7 @@ export default class Router
 
   protected _exit_fade = "";
 
-  override onConnected(): void {
+  override onConnected() {
     const eventSourceEl = this.eventSource === "window" ? window : this;
     eventSourceEl.addEventListener(this.exitEvent, this.handleChanging);
     eventSourceEl.addEventListener(this.enterEvent, this.handleChanged);
@@ -258,13 +248,13 @@ export default class Router
     }
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     const eventSourceEl = this.eventSource === "window" ? window : this;
     eventSourceEl.removeEventListener(this.exitEvent, this.handleChanging);
     eventSourceEl.removeEventListener(this.enterEvent, this.handleChanged);
   }
 
-  cacheAnimationNames(): void {
+  cacheAnimationNames() {
     const computedStyle = getComputedStyle(this.root);
     this._exit_transform =
       computedStyle.getPropertyValue("--exit").split(" ")?.[0] || "";
@@ -342,11 +332,11 @@ export default class Router
     return this._loadingValue !== newValue;
   }
 
-  playExitTransition(): void {
+  playExitTransition() {
     this.updateStatus("exiting");
   }
 
-  playEnterTransition(): void {
+  playEnterTransition() {
     this.updateStatus("entering");
   }
 
@@ -380,7 +370,7 @@ export default class Router
     return null;
   }
 
-  loadRoute(newValue: string | null, slotName?: string): void {
+  loadRoute(newValue: string | null, slotName?: string) {
     if (newValue !== this._loadedValue) {
       this._loadedValue = newValue;
       this._loadedNode = this.loadContent(newValue, slotName);
@@ -389,11 +379,11 @@ export default class Router
     }
   }
 
-  endTransitions(): void {
+  endTransitions() {
     this.updateStatus(null);
   }
 
-  updateStatus(status: "exiting" | "loading" | "entering" | null): void {
+  updateStatus(status: "exiting" | "loading" | "entering" | null) {
     this._status = status;
     this.updateRootAttribute("status", status);
   }
@@ -416,7 +406,7 @@ export default class Router
     return this.setAssignedToSlot(node, slotName, preserve);
   }
 
-  protected handleChanging = (e: Event): void => {
+  protected handleChanging = (e: Event) => {
     if (e instanceof CustomEvent && e.detail) {
       if (this.shadowRoot) {
         if (e.target instanceof HTMLElement) {
@@ -453,7 +443,7 @@ export default class Router
     }
   };
 
-  protected handleChanged = (e: Event): void => {
+  protected handleChanged = (e: Event) => {
     if (e instanceof CustomEvent && e.detail) {
       if (this.shadowRoot) {
         if (e.target instanceof HTMLElement) {

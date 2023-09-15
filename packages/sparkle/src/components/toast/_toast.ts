@@ -5,6 +5,11 @@ import html from "./toast.html";
 
 export default spec({
   tag: "s-toast",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    button: ".button",
+    close: ".close",
+    actionSlot: "slot[name=action]",
+  } as const,
+  css: [...sharedCSS, css],
 });

@@ -98,7 +98,7 @@ export interface ProjectState {
   };
 }
 
-export interface WorkspaceStore extends PanesState<PaneType> {
+export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
   preview: PreviewState;
 }

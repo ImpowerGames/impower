@@ -18,13 +18,13 @@ import {
   PaneType,
   PanelType,
   Range,
-  WorkspaceStore,
+  WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
-import WorkspaceContext from "./WorkspaceContext";
+import workspace from "./WorkspaceStore";
 import { Storage } from "./types/StorageTypes";
 
 export default class WorkspaceWindow {
@@ -49,11 +49,11 @@ export default class WorkspaceWindow {
   }
 
   get store() {
-    return WorkspaceContext.instance.get();
+    return workspace.current;
   }
 
-  protected update(store: WorkspaceStore) {
-    WorkspaceContext.instance.set(store);
+  protected update(store: WorkspaceCache) {
+    workspace.current = store;
   }
 
   protected cacheProjectId(id: string) {

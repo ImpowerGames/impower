@@ -1,20 +1,15 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import getValidFileName from "../../utils/getValidFileName";
 import { Workspace } from "../../workspace/Workspace";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
 import spec from "./_file-upload-button";
 
 export default class FileAddButton extends Component(spec) {
-  get buttonEl() {
-    return this.getElementById("button");
+  override onConnected() {
+    this.ref.button.addEventListener("change", this.handleInputChange);
   }
 
-  override onConnected(): void {
-    this.buttonEl?.addEventListener("change", this.handleInputChange);
-  }
-
-  override onDisconnected(): void {
-    this.buttonEl?.removeEventListener("change", this.handleInputChange);
+  override onDisconnected() {
+    this.ref.button.removeEventListener("change", this.handleInputChange);
   }
 
   handleInputChange = async (e: Event) => {
@@ -28,7 +23,8 @@ export default class FileAddButton extends Component(spec) {
   };
 
   async upload(fileList: FileList) {
-    const projectId = WorkspaceContext.instance.get().project.id;
+    const store = this.stores.workspace.current;
+    const projectId = store?.project?.id;
     if (projectId) {
       if (fileList) {
         const files = await Promise.all(
@@ -48,8 +44,16 @@ export default class FileAddButton extends Component(spec) {
     }
   }
 
-  override onUpdate(): void {
-    const store = this.context.get();
+  override onInit() {
+    this.setup();
+  }
+
+  override onStoreUpdate() {
+    this.setup();
+  }
+
+  setup() {
+    const store = this.stores.workspace.current;
     const syncState = store?.project?.syncState;
     if (
       syncState === "syncing" ||
@@ -57,9 +61,9 @@ export default class FileAddButton extends Component(spec) {
       syncState === "importing" ||
       syncState === "exporting"
     ) {
-      this.buttonEl?.setAttribute("disabled", "");
+      this.ref.button.setAttribute("disabled", "");
     } else {
-      this.buttonEl?.removeAttribute("disabled");
+      this.ref.button.removeAttribute("disabled");
     }
   }
 }

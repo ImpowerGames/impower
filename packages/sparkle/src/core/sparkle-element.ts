@@ -23,8 +23,6 @@ import { isAssignedToSlot } from "../utils/isAssignedToSlot";
 import { updateAttribute } from "../utils/updateAttribute";
 import spec from "./_sparkle-element";
 
-const DEFAULT_SPARKLE_DEPENDENCIES = {};
-
 export const DEFAULT_SPARKLE_ATTRIBUTES = {
   rtl: "rtl",
   disabled: "disabled",
@@ -47,10 +45,6 @@ export default class SparkleElement
   extends Component(spec)
   implements Properties<typeof DEFAULT_SPARKLE_ATTRIBUTES>
 {
-  static get dependencies(): Record<string, string> {
-    return DEFAULT_SPARKLE_DEPENDENCIES;
-  }
-
   static override get attrs() {
     return DEFAULT_SPARKLE_ATTRIBUTES;
   }
@@ -1771,7 +1765,7 @@ export default class SparkleElement
     name: string,
     oldValue: string,
     newValue: string
-  ): void {
+  ) {
     const attrName: string = this.aliases[name] ?? name;
     if (
       attrName === "role" ||
@@ -1796,7 +1790,7 @@ export default class SparkleElement
     super.attributeChangedCallback(name, oldValue, newValue);
   }
 
-  override connectedCallback(): void {
+  override connectedCallback() {
     if (this.shadowRoot) {
       this.contentSlot?.addEventListener(
         "slotchange",
@@ -1814,7 +1808,7 @@ export default class SparkleElement
     super.connectedCallback();
   }
 
-  override disconnectedCallback(): void {
+  override disconnectedCallback() {
     if (this.shadowRoot) {
       this.contentSlot?.removeEventListener(
         "slotchange",

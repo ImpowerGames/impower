@@ -5,6 +5,13 @@ import html from "./tab.html";
 
 export default spec({
   tag: "s-tab",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    ripple: "s-ripple",
+    label: ".label",
+    icon: ".icon",
+    inactiveIcon: ".inactive-icon",
+    activeIcon: ".active-icon",
+  } as const,
+  css: [...sharedCSS, css],
 });

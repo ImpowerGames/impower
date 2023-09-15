@@ -1,8 +1,8 @@
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssEase from "../../../../sparkle-style-transformer/src/utils/getCssEase";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import getUnitlessValue from "../../../../spec-component/src/utils/getUnitlessValue";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -29,8 +29,6 @@ const getCollapsedIconOffset = (
   return buttonX - iconX - iconWidth / 4 + buttonPaddingLeft;
 };
 
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
-
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap(["collapsed", "sentinel"]),
@@ -48,15 +46,24 @@ export default class Collapsible
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -234,7 +241,7 @@ export default class Collapsible
     }
   }
 
-  protected update(animated: boolean): void {
+  protected update(animated: boolean) {
     if (this.collapsed === "") {
       this.collapse(animated);
     } else {
@@ -242,7 +249,7 @@ export default class Collapsible
     }
   }
 
-  updateTransition(animated: boolean): void {
+  updateTransition(animated: boolean) {
     const buttonEl = this.buttonEl;
     const iconEl = this.iconEl;
     const labelEl = this.labelEl;
@@ -271,7 +278,7 @@ export default class Collapsible
     }
   }
 
-  loadBorderStyle(buttonEl: HTMLElement): void {
+  loadBorderStyle(buttonEl: HTMLElement) {
     buttonEl.style.setProperty("margin", null);
     buttonEl.style.setProperty("outline", null);
     buttonEl.style.setProperty("border-width", null);
@@ -311,7 +318,7 @@ export default class Collapsible
     buttonEl.style.setProperty("--shadow", "none");
   }
 
-  unloadBorderStyle(buttonEl: HTMLElement): void {
+  unloadBorderStyle(buttonEl: HTMLElement) {
     this.root.style.setProperty("overflow-x", null);
     this.root.style.setProperty("overflow-y", null);
     this.root.style.setProperty("border-radius", null);
@@ -355,7 +362,7 @@ export default class Collapsible
     );
   }
 
-  loadCollapsedLayout(): void {
+  loadCollapsedLayout() {
     const buttonEl = this.buttonEl;
     const iconEl = this.iconEl;
     const labelEl = this.labelEl;
@@ -378,7 +385,7 @@ export default class Collapsible
     }
   }
 
-  unloadCollapsedLayout(): void {
+  unloadCollapsedLayout() {
     const buttonEl = this.buttonEl;
     const iconEl = this.iconEl;
     const labelEl = this.labelEl;
@@ -510,7 +517,7 @@ export default class Collapsible
     this.measure();
   }
 
-  handleScroll = (entries: IntersectionObserverEntry[]): void => {
+  handleScroll = (entries: IntersectionObserverEntry[]) => {
     const entry = entries?.[0];
     if (
       entry &&
@@ -527,16 +534,16 @@ export default class Collapsible
     }
   };
 
-  handleResize = (): void => {
+  handleResize = () => {
     if (!this._state || this._state === "expanded") {
       this.measure();
     }
   };
 
-  protected override onContentAssigned(children: Element[]): void {
+  protected override onContentAssigned(children: Element[]) {
     const elements = children;
     const buttons = elements.filter(
-      (el) => el.tagName.toLowerCase() === Collapsible.dependencies.button
+      (el) => el.tagName.toLowerCase() === this.selectors.button
     );
     const button = buttons?.[0];
     const targetEl = (button?.shadowRoot || button)
@@ -547,14 +554,14 @@ export default class Collapsible
     }
   }
 
-  override focus(options?: FocusOptions): void {
+  override focus(options?: FocusOptions) {
     const buttonEl = this._buttonEl;
     if (buttonEl) {
       buttonEl.focus(options);
     }
   }
 
-  override blur(): void {
+  override blur() {
     const buttonEl = this._buttonEl;
     if (buttonEl) {
       buttonEl.blur();

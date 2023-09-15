@@ -4,8 +4,8 @@ import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMa
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
 import { Properties } from "../../../../spec-component/src/types/Properties";
+import { RefMap } from "../../../../spec-component/src/types/RefMap";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -13,14 +13,10 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
-import type ProgressCircle from "../progress-circle/progress-circle";
-import type Ripple from "../ripple/ripple";
 import spec from "./_button";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-badge"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -74,15 +70,24 @@ export default class Button
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -287,35 +292,7 @@ export default class Button
     this.setStringAttribute(Button.attrs.value, value);
   }
 
-  get iconEl(): HTMLElement | null {
-    return this.getElementByClass("icon");
-  }
-
-  get spinnerEl(): HTMLElement | null {
-    return this.getElementByClass("spinner");
-  }
-
-  get buttonEl(): HTMLElement | null {
-    return this.getElementByTag("button");
-  }
-
-  get labelEl(): HTMLElement | null {
-    return this.getElementByTag("label");
-  }
-
-  get inputEl(): HTMLElement | null {
-    return this.getElementByTag("input");
-  }
-
-  get progressCircleEl(): ProgressCircle | null {
-    return this.getElementById<ProgressCircle>("progress-circle");
-  }
-
-  get rippleEl(): Ripple | null {
-    return this.getElementById<Ripple>("ripple");
-  }
-
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (
       name === Button.attrs.ariaHasPopup ||
       name === Button.attrs.ariaExpanded ||
@@ -327,19 +304,19 @@ export default class Button
       this.updateRootAttribute(name, newValue);
     }
     if (name === Button.attrs.disabled) {
-      const ripple = this.rippleEl;
+      const ripple = this.ref.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Button.attrs.loading) {
-      const ripple = this.rippleEl;
+      const ripple = this.ref.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Button.attrs.mask) {
-      const ripple = this.rippleEl;
+      const ripple = this.ref.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -349,17 +326,17 @@ export default class Button
       }
     }
     if (name === Button.attrs.icon) {
-      const iconEl = this.iconEl;
+      const iconEl = this.ref.icon;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
     }
     if (name === Button.attrs.loading) {
       const loading = newValue != null;
-      const ripple = this.rippleEl;
-      const labelEl = this.labelEl;
-      const iconEl = this.iconEl;
-      const spinnerEl = this.spinnerEl;
+      const ripple = this.ref.ripple;
+      const labelEl = this.ref.label;
+      const iconEl = this.ref.icon;
+      const spinnerEl = this.ref.spinner;
       if (ripple) {
         ripple.hidden = loading;
       }
@@ -388,36 +365,38 @@ export default class Button
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     const label = this.label;
     if (label) {
       this.setAssignedToSlot(label);
     }
     const icon = this.icon;
-    const iconEl = this.iconEl;
+    const iconEl = this.ref.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
-    const inputEl = this.inputEl;
+    const inputEl = this.ref.input;
     if (inputEl) {
       inputEl.addEventListener("change", this.handleInputChange);
       this.bindFocus(inputEl);
     }
-    this.rippleEl?.bind?.(this.root);
+    const rippleEl = this.ref.ripple;
+    rippleEl?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
   }
 
-  override onDisconnected(): void {
-    const inputEl = this.inputEl;
+  override onDisconnected() {
+    const inputEl = this.ref.input;
     if (inputEl) {
       inputEl.removeEventListener("change", this.handleInputChange);
       this.unbindFocus(inputEl);
     }
-    this.rippleEl?.unbind?.(this.root);
+    const rippleEl = this.ref.ripple;
+    rippleEl?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
 
-  protected handleClick = (e: MouseEvent): void => {
+  protected handleClick = (e: MouseEvent) => {
     const value = this.value;
     const type = this.type;
     if (type === "toggle") {
@@ -435,7 +414,7 @@ export default class Button
     }
   };
 
-  protected handleInputChange = (e: Event): void => {
+  protected handleInputChange = (e: Event) => {
     const propagatableEvent = new Event(e.type, {
       bubbles: true,
       cancelable: true,
@@ -448,10 +427,10 @@ export default class Button
     this.dispatchEvent(propagatableEvent);
   };
 
-  protected override onContentAssigned(children: Element[]): void {
+  protected override onContentAssigned(children: Element[]) {
     const nodes = children;
     nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === Button.dependencies.badge) {
+      if (node.nodeName.toLowerCase() === this.selectors.badge) {
         const el = node as HTMLElement;
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }

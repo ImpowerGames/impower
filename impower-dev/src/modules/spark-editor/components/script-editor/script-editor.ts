@@ -10,10 +10,6 @@ export default class ScriptEditor extends Component(spec) {
 
   protected _version?: number;
 
-  get sparkdownScriptEditorEl() {
-    return this.getElementById("sparkdown-script-editor");
-  }
-
   override onConnected() {
     this.loadFile();
     window.addEventListener(
@@ -109,8 +105,16 @@ export default class ScriptEditor extends Component(spec) {
     }
   }
 
-  override onUpdate(): void {
-    const store = this.context.get();
+  override onInit() {
+    this.setup();
+  }
+
+  override onStoreUpdate() {
+    this.setup();
+  }
+
+  setup() {
+    const store = this.stores.workspace.current;
     const syncState = store?.project?.syncState;
     if (
       syncState === "syncing" ||
@@ -118,9 +122,9 @@ export default class ScriptEditor extends Component(spec) {
       syncState === "importing" ||
       syncState === "exporting"
     ) {
-      this.sparkdownScriptEditorEl?.setAttribute("readonly", "");
+      this.ref.sparkdownScriptEditor.setAttribute("readonly", "");
     } else {
-      this.sparkdownScriptEditorEl?.removeAttribute("readonly");
+      this.ref.sparkdownScriptEditor.removeAttribute("readonly");
     }
   }
 }

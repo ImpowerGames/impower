@@ -5,6 +5,9 @@ import html from "./popup.html";
 
 export default spec({
   tag: "s-popup",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    popup: ".popup",
+  } as const,
+  css: [...sharedCSS, css],
 });

@@ -4,125 +4,97 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game-toolbar";
 
 export default class PreviewGameToolbar extends Component(spec) {
-  get settingsDropdownEl() {
-    return this.getElementById("settings-dropdown");
-  }
-
-  get runToggleButtonEl() {
-    return this.getElementById("run-toggle-button");
-  }
-
-  get stepBackwardButtonEl() {
-    return this.getElementById("step-backward-button");
-  }
-
-  get fastBackwardButtonEl() {
-    return this.getElementById("fast-backward-button");
-  }
-
-  get pauseToggleButtonEl() {
-    return this.getElementById("pause-toggle-button");
-  }
-
-  get fastForwardButtonEl() {
-    return this.getElementById("fast-forward-button");
-  }
-
-  get stepForwardButtonEl() {
-    return this.getElementById("step-forward-button");
-  }
-
   _controllingPlayback = 0;
 
-  override onConnected(): void {
-    this.runToggleButtonEl?.addEventListener(
+  override onConnected() {
+    this.ref.runToggleButton.addEventListener(
       "click",
       this.handleClickRunToggleButton
     );
-    this.stepBackwardButtonEl?.addEventListener(
+    this.ref.stepBackwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownStepBackwardButton
     );
-    this.stepBackwardButtonEl?.addEventListener(
+    this.ref.stepBackwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpStepBackwardButton
     );
-    this.fastBackwardButtonEl?.addEventListener(
+    this.ref.fastBackwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownFastBackwardButton
     );
-    this.fastBackwardButtonEl?.addEventListener(
+    this.ref.fastBackwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpFastBackwardButton
     );
-    this.pauseToggleButtonEl?.addEventListener(
+    this.ref.pauseToggleButton?.addEventListener(
       "click",
       this.handleClickPauseToggleButton
     );
-    this.fastForwardButtonEl?.addEventListener(
+    this.ref.fastForwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownFastForwardButton
     );
-    this.fastForwardButtonEl?.addEventListener(
+    this.ref.fastForwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpFastForwardButton
     );
-    this.stepForwardButtonEl?.addEventListener(
+    this.ref.stepForwardButton?.addEventListener(
       "pointerdown",
       this.handlePointerDownStepForwardButton
     );
-    this.stepForwardButtonEl?.addEventListener(
+    this.ref.stepForwardButton?.addEventListener(
       "pointerup",
       this.handlePointerUpStepForwardButton
     );
-    this.settingsDropdownEl?.addEventListener(
+    this.ref.settingsDropdown?.addEventListener(
       "changed",
       this.handleSettingsDropdownChanged
     );
   }
 
-  override onDisconnected(): void {
-    this.runToggleButtonEl?.removeEventListener(
+  override onDisconnected() {
+    this.ref.runToggleButton.removeEventListener(
       "click",
       this.handleClickRunToggleButton
     );
-    this.stepBackwardButtonEl?.removeEventListener(
+    this.ref.stepBackwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownStepBackwardButton
     );
-    this.stepBackwardButtonEl?.removeEventListener(
+    this.ref.stepBackwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpStepBackwardButton
     );
-    this.fastBackwardButtonEl?.removeEventListener(
+    this.ref.fastBackwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownFastBackwardButton
     );
-    this.fastBackwardButtonEl?.removeEventListener(
+    this.ref.fastBackwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpFastBackwardButton
     );
-    this.pauseToggleButtonEl?.removeEventListener(
+    this.ref.pauseToggleButton?.removeEventListener(
       "click",
       this.handleClickPauseToggleButton
     );
-    this.fastForwardButtonEl?.removeEventListener(
+    this.ref.fastForwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownFastForwardButton
     );
-    this.fastForwardButtonEl?.removeEventListener(
+    this.ref.fastForwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpFastForwardButton
     );
-    this.stepForwardButtonEl?.removeEventListener(
+    this.ref.stepForwardButton?.removeEventListener(
       "pointerdown",
       this.handlePointerDownStepForwardButton
     );
-    this.stepForwardButtonEl?.removeEventListener(
+    this.ref.stepForwardButton?.removeEventListener(
       "pointerup",
       this.handlePointerUpStepForwardButton
     );
-    this.settingsDropdownEl?.removeEventListener(
+    this.ref.settingsDropdown?.removeEventListener(
       "changed",
       this.handleSettingsDropdownChanged
     );
@@ -181,7 +153,7 @@ export default class PreviewGameToolbar extends Component(spec) {
   };
 
   throttledStep(deltaMS: number) {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     const paused = store.preview.modes.game.paused;
     if (deltaMS < 0) {
       if (!paused) {
@@ -192,7 +164,7 @@ export default class PreviewGameToolbar extends Component(spec) {
       Workspace.window.stepGame(deltaMS);
     }, 100);
     window.cancelAnimationFrame(this._controllingPlayback);
-    const loop = (): void => {
+    const loop = () => {
       throttledStep();
       this._controllingPlayback = window.requestAnimationFrame(loop);
     };

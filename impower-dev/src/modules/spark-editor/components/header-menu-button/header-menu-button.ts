@@ -2,37 +2,24 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import spec from "./_header-menu-button";
 
 export default class HeaderMenuButton extends Component(spec) {
-  get openButtonEl() {
-    return this.getElementById("open-button");
+  override onConnected() {
+    this.ref.openButton.addEventListener("click", this.handleClickOpenButton);
+    this.ref.closeButton.addEventListener("click", this.handleClickCloseButton);
+    this.ref.account.addEventListener("picking", this.handlePicking);
+    this.ref.account.addEventListener("saving", this.handleSaving);
   }
 
-  get closeButtonEl() {
-    return this.getElementById("close-button");
-  }
-
-  get accountEl() {
-    return this.getElementById("account");
-  }
-
-  get drawerEl() {
-    return this.getElementByTag("s-drawer");
-  }
-
-  override onConnected(): void {
-    this.openButtonEl?.addEventListener("click", this.handleClickOpenButton);
-    this.closeButtonEl?.addEventListener("click", this.handleClickCloseButton);
-    this.accountEl?.addEventListener("picking", this.handlePicking);
-    this.accountEl?.addEventListener("saving", this.handleSaving);
-  }
-
-  override onDisconnected(): void {
-    this.openButtonEl?.removeEventListener("click", this.handleClickOpenButton);
-    this.closeButtonEl?.removeEventListener(
+  override onDisconnected() {
+    this.ref.openButton.removeEventListener(
+      "click",
+      this.handleClickOpenButton
+    );
+    this.ref.closeButton.removeEventListener(
       "click",
       this.handleClickCloseButton
     );
-    this.accountEl?.removeEventListener("picking", this.handlePicking);
-    this.accountEl?.removeEventListener("saving", this.handleSaving);
+    this.ref.account.removeEventListener("picking", this.handlePicking);
+    this.ref.account.removeEventListener("saving", this.handleSaving);
   }
 
   handleClickOpenButton = () => {
@@ -52,12 +39,12 @@ export default class HeaderMenuButton extends Component(spec) {
   };
 
   openDrawer() {
-    const drawerEl = this.drawerEl;
-    drawerEl?.setAttribute("open", "");
+    const drawerEl = this.ref.drawer;
+    drawerEl.setAttribute("open", "");
   }
 
   closeDrawer() {
-    const drawerEl = this.drawerEl;
-    drawerEl?.removeAttribute("open");
+    const drawerEl = this.ref.drawer;
+    drawerEl.removeAttribute("open");
   }
 }

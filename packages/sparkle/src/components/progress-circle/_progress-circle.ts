@@ -5,6 +5,10 @@ import html from "./progress-circle.html";
 
 export default spec({
   tag: "s-progress-circle",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    indicator: ".indicator",
+    label: ".label",
+  } as const,
+  css: [...sharedCSS, css],
 });

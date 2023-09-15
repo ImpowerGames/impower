@@ -1,11 +1,22 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 import html from "./account.html";
 
 export default spec({
   tag: "se-account",
-  context: WorkspaceContext.instance,
-  css,
+  stores: { workspace },
   html,
+  selectors: {
+    authenticated: "",
+    unauthenticated: "",
+    accountName: "",
+    accountEmail: "",
+    signinButton: "",
+    signoutButton: "",
+    uploadButton: "",
+    importProjectButton: "",
+    exportProjectButton: "",
+  } as const,
+  css,
 });

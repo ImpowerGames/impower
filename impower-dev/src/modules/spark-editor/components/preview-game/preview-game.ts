@@ -22,7 +22,7 @@ export default class GamePreview extends Component(spec) {
 
   _entryLine = 0;
 
-  override onConnected(): void {
+  override onConnected() {
     this.configureGame();
     this.loadGame();
     this.loadPreview();
@@ -45,7 +45,7 @@ export default class GamePreview extends Component(spec) {
     window.addEventListener("keydown", this.handleKeyDown);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
@@ -169,7 +169,7 @@ export default class GamePreview extends Component(spec) {
   }
 
   async loadPreview() {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     const running = store.preview.modes.game.running;
     if (!running) {
       const editor = await Workspace.window.getOpenEditor("logic");

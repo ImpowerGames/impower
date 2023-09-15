@@ -1,18 +1,15 @@
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
 import {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import SparkleElement from "../../core/sparkle-element.js";
-import type Ripple from "../ripple/ripple";
 import spec from "./_input";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -32,6 +29,7 @@ const DEFAULT_ATTRIBUTES = {
     "autocorrect",
     "autocomplete",
     "autofocus",
+    "autoselect",
     "spellcheck",
     "label",
     "min",
@@ -59,6 +57,7 @@ export default class Input
       type: this.type,
       name: this.name,
       autofocus: this.autofocus,
+      autoselect: this.autoselect,
       autocomplete: this.autocomplete,
       autocorrect: this.autocorrect,
       autocapitalize: this.autocapitalize,
@@ -76,15 +75,24 @@ export default class Input
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -175,6 +183,14 @@ export default class Input
     this.setStringAttribute(Input.attrs.autocomplete, value);
   }
 
+  /** Auto selects the input. */
+  get autoselect() {
+    return this.getStringAttribute(Input.attrs.autocomplete);
+  }
+  set autoselect(value) {
+    this.setStringAttribute(Input.attrs.autocomplete, value);
+  }
+
   /** The input's minimum value. Only applies to date and number input types. */
   get min() {
     return this.getStringAttribute(Input.attrs.min);
@@ -247,23 +263,15 @@ export default class Input
     this.setStringAttribute(Input.attrs.placeholderColor, value);
   }
 
-  get inputEl() {
-    return this.getElementByTag<HTMLInputElement>("input");
-  }
-
-  get rippleEl(): Ripple | null {
-    return this.getElementByTag<Ripple>(Input.dependencies.ripple);
-  }
-
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Input.attrs.disabled) {
-      const ripple = this.rippleEl;
+      const ripple = this.ref.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Input.attrs.mask) {
-      const ripple = this.rippleEl;
+      const ripple = this.ref.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -274,12 +282,21 @@ export default class Input
     }
   }
 
-  override onConnected(): void {
-    this.rippleEl?.bind?.(this.root);
+  override onConnected() {
+    const ripple = this.ref.ripple;
+    if (ripple) {
+      ripple?.bind?.(this.root);
+    }
+    if (this.autoselect) {
+      this.ref.input?.select();
+    }
   }
 
-  override onDisconnected(): void {
-    this.rippleEl?.unbind?.(this.root);
+  override onDisconnected() {
+    const ripple = this.ref.ripple;
+    if (ripple) {
+      ripple?.unbind?.(this.root);
+    }
   }
 }
 

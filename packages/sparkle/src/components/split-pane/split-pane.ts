@@ -1,5 +1,6 @@
 import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssColor";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
@@ -52,11 +53,24 @@ export default class SplitPane
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -259,15 +273,7 @@ export default class SplitPane
     this.setStringAttribute(SplitPane.attrs.step, value);
   }
 
-  get resizeEl() {
-    return this.getElementByClass("resize");
-  }
-
-  get dividerEl() {
-    return this.getElementByClass("divider");
-  }
-
-  override onConnected(): void {
+  override onConnected() {
     const revealEvent = this.revealEvent;
     if (revealEvent) {
       window.addEventListener(revealEvent, this.handleRevealEvent);
@@ -276,10 +282,10 @@ export default class SplitPane
     if (unrevealEvent) {
       window.addEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
-    this.dividerEl?.addEventListener("keydown", this.handleKeyDownDivider);
+    this.ref.divider.addEventListener("keydown", this.handleKeyDownDivider);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     const revealEvent = this.revealEvent;
     if (revealEvent) {
       window.removeEventListener(revealEvent, this.handleRevealEvent);
@@ -288,7 +294,7 @@ export default class SplitPane
     if (unrevealEvent) {
       window.removeEventListener(unrevealEvent, this.handleUnrevealEvent);
     }
-    this.dividerEl?.removeEventListener("keydown", this.handleKeyDownDivider);
+    this.ref.divider.removeEventListener("keydown", this.handleKeyDownDivider);
   }
 
   handleRevealEvent = () => {
@@ -299,10 +305,10 @@ export default class SplitPane
     this.reveal = false;
   };
 
-  handleKeyDownDivider = (e: KeyboardEvent): void => {
+  handleKeyDownDivider = (e: KeyboardEvent) => {
     const vertical = this.vertical;
     const step = this.step;
-    const resizeEl = this.resizeEl;
+    const resizeEl = this.ref.resize;
     if (resizeEl) {
       if (vertical) {
         if (e.key === "ArrowUp") {

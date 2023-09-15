@@ -3,9 +3,9 @@ import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIc
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -13,10 +13,7 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
-import type Ripple from "../ripple/ripple";
 import spec from "./_tab";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-ripple"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -49,15 +46,24 @@ export default class Tab
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -138,27 +144,7 @@ export default class Tab
     this.setStringAttribute(Tab.attrs.status, value);
   }
 
-  get rippleEl(): Ripple | null {
-    return this.getElementByTag<Ripple>(Tab.dependencies.ripple);
-  }
-
-  get labelEl(): HTMLElement | null {
-    return this.getElementByClass("label");
-  }
-
-  get iconEl(): HTMLElement | null {
-    return this.getElementByClass("icon");
-  }
-
-  get inactiveIconEl(): HTMLElement | null {
-    return this.getElementByClass("inactive-icon");
-  }
-
-  get activeIconEl(): HTMLElement | null {
-    return this.getElementByClass("active-icon");
-  }
-
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Tab.attrs.disabled) {
       this.updateRootAttribute(
         Tab.attrs.tabIndex,
@@ -168,13 +154,13 @@ export default class Tab
         Tab.attrs.ariaDisabled,
         newValue != null ? "true" : "false"
       );
-      const ripple = this.rippleEl;
+      const ripple = this.ref.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Tab.attrs.mask) {
-      const ripple = this.rippleEl;
+      const ripple = this.ref.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -184,7 +170,7 @@ export default class Tab
       }
     }
     if (name === Tab.attrs.icon) {
-      const iconEl = this.iconEl;
+      const iconEl = this.ref.icon;
       if (iconEl) {
         iconEl.hidden = name == null;
       }
@@ -199,11 +185,11 @@ export default class Tab
     }
   }
 
-  override onConnected(): void {
-    this.rippleEl?.bind?.(this.root);
+  override onConnected() {
+    this.ref.ripple?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
     const icon = this.icon;
-    const iconEl = this.iconEl;
+    const iconEl = this.ref.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
@@ -212,12 +198,12 @@ export default class Tab
     this.updateRootAttribute(Tab.attrs.tabIndex, active ? "0" : "-1");
   }
 
-  override onDisconnected(): void {
-    this.rippleEl?.unbind?.(this.root);
+  override onDisconnected() {
+    this.ref.ripple?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
 
-  protected handleClick = (e: MouseEvent): void => {
+  protected handleClick = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
   };

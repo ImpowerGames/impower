@@ -4,7 +4,6 @@ import css from "./input.css";
 
 export default spec({
   tag: "s-input",
-  css: [...sharedCSS, css],
   props: {
     type: null as string | null,
     name: null as string | null,
@@ -71,14 +70,13 @@ export default spec({
       <label class="root" part="root" ${labelAttr}>
         <div class="ripple" part="ripple">
           <slot name="ripple">
-            <s-ripple animation="none"></s-ripple>
+            <s-ripple id="ripple" animation="none"></s-ripple>
           </slot>
         </div>
         <span class="prefix" part="prefix">
           <slot name="prefix"></slot>
         </span>
         <input
-          id="form-control-input"
           class="input"
           part="input"
           ${typeAttr}
@@ -104,4 +102,9 @@ export default spec({
       </label>
     `;
   },
+  selectors: {
+    input: "input",
+    ripple: "s-ripple",
+  } as const,
+  css: [...sharedCSS, css],
 });

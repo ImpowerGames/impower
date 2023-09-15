@@ -4,7 +4,6 @@ import css from "./hidden.css";
 
 export default spec({
   tag: "s-hidden",
-  css: [...sharedCSS, css],
   props: {
     initial: null as string | null,
   },
@@ -16,4 +15,5 @@ export default spec({
       </div>
     `;
   },
+  css: [...sharedCSS, css],
 });

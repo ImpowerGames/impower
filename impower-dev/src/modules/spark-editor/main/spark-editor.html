@@ -1,10 +1,10 @@
 <s-box position="relative" bg-color="panel" grow>
   <se-header-navigation></se-header-navigation>
-  <s-split-pane grow min-panel-width="336px" resizer-color="scrollbar-track" divider-offset="0" divider-color="fg-06"
-    responsive="hide">
+  <s-split-pane id="splitPane" grow min-panel-width="336px" resizer-color="scrollbar-track" divider-offset="0"
+    divider-color="fg-06" responsive="hide">
     <se-main-panel slot="start"></se-main-panel>
     <se-preview-panel slot="end"></se-preview-panel>
   </s-split-pane>
   <se-footer-navigation></se-footer-navigation>
 </s-box>
-<se-interaction-blocker hidden></se-interaction-blocker>
+<se-interaction-blocker id="interactionBlocker" hidden></se-interaction-blocker>

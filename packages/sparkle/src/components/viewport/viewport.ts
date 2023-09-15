@@ -1,4 +1,5 @@
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
@@ -37,11 +38,24 @@ export default class Viewport
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -89,13 +103,13 @@ export default class Viewport
 
   protected _constrained = false;
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Viewport.attrs.offset) {
       this._offsetPx = getPixelValue(this.root, "offset");
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     window.visualViewport?.addEventListener(
       "scroll",
       this.handleViewportChange,
@@ -120,7 +134,7 @@ export default class Viewport
     }
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.visualViewport?.removeEventListener(
       "scroll",
       this.handleViewportChange
@@ -139,7 +153,7 @@ export default class Viewport
     }
   }
 
-  protected handleConstrained = (e: Event): void => {
+  protected handleConstrained = (e: Event) => {
     this._constrained = true;
     if (window.visualViewport) {
       const maxHeight = `${window.visualViewport.height - this._offsetPx}px`;
@@ -147,17 +161,17 @@ export default class Viewport
     }
   };
 
-  protected handleUnconstrained = (e: Event): void => {
+  protected handleUnconstrained = (e: Event) => {
     this._constrained = false;
     this.root.style.setProperty("max-height", null);
   };
 
-  protected handleViewportChange = (event: Event) => {
+  protected handleViewportChange = (e: Event) => {
     if (this._pendingViewportUpdate) {
       window.cancelAnimationFrame(this._pendingViewportUpdate);
     }
     this._pendingViewportUpdate = window.requestAnimationFrame(() => {
-      const visualViewport = event.target as unknown as { height: number };
+      const visualViewport = e.target as unknown as { height: number };
       if (visualViewport) {
         if (this._constrained) {
           const maxHeight = `${visualViewport.height - this._offsetPx}px`;

@@ -5,6 +5,9 @@ import html from "./toast-stack.html";
 
 export default spec({
   tag: "s-toast-stack",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    toast: "s-toast",
+  } as const,
+  css: [...sharedCSS, css],
 });

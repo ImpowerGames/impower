@@ -2,9 +2,9 @@ import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIc
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -12,17 +12,10 @@ import SparkleElement, {
 } from "../../core/sparkle-element";
 import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
-import type Ripple from "../ripple/ripple";
 import spec from "./_option";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap([
-  "s-badge",
-  "s-ripple",
-  "s-icon",
-]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -68,15 +61,24 @@ export default class Option
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -205,27 +207,7 @@ export default class Option
     this.setStringAttribute(Option.attrs.action, value);
   }
 
-  get labelEl(): HTMLElement | null {
-    return this.getElementByClass("label");
-  }
-
-  get iconEl(): HTMLElement | null {
-    return this.getElementByClass("icon");
-  }
-
-  get inactiveIconEl(): HTMLElement | null {
-    return this.getElementByClass("inactive-icon");
-  }
-
-  get activeIconEl(): HTMLElement | null {
-    return this.getElementByClass("active-icon");
-  }
-
-  get ripple(): Ripple | null {
-    return this.getElementByTag<Ripple>(Option.dependencies.ripple);
-  }
-
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (
       name === Option.attrs.ariaHasPopup ||
       name === Option.attrs.ariaExpanded ||
@@ -235,13 +217,13 @@ export default class Option
       this.updateRootAttribute(name, newValue);
     }
     if (name === Option.attrs.disabled) {
-      const ripple = this.ripple;
+      const ripple = this.ref.ripple;
       if (ripple) {
         ripple.hidden = newValue != null;
       }
     }
     if (name === Option.attrs.mask) {
-      const ripple = this.ripple;
+      const ripple = this.ref.ripple;
       if (ripple) {
         if (newValue) {
           const mask = getCssMask(newValue);
@@ -251,7 +233,7 @@ export default class Option
       }
     }
     if (name === Option.attrs.icon) {
-      const iconEl = this.iconEl;
+      const iconEl = this.ref.icon;
       if (iconEl) {
         iconEl.hidden = newValue == null;
       }
@@ -264,26 +246,26 @@ export default class Option
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     const label = this.label;
     if (label) {
       this.setAssignedToSlot(label);
     }
     const icon = this.icon;
-    const iconEl = this.iconEl;
+    const iconEl = this.ref.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
-    this.ripple?.bind?.(this.root);
+    this.ref.ripple?.bind?.(this.root);
     this.root.addEventListener("click", this.handleClick);
   }
 
-  override onDisconnected(): void {
-    this.ripple?.unbind?.(this.root);
+  override onDisconnected() {
+    this.ref.ripple?.unbind?.(this.root);
     this.root.removeEventListener("click", this.handleClick);
   }
 
-  protected handleClick = (e: MouseEvent): void => {
+  protected handleClick = (e: MouseEvent) => {
     const value = this.value;
     const type = this.type;
     if (type === "toggle") {
@@ -304,10 +286,10 @@ export default class Option
     this.emit(CHANGED_EVENT, detail);
   }
 
-  protected override onContentAssigned(children: Element[]): void {
+  protected override onContentAssigned(children: Element[]) {
     const nodes = children;
     nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === Option.dependencies.badge) {
+      if (node.nodeName.toLowerCase() === this.selectors.badge) {
         const el = node as HTMLElement;
         el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
       }

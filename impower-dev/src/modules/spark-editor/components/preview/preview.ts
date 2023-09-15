@@ -3,11 +3,11 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview";
 
 export default class Preview extends Component(spec) {
-  override onConnected(): void {
+  override onConnected() {
     this.ownerDocument.addEventListener("enter", this.handleEnter);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.ownerDocument.removeEventListener("enter", this.handleEnter);
   }
 

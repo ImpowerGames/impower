@@ -1,8 +1,8 @@
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -17,8 +17,6 @@ const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 const REMOVED_EVENT = "removed";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-icon"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -49,15 +47,24 @@ export default class Dialog
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return { ...super.selectors, ...spec.selectors };
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -129,39 +136,7 @@ export default class Dialog
     this.setStringAttribute(Dialog.attrs.confirm, value);
   }
 
-  get dialogEl(): HTMLDialogElement {
-    return this.root as HTMLDialogElement;
-  }
-
-  get iconEl(): HTMLElement | null {
-    return this.getElementByClass("icon");
-  }
-
-  get labelEl(): HTMLButtonElement | null {
-    return this.getElementByClass("label");
-  }
-
-  get cancelButton(): HTMLButtonElement | null {
-    return this.getElementByClass("cancel");
-  }
-
-  get confirmButton(): HTMLButtonElement | null {
-    return this.getElementByClass("confirm");
-  }
-
-  get labelSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("label");
-  }
-
-  get cancelSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("cancel");
-  }
-
-  get confirmSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("confirm");
-  }
-
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Dialog.attrs.open) {
       if (newValue != null) {
         this.animateOpen(true);
@@ -169,7 +144,7 @@ export default class Dialog
     }
     if (name === Dialog.attrs.icon) {
       const icon = newValue;
-      const iconEl = this.iconEl;
+      const iconEl = this.ref.icon;
       if (iconEl) {
         iconEl.hidden = icon == null;
       }
@@ -179,7 +154,7 @@ export default class Dialog
       if (label) {
         this.setAssignedToSlot(label, "label");
       }
-      const labelEl = this.labelEl;
+      const labelEl = this.ref.label;
       if (labelEl) {
         labelEl.hidden = label == null;
       }
@@ -189,7 +164,7 @@ export default class Dialog
       if (cancel) {
         this.setAssignedToSlot(cancel, "cancel");
       }
-      const cancelButton = this.cancelButton;
+      const cancelButton = this.ref.cancel;
       if (cancelButton) {
         cancelButton.hidden = cancel == null;
       }
@@ -199,93 +174,93 @@ export default class Dialog
       if (confirm) {
         this.setAssignedToSlot(confirm, "confirm");
       }
-      const confirmButton = this.confirmButton;
+      const confirmButton = this.ref.confirm;
       if (confirmButton) {
         confirmButton.hidden = confirm == null;
       }
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     const icon = this.icon;
-    const iconEl = this.iconEl;
+    const iconEl = this.ref.icon;
     if (iconEl) {
       iconEl.hidden = icon == null;
     }
     const label = this.label;
-    const labelEl = this.labelEl;
+    const labelEl = this.ref.label;
     if (labelEl) {
       labelEl.hidden = label == null;
     }
     const cancel = this.cancel;
-    const cancelButton = this.cancelButton;
+    const cancelButton = this.ref.cancel;
     if (cancelButton) {
       cancelButton.hidden = cancel == null;
     }
     const confirm = this.confirm;
-    const confirmButton = this.confirmButton;
+    const confirmButton = this.ref.confirm;
     if (confirmButton) {
       confirmButton.hidden = confirm == null;
     }
-    this.dialogEl.addEventListener("click", this.handleLightDismiss);
-    this.dialogEl.addEventListener("cancel", this.handleCancel);
-    this.cancelButton?.addEventListener("click", this.handleClickClose);
-    this.confirmButton?.addEventListener("click", this.handleClickClose);
+    this.ref.dialog.addEventListener("click", this.handleLightDismiss);
+    this.ref.dialog.addEventListener("cancel", this.handleCancel);
+    this.ref.cancel.addEventListener("click", this.handleClickClose);
+    this.ref.confirm.addEventListener("click", this.handleClickClose);
     if (this.shadowRoot) {
-      this.labelSlot?.addEventListener(
+      this.ref.labelSlot.addEventListener(
         "slotchange",
         this.handleLabelSlotAssigned
       );
     } else {
       this.handleLabelChildrenAssigned(
-        Array.from(this.labelSlot?.children || [])
+        Array.from(this.ref.labelSlot.children || [])
       );
     }
     if (this.shadowRoot) {
-      this.cancelSlot?.addEventListener(
+      this.ref.cancelSlot.addEventListener(
         "slotchange",
         this.handleCancelSlotAssigned
       );
     } else {
       this.handleCancelChildrenAssigned(
-        Array.from(this.cancelSlot?.children || [])
+        Array.from(this.ref.cancelSlot.children || [])
       );
     }
     if (this.shadowRoot) {
-      this.confirmSlot?.addEventListener(
+      this.ref.confirmSlot.addEventListener(
         "slotchange",
         this.handleConfirmSlotAssigned
       );
     } else {
       this.handleConfirmChildrenAssigned(
-        Array.from(this.confirmSlot?.children || [])
+        Array.from(this.ref.confirmSlot.children || [])
       );
     }
   }
 
-  override onParsed(): void {
+  override onParsed() {
     this.root.hidden = !this.open;
   }
 
-  override onDisconnected(): void {
-    this.dialogEl.removeEventListener("click", this.handleLightDismiss);
-    this.dialogEl.removeEventListener("cancel", this.handleCancel);
-    this.cancelButton?.removeEventListener("click", this.handleClickClose);
-    this.confirmButton?.removeEventListener("click", this.handleClickClose);
+  override onDisconnected() {
+    this.ref.dialog.removeEventListener("click", this.handleLightDismiss);
+    this.ref.dialog.removeEventListener("cancel", this.handleCancel);
+    this.ref.cancel.removeEventListener("click", this.handleClickClose);
+    this.ref.confirm.removeEventListener("click", this.handleClickClose);
     if (this.shadowRoot) {
-      this.labelSlot?.removeEventListener(
+      this.ref.labelSlot.removeEventListener(
         "slotchange",
         this.handleLabelSlotAssigned
       );
     }
     if (this.shadowRoot) {
-      this.cancelSlot?.removeEventListener(
+      this.ref.cancelSlot.removeEventListener(
         "slotchange",
         this.handleCancelSlotAssigned
       );
     }
     if (this.shadowRoot) {
-      this.confirmSlot?.removeEventListener(
+      this.ref.confirmSlot.removeEventListener(
         "slotchange",
         this.handleConfirmSlotAssigned
       );
@@ -334,7 +309,7 @@ export default class Dialog
 
   protected handleLightDismiss = (e: Event) => {
     const el = e.target as HTMLElement;
-    if (el === this.dialogEl && this.dismissable) {
+    if (el === this.ref.dialog && this.dismissable) {
       e.stopPropagation();
       this.close("dismiss");
     }
@@ -345,9 +320,9 @@ export default class Dialog
     this.root.inert = false;
     this.setAttribute("loaded", "");
     if (modal) {
-      this.dialogEl.showModal();
+      this.ref.dialog.showModal();
     } else {
-      this.dialogEl.show();
+      this.ref.dialog.show();
     }
 
     const focusTarget = this.root.querySelector<HTMLElement>("[focus]");
@@ -355,7 +330,7 @@ export default class Dialog
     if (focusTarget) {
       focusTarget.focus();
     } else {
-      const cancelButton = this.cancelButton;
+      const cancelButton = this.ref.cancel;
       if (cancelButton) {
         cancelButton.focus();
       } else {
@@ -373,13 +348,13 @@ export default class Dialog
   protected async animateClose(
     returnValue?: string
   ): Promise<string | undefined> {
-    this.dialogEl.inert = true;
+    this.ref.dialog.inert = true;
     this.open = false;
     this.emit(CLOSING_EVENT);
 
     await animationsComplete(this.root);
 
-    this.dialogEl.close();
+    this.ref.dialog.close();
 
     this.emit(CLOSED_EVENT);
     return returnValue;

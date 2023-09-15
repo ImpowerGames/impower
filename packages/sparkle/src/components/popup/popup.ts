@@ -1,3 +1,4 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import SparkleElement, {
@@ -54,11 +55,24 @@ export default class Popup
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -333,19 +347,15 @@ export default class Popup
     return el;
   }
 
-  get popupEl(): HTMLElement | null {
-    return this.getElementByClass("popup");
-  }
-
   protected _intersectionObserver?: IntersectionObserver;
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Popup.attrs.strategy) {
       const fixed = newValue === "fixed";
       if (fixed) {
-        this.popupEl?.classList.add("fixed");
+        this.ref.popup.classList.add("fixed");
       } else {
-        this.popupEl?.classList.remove("fixed");
+        this.ref.popup.classList.remove("fixed");
       }
     }
 
@@ -359,14 +369,14 @@ export default class Popup
     }
   }
 
-  override onConnected(): void {}
+  override onConnected() {}
 
-  override onParsed(): void {
+  override onParsed() {
     this.start();
     window.addEventListener("resize", this.update);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this._intersectionObserver?.disconnect();
     this.stop();
     window.removeEventListener("resize", this.update);
@@ -384,7 +394,7 @@ export default class Popup
   protected async start(): Promise<void> {
     await nextAnimationFrame();
     const anchorEl = this.anchorEl;
-    const popupEl = this.popupEl;
+    const popupEl = this.ref.popup;
     if (!anchorEl) {
       // We can't start the positioner without an anchor
       throw new Error(
@@ -408,7 +418,7 @@ export default class Popup
     this.updateRootCssVariable("--auto-size-available-height", null);
   }
 
-  update = (): void => {
+  update = () => {
     this.reposition();
   };
 
@@ -416,7 +426,7 @@ export default class Popup
   async reposition(): Promise<void> {
     await nextAnimationFrame();
     const anchorEl = this.anchorEl;
-    const popupEl = this.popupEl;
+    const popupEl = this.ref.popup;
     // Nothing to do if the popup or anchor doesn't exist
     if (!anchorEl || !popupEl) {
       return;

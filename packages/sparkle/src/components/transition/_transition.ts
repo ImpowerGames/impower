@@ -5,6 +5,6 @@ import html from "./transition.html";
 
 export default spec({
   tag: "s-transition",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

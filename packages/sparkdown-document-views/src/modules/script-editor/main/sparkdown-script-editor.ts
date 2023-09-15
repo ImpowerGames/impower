@@ -79,7 +79,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     right: 0,
   };
 
-  override onConnected(): void {
+  override onConnected() {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.addEventListener(
       RevealEditorRangeMessage.method,
@@ -103,7 +103,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     );
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.removeEventListener(
       RevealEditorRangeMessage.method,
@@ -145,7 +145,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   }
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === SparkdownScriptEditor.attrs.readonly) {
       if (newValue != null) {
         this._view?.dispatch({
@@ -198,7 +198,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     view.destroy();
   }
 
-  protected handleLoadEditor = (e: Event): void => {
+  protected handleLoadEditor = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (LoadEditorMessage.type.isRequest(message)) {
@@ -214,15 +214,15 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   };
 
-  protected handleExpandPreviewPane = (): void => {
+  protected handleExpandPreviewPane = () => {
     this._userInitiatedScroll = false;
   };
 
-  protected handleCollapsePreviewPane = (): void => {
+  protected handleCollapsePreviewPane = () => {
     this.scrollToRange(this._visibleRange);
   };
 
-  protected handleRevealEditorRange = (e: Event): void => {
+  protected handleRevealEditorRange = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (RevealEditorRangeMessage.type.isRequest(message)) {
@@ -242,7 +242,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   };
 
-  protected handleScrolledPreview = (e: Event): void => {
+  protected handleScrolledPreview = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (ScrolledPreviewMessage.type.isNotification(message)) {
@@ -421,7 +421,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   }
 
-  protected handleIdle = (): void => {
+  protected handleIdle = () => {
     if (this._initialized && !this._loaded) {
       this._loaded = true;
       if (this._textDocument && this._loadingRequest != null) {
@@ -438,7 +438,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   };
 
-  protected handlePointerEnterScroller = (): void => {
+  protected handlePointerEnterScroller = () => {
     this._userInitiatedScroll = true;
     if (this._textDocument) {
       this.emit(
@@ -450,11 +450,11 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   };
 
-  protected handlePointerLeaveScroller = (): void => {
+  protected handlePointerLeaveScroller = () => {
     this._userInitiatedScroll = false;
   };
 
-  protected handlePointerScroll = (e: Event): void => {
+  protected handlePointerScroll = (e: Event) => {
     if (this._userInitiatedScroll) {
       const scrollTarget = e.target;
       const view = this._view;

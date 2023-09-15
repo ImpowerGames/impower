@@ -1,18 +1,16 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-header-title-caption",
-  context: WorkspaceContext.instance,
-  css,
-  state: (store?: WorkspaceStore) => ({
-    name: store?.project?.name || "",
-    syncState: store?.project?.syncState || "",
+  stores: { workspace },
+  context: ({ workspace }) => ({
+    name: workspace?.current?.project?.name || "",
+    syncState: workspace?.current?.project?.syncState || "",
   }),
-  html: ({ state }) => {
-    const { name, syncState } = state;
+  html: ({ context }) => {
+    const { name, syncState } = context;
     const syncStateInfo =
       syncState === "cached"
         ? "Saved in cache"
@@ -68,4 +66,5 @@ export default spec({
       </s-box>
     `;
   },
+  css,
 });

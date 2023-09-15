@@ -1,7 +1,7 @@
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
@@ -12,8 +12,6 @@ const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -58,15 +56,24 @@ export default class Tooltip
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return { ...super.selectors, ...spec.selectors };
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -119,8 +126,8 @@ export default class Tooltip
 
   private hoverTimeout?: number;
 
-  override onAttributeChanged(name: string, newValue: string): void {
-    const tooltipEl = this.popupEl;
+  override onAttributeChanged(name: string, newValue: string) {
+    const tooltipEl = this.ref.popup;
     if (name === Tooltip.attrs.label) {
       if (tooltipEl) {
         tooltipEl.textContent = newValue;
@@ -152,7 +159,7 @@ export default class Tooltip
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     this.root.addEventListener("blur", this.handleBlur, true);
     this.root.addEventListener("focus", this.handleFocus, true);
     this.root.addEventListener("click", this.handleClick);
@@ -161,8 +168,8 @@ export default class Tooltip
     this.root.addEventListener("mouseout", this.handleMouseOut);
   }
 
-  override onParsed(): void {
-    const popupEl = this.popupEl;
+  override onParsed() {
+    const popupEl = this.ref.popup;
     if (popupEl) {
       popupEl.hidden = !this.open;
     }
@@ -172,7 +179,7 @@ export default class Tooltip
     }
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.root.removeEventListener("blur", this.handleBlur, true);
     this.root.removeEventListener("focus", this.handleFocus, true);
     this.root.removeEventListener("click", this.handleClick);
@@ -181,13 +188,13 @@ export default class Tooltip
     this.root.removeEventListener("mouseout", this.handleMouseOut);
   }
 
-  private handleBlur = (): void => {
+  private handleBlur = () => {
     if (this.hasTrigger("focus")) {
       this.hide();
     }
   };
 
-  private handleClick = (): void => {
+  private handleClick = () => {
     if (this.hasTrigger("click")) {
       if (this.open) {
         this.hide();
@@ -197,13 +204,13 @@ export default class Tooltip
     }
   };
 
-  private handleFocus = (): void => {
+  private handleFocus = () => {
     if (this.hasTrigger("focus")) {
       this.show();
     }
   };
 
-  private handleKeyDown = (event: KeyboardEvent): void => {
+  private handleKeyDown = (event: KeyboardEvent) => {
     // Pressing escape when the target element has focus should dismiss the tooltip
     if (this.open && event.key === "Escape") {
       event.stopPropagation();
@@ -211,7 +218,7 @@ export default class Tooltip
     }
   };
 
-  private handleMouseOver = (): void => {
+  private handleMouseOver = () => {
     if (this.hasTrigger("hover")) {
       clearTimeout(this.hoverTimeout);
       this.hoverTimeout = window.setTimeout(
@@ -221,7 +228,7 @@ export default class Tooltip
     }
   };
 
-  private handleMouseOut = (): void => {
+  private handleMouseOut = () => {
     if (this.hasTrigger("hover")) {
       clearTimeout(this.hoverTimeout);
       this.hoverTimeout = window.setTimeout(
@@ -247,7 +254,7 @@ export default class Tooltip
 
     this.start();
 
-    const el = this.popupEl;
+    const el = this.ref.popup;
     if (el) {
       el.hidden = false;
       el.inert = false;
@@ -261,7 +268,7 @@ export default class Tooltip
   }
 
   async handleClose(): Promise<void> {
-    const el = this.popupEl;
+    const el = this.ref.popup;
     if (el) {
       el.inert = true;
     }
@@ -297,14 +304,14 @@ export default class Tooltip
     return waitForEvent(this, "closed");
   }
 
-  override focus(options?: FocusOptions): void {
+  override focus(options?: FocusOptions) {
     const content = this.contentSlot?.assignedElements()?.[0];
     if (content instanceof HTMLElement) {
       content.focus(options);
     }
   }
 
-  override blur(): void {
+  override blur() {
     const content = this.contentSlot?.assignedElements()?.[0];
     if (content instanceof HTMLElement) {
       content.blur();

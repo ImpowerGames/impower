@@ -1,7 +1,7 @@
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
@@ -13,8 +13,6 @@ const CLOSING_EVENT = "closing";
 const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-button"]);
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -33,15 +31,24 @@ export default class Toast
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -97,25 +104,13 @@ export default class Toast
     this.setStringAttribute(Toast.attrs.timeout, value);
   }
 
-  get buttonEl(): HTMLButtonElement | null {
-    return this.getElementByClass("button");
-  }
-
-  get closeEl(): HTMLElement | null {
-    return this.getElementByClass("close");
-  }
-
-  get actionSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("action");
-  }
-
   private _setup = false;
 
   private _autoHideTimeout?: number;
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Toast.attrs.color) {
-      const buttonEl = this.buttonEl;
+      const buttonEl = this.ref.button;
       if (buttonEl) {
         if (newValue != null) {
           buttonEl.setAttribute(name, newValue);
@@ -146,14 +141,14 @@ export default class Toast
       if (action) {
         this.setAssignedToSlot(action, "action");
       }
-      const closeEl = this.closeEl;
+      const closeEl = this.ref.close;
       if (closeEl) {
         closeEl.hidden = action == null;
       }
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     const open = this.open;
     const durationMS = getCssDurationMS(this.timeout, 4000);
     this.changeState(open, durationMS);
@@ -165,31 +160,31 @@ export default class Toast
     if (action) {
       this.setAssignedToSlot(action, "action");
     }
-    const closeEl = this.closeEl;
+    const closeEl = this.ref.close;
     if (closeEl) {
       closeEl.hidden = action == null;
     }
     this.root.addEventListener("mousemove", this.handleHover, {
       passive: true,
     });
-    this.buttonEl?.addEventListener("click", this.handleButtonClick);
+    this.ref.button.addEventListener("click", this.handleButtonClick);
     if (this.shadowRoot) {
-      this.actionSlot?.addEventListener(
+      this.ref.actionSlot.addEventListener(
         "slotchange",
         this.handleActionSlotAssigned
       );
     } else {
       this.handleActionChildrenAssigned(
-        Array.from(this.actionSlot?.children || [])
+        Array.from(this.ref.actionSlot.children || [])
       );
     }
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.root.removeEventListener("mousemove", this.handleHover);
-    this.buttonEl?.removeEventListener("click", this.handleButtonClick);
+    this.ref.button.removeEventListener("click", this.handleButtonClick);
     if (this.shadowRoot) {
-      this.actionSlot?.removeEventListener(
+      this.ref.actionSlot.removeEventListener(
         "slotchange",
         this.handleActionSlotAssigned
       );
@@ -218,7 +213,7 @@ export default class Toast
     }
   }
 
-  private restartAutoClose(open: boolean, autoCloseDuration: number): void {
+  private restartAutoClose(open: boolean, autoCloseDuration: number) {
     clearTimeout(this._autoHideTimeout);
     if (open && autoCloseDuration >= 0 && autoCloseDuration < Infinity) {
       this._autoHideTimeout = window.setTimeout(
@@ -228,11 +223,11 @@ export default class Toast
     }
   }
 
-  private handleButtonClick = (): void => {
+  private handleButtonClick = () => {
     this.close();
   };
 
-  private handleHover = (): void => {
+  private handleHover = () => {
     const open = this.open;
     const durationMS = getCssDurationMS(this.timeout, 4000);
     this.restartAutoClose(open, durationMS);

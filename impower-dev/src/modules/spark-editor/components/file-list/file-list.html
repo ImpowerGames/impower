@@ -1,10 +1,10 @@
 <div class="root" part="root">
   <slot></slot>
-  <div class="empty" part="empty" hidden>
+  <div id="empty" class="empty" part="empty" hidden>
     <slot name="empty">No Files Found</slot>
   </div>
-  <div class="dragover" part="dragover" hidden>
+  <div id="dragover" class="dragover" part="dragover" hidden>
     <slot name="dragover">Drop Files</slot>
   </div>
-  <s-list class="outlet" part="outlet" hidden></s-list>
+  <s-list id="outlet" class="outlet" part="outlet" hidden></s-list>
 </div>

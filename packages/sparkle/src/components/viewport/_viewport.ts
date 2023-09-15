@@ -5,6 +5,6 @@ import html from "./viewport.html";
 
 export default spec({
   tag: "s-viewport",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

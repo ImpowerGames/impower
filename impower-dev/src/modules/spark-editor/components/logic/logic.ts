@@ -3,11 +3,11 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import spec from "./_logic";
 
 export default class Logic extends Component(spec) {
-  override onConnected(): void {
+  override onConnected() {
     this.ownerDocument.addEventListener("enter", this.handleEnter);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.ownerDocument.removeEventListener("enter", this.handleEnter);
   }
 

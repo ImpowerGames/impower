@@ -1,23 +1,21 @@
-import { WorkspaceStore } from "@impower/spark-editor-protocol/src/types";
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-header-title-button",
-  context: WorkspaceContext.instance,
-  css,
-  state: (store?: WorkspaceStore) => ({
-    name: store?.project?.name || "",
-    syncState: store?.project?.syncState || "",
-    editingName: store?.project?.editingName || false,
+  stores: { workspace },
+  context: ({ workspace }) => ({
+    name: workspace?.current?.project?.name || "",
+    syncState: workspace?.current?.project?.syncState || "",
+    editingName: workspace?.current?.project?.editingName || false,
   }),
-  html: ({ state }) => {
-    const { name, syncState, editingName } = state;
+  html: ({ context }) => {
+    const { name, syncState, editingName } = context;
     const label = "Project Name";
     const nameButton = () => html`
       <s-button
-        id="name-button"
+        id="nameButton"
         variant="text"
         text-size="lg"
         text-weight="500"
@@ -30,7 +28,7 @@ export default spec({
     `;
     const nameInput = () => html`
       <s-input
-        id="name-input"
+        id="nameInput"
         text-size="lg"
         text-weight="500"
         p="0 4"
@@ -41,6 +39,8 @@ export default spec({
         label="${label}"
         size="sm"
         width="100%"
+        autofocus
+        autoselect
       ></s-input>
     `;
     const nameSkeleton = () => html`
@@ -56,4 +56,9 @@ export default spec({
       </s-box>
     `;
   },
+  selectors: {
+    nameButton: null,
+    nameInput: null,
+  } as const,
+  css,
 });

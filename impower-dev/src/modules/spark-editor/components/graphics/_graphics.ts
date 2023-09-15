@@ -1,13 +1,13 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-graphics",
-  context: WorkspaceContext.instance,
-  css,
-  html: ({ store }) => {
-    const panel = store?.panes?.graphics?.panel || "sprites";
+  stores: { workspace },
+  html: ({ stores }) => {
+    const panel =
+      stores?.workspace?.current?.panes?.graphics?.panel || "sprites";
     return html`
       <s-router directional key="graphics-panel" active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
@@ -53,4 +53,5 @@ export default spec({
       </s-router>
     `;
   },
+  css,
 });

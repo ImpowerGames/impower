@@ -1,5 +1,6 @@
 import getCssDuration from "../../../../sparkle-style-transformer/src/utils/getCssDuration";
 import getCssDurationMS from "../../../../sparkle-style-transformer/src/utils/getCssDurationMS";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
@@ -55,11 +56,24 @@ export default class Hidden
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -190,7 +204,7 @@ export default class Hidden
 
   _shown = false;
 
-  override onConnected(): void {
+  override onConnected() {
     if (this.initial === "hide") {
       this.root.hidden = true;
     } else {
@@ -214,11 +228,11 @@ export default class Hidden
     }
   }
 
-  override onParsed(): void {
+  override onParsed() {
     this.load();
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener("resize", this.handleWindowResize);
     const hideEvents = this.hideEvent?.split(" ");
     const showEvents = this.showEvent?.split(" ");
@@ -335,11 +349,11 @@ export default class Hidden
     }
   }
 
-  protected handleWindowResize = (): void => {
+  protected handleWindowResize = () => {
     this.checkBreakpoint();
   };
 
-  protected handleHideEvent = (e: Event): void => {
+  protected handleHideEvent = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (this.preConditionsSatisfied()) {
         this.hide();
@@ -347,7 +361,7 @@ export default class Hidden
     }
   };
 
-  protected handleShowEvent = (e: Event): void => {
+  protected handleShowEvent = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (this.preConditionsSatisfied()) {
         this.show();

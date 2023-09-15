@@ -1,6 +1,6 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import { DEFAULT_SPARKLE_ATTRIBUTES } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
 import { waitForEvent } from "../../utils/events";
@@ -19,8 +19,6 @@ const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-option"]);
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -63,15 +61,24 @@ export default class Dropdown
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return { ...super.selectors, ...spec.selectors };
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -122,10 +129,6 @@ export default class Dropdown
     return this.getSlotByName("options");
   }
 
-  get dialogEl(): HTMLDialogElement {
-    return this.getElementByTag("dialog") as HTMLDialogElement;
-  }
-
   protected _options: Option[] = [];
   get options(): Option[] {
     return this._options;
@@ -133,8 +136,8 @@ export default class Dropdown
 
   protected _activatingValue: string | null = null;
 
-  override onAttributeChanged(name: string, newValue: string): void {
-    const popupEl = this.popupEl;
+  override onAttributeChanged(name: string, newValue: string) {
+    const popupEl = this.ref.popup;
     if (name === Dropdown.attrs.open) {
       const open = newValue != null;
       if (popupEl) {
@@ -160,15 +163,15 @@ export default class Dropdown
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     this._activatingValue = this.active;
-    this.dialogEl.addEventListener("click", this.handleLightDismiss);
-    this.dialogEl.addEventListener("cancel", this.handleCancel);
+    this.ref.dialog.addEventListener("click", this.handleLightDismiss);
+    this.ref.dialog.addEventListener("cancel", this.handleCancel);
     this.root.addEventListener("click", this.handleClick);
   }
 
-  override onParsed(): void {
-    const popupEl = this.popupEl;
+  override onParsed() {
+    const popupEl = this.ref.popup;
     if (popupEl) {
       popupEl.hidden = !this.open;
     }
@@ -181,21 +184,21 @@ export default class Dropdown
     }
   }
 
-  override onDisconnected(): void {
-    this.dialogEl.removeEventListener("click", this.handleLightDismiss);
-    this.dialogEl.removeEventListener("cancel", this.handleCancel);
+  override onDisconnected() {
+    this.ref.dialog.removeEventListener("click", this.handleLightDismiss);
+    this.ref.dialog.removeEventListener("cancel", this.handleCancel);
     this.root.removeEventListener("click", this.handleClick);
   }
 
   protected handleLightDismiss = (e: Event) => {
     e.stopPropagation();
     const el = e.target as HTMLElement;
-    if (el === this.dialogEl) {
+    if (el === this.ref.dialog) {
       this.hide();
     }
   };
 
-  private handleClick = (e: Event): void => {
+  private handleClick = (e: Event) => {
     e.stopPropagation();
     if (this.open) {
       this.hide();
@@ -204,7 +207,7 @@ export default class Dropdown
     }
   };
 
-  private handleCancel = (e: Event): void => {
+  private handleCancel = (e: Event) => {
     e.preventDefault();
     e.stopPropagation();
     this.hide();
@@ -215,7 +218,7 @@ export default class Dropdown
       return;
     }
 
-    const dialogEl = this.dialogEl;
+    const dialogEl = this.ref.dialog;
 
     dialogEl.style.visibility = "hidden";
     dialogEl.showModal();
@@ -237,7 +240,7 @@ export default class Dropdown
   }
 
   async animateClose(): Promise<void> {
-    const el = this.popupEl;
+    const el = this.ref.popup;
     if (el) {
       el.inert = true;
     }
@@ -250,7 +253,7 @@ export default class Dropdown
       el.hidden = true;
     }
 
-    this.dialogEl.close();
+    this.ref.dialog.close();
 
     this.stop();
 
@@ -275,14 +278,14 @@ export default class Dropdown
     return waitForEvent(this, "closed");
   }
 
-  override focus(options?: FocusOptions): void {
+  override focus(options?: FocusOptions) {
     const content = this.contentSlot?.assignedElements()?.[0];
     if (content instanceof HTMLElement) {
       content.focus(options);
     }
   }
 
-  override blur(): void {
+  override blur() {
     const content = this.contentSlot?.assignedElements()?.[0];
     if (content instanceof HTMLElement) {
       content.blur();
@@ -319,10 +322,10 @@ export default class Dropdown
 
     await animationsComplete(
       option.root,
-      option.labelEl,
-      option.iconEl,
-      option.inactiveIconEl,
-      option.activeIconEl
+      option.ref.label,
+      option.ref.icon,
+      option.ref.inactiveIcon,
+      option.ref.activeIcon
     );
     if (this.interrupted(newValue)) {
       return;
@@ -362,7 +365,7 @@ export default class Dropdown
     }
   }
 
-  bindOptions(): void {
+  bindOptions() {
     this.options.forEach((option) => {
       option.root.addEventListener("keydown", this.handleKeyDownOption, {
         passive: true,
@@ -373,7 +376,7 @@ export default class Dropdown
     });
   }
 
-  unbindOptions(): void {
+  unbindOptions() {
     this.options.forEach((option) => {
       option.root.removeEventListener("keydown", this.handleKeyDownOption);
       option.root.removeEventListener("click", this.handleClickOption);
@@ -425,7 +428,7 @@ export default class Dropdown
     }
   }
 
-  handleKeyDownOption = (e: KeyboardEvent): void => {
+  handleKeyDownOption = (e: KeyboardEvent) => {
     if (e.currentTarget instanceof HTMLElement) {
       const option = (e.currentTarget.getRootNode() as ShadowRoot)
         ?.host as Option;
@@ -463,7 +466,7 @@ export default class Dropdown
     }
   };
 
-  handleClickOption = (e: MouseEvent): void => {
+  handleClickOption = (e: MouseEvent) => {
     if (e.currentTarget instanceof HTMLElement) {
       const option = (e.currentTarget.getRootNode() as ShadowRoot)
         ?.host as Option;
@@ -474,10 +477,10 @@ export default class Dropdown
     }
   };
 
-  protected setupOptions(children: Element[]): void {
+  protected setupOptions(children: Element[]) {
     this.unbindOptions();
     this._options = children.filter(
-      (el) => el.tagName.toLowerCase() === Dropdown.dependencies.option
+      (el) => el.tagName.toLowerCase() === this.selectors.option
     ) as Option[];
     this.bindOptions();
     this.updateOptions();

@@ -5,6 +5,6 @@ import html from "./skeleton.html";
 
 export default spec({
   tag: "s-skeleton",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

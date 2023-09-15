@@ -3,21 +3,21 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_logic-scripts-editor";
 
 export default class LogicScriptsEditor extends Component(spec) {
-  override onConnected(): void {
+  override onConnected() {
     this.addEventListener("changing", this.handleChanging);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.removeEventListener("changing", this.handleChanging);
   }
 
   getFilename() {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     return store?.panes?.logic?.panels?.scripts?.activeEditor?.filename || "";
   }
 
   handleChanging = async (e: Event) => {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (e instanceof CustomEvent) {
       const filename = this.getFilename();

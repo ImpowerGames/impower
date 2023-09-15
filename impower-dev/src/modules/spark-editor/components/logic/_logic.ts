@@ -1,13 +1,12 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-logic",
-  context: WorkspaceContext.instance,
-  css,
-  html: ({ store }) => {
-    const view = store?.panes?.logic?.view || "list";
+  stores: { workspace },
+  html: ({ stores }) => {
+    const view = stores?.workspace?.current?.panes?.logic?.view || "list";
     return html`
       <s-router key="logic-view" active="${view}">
         <template value="list">
@@ -19,4 +18,5 @@ export default spec({
       </s-router>
     `;
   },
+  css,
 });

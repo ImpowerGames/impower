@@ -5,6 +5,6 @@ import html from "./box.html";
 
 export default spec({
   tag: "s-box",
-  css: [...sharedCSS, css],
   html,
+  css: [...sharedCSS, css],
 });

@@ -4,20 +4,16 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_file-add-button";
 
 export default class FileAddButton extends Component(spec) {
-  get buttonEl() {
-    return this.getElementById("button");
-  }
-
-  override onConnected(): void {
+  override onConnected() {
     this.addEventListener("click", this.handleClick);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.removeEventListener("click", this.handleClick);
   }
 
   handleClick = async (e: MouseEvent) => {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (projectId) {
       const files = await Workspace.fs.getFiles();
@@ -38,8 +34,16 @@ export default class FileAddButton extends Component(spec) {
     }
   };
 
-  override onUpdate(): void {
-    const store = this.context.get();
+  override onInit() {
+    this.setup();
+  }
+
+  override onStoreUpdate() {
+    this.setup();
+  }
+
+  setup() {
+    const store = this.stores.workspace.current;
     const syncState = store?.project?.syncState;
     if (
       syncState === "syncing" ||
@@ -47,9 +51,9 @@ export default class FileAddButton extends Component(spec) {
       syncState === "importing" ||
       syncState === "exporting"
     ) {
-      this.buttonEl?.setAttribute("disabled", "");
+      this.ref.button.setAttribute("disabled", "");
     } else {
-      this.buttonEl?.removeAttribute("disabled");
+      this.ref.button.removeAttribute("disabled");
     }
   }
 }

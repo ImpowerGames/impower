@@ -5,6 +5,10 @@ import html from "./split-pane.html";
 
 export default spec({
   tag: "s-split-pane",
-  css: [...sharedCSS, css],
   html,
+  selectors: {
+    resize: ".resize",
+    divider: ".divider",
+  } as const,
+  css: [...sharedCSS, css],
 });

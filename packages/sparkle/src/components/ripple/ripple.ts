@@ -5,6 +5,7 @@
  * Released under the Apache-2.0 license.
  */
 
+import { RefMap } from "../../../../spec-component/src/component";
 import SparkleElement from "../../core/sparkle-element";
 import { getDimensions } from "../../utils/getDimensions";
 import spec from "./_ripple";
@@ -41,11 +42,24 @@ export default class Ripple extends SparkleElement {
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   private _hovered = false;
@@ -86,7 +100,7 @@ export default class Ripple extends SparkleElement {
   private endPointX = 0;
   private endPointY = 0;
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === SparkleElement.attrs.hidden) {
       if (newValue != null) {
         this.pressed = false;

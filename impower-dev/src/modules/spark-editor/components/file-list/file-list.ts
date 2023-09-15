@@ -7,29 +7,17 @@ import { Workspace } from "../../workspace/Workspace";
 import spec from "./_file-list";
 
 export default class FileList extends Component(spec) {
-  get emptyEl() {
-    return this.getElementByClass("empty");
-  }
-
-  get dragoverEl() {
-    return this.getElementByClass("dragover");
-  }
-
-  get listEl() {
-    return this.getElementByClass("outlet");
-  }
-
   protected _uris?: string[];
 
   protected _dragging = false;
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string) {
     if (name === FileList.attrs.include || name === FileList.attrs.exclude) {
       this.loadEntries();
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     this.loadEntries();
     window.addEventListener(
       DidChangeWatchedFilesMessage.method,
@@ -41,7 +29,7 @@ export default class FileList extends Component(spec) {
     this.root.addEventListener("drop", this.handleDrop);
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     window.removeEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
@@ -52,7 +40,7 @@ export default class FileList extends Component(spec) {
     this.root.removeEventListener("drop", this.handleDrop);
   }
 
-  protected handleDidChangeWatchedFiles = (e: Event): void => {
+  protected handleDidChangeWatchedFiles = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
@@ -109,7 +97,7 @@ export default class FileList extends Component(spec) {
   };
 
   async upload(fileArray: File[]) {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (projectId) {
       if (fileArray) {
@@ -140,7 +128,7 @@ export default class FileList extends Component(spec) {
     this._uris = allUris.filter(
       (uri) => includeRegex.test(uri) && !excludeRegex?.test(uri)
     );
-    const outletEl = this.listEl;
+    const outletEl = this.ref.outlet;
     outletEl?.replaceChildren();
     if (outletEl) {
       this._uris.forEach((uri) => {
@@ -156,7 +144,7 @@ export default class FileList extends Component(spec) {
   }
 
   getState() {
-    const store = this.context.get();
+    const store = this.stores.workspace.current;
     const syncState = store?.project?.syncState;
     if (syncState !== "syncing") {
       if (this._dragging && this.accept) {
@@ -174,9 +162,9 @@ export default class FileList extends Component(spec) {
 
   updateState() {
     const state = this.getState();
-    const emptyEl = this.emptyEl;
-    const dragoverEl = this.dragoverEl;
-    const outletEl = this.listEl;
+    const emptyEl = this.ref.empty;
+    const dragoverEl = this.ref.dragover;
+    const outletEl = this.ref.outlet;
     const els = { empty: emptyEl, dragover: dragoverEl, list: outletEl };
     Object.entries(els).forEach(([k, v]) => {
       if (v) {

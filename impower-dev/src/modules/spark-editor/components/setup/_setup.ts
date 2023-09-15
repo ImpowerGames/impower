@@ -1,13 +1,12 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-setup",
-  context: WorkspaceContext.instance,
-  css,
-  html: ({ store }) => {
-    const panel = store?.panes?.setup?.panel || "details";
+  stores: { workspace },
+  html: ({ stores }) => {
+    const panel = stores?.workspace?.current?.panes?.setup?.panel || "details";
     return html`
       <s-router key="setup-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
@@ -68,4 +67,5 @@ export default spec({
       </s-router>
     `;
   },
+  css,
 });

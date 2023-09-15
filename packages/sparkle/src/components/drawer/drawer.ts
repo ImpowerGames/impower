@@ -1,6 +1,6 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
 } from "../../core/sparkle-element";
@@ -12,8 +12,6 @@ const CLOSED_EVENT = "closed";
 const OPENING_EVENT = "opening";
 const OPENED_EVENT = "opened";
 const REMOVED_EVENT = "removed";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap([]);
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
@@ -32,15 +30,24 @@ export default class Drawer
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -62,7 +69,7 @@ export default class Drawer
     return this.root as HTMLDialogElement;
   }
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Drawer.attrs.open) {
       if (newValue != null) {
         this.handleOpen(true);
@@ -72,16 +79,16 @@ export default class Drawer
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     this.dialog.addEventListener("click", this.handleLightDismiss);
     this.dialog.addEventListener("close", this.handleEscapeClose);
   }
 
-  override onParsed(): void {
+  override onParsed() {
     this.root.hidden = !this.open;
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.dialog.removeEventListener("click", this.handleLightDismiss);
     this.dialog.removeEventListener("close", this.handleEscapeClose);
     this.emit(REMOVED_EVENT);

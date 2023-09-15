@@ -2,12 +2,16 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import spec from "./_file-options-button";
 
 export default class FileOptionsButton extends Component(spec) {
-  get deleteOption() {
-    return this.getElementById("delete-option");
+  override onInit() {
+    this.setup();
   }
 
-  override onUpdate(): void {
-    const store = this.context.get();
+  override onStoreUpdate() {
+    this.setup();
+  }
+
+  setup() {
+    const store = this.stores.workspace.current;
     const syncState = store?.project?.syncState;
     if (
       syncState === "syncing" ||
@@ -15,9 +19,9 @@ export default class FileOptionsButton extends Component(spec) {
       syncState === "importing" ||
       syncState === "exporting"
     ) {
-      this.deleteOption?.setAttribute("disabled", "");
+      this.ref.deleteOption.setAttribute("disabled", "");
     } else {
-      this.deleteOption?.removeAttribute("disabled");
+      this.ref.deleteOption.removeAttribute("disabled");
     }
   }
 }

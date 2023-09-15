@@ -1,14 +1,14 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
   tag: "se-logic-scripts-editor",
-  context: WorkspaceContext.instance,
-  css,
-  html: ({ store }) => {
+  stores: { workspace },
+  html: ({ stores }) => {
     const filename =
-      store?.panes?.logic?.panels?.scripts?.activeEditor?.filename || "";
+      stores?.workspace?.current?.panes?.logic?.panels?.scripts?.activeEditor
+        ?.filename || "";
     const displayName = filename.split(".")[0] ?? "";
     return html`
       <se-file-editor-navigation>${displayName}</se-file-editor-navigation>
@@ -17,4 +17,5 @@ export default spec({
       </s-box>
     `;
   },
+  css,
 });

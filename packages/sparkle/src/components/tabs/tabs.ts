@@ -1,7 +1,7 @@
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
+import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
-import getDependencyNameMap from "../../../../spec-component/src/utils/getDependencyNameMap";
 import getKeys from "../../../../spec-component/src/utils/getKeys";
 import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
@@ -20,8 +20,6 @@ import spec from "./_tabs";
 
 const CHANGING_EVENT = "changing";
 const CHANGED_EVENT = "changed";
-
-const DEFAULT_DEPENDENCIES = getDependencyNameMap(["s-tab"]);
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
@@ -51,15 +49,24 @@ export default class Tabs
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
   }
 
-  static override get dependencies() {
-    return DEFAULT_DEPENDENCIES;
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   static override get attrs() {
@@ -127,20 +134,12 @@ export default class Tabs
     return this._tabs;
   }
 
-  get indicatorEl(): HTMLElement | null {
-    return this.getElementByClass("indicator");
-  }
-
-  get navEl(): HTMLElement | null {
-    return this.getElementByClass("nav");
-  }
-
   protected _activatingValue: string | null = null;
 
-  override onAttributeChanged(name: string, newValue: string): void {
+  override onAttributeChanged(name: string, newValue: string) {
     if (name === Tabs.attrs.indicator) {
       this.updateTabs(false);
-      const indicatorEl = this.indicatorEl;
+      const indicatorEl = this.ref.indicator;
       if (indicatorEl && newValue === "none") {
         indicatorEl.hidden = true;
       }
@@ -155,10 +154,10 @@ export default class Tabs
     }
   }
 
-  override onConnected(): void {
+  override onConnected() {
     this._activatingValue = this.active;
     const indicator = this.indicator;
-    const indicatorEl = this.indicatorEl;
+    const indicatorEl = this.ref.indicator;
     if (indicatorEl && indicator === "none") {
       indicatorEl.hidden = true;
     }
@@ -169,11 +168,11 @@ export default class Tabs
     );
   }
 
-  override onParsed(): void {
+  override onParsed() {
     this.setupTabs(getSlotChildren(this, this.contentSlot));
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.unbindTabs();
   }
 
@@ -210,11 +209,11 @@ export default class Tabs
 
     await animationsComplete(
       tab.root,
-      tab.labelEl,
-      tab.iconEl,
-      tab.inactiveIconEl,
-      tab.activeIconEl,
-      this.indicatorEl
+      tab.ref.label,
+      tab.ref.icon,
+      tab.ref.inactiveIcon,
+      tab.ref.activeIcon,
+      this.ref.indicator
     );
     if (this.interrupted(newValue)) {
       return;
@@ -238,8 +237,8 @@ export default class Tabs
     tab: Tab,
     oldTab?: Tab
   ): Promise<void> {
-    const indicator = this.indicatorEl;
-    const navEl = this.navEl;
+    const indicator = this.ref.indicator;
+    const navEl = this.ref.nav;
     const vertical = this.vertical;
     const tabEl = tab?.root;
 
@@ -300,7 +299,7 @@ export default class Tabs
     );
   }
 
-  bindTabs(): void {
+  bindTabs() {
     this.tabs.forEach((tab) => {
       tab.root.addEventListener("keydown", this.handleKeyDownTab, {
         passive: true,
@@ -311,7 +310,7 @@ export default class Tabs
     });
   }
 
-  unbindTabs(): void {
+  unbindTabs() {
     this.tabs.forEach((tab) => {
       tab.root.removeEventListener("keydown", this.handleKeyDownTab);
       tab.root.removeEventListener("click", this.handleClickTab);
@@ -363,7 +362,7 @@ export default class Tabs
     }
   }
 
-  handleKeyDownTab = (e: KeyboardEvent): void => {
+  handleKeyDownTab = (e: KeyboardEvent) => {
     if (e.currentTarget instanceof HTMLElement) {
       const tab = (e.currentTarget.getRootNode() as ShadowRoot)?.host as Tab;
       const vertical = this.vertical;
@@ -401,7 +400,7 @@ export default class Tabs
     }
   };
 
-  handleClickTab = (e: MouseEvent): void => {
+  handleClickTab = (e: MouseEvent) => {
     if (e.currentTarget instanceof HTMLElement) {
       const tab = (e.currentTarget.getRootNode() as ShadowRoot)?.host as Tab;
       this._activatingValue = tab.value;
@@ -409,10 +408,10 @@ export default class Tabs
     }
   };
 
-  protected setupTabs(children: Element[]): void {
+  protected setupTabs(children: Element[]) {
     this.unbindTabs();
     this._tabs = children.filter(
-      (el) => el.tagName.toLowerCase() === Tabs.dependencies.tab
+      (el) => el.tagName.toLowerCase() === this.selectors.tab
     ) as Tab[];
     this.bindTabs();
     this.updateTabs(false);

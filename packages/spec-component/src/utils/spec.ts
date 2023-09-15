@@ -1,18 +1,33 @@
 import { ComponentConfig } from "../types/ComponentConfig";
 import { ComponentSpec } from "../types/ComponentSpec";
+import { IStore } from "../types/IStore";
 
-const spec = <Props, State, Store>(
-  spec: ComponentConfig<Props, State, Store>
-): ComponentSpec<Props, State, Store> => {
+const spec = <
+  Props extends Record<string, unknown>,
+  State extends Record<string, unknown>,
+  Stores extends Record<string, IStore>,
+  Context extends Record<string, unknown>,
+  Selectors extends Record<string, null | string | string[]>
+>(
+  spec: ComponentConfig<Props, State, Stores, Context, Selectors>
+): ComponentSpec<Props, State, Stores, Context, Selectors> => {
   return {
     tag: spec.tag,
-    context: spec.context,
-    state: spec.state || (() => ({} as State)),
-    props: spec.props || ({} as Props),
-    html: (args: { props: Props; state: State; store?: Store }) =>
-      typeof spec.html === "string" ? spec.html || "" : spec.html?.(args) || "",
+    stores: spec.stores ?? ({} as Stores),
+    context: spec.context ?? (() => ({} as Context)),
+    state: spec.state ?? ({} as State),
+    props: spec.props ?? ({} as Props),
     css: typeof spec.css === "string" ? [spec.css] : spec.css || [],
-    shadowDOM: true,
+    html: (args: {
+      stores: Stores;
+      context: Context;
+      state: State;
+      props: Props;
+    }) =>
+      typeof spec.html === "string" ? spec.html || "" : spec.html?.(args) || "",
+    selectors: spec.selectors ?? ({} as Selectors),
+    shadowDOM: spec.shadowDOM ?? true,
+    updateStateEvent: spec.updateStateEvent ?? "update:state",
   };
 };
 

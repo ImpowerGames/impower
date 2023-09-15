@@ -1,3 +1,4 @@
+import { RefMap } from "../../../../spec-component/src/component";
 import SparkleElement from "../../core/sparkle-element";
 import { isFocusableElement } from "../../utils/isFocusableElement";
 import { navEndKey } from "../../utils/navEndKey";
@@ -15,11 +16,24 @@ export default class List extends SparkleElement {
   }
 
   override get html() {
-    return spec.html({ props: this.props, state: this.state });
+    return spec.html({
+      stores: this.stores,
+      context: this.context,
+      state: this.state,
+      props: this.props,
+    });
   }
 
   override get css() {
     return spec.css;
+  }
+
+  override get selectors() {
+    return spec.selectors;
+  }
+
+  override get ref() {
+    return super.ref as RefMap<typeof this.selectors>;
   }
 
   get focusableChildren(): HTMLElement[] {
@@ -36,11 +50,11 @@ export default class List extends SparkleElement {
     return [];
   }
 
-  override onConnected(): void {
+  override onConnected() {
     this.bindNavigation();
   }
 
-  override onDisconnected(): void {
+  override onDisconnected() {
     this.unbindNavigation();
   }
 
@@ -60,7 +74,7 @@ export default class List extends SparkleElement {
     });
   }
 
-  onKeyDown = (e: KeyboardEvent): void => {
+  onKeyDown = (e: KeyboardEvent) => {
     const target = e.currentTarget;
     if (target instanceof HTMLElement) {
       const dir = this.childLayout;
@@ -155,7 +169,7 @@ export default class List extends SparkleElement {
     }
   }
 
-  protected override onContentAssigned(children: Element[]): void {
+  protected override onContentAssigned(children: Element[]) {
     this.unbindNavigation();
     this.bindNavigation();
   }

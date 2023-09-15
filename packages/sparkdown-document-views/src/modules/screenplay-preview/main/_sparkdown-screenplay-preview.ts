@@ -4,7 +4,7 @@ import html from "./sparkdown-screenplay-preview.html";
 
 export default spec({
   tag: "sparkdown-screenplay-preview",
-  css,
   props: { scrollMargin: "" },
   html,
+  css,
 });

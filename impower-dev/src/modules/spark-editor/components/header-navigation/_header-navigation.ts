@@ -1,11 +1,16 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
-import WorkspaceContext from "../../workspace/WorkspaceContext";
+import workspace from "../../workspace/WorkspaceStore";
 import html from "./header-navigation.html";
 
 export default spec({
   tag: "se-header-navigation",
-  context: WorkspaceContext.instance,
-  css,
+  stores: { workspace },
   html,
+  selectors: {
+    doneButton: "",
+    previewButton: "",
+    syncButton: "",
+  } as const,
+  css,
 });
