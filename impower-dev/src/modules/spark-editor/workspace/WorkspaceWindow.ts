@@ -709,7 +709,7 @@ export default class WorkspaceWindow {
             localProjectContent != null && !localMetadata.synced;
           const localProjectFile = {
             id,
-            name: `${localProjectName}.pkg`,
+            name: `${localProjectName}.project`,
             text: localProjectContent,
             headRevisionId: localMetadata.headRevisionId,
             modifiedTime: localMetadata.modifiedTime,
