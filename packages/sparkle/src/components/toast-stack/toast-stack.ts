@@ -104,7 +104,7 @@ export default class ToastStack
     const template = this.getTemplate(type);
     const templateContent =
       template?.content?.cloneNode?.(true) ||
-      this.getElementByTag<Toast>(this.selectors.toast) ||
+      this.self.querySelector(this.selectors.toast) ||
       new Toast();
     const toast = this.root.appendChild(templateContent) as Toast;
     if (!toast) {

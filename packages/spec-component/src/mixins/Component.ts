@@ -360,34 +360,11 @@ const Component = <
       return emit(event, detail, this);
     }
 
-    getElementByTag<T extends HTMLElement>(name: string): T | null {
-      return this.self.querySelector<T>(name) || null;
-    }
-
     getElementById<T extends HTMLElement>(id: string): T | null {
       if (this.shadowRoot) {
         return (this.shadowRoot.getElementById(id) as T) || null;
       }
       return this.self.querySelector<T>(`#${id}`) || null;
-    }
-
-    getElementByClass<T extends HTMLElement>(name: string): T | null {
-      return this.self.querySelector<T>(`.${name}`) || null;
-    }
-
-    getElementByNameAttribute<T extends Element>(name: string): T | null {
-      return this.self.querySelector<T>(`[name=${name}]`) || null;
-    }
-
-    getElementsByNameAttribute<T extends Element>(name: string): T[] {
-      return Array.from(this.self.querySelectorAll<T>(`[name=${name}]`)) as T[];
-    }
-
-    getSlotByName<T extends HTMLSlotElement>(name?: string): T | null {
-      if (name) {
-        return this.self.querySelector(`slot[name=${name}]`) || null;
-      }
-      return this.self.querySelector(`slot:not([name])`) || null;
     }
   };
 

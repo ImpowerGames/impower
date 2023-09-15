@@ -204,16 +204,8 @@ export default class Router
     return [];
   }
 
-  get footerSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("footer");
-  }
-
-  get footerTemplatesSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("footer-templates");
-  }
-
   get footerTemplates(): HTMLTemplateElement[] {
-    const slot = this.footerTemplatesSlot;
+    const slot = this.ref.footerTemplatesSlot;
     if (slot) {
       const assignedElements = slot.assignedElements({ flatten: true });
       return assignedElements.filter(

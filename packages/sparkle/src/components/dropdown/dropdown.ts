@@ -125,10 +125,6 @@ export default class Dropdown
     return this.getStringAttribute(Popup.attrs.strategy) || "fixed";
   }
 
-  get optionsSlot(): HTMLSlotElement | null {
-    return this.getSlotByName("options");
-  }
-
   protected _options: Option[] = [];
   get options(): Option[] {
     return this._options;
@@ -179,8 +175,10 @@ export default class Dropdown
     if (this.open) {
       this.reposition();
     }
-    if (this.optionsSlot) {
-      this.setupOptions(this.optionsSlot.assignedElements({ flatten: true }));
+    if (this.ref.optionsSlot) {
+      this.setupOptions(
+        this.ref.optionsSlot.assignedElements({ flatten: true })
+      );
     }
   }
 

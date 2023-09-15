@@ -9,6 +9,7 @@ export default spec({
   selectors: {
     dialog: "dialog",
     option: "s-option",
+    optionsSlot: "slot[name=options]",
   } as const,
   css: [...sharedCSS, css],
 });

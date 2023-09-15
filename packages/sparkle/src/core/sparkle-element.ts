@@ -1839,7 +1839,7 @@ export default class SparkleElement
       ) as T[];
     }
     if (name) {
-      return this.getElementsByNameAttribute(name)?.flatMap(
+      return Array.from(this.self.querySelectorAll(`[name=${name}]`)).flatMap(
         (slot) => Array.from(slot?.childNodes || []) as T[]
       );
     }
@@ -1870,7 +1870,7 @@ export default class SparkleElement
         return this.appendChild(newNode)?.firstElementChild;
       } else {
         return (
-          this.getElementByNameAttribute(name)?.appendChild(newNode)
+          this.self.querySelector(`[name=${name}]`)?.appendChild(newNode)
             ?.firstElementChild || null
         );
       }

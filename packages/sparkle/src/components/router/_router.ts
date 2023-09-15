@@ -12,6 +12,7 @@ export default spec({
     newFade: ".new-fade",
     newTransform: ".new-transform",
     headerTemplatesSlot: "slot[name=header-templates]",
+    footerTemplatesSlot: "slot[name=footer-templates]",
   } as const,
   css: [...sharedCSS, css],
 });
