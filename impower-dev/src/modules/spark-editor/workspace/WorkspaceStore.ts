@@ -90,4 +90,6 @@ class WorkspaceStore extends Store({
   },
 } as WorkspaceCache) {}
 
-export default new WorkspaceStore();
+const workspace = new WorkspaceStore();
+
+export default workspace;
