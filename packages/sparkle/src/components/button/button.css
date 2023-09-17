@@ -188,7 +188,6 @@
   color: var(--text-color);
   filter: var(--shadow);
   background-color: var(--background-color);
-  min-height: 0;
 }
 
 /* Icon */

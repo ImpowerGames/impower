@@ -796,7 +796,30 @@ export default class WorkspaceWindow {
         syncState: canModifyRemote ? "synced" : "cached",
       },
     });
-    return remoteProjectFile;
+  }
+
+  async pushAndResolveConflict() {
+    const id = this.store.project.id;
+    if (id) {
+      const files = await Workspace.fs.getFiles();
+      // TODO: Bundle scripts before saving
+      const filename = "main.script";
+      const uri = Workspace.fs.getFileUri(id, filename);
+      const localProjectData = files[uri];
+      const localProjectName = await Workspace.fs.readProjectName(id);
+      const localMetadata = await Workspace.fs.readProjectMetadata(id);
+      const localProjectContent = localProjectData?.text;
+      const localProjectFile = {
+        id,
+        name: `${localProjectName}.project`,
+        text: localProjectContent,
+        headRevisionId: localMetadata.headRevisionId,
+        modifiedTime: localMetadata.modifiedTime,
+      };
+      if (localProjectFile) {
+        return this.pushLocalChanges(localProjectFile);
+      }
+    }
   }
 
   async pullRemoteChanges(
@@ -826,6 +849,16 @@ export default class WorkspaceWindow {
         pulledAt: new Date().toISOString(),
       },
     });
+  }
+
+  async pullAndResolveConflict() {
+    const id = this.store.project.id;
+    if (id) {
+      const remoteProjectFile = await Workspace.sync.google.getFile(id);
+      if (remoteProjectFile) {
+        return this.pullRemoteChanges(remoteProjectFile);
+      }
+    }
   }
 
   async requireConflictResolution(

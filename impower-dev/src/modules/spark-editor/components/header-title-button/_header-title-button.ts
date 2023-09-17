@@ -18,6 +18,7 @@ export default spec({
       <s-button
         id="nameButton"
         variant="text"
+        height-min="0"
         text-overflow="ellipsis"
         text-align="left"
         text-size="lg"

@@ -101,6 +101,7 @@
   flex-direction: column;
   align-self: flex-start;
   gap: var(--child-gap);
+  padding-block-end: 8px;
 }
 :host([icon]) > .root > .form > .header {
   align-items: center;
@@ -136,7 +137,6 @@
   align-items: center;
   justify-content: flex-end;
   gap: var(--child-gap);
-  padding-block-start: 8px;
 }
 
 :host > .root > .form > .header > .label {
@@ -156,6 +156,7 @@
   flex-wrap: wrap;
   padding-inline-start: 0;
   gap: 8px;
+  margin: 0;
 }
 :host > .root > .form > .footer > .menu:only-child {
   margin-inline-start: auto;

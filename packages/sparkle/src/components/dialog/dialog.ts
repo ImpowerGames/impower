@@ -204,8 +204,8 @@ export default class Dialog
     }
     this.ref.dialog.addEventListener("click", this.handleLightDismiss);
     this.ref.dialog.addEventListener("cancel", this.handleCancel);
-    this.ref.cancel.addEventListener("click", this.handleClickClose);
-    this.ref.confirm.addEventListener("click", this.handleClickClose);
+    this.ref.cancel.addEventListener("click", this.handleClickCancelButton);
+    this.ref.confirm.addEventListener("click", this.handleClickConfirmButton);
     if (this.shadowRoot) {
       this.ref.labelSlot.addEventListener(
         "slotchange",
@@ -245,8 +245,11 @@ export default class Dialog
   override onDisconnected() {
     this.ref.dialog.removeEventListener("click", this.handleLightDismiss);
     this.ref.dialog.removeEventListener("cancel", this.handleCancel);
-    this.ref.cancel.removeEventListener("click", this.handleClickClose);
-    this.ref.confirm.removeEventListener("click", this.handleClickClose);
+    this.ref.cancel.removeEventListener("click", this.handleClickCancelButton);
+    this.ref.confirm.removeEventListener(
+      "click",
+      this.handleClickConfirmButton
+    );
     if (this.shadowRoot) {
       this.ref.labelSlot.removeEventListener(
         "slotchange",
@@ -350,13 +353,18 @@ export default class Dialog
   ): Promise<string | undefined> {
     this.ref.dialog.inert = true;
     this.open = false;
-    this.emit(CLOSING_EVENT);
+    this.emit(CLOSING_EVENT, returnValue);
 
     await animationsComplete(this.root);
 
     this.ref.dialog.close();
 
-    this.emit(CLOSED_EVENT);
+    this.emit(CLOSED_EVENT, returnValue);
+
+    if (returnValue) {
+      this.emit(returnValue);
+    }
+
     return returnValue;
   }
 
@@ -366,13 +374,18 @@ export default class Dialog
     return this.animateClose("cancel");
   };
 
-  protected handleClickClose = async (
+  protected handleClickCancelButton = async (
     e: Event
   ): Promise<string | undefined> => {
     e.stopPropagation();
-    const button = e.currentTarget as HTMLButtonElement;
-    const returnValue = button?.getAttribute?.("id") ?? "";
-    return this.animateClose(returnValue);
+    return this.animateClose("cancel");
+  };
+
+  protected handleClickConfirmButton = async (
+    e: Event
+  ): Promise<string | undefined> => {
+    e.stopPropagation();
+    return this.animateClose("confirm");
   };
 
   /**

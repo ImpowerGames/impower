@@ -8,11 +8,60 @@
   <s-icon icon="arrow-down" size="20" m-b="1"></s-icon>
   PULL
 </s-button>
-<!-- <s-dialog id="pushDialog" label="Overwrite remote file with local changes?" cancel="Cancel"
-  confirm="Yes, overwrite remote" open>
-  This action is irreversible!
-</s-dialog> -->
-<!-- <s-dialog id="pullDialog" label="Overwrite local changes with remote file?" cancel="Cancel"
-  confirm="Yes, overwrite local" open>
-  This action is irreversible!
-</s-dialog> -->
+<s-dialog id="pushDialog" label="Push and overwrite remote file?" cancel="Cancel" confirm="Yes, overwrite remote file">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+    style="color: var(--s-color-surface);fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g>
+      <path fill="#fff"
+        d="M 10.357 6.363 l -5.809 4.977 c -1.063 0.911 -1.063 2.409 0 3.32 c 0 0 5.809 4.977 5.809 4.977 c 0.901 0.772 2.385 0.772 3.286 0 c 0 0 5.809 -4.977 5.809 -4.977 c 1.063 -0.911 1.063 -2.409 0 -3.32 c 0 0 -5.809 -4.977 -5.809 -4.977 c -0.901 -0.772 -2.385 -0.772 -3.286 0 Z" />
+      <path fill="#fff"
+        d="M 10.764 6.838 l -5.809 4.976 c -0.759 0.651 -0.759 1.721 0 2.372 l 5.809 4.976 c 0.678 0.581 1.794 0.581 2.472 0 c 0 0 5.809 -4.976 5.809 -4.976 c 0.759 -0.651 0.759 -1.721 0 -2.372 c 0 0 -5.809 -4.976 -5.809 -4.976 c -0.678 -0.581 -1.794 -0.581 -2.472 0 Z" />
+      <animateTransform attributeName="transform" begin="0s" dur="1.5s" type="translate" repeatCount="indefinite"
+        fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" values="0,0; 0,-4; 0,0" />
+    </g>
+    <g>
+      <path fill="#fff"
+        d="M 10.357 2.363 l -5.809 4.977 c -1.063 0.911 -1.063 2.409 0 3.32 c 0 0 5.809 4.977 5.809 4.977 c 0.901 0.772 2.385 0.772 3.286 0 c 0 0 5.809 -4.977 5.809 -4.977 c 1.063 -0.911 1.063 -2.409 0 -3.32 c 0 0 -5.809 -4.977 -5.809 -4.977 c -0.901 -0.772 -2.385 -0.772 -3.286 0 Z" />
+      <path fill="currentColor"
+        d="M 10.764 2.838 l -5.809 4.976 c -0.759 0.651 -0.759 1.721 0 2.372 l 5.809 4.976 c 0.678 0.581 1.794 0.581 2.472 0 c 0 0 5.809 -4.976 5.809 -4.976 c 0.759 -0.651 0.759 -1.721 0 -2.372 c 0 0 -5.809 -4.976 -5.809 -4.976 c -0.678 -0.581 -1.794 -0.581 -2.472 0 Z" />
+      <path fill="#fff"
+        d="M 9.948 7.038 c 0.431 -0.644 1.159 -1.046 1.915 -1.053 c 0.6 -0.006 1.147 0.235 1.518 0.654 l 0.046 0.055 l 0.024 -0.019 c 0.625 -0.464 1.504 -0.373 2.026 0.208 l 0.046 0.055 c 0.515 0.629 0.442 1.547 -0.154 2.083 l -0.054 0.046 l -3.108 2.541 l -0.06 0.045 c -0.793 0.6 -1.904 0.51 -2.546 -0.215 l -0.048 -0.056 c -0.588 -0.718 -0.528 -1.755 0.093 -2.44 l 0.026 -0.029 l -0.02 -0.062 c -0.173 -0.566 -0.084 -1.2 0.249 -1.74 l 0.047 -0.073 Z" />
+      <animate attributeName="opacity" dur="1.5s" values="1; 1; 1; 1; 0.75; 0.5; 0.25; 0; 0.5; 1; 1; 1"
+        repeatCount="indefinite" />
+    </g>
+  </svg>
+  <s-box>
+    This will overwrite the remote file with your local changes.
+  </s-box>
+  <s-box text-color="fg-60">
+    (This action is irreversible!)
+  </s-box>
+</s-dialog>
+<s-dialog id="pullDialog" label="Pull and overwrite local changes?" cancel="Cancel" confirm="Yes, overwrite my changes">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+    style="color: var(--s-color-surface);fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g>
+      <path fill="#fff"
+        d="M 10.357 6.363 l -5.809 4.977 c -1.063 0.911 -1.063 2.409 0 3.32 c 0 0 5.809 4.977 5.809 4.977 c 0.901 0.772 2.385 0.772 3.286 0 c 0 0 5.809 -4.977 5.809 -4.977 c 1.063 -0.911 1.063 -2.409 0 -3.32 c 0 0 -5.809 -4.977 -5.809 -4.977 c -0.901 -0.772 -2.385 -0.772 -3.286 0 Z" />
+      <path fill="currentColor" opacity="1"
+        d="M 10.764 6.838 l -5.809 4.976 c -0.759 0.651 -0.759 1.721 0 2.372 l 5.809 4.976 c 0.678 0.581 1.794 0.581 2.472 0 c 0 0 5.809 -4.976 5.809 -4.976 c 0.759 -0.651 0.759 -1.721 0 -2.372 c 0 0 -5.809 -4.976 -5.809 -4.976 c -0.678 -0.581 -1.794 -0.581 -2.472 0 Z">
+        <animate attributeName="opacity" dur="1.5s" values="1; 1; 1; 1; 1; 1; 1; 0; 0.5; 1; 1; 1"
+          repeatCount="indefinite" />
+      </path>
+    </g>
+    <g>
+      <path fill="#fff"
+        d="M 10.357 2.363 l -5.809 4.977 c -1.063 0.911 -1.063 2.409 0 3.32 c 0 0 5.809 4.977 5.809 4.977 c 0.901 0.772 2.385 0.772 3.286 0 c 0 0 5.809 -4.977 5.809 -4.977 c 1.063 -0.911 1.063 -2.409 0 -3.32 c 0 0 -5.809 -4.977 -5.809 -4.977 c -0.901 -0.772 -2.385 -0.772 -3.286 0 Z" />
+      <path fill="currentColor"
+        d="M 9.948 7.038 c 0.431 -0.644 1.159 -1.046 1.915 -1.053 c 0.6 -0.006 1.147 0.235 1.518 0.654 l 0.046 0.055 l 0.024 -0.019 c 0.625 -0.464 1.504 -0.373 2.026 0.208 l 0.046 0.055 c 0.515 0.629 0.442 1.547 -0.154 2.083 l -0.054 0.046 l -3.108 2.541 l -0.06 0.045 c -0.793 0.6 -1.904 0.51 -2.546 -0.215 l -0.048 -0.056 c -0.588 -0.718 -0.528 -1.755 0.093 -2.44 l 0.026 -0.029 l -0.02 -0.062 c -0.173 -0.566 -0.084 -1.2 0.249 -1.74 l 0.047 -0.073 Z" />
+      <animateTransform attributeName="transform" begin="0s" dur="1.5s" type="translate" repeatCount="indefinite"
+        fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1; 0.4 0 0.2 1" values="0,0; 0,4; 0,0" />
+    </g>
+  </svg>
+  <s-box>
+    This will overwrite your local file changes with the contents of the remote project file.
+  </s-box>
+  <s-box text-color="fg-60">
+    (This action is irreversible!)
+  </s-box>
+</s-dialog>
