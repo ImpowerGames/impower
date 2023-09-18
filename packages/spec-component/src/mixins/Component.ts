@@ -30,7 +30,12 @@ const Component = <
   const cls = class CustomElement extends Base {
     #initialized = false;
 
-    #html?: string;
+    #html = spec.html({
+      stores: spec.stores,
+      context: spec.context(spec.stores),
+      state: spec.state,
+      props: spec.props,
+    });
 
     #renderFrameHandle = 0;
 
@@ -191,8 +196,9 @@ const Component = <
       newValue: string
     ): void {
       if (newValue !== oldValue) {
-        if (this.onAttributeChanged(name, newValue)) {
-          this.render();
+        this.onAttributeChanged(name, newValue);
+        if (this.shouldAttributeTriggerUpdate(name, oldValue, newValue)) {
+          this.update();
         }
       }
     }
@@ -200,10 +206,19 @@ const Component = <
     /**
      * Invoked each time one of the element's attributes is added, removed, or changed.
      * Which attributes to notice change for is specified in a static get observedAttributes method
-     *
-     * @returns true if the change should trigger a re-render, or false otherwise. Defaults to false.
      */
-    onAttributeChanged(name: string, newValue: string): void | boolean {}
+    onAttributeChanged(name: string, newValue: string): void {}
+
+    /**
+     * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to false.
+     */
+    shouldAttributeTriggerUpdate(
+      name: string,
+      oldValue: string,
+      newValue: string
+    ): boolean {
+      return false;
+    }
 
     /**
      * The callback that is invoked each time the custom element is appended into a document-connected element.
@@ -272,13 +287,14 @@ const Component = <
         this.onStoreUpdate();
         const oldContext = this.#context;
         const newContext = this.reduce(this.stores);
+        this.#context = newContext;
         const changed = Object.entries(newContext).some(
           ([k, v]) => v !== oldContext[k]
         );
-        this.#context = newContext;
         if (changed) {
-          if (this.onContextChanged(oldContext, newContext)) {
-            this.render();
+          this.onContextChanged(oldContext, newContext);
+          if (this.shouldContextTriggerUpdate(oldContext, newContext)) {
+            this.update();
           }
         }
       }
@@ -291,18 +307,26 @@ const Component = <
 
     /**
      * Invoked when the component's context has been updated.
-     *
-     * @returns true if the change should trigger a re-render, or false otherwise. Defaults to true.
+    
      */
-    onContextChanged(oldContext: Context, newContext: Context): void | boolean {
+    onContextChanged(oldContext: Context, newContext: Context): void {}
+
+    /**
+     * @returns true if the attribute change should trigger a re-render, or false otherwise. Defaults to false.
+     */
+    shouldContextTriggerUpdate(
+      oldContext: Context,
+      newContext: Context
+    ): boolean {
       return true;
     }
 
     #handleStateUpdate = (e: Event): void => {
       if (e.target === this) {
         if (e instanceof CustomEvent) {
-          if (this.onStateChanged()) {
-            this.render();
+          this.onStateChanged();
+          if (this.shouldStateTriggerUpdate()) {
+            this.update();
           }
         }
       }
@@ -310,10 +334,13 @@ const Component = <
 
     /**
      * Invoked when the component's state has been updated.
-     *
+     */
+    onStateChanged(): void {}
+
+    /**
      * @returns true if the change should trigger a re-render, or false otherwise. Defaults to true.
      */
-    onStateChanged(): void | boolean {
+    shouldStateTriggerUpdate(): boolean {
       return true;
     }
 
@@ -321,29 +348,33 @@ const Component = <
      * Re-renders the component if it has changed.
      * (Debounced so that updates can be batched, and the component will render at most once per frame.)
      */
-    render() {
+    update() {
       if (this.#renderFrameHandle) {
         window.cancelAnimationFrame(this.#renderFrameHandle);
       }
       this.#renderFrameHandle = window.requestAnimationFrame(
-        this.#render.bind(this)
+        this.#update.bind(this)
       );
     }
 
-    #render() {
+    #update() {
       const innerHTML = this.html;
       if (innerHTML !== this.#html) {
         this.#html = innerHTML;
-        this.disconnectedCallback();
-        if (this.shadowRoot) {
-          this.shadowRoot.innerHTML = innerHTML;
-        } else {
-          this.innerHTML = innerHTML;
-        }
-        this.#ref = this.getRefMap(this.selectors);
-        this.connectedCallback();
-        this.onRender();
+        this.render();
       }
+    }
+
+    render() {
+      this.disconnectedCallback();
+      if (this.shadowRoot) {
+        this.shadowRoot.innerHTML = this.#html;
+      } else {
+        this.innerHTML = this.#html;
+      }
+      this.#ref = this.getRefMap(this.selectors);
+      this.connectedCallback();
+      this.onRender();
     }
 
     /**

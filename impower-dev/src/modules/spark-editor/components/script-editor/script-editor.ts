@@ -73,6 +73,15 @@ export default class ScriptEditor extends Component(spec) {
     }
   };
 
+  override onContextChanged(
+    oldContext: { pulledAt: string },
+    newContext: { pulledAt: string }
+  ) {
+    if (oldContext.pulledAt !== newContext.pulledAt) {
+      this.render();
+    }
+  }
+
   async loadFile() {
     const filename = this.filename || "main.script";
     const editor = await Workspace.window.getActiveEditor(filename);

@@ -29,6 +29,15 @@ export default class PreviewScreenplay extends Component(spec) {
     }
   };
 
+  override onContextChanged(
+    oldContext: { pulledAt: string },
+    newContext: { pulledAt: string }
+  ) {
+    if (oldContext.pulledAt !== newContext.pulledAt) {
+      this.render();
+    }
+  }
+
   async loadFile() {
     const editor = await Workspace.window.getOpenEditor("logic");
     if (editor) {

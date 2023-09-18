@@ -155,7 +155,7 @@ export default class Collapsible
 
   override onAttributeChanged(name: string, newValue: string) {
     if (name === Collapsible.attrs.collapsed) {
-      this.update(true);
+      this.updateState(true);
       if (newValue === "scrolled") {
         const sentinelEl = this.sentinelEl;
         if (sentinelEl) {
@@ -172,7 +172,7 @@ export default class Collapsible
   }
 
   override onParsed() {
-    this.measure().then(() => this.update(false));
+    this.measure().then(() => this.updateState(false));
     if (this.collapsed === "scrolled") {
       const sentinelEl = this.sentinelEl;
       if (sentinelEl) {
@@ -241,7 +241,7 @@ export default class Collapsible
     }
   }
 
-  protected update(animated: boolean) {
+  protected updateState(animated: boolean) {
     if (this.collapsed === "") {
       this.collapse(animated);
     } else {
@@ -550,7 +550,7 @@ export default class Collapsible
       ?.firstElementChild as HTMLElement;
     if (this._buttonEl !== targetEl) {
       this._buttonEl = targetEl;
-      this.update(false);
+      this.updateState(false);
     }
   }
 
