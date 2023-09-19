@@ -227,10 +227,15 @@ export default class WorkspaceFileSystem {
     if (mainFile?.text != null) {
       content += `${mainFile.text}`;
     }
-    Object.entries(files)
-      .sort(([aUri], [bUri]) => (aUri > bUri ? 1 : -1))
-      .forEach(([uri, file]) => {
-        if (uri !== mainScriptUri) {
+    const cmp = (a: any, b: any) => {
+      if (a > b) return +1;
+      if (a < b) return -1;
+      return 0;
+    };
+    Object.values(files)
+      .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
+      .forEach((file) => {
+        if (file.uri !== mainScriptUri) {
           if (file.text != null && file.name) {
             content += `\n\n% ${file.name}.${file.ext} %`;
             content += `\n\n${file.text}`;
