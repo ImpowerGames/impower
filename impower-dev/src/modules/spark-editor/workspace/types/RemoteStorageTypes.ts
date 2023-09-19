@@ -1,4 +1,4 @@
-export namespace Storage {
+export namespace RemoteStorage {
   export interface About {
     /** Whether the user has installed the requesting app. */
     appInstalled?: boolean;

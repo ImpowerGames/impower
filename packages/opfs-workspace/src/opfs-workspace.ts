@@ -124,16 +124,65 @@ onmessage = async (e) => {
       }
     }
     postMessage(WillWriteFileMessage.type.response(message.id, fileData));
+    postMessage(DidWriteFileMessage.type.notification({ file: fileData }));
+    postMessage(
+      DidChangeWatchedFilesMessage.type.notification({
+        changes: [
+          {
+            uri: fileData.uri,
+            type: FileChangeType.Changed,
+          },
+        ],
+      })
+    );
   }
   if (WillCreateFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
     const result = await createFiles(files);
-    postMessage(WillCreateFilesMessage.type.response(message.id, result));
+    const fileDataArray = result.map((r) => r.data);
+    postMessage(
+      WillCreateFilesMessage.type.response(message.id, fileDataArray)
+    );
+    const createdResult = result.filter((r) => r.created);
+    const changedResult = result.filter((r) => !r.created);
+    if (createdResult.length > 0) {
+      postMessage(
+        DidCreateFilesMessage.type.notification({
+          files: createdResult.map((r) => ({
+            uri: r.data.uri,
+          })),
+        })
+      );
+    }
+    if (changedResult.length > 0) {
+      changedResult.forEach((change) => {
+        postMessage(
+          DidWriteFileMessage.type.notification({ file: change.data })
+        );
+      });
+    }
+    postMessage(
+      DidChangeWatchedFilesMessage.type.notification({
+        changes: result.map((r) => ({
+          uri: r.data.uri,
+          type: r.created ? FileChangeType.Created : FileChangeType.Changed,
+        })),
+      })
+    );
   }
   if (WillDeleteFilesMessage.type.isRequest(message)) {
     const { files } = message.params;
     await deleteFiles(files);
     postMessage(WillDeleteFilesMessage.type.response(message.id, null));
+    postMessage(DidDeleteFilesMessage.type.notification({ files }));
+    postMessage(
+      DidChangeWatchedFilesMessage.type.notification({
+        changes: files.map((file) => ({
+          uri: file.uri,
+          type: FileChangeType.Deleted,
+        })),
+      })
+    );
   }
 };
 
@@ -240,7 +289,6 @@ const write = async (fileUri: string) => {
   });
   queued.listeners = [];
   console.log(MAGENTA, "WRITE", fileUri);
-  postMessage(DidWriteFileMessage.type.notification({ file: data }));
 };
 
 const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
@@ -250,23 +298,7 @@ const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
       return enqueueWrite(file.uri, 0, buffer);
     })
   );
-  const createdResult = result.filter((r) => r.created);
-  postMessage(
-    DidCreateFilesMessage.type.notification({
-      files: createdResult.map((r) => ({
-        uri: r.data.uri,
-      })),
-    })
-  );
-  postMessage(
-    DidChangeWatchedFilesMessage.type.notification({
-      changes: result.map((r) => ({
-        uri: r.data.uri,
-        type: r.created ? FileChangeType.Created : FileChangeType.Changed,
-      })),
-    })
-  );
-  return result.map((r) => r.data);
+  return result;
 };
 
 const deleteFiles = async (files: { uri: string }[]) => {
@@ -286,15 +318,6 @@ const deleteFiles = async (files: { uri: string }[]) => {
         delete State.files[file.uri];
         console.log(MAGENTA, "DELETE", file.uri);
       }
-    })
-  );
-  postMessage(DidDeleteFilesMessage.type.notification({ files }));
-  postMessage(
-    DidChangeWatchedFilesMessage.type.notification({
-      changes: files.map((file) => ({
-        uri: file.uri,
-        type: FileChangeType.Deleted,
-      })),
     })
   );
 };

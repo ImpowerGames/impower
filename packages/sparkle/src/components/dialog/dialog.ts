@@ -26,6 +26,7 @@ const DEFAULT_TRANSFORMERS = {
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
   ...getAttributeNameMap([
+    "loading",
     "open",
     "dismissable",
     "label",
@@ -73,6 +74,16 @@ export default class Dialog
 
   override get transformers() {
     return DEFAULT_TRANSFORMERS;
+  }
+
+  /**
+   * Whether or not the confirm button should be replaced with a loading spinner.
+   */
+  get loading(): boolean {
+    return this.getBooleanAttribute(Dialog.attrs.loading);
+  }
+  set loading(value: boolean) {
+    this.setBooleanAttribute(Dialog.attrs.loading, value);
   }
 
   /**
@@ -177,6 +188,13 @@ export default class Dialog
       const confirmButton = this.ref.confirm;
       if (confirmButton) {
         confirmButton.hidden = confirm == null;
+      }
+    }
+    if (name === Dialog.attrs.loading) {
+      if (newValue != null) {
+        this.ref.confirm.setAttribute("loading", "");
+      } else {
+        this.ref.confirm.removeAttribute("loading");
       }
     }
   }

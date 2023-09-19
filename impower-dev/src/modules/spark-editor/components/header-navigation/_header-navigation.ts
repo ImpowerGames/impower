@@ -10,6 +10,7 @@ export default spec({
   selectors: {
     doneButton: "",
     previewButton: "",
+    mobileToolbar: "",
   } as const,
   css,
 });

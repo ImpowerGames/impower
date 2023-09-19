@@ -144,18 +144,14 @@ export default class FileList extends Component(spec) {
   }
 
   getState() {
-    const store = this.stores.workspace.current;
-    const syncState = store?.project?.syncState;
-    if (syncState !== "syncing") {
-      if (this._dragging && this.accept) {
-        return "dragover";
-      }
-      if (this._uris && this._uris.length > 0) {
-        return "list";
-      }
-      if (this._uris && this._uris.length === 0) {
-        return "empty";
-      }
+    if (this._dragging && this.accept) {
+      return "dragover";
+    }
+    if (this._uris && this._uris.length > 0) {
+      return "list";
+    }
+    if (this._uris && this._uris.length === 0) {
+      return "empty";
     }
     return null;
   }

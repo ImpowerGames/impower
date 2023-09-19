@@ -2,7 +2,7 @@ import loadScript from "../../utils/loadScript";
 import SingletonPromise from "../SingletonPromise";
 import { AccessInfo } from "../types/AccessInfo";
 import { AccountInfo } from "../types/AccountInfo";
-import { Storage } from "../types/StorageTypes";
+import { RemoteStorage } from "../types/RemoteStorageTypes";
 import sendServerRequest from "../utils/sendServerRequest";
 
 // setQuery is missing from DocsView definition. Must be declared manually
@@ -326,7 +326,7 @@ export default class GoogleDriveSyncProvider {
   }
 
   async getFile(fileId: string) {
-    const result = await this.request<Storage.File & { text?: string }>(
+    const result = await this.request<RemoteStorage.File & { text?: string }>(
       "GET",
       `/api/storage/file/${fileId}`
     );
@@ -336,7 +336,7 @@ export default class GoogleDriveSyncProvider {
   protected async createFile(folderId: string, blob: Blob) {
     const formData = new FormData();
     formData.append("file", blob);
-    return this.request<Storage.File>(
+    return this.request<RemoteStorage.File>(
       "POST",
       `/api/storage/file/${folderId}`,
       formData
@@ -346,7 +346,7 @@ export default class GoogleDriveSyncProvider {
   protected async updateFile(fileId: string, blob: Blob) {
     const formData = new FormData();
     formData.append("file", blob);
-    return this.request<Storage.File>(
+    return this.request<RemoteStorage.File>(
       "PUT",
       `/api/storage/file/${fileId}`,
       formData

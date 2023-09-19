@@ -29,6 +29,10 @@ import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 
+const CHUNK_SPLITTER_REGEX = /(^[ \t]*[%][^%]+[%][ \t]*$)/gm;
+
+const CHUNK_FILENAME_REGEX = /^[ \t]*[%]([^%]+)[%][ \t]*$/;
+
 export default class WorkspaceFileSystem {
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
 
@@ -42,6 +46,8 @@ export default class WorkspaceFileSystem {
   get scheme() {
     return this._scheme;
   }
+
+  protected _projectId?: string;
 
   protected _files?: Record<string, FileData>;
 
@@ -57,6 +63,7 @@ export default class WorkspaceFileSystem {
     const connection = await Workspace.lsp.getConnection();
     const projectId =
       workspace.current.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
+    this._projectId = projectId;
     const directoryUri = this.getDirectoryUri(projectId);
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
@@ -209,19 +216,57 @@ export default class WorkspaceFileSystem {
   }
 
   async readProjectContent(projectId: string) {
-    // TODO: Bundle OPFS chunk files into project content before creating blob
-    const uri = this.getFileUri(projectId, "main.script");
+    return this.bundleProjectContent(projectId);
+  }
+
+  async bundleProjectContent(projectId: string): Promise<string> {
     const files = await this.getFiles();
-    const file = files[uri];
-    return file?.text || "";
+    const mainScriptUri = this.getFileUri(projectId, "main.script");
+    const mainFile = files[mainScriptUri];
+    let content = "";
+    if (mainFile?.text != null) {
+      content += `${mainFile.text}`;
+    }
+    Object.entries(files)
+      .sort(([aUri], [bUri]) => (aUri > bUri ? 1 : -1))
+      .forEach(([uri, file]) => {
+        if (uri !== mainScriptUri) {
+          if (file.text != null && file.name) {
+            content += `\n\n% ${file.name}.${file.ext} %`;
+            content += `\n\n${file.text}`;
+          }
+        }
+      });
+    return content.trim();
   }
 
   async writeProjectContent(projectId: string, text: string) {
-    // TODO: Split project content into chunk files before caching in OPFS
-    const uri = this.getFileUri(projectId, "main.script");
-    await Workspace.fs.writeTextDocument({
-      textDocument: { uri, version: 0, text },
+    const chunks = this.splitProjectContent(projectId, text);
+    await Promise.all(
+      Object.entries(chunks).map(([uri, text]) =>
+        Workspace.fs.writeTextDocument({
+          textDocument: { uri, version: 0, text },
+        })
+      )
+    );
+  }
+
+  splitProjectContent(projectId: string, text: string): Record<string, string> {
+    const chunks: Record<string, string> = {};
+    let filename = "";
+    text.split(CHUNK_SPLITTER_REGEX).forEach((content, index) => {
+      const isEvenIndex = index % 2 === 0;
+      if (isEvenIndex) {
+        const uri = filename
+          ? this.getFileUri(projectId, filename)
+          : this.getFileUri(projectId, "main.script");
+        chunks[uri] = content.trim();
+      } else {
+        const match = content.match(CHUNK_FILENAME_REGEX);
+        filename = match?.[1]?.trim() || "";
+      }
     });
+    return chunks;
   }
 
   async createFiles(params: WillCreateFilesParams) {

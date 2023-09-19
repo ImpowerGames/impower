@@ -31,11 +31,30 @@ export default class HeaderSyncConflictToolbar extends Component(spec) {
     this.ref.pushDialog.setAttribute("open", "");
   };
 
-  handleConfirmPull = () => {
-    Workspace.window.pullAndResolveConflict();
+  handleConfirmPull = async () => {
+    const projectId = this.stores.workspace.current.project.id ?? "";
+    if (projectId) {
+      const remoteProjectFile = await Workspace.sync.google.getFile(projectId);
+      await Workspace.window.pullRemoteChanges(remoteProjectFile);
+    }
   };
 
-  handleConfirmPush = () => {
-    Workspace.window.pushAndResolveConflict();
+  handleConfirmPush = async () => {
+    const projectId = this.stores.workspace.current.project.id ?? "";
+    if (projectId) {
+      const localMetadata = await Workspace.fs.readProjectMetadata(projectId);
+      const localProjectName = await Workspace.fs.readProjectName(projectId);
+      const localProjectContent = await Workspace.fs.readProjectContent(
+        projectId
+      );
+      const localProjectFile = {
+        id: projectId,
+        name: `${localProjectName}.project`,
+        text: localProjectContent,
+        headRevisionId: localMetadata.headRevisionId,
+        modifiedTime: localMetadata.modifiedTime,
+      };
+      Workspace.window.pushLocalChanges(localProjectFile);
+    }
   };
 }

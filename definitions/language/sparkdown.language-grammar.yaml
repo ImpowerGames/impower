@@ -6,6 +6,7 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 
 patterns:
   - { include: "#Comment" }
+  - { include: "#Chunk" }
   - { include: "#Image" }
   - { include: "#Audio" }
   - { include: "#PageBreak" }
@@ -38,10 +39,25 @@ repository:
     captures:
       1:
         tag: definition(lineComment)
-        name: comment.line.double-slash.sd
+        name: comment.line.double-percent.sd
       2:
         tag: lineComment
         name: comment.line.content.sd
+
+  Chunk:
+    tag: lineComment
+    name: entity.comment.sd
+    match: ^([ \t]*)([%])([^%]+)([%])([ \t]*)$
+    captures:
+      2:
+        tag: definition(lineComment)
+        name: comment.line.percent.sd
+      3:
+        tag: lineComment
+        name: comment.line.content.sd
+      4:
+        tag: definition(lineComment)
+        name: comment.line.percent.sd
 
   Image:
     tag: macroName

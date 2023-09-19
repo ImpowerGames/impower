@@ -25,7 +25,7 @@ import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
-import { Storage } from "./types/StorageTypes";
+import { RemoteStorage } from "./types/RemoteStorageTypes";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -691,20 +691,15 @@ export default class WorkspaceWindow {
             syncState: "syncing",
           },
         });
-        const files = await Workspace.fs.getFiles();
-        // TODO: Bundle scripts before saving
-        const filename = "main.script";
-        const uri = Workspace.fs.getFileUri(id, filename);
-        const localProjectData = files[uri];
         const remoteProjectFile = await Workspace.sync.google.getFile(id);
         if (remoteProjectFile) {
-          const localProjectName = await Workspace.fs.readProjectName(id);
           const localMetadata = await Workspace.fs.readProjectMetadata(id);
+          const localProjectName = await Workspace.fs.readProjectName(id);
+          const localProjectContent = await Workspace.fs.readProjectContent(id);
           const remoteProjectContent = remoteProjectFile.text;
           const remoteChanged =
             remoteProjectContent != null &&
             remoteProjectFile.headRevisionId !== localMetadata.headRevisionId;
-          const localProjectContent = localProjectData?.text;
           const localChanged =
             localProjectContent != null && !localMetadata.synced;
           const localProjectFile = {
@@ -767,7 +762,7 @@ export default class WorkspaceWindow {
   }
 
   async pushLocalChanges(
-    localProjectFile: Storage.File & {
+    localProjectFile: RemoteStorage.File & {
       text?: string | undefined;
     }
   ) {
@@ -798,38 +793,14 @@ export default class WorkspaceWindow {
     });
   }
 
-  async pushAndResolveConflict() {
-    const id = this.store.project.id;
-    if (id) {
-      const files = await Workspace.fs.getFiles();
-      // TODO: Bundle scripts before saving
-      const filename = "main.script";
-      const uri = Workspace.fs.getFileUri(id, filename);
-      const localProjectData = files[uri];
-      const localProjectName = await Workspace.fs.readProjectName(id);
-      const localMetadata = await Workspace.fs.readProjectMetadata(id);
-      const localProjectContent = localProjectData?.text;
-      const localProjectFile = {
-        id,
-        name: `${localProjectName}.project`,
-        text: localProjectContent,
-        headRevisionId: localMetadata.headRevisionId,
-        modifiedTime: localMetadata.modifiedTime,
-      };
-      if (localProjectFile) {
-        return this.pushLocalChanges(localProjectFile);
-      }
-    }
-  }
-
   async pullRemoteChanges(
-    remoteProjectFile: Storage.File & {
+    remoteProjectFile: RemoteStorage.File & {
       text?: string | undefined;
     }
   ) {
     const id = remoteProjectFile.id!;
-    await Workspace.fs.writeProjectContent(id, remoteProjectFile.text || "");
     const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
+    await Workspace.fs.writeProjectContent(id, remoteProjectFile.text || "");
     await Workspace.fs.writeProjectName(id, remoteProjectName);
     await Workspace.fs.writeProjectMetadata(id, {
       headRevisionId: remoteProjectFile.headRevisionId!,
@@ -851,21 +822,11 @@ export default class WorkspaceWindow {
     });
   }
 
-  async pullAndResolveConflict() {
-    const id = this.store.project.id;
-    if (id) {
-      const remoteProjectFile = await Workspace.sync.google.getFile(id);
-      if (remoteProjectFile) {
-        return this.pullRemoteChanges(remoteProjectFile);
-      }
-    }
-  }
-
   async requireConflictResolution(
-    localProjectFile: Storage.File & {
+    localProjectFile: RemoteStorage.File & {
       text?: string | undefined;
     },
-    remoteProjectFile: Storage.File & {
+    remoteProjectFile: RemoteStorage.File & {
       text?: string | undefined;
     }
   ) {
@@ -894,10 +855,10 @@ export default class WorkspaceWindow {
   }
 
   async setupProject(
-    localProjectFile: Storage.File & {
+    localProjectFile: RemoteStorage.File & {
       text?: string | undefined;
     },
-    remoteProjectFile: Storage.File & {
+    remoteProjectFile: RemoteStorage.File & {
       text?: string | undefined;
     }
   ) {

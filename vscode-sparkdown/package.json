@@ -43,6 +43,7 @@
     "onWebviewPanel:sparkdown-preview-game"
   ],
   "browser": "./out/extension.js",
+  "main": "./out/extension.js",
   "contributes": {
     "configurationDefaults": {
       "editor.tokenColorCustomizations": {
