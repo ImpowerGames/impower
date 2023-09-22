@@ -40,6 +40,7 @@ export default class FileAddButton extends Component(spec) {
         await Workspace.fs.createFiles({
           files,
         });
+        await Workspace.window.requireZipSync();
       }
     }
   }

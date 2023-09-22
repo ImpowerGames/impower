@@ -30,6 +30,13 @@ export type SyncState =
   | "sync_error"
   | "sync_conflict";
 
+export type ProjectMetadataField =
+  | "name"
+  | "textRevisionId"
+  | "textSynced"
+  | "zipRevisionId"
+  | "zipSynced";
+
 export interface GameState {
   running?: boolean;
   paused?: boolean;
@@ -73,29 +80,40 @@ export interface PanesState<T extends string = string> {
   panes: Record<T, PaneState<PanelType>>;
 }
 
-export interface ProjectMetadata {
-  headRevisionId?: string;
-  modifiedTime?: string;
-  synced?: boolean;
-}
-
 export interface ProjectFile {
   name: string;
   content: string;
   modifiedTime: string;
 }
 
+export interface User {
+  displayName?: string;
+  emailAddress?: string;
+  kind?: string;
+  me?: boolean;
+  permissionId?: string;
+  photoLink?: string;
+}
+
+export interface Revision {
+  id?: string;
+  keepForever?: boolean;
+  kind?: string;
+  lastModifyingUser?: User;
+  md5Checksum?: string;
+  mimeType?: string;
+  modifiedTime?: string;
+  originalFilename?: string;
+  size?: string;
+}
+
 export interface ProjectState {
   id?: string;
   name?: string;
-  canModifyRemote?: boolean;
   editingName?: boolean;
   syncState?: SyncState;
   pulledAt?: string;
-  conflict?: {
-    remote?: ProjectFile;
-    local?: ProjectFile;
-  };
+  revisions?: Revision[];
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {

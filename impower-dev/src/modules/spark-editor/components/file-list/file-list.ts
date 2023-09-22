@@ -23,8 +23,10 @@ export default class FileList extends Component(spec) {
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
     );
+    this.root.addEventListener("pointerenter", this.handlePointerEnter);
+    this.root.addEventListener("pointermove", this.handlePointerMove);
+    this.root.addEventListener("pointerup", this.handlePointerUp);
     this.root.addEventListener("dragenter", this.handleDragEnter);
-    this.root.addEventListener("dragleave", this.handleDragLeave);
     this.root.addEventListener("dragover", this.handleDragOver);
     this.root.addEventListener("drop", this.handleDrop);
   }
@@ -34,8 +36,10 @@ export default class FileList extends Component(spec) {
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
     );
+    this.root.removeEventListener("pointerenter", this.handlePointerEnter);
+    this.root.removeEventListener("pointermove", this.handlePointerMove);
+    this.root.removeEventListener("pointerup", this.handlePointerUp);
     this.root.removeEventListener("dragenter", this.handleDragEnter);
-    this.root.removeEventListener("dragleave", this.handleDragLeave);
     this.root.removeEventListener("dragover", this.handleDragOver);
     this.root.removeEventListener("drop", this.handleDrop);
   }
@@ -60,25 +64,42 @@ export default class FileList extends Component(spec) {
     }
   };
 
-  handleDragEnter = async (e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    this._dragging = true;
-    this.updateState();
+  handlePointerEnter = async (e: PointerEvent) => {
+    if (this._dragging) {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
   };
 
-  handleDragLeave = async (e: Event) => {
+  handlePointerMove = async (e: PointerEvent) => {
+    if (this._dragging) {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    }
+  };
+
+  handlePointerUp = async (e: PointerEvent) => {
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    if (this._dragging) {
+      this._dragging = false;
+      this.updateState();
+    }
+  };
+
+  handleDragEnter = async (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    this._dragging = false;
-    this.updateState();
+    if (!this._dragging) {
+      this._dragging = true;
+      this.updateState();
+    }
   };
 
   handleDragOver = async (e: Event) => {
     e.preventDefault();
     e.stopPropagation();
-    this._dragging = true;
-    this.updateState();
+    if (!this._dragging) {
+      this._dragging = true;
+      this.updateState();
+    }
   };
 
   handleDrop = async (e: Event) => {
@@ -114,33 +135,38 @@ export default class FileList extends Component(spec) {
         await Workspace.fs.createFiles({
           files,
         });
+        await Workspace.window.requireZipSync();
       }
     }
   }
 
   async loadEntries() {
-    const include = this.include;
-    const exclude = this.exclude;
-    const includeRegex = include ? globToRegex(include) : /.*/;
-    const excludeRegex = exclude ? globToRegex(exclude) : undefined;
-    const files = await Workspace.fs.getFiles();
-    const allUris = Object.keys(files);
-    this._uris = allUris.filter(
-      (uri) => includeRegex.test(uri) && !excludeRegex?.test(uri)
-    );
-    const outletEl = this.ref.outlet;
-    outletEl?.replaceChildren();
-    if (outletEl) {
-      this._uris.forEach((uri) => {
-        const filename = Workspace.fs.getFilename(uri);
-        const displayName = Workspace.fs.getDisplayName(uri);
-        const fileItem = document.createElement("se-file-item");
-        fileItem.setAttribute("filename", filename);
-        fileItem.textContent = displayName;
-        outletEl.appendChild(fileItem);
-      });
+    const store = this.stores.workspace.current;
+    const projectId = store?.project?.id;
+    if (projectId) {
+      const include = this.include;
+      const exclude = this.exclude;
+      const includeRegex = include ? globToRegex(include) : /.*/;
+      const excludeRegex = exclude ? globToRegex(exclude) : undefined;
+      const files = await Workspace.fs.getFiles(projectId);
+      const allUris = Object.keys(files);
+      this._uris = allUris.filter(
+        (uri) => includeRegex.test(uri) && !excludeRegex?.test(uri)
+      );
+      const outletEl = this.ref.outlet;
+      outletEl?.replaceChildren();
+      if (outletEl) {
+        this._uris.forEach((uri) => {
+          const filename = Workspace.fs.getFilename(uri);
+          const displayName = Workspace.fs.getDisplayName(uri);
+          const fileItem = document.createElement("se-file-item");
+          fileItem.setAttribute("filename", filename);
+          fileItem.textContent = displayName;
+          outletEl.appendChild(fileItem);
+        });
+      }
+      this.updateState();
     }
-    this.updateState();
   }
 
   getState() {

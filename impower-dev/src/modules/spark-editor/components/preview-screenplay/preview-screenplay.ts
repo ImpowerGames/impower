@@ -39,26 +39,30 @@ export default class PreviewScreenplay extends Component(spec) {
   }
 
   async loadFile() {
-    const editor = await Workspace.window.getOpenEditor("logic");
-    if (editor) {
-      const { uri, visibleRange, selectedRange } = editor;
-      const files = await Workspace.fs.getFiles();
-      const file = files[uri];
-      const existingText = file?.text || "";
-      this.emit(
-        LoadPreviewMessage.method,
-        LoadPreviewMessage.type.request({
-          type: "screenplay",
-          textDocument: {
-            uri,
-            languageId: "sparkdown",
-            version: 0,
-            text: existingText,
-          },
-          visibleRange,
-          selectedRange,
-        })
-      );
+    const store = this.stores.workspace.current;
+    const projectId = store?.project?.id;
+    if (projectId) {
+      const editor = await Workspace.window.getOpenEditor("logic");
+      if (editor) {
+        const { uri, visibleRange, selectedRange } = editor;
+        const files = await Workspace.fs.getFiles(projectId);
+        const file = files[uri];
+        const existingText = file?.text || "";
+        this.emit(
+          LoadPreviewMessage.method,
+          LoadPreviewMessage.type.request({
+            type: "screenplay",
+            textDocument: {
+              uri,
+              languageId: "sparkdown",
+              version: 0,
+              text: existingText,
+            },
+            visibleRange,
+            selectedRange,
+          })
+        );
+      }
     }
   }
 }

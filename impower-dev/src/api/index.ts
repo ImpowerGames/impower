@@ -79,7 +79,11 @@ export const startServer = async () => {
       });
     }
     app.register(fastifyFormbody);
-    app.register(fastifyMultipart);
+    app.register(fastifyMultipart, {
+      limits: {
+        fileSize: 100000000,
+      },
+    });
     app.register(googleDriveSyncProvider);
     app.register(router);
     if (!IS_PRODUCTION) {

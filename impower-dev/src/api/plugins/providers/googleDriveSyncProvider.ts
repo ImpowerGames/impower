@@ -23,6 +23,13 @@ const ERROR = {
       error_description: "Invalid file upload request",
     },
   },
+  FILE_UPLOAD_TOO_LARGE: {
+    status: 400,
+    data: {
+      error: "invalid_request",
+      error_description: "Uploaded file was too large",
+    },
+  },
   UNAUTHENTICATED: {
     status: 401,
     data: {
@@ -56,7 +63,7 @@ const secure = async <T>(
   try {
     if (isXmlHttpRequest(request)) {
       const payload = await response();
-      return reply.type("application/json").send(payload);
+      return reply.send(payload);
     } else {
       return reply
         .status(ERROR.FORBIDDEN_CROSS_DOMAIN_REQUEST.status)
@@ -212,7 +219,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     Params: {
       folderId: string;
     };
-  }>("/api/storage/file/:folderId", async (request, reply) => {
+  }>("/api/storage/files/:folderId", async (request, reply) => {
     const { folderId } = request.params;
     const data = await request.file();
     const name = data?.filename;
@@ -242,7 +249,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     Params: {
       fileId: string;
     };
-  }>("/api/storage/file/:fileId", async (request, reply) => {
+  }>("/api/storage/files/:fileId", async (request, reply) => {
     const { fileId } = request.params;
     const data = await request.file();
     const name = data?.filename;
@@ -254,6 +261,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     }
     return authenticated(request, reply, async (auth) => {
       const drive = google.drive({ version: "v3", auth });
+      const isZipFile = mimeType === "application/zip";
       const res = await drive.files.update({
         fileId,
         requestBody: {
@@ -263,8 +271,39 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
           mimeType,
           body: fileStream,
         },
+        keepRevisionForever: isZipFile,
         fields: FILE_FIELDS,
       });
+      if (data.file.truncated) {
+        reply.status(ERROR.FILE_UPLOAD_TOO_LARGE.status);
+        return ERROR.FILE_UPLOAD_TOO_LARGE.data;
+      }
+      if (isZipFile) {
+        // Delete all other zip file revisions so that we only keep latest zip
+        const revisionsResult = await drive.revisions.list({
+          fileId,
+          fields: "*",
+        });
+        const revisions = revisionsResult.data.revisions || [];
+        const zipFileRevisions = revisions.filter(
+          (revision) => revision.mimeType === mimeType
+        );
+        const maxZipFiles = 50;
+        const numZipFileRevisionsToDelete =
+          zipFileRevisions.length - maxZipFiles;
+        if (numZipFileRevisionsToDelete > 0) {
+          await Promise.all(
+            zipFileRevisions
+              .slice(0, numZipFileRevisionsToDelete)
+              .map((revision) =>
+                drive.revisions.delete({
+                  fileId,
+                  revisionId: revision.id!,
+                })
+              )
+          );
+        }
+      }
       return res.data;
     });
   });
@@ -272,22 +311,49 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
     Params: {
       fileId: string;
     };
-  }>("/api/storage/file/:fileId", async (request, reply) => {
+  }>("/api/storage/files/:fileId/revisions", async (request, reply) => {
     const { fileId } = request.params;
     return authenticated(request, reply, async (auth) => {
       const drive = google.drive({ version: "v3", auth });
-      const res = await drive.files.get({
+      const res = await drive.revisions.list({
         fileId,
-        fields: FILE_FIELDS,
+        fields: "*",
       });
-      const { data } = await drive.files.get({
-        fileId,
-        alt: "media",
-      });
-      const text = typeof data === "string" ? data : undefined;
-      return { ...res.data, text };
+      return res.data.revisions;
     });
   });
+  app.get<{
+    Params: {
+      fileId: string;
+      revisionId: string;
+    };
+  }>(
+    "/api/storage/files/:fileId/revisions/:revisionId",
+    async (request, reply) => {
+      const { fileId, revisionId } = request.params;
+      return authenticated(request, reply, async (auth) => {
+        const drive = google.drive({ version: "v3", auth });
+        const revisionResult = await drive.revisions.get({
+          fileId,
+          revisionId,
+        });
+        const res = await drive.revisions.get({
+          fileId,
+          revisionId,
+          alt: "media",
+        });
+        const contentType = revisionResult.data.mimeType!;
+        reply.type(contentType);
+        const content = res.data;
+        if (contentType.startsWith("text/")) {
+          return content;
+        } else {
+          const blob = content as unknown as Blob;
+          return blob.stream();
+        }
+      });
+    }
+  );
   next();
 };
 

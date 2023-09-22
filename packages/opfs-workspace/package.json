@@ -24,6 +24,7 @@
     "esbuild": "^0.18.10"
   },
   "dependencies": {
-    "@impower/spark-editor-protocol": "file:../spark-editor-protocol"
+    "@impower/spark-editor-protocol": "file:../spark-editor-protocol",
+    "fflate": "^0.8.1"
   }
 }

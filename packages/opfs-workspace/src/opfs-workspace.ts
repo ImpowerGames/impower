@@ -1,3 +1,4 @@
+import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
@@ -8,14 +9,17 @@ import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protoc
 import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage.js";
 import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
+import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage.js";
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
 import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
 import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage.js";
+import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage.js";
 import { FileData } from "@impower/spark-editor-protocol/src/types";
+import { Zippable, unzipSync, zipSync } from "fflate";
 import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
 import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import debounce from "./utils/debounce";
-import { getAllFiles } from "./utils/getAllFiles";
+import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
 import { getFileExtension } from "./utils/getFileExtension";
 import { getFileHandleFromUri } from "./utils/getFileHandleFromUri";
@@ -83,106 +87,182 @@ onmessage = async (e) => {
     loadConfiguration(settings);
   }
   if (ReadDirectoryFilesMessage.type.isRequest(message)) {
-    const { directory } = message.params;
-    const files = await readDirectoryFiles(directory.uri);
-    files.forEach((file) => {
-      const program = parse(file, files);
-      if (program != null) {
-        file.program = program;
-        postMessage(
-          DidParseTextDocumentMessage.type.notification({
-            textDocument: { uri: file.uri, version: file.version },
-            program,
-          })
-        );
-      }
-    });
-    postMessage(ReadDirectoryFilesMessage.type.response(message.id, files));
+    try {
+      const { directory } = message.params;
+      const files = await readDirectoryFiles(directory.uri);
+      files.forEach((file) => {
+        const program = parse(file, files);
+        if (program != null) {
+          file.program = program;
+          postMessage(
+            DidParseTextDocumentMessage.type.notification({
+              textDocument: { uri: file.uri, version: file.version },
+              program,
+            })
+          );
+        }
+      });
+      postMessage(ReadDirectoryFilesMessage.type.response(message.id, files));
+    } catch (err: any) {
+      const response = ReadDirectoryFilesMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
+      });
+      postMessage(response);
+    }
   }
   if (ReadFileMessage.type.isRequest(message)) {
-    const { file } = message.params;
-    const buffer = await readFile(file.uri);
-    const response = ReadFileMessage.type.response(message.id, buffer);
-    postMessage(response, [response.result]);
+    try {
+      const { file } = message.params;
+      const buffer = await readFile(file.uri);
+      const response = ReadFileMessage.type.response(message.id, buffer);
+      postMessage(response, [buffer]);
+    } catch (err: any) {
+      const response = ReadFileMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
+      });
+      postMessage(response);
+    }
+  }
+  if (ZipFilesMessage.type.isRequest(message)) {
+    const { files } = message.params;
+    try {
+      const buffer = await zipFiles(files);
+      const response = ZipFilesMessage.type.response(message.id, buffer);
+      postMessage(response, [buffer]);
+    } catch (err: any) {
+      const response = ZipFilesMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
+      });
+      postMessage(response);
+    }
+  }
+  if (UnzipFilesMessage.type.isRequest(message)) {
+    try {
+      const { data } = message.params;
+      const files = await unzipFiles(data);
+      const response = UnzipFilesMessage.type.response(message.id, files);
+      postMessage(
+        response,
+        files.map(({ data }) => data)
+      );
+    } catch (err: any) {
+      const response = UnzipFilesMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
+      });
+      postMessage(response);
+    }
   }
   if (WillWriteFileMessage.type.isRequest(message)) {
-    const { file } = message.params;
-    const { uri, version, data } = file;
-    const buffer = new DataView(data);
-    const fileData = await writeFile(uri, version, buffer);
-    if (fileData.text != null) {
-      const files = Object.values(State.files);
-      const program = parse(fileData, files);
-      if (program) {
-        fileData.program = program;
+    try {
+      const { file } = message.params;
+      const { uri, version, data } = file;
+      const buffer = new DataView(data);
+      const fileData = await writeFile(uri, version, buffer);
+      if (fileData.text != null) {
+        const files = Object.values(State.files);
+        const program = parse(fileData, files);
+        if (program) {
+          fileData.program = program;
+          postMessage(
+            DidParseTextDocumentMessage.type.notification({
+              textDocument: { uri, version: file.version },
+              program,
+            })
+          );
+        }
+      }
+      postMessage(WillWriteFileMessage.type.response(message.id, fileData));
+      postMessage(DidWriteFileMessage.type.notification({ file: fileData }));
+      postMessage(
+        DidChangeWatchedFilesMessage.type.notification({
+          changes: [
+            {
+              uri: fileData.uri,
+              type: FileChangeType.Changed,
+            },
+          ],
+        })
+      );
+    } catch (err: any) {
+      const response = WillWriteFileMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
+      });
+      postMessage(response);
+    }
+  }
+  if (WillCreateFilesMessage.type.isRequest(message)) {
+    try {
+      const { files } = message.params;
+      const result = await createFiles(files);
+      const fileDataArray = result.map((r) => r.data);
+      postMessage(
+        WillCreateFilesMessage.type.response(message.id, fileDataArray)
+      );
+      const createdResult = result.filter((r) => r.created);
+      const changedResult = result.filter((r) => !r.created);
+      if (createdResult.length > 0) {
         postMessage(
-          DidParseTextDocumentMessage.type.notification({
-            textDocument: { uri, version: file.version },
-            program,
+          DidCreateFilesMessage.type.notification({
+            files: createdResult.map((r) => ({
+              uri: r.data.uri,
+            })),
           })
         );
       }
-    }
-    postMessage(WillWriteFileMessage.type.response(message.id, fileData));
-    postMessage(DidWriteFileMessage.type.notification({ file: fileData }));
-    postMessage(
-      DidChangeWatchedFilesMessage.type.notification({
-        changes: [
-          {
-            uri: fileData.uri,
-            type: FileChangeType.Changed,
-          },
-        ],
-      })
-    );
-  }
-  if (WillCreateFilesMessage.type.isRequest(message)) {
-    const { files } = message.params;
-    const result = await createFiles(files);
-    const fileDataArray = result.map((r) => r.data);
-    postMessage(
-      WillCreateFilesMessage.type.response(message.id, fileDataArray)
-    );
-    const createdResult = result.filter((r) => r.created);
-    const changedResult = result.filter((r) => !r.created);
-    if (createdResult.length > 0) {
+      if (changedResult.length > 0) {
+        changedResult.forEach((change) => {
+          postMessage(
+            DidWriteFileMessage.type.notification({ file: change.data })
+          );
+        });
+      }
       postMessage(
-        DidCreateFilesMessage.type.notification({
-          files: createdResult.map((r) => ({
+        DidChangeWatchedFilesMessage.type.notification({
+          changes: result.map((r) => ({
             uri: r.data.uri,
+            type: r.created ? FileChangeType.Created : FileChangeType.Changed,
           })),
         })
       );
-    }
-    if (changedResult.length > 0) {
-      changedResult.forEach((change) => {
-        postMessage(
-          DidWriteFileMessage.type.notification({ file: change.data })
-        );
+    } catch (err: any) {
+      const response = WillCreateFilesMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
       });
+      postMessage(response);
     }
-    postMessage(
-      DidChangeWatchedFilesMessage.type.notification({
-        changes: result.map((r) => ({
-          uri: r.data.uri,
-          type: r.created ? FileChangeType.Created : FileChangeType.Changed,
-        })),
-      })
-    );
   }
   if (WillDeleteFilesMessage.type.isRequest(message)) {
-    const { files } = message.params;
-    await deleteFiles(files);
-    postMessage(WillDeleteFilesMessage.type.response(message.id, null));
-    postMessage(DidDeleteFilesMessage.type.notification({ files }));
-    postMessage(
-      DidChangeWatchedFilesMessage.type.notification({
-        changes: files.map((file) => ({
-          uri: file.uri,
-          type: FileChangeType.Deleted,
-        })),
-      })
-    );
+    try {
+      const { files } = message.params;
+      const deletedFiles = await deleteFiles(files);
+      postMessage(
+        WillDeleteFilesMessage.type.response(
+          message.id,
+          deletedFiles.filter((d): d is FileData => d != null)
+        )
+      );
+      postMessage(DidDeleteFilesMessage.type.notification({ files }));
+      postMessage(
+        DidChangeWatchedFilesMessage.type.notification({
+          changes: files.map((file) => ({
+            uri: file.uri,
+            type: FileChangeType.Deleted,
+          })),
+        })
+      );
+    } catch (err: any) {
+      const response = WillDeleteFilesMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
+      });
+      postMessage(response);
+    }
   }
 };
 
@@ -203,9 +283,12 @@ const loadConfiguration = (settings: any) => {
 
 const readDirectoryFiles = async (directoryUri: string) => {
   const root = await navigator.storage.getDirectory();
-  const relativePath = getPathFromUri(directoryUri);
-  const directoryHandle = await getDirectoryHandleFromPath(root, relativePath);
-  const directoryEntries = await getAllFiles(directoryHandle, relativePath);
+  const directoryPath = getPathFromUri(directoryUri);
+  const directoryHandle = await getDirectoryHandleFromPath(root, directoryPath);
+  const directoryEntries = await getAllFilesRecursive(
+    directoryHandle,
+    directoryPath
+  );
   const files = await Promise.all(
     directoryEntries.map(async (entry) => {
       const uri = getUriFromPath(entry.path);
@@ -225,6 +308,65 @@ const readFile = async (fileUri: string) => {
   const buffer = await fileRef.arrayBuffer();
   updateFileCache(fileUri, buffer, false);
   return buffer;
+};
+
+const zipFiles = async (files: { uri: string }[]) => {
+  const root = await navigator.storage.getDirectory();
+  const refs = await Promise.all(
+    files.map(async ({ uri }) => {
+      const fileHandle = await getFileHandleFromUri(root, uri);
+      const fileRef = await fileHandle.getFile();
+      const arrayBuffer = await fileRef.arrayBuffer();
+      return { uri, name: fileRef.name, arrayBuffer };
+    })
+  );
+  const zippable: Zippable = {};
+  refs.forEach((ref) => {
+    zippable[ref.name] = new Uint8Array(ref.arrayBuffer);
+  });
+  const zipped = zipSync(zippable, {
+    level: 0,
+  });
+  console.log(
+    MAGENTA,
+    "ZIP",
+    `${refs.length} files (${formatBytes(zipped.buffer.byteLength)})`
+  );
+  return zipped.buffer;
+};
+
+const unzipFiles = async (data: ArrayBuffer) => {
+  const unzipped = unzipSync(new Uint8Array(data));
+  const files = Object.entries(unzipped).map(([filename, data]) => ({
+    filename,
+    data: data.buffer,
+  }));
+  console.log(MAGENTA, "UNZIP", `${files.length} files`);
+  return files;
+};
+
+const formatBytes = (bytes: number, decimals = 2) => {
+  if (bytes <= 0) return "0 Bytes";
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+};
+
+const bytesToDataUrl = async (bytes: Uint8Array, mimeType: string) => {
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(new Blob([bytes], { type: mimeType }));
+  });
+};
+
+const dataUrlToBytes = async (dataUrl: string) => {
+  const res = await fetch(dataUrl);
+  const arrayBuffer = await res.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
 };
 
 const enqueueWrite = async (
@@ -303,7 +445,7 @@ const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {
 
 const deleteFiles = async (files: { uri: string }[]) => {
   const root = await navigator.storage.getDirectory();
-  await Promise.all(
+  return Promise.all(
     files.map(async (file) => {
       const relativePath = getPathFromUri(file.uri);
       const directoryPath = getParentPath(relativePath);
@@ -318,6 +460,7 @@ const deleteFiles = async (files: { uri: string }[]) => {
         delete State.files[file.uri];
         console.log(MAGENTA, "DELETE", file.uri);
       }
+      return existingFile;
     })
   );
 };
@@ -332,7 +475,7 @@ const getType = (uri: string) => {
     : "text";
 };
 
-const getContentType = (type: string, ext: string) => {
+const getMimeType = (type: string, ext: string) => {
   const encoding = type === "text" ? "plain" : ext === "svg" ? "svg+xml" : ext;
   return `${type}/${encoding}`;
 };
@@ -353,7 +496,7 @@ const updateFileCache = (
       URL.revokeObjectURL(src);
     }
     src = URL.createObjectURL(
-      new Blob([buffer], { type: getContentType(type, ext) })
+      new Blob([buffer], { type: getMimeType(type, ext) })
     );
   }
   const text =

@@ -1,4 +1,3 @@
-import { prefersReducedMotion } from "../utils/animationsComplete";
 import { debounce } from "../utils/debounce";
 import { waitForEvent } from "../utils/events";
 
@@ -178,7 +177,7 @@ export default class ScrollController<T extends ScrollHost> {
     scrollContainer.scrollTo({
       left: finalLeft,
       top: finalTop,
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      behavior: "smooth",
     });
 
     if (this.scrolling) {

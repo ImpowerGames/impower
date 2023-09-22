@@ -3,6 +3,7 @@ import SingletonPromise from "../SingletonPromise";
 import { AccessInfo } from "../types/AccessInfo";
 import { AccountInfo } from "../types/AccountInfo";
 import { RemoteStorage } from "../types/RemoteStorageTypes";
+import { ResponseTypeMap } from "../types/ResponseTypeMap";
 import sendServerRequest from "../utils/sendServerRequest";
 
 // setQuery is missing from DocsView definition. Must be declared manually
@@ -72,6 +73,7 @@ export default class GoogleDriveSyncProvider {
   protected async request<T>(
     method: "GET" | "POST" | "PUT",
     route: string,
+    responseType: XMLHttpRequestResponseType,
     body?: XMLHttpRequestBodyInit,
     contentType?:
       | "application/x-www-form-urlencoded"
@@ -79,12 +81,13 @@ export default class GoogleDriveSyncProvider {
       | "text/plain"
   ) {
     try {
-      const result = await sendServerRequest<T>(
+      const result = (await sendServerRequest(
         method,
         `${window.location.protocol}//${window.location.host}${route}`,
+        responseType,
         body,
         contentType
-      );
+      )) as T;
       return result;
     } catch (err: any) {
       if (err.error === "invalid_grant") {
@@ -142,8 +145,8 @@ export default class GoogleDriveSyncProvider {
     await this._pickerScriptRef.get();
     const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
       .setMode(google.picker.DocsViewMode.LIST)
-      .setMimeTypes("text/plain") as DocsView;
-    view.setQuery(`title:.project`);
+      .setMimeTypes("text/plain,application/zip") as DocsView;
+    view.setQuery(`title:.${this.getProjectExtension()}`);
     return new google.picker.PickerBuilder()
       .enableFeature(google.picker.Feature.SUPPORT_DRIVES)
       .enableFeature(google.picker.Feature.NAV_HIDDEN)
@@ -181,15 +184,6 @@ export default class GoogleDriveSyncProvider {
       .setTitle("Save to folder");
   }
 
-  getTextBlob(name: string, content: string) {
-    const encoder = new TextEncoder();
-    const encodedText = encoder.encode(content);
-    const blob = new File([encodedText], name, {
-      type: "text/plain",
-    });
-    return blob;
-  }
-
   async pickProjectFile(accessToken: string) {
     const pickerBuilder = await this._importPickerBuilderRef.get();
     const importPicker = pickerBuilder.setOAuthToken(accessToken).build();
@@ -222,14 +216,17 @@ export default class GoogleDriveSyncProvider {
     const result = await new Promise<string | null>((resolve, reject) => {
       exportPicker.setCallback(async (data) => {
         try {
-          if (data.action === google.picker.Action.PICKED) {
+          if (data.action === google.picker.Action.CANCEL) {
+            resolve(null);
+          } else if (data.action === google.picker.Action.PICKED) {
             const document = data[google.picker.Response.DOCUMENTS][0];
             if (document) {
               const folderId = document[google.picker.Document.ID];
               resolve(folderId);
+            } else {
+              resolve(null);
             }
           }
-          resolve(null);
         } catch (err) {
           reject(err);
         }
@@ -239,19 +236,20 @@ export default class GoogleDriveSyncProvider {
     return result;
   }
 
-  async createProjectFile(folderId: string, filename: string, content: string) {
-    return this.createFile(folderId, this.getTextBlob(filename, content));
+  async createProjectFile(folderId: string, blob: File) {
+    return this.createFile(folderId, blob);
   }
 
-  async updateProjectFile(fileId: string, filename: string, content: string) {
-    return this.updateFile(fileId, this.getTextBlob(filename, content));
+  async updateProjectFile(fileId: string, blob: File) {
+    return this.updateFile(fileId, blob);
   }
 
   protected async fetchAccount(): Promise<AccountInfo | null> {
     try {
       const account = await this.request<AccountInfo>(
         "GET",
-        `/api/auth/account`
+        `/api/auth/account`,
+        "json"
       );
       return account;
     } catch (err: any) {
@@ -299,6 +297,7 @@ export default class GoogleDriveSyncProvider {
             await this.request<AccessInfo>(
               "POST",
               `/api/auth/signin`,
+              "json",
               `code=${response.code}`,
               "application/x-www-form-urlencoded"
             );
@@ -318,19 +317,31 @@ export default class GoogleDriveSyncProvider {
 
   async signOut() {
     this._accountRef.reset();
-    await this.request("POST", `/api/auth/signout`);
+    return this.request("POST", `/api/auth/signout`, "json");
   }
 
   async getAccess() {
-    return this.request<AccessInfo>("GET", `/api/auth/access`);
+    return this.request<AccessInfo>("GET", `/api/auth/access`, "json");
   }
 
-  async getFile(fileId: string) {
-    const result = await this.request<RemoteStorage.File & { text?: string }>(
+  async getFileRevisions(fileId: string) {
+    return this.request<RemoteStorage.Revision[]>(
       "GET",
-      `/api/storage/file/${fileId}`
+      `/api/storage/files/${fileId}/revisions`,
+      "json"
     );
-    return result;
+  }
+
+  async getFileRevision<K extends keyof ResponseTypeMap>(
+    fileId: string,
+    revisionId: string,
+    responseType: K
+  ): Promise<ResponseTypeMap[K]> {
+    return this.request<ResponseTypeMap[K]>(
+      "GET",
+      `/api/storage/files/${fileId}/revisions/${revisionId}`,
+      responseType
+    );
   }
 
   protected async createFile(folderId: string, blob: Blob) {
@@ -338,7 +349,8 @@ export default class GoogleDriveSyncProvider {
     formData.append("file", blob);
     return this.request<RemoteStorage.File>(
       "POST",
-      `/api/storage/file/${folderId}`,
+      `/api/storage/files/${folderId}`,
+      "json",
       formData
     );
   }
@@ -348,8 +360,17 @@ export default class GoogleDriveSyncProvider {
     formData.append("file", blob);
     return this.request<RemoteStorage.File>(
       "PUT",
-      `/api/storage/file/${fileId}`,
+      `/api/storage/files/${fileId}`,
+      "json",
       formData
     );
+  }
+
+  getProjectExtension() {
+    return `project`;
+  }
+
+  getProjectFilename(projectName: string) {
+    return `${projectName}.${this.getProjectExtension()}`;
   }
 }

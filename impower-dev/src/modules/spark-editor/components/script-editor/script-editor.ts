@@ -66,7 +66,7 @@ export default class ScriptEditor extends Component(spec) {
                 text,
               },
             });
-            await Workspace.window.updateModificationTime();
+            await Workspace.window.requireTextSync();
           }
         }
       }
@@ -83,34 +83,38 @@ export default class ScriptEditor extends Component(spec) {
   }
 
   async loadFile() {
-    const filename = this.filename || "main.script";
-    const editor = await Workspace.window.getActiveEditor(filename);
-    if (editor) {
-      const uri = editor.uri;
-      const visibleRange = editor.visibleRange;
-      const selectedRange = editor.selectedRange;
-      const files = await Workspace.fs.getFiles();
-      const file = files[uri];
-      const text = file?.text || "";
-      const version = file?.version || 0;
-      const languageServerCapabilities =
-        await Workspace.lsp.getServerCapabilities();
-      this._uri = uri;
-      this._version = version;
-      this.emit(
-        LoadEditorMessage.method,
-        LoadEditorMessage.type.request({
-          textDocument: {
-            uri,
-            languageId: "sparkdown",
-            version,
-            text,
-          },
-          visibleRange,
-          selectedRange,
-          languageServerCapabilities,
-        })
-      );
+    const store = this.stores.workspace.current;
+    const projectId = store?.project?.id;
+    if (projectId) {
+      const filename = this.filename || "main.script";
+      const editor = await Workspace.window.getActiveEditor(filename);
+      if (editor) {
+        const uri = editor.uri;
+        const visibleRange = editor.visibleRange;
+        const selectedRange = editor.selectedRange;
+        const files = await Workspace.fs.getFiles(projectId);
+        const file = files[uri];
+        const text = file?.text || "";
+        const version = file?.version || 0;
+        const languageServerCapabilities =
+          await Workspace.lsp.getServerCapabilities();
+        this._uri = uri;
+        this._version = version;
+        this.emit(
+          LoadEditorMessage.method,
+          LoadEditorMessage.type.request({
+            textDocument: {
+              uri,
+              languageId: "sparkdown",
+              version,
+              text,
+            },
+            visibleRange,
+            selectedRange,
+            languageServerCapabilities,
+          })
+        );
+      }
     }
   }
 

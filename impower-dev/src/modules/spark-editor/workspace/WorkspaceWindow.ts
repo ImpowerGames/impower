@@ -18,6 +18,7 @@ import {
   PaneType,
   PanelType,
   Range,
+  SyncState,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src";
@@ -26,6 +27,8 @@ import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
+import createTextFile from "./utils/createTextFile";
+import createZipFile from "./utils/createZipFile";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -242,7 +245,7 @@ export default class WorkspaceWindow {
           panelState.activeEditor &&
           panelState.activeEditor.filename === filename
         ) {
-          const files = await Workspace.fs.getFiles();
+          const files = await Workspace.fs.getFiles(projectId);
           const uri = Workspace.fs.getFileUri(projectId, filename);
           const file = files[uri]!;
           return {
@@ -284,7 +287,7 @@ export default class WorkspaceWindow {
             .map((p) => p.activeEditor)
             .find((e) => e && e.open);
       if (openEditor?.open && openEditor?.filename) {
-        const files = await Workspace.fs.getFiles();
+        const files = await Workspace.fs.getFiles(projectId);
         const uri = Workspace.fs.getFileUri(projectId, openEditor.filename);
         const file = files[uri]!;
         return {
@@ -467,7 +470,7 @@ export default class WorkspaceWindow {
       });
       let changedName = name !== this.store.project.name;
       if (changedName) {
-        await Workspace.fs.writeProjectName(id, name);
+        await Workspace.fs.writeProjectMetadata(id, "name", name);
         this.update({
           ...this.store,
           project: {
@@ -475,7 +478,7 @@ export default class WorkspaceWindow {
             name,
           },
         });
-        await this.updateModificationTime();
+        await this.requireTextSync();
       }
       return changedName;
     }
@@ -631,7 +634,6 @@ export default class WorkspaceWindow {
         id,
         name: undefined,
         syncState: "loading",
-        canModifyRemote: false,
         editingName: false,
       },
     });
@@ -650,7 +652,9 @@ export default class WorkspaceWindow {
     try {
       const id = this.store.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
       if (id === WorkspaceConstants.LOCAL_PROJECT_ID) {
-        const name = await Workspace.fs.readProjectName(id);
+        const name =
+          (await Workspace.fs.readProjectMetadata(id, "name")) ||
+          WorkspaceConstants.DEFAULT_PROJECT_NAME;
         this.update({
           ...this.store,
           project: {
@@ -658,7 +662,6 @@ export default class WorkspaceWindow {
             id,
             name,
             syncState: "cached",
-            canModifyRemote: false,
             editingName: false,
           },
         });
@@ -691,54 +694,50 @@ export default class WorkspaceWindow {
             syncState: "syncing",
           },
         });
-        const remoteProjectFile = await Workspace.sync.google.getFile(id);
-        if (remoteProjectFile) {
-          const localMetadata = await Workspace.fs.readProjectMetadata(id);
-          const localProjectName = await Workspace.fs.readProjectName(id);
-          const localProjectContent = await Workspace.fs.readProjectContent(id);
-          const remoteProjectContent = remoteProjectFile.text;
-          const remoteChanged =
-            remoteProjectContent != null &&
-            remoteProjectFile.headRevisionId !== localMetadata.headRevisionId;
-          const localChanged =
-            localProjectContent != null && !localMetadata.synced;
-          const localProjectFile = {
-            id,
-            name: `${localProjectName}.project`,
-            text: localProjectContent,
-            headRevisionId: localMetadata.headRevisionId,
-            modifiedTime: localMetadata.modifiedTime,
-          };
-          if (!remoteChanged && localChanged) {
-            const canModifyRemote = Boolean(
-              remoteProjectFile.capabilities?.canModifyContent
-            );
-            if (canModifyRemote && pushLocalChanges) {
-              await this.pushLocalChanges(localProjectFile);
-            } else {
-              this.update({
-                ...this.store,
-                project: {
-                  ...this.store.project,
-                  name: localProjectName,
-                  canModifyRemote,
-                  syncState: "unsynced",
-                },
-              });
-            }
-          } else if (remoteChanged && !localChanged) {
-            await this.pullRemoteChanges(remoteProjectFile);
-          } else if (remoteChanged && localChanged) {
-            await this.requireConflictResolution(
-              localProjectFile,
-              remoteProjectFile
-            );
-          } else {
-            await this.setupProject(localProjectFile, remoteProjectFile);
-          }
+        const revisions = await Workspace.sync.google.getFileRevisions(id);
+        if (revisions) {
+          this.update({
+            ...this.store,
+            project: {
+              ...this.store.project,
+              revisions,
+            },
+          });
+          const projectTextRevision = revisions.findLast(
+            (r) => r.mimeType === "text/plain"
+          );
+          const projectZipRevision = revisions.findLast(
+            (r) => r.mimeType === "application/zip"
+          );
+          const textSyncState = projectTextRevision
+            ? await this.syncText(id, projectTextRevision, pushLocalChanges)
+            : "cached";
+          const zipSyncState = projectZipRevision
+            ? await this.syncZip(id, projectZipRevision, pushLocalChanges)
+            : "cached";
+          const syncState =
+            textSyncState === "unsynced" || zipSyncState === "unsynced"
+              ? "unsynced"
+              : textSyncState === "sync_conflict" ||
+                zipSyncState === "sync_conflict"
+              ? "sync_conflict"
+              : textSyncState;
+          const name =
+            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            WorkspaceConstants.DEFAULT_PROJECT_NAME;
+          this.update({
+            ...this.store,
+            project: {
+              ...this.store.project,
+              name,
+              syncState,
+            },
+          });
         } else {
           console.error(`Could not fetch remote project file: ${id}`);
-          const name = await Workspace.fs.readProjectName(id);
+          const name =
+            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            WorkspaceConstants.DEFAULT_PROJECT_NAME;
           this.update({
             ...this.store,
             project: {
@@ -761,132 +760,152 @@ export default class WorkspaceWindow {
     }
   }
 
-  async pushLocalChanges(
-    localProjectFile: RemoteStorage.File & {
-      text?: string | undefined;
+  protected async syncText(
+    fileId: string,
+    projectTextRevision: RemoteStorage.Revision,
+    pushLocalChanges: boolean
+  ): Promise<SyncState> {
+    const textRevisionId = await Workspace.fs.readProjectMetadata(
+      fileId,
+      "textRevisionId"
+    );
+    const textSynced = await Workspace.fs.readProjectMetadata(
+      fileId,
+      "textSynced"
+    );
+    const remoteTextChanged =
+      projectTextRevision?.id && projectTextRevision?.id !== textRevisionId;
+    const localTextChanged = textSynced === "false";
+    if (!remoteTextChanged && localTextChanged) {
+      if (pushLocalChanges) {
+        await this.pushLocalTextChanges(fileId);
+        return "synced";
+      }
+      return "unsynced";
     }
-  ) {
-    const id = localProjectFile.id!;
+    if (remoteTextChanged && !localTextChanged) {
+      await this.pullRemoteTextChanges(fileId, projectTextRevision);
+      return "synced";
+    }
+    if (remoteTextChanged && localTextChanged) {
+      return "sync_conflict";
+    }
+    return "synced";
+  }
+
+  protected async pushLocalTextChanges(fileId: string) {
+    const projectName =
+      (await Workspace.fs.readProjectMetadata(fileId, "name")) ||
+      WorkspaceConstants.DEFAULT_PROJECT_NAME;
+    const content = await Workspace.fs.readProjectTextContent(fileId);
+    const filename = Workspace.sync.google.getProjectFilename(projectName);
     const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
-      id,
-      localProjectFile.name!,
-      localProjectFile.text!
+      fileId,
+      createTextFile(filename, content)
     );
-    const remoteName = remoteProjectFile.name!.split(".")[0]!;
-    await Workspace.fs.writeProjectName(id, remoteName);
-    await Workspace.fs.writeProjectMetadata(id, {
-      headRevisionId: remoteProjectFile.headRevisionId!,
-      modifiedTime: remoteProjectFile.modifiedTime!,
-      synced: true,
-    });
-    const canModifyRemote = Boolean(
-      remoteProjectFile.capabilities?.canModifyContent
-    );
-    this.update({
-      ...this.store,
-      project: {
-        ...this.store.project,
-        name: remoteName,
-        canModifyRemote,
-        syncState: canModifyRemote ? "synced" : "cached",
-      },
-    });
+    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
+    await Promise.all([
+      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
+      Workspace.fs.writeProjectMetadata(
+        fileId,
+        "textRevisionId",
+        remoteProjectFile.headRevisionId!
+      ),
+      Workspace.fs.writeProjectMetadata(fileId, "textSynced", String(true)),
+    ]);
+    return remoteProjectFile;
   }
 
-  async pullRemoteChanges(
-    remoteProjectFile: RemoteStorage.File & {
-      text?: string | undefined;
-    }
+  protected async pullRemoteTextChanges(
+    fileId: string,
+    revision: RemoteStorage.Revision
   ) {
-    const id = remoteProjectFile.id!;
-    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
-    await Workspace.fs.writeProjectContent(id, remoteProjectFile.text || "");
-    await Workspace.fs.writeProjectName(id, remoteProjectName);
-    await Workspace.fs.writeProjectMetadata(id, {
-      headRevisionId: remoteProjectFile.headRevisionId!,
-      modifiedTime: remoteProjectFile.modifiedTime!,
-      synced: true,
-    });
-    const canModifyRemote = Boolean(
-      remoteProjectFile.capabilities?.canModifyContent
+    const remoteProjectTextContent =
+      await Workspace.sync.google.getFileRevision(fileId, revision.id!, "text");
+    const remoteProjectName = revision.originalFilename!.split(".")[0]!;
+    await Workspace.fs.writeProjectTextContent(
+      fileId,
+      remoteProjectTextContent || ""
     );
-    this.update({
-      ...this.store,
-      project: {
-        ...this.store.project,
-        name: remoteProjectName,
-        canModifyRemote,
-        syncState: canModifyRemote ? "synced" : "cached",
-        pulledAt: new Date().toISOString(),
-      },
-    });
+    await Promise.all([
+      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
+      Workspace.fs.writeProjectMetadata(fileId, "textRevisionId", revision.id!),
+      Workspace.fs.writeProjectMetadata(fileId, "textSynced", String(true)),
+    ]);
   }
 
-  async requireConflictResolution(
-    localProjectFile: RemoteStorage.File & {
-      text?: string | undefined;
-    },
-    remoteProjectFile: RemoteStorage.File & {
-      text?: string | undefined;
+  protected async syncZip(
+    fileId: string,
+    projectZipRevision: RemoteStorage.Revision,
+    pushLocalChanges: boolean
+  ): Promise<SyncState> {
+    const zipRevisionId = await Workspace.fs.readProjectMetadata(
+      fileId,
+      "zipRevisionId"
+    );
+    const zipSynced = await Workspace.fs.readProjectMetadata(
+      fileId,
+      "zipSynced"
+    );
+    const remoteZipChanged =
+      projectZipRevision?.id && projectZipRevision?.id !== zipRevisionId;
+    const localZipChanged = zipSynced === "false";
+    if (!remoteZipChanged && localZipChanged) {
+      if (pushLocalChanges) {
+        await this.pushLocalZipChanges(fileId);
+        return "synced";
+      }
+      return "unsynced";
     }
-  ) {
-    const localProjectName = localProjectFile.name!.split(".")[0]!;
-    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
-    this.update({
-      ...this.store,
-      project: {
-        ...this.store.project,
-        name: localProjectName || remoteProjectName,
-        conflict: {
-          local: {
-            name: localProjectName,
-            content: localProjectFile.text!,
-            modifiedTime: localProjectFile.modifiedTime!,
-          },
-          remote: {
-            name: remoteProjectName,
-            content: remoteProjectFile.text!,
-            modifiedTime: remoteProjectFile.modifiedTime!,
-          },
-        },
-        syncState: "sync_conflict",
-      },
-    });
+    if (remoteZipChanged && !localZipChanged) {
+      await this.pullRemoteZipChanges(fileId, projectZipRevision);
+      return "synced";
+    }
+    if (remoteZipChanged && localZipChanged) {
+      return "sync_conflict";
+    }
+    return "synced";
   }
 
-  async setupProject(
-    localProjectFile: RemoteStorage.File & {
-      text?: string | undefined;
-    },
-    remoteProjectFile: RemoteStorage.File & {
-      text?: string | undefined;
-    }
-  ) {
-    const id = remoteProjectFile.id!;
-    const localProjectName = localProjectFile.name!.split(".")[0]!;
-    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
-    const canModifyRemote = Boolean(
-      remoteProjectFile.capabilities?.canModifyContent
+  protected async pushLocalZipChanges(fileId: string) {
+    const projectName =
+      (await Workspace.fs.readProjectMetadata(fileId, "name")) ||
+      WorkspaceConstants.DEFAULT_PROJECT_NAME;
+    const content = await Workspace.fs.readProjectZipContent(fileId);
+    const filename = Workspace.sync.google.getProjectFilename(projectName);
+    const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
+      fileId,
+      createZipFile(filename, content)
     );
-    if (localProjectName !== remoteProjectName) {
-      await Workspace.fs.writeProjectName(id, remoteProjectName);
-    }
-    if (localProjectFile.headRevisionId !== remoteProjectFile.headRevisionId) {
-      await Workspace.fs.writeProjectMetadata(id, {
-        headRevisionId: remoteProjectFile.headRevisionId!,
-        modifiedTime: remoteProjectFile.modifiedTime!,
-        synced: true,
-      });
-    }
-    this.update({
-      ...this.store,
-      project: {
-        ...this.store.project,
-        name: remoteProjectName,
-        canModifyRemote,
-        syncState: canModifyRemote ? "synced" : "cached",
-      },
-    });
+    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
+    await Promise.all([
+      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
+      Workspace.fs.writeProjectMetadata(
+        fileId,
+        "zipRevisionId",
+        remoteProjectFile.headRevisionId!
+      ),
+      Workspace.fs.writeProjectMetadata(fileId, "zipSynced", String(true)),
+    ]);
+    return remoteProjectFile;
+  }
+
+  protected async pullRemoteZipChanges(
+    fileId: string,
+    revision: RemoteStorage.Revision
+  ) {
+    const remoteProjectZipContent = await Workspace.sync.google.getFileRevision(
+      fileId,
+      revision.id!,
+      "arraybuffer"
+    );
+    const remoteProjectName = revision.originalFilename!.split(".")[0]!;
+    await Workspace.fs.writeProjectZipContent(fileId, remoteProjectZipContent);
+    await Promise.all([
+      Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
+      Workspace.fs.writeProjectMetadata(fileId, "zipRevisionId", revision.id!),
+      Workspace.fs.writeProjectMetadata(fileId, "zipSynced", String(true)),
+    ]);
   }
 
   async exportProject(folderId: string) {
@@ -900,25 +919,56 @@ export default class WorkspaceWindow {
             syncState: "exporting",
           },
         });
-        const projectName = await Workspace.fs.readProjectName(projectId);
-        const projectContent = await Workspace.fs.readProjectContent(projectId);
-        const projectFilename = `${projectName}.project`;
-        const remoteProjectFile = await Workspace.sync.google.createProjectFile(
-          folderId,
-          projectFilename,
-          projectContent
+        const projectName =
+          (await Workspace.fs.readProjectMetadata(projectId, "name")) ||
+          WorkspaceConstants.DEFAULT_PROJECT_NAME;
+        const projectTextContent = await Workspace.fs.readProjectTextContent(
+          projectId
         );
-        if (remoteProjectFile && remoteProjectFile.id) {
-          await Workspace.fs.writeProjectName(
-            remoteProjectFile.id,
-            projectName
+        const projectZipContent = await Workspace.fs.readProjectZipContent(
+          projectId
+        );
+        const filename = Workspace.sync.google.getProjectFilename(projectName);
+        const remoteProjectZipFile =
+          await Workspace.sync.google.createProjectFile(
+            folderId,
+            createZipFile(filename, projectZipContent)
           );
-          await Workspace.fs.writeProjectMetadata(remoteProjectFile.id, {
-            headRevisionId: remoteProjectFile.headRevisionId,
-            modifiedTime: remoteProjectFile.modifiedTime!,
-            synced: true,
-          });
-          this.loadNewProject(remoteProjectFile.id);
+        const projectFileId = remoteProjectZipFile?.id;
+        if (projectFileId) {
+          const remoteProjectTextFile =
+            await Workspace.sync.google.updateProjectFile(
+              projectFileId,
+              createTextFile(filename, projectTextContent)
+            );
+          await Promise.all([
+            Workspace.fs.writeProjectMetadata(
+              projectFileId,
+              "name",
+              projectName
+            ),
+            Workspace.fs.writeProjectMetadata(
+              projectFileId,
+              "textRevisionId",
+              remoteProjectTextFile.headRevisionId!
+            ),
+            Workspace.fs.writeProjectMetadata(
+              projectFileId,
+              "textSynced",
+              String(true)
+            ),
+            Workspace.fs.writeProjectMetadata(
+              projectFileId,
+              "zipRevisionId",
+              remoteProjectZipFile.headRevisionId!
+            ),
+            Workspace.fs.writeProjectMetadata(
+              projectFileId,
+              "zipSynced",
+              String(true)
+            ),
+          ]);
+          this.loadNewProject(projectFileId);
         } else {
           this.update({
             ...this.store,
@@ -941,19 +991,37 @@ export default class WorkspaceWindow {
     }
   }
 
-  async updateModificationTime() {
+  async requireTextSync() {
     const projectId = this.store.project.id;
-    const canModifyRemote = this.store.project.canModifyRemote;
     if (projectId) {
-      const metadata = await Workspace.fs.readProjectMetadata(projectId);
-      metadata.modifiedTime = new Date().toISOString();
-      metadata.synced = false;
-      await Workspace.fs.writeProjectMetadata(projectId, metadata);
+      await Workspace.fs.writeProjectMetadata(
+        projectId,
+        "textSynced",
+        String(false)
+      );
       this.update({
         ...this.store,
         project: {
           ...this.store.project,
-          syncState: canModifyRemote ? "unsynced" : "cached",
+          syncState: "unsynced",
+        },
+      });
+    }
+  }
+
+  async requireZipSync() {
+    const projectId = this.store.project.id;
+    if (projectId) {
+      await Workspace.fs.writeProjectMetadata(
+        projectId,
+        "zipSynced",
+        String(false)
+      );
+      this.update({
+        ...this.store,
+        project: {
+          ...this.store.project,
+          syncState: "unsynced",
         },
       });
     }

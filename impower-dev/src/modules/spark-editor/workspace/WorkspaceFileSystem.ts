@@ -10,6 +10,7 @@ import {
   ReadDirectoryFilesMessage,
   ReadDirectoryFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
+import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage";
 import {
   WillCreateFilesMessage,
   WillCreateFilesParams,
@@ -19,19 +20,27 @@ import {
   WillDeleteFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
 import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage";
+import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
   FileData,
-  ProjectMetadata,
+  ProjectMetadataField,
 } from "@impower/spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
+import getTextBuffer from "./utils/getTextBuffer";
 
 const CHUNK_SPLITTER_REGEX = /(^[ \t]*[%][^%]+[%][ \t]*$)/gm;
 
 const CHUNK_FILENAME_REGEX = /^[ \t]*[%]([^%]+)[%][ \t]*$/;
+
+const cmp = (a: any, b: any) => {
+  if (a > b) return +1;
+  if (a < b) return -1;
+  return 0;
+};
 
 export default class WorkspaceFileSystem {
   protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
@@ -47,23 +56,23 @@ export default class WorkspaceFileSystem {
     return this._scheme;
   }
 
-  protected _projectId?: string;
+  protected _loadedProjectId?: string;
 
   protected _files?: Record<string, FileData>;
 
   constructor() {
-    this._initialFilesRef.get();
+    const projectId =
+      workspace.current.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
+    this._loadedProjectId = projectId;
+    this._initialFilesRef.get(projectId);
     this._fileSystemWorker.addEventListener(
       "message",
       this.handleWorkerMessage
     );
   }
 
-  protected async loadInitialFiles() {
+  protected async loadInitialFiles(projectId: string) {
     const connection = await Workspace.lsp.getConnection();
-    const projectId =
-      workspace.current.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
-    this._projectId = projectId;
     const directoryUri = this.getDirectoryUri(projectId);
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
@@ -98,7 +107,10 @@ export default class WorkspaceFileSystem {
     );
   }
 
-  protected _messageQueue: Record<string, (result: any) => void> = {};
+  protected _messageQueue: Record<
+    string,
+    { resolve: (result: any) => void; reject: (err: any) => void }
+  > = {};
 
   protected handleWorkerMessage = async (event: MessageEvent) => {
     const message = event.data;
@@ -124,12 +136,20 @@ export default class WorkspaceFileSystem {
       const connection = await Workspace.lsp.getConnection();
       connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
-    } else {
-      const resolve = this._messageQueue[message.id];
-      if (resolve) {
-        resolve(message.result);
+    } else if (message.error) {
+      const handler = this._messageQueue[message.id];
+      if (handler) {
+        handler.reject(message.error);
         delete this._messageQueue[message.id];
       }
+    } else if (message.result !== undefined) {
+      const handler = this._messageQueue[message.id];
+      if (handler) {
+        handler.resolve(message.result);
+        delete this._messageQueue[message.id];
+      }
+    } else {
+      console.error("Unrecognized message: ", message);
     }
   };
 
@@ -138,9 +158,9 @@ export default class WorkspaceFileSystem {
     params: P,
     transfer: Transferable[] = []
   ): Promise<R> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const request = type.request(params);
-      this._messageQueue[request.id] = resolve;
+      this._messageQueue[request.id] = { resolve, reject };
       this._fileSystemWorker.postMessage(request, transfer);
     });
   }
@@ -162,8 +182,11 @@ export default class WorkspaceFileSystem {
     return fileName.split(".")[0] ?? "";
   }
 
-  async getFiles() {
-    await this._initialFilesRef.get();
+  async getFiles(projectId: string) {
+    if (this._loadedProjectId !== projectId) {
+      throw new Error(`Project not loaded: ${projectId}`);
+    }
+    await this._initialFilesRef.get(projectId);
     if (!this._files) {
       throw new Error("Workspace File System not initialized.");
     }
@@ -176,62 +199,37 @@ export default class WorkspaceFileSystem {
     return this.sendRequest(ReadDirectoryFilesMessage.type, params);
   }
 
-  async readProjectName(projectId: string) {
-    const uri = this.getFileUri(projectId, ".name");
-    const files = await this.getFiles();
+  async readProjectMetadata(projectId: string, field: ProjectMetadataField) {
+    const uri = this.getFileUri(projectId, `.${field}`);
+    const files = await this.getFiles(projectId);
     const file = files[uri];
     const name = file?.text || "";
-    if (!name) {
-      return WorkspaceConstants.DEFAULT_PROJECT_NAME;
-    }
     return name;
   }
 
-  async writeProjectName(projectId: string, name: string) {
-    const uri = this.getFileUri(projectId, ".name");
-    const text = name;
+  async writeProjectMetadata(
+    projectId: string,
+    field: ProjectMetadataField,
+    value: string
+  ) {
+    const uri = this.getFileUri(projectId, `.${field}`);
     await this.writeTextDocument({
-      textDocument: { uri, version: 0, text },
+      textDocument: { uri, version: 0, text: value },
     });
   }
 
-  async readProjectMetadata(projectId: string): Promise<ProjectMetadata> {
-    const uri = this.getFileUri(projectId, ".metadata");
-    const files = await this.getFiles();
-    const file = files[uri];
-    const metadataContent = file?.text || "";
-    if (!metadataContent) {
-      return {};
-    }
-    const metadata = JSON.parse(metadataContent);
-    return metadata;
+  async readProjectTextContent(projectId: string) {
+    return this.bundleProjectText(projectId);
   }
 
-  async writeProjectMetadata(projectId: string, metadata: ProjectMetadata) {
-    const uri = this.getFileUri(projectId, ".metadata");
-    const text = JSON.stringify(metadata).trim();
-    await this.writeTextDocument({
-      textDocument: { uri, version: 0, text },
-    });
-  }
-
-  async readProjectContent(projectId: string) {
-    return this.bundleProjectContent(projectId);
-  }
-
-  async bundleProjectContent(projectId: string): Promise<string> {
-    const files = await this.getFiles();
+  async bundleProjectText(projectId: string): Promise<string> {
+    const files = await this.getFiles(projectId);
     const mainScriptUri = this.getFileUri(projectId, "main.script");
     const mainFile = files[mainScriptUri];
     let content = "";
     if (mainFile?.text != null) {
       content += `${mainFile.text}`;
     }
-    const cmp = (a: any, b: any) => {
-      if (a > b) return +1;
-      if (a < b) return -1;
-      return 0;
-    };
     Object.values(files)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
       .forEach((file) => {
@@ -245,18 +243,69 @@ export default class WorkspaceFileSystem {
     return content.trim();
   }
 
-  async writeProjectContent(projectId: string, text: string) {
-    const chunks = this.splitProjectContent(projectId, text);
-    await Promise.all(
-      Object.entries(chunks).map(([uri, text]) =>
-        Workspace.fs.writeTextDocument({
-          textDocument: { uri, version: 0, text },
-        })
-      )
-    );
+  async readProjectZipContent(projectId: string): Promise<ArrayBuffer> {
+    const allFiles = await this.getFiles(projectId);
+    const files = Object.values(allFiles)
+      .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
+      .filter((file) => file.text == null && file.name)
+      .map(({ uri }) => ({ uri }));
+    return this.zipFiles({ files });
   }
 
-  splitProjectContent(projectId: string, text: string): Record<string, string> {
+  async writeProjectTextContent(projectId: string, content: string) {
+    const existingFiles = await this.getFiles(projectId);
+    const remoteFiles = this.splitProjectTextContent(projectId, content);
+    const textFilesToWrite = Object.entries(remoteFiles).map(([uri, text]) => ({
+      uri,
+      data: getTextBuffer(text).buffer,
+    }));
+    const textFilesToDelete = Object.entries(existingFiles)
+      .filter(
+        ([uri, fileData]) =>
+          fileData.name &&
+          fileData.text != null &&
+          !textFilesToWrite.some((file) => file.uri === uri)
+      )
+      .map(([uri]) => ({ uri }));
+    await Promise.all([
+      this.createFiles({
+        files: textFilesToWrite,
+      }),
+      this.deleteFiles({
+        files: textFilesToDelete,
+      }),
+    ]);
+  }
+
+  async writeProjectZipContent(projectId: string, content: ArrayBuffer) {
+    const existingFiles = await this.getFiles(projectId);
+    const unzipped = await this.unzipFiles({ data: content });
+    const zipFilesToWrite = unzipped.map(({ filename, data }) => ({
+      uri: this.getFileUri(projectId, filename),
+      data,
+    }));
+    const zipFilesToDelete = Object.entries(existingFiles)
+      .filter(
+        ([uri, fileData]) =>
+          fileData.name &&
+          fileData.text == null &&
+          !zipFilesToWrite.some((file) => file.uri === uri)
+      )
+      .map(([uri]) => ({ uri }));
+    await Promise.all([
+      this.createFiles({
+        files: zipFilesToWrite,
+      }),
+      this.deleteFiles({
+        files: zipFilesToDelete,
+      }),
+    ]);
+  }
+
+  splitProjectTextContent(
+    projectId: string,
+    text: string
+  ): Record<string, string> {
     const chunks: Record<string, string> = {};
     let filename = "";
     text.split(CHUNK_SPLITTER_REGEX).forEach((content, index) => {
@@ -272,6 +321,18 @@ export default class WorkspaceFileSystem {
       }
     });
     return chunks;
+  }
+
+  async zipFiles(params: { files: { uri: string }[] }) {
+    const { files } = params;
+    const result = await this.sendRequest(ZipFilesMessage.type, { files });
+    return result;
+  }
+
+  async unzipFiles(params: { data: ArrayBuffer }) {
+    const { data } = params;
+    const result = await this.sendRequest(UnzipFilesMessage.type, { data });
+    return result;
   }
 
   async createFiles(params: WillCreateFilesParams) {
@@ -321,8 +382,8 @@ export default class WorkspaceFileSystem {
     return result;
   }
 
-  async getPrograms() {
-    const files = await this.getFiles();
+  async getPrograms(projectId: string) {
+    const files = await this.getFiles(projectId);
     const programs = Object.values(files).filter(
       (f): f is FileData & { program: SparkProgram } => Boolean(f.program)
     );
@@ -360,7 +421,10 @@ export default class WorkspaceFileSystem {
   }
 
   async getUrl(uri: string) {
-    const files = await this.getFiles();
-    return files[uri]?.src;
+    if (this._loadedProjectId) {
+      const files = await this.getFiles(this._loadedProjectId);
+      return files[uri]?.src;
+    }
+    return undefined;
   }
 }

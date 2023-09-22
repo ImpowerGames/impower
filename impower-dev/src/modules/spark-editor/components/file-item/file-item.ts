@@ -21,7 +21,7 @@ export default class FileItem extends Component(spec) {
     }
   };
 
-  handleChanging = (e: Event) => {
+  handleChanging = async (e: Event) => {
     const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (e instanceof CustomEvent) {
@@ -31,9 +31,14 @@ export default class FileItem extends Component(spec) {
           if (e.detail.value === "delete") {
             if (projectId) {
               const uri = Workspace.fs.getFileUri(projectId, filename);
-              Workspace.fs.deleteFiles({
+              const deletedFiles = await Workspace.fs.deleteFiles({
                 files: [{ uri }],
               });
+              if (deletedFiles.some((d) => d.text != null)) {
+                await Workspace.window.requireTextSync();
+              } else {
+                await Workspace.window.requireZipSync();
+              }
             }
           }
         }

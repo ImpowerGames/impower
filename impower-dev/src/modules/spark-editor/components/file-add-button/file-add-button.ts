@@ -16,7 +16,7 @@ export default class FileAddButton extends Component(spec) {
     const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (projectId) {
-      const files = await Workspace.fs.getFiles();
+      const files = await Workspace.fs.getFiles(projectId);
       const fileUris = Object.keys(files);
       const filenames = fileUris.map((uri) => Workspace.fs.getFilename(uri));
       const filename = this.filename;
@@ -30,6 +30,7 @@ export default class FileAddButton extends Component(spec) {
             },
           ],
         });
+        await Workspace.window.requireTextSync();
       }
     }
   };

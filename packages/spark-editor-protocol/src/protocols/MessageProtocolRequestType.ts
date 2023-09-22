@@ -1,5 +1,6 @@
 import { ProtocolRequestType } from "vscode-languageserver-protocol";
 import { RequestMessage } from "../types/base/RequestMessage";
+import { ResponseError } from "../types/base/ResponseError";
 import { ResponseMessage } from "../types/base/ResponseMessage";
 import { isRequest } from "../utils/isRequest";
 import { isResponse } from "../utils/isResponse";
@@ -33,6 +34,14 @@ export class MessageProtocolRequestType<
       method: this.method,
       id,
       result,
+    } as ResponseMessage<M, R>;
+  }
+  error(id: number | string, error: ResponseError): ResponseMessage<M, R> {
+    return {
+      jsonrpc: "2.0",
+      method: this.method,
+      id,
+      error,
     } as ResponseMessage<M, R>;
   }
 }

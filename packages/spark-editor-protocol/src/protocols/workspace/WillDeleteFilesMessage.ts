@@ -1,4 +1,4 @@
-import { DeleteFilesParams } from "../../types";
+import { DeleteFilesParams, FileData } from "../../types";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type WillDeleteFilesMethod = typeof WillDeleteFilesMessage.method;
@@ -10,6 +10,6 @@ export class WillDeleteFilesMessage {
   static readonly type = new MessageProtocolRequestType<
     WillDeleteFilesMethod,
     WillDeleteFilesParams,
-    null
+    FileData[]
   >(WillDeleteFilesMessage.method);
 }

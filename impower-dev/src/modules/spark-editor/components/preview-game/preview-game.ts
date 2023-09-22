@@ -126,43 +126,51 @@ export default class GamePreview extends Component(spec) {
   };
 
   async configureGame() {
-    const editor = await Workspace.window.getOpenEditor("logic");
-    if (editor) {
-      const { uri, selectedRange } = editor;
-      if (uri) {
-        this._programs = await Workspace.fs.getPrograms();
-        this._entryLine = selectedRange?.start?.line ?? 0;
-        this._uri = uri;
-        if (this._programs.length > 0) {
-          this.emit(
-            ConfigureGameMessage.method,
-            ConfigureGameMessage.type.request({
-              settings: {
-                entryProgram: uri,
-                entryLine: this._entryLine,
-              },
-            })
-          );
+    const store = this.stores.workspace.current;
+    const projectId = store?.project?.id;
+    if (projectId) {
+      const editor = await Workspace.window.getOpenEditor("logic");
+      if (editor) {
+        const { uri, selectedRange } = editor;
+        if (uri) {
+          this._programs = await Workspace.fs.getPrograms(projectId);
+          this._entryLine = selectedRange?.start?.line ?? 0;
+          this._uri = uri;
+          if (this._programs.some((p) => p.uri === uri)) {
+            this.emit(
+              ConfigureGameMessage.method,
+              ConfigureGameMessage.type.request({
+                settings: {
+                  entryProgram: uri,
+                  entryLine: this._entryLine,
+                },
+              })
+            );
+          }
         }
       }
     }
   }
 
   async loadGame() {
-    const editor = await Workspace.window.getOpenEditor("logic");
-    if (editor) {
-      const { uri, selectedRange } = editor;
-      if (uri) {
-        this._programs = await Workspace.fs.getPrograms();
-        this._entryLine = selectedRange?.start?.line ?? 0;
-        this._uri = uri;
-        if (this._programs.length > 0) {
-          this.emit(
-            LoadGameMessage.method,
-            LoadGameMessage.type.request({
-              programs: this._programs,
-            })
-          );
+    const store = this.stores.workspace.current;
+    const projectId = store?.project?.id;
+    if (projectId) {
+      const editor = await Workspace.window.getOpenEditor("logic");
+      if (editor) {
+        const { uri, selectedRange } = editor;
+        if (uri) {
+          this._programs = await Workspace.fs.getPrograms(projectId);
+          this._entryLine = selectedRange?.start?.line ?? 0;
+          this._uri = uri;
+          if (this._programs.some((p) => p.uri === uri)) {
+            this.emit(
+              LoadGameMessage.method,
+              LoadGameMessage.type.request({
+                programs: this._programs,
+              })
+            );
+          }
         }
       }
     }
@@ -175,7 +183,7 @@ export default class GamePreview extends Component(spec) {
       const editor = await Workspace.window.getOpenEditor("logic");
       if (editor) {
         const { uri, version, text, visibleRange, selectedRange } = editor;
-        if (uri && this._programs.length > 0) {
+        if (this._programs.some((p) => p.uri === uri)) {
           this.emit(
             LoadPreviewMessage.method,
             LoadPreviewMessage.type.request({
