@@ -26,7 +26,7 @@ export default spec({
         : syncState === "unsynced"
         ? "Unsynced changes"
         : syncState === "synced"
-        ? "Synced online"
+        ? "Synced online ✓"
         : syncState === "offline"
         ? "Cannot sync while offline"
         : syncState === "load_error"
