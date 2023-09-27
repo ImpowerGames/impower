@@ -1,4 +1,4 @@
-import { EditorSelection, EditorState, Text } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { TextDocumentSaveReason } from "../../../../../spark-editor-protocol/src/enums/TextDocumentSaveReason";
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
@@ -33,7 +33,6 @@ import { getScrollClientHeight } from "../../../utils/getScrollClientHeight";
 import { getScrollTop } from "../../../utils/getScrollTop";
 import { getVisibleRange } from "../../../utils/getVisibleRange";
 import { scrollY } from "../../../utils/scrollY";
-import throttle from "../../../utils/throttle";
 import createEditorView, {
   editable,
   readOnly,
@@ -273,24 +272,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
-      const throttledSave = throttle((text: Text) => {
-        if (this._textDocument) {
-          this.emit(
-            WillSaveTextDocumentMessage.method,
-            WillSaveTextDocumentMessage.type.notification({
-              textDocument: this._textDocument,
-              reason: TextDocumentSaveReason.AfterDelay,
-            })
-          );
-          this.emit(
-            DidSaveTextDocumentMessage.method,
-            DidSaveTextDocumentMessage.type.notification({
-              textDocument: this._textDocument,
-              text: text.toString(),
-            })
-          );
-        }
-      }, this.autosaveThrottleDelay);
       this._scrollMargin = getBoxValues(this.scrollMargin);
       this._view = createEditorView(root, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
@@ -338,7 +319,23 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 DidChangeTextDocumentMessage.type,
                 changeParams
               );
-              throttledSave(e.after);
+              if (this._textDocument) {
+                const text = e.after.toString();
+                this.emit(
+                  WillSaveTextDocumentMessage.method,
+                  WillSaveTextDocumentMessage.type.notification({
+                    textDocument: this._textDocument,
+                    reason: TextDocumentSaveReason.AfterDelay,
+                  })
+                );
+                this.emit(
+                  DidSaveTextDocumentMessage.method,
+                  DidSaveTextDocumentMessage.type.notification({
+                    textDocument: this._textDocument,
+                    text,
+                  })
+                );
+              }
             }
           }
         },

@@ -4,7 +4,7 @@ import html from "./sparkdown-script-editor.html";
 
 export default spec({
   tag: "sparkdown-script-editor",
-  props: { readonly: false, scrollMargin: "", autosaveThrottleDelay: 100 },
+  props: { readonly: false, scrollMargin: "" },
   html,
   css,
 });

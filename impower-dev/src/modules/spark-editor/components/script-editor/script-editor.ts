@@ -2,13 +2,18 @@ import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
 import { Component } from "../../../../../../packages/spec-component/src/component";
+import { debounce } from "../../utils/debounce";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_script-editor";
+
+const AUTOSAVE_DELAY = 200;
 
 export default class ScriptEditor extends Component(spec) {
   protected _uri?: string;
 
   protected _version?: number;
+
+  protected _text?: string;
 
   override onConnected() {
     this.loadFile();
@@ -59,19 +64,30 @@ export default class ScriptEditor extends Component(spec) {
           this._version != null
         ) {
           if (text != null) {
-            await Workspace.fs.writeTextDocument({
-              textDocument: {
-                uri: this._uri,
-                version: this._version,
-                text,
-              },
-            });
-            await Workspace.window.requireTextSync();
+            this._text = text;
+            this.debouncedSave();
           }
         }
       }
     }
   };
+
+  protected debouncedSave = debounce(() => {
+    this.save();
+  }, AUTOSAVE_DELAY);
+
+  async save() {
+    if (this._uri && this._version && this._text) {
+      await Workspace.fs.writeTextDocument({
+        textDocument: {
+          uri: this._uri,
+          version: this._version,
+          text: this._text,
+        },
+      });
+      await Workspace.window.requireTextSync();
+    }
+  }
 
   override onContextChanged(
     oldContext: { textPulledAt: string },
