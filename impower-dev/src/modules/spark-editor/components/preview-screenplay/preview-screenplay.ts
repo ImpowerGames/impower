@@ -30,11 +30,11 @@ export default class PreviewScreenplay extends Component(spec) {
   };
 
   override onContextChanged(
-    oldContext: { pulledAt: string },
-    newContext: { pulledAt: string }
+    oldContext: { textPulledAt: string },
+    newContext: { textPulledAt: string }
   ) {
-    if (oldContext.pulledAt !== newContext.pulledAt) {
-      this.render();
+    if (oldContext.textPulledAt !== newContext.textPulledAt) {
+      this.loadFile();
     }
   }
 
@@ -42,7 +42,7 @@ export default class PreviewScreenplay extends Component(spec) {
     const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (projectId) {
-      const editor = await Workspace.window.getOpenEditor("logic");
+      const editor = Workspace.window.getActiveEditorForPane("logic");
       if (editor) {
         const { uri, visibleRange, selectedRange } = editor;
         const files = await Workspace.fs.getFiles(projectId);

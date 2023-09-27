@@ -3,7 +3,7 @@ import css from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
 
 export default spec({
-  tag: "se-preview-mode-toolbar",
+  tag: "se-preview-mode-toggle",
   stores: { workspace },
   html: ({ stores }) => {
     const mode = stores?.workspace?.current?.preview?.mode || "game";

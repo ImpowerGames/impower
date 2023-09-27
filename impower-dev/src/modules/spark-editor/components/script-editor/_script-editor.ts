@@ -9,9 +9,10 @@ export default spec({
   props: {
     filename: "",
   },
-  context: ({ workspace }) => ({
-    pulledAt: workspace?.current?.project?.pulledAt || "",
-  } as const),
+  context: ({ workspace }) =>
+    ({
+      textPulledAt: workspace?.current?.project?.textPulledAt || "",
+    } as const),
   html,
   selectors: {
     sparkdownScriptEditor: "",

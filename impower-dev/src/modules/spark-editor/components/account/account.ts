@@ -78,13 +78,13 @@ export default class Account extends Component(spec) {
       const access = await syncProvider.getAccess();
       const token = access.token;
       if (token) {
-        this.emit("picking");
+        Workspace.window.startedPickingProjectResource();
         const fileId = await syncProvider.pickProjectFile(token);
         if (fileId) {
           Workspace.window.unloadProject();
           Workspace.window.loadNewProject(fileId);
         }
-        this.emit("picked", fileId);
+        Workspace.window.finishedPickingProjectResource();
       }
     } catch (err: any) {
       console.error(err);
@@ -100,12 +100,12 @@ export default class Account extends Component(spec) {
         const access = await syncProvider.getAccess();
         const token = access.token;
         if (token) {
-          this.emit("picking");
+          Workspace.window.startedPickingProjectResource();
           const folderId = await syncProvider.pickProjectFolder(token);
           if (folderId) {
             await Workspace.window.exportProject(folderId);
           }
-          this.emit("picked", folderId);
+          Workspace.window.finishedPickingProjectResource();
         }
       }
     } catch (err: any) {

@@ -8,7 +8,7 @@ export default spec({
   stores: { workspace },
   context: ({ workspace }) =>
     ({
-      pulledAt: workspace?.current?.project?.pulledAt || "",
+      textPulledAt: workspace?.current?.project?.textPulledAt || "",
     } as const),
   html,
   css,

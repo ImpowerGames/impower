@@ -1,10 +1,8 @@
-import { RevealEditorRangeMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RevealEditorRangeMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { DidExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { DidOpenTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidOpenTextDocumentMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import {
   getNextPreviewCommand,
@@ -31,10 +29,6 @@ export default class GamePreview extends Component(spec) {
       this.handleDidChangeWatchedFiles
     );
     window.addEventListener(
-      DidOpenTextDocumentMessage.method,
-      this.handleDidOpenTextDocument
-    );
-    window.addEventListener(
       SelectedEditorMessage.method,
       this.handleSelectedEditor
     );
@@ -49,10 +43,6 @@ export default class GamePreview extends Component(spec) {
     window.removeEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
-    );
-    window.removeEventListener(
-      DidOpenTextDocumentMessage.method,
-      this.handleDidOpenTextDocument
     );
     window.removeEventListener(
       SelectedEditorMessage.method,
@@ -70,17 +60,6 @@ export default class GamePreview extends Component(spec) {
       await this.configureGame();
       await this.loadGame();
       await this.loadPreview();
-    }
-  };
-
-  handleDidOpenTextDocument = async (e: Event) => {
-    if (e instanceof CustomEvent) {
-      const message = e.detail;
-      if (DidOpenTextDocumentMessage.type.isNotification(message)) {
-        await this.configureGame();
-        await this.loadGame();
-        await this.loadPreview();
-      }
     }
   };
 
@@ -105,13 +84,7 @@ export default class GamePreview extends Component(spec) {
       const message = e.detail;
       if (DidExecuteGameCommandMessage.type.isNotification(message)) {
         const { textDocument, range } = message.params;
-        this.emit(
-          RevealEditorRangeMessage.method,
-          RevealEditorRangeMessage.type.request({
-            textDocument,
-            selectedRange: range,
-          })
-        );
+        Workspace.window.revealEditorRange(textDocument.uri, range, true);
       }
     }
   };
@@ -125,29 +98,35 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  async configureGame() {
+  override onStoreUpdate() {
     const store = this.stores.workspace.current;
-    const projectId = store?.project?.id;
-    if (projectId) {
-      const editor = await Workspace.window.getOpenEditor("logic");
-      if (editor) {
-        const { uri, selectedRange } = editor;
-        if (uri) {
-          this._programs = await Workspace.fs.getPrograms(projectId);
-          this._entryLine = selectedRange?.start?.line ?? 0;
-          this._uri = uri;
-          if (this._programs.some((p) => p.uri === uri)) {
-            this.emit(
-              ConfigureGameMessage.method,
-              ConfigureGameMessage.type.request({
-                settings: {
-                  entryProgram: uri,
-                  entryLine: this._entryLine,
-                },
-              })
-            );
-          }
-        }
+    const running = store?.preview?.modes?.game?.running;
+    const editor = Workspace.window.getActiveEditorForPane("logic");
+    if (!running && editor) {
+      const { uri } = editor;
+      if (uri && uri !== this._uri) {
+        this.configureGame();
+      }
+    }
+  }
+
+  async configureGame() {
+    const editor = Workspace.window.getActiveEditorForPane("logic");
+    if (editor) {
+      const { projectId, uri, selectedRange } = editor;
+      this._programs = await Workspace.fs.getPrograms(projectId);
+      this._entryLine = selectedRange?.start?.line ?? 0;
+      this._uri = uri;
+      if (this._programs.some((p) => p.uri === uri)) {
+        this.emit(
+          ConfigureGameMessage.method,
+          ConfigureGameMessage.type.request({
+            settings: {
+              entryProgram: uri,
+              entryLine: this._entryLine,
+            },
+          })
+        );
       }
     }
   }
@@ -156,7 +135,7 @@ export default class GamePreview extends Component(spec) {
     const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (projectId) {
-      const editor = await Workspace.window.getOpenEditor("logic");
+      const editor = Workspace.window.getActiveEditorForPane("logic");
       if (editor) {
         const { uri, selectedRange } = editor;
         if (uri) {
@@ -178,12 +157,19 @@ export default class GamePreview extends Component(spec) {
 
   async loadPreview() {
     const store = this.stores.workspace.current;
+    const projectId = store.project.id;
     const running = store.preview.modes.game.running;
-    if (!running) {
-      const editor = await Workspace.window.getOpenEditor("logic");
+    if (projectId && !running) {
+      const editor = Workspace.window.getActiveEditorForPane("logic");
       if (editor) {
-        const { uri, version, text, visibleRange, selectedRange } = editor;
-        if (this._programs.some((p) => p.uri === uri)) {
+        const { uri, visibleRange, selectedRange } = editor;
+        const files = await Workspace.fs.getFiles(projectId);
+        const file = files[uri];
+        if (
+          file &&
+          file.text != null &&
+          this._programs.some((p) => p.uri === uri)
+        ) {
           this.emit(
             LoadPreviewMessage.method,
             LoadPreviewMessage.type.request({
@@ -191,8 +177,8 @@ export default class GamePreview extends Component(spec) {
               textDocument: {
                 uri,
                 languageId: "sparkdown",
-                version,
-                text: text!,
+                version: file.version,
+                text: file.text,
               },
               visibleRange,
               selectedRange,
@@ -204,7 +190,7 @@ export default class GamePreview extends Component(spec) {
   }
 
   async pageUp() {
-    const editor = await Workspace.window.getOpenEditor("logic");
+    const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
       const cached = this._programs.find((p) => p.uri === uri);
@@ -213,29 +199,24 @@ export default class GamePreview extends Component(spec) {
       if (program) {
         const previewCommand = getPreviousPreviewCommand(program, currLine);
         if (previewCommand) {
-          this.emit(
-            RevealEditorRangeMessage.method,
-            RevealEditorRangeMessage.type.request({
-              textDocument: { uri },
-              selectedRange: {
-                start: {
-                  line: previewCommand.source.line,
-                  character: 0,
-                },
-                end: {
-                  line: previewCommand.source.line,
-                  character: 0,
-                },
-              },
-            })
-          );
+          const range = {
+            start: {
+              line: previewCommand.source.line,
+              character: 0,
+            },
+            end: {
+              line: previewCommand.source.line,
+              character: 0,
+            },
+          };
+          Workspace.window.revealEditorRange(uri, range, true);
         }
       }
     }
   }
 
   async pageDown() {
-    const editor = await Workspace.window.getOpenEditor("logic");
+    const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
       const cached = this._programs.find((p) => p.uri === uri);
@@ -244,22 +225,17 @@ export default class GamePreview extends Component(spec) {
       if (program) {
         const previewCommand = getNextPreviewCommand(program, currLine);
         if (previewCommand) {
-          this.emit(
-            RevealEditorRangeMessage.method,
-            RevealEditorRangeMessage.type.request({
-              textDocument: { uri },
-              selectedRange: {
-                start: {
-                  line: previewCommand.source.line,
-                  character: 0,
-                },
-                end: {
-                  line: previewCommand.source.line,
-                  character: 0,
-                },
-              },
-            })
-          );
+          const range = {
+            start: {
+              line: previewCommand.source.line,
+              character: 0,
+            },
+            end: {
+              line: previewCommand.source.line,
+              character: 0,
+            },
+          };
+          Workspace.window.revealEditorRange(uri, range, true);
         }
       }
     }

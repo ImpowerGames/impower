@@ -6,7 +6,7 @@ export type RevealEditorRangeMethod = typeof RevealEditorRangeMessage.method;
 export interface RevealEditorRangeParams {
   textDocument: TextDocumentIdentifier;
   visibleRange?: Range;
-  selectedRange?: Range;
+  select?: boolean;
 }
 
 export class RevealEditorRangeMessage {

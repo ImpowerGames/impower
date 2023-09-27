@@ -28,3 +28,8 @@
   --s-color-palette-cube-1: #00c6bd;
   --s-color-palette-cube-2: #fff7d6;
 }
+
+.picker-dialog-bg {
+  background-color: #000;
+  pointer-events: auto;
+}

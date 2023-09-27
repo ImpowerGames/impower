@@ -1,1 +1,1 @@
-export const getUriFromPath = (path: string) => "file:///" + path;
+export const getUriFromPath = (path: string) => "file://" + path;

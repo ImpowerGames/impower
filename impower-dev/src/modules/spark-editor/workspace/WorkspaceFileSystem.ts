@@ -51,7 +51,7 @@ export default class WorkspaceFileSystem {
 
   protected _assetCache: Record<string, HTMLElement> = {};
 
-  protected _scheme = "file:///";
+  protected _scheme = "file://";
   get scheme() {
     return this._scheme;
   }

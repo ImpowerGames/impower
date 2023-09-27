@@ -229,13 +229,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
         const params = message.params;
         const textDocument = params.textDocument;
         const visibleRange = params.visibleRange;
-        const selectedRange = params.selectedRange;
+        const select = params.select;
         if (textDocument.uri === this._textDocument?.uri) {
-          if (visibleRange) {
+          if (select) {
+            this.selectRange(visibleRange, true);
+          } else if (visibleRange) {
             this.scrollToRange(visibleRange);
-          }
-          if (selectedRange) {
-            this.selectRange(selectedRange, !visibleRange);
           }
         }
       }
@@ -362,6 +361,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
     SparkdownScriptEditor.languageServerConnection.sendNotification(
       DidOpenTextDocumentMessage.type,
       { textDocument }
+    );
+    this.emit(
+      DidOpenTextDocumentMessage.method,
+      DidOpenTextDocumentMessage.type.notification({ textDocument })
     );
     window.requestAnimationFrame(() => {
       this.scrollToRange(visibleRange);

@@ -148,7 +148,7 @@ export class Context<
         const commands: {
           runner: CommandRunner<G>;
           data: CommandData;
-        }[] = Object.entries(block.commands || {}).map(([k, v]) => {
+        }[] = Object.entries(block.commands || {}).map(([_, v]) => {
           const r = this.runner.getCommandRunner(v.reference.typeId);
           return { runner: r as CommandRunner<G>, data: v as CommandData };
         });

@@ -15,6 +15,8 @@ export type PanelType =
 
 export type PaneType = "setup" | "audio" | "displays" | "graphics" | "logic";
 
+export type PreviewMode = "page" | "game" | "screenplay" | "file";
+
 export type SyncState =
   | "cached"
   | "unsynced"
@@ -50,7 +52,7 @@ export interface ScreenplayState {
 
 export interface PreviewState {
   revealed?: boolean;
-  mode: "page" | "game" | "screenplay" | "file";
+  mode: PreviewMode;
   modes: {
     page: {};
     game: GameState;
@@ -111,8 +113,10 @@ export interface ProjectState {
   id?: string;
   name?: string;
   editingName?: boolean;
+  pickingResource?: boolean;
   syncState?: SyncState;
-  pulledAt?: string;
+  textPulledAt?: string;
+  zipPulledAt?: string;
   revisions?: Revision[];
 }
 

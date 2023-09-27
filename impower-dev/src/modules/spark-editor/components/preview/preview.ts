@@ -15,7 +15,7 @@ export default class Preview extends Component(spec) {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "preview") {
         const value = e.detail.value;
-        Workspace.window.openedPanel("preview", value);
+        Workspace.window.changedPreviewMode(value);
       }
     }
   };

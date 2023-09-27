@@ -74,11 +74,11 @@ export default class ScriptEditor extends Component(spec) {
   };
 
   override onContextChanged(
-    oldContext: { pulledAt: string },
-    newContext: { pulledAt: string }
+    oldContext: { textPulledAt: string },
+    newContext: { textPulledAt: string }
   ) {
-    if (oldContext.pulledAt !== newContext.pulledAt) {
-      this.render();
+    if (oldContext.textPulledAt !== newContext.textPulledAt) {
+      this.loadFile();
     }
   }
 
@@ -87,7 +87,7 @@ export default class ScriptEditor extends Component(spec) {
     const projectId = store?.project?.id;
     if (projectId) {
       const filename = this.filename || "main.script";
-      const editor = await Workspace.window.getActiveEditor(filename);
+      const editor = Workspace.window.getActiveEditorForFile(filename);
       if (editor) {
         const uri = editor.uri;
         const visibleRange = editor.visibleRange;
@@ -119,14 +119,14 @@ export default class ScriptEditor extends Component(spec) {
   }
 
   override onInit() {
-    this.setup();
+    this.updateReadonlyState();
   }
 
   override onStoreUpdate() {
-    this.setup();
+    this.updateReadonlyState();
   }
 
-  setup() {
+  updateReadonlyState() {
     const store = this.stores.workspace.current;
     const syncState = store?.project?.syncState;
     if (

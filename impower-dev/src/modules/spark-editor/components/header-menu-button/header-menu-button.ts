@@ -2,11 +2,11 @@ import { Component } from "../../../../../../packages/spec-component/src/compone
 import spec from "./_header-menu-button";
 
 export default class HeaderMenuButton extends Component(spec) {
+  protected _pickingResource?: boolean;
+
   override onConnected() {
     this.ref.openButton.addEventListener("click", this.handleClickOpenButton);
     this.ref.closeButton.addEventListener("click", this.handleClickCloseButton);
-    this.ref.account.addEventListener("picking", this.handlePicking);
-    this.ref.account.addEventListener("saving", this.handleSaving);
   }
 
   override onDisconnected() {
@@ -18,25 +18,28 @@ export default class HeaderMenuButton extends Component(spec) {
       "click",
       this.handleClickCloseButton
     );
-    this.ref.account.removeEventListener("picking", this.handlePicking);
-    this.ref.account.removeEventListener("saving", this.handleSaving);
   }
 
   handleClickOpenButton = () => {
-    this.openDrawer();
+    if (!this._pickingResource) {
+      this.openDrawer();
+    }
   };
 
   handleClickCloseButton = () => {
     this.closeDrawer();
   };
 
-  handlePicking = () => {
-    this.closeDrawer();
-  };
-
-  handleSaving = () => {
-    this.closeDrawer();
-  };
+  override onStoreUpdate() {
+    const store = this.stores.workspace.current;
+    const pickingResource = store.project.pickingResource;
+    if (pickingResource !== this._pickingResource) {
+      this._pickingResource = pickingResource;
+      if (pickingResource) {
+        this.closeDrawer();
+      }
+    }
+  }
 
   openDrawer() {
     const drawerEl = this.ref.drawer;

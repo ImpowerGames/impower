@@ -1,6 +1,5 @@
 import { IStore } from "../types/IStore";
 import emit from "../utils/emit";
-import reactive from "../utils/reactive";
 
 const Store = <T extends object>(
   data: T,
@@ -18,9 +17,7 @@ const Store = <T extends object>(
       return this.#target || window;
     }
 
-    #current = reactive(data, (detail) =>
-      emit(this.event, detail, this.target)
-    );
+    #current = data;
     get current() {
       return this.#current;
     }
