@@ -54,8 +54,5 @@ export default class HeaderNavigation extends Component(spec) {
     if (!this.ref.doneButton.hidden) {
       this.ref.doneButton.hidden = true;
     }
-    if (!this.ref.mobileToolbar.hidden) {
-      await Workspace.window.syncProject();
-    }
   }
 }
