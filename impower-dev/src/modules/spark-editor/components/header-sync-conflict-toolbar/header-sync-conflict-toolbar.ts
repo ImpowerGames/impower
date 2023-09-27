@@ -1,4 +1,5 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
+import { Workspace } from "../../workspace/Workspace";
 import spec from "./_header-sync-conflict-toolbar";
 
 export default class HeaderSyncConflictToolbar extends Component(spec) {
@@ -31,31 +32,10 @@ export default class HeaderSyncConflictToolbar extends Component(spec) {
   };
 
   handleConfirmPull = async () => {
-    const projectId = this.stores.workspace.current.project.id ?? "";
-    if (projectId) {
-      // TODO:
-      // const remoteProjectFile = await Workspace.sync.google.getFile(projectId);
-      // await Workspace.window.pullRemoteTextChanges(remoteProjectFile);
-    }
+    await Workspace.window.resolveConflictWithPull();
   };
 
   handleConfirmPush = async () => {
-    const projectId = this.stores.workspace.current.project.id ?? "";
-    if (projectId) {
-      // TODO:
-      // const localMetadata = await Workspace.fs.readProjectMetadata(projectId);
-      // const localProjectName = await Workspace.fs.readProjectName(projectId);
-      // const localProjectContent = await Workspace.fs.readProjectTextContent(
-      //   projectId
-      // );
-      // const localProjectFile = {
-      //   id: projectId,
-      //   name: `${localProjectName}.project`,
-      //   text: localProjectContent,
-      //   headRevisionId: localMetadata.documentBundleRevisionId,
-      //   modifiedTime: localMetadata.modifiedTime,
-      // };
-      // Workspace.window.pushLocalTextChanges(localProjectFile);
-    }
+    await Workspace.window.resolveConflictWithPush();
   };
 }

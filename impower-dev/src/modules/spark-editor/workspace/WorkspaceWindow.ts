@@ -811,6 +811,107 @@ export default class WorkspaceWindow {
     }
   }
 
+  async resolveConflictWithPull() {
+    try {
+      const id = this.store.project.id;
+      if (id) {
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "syncing",
+          },
+        });
+        const revisions = await Workspace.sync.google.getFileRevisions(id);
+        if (revisions) {
+          const projectTextRevision = revisions.findLast(
+            (r) => r.mimeType === "text/plain"
+          );
+          const projectZipRevision = revisions.findLast(
+            (r) => r.mimeType === "application/zip"
+          );
+          if (projectTextRevision) {
+            await this.pullRemoteTextChanges(id, projectTextRevision);
+          }
+          if (projectZipRevision) {
+            await this.pullRemoteZipChanges(id, projectZipRevision);
+          }
+          const name =
+            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            WorkspaceConstants.DEFAULT_PROJECT_NAME;
+          this.update({
+            ...this.store,
+            project: {
+              ...this.store.project,
+              name,
+              syncState:
+                projectTextRevision && projectZipRevision ? "synced" : "cached",
+            },
+          });
+        } else {
+          console.error(`Could not fetch remote project file: ${id}`);
+          const name =
+            (await Workspace.fs.readProjectMetadata(id, "name")) ||
+            WorkspaceConstants.DEFAULT_PROJECT_NAME;
+          this.update({
+            ...this.store,
+            project: {
+              ...this.store.project,
+              name,
+              syncState: "offline",
+            },
+          });
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      this.update({
+        ...this.store,
+        project: {
+          ...this.store.project,
+          syncState: "sync_error",
+        },
+      });
+    }
+  }
+
+  async resolveConflictWithPush() {
+    try {
+      const id = this.store.project.id;
+      if (id) {
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "syncing",
+          },
+        });
+        await this.pushLocalTextChanges(id);
+        await this.pushLocalZipChanges(id);
+        const name =
+          (await Workspace.fs.readProjectMetadata(id, "name")) ||
+          WorkspaceConstants.DEFAULT_PROJECT_NAME;
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            name,
+            syncState: "synced",
+          },
+        });
+      }
+    } catch (err: any) {
+      console.error(err);
+      this.update({
+        ...this.store,
+        project: {
+          ...this.store.project,
+          syncState: "sync_error",
+        },
+      });
+    }
+  }
+
   protected async syncText(
     fileId: string,
     projectTextRevision: RemoteStorage.Revision,
@@ -867,7 +968,7 @@ export default class WorkspaceWindow {
     return remoteProjectFile;
   }
 
-  protected async pullRemoteTextChanges(
+  async pullRemoteTextChanges(
     fileId: string,
     revision: RemoteStorage.Revision
   ) {
@@ -925,7 +1026,7 @@ export default class WorkspaceWindow {
     return "synced";
   }
 
-  protected async pushLocalZipChanges(fileId: string) {
+  async pushLocalZipChanges(fileId: string) {
     const projectName =
       (await Workspace.fs.readProjectMetadata(fileId, "name")) ||
       WorkspaceConstants.DEFAULT_PROJECT_NAME;
