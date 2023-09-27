@@ -125,14 +125,14 @@ export default class WorkspaceFileSystem {
       this._fileSystemWorker.postMessage(
         ConfigurationMessage.type.response(message.id, result)
       );
-    } else if (DidParseTextDocumentMessage.type.isNotification(message)) {
-      this.emit(message.method, message);
     } else if (
+      DidParseTextDocumentMessage.type.isNotification(message) ||
       DidWriteFileMessage.type.isNotification(message) ||
       DidCreateFilesMessage.type.isNotification(message) ||
-      DidDeleteFilesMessage.type.isNotification(message) ||
-      DidChangeWatchedFilesMessage.type.isNotification(message)
+      DidDeleteFilesMessage.type.isNotification(message)
     ) {
+      this.emit(message.method, message);
+    } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
       const connection = await Workspace.lsp.getConnection();
       connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
