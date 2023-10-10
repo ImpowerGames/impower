@@ -44,8 +44,6 @@ export default spec({
         label="${label}"
         size="sm"
         width="100%"
-        autofocus
-        autoselect
       ></s-input>
     `;
     const nameSkeleton = () => html`

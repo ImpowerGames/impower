@@ -7,7 +7,6 @@ export default spec({
   props: {
     type: null as string | null,
     name: null as string | null,
-    autofocus: false,
     autocomplete: null as string | null,
     autocorrect: null as string | null,
     autocapitalize: null as string | null,
@@ -26,7 +25,6 @@ export default spec({
     const {
       type,
       name,
-      autofocus,
       autocomplete,
       autocorrect,
       autocapitalize,
@@ -43,7 +41,6 @@ export default spec({
     } = props;
     const typeAttr = type ? () => html`type="${type}"` : "";
     const nameAttr = name ? () => html`name="${name}"` : "";
-    const autofocusAttr = autofocus ? () => html`autofocus` : "";
     const autocompleteAttr = autocomplete
       ? () => html`autocomplete="${autocomplete}"`
       : "";
@@ -81,7 +78,6 @@ export default spec({
           part="input"
           ${typeAttr}
           ${nameAttr}
-          ${autofocusAttr}
           ${autocompleteAttr}
           ${autocorrectAttr}
           ${autocapitalizeAttr}

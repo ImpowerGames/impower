@@ -288,7 +288,7 @@ export default class Input
       ripple?.bind?.(this.root);
     }
     if (this.autoselect) {
-      this.ref.input?.select();
+      this.ref.input.select();
     }
   }
 
@@ -297,6 +297,10 @@ export default class Input
     if (ripple) {
       ripple?.unbind?.(this.root);
     }
+  }
+
+  select() {
+    this.ref.input.select();
   }
 }
 

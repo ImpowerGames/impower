@@ -420,16 +420,7 @@ export default class Button
   };
 
   protected handleInputChange = (e: Event) => {
-    const propagatableEvent = new Event(e.type, {
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-    });
-    Object.defineProperty(propagatableEvent, "target", {
-      writable: false,
-      value: e.target,
-    });
-    this.dispatchEvent(propagatableEvent);
+    this.propagateEvent(e);
   };
 
   protected override onContentAssigned(children: Element[]) {

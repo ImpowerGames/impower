@@ -391,6 +391,19 @@ const Component = <
       return emit(event, detail, this);
     }
 
+    propagateEvent(event: Event): boolean {
+      const propagatableEvent = new Event(event.type, {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+      });
+      Object.defineProperty(propagatableEvent, "target", {
+        writable: false,
+        value: event.target,
+      });
+      return this.dispatchEvent(propagatableEvent);
+    }
+
     getElementById<T extends HTMLElement>(id: string): T | null {
       if (this.shadowRoot) {
         return (this.shadowRoot.getElementById(id) as T) || null;
