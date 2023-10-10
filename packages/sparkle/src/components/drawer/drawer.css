@@ -9,7 +9,6 @@
   --child-gap: 16px;
   --shadow: var(--s-shadow-drop-5);
   --z: var(--s-z-index-dialog);
-  --ease: ease;
   --title-text-weight: 400;
   --title-text-size: var(--s-text-2xl-font-size);
   --title-text-leading: var(--s-text-2xl-line-height);
@@ -24,6 +23,7 @@
   --exit: var(--s-animation-slide-out-left), var(--s-animation-fade-out);
   --mobile-enter: var(--s-animation-slide-in-right);
   --mobile-exit: var(--s-animation-slide-out-left);
+  --ease: ease-out;
 }
 
 :host > .root {
@@ -39,7 +39,7 @@
   filter: var(--shadow);
   z-index: var(--z);
   color: var(--text-color);
-  transition: opacity 0.5s var(--ease);
+  transition: opacity 0.5s;
   background-color: var(--background-color);
   border-style: solid;
   border-color: var(--border-color);
@@ -56,9 +56,11 @@
 }
 :host([loaded][open]) > .root {
   animation: var(--enter) forwards;
+  animation-timing-function: var(--ease);
 }
 :host([loaded]:not([open])) > .root {
   animation: var(--exit) forwards;
+  animation-timing-function: var(--ease);
 }
 @media (width <= 960px) {
   :host > .root {
@@ -68,9 +70,11 @@
   }
   :host([loaded][open]) > .root {
     animation: var(--mobile-enter) forwards;
+    animation-timing-function: var(--ease);
   }
   :host([loaded]:not([open])) > .root {
     animation: var(--mobile-exit) forwards;
+    animation-timing-function: var(--ease);
   }
 }
 

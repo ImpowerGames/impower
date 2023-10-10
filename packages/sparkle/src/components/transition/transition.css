@@ -4,6 +4,7 @@
 :host {
   --exit: var(--s-animation-close);
   --enter: var(--s-animation-open);
+  --ease: ease-out;
   --position: relative;
 }
 
@@ -25,7 +26,9 @@
 }
 :host > .root[status="exiting"] {
   animation: var(--exit) both;
+  animation-timing-function: var(--ease);
 }
 :host > .root[status="entering"] {
   animation: var(--enter) both;
+  animation-timing-function: var(--ease);
 }

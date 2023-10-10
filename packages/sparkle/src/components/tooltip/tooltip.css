@@ -21,6 +21,7 @@
   --shadow: var(--s-shadow-drop-2);
   --enter: var(--s-animation-enter-fade);
   --exit: var(--s-animation-exit-fade);
+  --ease: ease-out;
 }
 
 :host > .root {
@@ -29,9 +30,11 @@
 
 :host([open]) > .popup {
   animation: var(--enter) forwards;
+  animation-timing-function: var(--ease);
 }
 :host(:not([open])) > .popup {
   animation: var(--exit) forwards;
+  animation-timing-function: var(--ease);
 }
 
 :host > .popup {

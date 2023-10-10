@@ -9,7 +9,6 @@
   --child-gap: 16px;
   --shadow: var(--s-shadow-drop-5);
   --z: var(--s-z-index-dialog);
-  --ease: ease;
   --title-text-weight: 400;
   --title-text-size: var(--s-text-2xl-font-size);
   --title-text-leading: var(--s-text-2xl-line-height);
@@ -24,6 +23,7 @@
   --exit: var(--s-animation-close);
   --mobile-enter: var(--s-animation-slide-in-up), var(--s-animation-fade-in);
   --mobile-exit: var(--s-animation-slide-out-down), var(--s-animation-fade-out);
+  --ease: ease-out;
 }
 
 :host > .root {
@@ -53,9 +53,11 @@
 }
 :host([loaded][open]) > .root {
   animation: var(--enter) forwards;
+  animation-timing-function: var(--ease);
 }
 :host([loaded]:not([open])) > .root {
   animation: var(--exit) forwards;
+  animation-timing-function: var(--ease);
 }
 @media (width <= 960px) {
   :host > .root {
@@ -66,9 +68,11 @@
   }
   :host([loaded][open]) > .root {
     animation: var(--mobile-enter) forwards;
+    animation-timing-function: var(--ease);
   }
   :host([loaded]:not([open])) > .root {
     animation: var(--mobile-exit) forwards;
+    animation-timing-function: var(--ease);
   }
 }
 
