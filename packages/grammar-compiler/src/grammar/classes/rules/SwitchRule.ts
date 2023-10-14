@@ -28,15 +28,20 @@ export default class SwitchRule implements Rule {
 
   rules?: Rule[];
 
+  emit?: boolean;
+
   constructor(repo: GrammarRepository, def: SwitchRuleDefinition) {
     this.repo = repo;
 
     let id = def.id ?? createID();
-    let emit = def.id || def.autocomplete;
     this.id = id;
-    this.node = !emit
-      ? GrammarNode.None
-      : new GrammarNode(repo.nextTypeIndex(), def, repo.grammar.declarator);
+    this.node = new GrammarNode(
+      repo.nextTypeIndex(),
+      def,
+      repo.grammar.declarator
+    );
+
+    this.emit = def.emit;
 
     // patterns
     this.patterns = def.patterns;
@@ -58,7 +63,11 @@ export default class SwitchRule implements Rule {
       if (rule) {
         const output = rule.match(str, pos, state);
         if (output) {
-          return output;
+          if (this.emit) {
+            return output.wrap(this.node);
+          } else {
+            return output;
+          }
         }
       }
     }

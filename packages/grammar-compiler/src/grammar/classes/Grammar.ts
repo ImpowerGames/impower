@@ -43,6 +43,11 @@ export default class Grammar {
    */
   declare nodes: GrammarNode[];
 
+  /**
+   * Names of all {@link GrammarNode}s in this grammar, ordered by type index
+   */
+  declare nodeNames: string[];
+
   constructor(
     /**
      * The definition used to create this grammar.
@@ -82,18 +87,13 @@ export default class Grammar {
 
     // Cache ordered Nodes
     const noneNode = new GrammarNode(
-      NodeID.NONE,
+      NodeID.none,
       { id: "none" },
       this.declarator
     );
-    const topNode = new GrammarNode(NodeID.TOP, { id: "top" }, this.declarator);
-    const newlineNode = new GrammarNode(
-      NodeID.NEWLINE,
-      { id: "newline" },
-      this.declarator
-    );
+    const topNode = new GrammarNode(NodeID.top, { id: "top" }, this.declarator);
     const unrecognizedNode = new GrammarNode(
-      NodeID.ERROR_UNRECOGNIZED,
+      NodeID.unrecognized,
       { id: "unrecognized" },
       (typeIndex, typeId, def) => ({
         isError: true,
@@ -101,7 +101,7 @@ export default class Grammar {
       })
     );
     const incompleteNode = new GrammarNode(
-      NodeID.ERROR_INCOMPLETE,
+      NodeID.incomplete,
       { id: "incomplete" },
       (typeIndex, typeId, def) => ({
         isError: true,
@@ -111,11 +111,11 @@ export default class Grammar {
     this.nodes = [
       noneNode,
       topNode,
-      newlineNode,
       unrecognizedNode,
       incompleteNode,
       ...this.repository.nodes(),
     ];
+    this.nodeNames = this.nodes.map((n) => n.typeId);
   }
 
   /** Returns a {@link GrammarState} setup for this grammar's default state. */
@@ -137,7 +137,7 @@ export default class Grammar {
    * @param offset - The offset to apply to the resulting {@link Matched}'s
    *   `from` position.
    */
-  match(state: GrammarState, str: string, pos: number, offset = 0) {
+  match(state: GrammarState, str: string, pos: number, offset = pos) {
     return tryMatch(state, str, pos, offset);
   }
 }

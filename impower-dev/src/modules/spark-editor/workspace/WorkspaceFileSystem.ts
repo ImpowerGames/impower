@@ -25,6 +25,7 @@ import {
   FileData,
   ProjectMetadataField,
 } from "@impower/spark-editor-protocol/src/types";
+import GRAMMAR from "../../../../../packages/sparkdown/language/sparkdown.language-grammar.json";
 import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
@@ -32,9 +33,12 @@ import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 
-const CHUNK_SPLITTER_REGEX = /(^[ \t]*[%][^%]+[%][ \t]*$)/gm;
-
-const CHUNK_FILENAME_REGEX = /^[ \t]*[%]([^%]+)[%][ \t]*$/;
+const CHUNK_SPLITTER_REGEX = new RegExp(
+  GRAMMAR.repository.ChunkSplitter.match,
+  GRAMMAR.flags
+);
+const CHUNK_REGEX = new RegExp(GRAMMAR.repository.Chunk.match);
+const CHUNK_NAME_CAPTURE_INDEX = 3;
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -235,7 +239,7 @@ export default class WorkspaceFileSystem {
       .forEach((file) => {
         if (file.uri !== mainScriptUri) {
           if (file.text != null && file.name) {
-            content += `\n\n% ${file.name}.${file.ext} %`;
+            content += `\n\n% ${file.name}.${file.ext}`;
             content += `\n\n${file.text}`;
           }
         }
@@ -316,8 +320,8 @@ export default class WorkspaceFileSystem {
           : this.getFileUri(projectId, "main.script");
         chunks[uri] = content.trim();
       } else {
-        const match = content.match(CHUNK_FILENAME_REGEX);
-        filename = match?.[1]?.trim() || "";
+        const match = content.trim().match(CHUNK_REGEX);
+        filename = match?.[CHUNK_NAME_CAPTURE_INDEX]?.trim() || "";
       }
     });
     return chunks;

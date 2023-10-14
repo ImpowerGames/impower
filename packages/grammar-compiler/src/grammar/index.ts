@@ -8,4 +8,5 @@ export { default as RegExpMatcher } from "./classes/RegExpMatcher";
 export * from "./types/GrammarDefinition";
 export * from "./types/GrammarStackElement";
 export * from "./types/Matcher";
+export * from "./types/NodeName";
 export * from "./types/Rule";

@@ -29,6 +29,7 @@ surroundingPairs:
   - ["_", "_"]
   - ["~", "~"]
   - ["=", "="]
+  - [":", ":"]
   - ["^", "^"]
   - ["/", "/"]
   - ["\\", "\\"]
@@ -42,5 +43,5 @@ wordPattern:
   flags: u
 
 indentationRules:
-  increaseIndentPattern: ^\s*.*([:])[ ]?(&amp;\w+)?([{][^}"']*|[(][^)"']*)?$
-  decreaseIndentPattern: ^\s+[}]$|^\s*[-]{3,}\s*$
+  increaseIndentPattern: (^[ \t]*(?:if|elseif|else|repeat)\b(?:(?!\b(end)\b).)*)|(\{\s*$)|(\[\s*$)|(\(\s*$)|(^[ \t]+.*[:]\s*$)
+  decreaseIndentPattern: ^\s*((\b(elseif|else|end)\b)|(\})|(\])|(\))|[-]{3,})

@@ -16,19 +16,19 @@ console.log(
 );
 
 const CONFIG_NAME = "sparkdown.language-config";
-const IN_CONFIG_PATH = `./language/${CONFIG_NAME}.yaml`;
+const IN_CONFIG_PATH = `./yaml/${CONFIG_NAME}.yaml`;
 const OUT_CONFIG_PATHS = outPaths.map(
   (outPath) => `${outPath}/${CONFIG_NAME}.json`
 );
 
 const GRAMMAR_NAME = "sparkdown.language-grammar";
-const IN_GRAMMAR_PATH = `./language/${GRAMMAR_NAME}.yaml`;
+const IN_GRAMMAR_PATH = `./yaml/${GRAMMAR_NAME}.yaml`;
 const OUT_GRAMMAR_PATHS = outPaths.map(
   (outPath) => `${outPath}/${GRAMMAR_NAME}.json`
 );
 
 const SNIPPETS_NAME = "sparkdown.language-snippets";
-const IN_SNIPPETS_PATH = `./language/${SNIPPETS_NAME}.yaml`;
+const IN_SNIPPETS_PATH = `./yaml/${SNIPPETS_NAME}.yaml`;
 const OUT_SNIPPETS_PATHS = outPaths.map(
   (outPath) => `${outPath}/${SNIPPETS_NAME}.json`
 );

@@ -114,14 +114,14 @@ export default class Account extends Component(spec) {
   };
 
   loadAccountUI(accountInfo: AccountInfo | null) {
-    if (accountInfo) {
+    if (!accountInfo || !accountInfo.uid) {
+      this.loadUnauthenticatedUI();
+    } else {
       if (accountInfo.consented) {
         this.loadAuthenticatedUI(accountInfo);
       } else {
         this.loadUnauthenticatedUI("Grant Access To Google Drive");
       }
-    } else {
-      this.loadUnauthenticatedUI();
     }
   }
 

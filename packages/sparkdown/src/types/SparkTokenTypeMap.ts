@@ -10,7 +10,6 @@ import {
   SparkDialogueAssetToken,
   SparkDialogueToken,
   SparkJumpToken,
-  SparkLabelToken,
   SparkReturnToken,
   SparkSceneToken,
   SparkSectionToken,
@@ -24,9 +23,9 @@ import { SparkTokenType } from "./SparkTokenType";
 export interface SparkTokenTypeMap extends Record<SparkTokenType, SparkToken> {
   "": SparkToken;
   comment: SparkToken;
+  chunk: SparkToken;
   title: SparkToken;
   separator: SparkToken;
-  label: SparkLabelToken;
   page_break: SparkToken;
   dialogue_asset: SparkDialogueAssetToken;
   action_asset: SparkActionAssetToken;

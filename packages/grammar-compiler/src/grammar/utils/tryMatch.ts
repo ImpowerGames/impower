@@ -1,7 +1,7 @@
 import GrammarState from "../classes/GrammarState";
 import Matched from "../classes/Matched";
-import ScopedRule from "../classes/rules/ScopedRule";
-import { Wrapping } from "../enums/Wrapping";
+import { tryEndMatch } from "./tryEndMatch";
+import { tryPatternsMatch } from "./tryPatternsMatch";
 
 /**
  * Runs a match against a string (starting from a given position).
@@ -18,44 +18,11 @@ export const tryMatch = (
   pos: number,
   offset = 0
 ): Matched | null => {
-  if (state.stack.end) {
-    if (state.stack.end instanceof ScopedRule) {
-      let result = state.stack.end.close(str, pos, state);
-      if (result) {
-        if (offset !== pos) {
-          result.offset(offset);
-        }
-        return result;
-      }
-    } else {
-      let result = state.stack.end.match(str, pos, state);
-      if (result) {
-        if (state.stack.node) {
-          result = result.wrap(state.stack.node, Wrapping.END);
-        }
-        result.state.stack.pop();
-        if (offset !== pos) {
-          result.offset(offset);
-        }
-        return result;
-      }
-    }
+  const endMatched = tryEndMatch(state, str, pos, offset);
+  if (endMatched) {
+    // Scope ended, stop matching
+    return endMatched;
   }
-
-  // normal matching
-  const rules = state.stack.rules;
-  if (rules) {
-    for (let i = 0; i < rules.length; i++) {
-      const rule = rules[i];
-      const result = rule?.match(str, pos, state);
-      if (result) {
-        if (offset !== pos) {
-          result.offset(offset);
-        }
-        return result;
-      }
-    }
-  }
-
-  return null;
+  // Continue trying to find a matching pattern
+  return tryPatternsMatch(state, str, pos, offset);
 };

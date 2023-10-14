@@ -12,10 +12,10 @@ import {
   SwitchRuleDefinition,
 } from "../types/GrammarDefinition";
 import { Rule } from "../types/Rule";
-import { isIncludeData } from "../utils/isIncludeData";
-import { isMatchRuleData } from "../utils/isMatchRuleData";
-import { isScopedRuleData } from "../utils/isScopedRuleData";
-import { isSwitchRuleData } from "../utils/isSwitchRuleData";
+import { isIncludeDefinition } from "../utils/isIncludeDefinition";
+import { isMatchRuleDefinition } from "../utils/isMatchRuleDefinition";
+import { isScopedRuleDefinition } from "../utils/isScopedRuleDefinition";
+import { isSwitchRuleDefinition } from "../utils/isSwitchRuleDefinition";
 import type Grammar from "./Grammar";
 import GrammarNode from "./GrammarNode";
 import MatchRule from "./rules/MatchRule";
@@ -30,7 +30,7 @@ export default class GrammarRepository {
   private map = new Map<string, GrammarNode | Rule>();
 
   /** Current {@link GrammarNode} ID. */
-  private curID = NodeID.SAFE;
+  private curID = NodeID.safe;
 
   constructor(grammar: Grammar) {
     this.grammar = grammar;
@@ -49,7 +49,7 @@ export default class GrammarRepository {
     }
 
     return Array.from(nodes)
-      .filter((v) => v !== GrammarNode.None)
+      .filter((v) => v.typeIndex >= 0)
       .sort((a, b) => a.typeIndex - b.typeIndex);
   }
 
@@ -85,21 +85,21 @@ export default class GrammarRepository {
     }
 
     // match rule
-    if (isMatchRuleData(obj)) {
+    if (isMatchRuleDefinition(obj)) {
       const rule = new MatchRule(this, obj);
       this.map.set(rule.id, rule);
       return rule;
     }
 
     // scoped rule
-    if (isScopedRuleData(obj)) {
+    if (isScopedRuleDefinition(obj)) {
       const rule = new ScopedRule(this, obj);
       this.map.set(rule.id, rule);
       return rule;
     }
 
     // switch rule
-    if (isSwitchRuleData(obj)) {
+    if (isSwitchRuleDefinition(obj)) {
       const rule = new SwitchRule(this, obj);
       this.map.set(rule.id, rule);
       return rule;
@@ -165,13 +165,13 @@ export default class GrammarRepository {
     const rules: Rule[] = [];
     items.forEach((item, i) => {
       const patternId = idPrefix + `-p${i}`;
-      if (isIncludeData(item)) {
+      if (isIncludeDefinition(item)) {
         rules.push(...this.include(item.include));
-      } else if (isMatchRuleData(item)) {
+      } else if (isMatchRuleDefinition(item)) {
         rules.push(this.add(item, patternId));
-      } else if (isScopedRuleData(item)) {
+      } else if (isScopedRuleDefinition(item)) {
         rules.push(this.add(item, patternId));
-      } else if (isSwitchRuleData(item)) {
+      } else if (isSwitchRuleDefinition(item)) {
         rules.push(this.add(item, patternId));
       }
     });

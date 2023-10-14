@@ -136,7 +136,6 @@ export const generateCommand = (
       params: {
         waitUntilFinished: true,
         value: token.value as string,
-        calls: token.calls || {},
         returnWhenFinished: token.type === "call",
       },
     };
@@ -195,7 +194,6 @@ export const generateCommand = (
         waitUntilFinished: token.operator === "end",
         operator: token.operator as "end" | "+" | "-" | "start",
         value: token.value as string,
-        calls: token.calls || {},
         content: token.content,
         order: token.order,
       },

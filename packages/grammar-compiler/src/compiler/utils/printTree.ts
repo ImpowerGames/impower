@@ -5,32 +5,17 @@
  * Released under the MIT License.
  */
 
-import { Input, NodeType, SyntaxNode, Tree, TreeCursor } from "@lezer/common";
-
-class StringInput implements Input {
-  constructor(private readonly input: string) {}
-
-  get length() {
-    return this.input.length;
-  }
-
-  chunk(from: number): string {
-    return this.input.slice(from);
-  }
-
-  lineChunks = false;
-
-  read(from: number, to: number): string {
-    return this.input.slice(from, to);
-  }
-}
+import { StringInput } from "../classes/StringInput";
+import { SyntaxNode, Tree, TreeCursor, isErrorNode } from "../classes/Tree";
+import { Input } from "../types/Input";
+import { CursorNode, TreeTraversal, traverseTree } from "./traverseTree";
 
 export function sliceType(
   cursor: TreeCursor,
   input: Input,
   type: number
 ): string | null {
-  if (cursor.type.id === type) {
+  if (cursor.type === type) {
     const s = input.read(cursor.from, cursor.to);
     cursor.nextSibling();
     return s;
@@ -39,92 +24,11 @@ export function sliceType(
 }
 
 export function isType(cursor: TreeCursor, type: number): boolean {
-  const cond = cursor.type.id === type;
+  const cond = cursor.type === type;
   if (cond) {
     cursor.nextSibling();
   }
   return cond;
-}
-
-export type CursorNode = {
-  type: NodeType;
-  from: number;
-  to: number;
-  isLeaf: boolean;
-};
-
-function cursorNode(
-  { type, from, to }: TreeCursor,
-  isLeaf = false
-): CursorNode {
-  return { type, from, to, isLeaf };
-}
-
-export type TreeTraversal = {
-  beforeEnter?: (cursor: TreeCursor) => void;
-  onEnter: (node: CursorNode) => false | void;
-  onLeave?: (node: CursorNode) => false | void;
-};
-
-type TreeTraversalOptions = {
-  from?: number;
-  to?: number;
-  includeParents?: boolean;
-} & TreeTraversal;
-
-export function traverseTree(
-  cursor: TreeCursor | Tree | SyntaxNode,
-  {
-    from = -Infinity,
-    to = Infinity,
-    includeParents = false,
-    beforeEnter,
-    onEnter,
-    onLeave,
-  }: TreeTraversalOptions
-): void {
-  if (!(cursor instanceof TreeCursor)) {
-    cursor = cursor.cursor();
-  }
-  for (;;) {
-    let node = cursorNode(cursor);
-    let leave = false;
-    if (node.from <= to && node.to >= from) {
-      const enter =
-        !node.type.isAnonymous &&
-        (includeParents || (node.from >= from && node.to <= to));
-      if (enter && beforeEnter) {
-        beforeEnter(cursor);
-      }
-      node.isLeaf = !cursor.firstChild();
-      if (enter) {
-        leave = true;
-        if (onEnter(node) === false) {
-          return;
-        }
-      }
-      if (!node.isLeaf) {
-        continue;
-      }
-    }
-    for (;;) {
-      node = cursorNode(cursor, node.isLeaf);
-      if (leave && onLeave) {
-        if (onLeave(node) === false) {
-          return;
-        }
-      }
-      leave = cursor.type.isAnonymous;
-      node.isLeaf = false;
-      if (cursor.nextSibling()) {
-        break;
-      }
-      if (!cursor.parent()) {
-        return;
-      }
-      leave = true;
-    }
-  }
 }
 
 function isChildOf(child: CursorNode, parent: CursorNode | undefined): boolean {
@@ -216,13 +120,13 @@ type PrintTreeOptions = {
   from?: number;
   to?: number;
   start?: number;
-  includeParents?: boolean;
 };
 
 export function printTree(
   cursor: TreeCursor | Tree | SyntaxNode,
   input: Input | string,
-  { from, to, start = 0, includeParents }: PrintTreeOptions = {}
+  nodeNames: string[],
+  { from, to, start = 0 }: PrintTreeOptions = {}
 ): string {
   const inp = typeof input === "string" ? new StringInput(input) : input;
   const state = {
@@ -234,7 +138,6 @@ export function printTree(
   traverseTree(cursor, {
     from,
     to,
-    includeParents,
     beforeEnter(cursor) {
       state.hasNextSibling = cursor.nextSibling() && cursor.prevSibling();
     },
@@ -254,11 +157,11 @@ export function printTree(
       }
       const hasRange = node.from !== node.to;
       state.output +=
-        (node.type.isError || !validator.state.valid
-          ? colorize(node.type.name, Color.Red)
+        (isErrorNode(node.type) || !validator.state.valid
+          ? colorize(nodeNames[node.type], Color.Red)
           : isTop
-          ? colorize(node.type.name, Color.Cyan)
-          : node.type.name) +
+          ? colorize(nodeNames[node.type], Color.Cyan)
+          : nodeNames[node.type]) +
         " " +
         (hasRange
           ? "[" +

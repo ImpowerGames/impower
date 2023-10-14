@@ -1,7 +1,7 @@
 import { IBufferCursor } from "../types/IBufferCursor";
 
-export default class ArrayBufferCursor implements IBufferCursor {
-  constructor(readonly buffer: Int32Array, public pos = buffer.length) {}
+export default class FlatBufferCursor implements IBufferCursor {
+  constructor(public readonly buffer: Int32Array, public pos = buffer.length) {}
 
   get id() {
     return this.buffer[this.pos - 4]!;
@@ -21,6 +21,6 @@ export default class ArrayBufferCursor implements IBufferCursor {
   }
 
   fork() {
-    return new ArrayBufferCursor(this.buffer, this.pos);
+    return new FlatBufferCursor(this.buffer, this.pos);
   }
 }

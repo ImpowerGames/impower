@@ -263,9 +263,6 @@ const EDITOR_THEME: {
   "& .cm-completionIcon-tag": {
     "&:after": { content: "'Ť'", color: EDITOR_COLORS.tag },
   },
-  "& .cm-completionIcon-class": {
-    "&:after": { content: "'○'", color: EDITOR_COLORS.dialogue },
-  },
   "& .cm-completionIcon-method": {
     "&:after": {
       content: "'m'",
@@ -279,7 +276,7 @@ const EDITOR_THEME: {
     },
   },
   "& .cm-completionIcon-character": {
-    "&:after": { content: "'𝐶'", color: EDITOR_COLORS.dialogueCharacter },
+    "&:after": { content: "'𝐶'", color: EDITOR_COLORS.typeName },
   },
   "& .cm-completionIcon-transition": {
     "&:after": { content: "'Ŧ'", color: EDITOR_COLORS.transition },
@@ -288,7 +285,7 @@ const EDITOR_THEME: {
     "&:after": { content: "'Տ'", color: EDITOR_COLORS.scene },
   },
   "& .cm-completionIcon-condition": {
-    "&:after": { content: "'✓'", color: EDITOR_COLORS.condition },
+    "&:after": { content: "'✓'", color: EDITOR_COLORS.controlKeyword },
   },
   "& .cm-completionIcon-module": {
     "&:after": { content: "'⩀'", color: EDITOR_COLORS.variableNameAccessor },

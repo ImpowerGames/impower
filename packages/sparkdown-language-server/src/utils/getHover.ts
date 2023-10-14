@@ -2,6 +2,7 @@ import { Hover, MarkupKind, Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import getFencedCode from "./getFencedCode";
 
 const getHover = (
   document: TextDocument | undefined,
@@ -14,8 +15,13 @@ const getHover = (
   }
   for (let i = 0; i < references.length; i += 1) {
     const reference = references[i]!;
+    const range = {
+      start: document.positionAt(reference.from),
+      end: document.positionAt(reference.to),
+    };
     const hoveredOffset = document.offsetAt(position);
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
+      const id = reference.id;
       const name = reference.name;
       const imageAsset = program?.objectMap?.["image"]?.[name];
       if (imageAsset) {
@@ -25,11 +31,38 @@ const getHover = (
             kind: MarkupKind.Markdown,
             value: `![${name}](${src})`,
           },
-          range: {
-            start: document.positionAt(reference.from),
-            end: document.positionAt(reference.to),
-          },
+          range,
         };
+      }
+      if (id && !reference.declaration) {
+        const variable = program.variables?.[id];
+        if (variable) {
+          const wrappedValue =
+            variable.type === "string"
+              ? `"${variable.value}"`
+              : `${variable.value}`;
+          const fencedCode = getFencedCode(`= ${wrappedValue}`);
+          return {
+            contents: {
+              kind: MarkupKind.Markdown,
+              value: fencedCode,
+            },
+            range,
+          };
+        }
+        const section = program.sections?.[id];
+        if (section) {
+          const fencedCode = getFencedCode(
+            `${"".padStart(section.level, "#")} ${section.name}`
+          );
+          return {
+            contents: {
+              kind: MarkupKind.Markdown,
+              value: fencedCode,
+            },
+            range,
+          };
+        }
       }
     }
   }

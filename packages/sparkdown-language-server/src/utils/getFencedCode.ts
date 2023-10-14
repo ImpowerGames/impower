@@ -1,7 +1,4 @@
-const getDocumentation = (
-  info: string,
-  example: string,
-  language = "sparkdown"
-) => `${info}\n\n~~~${language}\n${example}\n~~~`;
+const getFencedCode = (code: string, language = "sparkdown") =>
+  `~~~${language}\n${code}\n~~~`;
 
-export default getDocumentation;
+export default getFencedCode;

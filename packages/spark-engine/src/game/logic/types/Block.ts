@@ -5,11 +5,9 @@ export interface Block {
   indent: number;
   index: number;
   level: number;
-  type: "section" | "function" | "method" | "detector";
   name: string;
   parent?: string;
   children?: string[];
-  triggers?: string[];
   variables?: Record<
     string,
     { name: string; type: string; value: unknown; parameter?: boolean }

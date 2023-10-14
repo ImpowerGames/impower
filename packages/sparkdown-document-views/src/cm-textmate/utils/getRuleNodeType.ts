@@ -5,27 +5,19 @@ import { NodeID, RuleDefinition } from "../../../../grammar-compiler/src";
 import parseTag from "./parseTag";
 
 /**
- * Node emitted when the parser reached a newline and had to manually advance.
- */
-export const NODE_NEWLINE = NodeType.define({
-  name: "newline",
-  id: NodeID.NEWLINE,
-});
-
-/**
  * Node emitted when a character doesn't match anything in the grammar,
  * and the parser had to manually advance past it.
  */
 export const NODE_ERROR_UNRECOGNIZED = NodeType.define({
   name: "⚠️ ERROR_UNRECOGNIZED",
-  id: NodeID.ERROR_UNRECOGNIZED,
+  id: NodeID.unrecognized,
   error: true,
 });
 
 /** Node emitted at the end of incomplete nodes. */
 export const NODE_ERROR_INCOMPLETE = NodeType.define({
   name: "⚠️ ERROR_INCOMPLETE",
-  id: NodeID.ERROR_INCOMPLETE,
+  id: NodeID.incomplete,
   error: true,
 });
 
@@ -35,19 +27,16 @@ const getRuleNodeType = (
   typeId: string,
   def: RuleDefinition
 ): NodeType => {
-  if (typeIndex === NodeID.NONE) {
+  if (typeIndex === NodeID.none) {
     return NodeType.none;
   }
-  if (typeIndex === NodeID.TOP) {
+  if (typeIndex === NodeID.top) {
     return topNode;
   }
-  if (typeIndex === NodeID.NEWLINE) {
-    return NODE_NEWLINE;
-  }
-  if (typeIndex === NodeID.ERROR_UNRECOGNIZED) {
+  if (typeIndex === NodeID.unrecognized) {
     return NODE_ERROR_UNRECOGNIZED;
   }
-  if (typeIndex === NodeID.ERROR_INCOMPLETE) {
+  if (typeIndex === NodeID.incomplete) {
     return NODE_ERROR_INCOMPLETE;
   }
   const { tag, openedBy, closedBy, group } = def;

@@ -21,7 +21,7 @@ export default class TextmateLanguageSupport extends LanguageSupport {
   ) {
     const facet = defineLanguageFacet(languageData);
     const topNodeType = NodeType.define({
-      id: NodeID.TOP,
+      id: NodeID.top,
       name: name,
       top: true,
       props: [[languageDataProp, facet]],

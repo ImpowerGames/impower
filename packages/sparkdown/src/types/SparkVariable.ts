@@ -8,6 +8,4 @@ export interface SparkVariable extends SparkRange {
   name: string;
   type: SparkVariableType;
   value: unknown;
-  parameter?: boolean;
-  scope?: "public" | "protected" | "private";
 }

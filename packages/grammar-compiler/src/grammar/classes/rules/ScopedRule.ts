@@ -39,11 +39,12 @@ export default class ScopedRule implements Rule {
     this.repo = repo;
 
     let id = def.id ?? createID();
-    let emit = def.id || def.autocomplete;
     this.id = id;
-    this.node = !emit
-      ? GrammarNode.None
-      : new GrammarNode(repo.nextTypeIndex(), def, repo.grammar.declarator);
+    this.node = new GrammarNode(
+      repo.nextTypeIndex(),
+      def,
+      repo.grammar.declarator
+    );
 
     const beginId = this.id + "_begin";
     const endId = this.id + "_end";

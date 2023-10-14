@@ -48,110 +48,230 @@
       "editor.tokenColorCustomizations": {
         "textMateRules": [
           {
-            "scope": "string.regexp.scene.sd",
-            "settings": {
-              "foreground": "#FF8080"
-            }
-          },
-          {
-            "scope": "keyword.control.transition.sd",
-            "settings": {
-              "foreground": "#BEA3A3"
-            }
-          },
-          {
-            "scope": "keyword.control.section.sd",
-            "settings": {
-              "foreground": "#FF80F4"
-            }
-          },
-          {
-            "scope": "keyword.control.label.sd",
+            "scope": "keyword.control.chunk",
             "settings": {
               "foreground": "#7C7CA6"
             }
           },
           {
-            "scope": "keyword.control.yield.sd",
+            "scope": "keyword.control.section",
+            "settings": {
+              "foreground": "#FF80F4"
+            }
+          },
+          {
+            "scope": "keyword.control.jump",
             "settings": {
               "foreground": "#F9B8F9"
             }
           },
           {
-            "scope": "keyword.control.jump.sd",
-            "settings": {
-              "foreground": "#F9B8F9"
-            }
-          },
-          {
-            "scope": "keyword.separator.sd",
+            "scope": "keyword.control.flow-break",
             "settings": {
               "foreground": "#606080"
             }
           },
           {
-            "scope": "markup.bold",
+            "scope": "keyword.control.transition",
+            "settings": {
+              "foreground": "#BEA3A3"
+            }
+          },
+          {
+            "scope": "string.regexp.scene",
+            "settings": {
+              "foreground": "#FF8080"
+            }
+          },
+          {
+            "scope": "meta.brace",
+            "settings": {
+              "foreground": "#FFD700"
+            }
+          },
+          {
+            "scope": "markup.other.centered",
             "settings": {
               "foreground": "#569CD6"
             }
           },
           {
-            "scope": "markup.italic",
+            "scope": "markup.bold.sd",
             "settings": {
               "foreground": "#569CD6"
             }
           },
           {
-            "scope": "markup.bold markup.italic",
+            "scope": "markup.italic.sd",
+            "settings": {
+              "foreground": "#569CD6"
+            }
+          },
+          {
+            "scope": "markup.bold.sd markup.italic.sd",
             "settings": {
               "foreground": "#569CD6",
               "fontStyle": "italic bold"
             }
           },
           {
-            "scope": "markup.underline",
+            "scope": "markup.underline.sd",
             "settings": {
               "foreground": "#569CD6"
             }
           },
           {
-            "scope": "markup.strikethrough",
+            "scope": "markup.strikethrough.sd",
             "settings": {
               "foreground": "#569CD6"
             }
           },
           {
-            "scope": "string markup.bold",
+            "scope": "string markup.bold.sd",
             "settings": {
               "foreground": "#CE9178"
             }
           },
           {
-            "scope": "string markup.italic",
+            "scope": "string markup.italic.sd",
             "settings": {
               "foreground": "#CE9178"
             }
           },
           {
-            "scope": "string markup.bold markup.italic",
+            "scope": "string markup.bold.sd markup.italic.sd",
             "settings": {
               "foreground": "#CE9178",
               "fontStyle": "italic bold"
             }
           },
           {
-            "scope": "string markup.underline",
+            "scope": "string markup.underline.sd",
             "settings": {
               "foreground": "#CE9178"
             }
           },
           {
-            "scope": "string markup.strikethrough",
+            "scope": "string markup.strikethrough.sd",
             "settings": {
               "foreground": "#CE9178"
             }
           }
-        ]
+        ],
+        "[*Light*]": {
+          "textMateRules": [
+            {
+              "scope": "keyword.control.chunk",
+              "settings": {
+                "foreground": "#7C7CA6"
+              }
+            },
+            {
+              "scope": "keyword.control.section",
+              "settings": {
+                "foreground": "#AF00DB"
+              }
+            },
+            {
+              "scope": "keyword.control.jump",
+              "settings": {
+                "foreground": "#AD33CC"
+              }
+            },
+            {
+              "scope": "keyword.control.flow-break",
+              "settings": {
+                "foreground": "#606080"
+              }
+            },
+            {
+              "scope": "keyword.control.transition",
+              "settings": {
+                "foreground": "#800000"
+              }
+            },
+            {
+              "scope": "string.regexp.scene",
+              "settings": {
+                "foreground": "#EE0000"
+              }
+            },
+            {
+              "scope": "markup.other.centered",
+              "settings": {
+                "foreground": "#000080"
+              }
+            },
+            {
+              "scope": "meta.brace",
+              "settings": {
+                "foreground": "#0431FA"
+              }
+            },
+            {
+              "scope": "markup.bold.sd",
+              "settings": {
+                "foreground": "#000080"
+              }
+            },
+            {
+              "scope": "markup.italic.sd",
+              "settings": {
+                "foreground": "#000080"
+              }
+            },
+            {
+              "scope": "markup.bold markup.italic.sd",
+              "settings": {
+                "foreground": "#000080",
+                "fontStyle": "italic bold"
+              }
+            },
+            {
+              "scope": "markup.underline.sd",
+              "settings": {
+                "foreground": "#000080"
+              }
+            },
+            {
+              "scope": "markup.strikethrough.sd",
+              "settings": {
+                "foreground": "#000080"
+              }
+            },
+            {
+              "scope": "string markup.bold.sd",
+              "settings": {
+                "foreground": "#A31515"
+              }
+            },
+            {
+              "scope": "string markup.italic.sd",
+              "settings": {
+                "foreground": "#A31515"
+              }
+            },
+            {
+              "scope": "string markup.bold.sd markup.italic.sd",
+              "settings": {
+                "foreground": "#A31515",
+                "fontStyle": "italic bold"
+              }
+            },
+            {
+              "scope": "string markup.underline.sd",
+              "settings": {
+                "foreground": "#A31515"
+              }
+            },
+            {
+              "scope": "string markup.strikethrough.sd",
+              "settings": {
+                "foreground": "#A31515"
+              }
+            }
+          ]
+        }
       },
       "[sparkdown]": {
         "diffEditor.ignoreTrimWhitespace": false,
@@ -165,8 +285,7 @@
         "editor.guides.bracketPairs": true,
         "editor.guides.highlightActiveIndentation": true,
         "editor.guides.bracketPairsHorizontal": false,
-        "editor.renderWhitespace": "boundary",
-        "editor.formatOnSave": true
+        "editor.renderWhitespace": "boundary"
       }
     },
     "languages": [
@@ -469,10 +588,10 @@
         "title": "Sparkdown Editor",
         "type": "object",
         "properties": {
-          "sparkdown.editor.parentheticalNewlineHelper": {
+          "sparkdown.editor.newlineHelper": {
             "type": "boolean",
             "default": true,
-            "markdownDescription": "Automatically skip to the next line if the caret is just before the last parenthesis within a parenthetical (as such❚). If you are using a vim emulator, you should disable this setting - an [issue with vscode](https://github.com/Microsoft/vscode/issues/13441) means it is impossible for two extensions to simultaneously intercept typing."
+            "markdownDescription": "Auto-skip to the next line if the caret is just before the last parenthesis within a parenthetical (like so|) and auto-close define blocks. If you are using a vim emulator, you should disable this setting - an [issue with vscode](https://github.com/Microsoft/vscode/issues/13441) means it is impossible for two extensions to simultaneously intercept typing."
           },
           "sparkdown.editor.refreshStatsOnSave": {
             "type": "boolean",

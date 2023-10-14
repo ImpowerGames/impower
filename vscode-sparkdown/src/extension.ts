@@ -6,8 +6,8 @@ import { activateCommandView } from "./utils/activateCommandView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateFileWatcher } from "./utils/activateFileWatcher";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
+import { activateNewlineHelper } from "./utils/activateNewlineHelper";
 import { activateOutlineView } from "./utils/activateOutlineView";
-import { activateParentheticalNewlineHelper } from "./utils/activateParentheticalNewlineHelper";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
 
 export const activate = async (
@@ -23,7 +23,7 @@ export const activate = async (
   // activateStatisticsPanel(context);
   activateFileWatcher(context);
   activateLanguageClient(context);
-  activateParentheticalNewlineHelper(context);
+  activateNewlineHelper(context);
 };
 
 // this method is called when your extension is deactivated

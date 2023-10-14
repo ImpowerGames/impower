@@ -1,7 +1,5 @@
-import {
-  evaluate,
-  format,
-} from "../../../../../../../../../spark-evaluate/src";
+import { format } from "../../../../../../../../../spark-evaluate/src";
+import getRelativeSectionName from "../../../../../../../../../sparkdown/src/utils/getRelativeSectionName";
 import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 import { ChoiceCommandData } from "./ChoiceCommandData";
@@ -19,8 +17,6 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
 
   value?: string;
 
-  calls?: Record<string, { name: string; args: string[] }>;
-
   override init(game: G): void {
     executeChoiceCommand(game);
   }
@@ -30,10 +26,9 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
     data: ChoiceCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { value, calls, operator } = data.params;
+    const { value, operator } = data.params;
 
     this.value = undefined;
-    this.calls = undefined;
 
     if (operator === "start") {
       this.choiceIndex = 0;
@@ -63,7 +58,6 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
         data.source
       );
       this.value = value || "";
-      this.calls = calls;
     });
 
     this.choiceIndex += 1;
@@ -77,16 +71,16 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
     context: CommandContext<G>
   ): boolean | null {
     const { operator } = data;
+    const blockId = data.reference.parentId;
+
     if (operator !== "end") {
       return true;
     }
     if (this.value != null) {
-      const { ids, valueMap, parameters } = context;
+      const { ids, valueMap } = context;
 
       const value = this?.value;
-      const calls = this?.calls;
       this.value = undefined;
-      this.calls = undefined;
 
       if (value === "") {
         return true;
@@ -94,51 +88,16 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
 
       valueMap["#"] = [this.chosenCount - 1, this.seed];
 
-      let id: string | undefined = "#";
-      let args: string[] = [];
+      const [selectedBlock] = format(value, valueMap);
+      const blocks = game.logic.config.blockMap;
+      const blockName = getRelativeSectionName(blockId, blocks, selectedBlock);
+      const id = ids?.[blockName];
 
-      const constantCall = calls?.[""];
-      if (constantCall) {
-        if (constantCall.name) {
-          id = ids?.[constantCall.name];
-          if (id == null) {
-            id = constantCall.name;
-          }
-          args = constantCall.args;
-        }
-      } else {
-        const [sectionExpression] = format(value || "", valueMap);
-        const dynamicCall = calls?.[sectionExpression];
-        if (dynamicCall?.name) {
-          id = ids?.[dynamicCall.name];
-          if (id == null) {
-            id = dynamicCall.name;
-          }
-          args = dynamicCall.args;
-        }
-      }
-
-      if (id === "#") {
-        return true;
-      }
-
-      if (id === "!") {
-        return null;
+      if (id == null) {
+        return false;
       }
 
       const executedByBlockId = data.reference.parentId;
-      const latestArgs = args?.map((v) => evaluate(v, valueMap));
-
-      parameters?.forEach((parameterName, index) => {
-        const parameterId = ids[parameterName];
-        if (parameterId) {
-          game.logic.setVariableValue(
-            parameterId,
-            latestArgs?.[index],
-            data.source
-          );
-        }
-      });
 
       const parentId = data?.reference?.parentId;
       game.logic.stopBlock(parentId);

@@ -5,7 +5,8 @@ import { SparkLineMetadata } from "@impower/sparkdown/src/types/SparkLineMetadat
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
 /** Has some content that is not just whitespace */
-const isContentful = (line: SparkLineMetadata) => line.length! > line.offset!;
+const isContentful = (line: SparkLineMetadata) =>
+  line && line.length! > line.offset!;
 
 const getFoldingRanges = (
   document: TextDocument | undefined,

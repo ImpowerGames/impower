@@ -5,9 +5,9 @@ import {
   MessageConnection,
   ServerCapabilities,
 } from "../../../../../spark-editor-protocol/src/types";
-import configData from "../../../../language/sparkdown.language-config.json";
-import grammarData from "../../../../language/sparkdown.language-grammar.json";
-import snippetsData from "../../../../language/sparkdown.language-snippets.json";
+import CONFIG_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-config.json";
+import GRAMMAR_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
+import SNIPPETS_DEFINITION from "../../../../../sparkdown/language/sparkdown.language-snippets.json";
 import { languageClient } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { TextmateLanguage } from "../../../cm-textmate";
@@ -22,9 +22,9 @@ export const sparkdownLanguageExtension = (config: {
 }): Extension => {
   const languageSupport = new TextmateLanguage({
     name: "sparkdown",
-    configDefinition: configData,
-    grammarDefinition: grammarData,
-    snippetsDefinition: snippetsData,
+    configDefinition: CONFIG_DEFINITION,
+    grammarDefinition: GRAMMAR_DEFINITION,
+    snippetsDefinition: SNIPPETS_DEFINITION,
   }).load();
   const textDocument = config.textDocument;
   const serverConnection = config.serverConnection;

@@ -3,10 +3,15 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import type { ParserAction } from "../../core";
-import type { GrammarNode, GrammarState } from "../../grammar";
+import type { GrammarState } from "../../grammar";
 
-import { CHUNK_ARRAY_INTERVAL } from "../constants/size";
-import CompileTreeBuffer from "./CompileTreeBuffer";
+import TreeBuffer from "./TreeBuffer";
+
+/**
+ * Sets the initial array size for chunks, and how much to grow a chunk's
+ * array if it's full.
+ */
+export const CHUNK_ARRAY_INTERVAL = 16;
 
 /**
  * A syntactic chunk of a parsed document. The full syntax tree can be
@@ -42,10 +47,10 @@ export class Chunk {
   declare state: GrammarState;
 
   /**
-   * {@link CompileTreeBuffer} version of this chunk.
+   * {@link TreeBuffer} version of this chunk.
    * If `null`, the tree will not be available, ever, due to the shape of the chunk.
    */
-  declare tree?: CompileTreeBuffer | null;
+  declare tree?: TreeBuffer | null;
 
   /**
    * @param pos - The starting position.
@@ -165,7 +170,7 @@ export class Chunk {
    *
    * @param nodes - The language node set to use when creating the tree.
    */
-  tryForTree(nodes: GrammarNode[]) {
+  tryForTree() {
     if (this.tree === null) {
       return null;
     }
@@ -198,11 +203,7 @@ export class Chunk {
       );
     }
 
-    this.tree = new CompileTreeBuffer(
-      new Uint16Array(buffer),
-      this.length,
-      nodes
-    );
+    this.tree = new TreeBuffer(new Uint16Array(buffer), this.length);
 
     return this.tree;
   }

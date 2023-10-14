@@ -10,18 +10,28 @@ import type GrammarState from "./GrammarState";
 
 /** Represents a leaf or branch of a tree of matches found by a grammar. */
 export default class Matched {
-  /** The total length of the match. */
-  declare length: number;
+  static create(...args: ConstructorParameters<typeof Matched>): Matched {
+    const matched = new Matched(...args);
+    if (matched.length > 0) {
+      return matched;
+    } else {
+      // Empty matches must have at least one capture to prevent nesting issues
+      const node = matched.node;
+      matched.node = GrammarNode.None;
+      const emptyMatched = matched.wrap(node);
+      return emptyMatched;
+    }
+  }
 
   constructor(
     /** The current {@link GrammarState}. */
     public state: GrammarState,
     /** The match's {@link GrammarNode} type. */
     public node: GrammarNode,
-    /** The entire matched string. */
-    public total: string,
     /** The start of the match. */
     public from: number,
+    /** The length of the match. */
+    public length: number,
     /** The children contained by this match's {@link GrammarNode}. */
     public captures?: Matched[],
     /**
@@ -32,9 +42,7 @@ export default class Matched {
      * - END: The {@link GrammarNode} in this match ends the branch.
      */
     public wrapping: Wrapping = Wrapping.FULL
-  ) {
-    this.length = total.length;
-  }
+  ) {}
 
   /** Changes the starting offset of the match. */
   offset(offset: number) {
@@ -45,6 +53,7 @@ export default class Matched {
       }
     }
     this.from = offset;
+    return this;
   }
 
   /**
@@ -54,28 +63,7 @@ export default class Matched {
    * @param wrap - The wrapping mode, if different.
    */
   wrap(node: GrammarNode, wrap = this.wrapping) {
-    return new Matched(this.state, node, this.total, this.from, [this], wrap);
-  }
-
-  /**
-   * Pushes an opening or closing node to one side of this matches captures.
-   *
-   * @param node - The node to push.
-   * @param side - The side to push to.
-   * @param wrap - The wrapping mode of the node. Can't be `FULL`.
-   */
-  push(node: GrammarNode, side: -1 | 1, wrap = this.wrapping) {
-    if (wrap === Wrapping.FULL) {
-      throw new Error("Cannot push onto a FULL match");
-    }
-    this.captures ??= [];
-    let pos = side === -1 ? this.from : this.from + this.length;
-    const match = new Matched(this.state, node, "", pos, undefined, wrap);
-    if (side === -1) {
-      this.captures.unshift(match);
-    } else {
-      this.captures.push(match);
-    }
+    return new Matched(this.state, node, this.from, this.length, [this], wrap);
   }
 
   /** Internal method for compiling. */
@@ -175,14 +163,17 @@ const compileTree = (match: Matched, tokens: GrammarToken[]) => {
   const first = tokens[0]!;
   const last = tokens[tokens.length - 1]!;
 
+  const openedBy = 3;
+  const closedBy = 4;
+
   if (match.wrapping === Wrapping.FULL || match.wrapping === Wrapping.BEGIN) {
-    first[3] ??= [];
-    first[3].unshift(match.node.typeIndex);
+    first[openedBy] ??= [];
+    first[openedBy].unshift(match.node.typeIndex);
   }
 
   if (match.wrapping === Wrapping.FULL || match.wrapping === Wrapping.END) {
-    last[4] ??= [];
-    last[4].push(match.node.typeIndex);
+    last[closedBy] ??= [];
+    last[closedBy].push(match.node.typeIndex);
   }
 
   return tokens;

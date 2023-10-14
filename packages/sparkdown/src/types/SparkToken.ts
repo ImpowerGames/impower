@@ -11,7 +11,6 @@ import {
   SparkDialogueAssetTokenType,
   SparkDialogueTokenType,
   SparkJumpTokenType,
-  SparkLabelTokenType,
   SparkOtherTokenType,
   SparkPositionTokenType,
   SparkReturnTokenType,
@@ -22,11 +21,6 @@ import {
   SparkTransitionTokenType,
   SparkVariableTokenType,
 } from "./SparkTokenType";
-
-export interface SparkLabelToken extends SparkLine {
-  type: SparkLabelTokenType;
-  level: number;
-}
 
 export interface SparkSectionToken extends SparkLine {
   type: SparkSectionTokenType;
@@ -58,20 +52,17 @@ export interface SparkStructFieldToken extends SparkLine {
 export interface SparkJumpToken extends SparkLine {
   type: SparkJumpTokenType;
   value: string;
-  calls: Record<string, { name: string; args: string[] }>;
 }
 
 export interface SparkCallToken extends SparkLine {
   type: SparkCallTokenType;
   value: string;
-  calls: Record<string, { name: string; args: string[] }>;
 }
 
 export interface SparkChoiceToken extends SparkLine {
   type: SparkChoiceTokenType;
   operator: "+" | "start" | "end";
   value: string;
-  calls: Record<string, { name: string; args: string[] }>;
 }
 
 export interface SparkConditionToken extends SparkLine {
@@ -159,7 +150,6 @@ export type SparkToken =
   | SparkChoiceToken
   | SparkJumpToken
   | SparkReturnToken
-  | SparkLabelToken
   | SparkSectionToken
   | SparkSceneToken
   | SparkPositionToken

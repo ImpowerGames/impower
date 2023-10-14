@@ -38,8 +38,6 @@ export class Context<
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
       objectMap: { [type: string]: Record<string, any> };
-      triggers: string[];
-      parameters: string[];
       commands: {
         runner: CommandRunner<G>;
         data: CommandData;
@@ -51,8 +49,6 @@ export class Context<
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
       objectMap: { [type: string]: Record<string, any> };
-      triggers: string[];
-      parameters: string[];
       commands: {
         runner: CommandRunner<G>;
         data: CommandData;
@@ -140,11 +136,6 @@ export class Context<
           game?.logic?.config?.blockMap as Record<string, Block>
         );
         const objectMap = game?.struct?.config?.objectMap;
-        const triggers = [...(block.triggers || [])];
-        const parameters =
-          Object.values(block.variables || {})
-            .filter((v) => v.parameter)
-            .map((p) => p.name) || [];
         const commands: {
           runner: CommandRunner<G>;
           data: CommandData;
@@ -156,8 +147,6 @@ export class Context<
           ids,
           valueMap,
           objectMap,
-          triggers,
-          parameters,
           commands,
         };
       }

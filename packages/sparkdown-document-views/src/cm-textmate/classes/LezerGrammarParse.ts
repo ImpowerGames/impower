@@ -22,6 +22,7 @@ import {
   GrammarState,
 } from "../../../../grammar-compiler/src/grammar";
 
+import { printTree } from "../utils/printTree";
 import LezerParseRegion from "./LezerParseRegion";
 
 /** Amount of characters to slice before the starting position of the parse. */
@@ -194,10 +195,10 @@ export default class GrammarParse implements PartialParse {
     const start = this.region.original.from;
     const length = this.region.original.length;
 
-    const result = this.compiler.compile(length);
+    const result = this.compiler.finish(length);
 
     if (result) {
-      const topID = NodeID.TOP;
+      const topID = NodeID.top;
       const buffer = result.cursor;
       const reused = result.reused.map(
         (b) => new TreeBuffer(b.buffer, b.length, this.nodeSet)
@@ -212,7 +213,7 @@ export default class GrammarParse implements PartialParse {
         start,
         length,
       });
-      // console.log(printTree(tree, this.region.input));
+      console.log(printTree(tree, this.region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
@@ -223,7 +224,7 @@ export default class GrammarParse implements PartialParse {
 
       return tree;
     }
-    const topNode = this.grammar.nodes[NodeID.TOP];
+    const topNode = this.grammar.nodes[NodeID.top];
     const topNodeType = topNode?.props["nodeType"];
     return new Tree(topNodeType, [], [], length);
   }
@@ -267,10 +268,7 @@ export default class GrammarParse implements PartialParse {
         length = match.length;
       } else {
         // if we didn't match, we'll advance to prevent getting stuck
-        matchTokens =
-          str[pos - start] === "\n"
-            ? [[NodeID.NEWLINE, pos, pos + 1]]
-            : [[NodeID.ERROR_UNRECOGNIZED, pos, pos + 1]];
+        matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
         length = 1;
       }
 

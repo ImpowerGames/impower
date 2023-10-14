@@ -7,8 +7,6 @@ export interface BlockContext<G extends Game> {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
   objectMap: { [type: string]: Record<string, any> };
-  triggers: string[];
-  parameters: string[];
   commands: {
     runner: CommandRunner<G>;
     data: CommandData;
@@ -25,37 +23,11 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
    * @return {boolean} True, if still executing. False, if finished, Null, if quit.
    */
   update(blockId: string, context: BlockContext<G>, game: G): boolean | null {
-    const { triggers, valueMap } = context;
-
     game.logic.updateBlock(blockId);
 
     const blockState = game.logic.state.blockStates[blockId];
     if (!blockState) {
       return false;
-    }
-
-    if (!blockState.isExecuting) {
-      const satisfiedTriggers: string[] = [];
-      const unsatisfiedTriggers: string[] = [];
-      triggers.forEach((variableName) => {
-        const value = valueMap[variableName];
-        if (value) {
-          satisfiedTriggers.push(variableName);
-        } else {
-          unsatisfiedTriggers.push(variableName);
-        }
-      });
-
-      const shouldExecute = satisfiedTriggers?.length > 0;
-
-      game.logic.checkTriggers(blockId, satisfiedTriggers, unsatisfiedTriggers);
-
-      if (shouldExecute) {
-        const block = game.logic.config.blockMap[blockId];
-        if (block) {
-          game.logic.executeBlock(blockId, block.parent || "");
-        }
-      }
     }
 
     if (blockState.isExecuting) {

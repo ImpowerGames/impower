@@ -1,7 +1,5 @@
-import {
-  evaluate,
-  format,
-} from "../../../../../../../../../spark-evaluate/src";
+import { format } from "../../../../../../../../../spark-evaluate/src";
+import getRelativeSectionName from "../../../../../../../../../sparkdown/src/utils/getRelativeSectionName";
 import { EnterCommandData } from "../../../../../../../data";
 import { Game } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
@@ -10,66 +8,34 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
   G,
   EnterCommandData
 > {
-  id?: string | null;
+  targetId?: string | null;
 
   override onExecute(
     game: G,
     data: EnterCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { value, calls, returnWhenFinished } = data.params;
-    const { ids, valueMap, parameters } = context;
+    const { value, returnWhenFinished } = data.params;
+    const { ids, valueMap } = context;
+    const blockId = data.reference.parentId;
 
     if (!value) {
       return super.onExecute(game, data, context);
     }
 
-    let id: string | undefined = "#";
-    let args: string[] = [];
+    const [selectedBlock] = format(value, valueMap);
+    const blocks = game.logic.config.blockMap;
+    const blockName = getRelativeSectionName(blockId, blocks, selectedBlock);
+    const id = ids?.[blockName];
 
-    const constantCall = calls[""];
-    if (constantCall) {
-      if (constantCall?.name) {
-        id = ids?.[constantCall.name];
-        if (id == null) {
-          id = constantCall.name;
-        }
-        args = constantCall.args;
-      }
-    } else {
-      const [sectionExpression] = format(value, valueMap);
-      const dynamicCall = calls[sectionExpression];
-      if (dynamicCall?.name) {
-        id = ids?.[dynamicCall.name];
-        if (id == null) {
-          id = dynamicCall.name;
-        }
-        args = dynamicCall.args;
-      }
-    }
+    this.targetId = id;
 
-    this.id = id;
-
-    if (id == null) {
+    if (!id) {
       return super.onExecute(game, data, context);
     }
 
-    const parentId = data.reference.parentId;
-    const latestArgs = args?.map((v) => evaluate(v, valueMap));
-
-    parameters?.forEach((parameterName, index) => {
-      const parameterId = ids[parameterName];
-      if (parameterId) {
-        game.logic.setVariableValue(
-          parameterId,
-          latestArgs?.[index],
-          data.source
-        );
-      }
-    });
-
-    game.logic.stopBlock(parentId);
-    game.logic.enterBlock(id, returnWhenFinished, parentId);
+    game.logic.stopBlock(blockId);
+    game.logic.enterBlock(id, returnWhenFinished, blockId);
 
     return super.onExecute(game, data, context);
   }
@@ -80,20 +46,12 @@ export class EnterCommandRunner<G extends Game> extends CommandRunner<
     context: CommandContext<G>
   ): boolean | null {
     const { returnWhenFinished } = data;
-    if (this.id === "#") {
-      this.id = null;
-      return true;
-    }
-    if (this.id === "!") {
-      this.id = null;
-      return null;
-    }
-    if (this.id != null && returnWhenFinished) {
-      const blockState = game.logic.state.blockStates[this.id];
+    if (this.targetId != null && returnWhenFinished) {
+      const blockState = game.logic.state.blockStates[this.targetId];
       if (blockState && !blockState.hasFinished) {
         return false;
       }
-      this.id = null;
+      this.targetId = null;
       return super.isFinished(game, data, context);
     }
     return false;

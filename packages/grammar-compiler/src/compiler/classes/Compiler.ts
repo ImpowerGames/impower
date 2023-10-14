@@ -2,24 +2,28 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { Node, NodeID } from "../../core";
+import { GrammarToken, NodeID } from "../../core";
 import { Grammar } from "../../grammar";
 
-import { FINISH_INCOMPLETE_NODES } from "../constants/finish";
-import { COMPILER_ARRAY_INTERVAL } from "../constants/size";
-import { IBufferCursor } from "../types/IBufferCursor";
+import { SpecialRecord } from "../enums/SpecialRecord";
 import { ITreeBuffer } from "../types/ITreeBuffer";
-import ArrayBufferCursor from "./ArrayBufferCursor";
 import type { Chunk } from "./Chunk";
 import { ChunkBuffer } from "./ChunkBuffer";
 import { CompileStack } from "./CompileStack";
-import CompileTreeBuffer from "./CompileTreeBuffer";
+import FlatBufferCursor from "./FlatBufferCursor";
+import TreeBuffer from "./TreeBuffer";
 
-const enum SpecialRecord {
-  Reuse = -1,
-  ContextChange = -3,
-  LookAhead = -4,
-}
+/**
+ * If true, the parser will try to close off incomplete nodes at the end of
+ * the syntax tree.
+ */
+export const FINISH_INCOMPLETE_NODES = true;
+
+/**
+ * Sets the initial array size of the compiler's buffer, and how much to
+ * grow it if it's full.
+ */
+export const COMPILER_ARRAY_INTERVAL = 32768;
 
 export class Compiler {
   declare grammar: Grammar;
@@ -27,7 +31,7 @@ export class Compiler {
   declare buffer: ChunkBuffer;
   declare compiled: Int32Array;
   declare size: number;
-  declare reused: CompileTreeBuffer[];
+  declare reused: TreeBuffer[];
   declare index: number;
 
   constructor(grammar: Grammar, buffer?: ChunkBuffer) {
@@ -41,11 +45,20 @@ export class Compiler {
   }
 
   get cursor() {
-    return new ArrayBufferCursor(this.compiled, this.size * 4);
+    return new FlatBufferCursor(this.compiled, this.size * 4);
   }
 
   get done() {
     return this.index >= this.buffer.chunks.length;
+  }
+
+  reset() {
+    this.stack = new CompileStack();
+    this.buffer = new ChunkBuffer();
+    this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
+    this.size = 0;
+    this.reused = [];
+    this.index = 0;
   }
 
   private emit(type: number, from: number, to: number, children: number) {
@@ -79,7 +92,7 @@ export class Compiler {
     const from = chunk.from;
     const to = chunk.to;
 
-    if (chunk.tryForTree(this.grammar.nodes)) {
+    if (chunk.tryForTree()) {
       const tree = chunk.tree!;
       const reusedIndex = this.reused.length;
       this.emit(reusedIndex, from, to, SpecialRecord.Reuse);
@@ -147,10 +160,9 @@ export class Compiler {
     }
   }
 
-  compile(length: number): {
-    cursor: IBufferCursor;
+  finish(length: number): {
+    cursor: FlatBufferCursor;
     reused: ITreeBuffer[];
-    nodes: Node[];
   } | null {
     if (!this.buffer.chunks.length) {
       return null;
@@ -161,7 +173,7 @@ export class Compiler {
     if (FINISH_INCOMPLETE_NODES) {
       while (this.stack.length > 0) {
         // emit an error token
-        this.emit(NodeID.ERROR_INCOMPLETE, length, length, 4);
+        this.emit(NodeID.incomplete, length, length, 4);
 
         // finish the last element in the stack
         const s = this.stack.pop()!;
@@ -174,13 +186,41 @@ export class Compiler {
     }
 
     const reused = this.reused;
-    const cursor = new ArrayBufferCursor(this.compiled, this.size * 4);
-    const nodes = this.grammar.nodes;
+    const cursor = new FlatBufferCursor(this.compiled, this.size * 4);
 
     return {
       cursor,
       reused,
-      nodes,
     };
+  }
+
+  compile(source: string) {
+    this.reset();
+    let state = this.grammar.startState();
+    let pos = 0;
+    while (pos < source.length) {
+      const match = this.grammar.match(state, source, pos, pos);
+      let matchTokens: GrammarToken[] | null = null;
+      let matchLength = 0;
+      if (match) {
+        state = match.state;
+        matchTokens = match.compile();
+        matchLength = match.length;
+      } else {
+        // if we didn't match, we'll advance to prevent getting stuck
+        matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
+        matchLength = 1;
+      }
+      for (let idx = 0; idx < matchTokens!.length; idx++) {
+        const token = matchTokens![idx]!;
+        this.buffer.add(state, token);
+      }
+      pos += matchLength;
+    }
+    const result = this.finish(source.length);
+    if (result) {
+      return result;
+    }
+    return null;
   }
 }

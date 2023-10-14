@@ -33,7 +33,7 @@ export * from "./utils/getBlockType";
 export * from "./utils/getCharactersWhoSpokeBeforeLine";
 export * from "./utils/getChildrenIds";
 export * from "./utils/getGlobalValueContext";
-export * from "./utils/getRelativeSection";
+export * from "./utils/getRelativeSectionName";
 export * from "./utils/getRuntimeString";
 export * from "./utils/getScopedContext";
 export * from "./utils/getScopedIds";

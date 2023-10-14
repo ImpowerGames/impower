@@ -10,7 +10,6 @@ export type SparkChoiceTokenType = "choice";
 export type SparkJumpTokenType = "jump";
 export type SparkReturnTokenType = "return";
 
-export type SparkLabelTokenType = "label";
 export type SparkSectionTokenType = "section";
 export type SparkSceneTokenType = "scene";
 export type SparkDialogueTokenType = "dialogue";
@@ -28,6 +27,7 @@ export type SparkStructFieldTokenType = "struct_field";
 
 export type SparkOtherTokenType =
   | "comment"
+  | "chunk"
   | "title"
   | "separator"
   | "separator"
@@ -54,7 +54,6 @@ export type SparkTokenType =
   | SparkChoiceTokenType
   | SparkJumpTokenType
   | SparkReturnTokenType
-  | SparkLabelTokenType
   | SparkSectionTokenType
   | SparkSceneTokenType
   | SparkDialogueTokenType

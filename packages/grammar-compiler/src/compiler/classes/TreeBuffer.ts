@@ -1,4 +1,4 @@
-import { Node } from "../../core";
+import { NodeID } from "../../core";
 import { Side } from "../enums/Side";
 import { ITreeBuffer } from "../types/ITreeBuffer";
 import { checkSide } from "../utils/checkSide";
@@ -8,7 +8,7 @@ import { checkSide } from "../utils/checkSide";
  * In such a buffer, nodes are stored in prefix order (parents before children)
  * with the endIndex of the parent indicating which children belong to it.
  */
-export default class CompileTreeBuffer implements ITreeBuffer {
+export default class TreeBuffer implements ITreeBuffer {
   constructor(
     /**
      * The buffer's content.
@@ -17,41 +17,12 @@ export default class CompileTreeBuffer implements ITreeBuffer {
     /**
      * The total length of the group of nodes in the buffer.
      */
-    readonly length: number,
-    /**
-     * The node set used in this buffer.
-     */
-    readonly set: Node[]
+    readonly length: number
   ) {}
 
-  toString() {
-    let result: string[] = [];
-    for (let index = 0; index < this.buffer.length; ) {
-      result.push(this.childString(index));
-      index = this.buffer[index + 3]!;
-    }
-    return result.join(",");
-  }
-
-  childString(index: number): string {
-    const typeIndex = this.buffer[index]!;
-    const endIndex = this.buffer[index + 3]!;
-    const node = this.set[typeIndex]!;
-    let typeId = node.typeId;
-    const isError = node.props["isError"];
-    if (/\W/.test(typeId) && !isError) {
-      typeId = JSON.stringify(typeId);
-    }
-    index += 4;
-    if (endIndex == index) {
-      return typeId;
-    }
-    let children: string[] = [];
-    while (index < endIndex) {
-      children.push(this.childString(index));
-      index = this.buffer[index + 3]!;
-    }
-    return typeId + "(" + children.join(",") + ")";
+  /// @internal
+  get type() {
+    return NodeID.none;
   }
 
   findChild(
@@ -85,6 +56,6 @@ export default class CompileTreeBuffer implements ITreeBuffer {
       copy[j++] = b[i++]! - startI;
       len = Math.max(len, to);
     }
-    return new CompileTreeBuffer(copy, len, this.set);
+    return new TreeBuffer(copy, len);
   }
 }
