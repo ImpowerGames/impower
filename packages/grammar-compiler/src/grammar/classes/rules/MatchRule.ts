@@ -47,7 +47,7 @@ export default class MatchRule implements Rule {
         const value = def.captures[key];
         const index = parseInt(key, 10);
         if (value != null) {
-          const captureId = this.id + `-c${index}`;
+          const captureId = this.id + `_c${index}`;
           if (isSwitchRuleDefinition(value)) {
             this.captures[index] = repo.add(value, captureId);
           } else {
@@ -58,8 +58,8 @@ export default class MatchRule implements Rule {
     }
   }
 
-  match(str: string, pos: number, state: GrammarState) {
-    const result = this.matcher.match(str, pos);
+  match(str: string, from: number, state: GrammarState) {
+    const result = this.matcher.match(str, from);
     if (!result) {
       return null;
     }
@@ -67,58 +67,56 @@ export default class MatchRule implements Rule {
     if (total == null) {
       return null;
     }
-    const matched = Matched.create(state, this.node, pos, total.length);
+    const matched = Matched.create(state, this.node, from, total.length);
     if (this.captures) {
       if (result) {
-        let from = pos;
+        let pos = from;
         result.forEach((resultStr, resultIndex) => {
           const capture = this.captures?.[resultIndex];
           if (capture) {
             if (capture instanceof SwitchRule) {
-              const nestedCaptures: Matched[] = [];
+              const children: Matched[] = [];
               let i = 0;
               while (i < resultStr.length) {
-                const matched = capture.match(resultStr, i, state);
+                const matched = capture.match(resultStr, i, state, false);
                 if (matched) {
-                  matched.offset(from + i);
-                  nestedCaptures.push(matched);
+                  matched.offset(pos + i);
+                  children.push(matched);
                   i += matched.length;
                 } else {
-                  // Reserve space for unrecognized tokens
-                  nestedCaptures.push(
-                    Matched.create(
-                      state,
-                      GrammarNode.None,
-                      from + i,
-                      resultStr[i]!.length
-                    )
+                  const noneMatched = Matched.create(
+                    state,
+                    GrammarNode.None,
+                    pos + i,
+                    1
                   );
-                  i += 1;
+                  children.push(noneMatched);
+                  i += noneMatched.length;
                 }
               }
               const captureMatched = Matched.create(
                 state,
                 capture.node,
-                from,
+                pos,
                 resultStr.length,
-                nestedCaptures.length > 0 ? nestedCaptures : undefined
+                children.length > 0 ? children : undefined
               );
-              matched.captures ??= [];
-              matched.captures.push(captureMatched);
+              matched.children ??= [];
+              matched.children.push(captureMatched);
             } else {
               const captureMatched = Matched.create(
                 state,
                 capture,
-                from,
+                pos,
                 resultStr.length
               );
-              matched.captures ??= [];
-              matched.captures.push(captureMatched);
+              matched.children ??= [];
+              matched.children.push(captureMatched);
             }
           }
           if (resultIndex > 0) {
             // First capture is always the total match so it's length shouldn't count
-            from += resultStr.length;
+            pos += resultStr.length;
           }
         });
       }

@@ -16,7 +16,7 @@ const getCharactersWhoSpokeBeforeLine = (
   while (searchIndex > 0 && !stopSearch) {
     const token = program.tokens[searchIndex - 1];
     if (token) {
-      if (token.type === "dialogue_character") {
+      if (token.tag === "dialogue_character") {
         const name = trimCharacterExtension(token.text || "").trim();
         if (!lastCharacter) {
           lastCharacter = name;
@@ -26,7 +26,7 @@ const getCharactersWhoSpokeBeforeLine = (
         ) {
           previousCharacters.push(name);
         }
-      } else if (token.type === "scene") {
+      } else if (token.tag === "scene") {
         stopSearch = true;
       }
     }

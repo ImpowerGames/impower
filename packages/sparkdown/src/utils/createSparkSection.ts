@@ -2,7 +2,6 @@ import { SparkSection } from "../types/SparkSection";
 
 const createSparkSection = (): SparkSection => {
   return {
-    type: "section",
     name: "",
     from: -1,
     to: -1,

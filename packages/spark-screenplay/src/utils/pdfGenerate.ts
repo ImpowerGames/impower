@@ -296,7 +296,7 @@ export const pdfGenerate = (
   const currentSections: string[] = [];
   let currentDuration = 0;
   lines.forEach((line: LineItem) => {
-    if (line.type === "page_break") {
+    if (line.tag === "page_break") {
       if (lineStructs) {
         if (line.token?.line && !lineStructs[line.token?.line || -1]) {
           lineStructs[line.token.line] = {
@@ -326,7 +326,7 @@ export const pdfGenerate = (
       printWatermark();
       printHeaderAndFooter(prevSceneContinuationHeader);
       prevSceneContinuationHeader = "";
-    } else if (line.type === "separator") {
+    } else if (line.tag === "separator") {
       y++;
       if (lineStructs) {
         if (line.token?.line && !lineStructs[line.token?.line]) {
@@ -343,23 +343,23 @@ export const pdfGenerate = (
       text = line.text;
 
       const textProperties: TextOptions = {
-        color: print?.[line.type as PrintableTokenType]?.color || DEFAULT_COLOR,
+        color: print?.[line.tag as PrintableTokenType]?.color || DEFAULT_COLOR,
         highlight: false,
         bold: false,
         highlightColor: DEFAULT_COLOR,
       };
 
-      if (line.type === "dialogue_parenthetical" && !text.startsWith("(")) {
+      if (line.tag === "dialogue_parenthetical" && !text.startsWith("(")) {
         text = " " + text;
       }
 
-      if (line.type === "centered") {
+      if (line.tag === "centered") {
         center(text, print.top_margin + print.font_height * y++);
       } else {
         let feed: number =
-          (print[line.type as PrintableTokenType] || {}).feed ||
+          (print[line.tag as PrintableTokenType] || {}).feed ||
           print.action.feed;
-        if (line.type === "transition") {
+        if (line.tag === "transition") {
           feed =
             print.action.feed +
             print.action.max * print.font_width -
@@ -369,7 +369,7 @@ export const pdfGenerate = (
         const invisibleSections =
           data.sceneInvisibleSections?.[line.scene || -1];
         const hasInvisibleSection =
-          line.type === "scene" && invisibleSections !== undefined;
+          line.tag === "scene" && invisibleSections !== undefined;
         const processSection = (sectionToken: LineItem): void => {
           let sectionText = sectionToken.text;
           currentSectionLevel = sectionToken.level || 0;
@@ -412,7 +412,7 @@ export const pdfGenerate = (
           }
           outlineDepth = sectionToken.level || 0;
         };
-        if (line.type === "section" || hasInvisibleSection) {
+        if (line.tag === "section" || hasInvisibleSection) {
           if (hasInvisibleSection) {
             for (let i = 0; i < invisibleSections.length; i++) {
               const invisibleSection = invisibleSections[i];
@@ -425,7 +425,7 @@ export const pdfGenerate = (
           }
         }
 
-        if (line.type === "scene") {
+        if (line.tag === "scene") {
           if (config?.screenplay_print_bookmarks) {
             if (outline) {
               getOutlineChild(outline, outlineDepth, 0).addItem(text);
@@ -437,7 +437,7 @@ export const pdfGenerate = (
           }
         }
 
-        if (line.type === "label") {
+        if (line.tag === "label") {
           feed += print.label.padding || 0;
           if (print.label.feed_with_last_section && afterSection) {
             feed += currentSectionLevel * (print.section.level_indent || 0);
@@ -447,8 +447,8 @@ export const pdfGenerate = (
         }
 
         if (
-          print[line.type as PrintableTokenType] &&
-          print[line.type as PrintableTokenType].italic &&
+          print[line.tag as PrintableTokenType] &&
+          print[line.tag as PrintableTokenType].italic &&
           text
         ) {
           text = "*" + text + "*";
@@ -459,7 +459,7 @@ export const pdfGenerate = (
             let yRight = y;
             line.rightColumn.forEach((rightLine: LineItem) => {
               let feedRight =
-                (print[rightLine.type as PrintableTokenType] || {}).feed ||
+                (print[rightLine.tag as PrintableTokenType] || {}).feed ||
                 print.action.feed;
               feedRight -= (feedRight - print.left_margin) / 2;
               feedRight +=
@@ -536,12 +536,12 @@ export const pdfGenerate = (
     }
 
     // clear after section
-    if (line.type === "section") {
+    if (line.tag === "section") {
       afterSection = true;
     } else if (
-      line.type !== "separator" &&
-      line.type !== "label" &&
-      line.type !== "page_break"
+      line.tag !== "separator" &&
+      line.tag !== "label" &&
+      line.tag !== "page_break"
     ) {
       afterSection = false;
     }

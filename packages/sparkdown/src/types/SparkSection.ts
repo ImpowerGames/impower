@@ -4,13 +4,11 @@ import { SparkVariable } from "./SparkVariable";
 
 export interface SparkSection extends SparkRange {
   name: string;
+  level: number;
+  line: number;
   from: number;
   to: number;
-  line: number;
-  level: number;
-  indent: number;
-  index: number;
-  parent?: string;
+  parent: string | null;
   children?: string[];
   tokens?: SparkToken[];
   variables?: Record<string, SparkVariable>;

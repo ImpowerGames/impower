@@ -6,12 +6,12 @@ import { NodeID } from "../../core";
 
 import { GrammarDefinition, RuleDefinition } from "../types/GrammarDefinition";
 import { Rule } from "../types/Rule";
-import { tryMatch } from "../utils/tryMatch";
 import GrammarNode from "./GrammarNode";
 import GrammarRepository from "./GrammarRepository";
 import GrammarStack from "./GrammarStack";
 import GrammarState from "./GrammarState";
 import type Matched from "./Matched";
+import ScopedRule from "./rules/ScopedRule";
 
 export default class Grammar {
   /**
@@ -137,7 +137,37 @@ export default class Grammar {
    * @param offset - The offset to apply to the resulting {@link Matched}'s
    *   `from` position.
    */
-  match(state: GrammarState, str: string, pos: number, offset = pos) {
-    return tryMatch(state, str, pos, offset);
+  match(
+    state: GrammarState,
+    str: string,
+    pos: number,
+    offset = pos,
+    possiblyIncomplete = true
+  ) {
+    if (state.stack.end instanceof ScopedRule) {
+      let result = state.stack.end.end(str, pos, state);
+      if (result) {
+        if (offset !== pos) {
+          result.offset(offset);
+        }
+        return result;
+      }
+    }
+
+    const rules = state.stack.rules;
+    if (rules) {
+      for (let i = 0; i < rules.length; i++) {
+        const rule = rules[i];
+        const result = rule?.match(str, pos, state, possiblyIncomplete);
+        if (result) {
+          if (offset !== pos) {
+            result.offset(offset);
+          }
+          return result;
+        }
+      }
+    }
+
+    return null;
   }
 }

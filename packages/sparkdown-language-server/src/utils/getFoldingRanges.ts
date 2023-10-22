@@ -1,19 +1,67 @@
-import { FoldingRange } from "vscode-languageserver";
+import { FoldingRange, Range } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
-import { SparkLineMetadata } from "@impower/sparkdown/src/types/SparkLineMetadata";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 
-/** Has some content that is not just whitespace */
-const isContentful = (line: SparkLineMetadata) =>
-  line && line.length! > line.offset!;
+const INDENT_REGEX = /^([ \t]+)/;
 
 const getFoldingRanges = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined
 ): FoldingRange[] => {
   const result: FoldingRange[] = [];
-  if (!document || !program) {
+  if (!document) {
+    return result;
+  }
+  const lines: string[] = [];
+  for (let i = 0; i < document.lineCount; i += 1) {
+    lines.push(document.getText(Range.create(i, 0, i + 1, 0)));
+  }
+  // Support indentation folding
+  const getIndentLevel = (text: string): number => {
+    return text?.match(INDENT_REGEX)?.[1]?.length || 0;
+  };
+  const getPrevNonBlankLine = (index: number): number => {
+    // Search backward for line that has content.
+    for (let i = index - 1; i >= 0; i -= 1) {
+      const prev = lines[i]!;
+      if (prev.trim()) {
+        return i;
+      }
+    }
+    return index;
+  };
+  const getIndentationCloseLine = (index: number): number => {
+    const curr = lines[index]!;
+    // Find the next line that is indented less than the current line
+    for (let i = index + 1; i < lines.length; i += 1) {
+      const next = lines[i]!;
+      if (next && getIndentLevel(next) <= getIndentLevel(curr)) {
+        // fold ends the line before the outdented line
+        return i - 1;
+      }
+    }
+    return document.lineCount - 1;
+  };
+  lines.forEach((curr, lineIndex) => {
+    const next = lines[lineIndex + 1];
+    if (!next) {
+      return;
+    }
+    const currDepth = getIndentLevel(curr);
+    const nextDepth = getIndentLevel(next);
+    if (nextDepth > currDepth) {
+      const startLine = curr.trim()
+        ? lineIndex
+        : getPrevNonBlankLine(lineIndex);
+      const endLine = getIndentationCloseLine(lineIndex);
+      result.push({
+        startLine,
+        endLine,
+      });
+    }
+  });
+  if (!program) {
     return result;
   }
   // Support section folding
@@ -38,50 +86,6 @@ const getFoldingRanges = (
         result.push({
           startLine: curr.line,
           endLine: getSectionEndLine(sectionIndex),
-        });
-      }
-    });
-  }
-  // Support indentation folding
-  const lines = program.metadata.lines;
-  if (lines) {
-    const getPrevNonEmptyLine = (index: number): number => {
-      // Search backward for line that has content.
-      for (let i = index - 1; i >= 0; i -= 1) {
-        const prev = lines[i]!;
-        if (isContentful(prev)) {
-          return i;
-        }
-      }
-      return index;
-    };
-    const getIndentationCloseLine = (index: number): number => {
-      const curr = lines[index]!;
-      // Find the next line that is indented less than the current line
-      for (let i = index + 1; i < lines.length; i += 1) {
-        const next = lines[i]!;
-        if (next && next.indent! <= curr.indent!) {
-          // fold ends the line before the outdented line
-          return i - 1;
-        }
-      }
-      return document.lineCount - 1;
-    };
-    lines.forEach((curr, lineIndex) => {
-      const next = lines[lineIndex + 1];
-      if (!next) {
-        return;
-      }
-      const currDepth = curr.indent!;
-      const nextDepth = next.indent!;
-      if (nextDepth > currDepth) {
-        const startLine = isContentful(curr)
-          ? lineIndex
-          : getPrevNonEmptyLine(lineIndex);
-        const endLine = getIndentationCloseLine(lineIndex);
-        result.push({
-          startLine,
-          endLine,
         });
       }
     });

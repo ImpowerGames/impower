@@ -8,12 +8,9 @@ import {
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import getBlockMatch from "@impower/sparkdown/src/utils/getBlockMatch";
-import getBlockType from "@impower/sparkdown/src/utils/getBlockType";
 import getLineText from "./getLineText";
 import getLineTextBefore from "./getLineTextBefore";
 import getUniqueOptions from "./getUniqueOptions";
-import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s/g;
 
@@ -212,22 +209,23 @@ const getCompletions = (
     return getScriptCompletions(program);
   }
   if (!scopeName) {
-    const match = getBlockMatch(lineText);
-    const blockType = getBlockType(match);
-    if (match) {
-      if (blockType === "scene" && triggerCharacter === " ") {
-        return getSceneCaptureCompletions(match, program);
-      }
-    } else {
-      if (!triggerCharacter) {
-        return [
-          ...getCharacterCompletions(position.line, program),
-          ...getSceneCompletions(),
-        ];
-      } else if (triggerCharacter === "\n" && isEmptyLine(prevLineText)) {
-        return [...getCharacterCompletions(position.line, program)];
-      }
-    }
+    // TODO:
+    // const match = getBlockMatch(lineText);
+    // const blockType = getBlockType(match);
+    // if (match) {
+    //   if (blockType === "scene" && triggerCharacter === " ") {
+    //     return getSceneCaptureCompletions(match, program);
+    //   }
+    // } else {
+    //   if (!triggerCharacter) {
+    //     return [
+    //       ...getCharacterCompletions(position.line, program),
+    //       ...getSceneCompletions(),
+    //     ];
+    //   } else if (triggerCharacter === "\n" && isEmptyLine(prevLineText)) {
+    //     return [...getCharacterCompletions(position.line, program)];
+    //   }
+    // }
   }
   return undefined;
 };

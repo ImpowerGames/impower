@@ -1,6 +1,6 @@
 import type {
+  ISparkToken,
   SparkDisplayToken,
-  SparkLine,
   SparkToken,
 } from "../../../../sparkdown/src";
 import type {
@@ -25,7 +25,7 @@ const getCommandId = (
   return `${file}+${sectionId}.${token.type}_${token.line}_${token.from}_${token.to}_${token.indent}`;
 };
 
-const getSource = (token: SparkLine, file: string) => {
+const getSource = (token: ISparkToken, file: string) => {
   return {
     file,
     line: token.line,
@@ -59,7 +59,7 @@ const generateDisplayCommand = (
       assets: token.assets || [],
       autoAdvance: token.autoAdvance || false,
       clearPreviousText: token.clearPreviousText || false,
-      waitUntilFinished: token.wait || false,
+      waitUntilFinished: token.waitUntilFinished || false,
     },
   };
 };

@@ -112,7 +112,6 @@ export const executeDisplayCommand = (
   const parenthetical = data?.params?.parenthetical || "";
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
-  const clearPreviousText = data?.params?.clearPreviousText;
   const characterKey = character
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
@@ -262,9 +261,7 @@ export const executeDisplayCommand = (
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
-        if (clearPreviousText) {
-          value.replaceChildren();
-        }
+        value.replaceChildren();
         allChunks.forEach((c, i) => {
           if (c.element) {
             c.element.id = value.id + `.span${i.toString().padStart(8, "0")}`;

@@ -9,6 +9,5 @@ export interface DisplayCommandParams extends CommandParams {
   parenthetical: string;
   content: string;
   autoAdvance: boolean;
-  clearPreviousText: boolean;
   assets: { name: string; args: string[]; type: string }[];
 }

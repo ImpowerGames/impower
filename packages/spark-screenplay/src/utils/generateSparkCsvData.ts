@@ -14,12 +14,12 @@ export const generateSparkCsvData = (program: SparkProgram): string[][] => {
     const typeKeys: Record<string, number> = {};
     let dialogueIndex = 0;
     (section.tokens || []).forEach((t) => {
-      if (typeKeys[t.type] === undefined) {
-        typeKeys[t.type] = 0;
+      if (typeKeys[t.tag] === undefined) {
+        typeKeys[t.tag] = 0;
       } else {
-        typeKeys[t.type] += 1;
+        typeKeys[t.tag] += 1;
       }
-      if (t.type === "dialogue_character") {
+      if (t.tag === "dialogue_character") {
         if (characterKeys[t.content] === undefined) {
           characterKeys[t.content] = 0;
         } else {
@@ -30,8 +30,8 @@ export const generateSparkCsvData = (program: SparkProgram): string[][] => {
       if (t.ignore) {
         return;
       }
-      const keyPrefix = `${sectionId}.${t.type}.`;
-      if (t.type === "dialogue") {
+      const keyPrefix = `${sectionId}.${t.tag}.`;
+      if (t.tag === "dialogue") {
         dialogueIndex += 1;
         const characterIndex = characterKeys[t.character];
         const characterChunkIndex = String(characterIndex).padStart(3, "0");
@@ -41,22 +41,22 @@ export const generateSparkCsvData = (program: SparkProgram): string[][] => {
         const content = `${parenthetical}${t.content?.trimEnd()}`;
         strings.push([key, `D: ${t.character}`, content]);
       }
-      const typeIndex = typeKeys[t.type];
+      const typeIndex = typeKeys[t.tag];
       const typeChunkIndex = String(typeIndex).padStart(3, "0");
       const key = `${keyPrefix}${typeChunkIndex}`;
       const content = t.content?.trimEnd();
-      if (t.type === "action") {
+      if (t.tag === "action") {
         strings.push([key, "", content]);
       }
-      if (t.type === "centered") {
+      if (t.tag === "centered") {
         const content = t.content?.trimEnd();
         strings.push([key, "C:", content]);
       }
-      if (t.type === "transition") {
+      if (t.tag === "transition") {
         const content = t.content?.trimEnd();
         strings.push([key, "T:", content]);
       }
-      if (t.type === "scene") {
+      if (t.tag === "scene") {
         const content = t.content?.trimEnd();
         strings.push([key, "S:", content]);
       }

@@ -199,7 +199,7 @@ export class Compiler {
     let state = this.grammar.startState();
     let pos = 0;
     while (pos < source.length) {
-      const match = this.grammar.match(state, source, pos, pos);
+      const match = this.grammar.match(state, source, pos, pos, false);
       let matchTokens: GrammarToken[] | null = null;
       let matchLength = 0;
       if (match) {

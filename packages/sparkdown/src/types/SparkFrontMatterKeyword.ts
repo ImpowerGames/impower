@@ -1,4 +1,4 @@
-export type SparkTitleKeyword =
+export type SparkFrontMatterKeyword =
   | "title"
   | "credit"
   | "author"

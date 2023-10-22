@@ -22,7 +22,6 @@ import {
   GrammarState,
 } from "../../../../grammar-compiler/src/grammar";
 
-import { printTree } from "../utils/printTree";
 import LezerParseRegion from "./LezerParseRegion";
 
 /** Amount of characters to slice before the starting position of the parse. */
@@ -128,13 +127,43 @@ export default class GrammarParse implements PartialParse {
           for (; restartPos >= f.from; restartPos -= 1) {
             if (this.region.input.read(restartPos, restartPos + 2) === "\n\n") {
               // Restart at previous empty line
+              restartPos += 1;
               break;
             }
           }
-          const { chunk, index } = buffer.search(restartPos, 0, true);
+          // console.log(
+          //   "CHUNKS",
+          //   buffer?.chunks.map((chunk) => [
+          //     input.read(chunk.from, chunk.to),
+          //     chunk.from,
+          //     chunk.open?.map((n) => this.nodeSet.types[n]?.name),
+          //     chunk.close?.map((n) => this.nodeSet.types[n]?.name),
+          //   ])
+          // );
+          const { chunk, index } = buffer.search(restartPos, -1);
           if (chunk && index !== null) {
             // split the buffer, reuse the left side
             const { left } = buffer.split(index);
+            // console.log("restartPos", restartPos);
+            // console.log("splitAt", index);
+            // console.log(
+            //   "LEFT",
+            //   left?.chunks.map((chunk) => [
+            //     input.read(chunk.from, chunk.to),
+            //     chunk.from,
+            //     chunk.open?.map((n) => this.nodeSet.types[n]?.name),
+            //     chunk.close?.map((n) => this.nodeSet.types[n]?.name),
+            //   ])
+            // );
+            // console.log(
+            //   "RIGHT (NEED-TO-REPARSE)",
+            //   right?.chunks.map((chunk) => [
+            //     input.read(chunk.from, chunk.to),
+            //     chunk.from,
+            //     chunk.open?.map((n) => this.nodeSet.types[n]?.name),
+            //     chunk.close?.map((n) => this.nodeSet.types[n]?.name),
+            //   ])
+            // );
             this.region.from = chunk.from;
             this.buffer = left;
             this.state = this.grammar.startState();
@@ -213,7 +242,7 @@ export default class GrammarParse implements PartialParse {
         start,
         length,
       });
-      console.log(printTree(tree, this.region.input));
+      // console.log(printTree(tree, this.region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
@@ -260,7 +289,7 @@ export default class GrammarParse implements PartialParse {
         this.region.to
       );
 
-      const match = this.grammar.match(this.state, str, pos - start, pos);
+      const match = this.grammar.match(this.state, str, pos - start, pos, true);
 
       if (match) {
         this.state = match.state;

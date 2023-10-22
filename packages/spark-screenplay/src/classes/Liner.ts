@@ -1,18 +1,18 @@
 import {
-  SparkLine,
+  ISparkToken,
   SparkToken,
-  SparkTokenTypeMap,
+  SparkTokenTagMap,
 } from "../../../sparkdown/src";
 import createSparkToken from "../../../sparkdown/src/utils/createSparkToken";
 import { PrintProfile } from "../types/PrintProfile";
 
-export interface LineItem extends SparkLine {
+export interface LineItem extends ISparkToken {
   position?: "left" | "right";
   scene?: string | number;
   level?: number;
 
   token?: LineItem;
-  lines?: LineItem[];
+  content?: LineItem[];
 
   hide?: boolean;
   localIndex?: number;
@@ -31,7 +31,7 @@ export interface LinerConfig {
 export const createLine = (token: Partial<LineItem>): LineItem => {
   const line = {
     ...token,
-    type: token.type || "unknown",
+    type: token.tag || "unknown",
     content: token.content || "",
     text: token.text || "",
     from: token.from || 0,
@@ -43,9 +43,9 @@ export const createLine = (token: Partial<LineItem>): LineItem => {
     order: token.order || 0,
     token:
       token.token ||
-      (createSparkToken(token.type as keyof SparkTokenTypeMap) as LineItem),
+      (createSparkToken(token.tag as keyof SparkTokenTagMap) as LineItem),
   };
-  line.token.lines = line.token.lines || [line];
+  line.token.content = line.token.content || [line];
   return line;
 };
 
@@ -65,7 +65,7 @@ export class Liner {
     if (text.length <= max) {
       return [
         createLine({
-          type: token.type,
+          tag: token.tag,
           text: text,
           from: index,
           to: index + text.length - 1,
@@ -81,7 +81,7 @@ export class Liner {
 
     return [
       createLine({
-        type: token.type,
+        tag: token.tag,
         text: text.substring(0, pointer),
         from: index,
         to: index + pointer,
@@ -93,7 +93,7 @@ export class Liner {
   };
 
   splitToken = (token: LineItem, max: number): void => {
-    token.lines = this.splitText(token.text || "", max, token.from, token);
+    token.content = this.splitText(token.text || "", max, token.from, token);
   };
 
   breaker = (
@@ -126,27 +126,27 @@ export class Liner {
     const tokenBefore = lines[before];
 
     if (
-      tokenOnBreak.type === "scene" &&
+      tokenOnBreak.tag === "scene" &&
       tokenAfter &&
-      tokenAfter.type !== "scene"
+      tokenAfter.tag !== "scene"
     ) {
       return false;
     } else if (
       tokenAfter &&
-      tokenAfter.type === "transition" &&
-      tokenOnBreak.type !== "transition"
+      tokenAfter.tag === "transition" &&
+      tokenOnBreak.tag !== "transition"
     ) {
       return false;
     }
     // action block 1,2 or 3 lines.
     // don't break unless it's the last line
     else if (
-      tokenOnBreak.type === "action" &&
+      tokenOnBreak.tag === "action" &&
       tokenOnBreak.token &&
-      tokenOnBreak.token.lines &&
-      tokenOnBreak.token.lines.length < 4 &&
-      tokenOnBreak.token.lines.indexOf(tokenOnBreak) !==
-        tokenOnBreak.token.lines.length - 1
+      tokenOnBreak.token.content &&
+      tokenOnBreak.token.content.length < 4 &&
+      tokenOnBreak.token.content.indexOf(tokenOnBreak) !==
+        tokenOnBreak.token.content.length - 1
     ) {
       return false;
     }
@@ -159,28 +159,28 @@ export class Liner {
     // aaaaaaaaa <--- don't break after this line
     // aaaaaaaaa <--- allow breaking after this line
     else if (
-      tokenOnBreak.type === "action" &&
+      tokenOnBreak.tag === "action" &&
       tokenOnBreak.token &&
-      tokenOnBreak.token.lines &&
-      tokenOnBreak.token.lines.length >= 4 &&
-      (tokenOnBreak.token.lines.indexOf(tokenOnBreak) === 0 ||
-        tokenOnBreak.token.lines.indexOf(tokenOnBreak) ===
-          tokenOnBreak.token.lines.length - 2)
+      tokenOnBreak.token.content &&
+      tokenOnBreak.token.content.length >= 4 &&
+      (tokenOnBreak.token.content.indexOf(tokenOnBreak) === 0 ||
+        tokenOnBreak.token.content.indexOf(tokenOnBreak) ===
+          tokenOnBreak.token.content.length - 2)
     ) {
       return false;
     } else if (
       splitAcrossPages &&
-      tokenOnBreak.type === "dialogue" &&
+      tokenOnBreak.tag === "dialogue" &&
       tokenAfter &&
-      tokenAfter.type === "dialogue" &&
-      tokenBefore?.type === "dialogue" &&
+      tokenAfter.tag === "dialogue" &&
+      tokenBefore?.tag === "dialogue" &&
       !tokenOnBreak.position
     ) {
       let newPageCharacter;
       let character = before;
       while (
         lines[character] &&
-        lines[character]?.type !== "dialogue_character"
+        lines[character]?.tag !== "dialogue_character"
       ) {
         character--;
       }
@@ -190,7 +190,7 @@ export class Liner {
       }
 
       const moreItem: LineItem = {
-        type: "more",
+        tag: "more",
         text: MORE,
         content: MORE,
         from: tokenOnBreak.from,
@@ -211,7 +211,7 @@ export class Liner {
         0,
         createLine(moreItem),
         (newPageCharacter = createLine({
-          type: "dialogue_character",
+          tag: "dialogue_character",
           text: contdText,
           content: contdText,
           from: tokenAfter.from,
@@ -226,7 +226,7 @@ export class Liner {
           .slice(0, dialogueOnPageLength)
           .concat([
             createLine({
-              type: "more",
+              tag: "more",
               text: MORE,
               content: MORE,
               from: tokenOnBreak.from,
@@ -240,7 +240,7 @@ export class Liner {
           (rightLinesOnThisPage[0]?.text.indexOf(CONTD) !== -1 ? "" : CONTD);
         const rightLinesForNextPage = [
           createLine({
-            type: "dialogue_character",
+            tag: "dialogue_character",
             text: rightText,
             content: rightText,
             from: tokenAfter.from,
@@ -263,10 +263,10 @@ export class Liner {
       return true;
     } else if (
       ["dialogue_character", "dialogue_parenthetical", "dialogue"].includes(
-        lines[index]?.type || ""
+        lines[index]?.tag || ""
       ) &&
       lines[after] &&
-      ["dialogue_parenthetical", "dialogue"].includes(lines[after]?.type || "")
+      ["dialogue_parenthetical", "dialogue"].includes(lines[after]?.tag || "")
     ) {
       return false; // or break
     }
@@ -290,7 +290,7 @@ export class Liner {
     let internalBreak = 0;
 
     for (let i = 0; i < lines.length && i < max; i++) {
-      if (lines[i]?.type === "page_break") {
+      if (lines[i]?.tag === "page_break") {
         internalBreak = i;
       }
     }
@@ -319,19 +319,19 @@ export class Liner {
     let sceneSplit = false;
     while (nextPageLineIndex < lines.length && nextPageLine === null) {
       const line = lines[nextPageLineIndex];
-      if (line?.type !== "separator" && line?.type !== "page_break") {
+      if (line?.tag !== "separator" && line?.tag !== "page_break") {
         nextPageLine = line;
       }
       nextPageLineIndex++;
     }
 
-    if (nextPageLine && nextPageLine.type !== "scene") {
+    if (nextPageLine && nextPageLine.tag !== "scene") {
       sceneSplit = true;
     }
 
     page.push(
       createLine({
-        type: "page_break",
+        tag: "page_break",
         sceneSplit: sceneSplit,
       })
     );
@@ -348,7 +348,7 @@ export class Liner {
         if (line) {
           if (
             line.token &&
-            line.token?.type === "dialogue_character" &&
+            line.token?.tag === "dialogue_character" &&
             line.token?.position === "left" &&
             line.rightColumn === undefined
           ) {
@@ -364,7 +364,7 @@ export class Liner {
         if (line) {
           if (
             line.token &&
-            line.token?.type === "dialogue_character" &&
+            line.token?.tag === "dialogue_character" &&
             line.token?.position === "right"
           ) {
             return i;
@@ -378,11 +378,11 @@ export class Liner {
       let canbeCharacter = true;
       while (
         lines[i] &&
-        (lines[i]?.type === "dialogue_parenthetical" ||
-          lines[i]?.type === "dialogue" ||
-          (canbeCharacter && lines[i]?.type === "dialogue_character"))
+        (lines[i]?.tag === "dialogue_parenthetical" ||
+          lines[i]?.tag === "dialogue" ||
+          (canbeCharacter && lines[i]?.tag === "dialogue_character"))
       ) {
-        if (lines[i]?.type !== "dialogue_character") {
+        if (lines[i]?.tag !== "dialogue_character") {
           canbeCharacter = false;
         }
         result++;
@@ -407,7 +407,7 @@ export class Liner {
         while (insertLength > 0) {
           insertArray.push(
             createLine({
-              type: lines[leftIndex + leftTokens]?.type,
+              tag: lines[leftIndex + leftTokens]?.tag,
               text: "",
               content: "",
               from: lines[leftIndex + leftTokens]?.from,
@@ -445,7 +445,7 @@ export class Liner {
     tokens.forEach((token: LineItem) => {
       if (!token.hide) {
         let max =
-          ((print[token.type as keyof PrintProfile] as { max: number }) || {})
+          ((print[token.tag as keyof PrintProfile] as { max: number }) || {})
             .max || print.action.max;
 
         //Replace tabs with 4 spaces
@@ -459,15 +459,15 @@ export class Liner {
 
         this.splitToken(token, max);
 
-        if (token.lines) {
-          if (token.type === "scene" && lines.length) {
-            const firstLine = token.lines[0];
+        if (token.content) {
+          if (token.tag === "scene" && lines.length) {
+            const firstLine = token.content[0];
             if (firstLine) {
               firstLine.scene = token.scene;
             }
           }
 
-          token.lines.forEach((line: LineItem, index: number) => {
+          token.content.forEach((line: LineItem, index: number) => {
             line.localIndex = index;
             line.globalIndex = globalIndex++;
             lines.push(line);

@@ -33,7 +33,7 @@ export default class Matched {
     /** The length of the match. */
     public length: number,
     /** The children contained by this match's {@link GrammarNode}. */
-    public captures?: Matched[],
+    public children?: Matched[],
     /**
      * The wrapping mode of the match. There are three modes:
      *
@@ -46,9 +46,9 @@ export default class Matched {
 
   /** Changes the starting offset of the match. */
   offset(offset: number) {
-    if (this.captures) {
-      for (let i = 0; i < this.captures.length; i++) {
-        const child = this.captures[i]!;
+    if (this.children) {
+      for (let i = 0; i < this.children.length; i++) {
+        const child = this.children[i]!;
         child.offset(child.from - this.from + offset);
       }
     }
@@ -68,14 +68,14 @@ export default class Matched {
 
   /** Internal method for compiling. */
   private _compile() {
-    if (!this.captures) {
+    if (!this.children) {
       return compileLeaf(this);
     }
 
     // verbose approach for performance
     const tokens: GrammarToken[] = [];
-    for (let i = 0; i < this.captures!.length; i++) {
-      const compiled = this.captures![i]!._compile();
+    for (let i = 0; i < this.children!.length; i++) {
+      const compiled = this.children![i]!._compile();
       // wasn't emitted
       if (!compiled) {
         continue;
@@ -126,29 +126,31 @@ const compileLeaf = (match: Matched): GrammarToken => {
     throw new Error("Cannot compile a null leaf with a non-full wrapping");
   }
 
-  // prettier-ignore
-  switch(match.wrapping) {
-     case Wrapping.FULL: return [
-       match.node === GrammarNode.None ? null : match.node.typeIndex,
-       match.from,
-       match.from + match.length
-     ]
- 
-     case Wrapping.BEGIN: return [
-       null,
-       match.from,
-       match.from + match.length,
-       [match.node.typeIndex]
-     ]
- 
-     case Wrapping.END: return [
-       null,
-       match.from,
-       match.from + match.length,
-       undefined,
-       [match.node.typeIndex]
-     ]
-   }
+  switch (match.wrapping) {
+    case Wrapping.FULL:
+      return [
+        match.node === GrammarNode.None ? null : match.node.typeIndex,
+        match.from,
+        match.from + match.length,
+      ];
+
+    case Wrapping.BEGIN:
+      return [
+        null,
+        match.from,
+        match.from + match.length,
+        [match.node.typeIndex],
+      ];
+
+    case Wrapping.END:
+      return [
+        null,
+        match.from,
+        match.from + match.length,
+        undefined,
+        [match.node.typeIndex],
+      ];
+  }
 };
 
 /**

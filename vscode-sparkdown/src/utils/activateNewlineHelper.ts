@@ -9,8 +9,8 @@ const DEFINE_BEGIN_REGEX = new RegExp(
   GRAMMAR.repository.Define.begin,
   GRAMMAR.flags
 );
-const DIALOGUE_LINE_MATCH_REGEX = new RegExp(
-  GRAMMAR.repository.BoxText.match,
+const DIALOGUE_BEGIN_MATCH = new RegExp(
+  GRAMMAR.repository.Dialogue.begin,
   GRAMMAR.flags
 );
 const CHOICE_BEGIN_REGEX = new RegExp(
@@ -39,9 +39,9 @@ const handleNewline = (args: { text: string }): boolean => {
 
   let match: RegExpMatchArray | null = null;
 
-  if ((match = lineText.match(DIALOGUE_LINE_MATCH_REGEX))) {
+  if ((match = lineText.match(DIALOGUE_BEGIN_MATCH))) {
     if (!textAfterCursor) {
-      const listPrefix = match.slice(1, 4).join("");
+      const listPrefix = match.slice(1, 3).join("");
       if (listPrefix.trim()) {
         const textAfterMark = lineText.slice(listPrefix.length);
         if (textAfterMark.trim()) {
@@ -67,7 +67,7 @@ const handleNewline = (args: { text: string }): boolean => {
 
   if ((match = lineText.match(CHOICE_BEGIN_REGEX))) {
     if (!textAfterCursor) {
-      const listPrefix = match.slice(1, 4).join("");
+      const listPrefix = match.slice(1, 3).join("");
       if (listPrefix.trim()) {
         const textAfterMark = lineText.slice(listPrefix.length);
         if (textAfterMark.trim()) {

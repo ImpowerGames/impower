@@ -1,5 +1,5 @@
 const EDITOR_COLORS = {
-  foreground: "#D4D4D4",
+  foreground: "#CCCCCC",
   lineNumber: "#2B83B7",
   lineMark: "#66c7ff",
 
@@ -14,6 +14,7 @@ const EDITOR_COLORS = {
   operator: "#D0D0D0",
 
   comment: "#6A9955",
+  chunkNameDefinition: "#7C7CA6",
   sectionNameDefinition: "#FF80F4",
   sectionNameAccessor: "#F9B8F9",
   scene: "#FF8080",

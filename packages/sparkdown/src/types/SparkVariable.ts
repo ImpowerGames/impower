@@ -1,11 +1,11 @@
+import { SparkPrimitiveType } from "./SparkPrimitiveType";
 import { SparkRange } from "./SparkRange";
-import { SparkVariableType } from "./SparkVariableType";
 
 export interface SparkVariable extends SparkRange {
   from: number;
   to: number;
   line: number;
   name: string;
-  type: SparkVariableType;
+  type: SparkPrimitiveType | string;
   value: unknown;
 }

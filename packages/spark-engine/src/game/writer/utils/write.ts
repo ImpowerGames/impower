@@ -7,7 +7,7 @@ import { stressPhrases } from "./stressPhrases";
 
 const SINGLE_MARKERS = ["*", "_", "^"];
 
-const DOUBLE_MARKERS = ["~~", "==", "//", "\\\\", "||"];
+const DOUBLE_MARKERS = ["~~", "==", "//", "\\\\", "::"];
 
 const populateAndStyleElement = (
   spanEl: IElement,
@@ -188,7 +188,7 @@ export const write = (
     const activeTremblingMark = markers.find((m) => m.startsWith("=="));
     const activeFasterMark = markers.find((m) => m.startsWith("//"));
     const activeSlowerMark = markers.find((m) => m.startsWith("\\\\"));
-    const activeInstantMark = markers.find((m) => m.startsWith("||"));
+    const activeInstantMark = markers.find((m) => m.startsWith("::"));
     const hasBoldItalicMark = Boolean(activeBoldItalicMark);
     const isUnderlined = Boolean(activeUnderlineMark);
     const hasBoldMark = markers.includes("**");

@@ -98,13 +98,29 @@
           {
             "scope": "markup.bold.sd",
             "settings": {
-              "foreground": "#569CD6"
+              "foreground": "#569CD6",
+              "fontStyle": "bold"
             }
           },
           {
             "scope": "markup.italic.sd",
             "settings": {
-              "foreground": "#569CD6"
+              "foreground": "#569CD6",
+              "fontStyle": "italic"
+            }
+          },
+          {
+            "scope": "markup.underline.sd",
+            "settings": {
+              "foreground": "#569CD6",
+              "fontStyle": "underline"
+            }
+          },
+          {
+            "scope": "markup.strikethrough.sd",
+            "settings": {
+              "foreground": "#569CD6",
+              "fontStyle": "strikethrough"
             }
           },
           {
@@ -115,27 +131,52 @@
             }
           },
           {
-            "scope": "markup.underline.sd",
+            "scope": "markup.bold.sd markup.underline.sd",
             "settings": {
-              "foreground": "#569CD6"
+              "foreground": "#569CD6",
+              "fontStyle": "bold underline"
             }
           },
           {
-            "scope": "markup.strikethrough.sd",
+            "scope": "markup.italic.sd markup.underline.sd",
             "settings": {
-              "foreground": "#569CD6"
+              "foreground": "#569CD6",
+              "fontStyle": "italic underline"
+            }
+          },
+          {
+            "scope": "markup.bold.sd markup.italic.sd markup.underline.sd",
+            "settings": {
+              "foreground": "#569CD6",
+              "fontStyle": "italic bold underline"
             }
           },
           {
             "scope": "string markup.bold.sd",
             "settings": {
-              "foreground": "#CE9178"
+              "foreground": "#CE9178",
+              "fontStyle": "bold"
             }
           },
           {
             "scope": "string markup.italic.sd",
             "settings": {
-              "foreground": "#CE9178"
+              "foreground": "#CE9178",
+              "fontStyle": "italic"
+            }
+          },
+          {
+            "scope": "string markup.underline.sd",
+            "settings": {
+              "foreground": "#CE9178",
+              "fontStyle": "underline"
+            }
+          },
+          {
+            "scope": "string markup.strikethrough.sd",
+            "settings": {
+              "foreground": "#CE9178",
+              "fontStyle": "strikethrough"
             }
           },
           {
@@ -146,15 +187,31 @@
             }
           },
           {
-            "scope": "string markup.underline.sd",
+            "scope": "string markup.bold.sd markup.italic.sd",
             "settings": {
-              "foreground": "#CE9178"
+              "foreground": "#CE9178",
+              "fontStyle": "italic bold"
             }
           },
           {
-            "scope": "string markup.strikethrough.sd",
+            "scope": "string markup.bold.sd markup.underline.sd",
             "settings": {
-              "foreground": "#CE9178"
+              "foreground": "#CE9178",
+              "fontStyle": "bold underline"
+            }
+          },
+          {
+            "scope": "string markup.italic.sd markup.underline.sd",
+            "settings": {
+              "foreground": "#CE9178",
+              "fontStyle": "italic underline"
+            }
+          },
+          {
+            "scope": "string markup.bold.sd markup.italic.sd markup.underline.sd",
+            "settings": {
+              "foreground": "#CE9178",
+              "fontStyle": "italic bold underline"
             }
           }
         ],
@@ -211,44 +268,85 @@
             {
               "scope": "markup.bold.sd",
               "settings": {
-                "foreground": "#000080"
+                "foreground": "#000080",
+                "fontStyle": "bold"
               }
             },
             {
               "scope": "markup.italic.sd",
               "settings": {
-                "foreground": "#000080"
+                "foreground": "#000080",
+                "fontStyle": "italic"
               }
             },
             {
-              "scope": "markup.bold markup.italic.sd",
+              "scope": "markup.underline.sd",
+              "settings": {
+                "foreground": "#000080",
+                "fontStyle": "underline"
+              }
+            },
+            {
+              "scope": "markup.strikethrough.sd",
+              "settings": {
+                "foreground": "#000080",
+                "fontStyle": "strikethrough"
+              }
+            },
+            {
+              "scope": "markup.bold.sd markup.italic.sd",
               "settings": {
                 "foreground": "#000080",
                 "fontStyle": "italic bold"
               }
             },
             {
-              "scope": "markup.underline.sd",
+              "scope": "markup.bold.sd markup.underline.sd",
               "settings": {
-                "foreground": "#000080"
+                "foreground": "#000080",
+                "fontStyle": "bold underline"
               }
             },
             {
-              "scope": "markup.strikethrough.sd",
+              "scope": "markup.italic.sd markup.underline.sd",
               "settings": {
-                "foreground": "#000080"
+                "foreground": "#000080",
+                "fontStyle": "italic underline"
+              }
+            },
+            {
+              "scope": "markup.bold.sd markup.italic.sd markup.underline.sd",
+              "settings": {
+                "foreground": "#000080",
+                "fontStyle": "italic bold underline"
               }
             },
             {
               "scope": "string markup.bold.sd",
               "settings": {
-                "foreground": "#A31515"
+                "foreground": "#A31515",
+                "fontStyle": "bold"
               }
             },
             {
               "scope": "string markup.italic.sd",
               "settings": {
-                "foreground": "#A31515"
+                "foreground": "#A31515",
+                "fontStyle": "italic"
+              }
+            },
+            {
+              "scope": "string markup.underline.sd",
+              "settings": {
+                "foreground": "#A31515",
+                "fontStyle": "underline"
+              }
+            },
+            {
+              "scope": "string markup.strikethrough.sd",
+              "settings": {
+                "foreground": "#A31515",
+                "fontStyle": "strikethrough"
               }
             },
             {
@@ -261,13 +359,42 @@
             {
               "scope": "string markup.underline.sd",
               "settings": {
-                "foreground": "#A31515"
+                "foreground": "#A31515",
+                "fontStyle": "underline"
               }
             },
             {
               "scope": "string markup.strikethrough.sd",
               "settings": {
                 "foreground": "#A31515"
+              }
+            },
+            {
+              "scope": "string markup.bold.sd markup.italic.sd",
+              "settings": {
+                "foreground": "#A31515",
+                "fontStyle": "italic bold"
+              }
+            },
+            {
+              "scope": "string markup.bold.sd markup.underline.sd",
+              "settings": {
+                "foreground": "#A31515",
+                "fontStyle": "bold underline"
+              }
+            },
+            {
+              "scope": "string markup.italic.sd markup.underline.sd",
+              "settings": {
+                "foreground": "#A31515",
+                "fontStyle": "italic underline"
+              }
+            },
+            {
+              "scope": "string markup.bold.sd markup.italic.sd markup.underline.sd",
+              "settings": {
+                "foreground": "#A31515",
+                "fontStyle": "italic bold underline"
               }
             }
           ]

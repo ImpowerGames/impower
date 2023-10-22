@@ -37,7 +37,7 @@ export interface MatchRuleDefinition extends RuleDefinition {
 }
 
 export interface SwitchRuleDefinition extends RuleDefinition {
-  emit: boolean;
+  emit?: boolean;
   patterns: IncludeDefinition[];
 }
 

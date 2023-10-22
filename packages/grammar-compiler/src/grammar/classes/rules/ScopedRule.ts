@@ -13,6 +13,7 @@ import { createID } from "../../utils/createID";
 import GrammarNode from "../GrammarNode";
 import type GrammarRepository from "../GrammarRepository";
 import GrammarState from "../GrammarState";
+import Matched from "../Matched";
 import RegExpMatcher from "../RegExpMatcher";
 import type MatchRule from "./MatchRule";
 
@@ -73,36 +74,108 @@ export default class ScopedRule implements Rule {
 
   /**
    * @param str - The string to match.
-   * @param pos - The position to start matching at.
+   * @param from - The position to start matching at.
    * @param state - The current {@link GrammarState}.
    */
-  match(str: string, pos: number, state: GrammarState) {
+  match(
+    str: string,
+    from: number,
+    state: GrammarState,
+    possiblyIncomplete?: boolean
+  ) {
+    if (possiblyIncomplete) {
+      // If possibly incomplete, only return begin match
+      let beginMatched = this.begin(str, from, state);
+      if (!beginMatched) {
+        return null;
+      }
+      return beginMatched;
+    }
+
+    const children: Matched[] = [];
+    let pos = from;
+    let matchLength = 0;
+
+    // check begin
+    let beginMatched = this.begin(str, pos, state);
+    if (!beginMatched) {
+      return null;
+    }
+
+    children.push(beginMatched.children?.[0]!);
+    matchLength += beginMatched.length;
+    pos += beginMatched.length;
+
+    // check end
+    let endMatched = this.end(str, pos, state);
+    while (!endMatched && pos < str.length) {
+      // check patterns
+      const patternMatched = this.pattern(str, pos, state, possiblyIncomplete);
+      if (patternMatched) {
+        children.push(patternMatched);
+        matchLength += patternMatched.length;
+        pos += patternMatched.length;
+      } else {
+        const noneMatched = Matched.create(state, GrammarNode.None, pos, 1);
+        children.push(noneMatched);
+        matchLength += noneMatched.length;
+        pos += noneMatched.length;
+      }
+      // check end
+      endMatched = this.end(str, pos, state);
+    }
+
+    if (endMatched) {
+      children.push(endMatched.children?.[0]!);
+      matchLength += endMatched.length;
+    }
+
+    return Matched.create(state, this.node, from, matchLength, children);
+  }
+
+  begin(str: string, from: number, state: GrammarState) {
     if (!this.rules) {
       this.rules = this.patterns
         ? this.repo.getRules(this.patterns, this.id)
         : [];
     }
-    let matched = this.beginRule.match(str, pos, state);
-    if (!matched) {
+    let beginMatched = this.beginRule.match(str, from, state);
+    if (!beginMatched) {
       return null;
     }
-    matched = matched.wrap(this.node, Wrapping.BEGIN);
+    beginMatched = beginMatched.wrap(this.node, Wrapping.BEGIN);
     state.stack.push(this.node, this.rules, this);
-    return matched;
+    return beginMatched;
   }
 
-  /**
-   * @param str - The string to match.
-   * @param pos - The position to start matching at.
-   * @param state - The current {@link GrammarState}.
-   */
-  close(str: string, pos: number, state: GrammarState) {
-    let matched = this.endRule.match(str, pos, state);
-    if (!matched) {
+  end(str: string, from: number, state: GrammarState) {
+    let endMatched = this.endRule.match(str, from, state);
+    if (!endMatched) {
       return null;
     }
-    matched = matched.wrap(this.node, Wrapping.END);
-    matched.state.stack.pop();
-    return matched;
+    endMatched = endMatched.wrap(this.node, Wrapping.END);
+    state.stack.pop();
+    return endMatched;
+  }
+
+  pattern(
+    str: string,
+    from: number,
+    state: GrammarState,
+    possiblyIncomplete?: boolean
+  ) {
+    if (!this.rules) {
+      this.rules = this.patterns
+        ? this.repo.getRules(this.patterns, this.id)
+        : [];
+    }
+    for (let i = 0; i < this.rules.length; i++) {
+      const rule = this.rules[i];
+      const patternMatched = rule?.match(str, from, state, possiblyIncomplete);
+      if (patternMatched) {
+        return patternMatched;
+      }
+    }
+    return null;
   }
 }

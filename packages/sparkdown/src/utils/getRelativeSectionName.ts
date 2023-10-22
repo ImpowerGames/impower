@@ -47,7 +47,7 @@ const getRelativeSectionName = <
     const sectionsArray = Object.values(sections);
     const block = sections?.[currentSectionId];
     if (block) {
-      const blockIndex = block.index ?? sectionsArray.indexOf(block);
+      const blockIndex = sectionsArray.indexOf(block);
       const prevSection = sectionsArray.at(blockIndex - 1);
       if (prevSection) {
         return prevSection.name;
@@ -60,9 +60,7 @@ const getRelativeSectionName = <
     const sectionsArray = Object.values(sections);
     const block = sections?.[currentSectionId];
     if (block) {
-      const blockIndex = block
-        ? block.index ?? sectionsArray.indexOf(block)
-        : -1;
+      const blockIndex = sectionsArray.indexOf(block);
       const nextSection = sectionsArray.at(blockIndex + 1);
       if (nextSection) {
         return nextSection.name;

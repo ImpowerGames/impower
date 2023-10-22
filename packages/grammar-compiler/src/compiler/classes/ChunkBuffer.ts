@@ -122,7 +122,7 @@ export class ChunkBuffer {
     }
 
     if (left.last) {
-      left.last = new Chunk(left.last.from, left.last.state.clone());
+      left.last = left.last.clone();
     }
 
     return { left, right };
@@ -189,13 +189,12 @@ export class ChunkBuffer {
    * Searches for the closest chunk to the given position.
    *
    * @param pos - The position to find.
-   * @param side - The side to search on. -1 is left (before), 1 is right
-   *   (after). 0 is the default, and it means either side.
+   * @param side - The side to search on. -1 for first matching chunk, 1 for last matching chunk, 0 for either.
    * @param precise - If true, the search will require an exact hit. If the
    *   search misses, it will return `null` for both the token and index.
    */
-  search(pos: number, side: 1 | 0 | -1 = 0, precise = false) {
-    const result = search(this.chunks, pos, this.searchCmp, { precise });
+  search(pos: number, side: 1 | 0 | -1 = 0) {
+    const result = search(this.chunks, pos, this.searchCmp, { precise: true });
 
     // null result or null resulting index
     if (!result || !this.chunks[result.index]) {
@@ -205,15 +204,20 @@ export class ChunkBuffer {
     let { index } = result;
     let chunk = this.chunks[index];
 
-    // direct hit or we don't care about sidedness
-    if (chunk?.from === pos || side === 0) {
+    // We don't care about sidedness
+    if (side === 0) {
       return { chunk, index };
     }
 
     // correct for sidedness
-    while (chunk && (side === 1 ? chunk.from < pos : chunk.from > pos)) {
-      index = side === 1 ? index + 1 : index - 1;
-      chunk = this.chunks[index];
+    while (chunk) {
+      const nextIndex = side === 1 ? index + 1 : index - 1;
+      const nextChunk = this.chunks[nextIndex];
+      if (nextChunk?.from !== pos) {
+        break;
+      }
+      index = nextIndex;
+      chunk = nextChunk;
     }
 
     // no valid chunks

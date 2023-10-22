@@ -1,4 +1,4 @@
-export type SparkTitlePosition =
+export type SparkTitlePagePosition =
   | "tc"
   | "tr"
   | "tl"

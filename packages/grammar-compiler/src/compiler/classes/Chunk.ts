@@ -53,18 +53,26 @@ export class Chunk {
   declare tree?: TreeBuffer | null;
 
   /**
-   * @param pos - The starting position.
+   * @param from - The starting position.
    * @param state - The state at the starting position.
    */
-  constructor(pos: number, state: GrammarState) {
-    this.from = pos;
-    this.to = pos;
+  constructor(from: number, state: GrammarState) {
+    this.from = from;
+    this.to = from;
     this.length = 0;
     this.state = state;
     this.tokens = new Int16Array(CHUNK_ARRAY_INTERVAL);
     this.size = 0;
     this.open = null;
     this.close = null;
+  }
+
+  /** Returns a new clone of this state, including its stack. */
+  clone() {
+    const cloned = new Chunk(this.from, this.state.clone());
+    cloned.open = this.open ? [...this.open] : null;
+    cloned.close = this.close ? [...this.close] : null;
+    return cloned;
   }
 
   /**
@@ -119,8 +127,12 @@ export class Chunk {
    */
   pushOpen(...ids: number[]) {
     this.tree = undefined;
-    this.open ??= [];
-    this.open.push(...ids);
+    ids.forEach((id) => {
+      this.open ??= [];
+      if (!this.open.includes(id)) {
+        this.open.push(id);
+      }
+    });
   }
 
   /**
@@ -130,8 +142,12 @@ export class Chunk {
    */
   pushClose(...ids: number[]) {
     this.tree = undefined;
-    this.close ??= [];
-    this.close.push(...ids);
+    ids.forEach((id) => {
+      this.close ??= [];
+      if (!this.close.includes(id)) {
+        this.close.push(id);
+      }
+    });
   }
 
   /** Checks if the chunk can be converted into a {@link Tree}. */

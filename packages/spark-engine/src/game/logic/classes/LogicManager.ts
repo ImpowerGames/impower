@@ -215,7 +215,8 @@ export class LogicManager extends Manager<
       return undefined;
     }
     const blockIds = Object.keys(this._config.blockMap);
-    return blockIds[block.index + 1];
+    const blockIndex = blockIds.indexOf(blockId);
+    return blockIds[blockIndex + 1];
   }
 
   private continueToNextBlock(blockId: string): boolean {
