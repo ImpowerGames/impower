@@ -31,6 +31,7 @@ const SPARK_TOKEN_TAGS: Partial<Record<SparkdownNodeName, SparkTokenTag>> = {
 
   DefineFunction: "function",
 
+  Break: "break",
   Continue: "continue",
   Return: "return",
   Do: "do",
@@ -39,9 +40,9 @@ const SPARK_TOKEN_TAGS: Partial<Record<SparkdownNodeName, SparkTokenTag>> = {
   If: "if",
   Elseif: "elseif",
   Else: "else",
-  RepeatWhile: "while",
-  RepeatUntil: "until",
-  RepeatFor: "for",
+  While: "while",
+  Until: "until",
+  For: "for",
 
   Jump: "jump",
   JumpToSection: "jump_to_section",

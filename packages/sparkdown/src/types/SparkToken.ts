@@ -127,6 +127,10 @@ export interface SparkEndToken extends ISparkToken {
   tag: "end";
 }
 
+export interface SparkBreakToken extends ISparkToken {
+  tag: "break";
+}
+
 export interface SparkContinueToken extends ISparkToken {
   tag: "continue";
 }
@@ -327,6 +331,7 @@ export interface SparkTokenTagMap {
   until: SparkRepeatToken;
   for: SparkRepeatToken;
   end: SparkEndToken;
+  break: SparkBreakToken;
   continue: SparkContinueToken;
   return: SparkReturnToken;
   jump: SparkJumpToken;

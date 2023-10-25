@@ -1267,41 +1267,30 @@
     "Repeat": {
       "patterns": [
         {
-          "include": "#RepeatWhile"
+          "include": "#While"
         },
         {
-          "include": "#RepeatUntil"
+          "include": "#Until"
         },
         {
-          "include": "#RepeatFor"
-        },
-        {
-          "include": "#RepeatInfinite"
+          "include": "#For"
         }
       ]
     },
-    "RepeatWhile": {
+    "While": {
       "tag": "meta",
       "name": "meta.repeat.while.sd",
-      "begin": "^([ \\t]*)(repeat)([ \\t]+)(while)($|[ \\t]+)",
+      "begin": "^([ \\t]*)(while)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
           "tag": "content",
           "name": "markup.raw.whitespace.indent.sd"
         },
         "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.sd"
-        },
-        "3": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.separator.sd"
-        },
-        "4": {
           "tag": "controlKeyword",
           "name": "keyword.control.repeat.while.sd"
         },
-        "5": {
+        "3": {
           "tag": "content",
           "name": "markup.raw.whitespace.separator.sd"
         }
@@ -1325,10 +1314,10 @@
       ],
       "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
     },
-    "RepeatUntil": {
+    "Until": {
       "tag": "meta",
       "name": "meta.repeat.until.sd",
-      "begin": "^([ \\t]*)(repeat)([ \\t]+)(until)($|[ \\t]+)",
+      "begin": "^([ \\t]*)(until)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -1336,17 +1325,9 @@
         },
         "2": {
           "tag": "controlKeyword",
-          "name": "keyword.control.repeat.sd"
+          "name": "keyword.control.repeat.while.sd"
         },
         "3": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.separator.sd"
-        },
-        "4": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.until.sd"
-        },
-        "5": {
           "tag": "content",
           "name": "markup.raw.whitespace.separator.sd"
         }
@@ -1370,10 +1351,10 @@
       ],
       "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
     },
-    "RepeatFor": {
+    "For": {
       "tag": "meta",
       "name": "meta.repeat.for.sd",
-      "begin": "^([ \\t]*)(repeat)([ \\t]+)(for)($|[ \\t]+)",
+      "begin": "^([ \\t]*)(for)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -1381,62 +1362,9 @@
         },
         "2": {
           "tag": "controlKeyword",
-          "name": "keyword.control.repeat.sd"
+          "name": "keyword.control.repeat.while.sd"
         },
         "3": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.separator.sd"
-        },
-        "4": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.for.sd"
-        },
-        "5": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.separator.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#LogicStatement"
-        },
-        {
-          "include": "#Jump"
-        },
-        {
-          "include": "#Condition"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
-    },
-    "RepeatInfinite": {
-      "tag": "meta",
-      "name": "meta.repeat.sd",
-      "begin": "^([ \\t]*)(repeat)($|[ \\t]+)",
-      "beginCaptures": {
-        "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.sd"
-        },
-        "3": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.separator.sd"
-        },
-        "4": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.for.sd"
-        },
-        "5": {
           "tag": "content",
           "name": "markup.raw.whitespace.separator.sd"
         }
