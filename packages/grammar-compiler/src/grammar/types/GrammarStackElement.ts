@@ -12,4 +12,6 @@ export interface GrammarStackElement {
    * the stack.
    */
   end: Rule | null;
+
+  beginCaptures: string[];
 }

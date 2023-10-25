@@ -2,8 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import type { GrammarToken } from "../../core";
-import type { GrammarState } from "../../grammar";
+import type { GrammarToken, ParserAction } from "../../core";
 
 import { search } from "../utils/search";
 import { Chunk } from "./Chunk";
@@ -22,11 +21,16 @@ export class ChunkBuffer {
   /** The actual array of chunks that the buffer manages. */
   chunks: Chunk[] = [];
 
+  /** The node(s) that are open at the end of this buffer. */
+  scopes: ParserAction = [];
+
   /** @param chunks - The chunks to populate the buffer with. */
   constructor(chunks?: Chunk[]) {
-    if (chunks) {
+    if (chunks !== undefined) {
       this.chunks = chunks;
     }
+    const lastChunkScopes = chunks?.at(-1)?.scopes;
+    this.scopes = lastChunkScopes ? [...lastChunkScopes] : [];
   }
 
   /** The last chunk in the buffer. */
@@ -35,24 +39,6 @@ export class ChunkBuffer {
       return null;
     }
     return this.chunks[this.chunks.length - 1] ?? null;
-  }
-
-  /** The last chunk in the buffer. */
-  set last(chunk: Chunk | null) {
-    if (!chunk) {
-      return;
-    } // just satisfying typescript here
-    if (!this.chunks.length) {
-      this.chunks.push(chunk);
-    }
-    this.chunks[this.chunks.length - 1] = chunk;
-  }
-
-  /** Ensures there is at least one chunk in the buffer. */
-  ensureLast(pos: number, state: GrammarState) {
-    if (!this.last) {
-      this.last = new Chunk(pos, state);
-    }
   }
 
   /** Retrieves a `Chunk` from the buffer. */
@@ -67,20 +53,33 @@ export class ChunkBuffer {
    * @param state - The state to be cached.
    * @param token - The token to add to the buffer.
    */
-  add(state: GrammarState, token: GrammarToken) {
+  add(token: GrammarToken) {
     const [id, from, to, open, close] = token;
     let newChunk = false;
+
+    if (open) {
+      this.scopes.push(...open);
+    }
+    if (close) {
+      close.forEach((c) => {
+        const removeIndex = this.scopes.findLastIndex((n) => n === c);
+        if (removeIndex >= 0) {
+          this.scopes.splice(removeIndex, 1);
+        }
+      });
+    }
 
     let current = this.chunks[this.chunks.length - 1];
 
     if (!current) {
-      current = new Chunk(from, state);
+      // Initial chunk
+      current = new Chunk(from, [...this.scopes]);
       this.chunks.push(current);
     }
 
     if (open) {
       if (current.length !== 0) {
-        current = new Chunk(current.to, state);
+        current = new Chunk(current.to, [...this.scopes]);
         this.chunks.push(current);
         newChunk = true;
       }
@@ -91,7 +90,7 @@ export class ChunkBuffer {
 
     if (close) {
       current.pushClose(...close);
-      current = new Chunk(current.to, state);
+      current = new Chunk(current.to, [...this.scopes]);
       this.chunks.push(current);
       newChunk = true;
     }
@@ -121,64 +120,7 @@ export class ChunkBuffer {
       right = new ChunkBuffer(this.chunks.slice(index + 1));
     }
 
-    if (left.last) {
-      left.last = left.last.clone();
-    }
-
     return { left, right };
-  }
-
-  /**
-   * Offsets every chunk's position whose index is past or at the given index.
-   *
-   * @param index - The index the slide will start at.
-   * @param offset - The positional offset that is applied to the chunks.
-   * @param cutLeft - If true, every chunk previous to `index` will be
-   *   removed from the buffer.
-   */
-  slide(index: number, offset: number, cutLeft = false) {
-    if (!this.get(index)) {
-      throw new Error("Tried to slide buffer on invalid index!");
-    }
-
-    if (this.chunks.length === 0) {
-      return this;
-    }
-    if (this.chunks.length === 1) {
-      this.last!.offset(offset);
-      return this;
-    }
-
-    if (cutLeft) {
-      this.chunks = this.chunks.slice(index);
-    }
-
-    for (let idx = cutLeft ? 0 : index; idx < this.chunks.length; idx++) {
-      this.chunks[idx]?.offset(offset);
-    }
-
-    return this;
-  }
-
-  /**
-   * Links another `ChunkBuffer` to the end of this buffer.
-   *
-   * @param right - The buffer to link.
-   * @param max - If given, the maximum size of the buffer (by document
-   *   position) will be clamped to below this number.
-   */
-  link(right: ChunkBuffer, max?: number) {
-    this.chunks = [...this.chunks, ...right.chunks];
-    if (max) {
-      for (let idx = 0; idx < this.chunks.length; idx++) {
-        const chunk = this.chunks[idx];
-        if (chunk && chunk.to > max) {
-          this.chunks = this.chunks.slice(0, idx);
-          break;
-        }
-      }
-    }
-    return this;
   }
 
   /** Binary search comparator function. */

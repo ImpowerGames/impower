@@ -203,7 +203,6 @@ export class Compiler {
       let matchTokens: GrammarToken[] | null = null;
       let matchLength = 0;
       if (match) {
-        state = match.state;
         matchTokens = match.compile();
         matchLength = match.length;
       } else {
@@ -213,7 +212,7 @@ export class Compiler {
       }
       for (let idx = 0; idx < matchTokens!.length; idx++) {
         const token = matchTokens![idx]!;
-        this.buffer.add(state, token);
+        this.buffer.add(token);
       }
       pos += matchLength;
     }

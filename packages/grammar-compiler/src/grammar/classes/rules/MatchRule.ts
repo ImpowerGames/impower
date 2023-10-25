@@ -67,7 +67,7 @@ export default class MatchRule implements Rule {
     if (total == null) {
       return null;
     }
-    const matched = Matched.create(state, this.node, from, total.length);
+    const matched = Matched.create(this.node, from, total.length);
     if (this.captures) {
       if (result) {
         let pos = from;
@@ -85,7 +85,6 @@ export default class MatchRule implements Rule {
                   i += matched.length;
                 } else {
                   const noneMatched = Matched.create(
-                    state,
                     GrammarNode.None,
                     pos + i,
                     1
@@ -95,7 +94,6 @@ export default class MatchRule implements Rule {
                 }
               }
               const captureMatched = Matched.create(
-                state,
                 capture.node,
                 pos,
                 resultStr.length,
@@ -105,7 +103,6 @@ export default class MatchRule implements Rule {
               matched.children.push(captureMatched);
             } else {
               const captureMatched = Matched.create(
-                state,
                 capture,
                 pos,
                 resultStr.length

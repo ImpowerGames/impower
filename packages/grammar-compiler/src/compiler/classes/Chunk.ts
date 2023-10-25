@@ -3,7 +3,6 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import type { ParserAction } from "../../core";
-import type { GrammarState } from "../../grammar";
 
 import TreeBuffer from "./TreeBuffer";
 
@@ -43,8 +42,8 @@ export class Chunk {
   /** The node(s) to close when this chunk ends. `null` if the chunk closes nothing. */
   declare close: ParserAction | null;
 
-  /** The `GrammarState` at the start of this chunk. */
-  declare state: GrammarState;
+  /** The node(s) that are currently open at the start of this chunk. */
+  declare scopes: ParserAction;
 
   /**
    * {@link TreeBuffer} version of this chunk.
@@ -54,25 +53,17 @@ export class Chunk {
 
   /**
    * @param from - The starting position.
-   * @param state - The state at the starting position.
+   * @param scopes - The scopes at the starting position.
    */
-  constructor(from: number, state: GrammarState) {
+  constructor(from: number, scopes: ParserAction) {
     this.from = from;
     this.to = from;
     this.length = 0;
-    this.state = state;
+    this.scopes = scopes;
     this.tokens = new Int16Array(CHUNK_ARRAY_INTERVAL);
     this.size = 0;
     this.open = null;
     this.close = null;
-  }
-
-  /** Returns a new clone of this state, including its stack. */
-  clone() {
-    const cloned = new Chunk(this.from, this.state.clone());
-    cloned.open = this.open ? [...this.open] : null;
-    cloned.close = this.close ? [...this.close] : null;
-    return cloned;
   }
 
   /**
@@ -222,24 +213,5 @@ export class Chunk {
     this.tree = new TreeBuffer(new Uint16Array(buffer), this.length);
 
     return this.tree;
-  }
-
-  /**
-   * Determines if a grammar's state (and parse position) is compatible
-   * with reusing this node. This is only a safe determination if it is
-   * made _after_ the changed range of the document.
-   *
-   * @param state - The state to compare against.
-   * @param pos - The position to compare against.
-   * @param offset - The edit offset, to correct for chunk position differences.
-   */
-  isReusable(state: GrammarState, pos: number, offset = 0) {
-    if (this.from + offset !== pos) {
-      return false;
-    }
-    if (!state.equals(this.state)) {
-      return false;
-    }
-    return true;
   }
 }

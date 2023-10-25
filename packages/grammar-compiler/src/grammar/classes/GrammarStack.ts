@@ -21,16 +21,22 @@ export default class GrammarStack {
    * @param end - A specific {@link Rule} that, when matched, should pop
    *   this element off.
    */
-  push(node: GrammarNode, rules: Rule[], end: Rule | null) {
-    this.stack.push({ node, rules, end });
+  push(
+    node: GrammarNode,
+    rules: Rule[],
+    end: Rule | null,
+    beginCaptures: string[]
+  ) {
+    this.stack.push({ node, rules, end, beginCaptures });
   }
 
   /** Pops the last element on the stack. */
   pop() {
-    if (this.stack.length === 0) {
-      throw new Error("Grammar stack underflow");
-    }
     return this.stack.pop();
+  }
+
+  at(index: number) {
+    return this.stack.at(index);
   }
 
   /**

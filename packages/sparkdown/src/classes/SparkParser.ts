@@ -86,7 +86,6 @@ export default class SparkParser {
             to,
           });
           if (tok.tag === "comment") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "comment_content") {
@@ -96,7 +95,6 @@ export default class SparkParser {
             }
           }
           if (tok.tag === "chunk") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "chunk_name") {
@@ -106,7 +104,6 @@ export default class SparkParser {
             }
           }
           if (tok.tag === "section") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "section_level") {
@@ -122,20 +119,20 @@ export default class SparkParser {
             }
           }
           if (tok.tag === "flow_break") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "jump") {
             addToken(tok);
           }
           if (tok.tag === "choice") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "choice_content") {
+            tok.text = text;
             const parent = lookup("choice", stack);
             if (parent) {
-              parent.text = text;
+              parent.content ??= [];
+              parent.content?.push(tok);
             }
           }
           if (tok.tag === "jump_to_section") {
@@ -145,36 +142,37 @@ export default class SparkParser {
             }
           }
           if (tok.tag === "transition") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "transition_content") {
-            tok.print = text;
+            tok.text = text;
             const parent = lookup("transition", stack);
             if (parent) {
-              parent.text = text;
+              parent.content ??= [];
+              parent.content?.push(tok);
             }
           }
           if (tok.tag === "scene") {
             tok.scene = sceneNumber;
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "scene_content") {
-            tok.print = text;
+            tok.text = text;
             const parent = lookup("scene", stack);
             if (parent) {
-              parent.text = text;
+              parent.content ??= [];
+              parent.content?.push(tok);
             }
           }
           if (tok.tag === "centered") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "centered_content") {
+            tok.text = text;
             const parent = lookup("centered", stack);
             if (parent) {
-              parent.text = text;
+              parent.content ??= [];
+              parent.content?.push(tok);
             }
           }
           if (tok.tag === "action") {
@@ -187,7 +185,6 @@ export default class SparkParser {
             addToken(tok);
           }
           if (tok.tag === "action_box") {
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "dialogue") {
@@ -253,7 +250,6 @@ export default class SparkParser {
               tok.characterParenthetical = parent.characterParenthetical;
               tok.position = parent.position;
             }
-            tok.print = true;
             addToken(tok);
           }
           if (tok.tag === "dialogue_line_parenthetical") {
@@ -303,7 +299,7 @@ export default class SparkParser {
           }
           if (tok.tag === "display_text_content") {
             const parent =
-              lookup("choice", stack) ||
+              lookup("choice_content", stack) ||
               lookup("box_line_continue", stack) ||
               lookup("box_line_complete", stack);
             if (parent) {
@@ -339,6 +335,8 @@ export default class SparkParser {
           const text = script.slice(from, to);
           const display_line =
             lookup("choice_content", stack) ||
+            lookup("transition_content", stack) ||
+            lookup("scene_content", stack) ||
             lookup("centered_content", stack) ||
             lookup("box_line_continue", stack) ||
             lookup("box_line_complete", stack);

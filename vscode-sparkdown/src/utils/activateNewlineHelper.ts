@@ -5,10 +5,6 @@ import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 
 const SNIPPET_CURSOR = "$0";
 
-const DEFINE_BEGIN_REGEX = new RegExp(
-  GRAMMAR.repository.Define.begin,
-  GRAMMAR.flags
-);
 const DIALOGUE_BEGIN_MATCH = new RegExp(
   GRAMMAR.repository.Dialogue.begin,
   GRAMMAR.flags
@@ -17,7 +13,6 @@ const CHOICE_BEGIN_REGEX = new RegExp(
   GRAMMAR.repository.Choice.match,
   GRAMMAR.flags
 );
-const END_MATCH_REGEX = new RegExp(GRAMMAR.repository.End.match, GRAMMAR.flags);
 
 const handleNewline = (args: { text: string }): boolean => {
   const editor = vscode.window.activeTextEditor;
@@ -34,8 +29,6 @@ const handleNewline = (args: { text: string }): boolean => {
     )
   );
   const textAfterCursor = lineText.slice(position.character);
-  const tabSize = Number(editor.options.tabSize);
-  const indent = " ".repeat(tabSize);
 
   let match: RegExpMatchArray | null = null;
 
@@ -88,27 +81,6 @@ const handleNewline = (args: { text: string }): boolean => {
           return true;
         }
       }
-    }
-  }
-
-  if (DEFINE_BEGIN_REGEX.test(lineText)) {
-    // Auto-close define statements on enter
-    if (!textAfterCursor) {
-      editor.insertSnippet(
-        new vscode.SnippetString("\n" + indent + SNIPPET_CURSOR + "\n" + "end")
-      );
-      return true;
-    } else if (END_MATCH_REGEX.test(textAfterCursor)) {
-      editor.insertSnippet(
-        new vscode.SnippetString(
-          "\n" + indent + SNIPPET_CURSOR + "\n" + textAfterCursor.trimStart()
-        ),
-        new vscode.Range(
-          new vscode.Position(position.line, position.character),
-          new vscode.Position(position.line, Number.MAX_SAFE_INTEGER)
-        )
-      );
-      return true;
     }
   }
 

@@ -140,19 +140,82 @@ export default class TextmateLanguage {
       surroundBrackets(),
       keymap.of([...closeBracketsKeymap]),
       indentService.of((context, pos) => {
-        const prevLine = pos > 0 ? context.lineAt(pos - 1) : undefined;
-        const prevText = prevLine?.text || "";
-        const prevIndentSize = prevText.match(INDENT_REGEX)?.[0].length ?? 0;
+        const beforeLine = pos > 0 ? context.lineAt(pos - 1) : undefined;
+        const beforeLineText = beforeLine?.text || "";
+        const beforeIndentSize =
+          beforeLineText.match(INDENT_REGEX)?.[0].length ?? 0;
         const indentationRules = configDefinition?.indentationRules;
+        const onEnterRules = configDefinition?.onEnterRules;
         const decreaseIndentPattern = indentationRules?.decreaseIndentPattern;
-        if (decreaseIndentPattern && prevText.match(decreaseIndentPattern)) {
-          return prevIndentSize - getIndentUnit(context.state);
+        const decreasedIndentSize =
+          beforeIndentSize - getIndentUnit(context.state);
+        const increasedIndentSize =
+          beforeIndentSize + getIndentUnit(context.state);
+        if (
+          decreaseIndentPattern &&
+          beforeLineText.match(decreaseIndentPattern)
+        ) {
+          return decreasedIndentSize;
         }
         const increaseIndentPattern = indentationRules?.increaseIndentPattern;
-        if (increaseIndentPattern && prevText.match(increaseIndentPattern)) {
-          return prevIndentSize + getIndentUnit(context.state);
+        if (
+          increaseIndentPattern &&
+          beforeLineText.match(increaseIndentPattern)
+        ) {
+          return increasedIndentSize;
         }
-        return prevIndentSize;
+        if (
+          onEnterRules &&
+          beforeLine &&
+          context.state.selection.ranges.length === 1 &&
+          context.state.selection.main.from === context.state.selection.main.to
+        ) {
+          const cursorPos = context.state.selection.main.from;
+          const currentLine = context.lineAt(pos);
+          const beforeText = context.state.sliceDoc(beforeLine.from, cursorPos);
+          const afterText = context.state.sliceDoc(
+            cursorPos,
+            currentLine.from + currentLine.text.length
+          );
+          const previousLineText = pos > 1 ? context.lineAt(pos - 2)?.text : "";
+          for (let i = 0; i < onEnterRules.length; i += 1) {
+            const onEnterRule = onEnterRules[i]!;
+            const beforeTextRegex = onEnterRule.beforeText
+              ? new RegExp(onEnterRule.beforeText)
+              : undefined;
+            const afterTextRegex = onEnterRule.afterText
+              ? new RegExp(onEnterRule.afterText)
+              : undefined;
+            const previousLineTextRegex = onEnterRule.previousLineText
+              ? new RegExp(onEnterRule.previousLineText)
+              : undefined;
+            if (beforeTextRegex && !beforeTextRegex.test(beforeText)) {
+              continue;
+            }
+            if (afterTextRegex && !afterTextRegex.test(afterText)) {
+              continue;
+            }
+            if (
+              previousLineTextRegex &&
+              !previousLineTextRegex.test(previousLineText)
+            ) {
+              continue;
+            }
+            if (onEnterRule.action.indent === "none") {
+              return null;
+            }
+            if (onEnterRule.action.indent === "indent") {
+              return increasedIndentSize;
+            }
+            if (onEnterRule.action.indent === "outdent") {
+              return decreasedIndentSize;
+            }
+            if (onEnterRule.action.indent === "indentOutdent") {
+              return increasedIndentSize;
+            }
+          }
+        }
+        return null;
       }),
     ];
     this.nestLanguages = nestLanguages;

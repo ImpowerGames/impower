@@ -39,9 +39,36 @@ surroundingPairs:
 wordChars: _'
 
 wordPattern:
-  pattern: (\p{L}|\p{N}|\p{Mn})(((\p{L}|\p{N}|\p{Mn})|[_])?(\p{L}|\p{N}|\p{Mn}))*
+  pattern: (\p{L}|\p{N}|\p{Mn})(((\p{L}|\p{N}|\p{Mn})|[_]|['])?(\p{L}|\p{N}|\p{Mn}))*
   flags: u
 
-indentationRules:
-  increaseIndentPattern: (^[ \t]*(?:if|elseif|else|repeat)\b(?:(?!\b(end)\b).)*)|(\{\s*$)|(\[\s*$)|(\(\s*$)|(^[ \t]+.*[:]\s*$)
-  decreaseIndentPattern: ^\s*((\b(elseif|else|end)\b)|(\})|(\])|(\))|[-]{3,})
+onEnterRules:
+  - beforeText: ^\s*(?:[_a-zA-Z][_a-zA-Z0-9]*).*?[:]\s*$
+    action: { indent: "indent" }
+  - beforeText: \{\s*$
+    afterText: \}.*$
+    action: { indent: "indentOutdent" }
+  - beforeText: ^.*$
+    afterText: \}.*$
+    action: { indent: "outdent" }
+  - beforeText: \{\s*$
+    afterText: (?!\})
+    action: { indent: "indent" }
+  - beforeText: \[\s*$
+    afterText: \].*$
+    action: { indent: "indentOutdent" }
+  - beforeText: ^.*$
+    afterText: \].*$
+    action: { indent: "outdent" }
+  - beforeText: \[\s*$
+    afterText: (?!\])
+    action: { indent: "indent" }
+  - beforeText: \(\s*$
+    afterText: \).*$
+    action: { indent: "indentOutdent" }
+  - beforeText: ^.*$
+    afterText: \).*$
+    action: { indent: "outdent" }
+  - beforeText: \(\s*$
+    afterText: (?!\))
+    action: { indent: "indent" }

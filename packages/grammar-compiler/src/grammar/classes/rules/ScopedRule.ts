@@ -116,7 +116,7 @@ export default class ScopedRule implements Rule {
         matchLength += patternMatched.length;
         pos += patternMatched.length;
       } else {
-        const noneMatched = Matched.create(state, GrammarNode.None, pos, 1);
+        const noneMatched = Matched.create(GrammarNode.None, pos, 1);
         children.push(noneMatched);
         matchLength += noneMatched.length;
         pos += noneMatched.length;
@@ -130,7 +130,7 @@ export default class ScopedRule implements Rule {
       matchLength += endMatched.length;
     }
 
-    return Matched.create(state, this.node, from, matchLength, children);
+    return Matched.create(this.node, from, matchLength, children);
   }
 
   begin(str: string, from: number, state: GrammarState) {
@@ -143,12 +143,21 @@ export default class ScopedRule implements Rule {
     if (!beginMatched) {
       return null;
     }
+    const captures = [""];
+    beginMatched.children?.forEach((c) => {
+      captures.push(str.slice(c.from, c.from + c.length));
+    });
     beginMatched = beginMatched.wrap(this.node, Wrapping.BEGIN);
-    state.stack.push(this.node, this.rules, this);
+    state.stack.push(this.node, this.rules, this, captures);
     return beginMatched;
   }
 
   end(str: string, from: number, state: GrammarState) {
+    const begin = state.stack.at(-1);
+    const beginCaptures = begin?.beginCaptures;
+    if (beginCaptures) {
+      this.endRule.matcher.backReferences = beginCaptures;
+    }
     let endMatched = this.endRule.match(str, from, state);
     if (!endMatched) {
       return null;

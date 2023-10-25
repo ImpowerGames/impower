@@ -14,12 +14,16 @@ patterns:
   - { include: "#Section" }
   - { include: "#FlowBreak" }
   - { include: "#Import" }
-  - { include: "#Define" }
+  - { include: "#Struct" }
   - { include: "#Function" }
+  - { include: "#Continue" }
+  - { include: "#Return" }
   - { include: "#Do" }
   - { include: "#Set" }
   - { include: "#Delete" }
   - { include: "#If" }
+  - { include: "#Elseif" }
+  - { include: "#Else" }
   - { include: "#Repeat" }
   - { include: "#Jump" }
   - { include: "#Choice" }
@@ -317,87 +321,52 @@ repository:
           - { include: "#String" }
           - { include: "#IllegalExpression" }
 
-  Define:
+  Struct:
     tag: meta
-    name: meta.definition.object.sd
-    begin: ^(define)($|[ \t]+)
+    name: meta.definition.struct.sd
+    begin: ^([ \t]*)(define)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[:])($|[ \t]*$)(\n?)
     beginCaptures:
       1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
         tag: controlKeyword
         name: keyword.control.definition.object.sd
-      2:
+      3:
         tag: content
         name: markup.raw.whitespace.separator.sd
-    patterns:
-      - { include: "#CSSDefinition" }
-      - { include: "#StructDefinition" }
-    end: ($\n)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Newline" }
-
-  CSSDefinition:
-    tag: meta
-    name: meta.definition.object.css.sd
-    begin: (css)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*$)(\n?)
-    beginCaptures:
-      1:
+      4:
         tag: typeName
         name: support.type.sd
-      2:
+      5:
         tag: content
         name: markup.raw.whitespace.separator.sd
-      3:
+      6:
         tag: definition(variableName)
         name: variable.other.constant.sd
-      4:
+      7:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      8:
+        tag: punctuation
+        name: punctuation.separator.colon.sd
+      9:
         tag: content
         name: markup.raw.whitespace.trailing.sd
-      5:
+      10:
         patterns:
           - { include: "#Newline" }
     patterns:
       - { include: "#Comment" }
-      - { include: "#End" }
-      - { include: "#CSS" }
-    end: (?=$)
-
-  StructDefinition:
-    tag: meta
-    name: meta.definition.object.struct.sd
-    begin: ($|[_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*$)(\n?)
-    beginCaptures:
-      1:
-        tag: typeName
-        name: support.type.sd
-      2:
-        tag: content
-        name: markup.raw.whitespace.separator.sd
-      3:
-        tag: definition(variableName)
-        name: variable.other.constant.sd
-      4:
-        tag: content
-        name: markup.raw.whitespace.trailing.sd
-      5:
-        patterns:
-          - { include: "#Newline" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#End" }
-      - { include: "#StructField" }
+      - { include: "#StructArrayProperty" }
+      - { include: "#StructScalarProperty" }
+      - { include: "#StructMapProperty" }
       - { include: "#Unknown" }
-    end: (?=$)
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
-  StructField:
-    emit: true
-    patterns:
-      - { include: "#ArrayItemDeclaration" }
-      - { include: "#ScalarPropertyDeclaration" }
-      - { include: "#MapPropertyDeclaration" }
-
-  ArrayItemDeclaration:
+  StructArrayProperty:
+    tag: meta
+    name: meta.definition.struct.property.array.sd
     begin: ^([ \t]*)([-])($|[ \t]+)
     beginCaptures:
       1:
@@ -417,8 +386,10 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  ScalarPropertyDeclaration:
-    begin: ^([ \t]*)(?!end[ \t]*$)([_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[=])
+  StructScalarProperty:
+    tag: meta
+    name: meta.definition.struct.property.scalar.sd
+    begin: ^([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[=])
     beginCaptures:
       1:
         tag: content
@@ -440,7 +411,9 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  MapPropertyDeclaration:
+  StructMapProperty:
+    tag: meta
+    name: meta.definition.struct.property.map.sd
     begin: ^([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([:])(.*?(?=[ \t]*$))($|[ \t]*)(\n?)
     beginCaptures:
       1:
@@ -462,45 +435,43 @@ repository:
         patterns:
           - { include: "#Newline" }
     patterns:
-      - { include: "#StructField" }
-    end: ($\n?)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Newline" }
+      - { include: "#Comment" }
+      - { include: "#StructArrayProperty" }
+      - { include: "#StructScalarProperty" }
+      - { include: "#StructMapProperty" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Function:
     tag: meta
     name: meta.definition.function.sd
-    begin: ^(function)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)(?=$|[(])
+    begin: ^([ \t]*)(define)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)(?=$|[(])
     beginCaptures:
       1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
         tag: keyword
         name: keyword.control.definition.function.sd
-      2:
+      3:
         tag: content
         name: markup.raw.whitespace.separator.sd
-      3:
+      4:
         tag: typeName
         name: support.type.sd
-      4:
+      5:
         tag: content
         name: markup.raw.whitespace.separator.sd
-      5:
+      6:
         tag: function(variableName)
         name: variable.other.constant.sd
-      6:
+      7:
         tag: content
         name: markup.raw.whitespace.trailing.sd
     patterns:
-      - { include: "#End" }
       - { include: "#Parameters" }
       - { include: "#BlockStatement" }
-    end: ($\n)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Newline" }
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Do:
     tag: meta
@@ -534,21 +505,30 @@ repository:
     patterns:
       - { include: "#PunctuationComma" }
       - { include: "#Expression" }
-    end: ([)])($|[ \t]*)(\n?)
+    end: ([)])($|[ \t]*)($|[:]?)($|[ \t]*)($|.+)(\n?)
     endCaptures:
       1:
         tag: paren
         name: meta.brace.round.close.sd
       2:
         tag: content
-        name: markup.raw.whitespace.trailing.sd
+        name: markup.raw.whitespace.separator.sd
       3:
+        tag: punctuation
+        name: punctuation.separator.colon.sd
+      4:
+        tag: content
+        name: markup.raw.whitespace.trailing.sd
+      5:
+        patterns:
+          - { include: "#IllegalExpression" }
+      6:
         patterns:
           - { include: "#Newline" }
 
   Set:
     tag: meta
-    name: meta.var.expr.sd
+    name: meta.set.sd
     begin: ^([ \t]*)(set)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})([ \t]+)(?!$))?($|[_a-zA-Z][\[\]._a-zA-Z0-9]*)($|[ \t]*)($|[=])
     beginCaptures:
       1:
@@ -569,6 +549,7 @@ repository:
       6:
         patterns:
           - { include: "#ArrayLiteral" }
+          - { include: "#ObjectLiteral" }
           - { include: "#PropertyAccessor" }
           - { include: "#VariableIdentifier" }
       7:
@@ -637,16 +618,9 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#End" }
-      - { include: "#Elseif" }
-      - { include: "#Else" }
       - { include: "#BlockStatement" }
       - { include: "#Condition" }
-    end: ($\n)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Newline" }
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Elseif:
     tag: meta
@@ -663,15 +637,14 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#EndAhead" }
       - { include: "#BlockStatement" }
       - { include: "#Condition" }
-    end: (?=[ \t]*\b(?:end|elseif|else)\b)
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Else:
     tag: meta
     name: meta.branch.else.sd
-    begin: ^([ \t]*)(else)($|[ \t]+)
+    begin: ^([ \t]*)(else)($|[ \t]*)
     beginCaptures:
       1:
         tag: content
@@ -683,14 +656,19 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#EndAhead" }
       - { include: "#BlockStatement" }
-    end: (?=[ \t]*\b(?:end)\b)
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Repeat:
+    patterns:
+      - { include: "#RepeatWhile" }
+      - { include: "#RepeatUntil" }
+      - { include: "#RepeatFor" }
+
+  RepeatWhile:
     tag: meta
-    name: meta.repeat.sd
-    begin: ^([ \t]*)(repeat)($|[ \t]+)
+    name: meta.repeat.while.sd
+    begin: ^([ \t]*)(repeat)($|[ \t]+)(while)($|[ \t]+)
     beginCaptures:
       1:
         tag: content
@@ -701,72 +679,74 @@ repository:
       3:
         tag: content
         name: markup.raw.whitespace.separator.sd
-    patterns:
-      - { include: "#End" }
-      - { include: "#While" }
-      - { include: "#Until" }
-      - { include: "#For" }
-    end: ($\n)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Newline" }
-
-  While:
-    tag: meta
-    name: meta.repeat.while.sd
-    begin: (while)($|[ \t]+)
-    beginCaptures:
-      1:
+      4:
         tag: controlKeyword
         name: keyword.control.repeat.while.sd
-      2:
+      5:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
       - { include: "#BlockStatement" }
       - { include: "#Condition" }
-    end: (?=[ \t]*\b(?:end|else)\b)
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
-  Until:
+  RepeatUntil:
     tag: meta
     name: meta.repeat.until.sd
-    begin: (until)($|[ \t]+)
+    begin: ^([ \t]*)(repeat)($|[ \t]+)(until)($|[ \t]+)
     beginCaptures:
       1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: controlKeyword
+        name: keyword.control.repeat.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
         tag: controlKeyword
         name: keyword.control.repeat.until.sd
-      2:
+      5:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
       - { include: "#BlockStatement" }
       - { include: "#Condition" }
-    end: (?=[ \t]*\b(?:end|else)\b)
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
-  For:
+  RepeatFor:
     tag: meta
     name: meta.repeat.for.sd
-    begin: (for)($|[ \t]+)
+    begin: ^([ \t]*)(repeat)($|[ \t]+)(for)($|[ \t]+)
     beginCaptures:
       1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: controlKeyword
+        name: keyword.control.repeat.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
         tag: controlKeyword
         name: keyword.control.repeat.for.sd
-      2:
+      5:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
       - { include: "#BlockStatement" }
       - { include: "#Condition" }
-    end: (?=[ \t]*\b(?:end)\b)
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Condition:
-    emit: true
     patterns:
-      - { include: "#ParentheticalExpression" }
-      - { include: "#NonParentheticalExpression" }
+      - { include: "#ParentheticalCondition" }
+      - { include: "#NonParentheticalCondition" }
 
-  ParentheticalExpression:
+  ParentheticalCondition:
+    name: meta.condition.parenthetical.sd
     brackets: true
     begin: ([(])
     beginCaptures:
@@ -775,43 +755,52 @@ repository:
         name: meta.brace.round.open.sd
     patterns:
       - { include: "#Expression" }
-    end: ([)])($|[ \t]*$)(\n?)
+    end: ([)])($|[ \t]*)($|[:]?)($|[ \t]*)($|.+)(\n?)
     endCaptures:
       1:
         tag: paren
         name: meta.brace.round.close.sd
       2:
         tag: content
-        name: markup.raw.whitespace.trailing.sd
+        name: markup.raw.whitespace.separator.sd
       3:
+        tag: punctuation
+        name: punctuation.separator.colon.sd
+      4:
+        tag: content
+        name: markup.raw.whitespace.trailing.sd
+      5:
+        patterns:
+          - { include: "#IllegalExpression" }
+      6:
         patterns:
           - { include: "#Newline" }
 
-  NonParentheticalExpression:
-    match: (.+$)(\n?)
+  NonParentheticalCondition:
+    name: meta.condition.nonparenthetical.sd
+    match: (.+?)([:])($|[ \t]*)($|.+)(\n?)|(.+$)(\n?)
     captures:
       1:
         patterns:
           - { include: "#Expression" }
       2:
-        patterns:
-          - { include: "#Newline" }
-
-  End:
-    match: ([ \t]*)(\b(?:end)\b)([ \t]*)
-    captures:
-      1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
-      2:
-        tag: controlKeyword
-        name: keyword.control.end.sd
+        tag: punctuation
+        name: punctuation.separator.colon.sd
       3:
         tag: content
-        name: markup.raw.whitespace.trailing.sd
-
-  EndAhead:
-    match: (?=[ \t]*\b(?:end)\b[ \t]*)
+        name: markup.raw.whitespace.separator.sd
+      4:
+        patterns:
+          - { include: "#IllegalExpression" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+      6:
+        patterns:
+          - { include: "#Expression" }
+      7:
+        patterns:
+          - { include: "#Newline" }
 
   Continue:
     tag: meta
@@ -863,6 +852,8 @@ repository:
       - { include: "#Set" }
       - { include: "#Delete" }
       - { include: "#If" }
+      - { include: "#Elseif" }
+      - { include: "#Else" }
       - { include: "#Repeat" }
       - { include: "#Jump" }
 
@@ -905,7 +896,7 @@ repository:
 
   Choice:
     name: entity.choice.sd
-    match: ^([+])($|[ \t]+)($|.*?)($|[-][>].+$)(\n?)
+    match: ^([+])($|[ \t]+)($|.*?)($|[-][>].*$)(\n?)
     captures:
       1:
         tag: keyword
@@ -935,42 +926,24 @@ repository:
   Image:
     tag: macroName
     name: meta.image.sd
-    match: ^(\[\[)([^\]]*)(\]\])($|[ \t]*$)(\n?)
+    match: ^([ \t]*)(\[\[)([^\]]*)(\]\])($|[ \t]*$)(\n?)
     captures:
       1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
         tag: keyword
         name: keyword.operator.expression.begin.image.sd
-      2:
-        tag: definition(variableName)
-        name: variable.other.constant.image.sd
       3:
+        patterns:
+          - { include: "#AudioContent" }
+      4:
         tag: keyword
         name: keyword.operator.expression.end.image.sd
-      4:
+      5:
         tag: content
         name: markup.raw.whitespace.trailing.sd
-      5:
-        patterns:
-          - { include: "#Newline" }
-
-  Audio:
-    tag: macroName
-    name: meta.audio.sd
-    match: ^([(][(])([^)]*)([)][)])($|[ \t]*$)(\n?)
-    captures:
-      1:
-        tag: keyword
-        name: keyword.operator.expression.begin.audio.sd
-      2:
-        tag: definition(variableName)
-        name: variable.other.constant.audio.sd
-      3:
-        tag: keyword
-        name: keyword.operator.expression.end.audio.sd
-      4:
-        tag: content
-        name: markup.raw.whitespace.trailing.sd
-      5:
+      6:
         patterns:
           - { include: "#Newline" }
 
@@ -983,11 +956,40 @@ repository:
         tag: keyword
         name: keyword.operator.expression.begin.image.sd
       2:
-        tag: definition(variableName)
-        name: variable.other.constant.image.sd
+        patterns:
+          - { include: "#AudioContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.image.sd
+
+  ImageContent:
+    tag: definition(variableName)
+    name: variable.other.constant.image.sd
+    match: (.+)
+
+  Audio:
+    tag: macroName
+    name: meta.audio.sd
+    match: ^([ \t]*)([(][(])([^)]*)([)][)])($|[ \t]*$)(\n?)
+    captures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: keyword
+        name: keyword.operator.expression.begin.audio.sd
+      3:
+        patterns:
+          - { include: "#AudioContent" }
+      4:
+        tag: keyword
+        name: keyword.operator.expression.end.audio.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.trailing.sd
+      6:
+        patterns:
+          - { include: "#Newline" }
 
   InlineAudio:
     tag: macroName
@@ -998,22 +1000,27 @@ repository:
         tag: keyword
         name: keyword.operator.expression.begin.audio.sd
       2:
-        tag: definition(variableName)
-        name: variable.other.constant.audio.sd
+        patterns:
+          - { include: "#AudioContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.audio.sd
 
+  AudioContent:
+    tag: definition(variableName)
+    name: variable.other.constant.audio.sd
+    match: (.+)
+
   Transition:
     tag: labelName
     name: keyword.control.transition.sd
-    match: ^(?:([%])($|[ \t]+)($|.+?)|((?:[^ \p{Ll}]+\b[ \t]+){0,2}(?:TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ \t]*$)(\n?)
+    match: ^(?:([%])($|[ \t]+)($|.+?)|((?:[^ \p{Ll}]+\b[ \t]+)*(?:(?:[^ \p{Ll}]+\b[ \t]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ \t]*$)(\n?)
     captures:
       1:
         tag: punctuation
         name: punctuation.transition.mark.sd
       2:
-        tag: content
+        tag: punctuation
         name: markup.raw.whitespace.separator.sd
       3:
         patterns:
@@ -1027,9 +1034,12 @@ repository:
       6:
         patterns:
           - { include: "#Newline" }
-  
+
   TransitionContent:
-    match: (.+$)
+    begin: (?=.*$)
+    patterns:
+      - { include: "#Inline" }
+    end: (?=$)
 
   Scene:
     tag: regexp
@@ -1040,7 +1050,7 @@ repository:
         tag: punctuation
         name: punctuation.scene.mark.sd
       2:
-        tag: content
+        tag: punctuation
         name: markup.raw.whitespace.separator.sd
       3:
         patterns:
@@ -1056,7 +1066,10 @@ repository:
           - { include: "#Newline" }
 
   SceneContent:
-    match: (.+$)
+    begin: (?=.*$)
+    patterns:
+      - { include: "#Inline" }
+    end: (?=$)
 
   Centered:
     tag: monospace
@@ -1089,11 +1102,11 @@ repository:
 
   Dialogue:
     name: entity.dialogue.sd
-    begin: ^(?:([*])($|[ \t]+)(.+?)|([\p{Lu}][^\p{Ll}\r\n)(^%]*[\p{Lu}?]))($|[ \t]*)([(][^)]*(?:$|[)]))?($|[ \t]*)(\^)?($|[ \t]*$)(\n?)
+    begin: ^(?:([*])($|[ \t]+)(.+?)|([\p{Lu}][^\p{Ll}\r\n^%()]*[\p{Lu}?]))($|[ \t]*)([(][^)]*(?:$|[)]))?($|[ \t]*)(\^)?($|[ \t]*$)(\n?)
     beginCaptures:
       1:
-        tag: punctuation
-        name: punctuation.dialogue.mark.sd
+        tag: keyword
+        name: keyword.dialogue.mark.sd
       2:
         tag: content
         name: markup.raw.whitespace.separator.sd
@@ -1123,7 +1136,7 @@ repository:
           - { include: "#Newline" }
     patterns:
       - { include: "#DialogueBox" }
-    end: (^$\n)
+    end: ^$(\n?)
     endCaptures:
       1:
         patterns:
@@ -1145,48 +1158,45 @@ repository:
     match: (.+$)
 
   DialogueBox:
-    name: entity.dialogue.box.sd
-    begin: (?=.+$)
+    tag: string
+    name: string.dialogue.line.sd
+    begin: ^(?=.*$)
     patterns:
       - { include: "#Comment" }
       - { include: "#Choice" }
       - { include: "#Image" }
       - { include: "#Audio" }
       - { include: "#DialogueLineParenthetical" }
-      - { include: "#DialogueLine" }
-    end: ($\n)|(?=^$)
+      - { include: "#BoxLineContinue" }
+      - { include: "#BoxLineComplete" }
+    end: (\n)|(?=^$)
     endCaptures:
       1:
-        patterns:
-          - { include: "#Newline" }
+        tag: content
+        name: markup.raw.whitespace.newline.sd
 
   DialogueLineParenthetical:
     tag: tagName
     name: constant.character.escape.sd
-    match: ^([(][^)(]*[)])($|[ \t]*$)(\n?)
+    match: ^([ \t]*)([(][^()]*[)])($|[ \t]*$)(\n?)
     captures:
-      1:
-        tag: escape
-        name: constant.character.escape.sd
-      2:
-        tag: content
-        name: markup.raw.whitespace.trailing.sd
-      3:
-        patterns:
-          - { include: "#Newline" }
-
-  DialogueLine:
-    tag: string
-    name: string.dialogue.line.sd
-    begin: ([ \t]*)
-    beginCaptures:
       1:
         tag: content
         name: markup.raw.whitespace.indent.sd
-    patterns:
-      - { include: "#BoxLineContinue" }
-      - { include: "#BoxLineComplete" }
-    end: (?=$)
+      2:
+        patterns:
+          - { include: "#DialogueLineParentheticalContent" }
+      3:
+        tag: content
+        name: markup.raw.whitespace.trailing.sd
+      4:
+        patterns:
+          - { include: "#Newline" }
+
+  DialogueLineParentheticalContent:
+    tag: escape
+    name: constant.character.escape.sd
+    match: (.+)
 
   BoxLineContinue:
     match: (.*[ \t]$)(\n?)
@@ -1199,7 +1209,7 @@ repository:
           - { include: "#Newline" }
 
   BoxLineComplete:
-    match: (.+$) # Don't consume (\n?) so that DialogueBox end can consume newline instead
+    match: (.*$)
     captures:
       1:
         patterns:
@@ -1211,14 +1221,14 @@ repository:
     begin: ^([!])($|[ \t]+)(?=.+$)
     beginCaptures:
       1:
-        tag: keyword
+        tag: punctuation
         name: keyword.operator.expression.action.explicit.sd
       2:
-        tag: content
+        tag: punctuation
         name: markup.raw.whitespace.separator.sd
     patterns:
       - { include: "#ActionBox" }
-    end: (^$\n)
+    end: ^$(\n?)
     endCaptures:
       1:
         patterns:
@@ -1230,35 +1240,28 @@ repository:
     begin: ^(?=.+$)
     patterns:
       - { include: "#ActionBox" }
-    end: (^$\n)
+    end: ^$(\n?)
     endCaptures:
       1:
         patterns:
           - { include: "#Newline" }
 
   ActionBox:
-    name: entity.action.box.sd
-    begin: (?=.+$)
+    tag: content
+    name: markup.raw.action.line.sd
+    begin: ^(?=.*$)
     patterns:
       - { include: "#Comment" }
       - { include: "#Choice" }
       - { include: "#Image" }
       - { include: "#Audio" }
-      - { include: "#ActionLine" }
-    end: (^$|$\n)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Newline" }
-
-  ActionLine:
-    tag: content
-    name: markup.raw.action.line.sd
-    begin: (?=.+$)
-    patterns:
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
-    end: (?=$)
+    end: (\n)|(?=^$)
+    endCaptures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.newline.sd
 
   DisplayText:
     name: entity.display.sd
@@ -1300,7 +1303,7 @@ repository:
   Word:
     tag: content
     name: markup.raw.text.sd
-    match: ([\p{L}\d']+)
+    match: ([\p{L}\p{N}\p{Mn}_']+)
 
   Space:
     tag: content
@@ -1349,7 +1352,7 @@ repository:
   BoldItalic:
     tag: strong
     name: markup.bold.sd
-    match: ([*][*]+(?=[*]))(.+?)(\1)
+    match: ([*][*]+)([*].+?[*])(\1)
     captures:
       1:
         patterns:
@@ -1533,6 +1536,7 @@ repository:
       - { include: "#NumericConstantLiteral" }
       - { include: "#Whitespace" }
       - { include: "#ArrayLiteral" }
+      - { include: "#ObjectLiteral" }
       - { include: "#ParenExpression" }
       - { include: "#PropertyAccessor" }
       - { include: "#FunctionCall" }
@@ -1560,11 +1564,15 @@ repository:
         name: punctuation.definition.string.begin.sd
     patterns:
       - { include: "#Color" }
+      - { include: "#QStringDoubleContent" }
     end: (["])|($)
     endCaptures:
       1:
         tag: string
         name: punctuation.definition.string.end.sd
+
+  QStringDoubleContent:
+    match: ((?:[^"\\]|\\.)*)
 
   QStringSingle:
     tag: string
@@ -1576,11 +1584,15 @@ repository:
         name: punctuation.definition.string.begin.sd
     patterns:
       - { include: "#Color" }
+      - { include: "#QStringSingleContent" }
     end: (['])|($)
     endCaptures:
       1:
         tag: string
         name: punctuation.definition.string.end.sd
+
+  QStringSingleContent:
+    match: ((?:[^'\\]|\\.)*)
 
   ExpressionOperators:
     patterns:
@@ -1866,10 +1878,33 @@ repository:
         tag: brace
         name: meta.brace.square.close.sd
 
+  ObjectLiteral:
+    name: meta.object.literal.sd
+    brackets: true
+    begin: (\{)
+    beginCaptures:
+      1:
+        tag: brace
+        name: meta.brace.curly.open.sd
+    patterns:
+      - { include: "#Expression" }
+      - { include: "#PunctuationComma" }
+      - { include: "#PunctuationColon" }
+    end: (\})
+    endCaptures:
+      1:
+        tag: brace
+        name: meta.brace.curly.close.sd
+
   PunctuationComma:
     tag: punctuation
     name: punctuation.separator.comma.sd
     match: ","
+
+  PunctuationColon:
+    tag: punctuation
+    name: punctuation.separator.colon.sd
+    match: ":"
 
   ParenExpression:
     brackets: true
@@ -1934,7 +1969,7 @@ repository:
       - { include: "#Color" }
       - { include: "#TemplateSubstitutionElement" }
       - { include: "#StringCharacterEscape" }
-      - { include: "#StringContent" }
+      - { include: "#TemplateStringContent" }
     end: ([`])
     endCaptures:
       1:
@@ -1963,7 +1998,7 @@ repository:
     name: constant.character.escape.ts
     match: ([\\])(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\{[0-9A-Fa-f]+\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)
 
-  StringContent:
+  TemplateStringContent:
     tag: string
     name: string.template.sd
     match: ((?:(?![$]?[{])[^\n\r`])+)
@@ -2016,10 +2051,3 @@ repository:
     name: string.color.hsl.sd
     match: (hsl)([(][\d]+[\s]+[\d]+[%]?[\s]+[\d]+[%]?(?:[\s]*[/][\s]*[\d.]+[%]?)?[)])
     color: true
-
-  # TODO: CSS
-
-  CSS:
-    tag: string
-    name: string.css.sd
-    match: (.+$)(\n?)

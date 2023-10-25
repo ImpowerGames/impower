@@ -3,6 +3,7 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import { Matcher } from "../types/Matcher";
+import { escapeRegExpPattern } from "../utils/escapeRegExpPattern";
 import { hasCapturingGroups } from "../utils/hasCapturingGroups";
 
 /**
@@ -26,15 +27,38 @@ export default class RegExpMatcher implements Matcher {
    */
   private declare hasCapturingGroups: boolean;
 
-  /**
-   * @param src - The source `RegExp` to wrap.
-   */
-  constructor(src: string, flags = "muy") {
-    const regexp = new RegExp(src, flags);
-    if (!regexp) {
-      throw new Error(`Invalid RegExp: ${src}`);
+  protected declare _pattern: string;
+
+  protected declare _flags: string;
+
+  protected _backReferences: string[] = [];
+
+  get backReferences() {
+    return this._backReferences;
+  }
+
+  set backReferences(value) {
+    this._backReferences = value;
+    let escapedPattern = this._pattern;
+    this._backReferences.forEach((capture, index) => {
+      const escapedCapture = escapeRegExpPattern(capture);
+      escapedPattern = escapedPattern.replaceAll(`\\${index}`, escapedCapture);
+    });
+    if (escapedPattern !== this._pattern) {
+      this.regexp = new RegExp(escapedPattern, this._flags);
     }
-    this.regexp = regexp;
+  }
+
+  /**
+   * @param pattern - The source `RegExp` to wrap.
+   */
+  constructor(pattern: string, flags = "muy") {
+    this._pattern = pattern;
+    this._flags = flags;
+    try {
+      const regexp = new RegExp(pattern, flags);
+      this.regexp = regexp;
+    } catch {}
     this.hasCapturingGroups = this.regexp
       ? hasCapturingGroups(this.regexp)
       : false;
@@ -47,6 +71,9 @@ export default class RegExpMatcher implements Matcher {
    * @param pos - The position to start matching at.
    */
   test(str: string, pos: number) {
+    if (!this.regexp) {
+      throw new Error(`Invalid RegExp: ${this._pattern}`);
+    }
     this.regexp.lastIndex = pos;
     return this.regexp.test(str);
   }
@@ -59,6 +86,9 @@ export default class RegExpMatcher implements Matcher {
    * @param pos - The position to start matching at.
    */
   private exec(str: string, pos: number) {
+    if (!this.regexp) {
+      throw new Error(`Invalid RegExp: ${this._pattern}`);
+    }
     this.regexp.lastIndex = pos;
     return this.regexp.exec(str);
   }

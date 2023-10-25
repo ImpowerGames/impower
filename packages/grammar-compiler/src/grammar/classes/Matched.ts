@@ -6,7 +6,6 @@ import { GrammarToken } from "../../core";
 
 import { Wrapping } from "../enums/Wrapping";
 import GrammarNode from "./GrammarNode";
-import type GrammarState from "./GrammarState";
 
 /** Represents a leaf or branch of a tree of matches found by a grammar. */
 export default class Matched {
@@ -24,8 +23,6 @@ export default class Matched {
   }
 
   constructor(
-    /** The current {@link GrammarState}. */
-    public state: GrammarState,
     /** The match's {@link GrammarNode} type. */
     public node: GrammarNode,
     /** The start of the match. */
@@ -63,7 +60,7 @@ export default class Matched {
    * @param wrap - The wrapping mode, if different.
    */
   wrap(node: GrammarNode, wrap = this.wrapping) {
-    return new Matched(this.state, node, this.from, this.length, [this], wrap);
+    return new Matched(node, this.from, this.length, [this], wrap);
   }
 
   /** Internal method for compiling. */

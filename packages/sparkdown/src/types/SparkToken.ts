@@ -58,10 +58,22 @@ export interface SparkImportToken extends ISparkToken {
   location: string;
 }
 
-export interface SparkDefineToken extends ISparkToken {
-  tag: "define";
+export interface SparkStructToken extends ISparkToken {
+  tag: "struct";
   type: string;
   name: string;
+}
+
+export interface SparkStructArrayPropertyToken extends ISparkToken {
+  tag: "struct_array_property";
+}
+
+export interface SparkStructScalarPropertyToken extends ISparkToken {
+  tag: "struct_scalar_property";
+}
+
+export interface SparkStructMapPropertyToken extends ISparkToken {
+  tag: "struct_map_property";
 }
 
 export interface SparkFunctionToken extends ISparkToken {
@@ -129,12 +141,11 @@ export interface SparkChoiceToken extends ISparkToken {
   prerequisiteOperator: string;
   operator: "+" | "start" | "end";
   section: string;
-  text: string;
 }
 
 export interface SparkChoiceContentToken extends ISparkToken {
   tag: "choice_content";
-  ephemeral: boolean;
+  text: string;
 }
 
 export interface SparkImageToken extends ISparkToken {
@@ -180,30 +191,30 @@ export interface SparkBoxToken extends SparkDisplayToken {
 
 export interface SparkTransitionToken extends SparkDisplayToken {
   tag: "transition";
-  text: string;
 }
 
 export interface SparkTransitionContentToken extends SparkDisplayToken {
   tag: "transition_content";
+  text: string;
 }
 
 export interface SparkSceneToken extends SparkDisplayToken {
   tag: "scene";
   scene: number;
-  text: string;
 }
 
 export interface SparkSceneContentToken extends SparkDisplayToken {
   tag: "scene_content";
+  text: string;
 }
 
 export interface SparkCenteredToken extends SparkDisplayToken {
   tag: "centered";
-  text: string;
 }
 
 export interface SparkCenteredContentToken extends SparkDisplayToken {
   tag: "centered_content";
+  text: string;
 }
 
 export interface SparkActionToken extends SparkBoxToken {
@@ -224,16 +235,6 @@ export interface SparkActionBoxToken extends SparkBoxToken {
 
 export interface SparkUnknownToken extends ISparkToken {
   tag: "unknown";
-}
-
-export interface SparkStructFieldToken extends ISparkToken {
-  tag: "struct_field";
-  struct: string;
-  mark: string;
-  id: string;
-  index: number;
-  name: string;
-  value: string;
 }
 
 export interface SparkBoxLineContinueToken extends ISparkToken {
@@ -305,7 +306,10 @@ export interface SparkTokenTagMap {
   section_name: SparkSectionNameToken;
   flow_break: SparkFlowBreakToken;
   import: SparkImportToken;
-  define: SparkDefineToken;
+  struct: SparkStructToken;
+  struct_array_property: SparkStructArrayPropertyToken;
+  struct_scalar_property: SparkStructScalarPropertyToken;
+  struct_map_property: SparkStructMapPropertyToken;
   function: SparkFunctionToken;
   do: SparkDoToken;
   set: SparkSetToken;
@@ -332,7 +336,6 @@ export interface SparkTokenTagMap {
   centered: SparkCenteredToken;
   centered_content: SparkCenteredContentToken;
   unknown: SparkUnknownToken;
-  struct_field: SparkStructFieldToken;
   action: SparkActionToken;
   action_start: SparkActionStartToken;
   action_end: SparkActionEndToken;
