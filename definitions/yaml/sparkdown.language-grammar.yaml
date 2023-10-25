@@ -8,27 +8,15 @@ flags: gmu
 patterns:
   - { include: "#Comment" }
   - { include: "#BlankLine" }
+  - { include: "#Newline" }
   - { include: "#ExplicitAction" }
   - { include: "#FrontMatter" }
   - { include: "#Chunk" }
   - { include: "#Section" }
   - { include: "#FlowBreak" }
-  - { include: "#Import" }
-  - { include: "#Struct" }
-  - { include: "#Function" }
-  - { include: "#Continue" }
-  - { include: "#Return" }
-  - { include: "#Do" }
-  - { include: "#Set" }
-  - { include: "#Delete" }
-  - { include: "#If" }
-  - { include: "#Elseif" }
-  - { include: "#Else" }
-  - { include: "#Repeat" }
+  - { include: "#LogicStatement" }
   - { include: "#Jump" }
   - { include: "#Choice" }
-  - { include: "#Image" }
-  - { include: "#Audio" }
   - { include: "#Transition" }
   - { include: "#Scene" }
   - { include: "#Centered" }
@@ -78,7 +66,14 @@ repository:
   IllegalExpression:
     tag: invalid
     name: invalid.illegal.illegal-expression.sd
-    match: (.+?)
+    match: (.+?)(\n?)
+    captures:
+      1:
+        tag: content
+        name: markup.raw.unknown.sd
+      2:
+        patterns:
+          - { include: "#Newline" }
 
   Unknown:
     tag: invalid
@@ -109,6 +104,7 @@ repository:
     patterns:
       - { include: "#Comment" }
       - { include: "#FrontMatterField" }
+      - { include: "#Unknown" }
     end: ^([-]{3,})($|[ \t]*$)?(\n?)
     endCaptures:
       1:
@@ -127,8 +123,8 @@ repository:
     begin: ^([_a-zA-Z][_a-zA-Z0-9]*)($|[:])(.*$\n?)
     beginCaptures:
       1:
-        tag: keyword
-        name: keyword.other.front-matter.property.sd
+        patterns:
+          - { include: "#FrontMatterFieldKeyword" }
       2:
         tag: punctuation
         name: punctuation.separator.colon.sd
@@ -138,12 +134,11 @@ repository:
     patterns:
       - { include: "#FrontMatterArrayItem" }
       - { include: "#FrontMatterStringBlock" }
+      - { include: "#Unknown" }
     end: (?=^[_a-zA-Z][_a-zA-Z0-9]*[:]|[-]{3,})
 
   FrontMatterArrayItem:
-    tag: meta
-    name: meta.front-matter.field.array-item.sd
-    match: ^([ ]{2,}|[\t]+)([-])($|[ \t]+)($|.+$)(\n?)
+    match: ^([ ]{2,}|[\t]+)([-])($|[ \t]+)(.*$\n?)
     captures:
       1:
         tag: content
@@ -157,14 +152,9 @@ repository:
       4:
         patterns:
           - { include: "#FrontMatterString" }
-      5:
-        patterns:
-          - { include: "#Newline" }
 
   FrontMatterStringInline:
-    tag: string
-    name: string.front-matter.field.string-inline.sd
-    match: ($|[ \t]*)($|.+$)(\n?)
+    match: ($|[ \t]*)(.*$\n?)
     captures:
       1:
         tag: content
@@ -172,13 +162,8 @@ repository:
       2:
         patterns:
           - { include: "#FrontMatterString" }
-      3:
-        patterns:
-          - { include: "#Newline" }
 
   FrontMatterStringBlock:
-    tag: string
-    name: string.front-matter.field.string-block.sd
     match: ^($|[ \t]*)(.*$\n?)
     captures:
       1:
@@ -189,9 +174,21 @@ repository:
           - { include: "#FrontMatterString" }
 
   FrontMatterString:
-    emit: true
+    tag: string
+    name: string.front-matter.string.sd
+    begin: (?=.*$)
     patterns:
       - { include: "#Inline" }
+    end: ($\n?)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#Newline" }
+
+  FrontMatterFieldKeyword:
+    tag: keyword
+    name: keyword.other.front-matter.field.sd
+    match: (.+)
 
   ChunkSplitter:
     match: ^((?:[@])(?:$|[ \t]+)(?:$|[._a-zA-Z][._a-zA-Z0-9]*)(?:$|[ \t]*$)(?:\n?))
@@ -268,6 +265,19 @@ repository:
         patterns:
           - { include: "#Newline" }
 
+  LogicStatement:
+    patterns:
+      - { include: "#Import" }
+      - { include: "#Define" }
+      - { include: "#Break" }
+      - { include: "#Continue" }
+      - { include: "#Return" }
+      - { include: "#Do" }
+      - { include: "#Set" }
+      - { include: "#Delete" }
+      - { include: "#Branch" }
+      - { include: "#Repeat" }
+
   Import:
     tag: meta
     name: meta.import.sd
@@ -284,7 +294,7 @@ repository:
         name: markup.raw.whitespace.separator.sd
     patterns:
       - { include: "#ImportDeclaration" }
-      - { include: "#IllegalExpression" }
+      - { include: "#Unknown" }
     end: ($)
 
   ImportDeclaration:
@@ -321,10 +331,16 @@ repository:
           - { include: "#String" }
           - { include: "#IllegalExpression" }
 
-  Struct:
+  Define:
+    patterns:
+      - { include: "#DefineStruct" }
+      - { include: "#DefineFunction" }
+      - { include: "#DefineInvalid" }
+
+  DefineStruct:
     tag: meta
     name: meta.definition.struct.sd
-    begin: ^([ \t]*)(define)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[:])($|[ \t]*$)(\n?)
+    begin: ^([ \t]*)(define)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[:]?)($|[ \t]*$)(\n?)
     beginCaptures:
       1:
         tag: content
@@ -389,7 +405,7 @@ repository:
   StructScalarProperty:
     tag: meta
     name: meta.definition.struct.property.scalar.sd
-    begin: ^([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[=])
+    begin: ([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[:](?=.*\S.*$))
     beginCaptures:
       1:
         tag: content
@@ -414,7 +430,7 @@ repository:
   StructMapProperty:
     tag: meta
     name: meta.definition.struct.property.map.sd
-    begin: ^([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([:])(.*?(?=[ \t]*$))($|[ \t]*)(\n?)
+    begin: ([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([:])($|[ \t]*)(\n?)
     beginCaptures:
       1:
         tag: content
@@ -426,12 +442,9 @@ repository:
         tag: punctuation
         name: punctuation.separator.colon.sd
       4:
-        patterns:
-          - { include: "#IllegalExpression" }
-      5:
         tag: content
         name: markup.raw.whitespace.trailing.sd
-      6:
+      5:
         patterns:
           - { include: "#Newline" }
     patterns:
@@ -442,7 +455,7 @@ repository:
       - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
-  Function:
+  DefineFunction:
     tag: meta
     name: meta.definition.function.sd
     begin: ^([ \t]*)(define)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)(?=$|[(])
@@ -451,7 +464,7 @@ repository:
         tag: content
         name: markup.raw.whitespace.indent.sd
       2:
-        tag: keyword
+        tag: controlKeyword
         name: keyword.control.definition.function.sd
       3:
         tag: content
@@ -469,8 +482,35 @@ repository:
         tag: content
         name: markup.raw.whitespace.trailing.sd
     patterns:
+      - { include: "#Comment" }
       - { include: "#Parameters" }
-      - { include: "#BlockStatement" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
+
+  DefineInvalid:
+    tag: meta
+    name: meta.define.invalid.sd
+    begin: ^([ \t]*)(define)($|[ \t]+)($|.+$)(\n?)
+    beginCaptures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: controlKeyword
+        name: keyword.control.definition.define.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        patterns:
+          - { include: "#IllegalExpression" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+    patterns:
+      - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Do:
@@ -489,6 +529,7 @@ repository:
         name: markup.raw.whitespace.separator.sd
     patterns:
       - { include: "#FunctionCall" }
+      - { include: "#Unknown" }
     end: ($\n?)
     endCaptures:
       1:
@@ -527,8 +568,13 @@ repository:
           - { include: "#Newline" }
 
   Set:
+    patterns:
+      - { include: "#SetValid" }
+      - { include: "#SetInvalid" }
+
+  SetValid:
     tag: meta
-    name: meta.set.sd
+    name: meta.set.valid.sd
     begin: ^([ \t]*)(set)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})([ \t]+)(?!$))?($|[_a-zA-Z][\[\]._a-zA-Z0-9]*)($|[ \t]*)($|[=])
     beginCaptures:
       1:
@@ -566,9 +612,35 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  Delete:
+  SetInvalid:
     tag: meta
-    name: meta.delete.sd
+    name: meta.set.invalid.sd
+    match: ^([ \t]*)(set)($|[ \t]+)($|.+$)(\n?)
+    captures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: keyword
+        name: keyword.operator.expression.set.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        patterns:
+          - { include: "#IllegalExpression" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+
+  Delete:
+    patterns:
+      - { include: "#DeleteValid" }
+      - { include: "#DeleteInvalid" }
+
+  DeleteValid:
+    tag: meta
+    name: meta.delete.valid.sd
     begin: ^([ \t]*)(delete)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|\[)
     beginCaptures:
       1:
@@ -603,6 +675,33 @@ repository:
         patterns:
           - { include: "#Newline" }
 
+  DeleteInvalid:
+    tag: meta
+    name: meta.delete.invalid.sd
+    match: ^([ \t]*)(delete)($|[ \t]+)($|.+$)(\n?)
+    captures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: keyword
+        name: keyword.operator.expression.set.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        patterns:
+          - { include: "#IllegalExpression" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+
+  Branch:
+    patterns:
+      - { include: "#If" }
+      - { include: "#Elseif" }
+      - { include: "#Else" }
+
   If:
     tag: meta
     name: meta.branch.if.sd
@@ -618,8 +717,11 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#BlockStatement" }
+      - { include: "#Comment" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
       - { include: "#Condition" }
+      - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Elseif:
@@ -637,8 +739,11 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#BlockStatement" }
+      - { include: "#Comment" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
       - { include: "#Condition" }
+      - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Else:
@@ -656,7 +761,11 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#BlockStatement" }
+      - { include: "#Comment" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
+      - { include: "#Condition" }
+      - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Repeat:
@@ -664,11 +773,12 @@ repository:
       - { include: "#RepeatWhile" }
       - { include: "#RepeatUntil" }
       - { include: "#RepeatFor" }
+      - { include: "#RepeatInfinite" }
 
   RepeatWhile:
     tag: meta
     name: meta.repeat.while.sd
-    begin: ^([ \t]*)(repeat)($|[ \t]+)(while)($|[ \t]+)
+    begin: ^([ \t]*)(repeat)([ \t]+)(while)($|[ \t]+)
     beginCaptures:
       1:
         tag: content
@@ -686,14 +796,17 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#BlockStatement" }
+      - { include: "#Comment" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
       - { include: "#Condition" }
+      - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   RepeatUntil:
     tag: meta
     name: meta.repeat.until.sd
-    begin: ^([ \t]*)(repeat)($|[ \t]+)(until)($|[ \t]+)
+    begin: ^([ \t]*)(repeat)([ \t]+)(until)($|[ \t]+)
     beginCaptures:
       1:
         tag: content
@@ -711,14 +824,17 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#BlockStatement" }
+      - { include: "#Comment" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
       - { include: "#Condition" }
+      - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   RepeatFor:
     tag: meta
     name: meta.repeat.for.sd
-    begin: ^([ \t]*)(repeat)($|[ \t]+)(for)($|[ \t]+)
+    begin: ^([ \t]*)(repeat)([ \t]+)(for)($|[ \t]+)
     beginCaptures:
       1:
         tag: content
@@ -736,8 +852,39 @@ repository:
         tag: content
         name: markup.raw.whitespace.separator.sd
     patterns:
-      - { include: "#BlockStatement" }
+      - { include: "#Comment" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
       - { include: "#Condition" }
+      - { include: "#Unknown" }
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
+
+  RepeatInfinite:
+    tag: meta
+    name: meta.repeat.sd
+    begin: ^([ \t]*)(repeat)($|[ \t]+)
+    beginCaptures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: controlKeyword
+        name: keyword.control.repeat.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        tag: controlKeyword
+        name: keyword.control.repeat.for.sd
+      5:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+    patterns:
+      - { include: "#Comment" }
+      - { include: "#LogicStatement" }
+      - { include: "#Jump" }
+      - { include: "#Condition" }
+      - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   Condition:
@@ -802,21 +949,45 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  Continue:
+  Break:
     tag: meta
-    name: meta.continue.sd
-    match: ^([ \t]*)(continue)($|[ \t]*$)(\n?)
+    name: meta.break.sd
+    match: ^([ \t]*)(break)($|[ \t]*)($|.*)(\n?)
     captures:
       1:
         tag: content
         name: markup.raw.whitespace.indent.sd
       2:
         tag: keyword
-        name: keyword.control.flow.return.sd
+        name: keyword.control.flow.break.sd
       3:
         tag: content
         name: markup.raw.whitespace.separator.sd
       4:
+        patterns:
+          - { include: "#IllegalExpression" }
+      5:
+        patterns:
+          - { include: "#Newline" }
+
+  Continue:
+    tag: meta
+    name: meta.continue.sd
+    match: ^([ \t]*)(continue)($|[ \t]*)($|.*)(\n?)
+    captures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: keyword
+        name: keyword.control.flow.continue.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        patterns:
+          - { include: "#IllegalExpression" }
+      5:
         patterns:
           - { include: "#Newline" }
 
@@ -841,21 +1012,6 @@ repository:
       1:
         patterns:
           - { include: "#Newline" }
-
-  BlockStatement:
-    emit: true
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#Continue" }
-      - { include: "#Return" }
-      - { include: "#Do" }
-      - { include: "#Set" }
-      - { include: "#Delete" }
-      - { include: "#If" }
-      - { include: "#Elseif" }
-      - { include: "#Else" }
-      - { include: "#Repeat" }
-      - { include: "#Jump" }
 
   Jump:
     tag: meta
@@ -1160,7 +1316,7 @@ repository:
   DialogueBox:
     tag: string
     name: string.dialogue.line.sd
-    begin: ^(?=.*$)
+    begin: ^(?=.+$)
     patterns:
       - { include: "#Comment" }
       - { include: "#Choice" }
@@ -1169,11 +1325,11 @@ repository:
       - { include: "#DialogueLineParenthetical" }
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
-    end: (\n)|(?=^$)
+    end: (?=^$)|(\n)
     endCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.newline.sd
+        patterns:
+          - { include: "#Newline" }
 
   DialogueLineParenthetical:
     tag: tagName
@@ -1249,7 +1405,7 @@ repository:
   ActionBox:
     tag: content
     name: markup.raw.action.line.sd
-    begin: ^(?=.*$)
+    begin: (?=.+$)
     patterns:
       - { include: "#Comment" }
       - { include: "#Choice" }
@@ -1257,11 +1413,11 @@ repository:
       - { include: "#Audio" }
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
-    end: (\n)|(?=^$)
+    end: (?=^$)|(\n)
     endCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.newline.sd
+        patterns:
+          - { include: "#Newline" }
 
   DisplayText:
     name: entity.display.sd
@@ -1540,6 +1696,7 @@ repository:
       - { include: "#ParenExpression" }
       - { include: "#PropertyAccessor" }
       - { include: "#FunctionCall" }
+      - { include: "#PropertyDeclaration" }
       - { include: "#VariableIdentifier" }
       - { include: "#ExpressionPunctuations" }
 
@@ -1931,8 +2088,13 @@ repository:
         tag: variableName
         name: variable.other.property.sd
 
-  VariableIdentifier:
+  PropertyDeclaration:
     tag: variableName
+    name: variable.other.property.sd
+    match: ([_a-zA-Z][_a-zA-Z0-9]*)([:])
+
+  VariableIdentifier:
+    tag: definition(variableName)
     name: variable.other.constant.sd
     match: ([_a-zA-Z][_a-zA-Z0-9]*)
 

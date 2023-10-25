@@ -7,9 +7,12 @@ const SPARK_TOKEN_TAGS: Partial<Record<SparkdownNodeName, SparkTokenTag>> = {
 
   BlankLine: "blank_line",
 
-  FrontMatter: "front_matter_start",
+  FrontMatter_begin: "front_matter_start",
   FrontMatter_end: "front_matter_end",
   FrontMatterField: "front_matter_field",
+  FrontMatterFieldKeyword: "front_matter_field_keyword",
+  FrontMatterArrayItem: "front_matter_field_item",
+  FrontMatterString: "front_matter_field_string",
 
   Chunk: "chunk",
   ChunkName: "chunk_name",
@@ -21,12 +24,12 @@ const SPARK_TOKEN_TAGS: Partial<Record<SparkdownNodeName, SparkTokenTag>> = {
 
   Import: "import",
 
-  Struct: "struct",
+  DefineStruct: "struct",
   StructArrayProperty: "struct_array_property",
   StructScalarProperty: "struct_scalar_property",
   StructMapProperty: "struct_map_property",
 
-  Function: "function",
+  DefineFunction: "function",
 
   Continue: "continue",
   Return: "return",

@@ -123,7 +123,12 @@ export default class Grammar {
     return new GrammarState(
       {},
       new GrammarStack([
-        { node: GrammarNode.None, rules: this.rules, end: null },
+        {
+          node: GrammarNode.None,
+          rules: this.rules,
+          end: null,
+          beginCaptures: [],
+        },
       ])
     );
   }
@@ -133,21 +138,21 @@ export default class Grammar {
    *
    * @param state - The {@link GrammarState} to run the match with.
    * @param str - The string to match.
-   * @param pos - The position to start matching at.
+   * @param from - The position to start matching at.
    * @param offset - The offset to apply to the resulting {@link Matched}'s
    *   `from` position.
    */
   match(
     state: GrammarState,
     str: string,
-    pos: number,
-    offset = pos,
+    from: number,
+    offset = from,
     possiblyIncomplete = true
   ) {
     if (state.stack.end instanceof ScopedRule) {
-      let result = state.stack.end.end(str, pos, state);
+      let result = state.stack.end.end(str, from, state);
       if (result) {
-        if (offset !== pos) {
+        if (offset !== from) {
           result.offset(offset);
         }
         return result;
@@ -158,9 +163,9 @@ export default class Grammar {
     if (rules) {
       for (let i = 0; i < rules.length; i++) {
         const rule = rules[i];
-        const result = rule?.match(str, pos, state, possiblyIncomplete);
+        const result = rule?.match(str, from, state, possiblyIncomplete);
         if (result) {
-          if (offset !== pos) {
+          if (offset !== from) {
             result.offset(offset);
           }
           return result;

@@ -43,9 +43,9 @@ export default class SparkParser {
   build(script: string, tree: Tree, config?: SparkParserConfig) {
     const program: SparkProgram = {
       tokens: [],
+      sections: {},
       diagnostics: [],
       metadata: {},
-      sections: {},
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
     const stack: SparkToken[] = [];
@@ -85,6 +85,37 @@ export default class SparkParser {
             from,
             to,
           });
+          if (tok.tag === "front_matter_field") {
+            addToken(tok);
+          }
+          if (tok.tag === "front_matter_field_keyword") {
+            const parent = lookup("front_matter_field", stack);
+            if (parent) {
+              parent.name = text;
+            }
+          }
+          if (tok.tag === "front_matter_field_item") {
+            const parent = lookup("front_matter_field", stack);
+            if (parent) {
+              const keyword = parent.name;
+              program.frontMatter ??= {};
+              if (program.frontMatter[keyword]) {
+                program.frontMatter[keyword]?.push("");
+              } else {
+                program.frontMatter[keyword] = [""];
+              }
+            }
+          }
+          if (tok.tag === "front_matter_field_string") {
+            const parent = lookup("front_matter_field", stack);
+            if (parent) {
+              const keyword = parent.name;
+              program.frontMatter ??= {};
+              program.frontMatter[keyword] ??= [""];
+              const lastIndex = program.frontMatter[keyword]!.length - 1;
+              program.frontMatter[keyword]![lastIndex] += text;
+            }
+          }
           if (tok.tag === "comment") {
             addToken(tok);
           }
@@ -433,7 +464,16 @@ export default class SparkParser {
         }
       },
     });
-    // console.log(program);
+    // CLEANUP
+    if (program.frontMatter) {
+      Object.entries(program.frontMatter).forEach(([keyword, values]) => {
+        // Trim and remove empty values
+        program.frontMatter![keyword] = values
+          .map((v) => v.trim())
+          .filter((v) => Boolean(v));
+      });
+    }
+    console.log(program);
     return program;
   }
 

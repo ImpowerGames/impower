@@ -13,15 +13,14 @@ export interface SparkProgram extends SparkDeclarations {
     ext: string;
     type: string;
   }[];
-  frontMatter?: Record<string, SparkToken[]>;
   tokens: SparkToken[];
-  diagnostics: SparkDiagnostic[];
-  metadata: SparkProgramMetadata;
+  frontMatter?: Record<string, string[]>;
   sections: Record<string, SparkSection>;
   variables?: Record<string, SparkVariable>;
   structs?: Record<string, SparkStruct>;
   objectMap?: {
     [type: string]: Record<string, any>;
   };
-  scopes?: string[];
+  diagnostics: SparkDiagnostic[];
+  metadata: SparkProgramMetadata;
 }

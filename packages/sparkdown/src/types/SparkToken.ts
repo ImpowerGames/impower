@@ -1,5 +1,4 @@
 import { ISparkToken } from "./ISparkToken";
-import { SparkFrontMatterKeyword } from "./SparkFrontMatterKeyword";
 
 export interface SparkCommentToken extends ISparkToken {
   tag: "comment";
@@ -20,8 +19,19 @@ export interface SparkFrontMatterScopeToken extends ISparkToken {
 
 export interface SparkFrontMatterFieldToken extends ISparkToken {
   tag: "front_matter_field";
-  type: SparkFrontMatterKeyword;
-  value: string;
+  name: string;
+}
+
+export interface SparkFrontMatterFieldKeywordToken extends ISparkToken {
+  tag: "front_matter_field_keyword";
+}
+
+export interface SparkFrontMatterFieldItemToken extends ISparkToken {
+  tag: "front_matter_field_item";
+}
+
+export interface SparkFrontMatterFieldStringToken extends ISparkToken {
+  tag: "front_matter_field_string";
 }
 
 export interface SparkChunkToken extends ISparkToken {
@@ -141,6 +151,7 @@ export interface SparkChoiceToken extends ISparkToken {
   prerequisiteOperator: string;
   operator: "+" | "start" | "end";
   section: string;
+  content?: SparkChoiceContentToken[];
 }
 
 export interface SparkChoiceContentToken extends ISparkToken {
@@ -161,6 +172,7 @@ export interface SparkAudioToken extends ISparkToken {
 }
 
 export interface SparkDisplayToken extends ISparkToken {
+  content?: SparkToken[];
   waitUntilFinished: boolean;
   autoAdvance: boolean;
   clearOnAdvance: boolean;
@@ -178,16 +190,7 @@ export interface SparkDisplayTextContentToken extends ISparkToken {
   tag: "display_text_content";
 }
 
-export type BoxLine =
-  | SparkDialogueLineParentheticalToken
-  | SparkImageToken
-  | SparkAudioToken
-  | SparkBoxLineContinueToken
-  | SparkBoxLineCompleteToken;
-
-export interface SparkBoxToken extends SparkDisplayToken {
-  content?: BoxLine[];
-}
+export interface SparkBoxToken extends SparkDisplayToken {}
 
 export interface SparkTransitionToken extends SparkDisplayToken {
   tag: "transition";
@@ -299,6 +302,9 @@ export interface SparkTokenTagMap {
   front_matter_start: SparkFrontMatterScopeToken;
   front_matter_end: SparkFrontMatterScopeToken;
   front_matter_field: SparkFrontMatterFieldToken;
+  front_matter_field_keyword: SparkFrontMatterFieldKeywordToken;
+  front_matter_field_item: SparkFrontMatterFieldItemToken;
+  front_matter_field_string: SparkFrontMatterFieldStringToken;
   chunk: SparkChunkToken;
   chunk_name: SparkChunkNameToken;
   section: SparkSectionToken;
