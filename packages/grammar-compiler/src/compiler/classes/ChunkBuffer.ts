@@ -116,8 +116,8 @@ export class ChunkBuffer {
       left = new ChunkBuffer(this.chunks.slice(0));
       right = new ChunkBuffer(); // empty
     } else {
-      left = new ChunkBuffer(this.chunks.slice(0, index + 1));
-      right = new ChunkBuffer(this.chunks.slice(index + 1));
+      left = new ChunkBuffer(this.chunks.slice(0, index));
+      right = new ChunkBuffer(this.chunks.slice(index));
     }
 
     return { left, right };
@@ -128,17 +128,15 @@ export class ChunkBuffer {
     pos === target || pos - target;
 
   /**
-   * Searches for the closest chunk to the given position.
+   * Searches backwards for the closest chunk that parsing can restart from.
    *
-   * @param pos - The position to find.
-   * @param side - The side to search on. -1 for first matching chunk, 1 for last matching chunk, 0 for either.
-   * @param precise - If true, the search will require an exact hit. If the
-   *   search misses, it will return `null` for both the token and index.
+   * @param editedFrom - The starting position of the edit.
    */
-  search(pos: number, side: 1 | 0 | -1 = 0) {
-    const result = search(this.chunks, pos, this.searchCmp, { precise: true });
+  findRestartableChunk(editedFrom: number) {
+    const result = search(this.chunks, editedFrom, this.searchCmp, {
+      precise: false,
+    });
 
-    // null result or null resulting index
     if (!result || !this.chunks[result.index]) {
       return { chunk: null, index: null };
     }
@@ -146,27 +144,14 @@ export class ChunkBuffer {
     let { index } = result;
     let chunk = this.chunks[index];
 
-    // We don't care about sidedness
-    if (side === 0) {
-      return { chunk, index };
-    }
-
-    // correct for sidedness
     while (chunk) {
-      const nextIndex = side === 1 ? index + 1 : index - 1;
-      const nextChunk = this.chunks[nextIndex];
-      if (nextChunk?.from !== pos) {
-        break;
+      index = index - 1;
+      chunk = this.chunks[index];
+      if (chunk && chunk.scopes.length === 0) {
+        return { chunk, index };
       }
-      index = nextIndex;
-      chunk = nextChunk;
     }
 
-    // no valid chunks
-    if (!chunk) {
-      return { chunk: null, index: null };
-    }
-
-    return { chunk, index };
+    return { chunk: null, index: null };
   }
 }

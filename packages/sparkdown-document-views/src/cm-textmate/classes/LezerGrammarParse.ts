@@ -121,19 +121,8 @@ export default class GrammarParse implements PartialParse {
 
         if (buffer) {
           const editFrom = this.region.edit!.from;
-          // try to find a suitable chunk from the buffer to restart tokenization from
-          let restartFrom = editFrom - 1;
-          for (; restartFrom >= f.from; restartFrom -= 1) {
-            if (
-              this.region.input.read(restartFrom, restartFrom + 2) === "\n\n"
-            ) {
-              // Restart at previous empty line
-              restartFrom += 1;
-              break;
-            }
-          }
           // console.log(
-          //   "CHUNKS",
+          //   "ALL CHUNKS",
           //   buffer?.chunks.map((chunk) => [
           //     input.read(chunk.from, chunk.to),
           //     chunk.from,
@@ -142,15 +131,14 @@ export default class GrammarParse implements PartialParse {
           //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
           //   ])
           // );
-          const { chunk, index } = buffer.search(restartFrom, -1);
+          const { chunk, index } = buffer.findRestartableChunk(editFrom);
+          // console.log("editFrom", editFrom);
+          // console.log("splitAt", index);
           if (chunk && index !== null) {
             // split the buffer, reuse the left side
             const { left } = buffer.split(index);
-            // console.log("editFrom", editFrom);
-            // console.log("restartFrom", restartFrom);
-            // console.log("splitAt", index);
             // console.log(
-            //   "LEFT",
+            //   "REUSE CHUNKS",
             //   left?.chunks.map((chunk) => [
             //     input.read(chunk.from, chunk.to),
             //     chunk.from,
