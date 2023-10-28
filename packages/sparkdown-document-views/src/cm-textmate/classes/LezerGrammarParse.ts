@@ -131,7 +131,7 @@ export default class GrammarParse implements PartialParse {
           //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
           //   ])
           // );
-          const { chunk, index } = buffer.findRestartableChunk(editFrom);
+          const { chunk, index } = buffer.findPreviousUnscopedChunk(editFrom);
           // console.log("editFrom", editFrom);
           // console.log("splitAt", index);
           if (chunk && index !== null) {

@@ -132,7 +132,7 @@ export class ChunkBuffer {
    *
    * @param editedFrom - The starting position of the edit.
    */
-  findRestartableChunk(editedFrom: number) {
+  findPreviousUnscopedChunk(editedFrom: number) {
     const result = search(this.chunks, editedFrom, this.searchCmp, {
       precise: false,
     });
