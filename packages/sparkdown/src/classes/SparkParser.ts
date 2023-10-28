@@ -3,6 +3,7 @@ import { NodeID } from "../../../grammar-compiler/src/core";
 import { Grammar } from "../../../grammar-compiler/src/grammar";
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import SPARK_TOKEN_TAGS from "../constants/SPARK_TOKEN_TAGS";
+import { SparkAction } from "../types/SparkDiagnostic";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import {
@@ -27,6 +28,11 @@ const reversePosition = (
 ): "right" | "left" | undefined =>
   position === "left" ? "right" : position === "right" ? "left" : undefined;
 
+const VARIABLE_IDENTIFIER_REGEX = new RegExp(
+  GRAMMAR_DEFINITION.repository.VariableIdentifier.match,
+  GRAMMAR_DEFINITION.flags
+);
+
 export default class SparkParser {
   config: SparkParserConfig = {};
 
@@ -49,7 +55,7 @@ export default class SparkParser {
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
     const stack: SparkToken[] = [];
-    const prevDialoguePositionalTokens: (
+    const prevDisplayPositionalTokens: (
       | SparkDialogueToken
       | SparkDialogueBoxToken
     )[] = [];
@@ -72,6 +78,58 @@ export default class SparkParser {
         currentSection.tokens.push(token);
       }
     };
+    const diagnostic = (
+      program: SparkProgram,
+      currentToken: { from: number; to: number; line: number; offset?: number },
+      message = "",
+      actions?: SparkAction[],
+      from = -1,
+      to = -1,
+      severity: "error" | "warning" | "info" = "error"
+    ): void => {
+      if (from < 0 || to < 0) {
+        return;
+      }
+      if (from === to) {
+        to = from + 1;
+      }
+      program.diagnostics ??= [];
+      const lineStart = (currentToken.from || 0) + (currentToken.offset || 0);
+      let validFrom = Math.max(0, from >= 0 ? from : lineStart);
+      const validTo = to >= 0 ? to : currentToken.to;
+      if (validFrom === validTo && lineStart < validTo) {
+        validFrom = lineStart;
+      }
+      const line = currentToken?.line;
+      const startColumn = Math.max(0, validFrom - currentToken.from);
+      const endColumn = Math.max(0, startColumn + (validTo - validFrom));
+      const source = `${severity.toUpperCase()}: line ${line} column ${startColumn}`;
+      if (validFrom < validTo) {
+        program.diagnostics.push({
+          from: validFrom,
+          to: validTo,
+          line,
+          startColumn,
+          endColumn,
+          severity,
+          source,
+          message,
+          actions,
+        });
+      } else if (currentToken.from < currentToken.to) {
+        program.diagnostics.push({
+          from: currentToken.from,
+          to: currentToken.to,
+          line,
+          startColumn,
+          endColumn,
+          severity,
+          source,
+          message,
+          actions,
+        });
+      }
+    };
     tree.iterate({
       enter: (node) => {
         const id = nodeNames[node.type]!;
@@ -85,6 +143,8 @@ export default class SparkParser {
             from,
             to,
           });
+
+          // front_matter
           if (tok.tag === "front_matter_field") {
             addToken(tok);
           }
@@ -116,6 +176,8 @@ export default class SparkParser {
               program.frontMatter[keyword]![lastIndex] += text;
             }
           }
+
+          // comment
           if (tok.tag === "comment") {
             addToken(tok);
           }
@@ -125,6 +187,45 @@ export default class SparkParser {
               parent.text = text;
             }
           }
+
+          // assign
+          if (tok.tag === "assign") {
+            addToken(tok);
+          }
+          if (tok.tag === "type_name") {
+            const parent = lookup("assign", stack);
+            if (parent) {
+              parent.type = text;
+            }
+          }
+          if (tok.tag === "identifier_path") {
+            const parent = lookup("assign", stack);
+            if (parent) {
+              parent.target = text;
+              parent.ranges ??= {};
+              parent.ranges["target"] = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "assign_operator") {
+            const parent = lookup("assign", stack);
+            if (parent) {
+              parent.operator = text;
+              parent.ranges ??= {};
+              parent.ranges["operator"] = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "value_text") {
+            const parent = lookup("assign", stack);
+            if (parent) {
+              parent.value ??= "";
+              parent.value += text;
+              parent.ranges ??= {};
+              parent.ranges["value"] ??= { from: tok.from, to: tok.to };
+              parent.ranges["value"].to = tok.to;
+            }
+          }
+
+          // chunk
           if (tok.tag === "chunk") {
             addToken(tok);
           }
@@ -134,6 +235,8 @@ export default class SparkParser {
               parent.name = text.split(".")[0] || "";
             }
           }
+
+          // section
           if (tok.tag === "section") {
             addToken(tok);
           }
@@ -149,12 +252,18 @@ export default class SparkParser {
               parent.name = text;
             }
           }
+
+          // flow_break
           if (tok.tag === "flow_break") {
             addToken(tok);
           }
+
+          // jump
           if (tok.tag === "jump") {
             addToken(tok);
           }
+
+          // choice
           if (tok.tag === "choice") {
             addToken(tok);
           }
@@ -166,12 +275,16 @@ export default class SparkParser {
               parent.content?.push(tok);
             }
           }
+
+          // jump_to_section
           if (tok.tag === "jump_to_section") {
-            const parent = lookup("choice", stack) || lookup("jump", stack);
+            const parent = lookup("jump", stack) || lookup("choice", stack);
             if (parent) {
               parent.section = text;
             }
           }
+
+          // transition
           if (tok.tag === "transition") {
             addToken(tok);
           }
@@ -183,6 +296,8 @@ export default class SparkParser {
               parent.content?.push(tok);
             }
           }
+
+          // scene
           if (tok.tag === "scene") {
             tok.scene = sceneNumber;
             addToken(tok);
@@ -195,6 +310,8 @@ export default class SparkParser {
               parent.content?.push(tok);
             }
           }
+
+          // centered
           if (tok.tag === "centered") {
             addToken(tok);
           }
@@ -206,6 +323,8 @@ export default class SparkParser {
               parent.content?.push(tok);
             }
           }
+
+          // action
           if (tok.tag === "action") {
             addToken(tok);
           }
@@ -218,6 +337,8 @@ export default class SparkParser {
           if (tok.tag === "action_box") {
             addToken(tok);
           }
+
+          // dialogue
           if (tok.tag === "dialogue") {
             addToken(tok);
           }
@@ -253,7 +374,7 @@ export default class SparkParser {
             if (dialogue && dialogue_start) {
               let prevPosition: "left" | "right" | undefined = undefined;
               let prevCharacterName: string | undefined = undefined;
-              prevDialoguePositionalTokens.forEach((t) => {
+              prevDisplayPositionalTokens.forEach((t) => {
                 t.autoAdvance = true;
                 prevPosition ??= t.position;
                 prevCharacterName ??= t.characterName;
@@ -264,7 +385,7 @@ export default class SparkParser {
               } else {
                 // Different character, so if a spot was not assigned for the previous character, move them to the left
                 // and display this character on the opposite side.
-                prevDialoguePositionalTokens.forEach((t) => {
+                prevDisplayPositionalTokens.forEach((t) => {
                   if (!t.position) {
                     t.position = "left";
                   }
@@ -292,6 +413,8 @@ export default class SparkParser {
               parent.content?.push(tok);
             }
           }
+
+          // box
           if (tok.tag === "box_line_continue") {
             tok.text = text;
             const parent =
@@ -359,9 +482,12 @@ export default class SparkParser {
               parent.content?.push(tok);
             }
           }
+
           // push token onto current stack
           stack.push(tok);
         }
+
+        // Print screenplay content (include styling marks but not emphasis marks)
         if (id === "PlainText" || id === "StylingMark") {
           const text = script.slice(from, to);
           const display_line =
@@ -378,6 +504,8 @@ export default class SparkParser {
             display_line.print += text;
           }
         }
+
+        // newline
         if (id === "Newline") {
           line += 1;
         }
@@ -389,7 +517,7 @@ export default class SparkParser {
         if (tok && tok.tag === tag) {
           if (tok.tag === "chunk") {
             sceneNumber = 1;
-            prevDialoguePositionalTokens.length = 0;
+            prevDisplayPositionalTokens.length = 0;
             const parentId = "";
             const parentSection = program.sections[parentId];
             currentSectionId = parentId + "." + tok.name;
@@ -408,7 +536,7 @@ export default class SparkParser {
             }
           }
           if (tok.tag === "section") {
-            prevDialoguePositionalTokens.length = 0;
+            prevDisplayPositionalTokens.length = 0;
             const currentSection = program.sections[currentSectionId]!;
             const currentLevel = currentSection.level;
             const levelDiff = tok.level - currentLevel;
@@ -435,30 +563,73 @@ export default class SparkParser {
             }
           }
           if (tok.tag === "flow_break") {
-            prevDialoguePositionalTokens.length = 0;
+            prevDisplayPositionalTokens.length = 0;
           }
           if (tok.tag === "transition") {
-            prevDialoguePositionalTokens.length = 0;
+            prevDisplayPositionalTokens.length = 0;
           }
           if (tok.tag === "scene") {
             sceneNumber += 1;
-            prevDialoguePositionalTokens.length = 0;
+            prevDisplayPositionalTokens.length = 0;
           }
           if (tok.tag === "centered") {
-            prevDialoguePositionalTokens.length = 0;
+            prevDisplayPositionalTokens.length = 0;
           }
           if (tok.tag === "action") {
-            prevDialoguePositionalTokens.length = 0;
+            prevDisplayPositionalTokens.length = 0;
           }
           if (tok.tag === "dialogue_character_simultaneous") {
             const dialogue = lookup("dialogue", stack);
             if (dialogue) {
-              prevDialoguePositionalTokens.length = 0;
-              prevDialoguePositionalTokens.push(dialogue);
+              prevDisplayPositionalTokens.length = 0;
+              prevDisplayPositionalTokens.push(dialogue);
             }
           }
           if (tok.tag === "dialogue_box") {
-            prevDialoguePositionalTokens.push(tok);
+            prevDisplayPositionalTokens.push(tok);
+          }
+          if (tok.tag === "assign") {
+            if (VARIABLE_IDENTIFIER_REGEX.test(tok.target)) {
+              // If we are assigning a bare variable name (without property or index accessors),
+              // ensure it is declared (if it doesn't already exist).
+              const id = `.${tok.target}`;
+              if (!program.variables?.[id]) {
+                if (tok.operator !== "=") {
+                  // Since variable does not exist,
+                  // if variable references itself during assignment (i.e. it uses an operator other than `=` like `+=` or `-=`),
+                  // report an error
+                  diagnostic(
+                    program,
+                    tok,
+                    `Cannot find variable named '${tok.target}'`,
+                    undefined,
+                    tok.ranges?.["target"]?.from,
+                    tok.ranges?.["target"]?.to
+                  );
+                }
+                const variable = {
+                  line: tok.line,
+                  from: tok.from,
+                  to: tok.to,
+                  name: tok.target,
+                  type: tok.type,
+                  value: tok.value,
+                };
+                program.variables ??= {};
+                program.variables[id] ??= variable;
+                const currentSection = program.sections[currentSectionId]!;
+                currentSection.variables ??= {};
+                currentSection.variables[id] ??= variable;
+              }
+            } else {
+              // If we are assigning a property or array item,
+              // report if property or array does not exist.
+              // TODO
+            }
+            if (!tok.type) {
+              // Determine type by compiling value
+              // TODO
+            }
           }
           stack.pop();
         }

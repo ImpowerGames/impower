@@ -1,7 +1,7 @@
 import { SparkRange } from "./SparkRange";
 
-export interface ISparkToken extends SparkRange {
-  tag: string;
+export interface ISparkToken<T extends string> extends SparkRange {
+  tag: T;
 
   print?: string;
 
@@ -16,4 +16,6 @@ export interface ISparkToken extends SparkRange {
 
   html?: string;
   duration?: number;
+
+  ranges?: Record<string, SparkRange>;
 }

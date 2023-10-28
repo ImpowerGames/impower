@@ -1,6 +1,6 @@
 {
   "comments": {
-    "lineComment": "%%"
+    "lineComment": "&&"
   },
   "brackets": [
     [
@@ -111,70 +111,49 @@
   },
   "onEnterRules": [
     {
-      "beforeText": "^\\s*(?:[_a-zA-Z][_a-zA-Z0-9]*).*?[:]\\s*$",
+      "beforeText": "^\\s*(?:[-]|[_a-zA-Z][_a-zA-Z0-9]*[:])\\s*$",
       "action": {
         "indent": "indent"
       }
     },
     {
       "beforeText": "\\{\\s*$",
-      "afterText": "\\}.*$",
+      "afterText": "^\\s*\\}.*$",
       "action": {
         "indent": "indentOutdent"
-      }
-    },
-    {
-      "beforeText": "^.*$",
-      "afterText": "\\}.*$",
-      "action": {
-        "indent": "outdent"
       }
     },
     {
       "beforeText": "\\{\\s*$",
-      "afterText": "(?!\\})",
+      "afterText": "^(?!\\s*\\})",
       "action": {
         "indent": "indent"
       }
     },
     {
       "beforeText": "\\[\\s*$",
-      "afterText": "\\].*$",
+      "afterText": "^\\s*\\].*$",
       "action": {
         "indent": "indentOutdent"
       }
     },
     {
-      "beforeText": "^.*$",
-      "afterText": "\\].*$",
-      "action": {
-        "indent": "outdent"
-      }
-    },
-    {
       "beforeText": "\\[\\s*$",
-      "afterText": "(?!\\])",
+      "afterText": "^(?!\\s*\\])",
       "action": {
         "indent": "indent"
       }
     },
     {
       "beforeText": "\\(\\s*$",
-      "afterText": "\\).*$",
+      "afterText": "^\\s*\\).*$",
       "action": {
         "indent": "indentOutdent"
       }
     },
     {
-      "beforeText": "^.*$",
-      "afterText": "\\).*$",
-      "action": {
-        "indent": "outdent"
-      }
-    },
-    {
       "beforeText": "\\(\\s*$",
-      "afterText": "(?!\\))",
+      "afterText": "^(?!\\s*\\))",
       "action": {
         "indent": "indent"
       }

@@ -35,7 +35,7 @@ import getTextBuffer from "./utils/getTextBuffer";
 
 const CHUNK_SPLITTER_REGEX = new RegExp(
   GRAMMAR.repository.ChunkSplitter.match,
-  GRAMMAR.flags
+  "umg"
 );
 const CHUNK_REGEX = new RegExp(GRAMMAR.repository.Chunk.match);
 const CHUNK_NAME_CAPTURE_INDEX = 3;

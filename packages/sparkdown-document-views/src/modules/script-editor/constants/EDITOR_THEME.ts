@@ -137,13 +137,13 @@ const EDITOR_THEME: {
   "& .cm-completionIcon-choice_plus": {
     "&:after": {
       content: "'⊕'",
-      color: EDITOR_COLORS.variableNameAccessor,
+      color: EDITOR_COLORS.propertyName,
     },
   },
   "& .cm-completionIcon-choice_minus": {
     "&:after": {
       content: "'⊖'",
-      color: EDITOR_COLORS.variableNameAccessor,
+      color: EDITOR_COLORS.propertyName,
     },
   },
   "& .cm-completionIcon-section": {
@@ -239,13 +239,13 @@ const EDITOR_THEME: {
   "& .cm-completionIcon-variable": {
     "&:after": {
       content: "'𝑥'",
-      color: EDITOR_COLORS.variableNameAccessor,
+      color: EDITOR_COLORS.propertyName,
     },
   },
   "& .cm-completionIcon-parameter": {
     "&:after": {
       content: "'ρ'",
-      color: EDITOR_COLORS.variableNameDefinition,
+      color: EDITOR_COLORS.variableName,
     },
   },
   "& .cm-completionIcon-trigger": {
@@ -288,7 +288,7 @@ const EDITOR_THEME: {
     "&:after": { content: "'✓'", color: EDITOR_COLORS.controlKeyword },
   },
   "& .cm-completionIcon-module": {
-    "&:after": { content: "'⩀'", color: EDITOR_COLORS.variableNameAccessor },
+    "&:after": { content: "'⩀'", color: EDITOR_COLORS.propertyName },
   },
   "& .cm-diagnosticText": {
     marginRight: "16px",

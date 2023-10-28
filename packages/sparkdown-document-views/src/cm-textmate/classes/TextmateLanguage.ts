@@ -167,15 +167,18 @@ export default class TextmateLanguage {
         if (
           onEnterRules &&
           beforeLine &&
-          context.state.selection.ranges.length === 1 &&
-          context.state.selection.main.from === context.state.selection.main.to
+          context.state.selection.ranges.length === 1
         ) {
-          const cursorPos = context.state.selection.main.from;
-          const currentLine = context.lineAt(pos);
-          const beforeText = context.state.sliceDoc(beforeLine.from, cursorPos);
+          const selectionFrom = context.state.selection.main.from;
+          const selectionTo = context.state.selection.main.to;
+          const afterTextLine = context.lineAt(selectionTo);
+          const beforeText = context.state.sliceDoc(
+            beforeLine.from,
+            selectionFrom
+          );
           const afterText = context.state.sliceDoc(
-            cursorPos,
-            currentLine.from + currentLine.text.length
+            selectionTo,
+            afterTextLine.from + afterTextLine.text.length
           );
           const previousLineText = pos > 1 ? context.lineAt(pos - 2)?.text : "";
           for (let i = 0; i < onEnterRules.length; i += 1) {

@@ -5,6 +5,10 @@ import c from "./EDITOR_COLORS";
 const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.content },
 
+  { tag: tags.paren, color: c.bracket },
+  { tag: tags.brace, color: c.bracket },
+  { tag: tags.bracket, color: c.bracket },
+
   { tag: tags.monospace, color: c.formatting },
   { tag: tags.quote, color: c.formatting, fontStyle: "italic" },
   { tag: tags.emphasis, color: c.formatting, fontStyle: "italic" },
@@ -31,9 +35,9 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
 
   { tag: tags.moduleKeyword, color: c.moduleKeyword },
   { tag: tags.controlKeyword, color: c.controlKeyword },
-  { tag: tags.definition(tags.variableName), color: c.variableNameDefinition },
+  { tag: tags.propertyName, color: c.propertyName },
+  { tag: tags.variableName, color: c.variableName },
   { tag: tags.function(tags.variableName), color: c.functionName },
-  { tag: tags.variableName, color: c.variableNameAccessor },
 
   { tag: tags.contentSeparator, color: c.break },
   { tag: tags.definition(tags.annotation), color: c.chunkNameDefinition },

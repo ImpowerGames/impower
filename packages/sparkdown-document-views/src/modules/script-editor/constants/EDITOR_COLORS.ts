@@ -3,12 +3,14 @@ const EDITOR_COLORS = {
   lineNumber: "#2B83B7",
   lineMark: "#66c7ff",
 
+  bracket: "#FFD700",
+
   tooltip: "#1f1f1f",
   match: "#18A3FF",
   selected: "#323232",
   border: "#FFFFFF21",
 
-  invalid: "#FFFFFF",
+  invalid: "#F44747",
   constant: "#FFFF00",
   trigger: "#FF81FF",
   operator: "#D0D0D0",
@@ -30,14 +32,13 @@ const EDITOR_COLORS = {
 
   keyword: "#569CD6",
   typeName: "#4EC9B0",
-  variableNameDefinition: "#4FC1FF",
-  variableNameAccessor: "#9CDCFE",
+  propertyName: "#9CDCFE",
+  variableName: "#4FC1FF",
   functionName: "#DCDCAA",
   string: "#CE9178",
   number: "#B5CEA8",
   bool: "#569CD6",
-  propertyName: "#EFC090",
-  macroName: "#569CD6",
+  fieldName: "#EFC090",
   codeMark: "#FFBF00",
   codeText: "#FF8000",
 };

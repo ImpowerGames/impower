@@ -1,11 +1,11 @@
 import { SparkTokenTag } from "../types/SparkTokenTag";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
 
-const SPARK_TOKEN_TAGS: Partial<Record<SparkdownNodeName, SparkTokenTag>> = {
+const SPARK_TOKEN_TAGS: {
+  [t in SparkdownNodeName]?: SparkTokenTag;
+} = {
   Comment: "comment",
   CommentContent: "comment_content",
-
-  BlankLine: "blank_line",
 
   FrontMatter_begin: "front_matter_start",
   FrontMatter_end: "front_matter_end",
@@ -20,22 +20,26 @@ const SPARK_TOKEN_TAGS: Partial<Record<SparkdownNodeName, SparkTokenTag>> = {
   SectionLevel: "section_level",
   SectionName: "section_name",
 
+  TypeIdentifier: "type_name",
+  IdentifierPath: "identifier_path",
+  AssignOperator: "assign_operator",
+  ValueText: "value_text",
+
   FlowBreak: "flow_break",
 
   Import: "import",
 
   DefineStruct: "struct",
-  StructArrayProperty: "struct_array_property",
-  StructScalarProperty: "struct_scalar_property",
+  StructMapItem: "struct_map_item",
+  StructScalarItem: "struct_scalar_item",
   StructMapProperty: "struct_map_property",
+  StructScalarProperty: "struct_scalar_property",
 
   DefineFunction: "function",
 
   Break: "break",
   Continue: "continue",
   Return: "return",
-  Do: "do",
-  Set: "set",
   Delete: "delete",
   If: "if",
   Elseif: "elseif",
@@ -43,6 +47,8 @@ const SPARK_TOKEN_TAGS: Partial<Record<SparkdownNodeName, SparkTokenTag>> = {
   While: "while",
   Until: "until",
   For: "for",
+  Call: "call",
+  Assign: "assign",
 
   Jump: "jump",
   JumpToSection: "jump_to_section",
