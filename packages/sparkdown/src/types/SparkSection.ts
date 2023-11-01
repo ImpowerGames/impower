@@ -8,7 +8,7 @@ export interface SparkSection extends SparkRange {
   to: number;
   level: number;
   name: string;
-  parent: string | null;
+  parent?: string;
   children?: string[];
   tokens?: SparkToken[];
   variables?: Record<string, SparkVariable>;

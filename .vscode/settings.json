@@ -63,5 +63,8 @@
     "editor.formatOnSave": true,
     "editor.formatOnPaste": false
   },
-  "cSpell.words": ["Sparkdown"]
+  "cSpell.words": [
+    "Sparkdown",
+    "Struct"
+  ]
 }

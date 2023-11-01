@@ -17,10 +17,10 @@ import { SparkStruct } from "../types/SparkStruct";
 import { SparkFrontMatterKeyword } from "../types/SparkTitleKeyword";
 import { SparkTitlePagePosition } from "../types/SparkTitlePosition";
 import {
+  ISparkDisplayToken,
+  ISparkStructFieldToken,
   SparkChoiceToken,
   SparkDialogueBoxToken,
-  SparkDisplayToken,
-  SparkStructFieldToken,
   SparkToken,
   SparkTokenTagMap,
 } from "../types/SparkToken";
@@ -304,9 +304,9 @@ const lintNameUnique = <
   from: number,
   to: number
 ): T | undefined => {
-  if (found?.name && found.from !== from) {
+  if (found?.key && found.from !== from) {
     const prefix = prefixArticle(type, true);
-    const name = found?.name;
+    const name = found?.key;
     const existingLine = found.line;
     if (existingLine >= 0) {
       diagnostic(
@@ -1053,7 +1053,7 @@ const addVariable = (
 const addField = (
   program: SparkProgram,
   config: SparkParserConfig | undefined,
-  currentToken: SparkStructFieldToken,
+  currentToken: ISparkStructFieldToken,
   currentSectionId: string,
   nameFrom: number,
   nameTo: number,
@@ -1107,7 +1107,7 @@ const addField = (
         from: nameFrom,
         to: nameTo,
         line,
-        name: name,
+        key: name,
         type: validType,
         value: validValue,
         valueText,
@@ -1325,7 +1325,7 @@ const processDisplayedContent = (
   currentToken: SparkToken,
   currentSectionId: string,
   state: SparkParseState,
-  token: SparkDisplayToken,
+  token: ISparkDisplayToken,
   contentFrom?: number
 ): void => {
   if (token.tag === "assets") {
@@ -1349,7 +1349,7 @@ const processDisplayedContent = (
     token.text = token.content;
     Object.entries(state.displayToken).forEach(([k, v]) => {
       if (!sparkLineKeys.includes(k)) {
-        token[k as keyof SparkDisplayToken] = v as never;
+        token[k as keyof ISparkDisplayToken] = v as never;
       }
     });
     token.content = `${state.displayToken.content}${token.content}`;
@@ -1542,8 +1542,8 @@ const getPrevSiblingToken = <T extends SparkToken>(
 };
 
 const updateFieldToken = (
-  fieldToken: SparkStructFieldToken,
-  currentFieldTokens: SparkStructFieldToken[]
+  fieldToken: ISparkStructFieldToken,
+  currentFieldTokens: ISparkStructFieldToken[]
 ): void => {
   const parentId = getParentId(fieldToken, currentFieldTokens);
   let id = parentId;
@@ -1627,7 +1627,7 @@ const hoistDeclarations = (
   let currentSectionId = "";
   let currentStructName = "";
   let currentSceneIndex = -1;
-  let currentFieldTokens: SparkStructFieldToken[] = [];
+  let currentFieldTokens: ISparkStructFieldToken[] = [];
   let stateType: string | undefined = "normal";
   let match: RegExpMatchArray | null = null;
 
@@ -2053,7 +2053,7 @@ const parseSpark = (
   let currentScope: SparkScopeType | "" = "";
   let currentSectionId = "";
   let currentStructName = "";
-  let currentFieldTokens: SparkStructFieldToken[] = [];
+  let currentFieldTokens: ISparkStructFieldToken[] = [];
   let previousToken: SparkToken | undefined;
   let previousNonSeparatorToken: SparkToken | undefined;
   let lastTitlePageToken: SparkToken | undefined;

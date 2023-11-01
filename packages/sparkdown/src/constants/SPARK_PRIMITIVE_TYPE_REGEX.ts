@@ -1,5 +1,5 @@
 const SPARK_PRIMITIVE_TYPE_REGEX = {
-  string: /([`"'])(?:(?=(\\?))\2.)*?(\1)/,
+  string: /([`"'])((?:(?=\\?)\2.)*?)(\1)/,
   boolean: /(true|false)/,
   number: /([\d]*[.][\d]*|[\d]+)/,
   variableAccess:

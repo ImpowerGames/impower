@@ -1,3 +1,4 @@
+import { compile } from "../../../../spark-evaluate/src/utils/compile";
 import getScopedValueContext from "../../../../sparkdown/src/utils/getScopedValueContext";
 import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { Context } from "../classes/Context";
@@ -22,7 +23,8 @@ export const previewLine = (
         const [sectionId] = getSectionAtLine(line, program?.sections || {});
         const [, valueMap] = getScopedValueContext(
           sectionId,
-          program?.sections || {}
+          program?.sections || {},
+          compile
         );
         context.game.ui.loadTheme(objectMap);
         context.game.ui.loadStyles(objectMap);

@@ -21,6 +21,10 @@ const SPARK_TOKEN_TAGS: {
   SectionName: "section_name",
 
   TypeIdentifier: "type_name",
+  StructName: "struct_name",
+  VariableName: "variable_name",
+  PropertyName: "property_name",
+  FunctionName: "function_name",
   IdentifierPath: "identifier_path",
   AssignOperator: "assign_operator",
   ValueText: "value_text",
@@ -33,7 +37,9 @@ const SPARK_TOKEN_TAGS: {
   StructMapItem: "struct_map_item",
   StructScalarItem: "struct_scalar_item",
   StructMapProperty: "struct_map_property",
+  StructMapProperty_begin: "struct_map_property_start",
   StructScalarProperty: "struct_scalar_property",
+  StructScalarProperty_begin: "struct_scalar_property_start",
 
   DefineFunction: "function",
 

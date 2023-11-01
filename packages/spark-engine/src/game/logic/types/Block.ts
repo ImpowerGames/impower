@@ -10,7 +10,7 @@ export interface Block {
   children?: string[];
   variables?: Record<
     string,
-    { name: string; type: string; value: unknown; parameter?: boolean }
+    { name: string; type: string; value: string; parameter?: boolean }
   >;
   commands?: Record<
     string,

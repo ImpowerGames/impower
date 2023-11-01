@@ -6,21 +6,24 @@ const getScopedValueContext = <
     name: string;
     parent?: string;
     children?: string[];
-    variables?: Record<string, { name: string; value: unknown }>;
+    variables?: Record<string, { name: string; type: string; value: string }>;
   }
 >(
   sectionId: string,
-  sections?: Record<string, T>
+  sections: Record<string, T>,
+  compiler: (expr: string, context?: Record<string, unknown>) => unknown[]
 ): [Record<string, string>, Record<string, unknown>] => {
   const [sectionIds, sectionValues] = getScopedContext(
     "sections",
     sectionId,
-    sections
+    sections,
+    compiler
   );
   const [variableIds, variableValues] = getScopedContext(
     "variables",
     sectionId,
-    sections
+    sections,
+    compiler
   );
   return [
     { ...sectionIds, ...variableIds },

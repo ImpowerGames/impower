@@ -1,12 +1,12 @@
 import SPARK_DISPLAY_TOKEN_TYPES from "../constants/SPARK_DISPLAY_TOKEN_TYPES";
-import { SparkDisplayToken } from "../types/SparkToken";
+import { ISparkDisplayToken } from "../types/SparkToken";
 import { SparkTokenTag } from "../types/SparkTokenTag";
 
-const isSparkDisplayToken = (obj: unknown): obj is SparkDisplayToken => {
+const isSparkDisplayToken = (obj: unknown): obj is ISparkDisplayToken => {
   if (!obj) {
     return false;
   }
-  const cast = obj as SparkDisplayToken;
+  const cast = obj as ISparkDisplayToken;
   return SPARK_DISPLAY_TOKEN_TYPES.includes(cast.tag as SparkTokenTag);
 };
 

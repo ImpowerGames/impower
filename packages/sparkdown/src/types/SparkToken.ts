@@ -1,4 +1,5 @@
 import { ISparkToken } from "./ISparkToken";
+import { SparkRange } from "./SparkRange";
 
 export interface SparkCommentToken extends ISparkToken<"comment"> {
   text: string;
@@ -16,6 +17,11 @@ export interface SparkChunkToken extends ISparkToken<"chunk"> {
 export interface SparkSectionToken extends ISparkToken<"section"> {
   level: number;
   name: string;
+
+  ranges?: {
+    level?: SparkRange;
+    name?: SparkRange;
+  };
 }
 
 export interface SparkImportToken extends ISparkToken<"import"> {
@@ -27,6 +33,51 @@ export interface SparkImportToken extends ISparkToken<"import"> {
 export interface SparkStructToken extends ISparkToken<"struct"> {
   type: string;
   name: string;
+  value: string;
+  fields?: (SparkStructScalarItemToken | SparkStructScalarPropertyToken)[];
+  arrayLength?: number;
+
+  ranges?: {
+    type?: SparkRange;
+    name?: SparkRange;
+  };
+}
+
+export interface ISparkStructFieldToken<T extends string>
+  extends ISparkToken<T> {
+  key: string | number;
+  value: string;
+
+  ranges: {
+    key?: SparkRange;
+    value?: SparkRange;
+  };
+}
+
+export interface SparkStructMapItemToken
+  extends ISparkStructFieldToken<"struct_map_item"> {
+  key: number;
+  arrayLength?: number;
+}
+
+export interface SparkStructScalarItemToken
+  extends ISparkStructFieldToken<"struct_scalar_item"> {
+  path: string;
+  key: number;
+  type: string;
+}
+
+export interface SparkStructMapPropertyToken
+  extends ISparkStructFieldToken<"struct_map_property"> {
+  key: string;
+  arrayLength?: number;
+}
+
+export interface SparkStructScalarPropertyToken
+  extends ISparkStructFieldToken<"struct_scalar_property"> {
+  path: string;
+  key: string;
+  type: string;
 }
 
 export interface SparkFunctionToken extends ISparkToken<"function"> {
@@ -40,8 +91,7 @@ export interface SparkReturnToken extends ISparkToken<"return"> {
 }
 
 export interface SparkDeleteToken extends ISparkToken<"delete"> {
-  name: string;
-  accessorValue: string;
+  accessor: string;
 }
 
 export interface SparkBranchToken
@@ -61,9 +111,16 @@ export interface SparkCallToken extends ISparkToken<"call"> {
 
 export interface SparkAssignToken extends ISparkToken<"assign"> {
   type: string;
-  target: string;
+  name: string;
   operator: string;
   value: string;
+
+  ranges?: {
+    type?: SparkRange;
+    name?: SparkRange;
+    operator?: SparkRange;
+    value?: SparkRange;
+  };
 }
 
 export interface SparkJumpToken extends ISparkToken<"jump"> {
@@ -92,41 +149,43 @@ export interface SparkAudioToken extends ISparkToken<"audio"> {
   args: string[];
 }
 
-export interface SparkDisplayToken<T extends string> extends ISparkToken<T> {
+export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
   content?: SparkToken[];
   waitUntilFinished: boolean;
   autoAdvance: boolean;
   clearOnAdvance: boolean;
 }
 
-export interface SparkBoxToken<T extends string> extends SparkDisplayToken<T> {}
+export interface ISparkBoxToken<T extends string>
+  extends ISparkDisplayToken<T> {}
 
-export interface SparkTransitionToken extends SparkDisplayToken<"transition"> {}
+export interface SparkTransitionToken
+  extends ISparkDisplayToken<"transition"> {}
 
 export interface SparkTransitionContentToken
-  extends SparkDisplayToken<"transition_content"> {
+  extends ISparkDisplayToken<"transition_content"> {
   text: string;
 }
 
-export interface SparkSceneToken extends SparkDisplayToken<"scene"> {
+export interface SparkSceneToken extends ISparkDisplayToken<"scene"> {
   scene: number;
 }
 
 export interface SparkSceneContentToken
-  extends SparkDisplayToken<"scene_content"> {
+  extends ISparkDisplayToken<"scene_content"> {
   text: string;
 }
 
-export interface SparkCenteredToken extends SparkDisplayToken<"centered"> {}
+export interface SparkCenteredToken extends ISparkDisplayToken<"centered"> {}
 
 export interface SparkCenteredContentToken
-  extends SparkDisplayToken<"centered_content"> {
+  extends ISparkDisplayToken<"centered_content"> {
   text: string;
 }
 
-export interface SparkActionToken extends SparkBoxToken<"action"> {}
+export interface SparkActionToken extends ISparkBoxToken<"action"> {}
 
-export interface SparkActionBoxToken extends SparkBoxToken<"action_box"> {}
+export interface SparkActionBoxToken extends ISparkBoxToken<"action_box"> {}
 
 export interface SparkBoxLineContinueToken
   extends ISparkToken<"box_line_continue"> {
@@ -154,7 +213,7 @@ export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
   autoAdvance: boolean;
 }
 
-export interface SparkDialogueBoxToken extends SparkBoxToken<"dialogue_box"> {
+export interface SparkDialogueBoxToken extends ISparkBoxToken<"dialogue_box"> {
   characterName: string;
   characterParenthetical: string;
   position?: "left" | "right";
@@ -173,13 +232,15 @@ export interface SparkOtherToken
     | "section_level"
     | "section_name"
     | "flow_break"
-    | "struct_map_item"
-    | "struct_scalar_item"
-    | "struct_map_property"
-    | "struct_scalar_property"
     | "break"
     | "continue"
     | "type_name"
+    | "struct_name"
+    | "variable_name"
+    | "property_name"
+    | "function_name"
+    | "struct_map_property_start"
+    | "struct_scalar_property_start"
     | "identifier_path"
     | "assign_operator"
     | "value_text"
@@ -208,6 +269,10 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   section: SparkSectionToken;
   import: SparkImportToken;
   struct: SparkStructToken;
+  struct_map_item: SparkStructMapItemToken;
+  struct_scalar_item: SparkStructScalarItemToken;
+  struct_map_property: SparkStructMapPropertyToken;
+  struct_scalar_property: SparkStructScalarPropertyToken;
   function: SparkFunctionToken;
   call: SparkCallToken;
   assign: SparkAssignToken;

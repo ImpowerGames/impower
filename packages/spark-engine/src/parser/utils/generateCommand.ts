@@ -14,7 +14,6 @@ import type {
   DisplayType,
   EnterCommandData,
   ReturnCommandData,
-  SetOperator,
 } from "../../data";
 
 const getCommandId = (
@@ -75,12 +74,7 @@ export const generateCommand = (
   if (token.ignore) {
     return null;
   }
-  if (
-    token.type === "assign" ||
-    token.type === "string" ||
-    token.type === "number" ||
-    token.type === "boolean"
-  ) {
+  if (token.tag === "assign" || token.tag === "struct") {
     const refId = getCommandId(token, file, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
     const newCommand: AssignCommandData = {
@@ -93,9 +87,9 @@ export const generateCommand = (
       source: getSource(token, file),
       indent: token.indent,
       params: {
-        variable: token.name || "",
-        operator: token.operator as SetOperator,
-        value: token.value as string,
+        variable: token.name,
+        operator: "operator" in token ? token.operator : "=",
+        value: token.value,
         waitUntilFinished: true,
       },
     };

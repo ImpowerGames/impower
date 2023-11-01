@@ -22,7 +22,6 @@ import {
   GrammarState,
 } from "../../../../grammar-compiler/src/grammar";
 
-import { printTree } from "../utils/printTree";
 import LezerParseRegion from "./LezerParseRegion";
 
 /** Amount of characters to slice before the starting position of the parse. */
@@ -225,7 +224,7 @@ export default class GrammarParse implements PartialParse {
         start,
         length,
       });
-      console.log(printTree(tree, this.region.input));
+      // console.log(printTree(tree, this.region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);

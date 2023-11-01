@@ -15,6 +15,9 @@
       "include": "#Comment"
     },
     {
+      "include": "#Label"
+    },
+    {
       "include": "#Newline"
     },
     {
@@ -128,6 +131,22 @@
         "1": {
           "tag": "content",
           "name": "markup.raw.unknown.sd"
+        }
+      }
+    },
+    "Label": {
+      "match": "^([=])(.*$)",
+      "captures": {
+        "1": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.leading.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Expression"
+            }
+          ]
         }
       }
     },
@@ -459,7 +478,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#VariableIdentifier"
+              "include": "#VariableName"
             }
           ]
         },
@@ -518,7 +537,7 @@
     "DefineFunction": {
       "tag": "meta",
       "name": "meta.definition.function.sd",
-      "begin": "^([ \\t]*)(define)([ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){0,2})([ \\t]+)(?!$))?($|[_a-zA-Z][\\[\\]._a-zA-Z0-9]*)(?=[(])",
+      "begin": "^([ \\t]*)(define)([ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){0,2})([ \\t]+)(?!$))?($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -544,8 +563,11 @@
           "name": "markup.raw.whitespace.separator.sd"
         },
         "6": {
-          "tag": "function(variableName)",
-          "name": "variable.other.constant.sd"
+          "patterns": [
+            {
+              "include": "#FunctionName"
+            }
+          ]
         }
       },
       "patterns": [
@@ -641,7 +663,7 @@
     "DefineStruct": {
       "tag": "meta",
       "name": "meta.definition.struct.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){0,2})([ \\t]+)(?!$))?($|[_a-zA-Z][\\[\\]._a-zA-Z0-9]*)($|[ \\t]*)(?:($|[:]?)($|[ \\t]*$)|([:]?)(.+$))",
+      "begin": "^([ \\t]*)(define)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){0,2})([ \\t]+)(?!$))?($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)(?:($|[:]?)($|[ \\t]*$)|([:]?)(.+$))",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -667,8 +689,11 @@
           "name": "markup.raw.whitespace.separator.sd"
         },
         "6": {
-          "tag": "variableName",
-          "name": "variable.other.constant.sd"
+          "patterns": [
+            {
+              "include": "#StructName"
+            }
+          ]
         },
         "7": {
           "tag": "content",
@@ -782,7 +807,7 @@
       },
       "patterns": [
         {
-          "include": "#Expression"
+          "include": "#ValueText"
         }
       ],
       "end": "(?=$)"
@@ -790,7 +815,7 @@
     "StructMapProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.map.sd",
-      "begin": "^([ \\t]*)([^ \\t:]+)([:])($|[ \\t]*$)",
+      "begin": "^([ \\t]*)([^ \\t:]+)($|[:])($|[ \\t]*$)",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -799,7 +824,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#PropertyIdentifier"
+              "include": "#PropertyName"
             },
             {
               "include": "#IllegalExpression"
@@ -843,7 +868,7 @@
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([ \\t]*)([^ \\t:]+)($|[:](?=.*\\S.*$))",
+      "begin": "^([ \\t]*)([^ \\t:]+)($|[:])($|[ \\t]*)(?=.*\\S.*$)",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -852,7 +877,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#PropertyIdentifier"
+              "include": "#PropertyName"
             },
             {
               "include": "#IllegalExpression"
@@ -862,11 +887,15 @@
         "3": {
           "tag": "updateOperator",
           "name": "keyword.operator.assignment.sd"
+        },
+        "4": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.separator.sd"
         }
       },
       "patterns": [
         {
-          "include": "#Expression"
+          "include": "#ValueText"
         }
       ],
       "end": "(?=$)"
@@ -1543,6 +1572,14 @@
         }
       }
     },
+    "ValueText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#Expression"
+        }
+      ]
+    },
     "IdentifierPath": {
       "match": "(.+)",
       "captures": {
@@ -1555,7 +1592,7 @@
               "include": "#PropertyAccessor"
             },
             {
-              "include": "#VariableIdentifier"
+              "include": "#VariableName"
             }
           ]
         }
@@ -1587,14 +1624,6 @@
           ]
         }
       }
-    },
-    "ValueText": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#Expression"
-        }
-      ]
     },
     "Jump": {
       "tag": "meta",
@@ -2634,7 +2663,7 @@
           "include": "#FunctionCall"
         },
         {
-          "include": "#VariableIdentifier"
+          "include": "#VariableName"
         },
         {
           "include": "#ExpressionPunctuations"
@@ -2689,6 +2718,8 @@
       }
     },
     "DoubleQuoteStringContent": {
+      "tag": "string",
+      "name": "string.quoted.double.content.sd",
       "match": "((?:[^\"\\\\]|\\\\.)*)"
     },
     "SingleQuoteString": {
@@ -2718,6 +2749,8 @@
       }
     },
     "SingleQuoteStringContent": {
+      "tag": "string",
+      "name": "string.quoted.double.content.sd",
       "match": "((?:[^'\\\\]|\\\\.)*)"
     },
     "ExpressionOperators": {
@@ -3222,14 +3255,19 @@
       "name": "invalid.illegal.property-declaration.sd",
       "match": "([_a-zA-Z][_a-zA-Z0-9]*)([:])(.*$)"
     },
-    "PropertyIdentifier": {
-      "tag": "propertyName",
-      "name": "variable.other.property.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)(?![(])"
-    },
-    "VariableIdentifier": {
+    "StructName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)(?![(])"
+    },
+    "VariableName": {
+      "tag": "variableName",
+      "name": "variable.other.constant.sd",
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)(?![(])"
+    },
+    "PropertyName": {
+      "tag": "propertyName",
+      "name": "variable.other.property.sd",
       "match": "([_a-zA-Z][_a-zA-Z0-9]*)(?![(])"
     },
     "TypeIdentifier": {
@@ -3343,7 +3381,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#VariableIdentifier"
+              "include": "#VariableName"
             }
           ]
         },
@@ -3409,7 +3447,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#VariableIdentifier"
+              "include": "#VariableName"
             }
           ]
         },

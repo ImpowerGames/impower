@@ -35,21 +35,6 @@ const getHover = (
         };
       }
       if (id && !reference.declaration) {
-        const variable = program.variables?.[id];
-        if (variable) {
-          const wrappedValue =
-            variable.type === "string"
-              ? `"${variable.value}"`
-              : `${variable.value}`;
-          const fencedCode = getFencedCode(`= ${wrappedValue}`);
-          return {
-            contents: {
-              kind: MarkupKind.Markdown,
-              value: fencedCode,
-            },
-            range,
-          };
-        }
         const section = program.sections?.[id];
         if (section) {
           const fencedCode = getFencedCode(
