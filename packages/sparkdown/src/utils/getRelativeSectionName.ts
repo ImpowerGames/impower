@@ -3,7 +3,6 @@ const getRelativeSectionName = <
     name: string;
     parent?: string;
     children?: string[];
-    index: number;
   }
 >(
   currentSectionId: string,

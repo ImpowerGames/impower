@@ -78,12 +78,15 @@ repository:
         name: markup.raw.unknown.sd
 
   Label:
-    match: ^([=])(.*$)
+    match: ^([=])([ \t]+)(.*$)
     captures:
       1:
         tag: content
-        name: markup.raw.whitespace.leading.sd
+        name: markup.raw.equal.sd
       2:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      3:
         patterns:
           - { include: "#Expression" }
 
@@ -263,6 +266,7 @@ repository:
       - { include: "#Define" }
       - { include: "#Call" }
       - { include: "#Assign" }
+      - { include: "#Access" }
 
   Import:
     tag: meta
@@ -295,7 +299,7 @@ repository:
         name: markup.raw.whitespace.separator.sd
       3:
         patterns:
-          - { include: "#VariableName" }
+          - { include: "#DeclarationName" }
       4:
         tag: content
         name: markup.raw.whitespace.separator.sd
@@ -321,13 +325,14 @@ repository:
   Define:
     patterns:
       - { include: "#DefineFunction" }
+      - { include: "#DefineVariable" }
       - { include: "#DefineStruct" }
       - { include: "#DefineInvalid" }
 
   DefineFunction:
     tag: meta
     name: meta.definition.function.sd
-    begin: ^([ \t]*)(define)([ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})([ \t]+)(?!$))?($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])
+    begin: ^([ \t]*)(define)([ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){1,2}|[_a-zA-Z][_a-zA-Z0-9]*(?=[ \t]+\S)))?($|[ \t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])
     beginCaptures:
       1:
         tag: content
@@ -405,10 +410,10 @@ repository:
         tag: punctuation
         name: punctuation.separator.comma.sd
 
-  DefineStruct:
+  DefineVariable:
     tag: meta
-    name: meta.definition.struct.sd
-    begin: ^([ \t]*)(define)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})([ \t]+)(?!$))?($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)(?:($|[:]?)($|[ \t]*$)|([:]?)(.+$))
+    name: meta.definition.variable.sd
+    begin: ^([ \t]*)(define)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){1,2}|[_a-zA-Z][_a-zA-Z0-9]*(?=[ \t]+\S)))?($|[ \t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)([=])($|[ \t]*)
     beginCaptures:
       1:
         tag: content
@@ -427,7 +432,47 @@ repository:
         name: markup.raw.whitespace.separator.sd
       6:
         patterns:
-          - { include: "#StructName" }
+          - { include: "#DeclarationName" }
+      7:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      8:
+        patterns:
+          - { include: "#AssignOperator" }
+      9:
+        tag: content
+        name: markup.raw.whitespace.trailing.sd
+    patterns:
+      - { include: "#ValueText" }
+    end: ([;])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationSemicolon" }
+
+  DefineStruct:
+    tag: meta
+    name: meta.definition.struct.sd
+    begin: ^([ \t]*)(define)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){1,2}|[_a-zA-Z][_a-zA-Z0-9]*(?=[ \t]+\S)))?($|[ \t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)(?:($|[:]?)($|[ \t]*$)|([:]?)(.+$))
+    beginCaptures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        tag: controlKeyword
+        name: keyword.control.definition.object.sd
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        patterns:
+          - { include: "#TypeIdentifier" }
+      5:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      6:
+        patterns:
+          - { include: "#DeclarationName" }
       7:
         tag: content
         name: markup.raw.whitespace.separator.sd
@@ -445,13 +490,18 @@ repository:
           - { include: "#Unknown" }
     patterns:
       - { include: "#Comment" }
+      - { include: "#StructField" }
+      - { include: "#Newline" }
+      - { include: "#Unknown" }
+    end: (?=^$)|(?=^(?!\1(?:[ ]{2,}|[\t]+)))
+
+  StructField:
+    emit: true
+    patterns:
       - { include: "#StructMapItem" }
       - { include: "#StructScalarItem" }
       - { include: "#StructMapProperty" }
       - { include: "#StructScalarProperty" }
-      - { include: "#Newline" }
-      - { include: "#Unknown" }
-    end: (?=^$)|(?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
   StructMapItem:
     tag: meta
@@ -923,27 +973,21 @@ repository:
   Assign:
     tag: meta
     name: meta.assign.sd
-    begin: ^([ \t]*)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\[\]){0,2})([ \t]+)(?!$))?($|[_a-zA-Z][\[\]._a-zA-Z0-9]*)($|[ \t]*)([!?~^|&<>%/*+-]{0,2}[=])($|[ \t]*)
+    begin: ^([ \t]*)($|.+?)($|[ \t]*)([!?~^|&<>%/*+-]{0,2}[=])($|[ \t]*)
     beginCaptures:
       1:
         tag: content
         name: markup.raw.whitespace.indent.sd
       2:
         patterns:
-          - { include: "#TypeIdentifier" }
+          - { include: "#IdentifierPath" }
       3:
         tag: content
         name: markup.raw.whitespace.separator.sd
       4:
         patterns:
-          - { include: "#IdentifierPath" }
-      5:
-        tag: content
-        name: markup.raw.whitespace.separator.sd
-      6:
-        patterns:
           - { include: "#AssignOperator" }
-      7:
+      5:
         tag: content
         name: markup.raw.whitespace.trailing.sd
     patterns:
@@ -953,6 +997,18 @@ repository:
       1:
         patterns:
           - { include: "#PunctuationSemicolon" }
+
+  Access:
+    tag: meta
+    name: meta.access.sd
+    match: ^([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*[?]?[.][_a-zA-Z].*|[_a-zA-Z][_a-zA-Z0-9]*(?:[?][.])?\[.*)$
+    captures:
+      1:
+        tag: content
+        name: markup.raw.whitespace.indent.sd
+      2:
+        patterns:
+          - { include: "#IdentifierPath" }
 
   ValueText:
     emit: true
@@ -967,6 +1023,12 @@ repository:
           - { include: "#ArrayLiteral" }
           - { include: "#PropertyAccessor" }
           - { include: "#VariableName" }
+
+  DeclarationName:
+    emit: true
+    patterns:
+      - { include: "#VariableName" }
+      - { include: "#Unknown" }
 
   AssignOperator:
     match: (.+)
@@ -1083,9 +1145,11 @@ repository:
         name: keyword.operator.expression.end.image.sd
 
   ImageContent:
-    tag: variableName
-    name: variable.other.constant.image.sd
     match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetContent" }
 
   Audio:
     tag: macroName
@@ -1127,8 +1191,47 @@ repository:
         name: keyword.operator.expression.end.audio.sd
 
   AudioContent:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#AssetContent" }
+
+  AssetContent:
+    match: (?:([@])($|[^@ \t]+)([ \t]*))?((?:[^@ \t:]+[ \t]*)+)?($|[:])($|.*)
+    captures:
+      1:
+        tag: controlKeyword
+        name: keyword.control.asset.layer.sd
+      2:
+        patterns:
+          - { include: "#AssetLayer" }
+      3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        patterns:
+          - { include: "#AssetName" }
+      5:
+        tag: separator
+        name: meta.template.expression.colon.sd
+      6:
+        patterns:
+          - { include: "#AssetArguments" }
+
+  AssetLayer:
+    tag: controlKeyword
+    name: keyword.control.asset.layer.sd
+    match: (.+)
+
+  AssetName:
     tag: variableName
-    name: variable.other.constant.audio.sd
+    name: variable.other.constant.asset.name.sd
+    match: (.+)
+
+  AssetArguments:
+    tag: keyword
+    name: keyword.asset.arguments.sd
     match: (.+)
 
   Transition:
@@ -1184,6 +1287,9 @@ repository:
     patterns:
       - { include: "#Inline" }
     end: (?=$)
+
+  SceneLocationTime:
+    match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.][ \t]*(.*?)[ \t]+[-][ \t]+(.*?)[ \t]*$
 
   Centered:
     tag: monospace
@@ -2018,11 +2124,6 @@ repository:
     name: punctuation.separator.semicolon.sd
     match: ";"
 
-  PunctuationColon:
-    tag: punctuation
-    name: punctuation.separator.colon.sd
-    match: ":"
-
   ParenExpression:
     brackets: true
     begin: ([(])
@@ -2051,7 +2152,7 @@ repository:
   IllegalPropertyDeclaration:
     tag: invalid
     name: invalid.illegal.property-declaration.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)([:])(.*$)
+    match: ([_a-zA-Z][_a-zA-Z0-9]*)([:])(.*?)($|(?=[;}]))
 
   StructName:
     tag: variableName
@@ -2090,6 +2191,7 @@ repository:
         name: punctuation.accessor.optional.sd
 
   TemplateString:
+    tag: string
     name: string.template.ts
     begin: ([`])
     beginCaptures:
@@ -2098,14 +2200,19 @@ repository:
         name: punctuation.definition.string.template.begin.sd
     patterns:
       - { include: "#Color" }
-      - { include: "#TemplateStringSubstitution" }
       - { include: "#StringCharacterEscape" }
-      - { include: "#PlainText" }
+      - { include: "#TemplateStringSubstitution" }
+      - { include: "#TemplateStringContent" }
     end: ([`])
     endCaptures:
       1:
         tag: string
         name: punctuation.definition.string.template.end.sd
+
+  TemplateStringContent:
+    tag: string
+    name: string.quoted.template.content.sd
+    match: (.)
 
   TemplateStringSubstitution:
     patterns:
@@ -2115,12 +2222,12 @@ repository:
   TemplateStringExpressionSubstitution:
     brackets: true
     name: meta.template.expression.sd
+    contentName: meta.embedded.line.sd
     begin: ([$][{])
     beginCaptures:
       1:
         tag: keyword
         name: punctuation.definition.template-expression.begin.sd
-    contentName: meta.embedded.line.sd
     patterns:
       - { include: "#Expression" }
     end: ([}])
@@ -2131,7 +2238,7 @@ repository:
 
   TemplateStringConditionalSubstitution:
     brackets: true
-    begin: ([{])([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)([:]?)
+    begin: ([{])([ \t]*)(?:(.*?)($|[ \t]*)([:]))?
     beginCaptures:
       1:
         tag: keyword
@@ -2142,29 +2249,26 @@ repository:
       3:
         patterns:
           - { include: "#VariableName" }
+          - { include: "#Unknown" }
       4:
         tag: content
         name: markup.raw.whitespace.trailing.sd
       5:
-        tag: content
+        tag: separator
         name: meta.template.expression.colon.sd
     patterns:
-      - { include: "#TemplateStringConditionalSubstitutionOption" }
+      - { include: "#TemplateStringConditionalDelimiter" }
+      - { include: "#TemplateStringContent" }
     end: ([}])
     endCaptures:
       1:
         tag: keyword
         name: punctuation.definition.template-expression.end.sd
 
-  TemplateStringConditionalSubstitutionOption:
-    begin: (?=.*$)
-    patterns:
-      - { include: "#PlainText" }
-    end: $|(?=[}])|([|])
-    endCaptures:
-      1:
-        tag: content
-        name: meta.template.expression.delimiter.sd
+  TemplateStringConditionalDelimiter:
+    tag: separator
+    name: meta.template.expression.delimiter.sd
+    match: ([|])
 
   InlineTemplateStringSubstitution:
     patterns:
@@ -2191,22 +2295,13 @@ repository:
         tag: content
         name: meta.template.expression.colon.sd
     patterns:
-      - { include: "#InlineTemplateStringConditionalSubstitutionOption" }
+      - { include: "#TemplateStringConditionalDelimiter" }
+      - { include: "#Inline" }
     end: ([}])
     endCaptures:
       1:
         tag: keyword
         name: punctuation.definition.template-expression.end.sd
-
-  InlineTemplateStringConditionalSubstitutionOption:
-    begin: (?=.*$)
-    patterns:
-      - { include: "#Inline" }
-    end: $|(?=[}])|([|])
-    endCaptures:
-      1:
-        tag: content
-        name: meta.template.expression.delimiter.sd
 
   StringCharacterEscape:
     tag: escape

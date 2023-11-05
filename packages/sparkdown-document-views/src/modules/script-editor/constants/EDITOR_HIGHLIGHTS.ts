@@ -48,6 +48,8 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.regexp, color: c.scene },
   { tag: tags.labelName, color: c.transition },
 
+  { tag: tags.separator, color: c.foreground },
+
   { tag: tags.invalid, color: c.invalid },
 
   { tag: tags.comment, color: c.comment },

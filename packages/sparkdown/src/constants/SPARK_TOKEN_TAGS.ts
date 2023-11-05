@@ -21,7 +21,7 @@ const SPARK_TOKEN_TAGS: {
   SectionName: "section_name",
 
   TypeIdentifier: "type_name",
-  StructName: "struct_name",
+  DeclarationName: "declaration_name",
   VariableName: "variable_name",
   PropertyName: "property_name",
   FunctionName: "function_name",
@@ -33,7 +33,10 @@ const SPARK_TOKEN_TAGS: {
 
   Import: "import",
 
+  DefineVariable: "variable",
+
   DefineStruct: "struct",
+  StructField: "struct_field",
   StructMapItem: "struct_map_item",
   StructScalarItem: "struct_scalar_item",
   StructMapProperty: "struct_map_property",
@@ -55,6 +58,7 @@ const SPARK_TOKEN_TAGS: {
   For: "for",
   Call: "call",
   Assign: "assign",
+  Access: "access",
 
   Jump: "jump",
   JumpToSection: "jump_to_section",

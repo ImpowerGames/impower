@@ -16,12 +16,17 @@ import { SparkStruct } from "../types/SparkStruct";
 import {
   SparkDialogueBoxToken,
   SparkDialogueToken,
+  SparkStructToken,
   SparkToken,
   SparkTokenTagMap,
+  SparkVariableToken,
 } from "../types/SparkToken";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
+import calculateSpeechDuration from "../utils/calculateSpeechDuration";
 import createSparkToken from "../utils/createSparkToken";
+import getColorMetadata from "../utils/getColorMetadata";
+import getRelativeSectionName from "../utils/getRelativeSectionName";
 import getScopedItemId from "../utils/getScopedItemId";
 import getScopedValueContext from "../utils/getScopedValueContext";
 import setProperty from "../utils/setProperty";
@@ -31,21 +36,14 @@ const WHITESPACE_REGEX = /[ \t]+/;
 const UNESCAPED_DOUBLE_QUOTE = /(?<!\\)(?:(\\\\)*)["]/g;
 const ESCAPED_DOUBLE_QUOTE = /\\["]/g;
 
-const VARIABLE_NAME_REGEX = new RegExp(
-  GRAMMAR_DEFINITION.repository.VariableName.match,
+const SCENE_LOCATION_TIME_REGEX = new RegExp(
+  `^${GRAMMAR_DEFINITION.repository.SceneLocationTime.match}$`,
   GRAMMAR_DEFINITION.flags
 );
 
-const BUILT_IN_TYPES = [
-  "string",
-  "number",
-  "bigint",
-  "boolean",
-  "symbol",
-  "undefined",
-  "object",
-  "function",
-];
+const PRIMITIVE_TYPES = ["string", "number", "boolean"];
+
+const BUILT_IN_TYPES = [...PRIMITIVE_TYPES, "undefined", "object", "function"];
 
 const vowels = ["a", "e", "i", "o", "u"];
 const lowercaseArticles = ["an", "a"];
@@ -157,7 +155,6 @@ export default class SparkParser {
     )[] = [];
     let line = 0;
     let currentSectionId = "";
-    let sceneNumber = 1;
     program.sections[currentSectionId] = {
       level: 0,
       name: "",
@@ -174,13 +171,49 @@ export default class SparkParser {
         tags.includes(t.tag as unknown as K)
       ) as SparkTokenTagMap[K];
 
-    const addToken = (token: SparkToken) => {
-      program.tokens.push(token);
+    const addToken = (tok: SparkToken) => {
+      program.tokens.push(tok);
       const currentSection = program.sections[currentSectionId];
       if (currentSection) {
         currentSection.tokens ??= [];
-        currentSection.tokens.push(token);
+        currentSection.tokens.push(tok);
       }
+    };
+
+    const declareStruct = (tok: SparkStruct) => {
+      const id = `${currentSectionId}.${tok.name}`;
+      program.structs ??= {};
+      program.structs[id] ??= tok;
+    };
+
+    const getDeclarationId = (tok: { name: string }) => {
+      return `${currentSectionId}.${tok.name}`;
+    };
+
+    const validateDeclaration = (
+      tok: SparkVariableToken | SparkStructToken
+    ) => {
+      return validateName(tok, currentSectionId, tok.name, tok.ranges?.name);
+    };
+
+    const declareVariable = (tok: SparkVariableToken | SparkStructToken) => {
+      const id = getDeclarationId(tok);
+      // Create variable declaration
+      const variable = {
+        line: tok.line,
+        from: tok.from,
+        to: tok.to,
+        name: tok.name,
+        type: tok.type,
+        value: tok.value,
+      };
+      // Add variable declaration to program
+      program.variables ??= {};
+      program.variables[id] ??= variable;
+      // Add variable declaration to section
+      const currentSection = program.sections[currentSectionId]!;
+      currentSection.variables ??= {};
+      currentSection.variables[id] ??= variable;
     };
 
     const _construct = (
@@ -269,13 +302,106 @@ export default class SparkParser {
     ): "right" | "left" | undefined =>
       position === "left" ? "right" : position === "right" ? "left" : undefined;
 
+    const validateSectionReference = (
+      tok: SparkToken,
+      currentSectionId: string,
+      expression: string,
+      from: number,
+      to: number
+    ): SparkSection | undefined => {
+      if (expression == null || !program.sections) {
+        return undefined;
+      }
+      if (expression == "") {
+        return program.sections[""];
+      }
+      const name = getRelativeSectionName(
+        currentSectionId,
+        program.sections,
+        expression
+      );
+      const id = findSectionId(program.sections, currentSectionId, name);
+      program.metadata.lines ??= [];
+      program.metadata.lines[tok.line] ??= {};
+      program.metadata.lines[tok.line]!.references ??= [];
+      program.metadata.lines[tok.line]!.references!.push({
+        from,
+        to,
+        name,
+        id,
+      });
+      const found = id ? program.sections?.[id] : undefined;
+      if (!found) {
+        reportMissing(tok, "section", name, { from, to });
+        return undefined;
+      }
+      return found;
+    };
+
+    const validateAssetReference = (
+      tok: SparkToken,
+      currentSectionId: string,
+      type: string,
+      name: string,
+      nameRange: SparkRange | undefined
+    ): SparkVariable | undefined => {
+      if (!name || !program.variables) {
+        return undefined;
+      }
+      const from = nameRange?.from ?? -1;
+      const to = nameRange?.to ?? -1;
+      const id = findVariableId(program.variables, currentSectionId, name);
+      program.metadata.lines ??= [];
+      program.metadata.lines[tok.line] ??= {};
+      program.metadata.lines[tok.line]!.references ??= [];
+      program.metadata.lines[tok.line]!.references!.push({
+        from,
+        to,
+        name,
+        id,
+      });
+      const found = id ? program.variables?.[id] : undefined;
+      if (!found) {
+        reportMissing(tok, type, name, nameRange, "warning");
+        return undefined;
+      }
+      if (found.type !== type) {
+        diagnostic(
+          program,
+          tok,
+          `'${name}' is not ${prefixArticle(type)}`,
+          [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+          from,
+          to
+        );
+        return undefined;
+      }
+      return found;
+    };
+
+    const recordColors = (
+      value: string,
+      expressionFrom: number | undefined
+    ) => {
+      // Record any color strings
+      const colorMetadata = getColorMetadata(value, expressionFrom);
+      if (colorMetadata) {
+        program.metadata.colors ??= [];
+        program.metadata.colors?.push(colorMetadata);
+      }
+    };
+
     const recordExpressionReferences = (
       tok: SparkToken,
-      expressionFrom: number,
+      expressionFrom: number | undefined,
       references: CompilerDiagnostic[],
       ids: Record<string, string>
     ) => {
-      if (references?.length > 0) {
+      if (
+        expressionFrom != null &&
+        expressionFrom >= 0 &&
+        references?.length > 0
+      ) {
         // Record any references
         for (let i = 0; i < references.length; i += 1) {
           const r = references[i];
@@ -298,10 +424,14 @@ export default class SparkParser {
 
     const reportExpressionDiagnostics = (
       tok: SparkToken,
-      expressionFrom: number,
+      expressionFrom: number | undefined,
       diagnostics: CompilerDiagnostic[]
     ) => {
-      if (diagnostics?.length > 0) {
+      if (
+        expressionFrom != null &&
+        expressionFrom >= 0 &&
+        diagnostics?.length > 0
+      ) {
         // Report any problems encountered during compilation
         for (let i = 0; i < diagnostics.length; i += 1) {
           const d = diagnostics[i];
@@ -314,11 +444,29 @@ export default class SparkParser {
       }
     };
 
+    const compileAndValidate = (
+      tok: SparkToken,
+      value: string,
+      valueRange: SparkRange | undefined,
+      ids: Record<string, string>,
+      context: Record<string, unknown>
+    ) => {
+      const [compiledValue, valueDiagnostics, valueReferences] = compiler(
+        value,
+        context
+      );
+      recordColors(value, valueRange?.from);
+      recordExpressionReferences(tok, valueRange?.from, valueReferences, ids);
+      reportExpressionDiagnostics(tok, valueRange?.from, valueDiagnostics);
+      return compiledValue;
+    };
+
     const reportMissing = (
       tok: SparkToken,
       type: string,
       name: string,
-      nameRange?: SparkRange
+      nameRange?: SparkRange,
+      severity?: "error" | "warning" | "info"
     ) => {
       diagnostic(
         program,
@@ -326,7 +474,8 @@ export default class SparkParser {
         `Cannot find ${type} named '${name}'`,
         undefined,
         nameRange?.from,
-        nameRange?.to
+        nameRange?.to,
+        severity
       );
     };
 
@@ -355,6 +504,17 @@ export default class SparkParser {
       );
     };
 
+    const validateTypeExists = (
+      tok: SparkToken,
+      type: string,
+      typeRange: SparkRange | undefined,
+      context: Record<string, unknown>
+    ) => {
+      if (type && !BUILT_IN_TYPES.includes(type) && !context[type]) {
+        reportMissing(tok, "type", type, typeRange);
+      }
+    };
+
     const validateTypeMatch = (
       tok: SparkToken,
       compiledType: string,
@@ -362,11 +522,17 @@ export default class SparkParser {
       assignedRange?: SparkRange,
       declaredRange?: SparkRange
     ): boolean => {
+      const baseCompiledType = BUILT_IN_TYPES.includes(compiledType)
+        ? compiledType
+        : "object";
+      const baseDeclaredType = BUILT_IN_TYPES.includes(declaredType)
+        ? declaredType
+        : "object";
       if (
-        declaredType &&
-        declaredType !== "undefined" &&
-        compiledType !== "undefined" &&
-        compiledType !== declaredType
+        baseDeclaredType &&
+        baseDeclaredType !== "undefined" &&
+        baseCompiledType !== "undefined" &&
+        baseCompiledType !== baseDeclaredType
       ) {
         const actions = declaredRange
           ? [
@@ -530,6 +696,37 @@ export default class SparkParser {
             }
           }
 
+          // variable
+          if (tok.tag === "variable") {
+            addToken(tok);
+          }
+          if (tok.tag === "type_name") {
+            const parent = lookup("variable");
+            if (parent) {
+              parent.type = text;
+              parent.ranges ??= {};
+              parent.ranges.type = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "declaration_name") {
+            const parent = lookup("variable");
+            if (parent) {
+              parent.name = text;
+              parent.ranges ??= {};
+              parent.ranges.name = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "value_text") {
+            const parent = lookup("variable");
+            if (parent) {
+              parent.value ??= "";
+              parent.value += text;
+              parent.ranges ??= {};
+              parent.ranges.value ??= { from: tok.from, to: tok.to };
+              parent.ranges.value.to = tok.to;
+            }
+          }
+
           // struct
           if (tok.tag === "struct") {
             addToken(tok);
@@ -542,12 +739,20 @@ export default class SparkParser {
               parent.ranges.type = { from: tok.from, to: tok.to };
             }
           }
-          if (tok.tag === "struct_name") {
+          if (tok.tag === "declaration_name") {
             const parent = lookup("struct");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
               parent.ranges.name = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "struct_field") {
+            const parent = lookup("struct");
+            if (parent) {
+              parent.ranges ??= {};
+              parent.ranges.value ??= { from: tok.from, to: tok.to };
+              parent.ranges.value.to = tok.to;
             }
           }
           if (tok.tag === "struct_map_property") {
@@ -671,6 +876,27 @@ export default class SparkParser {
             }
           }
 
+          // access
+          if (tok.tag === "access") {
+            addToken(tok);
+          }
+          if (tok.tag === "type_name") {
+            const parent = lookup("access");
+            if (parent) {
+              parent.type = text;
+              parent.ranges ??= {};
+              parent.ranges.type = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "identifier_path") {
+            const parent = lookup("access");
+            if (parent) {
+              parent.name = text;
+              parent.ranges ??= {};
+              parent.ranges.name = { from: tok.from, to: tok.to };
+            }
+          }
+
           // chunk
           if (tok.tag === "chunk") {
             addToken(tok);
@@ -679,6 +905,8 @@ export default class SparkParser {
             const parent = lookup("chunk");
             if (parent) {
               parent.name = text.split(".")[0] || "";
+              parent.ranges ??= {};
+              parent.ranges.name = { from: tok.from, to: tok.to };
             }
           }
 
@@ -731,6 +959,13 @@ export default class SparkParser {
             const parent = lookup("jump", "choice");
             if (parent) {
               parent.section = text;
+              validateSectionReference(
+                tok,
+                currentSectionId,
+                text,
+                tok.from,
+                tok.to
+              );
             }
           }
 
@@ -749,7 +984,6 @@ export default class SparkParser {
 
           // scene
           if (tok.tag === "scene") {
-            tok.scene = sceneNumber;
             addToken(tok);
           }
           if (tok.tag === "scene_content") {
@@ -962,16 +1196,13 @@ export default class SparkParser {
       },
       leave: (node) => {
         const tok = stack.at(-1);
-        const id = nodeNames[node.type]!;
-        const tag = SPARK_TOKEN_TAGS[id];
+        const tag = SPARK_TOKEN_TAGS[nodeNames[node.type]!];
 
         if (tok && tok.tag === tag) {
           if (tok.tag === "chunk") {
-            sceneNumber = 1;
             prevDisplayPositionalTokens.length = 0;
             const parentId = "";
             const parentSection = program.sections[parentId];
-            currentSectionId = parentId + "." + tok.name;
             const section = {
               level: 0,
               name: tok.name,
@@ -980,42 +1211,71 @@ export default class SparkParser {
               to: tok.to,
               parent: parentId,
             };
-            program.sections[currentSectionId] = section;
-            if (parentSection) {
-              parentSection.children ??= [];
-              parentSection.children.push(currentSectionId);
-            }
-          }
-
-          if (tok.tag === "section") {
-            prevDisplayPositionalTokens.length = 0;
             if (
               validateName(tok, currentSectionId, tok.name, tok.ranges?.name)
             ) {
-              const currentSection = program.sections[currentSectionId]!;
-              const currentLevel = currentSection.level;
-              const levelDiff = tok.level - currentLevel;
-              const parentId =
-                levelDiff === 0
-                  ? currentSectionId.split(".").slice(0, -1).join(".")
-                  : levelDiff > 0
-                  ? currentSectionId
-                  : currentSectionId.split(".").slice(0, levelDiff).join(".");
-              const parentSection = program.sections[parentId];
-              const section = {
-                level: tok.level,
-                name: tok.name,
-                line: tok.line,
-                from: tok.from,
-                to: tok.to,
-                parent: parentId,
-              };
               currentSectionId = parentId + "." + tok.name;
               program.sections[currentSectionId] = section;
               if (parentSection) {
                 parentSection.children ??= [];
                 parentSection.children.push(currentSectionId);
               }
+              program.metadata.lines ??= [];
+              program.metadata.lines[section.line] ??= {};
+              program.metadata.lines[section.line]!.section ??=
+                currentSectionId;
+              program.metadata.lines[section.line]!.references ??= [];
+              program.metadata.lines[section.line]!.references!.push({
+                from: tok?.ranges?.name?.from ?? -1,
+                to: tok?.ranges?.name?.to ?? -1,
+                name: section.name,
+                id: currentSectionId,
+                declaration: true,
+              });
+            }
+          }
+
+          if (tok.tag === "section") {
+            prevDisplayPositionalTokens.length = 0;
+            const currentSection = program.sections[currentSectionId]!;
+            const currentLevel = currentSection.level;
+            const levelDiff = tok.level - currentLevel;
+            const parentId =
+              levelDiff === 0
+                ? currentSectionId.split(".").slice(0, -1).join(".")
+                : levelDiff > 0
+                ? currentSectionId
+                : currentSectionId.split(".").slice(0, levelDiff).join(".");
+            const parentSection = program.sections[parentId];
+            const section = {
+              level: tok.level,
+              name: tok.name,
+              line: tok.line,
+              from: tok.from,
+              to: tok.to,
+              parent: parentId,
+            };
+            if (
+              validateName(tok, currentSectionId, tok.name, tok.ranges?.name)
+            ) {
+              currentSectionId = parentId + "." + tok.name;
+              program.sections[currentSectionId] = section;
+              if (parentSection) {
+                parentSection.children ??= [];
+                parentSection.children.push(currentSectionId);
+              }
+              program.metadata.lines ??= [];
+              program.metadata.lines[section.line] ??= {};
+              program.metadata.lines[section.line]!.section ??=
+                currentSectionId;
+              program.metadata.lines[section.line]!.references ??= [];
+              program.metadata.lines[section.line]!.references!.push({
+                from: tok?.ranges?.name?.from ?? -1,
+                to: tok?.ranges?.name?.to ?? -1,
+                name: section.name,
+                id: currentSectionId,
+                declaration: true,
+              });
             }
           }
 
@@ -1023,13 +1283,53 @@ export default class SparkParser {
             prevDisplayPositionalTokens.length = 0;
           }
 
+          if (tok.tag === "image") {
+            validateAssetReference(
+              tok,
+              currentSectionId,
+              "image",
+              tok.name,
+              tok?.ranges?.name
+            );
+          }
+
+          if (tok.tag === "audio") {
+            validateAssetReference(
+              tok,
+              currentSectionId,
+              "audio",
+              tok.name,
+              tok?.ranges?.name
+            );
+          }
+
           if (tok.tag === "transition") {
             prevDisplayPositionalTokens.length = 0;
           }
 
           if (tok.tag === "scene") {
-            sceneNumber += 1;
             prevDisplayPositionalTokens.length = 0;
+            const text =
+              tok.content
+                ?.map((t) => t.text)
+                .join("")
+                .toUpperCase() || "";
+            const locationTimeMatch = text.match(SCENE_LOCATION_TIME_REGEX);
+            const location = locationTimeMatch?.[1] || "";
+            const time = locationTimeMatch?.[2] || "";
+            program.metadata.scenes ??= [];
+            program.metadata.scenes.push({
+              index: tok.index,
+              name: text,
+              line: tok.line,
+              location,
+              time,
+              actionDuration: 0,
+              dialogueDuration: 0,
+            });
+            program.metadata.lines ??= [];
+            program.metadata.lines[tok.line] ??= {};
+            program.metadata.lines[tok.line]!.scene = tok.index;
           }
 
           if (tok.tag === "centered") {
@@ -1038,6 +1338,46 @@ export default class SparkParser {
 
           if (tok.tag === "action") {
             prevDisplayPositionalTokens.length = 0;
+          }
+
+          if (tok.tag === "action_box") {
+            // Record estimated speechDuration
+            const text =
+              tok.content
+                ?.map((t) =>
+                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
+                    ? t.text
+                    : ""
+                )
+                .join("") || "";
+            tok.speechDuration = calculateSpeechDuration(text);
+            program.metadata.actionDuration =
+              (program.metadata.actionDuration || 0) + tok.speechDuration;
+            const currentScene = program.metadata?.scenes?.at(-1);
+            if (currentScene) {
+              currentScene.actionDuration =
+                (currentScene.actionDuration || 0) + tok.speechDuration;
+            }
+          }
+
+          if (tok.tag === "dialogue_box") {
+            // Record estimated speechDuration
+            const text =
+              tok.content
+                ?.map((t) =>
+                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
+                    ? t.text
+                    : ""
+                )
+                .join("") || "";
+            tok.speechDuration = calculateSpeechDuration(text);
+            program.metadata.dialogueDuration =
+              (program.metadata.dialogueDuration || 0) + tok.speechDuration;
+            const currentScene = program.metadata?.scenes?.at(-1);
+            if (currentScene) {
+              currentScene.dialogueDuration =
+                (currentScene.dialogueDuration || 0) + tok.speechDuration;
+            }
           }
 
           if (tok.tag === "dialogue_character_simultaneous") {
@@ -1053,133 +1393,117 @@ export default class SparkParser {
           }
 
           if (tok.tag === "struct") {
-            if (lookup("if", "elseif", "else", "while", "for", "until")) {
-            }
             const [ids, context] = getScopedValueContext(
               currentSectionId,
               program.sections,
               compiler
             );
-            const id = `${currentSectionId}.${tok.name}`;
-            const type = tok.type;
-            if (type && !BUILT_IN_TYPES.includes(type) && !context[type]) {
-              reportMissing(tok, "type", type, tok.ranges?.type);
-            }
-            const existingStruct = program.structs?.[id];
-            if (tok.fields) {
-              const propertyPaths: Record<string, SparkField> = {};
-              tok.fields.forEach((field) => {
-                if (
-                  validateNameAllowed(
-                    field,
-                    String(field.key),
-                    field.ranges?.key
-                  )
-                ) {
-                  const propertyPath = field.path + "." + field.key;
-                  const existingField = propertyPaths[propertyPath];
-                  if (existingField) {
-                    reportDuplicate(
+
+            validateTypeExists(tok, tok.type, tok.ranges?.type, context);
+            tok.type = tok.type ?? "object";
+
+            if (PRIMITIVE_TYPES.includes(tok.type)) {
+              if (tok.type === "string") {
+                tok.value = `""`;
+              }
+              if (tok.type === "number") {
+                tok.value = "0";
+              }
+              if (tok.type === "boolean") {
+                tok.value = "false";
+              }
+              if (validateDeclaration(tok)) {
+                declareVariable(tok);
+              }
+            } else {
+              if (tok.fields) {
+                const propertyPaths: Record<string, SparkField> = {};
+                tok.fields.forEach((field) => {
+                  if (
+                    validateNameAllowed(
                       field,
-                      "field",
                       String(field.key),
-                      field.ranges.key,
-                      existingField
-                    );
-                  } else {
-                    propertyPaths[propertyPath] = field;
-                    const [compiledValue, diagnostics, references] = compiler(
-                      field.value,
-                      context
-                    );
-                    recordExpressionReferences(
-                      field,
-                      field?.ranges?.value?.from ?? 0,
-                      references,
-                      ids
-                    );
-                    reportExpressionDiagnostics(
-                      field,
-                      field?.ranges?.value?.from ?? 0,
-                      diagnostics
-                    );
-                    // Check for type mismatch
-                    const parentPropertyAccessor = type + propertyPath;
-                    const declaredValue = compiler(
-                      parentPropertyAccessor,
-                      context
-                    )[0];
-                    const compiledType = typeof compiledValue;
-                    const declaredType = typeof declaredValue;
-                    if (
-                      validateTypeMatch(
+                      field.ranges?.key
+                    )
+                  ) {
+                    const propertyPath = field.path + "." + field.key;
+                    const existingField = propertyPaths[propertyPath];
+                    if (existingField) {
+                      // Error if field was defined multiple times in the current struct
+                      reportDuplicate(
                         field,
-                        compiledType,
-                        declaredType,
-                        field?.ranges?.value
-                      )
-                    ) {
-                      field.type = compiledType;
-                    } else {
-                      field.type = declaredType;
-                    }
-                    // Check for extra fields
-                    if (
-                      typeof field.key === "string" &&
-                      existingStruct &&
-                      !existingStruct.fields?.find(
-                        (f) => f.path + "." + f.key === propertyPath
-                      )
-                    ) {
-                      diagnostic(
-                        program,
-                        field,
-                        `'${field.key}' does not exist in original definition of type '${tok.name}'`,
-                        [{ name: "FOCUS", focus: existingStruct }],
-                        field.ranges?.key?.from,
-                        field.ranges?.key?.to
+                        "field",
+                        String(field.key),
+                        field.ranges.key,
+                        existingField
                       );
+                    } else {
+                      propertyPaths[propertyPath] = field;
+                      const compiledValue = compileAndValidate(
+                        field,
+                        field.value,
+                        field?.ranges?.value,
+                        ids,
+                        context
+                      );
+                      // Check for type mismatch
+                      const parentPropertyAccessor = tok.type + propertyPath;
+                      const declaredValue = compiler(
+                        parentPropertyAccessor,
+                        context
+                      )[0];
+                      const compiledType = typeof compiledValue;
+                      const declaredType = typeof declaredValue;
+                      if (
+                        validateTypeMatch(
+                          field,
+                          compiledType,
+                          declaredType,
+                          field?.ranges?.value
+                        )
+                      ) {
+                        field.type = compiledType;
+                      } else {
+                        field.type = declaredType;
+                      }
                     }
                   }
-                }
-              });
-            }
-
-            const obj = construct(tok, ids);
-            const objectLiteral = JSON.stringify(obj)
-              .replace(UNESCAPED_DOUBLE_QUOTE, "")
-              .replace(ESCAPED_DOUBLE_QUOTE, `"`);
-            tok.value = objectLiteral;
-
-            // If struct does not already exist, declare it.
-            if (!program.structs?.[id]) {
-              // Add struct declaration to program
-              program.structs ??= {};
-              program.structs[id] ??= tok;
-            }
-
-            // If variable does not already exist, declare it.
-            if (!program.variables?.[id]) {
-              if (
-                validateName(tok, currentSectionId, tok.name, tok.ranges?.name)
-              ) {
-                // Create object variable declaration
-                const variable = {
-                  line: tok.line,
-                  from: tok.from,
-                  to: tok.to,
-                  name: tok.name,
-                  type: tok.type ?? "object",
-                  value: tok.value,
-                };
-                // Add object variable declaration to program
-                program.variables ??= {};
-                program.variables[id] ??= variable;
-                // Add object variable declaration to section
-                const currentSection = program.sections[currentSectionId]!;
-                currentSection.variables ??= {};
-                currentSection.variables[id] ??= variable;
+                });
               }
+
+              const obj = construct(tok, ids);
+              const objectLiteral = JSON.stringify(obj)
+                .replace(UNESCAPED_DOUBLE_QUOTE, "")
+                .replace(ESCAPED_DOUBLE_QUOTE, `"`);
+              tok.value = objectLiteral;
+
+              if (validateDeclaration(tok)) {
+                declareStruct(tok);
+                declareVariable(tok);
+              }
+            }
+          }
+
+          if (tok.tag === "variable") {
+            const [ids, context] = getScopedValueContext(
+              currentSectionId,
+              program.sections,
+              compiler
+            );
+            // Compile value
+            const compiledValue = compileAndValidate(
+              tok,
+              tok.value,
+              tok?.ranges?.value,
+              ids,
+              context
+            );
+
+            validateTypeExists(tok, tok.type, tok.ranges?.type, context);
+            tok.type = tok.type ?? typeof compiledValue;
+
+            if (validateDeclaration(tok)) {
+              declareVariable(tok);
             }
           }
 
@@ -1189,35 +1513,21 @@ export default class SparkParser {
               program.sections,
               compiler
             );
-            // Compile accessor
-            const [declaredValue, accessorReferences, accessorDiagnostics] =
-              compiler(tok.name, context);
-            recordExpressionReferences(
+            // Validate accessor
+            const declaredValue = compileAndValidate(
               tok,
-              tok.ranges?.name?.from ?? 0,
-              accessorReferences,
-              ids
-            );
-            reportExpressionDiagnostics(
-              tok,
-              tok.ranges?.name?.from ?? 0,
-              accessorDiagnostics
-            );
-            // Compile value
-            const [compiledValue, valueDiagnostics, valueReferences] = compiler(
-              tok.value,
+              tok.name,
+              tok?.ranges?.name,
+              ids,
               context
             );
-            recordExpressionReferences(
+            // Validate value
+            const compiledValue = compileAndValidate(
               tok,
-              tok.ranges?.value?.from ?? 0,
-              valueReferences,
-              ids
-            );
-            reportExpressionDiagnostics(
-              tok,
-              tok.ranges?.value?.from ?? 0,
-              valueDiagnostics
+              tok.value,
+              tok?.ranges?.value,
+              ids,
+              context
             );
             // Check for type mismatch
             const compiledType = typeof compiledValue;
@@ -1228,44 +1538,18 @@ export default class SparkParser {
               declaredType,
               tok.ranges?.name
             );
-            if (VARIABLE_NAME_REGEX.test(tok.name)) {
-              const id = `${currentSectionId}.${tok.name}`;
-              // If variable does not already exist, declare it.
-              if (!program.variables?.[id]) {
-                if (
-                  validateName(
-                    tok,
-                    currentSectionId,
-                    tok.name,
-                    tok.ranges?.name
-                  )
-                ) {
-                  // Create variable declaration
-                  const variable = {
-                    line: tok.line,
-                    from: tok.from,
-                    to: tok.to,
-                    name: tok.name,
-                    type: tok.type ?? typeof compiledValue,
-                    value: tok.value,
-                  };
-                  // Add variable declaration to program
-                  program.variables ??= {};
-                  program.variables[id] ??= variable;
-                  // Add variable declaration to section
-                  const currentSection = program.sections[currentSectionId]!;
-                  currentSection.variables ??= {};
-                  currentSection.variables[id] ??= variable;
-                  if (tok.operator !== "=") {
-                    // Since variable was not previously declared,
-                    // if variable references itself during assignment (i.e. uses a compound operator like `+=` or `-=`),
-                    // report an error
-                    reportMissing(tok, "variable", tok.name, tok.ranges?.name);
-                  }
-                }
-              }
-            }
           }
+
+          if (tok.tag === "access") {
+            const [ids, context] = getScopedValueContext(
+              currentSectionId,
+              program.sections,
+              compiler
+            );
+            // Compile accessor
+            compileAndValidate(tok, tok.name, tok?.ranges?.name, ids, context);
+          }
+
           stack.pop();
         }
       },

@@ -39,9 +39,10 @@ export interface IConfStringRule extends ISubRuleConf {
    */
   templateRules?: string;
   /**
-   * Required prefix for expression interpolation (e.g. $)
+   * Label to jump to parse unprefixed template expressions
+   * If not set, it doesn't match unprefixed template expressions
    */
-  templatePrefix?: string;
+  unprefixedTemplateRules?: string;
   /**
    * For string literals, include pure raw string in AST's `raw` node.
    * If false include cooked string between quotes.
@@ -160,8 +161,8 @@ export class StringRule extends BaseRule<IConfStringRule> {
         break;
       } else if (
         isTemplate &&
-        ((!c.templatePrefix && ch === "{") ||
-          (c.templatePrefix && ch === c.templatePrefix && ctx.tyCh("{")))
+        ((ch === "$" && ctx.tyCh("{")) ||
+          (c.unprefixedTemplateRules && ch === "{"))
       ) {
         quasis.push({
           type: TEMPLATE_ELE,
@@ -174,7 +175,11 @@ export class StringRule extends BaseRule<IConfStringRule> {
           to: ctx.i - 2,
         });
         str = "";
-        expressions.push(ctx.parseNext(c.templateRules!));
+        const rules =
+          ch === "{" && c.unprefixedTemplateRules
+            ? c.unprefixedTemplateRules
+            : c.templateRules!;
+        expressions.push(ctx.parseNext(rules));
         ctx.gbSp();
         if (!ctx.tyCh("}")) {
           return ctx.err('Expected "}" but found ');

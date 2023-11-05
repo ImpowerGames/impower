@@ -1,29 +1,22 @@
 import {
-  BinaryOperatorRule,
   BINARY_EXP,
+  BinaryOperatorRule,
   ESnextParser,
-  EXPRESSIONS,
   ICharClass,
-  IConfMultipleRule,
-  MultiOperatorRule,
-  NOCOMMA_EXPR,
-  TEMPLATE_EXPR,
+  StringRule,
+  TOKEN,
   UNARY_EXP,
 } from "../_modules/ESpression/src";
 import { biOpConfs } from "../_modules/ESpression/src/parser/presets/es5";
-import { TemplateArgLiteralRule } from "./TemplateArgLiteralRule";
+import {
+  CustomTemplateExpressionRule,
+  IConfCustomTemplateExpressionRule,
+} from "./CustomTemplateExpressionRule";
 
-const TEMPLATE_ARG_LITERAL = "template_arg_literal";
+const UNPREFIXED_TEMPLATE_EXPR = "unprefixed_template_expr";
 
-const TEMPLATE_ARGS_TYPE: IConfMultipleRule = {
-  type: "TemplateArgsExpression",
-  prop: EXPRESSIONS,
-  separators: "|:",
-  subRules: TEMPLATE_ARG_LITERAL,
-  includeSpace: true,
-  empty: true,
-  sparse: true,
-  trailing: true,
+const CUSTOM_TEMPLATE_EXPR_TYPE: IConfCustomTemplateExpressionRule = {
+  type: "CustomTemplateExpression",
 };
 
 export class SparkExpressionParser extends ESnextParser {
@@ -37,14 +30,15 @@ export class SparkExpressionParser extends ESnextParser {
       ...biOpConfs.map((conf) => new BinaryOperatorRule(conf)),
       UNARY_EXP,
     ];
-    this.rules[TEMPLATE_EXPR] = [
-      new MultiOperatorRule(TEMPLATE_ARGS_TYPE),
-      NOCOMMA_EXPR,
+    this.rules[UNPREFIXED_TEMPLATE_EXPR] = [
+      new CustomTemplateExpressionRule(CUSTOM_TEMPLATE_EXPR_TYPE),
     ];
-    this.rules[TEMPLATE_ARG_LITERAL] = [
-      new TemplateArgLiteralRule({
-        invalid: { re: /[}|:]/ },
-      }),
-    ];
+    [...(this.rules[TOKEN] || []), ...(this.rules["template"] || [])]?.forEach(
+      (r) => {
+        if (r instanceof StringRule && r.config.templateRules) {
+          r.config.unprefixedTemplateRules = UNPREFIXED_TEMPLATE_EXPR;
+        }
+      }
+    );
   }
 }

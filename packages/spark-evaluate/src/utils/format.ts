@@ -93,14 +93,17 @@ export const format = (
       return match;
     }
     to = from + tagKey.length;
-    const val = args?.[tagKey];
+    const trimmedTagKey = tagKey.trim();
+    const keyFrom = from + tagKey.length - tagKey.trimStart().length;
+    const keyTo = keyFrom + trimmedTagKey.length;
+    const val = args?.[trimmedTagKey];
     if (val === undefined) {
       diagnostics.push({
         content: str,
-        from,
-        to,
+        from: keyFrom,
+        to: keyTo,
         severity: "error",
-        message: `Cannot find variable named '${tagKey}'`,
+        message: `Cannot find variable named '${trimmedTagKey}'`,
       });
     }
     if (!formatterKey) {
