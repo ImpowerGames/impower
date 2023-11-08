@@ -324,8 +324,7 @@ const EDITOR_THEME: {
   },
   "& .cm-highlightSpace": {
     "&:before": {
-      transform: "translateX(-2px)",
-      opacity: "0.5",
+      opacity: "0.3",
     },
   },
 };
