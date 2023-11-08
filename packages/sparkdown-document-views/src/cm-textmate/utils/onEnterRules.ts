@@ -48,12 +48,7 @@ export const onEnterRules =
         beforeLine.text.match(INDENT_REGEX)?.[0].length ?? 0;
       const decreasedIndentSize = currentIndentSize - getIndentUnit(state);
       const increasedIndentSize = currentIndentSize + getIndentUnit(state);
-      let indent = indentString(state, currentIndentSize);
       let cursorOffset = 0;
-
-      console.log("currentIndentSize", currentIndentSize);
-      console.log("indent", indent);
-
       for (let i = 0; i < onEnterRules.length; i += 1) {
         const onEnterRule = onEnterRules[i]!;
         const beforeTextRegex = onEnterRule.beforeText
@@ -77,6 +72,7 @@ export const onEnterRules =
         ) {
           continue;
         }
+        let indent = indentString(state, currentIndentSize);
         if (onEnterRule.action.indent === "none") {
           indent = indentString(state, currentIndentSize);
         }
@@ -92,36 +88,25 @@ export const onEnterRules =
           indent = indentString(state, increasedIndentSize) + afterIndent;
           cursorOffset = -afterIndent.length;
         }
-        if (onEnterRule.action.appendText) {
-          const insert =
-            state.lineBreak + indent + onEnterRule.action.appendText;
+        if (
+          onEnterRule.action.deleteText &&
+          beforeText.endsWith(onEnterRule.action.deleteText)
+        ) {
           return {
-            range: EditorSelection.cursor(pos + insert.length + cursorOffset),
+            range: EditorSelection.cursor(
+              pos - onEnterRule.action.deleteText.length + cursorOffset
+            ),
             changes: [
               {
-                from: pos,
-                to: pos,
-                insert,
+                from: beforeLine.to - onEnterRule.action.deleteText.length,
+                to: beforeLine.to,
+                insert: "",
               },
             ],
           };
-        } else if (onEnterRule.action.deleteText) {
-          if (beforeText.endsWith(onEnterRule.action.deleteText)) {
-            return {
-              range: EditorSelection.cursor(
-                pos - onEnterRule.action.deleteText.length + cursorOffset
-              ),
-              changes: [
-                {
-                  from: beforeLine.to - onEnterRule.action.deleteText.length,
-                  to: beforeLine.to,
-                  insert: "",
-                },
-              ],
-            };
-          }
         } else {
-          const insert = state.lineBreak + indent;
+          const insert =
+            state.lineBreak + indent + (onEnterRule.action.appendText || "");
           return {
             range: EditorSelection.cursor(pos + insert.length + cursorOffset),
             changes: [
