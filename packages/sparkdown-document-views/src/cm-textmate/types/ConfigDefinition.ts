@@ -21,6 +21,9 @@ export interface ConfigDefinition {
     previousLineText?: string;
     action: {
       indent: "none" | "indent" | "outdent" | "indentOutdent";
+      appendText?: string;
+      deleteText?: string;
+      removeText?: number;
     };
   }[];
   folding?: {

@@ -11,7 +11,7 @@ import {
   getIndentUnit,
   indentService,
 } from "@codemirror/language";
-import type { Extension, Facet } from "@codemirror/state";
+import { Prec, type Extension, type Facet } from "@codemirror/state";
 import { Parser } from "@lezer/common";
 
 import { GrammarDefinition } from "../../../../grammar-compiler/src";
@@ -21,11 +21,12 @@ import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";
 import { SnippetDefinition } from "../types/SnippetDefinition";
 import convertConfigToLanguageData from "../utils/convertConfigToLanguageData";
+import { onEnterRules } from "../utils/onEnterRules";
 import { removeUndefined } from "../utils/removeUndefined";
 import { surroundBrackets } from "../utils/surroundBrackets";
 import TextmateLanguageSupport from "./TextmateLanguageSupport";
 
-const INDENT_REGEX = /^(\s)*/;
+const INDENT_REGEX = /([ \t]*)/;
 
 /**
  * Use the `load` method to get the extension needed to
@@ -138,14 +139,22 @@ export default class TextmateLanguage {
       bracketMatching(),
       closeBrackets(),
       surroundBrackets(),
-      keymap.of([...closeBracketsKeymap]),
+      Prec.high(
+        keymap.of([
+          {
+            key: "Enter",
+            run: onEnterRules(configDefinition?.onEnterRules),
+          },
+          ...closeBracketsKeymap,
+        ])
+      ),
       indentService.of((context, pos) => {
-        const beforeLine = pos > 0 ? context.lineAt(pos - 1) : undefined;
+        const beforeLine =
+          pos > 0 ? context.state.doc.lineAt(pos - 1) : undefined;
         const beforeLineText = beforeLine?.text || "";
         const beforeIndentSize =
           beforeLineText.match(INDENT_REGEX)?.[0].length ?? 0;
         const indentationRules = configDefinition?.indentationRules;
-        const onEnterRules = configDefinition?.onEnterRules;
         const decreaseIndentPattern = indentationRules?.decreaseIndentPattern;
         const decreasedIndentSize =
           beforeIndentSize - getIndentUnit(context.state);
@@ -163,60 +172,6 @@ export default class TextmateLanguage {
           beforeLineText.match(increaseIndentPattern)
         ) {
           return increasedIndentSize;
-        }
-        if (
-          onEnterRules &&
-          beforeLine &&
-          context.state.selection.ranges.length === 1
-        ) {
-          const selectionFrom = context.state.selection.main.from;
-          const selectionTo = context.state.selection.main.to;
-          const afterTextLine = context.lineAt(selectionTo);
-          const beforeText = context.state.sliceDoc(
-            beforeLine.from,
-            selectionFrom
-          );
-          const afterText = context.state.sliceDoc(
-            selectionTo,
-            afterTextLine.from + afterTextLine.text.length
-          );
-          const previousLineText = pos > 1 ? context.lineAt(pos - 2)?.text : "";
-          for (let i = 0; i < onEnterRules.length; i += 1) {
-            const onEnterRule = onEnterRules[i]!;
-            const beforeTextRegex = onEnterRule.beforeText
-              ? new RegExp(onEnterRule.beforeText)
-              : undefined;
-            const afterTextRegex = onEnterRule.afterText
-              ? new RegExp(onEnterRule.afterText)
-              : undefined;
-            const previousLineTextRegex = onEnterRule.previousLineText
-              ? new RegExp(onEnterRule.previousLineText)
-              : undefined;
-            if (beforeTextRegex && !beforeTextRegex.test(beforeText)) {
-              continue;
-            }
-            if (afterTextRegex && !afterTextRegex.test(afterText)) {
-              continue;
-            }
-            if (
-              previousLineTextRegex &&
-              !previousLineTextRegex.test(previousLineText)
-            ) {
-              continue;
-            }
-            if (onEnterRule.action.indent === "none") {
-              return null;
-            }
-            if (onEnterRule.action.indent === "indent") {
-              return increasedIndentSize;
-            }
-            if (onEnterRule.action.indent === "outdent") {
-              return decreasedIndentSize;
-            }
-            if (onEnterRule.action.indent === "indentOutdent") {
-              return increasedIndentSize;
-            }
-          }
         }
         return null;
       }),
@@ -244,6 +199,7 @@ export default class TextmateLanguage {
       this.languageData,
       this.extensions
     );
+    this.description.support = this.support;
     this.loaded = true;
     return this.support;
   }

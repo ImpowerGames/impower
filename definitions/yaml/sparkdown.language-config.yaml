@@ -43,7 +43,7 @@ wordPattern:
   flags: u
 
 onEnterRules:
-  - beforeText: ^\s*(?:[-]|[_a-zA-Z][_a-zA-Z0-9]*[:])\s*$
+  - beforeText: ^\s*(?:[-]|[_a-zA-Z][_a-zA-Z0-9]*[:]|define\b.*?[:])\s*$
     action: { indent: "indent" }
   - beforeText: \{\s*$
     afterText: ^\s*\}.*$
@@ -63,3 +63,33 @@ onEnterRules:
   - beforeText: \(\s*$
     afterText: ^(?!\s*\))
     action: { indent: "indent" }
+  - beforeText: ^\s*$
+    action: { 
+      indent: "none",
+      deleteText: "  "
+    }
+  - beforeText: ^\s*[+]\s*$
+    action: { 
+      indent: "none",
+      deleteText: "+ " 
+    }
+  - beforeText: ^\s*[+]
+    action: { 
+      indent: "none",
+      appendText: "+ "
+    }
+  - beforeText: ^\s*[*]\s*$
+    action: { 
+      indent: "none",
+      deleteText: "* "
+    }
+  - beforeText: ^\s*[*]
+    action: { 
+      indent: "none",
+      appendText: "* " 
+    }
+  - beforeText: ^\s*[-]
+    action: { 
+      indent: "none",
+      appendText: "- " 
+    }

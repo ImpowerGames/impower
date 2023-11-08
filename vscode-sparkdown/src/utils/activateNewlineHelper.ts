@@ -1,18 +1,7 @@
 import * as vscode from "vscode";
-import GRAMMAR from "../../language/sparkdown.language-grammar.json";
+import CONFIG from "../../language/sparkdown.language-config.json";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
-
-const SNIPPET_CURSOR = "$0";
-
-const DIALOGUE_BEGIN_MATCH = new RegExp(
-  GRAMMAR.repository.Dialogue.begin,
-  GRAMMAR.flags
-);
-const CHOICE_BEGIN_REGEX = new RegExp(
-  GRAMMAR.repository.Choice.match,
-  GRAMMAR.flags
-);
 
 const handleNewline = (args: { text: string }): boolean => {
   const editor = vscode.window.activeTextEditor;
@@ -28,59 +17,61 @@ const handleNewline = (args: { text: string }): boolean => {
       new vscode.Position(position.line, Number.MAX_SAFE_INTEGER)
     )
   );
-  const textAfterCursor = lineText.slice(position.character);
+  const previousLineText =
+    position.line > 0
+      ? editor.document.getText(
+          new vscode.Range(
+            new vscode.Position(position.line - 1, 0),
+            new vscode.Position(position.line - 1, Number.MAX_SAFE_INTEGER)
+          )
+        )
+      : "";
+  const beforeText = lineText.slice(0, position.character + 1);
+  const afterText = lineText.slice(position.character);
 
-  let match: RegExpMatchArray | null = null;
-
-  if ((match = lineText.match(DIALOGUE_BEGIN_MATCH))) {
-    if (!textAfterCursor) {
-      const listPrefix = match.slice(1, 3).join("");
-      if (listPrefix.trim()) {
-        const textAfterMark = lineText.slice(listPrefix.length);
-        if (textAfterMark.trim()) {
-          // Continue list
-          editor.insertSnippet(
-            new vscode.SnippetString("\n" + listPrefix + SNIPPET_CURSOR)
-          );
-          return true;
-        } else {
-          // Delete empty dialogue marks on enter
-          editor.insertSnippet(
-            new vscode.SnippetString(""),
-            new vscode.Range(
-              new vscode.Position(position.line, 0),
-              new vscode.Position(position.line, Number.MAX_SAFE_INTEGER)
-            )
-          );
-          return true;
-        }
-      }
+  for (let i = 0; i < CONFIG.onEnterRules.length; i += 1) {
+    const onEnterRule = CONFIG.onEnterRules[i]!;
+    const beforeTextRegex =
+      "beforeText" in onEnterRule && typeof onEnterRule.beforeText === "string"
+        ? new RegExp(onEnterRule.beforeText)
+        : undefined;
+    const afterTextRegex =
+      "afterText" in onEnterRule && typeof onEnterRule.afterText === "string"
+        ? new RegExp(onEnterRule.afterText)
+        : undefined;
+    const previousLineTextRegex =
+      "previousLineText" in onEnterRule &&
+      typeof onEnterRule.previousLineText === "string"
+        ? new RegExp(onEnterRule.previousLineText)
+        : undefined;
+    if (beforeTextRegex && !beforeTextRegex.test(beforeText)) {
+      continue;
     }
-  }
-
-  if ((match = lineText.match(CHOICE_BEGIN_REGEX))) {
-    if (!textAfterCursor) {
-      const listPrefix = match.slice(1, 3).join("");
-      if (listPrefix.trim()) {
-        const textAfterMark = lineText.slice(listPrefix.length);
-        if (textAfterMark.trim()) {
-          // Continue list
-          editor.insertSnippet(
-            new vscode.SnippetString("\n" + listPrefix + SNIPPET_CURSOR)
-          );
-          return true;
-        } else {
-          // Delete empty dialogue marks on enter
-          editor.insertSnippet(
-            new vscode.SnippetString(""),
-            new vscode.Range(
-              new vscode.Position(position.line, 0),
-              new vscode.Position(position.line, Number.MAX_SAFE_INTEGER)
-            )
-          );
-          return true;
-        }
-      }
+    if (afterTextRegex && !afterTextRegex.test(afterText)) {
+      continue;
+    }
+    if (
+      previousLineTextRegex &&
+      !previousLineTextRegex.test(previousLineText)
+    ) {
+      continue;
+    }
+    // Delete empty marks
+    if (
+      onEnterRule.action.deleteText &&
+      beforeText.endsWith(onEnterRule.action.deleteText)
+    ) {
+      editor.insertSnippet(
+        new vscode.SnippetString(""),
+        new vscode.Range(
+          new vscode.Position(
+            position.line,
+            lineText.length - onEnterRule.action.deleteText.length
+          ),
+          new vscode.Position(position.line, lineText.length)
+        )
+      );
+      return true;
     }
   }
 
