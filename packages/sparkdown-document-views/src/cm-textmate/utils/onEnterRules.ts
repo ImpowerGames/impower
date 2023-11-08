@@ -33,14 +33,6 @@ export const onEnterRules =
       if (state.selection.ranges.length !== 1) {
         return (dont = { range });
       }
-      const preChanges = [];
-      if (!range.empty) {
-        preChanges.push({
-          from: range.from,
-          to: range.to,
-          insert: "",
-        });
-      }
       const selectionFrom = state.selection.main.from;
       const selectionTo = state.selection.main.to;
       const afterTextLine = doc.lineAt(selectionTo);
@@ -97,14 +89,14 @@ export const onEnterRules =
         }
         if (
           onEnterRule.action.deleteText &&
-          beforeText.endsWith(onEnterRule.action.deleteText)
+          beforeText.endsWith(onEnterRule.action.deleteText) &&
+          range.empty
         ) {
           return {
             range: EditorSelection.cursor(
               pos - onEnterRule.action.deleteText.length + cursorOffset
             ),
             changes: [
-              ...preChanges,
               {
                 from: beforeLine.to - onEnterRule.action.deleteText.length,
                 to: beforeLine.to,
@@ -112,9 +104,29 @@ export const onEnterRules =
               },
             ],
           };
-        } else {
+        } else if (onEnterRule.action.appendText && range.empty) {
           const insert =
-            state.lineBreak + indent + (onEnterRule.action.appendText || "");
+            state.lineBreak + indent + onEnterRule.action.appendText;
+          return {
+            range: EditorSelection.cursor(pos + insert.length + cursorOffset),
+            changes: [
+              {
+                from: pos,
+                to: pos,
+                insert,
+              },
+            ],
+          };
+        } else {
+          const preChanges = [];
+          if (!range.empty) {
+            preChanges.push({
+              from: range.from,
+              to: range.to,
+              insert: "",
+            });
+          }
+          const insert = state.lineBreak + indent;
           return {
             range: EditorSelection.cursor(pos + insert.length + cursorOffset),
             changes: [
