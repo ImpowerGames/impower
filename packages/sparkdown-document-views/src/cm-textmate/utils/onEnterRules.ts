@@ -24,15 +24,22 @@ export const onEnterRules =
     if (!onEnterRules) {
       return false;
     }
-    console.log("onEnterEditRules");
     const { state, dispatch } = target;
     const { doc } = state;
     let dont = null;
     const changes = state.changeByRange((range) => {
       const pos = range.from;
       const beforeLine = doc.lineAt(pos);
-      if (!range.empty || state.selection.ranges.length != 1) {
+      if (state.selection.ranges.length !== 1) {
         return (dont = { range });
+      }
+      const preChanges = [];
+      if (!range.empty) {
+        preChanges.push({
+          from: range.from,
+          to: range.to,
+          insert: "",
+        });
       }
       const selectionFrom = state.selection.main.from;
       const selectionTo = state.selection.main.to;
@@ -97,6 +104,7 @@ export const onEnterRules =
               pos - onEnterRule.action.deleteText.length + cursorOffset
             ),
             changes: [
+              ...preChanges,
               {
                 from: beforeLine.to - onEnterRule.action.deleteText.length,
                 to: beforeLine.to,
@@ -110,6 +118,7 @@ export const onEnterRules =
           return {
             range: EditorSelection.cursor(pos + insert.length + cursorOffset),
             changes: [
+              ...preChanges,
               {
                 from: pos,
                 to: pos,
