@@ -8,4 +8,8 @@ export interface SparkField extends SparkRange {
   key: string | number;
   type: string;
   value: string;
+  ranges: {
+    key?: SparkRange;
+    value?: SparkRange;
+  };
 }

@@ -1,27 +1,44 @@
 const setProperty = (
   obj: any,
   propertyPath: string,
-  value: unknown
-): boolean => {
-  let success = false;
-  let cur = obj;
-  const parts = propertyPath.split(".");
-  parts.forEach((part, partIndex) => {
-    if (typeof cur === "object" && part) {
-      if (partIndex === parts.length - 1) {
-        cur[part] = value;
-        success = true;
-      } else {
-        if (cur[part] == null) {
-          const nextPart = parts[partIndex + 1];
-          const isArray = !Number.isNaN(Number(nextPart));
-          cur[part] = isArray ? [] : {};
+  value: unknown,
+  skip?: (curr: any, key: string) => boolean
+): { successfullySet: string; error: boolean } => {
+  const successfullySetParts: string[] = [];
+  let error = false;
+  let curr = obj;
+  const keys = propertyPath.split(".");
+  for (let i = 0; i < keys.length; i += 1) {
+    const key = keys[i]!;
+    if (typeof curr === "object" && key !== "") {
+      if (i === keys.length - 1) {
+        if (Array.isArray(curr) && Number.isNaN(Number(key))) {
+          error = true;
+          break;
         }
-        cur = cur[part];
+        if (skip?.(curr, key)) {
+          break;
+        }
+        curr[key] = value;
+      } else {
+        if (curr[key] == null) {
+          if (Array.isArray(curr) && Number.isNaN(Number(key))) {
+            error = true;
+            break;
+          }
+          if (skip?.(curr, key)) {
+            break;
+          }
+          const nextKey = keys[i + 1];
+          const isArray = !Number.isNaN(Number(nextKey));
+          curr[key] = isArray ? [] : {};
+        }
+        curr = curr[key];
       }
     }
-  });
-  return success;
+    successfullySetParts.push(key);
+  }
+  return { successfullySet: successfullySetParts.join("."), error };
 };
 
 export default setProperty;

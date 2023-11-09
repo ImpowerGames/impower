@@ -127,13 +127,11 @@ export interface SparkCallToken extends ISparkToken<"call"> {
 }
 
 export interface SparkAssignToken extends ISparkToken<"assign"> {
-  type: string;
   name: string;
   operator: string;
   value: string;
 
   ranges?: {
-    type?: SparkRange;
     name?: SparkRange;
     operator?: SparkRange;
     value?: SparkRange;

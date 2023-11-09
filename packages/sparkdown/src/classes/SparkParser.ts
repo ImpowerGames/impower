@@ -26,6 +26,7 @@ import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import calculateSpeechDuration from "../utils/calculateSpeechDuration";
 import createSparkToken from "../utils/createSparkToken";
 import getColorMetadata from "../utils/getColorMetadata";
+import { getProperty } from "../utils/getProperty";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
 import getScopedItemId from "../utils/getScopedItemId";
 import getScopedValueContext from "../utils/getScopedValueContext";
@@ -217,6 +218,7 @@ export default class SparkParser {
     };
 
     const _construct = (
+      isLeaf: boolean,
       struct: SparkStruct,
       ids: Record<string, string>,
       combinedFieldValues: any
@@ -226,21 +228,45 @@ export default class SparkParser {
         if (parentId) {
           const parentStruct = program.structs?.[parentId];
           if (parentStruct) {
-            _construct(parentStruct, ids, combinedFieldValues);
+            _construct(false, parentStruct, ids, combinedFieldValues);
           }
         }
       }
       if (struct.fields) {
+        let prevField: SparkField | undefined = undefined;
         struct.fields.forEach((field) => {
           const propertyPath = field.path + "." + field.key;
-          setProperty(combinedFieldValues, propertyPath, field.value);
+          const { successfullySet, error } = setProperty(
+            combinedFieldValues,
+            propertyPath,
+            field.value,
+            // Ensure array items are not inherited from parent
+            (_curr, part) => !isLeaf && !Number.isNaN(Number(part))
+          );
+          if (error) {
+            const from = prevField?.to ?? 0;
+            const fullProp = script.slice(from, field.to);
+            const indentCols = fullProp.length - fullProp.trimStart().length;
+            const parentObj = getProperty(combinedFieldValues, successfullySet);
+            const parentType = Array.isArray(parentObj) ? "array" : "object";
+            diagnostic(
+              program,
+              field as SparkToken,
+              `Invalid property inside of ${parentType}`,
+              undefined,
+              from + indentCols,
+              field.to
+            );
+          }
+          prevField = field;
         });
       }
     };
 
     const construct = (struct: SparkStruct, ids: Record<string, string>) => {
-      const obj = {};
-      _construct(struct, ids, obj);
+      const isArray = !Number.isNaN(Number(struct.fields?.[0]?.key));
+      const obj = isArray ? [] : {};
+      _construct(true, struct, ids, obj);
       return obj;
     };
 
@@ -424,20 +450,23 @@ export default class SparkParser {
 
     const reportExpressionDiagnostics = (
       tok: SparkToken,
-      expressionFrom: number | undefined,
+      expressionRange: SparkRange | undefined,
       diagnostics: CompilerDiagnostic[]
     ) => {
       if (
-        expressionFrom != null &&
-        expressionFrom >= 0 &&
+        expressionRange?.from != null &&
+        expressionRange?.from >= 0 &&
         diagnostics?.length > 0
       ) {
         // Report any problems encountered during compilation
         for (let i = 0; i < diagnostics.length; i += 1) {
           const d = diagnostics[i];
           if (d) {
-            const from = expressionFrom + d.from;
-            const to = expressionFrom + d.to;
+            const from = expressionRange.from + d.from;
+            const to = Math.min(
+              expressionRange.to,
+              expressionRange.from + d.to
+            );
             diagnostic(program, tok, d.message, undefined, from, to);
           }
         }
@@ -457,7 +486,7 @@ export default class SparkParser {
       );
       recordColors(value, valueRange?.from);
       recordExpressionReferences(tok, valueRange?.from, valueReferences, ids);
-      reportExpressionDiagnostics(tok, valueRange?.from, valueDiagnostics);
+      reportExpressionDiagnostics(tok, valueRange, valueDiagnostics);
       return compiledValue;
     };
 
@@ -510,9 +539,17 @@ export default class SparkParser {
       typeRange: SparkRange | undefined,
       context: Record<string, unknown>
     ) => {
-      if (type && !BUILT_IN_TYPES.includes(type) && !context[type]) {
-        reportMissing(tok, "type", type, typeRange);
+      let missing = false;
+      if (type) {
+        const types = type.split(/[\[\],<> \t]/);
+        types.forEach((type) => {
+          if (type && !BUILT_IN_TYPES.includes(type) && !context[type]) {
+            reportMissing(tok, "type", type, typeRange);
+            missing = true;
+          }
+        });
       }
+      return missing;
     };
 
     const validateTypeMatch = (
@@ -563,6 +600,9 @@ export default class SparkParser {
       name: string,
       nameRange?: SparkRange
     ): boolean => {
+      if (!name) {
+        return false;
+      }
       if (SPARK_RESERVED_KEYWORDS.includes(name)) {
         diagnostic(
           program,
@@ -794,6 +834,7 @@ export default class SparkParser {
                   ? p.key
                   : ""
               )
+              .filter((k) => k)
               .join(".");
             addToken(tok);
           }
@@ -809,6 +850,7 @@ export default class SparkParser {
                   ? p.key
                   : ""
               )
+              .filter((k) => k)
               .join(".");
             addToken(tok);
           }
@@ -840,14 +882,6 @@ export default class SparkParser {
           // assign
           if (tok.tag === "assign") {
             addToken(tok);
-          }
-          if (tok.tag === "type_name") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.type = text;
-              parent.ranges ??= {};
-              parent.ranges.type = { from: tok.from, to: tok.to };
-            }
           }
           if (tok.tag === "identifier_path") {
             const parent = lookup("assign");
@@ -1402,7 +1436,10 @@ export default class SparkParser {
             validateTypeExists(tok, tok.type, tok.ranges?.type, context);
             tok.type = tok.type ?? "object";
 
-            if (PRIMITIVE_TYPES.includes(tok.type)) {
+            if (
+              PRIMITIVE_TYPES.includes(tok.type) &&
+              (!tok.fields || tok.fields.length === 0)
+            ) {
               if (tok.type === "string") {
                 tok.value = `""`;
               }
@@ -1448,10 +1485,10 @@ export default class SparkParser {
                       );
                       // Check for type mismatch
                       const parentPropertyAccessor = tok.type + propertyPath;
-                      const declaredValue = compiler(
-                        parentPropertyAccessor,
-                        context
-                      )[0];
+                      const declaredValue = getProperty(
+                        context,
+                        parentPropertyAccessor
+                      );
                       const compiledType = typeof compiledValue;
                       const declaredType = typeof declaredValue;
                       if (
@@ -1477,6 +1514,8 @@ export default class SparkParser {
                 .replace(ESCAPED_DOUBLE_QUOTE, `"`);
               tok.value = objectLiteral;
 
+              validateTypeMatch(tok, typeof obj, tok.type, tok?.ranges?.type);
+
               if (validateDeclaration(tok)) {
                 declareStruct(tok);
                 declareVariable(tok);
@@ -1501,6 +1540,13 @@ export default class SparkParser {
 
             validateTypeExists(tok, tok.type, tok.ranges?.type, context);
             tok.type = tok.type ?? typeof compiledValue;
+
+            validateTypeMatch(
+              tok,
+              typeof compiledValue,
+              tok.type,
+              tok?.ranges?.type
+            );
 
             if (validateDeclaration(tok)) {
               declareVariable(tok);
@@ -1538,6 +1584,16 @@ export default class SparkParser {
               declaredType,
               tok.ranges?.name
             );
+            if (declaredValue === undefined) {
+              diagnostic(
+                program,
+                tok,
+                `'${tok.name}' does not exist`,
+                undefined,
+                tok?.ranges?.name?.from,
+                tok?.ranges?.name?.to
+              );
+            }
           }
 
           if (tok.tag === "access") {

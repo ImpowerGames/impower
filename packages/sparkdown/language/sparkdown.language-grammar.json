@@ -469,7 +469,7 @@
       "end": "($)"
     },
     "ImportDeclaration": {
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){0,2})($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)($|.+$)",
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)($|.+$)",
       "captures": {
         "1": {
           "patterns": [
@@ -547,7 +547,7 @@
     "DefineFunction": {
       "tag": "meta",
       "name": "meta.definition.function.sd",
-      "begin": "^([ \\t]*)(define)([ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){1,2}|[_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S)))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
+      "begin": "^([ \\t]*)(define)([ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -673,7 +673,7 @@
     "DefineVariable": {
       "tag": "meta",
       "name": "meta.definition.variable.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){1,2}|[_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S)))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)([=])($|[ \\t]*)",
+      "begin": "^([ \\t]*)(define)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)([=])($|[ \\t]*)",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -740,7 +740,7 @@
     "DefineStruct": {
       "tag": "meta",
       "name": "meta.definition.struct.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){1,2}|[_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S)))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)(?:($|[:]?)($|[ \\t]*$)|([:]?)(.+$))",
+      "begin": "^([ \\t]*)(define)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)(?:($|[:]?)($|[ \\t]*$)|([:]?)(.+$))",
       "beginCaptures": {
         "1": {
           "tag": "content",
@@ -3441,7 +3441,7 @@
     "TypeIdentifier": {
       "tag": "typeName",
       "name": "support.type.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*(?:\\[\\]){0,2})"
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
     },
     "ExpressionPunctuations": {
       "patterns": [

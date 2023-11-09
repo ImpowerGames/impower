@@ -68,7 +68,12 @@ export class BasicEval extends StaticEval {
     const from = node.from || 0;
     const to = node.to || 0;
 
-    if (from !== undefined && to !== undefined && content !== undefined) {
+    if (
+      from !== undefined &&
+      to !== undefined &&
+      content &&
+      content !== "undefined"
+    ) {
       if (result === undefined) {
         this.diagnostics.push({
           content,
