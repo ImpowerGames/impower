@@ -164,30 +164,36 @@ export interface SparkChoiceContentToken extends ISparkToken<"choice_content"> {
   text: string;
 }
 
-export interface SparkImageToken extends ISparkToken<"image"> {
+export interface ISparkAssetToken<T extends string> extends ISparkToken<T> {
   layer: string;
-  name: string;
+  assets: string[];
   args: string[];
+  nameRanges: SparkRange[];
 
   ranges?: {
     layer?: SparkRange;
-    name?: SparkRange;
+    assets?: SparkRange;
+    args?: SparkRange;
   };
 }
 
-export interface SparkAudioToken extends ISparkToken<"audio"> {
-  layer: string;
-  name: string;
-  args: string[];
+export interface SparkImageToken extends ISparkAssetToken<"image"> {}
 
-  ranges?: {
-    layer?: SparkRange;
-    name?: SparkRange;
-  };
+export interface SparkAudioToken extends ISparkAssetToken<"audio"> {}
+
+export interface DisplayContent {
+  tag: string;
+  text?: string;
+  layer?: string;
+  assets?: string[];
+  args?: string[];
 }
 
 export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
-  content?: SparkToken[];
+  characterName?: string;
+  characterParenthetical?: string;
+  position?: string;
+  content?: DisplayContent[];
   waitUntilFinished: boolean;
   autoAdvance: boolean;
   clearOnAdvance: boolean;
@@ -201,7 +207,7 @@ export interface SparkTransitionToken extends ISparkDisplayToken<"transition"> {
 }
 
 export interface SparkTransitionContentToken
-  extends ISparkDisplayToken<"transition_content"> {
+  extends ISparkToken<"transition_content"> {
   text: string;
 }
 
@@ -210,8 +216,7 @@ export interface SparkSceneToken extends ISparkDisplayToken<"scene"> {
   content?: SparkSceneContentToken[];
 }
 
-export interface SparkSceneContentToken
-  extends ISparkDisplayToken<"scene_content"> {
+export interface SparkSceneContentToken extends ISparkToken<"scene_content"> {
   text: string;
 }
 
@@ -220,7 +225,7 @@ export interface SparkCenteredToken extends ISparkDisplayToken<"centered"> {
 }
 
 export interface SparkCenteredContentToken
-  extends ISparkDisplayToken<"centered_content"> {
+  extends ISparkToken<"centered_content"> {
   text: string;
 }
 
@@ -277,6 +282,13 @@ export interface SparkDialogueBoxToken extends ISparkBoxToken<"dialogue_box"> {
   speechDuration: number;
 }
 
+export type SparkDisplayToken =
+  | SparkActionBoxToken
+  | SparkDialogueBoxToken
+  | SparkTransitionToken
+  | SparkSceneToken
+  | SparkCenteredToken;
+
 export interface SparkOtherToken
   extends ISparkToken<
     | "comment_content"
@@ -314,6 +326,10 @@ export interface SparkOtherToken
     | "dialogue_character_name"
     | "dialogue_character_parenthetical"
     | "dialogue_character_simultaneous"
+    | "asset_layer"
+    | "asset_names"
+    | "asset_args"
+    | "indent"
   > {}
 
 type SparkOtherTokenTagMap = {

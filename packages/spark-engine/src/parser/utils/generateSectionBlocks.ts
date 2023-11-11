@@ -13,8 +13,6 @@ export const generateSectionBlocks = (
   Object.entries(sections).forEach(([sectionId, section]) => {
     const parent = sectionId ? sectionId.split(".").slice(0, -1).join(".") : "";
     const block: Block = {
-      indent: section.indent,
-      index: section.index,
       source: {
         file,
         line: section.line,

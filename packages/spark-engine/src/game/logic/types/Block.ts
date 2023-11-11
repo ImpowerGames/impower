@@ -2,8 +2,6 @@ import { DocumentSource } from "./DocumentSource";
 
 export interface Block {
   source?: DocumentSource;
-  indent: number;
-  index: number;
   level: number;
   name: string;
   parent?: string;

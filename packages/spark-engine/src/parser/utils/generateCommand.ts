@@ -1,16 +1,10 @@
-import type {
-  ISparkToken,
-  SparkDisplayToken,
-  SparkToken,
-} from "../../../../sparkdown/src";
+import type { SparkDisplayToken, SparkToken } from "../../../../sparkdown/src";
 import type {
   AssignCommandData,
-  ChoiceCommandData,
   CommandData,
   CommandTypeId,
   ConditionCommandData,
   DisplayCommandData,
-  DisplayPosition,
   DisplayType,
   EnterCommandData,
   ReturnCommandData,
@@ -21,10 +15,10 @@ const getCommandId = (
   file: string,
   sectionId: string
 ): string => {
-  return `${file}+${sectionId}.${token.type}_${token.line}_${token.from}_${token.to}_${token.indent}`;
+  return `${file}+${sectionId}.${token.tag}_${token.line}`;
 };
 
-const getSource = (token: ISparkToken, file: string) => {
+const getSource = (token: SparkToken, file: string) => {
   return {
     file,
     line: token.line,
@@ -50,15 +44,14 @@ const generateDisplayCommand = (
     source: getSource(token, file),
     indent: token.indent,
     params: {
-      type: token.type as DisplayType,
-      position: (token.position as DisplayPosition) || "default",
-      character: token.character || "",
-      parenthetical: token.parenthetical || "",
-      content: token.content,
-      assets: token.assets || [],
-      autoAdvance: token.autoAdvance || false,
-      clearPreviousText: token.clearPreviousText || false,
-      waitUntilFinished: token.waitUntilFinished || false,
+      type: token.tag as DisplayType,
+      position: token.position || "",
+      characterName: token.characterName || "",
+      characterParenthetical: token.characterParenthetical || "",
+      content: token.content || [],
+      autoAdvance: token.autoAdvance ?? false,
+      clearOnAdvance: token.clearOnAdvance ?? false,
+      waitUntilFinished: token.waitUntilFinished ?? false,
     },
   };
 };
@@ -172,28 +165,6 @@ export const generateCommand = (
       indent: token.indent,
       params: {
         waitUntilFinished: true,
-      },
-    };
-    return newCommand;
-  }
-  if (token.type === "choice") {
-    const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "ChoiceCommand";
-    const newCommand: ChoiceCommandData = {
-      reference: {
-        parentId: sectionId,
-        type: "Command",
-        id: refId,
-        typeId: refTypeId,
-      },
-      source: getSource(token, file),
-      indent: token.indent,
-      params: {
-        waitUntilFinished: token.operator === "end",
-        operator: token.operator as "end" | "+" | "-" | "start",
-        value: token.value as string,
-        content: token.content,
-        order: token.order,
       },
     };
     return newCommand;

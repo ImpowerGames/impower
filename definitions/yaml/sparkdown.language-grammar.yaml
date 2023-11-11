@@ -1,5 +1,6 @@
 fileTypes: [sparkdown, sd, script, project]
 keyEquivalent: ^~S
+indentUnit: "  "
 name: Sparkdown
 scopeName: text.source.sparkdown
 uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
@@ -18,7 +19,6 @@ patterns:
   - { include: "#Define" }
   - { include: "#Logic" }
   - { include: "#Jump" }
-  - { include: "#Choice" }
   - { include: "#Transition" }
   - { include: "#Scene" }
   - { include: "#Centered" }
@@ -140,8 +140,8 @@ repository:
     match: ^([ ]{2,}|[\t]+)([-])($|[ \t]+)(.*$(?:\r\n|\r|\n)?)
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.operator.expression.array.sd
@@ -166,8 +166,8 @@ repository:
     match: ^($|[ \t]*)(.*$(?:\r\n|\r|\n)?)
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#FrontMatterString" }
@@ -274,8 +274,8 @@ repository:
     begin: ^([ \t]*)(import)($|[ \t]+)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.control.import.sd
@@ -335,8 +335,8 @@ repository:
     begin: ^([ \t]*)(define)([ \t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \t]+\S))?($|[ \t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.definition.function.sd
@@ -416,8 +416,8 @@ repository:
     begin: ^([ \t]*)(define)($|[ \t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \t]+\S))?($|[ \t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)([=])($|[ \t]*)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.definition.object.sd
@@ -456,8 +456,8 @@ repository:
     begin: ^([ \t]*)(define)($|[ \t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \t]+\S))?($|[ \t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)(?:($|[:]?)($|[ \t]*$)|([:]?)(.+$))
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.definition.object.sd
@@ -509,8 +509,8 @@ repository:
     begin: ^([ \t]*)([-])($|[ \t]+$)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.operator.expression.array.sd
@@ -533,8 +533,8 @@ repository:
     begin: ^([ \t]*)([-])([ \t]+)(?=.*\S.*$)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.operator.expression.array.sd
@@ -551,8 +551,8 @@ repository:
     begin: ^([ \t]*)([^ \t:]+)($|[:])($|[ \t]*$)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#PropertyName" }
@@ -579,8 +579,8 @@ repository:
     begin: ^([ \t]*)([^ \t:]+)($|[:])($|[ \t]*)(?=.*\S.*$)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#PropertyName" }
@@ -601,8 +601,8 @@ repository:
     begin: ^([ \t]*)(define)($|[ \t]+)($|.+$)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.definition.define.sd
@@ -623,8 +623,8 @@ repository:
     match: ^([ \t]*)(break)($|[ \t]+$|[ \t]*[;])
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.flow.break.sd
@@ -638,8 +638,8 @@ repository:
     match: ^([ \t]*)(continue)($|[ \t]+$|[ \t]*[;])
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.flow.continue.sd
@@ -658,8 +658,8 @@ repository:
     match: ^([ \t]*)(return)($|[ \t]+$|[ \t]*[;])
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.flow.return.sd
@@ -673,8 +673,8 @@ repository:
     begin: ^([ \t]*)(return)($|[ \t]+)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.control.flow.return.sd
@@ -720,8 +720,8 @@ repository:
     match: ^([ \t]*)(delete)($|[ \t]+)($|[_a-zA-Z][\[\]._a-zA-Z0-9]*)($|[ \t]*)
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.operator.expression.delete.sd
@@ -747,8 +747,8 @@ repository:
     begin: ^([ \t]*)(if)($|[ \t]+)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.branch.if.sd
@@ -770,8 +770,8 @@ repository:
     begin: ^([ \t]*)(elseif)($|[ \t]+)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.branch.elseif.sd
@@ -793,8 +793,8 @@ repository:
     begin: ^([ \t]*)(else)($|[ \t]*)($|[:])
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.branch.else.sd
@@ -825,8 +825,8 @@ repository:
     begin: ^([ \t]*)(while)($|[ \t]+)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.repeat.while.sd
@@ -848,8 +848,8 @@ repository:
     begin: ^([ \t]*)(until)($|[ \t]+)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.repeat.while.sd
@@ -871,8 +871,8 @@ repository:
     begin: ^([ \t]*)(for)($|[ \t]+)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: controlKeyword
         name: keyword.control.repeat.while.sd
@@ -935,8 +935,8 @@ repository:
     begin: ^([ \t]*)(.*?[.])?([_a-zA-Z][_a-zA-Z0-9]*)(?=[(])
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#IdentifierPath" }
@@ -976,8 +976,8 @@ repository:
     begin: ^([ \t]*)($|.+?)($|[ \t]*)([!?~^|&<>%/*+-]{0,2}[=])($|[ \t]*)
     beginCaptures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#IdentifierPath" }
@@ -1004,8 +1004,8 @@ repository:
     match: ^([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*[?]?[.][_a-zA-Z].*|[_a-zA-Z][_a-zA-Z0-9]*(?:[?][.])?\[.*)$
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#IdentifierPath" }
@@ -1048,8 +1048,8 @@ repository:
     match: ^([ \t]*)((?=[-][>]).+$)
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#JumpTo" }
@@ -1074,7 +1074,11 @@ repository:
   JumpToSection:
     tag: heading
     name: keyword.control.jump.name.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*|[{][^}]*[}]|[<][<][-][-]|[<][<]|[>][>]|[-][-]|[+][+]|\^)
+    match: (.*?)$
+    captures:
+      1:
+        patterns:
+          - { include: "#InlineTemplateStringConditionalSubstitution" }
 
   Choice:
     name: entity.choice.sd
@@ -1111,8 +1115,8 @@ repository:
     match: ^([ \t]*)(\[\[)([^\]]*)(\]\])($|[ \t]*$)((?:\r\n|\r|\n)?)
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.operator.expression.begin.image.sd
@@ -1157,8 +1161,8 @@ repository:
     match: ^([ \t]*)([(][(])([^)]*)([)][)])($|[ \t]*$)((?:\r\n|\r|\n)?)
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         tag: keyword
         name: keyword.operator.expression.begin.audio.sd
@@ -1211,25 +1215,25 @@ repository:
         name: markup.raw.whitespace.separator.sd
       4:
         patterns:
-          - { include: "#AssetName" }
+          - { include: "#AssetNames" }
       5:
         tag: separator
         name: meta.template.expression.colon.sd
       6:
         patterns:
-          - { include: "#AssetArguments" }
+          - { include: "#AssetArgs" }
 
   AssetLayer:
     tag: controlKeyword
     name: keyword.control.asset.layer.sd
     match: (.+)
 
-  AssetName:
+  AssetNames:
     tag: variableName
     name: variable.other.constant.asset.name.sd
     match: (.+)
 
-  AssetArguments:
+  AssetArgs:
     tag: keyword
     name: keyword.asset.arguments.sd
     match: (.+)
@@ -1394,8 +1398,8 @@ repository:
     match: ^([ \t]*)([(][^()]*[)])($|[ \t]*$)((?:\r\n|\r|\n)?)
     captures:
       1:
-        tag: content
-        name: markup.raw.whitespace.indent.sd
+        patterns:
+          - { include: "#Indent" }
       2:
         patterns:
           - { include: "#DialogueLineParentheticalContent" }
@@ -1733,6 +1737,11 @@ repository:
       - { include: "#VariableName" }
       - { include: "#ExpressionPunctuations" }
       - { include: "#IllegalChar" }
+
+  Indent:
+    tag: content
+    name: markup.raw.whitespace.indent.sd
+    match: ^([ \t]+)
 
   Whitespace:
     tag: content
@@ -2238,7 +2247,7 @@ repository:
 
   TemplateStringConditionalSubstitution:
     brackets: true
-    begin: ([{])([ \t]*)(?:(.*?)($|[ \t]*)([:]))?
+    begin: ([{])(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?
     beginCaptures:
       1:
         tag: keyword
@@ -2254,6 +2263,19 @@ repository:
         tag: content
         name: markup.raw.whitespace.trailing.sd
       5:
+        tag: separator
+        name: meta.template.expression.colon.sd
+      6:
+        tag: content
+        name: markup.raw.whitespace.leading.sd
+      7:
+        patterns:
+          - { include: "#FunctionName" }
+          - { include: "#Unknown" }
+      8:
+        tag: content
+        name: markup.raw.whitespace.trailing.sd
+      9:
         tag: separator
         name: meta.template.expression.colon.sd
     patterns:
@@ -2277,7 +2299,7 @@ repository:
 
   InlineTemplateStringConditionalSubstitution:
     brackets: true
-    begin: ([{])([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)([:]?)
+    begin: ([{])(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?
     beginCaptures:
       1:
         tag: keyword
@@ -2288,11 +2310,25 @@ repository:
       3:
         patterns:
           - { include: "#VariableName" }
+          - { include: "#Unknown" }
       4:
         tag: content
         name: markup.raw.whitespace.trailing.sd
       5:
+        tag: separator
+        name: meta.template.expression.colon.sd
+      6:
         tag: content
+        name: markup.raw.whitespace.leading.sd
+      7:
+        patterns:
+          - { include: "#FunctionName" }
+          - { include: "#Unknown" }
+      8:
+        tag: content
+        name: markup.raw.whitespace.trailing.sd
+      9:
+        tag: separator
         name: meta.template.expression.colon.sd
     patterns:
       - { include: "#TemplateStringConditionalDelimiter" }

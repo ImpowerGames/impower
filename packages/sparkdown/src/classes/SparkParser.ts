@@ -5,6 +5,7 @@ import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import SPARK_RESERVED_KEYWORDS from "../constants/SPARK_RESERVED_KEYWORDS";
 import SPARK_TOKEN_TAGS from "../constants/SPARK_TOKEN_TAGS";
 import defaultCompiler from "../defaults/defaultCompiler";
+import defaultFormatter from "../defaults/defaultFormatter";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 import { SparkAction } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
@@ -32,7 +33,7 @@ import getScopedItemId from "../utils/getScopedItemId";
 import getScopedValueContext from "../utils/getScopedValueContext";
 import setProperty from "../utils/setProperty";
 
-const WHITESPACE_REGEX = /[ \t]+/;
+const WHITESPACE_REGEX = /([ \t]+)/;
 
 const UNESCAPED_DOUBLE_QUOTE = /(?<!\\)(?:(\\\\)*)["]/g;
 const ESCAPED_DOUBLE_QUOTE = /\\["]/g;
@@ -42,6 +43,7 @@ const SCENE_LOCATION_TIME_REGEX = new RegExp(
   GRAMMAR_DEFINITION.flags
 );
 
+const INDENT_UNIT = GRAMMAR_DEFINITION.indentUnit;
 const PRIMITIVE_TYPES = ["string", "number", "boolean"];
 
 const BUILT_IN_TYPES = [...PRIMITIVE_TYPES, "undefined", "object", "function"];
@@ -50,12 +52,28 @@ const vowels = ["a", "e", "i", "o", "u"];
 const lowercaseArticles = ["an", "a"];
 const capitalizedArticles = ["An", "A"];
 
-const prefixArticle = (str: string, capitalize?: boolean): string => {
+const prefixWithArticle = (str: string, capitalize?: boolean): string => {
   if (!str[0]) {
     return "";
   }
   const articles = capitalize ? capitalizedArticles : lowercaseArticles;
   return `${vowels.includes(str[0]) ? articles[0] : articles[1]} ${str}`;
+};
+
+const calculateIndent = (text: string): number => {
+  let tabCount = 0;
+  let spaceCount = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    const c = text[i]!;
+    if (c === "\t") {
+      tabCount += 1;
+    }
+    if (c === " ") {
+      spaceCount += 1;
+    }
+  }
+  const spaceMultiplier = INDENT_UNIT?.[0] === " " ? 1 / INDENT_UNIT.length : 0;
+  return tabCount + spaceCount * spaceMultiplier;
 };
 
 const findSectionId = (
@@ -140,8 +158,7 @@ export default class SparkParser {
   }
 
   build(script: string, tree: Tree, config?: SparkParserConfig) {
-    const compiler = config?.compiler || defaultCompiler;
-
+    /* INITIALIZE PROGRAM */
     const program: SparkProgram = {
       tokens: [],
       sections: {},
@@ -154,9 +171,7 @@ export default class SparkParser {
       | SparkDialogueToken
       | SparkDialogueBoxToken
     )[] = [];
-    let line = 0;
-    let currentSectionId = "";
-    program.sections[currentSectionId] = {
+    program.sections[""] = {
       level: 0,
       name: "",
       line: 0,
@@ -165,12 +180,16 @@ export default class SparkParser {
       parent: undefined,
     };
 
+    /* HELPER FUNCTIONS */
+    const compiler = config?.compiler || defaultCompiler;
+    const formatter = config?.formatter || defaultFormatter;
+
     const lookup = <K extends keyof SparkTokenTagMap>(
       ...tags: K[]
     ): SparkTokenTagMap[K] | undefined =>
-      stack.findLast((t) =>
-        tags.includes(t.tag as unknown as K)
-      ) as SparkTokenTagMap[K];
+      (tags.length > 0
+        ? stack.findLast((t) => tags.includes(t.tag as unknown as K))
+        : stack.at(-1)) as SparkTokenTagMap[K];
 
     const addToken = (tok: SparkToken) => {
       program.tokens.push(tok);
@@ -328,40 +347,73 @@ export default class SparkParser {
     ): "right" | "left" | undefined =>
       position === "left" ? "right" : position === "right" ? "left" : undefined;
 
-    const validateSectionReference = (
+    const validateSectionReferences = (
       tok: SparkToken,
       currentSectionId: string,
       expression: string,
       from: number,
       to: number
-    ): SparkSection | undefined => {
-      if (expression == null || !program.sections) {
-        return undefined;
+    ) => {
+      if (!expression) {
+        return;
       }
-      if (expression == "") {
-        return program.sections[""];
-      }
-      const name = getRelativeSectionName(
+      const [, context] = getScopedValueContext(
         currentSectionId,
         program.sections,
-        expression
+        compiler
       );
-      const id = findSectionId(program.sections, currentSectionId, name);
-      program.metadata.lines ??= [];
-      program.metadata.lines[tok.line] ??= {};
-      program.metadata.lines[tok.line]!.references ??= [];
-      program.metadata.lines[tok.line]!.references!.push({
-        from,
-        to,
-        name,
-        id,
-      });
-      const found = id ? program.sections?.[id] : undefined;
-      if (!found) {
-        reportMissing(tok, "section", name, { from, to });
-        return undefined;
+      if (expression.includes("{")) {
+        const [, diagnostics, references] = formatter(expression, context);
+        reportExpressionDiagnostics(tok, { from, to }, diagnostics);
+        references.forEach((reference) => {
+          const name = reference.content.trim();
+          const trimmedFromStart =
+            reference.content.length - reference.content.trimStart().length;
+          const trimmedFromEnd =
+            reference.content.length - reference.content.trimEnd().length;
+          const referenceFrom = from + reference.from + trimmedFromStart;
+          const referenceTo = from + reference.to - trimmedFromEnd;
+          const id = findSectionId(program.sections, currentSectionId, name);
+          const found = id ? program.sections?.[id] : undefined;
+          if (found) {
+            program.metadata.lines ??= [];
+            program.metadata.lines[tok.line] ??= {};
+            program.metadata.lines[tok.line]!.references ??= [];
+            program.metadata.lines[tok.line]!.references!.push({
+              from: referenceFrom,
+              to: referenceTo,
+              name,
+              id,
+            });
+          } else {
+            reportMissing(tok, "section", name, {
+              from: referenceFrom,
+              to: referenceTo,
+            });
+          }
+        });
+      } else {
+        const name = getRelativeSectionName(
+          currentSectionId,
+          program.sections,
+          expression
+        );
+        const id = findSectionId(program.sections, currentSectionId, name);
+        const found = id ? program.sections?.[id] : undefined;
+        if (found) {
+          program.metadata.lines ??= [];
+          program.metadata.lines[tok.line] ??= {};
+          program.metadata.lines[tok.line]!.references ??= [];
+          program.metadata.lines[tok.line]!.references!.push({
+            from,
+            to,
+            name,
+            id,
+          });
+        } else {
+          reportMissing(tok, "section", name, { from, to });
+        }
       }
-      return found;
     };
 
     const validateAssetReference = (
@@ -371,7 +423,7 @@ export default class SparkParser {
       name: string,
       nameRange: SparkRange | undefined
     ): SparkVariable | undefined => {
-      if (!name || !program.variables) {
+      if (!name) {
         return undefined;
       }
       const from = nameRange?.from ?? -1;
@@ -395,7 +447,7 @@ export default class SparkParser {
         diagnostic(
           program,
           tok,
-          `'${name}' is not ${prefixArticle(type)}`,
+          `'${name}' is not ${prefixWithArticle(type)}`,
           [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
           from,
           to
@@ -515,7 +567,7 @@ export default class SparkParser {
       assignedRange?: SparkRange,
       declaredToken?: { line: number; from: number; to: number }
     ) => {
-      const prefix = prefixArticle(type, true);
+      const prefix = prefixWithArticle(type, true);
       const location =
         declaredToken && declaredToken.line >= 0
           ? ` at line ${declaredToken.line}`
@@ -678,6 +730,9 @@ export default class SparkParser {
       return true;
     };
 
+    /* HOIST DECLARATIONS */
+    let line = 0;
+    let currentSectionId = "";
     tree.iterate({
       enter: (node) => {
         const id = nodeNames[node.type]!;
@@ -722,17 +777,6 @@ export default class SparkParser {
               program.frontMatter[keyword] ??= [""];
               const lastIndex = program.frontMatter[keyword]!.length - 1;
               program.frontMatter[keyword]![lastIndex] += text;
-            }
-          }
-
-          // comment
-          if (tok.tag === "comment") {
-            addToken(tok);
-          }
-          if (tok.tag === "comment_content") {
-            const parent = lookup("comment");
-            if (parent) {
-              parent.text = text;
             }
           }
 
@@ -879,58 +923,6 @@ export default class SparkParser {
             }
           }
 
-          // assign
-          if (tok.tag === "assign") {
-            addToken(tok);
-          }
-          if (tok.tag === "identifier_path") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.name = text;
-              parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "assign_operator") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.operator = text;
-              parent.ranges ??= {};
-              parent.ranges.operator = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "value_text") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.value ??= "";
-              parent.value += text;
-              parent.ranges ??= {};
-              parent.ranges.value ??= { from: tok.from, to: tok.to };
-              parent.ranges.value.to = tok.to;
-            }
-          }
-
-          // access
-          if (tok.tag === "access") {
-            addToken(tok);
-          }
-          if (tok.tag === "type_name") {
-            const parent = lookup("access");
-            if (parent) {
-              parent.type = text;
-              parent.ranges ??= {};
-              parent.ranges.type = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "identifier_path") {
-            const parent = lookup("access");
-            if (parent) {
-              parent.name = text;
-              parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
-            }
-          }
-
           // chunk
           if (tok.tag === "chunk") {
             addToken(tok);
@@ -965,262 +957,15 @@ export default class SparkParser {
             }
           }
 
-          // flow_break
-          if (tok.tag === "flow_break") {
-            addToken(tok);
-          }
-
-          // jump
-          if (tok.tag === "jump") {
-            addToken(tok);
-          }
-
-          // choice
-          if (tok.tag === "choice") {
-            addToken(tok);
-          }
-          if (tok.tag === "choice_content") {
-            tok.text = text;
-            const parent = lookup("choice");
+          if (tok.tag === "indent") {
+            const parent = lookup();
             if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // jump_to_section
-          if (tok.tag === "jump_to_section") {
-            const parent = lookup("jump", "choice");
-            if (parent) {
-              parent.section = text;
-              validateSectionReference(
-                tok,
-                currentSectionId,
-                text,
-                tok.from,
-                tok.to
-              );
-            }
-          }
-
-          // transition
-          if (tok.tag === "transition") {
-            addToken(tok);
-          }
-          if (tok.tag === "transition_content") {
-            tok.text = text;
-            const parent = lookup("transition");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // scene
-          if (tok.tag === "scene") {
-            addToken(tok);
-          }
-          if (tok.tag === "scene_content") {
-            tok.text = text;
-            const parent = lookup("scene");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // centered
-          if (tok.tag === "centered") {
-            addToken(tok);
-          }
-          if (tok.tag === "centered_content") {
-            tok.text = text;
-            const parent = lookup("centered");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // action
-          if (tok.tag === "action") {
-            addToken(tok);
-          }
-          if (tok.tag === "action_start") {
-            addToken(tok);
-          }
-          if (tok.tag === "action_end") {
-            addToken(tok);
-          }
-          if (tok.tag === "action_box") {
-            addToken(tok);
-          }
-
-          // dialogue
-          if (tok.tag === "dialogue") {
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_start") {
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_end") {
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_character_name" && text) {
-            const dialogue = lookup("dialogue");
-            if (dialogue) {
-              dialogue.characterName = text;
-            }
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue_start) {
-              dialogue_start.print = text;
-            }
-          }
-          if (tok.tag === "dialogue_character_parenthetical" && text) {
-            const dialogue = lookup("dialogue");
-            if (dialogue) {
-              dialogue.characterParenthetical = text;
-            }
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue_start) {
-              dialogue_start.print += " " + text;
-            }
-          }
-          if (tok.tag === "dialogue_character_simultaneous" && text) {
-            const dialogue = lookup("dialogue");
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue && dialogue_start) {
-              let prevPosition: "left" | "right" | undefined = undefined;
-              let prevCharacterName: string | undefined = undefined;
-              prevDisplayPositionalTokens.forEach((t) => {
-                t.autoAdvance = true;
-                prevPosition ??= t.position;
-                prevCharacterName ??= t.characterName;
-              });
-              if (dialogue.characterName === prevCharacterName) {
-                // Same character, so show in same spot
-                dialogue.position = prevPosition;
-              } else {
-                // Different character, so if a spot was not assigned for the previous character, move them to the left
-                // and display this character on the opposite side.
-                prevDisplayPositionalTokens.forEach((t) => {
-                  if (!t.position) {
-                    t.position = "left";
-                  }
-                  prevPosition = t.position;
-                });
-                dialogue.position = reversePosition(prevPosition);
-              }
-            }
-          }
-          if (tok.tag === "dialogue_box") {
-            const parent = lookup("dialogue");
-            if (parent) {
-              tok.characterName = parent.characterName;
-              tok.characterParenthetical = parent.characterParenthetical;
-              tok.position = parent.position;
-            }
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_line_parenthetical") {
-            tok.text = text;
-            tok.print = text;
-            const parent = lookup("dialogue_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // box
-          if (tok.tag === "box_line_continue") {
-            tok.text = text;
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-          if (tok.tag === "box_line_complete") {
-            tok.text = text;
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-          if (tok.tag === "display_text_prerequisite_value") {
-            const parent = lookup(
-              "choice",
-              "box_line_continue",
-              "box_line_complete"
-            );
-            if (parent) {
-              parent.prerequisiteValue = text;
-            }
-          }
-          if (tok.tag === "display_text_prerequisite_operator") {
-            const parent = lookup(
-              "choice",
-              "box_line_continue",
-              "box_line_complete"
-            );
-            if (parent) {
-              parent.prerequisiteOperator = text;
-            }
-          }
-          if (tok.tag === "display_text_content") {
-            const parent = lookup(
-              "choice_content",
-              "box_line_continue",
-              "box_line_complete"
-            );
-            if (parent) {
-              parent.text = text;
-            }
-          }
-          if (tok.tag === "image") {
-            const parts = text.split(WHITESPACE_REGEX);
-            tok.name = parts[0] || "";
-            tok.args = parts.slice(1);
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-          if (tok.tag === "audio") {
-            const parts = text.split(WHITESPACE_REGEX);
-            tok.name = parts[0] || "";
-            tok.args = parts.slice(1);
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
+              parent.indent = calculateIndent(text);
             }
           }
 
           // push token onto current stack
           stack.push(tok);
-        }
-
-        // Print screenplay content (include styling marks but not emphasis marks)
-        if (id === "PlainText" || id === "StylingMark") {
-          const text = script.slice(from, to);
-          const display_line = lookup(
-            "choice_content",
-            "transition_content",
-            "scene_content",
-            "centered_content",
-            "box_line_continue",
-            "box_line_complete"
-          );
-          if (display_line) {
-            if (display_line.print == null) {
-              display_line.print = "";
-            }
-            display_line.print += text;
-          }
         }
 
         // newline
@@ -1311,119 +1056,6 @@ export default class SparkParser {
                 declaration: true,
               });
             }
-          }
-
-          if (tok.tag === "flow_break") {
-            prevDisplayPositionalTokens.length = 0;
-          }
-
-          if (tok.tag === "image") {
-            validateAssetReference(
-              tok,
-              currentSectionId,
-              "image",
-              tok.name,
-              tok?.ranges?.name
-            );
-          }
-
-          if (tok.tag === "audio") {
-            validateAssetReference(
-              tok,
-              currentSectionId,
-              "audio",
-              tok.name,
-              tok?.ranges?.name
-            );
-          }
-
-          if (tok.tag === "transition") {
-            prevDisplayPositionalTokens.length = 0;
-          }
-
-          if (tok.tag === "scene") {
-            prevDisplayPositionalTokens.length = 0;
-            const text =
-              tok.content
-                ?.map((t) => t.text)
-                .join("")
-                .toUpperCase() || "";
-            const locationTimeMatch = text.match(SCENE_LOCATION_TIME_REGEX);
-            const location = locationTimeMatch?.[1] || "";
-            const time = locationTimeMatch?.[2] || "";
-            program.metadata.scenes ??= [];
-            program.metadata.scenes.push({
-              index: tok.index,
-              name: text,
-              line: tok.line,
-              location,
-              time,
-              actionDuration: 0,
-              dialogueDuration: 0,
-            });
-            program.metadata.lines ??= [];
-            program.metadata.lines[tok.line] ??= {};
-            program.metadata.lines[tok.line]!.scene = tok.index;
-          }
-
-          if (tok.tag === "centered") {
-            prevDisplayPositionalTokens.length = 0;
-          }
-
-          if (tok.tag === "action") {
-            prevDisplayPositionalTokens.length = 0;
-          }
-
-          if (tok.tag === "action_box") {
-            // Record estimated speechDuration
-            const text =
-              tok.content
-                ?.map((t) =>
-                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
-                    ? t.text
-                    : ""
-                )
-                .join("") || "";
-            tok.speechDuration = calculateSpeechDuration(text);
-            program.metadata.actionDuration =
-              (program.metadata.actionDuration || 0) + tok.speechDuration;
-            const currentScene = program.metadata?.scenes?.at(-1);
-            if (currentScene) {
-              currentScene.actionDuration =
-                (currentScene.actionDuration || 0) + tok.speechDuration;
-            }
-          }
-
-          if (tok.tag === "dialogue_box") {
-            // Record estimated speechDuration
-            const text =
-              tok.content
-                ?.map((t) =>
-                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
-                    ? t.text
-                    : ""
-                )
-                .join("") || "";
-            tok.speechDuration = calculateSpeechDuration(text);
-            program.metadata.dialogueDuration =
-              (program.metadata.dialogueDuration || 0) + tok.speechDuration;
-            const currentScene = program.metadata?.scenes?.at(-1);
-            if (currentScene) {
-              currentScene.dialogueDuration =
-                (currentScene.dialogueDuration || 0) + tok.speechDuration;
-            }
-          }
-
-          if (tok.tag === "dialogue_character_simultaneous") {
-            const dialogue = lookup("dialogue");
-            if (dialogue) {
-              prevDisplayPositionalTokens.length = 0;
-              prevDisplayPositionalTokens.push(dialogue);
-            }
-          }
-
-          if (tok.tag === "dialogue_box") {
-            prevDisplayPositionalTokens.push(tok);
           }
 
           if (tok.tag === "struct") {
@@ -1553,6 +1185,531 @@ export default class SparkParser {
             }
           }
 
+          stack.pop();
+        }
+      },
+    });
+
+    /* PROCESS COMMANDS */
+    line = 0;
+    currentSectionId = "";
+    tree.iterate({
+      enter: (node) => {
+        const id = nodeNames[node.type]!;
+        const from = node.from;
+        const to = node.to;
+        const tag = SPARK_TOKEN_TAGS[id];
+        if (tag) {
+          const text = script.slice(from, to);
+          const tok = createSparkToken(tag, {
+            line,
+            from,
+            to,
+          });
+
+          if (tok.tag === "chunk") {
+            currentSectionId = program.metadata?.lines?.[line]?.section || "";
+          }
+
+          if (tok.tag === "section") {
+            currentSectionId = program.metadata?.lines?.[line]?.section || "";
+          }
+
+          // comment
+          if (tok.tag === "comment") {
+            addToken(tok);
+          }
+          if (tok.tag === "comment_content") {
+            const parent = lookup("comment");
+            if (parent) {
+              parent.text = text;
+            }
+          }
+
+          // assign
+          if (tok.tag === "assign") {
+            addToken(tok);
+          }
+          if (tok.tag === "identifier_path") {
+            const parent = lookup("assign");
+            if (parent) {
+              parent.name = text;
+              parent.ranges ??= {};
+              parent.ranges.name = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "assign_operator") {
+            const parent = lookup("assign");
+            if (parent) {
+              parent.operator = text;
+              parent.ranges ??= {};
+              parent.ranges.operator = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "value_text") {
+            const parent = lookup("assign");
+            if (parent) {
+              parent.value ??= "";
+              parent.value += text;
+              parent.ranges ??= {};
+              parent.ranges.value ??= { from: tok.from, to: tok.to };
+              parent.ranges.value.to = tok.to;
+            }
+          }
+
+          // access
+          if (tok.tag === "access") {
+            addToken(tok);
+          }
+          if (tok.tag === "type_name") {
+            const parent = lookup("access");
+            if (parent) {
+              parent.type = text;
+              parent.ranges ??= {};
+              parent.ranges.type = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "identifier_path") {
+            const parent = lookup("access");
+            if (parent) {
+              parent.name = text;
+              parent.ranges ??= {};
+              parent.ranges.name = { from: tok.from, to: tok.to };
+            }
+          }
+
+          // flow_break
+          if (tok.tag === "flow_break") {
+            addToken(tok);
+          }
+
+          // jump
+          if (tok.tag === "jump") {
+            addToken(tok);
+          }
+
+          // choice
+          if (tok.tag === "choice") {
+            addToken(tok);
+          }
+          if (tok.tag === "choice_content") {
+            tok.text = text;
+            const parent = lookup("choice");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+
+          // jump_to_section
+          if (tok.tag === "jump_to_section") {
+            const parent = lookup("jump", "choice");
+            if (parent) {
+              parent.section = text;
+              validateSectionReferences(
+                tok,
+                currentSectionId,
+                text,
+                tok.from,
+                tok.to
+              );
+            }
+          }
+
+          // transition
+          if (tok.tag === "transition") {
+            addToken(tok);
+          }
+          if (tok.tag === "transition_content") {
+            tok.text = text;
+            const parent = lookup("transition");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+
+          // scene
+          if (tok.tag === "scene") {
+            addToken(tok);
+          }
+          if (tok.tag === "scene_content") {
+            tok.text = text;
+            const parent = lookup("scene");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+
+          // centered
+          if (tok.tag === "centered") {
+            addToken(tok);
+          }
+          if (tok.tag === "centered_content") {
+            tok.text = text;
+            const parent = lookup("centered");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+
+          // action
+          if (tok.tag === "action") {
+            addToken(tok);
+          }
+          if (tok.tag === "action_start") {
+            addToken(tok);
+          }
+          if (tok.tag === "action_end") {
+            addToken(tok);
+          }
+          if (tok.tag === "action_box") {
+            addToken(tok);
+          }
+
+          // dialogue
+          if (tok.tag === "dialogue") {
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_start") {
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_end") {
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_character_name" && text) {
+            const dialogue = lookup("dialogue");
+            if (dialogue) {
+              dialogue.characterName = text;
+            }
+            const dialogue_start = lookup("dialogue_start");
+            if (dialogue_start) {
+              dialogue_start.print = text;
+            }
+          }
+          if (tok.tag === "dialogue_character_parenthetical" && text) {
+            const dialogue = lookup("dialogue");
+            if (dialogue) {
+              dialogue.characterParenthetical = text;
+            }
+            const dialogue_start = lookup("dialogue_start");
+            if (dialogue_start) {
+              dialogue_start.print += " " + text;
+            }
+          }
+          if (tok.tag === "dialogue_character_simultaneous" && text) {
+            const dialogue = lookup("dialogue");
+            const dialogue_start = lookup("dialogue_start");
+            if (dialogue && dialogue_start) {
+              let prevPosition: "left" | "right" | undefined = undefined;
+              let prevCharacterName: string | undefined = undefined;
+              prevDisplayPositionalTokens.forEach((t) => {
+                t.autoAdvance = true;
+                prevPosition ??= t.position;
+                prevCharacterName ??= t.characterName;
+              });
+              if (dialogue.characterName === prevCharacterName) {
+                // Same character, so show in same spot
+                dialogue.position = prevPosition;
+              } else {
+                // Different character, so if a spot was not assigned for the previous character, move them to the left
+                // and display this character on the opposite side.
+                prevDisplayPositionalTokens.forEach((t) => {
+                  if (!t.position) {
+                    t.position = "left";
+                  }
+                  prevPosition = t.position;
+                });
+                dialogue.position = reversePosition(prevPosition);
+              }
+            }
+          }
+          if (tok.tag === "dialogue_box") {
+            const parent = lookup("dialogue");
+            if (parent) {
+              tok.position = parent.position;
+              tok.characterName = parent.characterName;
+              tok.characterParenthetical = parent.characterParenthetical;
+              tok.clearOnAdvance = true;
+              tok.waitUntilFinished = true;
+            }
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_line_parenthetical") {
+            tok.text = text;
+            tok.print = text;
+            const parent = lookup("dialogue_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+
+          // box
+          if (tok.tag === "box_line_continue") {
+            tok.text = text;
+            const parent = lookup("dialogue_box", "action_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+          if (tok.tag === "box_line_complete") {
+            tok.text = text;
+            const parent = lookup("dialogue_box", "action_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+          if (tok.tag === "display_text_prerequisite_value") {
+            const parent = lookup(
+              "choice",
+              "box_line_continue",
+              "box_line_complete"
+            );
+            if (parent) {
+              parent.prerequisiteValue = text;
+            }
+          }
+          if (tok.tag === "display_text_prerequisite_operator") {
+            const parent = lookup(
+              "choice",
+              "box_line_continue",
+              "box_line_complete"
+            );
+            if (parent) {
+              parent.prerequisiteOperator = text;
+            }
+          }
+          if (tok.tag === "display_text_content") {
+            const parent = lookup(
+              "choice_content",
+              "box_line_continue",
+              "box_line_complete"
+            );
+            if (parent) {
+              parent.text = text;
+            }
+          }
+          if (tok.tag === "image") {
+            const parent = lookup("dialogue_box", "action_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+          if (tok.tag === "audio") {
+            const parent = lookup("dialogue_box", "action_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content?.push(tok);
+            }
+          }
+          if (tok.tag === "asset_layer") {
+            const parent = lookup("image", "audio");
+            if (parent) {
+              parent.layer = text;
+              parent.ranges ??= {};
+              parent.ranges.layer = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "asset_names") {
+            const parent = lookup("image", "audio");
+            if (parent) {
+              parent.assets = [];
+              parent.nameRanges = [];
+              let from = tok.from;
+              text.split(WHITESPACE_REGEX).forEach((p) => {
+                const name = p.trim();
+                if (name) {
+                  parent.assets.push(name);
+                  parent.nameRanges.push({ from, to: from + p.length });
+                }
+                from += p.length;
+              });
+              parent.ranges ??= {};
+              parent.ranges.assets = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "asset_args") {
+            const parent = lookup("image", "audio");
+            if (parent) {
+              const args = text.split(WHITESPACE_REGEX);
+              parent.args = args;
+              parent.ranges ??= {};
+              parent.ranges.args = { from: tok.from, to: tok.to };
+            }
+          }
+          if (tok.tag === "indent") {
+            const parent = lookup();
+            if (parent) {
+              parent.indent = calculateIndent(text);
+            }
+          }
+
+          // push token onto current stack
+          stack.push(tok);
+        }
+
+        // Print screenplay content (include styling marks but not emphasis marks)
+        if (id === "PlainText" || id === "StylingMark") {
+          const text = script.slice(from, to);
+          const display_line = lookup(
+            "choice_content",
+            "transition_content",
+            "scene_content",
+            "centered_content",
+            "box_line_continue",
+            "box_line_complete"
+          );
+          if (display_line) {
+            if (display_line.print == null) {
+              display_line.print = "";
+            }
+            display_line.print += text;
+          }
+        }
+
+        // newline
+        if (id === "Newline") {
+          line += 1;
+        }
+      },
+      leave: (node) => {
+        const tok = stack.at(-1);
+        const tag = SPARK_TOKEN_TAGS[nodeNames[node.type]!];
+
+        if (tok && tok.tag === tag) {
+          if (tok.tag === "flow_break") {
+            prevDisplayPositionalTokens.length = 0;
+          }
+
+          if (tok.tag === "image") {
+            const nameRanges = tok.nameRanges;
+            if (nameRanges) {
+              nameRanges.forEach((nameRange) => {
+                const name = script.slice(nameRange.from, nameRange.to);
+                validateAssetReference(
+                  tok,
+                  currentSectionId,
+                  "image",
+                  name,
+                  nameRange
+                );
+              });
+            }
+          }
+
+          if (tok.tag === "audio") {
+            const nameRanges = tok.nameRanges;
+            if (nameRanges) {
+              nameRanges.forEach((nameRange) => {
+                const name = script.slice(nameRange.from, nameRange.to);
+                validateAssetReference(
+                  tok,
+                  currentSectionId,
+                  "audio",
+                  name,
+                  nameRange
+                );
+              });
+            }
+          }
+
+          if (tok.tag === "transition") {
+            prevDisplayPositionalTokens.length = 0;
+          }
+
+          if (tok.tag === "scene") {
+            prevDisplayPositionalTokens.length = 0;
+            const text =
+              tok.content
+                ?.map((t) => t.text)
+                .join("")
+                .toUpperCase() || "";
+            const locationTimeMatch = text.match(SCENE_LOCATION_TIME_REGEX);
+            const location = locationTimeMatch?.[1] || "";
+            const time = locationTimeMatch?.[2] || "";
+            program.metadata.scenes ??= [];
+            program.metadata.scenes.push({
+              index: tok.index,
+              name: text,
+              line: tok.line,
+              location,
+              time,
+              actionDuration: 0,
+              dialogueDuration: 0,
+            });
+            program.metadata.lines ??= [];
+            program.metadata.lines[tok.line] ??= {};
+            program.metadata.lines[tok.line]!.scene = tok.index;
+          }
+
+          if (tok.tag === "centered") {
+            prevDisplayPositionalTokens.length = 0;
+          }
+
+          if (tok.tag === "action") {
+            prevDisplayPositionalTokens.length = 0;
+          }
+
+          if (tok.tag === "action_box") {
+            // Record estimated speechDuration
+            const text =
+              tok.content
+                ?.map((t) =>
+                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
+                    ? t.text
+                    : ""
+                )
+                .join("") || "";
+            tok.speechDuration = calculateSpeechDuration(text);
+            program.metadata.actionDuration =
+              (program.metadata.actionDuration || 0) + tok.speechDuration;
+            const currentScene = program.metadata?.scenes?.at(-1);
+            if (currentScene) {
+              currentScene.actionDuration =
+                (currentScene.actionDuration || 0) + tok.speechDuration;
+            }
+            tok.clearOnAdvance = true;
+            tok.waitUntilFinished = true;
+          }
+
+          if (tok.tag === "dialogue_box") {
+            // Record estimated speechDuration
+            const text =
+              tok.content
+                ?.map((t) =>
+                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
+                    ? t.text
+                    : ""
+                )
+                .join("") || "";
+            tok.speechDuration = calculateSpeechDuration(text);
+            program.metadata.dialogueDuration =
+              (program.metadata.dialogueDuration || 0) + tok.speechDuration;
+            const currentScene = program.metadata?.scenes?.at(-1);
+            if (currentScene) {
+              currentScene.dialogueDuration =
+                (currentScene.dialogueDuration || 0) + tok.speechDuration;
+            }
+          }
+
+          if (tok.tag === "dialogue_character_simultaneous") {
+            const dialogue = lookup("dialogue");
+            if (dialogue) {
+              prevDisplayPositionalTokens.length = 0;
+              prevDisplayPositionalTokens.push(dialogue);
+            }
+          }
+
+          if (tok.tag === "dialogue_box") {
+            prevDisplayPositionalTokens.push(tok);
+          }
+
           if (tok.tag === "assign") {
             const [ids, context] = getScopedValueContext(
               currentSectionId,
@@ -1610,6 +1767,7 @@ export default class SparkParser {
         }
       },
     });
+
     // CLEANUP
     if (program.frontMatter) {
       Object.entries(program.frontMatter).forEach(([keyword, values]) => {
@@ -1619,7 +1777,9 @@ export default class SparkParser {
           .filter((v) => Boolean(v));
       });
     }
+
     console.log(program);
+
     return program;
   }
 

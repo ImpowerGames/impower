@@ -6,6 +6,7 @@
     "project"
   ],
   "keyEquivalent": "^~S",
+  "indentUnit": "  ",
   "name": "Sparkdown",
   "scopeName": "text.source.sparkdown",
   "uuid": "E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F",
@@ -46,9 +47,6 @@
     },
     {
       "include": "#Jump"
-    },
-    {
-      "include": "#Choice"
     },
     {
       "include": "#Transition"
@@ -238,8 +236,11 @@
       "match": "^([ ]{2,}|[\\t]+)([-])($|[ \\t]+)(.*$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -278,8 +279,11 @@
       "match": "^($|[ \\t]*)(.*$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -443,8 +447,11 @@
       "begin": "^([ \\t]*)(import)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -550,8 +557,11 @@
       "begin": "^([ \\t]*)(define)([ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -676,8 +686,11 @@
       "begin": "^([ \\t]*)(define)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)([=])($|[ \\t]*)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -743,8 +756,11 @@
       "begin": "^([ \\t]*)(define)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)(?:($|[:]?)($|[ \\t]*$)|([:]?)(.+$))",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -835,8 +851,11 @@
       "begin": "^([ \\t]*)([-])($|[ \\t]+$)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -878,8 +897,11 @@
       "begin": "^([ \\t]*)([-])([ \\t]+)(?=.*\\S.*$)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -903,8 +925,11 @@
       "begin": "^([ \\t]*)([^ \\t:]+)($|[:])($|[ \\t]*$)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -956,8 +981,11 @@
       "begin": "^([ \\t]*)([^ \\t:]+)($|[:])($|[ \\t]*)(?=.*\\S.*$)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -991,8 +1019,11 @@
       "begin": "^([ \\t]*)(define)($|[ \\t]+)($|.+$)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1026,8 +1057,11 @@
       "match": "^([ \\t]*)(break)($|[ \\t]+$|[ \\t]*[;])",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1045,8 +1079,11 @@
       "match": "^([ \\t]*)(continue)($|[ \\t]+$|[ \\t]*[;])",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1074,8 +1111,11 @@
       "match": "^([ \\t]*)(return)($|[ \\t]+$|[ \\t]*[;])",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1093,8 +1133,11 @@
       "begin": "^([ \\t]*)(return)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -1166,8 +1209,11 @@
       "match": "^([ \\t]*)(delete)($|[ \\t]+)($|[_a-zA-Z][\\[\\]._a-zA-Z0-9]*)($|[ \\t]*)",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -1209,8 +1255,11 @@
       "begin": "^([ \\t]*)(if)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1249,8 +1298,11 @@
       "begin": "^([ \\t]*)(elseif)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1289,8 +1341,11 @@
       "begin": "^([ \\t]*)(else)($|[ \\t]*)($|[:])",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1346,8 +1401,11 @@
       "begin": "^([ \\t]*)(while)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1386,8 +1444,11 @@
       "begin": "^([ \\t]*)(until)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1426,8 +1487,11 @@
       "begin": "^([ \\t]*)(for)($|[ \\t]+)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "controlKeyword",
@@ -1534,8 +1598,11 @@
       "begin": "^([ \\t]*)(.*?[.])?([_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -1604,8 +1671,11 @@
       "begin": "^([ \\t]*)($|.+?)($|[ \\t]*)([!?~^|&<>%/*+-]{0,2}[=])($|[ \\t]*)",
       "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -1652,8 +1722,11 @@
       "match": "^([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*[?]?[.][_a-zA-Z].*|[_a-zA-Z][_a-zA-Z0-9]*(?:[?][.])?\\[.*)$",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -1734,8 +1807,11 @@
       "match": "^([ \\t]*)((?=[-][>]).+$)",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -1774,7 +1850,16 @@
     "JumpToSection": {
       "tag": "heading",
       "name": "keyword.control.jump.name.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*|[{][^}]*[}]|[<][<][-][-]|[<][<]|[>][>]|[-][-]|[+][+]|\\^)"
+      "match": "(.*?)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#InlineTemplateStringConditionalSubstitution"
+            }
+          ]
+        }
+      }
     },
     "Choice": {
       "name": "entity.choice.sd",
@@ -1831,8 +1916,11 @@
       "match": "^([ \\t]*)(\\[\\[)([^\\]]*)(\\]\\])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -1902,8 +1990,11 @@
       "match": "^([ \\t]*)([(][(])([^)]*)([)][)])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "tag": "keyword",
@@ -1988,7 +2079,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#AssetName"
+              "include": "#AssetNames"
             }
           ]
         },
@@ -1999,7 +2090,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#AssetArguments"
+              "include": "#AssetArgs"
             }
           ]
         }
@@ -2010,12 +2101,12 @@
       "name": "keyword.control.asset.layer.sd",
       "match": "(.+)"
     },
-    "AssetName": {
+    "AssetNames": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.name.sd",
       "match": "(.+)"
     },
-    "AssetArguments": {
+    "AssetArgs": {
       "tag": "keyword",
       "name": "keyword.asset.arguments.sd",
       "match": "(.+)"
@@ -2270,8 +2361,11 @@
       "match": "^([ \\t]*)([(][^()]*[)])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.indent.sd"
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -2845,6 +2939,11 @@
           "include": "#IllegalChar"
         }
       ]
+    },
+    "Indent": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.indent.sd",
+      "match": "^([ \\t]+)"
     },
     "Whitespace": {
       "tag": "content",
@@ -3542,7 +3641,7 @@
     },
     "TemplateStringConditionalSubstitution": {
       "brackets": true,
-      "begin": "([{])([ \\t]*)(?:(.*?)($|[ \\t]*)([:]))?",
+      "begin": "([{])(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -3567,6 +3666,28 @@
           "name": "markup.raw.whitespace.trailing.sd"
         },
         "5": {
+          "tag": "separator",
+          "name": "meta.template.expression.colon.sd"
+        },
+        "6": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.leading.sd"
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#FunctionName"
+            },
+            {
+              "include": "#Unknown"
+            }
+          ]
+        },
+        "8": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.trailing.sd"
+        },
+        "9": {
           "tag": "separator",
           "name": "meta.template.expression.colon.sd"
         }
@@ -3604,7 +3725,7 @@
     },
     "InlineTemplateStringConditionalSubstitution": {
       "brackets": true,
-      "begin": "([{])([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)([:]?)",
+      "begin": "([{])(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -3618,6 +3739,9 @@
           "patterns": [
             {
               "include": "#VariableName"
+            },
+            {
+              "include": "#Unknown"
             }
           ]
         },
@@ -3626,7 +3750,29 @@
           "name": "markup.raw.whitespace.trailing.sd"
         },
         "5": {
+          "tag": "separator",
+          "name": "meta.template.expression.colon.sd"
+        },
+        "6": {
           "tag": "content",
+          "name": "markup.raw.whitespace.leading.sd"
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#FunctionName"
+            },
+            {
+              "include": "#Unknown"
+            }
+          ]
+        },
+        "8": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.trailing.sd"
+        },
+        "9": {
+          "tag": "separator",
           "name": "meta.template.expression.colon.sd"
         }
       },

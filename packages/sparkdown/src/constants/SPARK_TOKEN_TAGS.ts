@@ -71,8 +71,11 @@ const SPARK_TOKEN_TAGS: {
   Centered: "centered",
   CenteredContent: "centered_content",
 
-  ImageContent: "image",
-  AudioContent: "audio",
+  Image: "image",
+  Audio: "audio",
+  AssetLayer: "asset_layer",
+  AssetNames: "asset_names",
+  AssetArgs: "asset_args",
 
   ExplicitAction: "action",
   ImplicitAction: "action",
@@ -94,6 +97,8 @@ const SPARK_TOKEN_TAGS: {
   DisplayText_c1: "display_text_prerequisite_value",
   DisplayText_c2: "display_text_prerequisite_operator",
   DisplayText_c3: "display_text_content",
+
+  Indent: "indent",
 
   Unknown: "unknown",
 };
