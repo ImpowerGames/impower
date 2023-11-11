@@ -158,6 +158,8 @@ export default class SparkParser {
   }
 
   build(script: string, tree: Tree, config?: SparkParserConfig) {
+    const parseStartTime = Date.now();
+
     /* INITIALIZE PROGRAM */
     const program: SparkProgram = {
       tokens: [],
@@ -1388,6 +1390,11 @@ export default class SparkParser {
             if (dialogue_start) {
               dialogue_start.print = text;
             }
+            program.metadata.characters ??= {};
+            program.metadata.characters[text] ??= {};
+            program.metadata.characters[text]!.name = text;
+            program.metadata.characters[text]!.lines ??= [];
+            program.metadata.characters[text]!.lines!.push(tok.line);
           }
           if (tok.tag === "dialogue_character_parenthetical" && text) {
             const dialogue = lookup("dialogue");
@@ -1778,7 +1785,11 @@ export default class SparkParser {
       });
     }
 
-    console.log(program);
+    // console.log(program);
+
+    const parseEndTime = Date.now();
+    program.metadata.parseTime = parseEndTime;
+    program.metadata.parseDuration = parseEndTime - parseStartTime;
 
     return program;
   }

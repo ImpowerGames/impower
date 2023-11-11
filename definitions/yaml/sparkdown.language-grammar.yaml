@@ -762,7 +762,7 @@ repository:
       - { include: "#Condition" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
+    end: (?=^(?!\1(?:[ ]{2,}|[\t]+|elseif|else)))
 
   Elseif:
     tag: meta

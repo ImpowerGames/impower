@@ -7,7 +7,6 @@ import { AssignCommandRunner } from "../../project/classes/instances/items/comma
 import { EndCommandRunner } from "../../project/classes/instances/items/commands/flow/endCommand/EndCommandRunner";
 import { EnterCommandRunner } from "../../project/classes/instances/items/commands/flow/enterCommand/EnterCommandRunner";
 import { LogCommandRunner } from "../../project/classes/instances/items/commands/flow/logCommand/LogCommandRunner";
-import { RepeatCommandRunner } from "../../project/classes/instances/items/commands/flow/repeatCommand/RepeatCommandRunner";
 import { ReturnCommandRunner } from "../../project/classes/instances/items/commands/flow/returnCommand/ReturnCommandRunner";
 import { WaitCommandRunner } from "../../project/classes/instances/items/commands/flow/waitCommand/WaitCommandRunner";
 
@@ -21,7 +20,6 @@ export class GameRunner<G extends Game> {
     LogCommand: new LogCommandRunner(),
     EnterCommand: new EnterCommandRunner(),
     ReturnCommand: new ReturnCommandRunner(),
-    RepeatCommand: new RepeatCommandRunner(),
     EndCommand: new EndCommandRunner(),
     WaitCommand: new WaitCommandRunner(),
     ConditionCommand: new ConditionCommandRunner(),

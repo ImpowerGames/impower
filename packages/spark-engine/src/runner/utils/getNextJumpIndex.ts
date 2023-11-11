@@ -10,7 +10,7 @@ export const getNextJumpIndex = <
   index: number,
   iterableRunners: { runner: R; data: D }[],
   validJumps: {
-    check: (c: "if" | "elseif" | "else" | "close") => boolean;
+    check: (c: "if" | "elseif" | "else" | "end") => boolean;
     offset: number;
   }[] = []
 ): number => {
@@ -24,11 +24,7 @@ export const getNextJumpIndex = <
           break;
         }
         if (c.data.indent === currentLevel) {
-          const check = c?.data?.["check"] as
-            | "if"
-            | "elseif"
-            | "else"
-            | "close";
+          const check = c?.data?.["check"] as "if" | "elseif" | "else" | "end";
           const nextJump = validJumps.find((next) => next.check(check));
           if (nextJump) {
             return i + nextJump.offset;
@@ -37,7 +33,7 @@ export const getNextJumpIndex = <
       }
     }
   }
-  // Skip to command after next close
+  // Skip to command after next end
   for (let i = index + 1; i < iterableRunners.length; i += 1) {
     const c = iterableRunners[i];
     if (c) {
@@ -45,8 +41,8 @@ export const getNextJumpIndex = <
         break;
       }
       if (c.data.indent === currentLevel) {
-        const check = c?.data?.["check"] as "if" | "elseif" | "else" | "close";
-        if (check === "close") {
+        const check = c?.data?.["check"] as "if" | "elseif" | "else" | "end";
+        if (check === "end") {
           return i + 1;
         }
       }

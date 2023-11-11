@@ -718,7 +718,7 @@
           "sparkdown.editor.newlineHelper": {
             "type": "boolean",
             "default": true,
-            "markdownDescription": "Auto-skip to the next line if the caret is just before the last parenthesis within a parenthetical (like so|) and auto-close define blocks. If you are using a vim emulator, you should disable this setting - an [issue with vscode](https://github.com/Microsoft/vscode/issues/13441) means it is impossible for two extensions to simultaneously intercept typing."
+            "markdownDescription": "If you are using a vim emulator, you should disable this setting - an [issue with vscode](https://github.com/Microsoft/vscode/issues/13441) means it is impossible for two extensions to simultaneously intercept typing."
           },
           "sparkdown.editor.refreshStatsOnSave": {
             "type": "boolean",

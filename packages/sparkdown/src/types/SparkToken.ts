@@ -112,12 +112,12 @@ export interface SparkDeleteToken extends ISparkToken<"delete"> {
 }
 
 export interface SparkBranchToken
-  extends ISparkToken<"if" | "elseif" | "else"> {
+  extends ISparkToken<"if" | "elseif" | "else" | "end"> {
   condition: string;
 }
 
 export interface SparkRepeatToken
-  extends ISparkToken<"while" | "until" | "for"> {
+  extends ISparkToken<"while" | "until" | "for" | "end"> {
   condition: string;
 }
 
@@ -356,6 +356,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   if: SparkBranchToken;
   elseif: SparkBranchToken;
   else: SparkBranchToken;
+  end: SparkBranchToken;
   while: SparkRepeatToken;
   until: SparkRepeatToken;
   for: SparkRepeatToken;

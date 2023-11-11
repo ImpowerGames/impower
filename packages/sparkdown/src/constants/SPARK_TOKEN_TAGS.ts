@@ -53,6 +53,7 @@ const SPARK_TOKEN_TAGS: {
   If: "if",
   Elseif: "elseif",
   Else: "else",
+  If_end: "end",
   While: "while",
   Until: "until",
   For: "for",

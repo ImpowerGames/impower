@@ -10,7 +10,6 @@ export interface SparkProgramMetadata {
   colors?: SparkColorMetadata[];
   characters?: Record<string, SparkCharacterMetadata>;
 
-  firstScriptLine?: number;
   structure?: Record<string, StructureItem>;
 
   dialogueDuration?: number;

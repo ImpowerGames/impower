@@ -2477,7 +2477,7 @@ const parseSpark = (
           const expressionFrom = currentToken.from + getStart(match, 6);
           expression = stripInlineComments(expression);
           const checkTo = checkFrom + check.length;
-          currentToken.check = (check as "if" | "elseif" | "else") || "close";
+          currentToken.check = (check as "if" | "elseif" | "else") || "end";
           currentToken.value = expression;
           if (check === "elseif" || check === "else") {
             const startIndex = program.tokens.length;
@@ -2919,7 +2919,7 @@ const parseSpark = (
           currentSectionId,
           createSparkToken("condition", state.newLineLength, {
             line: currentToken?.line,
-            check: "close",
+            check: "end",
             indent,
             from: currentToken?.from,
             to: currentToken?.from,

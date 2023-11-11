@@ -108,7 +108,7 @@ export class Context<
       const command = startCommands[i];
       if (
         command &&
-        command.params?.check !== "close" &&
+        command.params?.check !== "end" &&
         command.source.line > entryLine
       ) {
         break;
