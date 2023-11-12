@@ -15,10 +15,7 @@ import getUniqueOptions from "./getUniqueOptions";
 const WHITESPACE_REGEX = /\s/g;
 
 const getImageCompletions = (program: SparkProgram | undefined) => {
-  if (!program) {
-    return [];
-  }
-  return Object.entries(program?.objectMap?.["image"] || {}).map(
+  return Object.entries(program?.typeMap?.["image"] || {}).map(
     ([name, { src, type }]) => ({
       label: name,
       labelDetails: { description: type },
@@ -32,10 +29,7 @@ const getImageCompletions = (program: SparkProgram | undefined) => {
 };
 
 const getAudioCompletions = (program: SparkProgram | undefined) => {
-  if (!program) {
-    return [];
-  }
-  return Object.entries(program?.objectMap?.["audio"] || {}).map(
+  return Object.entries(program?.typeMap?.["audio"] || {}).map(
     ([name, { type }]) => ({
       label: name,
       labelDetails: { description: type },
@@ -65,10 +59,7 @@ const getAudioArgumentCompletions = (content: string) => {
 };
 
 const getScriptCompletions = (program: SparkProgram | undefined) => {
-  if (!program) {
-    return [];
-  }
-  return Object.entries(program?.objectMap?.["script"] || {}).map(
+  return Object.entries(program?.typeMap?.["script"] || {}).map(
     ([name, { type }]) => ({
       label: name,
       labelDetails: { description: type },
@@ -154,7 +145,7 @@ const getSceneCaptureCompletions = (
   const time = match[7];
   if (!location) {
     const locations = getUniqueOptions(
-      program?.metadata.scenes?.map((s) => s.location)
+      program?.metadata?.scenes?.map((s) => s.location)
     );
     return locations.map((location) => ({
       label: location,
@@ -163,7 +154,7 @@ const getSceneCaptureCompletions = (
   }
   if (dash && !time) {
     const times = getUniqueOptions([
-      ...(program?.metadata.scenes?.map((s) => s.time) || []),
+      ...(program?.metadata?.scenes?.map((s) => s.time) || []),
       "DAY",
       "NIGHT",
       "DAWN",

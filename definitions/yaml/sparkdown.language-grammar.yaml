@@ -1112,7 +1112,7 @@ repository:
   Image:
     tag: macroName
     name: meta.image.sd
-    match: ^([ \t]*)(\[\[)([^\]]*)(\]\])($|[ \t]*$)((?:\r\n|\r|\n)?)
+    match: ^([ \t]*)((?<!\\)\[\[)([^\]]*)((?<!\\)\]\])($|[ \t]*$)((?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
@@ -1136,7 +1136,7 @@ repository:
   InlineImage:
     tag: macroName
     name: meta.image.sd
-    match: (\[\[)([^\]]*)(\]\])
+    match: ((?<!\\)\[\[)([^\]]*)((?<!\\)\]\])
     captures:
       1:
         tag: keyword
@@ -1158,7 +1158,7 @@ repository:
   Audio:
     tag: macroName
     name: meta.audio.sd
-    match: ^([ \t]*)([(][(])([^)]*)([)][)])($|[ \t]*$)((?:\r\n|\r|\n)?)
+    match: ^([ \t]*)((?<!\\)[(][(])([^)]*)((?<!\\)[)][)])($|[ \t]*$)((?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
@@ -1182,7 +1182,7 @@ repository:
   InlineAudio:
     tag: macroName
     name: meta.audio.sd
-    match: ([(][(])([^)]*)([)][)])
+    match: ((?<!\\)[(][(])([^)]*)((?<!\\)[)][)])
     captures:
       1:
         tag: keyword
@@ -1262,7 +1262,7 @@ repository:
   TransitionContent:
     begin: (?=.*$)
     patterns:
-      - { include: "#Inline" }
+      - { include: "#DisplayText" }
     end: (?=$)
 
   Scene:
@@ -1289,7 +1289,7 @@ repository:
   SceneContent:
     begin: (?=.*$)
     patterns:
-      - { include: "#Inline" }
+      - { include: "#DisplayText" }
     end: (?=$)
 
   SceneLocationTime:
@@ -1318,7 +1318,7 @@ repository:
     tag: special(monospace)
     begin: (?=.*$)
     patterns:
-      - { include: "#Inline" }
+      - { include: "#DisplayText" }
     end: (?=[|])
 
   Dialogue:
@@ -1490,11 +1490,15 @@ repository:
 
   Inline:
     patterns:
-      - { include: "#Escape" }
-      - { include: "#TemplateString" }
-      - { include: "#InlineTemplateStringSubstitution" }
       - { include: "#InlineImage" }
       - { include: "#InlineAudio" }
+      - { include: "#InlineText" }
+
+  InlineText:
+    emit: true
+    patterns:
+      - { include: "#Escape" }
+      - { include: "#InlineTemplateStringSubstitution" }
       - { include: "#Styling" }
       - { include: "#Emphasis" }
       - { include: "#Pause" }

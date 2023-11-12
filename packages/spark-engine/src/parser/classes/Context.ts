@@ -38,7 +38,7 @@ export class Context<
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, any> };
+      typeMap: { [type: string]: Record<string, any> };
       commands: {
         runner: CommandRunner<G>;
         data: CommandData;
@@ -49,7 +49,7 @@ export class Context<
     [id: string]: {
       ids: Record<string, string>;
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, any> };
+      typeMap: { [type: string]: Record<string, any> };
       commands: {
         runner: CommandRunner<G>;
         data: CommandData;
@@ -119,7 +119,7 @@ export class Context<
     const c = {
       ...(options?.config || {}),
       logic: { blockMap },
-      struct: { objectMap: program.objectMap },
+      struct: { typeMap: program.typeMap },
     } as C;
     const s = {
       ...(options?.state || {}),
@@ -137,7 +137,7 @@ export class Context<
           (game?.logic?.config?.blockMap || {}) as Record<string, Block>,
           compile
         );
-        const objectMap = game?.struct?.config?.objectMap;
+        const typeMap = game?.struct?.config?.typeMap;
         const commands: {
           runner: CommandRunner<G>;
           data: CommandData;
@@ -148,7 +148,7 @@ export class Context<
         this._contexts[blockId] = {
           ids,
           valueMap,
-          objectMap,
+          typeMap,
           commands,
         };
       }

@@ -45,8 +45,5 @@ export * from "./utils/isMonologue";
 export * from "./utils/isPrimitiveType";
 export * from "./utils/isSparkReference";
 export * from "./utils/isVariableType";
-export * from "./utils/parseSpark";
-export * from "./utils/stripInlineComments";
-export * from "./utils/trimCharacterExtension";
 export * from "./utils/unwrapString";
 export * from "./utils/yamlStringify";

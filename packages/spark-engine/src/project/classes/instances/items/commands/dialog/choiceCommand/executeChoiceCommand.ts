@@ -8,7 +8,7 @@ export const executeChoiceCommand = (
   context?:
     | {
         valueMap: Record<string, unknown>;
-        objectMap: { [type: string]: Record<string, any> };
+        typeMap: { [type: string]: Record<string, any> };
       }
     | undefined,
   index?: number,
@@ -19,9 +19,9 @@ export const executeChoiceCommand = (
   const operator = data?.params?.operator;
 
   const valueMap = context?.valueMap || {};
-  const objectMap = context?.objectMap || {};
+  const typeMap = context?.typeMap || {};
   const structName = "DISPLAY";
-  const writerConfigs = objectMap?.["writer"] as Record<string, Writer>;
+  const writerConfigs = typeMap?.["writer"] as Record<string, Writer>;
   const config = writerConfigs?.["choice"];
 
   const contentEls = game.ui.findAllUIElements(

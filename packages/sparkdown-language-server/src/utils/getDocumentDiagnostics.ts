@@ -10,8 +10,12 @@ const getDocumentDiagnostics = (
   document: TextDocument,
   program: SparkProgram
 ): PublishDiagnosticsParams => {
-  const diagnostics: Diagnostic[] = [];
-  program.diagnostics.forEach((d) => {
+  const result: Diagnostic[] = [];
+  const diagnostics = program?.diagnostics;
+  if (!document || !diagnostics) {
+    return { uri: document.uri, diagnostics: result };
+  }
+  diagnostics.forEach((d) => {
     const diagnostic: Diagnostic = {
       severity:
         d.severity === "error"
@@ -27,9 +31,9 @@ const getDocumentDiagnostics = (
       source: "sparkdown",
       data: d.actions,
     };
-    diagnostics.push(diagnostic);
+    result.push(diagnostic);
   });
-  return { uri: document.uri, diagnostics };
+  return { uri: document.uri, diagnostics: result };
 };
 
 export default getDocumentDiagnostics;

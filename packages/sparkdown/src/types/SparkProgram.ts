@@ -1,3 +1,4 @@
+import { SparkChunk } from "./SparkChunk";
 import { SparkDiagnostic } from "./SparkDiagnostic";
 import { SparkProgramMetadata } from "./SparkProgramMetadata";
 import { SparkSection } from "./SparkSection";
@@ -13,13 +14,16 @@ export interface SparkProgram {
     type: string;
   }[];
 
-  tokens: SparkToken[];
-
   frontMatter?: Record<string, string[]>;
+  chunks: Record<string, SparkChunk>;
   sections: Record<string, SparkSection>;
   structs?: Record<string, SparkStruct>;
   variables?: Record<string, SparkVariable>;
 
-  diagnostics: SparkDiagnostic[];
+  tokens: SparkToken[];
+
+  typeMap?: { [type: string]: Record<string, any> };
+
   metadata: SparkProgramMetadata;
+  diagnostics?: SparkDiagnostic[];
 }

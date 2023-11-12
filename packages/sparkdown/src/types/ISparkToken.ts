@@ -10,12 +10,13 @@ export interface ISparkToken<T extends string> extends SparkRange {
   to: number;
 
   indent: number;
-  order: number;
 
   ignore?: boolean;
 
   html?: string;
   duration?: number;
 
-  ranges?: Record<string, SparkRange>;
+  ranges?: Partial<Record<string, SparkRange>>;
+
+  content?: ISparkToken<string>[];
 }

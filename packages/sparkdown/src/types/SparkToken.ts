@@ -47,6 +47,7 @@ export interface SparkVariableToken extends ISparkToken<"variable"> {
 }
 
 export interface SparkStructToken extends ISparkToken<"struct"> {
+  id: string;
   type: string;
   name: string;
   value: string;
@@ -153,40 +154,60 @@ export interface SparkJumpToken extends ISparkToken<"jump"> {
 }
 
 export interface SparkChoiceToken extends ISparkToken<"choice"> {
-  prerequisiteValue: string;
-  prerequisiteOperator: string;
   operator: "+" | "start" | "end";
   section: string;
-  content?: SparkChoiceContentToken[];
+  content?: SparkTextToken[];
 }
 
-export interface SparkChoiceContentToken extends ISparkToken<"choice_content"> {
-  text: string;
-}
-
-export interface ISparkAssetToken<T extends string> extends ISparkToken<T> {
+export interface SparkImageToken extends ISparkToken<"image"> {
   layer: string;
-  assets: string[];
+  image: string[];
   args: string[];
   nameRanges: SparkRange[];
 
   ranges?: {
     layer?: SparkRange;
-    assets?: SparkRange;
+    image?: SparkRange;
     args?: SparkRange;
   };
 }
 
-export interface SparkImageToken extends ISparkAssetToken<"image"> {}
+export interface SparkAudioToken extends ISparkToken<"audio"> {
+  layer: string;
+  audio: string[];
+  args: string[];
+  nameRanges: SparkRange[];
 
-export interface SparkAudioToken extends ISparkAssetToken<"audio"> {}
+  ranges?: {
+    layer?: SparkRange;
+    audio?: SparkRange;
+    args?: SparkRange;
+  };
+}
 
 export interface DisplayContent {
   tag: string;
+  line: number;
+  from: number;
+  to: number;
+  indent: number;
   text?: string;
   layer?: string;
-  assets?: string[];
+  image?: string[];
+  audio?: string[];
   args?: string[];
+}
+
+export interface SparkDisplayTextToken extends ISparkToken<"display_text"> {
+  prerequisiteValue: string;
+  prerequisiteOperator: string;
+  text: string;
+}
+
+export interface SparkTextToken extends ISparkToken<"text"> {
+  prerequisiteValue: string;
+  prerequisiteOperator: string;
+  text: string;
 }
 
 export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
@@ -203,61 +224,39 @@ export interface ISparkBoxToken<T extends string>
   extends ISparkDisplayToken<T> {}
 
 export interface SparkTransitionToken extends ISparkDisplayToken<"transition"> {
-  content?: SparkTransitionContentToken[];
-}
-
-export interface SparkTransitionContentToken
-  extends ISparkToken<"transition_content"> {
-  text: string;
+  content?: SparkTextToken[];
 }
 
 export interface SparkSceneToken extends ISparkDisplayToken<"scene"> {
   index: number;
-  content?: SparkSceneContentToken[];
-}
-
-export interface SparkSceneContentToken extends ISparkToken<"scene_content"> {
-  text: string;
+  content?: SparkTextToken[];
 }
 
 export interface SparkCenteredToken extends ISparkDisplayToken<"centered"> {
-  content?: SparkCenteredContentToken[];
+  content?: SparkTextToken[];
 }
 
-export interface SparkCenteredContentToken
-  extends ISparkToken<"centered_content"> {
-  text: string;
+export interface SparkActionToken extends ISparkBoxToken<"action"> {
+  start: SparkActionStartToken;
+  boxes: SparkActionBoxToken[];
 }
 
-export interface SparkActionToken extends ISparkBoxToken<"action"> {}
+export interface SparkActionStartToken extends ISparkToken<"action_start"> {}
 
 export interface SparkActionBoxToken extends ISparkBoxToken<"action_box"> {
   content?: (
-    | SparkBoxLineContinueToken
-    | SparkBoxLineCompleteToken
+    | SparkActionStartToken
+    | SparkTextToken
     | SparkAudioToken
     | SparkImageToken
   )[];
   speechDuration: number;
 }
 
-export interface SparkBoxLineContinueToken
-  extends ISparkToken<"box_line_continue"> {
-  prerequisiteValue: string;
-  prerequisiteOperator: string;
-  text: string;
-}
-
-export interface SparkBoxLineCompleteToken
-  extends ISparkToken<"box_line_complete"> {
-  prerequisiteValue: string;
-  prerequisiteOperator: string;
-  text: string;
-}
-
 export interface SparkDialogueLineParentheticalToken
   extends ISparkToken<"dialogue_line_parenthetical"> {
   text: string;
+  layer: "parenthetical";
 }
 
 export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
@@ -265,7 +264,12 @@ export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
   characterParenthetical: string;
   position?: "left" | "right";
   autoAdvance: boolean;
+  start: SparkDialogueStartToken;
+  boxes: SparkDialogueBoxToken[];
 }
+
+export interface SparkDialogueStartToken
+  extends ISparkToken<"dialogue_start"> {}
 
 export interface SparkDialogueBoxToken extends ISparkBoxToken<"dialogue_box"> {
   characterName: string;
@@ -273,9 +277,9 @@ export interface SparkDialogueBoxToken extends ISparkBoxToken<"dialogue_box"> {
   position?: "left" | "right";
   autoAdvance: boolean;
   content?: (
+    | SparkDialogueStartToken
     | SparkDialogueLineParentheticalToken
-    | SparkBoxLineContinueToken
-    | SparkBoxLineCompleteToken
+    | SparkTextToken
     | SparkAudioToken
     | SparkImageToken
   )[];
@@ -318,10 +322,8 @@ export interface SparkOtherToken
     | "display_text_prerequisite_value"
     | "display_text_prerequisite_operator"
     | "display_text_content"
-    | "action_start"
     | "action_end"
     | "unknown"
-    | "dialogue_start"
     | "dialogue_end"
     | "dialogue_character_name"
     | "dialogue_character_parenthetical"
@@ -363,22 +365,20 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   return: SparkReturnToken;
   jump: SparkJumpToken;
   choice: SparkChoiceToken;
-  choice_content: SparkChoiceContentToken;
   image: SparkImageToken;
   audio: SparkAudioToken;
   transition: SparkTransitionToken;
-  transition_content: SparkTransitionContentToken;
   scene: SparkSceneToken;
-  scene_content: SparkSceneContentToken;
   centered: SparkCenteredToken;
-  centered_content: SparkCenteredContentToken;
   action: SparkActionToken;
+  action_start: SparkActionStartToken;
   action_box: SparkActionBoxToken;
   dialogue: SparkDialogueToken;
+  dialogue_start: SparkDialogueStartToken;
   dialogue_box: SparkDialogueBoxToken;
   dialogue_line_parenthetical: SparkDialogueLineParentheticalToken;
-  box_line_continue: SparkBoxLineContinueToken;
-  box_line_complete: SparkBoxLineCompleteToken;
+  display_text: SparkDisplayTextToken;
+  text: SparkTextToken;
 }
 
 export type SparkToken = SparkTokenTagMap[keyof SparkTokenTagMap];

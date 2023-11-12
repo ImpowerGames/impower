@@ -10,11 +10,11 @@ export const getNextPreviewCommand = (
   const currentLine = currentPreviewCommand
     ? currentPreviewCommand.source.line
     : line;
-  const lastToken = program.tokens[program.tokens.length - 1];
-  if (!lastToken) {
+  const lastLine = program.metadata.lineCount;
+  if (!lastLine) {
     return null;
   }
-  for (let i = currentLine; i <= lastToken.line; i += 1) {
+  for (let i = currentLine; i <= lastLine; i += 1) {
     const nextPreviewCommand = getPreviewCommand(program, i);
     if (
       nextPreviewCommand &&

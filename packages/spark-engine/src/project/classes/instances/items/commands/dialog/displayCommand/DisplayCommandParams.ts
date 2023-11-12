@@ -10,7 +10,8 @@ export interface DisplayCommandParams extends CommandParams {
     tag: string;
     text?: string;
     layer?: string;
-    assets?: string[];
+    image?: string[];
+    audio?: string[];
     args?: string[];
   }[];
   autoAdvance: boolean;

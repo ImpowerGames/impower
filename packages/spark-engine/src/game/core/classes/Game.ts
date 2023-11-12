@@ -76,10 +76,10 @@ export class Game {
 
   init(): void {
     Object.values(this.managers()).forEach((m) => m.init());
-    const objectMap = this.struct.config.objectMap;
-    this.ui.loadTheme(objectMap);
-    this.ui.loadStyles(objectMap);
-    this.ui.loadUI(objectMap);
+    const typeMap = this.struct.config.typeMap;
+    this.ui.loadTheme(typeMap);
+    this.ui.loadStyles(typeMap);
+    this.ui.loadUI(typeMap);
     this._events.onInit.dispatch();
   }
 

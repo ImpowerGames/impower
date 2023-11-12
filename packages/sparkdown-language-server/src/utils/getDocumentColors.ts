@@ -10,11 +10,8 @@ const getDocumentColors = (
   program: SparkProgram | undefined
 ): ColorInformation[] => {
   const infos: ColorInformation[] = [];
-  if (!document || !program) {
-    return infos;
-  }
-  const colors = program.metadata.colors;
-  if (!colors) {
+  const colors = program?.metadata?.colors;
+  if (!document || !colors) {
     return infos;
   }
   colors.forEach((c) => {

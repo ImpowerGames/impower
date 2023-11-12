@@ -37,68 +37,76 @@ export const stressPhrases = (
   // Speaker starts at max pitch and ends at their natural speaking pitch once arriving at the point of their speech.
   let lineLevel = (phrases.length - 1) * lineIncrement;
   phrases.forEach((phrase) => {
-    const [finalStressType, punctuation] = getStressMatch(
-      phrase.text,
-      character?.prosody
-    );
-    const inflection = character?.inflection[
-      finalStressType || "statement"
-    ] || [0];
-    const startLevel = inflection[0]!;
-    const endLevel = inflection[inflection.length - 1]!;
-    const inflectionSlope = endLevel - startLevel;
-    const inflectionDirection = inflectionSlope > 0 ? 1 : -1;
-    const phraseLevel = (punctuation.length - 1) * inflectionDirection;
-    const chunks = phrase.chunks;
-
-    let inflectionIndex = inflection.length - 1;
-    for (let i = chunks.length - 1; i >= 0; i -= 1) {
-      const chunk = chunks[i]!;
-      const pitchWasManuallySet = chunk.pitch !== 0;
-      if (!pitchWasManuallySet) {
-        // Automatically infer appropriate pitch from inflection type and stress formatting
-        const inflectionLevel = inflection[inflectionIndex]!;
-        chunk.pitch = lineLevel + phraseLevel + inflectionLevel;
-        const underlineStressLevel = getFormattingStress(
-          chunks,
-          i,
-          "underlined"
+    if (phrase.text) {
+      const chunks = phrase.chunks;
+      if (chunks) {
+        const [finalStressType, punctuation] = getStressMatch(
+          phrase.text,
+          character?.prosody
         );
-        if (underlineStressLevel) {
-          chunk.pitch += underlineStressLevel;
+        const inflection = character?.inflection[
+          finalStressType || "statement"
+        ] || [0];
+        const startLevel = inflection[0]!;
+        const endLevel = inflection[inflection.length - 1]!;
+        const inflectionSlope = endLevel - startLevel;
+        const inflectionDirection = inflectionSlope > 0 ? 1 : -1;
+        const phraseLevel = (punctuation.length - 1) * inflectionDirection;
+
+        let inflectionIndex = inflection.length - 1;
+        for (let i = chunks.length - 1; i >= 0; i -= 1) {
+          const chunk = chunks[i]!;
+          const pitchWasManuallySet = chunk.pitch !== 0;
+          if (!pitchWasManuallySet) {
+            // Automatically infer appropriate pitch from inflection type and stress formatting
+            const inflectionLevel = inflection[inflectionIndex]!;
+            chunk.pitch = lineLevel + phraseLevel + inflectionLevel;
+            const underlineStressLevel = getFormattingStress(
+              chunks,
+              i,
+              "underlined"
+            );
+            if (underlineStressLevel) {
+              chunk.pitch += underlineStressLevel;
+            }
+            const boldStressLevel = getFormattingStress(chunks, i, "bolded");
+            if (boldStressLevel) {
+              chunk.pitch += boldStressLevel;
+            }
+            const italicStressLevel = getFormattingStress(
+              chunks,
+              i,
+              "italicized"
+            );
+            if (italicStressLevel) {
+              chunk.pitch += italicStressLevel;
+            }
+            const yelledStressLevel = getFormattingStress(chunks, i, "yelled");
+            if (yelledStressLevel) {
+              chunk.pitch += yelledStressLevel;
+            }
+            if (chunk.startOfSyllable) {
+              inflectionIndex = Math.max(0, inflectionIndex - 1);
+            }
+            chunk.pitch *= stressLevelIncrement;
+          }
         }
-        const boldStressLevel = getFormattingStress(chunks, i, "bolded");
-        if (boldStressLevel) {
-          chunk.pitch += boldStressLevel;
+
+        if (phrase.text.endsWith("\n")) {
+          // Subsequent lines should either increase or decrease in pitch according to inflection slope.
+          lineLevel =
+            inflectionSlope > 0
+              ? lineLevel + lineIncrement
+              : lineLevel - lineIncrement;
         }
-        const italicStressLevel = getFormattingStress(chunks, i, "italicized");
-        if (italicStressLevel) {
-          chunk.pitch += italicStressLevel;
-        }
-        const yelledStressLevel = getFormattingStress(chunks, i, "yelled");
-        if (yelledStressLevel) {
-          chunk.pitch += yelledStressLevel;
-        }
-        if (chunk.startOfSyllable) {
-          inflectionIndex = Math.max(0, inflectionIndex - 1);
-        }
-        chunk.pitch *= stressLevelIncrement;
+
+        // console.log(
+        //   phrase.text,
+        //   phrase.chunks
+        //     .filter((c) => c.startOfSyllable || c.punctuated)
+        //     .map((c) => c.pitch)
+        // );
       }
     }
-
-    if (phrase.text.endsWith("\n")) {
-      // Subsequent lines should either increase or decrease in pitch according to inflection slope.
-      lineLevel =
-        inflectionSlope > 0
-          ? lineLevel + lineIncrement
-          : lineLevel - lineIncrement;
-    }
-
-    // console.log(
-    //   phrase.text,
-    //   phrase.chunks
-    //     .filter((c) => c.startOfSyllable || c.punctuated)
-    //     .map((c) => c.pitch)
-    // );
   });
 };

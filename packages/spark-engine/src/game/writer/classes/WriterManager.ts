@@ -25,8 +25,7 @@ export class WriterManager extends Manager<
   }
 
   write(
-    content: string,
-    valueMap: Record<string, unknown> | undefined,
+    content: Phrase[],
     writer: Writer | undefined,
     character: Character | undefined,
     instant = false,
@@ -35,7 +34,6 @@ export class WriterManager extends Manager<
   ): Phrase[] {
     const phrases = write(
       content,
-      valueMap,
       writer,
       character,
       instant,

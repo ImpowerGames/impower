@@ -111,7 +111,7 @@ export class ChoiceCommandRunner<G extends SparkGame> extends CommandRunner<
     data: ChoiceCommandData,
     context: {
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, any> };
+      typeMap: { [type: string]: Record<string, any> };
     }
   ): boolean {
     executeChoiceCommand(game, data, context);

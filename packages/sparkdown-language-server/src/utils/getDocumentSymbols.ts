@@ -21,8 +21,8 @@ const getDocumentSymbol = (
       item.type === "chunk"
         ? SymbolKind.File
         : item.type === "section"
-        ? SymbolKind.String
-        : SymbolKind.Boolean,
+        ? SymbolKind.Number
+        : SymbolKind.String,
     range: item.range,
     selectionRange: item.selectionRange,
     children,

@@ -3,17 +3,17 @@ import { RecursiveValidation } from "../types/RecursiveValidation";
 
 const GRID_STEP = 8;
 
-export const STYLE_PROPS_VALIDATION = (objectMap?: {
+export const STYLE_PROPS_VALIDATION = (typeMap?: {
   [type: string]: Record<string, object>;
 }): RecursiveValidation<SparkStyleProperties> => {
-  const colorNames = Object.keys(objectMap?.["color"] || {});
-  const gradientNames = Object.keys(objectMap?.["gradient"] || {});
-  const patternNames = Object.keys(objectMap?.["pattern"] || {});
-  const imageNames = Object.keys(objectMap?.["image"] || {});
-  const animationNames = Object.keys(objectMap?.["animation"] || {});
-  const easeNames = Object.keys(objectMap?.["ease"] || {});
-  const fontNames = Object.keys(objectMap?.["font"] || {});
-  const pathNames = Object.keys(objectMap?.["path"] || {});
+  const colorNames = Object.keys(typeMap?.["color"] || {});
+  const gradientNames = Object.keys(typeMap?.["gradient"] || {});
+  const patternNames = Object.keys(typeMap?.["pattern"] || {});
+  const imageNames = Object.keys(typeMap?.["image"] || {});
+  const animationNames = Object.keys(typeMap?.["animation"] || {});
+  const easeNames = Object.keys(typeMap?.["ease"] || {});
+  const fontNames = Object.keys(typeMap?.["font"] || {});
+  const pathNames = Object.keys(typeMap?.["path"] || {});
   return {
     position: ["default", "relative", "fixed", "absolute", "sticky"],
     aspect: ["1/1", "16/9", "9/16", "4/5", "2/3", "2/1"],

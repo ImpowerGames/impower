@@ -28,14 +28,14 @@ export interface IElement {
   setAnimationContent: (
     animationName: string,
     properties: Record<string, any>,
-    objectMap: { [type: string]: Record<string, any> }
+    typeMap: { [type: string]: Record<string, any> }
   ) => void;
 
   setStyleContent: (
     targetName: string,
     properties: Record<string, any>,
     breakpoints: Record<string, number>,
-    objectMap: { [type: string]: Record<string, any> }
+    typeMap: { [type: string]: Record<string, any> }
   ) => void;
 
   setStyleProperty: (propName: string, propValue: unknown) => void;

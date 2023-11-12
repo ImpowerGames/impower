@@ -46,7 +46,7 @@ export const executeDisplayCommand = (
   data: DisplayCommandData,
   context?: {
     valueMap: Record<string, unknown>;
-    objectMap: { [type: string]: Record<string, any> };
+    typeMap: { [type: string]: Record<string, any> };
     instant?: boolean;
     debug?: boolean;
   },
@@ -55,19 +55,18 @@ export const executeDisplayCommand = (
 ): ((deltaMS: number) => void) | undefined => {
   const id = data.reference.id;
   const type = data.params.type;
-  const assets = data.params.assets;
 
   const valueMap = context?.valueMap;
-  const objectMap = context?.objectMap;
+  const typeMap = context?.typeMap;
   const structName = "DISPLAY";
 
-  const writerConfigs = objectMap?.["writer"] as Record<string, Writer>;
+  const writerConfigs = typeMap?.["writer"] as Record<string, Writer>;
   const writerConfig = writerConfigs?.[type];
 
   audioGroup.length = 0;
 
-  if (objectMap) {
-    game.ui.loadUI(objectMap, structName);
+  if (typeMap) {
+    game.ui.loadUI(typeMap, structName);
   }
   const structEl = game.ui.findFirstUIElement(structName);
 
@@ -80,36 +79,36 @@ export const executeDisplayCommand = (
     writerConfigs?.["background"]?.className || "Background"
   );
 
-  const assetsOnly = type === "assets";
-  if (assetsOnly) {
-    assets.forEach((asset) => {
-      const assetName = asset.name;
-      const assetArgs = asset.args;
-      const assetType = asset.type;
-      const assetUrl = valueMap?.[assetName] as string;
-      if (assetType === "image" && assetName && assetUrl) {
-        if (backgroundEl) {
-          backgroundEl.style["backgroundImage"] = `url("${assetUrl}")`;
-          backgroundEl.style["backgroundRepeat"] = "no-repeat";
-          backgroundEl.style["display"] = null;
-        }
-      }
-      if (assetType === "audio" && assetName && assetUrl) {
-        if (assetArgs.includes("stop")) {
-          game.sound.stop(assetName);
-        } else {
-          audioGroup.push({ id: assetName, data: assetUrl });
-        }
-      }
-    });
-    if (audioGroup.length > 0) {
-      game.sound.scheduleGroup("music", id, audioGroup, true);
-    }
-    return undefined;
-  }
+  // const assetsOnly = type === "assets";
+  // if (assetsOnly) {
+  //   assets.forEach((asset) => {
+  //     const assetName = asset.name;
+  //     const assetArgs = asset.args;
+  //     const assetType = asset.type;
+  //     const assetUrl = valueMap?.[assetName] as string;
+  //     if (assetType === "image" && assetName && assetUrl) {
+  //       if (backgroundEl) {
+  //         backgroundEl.style["backgroundImage"] = `url("${assetUrl}")`;
+  //         backgroundEl.style["backgroundRepeat"] = "no-repeat";
+  //         backgroundEl.style["display"] = null;
+  //       }
+  //     }
+  //     if (assetType === "audio" && assetName && assetUrl) {
+  //       if (assetArgs.includes("stop")) {
+  //         game.sound.stop(assetName);
+  //       } else {
+  //         audioGroup.push({ id: assetName, data: assetUrl });
+  //       }
+  //     }
+  //   });
+  //   if (audioGroup.length > 0) {
+  //     game.sound.scheduleGroup("music", id, audioGroup, true);
+  //   }
+  //   return undefined;
+  // }
 
-  const character = data?.params?.character || "";
-  const parenthetical = data?.params?.parenthetical || "";
+  const character = data?.params?.characterName || "";
+  const parenthetical = data?.params?.characterParenthetical || "";
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
   const characterKey = character
@@ -117,9 +116,9 @@ export const executeDisplayCommand = (
     .replace(/([.'"`])/g, "");
 
   const characterConfig = character
-    ? ((objectMap?.["character"]?.[characterKey] ||
-        objectMap?.["character"]?.[type] ||
-        objectMap?.["character"]?.[""]) as Character)
+    ? ((typeMap?.["character"]?.[characterKey] ||
+        typeMap?.["character"]?.[type] ||
+        typeMap?.["character"]?.[""]) as Character)
     : undefined;
 
   const validCharacter =
@@ -133,9 +132,17 @@ export const executeDisplayCommand = (
       ? parenthetical || ""
       : "";
 
-  const trimmedContent = content?.trim() === "_" ? "" : content || "";
-  const [replaceTagsResult] = format(trimmedContent, valueMap);
-  const [evaluatedContent] = format(replaceTagsResult, valueMap);
+  const resolvedContent = content.map((c) => {
+    if (c.text) {
+      const [formattedContent] = format(c.text, valueMap);
+      const resolved = {
+        ...c,
+        text: formattedContent,
+      };
+      return resolved;
+    }
+    return { ...c };
+  });
 
   const instant = context?.instant;
   const debug = context?.debug;
@@ -149,41 +156,42 @@ export const executeDisplayCommand = (
     structName,
     writerConfigs?.["dialogue_group"]?.className || "DialogueGroup"
   );
-  const portraitEl = game.ui.findFirstUIElement(
-    structName,
-    writerConfigs?.["portrait"]?.className || "Portrait"
-  );
   const indicatorEl = game.ui.findFirstUIElement(
     structName,
     writerConfigs?.["indicator"]?.className || "Indicator"
   );
 
-  if (portraitEl) {
-    if (!assets.some((asset) => asset.type === "image")) {
-      portraitEl.style["display"] = "none";
-    }
-    assets.forEach((asset) => {
-      const assetName = asset.name;
-      const assetArgs = asset.args;
-      const assetType = asset.type;
-      const assetUrl = valueMap?.[assetName] as string;
-      if (assetType === "image" && assetName && assetUrl) {
-        portraitEl.style["backgroundImage"] = `url("${assetUrl}")`;
-        portraitEl.style["backgroundRepeat"] = "no-repeat";
-        portraitEl.style["display"] = null;
-      }
-      if (assetType === "audio" && assetName && assetUrl) {
-        if (assetArgs.includes("stop")) {
-          game.sound.stop(assetName);
-        } else {
-          audioGroup.push({ id: assetName, data: assetUrl });
-        }
-      }
-    });
-    if (audioGroup.length > 0) {
-      game.sound.scheduleGroup("voice", id, audioGroup, false);
-    }
-  }
+  const portraitEl = game.ui.findFirstUIElement(
+    structName,
+    writerConfigs?.["portrait"]?.className || "Portrait"
+  );
+
+  // if (portraitEl) {
+  //   if (!assets.some((asset) => asset.type === "image")) {
+  //     portraitEl.style["display"] = "none";
+  //   }
+  //   assets.forEach((asset) => {
+  //     const assetName = asset.name;
+  //     const assetArgs = asset.args;
+  //     const assetType = asset.type;
+  //     const assetUrl = valueMap?.[assetName] as string;
+  //     if (assetType === "image" && assetName && assetUrl) {
+  //       portraitEl.style["backgroundImage"] = `url("${assetUrl}")`;
+  //       portraitEl.style["backgroundRepeat"] = "no-repeat";
+  //       portraitEl.style["display"] = null;
+  //     }
+  //     if (assetType === "audio" && assetName && assetUrl) {
+  //       if (assetArgs.includes("stop")) {
+  //         game.sound.stop(assetName);
+  //       } else {
+  //         audioGroup.push({ id: assetName, data: assetUrl });
+  //       }
+  //     }
+  //   });
+  //   if (audioGroup.length > 0) {
+  //     game.sound.scheduleGroup("voice", id, audioGroup, false);
+  //   }
+  // }
 
   hideChoices(game, structName, writerConfigs?.["choice"]);
 
@@ -249,15 +257,14 @@ export const executeDisplayCommand = (
     parentheticalEl.style["display"] = validParenthetical ? null : "none";
   }
   const phrases = game.writer.write(
-    evaluatedContent?.trimStart(),
-    valueMap,
+    resolvedContent,
     writerConfig,
     characterConfig,
     instant,
     debug,
     () => game.ui.createElement("span")
   );
-  const allChunks = phrases.flatMap((x) => x.chunks);
+  const allChunks = phrases.flatMap((x) => x.chunks || []);
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
@@ -332,7 +339,7 @@ export const executeDisplayCommand = (
         const phraseBeeps: ({
           time: number;
         } & Chunk &
-          Partial<Tone>)[] = phrase.chunks.flatMap((c) => {
+          Partial<Tone>)[] = (phrase.chunks || []).flatMap((c) => {
           if (c.startOfSyllable || c.punctuated) {
             const sound = c.punctuated ? clone(clackSound) : clone(beepSound);
             lastCharacterBeep = {

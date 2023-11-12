@@ -13,7 +13,7 @@ export const previewLine = (
 ) => {
   const program = context.programs[context.entryProgramId];
   if (program) {
-    const objectMap = program?.objectMap || {};
+    const typeMap = program?.typeMap || {};
     const runtimeCommand = getPreviewCommand(program, line);
     if (runtimeCommand) {
       const commandRunner = context?.runner?.getCommandRunner(
@@ -26,12 +26,12 @@ export const previewLine = (
           program?.sections || {},
           compile
         );
-        context.game.ui.loadTheme(objectMap);
-        context.game.ui.loadStyles(objectMap);
-        context.game.ui.loadUI(objectMap);
+        context.game.ui.loadTheme(typeMap);
+        context.game.ui.loadStyles(typeMap);
+        context.game.ui.loadUI(typeMap);
         commandRunner.onPreview(context.game, runtimeCommand, {
           valueMap,
-          objectMap,
+          typeMap,
           instant,
           debug,
         });
@@ -39,12 +39,12 @@ export const previewLine = (
     } else {
       const previewStruct = getPreviewStruct(program, line);
       if (previewStruct?.type === "style") {
-        context.game.ui.loadStyles(objectMap, previewStruct.name);
+        context.game.ui.loadStyles(typeMap, previewStruct.name);
       }
       if (previewStruct?.type === "ui") {
-        context.game.ui.hideUI(...Object.keys(objectMap?.["ui"] || {}));
-        context.game.ui.loadStyles(objectMap);
-        context.game.ui.loadUI(objectMap, previewStruct.name);
+        context.game.ui.hideUI(...Object.keys(typeMap?.["ui"] || {}));
+        context.game.ui.loadStyles(typeMap);
+        context.game.ui.loadUI(typeMap, previewStruct.name);
         context.game.ui.showUI(previewStruct.name);
       }
     }

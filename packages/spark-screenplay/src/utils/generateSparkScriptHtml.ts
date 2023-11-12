@@ -23,8 +23,12 @@ export const generateSparkScriptHtml = (
     }
   };
 
-  while (currentIndex < program.tokens.length) {
-    const currentToken = program.tokens[currentIndex];
+  const tokens = Object.values(program.sections || {}).flatMap(
+    (section) => section.tokens
+  );
+
+  while (currentIndex < tokens.length) {
+    const currentToken = tokens[currentIndex];
     if (!currentToken) {
       currentIndex++;
       continue;
@@ -55,9 +59,9 @@ export const generateSparkScriptHtml = (
 
       isAction = true;
     } else if (currentToken.tag == "separator" && isAction) {
-      if (currentIndex + 1 < program.tokens.length - 1) {
+      if (currentIndex + 1 < tokens.length - 1) {
         //we're not at the end
-        const next_type = program.tokens[currentIndex + 1]?.tag;
+        const next_type = tokens[currentIndex + 1]?.tag;
         if (
           next_type == "action" ||
           next_type == "separator" ||

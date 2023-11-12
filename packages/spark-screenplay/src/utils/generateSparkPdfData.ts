@@ -38,7 +38,9 @@ export const generateSparkPdfData = (
   let currentIndex = 0;
 
   const titleTokens = program.frontMatter || {};
-  const tokens = [...program.tokens];
+  const tokens = Object.values(program.sections || {}).flatMap(
+    (section) => section.tokens
+  );
   const sceneInvisibleSections: Record<string | number, SparkSectionToken[]> =
     {};
   // tidy up separators
@@ -75,13 +77,6 @@ export const generateSparkPdfData = (
       invisibleSections = [];
     }
     currentIndex++;
-  }
-  // clean separators at the end
-  while (
-    tokens.length > 0 &&
-    tokens[program.tokens.length - 1]?.tag === "separator"
-  ) {
-    tokens.pop();
   }
 
   if (!config.screenplay_print_watermark && watermark !== undefined) {

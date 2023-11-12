@@ -7,6 +7,7 @@ import SPARK_TOKEN_TAGS from "../constants/SPARK_TOKEN_TAGS";
 import defaultCompiler from "../defaults/defaultCompiler";
 import defaultFormatter from "../defaults/defaultFormatter";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
+import { SparkChunk } from "../types/SparkChunk";
 import { SparkAction } from "../types/SparkDiagnostic";
 import { SparkField } from "../types/SparkField";
 import { SparkParserConfig } from "../types/SparkParserConfig";
@@ -24,8 +25,10 @@ import {
 } from "../types/SparkToken";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
+import { StructureItem } from "../types/StructureItem";
 import calculateSpeechDuration from "../utils/calculateSpeechDuration";
 import createSparkToken from "../utils/createSparkToken";
+import getAncestorIds from "../utils/getAncestorIds";
 import getColorMetadata from "../utils/getColorMetadata";
 import { getProperty } from "../utils/getProperty";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
@@ -76,6 +79,17 @@ const calculateIndent = (text: string): number => {
   return tabCount + spaceCount * spaceMultiplier;
 };
 
+const findChunkId = (
+  chunks: Record<string, SparkChunk> | undefined,
+  name: string
+): string | undefined => {
+  const found = chunks?.[name];
+  if (found) {
+    return name;
+  }
+  return undefined;
+};
+
 const findSectionId = (
   sections: Record<string, SparkSection> | undefined,
   sectionId: string,
@@ -105,6 +119,17 @@ const findStructId = (
   const found = structs?.[name];
   if (found) {
     return name;
+  }
+  return undefined;
+};
+
+const findChunk = (
+  chunks: Record<string, SparkChunk> | undefined,
+  name: string
+): SparkChunk | undefined => {
+  const id = findChunkId(chunks, name);
+  if (id != null) {
+    return chunks?.[id];
   }
   return undefined;
 };
@@ -162,10 +187,10 @@ export default class SparkParser {
 
     /* INITIALIZE PROGRAM */
     const program: SparkProgram = {
-      tokens: [],
-      sections: {},
-      diagnostics: [],
       metadata: {},
+      chunks: {},
+      sections: {},
+      tokens: [],
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
     const stack: SparkToken[] = [];
@@ -173,13 +198,37 @@ export default class SparkParser {
       | SparkDialogueToken
       | SparkDialogueBoxToken
     )[] = [];
-    program.sections[""] = {
-      level: 0,
-      name: "",
+    program.metadata.structure = {
+      "": {
+        type: "chunk",
+        level: -1,
+        text: "",
+        id: "",
+        range: {
+          start: { line: 0, character: 0 },
+          end: { line: 0, character: 0 },
+        },
+        selectionRange: {
+          start: { line: 0, character: 0 },
+          end: { line: 0, character: 0 },
+        },
+        children: [],
+      },
+    };
+    program.chunks[""] = {
       line: 0,
       from: 0,
       to: 0,
+      name: "",
+    };
+    program.sections[""] = {
+      line: 0,
+      from: 0,
+      to: 0,
+      name: "",
+      level: 0,
       parent: undefined,
+      tokens: [],
     };
 
     /* HELPER FUNCTIONS */
@@ -194,7 +243,6 @@ export default class SparkParser {
         : stack.at(-1)) as SparkTokenTagMap[K];
 
     const addToken = (tok: SparkToken) => {
-      program.tokens.push(tok);
       const currentSection = program.sections[currentSectionId];
       if (currentSection) {
         currentSection.tokens ??= [];
@@ -204,6 +252,7 @@ export default class SparkParser {
 
     const declareStruct = (tok: SparkStruct) => {
       const id = `${currentSectionId}.${tok.name}`;
+      tok.id = id;
       program.structs ??= {};
       program.structs[id] ??= tok;
     };
@@ -366,7 +415,8 @@ export default class SparkParser {
       );
       if (expression.includes("{")) {
         const [, diagnostics, references] = formatter(expression, context);
-        reportExpressionDiagnostics(tok, { from, to }, diagnostics);
+        const line = tok.line;
+        reportExpressionDiagnostics(tok, { line, from, to }, diagnostics);
         references.forEach((reference) => {
           const name = reference.content.trim();
           const trimmedFromStart =
@@ -378,10 +428,12 @@ export default class SparkParser {
           const id = findSectionId(program.sections, currentSectionId, name);
           const found = id ? program.sections?.[id] : undefined;
           if (found) {
+            program.metadata ??= {};
             program.metadata.lines ??= [];
             program.metadata.lines[tok.line] ??= {};
             program.metadata.lines[tok.line]!.references ??= [];
             program.metadata.lines[tok.line]!.references!.push({
+              line,
               from: referenceFrom,
               to: referenceTo,
               name,
@@ -389,6 +441,7 @@ export default class SparkParser {
             });
           } else {
             reportMissing(tok, "section", name, {
+              line,
               from: referenceFrom,
               to: referenceTo,
             });
@@ -403,17 +456,19 @@ export default class SparkParser {
         const id = findSectionId(program.sections, currentSectionId, name);
         const found = id ? program.sections?.[id] : undefined;
         if (found) {
+          program.metadata ??= {};
           program.metadata.lines ??= [];
           program.metadata.lines[tok.line] ??= {};
           program.metadata.lines[tok.line]!.references ??= [];
           program.metadata.lines[tok.line]!.references!.push({
+            line,
             from,
             to,
             name,
             id,
           });
         } else {
-          reportMissing(tok, "section", name, { from, to });
+          reportMissing(tok, "section", name, { line, from, to });
         }
       }
     };
@@ -428,13 +483,16 @@ export default class SparkParser {
       if (!name) {
         return undefined;
       }
+      const line = tok.line;
       const from = nameRange?.from ?? -1;
       const to = nameRange?.to ?? -1;
       const id = findVariableId(program.variables, currentSectionId, name);
+      program.metadata ??= {};
       program.metadata.lines ??= [];
       program.metadata.lines[tok.line] ??= {};
       program.metadata.lines[tok.line]!.references ??= [];
       program.metadata.lines[tok.line]!.references!.push({
+        line,
         from,
         to,
         name,
@@ -466,6 +524,7 @@ export default class SparkParser {
       // Record any color strings
       const colorMetadata = getColorMetadata(value, expressionFrom);
       if (colorMetadata) {
+        program.metadata ??= {};
         program.metadata.colors ??= [];
         program.metadata.colors?.push(colorMetadata);
       }
@@ -486,12 +545,15 @@ export default class SparkParser {
         for (let i = 0; i < references.length; i += 1) {
           const r = references[i];
           if (r) {
+            const line = tok.line;
             const from = expressionFrom + r.from;
             const to = expressionFrom + r.to;
+            program.metadata ??= {};
             program.metadata.lines ??= [];
             program.metadata.lines[tok.line] ??= {};
             program.metadata.lines[tok.line]!.references ??= [];
             program.metadata.lines[tok.line]!.references!?.push({
+              line,
               from,
               to,
               name: r.content,
@@ -686,7 +748,7 @@ export default class SparkParser {
       return true;
     };
 
-    const validateName = <T extends SparkSection | SparkVariable>(
+    const validateName = <T extends SparkSection | SparkVariable | SparkStruct>(
       tok: SparkToken,
       currentSectionId: string,
       name: string,
@@ -700,6 +762,16 @@ export default class SparkParser {
           tok,
           "type",
           findStruct(program.structs, name) as T,
+          nameRange
+        )
+      ) {
+        return false;
+      }
+      if (
+        !validateNameUnique<T>(
+          tok,
+          "chunk",
+          findChunk(program.chunks, name) as T,
           nameRange
         )
       ) {
@@ -732,7 +804,42 @@ export default class SparkParser {
       return true;
     };
 
-    /* HOIST DECLARATIONS */
+    const getLastStructureItem = (
+      program: SparkProgram,
+      condition: (item?: StructureItem) => boolean = () => true
+    ): StructureItem | undefined => {
+      const structures = Object.values(program.metadata?.structure || {});
+      for (let i = structures.length - 1; i >= 0; i -= 1) {
+        const structItem = structures[i];
+        if (!condition || condition(structItem)) {
+          return structItem;
+        }
+      }
+      return undefined;
+    };
+
+    const extendStructureRange = (
+      program: SparkProgram,
+      id: string,
+      end: {
+        line: number;
+        character: number;
+      }
+    ) => {
+      const structure = program.metadata?.structure;
+      if (structure) {
+        [id, ...getAncestorIds(id)].forEach((id) => {
+          const item = structure[id];
+          if (item) {
+            if (item.range.end.line < end.line) {
+              item.range.end = { ...end };
+            }
+          }
+        });
+      }
+    };
+
+    /* HOIST FRONTMATTER, CHUNKS, AND SECTIONS */
     let line = 0;
     let currentSectionId = "";
     tree.iterate({
@@ -750,9 +857,6 @@ export default class SparkParser {
           });
 
           // front_matter
-          if (tok.tag === "front_matter_field") {
-            addToken(tok);
-          }
           if (tok.tag === "front_matter_field_keyword") {
             const parent = lookup("front_matter_field");
             if (parent) {
@@ -782,6 +886,326 @@ export default class SparkParser {
             }
           }
 
+          // chunk
+          if (tok.tag === "chunk_name") {
+            const parent = lookup("chunk");
+            if (parent) {
+              parent.name = text.split(".")[0] || "";
+              parent.ranges ??= {};
+              parent.ranges.name = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+
+          // section
+          if (tok.tag === "section_level") {
+            const parent = lookup("section");
+            if (parent) {
+              parent.level = text.length;
+              parent.ranges ??= {};
+              parent.ranges.level = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+          if (tok.tag === "section_name") {
+            const parent = lookup("section");
+            if (parent) {
+              parent.name = text;
+              parent.ranges ??= {};
+              parent.ranges.name = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+
+          // scene
+          if (tok.tag === "text") {
+            tok.text = text;
+            const parent = lookup("scene");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
+          }
+
+          if (tok.tag === "indent") {
+            const parent = lookup();
+            if (parent) {
+              parent.indent = calculateIndent(text);
+            }
+          }
+
+          // push token onto current stack
+          stack.push(tok);
+        }
+
+        // newline
+        if (id === "Newline") {
+          const latestStructureItem = getLastStructureItem(program);
+          if (
+            latestStructureItem &&
+            latestStructureItem.level != null &&
+            latestStructureItem.level >= 0
+          ) {
+            extendStructureRange(program, latestStructureItem.id, {
+              line: Math.max(0, line),
+              character: 0,
+            });
+          }
+          line += 1;
+        }
+      },
+      leave: (node) => {
+        const tok = stack.at(-1);
+        const tag = SPARK_TOKEN_TAGS[nodeNames[node.type]!];
+
+        if (tok && tok.tag === tag) {
+          if (tok.tag === "chunk") {
+            prevDisplayPositionalTokens.length = 0;
+            const chunk = {
+              line: tok.line,
+              from: tok.from,
+              to: tok.to,
+              name: tok.name,
+            };
+            if (
+              validateName(tok, currentSectionId, tok.name, tok.ranges?.name)
+            ) {
+              currentSectionId = "";
+              program.chunks[chunk.name] = chunk;
+              program.metadata ??= {};
+              program.metadata.lines ??= [];
+              program.metadata.lines[tok.line] ??= {};
+              program.metadata.lines[tok.line]!.chunk ??= tok.name;
+              program.metadata.lines[tok.line]!.references ??= [];
+              program.metadata.lines[tok.line]!.references!.push({
+                line: tok?.ranges?.name?.line ?? -1,
+                from: tok?.ranges?.name?.from ?? -1,
+                to: tok?.ranges?.name?.to ?? -1,
+                name: tok.name,
+                id: tok.name,
+                declaration: true,
+              });
+            }
+            // Record structure
+            const selectionRange = {
+              start: { line: tok.line, character: 0 },
+              end: {
+                line: tok.line + 1,
+                character: 0,
+              },
+            };
+            const id = "." + tok.line;
+            const structureItem: StructureItem = {
+              ...(program.metadata?.structure?.[id] || {}),
+              type: "chunk",
+              level: 0,
+              text: tok.name,
+              id,
+              range: {
+                start: { ...selectionRange.start },
+                end: { ...selectionRange.end },
+              },
+              selectionRange,
+              children: [],
+            };
+            program.metadata?.structure?.[""]?.children.push(id);
+            program.metadata ??= {};
+            program.metadata.structure ??= {};
+            program.metadata.structure[id] = structureItem;
+          }
+
+          if (tok.tag === "section") {
+            prevDisplayPositionalTokens.length = 0;
+            const currentSection = program.sections[currentSectionId]!;
+            const currentLevel = currentSection.level;
+            const levelDiff = tok.level - currentLevel;
+            const parentId =
+              levelDiff === 0
+                ? currentSectionId.split(".").slice(0, -1).join(".")
+                : levelDiff > 0
+                ? currentSectionId
+                : currentSectionId.split(".").slice(0, levelDiff).join(".");
+            const maxValidLevel = currentLevel + 1;
+            if (tok.level > maxValidLevel) {
+              diagnostic(
+                program,
+                tok,
+                `Too many #: Expected at most ${maxValidLevel}`,
+                undefined,
+                tok.ranges?.level?.from,
+                tok.ranges?.level?.to,
+                "warning"
+              );
+            }
+            const parentSection = program.sections[parentId];
+            const section = {
+              line: tok.line,
+              from: tok.from,
+              to: tok.to,
+              name: tok.name,
+              level: tok.level,
+              parent: parentId,
+              tokens: [],
+            };
+            if (
+              validateName(tok, currentSectionId, tok.name, tok.ranges?.name)
+            ) {
+              currentSectionId = parentId + "." + tok.name;
+              program.sections[currentSectionId] = section;
+              if (parentSection) {
+                parentSection.children ??= [];
+                parentSection.children.push(currentSectionId);
+              }
+              program.metadata ??= {};
+              program.metadata.lines ??= [];
+              program.metadata.lines[section.line] ??= {};
+              program.metadata.lines[section.line]!.section ??=
+                currentSectionId;
+              program.metadata.lines[section.line]!.references ??= [];
+              program.metadata.lines[section.line]!.references!.push({
+                line: tok?.ranges?.name?.line ?? -1,
+                from: tok?.ranges?.name?.from ?? -1,
+                to: tok?.ranges?.name?.to ?? -1,
+                name: section.name,
+                id: currentSectionId,
+                declaration: true,
+              });
+            }
+            // Record structure
+            const latestSectionOrChunk = getLastStructureItem(
+              program,
+              (t) =>
+                (t?.type === "section" || t?.type === "chunk") &&
+                (t?.level || 0) < currentLevel
+            );
+            if (latestSectionOrChunk) {
+              const selectionRange = {
+                start: { line: tok.line, character: 0 },
+                end: {
+                  line: tok.line + 1,
+                  character: 0,
+                },
+              };
+              const id = latestSectionOrChunk.id + "." + tok.line;
+              const structureItem: StructureItem = {
+                ...(program.metadata?.structure?.[id] || {}),
+                type: "section",
+                level: tok.level,
+                text: tok.name,
+                id,
+                range: {
+                  start: { ...selectionRange.start },
+                  end: { ...selectionRange.end },
+                },
+                selectionRange,
+                children: [],
+              };
+              latestSectionOrChunk.children.push(id);
+              program.metadata ??= {};
+              program.metadata.structure ??= {};
+              program.metadata.structure[id] = structureItem;
+            }
+          }
+
+          if (tok.tag === "scene") {
+            // Record structure
+            const latestSectionOrChunk = getLastStructureItem(
+              program,
+              (t) => t?.type === "section" || t?.type === "chunk"
+            );
+            if (latestSectionOrChunk) {
+              const selectionRange = {
+                start: { line: tok.line, character: 0 },
+                end: {
+                  line: tok.line + 1,
+                  character: 0,
+                },
+              };
+              const id = latestSectionOrChunk.id + "." + tok.line;
+              const structureItem: StructureItem = {
+                ...(program.metadata?.structure?.[id] || {}),
+                type: "scene",
+                level: (latestSectionOrChunk.level || 0) + 1,
+                text: tok.content?.map((c) => c.text)?.join("") || "",
+                id,
+                range: {
+                  start: { ...selectionRange.start },
+                  end: { ...selectionRange.end },
+                },
+                selectionRange,
+                children: [],
+              };
+              latestSectionOrChunk.children.push(id);
+              program.metadata ??= {};
+              program.metadata.structure ??= {};
+              program.metadata.structure[id] = structureItem;
+            }
+          }
+
+          stack.pop();
+        }
+      },
+    });
+
+    const endRange = { line, character: 0 };
+    const root = program.metadata.structure[""];
+    if (root) {
+      root.range.end = endRange;
+    }
+    const latestStructureItem = getLastStructureItem(program);
+    if (
+      latestStructureItem &&
+      latestStructureItem.level != null &&
+      latestStructureItem.level >= 0
+    ) {
+      extendStructureRange(program, latestStructureItem.id, endRange);
+    }
+
+    /* PROCESS COMMANDS */
+    line = 0;
+    currentSectionId = "";
+    tree.iterate({
+      enter: (node) => {
+        const id = nodeNames[node.type]!;
+        const from = node.from;
+        const to = node.to;
+        const tag = SPARK_TOKEN_TAGS[id];
+        if (tag) {
+          const text = script.slice(from, to);
+          const tok = createSparkToken(tag, {
+            line,
+            from,
+            to,
+          });
+
+          if (tok.tag === "chunk") {
+            currentSectionId = "";
+          }
+
+          if (tok.tag === "section") {
+            currentSectionId = program.metadata?.lines?.[line]?.section || "";
+          }
+
+          // comment
+          if (tok.tag === "comment") {
+            addToken(tok);
+          }
+          if (tok.tag === "comment_content") {
+            const parent = lookup("comment");
+            if (parent) {
+              parent.text = text;
+            }
+          }
+
           // variable
           if (tok.tag === "variable") {
             addToken(tok);
@@ -791,7 +1215,11 @@ export default class SparkParser {
             if (parent) {
               parent.type = text;
               parent.ranges ??= {};
-              parent.ranges.type = { from: tok.from, to: tok.to };
+              parent.ranges.type = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
             }
           }
           if (tok.tag === "declaration_name") {
@@ -799,7 +1227,11 @@ export default class SparkParser {
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
+              parent.ranges.name = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
             }
           }
           if (tok.tag === "value_text") {
@@ -808,7 +1240,11 @@ export default class SparkParser {
               parent.value ??= "";
               parent.value += text;
               parent.ranges ??= {};
-              parent.ranges.value ??= { from: tok.from, to: tok.to };
+              parent.ranges.value ??= {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
               parent.ranges.value.to = tok.to;
             }
           }
@@ -822,7 +1258,11 @@ export default class SparkParser {
             if (parent) {
               parent.type = text;
               parent.ranges ??= {};
-              parent.ranges.type = { from: tok.from, to: tok.to };
+              parent.ranges.type = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
             }
           }
           if (tok.tag === "declaration_name") {
@@ -830,14 +1270,22 @@ export default class SparkParser {
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
+              parent.ranges.name = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
             }
           }
           if (tok.tag === "struct_field") {
             const parent = lookup("struct");
             if (parent) {
               parent.ranges ??= {};
-              parent.ranges.value ??= { from: tok.from, to: tok.to };
+              parent.ranges.value ??= {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
               parent.ranges.value.to = tok.to;
             }
           }
@@ -908,7 +1356,11 @@ export default class SparkParser {
             if (parent) {
               parent.key = text;
               parent.ranges ??= {};
-              parent.ranges.key = { from: tok.from, to: tok.to };
+              parent.ranges.key = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
             }
           }
           if (tok.tag === "value_text") {
@@ -920,45 +1372,380 @@ export default class SparkParser {
               parent.value ??= "";
               parent.value += text;
               parent.ranges ??= {};
-              parent.ranges.value ??= { from: tok.from, to: tok.to };
+              parent.ranges.value ??= {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
               parent.ranges.value.to = tok.to;
             }
           }
 
-          // chunk
-          if (tok.tag === "chunk") {
+          // assign
+          if (tok.tag === "assign") {
             addToken(tok);
           }
-          if (tok.tag === "chunk_name") {
-            const parent = lookup("chunk");
-            if (parent) {
-              parent.name = text.split(".")[0] || "";
-              parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
-            }
-          }
-
-          // section
-          if (tok.tag === "section") {
-            addToken(tok);
-          }
-          if (tok.tag === "section_level") {
-            const parent = lookup("section");
-            if (parent) {
-              parent.level = text.length;
-              parent.ranges ??= {};
-              parent.ranges.level = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "section_name") {
-            const parent = lookup("section");
+          if (tok.tag === "identifier_path") {
+            const parent = lookup("assign");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
+              parent.ranges.name = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+          if (tok.tag === "assign_operator") {
+            const parent = lookup("assign");
+            if (parent) {
+              parent.operator = text;
+              parent.ranges ??= {};
+              parent.ranges.operator = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+          if (tok.tag === "value_text") {
+            const parent = lookup("assign");
+            if (parent) {
+              parent.value ??= "";
+              parent.value += text;
+              parent.ranges ??= {};
+              parent.ranges.value ??= {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+              parent.ranges.value.to = tok.to;
             }
           }
 
+          // access
+          if (tok.tag === "access") {
+            addToken(tok);
+          }
+          if (tok.tag === "type_name") {
+            const parent = lookup("access");
+            if (parent) {
+              parent.type = text;
+              parent.ranges ??= {};
+              parent.ranges.type = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+          if (tok.tag === "identifier_path") {
+            const parent = lookup("access");
+            if (parent) {
+              parent.name = text;
+              parent.ranges ??= {};
+              parent.ranges.name = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+
+          // flow_break
+          if (tok.tag === "flow_break") {
+            addToken(tok);
+          }
+
+          // jump
+          if (tok.tag === "jump") {
+            addToken(tok);
+          }
+
+          // choice
+          if (tok.tag === "choice") {
+            addToken(tok);
+          }
+
+          // jump_to_section
+          if (tok.tag === "jump_to_section") {
+            const parent = lookup("jump", "choice");
+            if (parent) {
+              parent.section = text;
+              validateSectionReferences(
+                tok,
+                currentSectionId,
+                text,
+                tok.from,
+                tok.to
+              );
+            }
+          }
+
+          // transition
+          if (tok.tag === "transition") {
+            addToken(tok);
+          }
+
+          // scene
+          if (tok.tag === "scene") {
+            addToken(tok);
+          }
+
+          // centered
+          if (tok.tag === "centered") {
+            addToken(tok);
+          }
+
+          // action
+          if (tok.tag === "action") {
+            addToken(tok);
+          }
+          if (tok.tag === "action_start") {
+            const action = lookup("action");
+            if (action) {
+              action.start = tok;
+            }
+            addToken(tok);
+          }
+          if (tok.tag === "action_end") {
+            addToken(tok);
+          }
+          if (tok.tag === "action_box") {
+            const parent = lookup("action");
+            if (parent) {
+              parent.boxes ??= [];
+              parent.boxes.push(tok);
+              if (parent.boxes.length === 1) {
+                tok.content ??= [];
+                tok.content.push(parent.start);
+              }
+            }
+            addToken(tok);
+          }
+
+          // dialogue
+          if (tok.tag === "dialogue") {
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_start") {
+            const dialogue = lookup("dialogue");
+            if (dialogue) {
+              dialogue.start = tok;
+            }
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_end") {
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_character_name" && text) {
+            const dialogue = lookup("dialogue");
+            if (dialogue) {
+              dialogue.characterName = text;
+            }
+            const dialogue_start = lookup("dialogue_start");
+            if (dialogue_start) {
+              dialogue_start.print = text;
+            }
+          }
+          if (tok.tag === "dialogue_character_parenthetical" && text) {
+            const dialogue = lookup("dialogue");
+            if (dialogue) {
+              dialogue.characterParenthetical = text;
+            }
+            const dialogue_start = lookup("dialogue_start");
+            if (dialogue_start) {
+              dialogue_start.print += " " + text;
+            }
+          }
+          if (tok.tag === "dialogue_character_simultaneous" && text) {
+            const dialogue = lookup("dialogue");
+            const dialogue_start = lookup("dialogue_start");
+            if (dialogue && dialogue_start) {
+              let prevPosition: "left" | "right" | undefined = undefined;
+              let prevCharacterName: string | undefined = undefined;
+              prevDisplayPositionalTokens.forEach((t) => {
+                t.autoAdvance = true;
+                prevPosition ??= t.position;
+                prevCharacterName ??= t.characterName;
+              });
+              if (dialogue.characterName === prevCharacterName) {
+                // Same character, so show in same spot
+                dialogue.position = prevPosition;
+              } else {
+                // Different character, so if a spot was not assigned for the previous character, move them to the left
+                // and display this character on the opposite side.
+                prevDisplayPositionalTokens.forEach((t) => {
+                  if (!t.position) {
+                    t.position = "left";
+                  }
+                  prevPosition = t.position;
+                });
+                dialogue.position = reversePosition(prevPosition);
+              }
+            }
+          }
+          if (tok.tag === "dialogue_box") {
+            const parent = lookup("dialogue");
+            if (parent) {
+              parent.boxes ??= [];
+              parent.boxes.push(tok);
+              if (parent.boxes.length === 1) {
+                tok.content ??= [];
+                tok.content.push(parent.start);
+              }
+              tok.position = parent.position;
+              tok.characterName = parent.characterName;
+              tok.characterParenthetical = parent.characterParenthetical;
+              tok.clearOnAdvance = true;
+              tok.waitUntilFinished = true;
+            }
+            addToken(tok);
+          }
+          if (tok.tag === "dialogue_line_parenthetical") {
+            tok.layer = "parenthetical";
+            tok.text = text;
+            tok.print = text;
+            const parent = lookup("dialogue_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
+          }
+
+          // box
+          if (tok.tag === "display_text_prerequisite_value") {
+            const parent = lookup("display_text");
+            if (parent) {
+              parent.prerequisiteValue = text;
+            }
+          }
+          if (tok.tag === "display_text_prerequisite_operator") {
+            const parent = lookup("display_text");
+            if (parent) {
+              parent.prerequisiteOperator = text;
+            }
+          }
+          if (tok.tag === "display_text_content") {
+            const parent = lookup("display_text");
+            if (parent) {
+              parent.text = text;
+            }
+          }
+          if (tok.tag === "text") {
+            tok.text = text;
+            const parent = lookup(
+              "choice",
+              "action_box",
+              "dialogue_box",
+              "transition",
+              "scene",
+              "centered"
+            );
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
+            const display_text = lookup("display_text");
+            if (display_text) {
+              if (display_text.prerequisiteOperator) {
+                tok.prerequisiteOperator = display_text.prerequisiteOperator;
+              }
+              if (display_text.prerequisiteValue) {
+                tok.prerequisiteValue = display_text.prerequisiteValue;
+              }
+            }
+          }
+          if (tok.tag === "image") {
+            const parent = lookup("dialogue_box", "action_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
+          }
+          if (tok.tag === "audio") {
+            const parent = lookup("dialogue_box", "action_box");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
+          }
+          if (tok.tag === "asset_layer") {
+            const parent = lookup("image", "audio");
+            if (parent) {
+              parent.layer = text;
+              parent.ranges ??= {};
+              parent.ranges.layer = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+          if (tok.tag === "asset_names") {
+            const image = lookup("image");
+            if (image) {
+              image.image = [];
+              image.nameRanges = [];
+              let from = tok.from;
+              text.split(WHITESPACE_REGEX).forEach((p) => {
+                const name = p.trim();
+                if (name) {
+                  image.image.push(name);
+                  image.nameRanges.push({
+                    line: tok.line,
+                    from,
+                    to: from + p.length,
+                  });
+                }
+                from += p.length;
+              });
+              image.ranges ??= {};
+              image.ranges.image = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+            const audio = lookup("audio");
+            if (audio) {
+              audio.audio = [];
+              audio.nameRanges = [];
+              let from = tok.from;
+              text.split(WHITESPACE_REGEX).forEach((p) => {
+                const name = p.trim();
+                if (name) {
+                  audio.audio.push(name);
+                  audio.nameRanges.push({
+                    line: tok.line,
+                    from,
+                    to: from + p.length,
+                  });
+                }
+                from += p.length;
+              });
+              audio.ranges ??= {};
+              audio.ranges.audio = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
+          if (tok.tag === "asset_args") {
+            const parent = lookup("image", "audio");
+            if (parent) {
+              const args = text.split(WHITESPACE_REGEX);
+              parent.args = args;
+              parent.ranges ??= {};
+              parent.ranges.args = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          }
           if (tok.tag === "indent") {
             const parent = lookup();
             if (parent) {
@@ -968,6 +1755,16 @@ export default class SparkParser {
 
           // push token onto current stack
           stack.push(tok);
+        }
+
+        // Print screenplay content (include styling marks but not emphasis marks)
+        if (id === "PlainText" || id === "StylingMark") {
+          const text = script.slice(from, to);
+          const inline_text = lookup("text");
+          if (inline_text) {
+            inline_text.print ??= "";
+            inline_text.print += text;
+          }
         }
 
         // newline
@@ -980,87 +1777,24 @@ export default class SparkParser {
         const tag = SPARK_TOKEN_TAGS[nodeNames[node.type]!];
 
         if (tok && tok.tag === tag) {
+          if (tok.tag === "front_matter_start") {
+            prevDisplayPositionalTokens.length = 0;
+          }
+
           if (tok.tag === "chunk") {
             prevDisplayPositionalTokens.length = 0;
-            const parentId = "";
-            const parentSection = program.sections[parentId];
-            const section = {
-              level: 0,
-              name: tok.name,
-              line: tok.line,
-              from: tok.from,
-              to: tok.to,
-              parent: parentId,
-            };
-            if (
-              validateName(tok, currentSectionId, tok.name, tok.ranges?.name)
-            ) {
-              currentSectionId = parentId + "." + tok.name;
-              program.sections[currentSectionId] = section;
-              if (parentSection) {
-                parentSection.children ??= [];
-                parentSection.children.push(currentSectionId);
-              }
-              program.metadata.lines ??= [];
-              program.metadata.lines[section.line] ??= {};
-              program.metadata.lines[section.line]!.section ??=
-                currentSectionId;
-              program.metadata.lines[section.line]!.references ??= [];
-              program.metadata.lines[section.line]!.references!.push({
-                from: tok?.ranges?.name?.from ?? -1,
-                to: tok?.ranges?.name?.to ?? -1,
-                name: section.name,
-                id: currentSectionId,
-                declaration: true,
-              });
-            }
           }
 
           if (tok.tag === "section") {
             prevDisplayPositionalTokens.length = 0;
-            const currentSection = program.sections[currentSectionId]!;
-            const currentLevel = currentSection.level;
-            const levelDiff = tok.level - currentLevel;
-            const parentId =
-              levelDiff === 0
-                ? currentSectionId.split(".").slice(0, -1).join(".")
-                : levelDiff > 0
-                ? currentSectionId
-                : currentSectionId.split(".").slice(0, levelDiff).join(".");
-            const parentSection = program.sections[parentId];
-            const section = {
-              level: tok.level,
-              name: tok.name,
-              line: tok.line,
-              from: tok.from,
-              to: tok.to,
-              parent: parentId,
-            };
-            if (
-              validateName(tok, currentSectionId, tok.name, tok.ranges?.name)
-            ) {
-              currentSectionId = parentId + "." + tok.name;
-              program.sections[currentSectionId] = section;
-              if (parentSection) {
-                parentSection.children ??= [];
-                parentSection.children.push(currentSectionId);
-              }
-              program.metadata.lines ??= [];
-              program.metadata.lines[section.line] ??= {};
-              program.metadata.lines[section.line]!.section ??=
-                currentSectionId;
-              program.metadata.lines[section.line]!.references ??= [];
-              program.metadata.lines[section.line]!.references!.push({
-                from: tok?.ranges?.name?.from ?? -1,
-                to: tok?.ranges?.name?.to ?? -1,
-                name: section.name,
-                id: currentSectionId,
-                declaration: true,
-              });
-            }
+          }
+
+          if (tok.tag === "flow_break") {
+            prevDisplayPositionalTokens.length = 0;
           }
 
           if (tok.tag === "struct") {
+            prevDisplayPositionalTokens.length = 0;
             const [ids, context] = getScopedValueContext(
               currentSectionId,
               program.sections,
@@ -1156,8 +1890,18 @@ export default class SparkParser {
               }
             }
           }
+          if (tok.tag === "struct_field") {
+            const parent = lookup("struct");
+            if (parent) {
+              program.metadata ??= {};
+              program.metadata.lines ??= [];
+              program.metadata.lines[tok.line] ??= {};
+              program.metadata.lines[tok.line]!.struct = parent.id;
+            }
+          }
 
           if (tok.tag === "variable") {
+            prevDisplayPositionalTokens.length = 0;
             const [ids, context] = getScopedValueContext(
               currentSectionId,
               program.sections,
@@ -1185,413 +1929,6 @@ export default class SparkParser {
             if (validateDeclaration(tok)) {
               declareVariable(tok);
             }
-          }
-
-          stack.pop();
-        }
-      },
-    });
-
-    /* PROCESS COMMANDS */
-    line = 0;
-    currentSectionId = "";
-    tree.iterate({
-      enter: (node) => {
-        const id = nodeNames[node.type]!;
-        const from = node.from;
-        const to = node.to;
-        const tag = SPARK_TOKEN_TAGS[id];
-        if (tag) {
-          const text = script.slice(from, to);
-          const tok = createSparkToken(tag, {
-            line,
-            from,
-            to,
-          });
-
-          if (tok.tag === "chunk") {
-            currentSectionId = program.metadata?.lines?.[line]?.section || "";
-          }
-
-          if (tok.tag === "section") {
-            currentSectionId = program.metadata?.lines?.[line]?.section || "";
-          }
-
-          // comment
-          if (tok.tag === "comment") {
-            addToken(tok);
-          }
-          if (tok.tag === "comment_content") {
-            const parent = lookup("comment");
-            if (parent) {
-              parent.text = text;
-            }
-          }
-
-          // assign
-          if (tok.tag === "assign") {
-            addToken(tok);
-          }
-          if (tok.tag === "identifier_path") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.name = text;
-              parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "assign_operator") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.operator = text;
-              parent.ranges ??= {};
-              parent.ranges.operator = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "value_text") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.value ??= "";
-              parent.value += text;
-              parent.ranges ??= {};
-              parent.ranges.value ??= { from: tok.from, to: tok.to };
-              parent.ranges.value.to = tok.to;
-            }
-          }
-
-          // access
-          if (tok.tag === "access") {
-            addToken(tok);
-          }
-          if (tok.tag === "type_name") {
-            const parent = lookup("access");
-            if (parent) {
-              parent.type = text;
-              parent.ranges ??= {};
-              parent.ranges.type = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "identifier_path") {
-            const parent = lookup("access");
-            if (parent) {
-              parent.name = text;
-              parent.ranges ??= {};
-              parent.ranges.name = { from: tok.from, to: tok.to };
-            }
-          }
-
-          // flow_break
-          if (tok.tag === "flow_break") {
-            addToken(tok);
-          }
-
-          // jump
-          if (tok.tag === "jump") {
-            addToken(tok);
-          }
-
-          // choice
-          if (tok.tag === "choice") {
-            addToken(tok);
-          }
-          if (tok.tag === "choice_content") {
-            tok.text = text;
-            const parent = lookup("choice");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // jump_to_section
-          if (tok.tag === "jump_to_section") {
-            const parent = lookup("jump", "choice");
-            if (parent) {
-              parent.section = text;
-              validateSectionReferences(
-                tok,
-                currentSectionId,
-                text,
-                tok.from,
-                tok.to
-              );
-            }
-          }
-
-          // transition
-          if (tok.tag === "transition") {
-            addToken(tok);
-          }
-          if (tok.tag === "transition_content") {
-            tok.text = text;
-            const parent = lookup("transition");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // scene
-          if (tok.tag === "scene") {
-            addToken(tok);
-          }
-          if (tok.tag === "scene_content") {
-            tok.text = text;
-            const parent = lookup("scene");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // centered
-          if (tok.tag === "centered") {
-            addToken(tok);
-          }
-          if (tok.tag === "centered_content") {
-            tok.text = text;
-            const parent = lookup("centered");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // action
-          if (tok.tag === "action") {
-            addToken(tok);
-          }
-          if (tok.tag === "action_start") {
-            addToken(tok);
-          }
-          if (tok.tag === "action_end") {
-            addToken(tok);
-          }
-          if (tok.tag === "action_box") {
-            addToken(tok);
-          }
-
-          // dialogue
-          if (tok.tag === "dialogue") {
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_start") {
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_end") {
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_character_name" && text) {
-            const dialogue = lookup("dialogue");
-            if (dialogue) {
-              dialogue.characterName = text;
-            }
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue_start) {
-              dialogue_start.print = text;
-            }
-            program.metadata.characters ??= {};
-            program.metadata.characters[text] ??= {};
-            program.metadata.characters[text]!.name = text;
-            program.metadata.characters[text]!.lines ??= [];
-            program.metadata.characters[text]!.lines!.push(tok.line);
-          }
-          if (tok.tag === "dialogue_character_parenthetical" && text) {
-            const dialogue = lookup("dialogue");
-            if (dialogue) {
-              dialogue.characterParenthetical = text;
-            }
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue_start) {
-              dialogue_start.print += " " + text;
-            }
-          }
-          if (tok.tag === "dialogue_character_simultaneous" && text) {
-            const dialogue = lookup("dialogue");
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue && dialogue_start) {
-              let prevPosition: "left" | "right" | undefined = undefined;
-              let prevCharacterName: string | undefined = undefined;
-              prevDisplayPositionalTokens.forEach((t) => {
-                t.autoAdvance = true;
-                prevPosition ??= t.position;
-                prevCharacterName ??= t.characterName;
-              });
-              if (dialogue.characterName === prevCharacterName) {
-                // Same character, so show in same spot
-                dialogue.position = prevPosition;
-              } else {
-                // Different character, so if a spot was not assigned for the previous character, move them to the left
-                // and display this character on the opposite side.
-                prevDisplayPositionalTokens.forEach((t) => {
-                  if (!t.position) {
-                    t.position = "left";
-                  }
-                  prevPosition = t.position;
-                });
-                dialogue.position = reversePosition(prevPosition);
-              }
-            }
-          }
-          if (tok.tag === "dialogue_box") {
-            const parent = lookup("dialogue");
-            if (parent) {
-              tok.position = parent.position;
-              tok.characterName = parent.characterName;
-              tok.characterParenthetical = parent.characterParenthetical;
-              tok.clearOnAdvance = true;
-              tok.waitUntilFinished = true;
-            }
-            addToken(tok);
-          }
-          if (tok.tag === "dialogue_line_parenthetical") {
-            tok.text = text;
-            tok.print = text;
-            const parent = lookup("dialogue_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-
-          // box
-          if (tok.tag === "box_line_continue") {
-            tok.text = text;
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-          if (tok.tag === "box_line_complete") {
-            tok.text = text;
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-          if (tok.tag === "display_text_prerequisite_value") {
-            const parent = lookup(
-              "choice",
-              "box_line_continue",
-              "box_line_complete"
-            );
-            if (parent) {
-              parent.prerequisiteValue = text;
-            }
-          }
-          if (tok.tag === "display_text_prerequisite_operator") {
-            const parent = lookup(
-              "choice",
-              "box_line_continue",
-              "box_line_complete"
-            );
-            if (parent) {
-              parent.prerequisiteOperator = text;
-            }
-          }
-          if (tok.tag === "display_text_content") {
-            const parent = lookup(
-              "choice_content",
-              "box_line_continue",
-              "box_line_complete"
-            );
-            if (parent) {
-              parent.text = text;
-            }
-          }
-          if (tok.tag === "image") {
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-          if (tok.tag === "audio") {
-            const parent = lookup("dialogue_box", "action_box");
-            if (parent) {
-              parent.content ??= [];
-              parent.content?.push(tok);
-            }
-          }
-          if (tok.tag === "asset_layer") {
-            const parent = lookup("image", "audio");
-            if (parent) {
-              parent.layer = text;
-              parent.ranges ??= {};
-              parent.ranges.layer = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "asset_names") {
-            const parent = lookup("image", "audio");
-            if (parent) {
-              parent.assets = [];
-              parent.nameRanges = [];
-              let from = tok.from;
-              text.split(WHITESPACE_REGEX).forEach((p) => {
-                const name = p.trim();
-                if (name) {
-                  parent.assets.push(name);
-                  parent.nameRanges.push({ from, to: from + p.length });
-                }
-                from += p.length;
-              });
-              parent.ranges ??= {};
-              parent.ranges.assets = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "asset_args") {
-            const parent = lookup("image", "audio");
-            if (parent) {
-              const args = text.split(WHITESPACE_REGEX);
-              parent.args = args;
-              parent.ranges ??= {};
-              parent.ranges.args = { from: tok.from, to: tok.to };
-            }
-          }
-          if (tok.tag === "indent") {
-            const parent = lookup();
-            if (parent) {
-              parent.indent = calculateIndent(text);
-            }
-          }
-
-          // push token onto current stack
-          stack.push(tok);
-        }
-
-        // Print screenplay content (include styling marks but not emphasis marks)
-        if (id === "PlainText" || id === "StylingMark") {
-          const text = script.slice(from, to);
-          const display_line = lookup(
-            "choice_content",
-            "transition_content",
-            "scene_content",
-            "centered_content",
-            "box_line_continue",
-            "box_line_complete"
-          );
-          if (display_line) {
-            if (display_line.print == null) {
-              display_line.print = "";
-            }
-            display_line.print += text;
-          }
-        }
-
-        // newline
-        if (id === "Newline") {
-          line += 1;
-        }
-      },
-      leave: (node) => {
-        const tok = stack.at(-1);
-        const tag = SPARK_TOKEN_TAGS[nodeNames[node.type]!];
-
-        if (tok && tok.tag === tag) {
-          if (tok.tag === "flow_break") {
-            prevDisplayPositionalTokens.length = 0;
           }
 
           if (tok.tag === "image") {
@@ -1640,6 +1977,10 @@ export default class SparkParser {
             const locationTimeMatch = text.match(SCENE_LOCATION_TIME_REGEX);
             const location = locationTimeMatch?.[1] || "";
             const time = locationTimeMatch?.[2] || "";
+            program.metadata ??= {};
+            program.metadata.lines ??= [];
+            program.metadata.lines[tok.line] ??= {};
+            program.metadata.lines[tok.line]!.sceneIndex = tok.index;
             program.metadata.scenes ??= [];
             program.metadata.scenes.push({
               index: tok.index,
@@ -1650,9 +1991,6 @@ export default class SparkParser {
               actionDuration: 0,
               dialogueDuration: 0,
             });
-            program.metadata.lines ??= [];
-            program.metadata.lines[tok.line] ??= {};
-            program.metadata.lines[tok.line]!.scene = tok.index;
           }
 
           if (tok.tag === "centered") {
@@ -1666,14 +2004,10 @@ export default class SparkParser {
           if (tok.tag === "action_box") {
             // Record estimated speechDuration
             const text =
-              tok.content
-                ?.map((t) =>
-                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
-                    ? t.text
-                    : ""
-                )
-                .join("") || "";
+              tok.content?.map((t) => ("text" in t ? t.text : "")).join("") ||
+              "";
             tok.speechDuration = calculateSpeechDuration(text);
+            program.metadata ??= {};
             program.metadata.actionDuration =
               (program.metadata.actionDuration || 0) + tok.speechDuration;
             const currentScene = program.metadata?.scenes?.at(-1);
@@ -1685,17 +2019,29 @@ export default class SparkParser {
             tok.waitUntilFinished = true;
           }
 
+          if (tok.tag === "dialogue") {
+            const characterName = tok.characterName || "";
+            const characterParenthetical = tok.characterParenthetical || "";
+            program.metadata ??= {};
+            program.metadata.lines ??= [];
+            program.metadata.lines[line] ??= {};
+            program.metadata.lines[line]!.characterName = characterName;
+            program.metadata.lines[line]!.characterParenthetical =
+              characterParenthetical;
+            program.metadata.characters ??= {};
+            program.metadata.characters[characterName] ??= {};
+            program.metadata.characters[characterName]!.name = characterName;
+            program.metadata.characters[characterName]!.lines ??= [];
+            program.metadata.characters[characterName]!.lines!.push(tok.line);
+          }
+
           if (tok.tag === "dialogue_box") {
             // Record estimated speechDuration
             const text =
-              tok.content
-                ?.map((t) =>
-                  t.tag === "box_line_continue" || t.tag === "box_line_complete"
-                    ? t.text
-                    : ""
-                )
-                .join("") || "";
+              tok.content?.map((t) => ("text" in t ? t.text : "")).join("") ||
+              "";
             tok.speechDuration = calculateSpeechDuration(text);
+            program.metadata ??= {};
             program.metadata.dialogueDuration =
               (program.metadata.dialogueDuration || 0) + tok.speechDuration;
             const currentScene = program.metadata?.scenes?.at(-1);
@@ -1775,6 +2121,8 @@ export default class SparkParser {
       },
     });
 
+    program.metadata.lineCount = line - 1;
+
     // CLEANUP
     if (program.frontMatter) {
       Object.entries(program.frontMatter).forEach(([keyword, values]) => {
@@ -1785,11 +2133,33 @@ export default class SparkParser {
       });
     }
 
-    // console.log(program);
+    Object.values(program.sections).forEach((section) => {
+      section.tokens.forEach((tok) => {
+        const tokenIndex = program.tokens.length ?? 0;
+        program.tokens.push(tok);
+        program.metadata ??= {};
+        program.metadata.lines ??= [];
+        program.metadata.lines[tok.line] ??= {};
+        program.metadata.lines[tok.line]!.tokens ??= [];
+        program.metadata.lines[tok.line]!.tokens!.push(tokenIndex);
+        if (tok.content) {
+          tok.content.forEach((c) => {
+            program.metadata ??= {};
+            program.metadata.lines ??= [];
+            program.metadata.lines[c.line] ??= {};
+            program.metadata.lines[c.line]!.tokens ??= [];
+            program.metadata.lines[c.line]!.tokens!.push(tokenIndex);
+          });
+        }
+      });
+    });
 
     const parseEndTime = Date.now();
+    program.metadata ??= {};
     program.metadata.parseTime = parseEndTime;
     program.metadata.parseDuration = parseEndTime - parseStartTime;
+
+    console.log(program);
 
     return program;
   }

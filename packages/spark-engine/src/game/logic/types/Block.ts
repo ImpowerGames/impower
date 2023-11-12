@@ -29,7 +29,6 @@ export interface Block {
       params: {
         check?: string;
         waitUntilFinished: boolean;
-        assets?: string[];
       };
     }
   >;

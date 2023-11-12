@@ -138,7 +138,7 @@ export class SparkDOMElement implements IElement {
   setAnimationContent(
     animationName: string,
     properties: Record<string, any>,
-    objectMap: { [type: string]: Record<string, any> }
+    typeMap: { [type: string]: Record<string, any> }
   ): void {
     const groupMap: Record<string, Record<string, unknown>> = {};
     Object.entries(properties).forEach(([fk, fv]) => {
@@ -158,7 +158,7 @@ export class SparkDOMElement implements IElement {
     Object.entries(groupMap || {}).forEach(([keyframe, fields]) => {
       const content = Object.entries(fields)
         .map(([k, v]) => {
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, objectMap);
+          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, typeMap);
           return `${cssProp}: ${cssValue};`;
         })
         .join(`\n  `);
@@ -173,7 +173,7 @@ export class SparkDOMElement implements IElement {
     targetName: string,
     properties: Record<string, any>,
     breakpoints: Record<string, number>,
-    objectMap: { [type: string]: Record<string, any> }
+    typeMap: { [type: string]: Record<string, any> }
   ): void {
     const groupMap: Record<string, Record<string, unknown>> = {};
     Object.entries(properties).forEach(([fk, fv]) => {
@@ -204,7 +204,7 @@ export class SparkDOMElement implements IElement {
     Object.entries(groupMap || {}).forEach(([groupName, fields]) => {
       const content = Object.entries(fields)
         .map(([k, v]) => {
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, objectMap);
+          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, typeMap);
           return `${cssProp}: ${cssValue};`;
         })
         .join(`\n  `);

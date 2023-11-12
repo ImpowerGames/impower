@@ -95,10 +95,10 @@ const GameContextProvider = React.memo((props: GameContextProviderProps) => {
             },
           }
         );
-        const objectMap = sparkContextRef.current.game.struct.config.objectMap;
-        sparkContextRef.current.game.ui.loadTheme(objectMap);
-        sparkContextRef.current.game.ui.loadStyles(objectMap);
-        sparkContextRef.current.game.ui.loadUI(objectMap);
+        const typeMap = sparkContextRef.current.game.struct.config.typeMap;
+        sparkContextRef.current.game.ui.loadTheme(typeMap);
+        sparkContextRef.current.game.ui.loadStyles(typeMap);
+        sparkContextRef.current.game.ui.loadUI(typeMap);
         setSparkContext(sparkContextRef.current);
       }
     }

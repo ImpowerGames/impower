@@ -6,7 +6,7 @@ import { CommandRunner } from "../../items/command/CommandRunner";
 export interface BlockContext<G extends Game> {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  objectMap: { [type: string]: Record<string, any> };
+  typeMap: { [type: string]: Record<string, any> };
   commands: {
     runner: CommandRunner<G>;
     data: CommandData;

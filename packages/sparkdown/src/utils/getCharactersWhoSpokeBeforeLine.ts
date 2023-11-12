@@ -1,41 +1,30 @@
 import { SparkProgram } from "../types/SparkProgram";
-import trimCharacterExtension from "./trimCharacterExtension";
 
 const getCharactersWhoSpokeBeforeLine = (
   program: SparkProgram,
-  line: number
+  line: number,
+  includeCharacterParenthetical = true
 ) => {
-  let searchIndex = 0;
-  const prevLineTokenIndex = program.metadata?.lines?.[line - 1]?.tokens?.[0];
-  if (prevLineTokenIndex) {
-    searchIndex = prevLineTokenIndex;
+  const lines = program.metadata?.lines;
+  if (!lines) {
+    return [];
   }
-  let stopSearch = false;
-  const previousCharacters: string[] = [];
-  let lastCharacter = "";
-  while (searchIndex > 0 && !stopSearch) {
-    const token = program.tokens[searchIndex - 1];
-    if (token) {
-      if (token.tag === "dialogue_character") {
-        const name = trimCharacterExtension(token.text || "").trim();
-        if (!lastCharacter) {
-          lastCharacter = name;
-        } else if (
-          name !== lastCharacter &&
-          previousCharacters.indexOf(name) === -1
-        ) {
-          previousCharacters.push(name);
+  const previousCharacters = new Set<string>();
+  for (let i = line - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (line) {
+      const characterName = line.characterName || "";
+      const characterParenthetical = line.characterParenthetical || "";
+      if (characterName) {
+        let character = characterName;
+        if (includeCharacterParenthetical && characterParenthetical) {
+          character += " " + characterParenthetical;
         }
-      } else if (token.tag === "scene") {
-        stopSearch = true;
+        previousCharacters.add(character);
       }
     }
-    searchIndex--;
   }
-  if (lastCharacter) {
-    previousCharacters.push(lastCharacter);
-  }
-  return previousCharacters;
+  return Array.from(previousCharacters);
 };
 
 export default getCharactersWhoSpokeBeforeLine;

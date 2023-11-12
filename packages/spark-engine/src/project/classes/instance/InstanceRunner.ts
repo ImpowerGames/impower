@@ -22,7 +22,7 @@ export abstract class InstanceRunner<
     _data: T,
     _context: {
       valueMap: Record<string, unknown>;
-      objectMap: { [type: string]: Record<string, any> };
+      typeMap: { [type: string]: Record<string, any> };
       instant?: boolean;
       debug?: boolean;
     }

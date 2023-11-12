@@ -524,17 +524,23 @@ export class SparkdownCompletionProvider
 				else
 					break;
 			}*/
-      let charactersWhoSpokeBeforeLast = undefined;
+      let charactersWhoSpokeBefore = undefined;
       const charactersFromCurrentSceneHash = new Set();
       if (program && hasCharacters) {
-        // The characters who spoke before the last one, within the current scene
-        charactersWhoSpokeBeforeLast = getCharactersWhoSpokeBeforeLine(
+        // The characters who have spoke before
+        charactersWhoSpokeBefore = getCharactersWhoSpokeBeforeLine(
           program,
           position.line
         );
-        if (charactersWhoSpokeBeforeLast.length > 0) {
-          let index = 0;
-          charactersWhoSpokeBeforeLast.forEach((character) => {
+        // To facilitate writing back-and-forth dialogue,
+        // we assume the character who spoke most recently is the least likely character to speak next,
+        // so we move them to the back of the queue
+        const mostRecentCharacter = charactersWhoSpokeBefore.shift();
+        if (mostRecentCharacter) {
+          charactersWhoSpokeBefore.push(mostRecentCharacter);
+        }
+        if (charactersWhoSpokeBefore.length > 0) {
+          charactersWhoSpokeBefore.forEach((character, index) => {
             const charWithForceSymbolIfNecessary =
               addForceSymbolToCharacter(character);
             charactersFromCurrentSceneHash.add(character);
@@ -548,10 +554,9 @@ export class SparkdownCompletionProvider
                 title: "newline",
               },
             });
-            index++;
           });
         } else {
-          charactersWhoSpokeBeforeLast = undefined;
+          charactersWhoSpokeBefore = undefined;
         }
       }
 
@@ -583,8 +588,8 @@ export class SparkdownCompletionProvider
       if (hasCharacters) {
         let sortText = "2"; // Add all characters, but after the "INT/EXT" suggestions
         if (
-          !charactersWhoSpokeBeforeLast ||
-          charactersWhoSpokeBeforeLast.length === 0
+          !charactersWhoSpokeBefore ||
+          charactersWhoSpokeBefore.length === 0
         ) {
           sortText = "0A"; //There's no characters in the current scene, suggest characters before INT/EXT
         }

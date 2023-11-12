@@ -1913,7 +1913,7 @@
     "Image": {
       "tag": "macroName",
       "name": "meta.image.sd",
-      "match": "^([ \\t]*)(\\[\\[)([^\\]]*)(\\]\\])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ \\t]*)((?<!\\\\)\\[\\[)([^\\]]*)((?<!\\\\)\\]\\])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -1953,7 +1953,7 @@
     "InlineImage": {
       "tag": "macroName",
       "name": "meta.image.sd",
-      "match": "(\\[\\[)([^\\]]*)(\\]\\])",
+      "match": "((?<!\\\\)\\[\\[)([^\\]]*)((?<!\\\\)\\]\\])",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -1987,7 +1987,7 @@
     "Audio": {
       "tag": "macroName",
       "name": "meta.audio.sd",
-      "match": "^([ \\t]*)([(][(])([^)]*)([)][)])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ \\t]*)((?<!\\\\)[(][(])([^)]*)((?<!\\\\)[)][)])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2027,7 +2027,7 @@
     "InlineAudio": {
       "tag": "macroName",
       "name": "meta.audio.sd",
-      "match": "([(][(])([^)]*)([)][)])",
+      "match": "((?<!\\\\)[(][(])([^)]*)((?<!\\\\)[)][)])",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -2148,7 +2148,7 @@
       "begin": "(?=.*$)",
       "patterns": [
         {
-          "include": "#Inline"
+          "include": "#DisplayText"
         }
       ],
       "end": "(?=$)"
@@ -2190,7 +2190,7 @@
       "begin": "(?=.*$)",
       "patterns": [
         {
-          "include": "#Inline"
+          "include": "#DisplayText"
         }
       ],
       "end": "(?=$)"
@@ -2230,7 +2230,7 @@
       "begin": "(?=.*$)",
       "patterns": [
         {
-          "include": "#Inline"
+          "include": "#DisplayText"
         }
       ],
       "end": "(?=[|])"
@@ -2514,19 +2514,24 @@
     "Inline": {
       "patterns": [
         {
-          "include": "#Escape"
-        },
-        {
-          "include": "#TemplateString"
-        },
-        {
-          "include": "#InlineTemplateStringSubstitution"
-        },
-        {
           "include": "#InlineImage"
         },
         {
           "include": "#InlineAudio"
+        },
+        {
+          "include": "#InlineText"
+        }
+      ]
+    },
+    "InlineText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#Escape"
+        },
+        {
+          "include": "#InlineTemplateStringSubstitution"
         },
         {
           "include": "#Styling"
