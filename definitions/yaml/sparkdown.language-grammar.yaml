@@ -1415,6 +1415,10 @@ repository:
     tag: escape
     name: constant.character.escape.sd
     match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#InlineText" }
 
   BoxLineContinue:
     match: (.*[ \t]$(?:\r\n|\r|\n)?)
