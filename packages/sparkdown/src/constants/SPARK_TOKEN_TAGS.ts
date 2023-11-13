@@ -94,7 +94,7 @@ const SPARK_TOKEN_TAGS: {
   DisplayText_c1: "display_text_prerequisite_value",
   DisplayText_c2: "display_text_prerequisite_operator",
   DisplayText_c7: "display_text_content",
-  InlineText: "text",
+  DisplayString: "text",
 
   Indent: "indent",
 

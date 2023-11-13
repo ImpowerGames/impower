@@ -300,7 +300,7 @@
       "begin": "(?=.*$)",
       "patterns": [
         {
-          "include": "#Inline"
+          "include": "#InlineText"
         }
       ],
       "end": "($(?:\\r\\n|\\r|\\n)?)",
@@ -2522,7 +2522,13 @@
         "7": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineImage"
+            },
+            {
+              "include": "#InlineAudio"
+            },
+            {
+              "include": "#DisplayString"
             }
           ]
         }
@@ -2533,14 +2539,9 @@
       "name": "keyword.control.text.layer.sd",
       "match": "(.+)"
     },
-    "Inline": {
+    "DisplayString": {
+      "emit": true,
       "patterns": [
-        {
-          "include": "#InlineImage"
-        },
-        {
-          "include": "#InlineAudio"
-        },
         {
           "include": "#InlineText"
         }
@@ -2692,7 +2693,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2720,7 +2721,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2748,7 +2749,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2795,7 +2796,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2817,7 +2818,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2839,7 +2840,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2861,7 +2862,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2883,7 +2884,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -2905,7 +2906,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Inline"
+              "include": "#InlineText"
             }
           ]
         },
@@ -3808,7 +3809,7 @@
           "include": "#TemplateStringConditionalDelimiter"
         },
         {
-          "include": "#Inline"
+          "include": "#InlineText"
         }
       ],
       "end": "([}])",

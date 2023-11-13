@@ -177,7 +177,7 @@ repository:
     name: string.front-matter.string.sd
     begin: (?=.*$)
     patterns:
-      - { include: "#Inline" }
+      - { include: "#InlineText" }
     end: ($(?:\r\n|\r|\n)?)
     endCaptures:
       1:
@@ -1494,7 +1494,9 @@ repository:
         name: markup.raw.whitespace.separator.sd
       7:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineImage" }
+          - { include: "#InlineAudio" }
+          - { include: "#DisplayString" }
 
   TextLayer:
     tag: controlKeyword
@@ -1503,10 +1505,9 @@ repository:
 
   # Markdown (inline subset)
 
-  Inline:
+  DisplayString:
+    emit: true
     patterns:
-      - { include: "#InlineImage" }
-      - { include: "#InlineAudio" }
       - { include: "#InlineText" }
 
   InlineText:
@@ -1602,7 +1603,7 @@ repository:
           - { include: "#StylingMark" }
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         patterns:
           - { include: "#StylingMark" }
@@ -1617,7 +1618,7 @@ repository:
           - { include: "#StylingMark" }
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         patterns:
           - { include: "#StylingMark" }
@@ -1632,7 +1633,7 @@ repository:
           - { include: "#StylingMark" }
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         patterns:
           - { include: "#StylingMark" }
@@ -1656,7 +1657,7 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
@@ -1671,7 +1672,7 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
@@ -1686,7 +1687,7 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
@@ -1701,7 +1702,7 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
@@ -1716,7 +1717,7 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
@@ -1731,7 +1732,7 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#Inline" }
+          - { include: "#InlineText" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
@@ -2351,7 +2352,7 @@ repository:
         name: meta.template.expression.colon.sd
     patterns:
       - { include: "#TemplateStringConditionalDelimiter" }
-      - { include: "#Inline" }
+      - { include: "#InlineText" }
     end: ([}])
     endCaptures:
       1:
