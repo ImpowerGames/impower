@@ -93,7 +93,7 @@ const SPARK_TOKEN_TAGS: {
   DialogueLineParentheticalContent: "dialogue_line_parenthetical",
   DisplayText_c1: "display_text_prerequisite_value",
   DisplayText_c2: "display_text_prerequisite_operator",
-  DisplayText_c3: "display_text_content",
+  DisplayText_c7: "display_text_content",
   InlineText: "text",
 
   Indent: "indent",

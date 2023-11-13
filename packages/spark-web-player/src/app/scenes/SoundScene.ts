@@ -11,11 +11,11 @@ export default class SoundScene extends Scene {
 
   override start() {
     this.context.game.sound.config.synths =
-      this.context.game.struct.config.typeMap["synth"] || {};
+      this.context.game.struct.config.typeMap["Synth"] || {};
   }
 
   override async load(): Promise<Object3D<Event>[]> {
-    const audioAssets = this.context.game.struct.config.typeMap["audio"];
+    const audioAssets = this.context.game.struct.config.typeMap["Audio"];
     if (audioAssets) {
       await Promise.all(
         Object.entries(audioAssets).map(async ([name, asset]) => {

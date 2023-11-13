@@ -1,7 +1,6 @@
 import { SparkProgram } from "../../../../sparkdown/src";
 import { SparkGame, SparkGameConfig, SparkGameState } from "../../game";
 import { SparkGameRunner } from "../../runner/classes/SparkGameRunner";
-import { STRUCT_DEFAULTS } from "../constants/STRUCT_DEFAULTS";
 import { SparkContextOptions } from "../interfaces/SparkContextOptions";
 import { Context } from "./Context";
 
@@ -16,7 +15,6 @@ export default class SparkContext<
     options?: SparkContextOptions<G, C, S, R>
   ) {
     super(programs, {
-      defaults: STRUCT_DEFAULTS,
       runner: new SparkGameRunner<G>() as R,
       createGame: (c?: C, s?: S) => new SparkGame(c, s) as G,
       ...(options || {}),

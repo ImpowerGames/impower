@@ -5,7 +5,6 @@ import type {
   CommandTypeId,
   ConditionCommandData,
   DisplayCommandData,
-  DisplayType,
   EnterCommandData,
   ReturnCommandData,
 } from "../../data";
@@ -44,13 +43,24 @@ const generateDisplayCommand = (
     source: getSource(token, file),
     indent: token.indent,
     params: {
-      type: token.tag as DisplayType,
+      type:
+        token.tag === "action_box"
+          ? "action"
+          : token.tag === "dialogue_box"
+          ? "dialogue"
+          : token.tag === "centered"
+          ? "centered"
+          : token.tag === "scene"
+          ? "scene"
+          : token.tag === "transition"
+          ? "transition"
+          : "action",
       position: token.position || "",
-      characterName: token.characterName || "",
-      characterParenthetical: token.characterParenthetical || "",
+      characterName: token.characterName?.text || "",
+      characterParenthetical: token.characterParenthetical?.text || "",
       content: token.content || [],
       autoAdvance: token.autoAdvance ?? false,
-      clearOnAdvance: token.clearOnAdvance ?? false,
+      overwritePrevious: token.overwritePrevious ?? false,
       waitUntilFinished: token.waitUntilFinished ?? false,
     },
   };

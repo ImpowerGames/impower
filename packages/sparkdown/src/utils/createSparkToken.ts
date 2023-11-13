@@ -8,12 +8,7 @@ const createSparkToken = <K extends keyof SparkTokenTagMap = "comment">(
   t.line = obj?.line ?? -1;
   t.from = obj?.from ?? -1;
   t.to = obj?.to ?? -1;
-  if (obj?.nested != null) {
-    t.nested = obj?.nested;
-  }
-  if (obj?.order != null) {
-    t.order = obj?.order;
-  }
+  t.indent = obj?.indent ?? 0;
   if (obj?.ignore != null) {
     t.ignore = obj?.ignore;
   }

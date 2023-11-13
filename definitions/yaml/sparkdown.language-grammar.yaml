@@ -1202,7 +1202,7 @@ repository:
           - { include: "#AssetContent" }
 
   AssetContent:
-    match: (?:([@])($|[^@ \t]+)([ \t]*))?((?:[^@ \t:]+[ \t]*)+)?($|[:])($|.*)
+    match: (?:([@])($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*))?((?:[^@ \t:]+[ \t]*)+)?($|[:])($|.*)
     captures:
       1:
         tag: controlKeyword
@@ -1287,10 +1287,11 @@ repository:
         name: markup.raw.whitespace.separator.sd
 
   SceneContent:
-    begin: (?=.*$)
-    patterns:
-      - { include: "#DisplayText" }
-    end: (?=$)
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
 
   SceneLocationTime:
     match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.][ \t]*(.*?)[ \t]+[-][ \t]+(.*?)[ \t]*$
@@ -1298,28 +1299,28 @@ repository:
   Centered:
     tag: monospace
     name: markup.other.centered.sd
-    begin: ^([|])
-    beginCaptures:
+    match: ^([|])(.*?)([|])($|[ \t]*$)
+    captures:
       1:
         tag: bracket
         name: markup.other.centered.bar-left.sd
-    patterns:
-      - { include: "#CenteredContent" }
-    end: ([|])($|[ \t]*$)
-    endCaptures:
-      1:
+      2: 
+        patterns:
+          - { include: "#CenteredContent" }
+      3:
         tag: bracket
         name: markup.other.centered.bar-right.sd
-      2:
-        tag: bracket
+      4:
+        tag: content
         name: markup.raw.whitespace.trailing.sd
 
   CenteredContent:
     tag: special(monospace)
-    begin: (?=.*$)
-    patterns:
-      - { include: "#DisplayText" }
-    end: (?=[|])
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
 
   Dialogue:
     name: entity.dialogue.sd
@@ -1416,14 +1417,11 @@ repository:
     match: (.+)
 
   BoxLineContinue:
-    match: (.*[ \t]$)((?:\r\n|\r|\n)?)
+    match: (.*[ \t]$(?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
           - { include: "#DisplayText" }
-      2:
-        patterns:
-          - { include: "#Newline" }
 
   BoxLineComplete:
     match: (.*$)
@@ -1474,7 +1472,7 @@ repository:
 
   DisplayText:
     name: entity.display.sd
-    match: (?:([!]?(?:\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:]))?($|.+$)
+    match: (?:([!]?(?:\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ \t]*))?(?:([@])([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*))?($|.+$(?:\r\n|\r|\n)?)
     captures:
       1:
         tag: variableName
@@ -1483,8 +1481,25 @@ repository:
         tag: keyword
         name: keyword.operator.expression.prerequisite.sd
       3:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      4:
+        tag: controlKeyword
+        name: keyword.control.asset.layer.sd
+      5:
+        patterns:
+          - { include: "#TextLayer" }
+      6:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      7:
         patterns:
           - { include: "#Inline" }
+
+  TextLayer:
+    tag: controlKeyword
+    name: keyword.control.text.layer.sd
+    match: (.+)
 
   # Markdown (inline subset)
 

@@ -114,7 +114,7 @@ export class SparkGameApp {
   }
 
   async loadScenes(scenes: Record<string, SparkScene>): Promise<void> {
-    const loadingUIName = "LOADING";
+    const loadingUIName = "Loading";
     const loadingProgressVariable = "--LOADING_PROGRESS";
     this._scenes.clear();
     Object.entries(scenes).forEach(([id, scene]) => {

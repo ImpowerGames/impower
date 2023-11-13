@@ -191,6 +191,7 @@ export default class SparkParser {
       chunks: {},
       sections: {},
       tokens: [],
+      ...(config?.augmentations || {}),
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
     const stack: SparkToken[] = [];
@@ -255,6 +256,20 @@ export default class SparkParser {
       tok.id = id;
       program.structs ??= {};
       program.structs[id] ??= tok;
+
+      const [, context] = getScopedValueContext(
+        currentSectionId,
+        program.sections,
+        compiler
+      );
+      const [compiledValue] = compiler(tok.value, context);
+      program.typeMap ??= {};
+      program.typeMap[tok.type] ??= {};
+      program.typeMap[tok.type]![tok.name] = compiledValue;
+      program.typeMap ??= {};
+      program.typeMap[tok.name] = {
+        "": compiledValue,
+      };
     };
 
     const getDeclarationId = (tok: { name: string }) => {
@@ -854,6 +869,7 @@ export default class SparkParser {
             line,
             from,
             to,
+            indent: 0,
           });
 
           // front_matter
@@ -1185,6 +1201,7 @@ export default class SparkParser {
             line,
             from,
             to,
+            indent: 0,
           });
 
           if (tok.tag === "chunk") {
@@ -1463,11 +1480,6 @@ export default class SparkParser {
             addToken(tok);
           }
 
-          // choice
-          if (tok.tag === "choice") {
-            addToken(tok);
-          }
-
           // jump_to_section
           if (tok.tag === "jump_to_section") {
             const parent = lookup("jump", "choice");
@@ -1503,10 +1515,6 @@ export default class SparkParser {
             addToken(tok);
           }
           if (tok.tag === "action_start") {
-            const action = lookup("action");
-            if (action) {
-              action.start = tok;
-            }
             addToken(tok);
           }
           if (tok.tag === "action_end") {
@@ -1517,10 +1525,6 @@ export default class SparkParser {
             if (parent) {
               parent.boxes ??= [];
               parent.boxes.push(tok);
-              if (parent.boxes.length === 1) {
-                tok.content ??= [];
-                tok.content.push(parent.start);
-              }
             }
             addToken(tok);
           }
@@ -1530,19 +1534,18 @@ export default class SparkParser {
             addToken(tok);
           }
           if (tok.tag === "dialogue_start") {
-            const dialogue = lookup("dialogue");
-            if (dialogue) {
-              dialogue.start = tok;
-            }
             addToken(tok);
           }
           if (tok.tag === "dialogue_end") {
             addToken(tok);
           }
           if (tok.tag === "dialogue_character_name" && text) {
+            tok.layer = "CharacterName";
+            tok.instant = true;
+            tok.text = text;
             const dialogue = lookup("dialogue");
             if (dialogue) {
-              dialogue.characterName = text;
+              dialogue.characterName = tok;
             }
             const dialogue_start = lookup("dialogue_start");
             if (dialogue_start) {
@@ -1550,9 +1553,12 @@ export default class SparkParser {
             }
           }
           if (tok.tag === "dialogue_character_parenthetical" && text) {
+            tok.layer = "CharacterParenthetical";
+            tok.instant = true;
+            tok.text = text;
             const dialogue = lookup("dialogue");
             if (dialogue) {
-              dialogue.characterParenthetical = text;
+              dialogue.characterParenthetical = tok;
             }
             const dialogue_start = lookup("dialogue_start");
             if (dialogue_start) {
@@ -1568,9 +1574,9 @@ export default class SparkParser {
               prevDisplayPositionalTokens.forEach((t) => {
                 t.autoAdvance = true;
                 prevPosition ??= t.position;
-                prevCharacterName ??= t.characterName;
+                prevCharacterName ??= t.characterName?.text;
               });
-              if (dialogue.characterName === prevCharacterName) {
+              if (dialogue.characterName.text === prevCharacterName) {
                 // Same character, so show in same spot
                 dialogue.position = prevPosition;
               } else {
@@ -1591,20 +1597,24 @@ export default class SparkParser {
             if (parent) {
               parent.boxes ??= [];
               parent.boxes.push(tok);
-              if (parent.boxes.length === 1) {
-                tok.content ??= [];
-                tok.content.push(parent.start);
+              tok.content ??= [];
+              if (parent.characterName) {
+                tok.content.push(parent.characterName);
+              }
+              if (parent.characterParenthetical) {
+                tok.content.push(parent.characterParenthetical);
               }
               tok.position = parent.position;
               tok.characterName = parent.characterName;
               tok.characterParenthetical = parent.characterParenthetical;
-              tok.clearOnAdvance = true;
+              tok.overwritePrevious = true;
               tok.waitUntilFinished = true;
             }
             addToken(tok);
           }
           if (tok.tag === "dialogue_line_parenthetical") {
-            tok.layer = "parenthetical";
+            tok.layer = "Parenthetical";
+            tok.instant = true;
             tok.text = text;
             tok.print = text;
             const parent = lookup("dialogue_box");
@@ -1618,13 +1628,7 @@ export default class SparkParser {
           if (tok.tag === "display_text_prerequisite_value") {
             const parent = lookup("display_text");
             if (parent) {
-              parent.prerequisiteValue = text;
-            }
-          }
-          if (tok.tag === "display_text_prerequisite_operator") {
-            const parent = lookup("display_text");
-            if (parent) {
-              parent.prerequisiteOperator = text;
+              parent.prerequisite = text;
             }
           }
           if (tok.tag === "display_text_content") {
@@ -1649,11 +1653,8 @@ export default class SparkParser {
             }
             const display_text = lookup("display_text");
             if (display_text) {
-              if (display_text.prerequisiteOperator) {
-                tok.prerequisiteOperator = display_text.prerequisiteOperator;
-              }
-              if (display_text.prerequisiteValue) {
-                tok.prerequisiteValue = display_text.prerequisiteValue;
+              if (display_text.prerequisite) {
+                tok.prerequisite = display_text.prerequisite;
               }
             }
           }
@@ -1963,6 +1964,27 @@ export default class SparkParser {
             }
           }
 
+          // choice
+          if (tok.tag === "choice") {
+            const parent = lookup("action_box", "dialogue_box");
+            if (parent) {
+              const text =
+                tok.content?.map((c) => c.text || "")?.join("") || "";
+              parent.content ??= [];
+              parent.content.push({
+                tag: "choice",
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+                indent: tok.indent,
+                instant: true,
+                text,
+                args: [tok.section],
+                layer: `Choice`,
+              });
+            }
+          }
+
           if (tok.tag === "transition") {
             prevDisplayPositionalTokens.length = 0;
           }
@@ -2015,13 +2037,14 @@ export default class SparkParser {
               currentScene.actionDuration =
                 (currentScene.actionDuration || 0) + tok.speechDuration;
             }
-            tok.clearOnAdvance = true;
+            tok.overwritePrevious = true;
             tok.waitUntilFinished = true;
           }
 
           if (tok.tag === "dialogue") {
-            const characterName = tok.characterName || "";
-            const characterParenthetical = tok.characterParenthetical || "";
+            const characterName = tok.characterName?.text || "";
+            const characterParenthetical =
+              tok.characterParenthetical?.text || "";
             program.metadata ??= {};
             program.metadata.lines ??= [];
             program.metadata.lines[line] ??= {};

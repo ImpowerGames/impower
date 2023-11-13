@@ -20,16 +20,15 @@ export const executeChoiceCommand = (
 
   const valueMap = context?.valueMap || {};
   const typeMap = context?.typeMap || {};
-  const structName = "DISPLAY";
-  const writerConfigs = typeMap?.["writer"] as Record<string, Writer>;
-  const config = writerConfigs?.["choice"];
+  const structName = "Display";
+  const writerConfigs = typeMap?.["Writer"] as Record<string, Writer>;
+  const config = writerConfigs?.["ChoiceWriter"];
 
   const contentEls = game.ui.findAllUIElements(
     structName,
     config?.className || "Choice"
   );
-  const [replaceTagsResult] = format(content, valueMap);
-  const [evaluatedContent] = format(replaceTagsResult, valueMap);
+
   const handleClick = (e?: { stopPropagation: () => void }): void => {
     if (e) {
       e.stopPropagation();
@@ -43,6 +42,7 @@ export const executeChoiceCommand = (
     });
     onClick?.();
   };
+
   if (!data) {
     contentEls.forEach((el) => {
       if (el) {
@@ -54,11 +54,14 @@ export const executeChoiceCommand = (
     });
     return;
   }
+
   const lastContentEl = contentEls?.[contentEls.length - 1];
   if (lastContentEl) {
     const parentEl = game.ui.getParent(lastContentEl);
     if (parentEl) {
       const validIndex = index != null ? index : order;
+      const [replaceTagsResult] = format(content, valueMap);
+      const [evaluatedContent] = format(replaceTagsResult, valueMap);
       for (let i = 0; i < Math.max(contentEls.length, validIndex + 1); i += 1) {
         const el =
           contentEls?.[i] || parentEl?.cloneChild(contentEls.length - 1);

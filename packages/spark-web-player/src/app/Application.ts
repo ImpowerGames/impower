@@ -122,7 +122,7 @@ export default class Application {
   }
 
   async loadScenes(scenes: Record<string, Scene>): Promise<void> {
-    const loadingUIName = "LOADING";
+    const loadingUIName = "Loading";
     const loadingProgressVariable = "--LOADING_PROGRESS";
     this._scenes.clear();
     Object.entries(scenes).forEach(([id, scene]) => {

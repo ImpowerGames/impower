@@ -3,5 +3,4 @@ export type DisplayType =
   | "action"
   | "centered"
   | "transition"
-  | "scene"
-  | "assets";
+  | "scene";

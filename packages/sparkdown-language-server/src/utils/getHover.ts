@@ -23,7 +23,7 @@ const getHover = (
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
       const id = reference.id;
       const name = reference.name;
-      const imageAsset = program.typeMap?.["image"]?.[name];
+      const imageAsset = program.typeMap?.["Image"]?.[name];
       if (imageAsset) {
         const src = imageAsset.src;
         return {

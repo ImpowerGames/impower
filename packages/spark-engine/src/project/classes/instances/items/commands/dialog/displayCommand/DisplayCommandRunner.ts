@@ -109,7 +109,7 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
       debug?: boolean;
     }
   ): boolean {
-    executeDisplayCommand(game, data, context, undefined, true);
+    executeDisplayCommand(game, data, context, undefined, undefined, true);
     return true;
   }
 }

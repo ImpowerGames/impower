@@ -20,7 +20,7 @@ export const getCSSPropertyKeyValue = (
   value: unknown,
   typeMap?: { [type: string]: Record<string, any> }
 ): [string, string] => {
-  const theme = typeMap?.["theme"]?.[""];
+  const theme = typeMap?.["Theme"]?.[""];
   const cssProp = getCSSPropertyName(name);
   const cssValue =
     typeof value === "string"

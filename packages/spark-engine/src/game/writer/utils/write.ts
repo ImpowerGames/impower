@@ -91,9 +91,7 @@ export const write = (
 
   const result: Phrase[] = [];
 
-  const partEls: IElement[] = [];
-  const marks: [string, number][] = [];
-
+  let prevLayer = "";
   let consecutiveLettersLength = 0;
   let word = "";
   let dashLength = 0;
@@ -101,30 +99,34 @@ export const write = (
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
   let hideSpace = false;
-  let currChunk: Chunk = {
-    char: "",
-    duration: 0,
-    speed: 0,
-    startOfWord: true,
-    startOfSyllable: true,
-    voiced: false,
-    yelled: 0,
-    bolded: 0,
-    italicized: 0,
-    underlined: 0,
-    floating: 0,
-    trembling: 0,
-    emDash: false,
-    tilde: false,
-    pitch: 0,
-    punctuated: false,
-    sustained: false,
-  };
+  let currChunk: Chunk | undefined = undefined;
 
-  content.forEach((c) => {
-    // TODO: Handle parenthetical, image, and audio
-    const text = c.text;
+  content.forEach((p) => {
+    const writeInstantly = Boolean(instant || p.instant);
+    const image = p.image;
+    if (image) {
+      result.push({ ...p });
+    }
+    const audio = p.audio;
+    if (audio) {
+      result.push({ ...p });
+    }
+    const text = p.text;
     if (text) {
+      const layer = p.layer || "";
+      if (layer !== prevLayer || layer === "Choice") {
+        // Reset all inter-phrase trackers
+        consecutiveLettersLength = 0;
+        word = "";
+        dashLength = 0;
+        spaceLength = 0;
+        phrasePauseLength = 0;
+        phraseUnpauseLength = 0;
+        hideSpace = false;
+        currChunk = undefined;
+      }
+      const marks: [string, number][] = [];
+      const partEls: IElement[] = [];
       const chars = text.split("");
       for (let i = 0; i < chars.length; ) {
         const char = chars[i] || "";
@@ -161,28 +163,6 @@ export const write = (
           i += mark.length;
           continue;
         }
-        if (doubleLookahead === "[[") {
-          i += 2;
-          const from = i;
-          while (i < chars.length && chars.slice(i, i + 2).join("") !== "]]") {
-            i += 1;
-          }
-          const to = i;
-          const portraitName = chars.slice(from, to).join("");
-          i += 2;
-          continue;
-        }
-        if (doubleLookahead === "((") {
-          i += 2;
-          const from = i;
-          while (i < chars.length && chars.slice(i, i + 2).join("") !== "))") {
-            i += 1;
-          }
-          const to = i;
-          const audioName = chars.slice(from, to).join("");
-          i += 2;
-          continue;
-        }
         if (char === "|") {
           i += 1;
           hideSpace = true;
@@ -211,7 +191,7 @@ export const write = (
         };
         const span = onCreateElement?.();
         if (span) {
-          populateAndStyleElement(span, char || "", instant, style);
+          populateAndStyleElement(span, char || "", writeInstantly, style);
         }
         const voiced = Boolean(voicedRegex?.test(char));
         if (isWhitespace(char)) {
@@ -329,6 +309,7 @@ export const write = (
             sustained: false,
           };
           result.push({
+            ...p,
             text: char,
             chunks: [currChunk],
           });
@@ -336,6 +317,7 @@ export const write = (
           // continue voiced phrase
           const currentPhrase = result[result.length - 1];
           if (currentPhrase) {
+            currentPhrase.text ??= "";
             currentPhrase.text += char;
             currChunk = {
               char,
@@ -375,32 +357,32 @@ export const write = (
         }
         i += 1;
       }
+      // Invalidate any leftover open markers
+      if (marks.length > 0) {
+        while (marks.length > 0) {
+          const [lastMark, lastMarkIndex] = marks[marks.length - 1]! || [];
+          const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
+          invalidStyleEls.forEach((e) => {
+            if (lastMark.startsWith("***")) {
+              e.style["fontWeight"] = null;
+              e.style["fontStyle"] = null;
+            }
+            if (lastMark.startsWith("**")) {
+              e.style["fontWeight"] = null;
+            }
+            if (lastMark.startsWith("*")) {
+              e.style["fontStyle"] = null;
+            }
+            if (lastMark.startsWith("_")) {
+              e.style["textDecoration"] = null;
+            }
+          });
+          marks.pop();
+        }
+      }
     }
+    prevLayer = p.layer || "";
   });
-
-  // Invalidate any leftover open markers
-  if (marks.length > 0) {
-    while (marks.length > 0) {
-      const [lastMark, lastMarkIndex] = marks[marks.length - 1]! || [];
-      const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
-      invalidStyleEls.forEach((e) => {
-        if (lastMark.startsWith("***")) {
-          e.style["fontWeight"] = null;
-          e.style["fontStyle"] = null;
-        }
-        if (lastMark.startsWith("**")) {
-          e.style["fontWeight"] = null;
-        }
-        if (lastMark.startsWith("*")) {
-          e.style["fontStyle"] = null;
-        }
-        if (lastMark.startsWith("_")) {
-          e.style["textDecoration"] = null;
-        }
-      });
-      marks.pop();
-    }
-  }
   result.forEach((phrase) => {
     // Erase any syllables that occur on any unvoiced chars at the end of phrases
     // (whitespace, punctuation, etc).
@@ -437,11 +419,12 @@ export const write = (
   let floatingIndex = 0;
   let tremblingIndex = 0;
   result.forEach((phrase) => {
+    const writeInstantly = Boolean(instant || phrase.instant);
     if (phrase.chunks) {
       phrase.chunks.forEach((c) => {
         c.time = time;
         if (c.element) {
-          c.element.style["transition"] = instant
+          c.element.style["transition"] = writeInstantly
             ? "none"
             : `opacity ${letterFadeDuration}s linear ${c.time}s`;
           if (c.floating && floatingAnimation) {

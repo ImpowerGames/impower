@@ -6,14 +6,14 @@ const GRID_STEP = 8;
 export const STYLE_PROPS_VALIDATION = (typeMap?: {
   [type: string]: Record<string, object>;
 }): RecursiveValidation<SparkStyleProperties> => {
-  const colorNames = Object.keys(typeMap?.["color"] || {});
-  const gradientNames = Object.keys(typeMap?.["gradient"] || {});
-  const patternNames = Object.keys(typeMap?.["pattern"] || {});
-  const imageNames = Object.keys(typeMap?.["image"] || {});
-  const animationNames = Object.keys(typeMap?.["animation"] || {});
-  const easeNames = Object.keys(typeMap?.["ease"] || {});
-  const fontNames = Object.keys(typeMap?.["font"] || {});
-  const pathNames = Object.keys(typeMap?.["path"] || {});
+  const colorNames = Object.keys(typeMap?.["Color"] || {});
+  const gradientNames = Object.keys(typeMap?.["Gradient"] || {});
+  const patternNames = Object.keys(typeMap?.["Pattern"] || {});
+  const imageNames = Object.keys(typeMap?.["Image"] || {});
+  const animationNames = Object.keys(typeMap?.["Animation"] || {});
+  const easeNames = Object.keys(typeMap?.["Ease"] || {});
+  const fontNames = Object.keys(typeMap?.["Font"] || {});
+  const pathNames = Object.keys(typeMap?.["Path"] || {});
   return {
     position: ["default", "relative", "fixed", "absolute", "sticky"],
     aspect: ["1/1", "16/9", "9/16", "4/5", "2/3", "2/1"],

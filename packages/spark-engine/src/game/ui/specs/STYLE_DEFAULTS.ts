@@ -49,6 +49,7 @@ export const STYLE_DEFAULTS = {
     backgroundPosition: "center",
   },
   ChoiceGroup: {
+    color: "black",
     position: "relative",
     flex: 1,
     display: "flex",
@@ -101,6 +102,7 @@ export const STYLE_DEFAULTS = {
     animationPlayState: "paused",
   },
   DescriptionGroup: {
+    color: "black",
     width: "100%",
     height: "100%",
   },
@@ -131,6 +133,7 @@ export const STYLE_DEFAULTS = {
     fontWeight: "bold",
   },
   DialogueGroup: {
+    color: "black",
     flex: 1,
   },
   DialogueContent: {
@@ -141,7 +144,7 @@ export const STYLE_DEFAULTS = {
     margin: "0 auto",
     md: { width: "68%" },
   },
-  Character: {
+  CharacterName: {
     lineHeight: 1,
     fontSize: "1.5rem",
     textAlign: "center",

@@ -7,7 +7,9 @@ export interface DisplayCommandParams extends CommandParams {
   characterName: string;
   characterParenthetical: string;
   content: {
-    tag: string;
+    tag?: string;
+    prerequisite?: string;
+    instant?: boolean;
     text?: string;
     layer?: string;
     image?: string[];
@@ -15,5 +17,5 @@ export interface DisplayCommandParams extends CommandParams {
     args?: string[];
   }[];
   autoAdvance: boolean;
-  clearOnAdvance: boolean;
+  overwritePrevious: boolean;
 }

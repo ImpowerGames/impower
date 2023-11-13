@@ -15,7 +15,7 @@ import getUniqueOptions from "./getUniqueOptions";
 const WHITESPACE_REGEX = /\s/g;
 
 const getImageCompletions = (program: SparkProgram | undefined) => {
-  return Object.entries(program?.typeMap?.["image"] || {}).map(
+  return Object.entries(program?.typeMap?.["Image"] || {}).map(
     ([name, { src, type }]) => ({
       label: name,
       labelDetails: { description: type },
@@ -29,7 +29,7 @@ const getImageCompletions = (program: SparkProgram | undefined) => {
 };
 
 const getAudioCompletions = (program: SparkProgram | undefined) => {
-  return Object.entries(program?.typeMap?.["audio"] || {}).map(
+  return Object.entries(program?.typeMap?.["Audio"] || {}).map(
     ([name, { type }]) => ({
       label: name,
       labelDetails: { description: type },
@@ -59,7 +59,7 @@ const getAudioArgumentCompletions = (content: string) => {
 };
 
 const getScriptCompletions = (program: SparkProgram | undefined) => {
-  return Object.entries(program?.typeMap?.["script"] || {}).map(
+  return Object.entries(program?.typeMap?.["Script"] || {}).map(
     ([name, { type }]) => ({
       label: name,
       labelDetails: { description: type },

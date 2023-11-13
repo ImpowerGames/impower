@@ -1,14 +1,17 @@
-import { format } from "../../../../../../../../../spark-evaluate/src";
+import {
+  evaluate,
+  format,
+} from "../../../../../../../../../spark-evaluate/src";
 import {
   Character,
   Chunk,
-  clone,
-  convertPitchNoteToHertz,
   SparkGame,
   SynthBuffer,
   Tone,
-  transpose,
   Writer,
+  clone,
+  convertPitchNoteToHertz,
+  transpose,
 } from "../../../../../../../game";
 import { DisplayCommandData } from "./DisplayCommandData";
 
@@ -23,6 +26,7 @@ const hideChoices = (
   );
   choiceEls.forEach((el) => {
     if (el) {
+      el.onclick = null;
       el.replaceChildren();
       el.style["display"] = "none";
     }
@@ -39,6 +43,12 @@ const isHidden = (content: string, hidden?: string): boolean => {
   return new RegExp(hidden).test(content);
 };
 
+const getSpanId = (phraseIndex: number, chunkIndex: number) => {
+  const phraseKey = phraseIndex.toString().padStart(8, "0");
+  const chunkKey = chunkIndex.toString().padStart(8, "0");
+  return `span_${phraseKey}_${chunkKey}`;
+};
+
 const audioGroup: { id: string; data: string }[] = [];
 
 export const executeDisplayCommand = (
@@ -51,6 +61,7 @@ export const executeDisplayCommand = (
     debug?: boolean;
   },
   onFinished?: () => void,
+  onClickChoice?: (...args: string[]) => void,
   preview?: boolean
 ): ((deltaMS: number) => void) | undefined => {
   const id = data.reference.id;
@@ -58,10 +69,22 @@ export const executeDisplayCommand = (
 
   const valueMap = context?.valueMap;
   const typeMap = context?.typeMap;
-  const structName = "DISPLAY";
+  const structName = "Display";
 
-  const writerConfigs = typeMap?.["writer"] as Record<string, Writer>;
-  const writerConfig = writerConfigs?.[type];
+  const writerConfigs = typeMap?.["Writer"] as Record<string, Writer>;
+  const writerType =
+    type === "action"
+      ? "ActionWriter"
+      : type === "dialogue"
+      ? "DialogueWriter"
+      : type === "centered"
+      ? "CenteredWriter"
+      : type === "scene"
+      ? "SceneWriter"
+      : type === "transition"
+      ? "TransitionWriter"
+      : "";
+  const writerConfig = writerConfigs?.[writerType];
 
   audioGroup.length = 0;
 
@@ -76,7 +99,7 @@ export const executeDisplayCommand = (
 
   const backgroundEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["background"]?.className || "Background"
+    writerConfigs?.["BackgroundWriter"]?.className || "Background"
   );
 
   // const assetsOnly = type === "assets";
@@ -107,63 +130,79 @@ export const executeDisplayCommand = (
   //   return undefined;
   // }
 
-  const character = data?.params?.characterName || "";
-  const parenthetical = data?.params?.characterParenthetical || "";
+  const characterName = data?.params?.characterName || "";
+  const characterParenthetical = data?.params?.characterParenthetical || "";
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
-  const characterKey = character
+  const overwritePrevious = data?.params?.overwritePrevious;
+  const characterKey = characterName
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
 
-  const characterConfig = character
-    ? ((typeMap?.["character"]?.[characterKey] ||
-        typeMap?.["character"]?.[type] ||
-        typeMap?.["character"]?.[""]) as Character)
+  const characterConfig = characterName
+    ? ((typeMap?.["Character"]?.[characterKey] ||
+        typeMap?.["Character"]?.[""]) as Character)
     : undefined;
 
-  const validCharacter =
+  const validCharacterName =
     type === "dialogue" &&
-    !isHidden(character, writerConfigs?.["character"]?.hidden)
-      ? characterConfig?.name || character || ""
+    !isHidden(characterName, writerConfigs?.["CharacterNameWriter"]?.hidden)
+      ? characterConfig?.name || characterName || ""
       : "";
-  const validParenthetical =
+  const validCharacterParenthetical =
     type === "dialogue" &&
-    !isHidden(parenthetical, writerConfigs?.["parenthetical"]?.hidden)
-      ? parenthetical || ""
+    !isHidden(
+      characterParenthetical,
+      writerConfigs?.["ParentheticalWriter"]?.hidden
+    )
+      ? characterParenthetical || ""
       : "";
 
-  const resolvedContent = content.map((c) => {
-    if (c.text) {
-      const [formattedContent] = format(c.text, valueMap);
-      const resolved = {
-        ...c,
-        text: formattedContent,
-      };
-      return resolved;
-    }
-    return { ...c };
-  });
+  const resolvedContent = content
+    .filter(
+      (c) =>
+        // Only show content that have no prerequisites or have truthy prerequisites
+        !c.prerequisite || Boolean(evaluate(c.prerequisite, valueMap))
+    )
+    .map((c) => {
+      if (c.text) {
+        // Substitute any {variables} in text
+        const [formattedContent] = format(c.text, valueMap);
+        const resolved = {
+          ...c,
+          text: formattedContent,
+        };
+        return resolved;
+      }
+      return { ...c };
+    });
+
+  if (resolvedContent.length === 0) {
+    // No content to display
+    return undefined;
+  }
 
   const instant = context?.instant;
   const debug = context?.debug;
-  const indicatorFadeDuration = writerConfigs?.["indicator"]?.fadeDuration || 0;
+  const indicatorFadeDuration =
+    writerConfigs?.["IndicatorWriter"]?.fadeDuration || 0;
 
   const descriptionGroupEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["description_group"]?.className || "DescriptionGroup"
+    writerConfigs?.["DescriptionGroupWriter"]?.className || "DescriptionGroup"
   );
   const dialogueGroupEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["dialogue_group"]?.className || "DialogueGroup"
+    writerConfigs?.["DialogueGroupWriter"]?.className || "DialogueGroup"
   );
   const indicatorEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["indicator"]?.className || "Indicator"
+    writerConfigs?.["IndicatorWriter"]?.className || "Indicator"
   );
 
   const portraitEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["portrait"]?.className || "Portrait"
+    writerConfigs?.["PortraitWriter"]?.className || "Portrait"
   );
 
   // if (portraitEl) {
@@ -193,7 +232,7 @@ export const executeDisplayCommand = (
   //   }
   // }
 
-  hideChoices(game, structName, writerConfigs?.["choice"]);
+  hideChoices(game, structName, writerConfigs?.["ChoiceWriter"]);
 
   if (dialogueGroupEl) {
     dialogueGroupEl.style["display"] = type === "dialogue" ? null : "none";
@@ -202,60 +241,76 @@ export const executeDisplayCommand = (
     descriptionGroupEl.style["display"] = type !== "dialogue" ? null : "none";
   }
 
-  const characterEl = game.ui.findFirstUIElement(
+  const characterNameEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["character"]?.className || "Character"
+    writerConfigs?.["CharacterNameWriter"]?.className || "CharacterName"
+  );
+  const characterParentheticalEl = game.ui.findFirstUIElement(
+    structName,
+    writerConfigs?.["CharacterParentheticalWriter"]?.className ||
+      "CharacterParenthetical"
   );
   const parentheticalEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["parenthetical"]?.className || "Parenthetical"
+    writerConfigs?.["ParentheticalWriter"]?.className || "Parenthetical"
   );
+
   const contentElEntries = [
     {
       key: "dialogue",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["dialogue"]?.className || "Dialogue"
+        writerConfigs?.["DialogueWriter"]?.className || "Dialogue"
       ),
     },
     {
       key: "action",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["action"]?.className || "Action"
+        writerConfigs?.["ActionWriter"]?.className || "Action"
       ),
     },
     {
       key: "centered",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["centered"]?.className || "Centered"
+        writerConfigs?.["CenteredWriter"]?.className || "Centered"
       ),
     },
     {
       key: "scene",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["scene"]?.className || "Scene"
+        writerConfigs?.["SceneWriter"]?.className || "Scene"
       ),
     },
     {
       key: "transition",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["transition"]?.className || "Transition"
+        writerConfigs?.["TransitionWriter"]?.className || "Transition"
       ),
     },
   ];
 
-  if (characterEl) {
-    characterEl.textContent = validCharacter;
-    characterEl.style["display"] = validCharacter ? null : "none";
+  if (characterNameEl) {
+    const span = game.ui.createElement("span");
+    span.textContent = validCharacterName;
+    characterNameEl.replaceChildren(span);
+    characterNameEl.style["display"] = validCharacterName ? null : "none";
+  }
+  if (characterParentheticalEl) {
+    const span = game.ui.createElement("span");
+    span.textContent = validCharacterParenthetical;
+    characterParentheticalEl.replaceChildren(span);
+    characterParentheticalEl.style["display"] = validCharacterParenthetical
+      ? null
+      : "none";
   }
   if (parentheticalEl) {
-    parentheticalEl.textContent = validParenthetical;
-    parentheticalEl.style["display"] = validParenthetical ? null : "none";
+    parentheticalEl.style["display"] = "none";
   }
+
   const phrases = game.writer.write(
     resolvedContent,
     writerConfig,
@@ -264,15 +319,89 @@ export const executeDisplayCommand = (
     debug,
     () => game.ui.createElement("span")
   );
+  const nextIndices: Record<string, number> = {};
   const allChunks = phrases.flatMap((x) => x.chunks || []);
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
-        value.replaceChildren();
-        allChunks.forEach((c, i) => {
-          if (c.element) {
-            c.element.id = value.id + `.span${i.toString().padStart(8, "0")}`;
-            value.appendChild(c.element);
+        if (overwritePrevious) {
+          value.replaceChildren();
+        }
+        phrases.forEach((p, phraseIndex) => {
+          if (p.layer) {
+            const writerType = p.layer + "Writer";
+            const writerConfig = writerConfigs?.[writerType];
+            const targetClassName = writerConfig?.className || p.layer;
+            const index = nextIndices[targetClassName] ?? 0;
+            const text = p.text || "";
+            const hidden = isHidden(text, writerConfig?.hidden);
+            if (!hidden) {
+              const targetEls = game.ui.findAllUIElements(
+                structName,
+                targetClassName
+              );
+              const lastContentEl = targetEls?.at(-1);
+              if (lastContentEl) {
+                const parentEl = game.ui.getParent(lastContentEl);
+                if (parentEl) {
+                  for (
+                    let i = 0;
+                    i < Math.max(targetEls.length, index + 1);
+                    i += 1
+                  ) {
+                    const el =
+                      targetEls?.[i] ||
+                      parentEl?.cloneChild(targetEls.length - 1);
+                    if (el) {
+                      if (index === i) {
+                        if (overwritePrevious) {
+                          el.replaceChildren();
+                        }
+                        p.chunks?.forEach((c, chunkIndex) => {
+                          if (c.element) {
+                            c.element.id =
+                              value.id +
+                              "." +
+                              getSpanId(phraseIndex, chunkIndex);
+                            el.appendChild(c.element);
+                          }
+                        });
+                        el.style["pointerEvents"] = "auto";
+                        el.style["display"] = "block";
+                        if (p.tag === "choice") {
+                          const handleClick = (e?: {
+                            stopPropagation: () => void;
+                          }): void => {
+                            if (e) {
+                              e.stopPropagation();
+                            }
+                            targetEls.forEach((el) => {
+                              if (el) {
+                                el.replaceChildren();
+                                el.style["pointerEvents"] = null;
+                                el.style["display"] = "none";
+                              }
+                            });
+                            onClickChoice?.(...(p.args || []));
+                          };
+                          el.onclick = handleClick;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+
+            nextIndices[targetClassName] = index + 1;
+          } else {
+            p.chunks?.forEach((c, chunkIndex) => {
+              if (c.element) {
+                c.element.id =
+                  value.id + "." + getSpanId(phraseIndex, chunkIndex);
+                value.appendChild(c.element);
+              }
+            });
           }
         });
         value.style["display"] = null;
