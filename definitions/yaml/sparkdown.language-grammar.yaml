@@ -1112,7 +1112,7 @@ repository:
   Image:
     tag: macroName
     name: meta.image.sd
-    match: ^([ \t]*)((?<!\\)\[\[)([^\]]*)((?<!\\)\]\])($|[ \t]*$)((?:\r\n|\r|\n)?)
+    match: ^([ \t]*)(\[\[)(.*?)(\]\])($|[ \t]*$)((?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
@@ -1136,7 +1136,7 @@ repository:
   InlineImage:
     tag: macroName
     name: meta.image.sd
-    match: ((?<!\\)\[\[)([^\]]*)((?<!\\)\]\])
+    match: (\[\[)((?:\\.|[^\]])*)(\]\])
     captures:
       1:
         tag: keyword
@@ -1158,7 +1158,7 @@ repository:
   Audio:
     tag: macroName
     name: meta.audio.sd
-    match: ^([ \t]*)((?<!\\)[(][(])([^)]*)((?<!\\)[)][)])($|[ \t]*$)((?:\r\n|\r|\n)?)
+    match: ^([ \t]*)([(][(])(.*?)([)][)])($|[ \t]*$)((?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
@@ -1182,7 +1182,7 @@ repository:
   InlineAudio:
     tag: macroName
     name: meta.audio.sd
-    match: ((?<!\\)[(][(])([^)]*)((?<!\\)[)][)])
+    match: ([(][(])((?:\\.|[^)])*)([)][)])
     captures:
       1:
         tag: keyword

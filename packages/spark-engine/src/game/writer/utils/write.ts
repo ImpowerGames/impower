@@ -99,6 +99,7 @@ export const write = (
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
   let hideSpace = false;
+  let escaped = false;
   let currChunk: Chunk | undefined = undefined;
 
   content.forEach((p) => {
@@ -124,6 +125,7 @@ export const write = (
         phraseUnpauseLength = 0;
         hideSpace = false;
         currChunk = undefined;
+        escaped = false;
       }
       const marks: [string, number][] = [];
       const partEls: IElement[] = [];
@@ -133,41 +135,50 @@ export const write = (
         const nextPart = chars[i + 1] || "";
         const lastMark = marks[marks.length - 1]?.[0];
         const doubleLookahead = chars.slice(i, i + 2).join("");
-        if (SINGLE_MARKERS.includes(char)) {
-          let mark = "";
-          let m = i;
-          while (chars[m] === char) {
-            mark += chars[m];
-            m += 1;
+        if (!escaped) {
+          if (char === "\\") {
+            // escape char
+            i += 1;
+            escaped = true;
+            continue;
           }
-          if (lastMark === mark) {
-            marks.pop();
-          } else {
-            marks.push([mark, i]);
+          if (SINGLE_MARKERS.includes(char)) {
+            let mark = "";
+            let m = i;
+            while (chars[m] === char) {
+              mark += chars[m];
+              m += 1;
+            }
+            if (lastMark === mark) {
+              marks.pop();
+            } else {
+              marks.push([mark, i]);
+            }
+            i += mark.length;
+            continue;
           }
-          i += mark.length;
-          continue;
+          if (DOUBLE_MARKERS.includes(doubleLookahead)) {
+            let mark = "";
+            let m = i;
+            while (chars[m] === char) {
+              mark += chars[m];
+              m += 1;
+            }
+            if (lastMark === mark) {
+              marks.pop();
+            } else {
+              marks.push([mark, i]);
+            }
+            i += mark.length;
+            continue;
+          }
+          if (char === "|") {
+            i += 1;
+            hideSpace = true;
+            continue;
+          }
         }
-        if (DOUBLE_MARKERS.includes(doubleLookahead)) {
-          let mark = "";
-          let m = i;
-          while (chars[m] === char) {
-            mark += chars[m];
-            m += 1;
-          }
-          if (lastMark === mark) {
-            marks.pop();
-          } else {
-            marks.push([mark, i]);
-          }
-          i += mark.length;
-          continue;
-        }
-        if (char === "|") {
-          i += 1;
-          hideSpace = true;
-          continue;
-        }
+        escaped = false;
         const markers = marks.map((x) => x[0]);
         const activeBoldItalicMark = markers.find((m) => m.startsWith("***"));
         const activeUnderlineMark = markers.find((m) => m.startsWith("_"));
