@@ -319,6 +319,9 @@ export const executeDisplayCommand = (
     debug,
     () => game.ui.createElement("span")
   );
+
+  console.log(phrases);
+
   const nextIndices: Record<string, number> = {};
   const allChunks = phrases.flatMap((x) => x.chunks || []);
   contentElEntries.forEach(({ key, value }) => {

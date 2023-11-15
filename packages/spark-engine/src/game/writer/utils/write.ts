@@ -92,6 +92,7 @@ export const write = (
   const result: Phrase[] = [];
 
   let prevLayer = "";
+
   let consecutiveLettersLength = 0;
   let word = "";
   let dashLength = 0;
@@ -116,6 +117,7 @@ export const write = (
     if (text) {
       const layer = p.layer || "";
       if (layer !== prevLayer || layer === "Choice") {
+        prevLayer = layer;
         // Reset all inter-phrase trackers
         consecutiveLettersLength = 0;
         word = "";
@@ -392,7 +394,6 @@ export const write = (
         }
       }
     }
-    prevLayer = p.layer || "";
   });
   result.forEach((phrase) => {
     // Erase any syllables that occur on any unvoiced chars at the end of phrases
