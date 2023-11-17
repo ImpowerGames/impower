@@ -286,10 +286,17 @@ export const executeDisplayCommand = (
               const imageSrcs: string[] = [];
               assetNames.forEach((assetName) => {
                 if (assetName) {
-                  const asset = valueMap?.[assetName] as { src: string };
-                  if (asset?.src) {
-                    imageSrcs.push(asset.src);
-                  }
+                  const value = valueMap?.[assetName] as
+                    | { src: string }
+                    | { src: string }[];
+                  const assets = Array.isArray(value)
+                    ? value.map((a) => a)
+                    : [value];
+                  assets.forEach((asset) => {
+                    if (asset) {
+                      imageSrcs.push(asset.src);
+                    }
+                  });
                 }
               });
               const combinedBackgroundImage = imageSrcs
@@ -301,6 +308,7 @@ export const executeDisplayCommand = (
                   if (c.element) {
                     const prevImage = layerImages[layer]?.at(-1);
                     if (prevImage) {
+                      // fade out previous image on this layer before showing this image
                       prevImage.style["transition"] = instant
                         ? "none"
                         : `opacity 0s linear ${c.time}s`;
@@ -331,14 +339,24 @@ export const executeDisplayCommand = (
             const audioGroup: { id: string; data: string }[] = [];
             assetNames.forEach((assetName) => {
               if (assetName) {
-                const asset = valueMap?.[assetName] as { src: string };
-                if (asset?.src) {
-                  if (assetArgs?.includes("stop")) {
-                    game.sound.stop(assetName);
-                  } else {
-                    audioGroup.push({ id: assetName, data: asset.src });
+                const value = valueMap?.[assetName] as
+                  | { name: string; src: string }
+                  | { name: string; src: string }[];
+                const assets = Array.isArray(value)
+                  ? value.map((a) => a)
+                  : [value];
+                assets.forEach((asset) => {
+                  if (asset) {
+                    if (assetArgs?.includes("stop")) {
+                      game.sound.stop(asset.name);
+                    } else {
+                      audioGroup.push({
+                        id: asset.name,
+                        data: asset.src,
+                      });
+                    }
                   }
-                }
+                });
               }
             });
             if (audioGroup.length > 0) {
