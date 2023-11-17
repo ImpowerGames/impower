@@ -468,9 +468,10 @@ export const write = (
       phrase.chunks.forEach((c) => {
         c.time = time;
         if (c.element) {
+          const fadeDuration = c.char ? letterFadeDuration : 0;
           c.element.style["transition"] = instant
             ? "none"
-            : `opacity ${letterFadeDuration}s linear ${c.time}s`;
+            : `opacity ${fadeDuration}s linear ${c.time}s`;
           if (c.floating && floatingAnimation) {
             c.element.style["animation"] = floatingAnimation;
             c.element.style["animation-delay"] = `${

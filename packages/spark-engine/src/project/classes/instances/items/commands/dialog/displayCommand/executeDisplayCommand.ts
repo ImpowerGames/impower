@@ -5,6 +5,7 @@ import {
 import {
   Character,
   Chunk,
+  IElement,
   SparkGame,
   SynthBuffer,
   Tone,
@@ -194,6 +195,7 @@ export const executeDisplayCommand = (
   );
 
   const portraitEl = game.ui.findFirstUIElement(structName, "Portrait");
+  const insertEl = game.ui.findFirstUIElement(structName, "Insert");
 
   const contentElEntries = [
     {
@@ -253,6 +255,9 @@ export const executeDisplayCommand = (
   if (portraitEl) {
     portraitEl.replaceChildren();
   }
+  if (insertEl) {
+    insertEl.replaceChildren();
+  }
   game.sound.stopAll("voice");
 
   const phrases = game.writer.write(
@@ -265,6 +270,7 @@ export const executeDisplayCommand = (
   );
 
   const nextIndices: Record<string, number> = {};
+  const layerImages: Record<string, IElement[]> = {};
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
@@ -274,11 +280,8 @@ export const executeDisplayCommand = (
         phrases.forEach((p, phraseIndex) => {
           if (p.image) {
             const assetNames = p.image;
-            const targetClassName = p.layer || "Portrait";
-            const targetEl = game.ui.findFirstUIElement(
-              structName,
-              targetClassName
-            );
+            const layer = p.layer || "Portrait";
+            const targetEl = game.ui.findFirstUIElement(structName, layer);
             if (targetEl) {
               const imageSrcs: string[] = [];
               assetNames.forEach((assetName) => {
@@ -296,6 +299,12 @@ export const executeDisplayCommand = (
                 p.chunks?.forEach((c, chunkIndex) => {
                   const imageEl = game.ui.createElement("span");
                   if (c.element) {
+                    const prevImage = layerImages[layer]?.at(-1);
+                    if (prevImage) {
+                      prevImage.style["transition"] = instant
+                        ? "none"
+                        : `opacity 0s linear ${c.time}s`;
+                    }
                     imageEl.style["backgroundImage"] = combinedBackgroundImage;
                     imageEl.style["position"] = "absolute";
                     imageEl.style["inset"] = "0";
@@ -304,10 +313,13 @@ export const executeDisplayCommand = (
                     imageEl.style["backgroundSize"] = "auto 100%";
                     imageEl.style["backgroundPosition"] = "center";
                     imageEl.style["backgroundRepeat"] = "no-repeat";
+                    imageEl.style["opacity"] = "1";
                     c.element.id =
                       value.id + "." + getSpanId(phraseIndex, chunkIndex);
                     targetEl.appendChild(c.element);
                     c.element.appendChild(imageEl);
+                    layerImages[layer] ??= [];
+                    layerImages[layer]!.push(imageEl);
                   }
                 });
               }
@@ -448,7 +460,13 @@ export const executeDisplayCommand = (
       const chunk = allChunks[i];
       if (chunk && chunk.element && chunk.element.style["display"] === "none") {
         chunk.element.style["display"] = null;
+        // Fade in wrapper
         chunk.element.style["opacity"] = "1";
+        const child = chunk.element.getChildren()[0];
+        if (child?.style["transition"]) {
+          // Fade out content that has an out transition
+          child.style["opacity"] = "0";
+        }
       }
     }
     if (indicatorEl) {
@@ -545,7 +563,13 @@ export const executeDisplayCommand = (
           // Start typing letters
           allChunks.forEach((c) => {
             if (c.element) {
+              // Fade in wrapper
               c.element.style["opacity"] = "1";
+              const child = c.element.getChildren()[0];
+              if (child?.style["transition"]) {
+                // Fade out content that has an out transition
+                child.style["opacity"] = "0";
+              }
             }
           });
           started = true;
