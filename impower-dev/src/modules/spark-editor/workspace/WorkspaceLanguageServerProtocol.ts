@@ -167,6 +167,7 @@ export default class WorkspaceLanguageServerProtocol {
       InitializeMessage.method,
       {
         capabilities: CLIENT_CAPABILITIES,
+        initializationOptions: { settings: Workspace.configuration.settings },
       }
     );
     this._serverCapabilities = result.capabilities;

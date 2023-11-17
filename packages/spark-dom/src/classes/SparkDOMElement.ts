@@ -76,10 +76,12 @@ export class SparkDOMElement implements IElement {
     if (el._htmlElement.tagName === "STYLE" && child.id.endsWith(".css")) {
       const head = document.documentElement.getElementsByTagName("head")?.[0];
       if (head) {
-        head.appendChild(el._htmlElement);
+        const childHtmlElement = head.appendChild(el._htmlElement);
+        el._htmlElement = childHtmlElement;
       }
     } else {
-      this._htmlElement.appendChild(el._htmlElement);
+      const childHtmlElement = this._htmlElement.appendChild(el._htmlElement);
+      el._htmlElement = childHtmlElement;
     }
     this._children.push(el);
   }

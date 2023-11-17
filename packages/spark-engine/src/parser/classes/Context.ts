@@ -1,4 +1,3 @@
-import { compile } from "../../../../spark-evaluate/src/utils/compile";
 import { SparkProgram } from "../../../../sparkdown/src";
 import getScopedValueContext from "../../../../sparkdown/src/utils/getScopedValueContext";
 import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
@@ -134,8 +133,7 @@ export class Context<
       ([blockId, block]) => {
         const [ids, valueMap] = getScopedValueContext(
           blockId,
-          (game?.logic?.config?.blockMap || {}) as Record<string, Block>,
-          compile
+          (game?.logic?.config?.blockMap || {}) as Record<string, Block>
         );
         const typeMap = game?.struct?.config?.typeMap;
         const commands: {

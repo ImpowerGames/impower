@@ -38,6 +38,7 @@ export interface SparkVariableToken extends ISparkToken<"variable"> {
   type: string;
   name: string;
   value: string;
+  compiled: unknown;
 
   ranges?: {
     type?: SparkRange;
@@ -51,7 +52,8 @@ export interface SparkStructToken extends ISparkToken<"struct"> {
   type: string;
   name: string;
   value: string;
-  fields?: (SparkStructScalarItemToken | SparkStructScalarPropertyToken)[];
+  compiled: unknown;
+  fields?: ISparkStructFieldToken[];
   arrayLength?: number;
 
   ranges?: {
@@ -61,12 +63,14 @@ export interface SparkStructToken extends ISparkToken<"struct"> {
   };
 }
 
-export interface ISparkStructFieldToken<T extends string>
+export interface ISparkStructFieldToken<T extends string = string>
   extends ISparkToken<T> {
-  key: string | number;
+  type: string;
+  path: string;
+  key: string;
   value: string;
 
-  ranges: {
+  ranges?: {
     key?: SparkRange;
     value?: SparkRange;
   };
@@ -74,14 +78,14 @@ export interface ISparkStructFieldToken<T extends string>
 
 export interface SparkStructMapItemToken
   extends ISparkStructFieldToken<"struct_map_item"> {
-  key: number;
+  key: string;
   arrayLength?: number;
 }
 
 export interface SparkStructScalarItemToken
   extends ISparkStructFieldToken<"struct_scalar_item"> {
   path: string;
-  key: number;
+  key: string;
   type: string;
 }
 
@@ -192,7 +196,7 @@ export interface DisplayContent {
 
   tag: string;
   prerequisite?: string;
-  instant?: boolean;
+  speed?: number;
   text?: string;
   layer?: string;
   image?: string[];
@@ -209,7 +213,7 @@ export interface SparkTextToken<T extends string = "text">
   extends ISparkToken<T> {
   prerequisite: string;
   text: string;
-  instant?: boolean;
+  speed?: number;
   layer?: string;
 }
 

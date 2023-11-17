@@ -45,8 +45,19 @@ const globToRegex = (glob: string) => {
 
 const parse = (file: FileData, files: FileData[]) => {
   if (file.text != null && file.name) {
+    const typeMap = { ...STRUCT_DEFAULTS };
+    files.forEach((file) => {
+      typeMap["Asset"] ??= {};
+      typeMap["Asset"]![file.name] = {
+        uri: file.uri,
+        name: file.name,
+        src: file.src,
+        ext: file.ext,
+        type: file.type,
+      };
+    });
     const program = EngineSparkParser.instance.parse(file.text, {
-      augmentations: { files, typeMap: STRUCT_DEFAULTS },
+      augmentations: { typeMap },
     });
     return program;
   }

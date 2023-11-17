@@ -49,8 +49,6 @@ const getSpanId = (phraseIndex: number, chunkIndex: number) => {
   return `span_${phraseKey}_${chunkKey}`;
 };
 
-const audioGroup: { id: string; data: string }[] = [];
-
 export const executeDisplayCommand = (
   game: SparkGame,
   data: DisplayCommandData,
@@ -86,8 +84,6 @@ export const executeDisplayCommand = (
       : "";
   const writerConfig = writerConfigs?.[writerType];
 
-  audioGroup.length = 0;
-
   if (typeMap) {
     game.ui.loadUI(typeMap, structName);
   }
@@ -96,39 +92,6 @@ export const executeDisplayCommand = (
   if (structEl) {
     structEl.removeState("hidden");
   }
-
-  const backgroundEl = game.ui.findFirstUIElement(
-    structName,
-    writerConfigs?.["BackgroundWriter"]?.className || "Background"
-  );
-
-  // const assetsOnly = type === "assets";
-  // if (assetsOnly) {
-  //   assets.forEach((asset) => {
-  //     const assetName = asset.name;
-  //     const assetArgs = asset.args;
-  //     const assetType = asset.type;
-  //     const assetUrl = valueMap?.[assetName] as string;
-  //     if (assetType === "image" && assetName && assetUrl) {
-  //       if (backgroundEl) {
-  //         backgroundEl.style["backgroundImage"] = `url("${assetUrl}")`;
-  //         backgroundEl.style["backgroundRepeat"] = "no-repeat";
-  //         backgroundEl.style["display"] = null;
-  //       }
-  //     }
-  //     if (assetType === "audio" && assetName && assetUrl) {
-  //       if (assetArgs.includes("stop")) {
-  //         game.sound.stop(assetName);
-  //       } else {
-  //         audioGroup.push({ id: assetName, data: assetUrl });
-  //       }
-  //     }
-  //   });
-  //   if (audioGroup.length > 0) {
-  //     game.sound.scheduleGroup("music", id, audioGroup, true);
-  //   }
-  //   return undefined;
-  // }
 
   const characterName = data?.params?.characterName || "";
   const characterParenthetical = data?.params?.characterParenthetical || "";
@@ -199,46 +162,21 @@ export const executeDisplayCommand = (
     structName,
     writerConfigs?.["IndicatorWriter"]?.className || "Indicator"
   );
-
-  const portraitEl = game.ui.findFirstUIElement(
+  const boxEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["PortraitWriter"]?.className || "Portrait"
+    writerConfigs?.["BoxWriter"]?.className || "Box"
   );
-
-  // if (portraitEl) {
-  //   if (!assets.some((asset) => asset.type === "image")) {
-  //     portraitEl.style["display"] = "none";
-  //   }
-  //   assets.forEach((asset) => {
-  //     const assetName = asset.name;
-  //     const assetArgs = asset.args;
-  //     const assetType = asset.type;
-  //     const assetUrl = valueMap?.[assetName] as string;
-  //     if (assetType === "image" && assetName && assetUrl) {
-  //       portraitEl.style["backgroundImage"] = `url("${assetUrl}")`;
-  //       portraitEl.style["backgroundRepeat"] = "no-repeat";
-  //       portraitEl.style["display"] = null;
-  //     }
-  //     if (assetType === "audio" && assetName && assetUrl) {
-  //       if (assetArgs.includes("stop")) {
-  //         game.sound.stop(assetName);
-  //       } else {
-  //         audioGroup.push({ id: assetName, data: assetUrl });
-  //       }
-  //     }
-  //   });
-  //   if (audioGroup.length > 0) {
-  //     game.sound.scheduleGroup("voice", id, audioGroup, false);
-  //   }
-  // }
 
   hideChoices(game, structName, writerConfigs?.["ChoiceWriter"]);
 
   if (dialogueGroupEl) {
-    dialogueGroupEl.style["display"] = type === "dialogue" ? null : "none";
+    dialogueGroupEl.style["display"] = "none";
   }
   if (descriptionGroupEl) {
-    descriptionGroupEl.style["display"] = type !== "dialogue" ? null : "none";
+    descriptionGroupEl.style["display"] = "none";
+  }
+  if (boxEl) {
+    boxEl.style["display"] = "none";
   }
 
   const characterNameEl = game.ui.findFirstUIElement(
@@ -254,6 +192,8 @@ export const executeDisplayCommand = (
     structName,
     writerConfigs?.["ParentheticalWriter"]?.className || "Parenthetical"
   );
+
+  const portraitEl = game.ui.findFirstUIElement(structName, "Portrait");
 
   const contentElEntries = [
     {
@@ -310,6 +250,10 @@ export const executeDisplayCommand = (
   if (parentheticalEl) {
     parentheticalEl.style["display"] = "none";
   }
+  if (portraitEl) {
+    portraitEl.replaceChildren();
+  }
+  game.sound.stopAll("voice");
 
   const phrases = game.writer.write(
     resolvedContent,
@@ -320,10 +264,7 @@ export const executeDisplayCommand = (
     () => game.ui.createElement("span")
   );
 
-  console.log(phrases);
-
   const nextIndices: Record<string, number> = {};
-  const allChunks = phrases.flatMap((x) => x.chunks || []);
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
@@ -331,80 +272,157 @@ export const executeDisplayCommand = (
           value.replaceChildren();
         }
         phrases.forEach((p, phraseIndex) => {
-          if (p.layer) {
-            const writerType = p.layer + "Writer";
-            const writerConfig = writerConfigs?.[writerType];
-            const targetClassName = writerConfig?.className || p.layer;
-            const index = nextIndices[targetClassName] ?? 0;
-            const text = p.text || "";
-            const hidden = isHidden(text, writerConfig?.hidden);
-            if (!hidden) {
-              const targetEls = game.ui.findAllUIElements(
-                structName,
-                targetClassName
+          if (p.image) {
+            const assetNames = p.image;
+            const targetClassName = p.layer || "Portrait";
+            const targetEl = game.ui.findFirstUIElement(
+              structName,
+              targetClassName
+            );
+            if (targetEl) {
+              const imageSrcs: string[] = [];
+              assetNames.forEach((assetName) => {
+                if (assetName) {
+                  const asset = valueMap?.[assetName] as { src: string };
+                  if (asset?.src) {
+                    imageSrcs.push(asset.src);
+                  }
+                }
+              });
+              const combinedBackgroundImage = imageSrcs
+                .map((src) => `url("${src}")`)
+                .join(", ");
+              if (imageSrcs.length > 0) {
+                p.chunks?.forEach((c, chunkIndex) => {
+                  const imageEl = game.ui.createElement("span");
+                  if (c.element) {
+                    imageEl.style["backgroundImage"] = combinedBackgroundImage;
+                    imageEl.style["position"] = "absolute";
+                    imageEl.style["inset"] = "0";
+                    imageEl.style["width"] = "100%";
+                    imageEl.style["height"] = "100%";
+                    imageEl.style["backgroundSize"] = "auto 100%";
+                    imageEl.style["backgroundPosition"] = "center";
+                    imageEl.style["backgroundRepeat"] = "no-repeat";
+                    c.element.id =
+                      value.id + "." + getSpanId(phraseIndex, chunkIndex);
+                    targetEl.appendChild(c.element);
+                    c.element.appendChild(imageEl);
+                  }
+                });
+              }
+            }
+          }
+          if (p.audio) {
+            const assetNames = p.audio;
+            const assetArgs = p.args;
+            const audioGroup: { id: string; data: string }[] = [];
+            assetNames.forEach((assetName) => {
+              if (assetName) {
+                const asset = valueMap?.[assetName] as { src: string };
+                if (asset?.src) {
+                  if (assetArgs?.includes("stop")) {
+                    game.sound.stop(assetName);
+                  } else {
+                    audioGroup.push({ id: assetName, data: asset.src });
+                  }
+                }
+              }
+            });
+            if (audioGroup.length > 0) {
+              game.sound.scheduleGroup(
+                p.layer || "voice",
+                id,
+                audioGroup,
+                false
               );
-              const lastContentEl = targetEls?.at(-1);
-              if (lastContentEl) {
-                const parentEl = game.ui.getParent(lastContentEl);
-                if (parentEl) {
-                  for (
-                    let i = 0;
-                    i < Math.max(targetEls.length, index + 1);
-                    i += 1
-                  ) {
-                    const el =
-                      targetEls?.[i] ||
-                      parentEl?.cloneChild(targetEls.length - 1);
-                    if (el) {
-                      if (index === i) {
-                        if (overwritePrevious) {
-                          el.replaceChildren();
-                        }
-                        p.chunks?.forEach((c, chunkIndex) => {
-                          if (c.element) {
-                            c.element.id =
-                              value.id +
-                              "." +
-                              getSpanId(phraseIndex, chunkIndex);
-                            el.appendChild(c.element);
+            }
+          }
+          if (p.text) {
+            if (boxEl) {
+              boxEl.style["display"] = null;
+            }
+            if (type === "dialogue" && dialogueGroupEl) {
+              dialogueGroupEl.style["display"] = null;
+            }
+            if (type === "action" && descriptionGroupEl) {
+              descriptionGroupEl.style["display"] = null;
+            }
+            if (p.layer) {
+              const writerType = p.layer + "Writer";
+              const writerConfig = writerConfigs?.[writerType];
+              const targetClassName = writerConfig?.className || p.layer;
+              const index = nextIndices[targetClassName] ?? 0;
+              const text = p.text || "";
+              const hidden = isHidden(text, writerConfig?.hidden);
+              if (!hidden) {
+                const targetEls = game.ui.findAllUIElements(
+                  structName,
+                  targetClassName
+                );
+                const lastContentEl = targetEls?.at(-1);
+                if (lastContentEl) {
+                  const parentEl = game.ui.getParent(lastContentEl);
+                  if (parentEl) {
+                    for (
+                      let i = 0;
+                      i < Math.max(targetEls.length, index + 1);
+                      i += 1
+                    ) {
+                      const el =
+                        targetEls?.[i] ||
+                        parentEl?.cloneChild(targetEls.length - 1);
+                      if (el) {
+                        if (index === i) {
+                          if (overwritePrevious) {
+                            el.replaceChildren();
                           }
-                        });
-                        el.style["pointerEvents"] = "auto";
-                        el.style["display"] = "block";
-                        if (p.tag === "choice") {
-                          const handleClick = (e?: {
-                            stopPropagation: () => void;
-                          }): void => {
-                            if (e) {
-                              e.stopPropagation();
+                          p.chunks?.forEach((c, chunkIndex) => {
+                            if (c.element) {
+                              c.element.id =
+                                value.id +
+                                "." +
+                                getSpanId(phraseIndex, chunkIndex);
+                              el.appendChild(c.element);
                             }
-                            targetEls.forEach((el) => {
-                              if (el) {
-                                el.replaceChildren();
-                                el.style["pointerEvents"] = null;
-                                el.style["display"] = "none";
+                          });
+                          el.style["pointerEvents"] = "auto";
+                          el.style["display"] = "block";
+                          if (p.tag === "choice") {
+                            const handleClick = (e?: {
+                              stopPropagation: () => void;
+                            }): void => {
+                              if (e) {
+                                e.stopPropagation();
                               }
-                            });
-                            onClickChoice?.(...(p.args || []));
-                          };
-                          el.onclick = handleClick;
+                              targetEls.forEach((el) => {
+                                if (el) {
+                                  el.replaceChildren();
+                                  el.style["pointerEvents"] = null;
+                                  el.style["display"] = "none";
+                                }
+                              });
+                              onClickChoice?.(...(p.args || []));
+                            };
+                            el.onclick = handleClick;
+                          }
                         }
                       }
                     }
                   }
                 }
               }
-            }
 
-            nextIndices[targetClassName] = index + 1;
-          } else {
-            p.chunks?.forEach((c, chunkIndex) => {
-              if (c.element) {
-                c.element.id =
-                  value.id + "." + getSpanId(phraseIndex, chunkIndex);
-                value.appendChild(c.element);
-              }
-            });
+              nextIndices[targetClassName] = index + 1;
+            } else {
+              p.chunks?.forEach((c, chunkIndex) => {
+                if (c.element) {
+                  c.element.id =
+                    value.id + "." + getSpanId(phraseIndex, chunkIndex);
+                  value.appendChild(c.element);
+                }
+              });
+            }
           }
         });
         value.style["display"] = null;
@@ -424,6 +442,7 @@ export const executeDisplayCommand = (
       indicatorEl.style["display"] = "none";
     }
   }
+  const allChunks = phrases.flatMap((x) => x.chunks || []);
   const handleFinished = (): void => {
     for (let i = 0; i < allChunks.length; i += 1) {
       const chunk = allChunks[i];
@@ -472,6 +491,9 @@ export const executeDisplayCommand = (
           time: number;
         } & Chunk &
           Partial<Tone>)[] = (phrase.chunks || []).flatMap((c) => {
+          if (!c.duration) {
+            return [];
+          }
           if (c.startOfSyllable || c.punctuated) {
             const sound = c.punctuated ? clone(clackSound) : clone(beepSound);
             lastCharacterBeep = {

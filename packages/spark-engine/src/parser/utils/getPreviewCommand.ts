@@ -10,7 +10,7 @@ export const getPreviewCommand = (
   if (!program) {
     return undefined;
   }
-  if (!line) {
+  if (line == null) {
     return undefined;
   }
   const lineTokens = program.metadata?.lines?.[line]?.tokens;

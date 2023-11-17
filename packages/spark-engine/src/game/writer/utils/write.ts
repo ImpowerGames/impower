@@ -12,12 +12,8 @@ const DOUBLE_MARKERS = ["~~", "==", "//", "\\\\", "::"];
 const populateAndStyleElement = (
   spanEl: IElement,
   textContent: string,
-  instant: boolean,
   style?: Record<string, string | null>
 ): IElement => {
-  spanEl.style["position"] = "relative";
-  spanEl.style["display"] = "none";
-  spanEl.style["opacity"] = instant ? "1" : "0";
   Object.entries(style || {}).forEach(([k, v]) => {
     spanEl.style[k as "all"] = v as string;
   });
@@ -103,31 +99,60 @@ export const write = (
   let escaped = false;
   let currChunk: Chunk | undefined = undefined;
 
+  const startNewPhrase = () => {
+    // Reset all inter-phrase trackers
+    consecutiveLettersLength = 0;
+    word = "";
+    dashLength = 0;
+    spaceLength = 0;
+    phrasePauseLength = 0;
+    phraseUnpauseLength = 0;
+    hideSpace = false;
+    currChunk = undefined;
+    escaped = false;
+  };
+
+  const imageLayerChunks: Record<string, Chunk[]> = {};
+
   content.forEach((p) => {
-    const writeInstantly = Boolean(instant || p.instant);
     const image = p.image;
     if (image) {
-      result.push({ ...p });
+      const layer = p.layer ?? "Portrait";
+      const spanEl = onCreateElement?.();
+      if (spanEl) {
+        const spanStyle = {
+          display: "none",
+          opacity: "0",
+          position: "absolute",
+          inset: "0",
+          width: "100%",
+          height: "100%",
+        };
+        populateAndStyleElement(spanEl, "", spanStyle);
+      }
+      const chunk: Chunk = { char: "", duration: 0, speed: 0, element: spanEl };
+      imageLayerChunks[layer] ??= [];
+      imageLayerChunks[layer]?.push(chunk);
+      result.push({
+        ...p,
+        chunks: [chunk],
+      });
+      startNewPhrase();
     }
     const audio = p.audio;
     if (audio) {
-      result.push({ ...p });
+      result.push({
+        ...p,
+        chunks: [{ char: "", duration: 0, speed: 0 }],
+      });
+      startNewPhrase();
     }
     const text = p.text;
     if (text) {
       const layer = p.layer || "";
       if (layer !== prevLayer || layer === "Choice") {
         prevLayer = layer;
-        // Reset all inter-phrase trackers
-        consecutiveLettersLength = 0;
-        word = "";
-        dashLength = 0;
-        spaceLength = 0;
-        phrasePauseLength = 0;
-        phraseUnpauseLength = 0;
-        hideSpace = false;
-        currChunk = undefined;
-        escaped = false;
+        startNewPhrase();
       }
       const marks: [string, number][] = [];
       const partEls: IElement[] = [];
@@ -197,6 +222,9 @@ export const write = (
         const isItalicized = hasBoldItalicMark || hasItalicMark;
         const isBolded = hasBoldItalicMark || hasBoldMark;
         const style = {
+          display: "none",
+          opacity: instant ? "1" : "0",
+          position: "relative",
           textDecoration: isUnderlined ? "underline" : null,
           fontStyle: isItalicized ? "italic" : null,
           fontWeight: isBolded ? "bold" : null,
@@ -204,7 +232,7 @@ export const write = (
         };
         const span = onCreateElement?.();
         if (span) {
-          populateAndStyleElement(span, char || "", writeInstantly, style);
+          populateAndStyleElement(span, char || "", style);
         }
         const voiced = Boolean(voicedRegex?.test(char));
         if (isWhitespace(char)) {
@@ -275,11 +303,14 @@ export const write = (
         const speedFloating = floating ? floating : 1;
         const speedTrembling = trembling ? trembling : 1;
         const speed =
-          (1 * speedInstant * speedFaster) /
-          speedSlower /
-          speedFloating /
-          speedTrembling;
-        const isPhrasePause = isPhraseBoundary || isWhitespace(doubleLookahead);
+          p.speed === 0
+            ? 0
+            : (1 * speedInstant * speedFaster) /
+              speedSlower /
+              speedFloating /
+              speedTrembling /
+              (p.speed ?? 1);
+        const isPhrasePause = isPhraseBoundary;
         const isEmDashPause = currChunk && currChunk.emDash && !emDash;
         const isStressPause: boolean = Boolean(
           character &&
@@ -291,13 +322,15 @@ export const write = (
               (currChunk.tilde && !tilde))
         );
         const duration: number =
-          (isPhrasePause
-            ? letterDelay * phrasePause
-            : isEmDashPause
-            ? letterDelay * emDashPause
-            : isStressPause
-            ? letterDelay * stressPause
-            : letterDelay) / speed;
+          speed === 0
+            ? 0
+            : (isPhrasePause
+                ? letterDelay * phrasePause
+                : isEmDashPause
+                ? letterDelay * emDashPause
+                : isStressPause
+                ? letterDelay * stressPause
+                : letterDelay) / speed;
 
         if (phraseUnpauseLength === 1) {
           // start voiced phrase
@@ -431,12 +464,11 @@ export const write = (
   let floatingIndex = 0;
   let tremblingIndex = 0;
   result.forEach((phrase) => {
-    const writeInstantly = Boolean(instant || phrase.instant);
     if (phrase.chunks) {
       phrase.chunks.forEach((c) => {
         c.time = time;
         if (c.element) {
-          c.element.style["transition"] = writeInstantly
+          c.element.style["transition"] = instant
             ? "none"
             : `opacity ${letterFadeDuration}s linear ${c.time}s`;
           if (c.floating && floatingAnimation) {

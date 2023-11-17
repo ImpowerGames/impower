@@ -9,7 +9,7 @@ export interface DisplayCommandParams extends CommandParams {
   content: {
     tag?: string;
     prerequisite?: string;
-    instant?: boolean;
+    speed?: number;
     text?: string;
     layer?: string;
     image?: string[];

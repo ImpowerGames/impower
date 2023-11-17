@@ -7,4 +7,5 @@ export interface SparkVariable extends SparkRange {
   name: string;
   type: string;
   value: string;
+  compiled: unknown;
 }

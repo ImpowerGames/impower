@@ -7,13 +7,6 @@ import { SparkToken } from "./SparkToken";
 import { SparkVariable } from "./SparkVariable";
 
 export interface SparkProgram {
-  files?: {
-    name: string;
-    src: string;
-    ext: string;
-    type: string;
-  }[];
-
   frontMatter?: Record<string, string[]>;
   chunks: Record<string, SparkChunk>;
   sections: Record<string, SparkSection>;
@@ -22,7 +15,7 @@ export interface SparkProgram {
 
   tokens: SparkToken[];
 
-  typeMap?: { [type: string]: Record<string, any> };
+  typeMap?: { [type: string]: { [name: string]: object } };
 
   metadata: SparkProgramMetadata;
   diagnostics?: SparkDiagnostic[];

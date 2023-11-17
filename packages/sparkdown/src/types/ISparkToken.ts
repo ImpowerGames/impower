@@ -1,6 +1,6 @@
 import { SparkRange } from "./SparkRange";
 
-export interface ISparkToken<T extends string> extends SparkRange {
+export interface ISparkToken<T extends string = string> extends SparkRange {
   tag: T;
 
   print?: string;

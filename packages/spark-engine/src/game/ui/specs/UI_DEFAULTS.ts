@@ -6,7 +6,7 @@ export const UI_DEFAULTS = {
     },
   },
   Display: {
-    Background: "",
+    Backdrop: "",
     Portrait: "",
     ChoiceGroup: {
       Choices: {

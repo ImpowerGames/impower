@@ -10,7 +10,10 @@ const getScopedContext = (
       name: string;
       parent?: string;
       children?: string[];
-      variables?: Record<string, { name: string; type: string; value: string }>;
+      variables?: Record<
+        string,
+        { name: string; type: string; value: string; compiled?: unknown }
+      >;
     }
   >,
   compiler?: (expr: string, context?: Record<string, unknown>) => unknown[]
@@ -37,7 +40,7 @@ const getScopedContext = (
     if (v) {
       valueMap[v.name || ""] = compiler
         ? compiler(v.value, valueMap)?.[0]
-        : v.value;
+        : v.compiled;
     }
   });
   return [ids, valueMap];
