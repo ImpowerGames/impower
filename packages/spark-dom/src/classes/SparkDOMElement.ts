@@ -68,7 +68,7 @@ export class SparkDOMElement implements IElement {
   }
 
   getChildren(): IElement[] {
-    return this._children as IElement[];
+    return [...this._children] as IElement[];
   }
 
   appendChild(child: IElement): void {

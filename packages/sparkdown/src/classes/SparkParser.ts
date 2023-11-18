@@ -1543,16 +1543,19 @@ export default class SparkParser {
 
           // transition
           if (tok.tag === "transition") {
+            tok.waitUntilFinished = true;
             addToken(tok);
           }
 
           // scene
           if (tok.tag === "scene") {
+            tok.waitUntilFinished = true;
             addToken(tok);
           }
 
           // centered
           if (tok.tag === "centered") {
+            tok.waitUntilFinished = true;
             addToken(tok);
           }
 
@@ -1567,6 +1570,7 @@ export default class SparkParser {
             addToken(tok);
           }
           if (tok.tag === "action_box") {
+            tok.waitUntilFinished = true;
             const parent = lookup("action");
             if (parent) {
               parent.boxes ??= [];
@@ -2050,6 +2054,8 @@ export default class SparkParser {
           if (tok.tag === "action_box") {
             const textContent = tok.content?.filter((p) => p.text);
             if (!textContent || textContent.length === 0) {
+              // Assets only
+              // No need to wait for user input
               tok.content?.forEach((p) => {
                 if (p.audio) {
                   p.layer = "Music";
@@ -2058,6 +2064,9 @@ export default class SparkParser {
                   p.layer = "Backdrop";
                 }
               });
+              tok.waitUntilFinished = false;
+              tok.overwritePrevious = false;
+              tok.autoAdvance = true;
             }
           }
 

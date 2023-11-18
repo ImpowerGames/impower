@@ -196,6 +196,7 @@ export const executeDisplayCommand = (
 
   const portraitEl = game.ui.findFirstUIElement(structName, "Portrait");
   const insertEl = game.ui.findFirstUIElement(structName, "Insert");
+  const backdropEl = game.ui.findFirstUIElement(structName, "Backdrop");
 
   const contentElEntries = [
     {
@@ -252,12 +253,10 @@ export const executeDisplayCommand = (
   if (parentheticalEl) {
     parentheticalEl.style["display"] = "none";
   }
-  if (portraitEl) {
-    portraitEl.replaceChildren();
-  }
-  if (insertEl) {
-    insertEl.replaceChildren();
-  }
+
+  const oldPortraits = portraitEl?.getChildren();
+  const oldInserts = insertEl?.getChildren();
+
   game.sound.stopAll("voice");
 
   const phrases = game.writer.write(
@@ -322,6 +321,8 @@ export const executeDisplayCommand = (
                     imageEl.style["backgroundPosition"] = "center";
                     imageEl.style["backgroundRepeat"] = "no-repeat";
                     imageEl.style["opacity"] = "1";
+                    imageEl.style["pointerEvents"] = "none";
+                    imageEl.style["willChange"] = "opacity";
                     c.element.id =
                       value.id + "." + getSpanId(phraseIndex, chunkIndex);
                     targetEl.appendChild(c.element);
@@ -375,7 +376,7 @@ export const executeDisplayCommand = (
             if (type === "dialogue" && dialogueGroupEl) {
               dialogueGroupEl.style["display"] = null;
             }
-            if (type === "action" && descriptionGroupEl) {
+            if (type !== "dialogue" && descriptionGroupEl) {
               descriptionGroupEl.style["display"] = null;
             }
             if (p.layer) {
@@ -472,11 +473,22 @@ export const executeDisplayCommand = (
       indicatorEl.style["display"] = "none";
     }
   }
-  const allChunks = phrases.flatMap((x) => x.chunks || []);
-  const handleFinished = (): void => {
-    for (let i = 0; i < allChunks.length; i += 1) {
-      const chunk = allChunks[i];
-      if (chunk && chunk.element && chunk.element.style["display"] === "none") {
+
+  const doTransitions = () => {
+    // To prevent flickers, wait until the last possible second to remove old images
+    if (portraitEl) {
+      oldPortraits?.forEach((p) => {
+        portraitEl.removeChild(p);
+      });
+    }
+    if (insertEl) {
+      oldInserts?.forEach((p) => {
+        insertEl.removeChild(p);
+      });
+    }
+    // Transition in new elements
+    allChunks.forEach((chunk) => {
+      if (chunk.element) {
         chunk.element.style["display"] = null;
         // Fade in wrapper
         chunk.element.style["opacity"] = "1";
@@ -486,7 +498,12 @@ export const executeDisplayCommand = (
           child.style["opacity"] = "0";
         }
       }
-    }
+    });
+  };
+
+  const allChunks = phrases.flatMap((x) => x.chunks || []);
+  const handleFinished = (): void => {
+    doTransitions();
     if (indicatorEl) {
       indicatorEl.style[
         "transition"
@@ -578,18 +595,7 @@ export const executeDisplayCommand = (
         new SynthBuffer(tones),
         false,
         () => {
-          // Start typing letters
-          allChunks.forEach((c) => {
-            if (c.element) {
-              // Fade in wrapper
-              c.element.style["opacity"] = "1";
-              const child = c.element.getChildren()[0];
-              if (child?.style["transition"]) {
-                // Fade out content that has an out transition
-                child.style["opacity"] = "0";
-              }
-            }
-          });
+          doTransitions();
           started = true;
         }
       );

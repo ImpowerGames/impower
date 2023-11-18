@@ -60,8 +60,8 @@ const generateDisplayCommand = (
       characterParenthetical: token.characterParenthetical?.text || "",
       content: token.content || [],
       autoAdvance: token.autoAdvance ?? false,
-      overwritePrevious: token.overwritePrevious ?? false,
-      waitUntilFinished: token.waitUntilFinished ?? false,
+      overwritePrevious: token.overwritePrevious ?? true,
+      waitUntilFinished: token.waitUntilFinished ?? true,
     },
   };
 };

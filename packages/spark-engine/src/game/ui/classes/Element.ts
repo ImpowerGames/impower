@@ -88,7 +88,7 @@ export class Element implements IElement {
   }
 
   getChildren(): IElement[] {
-    return this._children;
+    return [...this._children];
   }
 
   appendChild(child: IElement): void {

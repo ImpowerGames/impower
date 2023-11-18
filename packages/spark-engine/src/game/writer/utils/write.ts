@@ -123,6 +123,7 @@ export const write = (
         const spanStyle = {
           display: "none",
           opacity: "0",
+          willChange: "opacity",
           position: "absolute",
           inset: "0",
           width: "100%",
@@ -224,6 +225,7 @@ export const write = (
         const style = {
           display: "none",
           opacity: instant ? "1" : "0",
+          willChange: "opacity",
           position: "relative",
           textDecoration: isUnderlined ? "underline" : null,
           fontStyle: isItalicized ? "italic" : null,

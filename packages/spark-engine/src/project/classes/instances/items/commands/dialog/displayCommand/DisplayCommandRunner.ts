@@ -53,7 +53,7 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     data: DisplayCommandData,
     context: CommandContext<G>
   ): boolean {
-    const { autoAdvance } = data.params;
+    const { type, autoAdvance } = data.params;
     const prevDown = this.down;
     this.down = game.input.state.pointer.down.includes(0);
     const blockState = game.logic.state.blockStates[data.reference.parentId];
