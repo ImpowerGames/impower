@@ -73,14 +73,14 @@ const getAudioArgumentCompletions = (content: string) => {
 
 const getCharacterCompletions = (
   line: number,
-  program: SparkProgram | undefined
+  program: SparkProgram | undefined,
+  beforeText: string
 ) => {
   const characters = Object.values(program?.metadata?.characters || {});
   const recentCharactersSet = new Set<string>();
   for (let i = line - 1; i >= 0; i -= 1) {
     const dialogueCharacterName = program?.metadata?.lines?.[i]?.characterName;
-    if (dialogueCharacterName) {
-      console.log(line, dialogueCharacterName);
+    if (dialogueCharacterName && dialogueCharacterName.startsWith(beforeText)) {
       recentCharactersSet.add(dialogueCharacterName);
     }
   }
@@ -107,7 +107,8 @@ const getCharacterCompletions = (
     if (
       character.lines?.[0] !== line &&
       character.name &&
-      !recentCharactersSet.has(character.name)
+      !recentCharactersSet.has(character.name) &&
+      character.name.startsWith(beforeText)
     ) {
       result.push({
         label: character.name,
@@ -117,7 +118,6 @@ const getCharacterCompletions = (
       });
     }
   });
-  console.log(result);
   return result;
 };
 
@@ -125,51 +125,52 @@ const getCompletions = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
   position: Position,
-  _context: CompletionContext | undefined
+  context: CompletionContext | undefined
 ): CompletionItem[] | null | undefined => {
   if (!document) {
     return undefined;
   }
-  const lineText = getLineText(document, position);
   const prevLineText = getLineText(document, position, -1);
   const nextLineText = getLineText(document, position, 1);
   const lineTextBefore = getLineTextBefore(document, position);
   const trimmedLineTextBefore = lineTextBefore.trim();
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopes = lineMetadata?.scopes;
-  console.log(
-    JSON.stringify(prevLineText),
-    JSON.stringify(lineText),
-    JSON.stringify(nextLineText),
-    scopes,
-    scopes && scopes.includes("action") && scopes.includes("text")
-  );
-  if (trimmedLineTextBefore.startsWith("[[")) {
-    return getImageCompletions(program);
-  }
-  if (trimmedLineTextBefore.startsWith("((")) {
-    if (WHITESPACE_REGEX.test(lineTextBefore)) {
-      return getAudioArgumentCompletions(
-        trimmedLineTextBefore.replace("((", "")
-      );
-    } else {
-      return getAudioCompletions(program);
-    }
-  }
+  const triggerCharacter = context?.triggerCharacter;
   if (scopes) {
+    if (scopes.includes("image")) {
+      return getImageCompletions(program);
+    }
+    if (scopes.includes("audio")) {
+      if (scopes.includes("asset_args")) {
+        return getAudioArgumentCompletions(
+          trimmedLineTextBefore.replace("((", "")
+        );
+      } else if (triggerCharacter !== "@") {
+        return getAudioCompletions(program);
+      }
+    }
     if (
       scopes.includes("action") &&
       scopes.includes("text") &&
       isEmptyLine(prevLineText) &&
       isEmptyLine(nextLineText)
     ) {
-      return getCharacterCompletions(position.line, program);
+      return getCharacterCompletions(
+        position.line,
+        program,
+        trimmedLineTextBefore
+      );
     }
     if (
       scopes.includes("dialogue") &&
       scopes.includes("dialogue_character_name")
     ) {
-      return getCharacterCompletions(position.line, program);
+      return getCharacterCompletions(
+        position.line,
+        program,
+        trimmedLineTextBefore
+      );
     }
   }
   return undefined;
