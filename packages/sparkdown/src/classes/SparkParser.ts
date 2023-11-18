@@ -1808,6 +1808,10 @@ export default class SparkParser {
 
           // push token onto current stack
           stack.push(tok);
+
+          program.metadata.lines ??= [];
+          program.metadata.lines[line] ??= {};
+          program.metadata.lines[line]!.scopes = stack.map((s) => s.tag);
         }
 
         // Print screenplay content (include styling marks but not emphasis marks)
@@ -2247,14 +2251,18 @@ export default class SparkParser {
         program.metadata.lines ??= [];
         program.metadata.lines[tok.line] ??= {};
         program.metadata.lines[tok.line]!.tokens ??= [];
-        program.metadata.lines[tok.line]!.tokens!.push(tokenIndex);
+        if (!program.metadata.lines[tok.line]!.tokens?.includes(tokenIndex)) {
+          program.metadata.lines[tok.line]!.tokens!.push(tokenIndex);
+        }
         if (tok.content) {
           tok.content.forEach((c) => {
             program.metadata ??= {};
             program.metadata.lines ??= [];
             program.metadata.lines[c.line] ??= {};
             program.metadata.lines[c.line]!.tokens ??= [];
-            program.metadata.lines[c.line]!.tokens!.push(tokenIndex);
+            if (!program.metadata.lines[c.line]!.tokens?.includes(tokenIndex)) {
+              program.metadata.lines[c.line]!.tokens!.push(tokenIndex);
+            }
           });
         }
       });

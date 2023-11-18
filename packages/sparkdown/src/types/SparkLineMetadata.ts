@@ -9,4 +9,5 @@ export interface SparkLineMetadata {
   characterName?: string;
   characterParenthetical?: string;
   tokens?: number[];
+  scopes?: string[];
 }

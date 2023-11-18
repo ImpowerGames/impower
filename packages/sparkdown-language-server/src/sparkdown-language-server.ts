@@ -47,6 +47,7 @@ try {
           " ",
           "(",
           "[",
+          "@",
           ...ALPHABET,
           ...ALPHABET.map((l) => l.toUpperCase()),
         ],
