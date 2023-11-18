@@ -196,7 +196,6 @@ export const executeDisplayCommand = (
 
   const portraitEl = game.ui.findFirstUIElement(structName, "Portrait");
   const insertEl = game.ui.findFirstUIElement(structName, "Insert");
-  const backdropEl = game.ui.findFirstUIElement(structName, "Backdrop");
 
   const contentElEntries = [
     {
