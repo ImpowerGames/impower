@@ -3,6 +3,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import getFencedCode from "./getFencedCode";
+import { isAsset } from "./isAsset";
 
 const getHover = (
   document: TextDocument | undefined,
@@ -23,9 +24,9 @@ const getHover = (
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
       const id = reference.id;
       const name = reference.name;
-      const imageAsset = program.typeMap?.["Image"]?.[name];
-      if (imageAsset) {
-        const src = imageAsset.src;
+      const asset = program.typeMap?.["Asset"]?.[name];
+      if (isAsset(asset)) {
+        const src = asset.src;
         return {
           contents: {
             kind: MarkupKind.Markdown,

@@ -10,20 +10,10 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import getLineText from "./getLineText";
 import getLineTextBefore from "./getLineTextBefore";
+import { Asset, isAsset } from "./isAsset";
 import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s/g;
-
-interface Asset {
-  type: string;
-  name: string;
-  src: string;
-}
-
-const isAsset = (obj: unknown): obj is Asset => {
-  const asset = obj as Asset;
-  return Boolean(asset.type && asset.name && asset.src);
-};
 
 const getImageCompletions = (program: SparkProgram | undefined) => {
   const images = Object.values(program?.typeMap?.["Asset"] || {}).filter(
