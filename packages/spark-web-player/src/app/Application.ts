@@ -28,21 +28,19 @@ export default class Application {
     return this._screen;
   }
 
-  protected _view: HTMLCanvasElement;
+  protected _view?: HTMLCanvasElement;
   get view() {
     return this._view;
+  }
+
+  protected _renderer?: WebGLRenderer;
+  get renderer() {
+    return this._renderer;
   }
 
   protected _resizeObserver: ResizeObserver;
   public get resizeObserver(): ResizeObserver {
     return this._resizeObserver;
-  }
-
-  protected _renderer = new WebGLRenderer({
-    antialias: true,
-  });
-  get renderer() {
-    return this._renderer;
   }
 
   protected _scenes = new Map<string, Scene>();
@@ -66,16 +64,21 @@ export default class Application {
 
   constructor(dom: HTMLElement, context: SparkContext) {
     this._dom = dom;
-
     const width = this._dom.clientWidth;
     const height = this._dom.clientHeight;
+    try {
+      this._renderer = new WebGLRenderer({
+        antialias: true,
+      });
+      this._view = this._renderer.domElement;
+      this._renderer.setSize(width, height);
+    } catch (e) {
+      console.error(e);
+    }
     this._screen = { width, height };
-    this._view = this._renderer.domElement;
 
     this._camera = new PerspectiveCamera(50, width / height);
     this._camera.position.z = 1;
-
-    this._renderer.setSize(width, height);
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
       const borderBoxSize = entry?.borderBoxSize[0];
@@ -85,8 +88,10 @@ export default class Application {
         this._screen = { width, height };
         this._camera.aspect = width / height;
         this._camera.updateProjectionMatrix();
-        this._renderer.setSize(width, height);
-        this._renderer.setPixelRatio(window.devicePixelRatio);
+        if (this._renderer) {
+          this._renderer.setSize(width, height);
+          this._renderer.setPixelRatio(window.devicePixelRatio);
+        }
         this.scenes.forEach((scene) => {
           scene.resize();
         });
@@ -100,7 +105,9 @@ export default class Application {
     }
 
     this.bindView();
-    this._dom.appendChild(this._view);
+    if (this._view) {
+      this._dom.appendChild(this._view);
+    }
 
     const startTicker = !context?.editable;
 
@@ -176,18 +183,24 @@ export default class Application {
   }
 
   bindView() {
-    this._view.addEventListener("pointerdown", this.onPointerDown);
-    this._view.addEventListener("pointerup", this.onPointerUp);
+    if (this._view) {
+      this._view.addEventListener("pointerdown", this.onPointerDown);
+      this._view.addEventListener("pointerup", this.onPointerUp);
+    }
   }
 
   unbindView() {
-    this.view.removeEventListener("pointerdown", this.onPointerDown);
-    this.view.removeEventListener("pointerup", this.onPointerUp);
+    if (this._view) {
+      this._view.removeEventListener("pointerdown", this.onPointerDown);
+      this._view.removeEventListener("pointerup", this.onPointerUp);
+    }
   }
 
   destroy(removeView?: boolean): void {
+    if (this._renderer) {
+      this._renderer.dispose();
+    }
     this._ticker.dispose();
-    this._renderer.dispose();
     this.unbindView();
     this.resizeObserver.disconnect();
     this.scenes.forEach((scene) => {
@@ -198,7 +211,7 @@ export default class Application {
     if (this.context) {
       this.context.dispose();
     }
-    if (removeView) {
+    if (removeView && this.view) {
       this.view.remove();
     }
   }
@@ -253,7 +266,9 @@ export default class Application {
 
     const mainScene = this._scenes.get("main");
     if (mainScene) {
-      this._renderer.render(mainScene, this._camera);
+      if (this._renderer) {
+        this._renderer.render(mainScene, this._camera);
+      }
     }
 
     if (this.context) {

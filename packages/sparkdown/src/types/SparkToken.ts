@@ -233,7 +233,7 @@ export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
   content?: DisplayContent[];
   waitUntilFinished: boolean;
   autoAdvance: boolean;
-  overwritePrevious: boolean;
+  overwriteText: boolean;
 }
 
 export interface ISparkBoxToken<T extends string>

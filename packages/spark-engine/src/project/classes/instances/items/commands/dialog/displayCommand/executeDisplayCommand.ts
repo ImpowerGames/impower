@@ -98,7 +98,7 @@ export const executeDisplayCommand = (
   const characterParenthetical = data?.params?.characterParenthetical || "";
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
-  const overwritePrevious = data?.params?.overwritePrevious;
+  const overwriteText = data?.params?.overwriteText;
   const characterKey = characterName
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
@@ -269,10 +269,11 @@ export const executeDisplayCommand = (
 
   const nextIndices: Record<string, number> = {};
   const layerImages: Record<string, IElement[]> = {};
+  const layerElements = new Set<IElement>();
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
-        if (overwritePrevious) {
+        if (overwriteText) {
           value.replaceChildren();
         }
         phrases.forEach((p, phraseIndex) => {
@@ -404,9 +405,7 @@ export const executeDisplayCommand = (
                         parentEl?.cloneChild(targetEls.length - 1);
                       if (el) {
                         if (index === i) {
-                          if (overwritePrevious) {
-                            el.replaceChildren();
-                          }
+                          el.replaceChildren();
                           p.chunks?.forEach((c, chunkIndex) => {
                             if (c.element) {
                               c.element.id =
@@ -416,8 +415,16 @@ export const executeDisplayCommand = (
                               el.appendChild(c.element);
                             }
                           });
+                          const firstChunk = p.chunks?.[0];
+                          if (firstChunk) {
+                            el.style["opacity"] = "0";
+                            el.style["transition"] = instant
+                              ? "none"
+                              : `opacity 0s linear ${firstChunk.time}s`;
+                          }
                           el.style["pointerEvents"] = "auto";
                           el.style["display"] = "block";
+                          layerElements.add(el);
                           if (p.tag === "choice") {
                             const handleClick = (e?: {
                               stopPropagation: () => void;
@@ -425,11 +432,11 @@ export const executeDisplayCommand = (
                               if (e) {
                                 e.stopPropagation();
                               }
-                              targetEls.forEach((el) => {
-                                if (el) {
-                                  el.replaceChildren();
-                                  el.style["pointerEvents"] = null;
-                                  el.style["display"] = "none";
+                              targetEls.forEach((targetEl) => {
+                                if (targetEl) {
+                                  targetEl.replaceChildren();
+                                  targetEl.style["pointerEvents"] = null;
+                                  targetEl.style["display"] = "none";
                                 }
                               });
                               onClickChoice?.(...(p.args || []));
@@ -485,6 +492,10 @@ export const executeDisplayCommand = (
         insertEl.removeChild(p);
       });
     }
+    layerElements.forEach((layerEl) => {
+      layerEl.style["display"] = "block";
+      layerEl.style["opacity"] = "1";
+    });
     // Transition in new elements
     allChunks.forEach((chunk) => {
       if (chunk.element) {

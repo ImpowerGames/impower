@@ -17,5 +17,5 @@ export interface DisplayCommandParams extends CommandParams {
     args?: string[];
   }[];
   autoAdvance: boolean;
-  overwritePrevious: boolean;
+  overwriteText: boolean;
 }

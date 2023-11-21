@@ -1,3 +1,5 @@
+import { format } from "../../../../../../../../../spark-evaluate/src";
+import getRelativeSectionName from "../../../../../../../../../sparkdown/src/utils/getRelativeSectionName";
 import { SparkGame } from "../../../../../../../game";
 import { CommandContext, CommandRunner } from "../../../command/CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
@@ -19,6 +21,12 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
 
   elapsedMS = 0;
 
+  waitingForChoice = false;
+
+  chosenCount = 0;
+
+  chosenSection: string | undefined = undefined;
+
   onTick?: (deltaMS: number) => void;
 
   override onExecute(
@@ -26,14 +34,32 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     data: DisplayCommandData,
     context: CommandContext<G>
   ): number[] {
+    const blockId = data.reference.parentId;
+    const commandId = data.reference.id;
     this.wasPressed = false;
     this.wasTyped = false;
     this.timeTypedMS = -1;
     this.elapsedMS = 0;
     this.down = game.input.state.pointer.down.includes(0);
-    this.onTick = executeDisplayCommand(game, data, context, () => {
-      this.wasTyped = true;
-    });
+    this.waitingForChoice = data?.params?.content?.some(
+      (p) => p.tag === "choice"
+    );
+    this.onTick = executeDisplayCommand(
+      game,
+      data,
+      context,
+      () => {
+        this.wasTyped = true;
+      },
+      (chosenSection) => {
+        this.chosenCount = game.logic.chooseChoice(
+          blockId,
+          commandId,
+          data.source
+        );
+        this.chosenSection = chosenSection || "";
+      }
+    );
     return super.onExecute(game, data, context);
   }
 
@@ -65,6 +91,7 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     }
     const timeMSSinceTyped = this.elapsedMS - this.timeTypedMS;
     if (
+      !this.waitingForChoice &&
       autoAdvance &&
       this.wasTyped &&
       timeMSSinceTyped / 1000 >= this.autoDelay
@@ -77,9 +104,10 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
     if (this.wasPressed) {
       this.wasPressed = false;
       if (this.wasTyped) {
-        this.wasPressed = false;
         this.wasTyped = false;
-        return true;
+        if (!this.waitingForChoice) {
+          return true;
+        }
       }
       let msAfterStopped = 0;
       this.onTick = (deltaMS: number) => {
@@ -95,6 +123,36 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
         ...context,
         instant: true,
       });
+    }
+    if (this.waitingForChoice && this.chosenSection != null) {
+      const blockId = data.reference.parentId;
+      const commandId = data.reference.id;
+      const seed = game.random.state.seed + commandId;
+      const { ids, valueMap } = context;
+
+      const chosenSection = this.chosenSection;
+      this.chosenSection = undefined;
+
+      if (chosenSection === "") {
+        return true;
+      }
+
+      valueMap["#"] = [this.chosenCount - 1, seed];
+
+      const [selectedBlock] = format(chosenSection, valueMap);
+      const blocks = game.logic.config.blockMap;
+      const blockName = getRelativeSectionName(blockId, blocks, selectedBlock);
+      const id = ids?.[blockName];
+
+      if (id == null) {
+        return false;
+      }
+
+      const executedByBlockId = data.reference.parentId;
+
+      const parentId = data?.reference?.parentId;
+      game.logic.stopBlock(parentId);
+      game.logic.enterBlock(id, false, executedByBlockId);
     }
     return false;
   }

@@ -64,13 +64,19 @@ export const STYLE_DEFAULTS = {
   Choices: {
     display: "flex",
     flexDirection: "column",
-    paddingLeft: "10%",
-    paddingRight: "10%",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    padding: 8,
   },
   Choice: {
     color: "black",
     backgroundColor: "white",
     padding: 8,
+    margin: "8px 0",
+    width: "90%",
+    maxWidth: 800,
+    textAlign: "center",
   },
   Box: {
     position: "relative",
