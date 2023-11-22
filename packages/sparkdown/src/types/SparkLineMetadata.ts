@@ -1,4 +1,5 @@
 import { SparkReference } from "./SparkReference";
+import { SparkTokenTag } from "./SparkTokenTag";
 
 export interface SparkLineMetadata {
   references?: SparkReference[];
@@ -9,5 +10,5 @@ export interface SparkLineMetadata {
   characterName?: string;
   characterParenthetical?: string;
   tokens?: number[];
-  scopes?: string[];
+  scopes?: SparkTokenTag[];
 }

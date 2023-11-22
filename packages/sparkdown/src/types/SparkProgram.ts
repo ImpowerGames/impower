@@ -15,7 +15,7 @@ export interface SparkProgram {
 
   tokens: SparkToken[];
 
-  typeMap?: { [type: string]: { [name: string]: object } };
+  typeMap?: { [type: string]: { [name: string]: any } };
 
   metadata: SparkProgramMetadata;
   diagnostics?: SparkDiagnostic[];

@@ -7,7 +7,13 @@ import {
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
+import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getAllProperties";
+import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import {
+  SparkStructMapPropertyToken,
+  SparkStructToken,
+} from "@impower/sparkdown/src/types/SparkToken";
 import getLineText from "./getLineText";
 import getLineTextBefore from "./getLineTextBefore";
 import { Asset, isAsset } from "./isAsset";
@@ -15,7 +21,9 @@ import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s/g;
 
-const getImageCompletions = (program: SparkProgram | undefined) => {
+const getImageCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] | null => {
   const images = Object.values(program?.typeMap?.["Asset"] || {}).filter(
     (asset) => isAsset(asset) && asset.type === "image"
   ) as Asset[];
@@ -30,7 +38,9 @@ const getImageCompletions = (program: SparkProgram | undefined) => {
   }));
 };
 
-const getAudioCompletions = (program: SparkProgram | undefined) => {
+const getAudioCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] | null => {
   const audio = Object.values(program?.typeMap?.["Asset"] || {}).filter(
     (asset) => isAsset(asset) && asset.type === "audio"
   ) as Asset[];
@@ -41,7 +51,9 @@ const getAudioCompletions = (program: SparkProgram | undefined) => {
   }));
 };
 
-const getAudioArgumentCompletions = (content: string) => {
+const getAudioArgumentCompletions = (
+  content: string
+): CompletionItem[] | null => {
   const args = content.split(WHITESPACE_REGEX);
   if (args.includes("stop")) {
     return null;
@@ -65,7 +77,7 @@ const getCharacterCompletions = (
   line: number,
   program: SparkProgram | undefined,
   beforeText: string
-) => {
+): CompletionItem[] | null => {
   const characters = Object.values(program?.metadata?.characters || {});
   const recentCharactersSet = new Set<string>();
   for (let i = line - 1; i >= 0; i -= 1) {
@@ -111,6 +123,49 @@ const getCharacterCompletions = (
   return result;
 };
 
+const getStructMapPropertyNameCompletions = (
+  program: SparkProgram | undefined,
+  type: string,
+  fields: SparkField[] | undefined,
+  path: string,
+  beforeText: string
+): CompletionItem[] | null => {
+  const parentObj = program?.typeMap?.[type]?.[""];
+  const result: CompletionItem[] = [];
+  const existingProps = new Set<string>();
+  const possibleNames = new Set<string>();
+  const prefix = path ? `.${path}.` : ".";
+  const trimmedText = beforeText.trimStart();
+  const indentLength = beforeText.length - trimmedText.length;
+  const indentedStr = beforeText.slice(0, indentLength) + "  ";
+  const parentProperties = getAllProperties(parentObj);
+  fields?.forEach((field) => {
+    const prop = "." + field.path + "." + field.key;
+    existingProps.add(prop);
+  });
+  Object.entries(parentProperties).forEach(([p, v]) => {
+    if (!existingProps.has(p) && p.startsWith(prefix)) {
+      const [name, child] = p.slice(prefix.length).split(".");
+      const description = child ? "object" : typeof v;
+      if (name && Number.isNaN(Number(name))) {
+        if (!possibleNames.has(name)) {
+          possibleNames.add(name);
+          // TODO: When inserting object prop, use snippet syntax to allow user to choose between all possible child names ${1|one,two,three|}
+          // TODO: When inserting string prop (that takes fixed values), use snippet syntax to allow user to choose between all possible string values ${1|one,two,three|}
+          const insertSuffix = child ? `:\n${indentedStr}` : ": ";
+          result.push({
+            label: name,
+            insertText: name + insertSuffix,
+            labelDetails: { description },
+            kind: CompletionItemKind.Property,
+          });
+        }
+      }
+    }
+  });
+  return result;
+};
+
 const getCompletions = (
   document: TextDocument | undefined,
   program: SparkProgram | undefined,
@@ -127,6 +182,7 @@ const getCompletions = (
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopes = lineMetadata?.scopes;
   const triggerCharacter = context?.triggerCharacter;
+  console.log(triggerCharacter, lineMetadata);
   if (scopes) {
     if (scopes.includes("image")) {
       return getImageCompletions(program);
@@ -161,6 +217,34 @@ const getCompletions = (
         program,
         trimmedLineTextBefore
       );
+    }
+    if (
+      scopes.includes("struct_map_property_start") &&
+      scopes.includes("property_name")
+    ) {
+      const structToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .find((t) => t?.tag === "struct") as SparkStructToken | undefined;
+      const structMapPropertyToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .find((t) => t?.tag === "struct_map_property") as
+        | SparkStructMapPropertyToken
+        | undefined;
+      if (structToken && structMapPropertyToken) {
+        return getStructMapPropertyNameCompletions(
+          program,
+          structToken.type,
+          structToken.fields,
+          structMapPropertyToken.path,
+          lineTextBefore
+        );
+      }
+    }
+    if (
+      scopes.includes("struct_scalar_property") &&
+      scopes.includes("value_text")
+    ) {
+      // TODO: Use struct validation to autocomplete enum strings
     }
   }
   return undefined;

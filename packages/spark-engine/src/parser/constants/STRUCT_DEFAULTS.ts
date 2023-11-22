@@ -16,7 +16,7 @@ import {
   WRITER_DEFAULTS,
 } from "../../game";
 
-export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: object } } = {
+export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   Camera: {},
   Image: IMAGE_DEFAULTS,
   Audio: AUDIO_DEFAULTS,

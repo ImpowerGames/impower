@@ -41,7 +41,8 @@ import { traverse } from "../utils/traverse";
 
 const WHITESPACE_REGEX = /([ \t]+)/;
 
-const UNESCAPED_DOUBLE_QUOTE = /(?<!\\)(?:(\\\\)*)["]/g;
+const DOUBLE_ESCAPE = /\\\\/g;
+const UNESCAPED_DOUBLE_QUOTE = /(?<!\\)["]/g;
 const ESCAPED_DOUBLE_QUOTE = /\\["]/g;
 
 const SCENE_LOCATION_TIME_REGEX = new RegExp(
@@ -188,13 +189,17 @@ export default class SparkParser {
   build(script: string, tree: Tree, config?: SparkParserConfig) {
     const parseStartTime = Date.now();
 
+    const augmentations = JSON.parse(
+      JSON.stringify(config?.augmentations || {})
+    );
+
     /* INITIALIZE PROGRAM */
     const program: SparkProgram = {
       metadata: {},
       chunks: {},
       sections: {},
       tokens: [],
-      ...(config?.augmentations || {}),
+      ...augmentations,
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
     const stack: SparkToken[] = [];
@@ -246,6 +251,15 @@ export default class SparkParser {
         ? stack.findLast((t) => tags.includes(t.tag as unknown as K))
         : stack.at(-1)) as SparkTokenTagMap[K];
 
+    const path = <K extends keyof SparkTokenTagMap>(...tags: K[]) => {
+      return stack
+        .map((p) =>
+          tags.includes(p.tag as unknown as K) && "key" in p ? p.key : ""
+        )
+        .filter((k) => k)
+        .join(".");
+    };
+
     const addToken = (tok: SparkToken) => {
       const currentSection = program.sections[currentSectionId];
       if (currentSection) {
@@ -254,20 +268,28 @@ export default class SparkParser {
       }
     };
 
-    const declareStruct = (tok: SparkStruct) => {
-      const id = getDeclarationId(tok);
-      tok.id = id;
-      program.structs ??= {};
-      program.structs[id] ??= tok;
-
+    const declareType = (tok: SparkStruct): void => {
       if (typeof tok.compiled === "object" && tok.compiled) {
+        const obj = tok.compiled as any;
+        const extendsType = tok.type || "object";
         program.typeMap ??= {};
-        program.typeMap[tok.type] ??= {};
-        program.typeMap[tok.type]![tok.name] = tok.compiled;
-        program.typeMap ??= {};
-        program.typeMap[tok.name] = {
-          "": tok.compiled,
-        };
+        if (extendsType === "object") {
+          program.typeMap[tok.name] = {
+            "": obj,
+          };
+        } else {
+          program.typeMap[extendsType] ??= {};
+          program.typeMap[extendsType]![tok.name] = obj;
+        }
+      }
+    };
+
+    const declareStruct = (tok: SparkStruct) => {
+      if (typeof tok.compiled === "object" && tok.compiled) {
+        const id = getDeclarationId(tok);
+        tok.id = id;
+        program.structs ??= {};
+        program.structs[id] ??= tok;
       }
     };
 
@@ -288,8 +310,8 @@ export default class SparkParser {
         line: tok.line,
         from: tok.from,
         to: tok.to,
-        name: tok.name,
         type: tok.type,
+        name: tok.name,
         value: tok.value,
         compiled: tok.compiled,
       };
@@ -309,7 +331,7 @@ export default class SparkParser {
       combinedFieldValues: any
     ) => {
       if (struct.type && !BUILT_IN_TYPES.includes(struct.type)) {
-        const parentId = ids[struct.type];
+        const parentId = ids[struct.type] || `.${struct.type}`;
         if (parentId) {
           const parentStruct = program.structs?.[parentId];
           if (parentStruct) {
@@ -655,9 +677,10 @@ export default class SparkParser {
         declaredToken && declaredToken.line >= 0
           ? ` at line ${declaredToken.line}`
           : "";
-      const actions = declaredToken
-        ? [{ name: "FOCUS", focus: declaredToken }]
-        : undefined;
+      const actions =
+        declaredToken && declaredToken?.line >= 0
+          ? [{ name: "FOCUS", focus: declaredToken }]
+          : undefined;
       diagnostic(
         program,
         tok,
@@ -672,7 +695,7 @@ export default class SparkParser {
       tok: ISparkToken,
       type: string,
       typeRange: SparkRange | undefined,
-      typeMap: { [type: string]: { [name: string]: object } } | undefined
+      typeMap: { [type: string]: { [name: string]: any } } | undefined
     ) => {
       let missing = false;
       if (type) {
@@ -779,16 +802,6 @@ export default class SparkParser {
       if (
         !validateNameUnique<T>(
           tok,
-          "object",
-          findStruct(program.structs, name) as T,
-          nameRange
-        )
-      ) {
-        return false;
-      }
-      if (
-        !validateNameUnique<T>(
-          tok,
           "chunk",
           findChunk(program.chunks, name) as T,
           nameRange
@@ -805,6 +818,16 @@ export default class SparkParser {
             currentSectionId.split(".").slice(0, -1).join("."),
             name
           ) as T,
+          nameRange
+        )
+      ) {
+        return false;
+      }
+      if (
+        !validateNameUnique<T>(
+          tok,
+          "type",
+          findStruct(program.structs, name) as T,
           nameRange
         )
       ) {
@@ -865,7 +888,9 @@ export default class SparkParser {
       Object.entries(program.typeMap).forEach(([type, objectsOfType]) => {
         program.structs ??= {};
         Object.entries(objectsOfType).forEach(([name, object]) => {
-          const id = "." + name;
+          const structName = name ? name : type;
+          const structType = name ? type : "object";
+          const id = "." + structName;
           const struct: SparkStruct = {
             tag: "struct",
             line,
@@ -873,8 +898,8 @@ export default class SparkParser {
             to: -1,
             indent: 0,
             id,
-            type,
-            name,
+            type: structType,
+            name: structName,
             value: JSON.stringify(object),
             compiled: object,
             fields: [],
@@ -896,7 +921,6 @@ export default class SparkParser {
           });
           program.structs ??= {};
           program.structs[id] ??= struct;
-          declareVariable(struct);
         });
       });
     }
@@ -1318,6 +1342,12 @@ export default class SparkParser {
               parent.ranges.value.to = tok.to;
             }
           } else if (tok.tag === "struct_map_property") {
+            tok.path = path("struct_map_item", "struct_map_property");
+            const parent = lookup("struct");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
             addToken(tok);
           } else if (tok.tag === "struct_map_item") {
             const struct = lookup("struct");
@@ -1331,6 +1361,7 @@ export default class SparkParser {
               tok.key = String(struct.arrayLength);
               struct.arrayLength += 1;
             }
+            tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
           } else if (tok.tag === "struct_scalar_item") {
             const struct = lookup("struct");
@@ -1348,14 +1379,7 @@ export default class SparkParser {
               tok.key = String(struct.arrayLength);
               struct.arrayLength += 1;
             }
-            tok.path = stack
-              .map((p) =>
-                p.tag === "struct_map_item" || p.tag === "struct_map_property"
-                  ? p.key
-                  : ""
-              )
-              .filter((k) => k)
-              .join(".");
+            tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
           } else if (tok.tag === "struct_scalar_property") {
             const struct = lookup("struct");
@@ -1363,14 +1387,7 @@ export default class SparkParser {
               struct.fields ??= [];
               struct.fields.push(tok);
             }
-            tok.path = stack
-              .map((p) =>
-                p.tag === "struct_map_item" || p.tag === "struct_map_property"
-                  ? p.key
-                  : ""
-              )
-              .filter((k) => k)
-              .join(".");
+            tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
           } else if (tok.tag === "property_name") {
             const parent = lookup(
@@ -1778,15 +1795,19 @@ export default class SparkParser {
               const obj = construct(tok, ids);
               const objectLiteral = JSON.stringify(obj)
                 .replace(UNESCAPED_DOUBLE_QUOTE, "")
-                .replace(ESCAPED_DOUBLE_QUOTE, `"`);
+                .replace(ESCAPED_DOUBLE_QUOTE, `"`)
+                .replace(DOUBLE_ESCAPE, `\\`);
               tok.value = objectLiteral;
-              const compiledValue = compiler(objectLiteral, context);
+              const [compiledValue] = compiler(objectLiteral, context);
               tok.compiled = compiledValue;
 
               validateTypeMatch(tok, typeof obj, tok.type, tok?.ranges?.type);
 
               if (validateDeclaration(tok)) {
-                declareStruct(tok);
+                if (typeof tok.compiled === "object") {
+                  declareStruct(tok);
+                  declareType(tok);
+                }
                 declareVariable(tok);
               }
             }

@@ -242,6 +242,12 @@ const EDITOR_THEME: {
       color: EDITOR_COLORS.propertyName,
     },
   },
+  "& .cm-completionIcon-property": {
+    "&:after": {
+      content: "'ρ'",
+      color: EDITOR_COLORS.variableName,
+    },
+  },
   "& .cm-completionIcon-parameter": {
     "&:after": {
       content: "'ρ'",
