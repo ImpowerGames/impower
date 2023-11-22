@@ -427,21 +427,25 @@ const write = async (fileUri: string) => {
     // File does not exist yet
     created = true;
   }
-  const fileHandle = await directoryHandle.getFileHandle(filename, {
-    create: true,
-  });
-  const syncAccessHandle = await fileHandle.createSyncAccessHandle();
-  syncAccessHandle.truncate(0);
-  syncAccessHandle.write(buffer, { at: 0 });
-  syncAccessHandle.flush();
-  syncAccessHandle.close();
-  const arrayBuffer = buffer.buffer;
-  const data = updateFileCache(fileUri, arrayBuffer, true, version);
-  listeners.forEach((l) => {
-    l({ data, created });
-  });
-  queued.listeners = [];
-  console.log(MAGENTA, "WRITE", fileUri);
+  try {
+    const fileHandle = await directoryHandle.getFileHandle(filename, {
+      create: true,
+    });
+    const syncAccessHandle = await fileHandle.createSyncAccessHandle();
+    syncAccessHandle.truncate(0);
+    syncAccessHandle.write(buffer, { at: 0 });
+    syncAccessHandle.flush();
+    syncAccessHandle.close();
+    const arrayBuffer = buffer.buffer;
+    const data = updateFileCache(fileUri, arrayBuffer, true, version);
+    listeners.forEach((l) => {
+      l({ data, created });
+    });
+    queued.listeners = [];
+    console.log(MAGENTA, "WRITE", fileUri);
+  } catch (err) {
+    console.error(err, filename, fileUri);
+  }
 };
 
 const createFiles = async (files: { uri: string; data: ArrayBuffer }[]) => {

@@ -760,10 +760,11 @@ export default class WorkspaceWindow {
           const projectZipRevision = revisions.findLast(
             (r) => r.mimeType === "application/zip"
           );
-          const textSyncState = projectTextRevision
+          const remoteProjectExists = projectTextRevision || projectZipRevision;
+          const textSyncState = remoteProjectExists
             ? await this.syncText(id, projectTextRevision, pushLocalChanges)
             : "cached";
-          const zipSyncState = projectZipRevision
+          const zipSyncState = remoteProjectExists
             ? await this.syncZip(id, projectZipRevision, pushLocalChanges)
             : "cached";
           const syncState =
@@ -914,7 +915,7 @@ export default class WorkspaceWindow {
 
   protected async syncText(
     fileId: string,
-    projectTextRevision: RemoteStorage.Revision,
+    projectTextRevision: RemoteStorage.Revision | undefined,
     pushLocalChanges: boolean
   ): Promise<SyncState> {
     const textRevisionId = await Workspace.fs.readProjectMetadata(
@@ -995,7 +996,7 @@ export default class WorkspaceWindow {
 
   protected async syncZip(
     fileId: string,
-    projectZipRevision: RemoteStorage.Revision,
+    projectZipRevision: RemoteStorage.Revision | undefined,
     pushLocalChanges: boolean
   ): Promise<SyncState> {
     const zipRevisionId = await Workspace.fs.readProjectMetadata(
