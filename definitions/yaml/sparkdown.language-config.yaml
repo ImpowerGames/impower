@@ -73,7 +73,7 @@ onEnterRules:
       indent: "none",
       deleteText: "+ " 
     }
-  - beforeText: ^\s*[+]
+  - beforeText: ^\s*[+](\s+|$)
     action: { 
       indent: "none",
       appendText: "+ "
@@ -83,12 +83,12 @@ onEnterRules:
       indent: "none",
       deleteText: "* "
     }
-  - beforeText: ^\s*[*]
+  - beforeText: ^\s*[*](\s+|$)
     action: { 
       indent: "none",
       appendText: "* " 
     }
-  - beforeText: ^\s*[-]
+  - beforeText: ^\s*[-](\s+|$)
     action: { 
       indent: "none",
       appendText: "- " 

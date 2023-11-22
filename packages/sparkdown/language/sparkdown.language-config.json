@@ -173,7 +173,7 @@
       }
     },
     {
-      "beforeText": "^\\s*[+]",
+      "beforeText": "^\\s*[+](\\s+|$)",
       "action": {
         "indent": "none",
         "appendText": "+ "
@@ -187,14 +187,14 @@
       }
     },
     {
-      "beforeText": "^\\s*[*]",
+      "beforeText": "^\\s*[*](\\s+|$)",
       "action": {
         "indent": "none",
         "appendText": "* "
       }
     },
     {
-      "beforeText": "^\\s*[-]",
+      "beforeText": "^\\s*[-](\\s+|$)",
       "action": {
         "indent": "none",
         "appendText": "- "
