@@ -62,7 +62,7 @@ export const processBeatmap = (
           line,
           name: structName,
           base: "",
-          type: "beatmap",
+          type: "Beatmap",
           fields: {},
         };
       }

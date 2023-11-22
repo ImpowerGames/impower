@@ -5,8 +5,7 @@
 import { MatchRuleDefinition } from "../../types/GrammarDefinition";
 import { Rule } from "../../types/Rule";
 import { createID } from "../../utils/createID";
-import { isSwitchRuleData } from "../../utils/isSwitchRuleData";
-import { tryMatch } from "../../utils/tryMatch";
+import { isSwitchRuleDefinition } from "../../utils/isSwitchRuleDefinition";
 import GrammarNode from "../GrammarNode";
 import type GrammarRepository from "../GrammarRepository";
 import GrammarState from "../GrammarState";
@@ -33,11 +32,12 @@ export default class MatchRule implements Rule {
     this.repo = repo;
 
     let id = def.id ?? createID();
-    let emit = def.id || def.autocomplete;
     this.id = id;
-    this.node = !emit
-      ? GrammarNode.None
-      : new GrammarNode(repo.nextTypeIndex(), def, repo.grammar.declarator);
+    this.node = new GrammarNode(
+      repo.nextTypeIndex(),
+      def,
+      repo.grammar.declarator
+    );
 
     this.matcher = new RegExpMatcher(def.match, def.flags);
 
@@ -47,8 +47,8 @@ export default class MatchRule implements Rule {
         const value = def.captures[key];
         const index = parseInt(key, 10);
         if (value != null) {
-          const captureId = this.id + `-c${index}`;
-          if (isSwitchRuleData(value)) {
+          const captureId = this.id + `_c${index}`;
+          if (isSwitchRuleDefinition(value)) {
             this.captures[index] = repo.add(value, captureId);
           } else {
             this.captures[index] = repo.add(value, captureId);
@@ -58,8 +58,8 @@ export default class MatchRule implements Rule {
     }
   }
 
-  match(str: string, pos: number, state: GrammarState) {
-    const result = this.matcher.match(str, pos);
+  match(str: string, from: number, state: GrammarState) {
+    const result = this.matcher.match(str, from);
     if (!result) {
       return null;
     }
@@ -67,64 +67,58 @@ export default class MatchRule implements Rule {
     if (total == null) {
       return null;
     }
-    const matched = new Matched(state, this.node, total, pos);
+    const matched = Matched.create(this.node, from, total.length);
     if (this.captures) {
       if (result) {
-        let from = pos;
+        let pos = from;
         result.forEach((resultStr, resultIndex) => {
           const capture = this.captures?.[resultIndex];
           if (capture) {
             if (capture instanceof SwitchRule) {
-              if (!capture.rules) {
-                capture.rules = capture.patterns
-                  ? this.repo.getRules(capture.patterns, this.id)
-                  : [];
-              }
-              const nestedCaptures: Matched[] = [];
-              state.stack.push(capture.node, capture.rules, null);
-              for (let i = 0; i < resultStr.length; i += 1) {
-                const matched = tryMatch(state, resultStr, i, from + i);
+              const children: Matched[] = [];
+              let i = 0;
+              while (i < resultStr.length) {
+                const matched = capture.match(resultStr, i, state, false);
                 if (matched) {
-                  nestedCaptures.push(matched);
-                  i += matched.total.length - 1;
+                  matched.offset(pos + i);
+                  children.push(matched);
+                  i += matched.length;
                 } else {
-                  // Reserve space for unrecognized tokens
-                  nestedCaptures.push(
-                    new Matched(
-                      state,
-                      GrammarNode.None,
-                      resultStr[i]!,
-                      from + i
-                    )
+                  const noneMatched = Matched.create(
+                    GrammarNode.None,
+                    pos + i,
+                    1
                   );
+                  children.push(noneMatched);
+                  i += noneMatched.length;
                 }
               }
-              state.stack.pop();
-              if (nestedCaptures.length > 0) {
-                const captureMatched = new Matched(
-                  state,
-                  capture.node,
-                  resultStr,
-                  nestedCaptures[0]?.from ?? from,
-                  nestedCaptures
-                );
-                matched.captures ??= [];
-                matched.captures.push(captureMatched);
-              }
-            } else {
-              matched.captures ??= [];
-              matched.captures.push(
-                new Matched(state, capture, resultStr, from)
+              const captureMatched = Matched.create(
+                capture.node,
+                pos,
+                resultStr.length,
+                children.length > 0 ? children : undefined
               );
+              matched.children ??= [];
+              matched.children.push(captureMatched);
+            } else {
+              const captureMatched = Matched.create(
+                capture,
+                pos,
+                resultStr.length
+              );
+              matched.children ??= [];
+              matched.children.push(captureMatched);
             }
           }
           if (resultIndex > 0) {
             // First capture is always the total match so it's length shouldn't count
-            from += resultStr.length;
+            pos += resultStr.length;
           }
         });
       }
     }
+
     return matched;
   }
 }

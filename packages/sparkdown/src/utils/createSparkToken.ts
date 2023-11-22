@@ -1,28 +1,23 @@
-import { SparkTokenTypeMap } from "../types/SparkTokenTypeMap";
-import getIndent from "./getIndent";
-import getTo from "./getTo";
+import { SparkTokenTagMap } from "../types/SparkToken";
 
-const createSparkToken = <K extends keyof SparkTokenTypeMap = "">(
-  type: K,
-  newLineLength?: number,
-  obj?: Partial<SparkTokenTypeMap[K]>
-): SparkTokenTypeMap[K] => {
-  const t = (obj || {}) as unknown as SparkTokenTypeMap[K];
-  t.content = obj?.content ?? "";
+const createSparkToken = <K extends keyof SparkTokenTagMap = "comment">(
+  tag?: K,
+  obj?: Partial<SparkTokenTagMap[K]>
+): SparkTokenTagMap[K] => {
+  const t = { tag } as SparkTokenTagMap[K];
   t.line = obj?.line ?? -1;
   t.from = obj?.from ?? -1;
-  t.text = obj?.text ?? "";
-  t.notes = obj?.notes ?? [];
-  t.order = obj?.order ?? 0;
-  t.ignore = obj?.ignore ?? false;
-  t.skipToNextPreview = obj?.skipToNextPreview ?? false;
-  t.html = obj?.html;
-  const indent = getIndent(t.content);
-  const offset = indent.length;
-  t.offset = offset;
-  t.indent = Math.floor(offset / 2);
-  t.to = getTo(t.from, t.content, newLineLength || 0);
-  t.type = type || "comment";
+  t.to = obj?.to ?? -1;
+  t.indent = obj?.indent ?? 0;
+  if (obj?.ignore != null) {
+    t.ignore = obj?.ignore;
+  }
+  if (obj?.print != null) {
+    t.print = obj?.print;
+  }
+  if (obj?.html != null) {
+    t.html = obj?.html;
+  }
   return t;
 };
 

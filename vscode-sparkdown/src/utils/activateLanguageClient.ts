@@ -9,7 +9,6 @@ import { SparkProgramManager } from "../providers/SparkProgramManager";
 import { SparkdownStatusBarManager } from "../providers/SparkdownStatusBarManager";
 import { createSparkdownLanguageClient } from "./createSparkdownLanguageClient";
 import { getEditor } from "./getEditor";
-import { updateOutline } from "./updateOutline";
 
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext
@@ -43,7 +42,7 @@ export const activateLanguageClient = async (
 };
 
 const onParse = (
-  context: vscode.ExtensionContext,
+  _context: vscode.ExtensionContext,
   params: DidParseTextDocumentParams
 ) => {
   const program = params.program;
@@ -56,6 +55,5 @@ const onParse = (
       program?.metadata?.actionDuration ?? 0,
       program?.metadata?.dialogueDuration ?? 0
     );
-    updateOutline(context, document);
   }
 };

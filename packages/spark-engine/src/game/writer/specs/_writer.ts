@@ -6,7 +6,7 @@ export const _writer: Create<Writer> = (obj?: Partial<Writer>) => ({
   letterDelay: 0.025,
   animationOffset: 0.06,
   phrasePauseScale: 5,
-  emDashPauseScale: 15,
+  emDashPauseScale: 16,
   stressPauseScale: 10,
   punctuatePauseScale: 20,
   fadeDuration: 0,

@@ -10,7 +10,6 @@ export interface SparkProgramMetadata {
   colors?: SparkColorMetadata[];
   characters?: Record<string, SparkCharacterMetadata>;
 
-  firstScriptLine?: number;
   structure?: Record<string, StructureItem>;
 
   dialogueDuration?: number;
@@ -18,4 +17,5 @@ export interface SparkProgramMetadata {
 
   parseTime?: number;
   parseDuration?: number;
+  lineCount?: number;
 }

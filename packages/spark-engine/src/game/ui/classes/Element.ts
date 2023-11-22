@@ -88,7 +88,7 @@ export class Element implements IElement {
   }
 
   getChildren(): IElement[] {
-    return this._children;
+    return [...this._children];
   }
 
   appendChild(child: IElement): void {
@@ -113,13 +113,13 @@ export class Element implements IElement {
     _targetName: string,
     _properties: Record<string, any>,
     _breakpoints: Record<string, number>,
-    _objectMap: { [type: string]: Record<string, any> }
+    _typeMap: { [type: string]: Record<string, any> }
   ): void {}
 
   setAnimationContent(
     _animationName: string,
     _properties: Record<string, any>,
-    _objectMap: { [type: string]: Record<string, any> }
+    _typeMap: { [type: string]: Record<string, any> }
   ): void {}
 
   setStyleProperty(_propName: string, _propValue: unknown): void {}

@@ -23,13 +23,13 @@ export const generateSparkPdfData = (
       const titleToken = hiddenTitleTokens[index];
       if (titleToken) {
         const text = titleToken.text?.trimEnd();
-        if (titleToken.type === "watermark") {
+        if (titleToken.tag === "watermark") {
           watermark = text;
         }
-        if (titleToken.type === "header") {
+        if (titleToken.tag === "header") {
           header = text;
         }
-        if (titleToken.type === "footer") {
+        if (titleToken.tag === "footer") {
           footer = text;
         }
       }
@@ -38,7 +38,9 @@ export const generateSparkPdfData = (
   let currentIndex = 0;
 
   const titleTokens = program.frontMatter || {};
-  const tokens = [...program.tokens];
+  const tokens = Object.values(program.sections || {}).flatMap(
+    (section) => section.tokens
+  );
   const sceneInvisibleSections: Record<string | number, SparkSectionToken[]> =
     {};
   // tidy up separators
@@ -49,39 +51,32 @@ export const generateSparkPdfData = (
       break;
     }
     if (
-      currentToken.type === "dual_dialogue_start" ||
-      currentToken.type === "dialogue_start" ||
-      currentToken.type === "dialogue_end" ||
-      currentToken.type === "dual_dialogue_end" ||
+      currentToken.tag === "dual_dialogue_start" ||
+      currentToken.tag === "dialogue_start" ||
+      currentToken.tag === "dialogue_end" ||
+      currentToken.tag === "dual_dialogue_end" ||
       (!config.screenplay_print_notes &&
-        (currentToken.type === "note" ||
-          currentToken.type === "assets" ||
-          currentToken.type === "dialogue_asset" ||
-          currentToken.type === "action_asset")) ||
-      (!config.screenplay_print_sections && currentToken.type === "section") ||
-      (!config.screenplay_print_labels && currentToken.type === "label")
+        (currentToken.tag === "note" ||
+          currentToken.tag === "assets" ||
+          currentToken.tag === "dialogue_asset" ||
+          currentToken.tag === "action_asset")) ||
+      (!config.screenplay_print_sections && currentToken.tag === "section") ||
+      (!config.screenplay_print_labels && currentToken.tag === "label")
     ) {
-      if (currentToken.type === "section") {
+      if (currentToken.tag === "section") {
         //on the next scene header, add an invisible section (for keeping track of sections when creating bookmarks and generating pdf-side)
         invisibleSections.push(currentToken);
       }
       tokens.splice(currentIndex, 1);
       continue;
     }
-    if (currentToken.type === "scene") {
+    if (currentToken.tag === "scene") {
       if (invisibleSections.length > 0) {
         sceneInvisibleSections[currentToken.scene] = invisibleSections;
       }
       invisibleSections = [];
     }
     currentIndex++;
-  }
-  // clean separators at the end
-  while (
-    tokens.length > 0 &&
-    tokens[program.tokens.length - 1]?.type === "separator"
-  ) {
-    tokens.pop();
   }
 
   if (!config.screenplay_print_watermark && watermark !== undefined) {

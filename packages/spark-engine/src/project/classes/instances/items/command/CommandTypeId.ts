@@ -1,7 +1,6 @@
 export type CommandTypeId =
   | "LogCommand"
   | "EnterCommand"
-  | "RepeatCommand"
   | "ReturnCommand"
   | "EndCommand"
   | "WaitCommand"

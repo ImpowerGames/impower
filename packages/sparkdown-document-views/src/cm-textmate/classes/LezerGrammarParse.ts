@@ -33,9 +33,6 @@ const MARGIN_AFTER = 128;
 /** If true, the "left" (previous) side of a parse will be reused. */
 const REUSE_LEFT = true;
 
-/** If true, the "right" (ahead) side of a parse will be reused. */
-const REUSE_RIGHT = false;
-
 const STATE_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
 
 /**
@@ -122,18 +119,33 @@ export default class GrammarParse implements PartialParse {
         const buffer = this.find(f.tree, this.region.from, f.to);
 
         if (buffer) {
-          // try to find a suitable chunk from the buffer to restart tokenization from
-          let restartPos = this.region.edit!.from - 1;
-          for (; restartPos >= f.from; restartPos -= 1) {
-            if (this.region.input.read(restartPos, restartPos + 2) === "\n\n") {
-              // Restart at previous empty line
-              break;
-            }
-          }
-          const { chunk, index } = buffer.search(restartPos, 0, true);
+          const editFrom = this.region.edit!.from;
+          // console.log(
+          //   "ALL CHUNKS",
+          //   buffer?.chunks.map((chunk) => [
+          //     input.read(chunk.from, chunk.to),
+          //     chunk.from,
+          //     chunk.open?.map((n) => this.nodeSet.types[n]?.name),
+          //     chunk.close?.map((n) => this.nodeSet.types[n]?.name),
+          //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+          //   ])
+          // );
+          const { chunk, index } = buffer.findPreviousUnscopedChunk(editFrom);
+          // console.log("editFrom", editFrom);
+          // console.log("splitAt", index);
           if (chunk && index !== null) {
             // split the buffer, reuse the left side
             const { left } = buffer.split(index);
+            // console.log(
+            //   "REUSE CHUNKS",
+            //   left?.chunks.map((chunk) => [
+            //     input.read(chunk.from, chunk.to),
+            //     chunk.from,
+            //     chunk.open?.map((n) => this.nodeSet.types[n]?.name),
+            //     chunk.close?.map((n) => this.nodeSet.types[n]?.name),
+            //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+            //   ])
+            // );
             this.region.from = chunk.from;
             this.buffer = left;
             this.state = this.grammar.startState();
@@ -194,10 +206,10 @@ export default class GrammarParse implements PartialParse {
     const start = this.region.original.from;
     const length = this.region.original.length;
 
-    const result = this.compiler.compile(length);
+    const result = this.compiler.finish(length);
 
     if (result) {
-      const topID = NodeID.TOP;
+      const topID = NodeID.top;
       const buffer = result.cursor;
       const reused = result.reused.map(
         (b) => new TreeBuffer(b.buffer, b.length, this.nodeSet)
@@ -223,7 +235,7 @@ export default class GrammarParse implements PartialParse {
 
       return tree;
     }
-    const topNode = this.grammar.nodes[NodeID.TOP];
+    const topNode = this.grammar.nodes[NodeID.top];
     const topNodeType = topNode?.props["nodeType"];
     return new Tree(topNodeType, [], [], length);
   }
@@ -234,18 +246,7 @@ export default class GrammarParse implements PartialParse {
     // as we're actually going to break out when any chunk is emitted.
     // however, if we're at the "last chunk", this condition catches that
     while (this.parsedPos < this.region.to) {
-      if (REUSE_RIGHT) {
-        // try to reuse ahead state
-        const reused =
-          this.previousRight && this.tryToReuse(this.previousRight);
-        // can't reuse the buffer more than once (pointless)
-        if (reused) {
-          this.previousRight = undefined;
-        }
-      }
-
       const pos = this.parsedPos;
-      const startState = this.state.clone();
 
       let matchTokens: GrammarToken[] | null = null;
       let length = 0;
@@ -259,18 +260,14 @@ export default class GrammarParse implements PartialParse {
         this.region.to
       );
 
-      const match = this.grammar.match(this.state, str, pos - start, pos);
+      const match = this.grammar.match(this.state, str, pos - start, pos, true);
 
       if (match) {
-        this.state = match.state;
         matchTokens = match.compile();
         length = match.length;
       } else {
         // if we didn't match, we'll advance to prevent getting stuck
-        matchTokens =
-          str[pos - start] === "\n"
-            ? [[NodeID.NEWLINE, pos, pos + 1]]
-            : [[NodeID.ERROR_UNRECOGNIZED, pos, pos + 1]];
+        matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
         length = 1;
       }
 
@@ -288,46 +285,12 @@ export default class GrammarParse implements PartialParse {
           t[2] = end;
         }
 
-        if (this.buffer.add(startState, t)) {
+        if (this.buffer.add(t)) {
           addedChunk = true;
         }
       }
 
       if (addedChunk) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  /**
-   * Tries to reuse a buffer _ahead_ of the current position. Returns true
-   * if this was successful, otherwise false.
-   *
-   * @param right - The buffer to try and reuse.
-   */
-  private tryToReuse(right: ChunkBuffer) {
-    // can't reuse if we don't know the safe regions
-    if (!this.region.edit) {
-      return false;
-    }
-    // can only safely reuse if we're ahead of the edited region
-    if (this.parsedPos <= this.region.edit.to) {
-      return false;
-    }
-
-    // check every chunk and see if we can reuse it
-    for (let idx = 0; idx < right.chunks.length; idx++) {
-      const chunk = right.chunks[idx]!;
-      if (
-        chunk.isReusable(this.state, this.parsedPos, this.region.edit.offset)
-      ) {
-        right.slide(idx, this.region.edit.offset, true);
-        this.buffer.link(right, this.region.original.length);
-        this.buffer.ensureLast(this.parsedPos, this.state);
-        this.state = this.buffer.last!.state.clone();
-        this.parsedPos = this.buffer.last!.from;
         return true;
       }
     }

@@ -203,6 +203,9 @@ enum Color {
   Red = 31,
   Green = 32,
   Yellow = 33,
+  Blue = 34,
+  Magenta = 35,
+  Cyan = 36,
 }
 
 function colorize(value: any, color: number): string {
@@ -222,7 +225,6 @@ export function printTree(
   { from, to, start = 0, includeParents }: PrintTreeOptions = {}
 ): string {
   const inp = typeof input === "string" ? new StringInput(input) : input;
-  const text = inp.read(0, inp.length);
   const state = {
     output: "",
     prefixes: [] as string[],
@@ -254,15 +256,17 @@ export function printTree(
       state.output +=
         (node.type.isError || !validator.state.valid
           ? colorize(node.type.name, Color.Red)
+          : isTop
+          ? colorize(node.type.name, Color.Cyan)
           : node.type.name) +
         " " +
         (hasRange
           ? "[" +
-            colorize(locAt(text, start + node.from), Color.Yellow) +
+            colorize(start + node.from, Color.Yellow) +
             ".." +
-            colorize(locAt(text, start + node.to), Color.Yellow) +
+            colorize(start + node.to, Color.Yellow) +
             "]"
-          : colorize(locAt(text, start + node.from), Color.Yellow));
+          : colorize(start + node.from, Color.Yellow));
       if (hasRange && node.isLeaf) {
         state.output +=
           ": " +
@@ -276,24 +280,3 @@ export function printTree(
   });
   return state.output;
 }
-
-const lineAt = (
-  text: string,
-  pos: number
-): { number: number; from: number } => {
-  let number = 1;
-  let from = 0;
-  for (let i = 0; i <= pos; i += 1) {
-    const char = text[i]!;
-    if (char === "\n") {
-      number += 1;
-      from = i;
-    }
-  }
-  return { number, from };
-};
-
-const locAt = (text: string, pos: number): string => {
-  const line = lineAt(text, pos);
-  return pos + (line.number + ":" + (pos - line.from));
-};

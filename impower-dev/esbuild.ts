@@ -45,6 +45,7 @@ const watchDirs = [
   "../packages/spark-engine",
   "../packages/sparkdown",
   "../packages/spark-dom",
+  "../packages/grammar-compiler",
 ];
 
 const args = process.argv.slice(2);

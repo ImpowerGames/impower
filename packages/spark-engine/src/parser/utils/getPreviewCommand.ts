@@ -10,22 +10,23 @@ export const getPreviewCommand = (
   if (!program) {
     return undefined;
   }
-  if (!line) {
+  if (line == null) {
     return undefined;
   }
-  let tokenIndex = program.metadata?.lines?.[line]?.tokens?.[0] ?? -1;
-  let token = program.tokens[tokenIndex];
-  if (!token) {
+  const lineTokens = program.metadata?.lines?.[line]?.tokens;
+  if (!lineTokens) {
     return null;
   }
-  while (tokenIndex < program.tokens.length && token?.skipToNextPreview) {
-    tokenIndex += 1;
-    token = program.tokens[tokenIndex];
+  for (let i = 0; i < lineTokens.length; i += 1) {
+    const tokenIndex = lineTokens[i]!;
+    const token = program.tokens[tokenIndex];
+    if (token) {
+      const [sectionId] = getSectionAtLine(line, program?.sections || {});
+      const runtimeCommand = generateCommand(token, "", sectionId);
+      if (runtimeCommand) {
+        return runtimeCommand;
+      }
+    }
   }
-  if (!token) {
-    return null;
-  }
-  const [sectionId] = getSectionAtLine(line, program?.sections || {});
-  const runtimeCommand = generateCommand(token, "", sectionId);
-  return runtimeCommand;
+  return null;
 };

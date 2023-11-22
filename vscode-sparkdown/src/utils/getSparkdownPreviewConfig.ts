@@ -55,8 +55,7 @@ export const getSparkdownPreviewConfig = (
       screenplayConfig["pdf"].bookmarks.printBookmarks,
     screenplay_print_bookmarks_for_invisible_sections:
       screenplayConfig["pdf"].bookmarks.printBookmarksForInvisibleSections,
-    editor_parenthetical_newline_helper:
-      editorConfig["parentheticalNewlineHelper"],
+    editor_newline_helper: editorConfig["newlineHelper"],
     editor_refresh_stats_on_save: editorConfig["refreshStatsOnSave"],
   };
 };

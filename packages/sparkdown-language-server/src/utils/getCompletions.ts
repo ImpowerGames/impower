@@ -7,47 +7,55 @@ import {
 } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
+import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getAllProperties";
+import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import getBlockMatch from "@impower/sparkdown/src/utils/getBlockMatch";
-import getBlockType from "@impower/sparkdown/src/utils/getBlockType";
+import {
+  SparkStructEmptyProperty,
+  SparkStructMapPropertyToken,
+  SparkStructToken,
+} from "@impower/sparkdown/src/types/SparkToken";
 import getLineText from "./getLineText";
+import getLineTextAfter from "./getLineTextAfter";
 import getLineTextBefore from "./getLineTextBefore";
-import getUniqueOptions from "./getUniqueOptions";
+import { Asset, isAsset } from "./isAsset";
 import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s/g;
 
-const getImageCompletions = (program: SparkProgram | undefined) => {
-  if (!program) {
-    return [];
-  }
-  return Object.entries(program?.objectMap?.["image"] || {}).map(
-    ([name, { src, type }]) => ({
-      label: name,
-      labelDetails: { description: type },
-      kind: CompletionItemKind.Constructor,
-      documentation: {
-        kind: MarkupKind.Markdown,
-        value: `![${name}](${src})`,
-      },
-    })
-  );
+const getImageCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] | null => {
+  const images = Object.values(program?.typeMap?.["Asset"] || {}).filter(
+    (asset) => isAsset(asset) && asset.type === "image"
+  ) as Asset[];
+  return images.map((asset) => ({
+    label: asset.name,
+    labelDetails: { description: "Image" },
+    kind: CompletionItemKind.Constructor,
+    documentation: {
+      kind: MarkupKind.Markdown,
+      value: `![${asset.name}](${asset.src})`,
+    },
+  }));
 };
 
-const getAudioCompletions = (program: SparkProgram | undefined) => {
-  if (!program) {
-    return [];
-  }
-  return Object.entries(program?.objectMap?.["audio"] || {}).map(
-    ([name, { type }]) => ({
-      label: name,
-      labelDetails: { description: type },
-      kind: CompletionItemKind.Constructor,
-    })
-  );
+const getAudioCompletions = (
+  program: SparkProgram | undefined
+): CompletionItem[] | null => {
+  const audio = Object.values(program?.typeMap?.["Asset"] || {}).filter(
+    (asset) => isAsset(asset) && asset.type === "audio"
+  ) as Asset[];
+  return audio.map((asset) => ({
+    label: asset.name,
+    labelDetails: { description: "Audio" },
+    kind: CompletionItemKind.Constructor,
+  }));
 };
 
-const getAudioArgumentCompletions = (content: string) => {
+const getAudioArgumentCompletions = (
+  content: string
+): CompletionItem[] | null => {
   const args = content.split(WHITESPACE_REGEX);
   if (args.includes("stop")) {
     return null;
@@ -67,53 +75,20 @@ const getAudioArgumentCompletions = (content: string) => {
   ];
 };
 
-const getScriptCompletions = (program: SparkProgram | undefined) => {
-  if (!program) {
-    return [];
-  }
-  return Object.entries(program?.objectMap?.["script"] || {}).map(
-    ([name, { type }]) => ({
-      label: name,
-      labelDetails: { description: type },
-      kind: CompletionItemKind.Constructor,
-    })
-  );
-};
-
-const getSceneCompletions = () => {
-  return [
-    {
-      label: "INT.",
-
-      labelDetails: { description: "Scene" },
-      kind: CompletionItemKind.Interface,
-    },
-    {
-      label: "EXT.",
-      labelDetails: { description: "Scene" },
-      kind: CompletionItemKind.Interface,
-    },
-    {
-      label: "INT./EXT.",
-      labelDetails: { description: "Scene" },
-      kind: CompletionItemKind.Interface,
-    },
-  ];
-};
-
 const getCharacterCompletions = (
   line: number,
-  program: SparkProgram | undefined
-) => {
-  const characterNames = Object.keys(program?.metadata?.characters || {});
+  program: SparkProgram | undefined,
+  beforeText?: string
+): CompletionItem[] | null => {
+  const characters = Object.values(program?.metadata?.characters || {});
   const recentCharactersSet = new Set<string>();
   for (let i = line - 1; i >= 0; i -= 1) {
-    const dialogueCharacterName = program?.metadata?.lines?.[i]?.character;
-    if (dialogueCharacterName) {
+    const dialogueCharacterName = program?.metadata?.lines?.[i]?.characterName;
+    if (
+      dialogueCharacterName &&
+      (!beforeText || dialogueCharacterName.startsWith(beforeText))
+    ) {
       recentCharactersSet.add(dialogueCharacterName);
-      if (recentCharactersSet.size >= characterNames.length) {
-        break;
-      }
     }
   }
   const recentCharacters = Array.from(recentCharactersSet);
@@ -123,7 +98,7 @@ const getCharacterCompletions = (
       recentCharacters.splice(1, 0, mostRecentCharacter);
     }
   }
-  const labelDetails = { description: "Dialogue" };
+  const labelDetails = { description: "Character" };
   const kind = CompletionItemKind.Constant;
   const result: CompletionItem[] = [];
   recentCharacters.forEach((name, index) => {
@@ -135,11 +110,16 @@ const getCharacterCompletions = (
       sortText: `${index}`,
     });
   });
-  characterNames.forEach((name) => {
-    if (!recentCharactersSet.has(name)) {
+  characters.forEach((character) => {
+    if (
+      character.lines?.[0] !== line &&
+      character.name &&
+      !recentCharactersSet.has(character.name) &&
+      (!beforeText || character.name.startsWith(beforeText))
+    ) {
       result.push({
-        label: name,
-        insertText: name + "\n",
+        label: character.name,
+        insertText: character.name + "\n",
         labelDetails,
         kind,
       });
@@ -148,36 +128,53 @@ const getCharacterCompletions = (
   return result;
 };
 
-const getSceneCaptureCompletions = (
-  match: string[],
-  program: SparkProgram | undefined
-) => {
-  const location = match[3];
-  const dash = match[5];
-  const time = match[7];
-  if (!location) {
-    const locations = getUniqueOptions(
-      program?.metadata.scenes?.map((s) => s.location)
-    );
-    return locations.map((location) => ({
-      label: location,
-      kind: CompletionItemKind.Enum,
-    }));
-  }
-  if (dash && !time) {
-    const times = getUniqueOptions([
-      ...(program?.metadata.scenes?.map((s) => s.time) || []),
-      "DAY",
-      "NIGHT",
-      "DAWN",
-      "DUSK",
-    ]);
-    return times.map((time) => ({
-      label: time,
-      kind: CompletionItemKind.Enum,
-    }));
-  }
-  return [];
+const getStructMapPropertyNameCompletions = (
+  program: SparkProgram | undefined,
+  type: string,
+  fields: SparkField[] | undefined,
+  path: string,
+  beforeText: string
+): CompletionItem[] | null => {
+  const parentObj = program?.typeMap?.[type]?.[""];
+  const result: CompletionItem[] = [];
+  const existingProps = new Set<string>();
+  const possibleNames = new Set<string>();
+  const prefix = path ? `.${path}.` : ".";
+  const trimmedText = beforeText.trimStart();
+  const indentLength = beforeText.length - trimmedText.length;
+  const indentedStr = beforeText.slice(0, indentLength) + "  ";
+  const parentProperties = getAllProperties(parentObj);
+  fields?.forEach((field) => {
+    const prop = "." + field.path + "." + field.key;
+    let path = "";
+    prop.split(".").forEach((p) => {
+      if (p) {
+        path += "." + p;
+        existingProps.add(path);
+      }
+    });
+  });
+  Object.entries(parentProperties).forEach(([p, v]) => {
+    if (p.startsWith(prefix)) {
+      const [name, child] = p.slice(prefix.length).split(".");
+      const targetPath = p.slice(0, prefix.length) + name;
+      const description = child ? "object" : typeof v;
+      if (name && Number.isNaN(Number(name))) {
+        if (!existingProps.has(targetPath) && !possibleNames.has(name)) {
+          possibleNames.add(name);
+          // TODO: When inserting string prop (that takes fixed values), use snippet syntax to allow user to choose between all possible string values ${1|one,two,three|}
+          const insertSuffix = child ? `:\n${indentedStr}` : ": ";
+          result.push({
+            label: name,
+            insertText: name + insertSuffix,
+            labelDetails: { description },
+            kind: CompletionItemKind.Property,
+          });
+        }
+      }
+    }
+  });
+  return result;
 };
 
 const getCompletions = (
@@ -189,44 +186,95 @@ const getCompletions = (
   if (!document) {
     return undefined;
   }
-  const lineText = getLineText(document, position);
   const prevLineText = getLineText(document, position, -1);
-  const triggerCharacter = context?.triggerCharacter;
+  const nextLineText = getLineText(document, position, 1);
+  const textBefore = getLineTextBefore(document, position);
+  const textAfter = getLineTextAfter(document, position);
+  const trimmedTextBefore = textBefore.trimStart();
+  const trimmedTextAfter = textAfter.trimEnd();
   const lineMetadata = program?.metadata?.lines?.[position?.line];
-  const scopeName = program?.scopes?.[lineMetadata?.scope ?? -1];
-  const lineTextBefore = getLineTextBefore(document, position);
-  const trimmedLineTextBefore = lineTextBefore.trim();
-  if (trimmedLineTextBefore.startsWith("[[")) {
-    return getImageCompletions(program);
-  }
-  if (trimmedLineTextBefore.startsWith("((")) {
-    if (WHITESPACE_REGEX.test(lineTextBefore)) {
-      return getAudioArgumentCompletions(
-        trimmedLineTextBefore.replace("((", "")
-      );
-    } else {
-      return getAudioCompletions(program);
+  const scopes = lineMetadata?.scopes;
+  const triggerCharacter = context?.triggerCharacter;
+  if (scopes) {
+    if (scopes.includes("image")) {
+      return getImageCompletions(program);
     }
-  }
-  if (trimmedLineTextBefore.startsWith("> load(")) {
-    return getScriptCompletions(program);
-  }
-  if (!scopeName) {
-    const match = getBlockMatch(lineText);
-    const blockType = getBlockType(match);
-    if (match) {
-      if (blockType === "scene" && triggerCharacter === " ") {
-        return getSceneCaptureCompletions(match, program);
+    if (scopes.includes("audio")) {
+      if (scopes.includes("asset_args")) {
+        return getAudioArgumentCompletions(trimmedTextBefore.replace("((", ""));
+      } else if (triggerCharacter !== "@") {
+        return getAudioCompletions(program);
       }
-    } else {
-      if (!triggerCharacter) {
-        return [
-          ...getCharacterCompletions(position.line, program),
-          ...getSceneCompletions(),
-        ];
-      } else if (triggerCharacter === "\n" && isEmptyLine(prevLineText)) {
-        return [...getCharacterCompletions(position.line, program)];
+    }
+    if (
+      scopes.includes("action") &&
+      scopes.includes("text") &&
+      isEmptyLine(prevLineText) &&
+      isEmptyLine(nextLineText)
+    ) {
+      return getCharacterCompletions(position.line, program, trimmedTextBefore);
+    }
+    if (
+      scopes.includes("dialogue") &&
+      scopes.includes("dialogue_character_name") &&
+      !trimmedTextAfter
+    ) {
+      return getCharacterCompletions(position.line, program, trimmedTextBefore);
+    }
+    if (
+      scopes.includes("struct_map_property_start") &&
+      scopes.includes("property_name")
+    ) {
+      const structToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct") as SparkStructToken | undefined;
+      const structMapPropertyToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct_map_property") as
+        | SparkStructMapPropertyToken
+        | undefined;
+      if (structToken && structMapPropertyToken) {
+        return getStructMapPropertyNameCompletions(
+          program,
+          structToken.type,
+          structToken.fields,
+          structMapPropertyToken.path,
+          textBefore
+        );
       }
+    }
+    if (
+      scopes.includes("struct") &&
+      (scopes.includes("struct_empty_property") ||
+        scopes.at(-1) === "struct_field")
+    ) {
+      const structToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct") as SparkStructToken | undefined;
+      const structEmptyProperty = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct_empty_property") as
+        | SparkStructEmptyProperty
+        | undefined;
+      if (structToken && structEmptyProperty) {
+        return getStructMapPropertyNameCompletions(
+          program,
+          structToken.type,
+          structToken.fields,
+          structEmptyProperty.path,
+          textBefore
+        );
+      }
+    }
+    if (
+      scopes.includes("struct_scalar_property") &&
+      scopes.includes("value_text")
+    ) {
+      // TODO: Use struct validation to autocomplete enum strings
+    }
+  } else {
+    if (isEmptyLine(nextLineText)) {
+      return getCharacterCompletions(position.line, program);
     }
   }
   return undefined;

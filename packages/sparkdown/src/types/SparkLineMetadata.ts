@@ -1,14 +1,14 @@
 import { SparkReference } from "./SparkReference";
+import { SparkTokenTag } from "./SparkTokenTag";
 
 export interface SparkLineMetadata {
-  level?: number;
-  indent?: number;
-  offset?: number;
-  length?: number;
   references?: SparkReference[];
-  tokens?: number[];
   section?: string;
-  scene?: number;
-  character?: string;
-  scope?: number;
+  chunk?: string;
+  struct?: string;
+  sceneIndex?: number;
+  characterName?: string;
+  characterParenthetical?: string;
+  tokens?: number[];
+  scopes?: SparkTokenTag[];
 }

@@ -1,8 +1,9 @@
-const WRAPPED_STRING_REGEX = /^(`[^\n\r`]*`|"[^\n\r"]*"|'[^\n\r']*')$/;
+import SPARK_PRIMITIVE_TYPE_REGEX from "../constants/SPARK_PRIMITIVE_TYPE_REGEX";
 
 const unwrapString = (content: string): string => {
-  if (content.match(WRAPPED_STRING_REGEX)) {
-    return content.slice(1, -1);
+  const match = content.match(SPARK_PRIMITIVE_TYPE_REGEX.string);
+  if (match) {
+    return match[2] || "";
   }
   return content;
 };

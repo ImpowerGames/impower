@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
+import { Wrapping } from "../../enums/Wrapping";
 import {
   IncludeDefinition,
   SwitchRuleDefinition,
@@ -28,15 +29,20 @@ export default class SwitchRule implements Rule {
 
   rules?: Rule[];
 
+  emit?: boolean;
+
   constructor(repo: GrammarRepository, def: SwitchRuleDefinition) {
     this.repo = repo;
 
     let id = def.id ?? createID();
-    let emit = def.id || def.autocomplete;
     this.id = id;
-    this.node = !emit
-      ? GrammarNode.None
-      : new GrammarNode(repo.nextTypeIndex(), def, repo.grammar.declarator);
+    this.node = new GrammarNode(
+      repo.nextTypeIndex(),
+      def,
+      repo.grammar.declarator
+    );
+
+    this.emit = def.emit;
 
     // patterns
     this.patterns = def.patterns;
@@ -44,22 +50,37 @@ export default class SwitchRule implements Rule {
 
   /**
    * @param str - The string to match.
-   * @param pos - The position to start matching at.
+   * @param from - The position to start matching at.
    * @param state - The current {@link GrammarState}.
    */
-  match(str: string, pos: number, state: GrammarState) {
+  match(
+    str: string,
+    from: number,
+    state: GrammarState,
+    possiblyIncomplete?: boolean
+  ) {
+    return this.pattern(str, from, state, possiblyIncomplete);
+  }
+
+  pattern(
+    str: string,
+    from: number,
+    state: GrammarState,
+    possiblyIncomplete?: boolean
+  ) {
     if (!this.rules) {
       this.rules = this.patterns
         ? this.repo.getRules(this.patterns, this.id)
         : [];
     }
-    for (let i = 0; i < this.rules.length; i += 1) {
+    for (let i = 0; i < this.rules.length; i++) {
       const rule = this.rules[i];
-      if (rule) {
-        const output = rule.match(str, pos, state);
-        if (output) {
-          return output;
+      const patternMatched = rule?.match(str, from, state, possiblyIncomplete);
+      if (patternMatched) {
+        if (this.emit) {
+          return patternMatched.wrap(this.node, Wrapping.FULL);
         }
+        return patternMatched;
       }
     }
     return null;

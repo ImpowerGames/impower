@@ -131,14 +131,14 @@ const createCharacterStatistics = (
   for (let i = 0; i < program.tokens.length; i++) {
     while (
       i < program.tokens.length &&
-      program.tokens[i]?.type === "dialogue_character"
+      program.tokens[i]?.tag === "dialogue_character"
     ) {
       const character = getCharacterName(program.tokens[i]?.text || "");
       let speech = "";
       while (i++ && i < program.tokens.length) {
-        if (program.tokens[i]?.type === "dialogue") {
+        if (program.tokens[i]?.tag === "dialogue") {
           speech += program.tokens[i]?.text + " ";
-        } else if (program.tokens[i]?.type === "dialogue_character") {
+        } else if (program.tokens[i]?.tag === "dialogue_character") {
           break;
         }
         // else skip extensions / parenthesis / dialogue-begin/-end
@@ -220,7 +220,7 @@ const createCharacterStatistics = (
 const createSceneStatistics = (program: SparkProgram): SceneStatistics => {
   const sceneStats: SingleSceneStatistic[] = [];
   program.tokens.forEach((tok) => {
-    if (tok.type === "scene") {
+    if (tok.tag === "scene") {
       sceneStats.push({
         title: tok.text,
       });
@@ -286,23 +286,23 @@ const getLengthChart = (
   let monologues = 0;
   const scenePropDurations: Record<string, number> = {};
   program.tokens.forEach((element) => {
-    if (element.type === "action" || element.type === "dialogue") {
+    if (element.tag === "action" || element.tag === "dialogue") {
       const time = Number(element.duration);
       if (!isNaN(time)) {
-        if (element.type === "action") {
+        if (element.tag === "action") {
           previousLengthAction += Number(element.duration);
-        } else if (element.type === "dialogue") {
+        } else if (element.tag === "dialogue") {
           previousLengthDialogue += Number(element.duration);
         }
       }
 
-      if (element.type === "action") {
+      if (element.tag === "action") {
         action.push({
           line: element.line,
           length: previousLengthAction,
           scene: currentScene,
         });
-      } else if (element.type === "dialogue") {
+      } else if (element.tag === "dialogue") {
         dialogue.push({
           line: element.line,
           length: previousLengthDialogue,

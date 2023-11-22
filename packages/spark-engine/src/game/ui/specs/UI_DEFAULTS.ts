@@ -1,12 +1,12 @@
 export const UI_DEFAULTS = {
   "": {},
-  LOADING: {
+  Loading: {
     LoadingBar: {
       LoadingFill: "",
     },
   },
-  DISPLAY: {
-    Background: "",
+  Display: {
+    Backdrop: "",
     Portrait: "",
     ChoiceGroup: {
       Choices: {
@@ -27,7 +27,8 @@ export const UI_DEFAULTS = {
           },
         },
         DialogueGroup: {
-          Character: "",
+          CharacterName: "",
+          CharacterParenthetical: "",
           DialogueContent: {
             Parenthetical: "",
             Dialogue: "",

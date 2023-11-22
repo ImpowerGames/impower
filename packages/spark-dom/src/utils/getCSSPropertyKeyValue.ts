@@ -18,9 +18,9 @@ const createTextShadow = (r: number, color = "black"): string => {
 export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown,
-  objectMap?: { [type: string]: Record<string, any> }
+  typeMap?: { [type: string]: Record<string, any> }
 ): [string, string] => {
-  const theme = objectMap?.["theme"]?.[""];
+  const theme = typeMap?.["Theme"]?.[""];
   const cssProp = getCSSPropertyName(name);
   const cssValue =
     typeof value === "string"

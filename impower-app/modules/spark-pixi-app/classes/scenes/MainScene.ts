@@ -3,17 +3,17 @@ import { generateSpritesheet } from "../../plugins/animation";
 import { Application } from "../../plugins/app";
 import { Renderer, Texture } from "../../plugins/core";
 import {
-    createCircleTexture,
-    createLineTexture,
-    createPillTexture,
+  createCircleTexture,
+  createLineTexture,
+  createPillTexture,
 } from "../../plugins/graphics";
 import {
-    Color,
-    CompositeSprite,
-    Container3D,
-    Mesh3D,
-    Sprite3D,
-    StandardMaterial,
+  Color,
+  CompositeSprite,
+  Container3D,
+  Mesh3D,
+  Sprite3D,
+  StandardMaterial,
 } from "../../plugins/projection";
 import { Ticker } from "../../plugins/ticker";
 import { SparkAssets } from "../SparkAssets";
@@ -457,7 +457,7 @@ export class MainScene extends SparkScene {
     super(context, app, assets);
     // Tiles
     const beatmaps = Object.values(
-      this.context.game.struct.config.objectMap?.["beatmap"] || {}
+      this.context.game.struct.config.typeMap?.["Beatmap"] || {}
     );
     const beatmap = beatmaps[0];
     const beats = (beatmap?.beats as unknown as BeatInfo[]) || [];
@@ -495,14 +495,14 @@ export class MainScene extends SparkScene {
   }
 
   override getRequiredAssets(): Record<string, { src: string; ext: string }> {
-    const objectMap = this.context?.game?.struct?.config?.objectMap || {};
+    const typeMap = this.context?.game?.struct?.config?.typeMap || {};
     const assets: Record<string, { src: string; ext: string }> = {};
-    Object.entries(objectMap["midi"] || {}).forEach(([id, asset]) => {
+    Object.entries(typeMap["Midi"] || {}).forEach(([id, asset]) => {
       if (id) {
         assets[id] = asset;
       }
     });
-    Object.entries(objectMap["graphic"] || {}).forEach(([id, asset]) => {
+    Object.entries(typeMap["Graphic"] || {}).forEach(([id, asset]) => {
       if (id) {
         assets[id] = asset;
       }

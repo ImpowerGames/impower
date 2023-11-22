@@ -15,6 +15,17 @@ export interface ConfigDefinition {
     increaseIndentPattern?: string;
     decreaseIndentPattern?: string;
   };
+  onEnterRules?: {
+    beforeText: string;
+    afterText?: string;
+    previousLineText?: string;
+    action: {
+      indent: "none" | "indent" | "outdent" | "indentOutdent";
+      appendText?: string;
+      deleteText?: string;
+      removeText?: number;
+    };
+  }[];
   folding?: {
     markers?: {
       start?: string;

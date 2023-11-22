@@ -22,7 +22,7 @@ export function search<T, TR>(
     /** Starting maximum index for the search. */
     max?: number;
     /**
-     * If true, the search will return the closest index to the desired value
+     * If false, the search will return the closest index to the desired value
      * on failure.
      */
     precise?: boolean;

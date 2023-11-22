@@ -137,13 +137,13 @@ const EDITOR_THEME: {
   "& .cm-completionIcon-choice_plus": {
     "&:after": {
       content: "'⊕'",
-      color: EDITOR_COLORS.variableNameAccessor,
+      color: EDITOR_COLORS.propertyName,
     },
   },
   "& .cm-completionIcon-choice_minus": {
     "&:after": {
       content: "'⊖'",
-      color: EDITOR_COLORS.variableNameAccessor,
+      color: EDITOR_COLORS.propertyName,
     },
   },
   "& .cm-completionIcon-section": {
@@ -239,13 +239,19 @@ const EDITOR_THEME: {
   "& .cm-completionIcon-variable": {
     "&:after": {
       content: "'𝑥'",
-      color: EDITOR_COLORS.variableNameAccessor,
+      color: EDITOR_COLORS.propertyName,
+    },
+  },
+  "& .cm-completionIcon-property": {
+    "&:after": {
+      content: "'ρ'",
+      color: EDITOR_COLORS.variableName,
     },
   },
   "& .cm-completionIcon-parameter": {
     "&:after": {
       content: "'ρ'",
-      color: EDITOR_COLORS.variableNameDefinition,
+      color: EDITOR_COLORS.variableName,
     },
   },
   "& .cm-completionIcon-trigger": {
@@ -263,9 +269,6 @@ const EDITOR_THEME: {
   "& .cm-completionIcon-tag": {
     "&:after": { content: "'Ť'", color: EDITOR_COLORS.tag },
   },
-  "& .cm-completionIcon-class": {
-    "&:after": { content: "'○'", color: EDITOR_COLORS.dialogue },
-  },
   "& .cm-completionIcon-method": {
     "&:after": {
       content: "'m'",
@@ -279,7 +282,7 @@ const EDITOR_THEME: {
     },
   },
   "& .cm-completionIcon-character": {
-    "&:after": { content: "'𝐶'", color: EDITOR_COLORS.dialogueCharacter },
+    "&:after": { content: "'𝐶'", color: EDITOR_COLORS.typeName },
   },
   "& .cm-completionIcon-transition": {
     "&:after": { content: "'Ŧ'", color: EDITOR_COLORS.transition },
@@ -288,10 +291,10 @@ const EDITOR_THEME: {
     "&:after": { content: "'Տ'", color: EDITOR_COLORS.scene },
   },
   "& .cm-completionIcon-condition": {
-    "&:after": { content: "'✓'", color: EDITOR_COLORS.condition },
+    "&:after": { content: "'✓'", color: EDITOR_COLORS.controlKeyword },
   },
   "& .cm-completionIcon-module": {
-    "&:after": { content: "'⩀'", color: EDITOR_COLORS.variableNameAccessor },
+    "&:after": { content: "'⩀'", color: EDITOR_COLORS.propertyName },
   },
   "& .cm-diagnosticText": {
     marginRight: "16px",
@@ -327,8 +330,7 @@ const EDITOR_THEME: {
   },
   "& .cm-highlightSpace": {
     "&:before": {
-      transform: "translateX(-2px)",
-      opacity: "0.5",
+      opacity: "0.3",
     },
   },
 };

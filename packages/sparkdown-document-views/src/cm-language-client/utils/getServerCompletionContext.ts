@@ -11,15 +11,25 @@ export const getServerCompletionContext = (
 ): ServerCompletionContext | null => {
   const line = context.state.doc.lineAt(context.pos);
   let triggerKind: CompletionTriggerKind = CompletionTriggerKind.Invoked;
-  let triggerCharacter: string | undefined;
+  let triggerCharacter = line.text[context.pos - line.from - 1]!;
   if (
+    context.explicit &&
+    serverCapabilities?.completionProvider?.triggerCharacters?.includes(
+      context.state.lineBreak
+    ) &&
+    !triggerCharacter?.trim()
+  ) {
+    // Handle startCompletion from onEnterRules
+    triggerKind = CompletionTriggerKind.TriggerCharacter;
+    triggerCharacter = context.state.lineBreak;
+  } else if (
     !context.explicit &&
     serverCapabilities?.completionProvider?.triggerCharacters?.includes(
-      line.text[context.pos - line.from - 1]!
+      triggerCharacter
     )
   ) {
+    //
     triggerKind = CompletionTriggerKind.TriggerCharacter;
-    triggerCharacter = line.text[context.pos - line.from - 1];
   }
   if (
     triggerKind === CompletionTriggerKind.Invoked &&

@@ -6,6 +6,7 @@ import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
+import { STRUCT_DEFAULTS } from "@impower/spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   CancellationToken,
@@ -171,10 +172,19 @@ export default class SparkdownTextDocuments<
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
       const files = Object.values(this._files);
+      const typeMap = { ...STRUCT_DEFAULTS };
+      files.forEach((file) => {
+        typeMap["Asset"] ??= {};
+        typeMap["Asset"]![file.name] = {
+          uri: file.uri,
+          name: file.name,
+          src: file.src,
+          ext: file.ext,
+          type: file.type,
+        };
+      });
       const syncedProgram = this._parser.parse(syncedDocument.getText(), {
-        augmentations: {
-          files,
-        },
+        augmentations: { typeMap },
       });
       this._syncedPrograms.set(uri, syncedProgram);
       this._onDidParse.fire(

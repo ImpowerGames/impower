@@ -2,7 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { COMPILER_STACK_SIZE } from "../constants/size";
+/** Sets the size of the compiler stack. */
+export const COMPILER_STACK_SIZE = 64;
 
 /**
  * A `CompileStack` keeps track of opened nodes destined to be eventually

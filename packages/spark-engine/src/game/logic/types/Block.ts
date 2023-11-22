@@ -2,17 +2,13 @@ import { DocumentSource } from "./DocumentSource";
 
 export interface Block {
   source?: DocumentSource;
-  indent: number;
-  index: number;
   level: number;
-  type: "section" | "function" | "method" | "detector";
   name: string;
   parent?: string;
   children?: string[];
-  triggers?: string[];
   variables?: Record<
     string,
-    { name: string; type: string; value: unknown; parameter?: boolean }
+    { name: string; type: string; value: string; parameter?: boolean }
   >;
   commands?: Record<
     string,
@@ -33,7 +29,6 @@ export interface Block {
       params: {
         check?: string;
         waitUntilFinished: boolean;
-        assets?: string[];
       };
     }
   >;

@@ -64,7 +64,7 @@ export const generateSparkTitleHtml = (
           true
         );
       }
-      switch (currentToken.type) {
+      switch (currentToken.tag) {
         case "title":
           html.push(
             `<h1 class="haseditorline titlepagetoken" id="sourceline_${line}">${currentToken.html}</h1>`
@@ -78,7 +78,7 @@ export const generateSparkTitleHtml = (
           break;
         default:
           html.push(
-            `<p class="${currentToken.type} haseditorline titlepagetoken" id="sourceline_${line}">${currentToken.html}</p>`
+            `<p class="${currentToken.tag} haseditorline titlepagetoken" id="sourceline_${line}">${currentToken.html}</p>`
           );
           break;
       }

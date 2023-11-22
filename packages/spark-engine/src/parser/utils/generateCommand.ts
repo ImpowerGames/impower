@@ -1,20 +1,12 @@
-import type {
-  SparkDisplayToken,
-  SparkLine,
-  SparkToken,
-} from "../../../../sparkdown/src";
+import type { SparkDisplayToken, SparkToken } from "../../../../sparkdown/src";
 import type {
   AssignCommandData,
-  ChoiceCommandData,
   CommandData,
   CommandTypeId,
   ConditionCommandData,
   DisplayCommandData,
-  DisplayPosition,
-  DisplayType,
   EnterCommandData,
   ReturnCommandData,
-  SetOperator,
 } from "../../data";
 
 const getCommandId = (
@@ -22,10 +14,10 @@ const getCommandId = (
   file: string,
   sectionId: string
 ): string => {
-  return `${file}+${sectionId}.${token.type}_${token.line}_${token.from}_${token.to}_${token.indent}`;
+  return `${file}+${sectionId}.${token.tag}_${token.line}`;
 };
 
-const getSource = (token: SparkLine, file: string) => {
+const getSource = (token: SparkToken, file: string) => {
   return {
     file,
     line: token.line,
@@ -51,15 +43,25 @@ const generateDisplayCommand = (
     source: getSource(token, file),
     indent: token.indent,
     params: {
-      type: token.type as DisplayType,
-      position: (token.position as DisplayPosition) || "default",
-      character: token.character || "",
-      parenthetical: token.parenthetical || "",
-      content: token.content,
-      assets: token.assets || [],
-      autoAdvance: token.autoAdvance || false,
-      clearPreviousText: token.clearPreviousText || false,
-      waitUntilFinished: token.wait || false,
+      type:
+        token.tag === "action_box"
+          ? "action"
+          : token.tag === "dialogue_box"
+          ? "dialogue"
+          : token.tag === "centered"
+          ? "centered"
+          : token.tag === "scene"
+          ? "scene"
+          : token.tag === "transition"
+          ? "transition"
+          : "action",
+      position: token.position || "",
+      characterName: token.characterName?.text || "",
+      characterParenthetical: token.characterParenthetical?.text || "",
+      content: token.content || [],
+      autoAdvance: token.autoAdvance ?? false,
+      overwriteText: token.overwriteText ?? true,
+      waitUntilFinished: token.waitUntilFinished ?? true,
     },
   };
 };
@@ -76,10 +78,9 @@ export const generateCommand = (
     return null;
   }
   if (
-    token.type === "assign" ||
-    token.type === "string" ||
-    token.type === "number" ||
-    token.type === "boolean"
+    token.tag === "assign" ||
+    token.tag === "struct" ||
+    token.tag === "variable"
   ) {
     const refId = getCommandId(token, file, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
@@ -93,15 +94,20 @@ export const generateCommand = (
       source: getSource(token, file),
       indent: token.indent,
       params: {
-        variable: token.name || "",
-        operator: token.operator as SetOperator,
-        value: token.value as string,
+        variable: token.name,
+        operator: "operator" in token ? token.operator : "=",
+        value: token.value,
         waitUntilFinished: true,
       },
     };
     return newCommand;
   }
-  if (token.type === "condition") {
+  if (
+    token.tag === "if" ||
+    token.tag === "elseif" ||
+    token.tag === "else" ||
+    token.tag === "end"
+  ) {
     const refId = getCommandId(token, file, sectionId);
     const refTypeId: CommandTypeId = "ConditionCommand";
     const newCommand: ConditionCommandData = {
@@ -114,14 +120,14 @@ export const generateCommand = (
       source: getSource(token, file),
       indent: token.indent,
       params: {
+        condition: token.condition as string,
+        check: (token.tag || "") as "if" | "elseif" | "else" | "end",
         waitUntilFinished: true,
-        value: token.value as string,
-        check: (token.check || "") as "if" | "elseif" | "else" | "close",
       },
     };
     return newCommand;
   }
-  if (token.type === "call" || token.type === "jump") {
+  if (token.tag === "jump") {
     const refId = getCommandId(token, file, sectionId);
     const refTypeId: CommandTypeId = "EnterCommand";
     const newCommand: EnterCommandData = {
@@ -134,15 +140,14 @@ export const generateCommand = (
       source: getSource(token, file),
       indent: token.indent,
       params: {
+        value: token.section as string,
+        returnWhenFinished: false,
         waitUntilFinished: true,
-        value: token.value as string,
-        calls: token.calls || {},
-        returnWhenFinished: token.type === "call",
       },
     };
     return newCommand;
   }
-  if (token.type === "return") {
+  if (token.tag === "return") {
     const refId = getCommandId(token, file, sectionId);
     const refTypeId: CommandTypeId = "ReturnCommand";
     const newCommand: ReturnCommandData = {
@@ -155,69 +160,25 @@ export const generateCommand = (
       source: getSource(token, file),
       indent: token.indent,
       params: {
-        waitUntilFinished: true,
         value: token.value as string,
-      },
-    };
-    return newCommand;
-  }
-  if (token.type === "repeat") {
-    const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "RepeatCommand";
-    const newCommand: CommandData = {
-      reference: {
-        parentId: sectionId,
-        type: "Command",
-        id: refId,
-        typeId: refTypeId,
-      },
-      source: getSource(token, file),
-      indent: token.indent,
-      params: {
         waitUntilFinished: true,
       },
     };
     return newCommand;
   }
-  if (token.type === "choice") {
-    const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "ChoiceCommand";
-    const newCommand: ChoiceCommandData = {
-      reference: {
-        parentId: sectionId,
-        type: "Command",
-        id: refId,
-        typeId: refTypeId,
-      },
-      source: getSource(token, file),
-      indent: token.indent,
-      params: {
-        waitUntilFinished: token.operator === "end",
-        operator: token.operator as "end" | "+" | "-" | "start",
-        value: token.value as string,
-        calls: token.calls || {},
-        content: token.content,
-        order: token.order,
-      },
-    };
-    return newCommand;
-  }
-  if (token.type === "dialogue") {
+  if (token.tag === "dialogue_box") {
     return generateDisplayCommand(token, file, sectionId);
   }
-  if (token.type === "action") {
+  if (token.tag === "action_box") {
     return generateDisplayCommand(token, file, sectionId);
   }
-  if (token.type === "centered") {
+  if (token.tag === "centered") {
     return generateDisplayCommand(token, file, sectionId);
   }
-  if (token.type === "transition") {
+  if (token.tag === "transition") {
     return generateDisplayCommand(token, file, sectionId);
   }
-  if (token.type === "scene") {
-    return generateDisplayCommand(token, file, sectionId);
-  }
-  if (token.type === "assets") {
+  if (token.tag === "scene") {
     return generateDisplayCommand(token, file, sectionId);
   }
 

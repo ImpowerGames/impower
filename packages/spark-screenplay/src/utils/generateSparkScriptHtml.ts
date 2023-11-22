@@ -23,8 +23,12 @@ export const generateSparkScriptHtml = (
     }
   };
 
-  while (currentIndex < program.tokens.length) {
-    const currentToken = program.tokens[currentIndex];
+  const tokens = Object.values(program.sections || {}).flatMap(
+    (section) => section.tokens
+  );
+
+  while (currentIndex < tokens.length) {
+    const currentToken = tokens[currentIndex];
     if (!currentToken) {
       currentIndex++;
       continue;
@@ -32,22 +36,18 @@ export const generateSparkScriptHtml = (
     const text = currentToken.text?.trimEnd();
     const line = currentToken.line;
     if (text) {
-      currentToken.html = sparkLexer(
-        text,
-        currentToken.type,
-        HTML_REPLACEMENTS
-      );
+      currentToken.html = sparkLexer(text, currentToken.tag, HTML_REPLACEMENTS);
     } else {
       currentToken.html = "";
     }
-    if (currentToken.type == "action" || currentToken.type == "centered") {
+    if (currentToken.tag == "action" || currentToken.tag == "centered") {
       let classes = "haseditorline";
 
       let elStart = "\n";
       if (!isAction) {
         elStart = "<p>"; //first action element
       }
-      if (currentToken.type == "centered") {
+      if (currentToken.tag == "centered") {
         if (isAction) {
           elStart = ""; //It's centered anyway, no need to add anything
         }
@@ -58,10 +58,10 @@ export const generateSparkScriptHtml = (
       );
 
       isAction = true;
-    } else if (currentToken.type == "separator" && isAction) {
-      if (currentIndex + 1 < program.tokens.length - 1) {
+    } else if (currentToken.tag == "separator" && isAction) {
+      if (currentIndex + 1 < tokens.length - 1) {
         //we're not at the end
-        const next_type = program.tokens[currentIndex + 1]?.type;
+        const next_type = tokens[currentIndex + 1]?.tag;
         if (
           next_type == "action" ||
           next_type == "separator" ||
@@ -79,7 +79,7 @@ export const generateSparkScriptHtml = (
         isAction = false;
         append("</p>");
       }
-      switch (currentToken.type) {
+      switch (currentToken.tag) {
         case "scene":
           let content = currentToken.html;
           if (config.screenplay_print_scene_headers_bold) {

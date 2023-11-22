@@ -3,19 +3,13 @@ import { SparkToken } from "./SparkToken";
 import { SparkVariable } from "./SparkVariable";
 
 export interface SparkSection extends SparkRange {
-  type: "section" | "function" | "method" | "detector";
-  name: string;
+  line: number;
   from: number;
   to: number;
-  line: number;
   level: number;
-  indent: number;
-  index: number;
-  returnType?: "string" | "number" | "boolean" | "";
+  name: string;
   parent?: string;
-  value?: number;
-  triggers?: string[];
   children?: string[];
-  tokens?: SparkToken[];
+  tokens: SparkToken[];
   variables?: Record<string, SparkVariable>;
 }

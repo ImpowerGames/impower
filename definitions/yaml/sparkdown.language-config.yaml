@@ -1,0 +1,99 @@
+comments:
+  lineComment: "&&"
+
+brackets:
+  - ["{", "}"]
+  - ["[", "]"]
+  - ["(", ")"]
+
+autoClosingPairs:
+  - open: "{"
+    close: "}"
+  - open: "["
+    close: "]"
+  - open: "("
+    close: ")"
+  - open: "`"
+    close: "`"
+  - open: '"'
+    close: '"'
+
+surroundingPairs:
+  - ["{", "}"]
+  - ["[", "]"]
+  - ["(", ")"]
+  - ["`", "`"]
+  - ['"', '"']
+  - ["'", "'"]
+  - ["*", "*"]
+  - ["_", "_"]
+  - ["~", "~"]
+  - ["=", "="]
+  - [":", ":"]
+  - ["^", "^"]
+  - ["/", "/"]
+  - ["\\", "\\"]
+  - ["|", "|"]
+  - ["<", ">"]
+
+wordChars: _'
+
+wordPattern:
+  pattern: (\p{L}|\p{N}|\p{Mn})(((\p{L}|\p{N}|\p{Mn})|[_]|['])?(\p{L}|\p{N}|\p{Mn}))*
+  flags: u
+
+onEnterRules:
+  - beforeText: ^\s*(?:[-]|[_a-zA-Z][_a-zA-Z0-9]*[:]|define\b.*?[:])\s*$
+    action: { indent: "indent" }
+  - beforeText: \{\s*$
+    afterText: ^\s*\}.*$
+    action: { indent: "indentOutdent" }
+  - beforeText: \{\s*$
+    afterText: ^(?!\s*\})
+    action: { indent: "indent" }
+  - beforeText: \[\s*$
+    afterText: ^\s*\].*$
+    action: { indent: "indentOutdent" }
+  - beforeText: \[\s*$
+    afterText: ^(?!\s*\])
+    action: { indent: "indent" }
+  - beforeText: \(\s*$
+    afterText: ^\s*\).*$
+    action: { indent: "indentOutdent" }
+  - beforeText: \(\s*$
+    afterText: ^(?!\s*\))
+    action: { indent: "indent" }
+  - beforeText: ^\s*$
+    action: { 
+      indent: "none",
+      deleteText: "  "
+    }
+  - beforeText: ^\s*[+]\s*$
+    action: { 
+      indent: "none",
+      deleteText: "+ " 
+    }
+  - beforeText: ^\s*[+]
+    action: { 
+      indent: "none",
+      appendText: "+ "
+    }
+  - beforeText: ^\s*[*]\s*$
+    action: { 
+      indent: "none",
+      deleteText: "* "
+    }
+  - beforeText: ^\s*[*]
+    action: { 
+      indent: "none",
+      appendText: "* " 
+    }
+  - beforeText: ^\s*[-]
+    action: { 
+      indent: "none",
+      appendText: "- " 
+    }
+  - beforeText: ^\s*
+    action: { 
+      indent: "none",
+    }

@@ -4,7 +4,7 @@ import { Manager } from "../../core/classes/Manager";
 export interface StructEvents extends Record<string, GameEvent> {}
 
 export interface StructConfig {
-  objectMap: { [type: string]: Record<string, any> };
+  typeMap: { [type: string]: Record<string, any> };
 }
 
 export interface StructState {}
@@ -16,7 +16,7 @@ export class StructManager extends Manager<
 > {
   constructor(config?: Partial<StructConfig>, state?: Partial<StructState>) {
     const initialEvents: StructEvents = {};
-    const initialConfig: StructConfig = { objectMap: {}, ...(config || {}) };
+    const initialConfig: StructConfig = { typeMap: {}, ...(config || {}) };
     const initialState: StructState = { ...(state || {}) };
     super(initialEvents, initialConfig, initialState);
   }

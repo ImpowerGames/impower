@@ -28,7 +28,7 @@ export class SoundScene extends SparkScene {
     );
     this.context.game.sound.config.sampleRate = this._audioContext.sampleRate;
     this.context.game.sound.config.synths =
-      this.context.game.struct.config.objectMap?.synth || {};
+      this.context.game.struct.config.typeMap?.synth || {};
   }
 
   override bind(): void {

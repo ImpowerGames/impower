@@ -1,22 +1,20 @@
 export enum NodeID {
   /** ID for the `NodeType.none` node. */
-  NONE,
+  none,
   /** ID for the top-level node. */
-  TOP,
-  /** ID for the newline node. */
-  NEWLINE,
+  top,
   /**
    * ID for the `ERROR_UNRECOGNIZED` node.
    *
    * @see {@link NODE_ERROR_UNRECOGNIZED}
    */
-  ERROR_UNRECOGNIZED,
+  unrecognized,
   /**
    * ID for the `ERROR_INCOMPLETE` node.
    *
    * @see {@link NODE_ERROR_INCOMPLETE}
    */
-  ERROR_INCOMPLETE,
+  incomplete,
   /** First ID available for the grammar. */
-  SAFE,
+  safe,
 }

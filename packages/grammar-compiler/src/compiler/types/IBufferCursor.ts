@@ -8,23 +8,23 @@ export interface IBufferCursor {
    */
   pos: number;
   /**
-   * The node ID of the next node in the buffer.
+   * The node ID.
    */
   id: number;
   /**
-   * The start position of the next node in the buffer.
+   * The start position of the node.
    */
   start: number;
   /**
-   * The end position of the next node.
+   * The end position of the node.
    */
   end: number;
   /**
-   * The size of the next node (the number of nodes inside, counting the node itself, times 4).
+   * The size of the node (the number of nodes inside this node, counting the node itself, times 4).
    */
   size: number;
   /**
-   * Moves `this.pos` down by 4.
+   * Move to the next node (increments this.pos by 4).
    */
   next(): void;
   /**

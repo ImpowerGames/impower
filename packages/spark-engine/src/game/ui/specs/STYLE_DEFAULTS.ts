@@ -31,7 +31,7 @@ export const STYLE_DEFAULTS = {
     transform: "scaleX({LOADING_PROGRESS})",
     transformOrigin: "left",
   },
-  Background: {
+  Backdrop: {
     position: "absolute",
     inset: 0,
     backgroundPosition: "center",
@@ -49,6 +49,7 @@ export const STYLE_DEFAULTS = {
     backgroundPosition: "center",
   },
   ChoiceGroup: {
+    color: "black",
     position: "relative",
     flex: 1,
     display: "flex",
@@ -63,12 +64,19 @@ export const STYLE_DEFAULTS = {
   Choices: {
     display: "flex",
     flexDirection: "column",
-    paddingLeft: "10%",
-    paddingRight: "10%",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "100%",
+    padding: 8,
   },
   Choice: {
+    color: "black",
     backgroundColor: "white",
     padding: 8,
+    margin: "8px 0",
+    width: "90%",
+    maxWidth: 800,
+    textAlign: "center",
   },
   Box: {
     position: "relative",
@@ -92,6 +100,7 @@ export const STYLE_DEFAULTS = {
     md: { paddingLeft: 32, paddingRight: 32, fontSize: "1.125rem" },
   },
   Indicator: {
+    color: "black",
     width: 16,
     height: 16,
     position: "absolute",
@@ -120,13 +129,16 @@ export const STYLE_DEFAULTS = {
     maxWidth: 640,
   },
   Centered: {
+    color: "black",
     textAlign: "center",
   },
   Transition: {
+    color: "black",
     textAlign: "right",
     width: "100%",
   },
   Scene: {
+    color: "black",
     textAlign: "center",
     fontWeight: "bold",
   },
@@ -141,16 +153,22 @@ export const STYLE_DEFAULTS = {
     margin: "0 auto",
     md: { width: "68%" },
   },
-  Character: {
+  CharacterName: {
+    color: "black",
     lineHeight: 1,
     fontSize: "1.5rem",
     textAlign: "center",
     md: { fontSize: "1.75rem" },
   },
   Parenthetical: {
+    color: "black",
     textAlign: "center",
   },
   Dialogue: {
+    color: "black",
     flex: 1,
+  },
+  Action: {
+    color: "black",
   },
 };

@@ -1,13 +1,17 @@
 import { SparkRange } from "./SparkRange";
-import { SparkVariableType } from "./SparkVariableType";
 
 export interface SparkField extends SparkRange {
+  tag: string;
+  line: number;
   from: number;
   to: number;
-  line: number;
-  name: string;
-  type: SparkVariableType;
-  valueText: string;
-  value: unknown;
-  struct?: string;
+  indent: number;
+  path: string;
+  key: string;
+  type: string;
+  value: string;
+  ranges?: {
+    key?: SparkRange;
+    value?: SparkRange;
+  };
 }

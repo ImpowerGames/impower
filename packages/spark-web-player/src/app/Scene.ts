@@ -223,8 +223,10 @@ export default class Scene extends THREE.Scene {
   };
 
   bind(): void {
-    this.view.addEventListener("pointerdown", this._onPointerDown);
-    this.view.addEventListener("pointermove", this._onPointerMove);
+    if (this.view) {
+      this.view.addEventListener("pointerdown", this._onPointerDown);
+      this.view.addEventListener("pointermove", this._onPointerMove);
+    }
     window.addEventListener("mouseup", this._onPointerUp);
     window.addEventListener("touchend", this._onTouchEnd);
   }
@@ -232,8 +234,10 @@ export default class Scene extends THREE.Scene {
   protected onBind(): void {}
 
   unbind(): void {
-    this.view.removeEventListener("pointerdown", this._onPointerDown);
-    this.view.removeEventListener("pointermove", this._onPointerMove);
+    if (this.view) {
+      this.view.removeEventListener("pointerdown", this._onPointerDown);
+      this.view.removeEventListener("pointermove", this._onPointerMove);
+    }
     window.removeEventListener("mouseup", this._onPointerUp);
     window.removeEventListener("touchend", this._onTouchEnd);
   }

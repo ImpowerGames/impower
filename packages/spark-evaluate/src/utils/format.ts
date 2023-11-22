@@ -1,243 +1,209 @@
-import { CUSTOM_FORMATTERS } from "../constants/CUSTOM_FORMATTERS";
+import {
+  CUSTOM_FORMATTERS,
+  CustomFormatter,
+} from "../constants/CUSTOM_FORMATTERS";
 import { choose } from "./formatters/choose";
 import { pluralize } from "./formatters/pluralize";
 
-export const format = (
-  str: string,
-  args: Record<string, unknown> = {},
-  locale: string | undefined = undefined,
-  formatters = CUSTOM_FORMATTERS
-): [
-  string,
-  {
-    from: number;
-    to: number;
-    content: string;
-    severity?: "info" | "warning" | "error";
-    message?: string;
-  }[],
-  {
-    from: number;
-    to: number;
-    content: string;
-    severity?: "info" | "warning" | "error";
-    message?: string;
-  }[]
-] => {
-  const possibleValues: {
-    from: number;
-    to: number;
-    content: string;
-    severity?: "info" | "warning" | "error";
-    message?: string;
-  }[] = [];
-  const diagnostics: {
-    from: number;
-    to: number;
-    content: string;
-    severity?: "info" | "warning" | "error";
-    message?: string;
-  }[] = [];
-  if (!str) {
-    return [str, diagnostics, possibleValues];
-  }
-  let from = 0;
-  let to = 0;
-  const replacer = (match: string, inner: string): string => {
-    const needsTrim = inner.startsWith("{") && inner.endsWith("}");
-    from = str.indexOf(match, to) + (needsTrim ? 2 : 1);
-    const trimmedInner = needsTrim ? inner.slice(1, -1) : inner;
-    const validLocale = locale || (args?.["locale"] as string);
-    const chooseVal = args?.["#"];
-    if (
-      !trimmedInner.includes(":") &&
-      trimmedInner.includes("|") &&
-      chooseVal !== undefined
-    ) {
-      const params = trimmedInner.split("|");
+const PIPE_SEPARATOR_REGEX = /((?<!\\)[|])/;
+const SUBSTITUTION_ELEMENT_REGEX = /((?<![$])[{](?:\\.|[^}])*?[}])/g;
+const SUBSTITUTION_ELEMENT_CAPTURES_REGEX =
+  /([{])(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(.*?)((?<!\\)[}])/;
+
+export interface FormatterDiagnostic {
+  from: number;
+  to: number;
+  content: string;
+  severity?: "info" | "warning" | "error";
+  message?: string;
+}
+
+const captureOffset = (captures: string[], captureIndex: number) => {
+  return captures.slice(1, captureIndex).join("").length;
+};
+
+const select = (
+  args: string,
+  val: unknown,
+  locale: string,
+  from: number,
+  diagnostics: FormatterDiagnostic[],
+  references: FormatterDiagnostic[],
+  formatter: CustomFormatter
+) => {
+  const separated = args.split(PIPE_SEPARATOR_REGEX);
+  const params = separated.filter((s) => s !== "|");
+  const [formatterResult, formatterDiagnostics, ignoreArgs] = formatter(
+    val,
+    locale,
+    ...params
+  );
+  formatterDiagnostics.forEach((d) => {
+    diagnostics.push({
+      ...d,
+      from: from + d.from,
+      to: from + d.to,
+    });
+  });
+  separated.forEach((content, index) => {
+    if (content !== "|") {
+      if (!ignoreArgs?.includes(index)) {
+        references.push({
+          content,
+          from,
+          to: from + content.length,
+        });
+      }
+    }
+    from += content.length;
+  });
+  return formatterResult;
+};
+
+const replacer =
+  (
+    context: Record<string, unknown>,
+    locale: string | undefined,
+    formatters: Record<string, CustomFormatter>,
+    from: number,
+    diagnostics: FormatterDiagnostic[],
+    references: FormatterDiagnostic[]
+  ) =>
+  (element: string) => {
+    const captures = element.match(SUBSTITUTION_ELEMENT_CAPTURES_REGEX);
+    if (!captures) {
+      return element;
+    }
+    const _3_key = captures[3] || "";
+    const _7_formatter = captures[7] || "";
+    const _10_args = captures[10] || "";
+    const validLocale = locale || (context?.["locale"] as string);
+    const chooseVal = context?.["#"] ?? 0;
+    if (_10_args && !_3_key && !_7_formatter) {
       const matchSeed: string = Array.isArray(chooseVal)
         ? (chooseVal[1] || "") + String(from)
         : String(from);
       const validChooseVal: [number, string] = Array.isArray(chooseVal)
         ? [chooseVal[0], matchSeed]
         : [chooseVal, matchSeed];
-      const [formatterResult, formatterDiagnostics, ignoreArgs] = choose(
+      return select(
+        _10_args,
         validChooseVal,
         validLocale,
-        ...params
+        from + captureOffset(captures, 10),
+        diagnostics,
+        references,
+        choose
       );
-      let paramsFrom = to;
-      let paramsTo = paramsFrom;
-      formatterDiagnostics.forEach((d) => {
-        diagnostics.push({
-          ...d,
-          from: paramsFrom + 1 + d.from,
-          to: paramsFrom + 1 + d.to,
-        });
-      });
-      params.forEach((content, index) => {
-        paramsFrom = paramsTo + 1;
-        paramsTo = paramsFrom + content.length;
-        if (!ignoreArgs?.includes(index)) {
-          possibleValues.push({
-            content,
-            from: paramsFrom,
-            to: paramsTo,
-          });
-        }
-      });
-      return formatterResult;
     }
-    const [tagKey, formatterKey, param] = trimmedInner.split(":");
-    if (!tagKey) {
-      return match;
+    if (!_3_key) {
+      return element;
     }
-    to = from + tagKey.length;
-    const val = args?.[tagKey];
-    if (val === undefined) {
-      diagnostics.push({
-        content: str,
-        from,
-        to,
-        severity: "error",
-        message: `Cannot find variable named '${tagKey}'`,
-      });
-    }
-    if (!formatterKey) {
+    const val = context?.[_3_key];
+    if (!_10_args) {
       return String(val);
     }
-    const formatter = formatters[formatterKey];
-    if (formatter && param) {
-      const params = param.split("|");
-      const [formatterResult, formatterDiagnostics, ignoreArgs] = formatter(
+    if (_7_formatter) {
+      const formatter = formatters[_7_formatter];
+      if (!formatter) {
+        diagnostics.push({
+          content: _7_formatter,
+          from: from + captureOffset(captures, 7),
+          to: from + captureOffset(captures, 7) + _7_formatter.length,
+          severity: "error",
+          message: `Cannot find formatter named '${_7_formatter}'`,
+        });
+      }
+      return select(
+        _10_args,
         val,
         validLocale,
-        ...params
+        from + captureOffset(captures, 10),
+        diagnostics,
+        references,
+        formatter || choose
       );
-      let paramsFrom = to;
-      let paramsTo = paramsFrom;
-      formatterDiagnostics.forEach((d) => {
-        diagnostics.push({
-          ...d,
-          from: paramsFrom + 1 + d.from,
-          to: paramsFrom + 1 + d.to,
-        });
-      });
-      params.forEach((content, index) => {
-        paramsFrom = paramsTo + 1;
-        paramsTo = paramsFrom + content.length;
-        if (!ignoreArgs?.includes(index)) {
-          possibleValues.push({
-            content,
-            from: paramsFrom,
-            to: paramsTo,
-          });
-        }
-      });
-      return formatterResult;
     }
-    if (!formatter && !param && Array.isArray(val)) {
-      const params = formatterKey.split("|");
+    if (val === undefined) {
+      diagnostics.push({
+        content: _3_key,
+        from: from + captureOffset(captures, 3),
+        to: from + captureOffset(captures, 3) + _3_key.length,
+        severity: "error",
+        message: `Cannot find variable named '${_3_key}'`,
+      });
+      const validChooseVal = 0;
+      return select(
+        _10_args,
+        validChooseVal,
+        validLocale,
+        from + captureOffset(captures, 10),
+        diagnostics,
+        references,
+        choose
+      );
+    }
+    if (Array.isArray(val)) {
       const chooseVal = val;
       const matchSeed: string = (chooseVal[1] || "") + String(from);
       const validChooseVal: [number, string] = [chooseVal[0], matchSeed];
-      const [formatterResult, formatterDiagnostics, ignoreArgs] = choose(
+      return select(
+        _10_args,
         validChooseVal,
         validLocale,
-        ...params
+        from + captureOffset(captures, 10),
+        diagnostics,
+        references,
+        choose
       );
-      let paramsFrom = to;
-      let paramsTo = paramsFrom;
-      formatterDiagnostics.forEach((d) => {
-        diagnostics.push({
-          ...d,
-          from: paramsFrom + 1 + d.from,
-          to: paramsFrom + 1 + d.to,
-        });
-      });
-      params.forEach((content, index) => {
-        paramsFrom = paramsTo + 1;
-        paramsTo = paramsFrom + content.length;
-        if (!ignoreArgs?.includes(index)) {
-          possibleValues.push({
-            content,
-            from: paramsFrom,
-            to: paramsTo,
-          });
-        }
-      });
-      return formatterResult;
     }
-    if (!formatter && !param && typeof val === "boolean") {
-      const params = formatterKey.split("|");
-      const [formatterResult, formatterDiagnostics, ignoreArgs] = choose(
-        val ? 1 : 0,
+    if (typeof val === "boolean") {
+      const validChooseVal = val ? 1 : 0;
+      return select(
+        _10_args,
+        validChooseVal,
         validLocale,
-        ...params
+        from + captureOffset(captures, 10),
+        diagnostics,
+        references,
+        choose
       );
-      if (params.length < 2) {
-        diagnostics.push({
-          content: formatterKey,
-          from: 0,
-          to: formatterKey.length,
-          severity: "error",
-          message: `Both options must be specified: false|true`,
-        });
-      }
-      let paramsFrom = to;
-      let paramsTo = paramsFrom;
-      formatterDiagnostics.forEach((d) => {
-        diagnostics.push({
-          ...d,
-          from: paramsFrom + 1 + d.from,
-          to: paramsFrom + 1 + d.to,
-        });
-      });
-      params.forEach((content, index) => {
-        paramsFrom = paramsTo + 1;
-        paramsTo = paramsFrom + content.length;
-        if (!ignoreArgs?.includes(index)) {
-          possibleValues.push({
-            content,
-            from: paramsFrom,
-            to: paramsTo,
-          });
-        }
-      });
-      return formatterResult;
     }
-    if (!formatter && !param && typeof val === "number") {
-      const params = formatterKey.split("|");
-      const [formatterResult, formatterDiagnostics, ignoreArgs] = pluralize(
+    if (typeof val === "number") {
+      return select(
+        _10_args,
         val,
         validLocale,
-        ...params
+        from + captureOffset(captures, 10),
+        diagnostics,
+        references,
+        pluralize
       );
-      let paramsFrom = to;
-      let paramsTo = paramsFrom;
-      formatterDiagnostics.forEach((d) => {
-        diagnostics.push({
-          ...d,
-          from: paramsFrom + 1 + d.from,
-          to: paramsFrom + 1 + d.to,
-        });
-      });
-      params.forEach((content, index) => {
-        paramsFrom = paramsTo + 1;
-        paramsTo = paramsFrom + content.length;
-        if (!ignoreArgs?.includes(index)) {
-          possibleValues.push({
-            content,
-            from: paramsFrom,
-            to: paramsTo,
-          });
-        }
-      });
-      return formatterResult;
     }
     return String(val);
   };
-  const regex = /[{]([{][^\n\r{}]*[}]|[^\n\r{}]*)[}]/g;
-  const result = str.replace(regex, replacer);
-  return [result, diagnostics, possibleValues];
+
+export const format = (
+  str: string,
+  context: Record<string, unknown> = {},
+  locale: string | undefined = undefined,
+  formatters = CUSTOM_FORMATTERS
+): [string, FormatterDiagnostic[], FormatterDiagnostic[]] => {
+  const diagnostics: FormatterDiagnostic[] = [];
+  const references: FormatterDiagnostic[] = [];
+  if (!str) {
+    return [str, diagnostics, references];
+  }
+  let from = 0;
+  const parts = str.split(SUBSTITUTION_ELEMENT_REGEX).map((element) => {
+    const replaced = element.replace(
+      SUBSTITUTION_ELEMENT_REGEX,
+      replacer(context, locale, formatters, from, diagnostics, references)
+    );
+    from += element.length;
+    return replaced;
+  });
+
+  const result = parts.join("");
+  return [result, diagnostics, references];
 };

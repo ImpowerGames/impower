@@ -1,10 +1,10 @@
-import { SparkTitleKeyword } from "../types/SparkTitleKeyword";
-import { SparkTitlePosition } from "../types/SparkTitlePosition";
+import { SparkFrontMatterKeyword } from "../types/SparkFrontMatterKeyword";
+import { SparkTitlePagePosition } from "../types/SparkTitlePagePosition";
 
 const TITLE_PAGE_DISPLAY: Record<
-  SparkTitleKeyword | SparkTitlePosition,
+  SparkFrontMatterKeyword | SparkTitlePagePosition,
   {
-    position: SparkTitlePosition;
+    position: SparkTitlePagePosition;
     order: number;
   }
 > = {

@@ -22,5 +22,10 @@ export interface Rule {
    * @param pos - The position to start matching at.
    * @param state - The current {@link GrammarState}.
    */
-  match: (str: string, pos: number, state: GrammarState) => Matched | null;
+  match: (
+    str: string,
+    pos: number,
+    state: GrammarState,
+    possiblyIncomplete?: boolean
+  ) => Matched | null;
 }

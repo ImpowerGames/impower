@@ -2,7 +2,7 @@ import { randomizer } from "../randomizer";
 import { shuffle } from "../shuffle";
 
 export const choose = (
-  value: number | [number] | [number, string],
+  value: number | [value: number] | [value: number, seed: string],
   _locale?: string,
   ...args: readonly string[]
 ): [

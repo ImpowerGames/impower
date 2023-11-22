@@ -3,10 +3,14 @@
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
 import type { ParserAction } from "../../core";
-import type { GrammarNode, GrammarState } from "../../grammar";
 
-import { CHUNK_ARRAY_INTERVAL } from "../constants/size";
-import CompileTreeBuffer from "./CompileTreeBuffer";
+import TreeBuffer from "./TreeBuffer";
+
+/**
+ * Sets the initial array size for chunks, and how much to grow a chunk's
+ * array if it's full.
+ */
+export const CHUNK_ARRAY_INTERVAL = 16;
 
 /**
  * A syntactic chunk of a parsed document. The full syntax tree can be
@@ -38,24 +42,24 @@ export class Chunk {
   /** The node(s) to close when this chunk ends. `null` if the chunk closes nothing. */
   declare close: ParserAction | null;
 
-  /** The `GrammarState` at the start of this chunk. */
-  declare state: GrammarState;
+  /** The node(s) that are currently open at the start of this chunk. */
+  declare scopes: ParserAction;
 
   /**
-   * {@link CompileTreeBuffer} version of this chunk.
+   * {@link TreeBuffer} version of this chunk.
    * If `null`, the tree will not be available, ever, due to the shape of the chunk.
    */
-  declare tree?: CompileTreeBuffer | null;
+  declare tree?: TreeBuffer | null;
 
   /**
-   * @param pos - The starting position.
-   * @param state - The state at the starting position.
+   * @param from - The starting position.
+   * @param scopes - The scopes at the starting position.
    */
-  constructor(pos: number, state: GrammarState) {
-    this.from = pos;
-    this.to = pos;
+  constructor(from: number, scopes: ParserAction) {
+    this.from = from;
+    this.to = from;
     this.length = 0;
-    this.state = state;
+    this.scopes = scopes;
     this.tokens = new Int16Array(CHUNK_ARRAY_INTERVAL);
     this.size = 0;
     this.open = null;
@@ -114,8 +118,12 @@ export class Chunk {
    */
   pushOpen(...ids: number[]) {
     this.tree = undefined;
-    this.open ??= [];
-    this.open.push(...ids);
+    ids.forEach((id) => {
+      this.open ??= [];
+      if (!this.open.includes(id)) {
+        this.open.push(id);
+      }
+    });
   }
 
   /**
@@ -125,8 +133,12 @@ export class Chunk {
    */
   pushClose(...ids: number[]) {
     this.tree = undefined;
-    this.close ??= [];
-    this.close.push(...ids);
+    ids.forEach((id) => {
+      this.close ??= [];
+      if (!this.close.includes(id)) {
+        this.close.push(id);
+      }
+    });
   }
 
   /** Checks if the chunk can be converted into a {@link Tree}. */
@@ -165,7 +177,7 @@ export class Chunk {
    *
    * @param nodes - The language node set to use when creating the tree.
    */
-  tryForTree(nodes: GrammarNode[]) {
+  tryForTree() {
     if (this.tree === null) {
       return null;
     }
@@ -198,31 +210,8 @@ export class Chunk {
       );
     }
 
-    this.tree = new CompileTreeBuffer(
-      new Uint16Array(buffer),
-      this.length,
-      nodes
-    );
+    this.tree = new TreeBuffer(new Uint16Array(buffer), this.length);
 
     return this.tree;
-  }
-
-  /**
-   * Determines if a grammar's state (and parse position) is compatible
-   * with reusing this node. This is only a safe determination if it is
-   * made _after_ the changed range of the document.
-   *
-   * @param state - The state to compare against.
-   * @param pos - The position to compare against.
-   * @param offset - The edit offset, to correct for chunk position differences.
-   */
-  isReusable(state: GrammarState, pos: number, offset = 0) {
-    if (this.from + offset !== pos) {
-      return false;
-    }
-    if (!state.equals(this.state)) {
-      return false;
-    }
-    return true;
   }
 }

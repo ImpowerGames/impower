@@ -18,11 +18,11 @@ const getDocumentSymbol = (
   return {
     name: item.text,
     kind:
-      item.type === "label"
-        ? SymbolKind.Constant
+      item.type === "chunk"
+        ? SymbolKind.File
         : item.type === "section"
         ? SymbolKind.Number
-        : SymbolKind.Interface,
+        : SymbolKind.String,
     range: item.range,
     selectionRange: item.selectionRange,
     children,

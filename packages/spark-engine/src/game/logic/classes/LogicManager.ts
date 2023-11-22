@@ -17,7 +17,6 @@ export interface LogicEvents extends Record<string, GameEvent> {
   onEnterBlock: GameEvent2<string, DocumentSource | undefined>;
   onStopBlock: GameEvent2<string, DocumentSource | undefined>;
   onReturnFromBlock: GameEvent2<string, DocumentSource | undefined>;
-  onCheckTriggers: GameEvent2<string, DocumentSource | undefined>;
   onExecuteCommand: GameEvent2<string, DocumentSource | undefined>;
   onChooseChoice: GameEvent2<string, DocumentSource | undefined>;
   onFinishCommand: GameEvent2<string, DocumentSource | undefined>;
@@ -215,17 +214,9 @@ export class LogicManager extends Manager<
     if (!block) {
       return undefined;
     }
-    if (block.type !== "section") {
-      return null;
-    }
-    const blockList = Object.entries(this._config.blockMap).slice(
-      block.index + 1
-    );
-    const [nextBlockId] = blockList.find(([, v]) => v.type === "section") || [
-      undefined,
-      undefined,
-    ];
-    return nextBlockId;
+    const blockIds = Object.keys(this._config.blockMap);
+    const blockIndex = blockIds.indexOf(blockId);
+    return blockIds[blockIndex + 1];
   }
 
   private continueToNextBlock(blockId: string): boolean {
@@ -404,23 +395,6 @@ export class LogicManager extends Manager<
       blockState.previousIndex = commandIndex;
     }
     this._events.onFinishCommand.dispatch(commandId, source);
-  }
-
-  checkTriggers(
-    blockId: string,
-    satisfiedTriggers: string[],
-    unsatisfiedTriggers: string[]
-  ): void {
-    const block = this._config.blockMap[blockId];
-    if (!block) {
-      return;
-    }
-    const blockState = this._state.blockStates[blockId];
-    if (blockState) {
-      blockState.satisfiedTriggers = satisfiedTriggers;
-      blockState.unsatisfiedTriggers = unsatisfiedTriggers;
-      this._events.onCheckTriggers.dispatch(blockId, block.source);
-    }
   }
 
   goToCommandIndex(

@@ -1,4 +1,4 @@
-const VALID_FIELD_NAME_REGEX = /^[_a-zA-Z]+[_a-zA-Z0-9]$/;
+const VALID_FIELD_NAME_REGEX = /^[_$a-zA-Z][_$a-zA-Z0-9]*$/;
 
 const isValidFieldName = (str: string) => {
   return VALID_FIELD_NAME_REGEX.test(str);

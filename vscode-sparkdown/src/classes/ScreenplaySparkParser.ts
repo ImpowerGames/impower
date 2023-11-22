@@ -17,7 +17,7 @@ export class ScreenplaySparkParser extends SparkParser {
       config || {
         compiler: compile,
         formatter: format,
-        skipTokens: ["condition"],
+        skipTokens: ["if", "elseif", "else", "end"],
       }
     );
   }

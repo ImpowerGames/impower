@@ -11,7 +11,7 @@ import {
   getIndentUnit,
   indentService,
 } from "@codemirror/language";
-import type { Extension, Facet } from "@codemirror/state";
+import { Prec, type Extension, type Facet } from "@codemirror/state";
 import { Parser } from "@lezer/common";
 
 import { GrammarDefinition } from "../../../../grammar-compiler/src";
@@ -21,11 +21,12 @@ import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";
 import { SnippetDefinition } from "../types/SnippetDefinition";
 import convertConfigToLanguageData from "../utils/convertConfigToLanguageData";
+import { onEnterRules } from "../utils/onEnterRules";
 import { removeUndefined } from "../utils/removeUndefined";
 import { surroundBrackets } from "../utils/surroundBrackets";
 import TextmateLanguageSupport from "./TextmateLanguageSupport";
 
-const INDENT_REGEX = /^(\s)*/;
+const INDENT_REGEX = /([ \t]*)/;
 
 /**
  * Use the `load` method to get the extension needed to
@@ -138,21 +139,41 @@ export default class TextmateLanguage {
       bracketMatching(),
       closeBrackets(),
       surroundBrackets(),
-      keymap.of([...closeBracketsKeymap]),
+      Prec.high(
+        keymap.of([
+          {
+            key: "Enter",
+            run: onEnterRules(configDefinition?.onEnterRules),
+          },
+          ...closeBracketsKeymap,
+        ])
+      ),
       indentService.of((context, pos) => {
-        const prevLine = pos > 0 ? context.lineAt(pos - 1) : undefined;
-        const prevText = prevLine?.text || "";
-        const prevIndentSize = prevText.match(INDENT_REGEX)?.[0].length ?? 0;
+        const beforeLine =
+          pos > 0 ? context.state.doc.lineAt(pos - 1) : undefined;
+        const beforeLineText = beforeLine?.text || "";
+        const beforeIndentSize =
+          beforeLineText.match(INDENT_REGEX)?.[0].length ?? 0;
         const indentationRules = configDefinition?.indentationRules;
         const decreaseIndentPattern = indentationRules?.decreaseIndentPattern;
-        if (decreaseIndentPattern && prevText.match(decreaseIndentPattern)) {
-          return prevIndentSize - getIndentUnit(context.state);
+        const decreasedIndentSize =
+          beforeIndentSize - getIndentUnit(context.state);
+        const increasedIndentSize =
+          beforeIndentSize + getIndentUnit(context.state);
+        if (
+          decreaseIndentPattern &&
+          beforeLineText.match(decreaseIndentPattern)
+        ) {
+          return decreasedIndentSize;
         }
         const increaseIndentPattern = indentationRules?.increaseIndentPattern;
-        if (increaseIndentPattern && prevText.match(increaseIndentPattern)) {
-          return prevIndentSize + getIndentUnit(context.state);
+        if (
+          increaseIndentPattern &&
+          beforeLineText.match(increaseIndentPattern)
+        ) {
+          return increasedIndentSize;
         }
-        return prevIndentSize;
+        return null;
       }),
     ];
     this.nestLanguages = nestLanguages;
@@ -178,6 +199,7 @@ export default class TextmateLanguage {
       this.languageData,
       this.extensions
     );
+    this.description.support = this.support;
     this.loaded = true;
     return this.support;
   }

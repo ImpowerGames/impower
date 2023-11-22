@@ -31,7 +31,7 @@ try {
 
   const documents = new SparkdownTextDocuments(TextDocument);
 
-  connection.onInitialize((_params): InitializeResult => {
+  connection.onInitialize((params): InitializeResult => {
     const capabilities: ServerCapabilities = {
       textDocumentSync: TextDocumentSyncKind.Incremental,
       foldingRangeProvider: true,
@@ -47,6 +47,7 @@ try {
           " ",
           "(",
           "[",
+          "@",
           ...ALPHABET,
           ...ALPHABET.map((l) => l.toUpperCase()),
         ],
@@ -55,6 +56,10 @@ try {
         },
       },
     };
+    const settings = params?.initializationOptions?.["settings"];
+    if (settings) {
+      documents.loadConfiguration(settings);
+    }
     return { capabilities };
   });
 

@@ -5,9 +5,7 @@ import { ItemRunner } from "../../item/ItemRunner";
 export interface CommandContext<G extends Game> {
   ids: Record<string, string>;
   valueMap: Record<string, unknown>;
-  objectMap: { [type: string]: Record<string, any> };
-  triggers: string[];
-  parameters: string[];
+  typeMap: { [type: string]: Record<string, any> };
   index: number;
   commands: {
     runner: CommandRunner<G>;

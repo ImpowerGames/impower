@@ -6,12 +6,12 @@ import { NodeID } from "../../core";
 
 import { GrammarDefinition, RuleDefinition } from "../types/GrammarDefinition";
 import { Rule } from "../types/Rule";
-import { tryMatch } from "../utils/tryMatch";
 import GrammarNode from "./GrammarNode";
 import GrammarRepository from "./GrammarRepository";
 import GrammarStack from "./GrammarStack";
 import GrammarState from "./GrammarState";
 import type Matched from "./Matched";
+import ScopedRule from "./rules/ScopedRule";
 
 export default class Grammar {
   /**
@@ -42,6 +42,11 @@ export default class Grammar {
    * All {@link GrammarNode}s in this grammar, ordered by type index
    */
   declare nodes: GrammarNode[];
+
+  /**
+   * Names of all {@link GrammarNode}s in this grammar, ordered by type index
+   */
+  declare nodeNames: string[];
 
   constructor(
     /**
@@ -82,18 +87,13 @@ export default class Grammar {
 
     // Cache ordered Nodes
     const noneNode = new GrammarNode(
-      NodeID.NONE,
+      NodeID.none,
       { id: "none" },
       this.declarator
     );
-    const topNode = new GrammarNode(NodeID.TOP, { id: "top" }, this.declarator);
-    const newlineNode = new GrammarNode(
-      NodeID.NEWLINE,
-      { id: "newline" },
-      this.declarator
-    );
+    const topNode = new GrammarNode(NodeID.top, { id: "top" }, this.declarator);
     const unrecognizedNode = new GrammarNode(
-      NodeID.ERROR_UNRECOGNIZED,
+      NodeID.unrecognized,
       { id: "unrecognized" },
       (typeIndex, typeId, def) => ({
         isError: true,
@@ -101,7 +101,7 @@ export default class Grammar {
       })
     );
     const incompleteNode = new GrammarNode(
-      NodeID.ERROR_INCOMPLETE,
+      NodeID.incomplete,
       { id: "incomplete" },
       (typeIndex, typeId, def) => ({
         isError: true,
@@ -111,11 +111,11 @@ export default class Grammar {
     this.nodes = [
       noneNode,
       topNode,
-      newlineNode,
       unrecognizedNode,
       incompleteNode,
       ...this.repository.nodes(),
     ];
+    this.nodeNames = this.nodes.map((n) => n.typeId);
   }
 
   /** Returns a {@link GrammarState} setup for this grammar's default state. */
@@ -123,7 +123,12 @@ export default class Grammar {
     return new GrammarState(
       {},
       new GrammarStack([
-        { node: GrammarNode.None, rules: this.rules, end: null },
+        {
+          node: GrammarNode.None,
+          rules: this.rules,
+          end: null,
+          beginCaptures: [],
+        },
       ])
     );
   }
@@ -133,11 +138,41 @@ export default class Grammar {
    *
    * @param state - The {@link GrammarState} to run the match with.
    * @param str - The string to match.
-   * @param pos - The position to start matching at.
+   * @param from - The position to start matching at.
    * @param offset - The offset to apply to the resulting {@link Matched}'s
    *   `from` position.
    */
-  match(state: GrammarState, str: string, pos: number, offset = 0) {
-    return tryMatch(state, str, pos, offset);
+  match(
+    state: GrammarState,
+    str: string,
+    from: number,
+    offset = from,
+    possiblyIncomplete = true
+  ) {
+    if (state.stack.end instanceof ScopedRule) {
+      let result = state.stack.end.end(str, from, state);
+      if (result) {
+        if (offset !== from) {
+          result.offset(offset);
+        }
+        return result;
+      }
+    }
+
+    const rules = state.stack.rules;
+    if (rules) {
+      for (let i = 0; i < rules.length; i++) {
+        const rule = rules[i];
+        const result = rule?.match(str, from, state, possiblyIncomplete);
+        if (result) {
+          if (offset !== from) {
+            result.offset(offset);
+          }
+          return result;
+        }
+      }
+    }
+
+    return null;
   }
 }

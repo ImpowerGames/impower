@@ -8,9 +8,16 @@ const completionTheme = EditorView.baseTheme({
     fontFamily: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto`,
     fontSize: "0.96em",
     border: `solid 1px #FFFFFF21`,
+    borderRadius: "4px",
   },
   "& .cm-tooltip img": {
     width: "320px",
+  },
+  "& .cm-tooltip p": {
+    margin: "4px 8px",
+  },
+  "& .cm-tooltip pre": {
+    margin: "4px 8px",
   },
   "& .cm-tooltip.cm-tooltip-autocomplete": {
     minWidth: "min(90vw, 400px)",
@@ -20,9 +27,6 @@ const completionTheme = EditorView.baseTheme({
     flexDirection: "row",
     alignItems: "center",
     padding: "3px 10px 3px 2px",
-  },
-  "& .cm-tooltip.cm-completionInfo p": {
-    marginTop: "0",
   },
   "& .cm-tooltip.cm-completionInfo pre": {
     margin: "0",

@@ -2,6 +2,8 @@ import { Hover, MarkupKind, Position } from "vscode-languageserver";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import getFencedCode from "./getFencedCode";
+import { isAsset } from "./isAsset";
 
 const getHover = (
   document: TextDocument | undefined,
@@ -14,22 +16,39 @@ const getHover = (
   }
   for (let i = 0; i < references.length; i += 1) {
     const reference = references[i]!;
+    const range = {
+      start: document.positionAt(reference.from),
+      end: document.positionAt(reference.to),
+    };
     const hoveredOffset = document.offsetAt(position);
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
+      const id = reference.id;
       const name = reference.name;
-      const imageAsset = program?.objectMap?.["image"]?.[name];
-      if (imageAsset) {
-        const src = imageAsset.src;
+      const asset = program.typeMap?.["Asset"]?.[name];
+      if (isAsset(asset)) {
+        const src = asset.src;
         return {
           contents: {
             kind: MarkupKind.Markdown,
             value: `![${name}](${src})`,
           },
-          range: {
-            start: document.positionAt(reference.from),
-            end: document.positionAt(reference.to),
-          },
+          range,
         };
+      }
+      if (id && !reference.declaration) {
+        const section = program.sections?.[id];
+        if (section) {
+          const fencedCode = getFencedCode(
+            `${"".padStart(section.level, "#")} ${section.name}`
+          );
+          return {
+            contents: {
+              kind: MarkupKind.Markdown,
+              value: fencedCode,
+            },
+            range,
+          };
+        }
       }
     }
   }

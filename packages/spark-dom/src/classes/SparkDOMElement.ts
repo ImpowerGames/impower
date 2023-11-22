@@ -68,7 +68,7 @@ export class SparkDOMElement implements IElement {
   }
 
   getChildren(): IElement[] {
-    return this._children as IElement[];
+    return [...this._children] as IElement[];
   }
 
   appendChild(child: IElement): void {
@@ -76,10 +76,12 @@ export class SparkDOMElement implements IElement {
     if (el._htmlElement.tagName === "STYLE" && child.id.endsWith(".css")) {
       const head = document.documentElement.getElementsByTagName("head")?.[0];
       if (head) {
-        head.appendChild(el._htmlElement);
+        const childHtmlElement = head.appendChild(el._htmlElement);
+        el._htmlElement = childHtmlElement;
       }
     } else {
-      this._htmlElement.appendChild(el._htmlElement);
+      const childHtmlElement = this._htmlElement.appendChild(el._htmlElement);
+      el._htmlElement = childHtmlElement;
     }
     this._children.push(el);
   }
@@ -138,7 +140,7 @@ export class SparkDOMElement implements IElement {
   setAnimationContent(
     animationName: string,
     properties: Record<string, any>,
-    objectMap: { [type: string]: Record<string, any> }
+    typeMap: { [type: string]: Record<string, any> }
   ): void {
     const groupMap: Record<string, Record<string, unknown>> = {};
     Object.entries(properties).forEach(([fk, fv]) => {
@@ -158,7 +160,7 @@ export class SparkDOMElement implements IElement {
     Object.entries(groupMap || {}).forEach(([keyframe, fields]) => {
       const content = Object.entries(fields)
         .map(([k, v]) => {
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, objectMap);
+          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, typeMap);
           return `${cssProp}: ${cssValue};`;
         })
         .join(`\n  `);
@@ -173,7 +175,7 @@ export class SparkDOMElement implements IElement {
     targetName: string,
     properties: Record<string, any>,
     breakpoints: Record<string, number>,
-    objectMap: { [type: string]: Record<string, any> }
+    typeMap: { [type: string]: Record<string, any> }
   ): void {
     const groupMap: Record<string, Record<string, unknown>> = {};
     Object.entries(properties).forEach(([fk, fv]) => {
@@ -204,7 +206,7 @@ export class SparkDOMElement implements IElement {
     Object.entries(groupMap || {}).forEach(([groupName, fields]) => {
       const content = Object.entries(fields)
         .map(([k, v]) => {
-          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, objectMap);
+          const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, typeMap);
           return `${cssProp}: ${cssValue};`;
         })
         .join(`\n  `);
