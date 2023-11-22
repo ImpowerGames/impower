@@ -140,6 +140,11 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
+  console.log("");
+  console.log(STEP_COLOR, "Defining Browser Variables...");
+  Object.keys(BROWSER_VARIABLES).forEach((key) => {
+    console.log(SRC_COLOR, `  ${getRelativePath(key)}`);
+  });
   await build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
