@@ -33,6 +33,7 @@ import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 
+const CHUNK_KEYWORD = "@";
 const CHUNK_SPLITTER_REGEX = new RegExp(
   GRAMMAR.repository.ChunkSplitter.match,
   "umg"
@@ -239,7 +240,7 @@ export default class WorkspaceFileSystem {
       .forEach((file) => {
         if (file.uri !== mainScriptUri) {
           if (file.text != null && file.name) {
-            content += `\n\n% ${file.name}.${file.ext}`;
+            content += `\n\n${CHUNK_KEYWORD} ${file.name}.${file.ext}`;
             content += `\n\n${file.text}`;
           }
         }
