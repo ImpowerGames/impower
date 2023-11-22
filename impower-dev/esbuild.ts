@@ -140,11 +140,17 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  console.log("");
-  console.log(STEP_COLOR, "Defining Browser Variables...");
-  Object.keys(BROWSER_VARIABLES).forEach((key) => {
-    console.log(SRC_COLOR, `  ${getRelativePath(key)}`);
-  });
+  const browserVariableKeys = Object.keys(BROWSER_VARIABLES);
+  if (browserVariableKeys.length > 0) {
+    console.log("");
+    console.log(STEP_COLOR, "Defining Browser Variables...");
+    browserVariableKeys.forEach((key) => {
+      console.log(SRC_COLOR, `  ${getRelativePath(key)}`);
+    });
+  } else {
+    console.log("");
+    console.error("No Browser Variables Found.");
+  }
   await build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
