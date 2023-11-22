@@ -1389,6 +1389,14 @@ export default class SparkParser {
             }
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
+          } else if (tok.tag === "struct_empty_property") {
+            tok.path = path("struct_map_item", "struct_map_property");
+            const parent = lookup("struct");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
+            addToken(tok);
           } else if (tok.tag === "property_name") {
             const parent = lookup(
               "struct_map_property",

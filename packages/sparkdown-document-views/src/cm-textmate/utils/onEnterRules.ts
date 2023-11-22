@@ -1,5 +1,7 @@
+import { startCompletion } from "@codemirror/autocomplete";
 import { getIndentUnit, indentString } from "@codemirror/language";
-import { EditorSelection, EditorState, Transaction } from "@codemirror/state";
+import { EditorSelection } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 
 const INDENT_REGEX = /([ \t]*)/;
 
@@ -17,21 +19,16 @@ export const onEnterRules =
       };
     }[]
   ) =>
-  (target: {
-    state: EditorState;
-    dispatch: (transaction: Transaction) => void;
-  }): boolean => {
-    if (!onEnterRules) {
-      return false;
-    }
+  (target: EditorView): boolean => {
     const { state, dispatch } = target;
+
     const { doc } = state;
-    let dont = null;
+    let triggeredRule = undefined;
     const changes = state.changeByRange((range) => {
       const pos = range.from;
       const beforeLine = doc.lineAt(pos);
-      if (state.selection.ranges.length !== 1) {
-        return (dont = { range });
+      if (!onEnterRules || state.selection.ranges.length !== 1) {
+        return { range };
       }
       const selectionFrom = state.selection.main.from;
       const selectionTo = state.selection.main.to;
@@ -71,6 +68,7 @@ export const onEnterRules =
         ) {
           continue;
         }
+        triggeredRule = onEnterRule;
         let indent = indentString(state, currentIndentSize);
         if (onEnterRule.action.indent === "none") {
           indent = indentString(state, currentIndentSize);
@@ -140,13 +138,32 @@ export const onEnterRules =
           };
         }
       }
-      return (dont = { range });
+      return { range };
     });
-    if (dont) {
-      return false;
+
+    if (triggeredRule) {
+      dispatch(
+        state.update(changes, { scrollIntoView: true, userEvent: "input" })
+      );
+      return startCompletion(target);
     }
+
+    const defaultChanges = state.changeByRange((range) => {
+      const pos = range.from;
+      const insert = state.lineBreak;
+      return {
+        range: EditorSelection.cursor(pos + insert.length),
+        changes: [
+          {
+            from: pos,
+            to: pos,
+            insert,
+          },
+        ],
+      };
+    });
     dispatch(
-      state.update(changes, { scrollIntoView: true, userEvent: "input" })
+      state.update(defaultChanges, { scrollIntoView: true, userEvent: "input" })
     );
-    return true;
+    return startCompletion(target);
   };

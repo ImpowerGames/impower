@@ -491,7 +491,6 @@ repository:
     patterns:
       - { include: "#Comment" }
       - { include: "#StructField" }
-      - { include: "#Newline" }
       - { include: "#Unknown" }
     end: (?=^$)|(?=^(?!\1(?:[ ]{2,}|[\t]+)))
 
@@ -502,6 +501,11 @@ repository:
       - { include: "#StructScalarItem" }
       - { include: "#StructMapProperty" }
       - { include: "#StructScalarProperty" }
+      - { include: "#Newline" }
+      - { include: "#StructEmptyProperty" }
+
+  StructEmptyProperty:
+    match: (\s*$)
 
   StructMapItem:
     tag: meta
@@ -570,6 +574,7 @@ repository:
       - { include: "#StructMapProperty" }
       - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
+      - { include: "#StructEmptyProperty" }
       - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
 

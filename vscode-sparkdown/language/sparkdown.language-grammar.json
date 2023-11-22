@@ -820,9 +820,6 @@
           "include": "#StructField"
         },
         {
-          "include": "#Newline"
-        },
-        {
           "include": "#Unknown"
         }
       ],
@@ -842,8 +839,17 @@
         },
         {
           "include": "#StructScalarProperty"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#StructEmptyProperty"
         }
       ]
+    },
+    "StructEmptyProperty": {
+      "match": "(\\s*$)"
     },
     "StructMapItem": {
       "tag": "meta",
@@ -968,6 +974,9 @@
         },
         {
           "include": "#Newline"
+        },
+        {
+          "include": "#StructEmptyProperty"
         },
         {
           "include": "#Unknown"

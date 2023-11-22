@@ -43,6 +43,7 @@ const SPARK_TOKEN_TAGS: {
   StructMapProperty_begin: "struct_map_property_start",
   StructScalarProperty: "struct_scalar_property",
   StructScalarProperty_begin: "struct_scalar_property_start",
+  StructEmptyProperty: "struct_empty_property",
 
   DefineFunction: "function",
 

@@ -11,10 +11,12 @@ import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getA
 import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
+  SparkStructEmptyProperty,
   SparkStructMapPropertyToken,
   SparkStructToken,
 } from "@impower/sparkdown/src/types/SparkToken";
 import getLineText from "./getLineText";
+import getLineTextAfter from "./getLineTextAfter";
 import getLineTextBefore from "./getLineTextBefore";
 import { Asset, isAsset } from "./isAsset";
 import isEmptyLine from "./isEmptyLine";
@@ -29,7 +31,7 @@ const getImageCompletions = (
   ) as Asset[];
   return images.map((asset) => ({
     label: asset.name,
-    labelDetails: { description: asset.type },
+    labelDetails: { description: "Image" },
     kind: CompletionItemKind.Constructor,
     documentation: {
       kind: MarkupKind.Markdown,
@@ -46,7 +48,7 @@ const getAudioCompletions = (
   ) as Asset[];
   return audio.map((asset) => ({
     label: asset.name,
-    labelDetails: { description: asset.type },
+    labelDetails: { description: "Audio" },
     kind: CompletionItemKind.Constructor,
   }));
 };
@@ -76,13 +78,16 @@ const getAudioArgumentCompletions = (
 const getCharacterCompletions = (
   line: number,
   program: SparkProgram | undefined,
-  beforeText: string
+  beforeText?: string
 ): CompletionItem[] | null => {
   const characters = Object.values(program?.metadata?.characters || {});
   const recentCharactersSet = new Set<string>();
   for (let i = line - 1; i >= 0; i -= 1) {
     const dialogueCharacterName = program?.metadata?.lines?.[i]?.characterName;
-    if (dialogueCharacterName && dialogueCharacterName.startsWith(beforeText)) {
+    if (
+      dialogueCharacterName &&
+      (!beforeText || dialogueCharacterName.startsWith(beforeText))
+    ) {
       recentCharactersSet.add(dialogueCharacterName);
     }
   }
@@ -93,7 +98,7 @@ const getCharacterCompletions = (
       recentCharacters.splice(1, 0, mostRecentCharacter);
     }
   }
-  const labelDetails = { description: "Dialogue" };
+  const labelDetails = { description: "Character" };
   const kind = CompletionItemKind.Constant;
   const result: CompletionItem[] = [];
   recentCharacters.forEach((name, index) => {
@@ -110,7 +115,7 @@ const getCharacterCompletions = (
       character.lines?.[0] !== line &&
       character.name &&
       !recentCharactersSet.has(character.name) &&
-      character.name.startsWith(beforeText)
+      (!beforeText || character.name.startsWith(beforeText))
     ) {
       result.push({
         label: character.name,
@@ -141,16 +146,22 @@ const getStructMapPropertyNameCompletions = (
   const parentProperties = getAllProperties(parentObj);
   fields?.forEach((field) => {
     const prop = "." + field.path + "." + field.key;
-    existingProps.add(prop);
+    let path = "";
+    prop.split(".").forEach((p) => {
+      if (p) {
+        path += "." + p;
+        existingProps.add(path);
+      }
+    });
   });
   Object.entries(parentProperties).forEach(([p, v]) => {
-    if (!existingProps.has(p) && p.startsWith(prefix)) {
+    if (p.startsWith(prefix)) {
       const [name, child] = p.slice(prefix.length).split(".");
+      const targetPath = p.slice(0, prefix.length) + name;
       const description = child ? "object" : typeof v;
       if (name && Number.isNaN(Number(name))) {
-        if (!possibleNames.has(name)) {
+        if (!existingProps.has(targetPath) && !possibleNames.has(name)) {
           possibleNames.add(name);
-          // TODO: When inserting object prop, use snippet syntax to allow user to choose between all possible child names ${1|one,two,three|}
           // TODO: When inserting string prop (that takes fixed values), use snippet syntax to allow user to choose between all possible string values ${1|one,two,three|}
           const insertSuffix = child ? `:\n${indentedStr}` : ": ";
           result.push({
@@ -177,21 +188,20 @@ const getCompletions = (
   }
   const prevLineText = getLineText(document, position, -1);
   const nextLineText = getLineText(document, position, 1);
-  const lineTextBefore = getLineTextBefore(document, position);
-  const trimmedLineTextBefore = lineTextBefore.trim();
+  const textBefore = getLineTextBefore(document, position);
+  const textAfter = getLineTextAfter(document, position);
+  const trimmedTextBefore = textBefore.trimStart();
+  const trimmedTextAfter = textAfter.trimEnd();
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopes = lineMetadata?.scopes;
   const triggerCharacter = context?.triggerCharacter;
-  console.log(triggerCharacter, lineMetadata);
   if (scopes) {
     if (scopes.includes("image")) {
       return getImageCompletions(program);
     }
     if (scopes.includes("audio")) {
       if (scopes.includes("asset_args")) {
-        return getAudioArgumentCompletions(
-          trimmedLineTextBefore.replace("((", "")
-        );
+        return getAudioArgumentCompletions(trimmedTextBefore.replace("((", ""));
       } else if (triggerCharacter !== "@") {
         return getAudioCompletions(program);
       }
@@ -202,21 +212,14 @@ const getCompletions = (
       isEmptyLine(prevLineText) &&
       isEmptyLine(nextLineText)
     ) {
-      return getCharacterCompletions(
-        position.line,
-        program,
-        trimmedLineTextBefore
-      );
+      return getCharacterCompletions(position.line, program, trimmedTextBefore);
     }
     if (
       scopes.includes("dialogue") &&
-      scopes.includes("dialogue_character_name")
+      scopes.includes("dialogue_character_name") &&
+      !trimmedTextAfter
     ) {
-      return getCharacterCompletions(
-        position.line,
-        program,
-        trimmedLineTextBefore
-      );
+      return getCharacterCompletions(position.line, program, trimmedTextBefore);
     }
     if (
       scopes.includes("struct_map_property_start") &&
@@ -224,10 +227,10 @@ const getCompletions = (
     ) {
       const structToken = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
-        .find((t) => t?.tag === "struct") as SparkStructToken | undefined;
+        .findLast((t) => t?.tag === "struct") as SparkStructToken | undefined;
       const structMapPropertyToken = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
-        .find((t) => t?.tag === "struct_map_property") as
+        .findLast((t) => t?.tag === "struct_map_property") as
         | SparkStructMapPropertyToken
         | undefined;
       if (structToken && structMapPropertyToken) {
@@ -236,7 +239,30 @@ const getCompletions = (
           structToken.type,
           structToken.fields,
           structMapPropertyToken.path,
-          lineTextBefore
+          textBefore
+        );
+      }
+    }
+    if (
+      scopes.includes("struct") &&
+      (scopes.includes("struct_empty_property") ||
+        scopes.at(-1) === "struct_field")
+    ) {
+      const structToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct") as SparkStructToken | undefined;
+      const structEmptyProperty = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct_empty_property") as
+        | SparkStructEmptyProperty
+        | undefined;
+      if (structToken && structEmptyProperty) {
+        return getStructMapPropertyNameCompletions(
+          program,
+          structToken.type,
+          structToken.fields,
+          structEmptyProperty.path,
+          textBefore
         );
       }
     }
@@ -245,6 +271,10 @@ const getCompletions = (
       scopes.includes("value_text")
     ) {
       // TODO: Use struct validation to autocomplete enum strings
+    }
+  } else {
+    if (isEmptyLine(nextLineText)) {
+      return getCharacterCompletions(position.line, program);
     }
   }
   return undefined;

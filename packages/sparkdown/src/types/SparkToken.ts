@@ -102,6 +102,11 @@ export interface SparkStructScalarPropertyToken
   type: string;
 }
 
+export interface SparkStructEmptyProperty
+  extends ISparkStructFieldToken<"struct_empty_property"> {
+  path: string;
+}
+
 export interface SparkFunctionToken extends ISparkToken<"function"> {
   name: string;
   parameterNames: string[];
@@ -303,9 +308,9 @@ export interface SparkOtherToken
     | "variable_name"
     | "property_name"
     | "function_name"
-    | "struct_field"
     | "struct_map_property_start"
     | "struct_scalar_property_start"
+    | "struct_field"
     | "identifier_path"
     | "assign_operator"
     | "value_text"
@@ -339,6 +344,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   struct_scalar_item: SparkStructScalarItemToken;
   struct_map_property: SparkStructMapPropertyToken;
   struct_scalar_property: SparkStructScalarPropertyToken;
+  struct_empty_property: SparkStructEmptyProperty;
   function: SparkFunctionToken;
   call: SparkCallToken;
   assign: SparkAssignToken;
