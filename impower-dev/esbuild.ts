@@ -12,12 +12,14 @@ import renderPage from "./src/build/renderPage";
 
 const RESET = "\x1b[0m";
 const STRING = "%s";
+const RED = "\x1b[31m" + STRING + RESET;
 const GREEN = "\x1b[32m" + STRING + RESET;
 const YELLOW = "\x1b[33m" + STRING + RESET;
 const BLUE = "\x1b[34m" + STRING + RESET;
 const MAGENTA = "\x1b[35m" + STRING + RESET;
 const CYAN = "\x1b[36m" + STRING + RESET;
 
+const ERROR_COLOR = RED;
 const STARTED_COLOR = YELLOW;
 const FINISHED_COLOR = CYAN;
 const STEP_COLOR = BLUE;
@@ -140,16 +142,16 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  const browserVariableKeys = Object.keys(BROWSER_VARIABLES);
-  if (browserVariableKeys.length > 0) {
+  const browserVariableEntries = Object.entries(BROWSER_VARIABLES);
+  if (browserVariableEntries.length > 0) {
     console.log("");
     console.log(STEP_COLOR, "Defining Browser Variables...");
-    browserVariableKeys.forEach((key) => {
-      console.log(SRC_COLOR, `  ${getRelativePath(key)}`);
+    browserVariableEntries.forEach(([key, value]) => {
+      console.log(SRC_COLOR, `  ${key}=${value}`);
     });
   } else {
     console.log("");
-    console.error("No Browser Variables Found.");
+    console.error(ERROR_COLOR, "No Browser Variables Found.");
   }
   await build({
     entryPoints: entryPoints,
