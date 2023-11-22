@@ -1037,7 +1037,8 @@ export default class WorkspaceWindow {
       fileId,
       createZipFile(filename, content)
     );
-    const remoteProjectName = remoteProjectFile.name!.split(".")[0]!;
+    const remoteProjectName =
+      remoteProjectFile?.name?.split(".")[0] || projectName;
     await Promise.all([
       Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
       Workspace.fs.writeProjectMetadata(
