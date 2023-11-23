@@ -21,7 +21,7 @@ const setProperty = (
         }
         curr[key] = value;
       } else {
-        if (curr[key] == null) {
+        if (curr[key] == null || typeof curr[key] !== "object") {
           if (Array.isArray(curr) && Number.isNaN(Number(key))) {
             error = true;
             break;
