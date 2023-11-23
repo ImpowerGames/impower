@@ -95,7 +95,6 @@ export const write = (
   let spaceLength = 0;
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
-  let hideSpace = false;
   let escaped = false;
   let currChunk: Chunk | undefined = undefined;
 
@@ -107,7 +106,6 @@ export const write = (
     spaceLength = 0;
     phrasePauseLength = 0;
     phraseUnpauseLength = 0;
-    hideSpace = false;
     currChunk = undefined;
     escaped = false;
   };
@@ -200,11 +198,6 @@ export const write = (
             i += mark.length;
             continue;
           }
-          if (char === "|") {
-            i += 1;
-            hideSpace = true;
-            continue;
-          }
         }
         escaped = false;
         const markers = marks.map((x) => x[0]);
@@ -232,10 +225,6 @@ export const write = (
           fontWeight: isBolded ? "bold" : null,
           whiteSpace: char === "\n" ? "pre-wrap" : null,
         };
-        const span = onCreateElement?.();
-        if (span) {
-          populateAndStyleElement(span, char || "", style);
-        }
         const voiced = Boolean(voicedRegex?.test(char));
         if (isWhitespace(char)) {
           word = "";
@@ -336,11 +325,15 @@ export const write = (
 
         if (phraseUnpauseLength === 1) {
           // start voiced phrase
+          const span = onCreateElement?.();
+          if (span) {
+            populateAndStyleElement(span, char || "", style);
+            partEls.push(span);
+          }
           currChunk = {
             char,
             duration,
             speed,
-            element: span,
             startOfWord,
             startOfSyllable,
             voiced,
@@ -355,6 +348,7 @@ export const write = (
             pitch,
             punctuated: false,
             sustained: false,
+            element: span,
           };
           result.push({
             ...p,
@@ -367,41 +361,50 @@ export const write = (
           if (currentPhrase) {
             currentPhrase.text ??= "";
             currentPhrase.text += char;
-            currChunk = {
-              char,
-              duration,
-              speed,
-              element: span,
-              startOfWord,
-              startOfSyllable,
-              voiced,
-              yelled,
-              bolded,
-              italicized,
-              underlined,
-              floating,
-              trembling,
-              emDash,
-              tilde,
-              pitch,
-              punctuated: false,
-              sustained: false,
-            };
-            currentPhrase.chunks ??= [];
-            currentPhrase.chunks.push(currChunk);
-          }
-        }
-        if (span) {
-          partEls.push(span);
-        }
-        if (spaceLength > 0) {
-          if (hideSpace) {
-            if (span) {
-              span.textContent = "";
+            if (
+              !speed &&
+              !duration &&
+              currChunk?.element &&
+              bolded === currChunk?.bolded &&
+              italicized === currChunk?.italicized &&
+              underlined === currChunk?.underlined &&
+              floating === currChunk?.floating &&
+              trembling === currChunk?.trembling
+            ) {
+              // No need to create new element, simply append char to previous chunk
+              currChunk.char += char;
+              currChunk.element.textContent += char;
+            } else {
+              // Create new element and chunk
+              const span = onCreateElement?.();
+              if (span) {
+                populateAndStyleElement(span, char || "", style);
+                partEls.push(span);
+              }
+              currChunk = {
+                char,
+                duration,
+                speed,
+                startOfWord,
+                startOfSyllable,
+                voiced,
+                yelled,
+                bolded,
+                italicized,
+                underlined,
+                floating,
+                trembling,
+                emDash,
+                tilde,
+                pitch,
+                punctuated: false,
+                sustained: false,
+                element: span,
+              };
+              currentPhrase.chunks ??= [];
+              currentPhrase.chunks.push(currChunk);
             }
           }
-        } else {
-          hideSpace = false;
         }
         i += 1;
       }
