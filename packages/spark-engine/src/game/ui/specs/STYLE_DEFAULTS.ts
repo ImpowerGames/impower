@@ -49,7 +49,6 @@ export const STYLE_DEFAULTS = {
     backgroundPosition: "center",
   },
   ChoiceGroup: {
-    color: "black",
     position: "relative",
     flex: 1,
     display: "flex",
