@@ -38,9 +38,18 @@ export const getCSSPropertyKeyValue = (
     return [cssProp, theme.colors[cssValue]];
   }
   if (cssProp === "background-image" && typeof cssValue === "string") {
-    const url = /^[ ]*url[ ]*[(]/.test(cssValue.trim())
-      ? cssValue
-      : `url('${encodeURI(cssValue)}')`;
+    const src = cssValue.trim();
+    const url = /^[ ]*url[ ]*[(]/.test(src) ? src : `url('${encodeURI(src)}')`;
+    return [cssProp, url];
+  }
+  if (
+    cssProp === "background-image" &&
+    typeof cssValue === "object" &&
+    "src" in cssValue &&
+    typeof cssValue.src === "string"
+  ) {
+    const src = cssValue.src.trim();
+    const url = /^[ ]*url[ ]*[(]/.test(src) ? src : `url('${encodeURI(src)}')`;
     return [cssProp, url];
   }
   if (cssProp === "text-stroke") {

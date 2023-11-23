@@ -17,6 +17,12 @@ const DEFAULT_BREAKPOINTS = {
   lg: 1280,
   xl: 1920,
 };
+const isAsset = (obj: unknown): obj is { type: string; src: string } => {
+  const asset = obj as { type: string; src: string };
+  return asset && Boolean(asset.type && asset.src);
+};
+
+const isAssetLeaf = (_: string, v: unknown) => isAsset(v);
 
 export interface UIEvents extends Record<string, GameEvent> {
   onCreateElement: GameEvent2<string, string>;
@@ -161,7 +167,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
             styleStructObj
           );
           if (structEl) {
-            const properties = getAllProperties(styleStructObj);
+            const properties = getAllProperties(styleStructObj, isAssetLeaf);
             const breakpoints = typeMap?.["Breakpoint"] || DEFAULT_BREAKPOINTS;
             structEl.setStyleContent(
               structName,

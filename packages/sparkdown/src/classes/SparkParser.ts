@@ -882,9 +882,10 @@ export default class SparkParser {
       }
     };
 
-    /* PROCESS TYPE MAP */
     let line = -1;
     let currentSectionId = "";
+
+    /* PROCESS DEFAULT TYPES */
     if (program.typeMap) {
       Object.entries(program.typeMap).forEach(([type, objectsOfType]) => {
         program.structs ??= {};
@@ -924,6 +925,18 @@ export default class SparkParser {
           program.structs ??= {};
           program.structs[id] ??= struct;
         });
+      });
+    }
+
+    /* PROCESS DEFAULT VARIABLES */
+    if (program.variables) {
+      Object.entries(program.variables).forEach(([id, variable]) => {
+        const sectionId = id.split(".").slice(0, -1).join(".") || "";
+        const section = program.sections[sectionId];
+        if (section) {
+          section.variables ??= {};
+          section.variables[id] = variable;
+        }
       });
     }
 

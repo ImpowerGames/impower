@@ -22,9 +22,9 @@ const getHover = (
     };
     const hoveredOffset = document.offsetAt(position);
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
-      const id = reference.id;
+      const id = reference.id || "";
       const name = reference.name;
-      const asset = program.typeMap?.["Asset"]?.[name];
+      const asset = program.variables?.[id]?.compiled;
       if (isAsset(asset)) {
         const src = asset.src;
         return {

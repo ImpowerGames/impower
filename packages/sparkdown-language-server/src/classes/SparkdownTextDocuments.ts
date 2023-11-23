@@ -8,6 +8,7 @@ import {
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
 import { STRUCT_DEFAULTS } from "@impower/spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
+import { SparkVariable } from "@impower/sparkdown/src/types/SparkVariable";
 import {
   CancellationToken,
   Connection,
@@ -172,19 +173,31 @@ export default class SparkdownTextDocuments<
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
       const files = Object.values(this._files);
-      const typeMap = { ...STRUCT_DEFAULTS };
+      const typeMap = STRUCT_DEFAULTS;
+      const variables: Record<string, SparkVariable> = {};
       files.forEach((file) => {
-        typeMap["Asset"] ??= {};
-        typeMap["Asset"]![file.name] = {
-          uri: file.uri,
-          name: file.name,
-          src: file.src,
-          ext: file.ext,
-          type: file.type,
-        };
+        if (file.name) {
+          const id = "." + file.name;
+          const obj = {
+            uri: file.uri,
+            name: file.name,
+            src: file.src,
+            ext: file.ext,
+            type: file.type,
+          };
+          variables[id] ??= {
+            line: -1,
+            from: -1,
+            to: -1,
+            type: "Asset",
+            name: file.name,
+            value: JSON.stringify(obj),
+            compiled: obj,
+          };
+        }
       });
       const syncedProgram = this._parser.parse(syncedDocument.getText(), {
-        augmentations: { typeMap },
+        augmentations: { typeMap, variables },
       });
       this._syncedPrograms.set(uri, syncedProgram);
       this._onDidParse.fire(

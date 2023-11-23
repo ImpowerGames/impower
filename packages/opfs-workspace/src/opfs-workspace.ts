@@ -18,6 +18,7 @@ import { FileData } from "@impower/spark-editor-protocol/src/types";
 import { Zippable, unzipSync, zipSync } from "fflate";
 import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
 import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
+import { SparkVariable } from "../../sparkdown/src";
 import debounce from "./utils/debounce";
 import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
@@ -45,19 +46,31 @@ const globToRegex = (glob: string) => {
 
 const parse = (file: FileData, files: FileData[]) => {
   if (file.text != null && file.name) {
-    const typeMap = { ...STRUCT_DEFAULTS };
+    const typeMap = STRUCT_DEFAULTS;
+    const variables: Record<string, SparkVariable> = {};
     files.forEach((file) => {
-      typeMap["Asset"] ??= {};
-      typeMap["Asset"]![file.name] = {
-        uri: file.uri,
-        name: file.name,
-        src: file.src,
-        ext: file.ext,
-        type: file.type,
-      };
+      if (file.name) {
+        const id = "." + file.name;
+        const obj = {
+          uri: file.uri,
+          name: file.name,
+          src: file.src,
+          ext: file.ext,
+          type: file.type,
+        };
+        variables[id] ??= {
+          line: -1,
+          from: -1,
+          to: -1,
+          type: "Asset",
+          name: file.name,
+          value: JSON.stringify(obj),
+          compiled: obj,
+        };
+      }
     });
     const program = EngineSparkParser.instance.parse(file.text, {
-      augmentations: { typeMap },
+      augmentations: { typeMap, variables },
     });
     return program;
   }

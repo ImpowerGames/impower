@@ -26,9 +26,9 @@ const WHITESPACE_REGEX = /\s/g;
 const getImageCompletions = (
   program: SparkProgram | undefined
 ): CompletionItem[] | null => {
-  const images = Object.values(program?.typeMap?.["Asset"] || {}).filter(
-    (asset) => isAsset(asset) && asset.type === "image"
-  ) as Asset[];
+  const images = Object.values(program?.variables || {})
+    .filter((v) => isAsset(v.compiled) && v.compiled.type === "image")
+    .map((v) => v.compiled as Asset);
   return images.map((asset) => ({
     label: asset.name,
     labelDetails: { description: "Image" },
@@ -43,9 +43,9 @@ const getImageCompletions = (
 const getAudioCompletions = (
   program: SparkProgram | undefined
 ): CompletionItem[] | null => {
-  const audio = Object.values(program?.typeMap?.["Asset"] || {}).filter(
-    (asset) => isAsset(asset) && asset.type === "audio"
-  ) as Asset[];
+  const audio = Object.values(program?.variables || {})
+    .filter((v) => isAsset(v.compiled) && v.compiled.type === "audio")
+    .map((v) => v.compiled as Asset);
   return audio.map((asset) => ({
     label: asset.name,
     labelDetails: { description: "Audio" },
