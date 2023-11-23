@@ -351,7 +351,6 @@ export default class SparkParser {
             // Ensure array items are not inherited from parent
             (_curr, part) => !isLeaf && !Number.isNaN(Number(part))
           );
-          console.log(propertyPath, successfullySet, field.value);
           if (error) {
             const from = prevField?.to ?? 0;
             const fullProp = script.slice(from, field.to);
