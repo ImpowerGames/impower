@@ -1,8 +1,4 @@
-import {
-  Compiler,
-  Tree,
-  printTree,
-} from "../../../grammar-compiler/src/compiler";
+import { Compiler, Tree } from "../../../grammar-compiler/src/compiler";
 import { NodeID } from "../../../grammar-compiler/src/core";
 import { Grammar } from "../../../grammar-compiler/src/grammar";
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
@@ -2202,7 +2198,7 @@ export default class SparkParser {
     program.metadata.parseTime = parseEndTime;
     program.metadata.parseDuration = parseEndTime - parseStartTime;
 
-    console.log(program);
+    // console.log(program);
 
     return program;
   }
@@ -2228,7 +2224,7 @@ export default class SparkParser {
       buffer,
       reused,
     });
-    console.log(printTree(tree, paddedScript, this.grammar.nodeNames));
+    // console.log(printTree(tree, paddedScript, this.grammar.nodeNames));
     return this.build(paddedScript, tree, parseConfig);
   }
 }
