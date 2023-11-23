@@ -2,15 +2,15 @@ export const UI_DEFAULTS = {
   "": {},
   Loading: {
     LoadingBar: {
-      LoadingFill: "",
+      LoadingFill: {},
     },
   },
   Display: {
-    Backdrop: "",
-    Portrait: "",
+    Backdrop: {},
+    Portrait: {},
     ChoiceGroup: {
       Choices: {
-        Choice: "",
+        Choice: {},
       },
     },
     Box: {
@@ -19,19 +19,19 @@ export const UI_DEFAULTS = {
         DescriptionGroup: {
           DescriptionBox: {
             DescriptionContent: {
-              Action: "",
-              Centered: "",
-              Transition: "",
-              Scene: "",
+              Action: {},
+              Centered: {},
+              Transition: {},
+              Scene: {},
             },
           },
         },
         DialogueGroup: {
-          CharacterName: "",
-          CharacterParenthetical: "",
+          CharacterName: {},
+          CharacterParenthetical: {},
           DialogueContent: {
-            Parenthetical: "",
-            Dialogue: "",
+            Parenthetical: {},
+            Dialogue: {},
           },
         },
       },

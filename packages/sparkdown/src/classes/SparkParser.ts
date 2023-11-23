@@ -1,4 +1,8 @@
-import { Compiler, Tree } from "../../../grammar-compiler/src/compiler";
+import {
+  Compiler,
+  Tree,
+  printTree,
+} from "../../../grammar-compiler/src/compiler";
 import { NodeID } from "../../../grammar-compiler/src/core";
 import { Grammar } from "../../../grammar-compiler/src/grammar";
 import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
@@ -289,7 +293,7 @@ export default class SparkParser {
         const id = getDeclarationId(tok);
         tok.id = id;
         program.structs ??= {};
-        program.structs[id] ??= tok;
+        program.structs[id] = tok;
       }
     };
 
@@ -342,7 +346,8 @@ export default class SparkParser {
       if (struct.fields) {
         let prevField: SparkField | undefined = undefined;
         struct.fields.forEach((field) => {
-          const propertyPath = field.path + "." + field.key;
+          const propAccess = field.key ? "." + field.key : "";
+          const propertyPath = field.path + propAccess;
           const { successfullySet, error } = setProperty(
             combinedFieldValues,
             propertyPath,
@@ -350,6 +355,7 @@ export default class SparkParser {
             // Ensure array items are not inherited from parent
             (_curr, part) => !isLeaf && !Number.isNaN(Number(part))
           );
+          console.log(propertyPath, successfullySet, field.value);
           if (error) {
             const from = prevField?.to ?? 0;
             const fullProp = script.slice(from, field.to);
@@ -906,8 +912,7 @@ export default class SparkParser {
           };
           traverse(object, (path, v) => {
             const parts = path.split(".");
-            struct.fields ??= [];
-            struct.fields.push({
+            const field = {
               tag: "field",
               line,
               from: -1,
@@ -917,7 +922,9 @@ export default class SparkParser {
               key: parts.at(-1) || "",
               type: typeof v,
               value: JSON.stringify(v),
-            });
+            };
+            struct.fields ??= [];
+            struct.fields.push(field);
           });
           program.structs ??= {};
           program.structs[id] ??= struct;
@@ -1348,18 +1355,29 @@ export default class SparkParser {
               parent.content ??= [];
               parent.content.push(tok);
             }
+            const struct = lookup("struct");
+            const mapProperty = lookup("struct_map_property");
+            if (mapProperty) {
+              mapProperty.entriesLength ??= 0;
+              tok.key = String(mapProperty.entriesLength);
+              mapProperty.entriesLength += 1;
+            } else if (struct) {
+              struct.entriesLength ??= 0;
+              tok.key = String(struct.entriesLength);
+              struct.entriesLength += 1;
+            }
             addToken(tok);
           } else if (tok.tag === "struct_map_item") {
             const struct = lookup("struct");
             const mapProperty = lookup("struct_map_property");
             if (mapProperty) {
-              mapProperty.arrayLength ??= 0;
-              tok.key = String(mapProperty.arrayLength);
-              mapProperty.arrayLength += 1;
+              mapProperty.entriesLength ??= 0;
+              tok.key = String(mapProperty.entriesLength);
+              mapProperty.entriesLength += 1;
             } else if (struct) {
-              struct.arrayLength ??= 0;
-              tok.key = String(struct.arrayLength);
-              struct.arrayLength += 1;
+              struct.entriesLength ??= 0;
+              tok.key = String(struct.entriesLength);
+              struct.entriesLength += 1;
             }
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
@@ -1371,13 +1389,13 @@ export default class SparkParser {
             }
             const mapProperty = lookup("struct_map_property");
             if (mapProperty) {
-              mapProperty.arrayLength ??= 0;
-              tok.key = String(mapProperty.arrayLength);
-              mapProperty.arrayLength += 1;
+              mapProperty.entriesLength ??= 0;
+              tok.key = String(mapProperty.entriesLength);
+              mapProperty.entriesLength += 1;
             } else if (struct) {
-              struct.arrayLength ??= 0;
-              tok.key = String(struct.arrayLength);
-              struct.arrayLength += 1;
+              struct.entriesLength ??= 0;
+              tok.key = String(struct.entriesLength);
+              struct.entriesLength += 1;
             }
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
@@ -1387,9 +1405,19 @@ export default class SparkParser {
               struct.fields ??= [];
               struct.fields.push(tok);
             }
+            const mapProperty = lookup("struct_map_property");
+            if (mapProperty) {
+              mapProperty.entriesLength ??= 0;
+              tok.key = String(mapProperty.entriesLength);
+              mapProperty.entriesLength += 1;
+            } else if (struct) {
+              struct.entriesLength ??= 0;
+              tok.key = String(struct.entriesLength);
+              struct.entriesLength += 1;
+            }
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
-          } else if (tok.tag === "struct_empty_property") {
+          } else if (tok.tag === "struct_blank_property") {
             tok.path = path("struct_map_item", "struct_map_property");
             const parent = lookup("struct");
             if (parent) {
@@ -1710,6 +1738,29 @@ export default class SparkParser {
             prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "flow_break") {
             prevDisplayPositionalTokens.length = 0;
+          } else if (tok.tag === "struct_map_property") {
+            if (!tok.entriesLength) {
+              const struct_empty_property = createSparkToken(
+                "struct_empty_property",
+                {
+                  line: tok.line,
+                  from: tok.from,
+                  to: tok.to,
+                  indent: tok.indent,
+                }
+              );
+              struct_empty_property.path = path(
+                "struct_map_item",
+                "struct_map_property"
+              );
+              struct_empty_property.value = "{}";
+              addToken(struct_empty_property);
+              const struct = lookup("struct");
+              if (struct) {
+                struct.fields ??= [];
+                struct.fields.push(struct_empty_property);
+              }
+            }
           } else if (tok.tag === "struct") {
             prevDisplayPositionalTokens.length = 0;
             const [ids, context] = getScopedValueContext(
@@ -1755,7 +1806,8 @@ export default class SparkParser {
                       field.ranges?.key
                     )
                   ) {
-                    const propertyPath = field.path + "." + field.key;
+                    const propAccess = field.key ? "." + field.key : "";
+                    const propertyPath = field.path + propAccess;
                     const existingField = propertyPaths[propertyPath];
                     if (existingField) {
                       // Error if field was defined multiple times in the current struct
@@ -2176,7 +2228,7 @@ export default class SparkParser {
       buffer,
       reused,
     });
-    // console.log(printTree(tree, paddedScript, this.grammar.nodeNames));
+    console.log(printTree(tree, paddedScript, this.grammar.nodeNames));
     return this.build(paddedScript, tree, parseConfig);
   }
 }

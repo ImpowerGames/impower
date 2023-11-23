@@ -54,7 +54,7 @@ export interface SparkStructToken extends ISparkToken<"struct"> {
   value: string;
   compiled: unknown;
   fields?: ISparkStructFieldToken[];
-  arrayLength?: number;
+  entriesLength?: number;
 
   ranges?: {
     type?: SparkRange;
@@ -79,7 +79,7 @@ export interface ISparkStructFieldToken<T extends string = string>
 export interface SparkStructMapItemToken
   extends ISparkStructFieldToken<"struct_map_item"> {
   key: string;
-  arrayLength?: number;
+  entriesLength?: number;
 }
 
 export interface SparkStructScalarItemToken
@@ -92,7 +92,7 @@ export interface SparkStructScalarItemToken
 export interface SparkStructMapPropertyToken
   extends ISparkStructFieldToken<"struct_map_property"> {
   key: string;
-  arrayLength?: number;
+  entriesLength?: number;
 }
 
 export interface SparkStructScalarPropertyToken
@@ -100,6 +100,11 @@ export interface SparkStructScalarPropertyToken
   path: string;
   key: string;
   type: string;
+}
+
+export interface SparkStructBlankProperty
+  extends ISparkStructFieldToken<"struct_blank_property"> {
+  path: string;
 }
 
 export interface SparkStructEmptyProperty
@@ -344,6 +349,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   struct_scalar_item: SparkStructScalarItemToken;
   struct_map_property: SparkStructMapPropertyToken;
   struct_scalar_property: SparkStructScalarPropertyToken;
+  struct_blank_property: SparkStructBlankProperty;
   struct_empty_property: SparkStructEmptyProperty;
   function: SparkFunctionToken;
   call: SparkCallToken;

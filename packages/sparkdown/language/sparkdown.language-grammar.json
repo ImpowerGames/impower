@@ -844,12 +844,21 @@
           "include": "#Newline"
         },
         {
-          "include": "#StructEmptyProperty"
+          "include": "#StructBlankProperty"
         }
       ]
     },
-    "StructEmptyProperty": {
-      "match": "(\\s*$)"
+    "StructBlankProperty": {
+      "match": "(\\s+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        }
+      }
     },
     "StructMapItem": {
       "tag": "meta",
@@ -928,7 +937,7 @@
     "StructMapProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.map.sd",
-      "begin": "^([ \\t]*)([^ \\t:]+)($|[:])($|[ \\t]*$)",
+      "begin": "^([ \\t]*)([^ \\t\\r\\n:]+)($|[:])($|[ \\t]*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -976,7 +985,7 @@
           "include": "#Newline"
         },
         {
-          "include": "#StructEmptyProperty"
+          "include": "#StructBlankProperty"
         },
         {
           "include": "#Unknown"
@@ -987,7 +996,7 @@
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([ \\t]*)([^ \\t:]+)($|[:])($|[ \\t]*)(?=.*\\S.*$)",
+      "begin": "^([ \\t]*)([^ \\t\\r\\n:]+)($|[:])($|[ \\t]*)(?=.*\\S.*$)",
       "beginCaptures": {
         "1": {
           "patterns": [

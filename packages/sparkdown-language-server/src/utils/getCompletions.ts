@@ -245,7 +245,7 @@ const getCompletions = (
     }
     if (
       scopes.includes("struct") &&
-      (scopes.includes("struct_empty_property") ||
+      (scopes.includes("struct_blank_property") ||
         scopes.at(-1) === "struct_field")
     ) {
       const structToken = lineMetadata.tokens
@@ -253,7 +253,7 @@ const getCompletions = (
         .findLast((t) => t?.tag === "struct") as SparkStructToken | undefined;
       const structEmptyProperty = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "struct_empty_property") as
+        .findLast((t) => t?.tag === "struct_blank_property") as
         | SparkStructEmptyProperty
         | undefined;
       if (structToken && structEmptyProperty) {

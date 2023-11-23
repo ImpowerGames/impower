@@ -8,6 +8,8 @@ export const traverse = <T>(
       if (typeof v === "object") {
         if (Array.isArray(v)) {
           process(`${fieldPath}.${k}`, v);
+        } else if (v && Object.keys(v).length === 0) {
+          process(`${fieldPath}.${k}`, v);
         } else {
           traverse(v, process, `${fieldPath}.${k}`);
         }
