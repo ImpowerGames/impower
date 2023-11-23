@@ -81,7 +81,7 @@ export const startServer = async () => {
     app.register(fastifyFormbody);
     app.register(fastifyMultipart, {
       limits: {
-        fileSize: 100000000,
+        fileSize: 1000000000,
       },
     });
     app.register(googleDriveSyncProvider);
