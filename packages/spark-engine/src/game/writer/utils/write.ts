@@ -327,7 +327,7 @@ export const write = (
           // start voiced phrase
           const span = onCreateElement?.();
           if (span) {
-            populateAndStyleElement(span, char || "", style);
+            populateAndStyleElement(span, char, style);
             partEls.push(span);
           }
           currChunk = {
@@ -378,7 +378,7 @@ export const write = (
               // Create new element and chunk
               const span = onCreateElement?.();
               if (span) {
-                populateAndStyleElement(span, char || "", style);
+                populateAndStyleElement(span, char, style);
                 partEls.push(span);
               }
               currChunk = {
