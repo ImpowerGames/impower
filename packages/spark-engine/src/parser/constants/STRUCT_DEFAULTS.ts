@@ -14,6 +14,8 @@ import {
 } from "../../game";
 
 export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
+  HTML: {},
+  CSS: {},
   Camera: {},
   Asset: ASSET_DEFAULTS,
   Graphic: GRAPHIC_DEFAULTS,

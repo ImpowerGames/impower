@@ -29,9 +29,17 @@ export interface SparkSectionToken extends ISparkToken<"section"> {
 }
 
 export interface SparkImportToken extends ISparkToken<"import"> {
+  id: string;
   type: string;
   name: string;
-  location: string;
+  value: string;
+  compiled: unknown;
+
+  ranges?: {
+    type?: SparkRange;
+    name?: SparkRange;
+    value?: SparkRange;
+  };
 }
 
 export interface SparkVariableToken extends ISparkToken<"variable"> {

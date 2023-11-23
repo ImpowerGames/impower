@@ -526,7 +526,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#String"
+              "include": "#ValueText"
             },
             {
               "include": "#Unknown"

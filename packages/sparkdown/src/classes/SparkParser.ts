@@ -20,10 +20,8 @@ import {
   DisplayContent,
   SparkDialogueBoxToken,
   SparkDialogueToken,
-  SparkStructToken,
   SparkToken,
   SparkTokenTagMap,
-  SparkVariableToken,
 } from "../types/SparkToken";
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
@@ -269,51 +267,48 @@ export default class SparkParser {
     };
 
     const declareType = (tok: SparkStruct): void => {
-      if (typeof tok.compiled === "object" && tok.compiled) {
-        const obj = tok.compiled as any;
-        const extendsType = tok.type || "object";
-        program.typeMap ??= {};
-        if (extendsType === "object") {
-          program.typeMap[tok.name] = {
-            "": obj,
-          };
-        } else {
-          program.typeMap[extendsType] ??= {};
-          program.typeMap[extendsType]![tok.name] = obj;
-        }
+      const obj = tok.compiled as any;
+      const extendsType = tok.type || "object";
+      program.typeMap ??= {};
+      if (extendsType === "object") {
+        program.typeMap[tok.name] = {
+          "": obj,
+        };
+      } else {
+        program.typeMap[extendsType] ??= {};
+        program.typeMap[extendsType]![tok.name] = obj;
       }
     };
 
     const declareStruct = (tok: SparkStruct) => {
-      if (typeof tok.compiled === "object" && tok.compiled) {
-        const id = getDeclarationId(tok);
-        tok.id = id;
-        program.structs ??= {};
-        program.structs[id] = tok;
-      }
+      const id = getDeclarationId(tok);
+      tok.id = id;
+      program.structs ??= {};
+      program.structs[id] = tok;
     };
 
     const getDeclarationId = (tok: { name: string }) => {
       return `${currentSectionId}.${tok.name}`;
     };
 
-    const validateDeclaration = (
-      tok: SparkVariableToken | SparkStructToken
-    ) => {
+    const validateDeclaration = (tok: SparkVariable | SparkStruct) => {
       return validateName(tok, currentSectionId, tok.name, tok.ranges?.name);
     };
 
-    const declareVariable = (tok: SparkVariableToken | SparkStructToken) => {
+    const declareVariable = (tok: SparkVariable | SparkStruct) => {
       const id = getDeclarationId(tok);
       // Create variable declaration
       const variable = {
+        tag: tok.tag,
         line: tok.line,
         from: tok.from,
         to: tok.to,
+        indent: tok.indent,
         type: tok.type,
         name: tok.name,
         value: tok.value,
         compiled: tok.compiled,
+        ranges: tok.ranges,
       };
       // Add variable declaration to program
       program.variables ??= {};
@@ -1301,10 +1296,12 @@ export default class SparkParser {
             if (parent) {
               parent.text = text;
             }
+          } else if (tok.tag === "import") {
+            addToken(tok);
           } else if (tok.tag === "variable") {
             addToken(tok);
           } else if (tok.tag === "type_name") {
-            const parent = lookup("variable", "struct");
+            const parent = lookup("variable", "struct", "import");
             if (parent) {
               parent.type = text;
               parent.ranges ??= {};
@@ -1315,7 +1312,7 @@ export default class SparkParser {
               };
             }
           } else if (tok.tag === "declaration_name") {
-            const parent = lookup("variable", "struct");
+            const parent = lookup("variable", "struct", "import");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
@@ -1330,7 +1327,8 @@ export default class SparkParser {
               "struct_scalar_item",
               "struct_scalar_property",
               "variable",
-              "assign"
+              "assign",
+              "import"
             );
             if (parent) {
               parent.value ??= "";
@@ -1746,6 +1744,47 @@ export default class SparkParser {
             prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "flow_break") {
             prevDisplayPositionalTokens.length = 0;
+          } else if (tok.tag === "import") {
+            prevDisplayPositionalTokens.length = 0;
+            const [ids, context] = getScopedValueContext(
+              currentSectionId,
+              program.sections
+            );
+            // Compile value
+            const compiledValue = compileAndValidate(
+              tok,
+              tok.value,
+              tok?.ranges?.value,
+              ids,
+              context
+            );
+            tok.compiled = compiledValue;
+
+            validateTypeExists(
+              tok,
+              tok.type,
+              tok.ranges?.type,
+              program.typeMap
+            );
+            tok.type = tok.type ?? typeof compiledValue;
+
+            if (
+              typeof compiledValue !== "string" ||
+              !compiledValue.startsWith("https://")
+            ) {
+              diagnostic(
+                program,
+                tok,
+                `Invalid url`,
+                undefined,
+                tok?.ranges?.value?.from,
+                tok?.ranges?.value?.to
+              );
+            }
+
+            if (validateDeclaration(tok)) {
+              declareType(tok);
+            }
           } else if (tok.tag === "struct_map_property") {
             if (!tok.entriesLength) {
               const struct_empty_property = createSparkToken(
@@ -1768,6 +1807,14 @@ export default class SparkParser {
                 struct.fields ??= [];
                 struct.fields.push(struct_empty_property);
               }
+            }
+          } else if (tok.tag === "struct_field") {
+            const parent = lookup("struct");
+            if (parent) {
+              program.metadata ??= {};
+              program.metadata.lines ??= [];
+              program.metadata.lines[tok.line] ??= {};
+              program.metadata.lines[tok.line]!.struct = parent.id;
             }
           } else if (tok.tag === "struct") {
             prevDisplayPositionalTokens.length = 0;
@@ -1872,20 +1919,12 @@ export default class SparkParser {
               validateTypeMatch(tok, typeof obj, tok.type, tok?.ranges?.type);
 
               if (validateDeclaration(tok)) {
-                if (typeof tok.compiled === "object") {
+                if (tok.compiled && typeof tok.compiled === "object") {
                   declareStruct(tok);
                   declareType(tok);
                 }
                 declareVariable(tok);
               }
-            }
-          } else if (tok.tag === "struct_field") {
-            const parent = lookup("struct");
-            if (parent) {
-              program.metadata ??= {};
-              program.metadata.lines ??= [];
-              program.metadata.lines[tok.line] ??= {};
-              program.metadata.lines[tok.line]!.struct = parent.id;
             }
           } else if (tok.tag === "variable") {
             prevDisplayPositionalTokens.length = 0;

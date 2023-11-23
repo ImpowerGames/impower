@@ -131,35 +131,33 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     typeMap: { [type: string]: Record<string, any> },
     ...structNames: string[]
   ): void {
+    // Get or create style root
     const styleRootEl = this.getOrCreateStyleRoot();
     if (!styleRootEl || !typeMap) {
       return;
     }
-
-    const styleStructNames = new Set<string>();
+    // Process Imports
+    const cssStructObj = typeMap?.["CSS"];
+    if (cssStructObj) {
+      if (cssStructObj) {
+        const structEl = this.constructStyleElement("CSS", cssStructObj);
+        if (structEl) {
+          const properties = getAllProperties(cssStructObj);
+          structEl.setImportContent(properties);
+        }
+      }
+    }
+    // Process Style and Animation
     const validStructNames =
       structNames?.length > 0
         ? structNames
         : [
-            ...Object.keys(typeMap?.["CSS"] || {}),
             ...Object.keys(typeMap?.["Animation"] || {}),
             ...Object.keys(typeMap?.["Style"] || {}),
           ];
+    const styleStructNames = new Set<string>();
     validStructNames.forEach((structName) => {
       if (structName) {
-        if (structName === "CSS") {
-          const cssStructObj = typeMap?.["CSS"]?.[structName];
-          if (cssStructObj) {
-            const structEl = this.constructStyleElement(
-              structName,
-              cssStructObj
-            );
-            if (structEl) {
-              const properties = getAllProperties(cssStructObj);
-              structEl.setImportContent(properties);
-            }
-          }
-        }
         const styleStructObj = typeMap?.["Style"]?.[structName];
         if (styleStructObj) {
           const structEl = this.constructStyleElement(

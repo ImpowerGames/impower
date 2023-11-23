@@ -73,7 +73,7 @@ export class SparkDOMElement implements IElement {
 
   appendChild(child: IElement): void {
     const el = child as SparkDOMElement;
-    if (el._htmlElement.tagName === "STYLE" && child.id.endsWith(".css")) {
+    if (el._htmlElement.tagName === "STYLE" && child.id.endsWith(".CSS")) {
       const head = document.documentElement.getElementsByTagName("head")?.[0];
       if (head) {
         const childHtmlElement = head.appendChild(el._htmlElement);
@@ -131,10 +131,10 @@ export class SparkDOMElement implements IElement {
     let textContent = "";
     Object.entries(properties).forEach(([, v]) => {
       if (v && typeof v === "string") {
-        textContent += `@import url('${v}');`;
+        textContent += `\n@import url('${v}');`;
       }
     });
-    this.textContent = textContent;
+    this.textContent = textContent.trim();
   }
 
   setAnimationContent(

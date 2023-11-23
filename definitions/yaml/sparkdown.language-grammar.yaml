@@ -319,7 +319,7 @@ repository:
         name: markup.raw.whitespace.separator.sd
       3:
         patterns:
-          - { include: "#String" }
+          - { include: "#ValueText" }
           - { include: "#Unknown" }
 
   Define:
