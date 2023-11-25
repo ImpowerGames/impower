@@ -142,7 +142,9 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  const browserVariableEntries = Object.entries(BROWSER_VARIABLES);
+  // Spread browser variables to avoid "process not defined" error
+  const define = { ...BROWSER_VARIABLES };
+  const browserVariableEntries = Object.entries(define);
   if (browserVariableEntries.length > 0) {
     console.log("");
     console.log(STEP_COLOR, "Defining Browser Variables...");
@@ -153,8 +155,6 @@ const buildPages = async () => {
     console.log("");
     console.error(ERROR_COLOR, "No Browser Variables Found.");
   }
-  // Spread browser variables to avoid "process not defined" error
-  const define = { ...BROWSER_VARIABLES };
   await build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
