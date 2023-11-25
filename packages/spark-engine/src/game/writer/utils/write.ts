@@ -21,6 +21,13 @@ const populateAndStyleElement = (
   return spanEl;
 };
 
+const isWhitespaceOrEmpty = (part: string) => {
+  if (!part) {
+    return true;
+  }
+  return isWhitespace(part);
+};
+
 const isWhitespace = (part: string) => {
   if (!part) {
     return false;
@@ -112,7 +119,8 @@ export const write = (
 
   const imageLayerChunks: Record<string, Chunk[]> = {};
 
-  content.forEach((p) => {
+  content.forEach((p, contentIndex) => {
+    const nextContent = content[contentIndex + 1];
     const image = p.image;
     if (image) {
       const layer = p.layer ?? "Portrait";
@@ -158,7 +166,7 @@ export const write = (
       const chars = text.split("");
       for (let i = 0; i < chars.length; ) {
         const char = chars[i] || "";
-        const nextPart = chars[i + 1] || "";
+        const nextChar = chars[i + 1] || nextContent?.text?.[0] || "";
         const lastMark = marks[marks.length - 1]?.[0];
         const doubleLookahead = chars.slice(i, i + 2).join("");
         if (!escaped) {
@@ -246,10 +254,12 @@ export const write = (
         }
         const isYelled =
           Boolean(yelledRegex?.test(word)) &&
-          (Boolean(yelledRegex?.test(nextPart)) || word.length > 1);
+          (Boolean(yelledRegex?.test(nextChar)) || word.length > 1);
         const tilde = char === "~";
         const isEmDashBoundary = dashLength > 1;
-        const emDash = isEmDashBoundary || isDash(doubleLookahead);
+        const emDash =
+          isEmDashBoundary ||
+          (isDash(char) && (isWhitespaceOrEmpty(nextChar) || isDash(nextChar)));
         const isPhraseBoundary = spaceLength > 1;
 
         if (isPhraseBoundary) {
