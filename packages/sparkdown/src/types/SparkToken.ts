@@ -42,6 +42,19 @@ export interface SparkImportToken extends ISparkToken<"import"> {
   };
 }
 
+export interface SparkDefineToken extends ISparkToken<"define"> {
+  type: string;
+  name: string;
+  value: string;
+  compiled: unknown;
+
+  ranges?: {
+    type?: SparkRange;
+    name?: SparkRange;
+    value?: SparkRange;
+  };
+}
+
 export interface SparkVariableToken extends ISparkToken<"variable"> {
   type: string;
   name: string;
@@ -316,6 +329,7 @@ export interface SparkOtherToken
     | "flow_break"
     | "break"
     | "continue"
+    | "scalar_variable"
     | "type_name"
     | "declaration_name"
     | "variable_name"
@@ -351,6 +365,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   chunk: SparkChunkToken;
   section: SparkSectionToken;
   import: SparkImportToken;
+  define: SparkDefineToken;
   variable: SparkVariableToken;
   struct: SparkStructToken;
   struct_map_item: SparkStructMapItemToken;

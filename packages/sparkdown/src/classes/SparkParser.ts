@@ -49,9 +49,14 @@ const SCENE_LOCATION_TIME_REGEX = new RegExp(
 );
 
 const INDENT_UNIT = GRAMMAR_DEFINITION.indentUnit;
-const PRIMITIVE_TYPES = ["string", "number", "boolean"];
+const PRIMITIVE_SCALAR_TYPES = ["string", "number", "boolean"];
 
-const BUILT_IN_TYPES = [...PRIMITIVE_TYPES, "undefined", "object", "function"];
+const BUILT_IN_TYPES = [
+  ...PRIMITIVE_SCALAR_TYPES,
+  "undefined",
+  "object",
+  "function",
+];
 
 const vowels = ["a", "e", "i", "o", "u"];
 const lowercaseArticles = ["an", "a"];
@@ -79,6 +84,14 @@ const calculateIndent = (text: string): number => {
   }
   const spaceMultiplier = INDENT_UNIT?.[0] === " " ? 1 / INDENT_UNIT.length : 0;
   return tabCount + spaceCount * spaceMultiplier;
+};
+
+const isAssetOfType = <T extends string>(
+  value: unknown,
+  type: T
+): value is { type: T } => {
+  const obj = value as { type: T };
+  return obj && typeof obj === "object" && obj.type === type;
 };
 
 const findChunkId = (
@@ -280,15 +293,18 @@ export default class SparkParser {
       }
     };
 
-    const declareStruct = (tok: SparkStruct) => {
-      const id = getDeclarationId(tok);
+    const getDeclarationId = (
+      tok: { name: string },
+      sectionId = currentSectionId
+    ) => {
+      return `${sectionId}.${tok.name}`;
+    };
+
+    const declareStruct = (tok: SparkStruct, sectionId: string) => {
+      const id = getDeclarationId(tok, sectionId);
       tok.id = id;
       program.structs ??= {};
       program.structs[id] = tok;
-    };
-
-    const getDeclarationId = (tok: { name: string }) => {
-      return `${currentSectionId}.${tok.name}`;
     };
 
     const validateDeclaration = (tok: SparkVariable | SparkStruct) => {
@@ -535,11 +551,23 @@ export default class SparkParser {
         reportMissing(tok, type, name, nameRange, "warning");
         return undefined;
       }
-      if (
-        !found.compiled ||
-        typeof found.compiled !== "object" ||
-        !("type" in found.compiled) ||
-        found.compiled.type !== type
+      const value = found.compiled;
+      if (Array.isArray(value)) {
+        if (value.some((x) => !isAssetOfType(x, type))) {
+          diagnostic(
+            program,
+            tok,
+            `'${name}' is not ${prefixWithArticle(type)} array`,
+            [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+            from,
+            to
+          );
+          return undefined;
+        }
+      } else if (
+        !value ||
+        typeof value !== "object" ||
+        !isAssetOfType(value, type)
       ) {
         diagnostic(
           program,
@@ -1298,10 +1326,22 @@ export default class SparkParser {
             }
           } else if (tok.tag === "import") {
             addToken(tok);
+          } else if (tok.tag === "define") {
+            addToken(tok);
           } else if (tok.tag === "variable") {
             addToken(tok);
           } else if (tok.tag === "type_name") {
-            const parent = lookup("variable", "struct", "import");
+            const struct = lookup("struct");
+            if (struct) {
+              struct.type = text;
+              struct.ranges ??= {};
+              struct.ranges.type = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+            const parent = lookup("variable", "define", "import");
             if (parent) {
               parent.type = text;
               parent.ranges ??= {};
@@ -1312,7 +1352,17 @@ export default class SparkParser {
               };
             }
           } else if (tok.tag === "declaration_name") {
-            const parent = lookup("variable", "struct", "import");
+            const struct = lookup("struct");
+            if (struct) {
+              struct.name = text;
+              struct.ranges ??= {};
+              struct.ranges.name = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+            const parent = lookup("variable", "define", "import");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
@@ -1341,8 +1391,6 @@ export default class SparkParser {
               };
               parent.ranges.value.to = tok.to;
             }
-          } else if (tok.tag === "struct") {
-            addToken(tok);
           } else if (tok.tag === "struct_field") {
             const parent = lookup("struct");
             if (parent) {
@@ -1706,6 +1754,16 @@ export default class SparkParser {
             if (parent) {
               parent.indent = calculateIndent(text);
             }
+          } else if (tok.tag === "unknown") {
+            const parent = lookup("define");
+            diagnostic(
+              program,
+              tok,
+              parent ? `Invalid ${parent.tag} syntax` : `Invalid syntax`,
+              undefined,
+              tok.from,
+              tok.to
+            );
           }
 
           // push token onto current stack
@@ -1818,147 +1876,170 @@ export default class SparkParser {
             }
           } else if (tok.tag === "struct") {
             prevDisplayPositionalTokens.length = 0;
-            const [ids, context] = getScopedValueContext(
-              currentSectionId,
-              program.sections
+            const scopedParent = lookup(
+              "if",
+              "elseif",
+              "else",
+              "while",
+              "for",
+              "until",
+              "function"
             );
-
-            validateTypeExists(
-              tok,
-              tok.type,
-              tok.ranges?.type,
-              program.typeMap
-            );
-            tok.type = tok.type ?? "object";
-
-            if (
-              PRIMITIVE_TYPES.includes(tok.type) &&
-              (!tok.fields || tok.fields.length === 0)
-            ) {
-              if (tok.type === "string") {
-                tok.compiled = "";
-                tok.value = JSON.stringify(tok.compiled);
-              }
-              if (tok.type === "number") {
-                tok.compiled = 0;
-                tok.value = JSON.stringify(tok.compiled);
-              }
-              if (tok.type === "boolean") {
-                tok.compiled = false;
-                tok.value = JSON.stringify(tok.compiled);
-              }
-              if (validateDeclaration(tok)) {
-                declareVariable(tok);
-              }
+            if (scopedParent) {
+              diagnostic(
+                program,
+                tok,
+                `Cannot define type inside ${scopedParent.tag} scope`,
+                undefined,
+                tok.from,
+                tok.to
+              );
             } else {
-              if (tok.fields) {
-                const propertyPaths: Record<string, SparkField> = {};
-                tok.fields.forEach((field) => {
-                  if (
-                    validateNameAllowed(
-                      field,
-                      String(field.key),
-                      field.ranges?.key
-                    )
-                  ) {
-                    const propAccess = field.key ? "." + field.key : "";
-                    const propertyPath = field.path + propAccess;
-                    const existingField = propertyPaths[propertyPath];
-                    if (existingField) {
-                      // Error if field was defined multiple times in the current struct
-                      reportDuplicate(
+              const [ids, context] = getScopedValueContext(
+                currentSectionId,
+                program.sections
+              );
+
+              validateTypeExists(
+                tok,
+                tok.type,
+                tok.ranges?.type,
+                program.typeMap
+              );
+              tok.type = tok.type ?? "object";
+
+              if (PRIMITIVE_SCALAR_TYPES.includes(tok.type)) {
+                diagnostic(
+                  program,
+                  tok,
+                  `'${tok.type}' is not a type of object`,
+                  undefined,
+                  tok?.ranges?.type?.from,
+                  tok?.ranges?.type?.to
+                );
+              } else {
+                if (tok.fields) {
+                  const propertyPaths: Record<string, SparkField> = {};
+                  tok.fields.forEach((field) => {
+                    if (
+                      validateNameAllowed(
                         field,
-                        "field",
                         String(field.key),
-                        field.ranges?.key,
-                        existingField
-                      );
-                    } else {
-                      propertyPaths[propertyPath] = field;
-                      const compiledValue = compileAndValidate(
-                        field,
-                        field.value,
-                        field?.ranges?.value,
-                        ids,
-                        context
-                      );
-                      // Check for type mismatch
-                      const parentPropertyAccessor = tok.type + propertyPath;
-                      const declaredValue = getProperty(
-                        context,
-                        parentPropertyAccessor
-                      );
-                      const compiledType = typeof compiledValue;
-                      const declaredType = typeof declaredValue;
-                      if (
-                        validateTypeMatch(
+                        field.ranges?.key
+                      )
+                    ) {
+                      const propAccess = field.key ? "." + field.key : "";
+                      const propertyPath = field.path + propAccess;
+                      const existingField = propertyPaths[propertyPath];
+                      if (existingField) {
+                        // Error if field was defined multiple times in the current struct
+                        reportDuplicate(
                           field,
-                          compiledType,
-                          declaredType,
-                          field?.ranges?.value
-                        )
-                      ) {
-                        field.type = compiledType;
+                          "field",
+                          String(field.key),
+                          field.ranges?.key,
+                          existingField
+                        );
                       } else {
-                        field.type = declaredType;
+                        propertyPaths[propertyPath] = field;
+                        const compiledValue = compileAndValidate(
+                          field,
+                          field.value,
+                          field?.ranges?.value,
+                          ids,
+                          context
+                        );
+                        // Check for type mismatch
+                        const parentPropertyAccessor = tok.type + propertyPath;
+                        const declaredValue = getProperty(
+                          context,
+                          parentPropertyAccessor
+                        );
+                        const compiledType = typeof compiledValue;
+                        const declaredType = typeof declaredValue;
+                        if (
+                          validateTypeMatch(
+                            field,
+                            compiledType,
+                            declaredType,
+                            field?.ranges?.value
+                          )
+                        ) {
+                          field.type = compiledType;
+                        } else {
+                          field.type = declaredType;
+                        }
                       }
                     }
-                  }
-                });
-              }
-
-              const obj = construct(tok, ids);
-              const objectLiteral = JSON.stringify(obj)
-                .replace(UNESCAPED_DOUBLE_QUOTE, "")
-                .replace(ESCAPED_DOUBLE_QUOTE, `"`)
-                .replace(DOUBLE_ESCAPE, `\\`);
-              tok.value = objectLiteral;
-              const [compiledValue] = compiler(objectLiteral, context);
-              tok.compiled = compiledValue;
-
-              validateTypeMatch(tok, typeof obj, tok.type, tok?.ranges?.type);
-
-              if (validateDeclaration(tok)) {
-                if (tok.compiled && typeof tok.compiled === "object") {
-                  declareStruct(tok);
-                  declareType(tok);
+                  });
                 }
-                declareVariable(tok);
+
+                const obj = construct(tok, ids);
+                const objectLiteral = JSON.stringify(obj)
+                  .replace(UNESCAPED_DOUBLE_QUOTE, "")
+                  .replace(ESCAPED_DOUBLE_QUOTE, `"`)
+                  .replace(DOUBLE_ESCAPE, `\\`);
+                tok.value = objectLiteral;
+                const [compiledValue] = compiler(objectLiteral, context);
+                tok.compiled = compiledValue;
+
+                validateTypeMatch(tok, typeof obj, tok.type, tok?.ranges?.type);
+
+                if (validateDeclaration(tok)) {
+                  // Check if struct is being used to declare an object variable or define an object type
+                  const parent = lookup("variable", "define");
+                  if (parent) {
+                    if (parent.tag === "define") {
+                      // Types are declared in global scope
+                      declareStruct(tok, "");
+                      declareType(tok);
+                    }
+                    if (parent.tag === "variable") {
+                      // Variables are declared in local section scope
+                      declareStruct(tok, currentSectionId);
+                      declareVariable(tok);
+                    }
+                  }
+                }
               }
             }
-          } else if (tok.tag === "variable") {
-            prevDisplayPositionalTokens.length = 0;
-            const [ids, context] = getScopedValueContext(
-              currentSectionId,
-              program.sections
-            );
-            // Compile value
-            const compiledValue = compileAndValidate(
-              tok,
-              tok.value,
-              tok?.ranges?.value,
-              ids,
-              context
-            );
-            tok.compiled = compiledValue;
+          } else if (tok.tag === "scalar_variable") {
+            // Process scalar (non-object) variable
+            const variable = lookup("variable");
+            if (variable) {
+              prevDisplayPositionalTokens.length = 0;
+              const [ids, context] = getScopedValueContext(
+                currentSectionId,
+                program.sections
+              );
 
-            validateTypeExists(
-              tok,
-              tok.type,
-              tok.ranges?.type,
-              program.typeMap
-            );
-            tok.type = tok.type ?? typeof compiledValue;
+              const compiledValue = compileAndValidate(
+                variable,
+                variable.value,
+                variable?.ranges?.value,
+                ids,
+                context
+              );
+              variable.compiled = compiledValue;
 
-            validateTypeMatch(
-              tok,
-              typeof compiledValue,
-              tok.type,
-              tok?.ranges?.type
-            );
+              validateTypeExists(
+                variable,
+                variable.type,
+                variable.ranges?.type,
+                program.typeMap
+              );
+              variable.type = variable.type ?? typeof compiledValue;
 
-            if (validateDeclaration(tok)) {
-              declareVariable(tok);
+              validateTypeMatch(
+                variable,
+                typeof compiledValue,
+                variable.type,
+                variable?.ranges?.type
+              );
+
+              if (validateDeclaration(variable)) {
+                declareVariable(variable);
+              }
             }
           } else if (tok.tag === "image") {
             const nameRanges = tok.nameRanges;

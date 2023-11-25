@@ -40,6 +40,9 @@
       "include": "#Import"
     },
     {
+      "include": "#Variable"
+    },
+    {
       "include": "#Define"
     },
     {
@@ -535,26 +538,10 @@
         }
       }
     },
-    "Define": {
-      "patterns": [
-        {
-          "include": "#DefineFunction"
-        },
-        {
-          "include": "#DefineVariable"
-        },
-        {
-          "include": "#DefineStruct"
-        },
-        {
-          "include": "#DefineInvalid"
-        }
-      ]
-    },
-    "DefineFunction": {
+    "Function": {
       "tag": "meta",
       "name": "meta.definition.function.sd",
-      "begin": "^([ \\t]*)(define)([ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
+      "begin": "^([ \\t]*)(func)([ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -595,7 +582,7 @@
           "include": "#Comment"
         },
         {
-          "include": "#DefineParameters"
+          "include": "#DefinitionParameters"
         },
         {
           "include": "#Logic"
@@ -606,9 +593,7 @@
       ],
       "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
     },
-    "DefineParameters": {
-      "tag": "meta",
-      "name": "meta.define.function.parameters.sd",
+    "DefinitionParameters": {
       "brackets": true,
       "begin": "([(])",
       "beginCaptures": {
@@ -680,10 +665,24 @@
         }
       }
     },
-    "DefineVariable": {
+    "Variable": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#ScalarVariable"
+        },
+        {
+          "include": "#ObjectVariable"
+        },
+        {
+          "include": "#InvalidVariable"
+        }
+      ]
+    },
+    "ScalarVariable": {
       "tag": "meta",
-      "name": "meta.definition.variable.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)([=])($|[ \\t]*)",
+      "name": "meta.definition.variable.scalar.sd",
+      "begin": "^([ \\t]*)(var)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)([=])($|[ \\t]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -750,9 +749,133 @@
         }
       }
     },
-    "DefineStruct": {
+    "ObjectVariable": {
       "tag": "meta",
-      "name": "meta.definition.struct.sd",
+      "name": "meta.definition.variable.object.sd",
+      "begin": "^([ \\t]*)(var)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)(?:($|[:]?)($|[ \\t]*$)|([:]?)(.+$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.object.sd"
+        },
+        "3": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.separator.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#TypeIdentifier"
+            }
+          ]
+        },
+        "5": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.separator.sd"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#DeclarationName"
+            }
+          ]
+        },
+        "7": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.separator.sd"
+        },
+        "8": {
+          "tag": "punctuation",
+          "name": "punctuation.separator.colon.sd"
+        },
+        "9": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.trailing.sd"
+        },
+        "10": {
+          "tag": "punctuation",
+          "name": "punctuation.separator.colon.sd"
+        },
+        "11": {
+          "patterns": [
+            {
+              "include": "#Unknown"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Comment"
+        },
+        {
+          "include": "#StructField"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^$)|(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+    },
+    "InvalidVariable": {
+      "tag": "meta",
+      "name": "meta.define.invalid.sd",
+      "begin": "^([ \\t]*)(var)($|[ \\t]+)($|.+$)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.define.sd"
+        },
+        "3": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.separator.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Unknown"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+    },
+    "Define": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#ObjectDefine"
+        },
+        {
+          "include": "#InvalidDefine"
+        }
+      ]
+    },
+    "ObjectDefine": {
+      "tag": "meta",
+      "name": "meta.definition.type.sd",
       "begin": "^([ \\t]*)(define)($|[ \\t]+)([_a-zA-Z][_a-zA-Z0-9]*(?=[ \\t]+\\S))?($|[ \\t]*)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)(?:($|[:]?)($|[ \\t]*$)|([:]?)(.+$))",
       "beginCaptures": {
         "1": {
@@ -824,6 +947,44 @@
         }
       ],
       "end": "(?=^$)|(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+    },
+    "InvalidDefine": {
+      "tag": "meta",
+      "name": "meta.define.invalid.sd",
+      "begin": "^([ \\t]*)(define)($|[ \\t]+)($|.+$)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.define.sd"
+        },
+        "3": {
+          "tag": "content",
+          "name": "markup.raw.whitespace.separator.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Unknown"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
     },
     "StructField": {
       "emit": true,
@@ -1030,44 +1191,6 @@
         }
       ],
       "end": "(?=$)"
-    },
-    "DefineInvalid": {
-      "tag": "meta",
-      "name": "meta.define.invalid.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)($|.+$)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.define.sd"
-        },
-        "3": {
-          "tag": "content",
-          "name": "markup.raw.whitespace.separator.sd"
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Unknown"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
     },
     "Break": {
       "tag": "meta",

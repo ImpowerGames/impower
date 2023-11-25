@@ -33,9 +33,13 @@ const SPARK_TOKEN_TAGS: {
 
   Import: "import",
 
-  DefineVariable: "variable",
+  Variable: "variable",
+  ScalarVariable: "scalar_variable",
+  ObjectVariable: "struct",
 
-  DefineStruct: "struct",
+  Define: "define",
+
+  ObjectDefine: "struct",
   StructField: "struct_field",
   StructMapItem: "struct_map_item",
   StructScalarItem: "struct_scalar_item",
@@ -45,7 +49,7 @@ const SPARK_TOKEN_TAGS: {
   StructScalarProperty_begin: "struct_scalar_property_start",
   StructBlankProperty: "struct_blank_property",
 
-  DefineFunction: "function",
+  Function: "function",
 
   Break: "break",
   Continue: "continue",
