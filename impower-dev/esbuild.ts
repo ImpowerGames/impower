@@ -153,6 +153,8 @@ const buildPages = async () => {
     console.log("");
     console.error(ERROR_COLOR, "No Browser Variables Found.");
   }
+  // Spread browser variables to avoid "process not defined" error
+  const define = { ...BROWSER_VARIABLES };
   await build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
@@ -166,7 +168,7 @@ const buildPages = async () => {
       ".css": "text",
       ".svg": "text",
     },
-    define: BROWSER_VARIABLES,
+    define,
   });
 };
 
