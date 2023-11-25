@@ -64,6 +64,7 @@ if (!PRODUCTION) {
 
 let BROWSER_VARIABLES: Record<string, string> | undefined = undefined;
 if (!BROWSER_VARIABLES) {
+  // Ensure browser variables are only initialized once to avoid intermittent "process not defined" error
   Object.entries(process.env).forEach(([key, value]) => {
     if (key.startsWith("BROWSER_") && value) {
       BROWSER_VARIABLES ??= {};
@@ -145,7 +146,7 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  // Spread browser variables to avoid "process not defined" error
+  // Spread browser variables to avoid intermittent "process not defined" error
   const define = { ...BROWSER_VARIABLES };
   const browserVariableEntries = Object.entries(define);
   if (browserVariableEntries.length > 0) {
@@ -187,7 +188,7 @@ const buildComponents = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  // Spread browser variables to avoid "process not defined" error
+  // Spread browser variables to avoid intermittent "process not defined" error
   const define = { ...BROWSER_VARIABLES };
   const browserVariableEntries = Object.entries(define);
   if (browserVariableEntries.length > 0) {
