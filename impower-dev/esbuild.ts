@@ -12,14 +12,12 @@ import renderPage from "./src/build/renderPage";
 
 const RESET = "\x1b[0m";
 const STRING = "%s";
-const RED = "\x1b[31m" + STRING + RESET;
 const GREEN = "\x1b[32m" + STRING + RESET;
 const YELLOW = "\x1b[33m" + STRING + RESET;
 const BLUE = "\x1b[34m" + STRING + RESET;
 const MAGENTA = "\x1b[35m" + STRING + RESET;
 const CYAN = "\x1b[36m" + STRING + RESET;
 
-const ERROR_COLOR = RED;
 const STARTED_COLOR = YELLOW;
 const FINISHED_COLOR = CYAN;
 const STEP_COLOR = BLUE;
@@ -62,16 +60,17 @@ if (!PRODUCTION) {
   dotenv.config();
 }
 
-let BROWSER_VARIABLES: Record<string, string> | undefined = undefined;
-if (!BROWSER_VARIABLES) {
-  // Ensure browser variables are only initialized once to avoid intermittent "process not defined" error
-  Object.entries(process.env).forEach(([key, value]) => {
-    if (key.startsWith("BROWSER_") && value) {
-      BROWSER_VARIABLES ??= {};
-      BROWSER_VARIABLES[`process.env.${key}`] = `"${value}"`;
-    }
-  });
-}
+const BROWSER_VARIABLES_ENV: Record<string, string> = {};
+Object.entries(process.env).forEach(([key, value]) => {
+  if (key.startsWith("BROWSER_") && value) {
+    BROWSER_VARIABLES_ENV[key] = value;
+  }
+});
+// Use esbuild's `banner` feature instead of its `define` feature to populate browser environment variables,
+// because `define` occasionally causes "process not defined" errors in production builds.
+const PROCESS_ENV_BANNER = {
+  js: `var process = { env: ${JSON.stringify(BROWSER_VARIABLES_ENV)} };`.trim(),
+};
 
 const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
@@ -146,19 +145,6 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  // Spread browser variables to avoid intermittent "process not defined" error
-  const define = { ...BROWSER_VARIABLES };
-  const browserVariableEntries = Object.entries(define);
-  if (browserVariableEntries.length > 0) {
-    console.log("");
-    console.log(STEP_COLOR, "Defining Browser Variables...");
-    browserVariableEntries.forEach(([key, value]) => {
-      console.log(SRC_COLOR, `  ${key}=${value}`);
-    });
-  } else {
-    console.log("");
-    console.error(ERROR_COLOR, "No Browser Variables Found.");
-  }
   await build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
@@ -172,7 +158,7 @@ const buildPages = async () => {
       ".css": "text",
       ".svg": "text",
     },
-    define,
+    banner: PROCESS_ENV_BANNER,
   });
 };
 
@@ -188,19 +174,6 @@ const buildComponents = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  // Spread browser variables to avoid intermittent "process not defined" error
-  const define = { ...BROWSER_VARIABLES };
-  const browserVariableEntries = Object.entries(define);
-  if (browserVariableEntries.length > 0) {
-    console.log("");
-    console.log(STEP_COLOR, "Defining Browser Variables...");
-    browserVariableEntries.forEach(([key, value]) => {
-      console.log(SRC_COLOR, `  ${key}=${value}`);
-    });
-  } else {
-    console.log("");
-    console.error(ERROR_COLOR, "No Browser Variables Found.");
-  }
   await build({
     entryPoints: entryPoints,
     outdir: componentsOutDir,
@@ -214,7 +187,7 @@ const buildComponents = async () => {
       ".css": "text",
       ".svg": "text",
     },
-    define,
+    banner: PROCESS_ENV_BANNER,
   });
 };
 
