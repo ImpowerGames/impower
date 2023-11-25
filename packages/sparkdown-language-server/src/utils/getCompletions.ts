@@ -72,6 +72,22 @@ const getAudioArgumentCompletions = (
       label: "start",
       kind: CompletionItemKind.Keyword,
     },
+    {
+      label: "pause",
+      kind: CompletionItemKind.Keyword,
+    },
+    {
+      label: "unpause",
+      kind: CompletionItemKind.Keyword,
+    },
+    {
+      label: "mute",
+      kind: CompletionItemKind.Keyword,
+    },
+    {
+      label: "unmute",
+      kind: CompletionItemKind.Keyword,
+    },
   ];
 };
 
