@@ -25,7 +25,7 @@ const getHover = (
       const id = reference.id || "";
       const name = reference.name;
       const asset = program.variables?.[id]?.compiled;
-      if (isAsset(asset)) {
+      if (isAsset(asset) && asset.type === "image") {
         const src = asset.src;
         return {
           contents: {
