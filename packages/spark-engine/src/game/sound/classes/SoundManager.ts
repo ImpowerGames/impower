@@ -1,4 +1,4 @@
-import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
+import { GameEvent1, GameEvent2, GameEvent4 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
@@ -14,7 +14,7 @@ import { SynthBuffer } from "./SynthBuffer";
 type SoundSource = Float32Array | SynthBuffer | string;
 
 export interface SoundEvents extends Record<string, GameEvent> {
-  onScheduled: GameEvent3<string, SoundSource, boolean>;
+  onScheduled: GameEvent4<string, SoundSource, boolean, number>;
   onStarted: GameEvent1<string[]>;
   onPaused: GameEvent1<string[]>;
   onUnpaused: GameEvent1<string[]>;
@@ -55,7 +55,7 @@ export class SoundManager extends Manager<
 
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
-      onScheduled: new GameEvent3<string, SoundSource, boolean>(),
+      onScheduled: new GameEvent4<string, SoundSource, boolean, number>(),
       onStarted: new GameEvent1<string[]>(),
       onPaused: new GameEvent1<string[]>(),
       onUnpaused: new GameEvent1<string[]>(),
@@ -86,6 +86,7 @@ export class SoundManager extends Manager<
     this._state.playbackStates[id] ??= {
       elapsedMS: -1,
       latestEvent: -1,
+      volume: 1,
       scheduled: false,
       started: false,
       paused: false,
@@ -99,6 +100,7 @@ export class SoundManager extends Manager<
     group: string,
     sounds: { id: string; data: SoundSource }[],
     loop: boolean,
+    volume: number,
     onStarted?: () => void
   ): void {
     sounds.forEach(({ id, data }) => {
@@ -106,7 +108,7 @@ export class SoundManager extends Manager<
       this._state.groups[group]!.push(id);
       const controlState = this.getOrCreatePlaybackState(id);
       controlState.group = group;
-      this.schedule(layer, id, data, loop, onStarted);
+      this.schedule(layer, id, data, loop, volume, onStarted);
     });
   }
 
@@ -115,6 +117,7 @@ export class SoundManager extends Manager<
     id: string,
     sound: SoundSource,
     loop: boolean,
+    volume: number,
     onStarted?: () => void
   ): void {
     this._config.sounds.set(id, sound);
@@ -131,7 +134,7 @@ export class SoundManager extends Manager<
       const callbacks = this._onStartedCallbacks.get(id);
       callbacks?.push(onStarted);
     }
-    this._events.onScheduled.dispatch(id, sound, loop);
+    this._events.onScheduled.dispatch(id, sound, loop, volume);
   }
 
   ready(id: string): void {

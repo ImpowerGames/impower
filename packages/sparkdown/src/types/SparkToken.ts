@@ -43,6 +43,7 @@ export interface SparkImportToken extends ISparkToken<"import"> {
 }
 
 export interface SparkDefineToken extends ISparkToken<"define"> {
+  id: string;
   type: string;
   name: string;
   value: string;
@@ -56,6 +57,7 @@ export interface SparkDefineToken extends ISparkToken<"define"> {
 }
 
 export interface SparkVariableToken extends ISparkToken<"variable"> {
+  id: string;
   type: string;
   name: string;
   value: string;

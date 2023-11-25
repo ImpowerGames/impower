@@ -2,6 +2,9 @@ import { SynthBuffer } from "../../../spark-engine/src/game/sound/classes/SynthB
 
 export class SparkDOMAudioPlayer {
   protected _gainNode: GainNode;
+  public get gainNode(): GainNode {
+    return this._gainNode;
+  }
 
   protected _context: AudioContext;
   public get context(): AudioContext {
@@ -52,6 +55,17 @@ export class SparkDOMAudioPlayer {
     this._loop = value;
     if (this.sourceNode) {
       this.sourceNode.loop = value;
+    }
+  }
+
+  protected _volume = 1;
+  public get volume() {
+    return this._volume;
+  }
+  public set volume(value) {
+    this._volume = value;
+    if (this._gainNode) {
+      this._gainNode.gain.value = value;
     }
   }
 
@@ -118,7 +132,7 @@ export class SparkDOMAudioPlayer {
     if (this._sourceNode) {
       const validOffset = Math.min(Math.max(0, offsetInSeconds), this.duration);
       this._sourceNode.start(when, validOffset);
-      this.fade(when, 1, fadeDuration);
+      this.fade(when, this.volume, fadeDuration);
     }
   }
 

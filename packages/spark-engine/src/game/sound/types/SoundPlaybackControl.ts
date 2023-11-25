@@ -7,4 +7,5 @@ export interface SoundPlaybackControl {
   started: boolean;
   paused: boolean;
   looping: boolean;
+  volume: number;
 }

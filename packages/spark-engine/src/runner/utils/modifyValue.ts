@@ -1,8 +1,6 @@
-import { SetOperator } from "../../data";
-
 export const modifyValue = <T>(
   lhs: T,
-  operator: SetOperator,
+  operator: string,
   rhs: T
 ): T | undefined => {
   switch (operator) {

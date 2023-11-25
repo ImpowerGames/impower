@@ -335,6 +335,7 @@ export const executeDisplayCommand = (
             }
           }
           if (p.audio) {
+            const layer = p.layer || "Voice";
             const assetNames = p.audio;
             const assetArgs = p.args;
             const audioGroup: { id: string; data: string }[] = [];
@@ -361,12 +362,23 @@ export const executeDisplayCommand = (
               }
             });
             if (audioGroup.length > 0) {
-              game.sound.scheduleGroup(
-                p.layer || "voice",
-                id,
-                audioGroup,
-                false
+              const looping = Boolean(
+                layer === "Music" || assetArgs?.includes("loop")
               );
+              const muted = Boolean(assetArgs?.includes("mute"));
+              const percentage = Number(
+                assetArgs?.find((arg) => arg.endsWith("%"))?.split("%")?.[0]
+              );
+              const hasPercentageArg = !Number.isNaN(percentage);
+              const percentageAsDecimal = hasPercentageArg
+                ? 1
+                : percentage / 100;
+              const volume = muted
+                ? 0
+                : hasPercentageArg
+                ? percentageAsDecimal
+                : 1;
+              game.sound.scheduleGroup(layer, id, audioGroup, looping, volume);
             }
           }
           if (p.text) {
@@ -604,6 +616,7 @@ export const executeDisplayCommand = (
         id,
         new SynthBuffer(tones),
         false,
+        1,
         () => {
           doTransitions();
           started = true;

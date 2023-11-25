@@ -77,11 +77,7 @@ export const generateCommand = (
   if (token.ignore) {
     return null;
   }
-  if (
-    token.tag === "assign" ||
-    token.tag === "struct" ||
-    token.tag === "variable"
-  ) {
+  if (token.tag === "assign" || token.tag === "variable") {
     const refId = getCommandId(token, file, sectionId);
     const refTypeId: CommandTypeId = "AssignCommand";
     const newCommand: AssignCommandData = {

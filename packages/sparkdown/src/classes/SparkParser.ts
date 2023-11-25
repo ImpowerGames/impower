@@ -279,7 +279,11 @@ export default class SparkParser {
       }
     };
 
-    const declareType = (tok: SparkStruct): void => {
+    const declareType = (tok: {
+      type: string;
+      name: string;
+      compiled: any;
+    }): void => {
       const obj = tok.compiled as any;
       const extendsType = tok.type || "object";
       program.typeMap ??= {};
@@ -1989,15 +1993,17 @@ export default class SparkParser {
                   // Check if struct is being used to declare an object variable or define an object type
                   const parent = lookup("variable", "define");
                   if (parent) {
+                    parent.value = tok.value;
+                    parent.compiled = tok.compiled;
                     if (parent.tag === "define") {
                       // Types are declared in global scope
                       declareStruct(tok, "");
-                      declareType(tok);
+                      declareType(parent);
                     }
                     if (parent.tag === "variable") {
                       // Variables are declared in local section scope
                       declareStruct(tok, currentSectionId);
-                      declareVariable(tok);
+                      declareVariable(parent);
                     }
                   }
                 }
