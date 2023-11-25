@@ -185,6 +185,19 @@ const buildComponents = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
+  // Spread browser variables to avoid "process not defined" error
+  const define = { ...BROWSER_VARIABLES };
+  const browserVariableEntries = Object.entries(define);
+  if (browserVariableEntries.length > 0) {
+    console.log("");
+    console.log(STEP_COLOR, "Defining Browser Variables...");
+    browserVariableEntries.forEach(([key, value]) => {
+      console.log(SRC_COLOR, `  ${key}=${value}`);
+    });
+  } else {
+    console.log("");
+    console.error(ERROR_COLOR, "No Browser Variables Found.");
+  }
   await build({
     entryPoints: entryPoints,
     outdir: componentsOutDir,
@@ -198,7 +211,7 @@ const buildComponents = async () => {
       ".css": "text",
       ".svg": "text",
     },
-    define: BROWSER_VARIABLES,
+    define,
   });
 };
 
