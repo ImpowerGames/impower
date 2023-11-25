@@ -387,7 +387,9 @@ export default class SparkParser {
     };
 
     const construct = (struct: SparkStruct, ids: Record<string, string>) => {
-      const isArray = !Number.isNaN(Number(struct.fields?.[0]?.key));
+      const firstField = struct.fields?.[0];
+      const isArray =
+        !firstField?.path && !Number.isNaN(Number(firstField?.key));
       const obj = isArray ? [] : {};
       _construct(true, struct, ids, obj);
       return obj;

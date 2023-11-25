@@ -1,6 +1,7 @@
 import {
   ANIMATION_DEFAULTS,
   ASSET_DEFAULTS,
+  AUDIO_GROUP_DEFAULTS,
   CHARACTER_DEFAULTS,
   EASE_DEFAULTS,
   FONT_DEFAULTS,
@@ -17,6 +18,7 @@ export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   HTML: {},
   CSS: {},
   Camera: {},
+  AudioGroup: AUDIO_GROUP_DEFAULTS,
   Asset: ASSET_DEFAULTS,
   Graphic: GRAPHIC_DEFAULTS,
   Font: FONT_DEFAULTS,
