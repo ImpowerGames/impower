@@ -62,13 +62,15 @@ if (!PRODUCTION) {
   dotenv.config();
 }
 
-const BROWSER_VARIABLES: Record<string, string> = {};
-Object.entries(process.env).forEach(([key, value]) => {
-  if (key.startsWith("BROWSER_") && value) {
-    BROWSER_VARIABLES[`process.env.${key}`] = `"${value}"`;
-    BROWSER_VARIABLES[`process.env["${key}"]`] = `"${value}"`;
-  }
-});
+let BROWSER_VARIABLES: Record<string, string> | undefined = undefined;
+if (!BROWSER_VARIABLES) {
+  Object.entries(process.env).forEach(([key, value]) => {
+    if (key.startsWith("BROWSER_") && value) {
+      BROWSER_VARIABLES ??= {};
+      BROWSER_VARIABLES[`process.env.${key}`] = `"${value}"`;
+    }
+  });
+}
 
 const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
