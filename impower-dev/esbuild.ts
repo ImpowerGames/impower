@@ -62,8 +62,10 @@ if (!PRODUCTION) {
 
 const BROWSER_VARIABLES_ENV: Record<string, string> = {};
 Object.entries(process.env).forEach(([key, value]) => {
-  if (key.startsWith("BROWSER_") && value) {
-    BROWSER_VARIABLES_ENV[key] = value;
+  if (value) {
+    if (key.startsWith("BROWSER_") || key.startsWith("_BROWSER_")) {
+      BROWSER_VARIABLES_ENV[key] = value;
+    }
   }
 });
 // Use esbuild's `banner` feature instead of its `define` feature to populate browser environment variables,
