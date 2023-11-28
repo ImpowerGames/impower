@@ -154,7 +154,7 @@ const buildPages = async () => {
     platform: "browser",
     format: "esm",
     bundle: true,
-    minify: PRODUCTION,
+    minify: false,
     sourcemap: !PRODUCTION,
     loader: {
       ".html": "text",
