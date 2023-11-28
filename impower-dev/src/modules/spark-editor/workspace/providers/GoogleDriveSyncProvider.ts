@@ -19,7 +19,7 @@ const BROWSER_GOOGLE_OAUTH_CLIENT_ID =
 // App Id must match first part of OAuth Client Id
 // https://stackoverflow.com/a/17204637
 // https://stackoverflow.com/a/26285995
-const BROWSER_GOOGLE_APP_ID = BROWSER_GOOGLE_OAUTH_CLIENT_ID.split("-")[0]!;
+const BROWSER_GOOGLE_APP_ID = BROWSER_GOOGLE_OAUTH_CLIENT_ID?.split("-")[0]!;
 
 // Authorization scopes required to sync files to a google drive folder
 const SCOPES = [
