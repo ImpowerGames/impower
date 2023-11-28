@@ -1,13 +1,14 @@
 import { Event, Object3D } from "three";
 import { SparkDOMAudioPlayer } from "../../../../spark-dom/src/classes/SparkDOMAudioPlayer";
 import { SynthBuffer } from "../../../../spark-engine/src";
+import { Sound } from "../../../../spark-engine/src/game/sound/types/Sound";
 import { Disposable } from "../Disposable";
 import Scene from "../Scene";
 
 export default class SoundScene extends Scene {
   protected _audioContext: AudioContext = new AudioContext();
 
-  protected _audioPlayers: Map<string, SparkDOMAudioPlayer> = new Map();
+  protected _audioPlayers = new Map<string, SparkDOMAudioPlayer>();
 
   override start() {
     this.context.game.sound.config.synths =
@@ -15,53 +16,64 @@ export default class SoundScene extends Scene {
   }
 
   override async load(): Promise<Object3D<Event>[]> {
-    const audioAssets = this.context.game.struct.config.typeMap["Audio"];
-    if (audioAssets) {
-      await Promise.all(
-        Object.entries(audioAssets).map(async ([name, asset]) => {
-          try {
-            if (asset.src) {
-              if (asset.ext === "midi" || asset.ext === "mid") {
-                await this.loadMidi(name, asset.src);
-              } else {
-                await this.loadSound(name, asset.src);
-              }
-            }
-          } catch {
-            console.error("Could not load: ", name);
-          }
-        })
-      );
-    }
+    // TODO: Load audio ahead of time
+    // const audioAssets = this.context.game.struct.config.typeMap["Audio"];
+    // if (audioAssets) {
+    //   await Promise.all(
+    //     Object.entries(audioAssets).map(async ([name, asset]) => {
+    //       try {
+    //         if (asset.src) {
+    //           if (asset.ext === "midi" || asset.ext === "mid") {
+    //             await this.loadMidi(name, asset.src);
+    //           } else {
+    //             await this.loadSound(name, asset.src);
+    //           }
+    //         }
+    //       } catch {
+    //         console.error("Could not load: ", name);
+    //       }
+    //     })
+    //   );
+    // }
     return super.load();
   }
 
   override bind(): void {
     super.bind();
-    this.context?.game?.sound?.events?.onScheduled?.addListener(
-      (id, sound, loop, volume) => this.scheduleSound(id, sound, loop, volume)
+    this.context?.game?.sound?.events?.onLoad?.addListener((sound) =>
+      this.loadSound(sound)
     );
-    this.context?.game?.sound?.events?.onStarted?.addListener((ids) =>
-      this.startSounds(ids)
+    this.context?.game?.sound?.events?.onStart?.addListener((sounds, offset) =>
+      this.startSounds(sounds, offset)
     );
-    this.context?.game?.sound?.events?.onPaused?.addListener((ids) =>
-      this.pauseSounds(ids)
+    this.context?.game?.sound?.events.onStop?.addListener(
+      (sounds, offset, scheduled) => this.stopSounds(sounds, offset, scheduled)
     );
-    this.context?.game?.sound?.events?.onUnpaused?.addListener((ids) =>
-      this.unpauseSounds(ids)
+    this.context?.game?.sound?.events?.onPause?.addListener(
+      (sounds, offset, scheduled) => this.pauseSounds(sounds, offset, scheduled)
     );
-    this.context?.game?.sound?.events.onStopped?.addListener((ids) =>
-      this.stopSounds(ids)
+    this.context?.game?.sound?.events?.onUnpause?.addListener(
+      (sounds, offset, scheduled) =>
+        this.unpauseSounds(sounds, offset, scheduled)
+    );
+    this.context?.game?.sound?.events?.onMute?.addListener(
+      (sounds, offset, scheduled) => this.muteSounds(sounds, offset, scheduled)
+    );
+    this.context?.game?.sound?.events?.onUnmute?.addListener(
+      (sounds, offset, scheduled) =>
+        this.unmuteSounds(sounds, offset, scheduled)
     );
   }
 
   override unbind(): void {
     super.unbind();
-    this.context?.game?.sound?.events?.onScheduled?.removeAllListeners();
-    this.context?.game?.sound?.events?.onStarted?.removeAllListeners();
-    this.context?.game?.sound?.events?.onPaused?.removeAllListeners();
-    this.context?.game?.sound?.events?.onUnpaused?.removeAllListeners();
-    this.context?.game?.sound?.events?.onStopped?.removeAllListeners();
+    this.context?.game?.sound?.events?.onLoad?.removeAllListeners();
+    this.context?.game?.sound?.events?.onStart?.removeAllListeners();
+    this.context?.game?.sound?.events?.onStop?.removeAllListeners();
+    this.context?.game?.sound?.events?.onPause?.removeAllListeners();
+    this.context?.game?.sound?.events?.onUnpause?.removeAllListeners();
+    this.context?.game?.sound?.events?.onMute?.removeAllListeners();
+    this.context?.game?.sound?.events?.onUnmute?.removeAllListeners();
   }
 
   override dispose(): Disposable[] {
@@ -70,6 +82,7 @@ export default class SoundScene extends Scene {
         a.stop(0);
       }
     });
+    this._audioPlayers.clear();
     return super.dispose();
   }
 
@@ -89,63 +102,89 @@ export default class SoundScene extends Scene {
     // TODO: load midi
   }
 
-  async loadSound(id: string, sound: Float32Array | SynthBuffer | string) {
-    if (!this._audioPlayers.get(id)) {
-      const buffer = await this.getAudioBuffer(sound);
-      const audioPlayer = new SparkDOMAudioPlayer(buffer, this._audioContext);
-      this._audioPlayers.set(id, audioPlayer);
-      this.context.game.sound.ready(id);
+  async loadSound(sound: Sound) {
+    if (this._audioPlayers.get(sound.id)) {
+      return this._audioPlayers.get(sound.id)!;
     }
-    return this._audioPlayers.get(id)!;
+    const buffer = await this.getAudioBuffer(sound.src);
+    if (this._audioPlayers.get(sound.id)) {
+      return this._audioPlayers.get(sound.id)!;
+    }
+    const audioPlayer = new SparkDOMAudioPlayer(buffer, this._audioContext, {
+      loop: sound.loop,
+      volume: sound.volume,
+      muted: sound.muted,
+      attack: sound.attack,
+      release: sound.release,
+      cues: sound.cues,
+    });
+    this._audioPlayers.set(sound.id, audioPlayer);
+    this.context.game.sound.notifyReady(sound.id);
+    return audioPlayer;
   }
 
-  async scheduleSound(
-    id: string,
-    sound: Float32Array | SynthBuffer | string,
-    loop: boolean,
-    volume: number
-  ) {
-    const audioPlayer = await this.loadSound(id, sound);
-    audioPlayer.loop = loop;
-    audioPlayer.volume = volume;
-  }
-
-  startSounds(ids: string[]) {
-    const scheduledTime = this._audioContext.currentTime;
-    ids.forEach((id) => {
-      const audioPlayer = this._audioPlayers.get(id);
+  startSounds(sounds: Sound[], offset: number) {
+    const time = this._audioContext.currentTime + offset;
+    sounds.forEach((sound) => {
+      const audioPlayer = this._audioPlayers.get(sound.id);
       if (audioPlayer) {
-        audioPlayer.start(scheduledTime);
+        const when = time;
+        audioPlayer.start(when);
       }
     });
   }
 
-  pauseSounds(ids: string[]): void {
-    const scheduledTime = this._audioContext.currentTime;
-    ids.forEach((id) => {
-      const audioPlayer = this._audioPlayers.get(id);
+  stopSounds(sounds: Sound[], offset: number, scheduled: boolean): void {
+    const time = this._audioContext.currentTime + offset;
+    sounds.forEach((sound) => {
+      const audioPlayer = this._audioPlayers.get(sound.id);
       if (audioPlayer) {
-        audioPlayer.pause(scheduledTime);
+        const when = scheduled ? audioPlayer.getNextCueTime(time) : time;
+        audioPlayer.stop(when);
       }
     });
   }
 
-  unpauseSounds(ids: string[]): void {
-    const scheduledTime = this._audioContext.currentTime;
-    ids.forEach((id) => {
-      const audioPlayer = this._audioPlayers.get(id);
+  pauseSounds(sounds: Sound[], offset: number, scheduled: boolean): void {
+    const time = this._audioContext.currentTime + offset;
+    sounds.forEach((sound) => {
+      const audioPlayer = this._audioPlayers.get(sound.id);
       if (audioPlayer) {
-        audioPlayer.unpause(scheduledTime);
+        const when = scheduled ? audioPlayer.getNextCueTime(time) : time;
+        audioPlayer.pause(when);
       }
     });
   }
 
-  stopSounds(ids: string[]): void {
-    const scheduledTime = this._audioContext.currentTime;
-    ids.forEach((id) => {
-      const audioPlayer = this._audioPlayers.get(id);
+  unpauseSounds(sounds: Sound[], offset: number, scheduled: boolean): void {
+    const time = this._audioContext.currentTime + offset;
+    sounds.forEach((sound) => {
+      const audioPlayer = this._audioPlayers.get(sound.id);
       if (audioPlayer) {
-        audioPlayer.stop(scheduledTime);
+        const when = scheduled ? audioPlayer.getNextCueTime(time) : time;
+        audioPlayer.unpause(when);
+      }
+    });
+  }
+
+  muteSounds(sounds: Sound[], offset: number, scheduled: boolean): void {
+    const time = this._audioContext.currentTime + offset;
+    sounds.forEach((sound) => {
+      const audioPlayer = this._audioPlayers.get(sound.id);
+      if (audioPlayer) {
+        const when = scheduled ? audioPlayer.getNextCueTime(time) : time;
+        audioPlayer.mute(when);
+      }
+    });
+  }
+
+  unmuteSounds(sounds: Sound[], offset: number, scheduled: boolean): void {
+    const time = this._audioContext.currentTime + offset;
+    sounds.forEach((sound) => {
+      const audioPlayer = this._audioPlayers.get(sound.id);
+      if (audioPlayer) {
+        const when = scheduled ? audioPlayer.getNextCueTime(time) : time;
+        audioPlayer.unmute(when);
       }
     });
   }

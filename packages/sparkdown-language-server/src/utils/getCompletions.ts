@@ -18,7 +18,7 @@ import {
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";
 import getLineTextBefore from "./getLineTextBefore";
-import { Asset, isAsset } from "./isAsset";
+import { Asset, isAssetOfType } from "./isAsset";
 import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s/g;
@@ -27,9 +27,9 @@ const getImageCompletions = (
   program: SparkProgram | undefined
 ): CompletionItem[] | null => {
   const images = Object.values(program?.variables || {})
-    .filter((v) => isAsset(v.compiled) && v.compiled.type === "image")
+    .filter((v) => isAssetOfType(v.compiled, "image"))
     .map((v) => v.compiled as Asset);
-  return images.map((asset) => ({
+  const imageCompletions = images.map((asset) => ({
     label: asset.name,
     labelDetails: { description: "Image" },
     kind: CompletionItemKind.Constructor,
@@ -38,57 +38,106 @@ const getImageCompletions = (
       value: `![${asset.name}](${asset.src})`,
     },
   }));
+  const imageArrayNames = Object.values(program?.variables || {})
+    .filter(
+      (v) =>
+        Array.isArray(v.compiled) &&
+        v.compiled.every((x) => isAssetOfType(x, "image"))
+    )
+    .map((v) => v.name as string);
+  const imageArrayCompletions = imageArrayNames.map((name) => ({
+    label: name,
+    labelDetails: { description: "Image[]" },
+    kind: CompletionItemKind.Constructor,
+  }));
+  const imageGroupNames = Object.values(program?.variables || {})
+    .filter(
+      (v) =>
+        v.compiled &&
+        typeof v.compiled === "object" &&
+        "assets" in v.compiled &&
+        Array.isArray(v.compiled.assets) &&
+        v.compiled.assets.every((x) => isAssetOfType(x, "image"))
+    )
+    .map((v) => v.name as string);
+  const imageGroupCompletions = imageGroupNames.map((name) => ({
+    label: name,
+    labelDetails: { description: "ImageGroup" },
+    kind: CompletionItemKind.Constructor,
+  }));
+  return [
+    ...imageCompletions,
+    ...imageArrayCompletions,
+    ...imageGroupCompletions,
+  ];
 };
 
 const getAudioCompletions = (
   program: SparkProgram | undefined
 ): CompletionItem[] | null => {
   const audio = Object.values(program?.variables || {})
-    .filter((v) => isAsset(v.compiled) && v.compiled.type === "audio")
+    .filter((v) => isAssetOfType(v.compiled, "audio"))
     .map((v) => v.compiled as Asset);
-  return audio.map((asset) => ({
+  const audioCompletions = audio.map((asset) => ({
     label: asset.name,
     labelDetails: { description: "Audio" },
     kind: CompletionItemKind.Constructor,
   }));
+  const audioArrayNames = Object.values(program?.variables || {})
+    .filter(
+      (v) =>
+        Array.isArray(v.compiled) &&
+        v.compiled.every((x) => isAssetOfType(x, "audio"))
+    )
+    .map((v) => v.name as string);
+  const audioArrayCompletions = audioArrayNames.map((arrayName) => ({
+    label: arrayName,
+    labelDetails: { description: "Audio[]" },
+    kind: CompletionItemKind.Constructor,
+  }));
+  const audioGroupNames = Object.values(program?.variables || {})
+    .filter(
+      (v) =>
+        v.compiled &&
+        typeof v.compiled === "object" &&
+        "assets" in v.compiled &&
+        Array.isArray(v.compiled.assets) &&
+        v.compiled.assets.every((x) => isAssetOfType(x, "audio"))
+    )
+    .map((v) => v.name as string);
+  const audioGroupCompletions = audioGroupNames.map((name) => ({
+    label: name,
+    labelDetails: { description: "AudioGroup" },
+    kind: CompletionItemKind.Constructor,
+  }));
+  return [
+    ...audioCompletions,
+    ...audioArrayCompletions,
+    ...audioGroupCompletions,
+  ];
 };
 
 const getAudioArgumentCompletions = (
   content: string
 ): CompletionItem[] | null => {
   const args = content.split(WHITESPACE_REGEX);
-  if (args.includes("stop")) {
-    return null;
-  }
-  if (args.includes("start")) {
-    return null;
-  }
-  return [
-    {
-      label: "stop",
-      kind: CompletionItemKind.Keyword,
-    },
-    {
-      label: "start",
-      kind: CompletionItemKind.Keyword,
-    },
-    {
-      label: "pause",
-      kind: CompletionItemKind.Keyword,
-    },
-    {
-      label: "unpause",
-      kind: CompletionItemKind.Keyword,
-    },
-    {
-      label: "mute",
-      kind: CompletionItemKind.Keyword,
-    },
-    {
-      label: "unmute",
-      kind: CompletionItemKind.Keyword,
-    },
+  const completions = [
+    "schedule",
+    "stop",
+    "start",
+    "pause",
+    "unpause",
+    "mute",
+    "unmute",
   ];
+  return completions
+    .filter((c) => !args.includes(c))
+    .map((label) => ({
+      label,
+      insertText:
+        content.startsWith(" ") && !content.trim() ? label : " " + label,
+      kind: CompletionItemKind.Keyword,
+    }));
 };
 
 const getCharacterCompletions = (
@@ -203,6 +252,7 @@ const getCompletions = (
     return undefined;
   }
   const prevLineText = getLineText(document, position, -1);
+  const lineText = getLineText(document, position);
   const nextLineText = getLineText(document, position, 1);
   const textBefore = getLineTextBefore(document, position);
   const textAfter = getLineTextAfter(document, position);
@@ -216,8 +266,10 @@ const getCompletions = (
       return getImageCompletions(program);
     }
     if (scopes.includes("audio")) {
-      if (scopes.includes("asset_args")) {
-        return getAudioArgumentCompletions(trimmedTextBefore.replace("((", ""));
+      if (triggerCharacter === ":" || scopes.includes("asset_args")) {
+        return getAudioArgumentCompletions(
+          lineText.slice(lineText.indexOf(":") + 1, lineText.indexOf(")"))
+        );
       } else if (triggerCharacter !== "@") {
         return getAudioCompletions(program);
       }

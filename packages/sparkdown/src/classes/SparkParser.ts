@@ -86,12 +86,39 @@ const calculateIndent = (text: string): number => {
   return tabCount + spaceCount * spaceMultiplier;
 };
 
+interface Asset<T extends string = string> {
+  type: T;
+  src: string;
+}
+
+interface AssetGroup<T extends string = string> {
+  assets: Asset<T>[];
+}
+
+const isAsset = (obj: unknown): obj is Asset => {
+  return Boolean(
+    obj && typeof obj === "object" && "type" in obj && "src" in obj
+  );
+};
+
 const isAssetOfType = <T extends string>(
   value: unknown,
   type: T
-): value is { type: T } => {
-  const obj = value as { type: T };
-  return obj && typeof obj === "object" && obj.type === type;
+): value is Asset<T> => {
+  return isAsset(value) && value.type === type;
+};
+
+const isAssetArray = (obj: unknown): obj is Asset[] => {
+  return Boolean(Array.isArray(obj) && obj.every((x) => isAsset(x)));
+};
+
+const isAssetGroup = (obj: unknown): obj is AssetGroup => {
+  return Boolean(
+    obj &&
+      typeof obj === "object" &&
+      "assets" in obj &&
+      isAssetArray(obj.assets)
+  );
 };
 
 const findChunkId = (
@@ -564,6 +591,18 @@ export default class SparkParser {
             program,
             tok,
             `'${name}' is not ${prefixWithArticle(type)} array`,
+            [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
+            from,
+            to
+          );
+          return undefined;
+        }
+      } else if (isAssetGroup(value)) {
+        if (value.assets.some((x) => !isAssetOfType(x, type))) {
+          diagnostic(
+            program,
+            tok,
+            `'${name}' is not ${prefixWithArticle(type)} group`,
             [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
             from,
             to

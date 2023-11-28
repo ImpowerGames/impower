@@ -259,7 +259,7 @@ export default class SparkWebPlayer extends Component(spec) {
                   },
                   end: {
                     line: source.line,
-                    character: source.to - source.from,
+                    character: source.to - source.from - 1,
                   },
                 },
               }),

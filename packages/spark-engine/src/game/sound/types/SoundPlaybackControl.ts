@@ -3,9 +3,8 @@ export interface SoundPlaybackControl {
   latestEvent: number;
   layer?: string;
   group?: string;
-  scheduled: boolean;
   started: boolean;
   paused: boolean;
-  looping: boolean;
+  muted: boolean;
   volume: number;
 }

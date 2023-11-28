@@ -3,7 +3,7 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import getFencedCode from "./getFencedCode";
-import { isAsset } from "./isAsset";
+import { isAssetOfType } from "./isAsset";
 
 const getHover = (
   document: TextDocument | undefined,
@@ -25,7 +25,7 @@ const getHover = (
       const id = reference.id || "";
       const name = reference.name;
       const asset = program.variables?.[id]?.compiled;
-      if (isAsset(asset) && asset.type === "image") {
+      if (isAssetOfType(asset, "image")) {
         const src = asset.src;
         return {
           contents: {

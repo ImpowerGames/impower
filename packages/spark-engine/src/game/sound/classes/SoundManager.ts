@@ -1,4 +1,4 @@
-import { GameEvent1, GameEvent2, GameEvent4 } from "../../core";
+import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
@@ -6,19 +6,19 @@ import { MIDI_STATUS_SYSTEM } from "../constants/MIDI_STATUS_TYPE";
 import { Midi } from "../types/Midi";
 import { MidiEvent } from "../types/MidiEvent";
 import { MidiTrackState } from "../types/MidiTrackState";
+import { Sound } from "../types/Sound";
 import { SoundPlaybackControl } from "../types/SoundPlaybackControl";
 import { SynthConfig } from "../types/Synth";
 import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackState";
-import { SynthBuffer } from "./SynthBuffer";
-
-type SoundSource = Float32Array | SynthBuffer | string;
 
 export interface SoundEvents extends Record<string, GameEvent> {
-  onScheduled: GameEvent4<string, SoundSource, boolean, number>;
-  onStarted: GameEvent1<string[]>;
-  onPaused: GameEvent1<string[]>;
-  onUnpaused: GameEvent1<string[]>;
-  onStopped: GameEvent1<string[]>;
+  onLoad: GameEvent1<Sound>;
+  onStart: GameEvent2<Sound[], number>;
+  onStop: GameEvent3<Sound[], number, boolean>;
+  onPause: GameEvent3<Sound[], number, boolean>;
+  onUnpause: GameEvent3<Sound[], number, boolean>;
+  onMute: GameEvent3<Sound[], number, boolean>;
+  onUnmute: GameEvent3<Sound[], number, boolean>;
   onUpdate: GameEvent1<number>;
   onMidiEvent: GameEvent2<string, MidiEvent>;
 }
@@ -26,17 +26,13 @@ export interface SoundEvents extends Record<string, GameEvent> {
 export interface SoundConfig {
   synths: Record<string, SynthConfig>;
   midis: Map<string, Midi>;
-  sounds: Map<string, SoundSource>;
+  sounds: Map<string, Sound>;
 }
 
 export interface SoundState {
   playbackStates: Record<string, SoundPlaybackControl>;
   layers: Record<string, string[]>;
   groups: Record<string, string[]>;
-  starting: string[];
-  pausing: string[];
-  unpausing: string[];
-  stopping: string[];
 }
 
 export class SoundManager extends Manager<
@@ -44,22 +40,24 @@ export class SoundManager extends Manager<
   SoundConfig,
   SoundState
 > {
-  private _midiStates: Record<string, MidiTrackState> = {};
+  protected _midiStates: Record<string, MidiTrackState> = {};
 
-  private _onStartedCallbacks: Map<string, undefined | (() => void)[]> =
+  protected _onReadyCallbacks: Map<string, undefined | (() => void)[]> =
     new Map();
 
-  private _ready = new Set<string>();
+  protected _loading = new Set<string>();
 
-  private _startedGroups = new Set<string>();
+  protected _ready = new Map<string, Sound | Midi>();
 
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
-      onScheduled: new GameEvent4<string, SoundSource, boolean, number>(),
-      onStarted: new GameEvent1<string[]>(),
-      onPaused: new GameEvent1<string[]>(),
-      onUnpaused: new GameEvent1<string[]>(),
-      onStopped: new GameEvent1<string[]>(),
+      onLoad: new GameEvent1<Sound>(),
+      onStart: new GameEvent2<Sound[], number>(),
+      onStop: new GameEvent3<Sound[], number, boolean>(),
+      onPause: new GameEvent3<Sound[], number, boolean>(),
+      onUnpause: new GameEvent3<Sound[], number, boolean>(),
+      onMute: new GameEvent3<Sound[], number, boolean>(),
+      onUnmute: new GameEvent3<Sound[], number, boolean>(),
       onUpdate: new GameEvent1<number>(),
       onMidiEvent: new GameEvent2<string, MidiEvent>(),
     };
@@ -73,10 +71,6 @@ export class SoundManager extends Manager<
       playbackStates: {},
       layers: {},
       groups: {},
-      starting: [],
-      pausing: [],
-      unpausing: [],
-      stopping: [],
       ...(state || {}),
     };
     super(initialEvents, initialConfig, initialState);
@@ -86,243 +80,559 @@ export class SoundManager extends Manager<
     this._state.playbackStates[id] ??= {
       elapsedMS: -1,
       latestEvent: -1,
-      volume: 1,
-      scheduled: false,
       started: false,
       paused: false,
-      looping: false,
+      muted: false,
+      volume: 1,
     };
     return this._state.playbackStates[id]!;
   }
 
-  scheduleGroup(
-    layer: string,
-    group: string,
-    sounds: { id: string; data: SoundSource }[],
-    loop: boolean,
-    volume: number,
-    onStarted?: () => void
-  ): void {
-    sounds.forEach(({ id, data }) => {
+  protected deletePlaybackState(id: string) {
+    delete this._state.playbackStates[id];
+  }
+
+  setLayer(id: string, layer: string): SoundPlaybackControl {
+    const controlState = this.getOrCreatePlaybackState(id);
+    if (layer) {
+      controlState.layer = layer;
+      this._state.layers[layer] ??= [];
+      this._state.layers[layer]!.push(id);
+    }
+    return controlState;
+  }
+
+  setGroup(id: string, group: string): SoundPlaybackControl {
+    const controlState = this.getOrCreatePlaybackState(id);
+    if (group) {
+      controlState.group = group;
       this._state.groups[group] ??= [];
       this._state.groups[group]!.push(id);
-      const controlState = this.getOrCreatePlaybackState(id);
-      controlState.group = group;
-      this.schedule(layer, id, data, loop, volume, onStarted);
-    });
+    }
+    return controlState;
   }
 
-  schedule(
-    layer: string,
-    id: string,
-    sound: SoundSource,
-    loop: boolean,
-    volume: number,
-    onStarted?: () => void
-  ): void {
+  removeFromLayer(id: string, layer: string) {
+    const layerState = this._state.layers[layer];
+    if (layerState) {
+      this._state.layers[layer] = layerState.filter((x) => x != id) ?? [];
+    }
+  }
+
+  removeFromGroup(id: string, group: string) {
+    const groupState = this._state.groups[group];
+    if (groupState) {
+      this._state.groups[group] = groupState.filter((x) => x != id) ?? [];
+    }
+  }
+
+  protected _load(sound: Sound, callback?: () => void) {
+    const id = sound.id;
+    if (this._ready.has(id)) {
+      callback?.();
+      return;
+    }
+    if (callback) {
+      if (!this._onReadyCallbacks.get(id)) {
+        this._onReadyCallbacks.set(id, []);
+      }
+      const listeners = this._onReadyCallbacks.get(id);
+      listeners?.push(callback);
+    }
+    if (this._loading.has(id)) {
+      return;
+    }
+    this._loading.add(id);
     this._config.sounds.set(id, sound);
-    this._state.layers[layer] ??= [];
-    this._state.layers[layer]!.push(id);
-    const controlState = this.getOrCreatePlaybackState(id);
-    controlState.layer = layer;
-    controlState.looping = loop;
-    controlState.scheduled = true;
-    if (onStarted) {
-      if (!this._onStartedCallbacks.get(id)) {
-        this._onStartedCallbacks.set(id, []);
-      }
-      const callbacks = this._onStartedCallbacks.get(id);
-      callbacks?.push(onStarted);
-    }
-    this._events.onScheduled.dispatch(id, sound, loop, volume);
+    this._events.onLoad.dispatch(sound);
   }
 
-  ready(id: string): void {
-    this._ready.add(id);
-  }
-
-  pauseAll(layer: string): void {
-    const ids = this._state.layers[layer];
-    if (!ids) {
-      return;
-    }
-    ids.forEach((id) => {
-      this.pause(id);
+  async load(sound: Sound): Promise<void> {
+    return new Promise((resolve) => {
+      this._load(sound, resolve);
     });
   }
 
-  pause(id: string): void {
-    const controlState = this.getOrCreatePlaybackState(id);
-    controlState.paused = true;
-    this._state.pausing.push(id);
-  }
-
-  unpauseAll(layer: string): void {
-    const ids = this._state.layers[layer];
-    if (!ids) {
-      return;
+  notifyReady(id: string) {
+    const sound = this._config.sounds.get(id);
+    const midi = this._config.midis.get(id);
+    const audio = sound || midi;
+    if (audio) {
+      this._ready.set(id, audio);
+      this._loading.delete(id);
     }
-    ids.forEach((id) => {
-      this.unpause(id);
-    });
-  }
-
-  unpause(id: string): void {
-    const controlState = this.getOrCreatePlaybackState(id);
-    controlState.paused = false;
-    this._state.unpausing.push(id);
-  }
-
-  stopAll(layer: string): void {
-    const ids = this._state.layers[layer];
-    if (!ids) {
-      return;
+    const onReadyCallbacks = this._onReadyCallbacks.get(id);
+    if (onReadyCallbacks) {
+      onReadyCallbacks.forEach((callback) => callback?.());
     }
-    ids.forEach((id) => {
-      this.stop(id);
-    });
-    this._state.layers[layer] = [];
   }
 
-  stop(id: string): void {
-    const controlState = this._state.playbackStates[id];
-    if (controlState) {
-      const layer = controlState.layer;
+  async loadAll(sounds: Sound[]) {
+    return Promise.all(sounds.map((sound) => this.load(sound)));
+  }
+
+  protected async startSounds(
+    sounds: Sound[],
+    layer?: string,
+    group?: string,
+    offset?: number,
+    onReady?: () => void
+  ) {
+    await this.loadAll(sounds);
+    sounds.forEach((sound) => {
       if (layer) {
-        this._state.layers[layer] =
-          this._state.layers[layer]?.filter((x) => x != id) ?? [];
+        this.removeFromLayer(sound.id, layer);
       }
-      const group = controlState.group;
       if (group) {
-        this._state.groups[group] =
-          this._state.groups[group]?.filter((x) => x != id) ?? [];
+        this.removeFromGroup(sound.id, group);
       }
-      delete this._state.playbackStates[id];
-    }
-    this._config.sounds.delete(id);
-    this._config.midis.delete(id);
-    this._state.stopping.push(id);
-  }
-
-  protected groupIsReady(group: string) {
-    const ids = this._state.groups[group];
-    if (!ids) {
-      return false;
-    }
-    for (let i = 0; i < ids.length; i += 1) {
-      const id = ids[i]!;
-      const controlState = this._state.playbackStates[id];
-      if (!controlState || !controlState.scheduled || !this._ready.has(id)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  override update(deltaMS: number): void {
-    this._startedGroups.clear();
-    // Update sound playback
-    this._config.sounds.forEach((_, id) => {
-      if (!this._ready.has(id)) {
-        return;
-      }
-      const controlState = this._state.playbackStates[id];
-      if (!controlState) {
-        return;
-      }
-      if (!controlState.scheduled) {
-        return;
-      }
-      if (controlState.paused) {
-        return;
-      }
-      if (controlState.started) {
-        controlState.elapsedMS += deltaMS;
-      } else {
-        if (controlState.group) {
-          if (this.groupIsReady(controlState.group)) {
-            controlState.started = true;
-            this._state.starting.push(id);
-            this._startedGroups.add(controlState.group);
-          }
-        } else {
-          controlState.started = true;
-          this._state.starting.push(id);
-        }
-      }
+      this.deletePlaybackState(sound.id);
     });
-    // Update midi playback
-    this._config.midis.forEach((sound, id) => {
-      if (!this._ready.has(id)) {
-        return;
+    this._events.onStart.dispatch(sounds, offset || 0);
+    onReady?.();
+  }
+
+  async startAll(
+    sounds: Sound[],
+    layer: string,
+    group: string,
+    offset?: number,
+    onReady?: () => void
+  ) {
+    return this.startSounds(sounds, layer, group, offset, onReady);
+  }
+
+  async start(
+    sound: Sound,
+    layer: string,
+    offset?: number,
+    onReady?: () => void
+  ) {
+    return this.startSounds([sound], layer, undefined, offset, onReady);
+  }
+
+  protected async stopSounds(
+    sounds: Sound[],
+    layer?: string,
+    group?: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    await this.loadAll(sounds);
+    sounds.forEach((sound) => {
+      if (layer) {
+        this.removeFromLayer(sound.id, layer);
       }
-      const controlState = this._state.playbackStates[id];
-      if (!controlState) {
-        return;
+      if (group) {
+        this.removeFromGroup(sound.id, group);
       }
-      if (!controlState.scheduled) {
-        return;
+      this.deletePlaybackState(sound.id);
+    });
+    this._events.onStop.dispatch(sounds, offset || 0, scheduled || false);
+    onReady?.();
+  }
+
+  async stopAll(
+    sounds: Sound[],
+    layer: string,
+    group: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.stopSounds(sounds, layer, group, offset, scheduled, onReady);
+  }
+
+  async stop(
+    sound: Sound,
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.stopSounds(
+      [sound],
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  async stopLayer(
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    const ids = this._state.layers[layer];
+    if (!ids) {
+      return;
+    }
+    const sounds = ids.map((id) => this._config.sounds.get(id)!);
+    return this.stopSounds(
+      sounds,
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  protected async pauseSounds(
+    sounds: Sound[],
+    layer?: string,
+    group?: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    await this.loadAll(sounds);
+    sounds.forEach((sound) => {
+      if (layer) {
+        this.setLayer(sound.id, layer);
       }
-      if (controlState.paused) {
-        return;
+      if (group) {
+        this.setGroup(sound.id, group);
       }
-      // For performance reasons, we reset all existing states
-      // rather than creating new state objects every tick
-      const midiTrackState = createOrResetMidiTrackState(this._midiStates[id]);
-      sound.tracks.forEach((track) => {
-        track.forEach((event, index) => {
-          const ticks = event.ticks ?? 0;
-          if (
-            event.statusType === MIDI_STATUS_SYSTEM.system_meta &&
-            event.statusData === MIDI_STATUS_DATA.system_meta_tempo
-          ) {
-            midiTrackState.mpq = event.tempoMPQ;
-          }
-          const secondsPerQuarterNote = midiTrackState.mpq / 1000000;
-          const quarterNotesPerTick = 1 / sound.tpq;
-          const quarterNotes = ticks * quarterNotesPerTick;
-          const time = quarterNotes * secondsPerQuarterNote;
-          const timeMS = time * 1000;
-          if (
-            index > controlState.latestEvent &&
-            controlState.elapsedMS >= timeMS
-          ) {
-            this._events.onMidiEvent.dispatch(id, event);
-            controlState.latestEvent = index;
-          }
-        });
+      const controlState = this.getOrCreatePlaybackState(sound.id);
+      controlState.paused = true;
+    });
+    this._events.onPause.dispatch(sounds, offset || 0, scheduled || false);
+    onReady?.();
+  }
+
+  async pauseAll(
+    sounds: Sound[],
+    layer: string,
+    group: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.pauseSounds(sounds, layer, group, offset, scheduled, onReady);
+  }
+
+  async pause(
+    sound: Sound,
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.pauseSounds(
+      [sound],
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  async pauseLayer(
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    const ids = this._state.layers[layer];
+    if (!ids) {
+      return;
+    }
+    const sounds = ids.map((id) => this._config.sounds.get(id)!);
+    return this.pauseSounds(
+      sounds,
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  protected async unpauseSounds(
+    sounds: Sound[],
+    layer?: string,
+    group?: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    await this.loadAll(sounds);
+    sounds.forEach((sound) => {
+      if (layer) {
+        this.setLayer(sound.id, layer);
+      }
+      if (group) {
+        this.setGroup(sound.id, group);
+      }
+      const controlState = this.getOrCreatePlaybackState(sound.id);
+      controlState.paused = false;
+    });
+    this._events.onUnpause.dispatch(sounds, offset || 0, scheduled || false);
+    onReady?.();
+  }
+
+  async unpauseAll(
+    sounds: Sound[],
+    layer: string,
+    group: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.unpauseSounds(sounds, layer, group, offset, scheduled, onReady);
+  }
+
+  async unpause(
+    sound: Sound,
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.unpauseSounds(
+      [sound],
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  async unpauseLayer(
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    const ids = this._state.layers[layer];
+    if (!ids) {
+      return;
+    }
+    const sounds = ids.map((id) => this._config.sounds.get(id)!);
+    return this.unpauseSounds(
+      sounds,
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  protected async muteSounds(
+    sounds: Sound[],
+    layer?: string,
+    group?: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    sounds.forEach((sound) => {
+      if (layer) {
+        this.setLayer(sound.id, layer);
+      }
+      if (group) {
+        this.setGroup(sound.id, group);
+      }
+      const controlState = this.getOrCreatePlaybackState(sound.id);
+      controlState.muted = true;
+    });
+    await this.loadAll(sounds);
+    this._events.onMute.dispatch(sounds, offset || 0, scheduled || false);
+    onReady?.();
+  }
+
+  async muteAll(
+    sounds: Sound[],
+    layer: string,
+    group: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.muteSounds(sounds, layer, group, offset, scheduled, onReady);
+  }
+
+  async mute(
+    sound: Sound,
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.muteSounds(
+      [sound],
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  async muteLayer(
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    const ids = this._state.layers[layer];
+    if (!ids) {
+      return;
+    }
+    const sounds = ids.map((id) => this._config.sounds.get(id)!);
+    return this.muteSounds(
+      sounds,
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  protected async unmuteSounds(
+    sounds: Sound[],
+    layer?: string,
+    group?: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    sounds.forEach((sound) => {
+      if (layer) {
+        this.setLayer(sound.id, layer);
+      }
+      if (group) {
+        this.setGroup(sound.id, group);
+      }
+      const controlState = this.getOrCreatePlaybackState(sound.id);
+      controlState.muted = false;
+    });
+    await this.loadAll(sounds);
+    this._events.onUnmute.dispatch(sounds, offset || 0, scheduled || false);
+    onReady?.();
+  }
+
+  async unmuteAll(
+    sounds: Sound[],
+    layer: string,
+    group: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.unmuteSounds(sounds, layer, group, offset, scheduled, onReady);
+  }
+
+  async unmute(
+    sound: Sound,
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    return this.unmuteSounds(
+      [sound],
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  async unmuteLayer(
+    layer: string,
+    offset?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    const ids = this._state.layers[layer];
+    if (!ids) {
+      return;
+    }
+    const sounds = ids.map((id) => this._config.sounds.get(id)!);
+    return this.unmuteSounds(
+      sounds,
+      layer,
+      undefined,
+      offset,
+      scheduled,
+      onReady
+    );
+  }
+
+  protected updateMidi(deltaMS: number, id: string, midi: Midi) {
+    const controlState = this._state.playbackStates[id];
+    if (!controlState) {
+      return;
+    }
+    if (controlState.paused) {
+      return;
+    }
+    if (controlState.started) {
+      controlState.elapsedMS += deltaMS;
+    }
+    // For performance reasons, we reset all existing states
+    // rather than creating new state objects every tick
+    const midiTrackState = createOrResetMidiTrackState(this._midiStates[id]);
+    midi.tracks.forEach((track) => {
+      track.forEach((event, index) => {
+        const ticks = event.ticks ?? 0;
+        if (
+          event.statusType === MIDI_STATUS_SYSTEM.system_meta &&
+          event.statusData === MIDI_STATUS_DATA.system_meta_tempo
+        ) {
+          midiTrackState.mpq = event.tempoMPQ;
+        }
+        const secondsPerQuarterNote = midiTrackState.mpq / 1000000;
+        const quarterNotesPerTick = 1 / midi.tpq;
+        const quarterNotes = ticks * quarterNotesPerTick;
+        const time = quarterNotes * secondsPerQuarterNote;
+        const timeMS = time * 1000;
+        if (
+          index > controlState.latestEvent &&
+          controlState.elapsedMS >= timeMS
+        ) {
+          this._events.onMidiEvent.dispatch(id, event);
+          controlState.latestEvent = index;
+        }
       });
     });
+  }
+
+  protected updateSound(deltaMS: number, id: string) {
+    const controlState = this._state.playbackStates[id];
+    if (!controlState) {
+      return;
+    }
+    if (controlState.paused) {
+      return;
+    }
+    if (controlState.started) {
+      controlState.elapsedMS += deltaMS;
+    }
+  }
+
+  override update(deltaMS: number) {
+    // Update sound playback
+    this._ready.forEach((audio, id) => {
+      if ("tpq" in audio) {
+        this.updateMidi(deltaMS, id, audio);
+      } else {
+        this.updateSound(deltaMS, id);
+      }
+    });
+
     // Notify update
     this._events.onUpdate.dispatch(deltaMS);
-    // Notify started
-    if (this._state.starting.length > 0) {
-      this._state.starting.forEach((id) => {
-        if (this._onStartedCallbacks) {
-          this._onStartedCallbacks.get(id)?.forEach((callback) => callback?.());
-          this._onStartedCallbacks.delete(id);
-        }
-      });
-      this._events.onStarted.dispatch([...this._state.starting]);
-      this._state.starting.length = 0;
-    }
-    // Notify paused
-    if (this._state.pausing.length > 0) {
-      this._events.onPaused.dispatch([...this._state.pausing]);
-      this._state.pausing.length = 0;
-    }
-    // Notify unpaused
-    if (this._state.unpausing.length > 0) {
-      this._events.onUnpaused.dispatch([...this._state.unpausing]);
-      this._state.unpausing.length = 0;
-    }
-    // Notify stopped
-    if (this._state.stopping.length > 0) {
-      this._events.onStopped.dispatch([...this._state.stopping]);
-      this._state.stopping.length = 0;
-    }
-    this._startedGroups.forEach((g) => {
-      delete this._state.groups[g];
-    });
   }
 }

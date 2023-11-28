@@ -2262,7 +2262,7 @@
     "AssetControl": {
       "tag": "keyword",
       "name": "keyword.asset.arguments.control.sd",
-      "match": "(start|stop|pause|unpause|mute|unmute|loop)"
+      "match": "(schedule|start|stop|pause|unpause|mute|unmute|loop)"
     },
     "Transition": {
       "tag": "labelName",

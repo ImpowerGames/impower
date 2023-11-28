@@ -22,7 +22,8 @@ const isAsset = (obj: unknown): obj is { type: string; src: string } => {
   return asset && Boolean(asset.type && asset.src);
 };
 
-const isAssetLeaf = (_: string, v: unknown) => isAsset(v);
+const isAssetLeaf = (_: string, v: unknown) =>
+  isAsset(v) || (Array.isArray(v) && v.every((x) => isAsset(x)));
 
 export interface UIEvents extends Record<string, GameEvent> {
   onCreateElement: GameEvent2<string, string>;
