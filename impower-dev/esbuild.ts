@@ -62,17 +62,18 @@ if (!PRODUCTION) {
 
 const BROWSER_VARIABLES_ENV: Record<string, string> = {};
 Object.entries(process.env).forEach(([key, value]) => {
-  if (value) {
-    if (key.startsWith("BROWSER_") || key.startsWith("_BROWSER_")) {
-      BROWSER_VARIABLES_ENV[key] = value;
-    }
+  if (value && key.startsWith("BROWSER_")) {
+    BROWSER_VARIABLES_ENV[key] = value;
   }
 });
 // Use esbuild's `banner` feature instead of its `define` feature to populate browser environment variables,
 // because `define` occasionally causes "process not defined" errors in production builds.
-const PROCESS_ENV_BANNER = {
-  js: `var process = { env: ${JSON.stringify(BROWSER_VARIABLES_ENV)} };`.trim(),
-};
+const PROCESS_ENV_BANNER_JS = `var process = { env: ${JSON.stringify(
+  BROWSER_VARIABLES_ENV
+)} };`.trim();
+console.log(STEP_COLOR, "Populating banner...");
+console.log(SRC_COLOR, `  ${PROCESS_ENV_BANNER_JS}`);
+console.log("");
 
 const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
@@ -160,7 +161,7 @@ const buildPages = async () => {
       ".css": "text",
       ".svg": "text",
     },
-    banner: PROCESS_ENV_BANNER,
+    banner: { js: PROCESS_ENV_BANNER_JS },
   });
 };
 
@@ -189,7 +190,7 @@ const buildComponents = async () => {
       ".css": "text",
       ".svg": "text",
     },
-    banner: PROCESS_ENV_BANNER,
+    banner: { js: PROCESS_ENV_BANNER_JS },
   });
 };
 
@@ -327,6 +328,7 @@ const DEBOUNCE_DELAY = 200;
 let pendingBuildTimeout: NodeJS.Timeout | undefined;
 
 const watchFiles = async () => {
+  // @ts-expect-error
   const { app, reloader } = (await import("./out/api/index.js")).default;
   await app.ready();
   const rebuild = async () => {

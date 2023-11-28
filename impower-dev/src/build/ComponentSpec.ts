@@ -17,7 +17,7 @@ export interface ComponentSpec<
   state: State;
   props: Props;
   css: string[];
-  html: (args: {
+  html?: (args: {
     stores: Stores;
     context: Context;
     state: State;
