@@ -1,7 +1,7 @@
 import { exec } from "child_process";
 import chokidar from "chokidar";
 import * as dotenv from "dotenv";
-import { build } from "esbuild";
+import { build, Plugin, PluginBuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
 import fs from "fs";
 import path from "path";
@@ -66,14 +66,36 @@ Object.entries(process.env).forEach(([key, value]) => {
     BROWSER_VARIABLES_ENV[key] = value;
   }
 });
-// Use esbuild's `banner` feature instead of its `define` feature to populate browser environment variables,
-// because `define` occasionally causes "process not defined" errors in production builds.
+// Because esbuild's built-in `define` and `banner` features occasionally cause "process not defined" errors in production builds,
+// We simply concatenate the process.env definition to the top of the minified files.
 const PROCESS_ENV_BANNER_JS = `var process = { env: ${JSON.stringify(
   BROWSER_VARIABLES_ENV
 )} };`.trim();
 console.log(STEP_COLOR, "Populating banner...");
 console.log(SRC_COLOR, `  ${PROCESS_ENV_BANNER_JS}`);
 console.log("");
+
+const envPlugin = (): Plugin => {
+  return {
+    name: "env-plugin",
+    setup(build: PluginBuild) {
+      const options = build.initialOptions;
+      options.write = false;
+      build.onEnd(async (result) => {
+        if (result.outputFiles) {
+          await Promise.all(
+            result.outputFiles
+              .filter((f) => f.path.match(/\.js$/))
+              .map((f) => {
+                const modified = PROCESS_ENV_BANNER_JS + "\n" + f.text;
+                return fs.promises.writeFile(f.path, modified, "utf-8");
+              })
+          );
+        }
+      });
+    },
+  };
+};
 
 const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
@@ -154,14 +176,14 @@ const buildPages = async () => {
     platform: "browser",
     format: "esm",
     bundle: true,
-    minify: false,
+    minify: PRODUCTION,
     sourcemap: !PRODUCTION,
     loader: {
       ".html": "text",
       ".css": "text",
       ".svg": "text",
     },
-    banner: { js: PROCESS_ENV_BANNER_JS },
+    plugins: [envPlugin()],
   });
 };
 
@@ -190,7 +212,6 @@ const buildComponents = async () => {
       ".css": "text",
       ".svg": "text",
     },
-    banner: { js: PROCESS_ENV_BANNER_JS },
   });
 };
 
