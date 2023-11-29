@@ -279,8 +279,6 @@ export interface SparkSceneToken extends ISparkDisplayToken<"scene"> {
   index: number;
 }
 
-export interface SparkCenteredToken extends ISparkDisplayToken<"centered"> {}
-
 export interface SparkActionToken extends ISparkBoxToken<"action"> {
   boxes: SparkActionBoxToken[];
 }
@@ -314,8 +312,7 @@ export type SparkDisplayToken =
   | SparkActionBoxToken
   | SparkDialogueBoxToken
   | SparkTransitionToken
-  | SparkSceneToken
-  | SparkCenteredToken;
+  | SparkSceneToken;
 
 export interface SparkOtherToken
   extends ISparkToken<
@@ -395,7 +392,6 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   audio: SparkAudioToken;
   transition: SparkTransitionToken;
   scene: SparkSceneToken;
-  centered: SparkCenteredToken;
   action: SparkActionToken;
   action_start: SparkActionStartToken;
   action_box: SparkActionBoxToken;

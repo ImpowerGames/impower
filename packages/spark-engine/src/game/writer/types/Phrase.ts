@@ -10,4 +10,5 @@ export interface Phrase {
   args?: string[] | undefined;
   speed?: number;
   chunks?: Chunk[];
+  ignore?: boolean;
 }

@@ -237,18 +237,14 @@ export const executeDisplayCommand = (
   ];
 
   if (characterNameEl) {
-    const span = game.ui.createElement("span");
-    span.textContent = validCharacterName;
-    characterNameEl.replaceChildren(span);
     characterNameEl.style["display"] = validCharacterName ? null : "none";
+    characterNameEl.textContent = validCharacterName;
   }
   if (characterParentheticalEl) {
-    const span = game.ui.createElement("span");
-    span.textContent = validCharacterParenthetical;
-    characterParentheticalEl.replaceChildren(span);
     characterParentheticalEl.style["display"] = validCharacterParenthetical
       ? null
       : "none";
+    characterParentheticalEl.textContent = validCharacterParenthetical;
   }
   if (parentheticalEl) {
     parentheticalEl.style["display"] = "none";
@@ -310,7 +306,6 @@ export const executeDisplayCommand = (
                 .join(", ");
               if (imageSrcs.length > 0) {
                 p.chunks?.forEach((c, chunkIndex) => {
-                  const imageEl = game.ui.createElement("span");
                   if (c.element) {
                     const prevImage = layerImages[layer]?.at(-1);
                     if (prevImage) {
@@ -319,23 +314,16 @@ export const executeDisplayCommand = (
                         ? "none"
                         : `opacity 0s linear ${c.time}s`;
                     }
-                    imageEl.style["backgroundImage"] = combinedBackgroundImage;
-                    imageEl.style["position"] = "absolute";
-                    imageEl.style["inset"] = "0";
-                    imageEl.style["width"] = "100%";
-                    imageEl.style["height"] = "100%";
-                    imageEl.style["backgroundSize"] = "auto 100%";
-                    imageEl.style["backgroundPosition"] = "center";
-                    imageEl.style["backgroundRepeat"] = "no-repeat";
-                    imageEl.style["opacity"] = "1";
-                    imageEl.style["pointerEvents"] = "none";
-                    imageEl.style["willChange"] = "opacity";
                     c.element.id =
                       value.id + "." + getSpanId(phraseIndex, chunkIndex);
-                    targetEl.appendChild(c.element);
-                    c.element.appendChild(imageEl);
-                    layerImages[layer] ??= [];
-                    layerImages[layer]!.push(imageEl);
+                    if (c.image) {
+                      c.image.style["backgroundImage"] =
+                        combinedBackgroundImage;
+                      targetEl.appendChild(c.element);
+                      c.element.appendChild(c.image);
+                      layerImages[layer] ??= [];
+                      layerImages[layer]!.push(c.image);
+                    }
                   }
                 });
               }
@@ -508,7 +496,12 @@ export const executeDisplayCommand = (
                                 value.id +
                                 "." +
                                 getSpanId(phraseIndex, chunkIndex);
-                              el.appendChild(c.element);
+                              if (c.wrapper) {
+                                el.appendChild(c.wrapper);
+                                c.wrapper.appendChild(c.element);
+                              } else {
+                                el.appendChild(c.element);
+                              }
                             }
                           });
                           const firstChunk = p.chunks?.[0];
@@ -552,7 +545,12 @@ export const executeDisplayCommand = (
                 if (c.element) {
                   c.element.id =
                     value.id + "." + getSpanId(phraseIndex, chunkIndex);
-                  value.appendChild(c.element);
+                  if (c.wrapper) {
+                    value.appendChild(c.wrapper);
+                    c.wrapper.appendChild(c.element);
+                  } else {
+                    value.appendChild(c.element);
+                  }
                 }
               });
             }
@@ -593,15 +591,19 @@ export const executeDisplayCommand = (
       layerEl.style["opacity"] = "1";
     });
     // Transition in new elements
-    allChunks.forEach((chunk) => {
-      if (chunk.element) {
-        chunk.element.style["display"] = null;
+    allChunks.forEach((c) => {
+      if (c.wrapper) {
         // Fade in wrapper
-        chunk.element.style["opacity"] = "1";
-        const child = chunk.element.getChildren()[0];
-        if (child?.style["transition"]) {
-          // Fade out content that has an out transition
-          child.style["opacity"] = "0";
+        c.wrapper.style["opacity"] = "1";
+      }
+      if (c.element) {
+        // Fade in element
+        c.element.style["opacity"] = "1";
+      }
+      if (c.image) {
+        // Fade out images that have an out transition
+        if (c.image.style["transition"]) {
+          c.image.style["opacity"] = "0";
         }
       }
     });
@@ -700,7 +702,6 @@ export const executeDisplayCommand = (
         "Typewriter",
         0,
         () => {
-          doTransitions();
           started = true;
         }
       );
@@ -721,11 +722,16 @@ export const executeDisplayCommand = (
   let finished = false;
   const totalDurationMS = allChunks.reduce((p, c) => p + c.duration * 1000, 0);
   const handleTick = (deltaMS: number): void => {
-    if (started && !finished) {
-      elapsedMS += deltaMS;
-      if (elapsedMS >= totalDurationMS) {
-        finished = true;
-        handleFinished();
+    if (deltaMS) {
+      if (started && !finished) {
+        if (elapsedMS === 0) {
+          doTransitions();
+        }
+        elapsedMS += deltaMS;
+        if (elapsedMS >= totalDurationMS) {
+          finished = true;
+          handleFinished();
+        }
       }
     }
   };

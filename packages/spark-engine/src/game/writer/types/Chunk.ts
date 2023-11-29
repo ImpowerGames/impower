@@ -8,8 +8,9 @@ export interface Chunk {
   startOfSyllable?: boolean;
   voiced?: boolean;
   yelled?: number;
-  italicized?: number;
+  centered?: number;
   bolded?: number;
+  italicized?: number;
   underlined?: number;
   floating?: number;
   trembling?: number;
@@ -19,5 +20,7 @@ export interface Chunk {
   sustained?: boolean;
   pitch?: number;
   time?: number;
+  wrapper?: IElement;
   element?: IElement;
+  image?: IElement;
 }

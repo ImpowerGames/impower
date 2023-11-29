@@ -5,9 +5,9 @@ import { Phrase } from "../types/Phrase";
 import { Writer } from "../types/Writer";
 import { stressPhrases } from "./stressPhrases";
 
-const SINGLE_MARKERS = ["*", "_", "^"];
+const SINGLE_MARKERS = ["*", "_", "^", "|"];
 
-const DOUBLE_MARKERS = ["~~", "==", "//", "\\\\", "::"];
+const DOUBLE_MARKERS = ["~~", "==", ">>", "<<", "::"];
 
 const populateAndStyleElement = (
   spanEl: IElement,
@@ -103,6 +103,7 @@ export const write = (
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
   let escaped = false;
+  let wrapper: IElement | undefined = undefined;
   let currChunk: Chunk | undefined = undefined;
 
   const startNewPhrase = () => {
@@ -115,11 +116,15 @@ export const write = (
     phraseUnpauseLength = 0;
     currChunk = undefined;
     escaped = false;
+    wrapper = undefined;
   };
 
   const imageLayerChunks: Record<string, Chunk[]> = {};
 
   content.forEach((p, contentIndex) => {
+    if (p.ignore) {
+      return;
+    }
     const nextContent = content[contentIndex + 1];
     const image = p.image;
     if (image) {
@@ -127,7 +132,6 @@ export const write = (
       const spanEl = onCreateElement?.();
       if (spanEl) {
         const spanStyle = {
-          display: "none",
           opacity: "0",
           willChange: "opacity",
           position: "absolute",
@@ -137,7 +141,29 @@ export const write = (
         };
         populateAndStyleElement(spanEl, "", spanStyle);
       }
-      const chunk: Chunk = { char: "", duration: 0, speed: 0, element: spanEl };
+      const imageEl = onCreateElement?.();
+      if (imageEl) {
+        const imageStyle = {
+          position: "absolute",
+          inset: "0",
+          width: "100%",
+          height: "100%",
+          backgroundSize: "auto 100%",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          opacity: "1",
+          pointerEvents: "none",
+          willChange: "opacity",
+        };
+        populateAndStyleElement(imageEl, "", imageStyle);
+      }
+      const chunk: Chunk = {
+        char: "",
+        duration: 0,
+        speed: 0,
+        element: spanEl,
+        image: imageEl,
+      };
       imageLayerChunks[layer] ??= [];
       imageLayerChunks[layer]?.push(chunk);
       result.push({
@@ -209,14 +235,16 @@ export const write = (
         }
         escaped = false;
         const markers = marks.map((x) => x[0]);
+        const activeCenteredMark = markers.find((m) => m.startsWith("|"));
         const activeBoldItalicMark = markers.find((m) => m.startsWith("***"));
         const activeUnderlineMark = markers.find((m) => m.startsWith("_"));
         const activePitchUpMark = markers.find((m) => m.startsWith("^"));
         const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
         const activeTremblingMark = markers.find((m) => m.startsWith("=="));
-        const activeFasterMark = markers.find((m) => m.startsWith("//"));
-        const activeSlowerMark = markers.find((m) => m.startsWith("\\\\"));
+        const activeFasterMark = markers.find((m) => m.startsWith(">>"));
+        const activeSlowerMark = markers.find((m) => m.startsWith("<<"));
         const activeInstantMark = markers.find((m) => m.startsWith("::"));
+        const isCentered = Boolean(activeCenteredMark);
         const hasBoldItalicMark = Boolean(activeBoldItalicMark);
         const isUnderlined = Boolean(activeUnderlineMark);
         const hasBoldMark = markers.includes("**");
@@ -224,14 +252,14 @@ export const write = (
         const isItalicized = hasBoldItalicMark || hasItalicMark;
         const isBolded = hasBoldItalicMark || hasBoldMark;
         const style = {
-          display: "none",
-          opacity: instant ? "1" : "0",
+          opacity: instant || p.speed === 0 ? "1" : "0",
           willChange: "opacity",
           position: "relative",
           textDecoration: isUnderlined ? "underline" : null,
           fontStyle: isItalicized ? "italic" : null,
           fontWeight: isBolded ? "bold" : null,
           whiteSpace: char === "\n" ? "pre-wrap" : null,
+          textAlign: "center",
         };
         const voiced = Boolean(voicedRegex?.test(char));
         if (isWhitespace(char)) {
@@ -271,6 +299,13 @@ export const write = (
         }
         // Determine beep pitch
         const yelled = isYelled ? 1 : 0;
+        // centered level = number of `|`
+        const centered =
+          isCentered && activeCenteredMark
+            ? activeCenteredMark.length
+            : isCentered
+            ? 1
+            : 0;
         // italicized level = number of `*`
         const italicized = isItalicized ? 1 : 0;
         // bolded level = number of `*`
@@ -333,6 +368,19 @@ export const write = (
                 ? letterDelay * stressPause
                 : letterDelay) / speed;
 
+        // create wrapper element for centered chunks
+        if (isCentered) {
+          if (!currChunk?.centered) {
+            wrapper = onCreateElement?.();
+            if (wrapper) {
+              wrapper.style["display"] = "block";
+              wrapper.style["textAlign"] = "center";
+            }
+          }
+        } else {
+          wrapper = undefined;
+        }
+
         if (phraseUnpauseLength === 1) {
           // start voiced phrase
           const span = onCreateElement?.();
@@ -348,6 +396,7 @@ export const write = (
             startOfSyllable,
             voiced,
             yelled,
+            centered,
             bolded,
             italicized,
             underlined,
@@ -358,6 +407,7 @@ export const write = (
             pitch,
             punctuated: false,
             sustained: false,
+            wrapper,
             element: span,
           };
           result.push({
@@ -399,6 +449,7 @@ export const write = (
                 startOfSyllable,
                 voiced,
                 yelled,
+                centered,
                 bolded,
                 italicized,
                 underlined,
@@ -409,6 +460,7 @@ export const write = (
                 pitch,
                 punctuated: false,
                 sustained: false,
+                wrapper,
                 element: span,
               };
               currentPhrase.chunks ??= [];

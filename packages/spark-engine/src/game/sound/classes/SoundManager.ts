@@ -181,12 +181,11 @@ export class SoundManager extends Manager<
     await this.loadAll(sounds);
     sounds.forEach((sound) => {
       if (layer) {
-        this.removeFromLayer(sound.id, layer);
+        this.setLayer(sound.id, layer);
       }
       if (group) {
-        this.removeFromGroup(sound.id, group);
+        this.setGroup(sound.id, group);
       }
-      this.deletePlaybackState(sound.id);
     });
     this._events.onStart.dispatch(sounds, offset || 0);
     onReady?.();

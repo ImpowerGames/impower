@@ -1586,9 +1586,6 @@ export default class SparkParser {
           } else if (tok.tag === "scene") {
             tok.waitUntilFinished = true;
             addToken(tok);
-          } else if (tok.tag === "centered") {
-            tok.waitUntilFinished = true;
-            addToken(tok);
           } else if (tok.tag === "action") {
             addToken(tok);
           } else if (tok.tag === "action_start") {
@@ -1605,7 +1602,7 @@ export default class SparkParser {
             addToken(tok);
           } else if (tok.tag === "dialogue_character_name" && text) {
             tok.layer = "CharacterName";
-            tok.speed = 0;
+            tok.ignore = true;
             tok.text = text;
             const dialogue = lookup("dialogue");
             if (dialogue) {
@@ -1617,7 +1614,7 @@ export default class SparkParser {
             }
           } else if (tok.tag === "dialogue_character_parenthetical" && text) {
             tok.layer = "CharacterParenthetical";
-            tok.speed = 0;
+            tok.ignore = true;
             tok.text = text;
             const dialogue = lookup("dialogue");
             if (dialogue) {
@@ -1695,8 +1692,7 @@ export default class SparkParser {
               "action_box",
               "dialogue_box",
               "transition",
-              "scene",
-              "centered"
+              "scene"
             );
             if (parent) {
               parent.content ??= [];
@@ -2160,8 +2156,6 @@ export default class SparkParser {
               actionDuration: 0,
               dialogueDuration: 0,
             });
-          } else if (tok.tag === "centered") {
-            prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "action") {
             prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "action_box") {

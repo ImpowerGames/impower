@@ -22,7 +22,6 @@ patterns:
   - { include: "#Jump" }
   - { include: "#Transition" }
   - { include: "#Scene" }
-  - { include: "#Centered" }
   - { include: "#Dialogue" }
   - { include: "#ImplicitAction" }
   - { include: "#Unknown" }
@@ -31,7 +30,7 @@ repository:
   Comment:
     tag: lineComment
     name: comment.line.sd
-    match: ^([ \t]*)([&][&])($|[ \t]*)($|.*$)
+    match: ^([ \t]*)([/][/])($|[ \t]*)($|.*$)
     captures:
       1:
         tag: content
@@ -1338,19 +1337,13 @@ repository:
         name: markup.raw.whitespace.separator.sd
       3:
         patterns:
-          - { include: "#TransitionContent" }
+          - { include: "#DisplayText" }
       4:
         patterns:
-          - { include: "#TransitionContent" }
+          - { include: "#DisplayText" }
       5:
         tag: content
         name: markup.raw.whitespace.separator.sd
-
-  TransitionContent:
-    begin: (?=.*$)
-    patterns:
-      - { include: "#DisplayText" }
-    end: (?=$)
 
   Scene:
     tag: regexp
@@ -1365,49 +1358,16 @@ repository:
         name: markup.raw.whitespace.separator.sd
       3:
         patterns:
-          - { include: "#SceneContent" }
+          - { include: "#DisplayText" }
       4:
         patterns:
-          - { include: "#SceneContent" }
+          - { include: "#DisplayText" }
       5:
         tag: content
         name: markup.raw.whitespace.separator.sd
 
-  SceneContent:
-    match: (.+)
-    captures:
-      1:
-        patterns:
-          - { include: "#DisplayText" }
-
   SceneLocationTime:
     match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.][ \t]*(.*?)[ \t]+[-][ \t]+(.*?)[ \t]*$
-
-  Centered:
-    tag: monospace
-    name: markup.other.centered.sd
-    match: ^([|])(.*?)([|])($|[ \t]*$)
-    captures:
-      1:
-        tag: bracket
-        name: markup.other.centered.bar-left.sd
-      2: 
-        patterns:
-          - { include: "#CenteredContent" }
-      3:
-        tag: bracket
-        name: markup.other.centered.bar-right.sd
-      4:
-        tag: content
-        name: markup.raw.whitespace.trailing.sd
-
-  CenteredContent:
-    tag: special(monospace)
-    match: (.+)
-    captures:
-      1:
-        patterns:
-          - { include: "#DisplayText" }
 
   Dialogue:
     name: entity.dialogue.sd
@@ -1561,6 +1521,7 @@ repository:
         patterns:
           - { include: "#Newline" }
 
+
   DisplayText:
     name: entity.display.sd
     match: (?:([!]?(?:\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ \t]*))?(?:([@])([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*))?($|.+$(?:\r\n|\r|\n)?)
@@ -1653,7 +1614,7 @@ repository:
   Escape:
     tag: escape
     name: constant.character.escape.sd
-    match: \\[-`*_#+.!(){}\[\]\\>]
+    match: \\[-`*_#+.!(){}\[\]\\>|]
 
   Styling:
     patterns:
@@ -1661,9 +1622,10 @@ repository:
       - { include: "#BoldItalic" }
       - { include: "#Bold" }
       - { include: "#Italic" }
+      - { include: "#Centered" }
 
   StylingMark:
-    match: ([*_]+)
+    match: ([*_|]+)
     captures:
       1:
         tag: bracket
@@ -1729,13 +1691,28 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
+  Centered:
+    tag: monospace
+    name: markup.other.centered.sd
+    match: ([|]+)(.+?)(\1)
+    captures:
+      1:
+        patterns:
+          - { include: "#StylingMark" }
+      2:
+        patterns:
+          - { include: "#InlineText" }
+      3:
+        patterns:
+          - { include: "#StylingMark" }
+
   Emphasis:
     patterns:
       - { include: "#EmphasisCaret" }
       - { include: "#EmphasisTilde" }
       - { include: "#EmphasisEqual" }
-      - { include: "#EmphasisForwardSlash" }
-      - { include: "#EmphasisBackSlash" }
+      - { include: "#EmphasisAngleRight" }
+      - { include: "#EmphasisAngleLeft" }
       - { include: "#EmphasisColon" }
 
   EmphasisCaret:
@@ -1783,10 +1760,10 @@ repository:
         tag: bracket
         name: punctuation.definition.emphasis.sd
 
-  EmphasisForwardSlash:
+  EmphasisAngleRight:
     tag: emphasis
     name: markup.emphasis.sd
-    match: ([/][/]+)((?:(?![/][/][ \t]+).)*)(\1)
+    match: ([>][>]+)((?:(?![>][>][ \t]+).)*)(\1)
     captures:
       1:
         tag: bracket
@@ -1798,10 +1775,10 @@ repository:
         tag: bracket
         name: punctuation.definition.emphasis.sd
 
-  EmphasisBackSlash:
+  EmphasisAngleLeft:
     tag: emphasis
     name: markup.emphasis.sd
-    match: ([\\][\\]+)((?:(?![\\][\\][ \t]+).)*)(\1)
+    match: ([<][<]+)((?:(?![<][<][ \t]+).)*)(\1)
     captures:
       1:
         tag: bracket
