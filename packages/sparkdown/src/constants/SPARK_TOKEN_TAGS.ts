@@ -19,6 +19,8 @@ const SPARK_TOKEN_TAGS: {
   Section: "section",
   SectionLevel: "section_level",
   SectionName: "section_name",
+  Checkpoint: "checkpoint",
+  CheckpointName: "checkpoint_name",
 
   TypeIdentifier: "type_name",
   DeclarationName: "declaration_name",
@@ -71,7 +73,6 @@ const SPARK_TOKEN_TAGS: {
   Choice: "choice",
   Transition: "transition",
   Scene: "scene",
-  Centered: "centered",
 
   Image: "image",
   Audio: "audio",

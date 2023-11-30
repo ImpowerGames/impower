@@ -14,6 +14,7 @@ patterns:
   - { include: "#FrontMatter" }
   - { include: "#Chunk" }
   - { include: "#Section" }
+  - { include: "#Checkpoint" }
   - { include: "#FlowBreak" }
   - { include: "#Import" }
   - { include: "#Variable" }
@@ -78,11 +79,11 @@ repository:
         name: markup.raw.unknown.sd
 
   Label:
-    match: ^([=])([ \t]+)(.*$)
+    match: ^([:])([ \t]+)(.*$)
     captures:
       1:
-        tag: content
-        name: markup.raw.equal.sd
+        tag: contentSeparator
+        name: keyword.control.flow-break.sd
       2:
         tag: content
         name: markup.raw.whitespace.separator.sd
@@ -241,6 +242,27 @@ repository:
   SectionName:
     tag: special(heading)
     name: keyword.control.section.sd
+    match: (.+)
+
+  Checkpoint:
+    match: ^([=])([ \t]+)(.*$)((?:\r\n|\r|\n)?)
+    captures:
+      1:
+        tag: contentSeparator
+        name: keyword.control.flow-break.sd
+      2:
+        tag: content
+        name: markup.raw.whitespace.separator.sd
+      3:
+        patterns:
+          - { include: "#CheckpointName" }
+      4:
+        patterns:
+          - { include: "#Newline" }
+
+  CheckpointName:
+    tag: contentSeparator
+    name: keyword.control.flow-break.sd
     match: (.+)
 
   FlowBreak:
@@ -1404,6 +1426,8 @@ repository:
         patterns:
           - { include: "#Newline" }
     patterns:
+      - { include: "#Checkpoint" }
+      - { include: "#Choice" }
       - { include: "#DialogueBox" }
     end: ^$
 
@@ -1428,7 +1452,6 @@ repository:
     begin: ^(?=.+$)
     patterns:
       - { include: "#Comment" }
-      - { include: "#Choice" }
       - { include: "#Image" }
       - { include: "#Audio" }
       - { include: "#DialogueLineParenthetical" }
@@ -1493,6 +1516,8 @@ repository:
         tag: punctuation
         name: markup.raw.whitespace.separator.sd
     patterns:
+      - { include: "#Checkpoint" }
+      - { include: "#Choice" }
       - { include: "#ActionBox" }
     end: ^$
 
@@ -1501,6 +1526,8 @@ repository:
     name: entity.paragraph.text.action.implicit.sd
     begin: ^(?=.+$)
     patterns:
+      - { include: "#Checkpoint" }
+      - { include: "#Choice" }
       - { include: "#ActionBox" }
     end: ^$
 
@@ -1510,7 +1537,6 @@ repository:
     begin: (?=.+$)
     patterns:
       - { include: "#Comment" }
-      - { include: "#Choice" }
       - { include: "#Image" }
       - { include: "#Audio" }
       - { include: "#BoxLineContinue" }

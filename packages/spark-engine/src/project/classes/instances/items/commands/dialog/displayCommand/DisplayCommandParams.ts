@@ -19,5 +19,4 @@ export interface DisplayCommandParams extends CommandParams {
   characterParenthetical: string;
   content: DisplayContentItem[];
   autoAdvance: boolean;
-  overwriteText: boolean;
 }

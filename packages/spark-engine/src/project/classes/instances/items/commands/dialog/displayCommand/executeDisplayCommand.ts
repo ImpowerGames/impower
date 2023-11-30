@@ -45,12 +45,6 @@ const isHidden = (content: string, hidden?: string): boolean => {
   return new RegExp(hidden).test(content);
 };
 
-const getSpanId = (phraseIndex: number, chunkIndex: number) => {
-  const phraseKey = phraseIndex.toString().padStart(8, "0");
-  const chunkKey = chunkIndex.toString().padStart(8, "0");
-  return `span_${phraseKey}_${chunkKey}`;
-};
-
 export const executeDisplayCommand = (
   game: SparkGame,
   data: DisplayCommandData,
@@ -59,10 +53,10 @@ export const executeDisplayCommand = (
     typeMap: { [type: string]: Record<string, any> };
     instant?: boolean;
     debug?: boolean;
+    preview?: boolean;
   },
   onFinished?: () => void,
-  onClickChoice?: (...args: string[]) => void,
-  preview?: boolean
+  onClickChoice?: (...args: string[]) => void
 ): ((deltaMS: number) => void) | undefined => {
   const id = data.reference.id;
   const type = data.params.type;
@@ -99,7 +93,6 @@ export const executeDisplayCommand = (
   const characterParenthetical = data?.params?.characterParenthetical || "";
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
-  const overwriteText = data?.params?.overwriteText;
   const characterKey = characterName
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "");
@@ -273,10 +266,8 @@ export const executeDisplayCommand = (
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
-        if (overwriteText) {
-          value.replaceChildren();
-        }
-        phrases.forEach((p, phraseIndex) => {
+        value.replaceChildren();
+        phrases.forEach((p) => {
           if (p.image) {
             const assetNames = p.image;
             const layer = p.layer || "Portrait";
@@ -305,7 +296,7 @@ export const executeDisplayCommand = (
                 .map((src) => `url("${src}")`)
                 .join(", ");
               if (imageSrcs.length > 0) {
-                p.chunks?.forEach((c, chunkIndex) => {
+                p.chunks?.forEach((c) => {
                   if (c.element) {
                     const prevImage = layerImages[layer]?.at(-1);
                     if (prevImage) {
@@ -314,8 +305,6 @@ export const executeDisplayCommand = (
                         ? "none"
                         : `opacity 0s linear ${c.time}s`;
                     }
-                    c.element.id =
-                      value.id + "." + getSpanId(phraseIndex, chunkIndex);
                     if (c.image) {
                       c.image.style["backgroundImage"] =
                         combinedBackgroundImage;
@@ -490,12 +479,8 @@ export const executeDisplayCommand = (
                       if (el) {
                         if (index === i) {
                           el.replaceChildren();
-                          p.chunks?.forEach((c, chunkIndex) => {
+                          p.chunks?.forEach((c) => {
                             if (c.element) {
-                              c.element.id =
-                                value.id +
-                                "." +
-                                getSpanId(phraseIndex, chunkIndex);
                               if (c.wrapper) {
                                 el.appendChild(c.wrapper);
                                 c.wrapper.appendChild(c.element);
@@ -541,10 +526,8 @@ export const executeDisplayCommand = (
 
               nextIndices[targetClassName] = index + 1;
             } else {
-              p.chunks?.forEach((c, chunkIndex) => {
+              p.chunks?.forEach((c) => {
                 if (c.element) {
-                  c.element.id =
-                    value.id + "." + getSpanId(phraseIndex, chunkIndex);
                   if (c.wrapper) {
                     value.appendChild(c.wrapper);
                     c.wrapper.appendChild(c.element);
@@ -617,7 +600,7 @@ export const executeDisplayCommand = (
         "transition"
       ] = `opacity ${indicatorFadeDuration}s linear`;
       indicatorEl.style["opacity"] = "1";
-      indicatorEl.style["animation-play-state"] = preview
+      indicatorEl.style["animation-play-state"] = context?.preview
         ? "paused"
         : "running";
     }
@@ -628,7 +611,7 @@ export const executeDisplayCommand = (
 
   if (game) {
     if (instant) {
-      game.sound.stopLayer("Typewriter");
+      game.sound.stopLayer("Writer");
       handleFinished();
     } else {
       const voiceSound = characterConfig?.voiceSound;
@@ -696,15 +679,11 @@ export const executeDisplayCommand = (
           c.element.style["display"] = null;
         }
       });
-      // Start playing beeps
-      game.sound.start(
-        { id, src: new SynthBuffer(tones) },
-        "Typewriter",
-        0,
-        () => {
-          started = true;
-        }
-      );
+      // Start writer typing tones
+      game.sound.start({ id, src: new SynthBuffer(tones) }, "Writer", 0, () => {
+        started = true;
+      });
+      // Load and modulate ((sounds))
       game.sound.loadAll(soundsToLoad).then(() => {
         soundEvents.forEach((event) => {
           event?.();

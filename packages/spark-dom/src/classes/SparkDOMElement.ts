@@ -94,9 +94,14 @@ export class SparkDOMElement implements IElement {
 
   replaceChildren(...children: IElement[]): void {
     const newEls = children.map((x) => x as SparkDOMElement);
-    this._children.forEach((child) =>
-      (child as SparkDOMElement)._htmlElement.remove()
-    );
+    this._htmlElement.replaceChildren();
+    this._children.forEach((child) => {
+      const childElement = (child as SparkDOMElement)._htmlElement;
+      if (childElement.parentElement !== this._htmlElement) {
+        // Remove children which are attached to the document head or some other element in the document
+        childElement.remove();
+      }
+    });
     newEls.forEach((el) => this.appendChild(el));
     this._children = [...newEls];
   }

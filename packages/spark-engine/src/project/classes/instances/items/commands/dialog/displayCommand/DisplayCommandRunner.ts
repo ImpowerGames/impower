@@ -165,9 +165,10 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
       typeMap: { [type: string]: Record<string, any> };
       instant?: boolean;
       debug?: boolean;
+      preview?: boolean;
     }
   ): boolean {
-    executeDisplayCommand(game, data, context, undefined, undefined, true);
+    executeDisplayCommand(game, data, { ...context, preview: true });
     return true;
   }
 }

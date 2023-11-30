@@ -28,6 +28,14 @@ export interface SparkSectionToken extends ISparkToken<"section"> {
   };
 }
 
+export interface SparkCheckpointToken extends ISparkToken<"checkpoint"> {
+  checkpoint: string;
+
+  ranges?: {
+    checkpoint?: SparkRange;
+  };
+}
+
 export interface SparkImportToken extends ISparkToken<"import"> {
   id: string;
   type: string;
@@ -266,7 +274,11 @@ export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
   content?: DisplayContent[];
   waitUntilFinished: boolean;
   autoAdvance: boolean;
-  overwriteText: boolean;
+  checkpoint: string;
+
+  ranges?: {
+    checkpoint?: SparkRange;
+  };
 }
 
 export interface ISparkBoxToken<T extends string>
@@ -279,9 +291,7 @@ export interface SparkSceneToken extends ISparkDisplayToken<"scene"> {
   index: number;
 }
 
-export interface SparkActionToken extends ISparkBoxToken<"action"> {
-  boxes: SparkActionBoxToken[];
-}
+export interface SparkActionToken extends ISparkBoxToken<"action"> {}
 
 export interface SparkActionStartToken extends ISparkToken<"action_start"> {}
 
@@ -294,7 +304,6 @@ export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
   autoAdvance: boolean;
   characterName: SparkDialogueCharacterNameToken;
   characterParenthetical: SparkDialogueCharacterParentheticalToken;
-  boxes: SparkDialogueBoxToken[];
 }
 
 export interface SparkDialogueStartToken
@@ -325,6 +334,7 @@ export interface SparkOtherToken
     | "chunk_name"
     | "section_level"
     | "section_name"
+    | "checkpoint_name"
     | "flow_break"
     | "break"
     | "continue"
@@ -363,6 +373,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   front_matter_field: SparkFrontMatterFieldToken;
   chunk: SparkChunkToken;
   section: SparkSectionToken;
+  checkpoint: SparkCheckpointToken;
   import: SparkImportToken;
   define: SparkDefineToken;
   variable: SparkVariableToken;

@@ -48,8 +48,6 @@ const generateDisplayCommand = (
           ? "action"
           : token.tag === "dialogue_box"
           ? "dialogue"
-          : token.tag === "centered"
-          ? "centered"
           : token.tag === "scene"
           ? "scene"
           : token.tag === "transition"
@@ -60,7 +58,6 @@ const generateDisplayCommand = (
       characterParenthetical: token.characterParenthetical?.text || "",
       content: token.content || [],
       autoAdvance: token.autoAdvance ?? false,
-      overwriteText: token.overwriteText ?? true,
       waitUntilFinished: token.waitUntilFinished ?? true,
     },
   };
@@ -166,9 +163,6 @@ export const generateCommand = (
     return generateDisplayCommand(token, file, sectionId);
   }
   if (token.tag === "action_box") {
-    return generateDisplayCommand(token, file, sectionId);
-  }
-  if (token.tag === "centered") {
     return generateDisplayCommand(token, file, sectionId);
   }
   if (token.tag === "transition") {

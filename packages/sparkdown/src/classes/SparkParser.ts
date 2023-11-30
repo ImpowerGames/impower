@@ -17,9 +17,10 @@ import { SparkRange } from "../types/SparkRange";
 import { SparkSection } from "../types/SparkSection";
 import { SparkStruct } from "../types/SparkStruct";
 import {
-  DisplayContent,
+  SparkCheckpointToken,
   SparkDialogueBoxToken,
   SparkDialogueToken,
+  SparkDisplayToken,
   SparkToken,
   SparkTokenTagMap,
 } from "../types/SparkToken";
@@ -282,12 +283,30 @@ export default class SparkParser {
     const compiler = config?.compiler || defaultCompiler;
     const formatter = config?.formatter || defaultFormatter;
 
+    // Find last matching parent token
     const lookup = <K extends keyof SparkTokenTagMap>(
       ...tags: K[]
     ): SparkTokenTagMap[K] | undefined =>
       (tags.length > 0
         ? stack.findLast((t) => tags.includes(t.tag as unknown as K))
         : stack.at(-1)) as SparkTokenTagMap[K];
+
+    // Find last matching section token
+    const search = <K extends keyof SparkTokenTagMap>(
+      ...tags: K[]
+    ): SparkTokenTagMap[K] | undefined => {
+      const currentSection = program.sections[currentSectionId];
+      if (currentSection) {
+        return (
+          tags.length > 0
+            ? currentSection.tokens?.findLast((t) =>
+                tags.includes(t.tag as unknown as K)
+              )
+            : currentSection.tokens?.at(-1)
+        ) as SparkTokenTagMap[K];
+      }
+      return undefined;
+    };
 
     const path = <K extends keyof SparkTokenTagMap>(...tags: K[]) => {
       return stack
@@ -697,6 +716,23 @@ export default class SparkParser {
           }
         }
       }
+    };
+
+    const formatAndValidate = (
+      tok: ISparkToken,
+      value: string,
+      valueRange: SparkRange | undefined,
+      ids: Record<string, string>,
+      context: Record<string, unknown>
+    ) => {
+      const [formattedValue, valueDiagnostics, valueReferences] = formatter(
+        value,
+        context
+      );
+      recordColors(value, valueRange?.from);
+      recordExpressionReferences(tok, valueRange?.from, valueReferences, ids);
+      reportExpressionDiagnostics(tok, valueRange, valueDiagnostics);
+      return formattedValue;
     };
 
     const compileAndValidate = (
@@ -1340,6 +1376,26 @@ export default class SparkParser {
       extendStructureRange(program, latestStructureItem.id, endRange);
     }
 
+    const currentSectionCheckpoints = new Map<
+      string,
+      SparkCheckpointToken | SparkDisplayToken
+    >();
+
+    const setCheckpoint = (
+      tok: SparkCheckpointToken | SparkDisplayToken,
+      checkpointId?: string
+    ) => {
+      const checkpointIndex = currentSectionCheckpoints.size;
+      const checkpoint = checkpointId ?? String(checkpointIndex);
+      const existingCheckpoint = currentSectionCheckpoints.get(checkpoint);
+      if (existingCheckpoint) {
+        reportDuplicate(tok, "checkpoint", checkpoint, tok, existingCheckpoint);
+      } else {
+        tok.checkpoint = checkpoint;
+        currentSectionCheckpoints.set(checkpoint, tok);
+      }
+    };
+
     /* PROCESS COMMANDS */
     line = 0;
     currentSectionId = "";
@@ -1362,12 +1418,52 @@ export default class SparkParser {
             currentSectionId = "";
           } else if (tok.tag === "section") {
             currentSectionId = program.metadata?.lines?.[line]?.section || "";
+            currentSectionCheckpoints.clear();
           } else if (tok.tag === "comment") {
             addToken(tok);
           } else if (tok.tag === "comment_content") {
             const parent = lookup("comment");
             if (parent) {
               parent.text = text;
+            }
+          } else if (tok.tag === "checkpoint_name") {
+            const parent = lookup("checkpoint");
+            if (parent) {
+              const name = text;
+              parent.ranges ??= {};
+              parent.ranges.checkpoint = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+              setCheckpoint(parent, name);
+              const lastImplicitCheckpointToken = search(
+                "action_box",
+                "dialogue_box",
+                "transition",
+                "scene"
+              );
+              const lastImplicitCheckpointLine =
+                lastImplicitCheckpointToken?.content?.at(-1)?.line ??
+                lastImplicitCheckpointToken?.line;
+              if (
+                lastImplicitCheckpointToken &&
+                lastImplicitCheckpointLine != null &&
+                tok.line - lastImplicitCheckpointLine <= 1
+              ) {
+                // This explicit checkpoint immediately follows an implicit checkpoint (with no blank line between)
+                // and thus should override the implicit checkpoint instead of adding a new checkpoint
+                lastImplicitCheckpointToken.checkpoint = name;
+                lastImplicitCheckpointToken.ranges ??= {};
+                lastImplicitCheckpointToken.ranges.checkpoint = {
+                  line: tok.line,
+                  from: tok.from,
+                  to: tok.to,
+                };
+              } else {
+                // Add an explicit checkpoint
+                addToken(parent);
+              }
             }
           } else if (tok.tag === "import") {
             addToken(tok);
@@ -1582,9 +1678,11 @@ export default class SparkParser {
             }
           } else if (tok.tag === "transition") {
             tok.waitUntilFinished = true;
+            setCheckpoint(tok);
             addToken(tok);
           } else if (tok.tag === "scene") {
             tok.waitUntilFinished = true;
+            setCheckpoint(tok);
             addToken(tok);
           } else if (tok.tag === "action") {
             addToken(tok);
@@ -1593,6 +1691,8 @@ export default class SparkParser {
           } else if (tok.tag === "action_end") {
             addToken(tok);
           } else if (tok.tag === "action_box") {
+            tok.waitUntilFinished = true;
+            setCheckpoint(tok);
             addToken(tok);
           } else if (tok.tag === "dialogue") {
             addToken(tok);
@@ -1651,6 +1751,9 @@ export default class SparkParser {
               }
             }
           } else if (tok.tag === "dialogue_box") {
+            tok.waitUntilFinished = true;
+            setCheckpoint(tok);
+            addToken(tok);
             const parent = lookup("dialogue");
             if (parent) {
               tok.content ??= [];
@@ -1664,7 +1767,6 @@ export default class SparkParser {
               tok.characterName = parent.characterName;
               tok.characterParenthetical = parent.characterParenthetical;
             }
-            addToken(tok);
           } else if (tok.tag === "dialogue_line_parenthetical") {
             tok.layer = "Parenthetical";
             tok.speed = 0;
@@ -1681,6 +1783,17 @@ export default class SparkParser {
               parent.prerequisite = text;
             }
           } else if (tok.tag === "display_text_content") {
+            const [ids, context] = getScopedValueContext(
+              currentSectionId,
+              program.sections
+            );
+            formatAndValidate(
+              tok,
+              text,
+              { line: tok.line, from: tok.from, to: tok.to },
+              ids,
+              context
+            );
             const parent = lookup("display_text");
             if (parent) {
               parent.text = text;
@@ -2113,12 +2226,12 @@ export default class SparkParser {
               });
             }
           } else if (tok.tag === "choice") {
-            const parent = lookup("action_box", "dialogue_box");
-            if (parent) {
+            const lastBox = search("action_box", "dialogue_box");
+            if (lastBox) {
               const text =
                 tok.content?.map((c) => c.text || "")?.join("") || "";
-              parent.content ??= [];
-              parent.content.push({
+              lastBox.content ??= [];
+              lastBox.content.push({
                 tag: "choice",
                 line: tok.line,
                 from: tok.from,
@@ -2159,10 +2272,9 @@ export default class SparkParser {
           } else if (tok.tag === "action") {
             prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "action_box") {
-            // Check for orphaned content (images, audio, or choices not associated with any box text)
             const textContent = tok.content?.filter((p) => p.tag === "text");
-            const orphanedContent: DisplayContent[] = [];
             if (!textContent || textContent.length === 0) {
+              // Check for images or audio not associated with any box text
               tok.content?.forEach((p) => {
                 if (p.audio) {
                   // Assume playing standalone music
@@ -2172,30 +2284,13 @@ export default class SparkParser {
                   //Assume displaying standalone image
                   p.layer = "Backdrop";
                 }
-                if (p.tag === "choice" || !p.text) {
-                  // Assume all orphaned content should be associated with previous text box.
-                  orphanedContent.push(p);
-                }
               });
               // No text to display, so no need to wait for user input
               tok.waitUntilFinished = false;
-              tok.overwriteText = false;
               tok.autoAdvance = true;
             } else {
               tok.waitUntilFinished = true;
-              tok.overwriteText = true;
               tok.autoAdvance = false;
-            }
-            const parent = lookup("action");
-            if (parent) {
-              parent.boxes ??= [];
-              const prevBox = parent.boxes.at(-1);
-              if (orphanedContent.length > 0 && prevBox) {
-                prevBox.content ??= [];
-                prevBox.content.push(...orphanedContent);
-              } else {
-                parent.boxes.push(tok);
-              }
             }
             // Record estimated speechDuration
             const text =
@@ -2214,32 +2309,13 @@ export default class SparkParser {
             prevDisplayPositionalTokens.push(tok);
             // Check if no text content
             const textContent = tok.content?.filter((p) => p.tag === "text");
-            const orphanedContent: DisplayContent[] = [];
             if (!textContent || textContent.length === 0) {
-              tok.content?.forEach((p) => {
-                if (p.tag === "choice" || !p.text) {
-                  orphanedContent.push(p);
-                }
-              });
               // No text to display, so no need to wait for user input
               tok.waitUntilFinished = false;
-              tok.overwriteText = false;
               tok.autoAdvance = true;
             } else {
               tok.waitUntilFinished = true;
-              tok.overwriteText = true;
               tok.autoAdvance = false;
-            }
-            const parent = lookup("dialogue");
-            if (parent) {
-              parent.boxes ??= [];
-              const prevBox = parent.boxes.at(-1);
-              if (orphanedContent.length > 0 && prevBox) {
-                prevBox.content ??= [];
-                prevBox.content.push(...orphanedContent);
-              } else {
-                parent.boxes.push(tok);
-              }
             }
             // Record estimated speechDuration
             const text =

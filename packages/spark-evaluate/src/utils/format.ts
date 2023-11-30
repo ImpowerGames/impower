@@ -99,8 +99,28 @@ const replacer =
     if (!_3_key) {
       return element;
     }
+
     const val = context?.[_3_key];
+    if (val === undefined) {
+      diagnostics.push({
+        content: _3_key,
+        from: from + captureOffset(captures, 3),
+        to: from + captureOffset(captures, 3) + _3_key.length,
+        severity: "error",
+        message: `Cannot find variable named '${_3_key}'`,
+      });
+    } else {
+      references.push({
+        content: _3_key,
+        from: from + captureOffset(captures, 3),
+        to: from + captureOffset(captures, 3) + _3_key.length,
+      });
+    }
+
     if (!_10_args) {
+      if (val === undefined) {
+        return "";
+      }
       return String(val);
     }
     if (_7_formatter) {
@@ -125,13 +145,6 @@ const replacer =
       );
     }
     if (val === undefined) {
-      diagnostics.push({
-        content: _3_key,
-        from: from + captureOffset(captures, 3),
-        to: from + captureOffset(captures, 3) + _3_key.length,
-        severity: "error",
-        message: `Cannot find variable named '${_3_key}'`,
-      });
       const validChooseVal = 0;
       return select(
         _10_args,
