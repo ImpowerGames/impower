@@ -336,9 +336,9 @@ export const executeDisplayCommand = (
             const assetNames = p.audio;
             const assetArgs = p.args || [];
             const sounds: Sound[] = [];
-            const trackLoop = Boolean(
-              layer === "Music" || assetArgs.includes("loop")
-            );
+            const channelLoop = layer === "Music";
+            const trackLoop = assetArgs.includes("loop");
+            const trackNoloop = assetArgs.includes("noloop");
             const trackVolume = getArgumentValue(assetArgs, "volume") ?? 1;
             const trackMuteMultiplier = assetArgs?.includes("mute") ? 0 : 1;
             const after =
@@ -372,7 +372,8 @@ export const executeDisplayCommand = (
                   value && typeof value === "object" && "volume" in value
                     ? value.volume ?? 1
                     : 1;
-                const loop = groupLoop ?? trackLoop;
+                const loop =
+                  !trackNoloop && (trackLoop || groupLoop || channelLoop);
                 const volume = groupVolume * trackVolume * trackMuteMultiplier;
                 assets.forEach((asset) => {
                   if (asset) {
