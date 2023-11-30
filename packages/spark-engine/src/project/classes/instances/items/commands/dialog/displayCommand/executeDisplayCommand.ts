@@ -45,6 +45,18 @@ const isHidden = (content: string, hidden?: string): boolean => {
   return new RegExp(hidden).test(content);
 };
 
+const getArgumentValue = (args: string[], name: string): number | undefined => {
+  const argIndex = args.indexOf(name);
+  if (argIndex < 0) {
+    return undefined;
+  }
+  const numValue = Number(args[argIndex + 1]);
+  if (Number.isNaN(numValue)) {
+    return undefined;
+  }
+  return numValue;
+};
+
 export const executeDisplayCommand = (
   game: SparkGame,
   data: DisplayCommandData,
@@ -319,20 +331,19 @@ export const executeDisplayCommand = (
             }
           }
           if (p.audio) {
-            const offset = p.chunks?.[0]?.time ?? 0;
+            const chunkOffset = p.chunks?.[0]?.time ?? 0;
             const layer = p.layer || "Voice";
             const assetNames = p.audio;
-            const assetArgs = p.args;
+            const assetArgs = p.args || [];
             const sounds: Sound[] = [];
-            const loopOverride = Boolean(
-              layer === "Music" || assetArgs?.includes("loop")
+            const trackLoop = Boolean(
+              layer === "Music" || assetArgs.includes("loop")
             );
-            const percentage = Number(
-              assetArgs?.find((arg) => arg.endsWith("%"))?.split("%")?.[0]
-            );
-            const hasPercentageArg = !Number.isNaN(percentage);
-            const percentageAsDecimal = hasPercentageArg ? 1 : percentage / 100;
-            const volumeOverride = hasPercentageArg ? percentageAsDecimal : 1;
+            const trackVolume = getArgumentValue(assetArgs, "volume") ?? 1;
+            const trackMuteMultiplier = assetArgs?.includes("mute") ? 0 : 1;
+            const after =
+              chunkOffset + (getArgumentValue(assetArgs, "after") ?? 0);
+            const over = getArgumentValue(assetArgs, "over");
             assetNames.forEach((assetName) => {
               if (assetName) {
                 const value = valueMap?.[assetName] as
@@ -343,7 +354,6 @@ export const executeDisplayCommand = (
                       cues: number[];
                       loop: boolean;
                       volume: number;
-                      mute: boolean;
                     };
                 const assets = Array.isArray(value)
                   ? value.map((a) => a)
@@ -354,14 +364,16 @@ export const executeDisplayCommand = (
                   value && typeof value === "object" && "cues" in value
                     ? value.cues
                     : undefined;
-                const loop =
+                const groupLoop =
                   value && typeof value === "object" && "loop" in value
                     ? value.loop
                     : undefined;
-                const volume =
+                const groupVolume =
                   value && typeof value === "object" && "volume" in value
-                    ? value.volume
-                    : undefined;
+                    ? value.volume ?? 1
+                    : 1;
+                const loop = groupLoop ?? trackLoop;
+                const volume = groupVolume * trackVolume * trackMuteMultiplier;
                 assets.forEach((asset) => {
                   if (asset) {
                     const audioId = asset.name || asset.src;
@@ -370,9 +382,8 @@ export const executeDisplayCommand = (
                       id: audioId,
                       src: audioData,
                       cues: cues ?? [],
-                      loop: loop ?? loopOverride,
-                      volume: volume ?? volumeOverride,
-                      muted: assetArgs?.includes("mute"),
+                      loop,
+                      volume,
                     };
                     soundsToLoad.push(sound);
                     sounds.push(sound);
@@ -383,61 +394,31 @@ export const executeDisplayCommand = (
             if (sounds.length > 0) {
               const groupId = assetNames.join("+");
               const scheduled = assetArgs?.includes("schedule");
-              if (assetArgs?.includes("stop")) {
+              if (assetArgs?.includes("start")) {
                 soundEvents.push(() =>
-                  game.sound.stopAll(sounds, layer, groupId, offset, scheduled)
+                  game.sound.startAll(sounds, layer, groupId, after, over)
                 );
-              } else if (assetArgs?.includes("pause")) {
-                if (assetArgs?.includes("start")) {
-                  soundEvents.push(() =>
-                    game.sound.startAll(sounds, layer, groupId, offset)
-                  );
-                }
+              } else if (assetArgs?.includes("stop")) {
                 soundEvents.push(() =>
-                  game.sound.pauseAll(sounds, layer, groupId, offset, scheduled)
-                );
-              } else if (assetArgs?.includes("unpause")) {
-                if (assetArgs?.includes("start")) {
-                  soundEvents.push(() =>
-                    game.sound.startAll(sounds, layer, groupId, offset)
-                  );
-                }
-                soundEvents.push(() =>
-                  game.sound.unpauseAll(
+                  game.sound.stopAll(
                     sounds,
                     layer,
                     groupId,
-                    offset,
-                    scheduled
-                  )
-                );
-              } else if (assetArgs?.includes("mute")) {
-                if (assetArgs?.includes("start")) {
-                  soundEvents.push(() =>
-                    game.sound.startAll(sounds, layer, groupId, offset)
-                  );
-                }
-                soundEvents.push(() =>
-                  game.sound.muteAll(sounds, layer, groupId, offset, scheduled)
-                );
-              } else if (assetArgs?.includes("unmute")) {
-                if (assetArgs?.includes("start")) {
-                  soundEvents.push(() =>
-                    game.sound.startAll(sounds, layer, groupId, offset)
-                  );
-                }
-                soundEvents.push(() =>
-                  game.sound.unmuteAll(
-                    sounds,
-                    layer,
-                    groupId,
-                    offset,
+                    after,
+                    over,
                     scheduled
                   )
                 );
               } else {
                 soundEvents.push(() =>
-                  game.sound.startAll(sounds, layer, groupId, offset)
+                  game.sound.fadeAll(
+                    sounds,
+                    layer,
+                    groupId,
+                    after,
+                    over,
+                    scheduled
+                  )
                 );
               }
             }
@@ -680,9 +661,15 @@ export const executeDisplayCommand = (
         }
       });
       // Start writer typing tones
-      game.sound.start({ id, src: new SynthBuffer(tones) }, "Writer", 0, () => {
-        started = true;
-      });
+      game.sound.start(
+        { id, src: new SynthBuffer(tones) },
+        "Writer",
+        0,
+        0,
+        () => {
+          started = true;
+        }
+      );
       // Load and modulate ((sounds))
       game.sound.loadAll(soundsToLoad).then(() => {
         soundEvents.forEach((event) => {

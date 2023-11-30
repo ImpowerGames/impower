@@ -69,34 +69,12 @@ export class SparkDOMAudioPlayer {
     }
   }
 
-  protected _attack = DEFAULT_FADE_DURATION;
-  public get attack() {
-    return this._attack;
-  }
-  public set attack(value) {
-    this._attack = value;
-  }
-
-  protected _release = DEFAULT_FADE_DURATION;
-  public get release() {
-    return this._release;
-  }
-  public set release(value) {
-    this._release = value;
-  }
-
   protected _volume = 1;
   public get volume() {
     return this._volume;
   }
-
-  protected _muted = false;
-  public get muted() {
-    return this._muted;
-  }
-
-  public get currentGainTarget() {
-    return this._muted ? 0 : this._volume;
+  public set volume(value) {
+    this._volume = value;
   }
 
   protected _startedAt = 0;
@@ -120,9 +98,6 @@ export class SparkDOMAudioPlayer {
     options?: {
       loop?: boolean;
       volume?: number;
-      muted?: boolean;
-      attack?: number;
-      release?: number;
       cues?: number[];
     }
   ) {
@@ -139,9 +114,6 @@ export class SparkDOMAudioPlayer {
     }
     this._loop = options?.loop ?? this._loop;
     this._volume = options?.volume ?? this._volume;
-    this._muted = options?.muted ?? this._muted;
-    this._attack = options?.attack ?? this._attack;
-    this._release = options?.release ?? this._release;
     this._cues = options?.cues ?? this._cues;
     this.load();
   }
@@ -167,8 +139,12 @@ export class SparkDOMAudioPlayer {
     }
   }
 
-  protected fade(when: number, value: number, duration: number): void {
-    this._gainNode.gain.setTargetAtTime(value, when, duration);
+  protected fade(when: number, value: number, duration?: number): void {
+    this._gainNode.gain.setTargetAtTime(
+      value,
+      when,
+      duration ?? Number.EPSILON
+    );
   }
 
   protected play(when: number, offsetInSeconds = 0, fadeDuration = 0): void {
@@ -177,12 +153,12 @@ export class SparkDOMAudioPlayer {
     if (this._sourceNode) {
       const validOffset = Math.min(Math.max(0, offsetInSeconds), this.duration);
       this._sourceNode.start(when, validOffset);
-      this.fade(when, this.currentGainTarget, fadeDuration);
+      this.fade(when, this.volume, fadeDuration);
     }
   }
 
-  start(when: number, offset = 0, fadeDuration = 0): void {
-    this.play(when, offset, fadeDuration);
+  start(when: number, fadeDuration = 0): void {
+    this.play(when, 0, fadeDuration);
     this._startedAt = when;
     this._pausedAt = 0;
   }
@@ -212,33 +188,23 @@ export class SparkDOMAudioPlayer {
     }
   }
 
-  pause(when: number, fadeDuration = this.release) {
+  fadeVolume(when: number, volume: number, fadeDuration?: number) {
+    this._volume = volume;
+    this.fade(when, this.volume, fadeDuration);
+  }
+
+  pause(when: number, fadeDuration = DEFAULT_FADE_DURATION) {
     const startedAt = this._startedAt;
     const elapsed = when - startedAt;
     this.stop(fadeDuration);
     this._pausedAt = elapsed;
   }
 
-  unpause(when: number, fadeDuration = this.attack) {
+  unpause(when: number, fadeDuration = DEFAULT_FADE_DURATION) {
     const offset = this._pausedAt;
     this.play(when, offset, fadeDuration);
     this._startedAt = when - offset;
     this._pausedAt = 0;
-  }
-
-  mute(when: number, fadeDuration = this.release) {
-    this._muted = true;
-    this.fade(when, 0, fadeDuration);
-  }
-
-  unmute(when: number, fadeDuration = this.attack) {
-    this._muted = false;
-    this.fade(when, this.currentGainTarget, fadeDuration);
-  }
-
-  fadeVolume(when: number, value: number, fadeDuration: number) {
-    this._volume = value;
-    this.fade(when, this.currentGainTarget, fadeDuration);
   }
 
   step(when: number, deltaSeconds: number) {

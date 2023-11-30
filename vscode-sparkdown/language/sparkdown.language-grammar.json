@@ -2286,6 +2286,9 @@
           "patterns": [
             {
               "include": "#AssetControl"
+            },
+            {
+              "include": "#NumericLiteral"
             }
           ]
         }
@@ -2294,7 +2297,7 @@
     "AssetControl": {
       "tag": "keyword",
       "name": "keyword.asset.arguments.control.sd",
-      "match": "(schedule|start|stop|pause|unpause|mute|unmute|loop)"
+      "match": "(schedule|start|stop|mute|unmute|loop|noloop|volume|after|over)"
     },
     "Transition": {
       "tag": "labelName",

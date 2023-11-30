@@ -125,10 +125,13 @@ const getAudioArgumentCompletions = (
     "schedule",
     "stop",
     "start",
-    "pause",
-    "unpause",
     "mute",
     "unmute",
+    "loop",
+    "noloop",
+    "volume",
+    "after",
+    "over",
   ];
   return completions
     .filter((c) => !args.includes(c))

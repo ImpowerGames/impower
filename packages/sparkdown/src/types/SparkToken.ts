@@ -100,6 +100,7 @@ export interface ISparkStructFieldToken<T extends string = string>
   path: string;
   key: string;
   value: string;
+  compiled: unknown;
 
   ranges?: {
     key?: SparkRange;

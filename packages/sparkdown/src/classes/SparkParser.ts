@@ -1022,6 +1022,7 @@ export default class SparkParser {
               key: parts.at(-1) || "",
               type: typeof v,
               value: JSON.stringify(v),
+              compiled: v,
             };
             struct.fields ??= [];
             struct.fields.push(field);
@@ -1894,8 +1895,13 @@ export default class SparkParser {
           } else if (tok.tag === "asset_args") {
             const parent = lookup("image", "audio");
             if (parent) {
-              const args = text.split(WHITESPACE_REGEX);
-              parent.args = args;
+              parent.args = [];
+              text.split(WHITESPACE_REGEX).forEach((p) => {
+                const arg = p.trim();
+                if (arg) {
+                  parent.args.push(arg);
+                }
+              });
               parent.ranges ??= {};
               parent.ranges.args = {
                 line: tok.line,
@@ -2103,6 +2109,7 @@ export default class SparkParser {
                           ids,
                           context
                         );
+                        field.compiled = compiledValue;
                         // Check for type mismatch
                         const parentPropertyAccessor = tok.type + propertyPath;
                         const declaredValue = getProperty(

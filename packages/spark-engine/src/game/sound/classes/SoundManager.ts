@@ -1,4 +1,4 @@
-import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
+import { GameEvent1, GameEvent2, GameEvent3, GameEvent4 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
@@ -13,12 +13,19 @@ import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackStat
 
 export interface SoundEvents extends Record<string, GameEvent> {
   onLoad: GameEvent1<Sound>;
-  onStart: GameEvent2<Sound[], number>;
-  onStop: GameEvent3<Sound[], number, boolean>;
-  onPause: GameEvent3<Sound[], number, boolean>;
-  onUnpause: GameEvent3<Sound[], number, boolean>;
-  onMute: GameEvent3<Sound[], number, boolean>;
-  onUnmute: GameEvent3<Sound[], number, boolean>;
+  onStart: GameEvent3<Sound[], number | undefined, number | undefined>;
+  onStop: GameEvent4<
+    Sound[],
+    number | undefined,
+    number | undefined,
+    boolean | undefined
+  >;
+  onFade: GameEvent4<
+    Sound[],
+    number | undefined,
+    number | undefined,
+    boolean | undefined
+  >;
   onUpdate: GameEvent1<number>;
   onMidiEvent: GameEvent2<string, MidiEvent>;
 }
@@ -31,7 +38,7 @@ export interface SoundConfig {
 
 export interface SoundState {
   playbackStates: Record<string, SoundPlaybackControl>;
-  layers: Record<string, string[]>;
+  channels: Record<string, string[]>;
   groups: Record<string, string[]>;
 }
 
@@ -52,12 +59,9 @@ export class SoundManager extends Manager<
   constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
     const initialEvents: SoundEvents = {
       onLoad: new GameEvent1<Sound>(),
-      onStart: new GameEvent2<Sound[], number>(),
-      onStop: new GameEvent3<Sound[], number, boolean>(),
-      onPause: new GameEvent3<Sound[], number, boolean>(),
-      onUnpause: new GameEvent3<Sound[], number, boolean>(),
-      onMute: new GameEvent3<Sound[], number, boolean>(),
-      onUnmute: new GameEvent3<Sound[], number, boolean>(),
+      onStart: new GameEvent3<Sound[], number, number>(),
+      onStop: new GameEvent4<Sound[], number, number, boolean>(),
+      onFade: new GameEvent4<Sound[], number, number, boolean>(),
       onUpdate: new GameEvent1<number>(),
       onMidiEvent: new GameEvent2<string, MidiEvent>(),
     };
@@ -69,7 +73,7 @@ export class SoundManager extends Manager<
     };
     const initialState: SoundState = {
       playbackStates: {},
-      layers: {},
+      channels: {},
       groups: {},
       ...(state || {}),
     };
@@ -92,12 +96,12 @@ export class SoundManager extends Manager<
     delete this._state.playbackStates[id];
   }
 
-  setLayer(id: string, layer: string): SoundPlaybackControl {
+  setChannel(id: string, layer: string): SoundPlaybackControl {
     const controlState = this.getOrCreatePlaybackState(id);
     if (layer) {
-      controlState.layer = layer;
-      this._state.layers[layer] ??= [];
-      this._state.layers[layer]!.push(id);
+      controlState.channel = layer;
+      this._state.channels[layer] ??= [];
+      this._state.channels[layer]!.push(id);
     }
     return controlState;
   }
@@ -113,9 +117,9 @@ export class SoundManager extends Manager<
   }
 
   removeFromLayer(id: string, layer: string) {
-    const layerState = this._state.layers[layer];
+    const layerState = this._state.channels[layer];
     if (layerState) {
-      this._state.layers[layer] = layerState.filter((x) => x != id) ?? [];
+      this._state.channels[layer] = layerState.filter((x) => x != id) ?? [];
     }
   }
 
@@ -173,341 +177,143 @@ export class SoundManager extends Manager<
 
   protected async startSounds(
     sounds: Sound[],
-    layer?: string,
+    channel?: string,
     group?: string,
-    offset?: number,
+    after?: number,
+    over?: number,
     onReady?: () => void
   ) {
     await this.loadAll(sounds);
     sounds.forEach((sound) => {
-      if (layer) {
-        this.setLayer(sound.id, layer);
+      if (channel) {
+        this.setChannel(sound.id, channel);
       }
       if (group) {
         this.setGroup(sound.id, group);
       }
     });
-    this._events.onStart.dispatch(sounds, offset || 0);
+    this._events.onStart.dispatch(sounds, after, over);
     onReady?.();
   }
 
   async startAll(
     sounds: Sound[],
-    layer: string,
+    channel: string,
     group: string,
-    offset?: number,
+    after?: number,
+    over?: number,
     onReady?: () => void
   ) {
-    return this.startSounds(sounds, layer, group, offset, onReady);
+    return this.startSounds(sounds, channel, group, after, over, onReady);
   }
 
   async start(
     sound: Sound,
-    layer: string,
-    offset?: number,
+    channel: string,
+    after?: number,
+    over?: number,
     onReady?: () => void
   ) {
-    return this.startSounds([sound], layer, undefined, offset, onReady);
+    return this.startSounds([sound], channel, undefined, after, over, onReady);
   }
 
   protected async stopSounds(
     sounds: Sound[],
-    layer?: string,
+    channel?: string,
     group?: string,
-    offset?: number,
+    after?: number,
+    over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
     await this.loadAll(sounds);
     sounds.forEach((sound) => {
-      if (layer) {
-        this.removeFromLayer(sound.id, layer);
+      if (channel) {
+        this.removeFromLayer(sound.id, channel);
       }
       if (group) {
         this.removeFromGroup(sound.id, group);
       }
       this.deletePlaybackState(sound.id);
     });
-    this._events.onStop.dispatch(sounds, offset || 0, scheduled || false);
+    this._events.onStop.dispatch(sounds, after, over, scheduled);
     onReady?.();
   }
 
   async stopAll(
     sounds: Sound[],
-    layer: string,
+    channel: string,
     group: string,
-    offset?: number,
+    after?: number,
+    over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
-    return this.stopSounds(sounds, layer, group, offset, scheduled, onReady);
+    return this.stopSounds(
+      sounds,
+      channel,
+      group,
+      after,
+      over,
+      scheduled,
+      onReady
+    );
   }
 
   async stop(
     sound: Sound,
-    layer: string,
-    offset?: number,
+    channel: string,
+    after?: number,
+    over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
     return this.stopSounds(
       [sound],
-      layer,
+      channel,
       undefined,
-      offset,
+      after,
+      over,
       scheduled,
       onReady
     );
   }
 
   async stopLayer(
-    layer: string,
-    offset?: number,
+    channel: string,
+    after?: number,
+    over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
-    const ids = this._state.layers[layer];
+    const ids = this._state.channels[channel];
     if (!ids) {
       return;
     }
     const sounds = ids.map((id) => this._config.sounds.get(id)!);
     return this.stopSounds(
       sounds,
-      layer,
+      channel,
       undefined,
-      offset,
+      after,
+      over,
       scheduled,
       onReady
     );
   }
 
-  protected async pauseSounds(
+  protected async fadeSounds(
     sounds: Sound[],
-    layer?: string,
+    channel?: string,
     group?: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    await this.loadAll(sounds);
-    sounds.forEach((sound) => {
-      if (layer) {
-        this.setLayer(sound.id, layer);
-      }
-      if (group) {
-        this.setGroup(sound.id, group);
-      }
-      const controlState = this.getOrCreatePlaybackState(sound.id);
-      controlState.paused = true;
-    });
-    this._events.onPause.dispatch(sounds, offset || 0, scheduled || false);
-    onReady?.();
-  }
-
-  async pauseAll(
-    sounds: Sound[],
-    layer: string,
-    group: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    return this.pauseSounds(sounds, layer, group, offset, scheduled, onReady);
-  }
-
-  async pause(
-    sound: Sound,
-    layer: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    return this.pauseSounds(
-      [sound],
-      layer,
-      undefined,
-      offset,
-      scheduled,
-      onReady
-    );
-  }
-
-  async pauseLayer(
-    layer: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    const ids = this._state.layers[layer];
-    if (!ids) {
-      return;
-    }
-    const sounds = ids.map((id) => this._config.sounds.get(id)!);
-    return this.pauseSounds(
-      sounds,
-      layer,
-      undefined,
-      offset,
-      scheduled,
-      onReady
-    );
-  }
-
-  protected async unpauseSounds(
-    sounds: Sound[],
-    layer?: string,
-    group?: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    await this.loadAll(sounds);
-    sounds.forEach((sound) => {
-      if (layer) {
-        this.setLayer(sound.id, layer);
-      }
-      if (group) {
-        this.setGroup(sound.id, group);
-      }
-      const controlState = this.getOrCreatePlaybackState(sound.id);
-      controlState.paused = false;
-    });
-    this._events.onUnpause.dispatch(sounds, offset || 0, scheduled || false);
-    onReady?.();
-  }
-
-  async unpauseAll(
-    sounds: Sound[],
-    layer: string,
-    group: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    return this.unpauseSounds(sounds, layer, group, offset, scheduled, onReady);
-  }
-
-  async unpause(
-    sound: Sound,
-    layer: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    return this.unpauseSounds(
-      [sound],
-      layer,
-      undefined,
-      offset,
-      scheduled,
-      onReady
-    );
-  }
-
-  async unpauseLayer(
-    layer: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    const ids = this._state.layers[layer];
-    if (!ids) {
-      return;
-    }
-    const sounds = ids.map((id) => this._config.sounds.get(id)!);
-    return this.unpauseSounds(
-      sounds,
-      layer,
-      undefined,
-      offset,
-      scheduled,
-      onReady
-    );
-  }
-
-  protected async muteSounds(
-    sounds: Sound[],
-    layer?: string,
-    group?: string,
-    offset?: number,
+    after?: number,
+    over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
     sounds.forEach((sound) => {
-      if (layer) {
-        this.setLayer(sound.id, layer);
-      }
-      if (group) {
-        this.setGroup(sound.id, group);
-      }
-      const controlState = this.getOrCreatePlaybackState(sound.id);
-      controlState.muted = true;
-    });
-    await this.loadAll(sounds);
-    this._events.onMute.dispatch(sounds, offset || 0, scheduled || false);
-    onReady?.();
-  }
-
-  async muteAll(
-    sounds: Sound[],
-    layer: string,
-    group: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    return this.muteSounds(sounds, layer, group, offset, scheduled, onReady);
-  }
-
-  async mute(
-    sound: Sound,
-    layer: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    return this.muteSounds(
-      [sound],
-      layer,
-      undefined,
-      offset,
-      scheduled,
-      onReady
-    );
-  }
-
-  async muteLayer(
-    layer: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    const ids = this._state.layers[layer];
-    if (!ids) {
-      return;
-    }
-    const sounds = ids.map((id) => this._config.sounds.get(id)!);
-    return this.muteSounds(
-      sounds,
-      layer,
-      undefined,
-      offset,
-      scheduled,
-      onReady
-    );
-  }
-
-  protected async unmuteSounds(
-    sounds: Sound[],
-    layer?: string,
-    group?: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    sounds.forEach((sound) => {
-      if (layer) {
-        this.setLayer(sound.id, layer);
+      if (channel) {
+        this.setChannel(sound.id, channel);
       }
       if (group) {
         this.setGroup(sound.id, group);
@@ -516,54 +322,72 @@ export class SoundManager extends Manager<
       controlState.muted = false;
     });
     await this.loadAll(sounds);
-    this._events.onUnmute.dispatch(sounds, offset || 0, scheduled || false);
+    this._events.onFade.dispatch(sounds, after, over, scheduled);
     onReady?.();
   }
 
-  async unmuteAll(
+  async fadeAll(
     sounds: Sound[],
-    layer: string,
+    channel: string,
     group: string,
-    offset?: number,
+    after?: number,
+    over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
-    return this.unmuteSounds(sounds, layer, group, offset, scheduled, onReady);
-  }
-
-  async unmute(
-    sound: Sound,
-    layer: string,
-    offset?: number,
-    scheduled?: boolean,
-    onReady?: () => void
-  ) {
-    return this.unmuteSounds(
-      [sound],
-      layer,
-      undefined,
-      offset,
+    return this.fadeSounds(
+      sounds,
+      channel,
+      group,
+      after,
+      over,
       scheduled,
       onReady
     );
   }
 
-  async unmuteLayer(
-    layer: string,
-    offset?: number,
+  async fade(
+    sound: Sound,
+    channel: string,
+    after?: number,
+    over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
-    const ids = this._state.layers[layer];
+    return this.fadeSounds(
+      [sound],
+      channel,
+      undefined,
+      after,
+      over,
+      scheduled,
+      onReady
+    );
+  }
+
+  async fadeLayer(
+    layer: string,
+    volume?: number,
+    after?: number,
+    over?: number,
+    scheduled?: boolean,
+    onReady?: () => void
+  ) {
+    const ids = this._state.channels[layer];
     if (!ids) {
       return;
     }
-    const sounds = ids.map((id) => this._config.sounds.get(id)!);
-    return this.unmuteSounds(
+    const sounds = ids.map((id) => {
+      const sound = { ...this._config.sounds.get(id)! };
+      sound.volume = volume;
+      return sound;
+    });
+    return this.fadeSounds(
       sounds,
       layer,
       undefined,
-      offset,
+      after,
+      over,
       scheduled,
       onReady
     );

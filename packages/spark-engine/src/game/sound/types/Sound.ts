@@ -6,7 +6,4 @@ export interface Sound {
   cues?: number[];
   loop?: boolean;
   volume?: number;
-  muted?: boolean;
-  attack?: number;
-  release?: number;
 }
