@@ -116,7 +116,7 @@ export class SoundManager extends Manager<
     return controlState;
   }
 
-  removeFromLayer(id: string, channel: string) {
+  removeFromChannel(id: string, channel: string) {
     const state = this._state.channels[channel];
     if (state) {
       this._state.channels[channel] = state.filter((x) => x != id) ?? [];
@@ -229,7 +229,7 @@ export class SoundManager extends Manager<
     await this.loadAll(sounds);
     sounds.forEach((sound) => {
       if (channel) {
-        this.removeFromLayer(sound.id, channel);
+        this.removeFromChannel(sound.id, channel);
       }
       if (group) {
         this.removeFromGroup(sound.id, group);
@@ -279,7 +279,7 @@ export class SoundManager extends Manager<
     );
   }
 
-  async stopLayer(
+  async stopChannel(
     channel: string,
     after?: number,
     over?: number,
@@ -365,7 +365,7 @@ export class SoundManager extends Manager<
     );
   }
 
-  async fadeLayer(
+  async fadeChannel(
     channel: string,
     volume?: number,
     after?: number,

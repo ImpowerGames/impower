@@ -174,6 +174,9 @@ export const executeDisplayCommand = (
     writerConfigs?.["BoxWriter"]?.className || "Box"
   );
 
+  game.sound.stopChannel("Writer");
+  game.sound.stopChannel("Voice");
+
   hideChoices(game, structName, writerConfigs?.["ChoiceWriter"]);
 
   if (dialogueGroupEl) {
@@ -202,6 +205,7 @@ export const executeDisplayCommand = (
 
   const portraitEl = game.ui.findFirstUIElement(structName, "Portrait");
   const insertEl = game.ui.findFirstUIElement(structName, "Insert");
+  const backdropEl = game.ui.findFirstUIElement(structName, "Backdrop");
 
   const contentElEntries = [
     {
@@ -255,10 +259,15 @@ export const executeDisplayCommand = (
     parentheticalEl.style["display"] = "none";
   }
 
-  const oldPortraits = portraitEl?.getChildren();
-  const oldInserts = insertEl?.getChildren();
-
-  game.sound.stopLayer("Voice");
+  const stalePortraits: IElement[] | undefined = portraitEl?.getChildren();
+  const staleInserts: IElement[] | undefined = insertEl?.getChildren();
+  let staleBackdrops: IElement[] | undefined = undefined;
+  const changesBackdrop = resolvedContent.some(
+    (p) => p.image && p.target === "Backdrop"
+  );
+  if (changesBackdrop) {
+    staleBackdrops = backdropEl?.getChildren();
+  }
 
   const phrases = game.writer.write(
     resolvedContent,
@@ -275,6 +284,7 @@ export const executeDisplayCommand = (
   const nextIndices: Record<string, number> = {};
   const layerImages: Record<string, IElement[]> = {};
   const layerElements = new Set<IElement>();
+
   contentElEntries.forEach(({ key, value }) => {
     if (value) {
       if (key === type) {
@@ -542,13 +552,18 @@ export const executeDisplayCommand = (
   const doTransitions = () => {
     // To prevent flickers, wait until the last possible second to remove old images
     if (portraitEl) {
-      oldPortraits?.forEach((p) => {
+      stalePortraits?.forEach((p) => {
         portraitEl.removeChild(p);
       });
     }
     if (insertEl) {
-      oldInserts?.forEach((p) => {
+      staleInserts?.forEach((p) => {
         insertEl.removeChild(p);
+      });
+    }
+    if (backdropEl) {
+      staleBackdrops?.forEach((p) => {
+        backdropEl.removeChild(p);
       });
     }
     layerElements.forEach((layerEl) => {
@@ -593,7 +608,6 @@ export const executeDisplayCommand = (
 
   if (game) {
     if (instant) {
-      game.sound.stopLayer("Writer");
       handleFinished();
     } else {
       const voiceSound = characterConfig?.voiceSound;
