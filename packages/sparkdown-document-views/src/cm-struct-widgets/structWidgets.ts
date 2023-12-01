@@ -18,13 +18,13 @@ import { WaveformConfig } from "./types/WaveformConfig";
 import { getAudioBuffer } from "./utils/getAudioBuffer";
 
 interface StructWidgetContext {
-  audioContext: AudioContext;
+  audioContext?: AudioContext;
   audioPlayers: SparkDOMAudioPlayer[];
   audioPlayingButton?: HTMLElement | null;
 }
 
 const STRUCT_WIDGET_CONTEXT: StructWidgetContext = {
-  audioContext: new AudioContext(),
+  audioContext: undefined,
   audioPlayers: [],
   audioPlayingButton: undefined,
 };
@@ -38,6 +38,8 @@ const playAudioGroupStruct = async (
 ) => {
   // TODO: Retain play button state even on editor teardown.
   const context = STRUCT_WIDGET_CONTEXT;
+  context.audioContext ??= new AudioContext();
+  const audioContext = context.audioContext!;
   const audioGroup = struct.compiled as AudioGroup;
   const toggleOffAudio = context.audioPlayingButton === button;
   if (context.audioPlayingButton && context.audioPlayingButton !== button) {
@@ -56,9 +58,9 @@ const playAudioGroupStruct = async (
         audioGroup?.assets?.map(async (a) => {
           const url = await fileSystemReader.url(a.src);
           const buffer = url
-            ? await getAudioBuffer(url, context.audioContext)
+            ? await getAudioBuffer(url, audioContext)
             : new Float32Array(0);
-          const player = new SparkDOMAudioPlayer(buffer, context.audioContext, {
+          const player = new SparkDOMAudioPlayer(buffer, audioContext, {
             loop: audioGroup.loop,
             volume: audioGroup.volume,
             cues: audioGroup.cues,
