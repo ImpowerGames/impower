@@ -4,8 +4,8 @@ import {
   MIDI_STATUS_SYSTEM,
   MIDI_STATUS_TYPE,
 } from "../constants/MIDI_STATUS_TYPE";
+import { SynthConfig } from "../specs/Synth";
 import { Midi } from "../types/Midi";
-import { SynthConfig } from "../types/Synth";
 import { Tone } from "../types/Tone";
 import { ToneSequence } from "../types/ToneSequence";
 import { convertPitchNumberToHertz } from "./convertPitchNumberToHertz";

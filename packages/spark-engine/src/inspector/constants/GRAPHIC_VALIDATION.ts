@@ -4,7 +4,7 @@ import { RecursiveValidation } from "../types/RecursiveValidation";
 export const GRAPHIC_VALIDATION = (typeMap?: {
   [type: string]: Record<string, object>;
 }): RecursiveValidation<Graphic> => {
-  const colorNames = Object.keys(typeMap?.["Color"] || {});
+  const colorNames = Object.keys(typeMap?.["color"] || {});
   return {
     width: [8, 0, 800],
     height: [8, 0, 800],
@@ -14,13 +14,13 @@ export const GRAPHIC_VALIDATION = (typeMap?: {
     },
     shapes: [
       {
-        fillColor: colorNames,
-        fillOpacity: [0.1, 0, 1],
-        strokeColor: colorNames,
-        strokeOpacity: [0.1, 0, 1],
-        strokeWeight: [1, 0, 50],
-        strokeJoin: ["round", "arcs", "bevel"],
-        strokeCap: ["round", "square", "butt"],
+        fill_color: colorNames,
+        fill_opacity: [0.1, 0, 1],
+        stroke_color: colorNames,
+        stroke_opacity: [0.1, 0, 1],
+        stroke_weight: [1, 0, 50],
+        stroke_join: ["round", "arcs", "bevel"],
+        stroke_cap: ["round", "square", "butt"],
       },
     ],
   };

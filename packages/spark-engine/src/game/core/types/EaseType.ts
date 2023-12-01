@@ -1,8 +1,8 @@
 import { CurveType } from "./CurveType";
 
-export type CurveDirection = "In" | "Out" | "InOut";
+export type CurveDirection = "in" | "out" | "in_out";
 
 export type EaseType =
   | "none"
   | "linear"
-  | `${Exclude<CurveType, "linear">}${CurveDirection}`;
+  | `${Exclude<CurveType, "linear">}_${CurveDirection}`;

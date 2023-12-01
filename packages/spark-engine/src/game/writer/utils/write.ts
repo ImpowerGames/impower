@@ -1,8 +1,8 @@
 import { IElement } from "../../ui";
-import { Character } from "../types/Character";
+import { Character } from "../specs/Character";
+import { Writer } from "../specs/Writer";
 import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
-import { Writer } from "../types/Writer";
 import { stressPhrases } from "./stressPhrases";
 
 const SINGLE_MARKERS = ["*", "_", "^", "|"];
@@ -62,7 +62,7 @@ export const write = (
   debug?: boolean,
   onCreateElement?: () => IElement
 ): Phrase[] => {
-  const beepSound = character?.voiceSound || writer?.clackSound;
+  const beepSound = character?.synth || writer?.synth;
   const beepEnvelope = beepSound?.envelope;
   const beepDuration = beepEnvelope
     ? (beepEnvelope.attack ?? 0) +
@@ -70,16 +70,16 @@ export const write = (
       (beepEnvelope.sustain ?? 0) +
       (beepEnvelope.release ?? 0)
     : 0;
-  const letterDelay = writer?.letterDelay ?? 0;
-  const animationOffset = writer?.animationOffset ?? 0;
-  const floatingAnimation = writer?.floatingAnimation;
-  const tremblingAnimation = writer?.tremblingAnimation;
-  const phrasePause = writer?.phrasePauseScale ?? 1;
-  const emDashPause = writer?.emDashPauseScale ?? 1;
-  const stressPause = writer?.stressPauseScale ?? 1;
-  const punctuatePause = writer?.punctuatePauseScale ?? 1;
+  const letterDelay = writer?.letter_delay ?? 0;
+  const animationOffset = writer?.animation_offset ?? 0;
+  const floatingAnimation = writer?.floating_animation;
+  const tremblingAnimation = writer?.trembling_animation;
+  const phrasePause = writer?.phrase_pause_scale ?? 1;
+  const emDashPause = writer?.em_dash_pause_scale ?? 1;
+  const stressPause = writer?.stressed_pause_scale ?? 1;
+  const interjectionPause = writer?.punctuated_pause_scale ?? 1;
   const syllableLength = Math.max(
-    writer?.minSyllableLength || 0,
+    writer?.min_syllable_length || 0,
     Math.round(beepDuration / letterDelay)
   );
   const voicedRegex = writer?.voiced
@@ -507,14 +507,14 @@ export const write = (
           break;
         }
       }
-      // Voice any phrases that are entirely composed of punctuation.
+      // Voice any phrases that are entirely composed of ellipsis.
       if (phrase.text) {
         if (punctuatedRegex?.test(phrase.text)) {
           for (let c = 0; c < phrase.chunks.length; c += 1) {
             const chunk = phrase.chunks[c]!;
             if (!isWhitespace(chunk.char)) {
               chunk.punctuated = true;
-              chunk.duration = letterDelay * punctuatePause;
+              chunk.duration = letterDelay * interjectionPause;
             }
           }
         }
@@ -526,7 +526,7 @@ export const write = (
     stressPhrases(result, character);
   }
 
-  const letterFadeDuration = writer?.fadeDuration ?? 0;
+  const letterFadeDuration = writer?.fade_duration ?? 0;
   let time = 0;
   let floatingIndex = 0;
   let tremblingIndex = 0;

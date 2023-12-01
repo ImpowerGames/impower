@@ -1,4 +1,4 @@
-import { Prosody } from "../types/Prosody";
+import { Prosody } from "../specs/Prosody";
 
 export const getStressMatch = (
   phrase: string,

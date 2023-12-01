@@ -457,7 +457,7 @@ export class MainScene extends SparkScene {
     super(context, app, assets);
     // Tiles
     const beatmaps = Object.values(
-      this.context.game.struct.config.typeMap?.["Beatmap"] || {}
+      this.context.game.struct.config.typeMap?.["beatmap"] || {}
     );
     const beatmap = beatmaps[0];
     const beats = (beatmap?.beats as unknown as BeatInfo[]) || [];
@@ -497,12 +497,12 @@ export class MainScene extends SparkScene {
   override getRequiredAssets(): Record<string, { src: string; ext: string }> {
     const typeMap = this.context?.game?.struct?.config?.typeMap || {};
     const assets: Record<string, { src: string; ext: string }> = {};
-    Object.entries(typeMap["Midi"] || {}).forEach(([id, asset]) => {
+    Object.entries(typeMap["midi"] || {}).forEach(([id, asset]) => {
       if (id) {
         assets[id] = asset;
       }
     });
-    Object.entries(typeMap["Graphic"] || {}).forEach(([id, asset]) => {
+    Object.entries(typeMap["graphic"] || {}).forEach(([id, asset]) => {
       if (id) {
         assets[id] = asset;
       }

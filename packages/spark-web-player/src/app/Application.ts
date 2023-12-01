@@ -130,7 +130,7 @@ export default class Application {
 
   async loadScenes(scenes: Record<string, Scene>): Promise<void> {
     const loadingUIName = "Loading";
-    const loadingProgressVariable = "--LOADING_PROGRESS";
+    const loadingProgressVariable = "--loading_progress";
     this._scenes.clear();
     Object.entries(scenes).forEach(([id, scene]) => {
       this._scenes.set(id, scene);

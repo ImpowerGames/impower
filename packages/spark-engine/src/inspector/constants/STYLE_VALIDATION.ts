@@ -17,7 +17,7 @@ export const STYLE_VALIDATION = (typeMap?: {
     before: propsValidation,
     after: propsValidation,
   };
-  const breakpoints = typeMap?.["Breakpoint"];
+  const breakpoints = typeMap?.["breakpoint"];
   const breakpointNames = breakpoints
     ? Object.keys(breakpoints)
     : ["xs", "sm", "md", "lg", "xl"];

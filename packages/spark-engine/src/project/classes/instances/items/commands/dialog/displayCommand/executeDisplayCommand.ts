@@ -24,7 +24,7 @@ const hideChoices = (
 ): void => {
   const choiceEls = game.ui.findAllUIElements(
     structName,
-    writer?.className || "Choice"
+    writer?.target || "choice"
   );
   choiceEls.forEach((el) => {
     if (el) {
@@ -75,20 +75,18 @@ export const executeDisplayCommand = (
 
   const valueMap = context?.valueMap;
   const typeMap = context?.typeMap;
-  const structName = "Display";
+  const structName = "display";
 
-  const writerConfigs = typeMap?.["Writer"] as Record<string, Writer>;
+  const writerConfigs = typeMap?.["writer"] as Record<string, Writer>;
   const writerType =
     type === "action"
-      ? "ActionWriter"
+      ? "action_writer"
       : type === "dialogue"
-      ? "DialogueWriter"
-      : type === "centered"
-      ? "CenteredWriter"
+      ? "dialogue_writer"
       : type === "scene"
-      ? "SceneWriter"
+      ? "scene_writer"
       : type === "transition"
-      ? "TransitionWriter"
+      ? "transition_writer"
       : "";
   const writerConfig = writerConfigs?.[writerType];
 
@@ -110,20 +108,20 @@ export const executeDisplayCommand = (
     .replace(/([.'"`])/g, "");
 
   const characterConfig = characterName
-    ? ((typeMap?.["Character"]?.[characterKey] ||
-        typeMap?.["Character"]?.[""]) as Character)
+    ? ((typeMap?.["character"]?.[characterKey] ||
+        typeMap?.["character"]?.[""]) as Character)
     : undefined;
 
   const validCharacterName =
     type === "dialogue" &&
-    !isHidden(characterName, writerConfigs?.["CharacterNameWriter"]?.hidden)
+    !isHidden(characterName, writerConfigs?.["character_name_writer"]?.hidden)
       ? characterConfig?.name || characterName || ""
       : "";
   const validCharacterParenthetical =
     type === "dialogue" &&
     !isHidden(
       characterParenthetical,
-      writerConfigs?.["ParentheticalWriter"]?.hidden
+      writerConfigs?.["parenthetical_writer"]?.hidden
     )
       ? characterParenthetical || ""
       : "";
@@ -155,92 +153,100 @@ export const executeDisplayCommand = (
   const instant = context?.instant;
   const debug = context?.debug;
   const indicatorFadeDuration =
-    writerConfigs?.["IndicatorWriter"]?.fadeDuration || 0;
+    writerConfigs?.["indicator_writer"]?.fade_duration || 0;
 
   const descriptionGroupEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["DescriptionGroupWriter"]?.className || "DescriptionGroup"
+    writerConfigs?.["description_group_writer"]?.target || "description_group"
   );
   const dialogueGroupEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["DialogueGroupWriter"]?.className || "DialogueGroup"
+    writerConfigs?.["dialogue_group_writer"]?.target || "dialogue_group"
   );
   const indicatorEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["IndicatorWriter"]?.className || "Indicator"
+    writerConfigs?.["indicator_writer"]?.target || "indicator"
   );
   const boxEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["BoxWriter"]?.className || "Box"
+    writerConfigs?.["box_writer"]?.target || "box"
   );
 
-  game.sound.stopChannel("Writer");
-  game.sound.stopChannel("Voice");
+  // TODO: Instead of hardcoding whether or not a channel should replace old audio, check for defined Channel settings
+  game.sound.stopChannel("writer");
+  game.sound.stopChannel("voice");
 
-  hideChoices(game, structName, writerConfigs?.["ChoiceWriter"]);
+  hideChoices(game, structName, writerConfigs?.["choice_writer"]);
 
+  const changesBackdrop = resolvedContent.some(
+    (p) => p.image && p.target === "backdrop"
+  );
+  const changesText = resolvedContent.some((p) => p.text);
+
+  if (boxEl) {
+    boxEl.style["display"] = changesText ? null : "none";
+  }
   if (dialogueGroupEl) {
-    dialogueGroupEl.style["display"] = "none";
+    dialogueGroupEl.style["display"] =
+      changesText && type === "dialogue" ? null : "none";
   }
   if (descriptionGroupEl) {
-    descriptionGroupEl.style["display"] = "none";
-  }
-  if (boxEl) {
-    boxEl.style["display"] = "none";
+    descriptionGroupEl.style["display"] =
+      changesText && type !== "dialogue" ? null : "none";
   }
 
   const characterNameEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["CharacterNameWriter"]?.className || "CharacterName"
+    writerConfigs?.["character_name_writer"]?.target || "character_name"
   );
   const characterParentheticalEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["CharacterParentheticalWriter"]?.className ||
-      "CharacterParenthetical"
+    writerConfigs?.["character_parenthetical_writer"]?.target ||
+      "character_parenthetical"
   );
   const parentheticalEl = game.ui.findFirstUIElement(
     structName,
-    writerConfigs?.["ParentheticalWriter"]?.className || "Parenthetical"
+    writerConfigs?.["parenthetical_writer"]?.target || "parenthetical"
   );
 
-  const portraitEl = game.ui.findFirstUIElement(structName, "Portrait");
-  const insertEl = game.ui.findFirstUIElement(structName, "Insert");
-  const backdropEl = game.ui.findFirstUIElement(structName, "Backdrop");
+  const portraitEl = game.ui.findFirstUIElement(structName, "portrait");
+  const insertEl = game.ui.findFirstUIElement(structName, "insert");
+  const backdropEl = game.ui.findFirstUIElement(structName, "backdrop");
 
   const contentElEntries = [
     {
       key: "dialogue",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["DialogueWriter"]?.className || "Dialogue"
+        writerConfigs?.["dialogue_writer"]?.target || "dialogue"
       ),
     },
     {
       key: "action",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["ActionWriter"]?.className || "Action"
+        writerConfigs?.["action_writer"]?.target || "action"
       ),
     },
     {
       key: "centered",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["CenteredWriter"]?.className || "Centered"
+        writerConfigs?.["centered_writer"]?.target || "centered"
       ),
     },
     {
       key: "scene",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["SceneWriter"]?.className || "Scene"
+        writerConfigs?.["scene_writer"]?.target || "scene"
       ),
     },
     {
       key: "transition",
       value: game.ui.findFirstUIElement(
         structName,
-        writerConfigs?.["TransitionWriter"]?.className || "Transition"
+        writerConfigs?.["transition_writer"]?.target || "transition"
       ),
     },
   ];
@@ -262,9 +268,7 @@ export const executeDisplayCommand = (
   const stalePortraits: IElement[] | undefined = portraitEl?.getChildren();
   const staleInserts: IElement[] | undefined = insertEl?.getChildren();
   let staleBackdrops: IElement[] | undefined = undefined;
-  const changesBackdrop = resolvedContent.some(
-    (p) => p.image && p.target === "Backdrop"
-  );
+  // TODO: Instead of hardcoding whether or not a layer should replace old images, check for defined Layer settings
   if (changesBackdrop) {
     staleBackdrops = backdropEl?.getChildren();
   }
@@ -292,7 +296,7 @@ export const executeDisplayCommand = (
         phrases.forEach((p) => {
           if (p.image) {
             const assetNames = p.image;
-            const target = p.target || "Portrait";
+            const target = p.target || "portrait";
             const targetEl = game.ui.findFirstUIElement(structName, target);
             if (targetEl) {
               const imageSrcs: string[] = [];
@@ -342,11 +346,11 @@ export const executeDisplayCommand = (
           }
           if (p.audio) {
             const chunkOffset = p.chunks?.[0]?.time ?? 0;
-            const target = p.target || "Voice";
+            const target = p.target || "voice";
             const assetNames = p.audio;
             const assetArgs = p.args || [];
             const sounds: Sound[] = [];
-            const channelLoop = target === "Music";
+            const channelLoop = target === "music";
             const trackLoop = assetArgs.includes("loop");
             const trackNoloop = assetArgs.includes("noloop");
             const trackVolume = getArgumentValue(assetArgs, "volume") ?? 1;
@@ -435,19 +439,10 @@ export const executeDisplayCommand = (
             }
           }
           if (p.text) {
-            if (boxEl) {
-              boxEl.style["display"] = null;
-            }
-            if (type === "dialogue" && dialogueGroupEl) {
-              dialogueGroupEl.style["display"] = null;
-            }
-            if (type !== "dialogue" && descriptionGroupEl) {
-              descriptionGroupEl.style["display"] = null;
-            }
             if (p.target) {
-              const writerType = p.target + "Writer";
+              const writerType = p.target + "_writer";
               const writerConfig = writerConfigs?.[writerType];
-              const targetClassName = writerConfig?.className || p.target;
+              const targetClassName = writerConfig?.target || p.target;
               const index = nextIndices[targetClassName] ?? 0;
               const text = p.text || "";
               const hidden = isHidden(text, writerConfig?.hidden);
@@ -610,8 +605,8 @@ export const executeDisplayCommand = (
     if (instant) {
       handleFinished();
     } else {
-      const voiceSound = characterConfig?.voiceSound;
-      const clackSound = writerConfig?.clackSound;
+      const voiceSound = characterConfig?.synth;
+      const clackSound = writerConfig?.synth;
       const beepSound = voiceSound || clackSound;
       const beepEnvelope = beepSound?.envelope;
       const beepDuration = beepEnvelope
@@ -678,7 +673,7 @@ export const executeDisplayCommand = (
       // Start writer typing tones
       game.sound.start(
         { id, src: new SynthBuffer(tones) },
-        "Writer",
+        "writer",
         0,
         0,
         () => {

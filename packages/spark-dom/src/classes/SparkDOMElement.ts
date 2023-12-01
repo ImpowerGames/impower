@@ -73,7 +73,7 @@ export class SparkDOMElement implements IElement {
 
   appendChild(child: IElement): void {
     const el = child as SparkDOMElement;
-    if (el._htmlElement.tagName === "STYLE" && child.id.endsWith(".CSS")) {
+    if (el._htmlElement.tagName === "STYLE" && child.id.endsWith(".css")) {
       const head = document.documentElement.getElementsByTagName("head")?.[0];
       if (head) {
         const childHtmlElement = head.appendChild(el._htmlElement);

@@ -6,12 +6,12 @@ const CONTOUR_VALIDATION = [1, 0, 10];
 
 export const CHARACTER_VALIDATION: RecursiveValidation<Character> = {
   inflection: {
-    liltQuestion: CONTOUR_VALIDATION,
-    liltExclamation: CONTOUR_VALIDATION,
+    lilt_question: CONTOUR_VALIDATION,
+    lilt_exclamation: CONTOUR_VALIDATION,
     lilt: CONTOUR_VALIDATION,
-    resolvedAnxiousQuestion: CONTOUR_VALIDATION,
-    anxiousQuestion: CONTOUR_VALIDATION,
-    resolvedQuestion: CONTOUR_VALIDATION,
+    resolved_anxious_question: CONTOUR_VALIDATION,
+    anxious_question: CONTOUR_VALIDATION,
+    resolved_question: CONTOUR_VALIDATION,
     question: CONTOUR_VALIDATION,
     exclamation: CONTOUR_VALIDATION,
     comma: CONTOUR_VALIDATION,
@@ -20,5 +20,5 @@ export const CHARACTER_VALIDATION: RecursiveValidation<Character> = {
     statement: CONTOUR_VALIDATION,
   },
   prosody: {},
-  voiceSound: SYNTH_VALIDATION,
+  synth: SYNTH_VALIDATION,
 };

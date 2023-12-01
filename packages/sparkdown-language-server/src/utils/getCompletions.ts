@@ -31,7 +31,7 @@ const getImageCompletions = (
     .map((v) => v.compiled as Asset);
   const imageCompletions = images.map((asset) => ({
     label: asset.name,
-    labelDetails: { description: "Image" },
+    labelDetails: { description: "image" },
     kind: CompletionItemKind.Constructor,
     documentation: {
       kind: MarkupKind.Markdown,
@@ -47,7 +47,7 @@ const getImageCompletions = (
     .map((v) => v.name as string);
   const imageArrayCompletions = imageArrayNames.map((name) => ({
     label: name,
-    labelDetails: { description: "Image[]" },
+    labelDetails: { description: "image[]" },
     kind: CompletionItemKind.Constructor,
   }));
   const imageGroupNames = Object.values(program?.variables || {})
@@ -62,7 +62,7 @@ const getImageCompletions = (
     .map((v) => v.name as string);
   const imageGroupCompletions = imageGroupNames.map((name) => ({
     label: name,
-    labelDetails: { description: "ImageGroup" },
+    labelDetails: { description: "image_group" },
     kind: CompletionItemKind.Constructor,
   }));
   return [
@@ -80,7 +80,7 @@ const getAudioCompletions = (
     .map((v) => v.compiled as Asset);
   const audioCompletions = audio.map((asset) => ({
     label: asset.name,
-    labelDetails: { description: "Audio" },
+    labelDetails: { description: "audio" },
     kind: CompletionItemKind.Constructor,
   }));
   const audioArrayNames = Object.values(program?.variables || {})
@@ -92,7 +92,7 @@ const getAudioCompletions = (
     .map((v) => v.name as string);
   const audioArrayCompletions = audioArrayNames.map((arrayName) => ({
     label: arrayName,
-    labelDetails: { description: "Audio[]" },
+    labelDetails: { description: "audio[]" },
     kind: CompletionItemKind.Constructor,
   }));
   const audioGroupNames = Object.values(program?.variables || {})
@@ -107,7 +107,7 @@ const getAudioCompletions = (
     .map((v) => v.name as string);
   const audioGroupCompletions = audioGroupNames.map((name) => ({
     label: name,
-    labelDetails: { description: "AudioGroup" },
+    labelDetails: { description: "audio_group" },
     kind: CompletionItemKind.Constructor,
   }));
   return [
@@ -166,7 +166,7 @@ const getCharacterCompletions = (
       recentCharacters.splice(1, 0, mostRecentCharacter);
     }
   }
-  const labelDetails = { description: "Character" };
+  const labelDetails = { description: "character" };
   const kind = CompletionItemKind.Constant;
   const result: CompletionItem[] = [];
   recentCharacters.forEach((name, index) => {

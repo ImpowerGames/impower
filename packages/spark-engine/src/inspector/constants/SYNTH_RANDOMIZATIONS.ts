@@ -22,7 +22,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     arpeggio: {
       on: [true],
       rate: [15, 20],
-      maxNotes: [2],
+      max_notes: [2],
       tones: [
         [0, 8],
         [0, 9],
@@ -42,7 +42,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[3], A[5]],
-      frequencyRamp: [0.2, 1],
+      frequency_ramp: [0.2, 1],
     },
     distortion: {
       on: [true, false],
@@ -59,7 +59,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[3], A[5]],
-      frequencyRamp: [1],
+      frequency_ramp: [1],
     },
     arpeggio: {
       on: [true, false],
@@ -86,7 +86,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[3], A[5]],
-      frequencyRamp: [-1],
+      frequency_ramp: [-1],
     },
     arpeggio: {
       on: [true, false],
@@ -113,7 +113,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[2], A[7]],
-      frequencyRamp: [-1, -0.2],
+      frequency_ramp: [-1, -0.2],
     },
     distortion: {
       on: [".vibrato.on", false],
@@ -142,7 +142,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[2], A[5]],
-      frequencyRamp: [-1, -0.2],
+      frequency_ramp: [-1, -0.2],
     },
   },
   boom: {
@@ -154,7 +154,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[3], A[5]],
-      frequencyRamp: [-0.5, 0],
+      frequency_ramp: [-0.5, 0],
     },
     reverb: {
       on: [true, true, false],
@@ -176,7 +176,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[2], A[5]],
-      frequencyRamp: [-1, -0.5],
+      frequency_ramp: [-1, -0.5],
     },
   },
   blip: {
@@ -295,7 +295,7 @@ export const SYNTH_RANDOMIZATIONS: Record<
     },
     pitch: {
       frequency: [A[2], A[6]],
-      frequencyRamp: [-0.5, 0.5],
+      frequency_ramp: [-0.5, 0.5],
     },
     distortion: {
       on: [true, false],

@@ -34,7 +34,6 @@ export * from "./enums/Key";
 export * from "./enums/ScaleModeType";
 export * from "./enums/SetOperator";
 export * from "./enums/Severity";
-export * from "./enums/displayType";
 export * from "./interfaces/Activable";
 export * from "./interfaces/Bounds";
 export * from "./interfaces/Branchable";

@@ -3,12 +3,12 @@ import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
 import { MIDI_STATUS_SYSTEM } from "../constants/MIDI_STATUS_TYPE";
+import { SynthConfig } from "../specs/Synth";
 import { Midi } from "../types/Midi";
 import { MidiEvent } from "../types/MidiEvent";
 import { MidiTrackState } from "../types/MidiTrackState";
 import { Sound } from "../types/Sound";
 import { SoundPlaybackControl } from "../types/SoundPlaybackControl";
-import { SynthConfig } from "../types/Synth";
 import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackState";
 
 export interface SoundEvents extends Record<string, GameEvent> {

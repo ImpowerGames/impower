@@ -1,4 +1,4 @@
-import { SynthConfig } from "../types/Synth";
+import { SynthConfig } from "../specs/Synth";
 import { parseArpeggioDirection } from "./parseArpeggioDirection";
 import { parseOscillatorType } from "./parseOscillatorType";
 
@@ -28,8 +28,8 @@ export const parseSynth = (markup: string): SynthConfig => {
         }
         if (synth.envelope.volume === undefined) {
           synth.envelope.volume = Number(t);
-        } else if (synth.envelope.volumeRamp === undefined) {
-          synth.envelope.volumeRamp = Number(t);
+        } else if (synth.envelope.volume_ramp === undefined) {
+          synth.envelope.volume_ramp = Number(t);
         } else if (synth.envelope.offset === undefined) {
           synth.envelope.offset = Number(t);
         } else if (synth.envelope.attack === undefined) {
@@ -50,12 +50,12 @@ export const parseSynth = (markup: string): SynthConfig => {
         }
         if (synth.pitch.frequency === undefined) {
           synth.pitch.frequency = Number(t);
-        } else if (synth.pitch.frequencyRamp === undefined) {
-          synth.pitch.frequencyRamp = Number(t);
-        } else if (synth.pitch.frequencyTorque === undefined) {
-          synth.pitch.frequencyTorque = Number(t);
-        } else if (synth.pitch.frequencyJerk === undefined) {
-          synth.pitch.frequencyJerk = Number(t);
+        } else if (synth.pitch.frequency_ramp === undefined) {
+          synth.pitch.frequency_ramp = Number(t);
+        } else if (synth.pitch.frequency_torque === undefined) {
+          synth.pitch.frequency_torque = Number(t);
+        } else if (synth.pitch.frequency_jerk === undefined) {
+          synth.pitch.frequency_jerk = Number(t);
         } else if (synth.pitch.phase === undefined) {
           synth.pitch.phase = Number(t);
         }
@@ -66,8 +66,8 @@ export const parseSynth = (markup: string): SynthConfig => {
         }
         if (synth.lowpass.cutoff === undefined) {
           synth.lowpass.cutoff = Number(t);
-        } else if (synth.lowpass.cutoffRamp === undefined) {
-          synth.lowpass.cutoffRamp = Number(t);
+        } else if (synth.lowpass.cutoff_ramp === undefined) {
+          synth.lowpass.cutoff_ramp = Number(t);
         } else if (synth.lowpass.resonance === undefined) {
           synth.lowpass.resonance = Number(t);
         }
@@ -78,8 +78,8 @@ export const parseSynth = (markup: string): SynthConfig => {
         }
         if (synth.highpass.cutoff === undefined) {
           synth.highpass.cutoff = Number(t);
-        } else if (synth.highpass.cutoffRamp === undefined) {
-          synth.highpass.cutoffRamp = Number(t);
+        } else if (synth.highpass.cutoff_ramp === undefined) {
+          synth.highpass.cutoff_ramp = Number(t);
         }
       }
       if (command === "D") {
@@ -88,12 +88,12 @@ export const parseSynth = (markup: string): SynthConfig => {
         }
         if (synth.distortion.grit === undefined) {
           synth.distortion.grit = Number(t);
-        } else if (synth.distortion.gritRamp === undefined) {
-          synth.distortion.gritRamp = Number(t);
+        } else if (synth.distortion.grit_ramp === undefined) {
+          synth.distortion.grit_ramp = Number(t);
         } else if (synth.distortion.edge === undefined) {
           synth.distortion.edge = Number(t);
-        } else if (synth.distortion.edgeRamp === undefined) {
-          synth.distortion.edgeRamp = Number(t);
+        } else if (synth.distortion.edge_ramp === undefined) {
+          synth.distortion.edge_ramp = Number(t);
         }
       }
       if (command === "A") {
@@ -102,12 +102,12 @@ export const parseSynth = (markup: string): SynthConfig => {
         }
         if (synth.arpeggio.rate === undefined) {
           synth.arpeggio.rate = Number(t);
-        } else if (synth.arpeggio.rateRamp === undefined) {
-          synth.arpeggio.rateRamp = Number(t);
-        } else if (synth.arpeggio.maxOctaves === undefined) {
-          synth.arpeggio.maxOctaves = Number(t);
-        } else if (synth.arpeggio.maxNotes === undefined) {
-          synth.arpeggio.maxNotes = Number(t);
+        } else if (synth.arpeggio.rate_ramp === undefined) {
+          synth.arpeggio.rate_ramp = Number(t);
+        } else if (synth.arpeggio.max_octaves === undefined) {
+          synth.arpeggio.max_octaves = Number(t);
+        } else if (synth.arpeggio.max_notes === undefined) {
+          synth.arpeggio.max_notes = Number(t);
         } else if (synth.arpeggio.direction === undefined) {
           synth.arpeggio.direction = parseArpeggioDirection(t);
         }
@@ -144,12 +144,12 @@ export const parseSynth = (markup: string): SynthConfig => {
           synth.vibrato.shape = parseOscillatorType(t);
         } else if (synth.vibrato.rate === undefined) {
           synth.vibrato.rate = Number(t);
-        } else if (synth.vibrato.rateRamp === undefined) {
-          synth.vibrato.rateRamp = Number(t);
+        } else if (synth.vibrato.rate_ramp === undefined) {
+          synth.vibrato.rate_ramp = Number(t);
         } else if (synth.vibrato.strength === undefined) {
           synth.vibrato.strength = Number(t);
-        } else if (synth.vibrato.strengthRamp === undefined) {
-          synth.vibrato.strengthRamp = Number(t);
+        } else if (synth.vibrato.strength_ramp === undefined) {
+          synth.vibrato.strength_ramp = Number(t);
         }
       }
       if (command === "T") {
@@ -160,12 +160,12 @@ export const parseSynth = (markup: string): SynthConfig => {
           synth.tremolo.shape = parseOscillatorType(t);
         } else if (synth.tremolo.rate === undefined) {
           synth.tremolo.rate = Number(t);
-        } else if (synth.tremolo.rateRamp === undefined) {
-          synth.tremolo.rateRamp = Number(t);
+        } else if (synth.tremolo.rate_ramp === undefined) {
+          synth.tremolo.rate_ramp = Number(t);
         } else if (synth.tremolo.strength === undefined) {
           synth.tremolo.strength = Number(t);
-        } else if (synth.tremolo.strengthRamp === undefined) {
-          synth.tremolo.strengthRamp = Number(t);
+        } else if (synth.tremolo.strength_ramp === undefined) {
+          synth.tremolo.strength_ramp = Number(t);
         }
       }
       if (command === "W") {
@@ -176,12 +176,12 @@ export const parseSynth = (markup: string): SynthConfig => {
           synth.wahwah.shape = parseOscillatorType(t);
         } else if (synth.wahwah.rate === undefined) {
           synth.wahwah.rate = Number(t);
-        } else if (synth.wahwah.rateRamp === undefined) {
-          synth.wahwah.rateRamp = Number(t);
+        } else if (synth.wahwah.rate_ramp === undefined) {
+          synth.wahwah.rate_ramp = Number(t);
         } else if (synth.wahwah.strength === undefined) {
           synth.wahwah.strength = Number(t);
-        } else if (synth.wahwah.strengthRamp === undefined) {
-          synth.wahwah.strengthRamp = Number(t);
+        } else if (synth.wahwah.strength_ramp === undefined) {
+          synth.wahwah.strength_ramp = Number(t);
         }
       }
       if (command === "R") {

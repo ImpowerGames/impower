@@ -1,4 +1,4 @@
-import { Graphic } from "../types/Graphic";
+import { Graphic } from "../specs/Graphic";
 
 export const generateGraphicSvg = (graphic: Graphic): string => {
   const tiling = graphic?.tiling;
@@ -9,13 +9,13 @@ export const generateGraphicSvg = (graphic: Graphic): string => {
   shapes.forEach(
     ({
       path,
-      fillColor,
-      fillOpacity,
-      strokeColor,
-      strokeOpacity,
-      strokeWeight,
-      strokeJoin,
-      strokeCap,
+      fill_color: fillColor,
+      fill_opacity: fillOpacity,
+      stroke_color: strokeColor,
+      stroke_opacity: strokeOpacity,
+      stroke_weight: strokeWeight,
+      stroke_join: strokeJoin,
+      stroke_cap: strokeCap,
     }) => {
       const validFillColor = fillColor ?? "none";
       const validFillOpacity = fillOpacity ?? 1;

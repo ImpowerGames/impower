@@ -8,8 +8,8 @@
 import { randomizer } from "../../../../../spark-evaluate/src";
 import { lerp, unlerp } from "../../core";
 import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
+import { Synth } from "../specs/Synth";
 import { OscillatorType } from "../types/OscillatorType";
-import { Synth } from "../types/Synth";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 
 const FREEVERB_COMB_A_SIZES = [1557, 1617, 1491, 1422];
@@ -433,8 +433,8 @@ export const fillSoundBuffer = (
   const wahwah_rate = synth.wahwah.rate;
   const arpeggio_on = synth.arpeggio.on;
   const arpeggio_rate = synth.arpeggio.rate;
-  const arpeggio_max_octaves = synth.arpeggio.maxOctaves;
-  const arpeggio_max_notes = synth.arpeggio.maxNotes;
+  const arpeggio_max_octaves = synth.arpeggio.max_octaves;
+  const arpeggio_max_notes = synth.arpeggio.max_notes;
   const arpeggio_tones = synth.arpeggio.tones;
   const arpeggio_shapes = synth.arpeggio.shapes;
   const arpeggio_levels = synth.arpeggio.levels;
@@ -451,54 +451,57 @@ export const fillSoundBuffer = (
   const arpeggio_direction = synth.arpeggio.direction;
 
   let freqAccelDelta = getDeltaPerSample(
-    synth.pitch.frequencyTorque,
+    synth.pitch.frequency_torque,
     sampleRate
   );
-  let freqJerkDelta = getDeltaPerSample(synth.pitch.frequencyJerk, sampleRate);
-  let pitchFreqDelta = getDeltaPerSample(synth.pitch.frequencyRamp, sampleRate);
+  let freqJerkDelta = getDeltaPerSample(synth.pitch.frequency_jerk, sampleRate);
+  let pitchFreqDelta = getDeltaPerSample(
+    synth.pitch.frequency_ramp,
+    sampleRate
+  );
   const envVolumeDelta = getDeltaPerSample(
-    synth.envelope.volumeRamp,
+    synth.envelope.volume_ramp,
     sampleRate
   );
   const lowpassCutoffDelta = getDeltaPerSample(
-    synth.lowpass.cutoffRamp,
+    synth.lowpass.cutoff_ramp,
     sampleRate
   );
   const highpassCutoffDelta = getDeltaPerSample(
-    synth.highpass.cutoffRamp,
+    synth.highpass.cutoff_ramp,
     sampleRate
   );
   const vibratoRateDelta = getDeltaPerSample(
-    synth.vibrato.rateRamp,
+    synth.vibrato.rate_ramp,
     sampleRate
   );
   const vibratoStrengthDelta = getDeltaPerSample(
-    synth.vibrato.strengthRamp,
+    synth.vibrato.strength_ramp,
     sampleRate
   );
   const distortionGritDelta = getDeltaPerSample(
-    synth.distortion.gritRamp,
+    synth.distortion.grit_ramp,
     sampleRate
   );
   const distortionEdgeDelta = getDeltaPerSample(
-    synth.distortion.edgeRamp,
+    synth.distortion.edge_ramp,
     sampleRate
   );
   const tremoloRateDelta = getDeltaPerSample(
-    synth.tremolo.rateRamp,
+    synth.tremolo.rate_ramp,
     sampleRate
   );
   const tremoloStrengthDelta = getDeltaPerSample(
-    synth.tremolo.strengthRamp,
+    synth.tremolo.strength_ramp,
     sampleRate
   );
-  const wahwahRateDelta = getDeltaPerSample(synth.wahwah.rateRamp, sampleRate);
+  const wahwahRateDelta = getDeltaPerSample(synth.wahwah.rate_ramp, sampleRate);
   const wahwahStrengthDelta = getDeltaPerSample(
-    synth.wahwah.strengthRamp,
+    synth.wahwah.strength_ramp,
     sampleRate
   );
   const arpeggioRateDelta = getDeltaPerSample(
-    synth.arpeggio.rateRamp,
+    synth.arpeggio.rate_ramp,
     sampleRate
   );
 

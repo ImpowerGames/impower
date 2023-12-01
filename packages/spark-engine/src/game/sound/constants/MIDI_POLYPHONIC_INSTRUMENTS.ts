@@ -1,4 +1,4 @@
-import { SynthConfig } from "../types/Synth";
+import { SynthConfig } from "../specs/Synth";
 
 export const DEFAULT_POLYPHONIC_INSTRUMENT: SynthConfig = {
   shape: "triangle",

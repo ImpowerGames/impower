@@ -36,11 +36,11 @@ export const previewLine = (
       }
     } else {
       const previewStruct = getPreviewStruct(program, line);
-      if (previewStruct?.type === "Style") {
+      if (previewStruct?.type === "style") {
         context.game.ui.loadStyles(typeMap, previewStruct.name);
       }
-      if (previewStruct?.type === "UI") {
-        context.game.ui.hideUI(...Object.keys(typeMap?.["UI"] || {}));
+      if (previewStruct?.type === "ui") {
+        context.game.ui.hideUI(...Object.keys(typeMap?.["ui"] || {}));
         context.game.ui.loadStyles(typeMap);
         context.game.ui.loadUI(typeMap, previewStruct.name);
         context.game.ui.showUI(previewStruct.name);

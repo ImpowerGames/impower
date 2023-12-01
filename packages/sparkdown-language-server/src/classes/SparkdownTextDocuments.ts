@@ -189,7 +189,7 @@ export default class SparkdownTextDocuments<
             line: -1,
             from: -1,
             to: -1,
-            type: "Asset",
+            type: obj.type,
             name: file.name,
             value: JSON.stringify(obj),
             compiled: obj,

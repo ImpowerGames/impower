@@ -155,15 +155,8 @@ const findVariableId = (
   return undefined;
 };
 
-const findStructId = (
-  structs: Record<string, SparkStruct> | undefined,
-  name: string
-): string | undefined => {
-  const found = structs?.[name];
-  if (found) {
-    return name;
-  }
-  return undefined;
+const findStructId = (name: string): string | undefined => {
+  return `.` + name;
 };
 
 const findChunk = (
@@ -205,7 +198,7 @@ const findStruct = (
   structs: Record<string, SparkStruct> | undefined,
   name: string
 ): SparkStruct | undefined => {
-  const id = findStructId(structs, name);
+  const id = findStructId(name);
   if (id != null) {
     return structs?.[id];
   }
@@ -1709,7 +1702,7 @@ export default class SparkParser {
           } else if (tok.tag === "dialogue_end") {
             addToken(tok);
           } else if (tok.tag === "dialogue_character_name" && text) {
-            tok.target = "CharacterName";
+            tok.target = "character_name";
             tok.ignore = true;
             tok.text = text;
             const dialogue = lookup("dialogue");
@@ -1721,7 +1714,7 @@ export default class SparkParser {
               dialogue_start.print = text;
             }
           } else if (tok.tag === "dialogue_character_parenthetical" && text) {
-            tok.target = "CharacterParenthetical";
+            tok.target = "character_parenthetical";
             tok.ignore = true;
             tok.text = text;
             const dialogue = lookup("dialogue");
@@ -1776,7 +1769,7 @@ export default class SparkParser {
               tok.characterParenthetical = parent.characterParenthetical;
             }
           } else if (tok.tag === "dialogue_line_parenthetical") {
-            tok.target = "Parenthetical";
+            tok.target = "parenthetical";
             tok.speed = 0;
             tok.text = text;
             tok.print = text;
@@ -1832,14 +1825,14 @@ export default class SparkParser {
               }
             }
           } else if (tok.tag === "image") {
-            tok.target = id === "InlineImage" ? "Insert" : "Portrait";
+            tok.target = id === "InlineImage" ? "insert" : "portrait";
             const parent = lookup("dialogue_box", "action_box");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
             }
           } else if (tok.tag === "audio") {
-            tok.target = "InlineAudio" ? "Sound" : "Voice";
+            tok.target = "InlineAudio" ? "sound" : "voice";
             const parent = lookup("dialogue_box", "action_box");
             if (parent) {
               parent.content ??= [];
@@ -2298,11 +2291,11 @@ export default class SparkParser {
               tok.content?.forEach((p) => {
                 if (p.audio) {
                   // Assume playing standalone music
-                  p.target = "Music";
+                  p.target = "music";
                 }
                 if (p.image) {
                   //Assume displaying standalone image
-                  p.target = "Backdrop";
+                  p.target = "backdrop";
                 }
               });
               // No text to display, so no need to wait for user input

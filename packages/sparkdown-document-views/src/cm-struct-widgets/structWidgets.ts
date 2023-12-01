@@ -151,7 +151,7 @@ const structDecorationsField = StateField.define<DecorationSet>({
       if (e.is(addStructDecorationEffect)) {
         const struct = e.value.struct;
         const to = e.value.to;
-        if (struct.type === "AudioGroup") {
+        if (struct.type === "audio_group") {
           // TODO: Allow editing cues with visual waveform sliders
           // const presetWidget = Decoration.widget({
           //   widget: new StructPresetWidgetType(

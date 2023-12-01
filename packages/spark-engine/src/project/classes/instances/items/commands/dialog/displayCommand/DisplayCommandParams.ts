@@ -1,4 +1,3 @@
-import { DisplayType } from "../../../../../../../data/enums/displayType";
 import { CommandParams } from "../../../command/CommandParams";
 
 export interface DisplayContentItem {
@@ -13,7 +12,7 @@ export interface DisplayContentItem {
 }
 
 export interface DisplayCommandParams extends CommandParams {
-  type: DisplayType;
+  type: "action" | "transition" | "scene" | "dialogue";
   position: string;
   characterName: string;
   characterParenthetical: string;

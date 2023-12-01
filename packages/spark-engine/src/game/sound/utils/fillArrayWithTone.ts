@@ -1,5 +1,5 @@
 import { clone } from "../../core/utils/clone";
-import { _synth } from "../specs/_synth";
+import { _synth } from "../specs/defaults/_synth";
 import { Tone } from "../types/Tone";
 import { convertPitchNoteToHertz } from "./convertPitchNoteToHertz";
 import { convertPitchNumberToHertz } from "./convertPitchNumberToHertz";

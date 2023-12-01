@@ -1,4 +1,4 @@
-import { Character } from "../types/Character";
+import { Character } from "../specs/Character";
 import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
 import { getStressMatch } from "./getStressMatch";

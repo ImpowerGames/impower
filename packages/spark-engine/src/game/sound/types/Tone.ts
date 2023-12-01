@@ -1,6 +1,6 @@
+import { SynthConfig } from "../specs/Synth";
 import { Hertz } from "./Hertz";
 import { Note } from "./Note";
-import { SynthConfig } from "./Synth";
 
 export interface Tone {
   /** time in seconds from start */

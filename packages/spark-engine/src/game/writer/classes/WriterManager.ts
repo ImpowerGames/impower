@@ -1,9 +1,9 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { IElement } from "../../ui";
-import { Character } from "../types/Character";
+import { Character } from "../specs/Character";
+import { Writer } from "../specs/Writer";
 import { Phrase } from "../types/Phrase";
-import { Writer } from "../types/Writer";
 import { write } from "../utils/write";
 
 export interface WriterEvents extends Record<string, GameEvent> {}
