@@ -1,4 +1,4 @@
-import { SynthBuffer } from "../../../spark-engine/src/game/sound/classes/SynthBuffer";
+import type { SynthBuffer } from "../../../spark-engine/src/game/sound/classes/SynthBuffer";
 
 const DEFAULT_FADE_DURATION = 0.025;
 
@@ -147,18 +147,27 @@ export class SparkDOMAudioPlayer {
     );
   }
 
-  protected play(when: number, offsetInSeconds = 0, fadeDuration = 0): void {
+  protected play(
+    when: number,
+    fadeDuration = 0,
+    offset?: number,
+    duration?: number
+  ): void {
     this._started = true;
     this.load();
     if (this._sourceNode) {
-      const validOffset = Math.min(Math.max(0, offsetInSeconds), this.duration);
-      this._sourceNode.start(when, validOffset);
+      this._sourceNode.start(when, offset, duration);
       this.fade(when, this.volume, fadeDuration);
     }
   }
 
-  start(when: number, fadeDuration = 0): void {
-    this.play(when, 0, fadeDuration);
+  start(
+    when: number,
+    fadeDuration = 0,
+    offset?: number,
+    duration?: number
+  ): void {
+    this.play(when, fadeDuration, offset, duration);
     this._startedAt = when;
     this._pausedAt = 0;
   }
@@ -166,16 +175,16 @@ export class SparkDOMAudioPlayer {
   stop(when: number, fadeDuration = 0.05, onDisconnected?: () => void): void {
     this._pausedAt = 0;
     this._startedAt = 0;
+    const targetSourceNode = this._sourceNode;
     if (this._started) {
       let startTime = performance.now();
-      const targetSourceNode = this._sourceNode;
       this.fade(when, 0, fadeDuration);
       const disconnectAfterFade = () => {
         if (performance.now() < startTime + fadeDuration + 0.001) {
           window.requestAnimationFrame(disconnectAfterFade);
         } else {
-          // Disconnect source node after finished fading out
           if (this._sourceNode && this._sourceNode === targetSourceNode) {
+            // Disconnect source node after finished fading out
             this._sourceNode.stop(0);
             this._sourceNode.disconnect();
             this._sourceNode = undefined;
@@ -185,7 +194,21 @@ export class SparkDOMAudioPlayer {
         }
       };
       disconnectAfterFade();
+    } else {
+      if (this._sourceNode && this._sourceNode === targetSourceNode) {
+        // Disconnect right away
+        this._sourceNode.stop(0);
+        this._sourceNode.disconnect();
+        this._sourceNode = undefined;
+      }
+      onDisconnected?.();
     }
+  }
+
+  stopAsync(when: number, fadeDuration = 0.05) {
+    return new Promise<void>((resolve) => {
+      this.stop(when, fadeDuration, resolve);
+    });
   }
 
   fadeVolume(when: number, volume: number, fadeDuration?: number) {
@@ -202,7 +225,7 @@ export class SparkDOMAudioPlayer {
 
   unpause(when: number, fadeDuration = DEFAULT_FADE_DURATION) {
     const offset = this._pausedAt;
-    this.play(when, offset, fadeDuration);
+    this.play(when, fadeDuration, offset);
     this._startedAt = when - offset;
     this._pausedAt = 0;
   }

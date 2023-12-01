@@ -1307,10 +1307,10 @@ repository:
     captures:
       1:
         tag: controlKeyword
-        name: keyword.control.asset.layer.sd
+        name: keyword.control.asset.target.sd
       2:
         patterns:
-          - { include: "#AssetLayer" }
+          - { include: "#AssetTarget" }
       3:
         tag: content
         name: markup.raw.whitespace.separator.sd
@@ -1324,9 +1324,9 @@ repository:
         patterns:
           - { include: "#AssetArgs" }
 
-  AssetLayer:
+  AssetTarget:
     tag: controlKeyword
-    name: keyword.control.asset.layer.sd
+    name: keyword.control.asset.target.sd
     match: (.+)
 
   AssetNames:
@@ -1564,10 +1564,10 @@ repository:
         name: markup.raw.whitespace.separator.sd
       4:
         tag: controlKeyword
-        name: keyword.control.asset.layer.sd
+        name: keyword.control.asset.target.sd
       5:
         patterns:
-          - { include: "#TextLayer" }
+          - { include: "#TextTarget" }
       6:
         tag: content
         name: markup.raw.whitespace.separator.sd
@@ -1577,9 +1577,9 @@ repository:
           - { include: "#InlineAudio" }
           - { include: "#DisplayString" }
 
-  TextLayer:
+  TextTarget:
     tag: controlKeyword
-    name: keyword.control.text.layer.sd
+    name: keyword.control.text.target.sd
     match: (.+)
 
   # Markdown (inline subset)

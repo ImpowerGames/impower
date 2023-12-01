@@ -6,7 +6,7 @@ export interface DisplayContentItem {
   prerequisite?: string;
   speed?: number;
   text?: string;
-  layer?: string;
+  target?: string;
   image?: string[];
   audio?: string[];
   args?: string[];

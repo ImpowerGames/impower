@@ -58,6 +58,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _view?: EditorView;
 
+  protected _disposable?: { dispose: () => void };
+
   protected _possibleScroller?: HTMLElement | null;
 
   protected _visibleRange?: Range;
@@ -195,6 +197,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
     view.dom.removeEventListener("mouseenter", this.handlePointerEnterScroller);
     view.dom.removeEventListener("mouseleave", this.handlePointerLeaveScroller);
     view.destroy();
+    if (this._disposable) {
+      this._disposable.dispose();
+    }
   }
 
   protected handleLoadEditor = (e: Event) => {
@@ -267,13 +272,16 @@ export default class SparkdownScriptEditor extends Component(spec) {
     if (this._view) {
       this._view.destroy();
     }
+    if (this._disposable) {
+      this._disposable.dispose();
+    }
     this._initialized = false;
     this._loaded = false;
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
       this._scrollMargin = getBoxValues(this.scrollMargin);
-      this._view = createEditorView(root, {
+      [this._view, this._disposable] = createEditorView(root, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
         serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,

@@ -1702,7 +1702,7 @@ export default class SparkParser {
           } else if (tok.tag === "dialogue_end") {
             addToken(tok);
           } else if (tok.tag === "dialogue_character_name" && text) {
-            tok.layer = "CharacterName";
+            tok.target = "CharacterName";
             tok.ignore = true;
             tok.text = text;
             const dialogue = lookup("dialogue");
@@ -1714,7 +1714,7 @@ export default class SparkParser {
               dialogue_start.print = text;
             }
           } else if (tok.tag === "dialogue_character_parenthetical" && text) {
-            tok.layer = "CharacterParenthetical";
+            tok.target = "CharacterParenthetical";
             tok.ignore = true;
             tok.text = text;
             const dialogue = lookup("dialogue");
@@ -1769,7 +1769,7 @@ export default class SparkParser {
               tok.characterParenthetical = parent.characterParenthetical;
             }
           } else if (tok.tag === "dialogue_line_parenthetical") {
-            tok.layer = "Parenthetical";
+            tok.target = "Parenthetical";
             tok.speed = 0;
             tok.text = text;
             tok.print = text;
@@ -1783,7 +1783,12 @@ export default class SparkParser {
             if (parent) {
               parent.prerequisite = text;
             }
-          } else if (tok.tag === "display_text_content") {
+          } else if (tok.tag === "display_text_target") {
+            const parent = lookup("display_text");
+            if (parent) {
+              parent.target = text;
+            }
+          }else if (tok.tag === "display_text_content") {
             const [ids, context] = getScopedValueContext(
               currentSectionId,
               program.sections
@@ -1816,28 +1821,29 @@ export default class SparkParser {
             if (display_text) {
               if (display_text.prerequisite) {
                 tok.prerequisite = display_text.prerequisite;
+                tok.target = display_text.target;
               }
             }
           } else if (tok.tag === "image") {
-            tok.layer = id === "InlineImage" ? "Insert" : "Portrait";
+            tok.target = id === "InlineImage" ? "Insert" : "Portrait";
             const parent = lookup("dialogue_box", "action_box");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
             }
           } else if (tok.tag === "audio") {
-            tok.layer = "InlineAudio" ? "Sound" : "Voice";
+            tok.target = "InlineAudio" ? "Sound" : "Voice";
             const parent = lookup("dialogue_box", "action_box");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
             }
-          } else if (tok.tag === "asset_layer") {
+          }  else if (tok.tag === "asset_target") {
             const parent = lookup("image", "audio");
             if (parent) {
-              parent.layer = text;
+              parent.target = text;
               parent.ranges ??= {};
-              parent.ranges.layer = {
+              parent.ranges.target = {
                 line: tok.line,
                 from: tok.from,
                 to: tok.to,
@@ -2247,7 +2253,7 @@ export default class SparkParser {
                 speed: 0,
                 text,
                 args: [tok.section],
-                layer: `Choice`,
+                target: `Choice`,
               });
             }
           } else if (tok.tag === "transition") {
@@ -2285,11 +2291,11 @@ export default class SparkParser {
               tok.content?.forEach((p) => {
                 if (p.audio) {
                   // Assume playing standalone music
-                  p.layer = "Music";
+                  p.target = "Music";
                 }
                 if (p.image) {
                   //Assume displaying standalone image
-                  p.layer = "Backdrop";
+                  p.target = "Backdrop";
                 }
               });
               // No text to display, so no need to wait for user input

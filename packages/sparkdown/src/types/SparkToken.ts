@@ -205,26 +205,26 @@ export interface SparkChoiceToken extends ISparkToken<"choice"> {
 }
 
 export interface SparkImageToken extends ISparkToken<"image"> {
-  layer: string;
+  target: string;
   image: string[];
   args: string[];
   nameRanges: SparkRange[];
 
   ranges?: {
-    layer?: SparkRange;
+    target?: SparkRange;
     image?: SparkRange;
     args?: SparkRange;
   };
 }
 
 export interface SparkAudioToken extends ISparkToken<"audio"> {
-  layer: string;
+  target: string;
   audio: string[];
   args: string[];
   nameRanges: SparkRange[];
 
   ranges?: {
-    layer?: SparkRange;
+    target?: SparkRange;
     audio?: SparkRange;
     args?: SparkRange;
   };
@@ -240,7 +240,7 @@ export interface DisplayContent {
   prerequisite?: string;
   speed?: number;
   text?: string;
-  layer?: string;
+  target?: string;
   image?: string[];
   audio?: string[];
   args?: string[];
@@ -249,6 +249,7 @@ export interface DisplayContent {
 export interface SparkDisplayTextToken extends ISparkToken<"display_text"> {
   prerequisite: string;
   text: string;
+  target: string;
 }
 
 export interface SparkTextToken<T extends string = "text">
@@ -256,7 +257,7 @@ export interface SparkTextToken<T extends string = "text">
   prerequisite: string;
   text: string;
   speed?: number;
-  layer?: string;
+  target?: string;
 }
 
 export interface SparkDialogueCharacterNameToken
@@ -354,12 +355,13 @@ export interface SparkOtherToken
     | "jump_to_section"
     | "display_text_prerequisite_value"
     | "display_text_prerequisite_operator"
+    | "display_text_target"
     | "display_text_content"
     | "action_end"
     | "unknown"
     | "dialogue_end"
     | "dialogue_character_simultaneous"
-    | "asset_layer"
+    | "asset_target"
     | "asset_names"
     | "asset_args"
     | "indent"

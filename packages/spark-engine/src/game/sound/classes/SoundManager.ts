@@ -96,12 +96,12 @@ export class SoundManager extends Manager<
     delete this._state.playbackStates[id];
   }
 
-  setChannel(id: string, layer: string): SoundPlaybackControl {
+  setChannel(id: string, channel: string): SoundPlaybackControl {
     const controlState = this.getOrCreatePlaybackState(id);
-    if (layer) {
-      controlState.channel = layer;
-      this._state.channels[layer] ??= [];
-      this._state.channels[layer]!.push(id);
+    if (channel) {
+      controlState.channel = channel;
+      this._state.channels[channel] ??= [];
+      this._state.channels[channel]!.push(id);
     }
     return controlState;
   }
@@ -116,10 +116,10 @@ export class SoundManager extends Manager<
     return controlState;
   }
 
-  removeFromLayer(id: string, layer: string) {
-    const layerState = this._state.channels[layer];
-    if (layerState) {
-      this._state.channels[layer] = layerState.filter((x) => x != id) ?? [];
+  removeFromLayer(id: string, channel: string) {
+    const state = this._state.channels[channel];
+    if (state) {
+      this._state.channels[channel] = state.filter((x) => x != id) ?? [];
     }
   }
 
@@ -366,14 +366,14 @@ export class SoundManager extends Manager<
   }
 
   async fadeLayer(
-    layer: string,
+    channel: string,
     volume?: number,
     after?: number,
     over?: number,
     scheduled?: boolean,
     onReady?: () => void
   ) {
-    const ids = this._state.channels[layer];
+    const ids = this._state.channels[channel];
     if (!ids) {
       return;
     }
@@ -384,7 +384,7 @@ export class SoundManager extends Manager<
     });
     return this.fadeSounds(
       sounds,
-      layer,
+      channel,
       undefined,
       after,
       over,

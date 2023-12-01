@@ -20,7 +20,7 @@ export interface ConfigDefinition {
     afterText?: string;
     previousLineText?: string;
     action: {
-      indent: "none" | "indent" | "outdent" | "indentOutdent";
+      indent: string;
       appendText?: string;
       deleteText?: string;
       removeText?: number;

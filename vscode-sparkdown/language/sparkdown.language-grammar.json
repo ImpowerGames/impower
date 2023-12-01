@@ -2236,12 +2236,12 @@
       "captures": {
         "1": {
           "tag": "controlKeyword",
-          "name": "keyword.control.asset.layer.sd"
+          "name": "keyword.control.asset.target.sd"
         },
         "2": {
           "patterns": [
             {
-              "include": "#AssetLayer"
+              "include": "#AssetTarget"
             }
           ]
         },
@@ -2269,9 +2269,9 @@
         }
       }
     },
-    "AssetLayer": {
+    "AssetTarget": {
       "tag": "controlKeyword",
-      "name": "keyword.control.asset.layer.sd",
+      "name": "keyword.control.asset.target.sd",
       "match": "(.+)"
     },
     "AssetNames": {
@@ -2655,12 +2655,12 @@
         },
         "4": {
           "tag": "controlKeyword",
-          "name": "keyword.control.asset.layer.sd"
+          "name": "keyword.control.asset.target.sd"
         },
         "5": {
           "patterns": [
             {
-              "include": "#TextLayer"
+              "include": "#TextTarget"
             }
           ]
         },
@@ -2683,9 +2683,9 @@
         }
       }
     },
-    "TextLayer": {
+    "TextTarget": {
       "tag": "controlKeyword",
-      "name": "keyword.control.text.layer.sd",
+      "name": "keyword.control.text.target.sd",
       "match": "(.+)"
     },
     "DisplayString": {

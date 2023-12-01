@@ -9,6 +9,7 @@ import {
   Transaction,
 } from "@codemirror/state";
 import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+import { DidParseTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
   MessageConnection,
   ServerCapabilities,
@@ -17,6 +18,10 @@ import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
+import {
+  structWidgets,
+  updateStructWidgets,
+} from "../../../cm-struct-widgets/structWidgets";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
@@ -78,7 +83,7 @@ interface EditorConfig {
 const createEditorView = (
   parent: HTMLElement,
   config: EditorConfig
-): EditorView => {
+): [EditorView, { dispose: () => void }] => {
   const textDocument = config.textDocument;
   const serverConnection = config.serverConnection;
   const serverCapabilities = config.serverCapabilities;
@@ -140,6 +145,9 @@ const createEditorView = (
         textDocument,
         serverConnection,
         serverCapabilities,
+        fileSystemReader,
+      }),
+      structWidgets({
         fileSystemReader,
       }),
       EditorView.updateListener.of((u) => {
@@ -232,7 +240,17 @@ const createEditorView = (
     parent,
     dispatch: (tr) => syncDispatch(tr, view, onEdit),
   });
-  return view;
+  const disposable = serverConnection.onNotification(
+    DidParseTextDocumentMessage.type,
+    (params) => {
+      const structs = params.program.structs;
+      if (structs) {
+        const transaction = updateStructWidgets(structs);
+        view.dispatch(transaction);
+      }
+    }
+  );
+  return [view, disposable];
 };
 
 export default createEditorView;

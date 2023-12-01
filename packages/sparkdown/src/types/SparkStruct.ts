@@ -11,7 +11,7 @@ export interface SparkStruct extends SparkRange {
   type: string;
   name: string;
   value: string;
-  compiled: unknown;
+  compiled: any;
   fields?: SparkField[];
 
   ranges?: {

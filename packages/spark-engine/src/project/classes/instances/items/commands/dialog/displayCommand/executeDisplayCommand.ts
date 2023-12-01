@@ -282,8 +282,8 @@ export const executeDisplayCommand = (
         phrases.forEach((p) => {
           if (p.image) {
             const assetNames = p.image;
-            const layer = p.layer || "Portrait";
-            const targetEl = game.ui.findFirstUIElement(structName, layer);
+            const target = p.target || "Portrait";
+            const targetEl = game.ui.findFirstUIElement(structName, target);
             if (targetEl) {
               const imageSrcs: string[] = [];
               assetNames.forEach((assetName) => {
@@ -310,7 +310,7 @@ export const executeDisplayCommand = (
               if (imageSrcs.length > 0) {
                 p.chunks?.forEach((c) => {
                   if (c.element) {
-                    const prevImage = layerImages[layer]?.at(-1);
+                    const prevImage = layerImages[target]?.at(-1);
                     if (prevImage) {
                       // fade out previous image on this layer before showing this image
                       prevImage.style["transition"] = instant
@@ -322,8 +322,8 @@ export const executeDisplayCommand = (
                         combinedBackgroundImage;
                       targetEl.appendChild(c.element);
                       c.element.appendChild(c.image);
-                      layerImages[layer] ??= [];
-                      layerImages[layer]!.push(c.image);
+                      layerImages[target] ??= [];
+                      layerImages[target]!.push(c.image);
                     }
                   }
                 });
@@ -332,11 +332,11 @@ export const executeDisplayCommand = (
           }
           if (p.audio) {
             const chunkOffset = p.chunks?.[0]?.time ?? 0;
-            const layer = p.layer || "Voice";
+            const target = p.target || "Voice";
             const assetNames = p.audio;
             const assetArgs = p.args || [];
             const sounds: Sound[] = [];
-            const channelLoop = layer === "Music";
+            const channelLoop = target === "Music";
             const trackLoop = assetArgs.includes("loop");
             const trackNoloop = assetArgs.includes("noloop");
             const trackVolume = getArgumentValue(assetArgs, "volume") ?? 1;
@@ -397,13 +397,13 @@ export const executeDisplayCommand = (
               const scheduled = assetArgs?.includes("schedule");
               if (assetArgs?.includes("start")) {
                 soundEvents.push(() =>
-                  game.sound.startAll(sounds, layer, groupId, after, over)
+                  game.sound.startAll(sounds, target, groupId, after, over)
                 );
               } else if (assetArgs?.includes("stop")) {
                 soundEvents.push(() =>
                   game.sound.stopAll(
                     sounds,
-                    layer,
+                    target,
                     groupId,
                     after,
                     over,
@@ -414,7 +414,7 @@ export const executeDisplayCommand = (
                 soundEvents.push(() =>
                   game.sound.fadeAll(
                     sounds,
-                    layer,
+                    target,
                     groupId,
                     after,
                     over,
@@ -434,10 +434,10 @@ export const executeDisplayCommand = (
             if (type !== "dialogue" && descriptionGroupEl) {
               descriptionGroupEl.style["display"] = null;
             }
-            if (p.layer) {
-              const writerType = p.layer + "Writer";
+            if (p.target) {
+              const writerType = p.target + "Writer";
               const writerConfig = writerConfigs?.[writerType];
-              const targetClassName = writerConfig?.className || p.layer;
+              const targetClassName = writerConfig?.className || p.target;
               const index = nextIndices[targetClassName] ?? 0;
               const text = p.text || "";
               const hidden = isHidden(text, writerConfig?.hidden);

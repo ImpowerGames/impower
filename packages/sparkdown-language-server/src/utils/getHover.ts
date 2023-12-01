@@ -51,7 +51,7 @@ const getHover = (
           };
         }
         const variable = program.variables?.[id];
-        if (variable) {
+        if (variable && typeof variable?.compiled !== "object") {
           const fencedCode = getFencedCode(
             `: ${JSON.stringify(variable?.compiled)}`
           );

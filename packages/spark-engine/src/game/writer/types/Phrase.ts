@@ -4,7 +4,7 @@ export interface Phrase {
   tag?: string;
   prerequisite?: string;
   text?: string | undefined;
-  layer?: string | undefined;
+  target?: string | undefined;
   image?: string[] | undefined;
   audio?: string[] | undefined;
   args?: string[] | undefined;

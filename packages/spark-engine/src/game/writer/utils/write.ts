@@ -94,7 +94,7 @@ export const write = (
 
   const result: Phrase[] = [];
 
-  let prevLayer = "";
+  let prevTarget = "";
 
   let consecutiveLettersLength = 0;
   let word = "";
@@ -128,7 +128,7 @@ export const write = (
     const nextContent = content[contentIndex + 1];
     const image = p.image;
     if (image) {
-      const layer = p.layer ?? "Portrait";
+      const target = p.target ?? "Portrait";
       const spanEl = onCreateElement?.();
       if (spanEl) {
         const spanStyle = {
@@ -164,8 +164,8 @@ export const write = (
         element: spanEl,
         image: imageEl,
       };
-      imageLayerChunks[layer] ??= [];
-      imageLayerChunks[layer]?.push(chunk);
+      imageLayerChunks[target] ??= [];
+      imageLayerChunks[target]?.push(chunk);
       result.push({
         ...p,
         chunks: [chunk],
@@ -182,9 +182,9 @@ export const write = (
     }
     const text = p.text;
     if (text) {
-      const layer = p.layer || "";
-      if (layer !== prevLayer || layer === "Choice") {
-        prevLayer = layer;
+      const target = p.target || "";
+      if (target !== prevTarget || target === "Choice") {
+        prevTarget = target;
         startNewPhrase();
       }
       const marks: [string, number][] = [];
