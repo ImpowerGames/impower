@@ -386,7 +386,6 @@ export default class SparkParser {
     };
 
     const _construct = (
-      isLeaf: boolean,
       struct: SparkStruct,
       ids: Record<string, string>,
       combinedFieldValues: any
@@ -396,21 +395,29 @@ export default class SparkParser {
         if (parentId) {
           const parentStruct = program.structs?.[parentId];
           if (parentStruct) {
-            _construct(false, parentStruct, ids, combinedFieldValues);
+            _construct(parentStruct, ids, combinedFieldValues);
           }
         }
       }
       if (struct.fields) {
         let prevField: SparkField | undefined = undefined;
+        const arrays: Record<string, boolean> = {};
         struct.fields.forEach((field) => {
           const propAccess = field.key ? "." + field.key : "";
           const propertyPath = field.path + propAccess;
+          const isArrayItem =
+            Array.isArray(getProperty(combinedFieldValues, field.path)) ||
+            !Number.isNaN(Number(field.key));
+          if (isArrayItem && !arrays[field.path]) {
+            // This is the first index of the new array
+            // Clear any inherited array so that the child can override the entire array (not just the item at this index)
+            arrays[field.path] = true;
+            setProperty(combinedFieldValues, field.path, []);
+          }
           const { successfullySet, error } = setProperty(
             combinedFieldValues,
             propertyPath,
-            field.value,
-            // Ensure array items are not inherited from parent
-            (_curr, part) => !isLeaf && !Number.isNaN(Number(part))
+            field.value
           );
           if (error) {
             const from = prevField?.to ?? 0;
@@ -437,7 +444,7 @@ export default class SparkParser {
       const isArray =
         !firstField?.path && !Number.isNaN(Number(firstField?.key));
       const obj = isArray ? [] : {};
-      _construct(true, struct, ids, obj);
+      _construct(struct, ids, obj);
       return obj;
     };
 
@@ -1788,7 +1795,7 @@ export default class SparkParser {
             if (parent) {
               parent.target = text;
             }
-          }else if (tok.tag === "display_text_content") {
+          } else if (tok.tag === "display_text_content") {
             const [ids, context] = getScopedValueContext(
               currentSectionId,
               program.sections
@@ -1838,7 +1845,7 @@ export default class SparkParser {
               parent.content ??= [];
               parent.content.push(tok);
             }
-          }  else if (tok.tag === "asset_target") {
+          } else if (tok.tag === "asset_target") {
             const parent = lookup("image", "audio");
             if (parent) {
               parent.target = text;
