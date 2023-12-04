@@ -6,5 +6,4 @@ export interface SparkReference extends SparkRange {
   name: string;
 
   declaration?: boolean;
-  id?: string;
 }

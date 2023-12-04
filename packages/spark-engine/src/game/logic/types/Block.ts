@@ -6,10 +6,6 @@ export interface Block {
   name: string;
   parent?: string;
   children?: string[];
-  variables?: Record<
-    string,
-    { name: string; type: string; value: string; parameter?: boolean }
-  >;
   commands?: Record<
     string,
     {
@@ -28,7 +24,7 @@ export interface Block {
       indent: number;
       params: {
         check?: string;
-        waitUntilFinished: boolean;
+        waitUntilFinished?: boolean;
       };
     }
   >;

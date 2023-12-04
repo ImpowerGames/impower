@@ -4,9 +4,6 @@ import { ContainerRunner } from "../../container/ContainerRunner";
 import { CommandRunner } from "../../items/command/CommandRunner";
 
 export interface BlockContext<G extends Game> {
-  ids: Record<string, string>;
-  valueMap: Record<string, unknown>;
-  typeMap: { [type: string]: Record<string, any> };
   commands: {
     runner: CommandRunner<G>;
     data: CommandData;
@@ -14,7 +11,7 @@ export interface BlockContext<G extends Game> {
   debug?: boolean;
 }
 
-export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
+export class BlockRunner<G extends Game> extends ContainerRunner<BlockData> {
   /**
    * This method is called once per game step while the scene is running.
    * @param time The current time. Either a High Resolution Timer value if it comes from Request Animation Frame, or Date.now if using SetTimeout.
@@ -65,37 +62,17 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
       if (command) {
         const commandId = command.data.reference.id;
         const commandIndex = blockState.executingIndex;
-        const executionCount = blockState.commandExecutionCounts[commandId];
         const source = command?.data?.source;
         const fastForward = blockState.startIndex > blockState.executingIndex;
-        const changedVariables = game?.logic?.state?.changedVariables;
-        const changedBlocks = game?.logic?.state?.changedBlocks;
-        const variableStates = game?.logic?.state?.variableStates;
-        const blockStates = game?.logic?.state?.blockStates;
-        changedVariables.forEach((id) => {
-          const state = variableStates[id];
-          if (state) {
-            context.valueMap[state.name] = state.value;
-          }
-        });
-        changedBlocks.forEach((id) => {
-          const state = blockStates[id];
-          if (state) {
-            context.valueMap[state.name] = state.executionCount;
-          }
-        });
-        context.valueMap["#"] = [
-          executionCount,
-          game.random.state.seed + commandId,
-        ];
         context.debug = game?.debug?.state?.debugging;
         if (!blockState.isExecutingCommand) {
+          game.logic.setCommandSeed(blockId, commandId, game.random.state.seed);
           game.logic.executeCommand(blockId, commandId, source);
           let nextJumps: number[] = [];
           if (!fastForward) {
             nextJumps = command.runner.onExecute(game, command.data, {
-              ...context,
               index: blockState.executingIndex,
+              commands,
             });
           }
           if (nextJumps.length > 0) {
@@ -107,8 +84,8 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
         }
         if (!fastForward && command.data.params.waitUntilFinished) {
           const finished = command.runner.isFinished(game, command.data, {
-            ...context,
             index: blockState.executingIndex,
+            commands,
           });
           if (finished === null) {
             return null;
@@ -118,8 +95,8 @@ export class BlockRunner<G extends Game> extends ContainerRunner<G, BlockData> {
           }
         }
         command.runner.onFinished(game, command.data, {
-          ...context,
           index: blockState.executingIndex,
+          commands,
         });
         game.logic.finishCommand(blockId, commandId, commandIndex, source);
         if (blockState.commandJumpStack.length > 0) {

@@ -1,10 +1,13 @@
+import { format } from "../../../../../spark-evaluate/src";
+import { evaluate } from "../../../../../spark-evaluate/src/utils/evaluate";
+import { ReadOnly } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { GameEvent2 } from "../../core/classes/GameEvent2";
 import { Manager } from "../../core/classes/Manager";
 import { Block } from "../types/Block";
 import { BlockState } from "../types/BlockState";
 import { DocumentSource } from "../types/DocumentSource";
-import { VariableState } from "../types/VariableState";
+import { Variable } from "../types/Variable";
 import { createBlockState } from "../utils/createBlockState";
 
 export interface LogicEvents extends Record<string, GameEvent> {
@@ -23,24 +26,22 @@ export interface LogicEvents extends Record<string, GameEvent> {
   onGoToCommandIndex: GameEvent2<string, DocumentSource | undefined>;
   onCommandJumpStackPush: GameEvent2<string, DocumentSource | undefined>;
   onCommandJumpStackPop: GameEvent2<string, DocumentSource | undefined>;
-  onSetVariableValue: GameEvent2<string, DocumentSource | undefined>;
   onLoadAsset: GameEvent2<string, DocumentSource | undefined>;
   onUnloadAsset: GameEvent2<string, DocumentSource | undefined>;
 }
 
 export interface LogicConfig {
   blockMap: Record<string, Block>;
+  variableMap: Record<string, Variable>;
 }
 
 export interface LogicState {
   activeParentBlockId: string;
   activeCommandIndex: number;
-  changedBlocks: string[];
-  changedVariables: string[];
   loadedBlockIds: string[];
   loadedAssetIds: string[];
   blockStates: Record<string, BlockState>;
-  variableStates: Record<string, VariableState>;
+  variableStates: Record<string, any>;
 }
 
 export class LogicManager extends Manager<
@@ -48,6 +49,18 @@ export class LogicManager extends Manager<
   LogicConfig,
   LogicState
 > {
+  protected _storedVariables: string[] = [];
+
+  protected _valueMap: Record<string, unknown> = {};
+  get valueMap() {
+    return this._valueMap as ReadOnly<Record<string, unknown>>;
+  }
+
+  protected _typeMap: { [type: string]: Record<string, any> } = {};
+  get typeMap() {
+    return this._typeMap as ReadOnly<Record<string, unknown>>;
+  }
+
   constructor(config?: Partial<LogicConfig>, state?: Partial<LogicState>) {
     const initialEvents: LogicEvents = {
       onLoadBlock: new GameEvent2<string, DocumentSource | undefined>(),
@@ -81,13 +94,12 @@ export class LogicManager extends Manager<
     };
     const initialConfig: LogicConfig = {
       blockMap: {},
+      variableMap: {},
       ...(config || {}),
     };
     const initialState: LogicState = {
       activeParentBlockId: "",
       activeCommandIndex: 0,
-      changedBlocks: [],
-      changedVariables: [],
       loadedBlockIds: [],
       loadedAssetIds: [],
       blockStates: {},
@@ -95,6 +107,28 @@ export class LogicManager extends Manager<
       ...(state || {}),
     };
     super(initialEvents, initialConfig, initialState);
+    if (this.config?.blockMap) {
+      Object.entries(this.config?.blockMap).forEach(([sectionName]) => {
+        const blockState = this._state.blockStates[sectionName];
+        this._valueMap[sectionName] = blockState?.executionCount ?? 0;
+      });
+    }
+    if (this.config?.variableMap) {
+      Object.entries(this.config?.variableMap).forEach(
+        ([variableName, variable]) => {
+          const variableState = this._state.variableStates[variableName];
+          const value = variableState?.value ?? variable.compiled;
+          this._valueMap[variableName] = value;
+          this._typeMap[variable.type] ??= {};
+          this._typeMap[variable.type]![variable.name] = value;
+          this._typeMap[variable.name] ??= {};
+          this._typeMap[variable.name]![""] ??= value;
+          if (variable.stored) {
+            this._storedVariables.push(variableName);
+          }
+        }
+      );
+    }
   }
 
   override init() {
@@ -119,9 +153,6 @@ export class LogicManager extends Manager<
   }
 
   private resetBlockExecution(blockId: string): void {
-    if (!this._state.blockStates[blockId]) {
-      this._state.changedBlocks.push(blockId);
-    }
     const blockState =
       this._state.blockStates[blockId] || createBlockState(blockId);
     blockState.executedBy = "";
@@ -144,9 +175,6 @@ export class LogicManager extends Manager<
     }
     this._state.loadedBlockIds.push(blockId);
 
-    if (!this._state.blockStates[blockId]) {
-      this._state.changedBlocks.push(blockId);
-    }
     const blockState =
       this._state.blockStates[blockId] || createBlockState(blockId);
     this._state.blockStates[blockId] = blockState;
@@ -201,10 +229,11 @@ export class LogicManager extends Manager<
     this.resetBlockExecution(blockId);
     const blockState = this._state.blockStates[blockId];
     if (blockState) {
-      blockState.executionCount += 1;
       blockState.executedBy = executedByBlockId;
       blockState.isExecuting = true;
       blockState.startIndex = startIndex || 0;
+      blockState.executionCount += 1;
+      this._valueMap[blockId] = blockState.executionCount;
     }
     this._events.onExecuteBlock.dispatch(blockId, block.source);
   }
@@ -263,9 +292,6 @@ export class LogicManager extends Manager<
     }
     if (!this._config.blockMap[blockId]) {
       return;
-    }
-    if (!this._state.blockStates[blockId]) {
-      this._state.changedBlocks.push(blockId);
     }
     const blockState =
       this._state.blockStates[blockId] || createBlockState(blockId);
@@ -330,8 +356,7 @@ export class LogicManager extends Manager<
       return false;
     }
 
-    const variableId = `${blockId}.return`;
-    this.setVariableValue(variableId, value, block.source);
+    this.evaluate(`${blockId}.return = ${value}`);
 
     const executedByBlockState = this._state.blockStates[executedByBlockId];
     if (executedByBlockState) {
@@ -353,17 +378,29 @@ export class LogicManager extends Manager<
   chooseChoice(
     blockId: string,
     commandId: string,
+    optionId: string,
     source?: DocumentSource
-  ): number {
+  ): [number, string] {
     const blockState = this._state.blockStates[blockId];
     if (blockState) {
-      const currentCount = blockState.choiceChosenCounts[commandId] || 0;
+      const id = commandId + "+" + optionId;
+      const currentCount = blockState.choiceChosenCounts[id] || 0;
       const newCount = currentCount + 1;
-      blockState.choiceChosenCounts[commandId] = newCount;
-      this._events.onChooseChoice.dispatch(commandId, source);
-      return newCount;
+      blockState.choiceChosenCounts[id] = newCount;
+      this._events.onChooseChoice.dispatch(id, source);
+      return [newCount, id];
     }
-    return -1;
+    return [-1, ""];
+  }
+
+  setCommandSeed(blockId: string, commandId: string, seed: string) {
+    const blockState = this._state.blockStates[blockId];
+    if (blockState) {
+      const currentExecutionCount =
+        blockState.commandExecutionCounts[commandId] || 0;
+      this._valueMap["$seed"] = seed + commandId;
+      this._valueMap["$value"] = currentExecutionCount;
+    }
   }
 
   executeCommand(
@@ -374,8 +411,9 @@ export class LogicManager extends Manager<
     const blockState = this._state.blockStates[blockId];
     if (blockState) {
       blockState.isExecutingCommand = true;
-      const currentCount = blockState.commandExecutionCounts[commandId] || 0;
-      blockState.commandExecutionCounts[commandId] = currentCount + 1;
+      const currentExecutionCount =
+        blockState.commandExecutionCounts[commandId] || 0;
+      blockState.commandExecutionCounts[commandId] = currentExecutionCount + 1;
       if (blockState.startIndex <= blockState.executingIndex) {
         blockState.startIndex = 0;
       }
@@ -434,21 +472,23 @@ export class LogicManager extends Manager<
     return undefined;
   }
 
-  setVariableValue(
-    variableId: string,
-    value: unknown,
-    source?: DocumentSource
-  ): void {
-    if (!this._state.variableStates[variableId]) {
-      this._state.changedVariables.push(variableId);
-    }
-    const variableState = this._state.variableStates[variableId] || {
-      name: variableId.split(".").slice(-1).join(""),
-      value: value,
-    };
-    variableState.value = value;
-    this._state.variableStates[variableId] = variableState;
-    this._events.onSetVariableValue.dispatch(variableId, source);
+  evaluate(expression: string): unknown {
+    const context = this._valueMap;
+    const result = evaluate(expression, context);
+    this._storedVariables.forEach((storedVariableName) => {
+      // Update stored variables in case any assignments occurred when evaluating expression
+      this._state.variableStates[storedVariableName] =
+        this._valueMap[storedVariableName];
+    });
+    return result;
+  }
+
+  format(text: string, overrides?: { $value: number; $seed: string }): string {
+    const context = overrides
+      ? { ...this._valueMap, ...overrides }
+      : this._valueMap;
+    const [result] = format(text, context);
+    return result;
   }
 
   getRuntimeValue(id: string): unknown {

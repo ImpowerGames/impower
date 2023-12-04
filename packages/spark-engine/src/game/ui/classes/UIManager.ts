@@ -39,6 +39,8 @@ export interface UIConfig {
 export interface UIState {}
 
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
+  protected _disposeSizeObservers: (() => void)[] = [];
+
   constructor(config?: Partial<UIConfig>, state?: Partial<UIState>) {
     const initialEvents: UIEvents = {
       onCreateElement: new GameEvent2<string, string>(),
@@ -56,6 +58,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   override destroy(): void {
     super.destroy();
+    this._disposeSizeObservers.forEach((dispose) => {
+      dispose();
+    });
     const uiRoot = this.getElement(this.getUIPath());
     if (uiRoot) {
       uiRoot.replaceChildren();
@@ -124,7 +129,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   loadTheme(typeMap: { [type: string]: Record<string, any> }): void {
     const breakpoints = typeMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
     if (breakpoints) {
-      this._config.root.observeSize(breakpoints);
+      this._disposeSizeObservers.push(
+        this._config.root.observeSize(breakpoints)
+      );
     }
   }
 

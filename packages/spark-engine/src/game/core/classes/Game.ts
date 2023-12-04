@@ -1,7 +1,6 @@
 import { DebugConfig, DebugManager, DebugState } from "../../debug";
 import { LogicConfig, LogicManager, LogicState } from "../../logic";
 import { RandomConfig, RandomManager, RandomState } from "../../random";
-import { StructConfig, StructManager, StructState } from "../../struct";
 import { TickerConfig, TickerManager, TickerState } from "../../ticker";
 import { UIConfig, UIManager, UIState } from "../../ui";
 import { ListenOnly } from "../types/ListenOnly";
@@ -16,7 +15,6 @@ export interface GameEvents extends Record<string, GameEvent> {
 
 export interface GameConfig {
   ticker?: Partial<TickerConfig>;
-  struct?: Partial<StructConfig>;
   ui?: Partial<UIConfig>;
   random?: Partial<RandomConfig>;
   logic?: Partial<LogicConfig>;
@@ -25,7 +23,6 @@ export interface GameConfig {
 
 export interface GameState {
   ticker?: Partial<TickerState>;
-  struct?: Partial<StructState>;
   ui?: Partial<UIState>;
   random?: Partial<RandomState>;
   logic?: Partial<LogicState>;
@@ -34,8 +31,6 @@ export interface GameState {
 
 export class Game {
   ticker: TickerManager;
-
-  struct: StructManager;
 
   ui: UIManager;
 
@@ -47,7 +42,6 @@ export class Game {
 
   constructor(config?: Partial<GameConfig>, state?: Partial<GameState>) {
     this.ticker = new TickerManager(config?.ticker, state?.ticker);
-    this.struct = new StructManager(config?.struct, state?.struct);
     this.ui = new UIManager(config?.ui, state?.ui);
     this.random = new RandomManager(config?.random, state?.random);
     this.logic = new LogicManager(config?.logic, state?.logic);
@@ -57,7 +51,6 @@ export class Game {
   managers(): Record<string, Manager> {
     return {
       ticker: this.ticker,
-      struct: this.struct,
       ui: this.ui,
       random: this.random,
       logic: this.logic,
@@ -76,10 +69,9 @@ export class Game {
 
   init(): void {
     Object.values(this.managers()).forEach((m) => m.init());
-    const typeMap = this.struct.config.typeMap;
-    this.ui.loadTheme(typeMap);
-    this.ui.loadStyles(typeMap);
-    this.ui.loadUI(typeMap);
+    this.ui.loadTheme(this.logic.typeMap);
+    this.ui.loadStyles(this.logic.typeMap);
+    this.ui.loadUI(this.logic.typeMap);
     this._events.onInit.dispatch();
   }
 

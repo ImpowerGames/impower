@@ -1,12 +1,12 @@
 import { SparkProgram } from "../../../../sparkdown/src";
-import getScopedValueContext from "../../../../sparkdown/src/utils/getScopedValueContext";
 import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { CommandData } from "../../data";
-import { Block, Game, GameConfig, GameState } from "../../game";
+import { Game, GameConfig, GameState } from "../../game";
 import { CommandRunner } from "../../runner";
 import { GameRunner } from "../../runner/classes/GameRunner";
 import { ContextOptions } from "../interfaces/ContextOptions";
-import { generateSectionBlocks } from "../utils/generateSectionBlocks";
+import { generateBlocks } from "../utils/generateBlocks";
+import { generateVariables } from "../utils/generateVariables";
 
 export class Context<
   G extends Game = Game,
@@ -35,9 +35,6 @@ export class Context<
 
   private _contexts: {
     [id: string]: {
-      ids: Record<string, string>;
-      valueMap: Record<string, unknown>;
-      typeMap: { [type: string]: Record<string, any> };
       commands: {
         runner: CommandRunner<G>;
         data: CommandData;
@@ -46,9 +43,6 @@ export class Context<
   } = {};
   public get contexts(): {
     [id: string]: {
-      ids: Record<string, string>;
-      valueMap: Record<string, unknown>;
-      typeMap: { [type: string]: Record<string, any> };
       commands: {
         runner: CommandRunner<G>;
         data: CommandData;
@@ -95,9 +89,10 @@ export class Context<
         )}`
       );
     }
-    const blockMap = generateSectionBlocks(
+    const blockMap = generateBlocks(entryProgramId, program?.sections || {});
+    const variableMap = generateVariables(
       entryProgramId,
-      program?.sections || {}
+      program?.variables || {}
     );
     const [startBlockId] = getSectionAtLine(entryLine, program?.sections || {});
     const startRuntimeBlock = blockMap?.[startBlockId];
@@ -117,8 +112,7 @@ export class Context<
     }
     const c = {
       ...(options?.config || {}),
-      logic: { blockMap },
-      struct: { typeMap: program.typeMap },
+      logic: { blockMap, variableMap },
     } as C;
     const s = {
       ...(options?.state || {}),
@@ -131,11 +125,6 @@ export class Context<
     const game = options.createGame?.(c, s) || (new Game(c, s) as G);
     Object.entries(game?.logic?.config?.blockMap).forEach(
       ([blockId, block]) => {
-        const [ids, valueMap] = getScopedValueContext(
-          blockId,
-          (game?.logic?.config?.blockMap || {}) as Record<string, Block>
-        );
-        const typeMap = game?.struct?.config?.typeMap;
         const commands: {
           runner: CommandRunner<G>;
           data: CommandData;
@@ -144,9 +133,6 @@ export class Context<
           return { runner: r as CommandRunner<G>, data: v as CommandData };
         });
         this._contexts[blockId] = {
-          ids,
-          valueMap,
-          typeMap,
           commands,
         };
       }
@@ -191,22 +177,9 @@ export class Context<
 
   updateBlock(blockId: string): boolean {
     const blockStates = this.game.logic.state?.blockStates;
-    const variableStates = this.game.logic.state?.variableStates;
     const blockState = blockStates[blockId];
     const context = this.contexts[blockId];
     if (context && blockState) {
-      this.game.logic.state.changedVariables.forEach((id) => {
-        const state = variableStates[id];
-        if (state) {
-          context.valueMap[state.name] = state.value;
-        }
-      });
-      this.game.logic.state.changedBlocks.forEach((id) => {
-        const state = blockStates[id];
-        if (state) {
-          context.valueMap[state.name] = state.executionCount;
-        }
-      });
       if (blockState.loaded && this.runner.blockRunner) {
         const running = this.runner.blockRunner.update(
           blockId,

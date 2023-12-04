@@ -264,8 +264,8 @@ export default class GoogleDriveSyncProvider {
   async getCurrentAccount() {
     try {
       await this._gsiScriptRef.get();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error(err, err.stack);
     }
     return this._accountRef.get();
   }

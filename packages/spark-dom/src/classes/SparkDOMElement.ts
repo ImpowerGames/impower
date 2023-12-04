@@ -129,7 +129,7 @@ export class SparkDOMElement implements IElement {
       }
     });
     resizeObserver.observe(this._htmlElement);
-    return resizeObserver.disconnect;
+    return () => resizeObserver.disconnect();
   }
 
   setImportContent(properties: Record<string, any>): void {

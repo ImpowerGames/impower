@@ -37,7 +37,7 @@ export interface SparkCheckpointToken extends ISparkToken<"checkpoint"> {
 }
 
 export interface SparkImportToken extends ISparkToken<"import"> {
-  id: string;
+  stored: boolean;
   type: string;
   name: string;
   value: string;
@@ -50,36 +50,9 @@ export interface SparkImportToken extends ISparkToken<"import"> {
   };
 }
 
-export interface SparkDefineToken extends ISparkToken<"define"> {
-  id: string;
-  type: string;
-  name: string;
-  value: string;
-  compiled: unknown;
-
-  ranges?: {
-    type?: SparkRange;
-    name?: SparkRange;
-    value?: SparkRange;
-  };
-}
-
-export interface SparkVariableToken extends ISparkToken<"variable"> {
-  id: string;
-  type: string;
-  name: string;
-  value: string;
-  compiled: unknown;
-
-  ranges?: {
-    type?: SparkRange;
-    name?: SparkRange;
-    value?: SparkRange;
-  };
-}
-
-export interface SparkStructToken extends ISparkToken<"struct"> {
-  id: string;
+export interface ISparkDeclarationToken<T extends string>
+  extends ISparkToken<T> {
+  stored: boolean;
   type: string;
   name: string;
   value: string;
@@ -94,8 +67,21 @@ export interface SparkStructToken extends ISparkToken<"struct"> {
   };
 }
 
+export interface SparkDefineScalarToken
+  extends ISparkDeclarationToken<"define_scalar"> {}
+
+export interface SparkStoreScalarToken
+  extends ISparkDeclarationToken<"store_scalar"> {}
+
+export interface SparkDefineObjectToken
+  extends ISparkDeclarationToken<"define_object"> {}
+
+export interface SparkStoreObjectToken
+  extends ISparkDeclarationToken<"store_object"> {}
+
 export interface ISparkStructFieldToken<T extends string = string>
   extends ISparkToken<T> {
+  stored: boolean;
   type: string;
   path: string;
   key: string;
@@ -155,7 +141,11 @@ export interface SparkReturnToken extends ISparkToken<"return"> {
 }
 
 export interface SparkDeleteToken extends ISparkToken<"delete"> {
-  accessor: string;
+  name: string;
+
+  ranges?: {
+    name?: SparkRange;
+  };
 }
 
 export interface SparkBranchToken
@@ -177,6 +167,7 @@ export interface SparkAssignToken extends ISparkToken<"assign"> {
   name: string;
   operator: string;
   value: string;
+  content?: SparkAccessIdentifierPartToken[];
 
   ranges?: {
     name?: SparkRange;
@@ -185,14 +176,9 @@ export interface SparkAssignToken extends ISparkToken<"assign"> {
   };
 }
 
-export interface SparkAccessToken extends ISparkToken<"access"> {
-  type: string;
-  name: string;
-
-  ranges?: {
-    type?: SparkRange;
-    name?: SparkRange;
-  };
+export interface SparkAccessIdentifierPartToken
+  extends ISparkToken<"access_identifier_part"> {
+  text: string;
 }
 
 export interface SparkJumpToken extends ISparkToken<"jump"> {
@@ -254,7 +240,7 @@ export interface SparkDisplayTextToken extends ISparkToken<"display_text"> {
 
 export interface SparkTextToken<T extends string = "text">
   extends ISparkToken<T> {
-  prerequisite: string;
+  prerequisite?: string;
   text: string;
   speed?: number;
   target?: string;
@@ -340,17 +326,18 @@ export interface SparkOtherToken
     | "flow_break"
     | "break"
     | "continue"
-    | "scalar_variable"
     | "type_name"
     | "declaration_name"
+    | "access_identifier"
     | "variable_name"
     | "property_name"
     | "function_name"
     | "struct_map_property_start"
     | "struct_scalar_property_start"
     | "struct_field"
-    | "identifier_path"
+    | "assign_access_identifier"
     | "assign_operator"
+    | "delete_access_identifier"
     | "value_text"
     | "jump_to_section"
     | "display_text_prerequisite_value"
@@ -378,19 +365,20 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   section: SparkSectionToken;
   checkpoint: SparkCheckpointToken;
   import: SparkImportToken;
-  define: SparkDefineToken;
-  variable: SparkVariableToken;
-  struct: SparkStructToken;
+  define_scalar: SparkDefineScalarToken;
+  store_scalar: SparkStoreScalarToken;
+  define_object: SparkDefineObjectToken;
+  store_object: SparkStoreObjectToken;
   struct_map_item: SparkStructMapItemToken;
   struct_scalar_item: SparkStructScalarItemToken;
   struct_map_property: SparkStructMapPropertyToken;
   struct_scalar_property: SparkStructScalarPropertyToken;
   struct_blank_property: SparkStructBlankProperty;
   struct_empty_property: SparkStructEmptyProperty;
+  access_identifier_part: SparkAccessIdentifierPartToken;
   function: SparkFunctionToken;
   call: SparkCallToken;
   assign: SparkAssignToken;
-  access: SparkAccessToken;
   delete: SparkDeleteToken;
   if: SparkBranchToken;
   elseif: SparkBranchToken;

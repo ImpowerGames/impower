@@ -183,7 +183,7 @@ export const write = (
     const text = p.text;
     if (text) {
       const target = p.target || "";
-      if (target !== prevTarget || target === "Choice") {
+      if (target !== prevTarget || target === "choice") {
         prevTarget = target;
         startNewPhrase();
       }

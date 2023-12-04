@@ -173,11 +173,9 @@ export default class SparkdownTextDocuments<
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
       const files = Object.values(this._files);
-      const typeMap = STRUCT_DEFAULTS;
       const variables: Record<string, SparkVariable> = {};
       files.forEach((file) => {
         if (file.name) {
-          const id = "." + file.name;
           const obj = {
             uri: file.uri,
             name: file.name,
@@ -185,10 +183,13 @@ export default class SparkdownTextDocuments<
             ext: file.ext,
             type: file.type,
           };
-          variables[id] ??= {
+          variables[file.name] ??= {
+            tag: "asset",
             line: -1,
             from: -1,
             to: -1,
+            indent: 0,
+            stored: false,
             type: obj.type,
             name: file.name,
             value: JSON.stringify(obj),
@@ -197,7 +198,7 @@ export default class SparkdownTextDocuments<
         }
       });
       const syncedProgram = this._parser.parse(syncedDocument.getText(), {
-        augmentations: { typeMap, variables },
+        augmentations: { builtins: STRUCT_DEFAULTS, variables },
       });
       this._syncedPrograms.set(uri, syncedProgram);
       this._onDidParse.fire(

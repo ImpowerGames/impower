@@ -11,9 +11,10 @@ import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getA
 import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
+  SparkDefineObjectToken,
+  SparkStoreObjectToken,
   SparkStructEmptyProperty,
   SparkStructMapPropertyToken,
-  SparkStructToken,
 } from "@impower/sparkdown/src/types/SparkToken";
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";
@@ -57,7 +58,7 @@ const getImageCompletions = (
         typeof v.compiled === "object" &&
         "assets" in v.compiled &&
         Array.isArray(v.compiled.assets) &&
-        v.compiled.assets.every((x) => isAssetOfType(x, "image"))
+        v.compiled.assets.every((x: unknown) => isAssetOfType(x, "image"))
     )
     .map((v) => v.name as string);
   const imageGroupCompletions = imageGroupNames.map((name) => ({
@@ -102,7 +103,7 @@ const getAudioCompletions = (
         typeof v.compiled === "object" &&
         "assets" in v.compiled &&
         Array.isArray(v.compiled.assets) &&
-        v.compiled.assets.every((x) => isAssetOfType(x, "audio"))
+        v.compiled.assets.every((x: unknown) => isAssetOfType(x, "audio"))
     )
     .map((v) => v.name as string);
   const audioGroupCompletions = audioGroupNames.map((name) => ({
@@ -203,7 +204,7 @@ const getStructMapPropertyNameCompletions = (
   path: string,
   beforeText: string
 ): CompletionItem[] | null => {
-  const parentObj = program?.typeMap?.[type]?.[""];
+  const parentObj = program?.variables?.[type];
   const result: CompletionItem[] = [];
   const existingProps = new Set<string>();
   const possibleNames = new Set<string>();
@@ -298,7 +299,9 @@ const getCompletions = (
     ) {
       const structToken = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "struct") as SparkStructToken | undefined;
+        .findLast(
+          (t) => t?.tag === "define_object" || t?.tag === "store_object"
+        ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
       const structMapPropertyToken = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
         .findLast((t) => t?.tag === "struct_map_property") as
@@ -315,13 +318,15 @@ const getCompletions = (
       }
     }
     if (
-      scopes.includes("struct") &&
+      (scopes.includes("define_object") || scopes.includes("store_object")) &&
       (scopes.includes("struct_blank_property") ||
         scopes.at(-1) === "struct_field")
     ) {
       const structToken = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "struct") as SparkStructToken | undefined;
+        .findLast(
+          (t) => t?.tag === "define_object" || t?.tag === "store_object"
+        ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
       const structEmptyProperty = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
         .findLast((t) => t?.tag === "struct_blank_property") as
@@ -344,7 +349,7 @@ const getCompletions = (
       // TODO: Use struct validation to autocomplete enum strings
     }
   } else {
-    if (isEmptyLine(nextLineText)) {
+    if (isEmptyLine(prevLineText) && isEmptyLine(nextLineText)) {
       return getCharacterCompletions(position.line, program);
     }
   }

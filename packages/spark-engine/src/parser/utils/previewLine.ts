@@ -1,5 +1,3 @@
-import getScopedValueContext from "../../../../sparkdown/src/utils/getScopedValueContext";
-import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { Context } from "../classes/Context";
 import { getPreviewCommand } from "./getPreviewCommand";
 import { getPreviewStruct } from "./getPreviewStruct";
@@ -12,24 +10,16 @@ export const previewLine = (
 ) => {
   const program = context.programs[context.entryProgramId];
   if (program) {
-    const typeMap = program?.typeMap || {};
     const runtimeCommand = getPreviewCommand(program, line);
     if (runtimeCommand) {
       const commandRunner = context?.runner?.getCommandRunner(
         runtimeCommand.reference.typeId
       );
       if (commandRunner) {
-        const [sectionId] = getSectionAtLine(line, program?.sections || {});
-        const [, valueMap] = getScopedValueContext(
-          sectionId,
-          program?.sections || {}
-        );
-        context.game.ui.loadTheme(typeMap);
-        context.game.ui.loadStyles(typeMap);
-        context.game.ui.loadUI(typeMap);
+        context.game.ui.loadTheme(context.game.logic.typeMap);
+        context.game.ui.loadStyles(context.game.logic.typeMap);
+        context.game.ui.loadUI(context.game.logic.typeMap);
         commandRunner.onPreview(context.game, runtimeCommand, {
-          valueMap,
-          typeMap,
           instant,
           debug,
         });
@@ -37,12 +27,17 @@ export const previewLine = (
     } else {
       const previewStruct = getPreviewStruct(program, line);
       if (previewStruct?.type === "style") {
-        context.game.ui.loadStyles(typeMap, previewStruct.name);
+        context.game.ui.loadStyles(
+          context.game.logic.typeMap,
+          previewStruct.name
+        );
       }
       if (previewStruct?.type === "ui") {
-        context.game.ui.hideUI(...Object.keys(typeMap?.["ui"] || {}));
-        context.game.ui.loadStyles(typeMap);
-        context.game.ui.loadUI(typeMap, previewStruct.name);
+        context.game.ui.hideUI(
+          ...Object.keys(context.game.logic.typeMap?.["ui"] || {})
+        );
+        context.game.ui.loadStyles(context.game.logic.typeMap);
+        context.game.ui.loadUI(context.game.logic.typeMap, previewStruct.name);
         context.game.ui.showUI(previewStruct.name);
       }
     }

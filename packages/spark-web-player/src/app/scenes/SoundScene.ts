@@ -10,10 +10,7 @@ export default class SoundScene extends Scene {
 
   protected _audioPlayers = new Map<string, SparkDOMAudioPlayer>();
 
-  override start() {
-    this.context.game.sound.config.synths =
-      this.context.game.struct.config.typeMap["synth"] || {};
-  }
+  override start() {}
 
   override async load(): Promise<Object3D<Event>[]> {
     // TODO: Load audio ahead of time

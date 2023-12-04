@@ -1,11 +1,11 @@
 import type { SparkDisplayToken, SparkToken } from "../../../../sparkdown/src";
 import type {
-  AssignCommandData,
+  BranchCommandData,
   CommandData,
   CommandTypeId,
-  ConditionCommandData,
   DisplayCommandData,
-  EnterCommandData,
+  EvaluateCommandData,
+  JumpCommandData,
   ReturnCommandData,
 } from "../../data";
 
@@ -74,10 +74,15 @@ export const generateCommand = (
   if (token.ignore) {
     return null;
   }
-  if (token.tag === "assign" || token.tag === "variable") {
+  if (
+    token.tag === "store_scalar" ||
+    token.tag === "store_object" ||
+    token.tag === "define_scalar" ||
+    token.tag === "define_object"
+  ) {
     const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "AssignCommand";
-    const newCommand: AssignCommandData = {
+    const refTypeId: CommandTypeId = "EvaluateCommand";
+    const newCommand: EvaluateCommandData = {
       reference: {
         parentId: sectionId,
         type: "Command",
@@ -87,10 +92,25 @@ export const generateCommand = (
       source: getSource(token, file),
       indent: token.indent,
       params: {
-        variable: token.name,
-        operator: "operator" in token ? token.operator : "=",
-        value: token.value,
-        waitUntilFinished: true,
+        expression: `${token.name} = ${token.value}`,
+      },
+    };
+    return newCommand;
+  }
+  if (token.tag === "assign") {
+    const refId = getCommandId(token, file, sectionId);
+    const refTypeId: CommandTypeId = "EvaluateCommand";
+    const newCommand: EvaluateCommandData = {
+      reference: {
+        parentId: sectionId,
+        type: "Command",
+        id: refId,
+        typeId: refTypeId,
+      },
+      source: getSource(token, file),
+      indent: token.indent,
+      params: {
+        expression: `${token.name} ${token.operator} ${token.value}`,
       },
     };
     return newCommand;
@@ -102,8 +122,8 @@ export const generateCommand = (
     token.tag === "end"
   ) {
     const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "ConditionCommand";
-    const newCommand: ConditionCommandData = {
+    const refTypeId: CommandTypeId = "BranchCommand";
+    const newCommand: BranchCommandData = {
       reference: {
         parentId: sectionId,
         type: "Command",
@@ -115,15 +135,14 @@ export const generateCommand = (
       params: {
         condition: token.condition as string,
         check: (token.tag || "") as "if" | "elseif" | "else" | "end",
-        waitUntilFinished: true,
       },
     };
     return newCommand;
   }
   if (token.tag === "jump") {
     const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "EnterCommand";
-    const newCommand: EnterCommandData = {
+    const refTypeId: CommandTypeId = "JumpCommand";
+    const newCommand: JumpCommandData = {
       reference: {
         parentId: sectionId,
         type: "Command",

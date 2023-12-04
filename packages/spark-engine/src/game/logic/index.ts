@@ -1,4 +1,4 @@
 export * from "./classes/LogicManager";
 export * from "./types/Block";
 export * from "./types/BlockState";
-export * from "./types/VariableState";
+export * from "./types/Variable";

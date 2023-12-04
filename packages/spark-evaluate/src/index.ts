@@ -1,6 +1,6 @@
-export * from "./constants/CUSTOM_FORMATTERS";
 export * from "./constants/DEFAULT_COMPILER_CONFIG";
 export * from "./constants/DEFAULT_PARSER";
+export * from "./constants/DEFAULT_REPLACERS";
 export * from "./utils/compile";
 export * from "./utils/evaluate";
 export * from "./utils/format";

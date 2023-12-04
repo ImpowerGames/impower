@@ -721,8 +721,8 @@ export default class WorkspaceWindow {
       }
       this.cacheProjectId(id);
       return id;
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error(err, err.stack);
       this.update({
         ...this.store,
         project: {

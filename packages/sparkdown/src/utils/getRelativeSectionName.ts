@@ -5,13 +5,13 @@ const getRelativeSectionName = <
     children?: string[];
   }
 >(
-  currentSectionId: string,
+  currentSectionName: string,
   sections: Record<string, T>,
   expression: "<<" | ">>" | "--" | "++" | "<<--" | string
 ): string => {
   if (expression === "<<") {
     // FIRST SIBLING
-    const parentId = sections?.[currentSectionId]?.parent;
+    const parentId = sections?.[currentSectionName]?.parent;
     if (parentId != null) {
       const siblingIds = sections?.[parentId]?.children;
       const firstSiblingId = siblingIds?.at(0);
@@ -26,7 +26,7 @@ const getRelativeSectionName = <
   }
   if (expression === ">>") {
     // LAST SIBLING
-    const parentId = sections?.[currentSectionId]?.parent;
+    const parentId = sections?.[currentSectionName]?.parent;
     if (parentId != null) {
       const siblingIds = sections?.[parentId]?.children;
       if (siblingIds) {
@@ -44,7 +44,7 @@ const getRelativeSectionName = <
   if (expression === "--") {
     // PREVIOUS SECTION
     const sectionsArray = Object.values(sections);
-    const block = sections?.[currentSectionId];
+    const block = sections?.[currentSectionName];
     if (block) {
       const blockIndex = sectionsArray.indexOf(block);
       const prevSection = sectionsArray.at(blockIndex - 1);
@@ -57,7 +57,7 @@ const getRelativeSectionName = <
   if (expression === "++") {
     // NEXT SECTION
     const sectionsArray = Object.values(sections);
-    const block = sections?.[currentSectionId];
+    const block = sections?.[currentSectionName];
     if (block) {
       const blockIndex = sectionsArray.indexOf(block);
       const nextSection = sectionsArray.at(blockIndex + 1);
@@ -69,7 +69,7 @@ const getRelativeSectionName = <
   }
   if (expression === "<<--") {
     // PARENT
-    const parentId = sections?.[currentSectionId]?.parent;
+    const parentId = sections?.[currentSectionName]?.parent;
     if (parentId != null) {
       const parent = sections?.[parentId];
       if (parent) {
@@ -81,7 +81,7 @@ const getRelativeSectionName = <
   }
   if (expression === "^") {
     // THIS (repeat current section)
-    const currentSection = sections?.[currentSectionId];
+    const currentSection = sections?.[currentSectionName];
     if (currentSection != null) {
       return currentSection?.name;
     }

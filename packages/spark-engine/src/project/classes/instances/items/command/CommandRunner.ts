@@ -2,10 +2,7 @@ import { CommandData } from "../../../../../data";
 import { Game } from "../../../../../game";
 import { ItemRunner } from "../../item/ItemRunner";
 
-export interface CommandContext<G extends Game> {
-  ids: Record<string, string>;
-  valueMap: Record<string, unknown>;
-  typeMap: { [type: string]: Record<string, any> };
+export interface CommandContext<G extends Game = Game> {
   index: number;
   commands: {
     runner: CommandRunner<G>;
@@ -13,12 +10,13 @@ export interface CommandContext<G extends Game> {
   }[];
   instant?: boolean;
   debug?: boolean;
+  preview?: boolean;
 }
 
 export class CommandRunner<
   G extends Game,
   T extends CommandData = CommandData
-> extends ItemRunner<G, T> {
+> extends ItemRunner<T> {
   init(_game: G): void {
     // NoOp
   }
@@ -41,5 +39,14 @@ export class CommandRunner<
 
   onDestroy(_game: G): void {
     // NoOp
+  }
+
+  onPreview(
+    _game: G,
+    _data: T,
+    _context: Omit<CommandContext<G>, "index" | "commands">
+  ): boolean {
+    // NoOp
+    return false;
   }
 }

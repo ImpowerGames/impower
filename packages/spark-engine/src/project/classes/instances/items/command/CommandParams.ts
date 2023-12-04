@@ -1,3 +1,3 @@
 export interface CommandParams {
-  waitUntilFinished: boolean;
+  waitUntilFinished?: boolean;
 }

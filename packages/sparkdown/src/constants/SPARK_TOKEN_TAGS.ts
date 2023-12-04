@@ -24,24 +24,23 @@ const SPARK_TOKEN_TAGS: {
 
   TypeIdentifier: "type_name",
   DeclarationName: "declaration_name",
+  AccessIdentifier: "access_identifier",
+  AccessIdentifierPart: "access_identifier_part",
   VariableName: "variable_name",
   PropertyName: "property_name",
   FunctionName: "function_name",
-  IdentifierPath: "identifier_path",
-  AssignOperator: "assign_operator",
   ValueText: "value_text",
 
   FlowBreak: "flow_break",
 
   Import: "import",
 
-  Variable: "variable",
-  ScalarVariable: "scalar_variable",
-  ObjectVariable: "struct",
+  StoreScalar: "store_scalar",
+  StoreObject: "store_object",
 
-  Define: "define",
+  DefineScalar: "define_scalar",
+  DefineObject: "define_object",
 
-  ObjectDefine: "struct",
   StructField: "struct_field",
   StructMapItem: "struct_map_item",
   StructScalarItem: "struct_scalar_item",
@@ -56,7 +55,6 @@ const SPARK_TOKEN_TAGS: {
   Break: "break",
   Continue: "continue",
   Return: "return",
-  Delete: "delete",
   If: "if",
   Elseif: "elseif",
   Else: "else",
@@ -65,8 +63,13 @@ const SPARK_TOKEN_TAGS: {
   Until: "until",
   For: "for",
   Call: "call",
+
   Assign: "assign",
-  Access: "access",
+  AssignAccessIdentifier: "assign_access_identifier",
+  AssignOperator: "assign_operator",
+
+  Delete: "delete",
+  DeleteAccessIdentifier: "delete_access_identifier",
 
   Jump: "jump",
   JumpToSection: "jump_to_section",

@@ -1,12 +1,13 @@
 import SPARK_PRIMITIVE_TYPE_REGEX from "../constants/SPARK_PRIMITIVE_TYPE_REGEX";
 import { SparkColorMetadata } from "../types/SparkColorMetadata";
+import { SparkRange } from "../types/SparkRange";
 
 const getColorMetadata = (
   expression: string,
-  expressionFrom: number = -1
+  expressionRange: SparkRange | undefined
 ): SparkColorMetadata | null => {
-  if (expressionFrom >= 0) {
-    const expressionTo = expressionFrom + expression.length;
+  if (expression && expressionRange && expressionRange.from >= 0) {
+    const expressionTo = (expressionRange.from ?? 0) + expression.length;
     const trimmedStartWhitespaceLength =
       expression.length - expression.trimStart().length;
     const trimmedEndWhitespaceLength =
@@ -19,7 +20,7 @@ const getColorMetadata = (
       return null;
     }
     const stringContent = stringMatch[2] || "";
-    const from = expressionFrom + trimmedStartWhitespaceLength + 1;
+    const from = (expressionRange.from ?? 0) + trimmedStartWhitespaceLength + 1;
     const to = expressionTo - trimmedEndWhitespaceLength - 1;
     if (
       SPARK_PRIMITIVE_TYPE_REGEX.hex_color.test(stringContent) ||
@@ -27,6 +28,7 @@ const getColorMetadata = (
       SPARK_PRIMITIVE_TYPE_REGEX.rgb_color.test(stringContent)
     ) {
       return {
+        line: expressionRange.line,
         from,
         to,
         value: stringContent,

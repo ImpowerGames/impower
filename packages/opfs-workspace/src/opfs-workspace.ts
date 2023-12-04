@@ -46,11 +46,9 @@ const globToRegex = (glob: string) => {
 
 const parse = (file: FileData, files: FileData[]) => {
   if (file.text != null && file.name) {
-    const typeMap = STRUCT_DEFAULTS;
     const variables: Record<string, SparkVariable> = {};
     files.forEach((file) => {
       if (file.name) {
-        const id = "." + file.name;
         const obj = {
           uri: file.uri,
           name: file.name,
@@ -58,10 +56,13 @@ const parse = (file: FileData, files: FileData[]) => {
           ext: file.ext,
           type: file.type,
         };
-        variables[id] ??= {
+        variables[file.name] ??= {
+          tag: "asset",
           line: -1,
           from: -1,
           to: -1,
+          indent: 0,
+          stored: false,
           type: obj.type,
           name: file.name,
           value: JSON.stringify(obj),
@@ -70,7 +71,7 @@ const parse = (file: FileData, files: FileData[]) => {
       }
     });
     const program = EngineSparkParser.instance.parse(file.text, {
-      augmentations: { typeMap, variables },
+      augmentations: { builtins: STRUCT_DEFAULTS, variables },
     });
     return program;
   }
@@ -128,6 +129,7 @@ onmessage = async (e) => {
       });
       postMessage(ReadDirectoryFilesMessage.type.response(message.id, files));
     } catch (err: any) {
+      console.error(err, err.stack);
       const response = ReadDirectoryFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
@@ -142,6 +144,7 @@ onmessage = async (e) => {
       const response = ReadFileMessage.type.response(message.id, buffer);
       postMessage(response, [buffer]);
     } catch (err: any) {
+      console.error(err, err.stack);
       const response = ReadFileMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
@@ -156,6 +159,7 @@ onmessage = async (e) => {
       const response = ZipFilesMessage.type.response(message.id, buffer);
       postMessage(response, [buffer]);
     } catch (err: any) {
+      console.error(err, err.stack);
       const response = ZipFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
@@ -173,6 +177,7 @@ onmessage = async (e) => {
         files.map(({ data }) => data)
       );
     } catch (err: any) {
+      console.error(err, err.stack);
       const response = UnzipFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
@@ -212,6 +217,7 @@ onmessage = async (e) => {
         })
       );
     } catch (err: any) {
+      console.error(err, err.stack);
       const response = WillWriteFileMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
@@ -254,6 +260,7 @@ onmessage = async (e) => {
         })
       );
     } catch (err: any) {
+      console.error(err, err.stack);
       const response = WillCreateFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
@@ -281,6 +288,7 @@ onmessage = async (e) => {
         })
       );
     } catch (err: any) {
+      console.error(err, err.stack);
       const response = WillDeleteFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
