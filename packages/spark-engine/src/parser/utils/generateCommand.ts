@@ -115,6 +115,24 @@ export const generateCommand = (
     };
     return newCommand;
   }
+  if (token.tag === "delete") {
+    const refId = getCommandId(token, file, sectionId);
+    const refTypeId: CommandTypeId = "EvaluateCommand";
+    const newCommand: EvaluateCommandData = {
+      reference: {
+        parentId: sectionId,
+        type: "Command",
+        id: refId,
+        typeId: refTypeId,
+      },
+      source: getSource(token, file),
+      indent: token.indent,
+      params: {
+        expression: `delete ${token.name}`,
+      },
+    };
+    return newCommand;
+  }
   if (
     token.tag === "if" ||
     token.tag === "elseif" ||
