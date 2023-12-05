@@ -145,7 +145,8 @@ export const onEnterRules =
       dispatch(
         state.update(changes, { scrollIntoView: true, userEvent: "input" })
       );
-      return startCompletion(target);
+      startCompletion(target);
+      return true;
     }
 
     const defaultChanges = state.changeByRange((range) => {
@@ -163,7 +164,11 @@ export const onEnterRules =
       };
     });
     dispatch(
-      state.update(defaultChanges, { scrollIntoView: true, userEvent: "input" })
+      state.update(defaultChanges, {
+        scrollIntoView: true,
+        userEvent: "input",
+      })
     );
-    return startCompletion(target);
+    startCompletion(target);
+    return true;
   };

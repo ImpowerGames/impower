@@ -2,6 +2,7 @@ import {
   CompletionContext,
   CompletionItem,
   CompletionItemKind,
+  InsertTextMode,
   MarkupKind,
   Position,
 } from "vscode-languageserver";
@@ -171,20 +172,20 @@ const getCharacterCompletions = (
   const kind = CompletionItemKind.Constant;
   const result: CompletionItem[] = [];
   recentCharacters.forEach((name, index) => {
+    const sortText = index.toString().padStart(3, "0");
     result.push({
       label: name,
       insertText: name + "\n",
       labelDetails,
       kind,
-      sortText: `${index}`,
+      sortText,
     });
   });
   characters.forEach((character) => {
     if (
       character.lines?.[0] !== line &&
       character.name &&
-      !recentCharactersSet.has(character.name) &&
-      (!beforeText || character.name.startsWith(beforeText))
+      !recentCharactersSet.has(character.name)
     ) {
       result.push({
         label: character.name,
@@ -204,7 +205,7 @@ const getStructMapPropertyNameCompletions = (
   path: string,
   beforeText: string
 ): CompletionItem[] | null => {
-  const parentObj = program?.variables?.[type];
+  const parentObj = program?.variables?.[type]?.compiled;
   const result: CompletionItem[] = [];
   const existingProps = new Set<string>();
   const possibleNames = new Set<string>();
@@ -223,7 +224,7 @@ const getStructMapPropertyNameCompletions = (
       }
     });
   });
-  Object.entries(parentProperties).forEach(([p, v]) => {
+  Object.entries(parentProperties).forEach(([p, v], index) => {
     if (p.startsWith(prefix)) {
       const [name, child] = p.slice(prefix.length).split(".");
       const targetPath = p.slice(0, prefix.length) + name;
@@ -233,11 +234,18 @@ const getStructMapPropertyNameCompletions = (
           possibleNames.add(name);
           // TODO: When inserting string prop (that takes fixed values), use snippet syntax to allow user to choose between all possible string values ${1|one,two,three|}
           const insertSuffix = child ? `:\n${indentedStr}` : ": ";
+          const sortText = index.toString().padStart(3, "0");
           result.push({
             label: name,
             insertText: name + insertSuffix,
+            sortText,
             labelDetails: { description },
             kind: CompletionItemKind.Property,
+            insertTextMode: InsertTextMode.asIs,
+            command: {
+              title: "Trigger Suggestions",
+              command: "editor.action.triggerSuggest",
+            },
           });
         }
       }
@@ -258,10 +266,10 @@ const getCompletions = (
   const prevLineText = getLineText(document, position, -1);
   const lineText = getLineText(document, position);
   const nextLineText = getLineText(document, position, 1);
-  const textBefore = getLineTextBefore(document, position);
-  const textAfter = getLineTextAfter(document, position);
-  const trimmedTextBefore = textBefore.trimStart();
-  const trimmedTextAfter = textAfter.trimEnd();
+  const beforeText = getLineTextBefore(document, position);
+  const afterText = getLineTextAfter(document, position);
+  const trimmedBeforeText = beforeText.trimStart();
+  const trimmedAfterText = afterText.trimEnd();
   const lineMetadata = program?.metadata?.lines?.[position?.line];
   const scopes = lineMetadata?.scopes;
   const triggerCharacter = context?.triggerCharacter;
@@ -284,14 +292,14 @@ const getCompletions = (
       isEmptyLine(prevLineText) &&
       isEmptyLine(nextLineText)
     ) {
-      return getCharacterCompletions(position.line, program, trimmedTextBefore);
+      return getCharacterCompletions(position.line, program, trimmedBeforeText);
     }
     if (
       scopes.includes("dialogue") &&
       scopes.includes("dialogue_character_name") &&
-      !trimmedTextAfter
+      !trimmedAfterText
     ) {
-      return getCharacterCompletions(position.line, program, trimmedTextBefore);
+      return getCharacterCompletions(position.line, program, trimmedBeforeText);
     }
     if (
       scopes.includes("struct_map_property_start") &&
@@ -313,7 +321,7 @@ const getCompletions = (
           structToken.type,
           structToken.fields,
           structMapPropertyToken.path,
-          textBefore
+          beforeText
         );
       }
     }
@@ -338,7 +346,7 @@ const getCompletions = (
           structToken.type,
           structToken.fields,
           structEmptyProperty.path,
-          textBefore
+          beforeText
         );
       }
     }

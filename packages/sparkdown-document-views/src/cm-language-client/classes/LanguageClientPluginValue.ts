@@ -2,6 +2,9 @@ import {
   Completion,
   CompletionContext,
   CompletionResult,
+  insertCompletionText,
+  pickedCompletion,
+  startCompletion,
 } from "@codemirror/autocomplete";
 import { Language } from "@codemirror/language";
 import { setDiagnostics } from "@codemirror/lint";
@@ -30,7 +33,6 @@ import { getClientMarkupDom } from "../utils/getClientMarkupDom";
 import { getServerCompletionContext } from "../utils/getServerCompletionContext";
 import { offsetToPosition } from "../utils/offsetToPosition";
 import { positionToOffset } from "../utils/positionToOffset";
-import { prefixMatch } from "../utils/prefixMatch";
 import ColorSupport from "./features/ColorSupport";
 import CompletionSupport from "./features/CompletionSupport";
 import FoldingSupport from "./features/FoldingSupport";
@@ -143,80 +145,99 @@ export default class LanguageClientPluginValue implements PluginValue {
       return null;
     }
     const items = "items" in result ? result.items : result;
-    if (items.length === 0) {
+    let options = items
+      .sort((a, b) => {
+        const aSortText = a.sortText || "";
+        const bSortText = b.sortText || "";
+        if (aSortText < bSortText) {
+          return -1;
+        }
+        if (aSortText > bSortText) {
+          return 1;
+        }
+        return 0;
+      })
+      .map(
+        (
+          {
+            detail,
+            label,
+            labelDetails,
+            insertText,
+            filterText,
+            kind,
+            textEdit,
+            documentation,
+            command,
+          },
+          index
+        ) => {
+          const applyText = textEdit?.newText ?? insertText ?? label;
+          const completion: Completion & {
+            command?: {
+              title: string;
+              command: string;
+            };
+          } = {
+            label,
+            detail: labelDetails?.description,
+            apply: (
+              view: EditorView,
+              completion: Completion,
+              from: number,
+              to: number
+            ) => {
+              view.dispatch({
+                ...insertCompletionText(view.state, applyText, from, to),
+                annotations: pickedCompletion.of(completion),
+              });
+              if (command?.command === "editor.action.triggerSuggest") {
+                startCompletion(view);
+              }
+            },
+            type: getClientCompletionType(kind),
+            boost: -index,
+            command,
+          };
+
+          if (filterText != null && filterText !== label) {
+            completion.label = filterText;
+            completion.displayLabel = label;
+          }
+          if (documentation) {
+            completion.info = async () => {
+              let content = documentation;
+              if (typeof content !== "string") {
+                const { value, kind } = await getClientMarkupContent(
+                  content,
+                  this._fileSystemReader
+                );
+                content = { value, kind };
+              }
+              const dom = getClientMarkupDom({
+                detail,
+                content,
+                language: this._language,
+                highlighter: this._highlighter,
+              });
+              return { dom };
+            };
+          }
+          return completion;
+        }
+      );
+    if (options.length === 0) {
       return null;
     }
-    let options = items.map(
-      ({
-        detail,
-        label,
-        labelDetails,
-        insertText,
-        kind,
-        textEdit,
-        documentation,
-        sortText,
-        filterText,
-      }) => {
-        const completion: Completion & {
-          filterText: string;
-          sortText?: string;
-          apply: string;
-        } = {
-          label,
-          detail: labelDetails?.description,
-          apply: textEdit?.newText ?? insertText ?? label,
-          type: getClientCompletionType(kind),
-          sortText: sortText ?? label,
-          filterText: filterText ?? label,
-        };
-        [[]];
-        if (documentation) {
-          completion.info = async () => {
-            let content = documentation;
-            if (typeof content !== "string") {
-              const { value, kind } = await getClientMarkupContent(
-                content,
-                this._fileSystemReader
-              );
-              content = { value, kind };
-            }
-            const dom = getClientMarkupDom({
-              detail,
-              content,
-              language: this._language,
-              highlighter: this._highlighter,
-            });
-            return { dom };
-          };
-        }
-        return completion;
-      }
-    );
-    const [, match] = prefixMatch(options);
-    const token = clientContext.matchBefore(match);
-    let from = clientContext.pos;
-    if (token) {
-      from = token.from;
-      const word = token.text.toLowerCase();
-      if (/^\w+$/.test(word)) {
-        options = options
-          .filter(({ filterText }) => filterText.toLowerCase().startsWith(word))
-          .sort(({ apply: a }, { apply: b }) => {
-            switch (true) {
-              case a.startsWith(token.text) && !b.startsWith(token.text):
-                return -1;
-              case !a.startsWith(token.text) && b.startsWith(token.text):
-                return 1;
-            }
-            return 0;
-          });
-      }
-    }
+    const triggerCharacters =
+      this._serverCapabilities.completionProvider?.triggerCharacters;
+    const validFor = getClientCompletionValidFor(triggerCharacters);
+    const active = clientContext.matchBefore(validFor);
+    const from = active?.from ?? clientContext.pos;
     return {
       from,
+      validFor,
       options,
-      validFor: getClientCompletionValidFor(this._serverCapabilities),
     };
   };
 

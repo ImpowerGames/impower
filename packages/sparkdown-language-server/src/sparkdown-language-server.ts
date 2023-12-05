@@ -39,19 +39,7 @@ try {
       colorProvider: true,
       hoverProvider: true,
       completionProvider: {
-        triggerCharacters: [
-          ".",
-          "\n",
-          "\r",
-          "-",
-          " ",
-          "(",
-          "[",
-          "@",
-          ":",
-          ...ALPHABET,
-          ...ALPHABET.map((l) => l.toUpperCase()),
-        ],
+        triggerCharacters: [".", ",", " ", "\n", "\r", "-", "(", "[", "@", ":"],
         completionItem: {
           labelDetailsSupport: true,
         },
