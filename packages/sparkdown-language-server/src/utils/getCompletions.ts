@@ -315,7 +315,7 @@ const getCompletions = (
         .findLast((t) => t?.tag === "struct_map_property") as
         | SparkStructMapPropertyToken
         | undefined;
-      if (structToken && structMapPropertyToken) {
+      if (structToken && structMapPropertyToken && !beforeText.includes(":")) {
         return getStructMapPropertyNameCompletions(
           program,
           structToken.type,
@@ -340,7 +340,7 @@ const getCompletions = (
         .findLast((t) => t?.tag === "struct_blank_property") as
         | SparkStructEmptyProperty
         | undefined;
-      if (structToken && structEmptyProperty) {
+      if (structToken && structEmptyProperty && !beforeText.includes(":")) {
         return getStructMapPropertyNameCompletions(
           program,
           structToken.type,
