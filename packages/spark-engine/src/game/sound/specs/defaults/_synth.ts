@@ -2,7 +2,8 @@ import { Create } from "../../../core/types/Create";
 import { A } from "../../constants/A";
 import { Synth } from "../Synth";
 
-export const _synth: Create<Synth> = () => ({
+export const _synth: Create<Synth> = (obj) => ({
+  ...(obj || {}),
   shape: "triangle",
   envelope: {
     volume: 0.5,
@@ -13,6 +14,7 @@ export const _synth: Create<Synth> = () => ({
     sustain: 0.05,
     release: 0.025,
     level: 0.5,
+    ...(obj?.envelope || {}),
   },
   pitch: {
     frequency: A[4],
@@ -20,15 +22,18 @@ export const _synth: Create<Synth> = () => ({
     frequency_torque: 0,
     frequency_jerk: 0,
     phase: 0,
+    ...(obj?.pitch || {}),
   },
   lowpass: {
     cutoff: 0,
     cutoff_ramp: 0,
     resonance: 0,
+    ...(obj?.lowpass || {}),
   },
   highpass: {
     cutoff: 0,
     cutoff_ramp: 0,
+    ...(obj?.highpass || {}),
   },
   distortion: {
     on: false,
@@ -36,6 +41,7 @@ export const _synth: Create<Synth> = () => ({
     edge_ramp: 0,
     grit: 0,
     grit_ramp: 0,
+    ...(obj?.distortion || {}),
   },
   arpeggio: {
     on: false,
@@ -47,6 +53,7 @@ export const _synth: Create<Synth> = () => ({
     tones: [],
     levels: [],
     shapes: [],
+    ...(obj?.arpeggio || {}),
   },
   vibrato: {
     on: false,
@@ -55,6 +62,7 @@ export const _synth: Create<Synth> = () => ({
     strength_ramp: 0,
     rate: 6,
     rate_ramp: 0,
+    ...(obj?.vibrato || {}),
   },
   tremolo: {
     on: false,
@@ -63,6 +71,7 @@ export const _synth: Create<Synth> = () => ({
     strength_ramp: 0,
     rate: 12,
     rate_ramp: 0,
+    ...(obj?.tremolo || {}),
   },
   wahwah: {
     on: false,
@@ -71,10 +80,12 @@ export const _synth: Create<Synth> = () => ({
     strength_ramp: 0,
     rate: 6,
     rate_ramp: 0,
+    ...(obj?.wahwah || {}),
   },
   reverb: {
     on: false,
     level: 0.5,
     delay: 0.15,
+    ...(obj?.reverb || {}),
   },
 });

@@ -8,24 +8,13 @@ export const UI_DEFAULTS = {
   display: {
     backdrop: {},
     portrait: {},
-    choice_group: {
-      choices: {
+    choice_menu: {
+      choice_list: {
         choice: {},
       },
     },
     box: {
       content: {
-        indicator: "▼",
-        description_group: {
-          description_box: {
-            description_content: {
-              action: {},
-              centered: {},
-              transition: {},
-              scene: {},
-            },
-          },
-        },
         dialogue_group: {
           character_name: {},
           character_parenthetical: {},
@@ -34,6 +23,14 @@ export const UI_DEFAULTS = {
             dialogue: {},
           },
         },
+        description_group: {
+          description_content: {
+            action: {},
+            transition: {},
+            scene: {},
+          },
+        },
+        indicator: "▼",
       },
     },
   },

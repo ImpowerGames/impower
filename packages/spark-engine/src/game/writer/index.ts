@@ -1,3 +1,5 @@
+export * from "./classes/Matcher";
+export * from "./classes/WriterManager";
 export * from "./specs/Character";
 export * from "./specs/Inflection";
 export * from "./specs/Prosody";

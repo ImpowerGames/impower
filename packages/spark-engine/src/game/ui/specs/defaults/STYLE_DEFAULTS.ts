@@ -48,7 +48,7 @@ export const STYLE_DEFAULTS = {
     background_size: "auto 100%",
     background_position: "center",
   },
-  choice_group: {
+  choice_menu: {
     position: "relative",
     flex: 1,
     display: "flex",
@@ -60,7 +60,7 @@ export const STYLE_DEFAULTS = {
       font_size: "1.125rem",
     },
   },
-  choices: {
+  choice_list: {
     display: "flex",
     flex_direction: "column",
     align_items: "center",
@@ -105,20 +105,19 @@ export const STYLE_DEFAULTS = {
     position: "absolute",
     right: 16,
     bottom: 16,
+    transition: `opacity 0.25s linear`,
     animation: "0.25s infinite bounce",
     animation_play_state: "paused",
   },
   description_group: {
+    position: "absolute",
+    inset: 0,
     width: "100%",
     height: "100%",
-  },
-  description_box: {
     display: "flex",
     flex_direction: "column",
     align_items: "center",
     justify_content: "center",
-    height: "100%",
-    width: "100%",
   },
   description_content: {
     display: "flex",
@@ -126,10 +125,6 @@ export const STYLE_DEFAULTS = {
     align_items: "center",
     width: "100%",
     max_width: 640,
-  },
-  centered: {
-    color: "black",
-    text_align: "center",
   },
   transition: {
     color: "black",
@@ -146,8 +141,8 @@ export const STYLE_DEFAULTS = {
   },
   dialogue_content: {
     flex: 1,
-    padding_top: 16,
-    padding_bottom: 16,
+    padding_top: 8,
+    padding_bottom: 8,
     width: "80%",
     margin: "0 auto",
     md: { width: "68%" },
@@ -160,6 +155,7 @@ export const STYLE_DEFAULTS = {
     md: { font_size: "1.75rem" },
   },
   parenthetical: {
+    display: "block",
     color: "black",
     text_align: "center",
   },

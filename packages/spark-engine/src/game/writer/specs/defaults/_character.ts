@@ -1,13 +1,18 @@
 import { Create } from "../../../core/types/Create";
+import { _synth } from "../../../sound/specs/defaults/_synth";
 import { Character } from "../Character";
 import { _inflection } from "./_inflection";
 import { _prosody } from "./_prosody";
 
-export const _character: Create<Character> = () => ({
+export const _character: Create<Character> = (obj) => ({
+  ...(obj || {}),
   name: "",
   image: "",
   color: "",
-  synth: {
+  inflection: _inflection(obj?.inflection),
+  prosody: _prosody(obj?.prosody),
+  synth: _synth({
+    ...(obj?.synth || {}),
     shape: "triangle",
     envelope: {
       attack: 0.007,
@@ -18,7 +23,5 @@ export const _character: Create<Character> = () => ({
     pitch: {
       frequency: 440,
     },
-  },
-  inflection: _inflection(),
-  prosody: _prosody(),
+  }),
 });

@@ -1,35 +1,34 @@
 import { Create } from "../../../core/types/Create";
 import { Prosody } from "../Prosody";
 
-export const _prosody: Create<Prosody> = () => ({
+export const _prosody: Create<Prosody> = (obj) => ({
   /** Yes(~?) */
-  lilt_question: /(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/.source,
+  lilt_question: /(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/.toString(),
   /** Yes(~!) */
-  lilt_exclamation: /(?:^|\b)[~]+([!]+)[ "']*$/.source,
+  lilt_exclamation: /(?:^|\b)[~]+([!]+)[ "']*$/.toString(),
   /** Yes(~) */
-  lilt: /(?:^|\b)([~]+)[ ]*$/.source,
+  lilt: /(?:^|\b)([~]+)[ ]*$/.toString(),
   /** Yes(~...) */
-  anxious_lilt: /(?:^|\b)([~]+)[.][.][.]+[ "']*$/.source,
+  anxious_lilt: /(?:^|\b)([~]+)[.][.][.]+[ "']*$/.toString(),
   /** Yes(!) */
-  exclamation: /(?:^|\b)([!?]*[!][!?]*)[ "']*$/.source,
+  exclamation: /(?:^|\b)([!?]*[!][!?]*)[ "']*$/.toString(),
   /** Who's that(...?) */
   resolved_anxious_question:
-    /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ "']*$/
-      .source,
+    /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+[.][.][.]+([!?]*[?][!?]*)[ "']*$/.toString(),
   /** Who's that(?) */
   resolved_question:
-    /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ "']*$/
-      .source,
+    /(?:^|\b)(?:who|whose|what|when|where|why|which|how)\b.*\b[^\t\n\r !?]+([!?]*[?][!?]*)[ "']*$/.toString(),
   /** Yes(...?) */
-  anxious_question: /(?:^|\b)[.][.][.]+([?]+)[ "']*$/.source,
+  anxious_question: /(?:^|\b)[.][.][.]+([?]+)[ "']*$/.toString(),
   /** Yes(?) */
-  question: /(?:^|\b)([!?]*[?][!?]*)[ "']*$/.source,
+  question: /(?:^|\b)([!?]*[?][!?]*)[ "']*$/.toString(),
   /** Yes(,) */
-  comma: /(?:^|\b)([,])[ "']*$/.source,
+  comma: /(?:^|\b)([,])[ "']*$/.toString(),
   /** Yes(--) */
-  partial: /(?:^|\b)[-]([-]+)[ "']*$/.source,
+  partial: /(?:^|\b)[-]([-]+)[ "']*$/.toString(),
   /** Yes(...) */
-  anxious: /(?:^|\b)[.][.]([.]+)[ "']*$/.source,
+  anxious: /(?:^|\b)[.][.]([.]+)[ "']*$/.toString(),
   /** Yes(.) */
-  statement: /(?:^|\b)([.])[ "']*$/.source,
+  statement: /(?:^|\b)([.])[ "']*$/.toString(),
+  ...(obj || {}),
 });

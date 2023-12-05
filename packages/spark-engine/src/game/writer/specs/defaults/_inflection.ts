@@ -1,7 +1,7 @@
 import { Create } from "../../../core/types/Create";
 import { Inflection } from "../Inflection";
 
-export const _inflection: Create<Inflection> = () => ({
+export const _inflection: Create<Inflection> = (obj) => ({
   /**
    *  5         ┌──
    *  4       ┌─┘
@@ -144,4 +144,5 @@ export const _inflection: Create<Inflection> = () => ({
    *  Yes(.)
    */
   statement: [0, 0],
+  ...(obj || {}),
 });

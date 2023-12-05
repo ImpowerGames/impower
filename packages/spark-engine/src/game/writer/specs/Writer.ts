@@ -1,9 +1,8 @@
 import { SynthConfig } from "../../sound";
 
 export interface Writer {
-  target: string;
-  hidden: string;
-  letter_delay: number;
+  skipped: string;
+  letter_pause: number;
   animation_offset: number;
   phrase_pause_scale: number;
   em_dash_pause_scale: number;
@@ -11,7 +10,7 @@ export interface Writer {
   punctuated_pause_scale: number;
   floating_animation: string;
   trembling_animation: string;
-  fade_duration: number;
+  letter_fade_duration: number;
   synth: SynthConfig;
   min_syllable_length: number;
   /** Words that are spoken aloud */

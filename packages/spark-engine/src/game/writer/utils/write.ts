@@ -1,4 +1,5 @@
 import { IElement } from "../../ui";
+import Matcher from "../classes/Matcher";
 import { Character } from "../specs/Character";
 import { Writer } from "../specs/Writer";
 import { Chunk } from "../types/Chunk";
@@ -70,7 +71,7 @@ export const write = (
       (beepEnvelope.sustain ?? 0) +
       (beepEnvelope.release ?? 0)
     : 0;
-  const letterDelay = writer?.letter_delay ?? 0;
+  const letterDelay = writer?.letter_pause ?? 0;
   const animationOffset = writer?.animation_offset ?? 0;
   const floatingAnimation = writer?.floating_animation;
   const tremblingAnimation = writer?.trembling_animation;
@@ -82,14 +83,17 @@ export const write = (
     writer?.min_syllable_length || 0,
     Math.round(beepDuration / letterDelay)
   );
-  const voicedRegex = writer?.voiced
-    ? new RegExp(writer?.voiced, "u")
+  const voicedMatcher = writer?.voiced
+    ? new Matcher(writer?.voiced)
     : undefined;
-  const yelledRegex = writer?.yelled
-    ? new RegExp(writer?.yelled, "u")
+  const yelledMatcher = writer?.yelled
+    ? new Matcher(writer?.yelled)
     : undefined;
-  const punctuatedRegex = writer?.punctuated
-    ? new RegExp(writer?.punctuated, "u")
+  const punctuatedMatcher = writer?.punctuated
+    ? new Matcher(writer?.punctuated)
+    : undefined;
+  const skippedMatcher = writer?.skipped
+    ? new Matcher(writer?.skipped)
     : undefined;
 
   const result: Phrase[] = [];
@@ -182,6 +186,9 @@ export const write = (
     }
     const text = p.text;
     if (text) {
+      if (skippedMatcher && skippedMatcher.test(text)) {
+        return;
+      }
       const target = p.target || "";
       if (target !== prevTarget || target === "choice") {
         prevTarget = target;
@@ -261,7 +268,7 @@ export const write = (
           whiteSpace: char === "\n" ? "pre-wrap" : null,
           textAlign: "center",
         };
-        const voiced = Boolean(voicedRegex?.test(char));
+        const voiced = Boolean(voicedMatcher?.test(char));
         if (isWhitespace(char)) {
           word = "";
           spaceLength += 1;
@@ -281,8 +288,8 @@ export const write = (
           dashLength = 0;
         }
         const isYelled =
-          Boolean(yelledRegex?.test(word)) &&
-          (Boolean(yelledRegex?.test(nextChar)) || word.length > 1);
+          Boolean(yelledMatcher?.test(word)) &&
+          (Boolean(yelledMatcher?.test(nextChar)) || word.length > 1);
         const tilde = char === "~";
         const isEmDashBoundary = dashLength > 1;
         const emDash =
@@ -509,7 +516,7 @@ export const write = (
       }
       // Voice any phrases that are entirely composed of ellipsis.
       if (phrase.text) {
-        if (punctuatedRegex?.test(phrase.text)) {
+        if (punctuatedMatcher?.test(phrase.text)) {
           for (let c = 0; c < phrase.chunks.length; c += 1) {
             const chunk = phrase.chunks[c]!;
             if (!isWhitespace(chunk.char)) {
@@ -526,7 +533,7 @@ export const write = (
     stressPhrases(result, character);
   }
 
-  const letterFadeDuration = writer?.fade_duration ?? 0;
+  const letterFadeDuration = writer?.letter_fade_duration ?? 0;
   let time = 0;
   let floatingIndex = 0;
   let tremblingIndex = 0;
