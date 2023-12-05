@@ -140,14 +140,6 @@ export const executeDisplayCommand = (
   const instant = context?.instant;
   const debug = context?.debug;
 
-  const descriptionGroupEl = game.ui.findFirstUIElement(
-    structName,
-    "description_group"
-  );
-  const dialogueGroupEl = game.ui.findFirstUIElement(
-    structName,
-    "dialogue_group"
-  );
   const indicatorEl = game.ui.findFirstUIElement(structName, "indicator");
   const boxEl = game.ui.findFirstUIElement(structName, "box");
 
