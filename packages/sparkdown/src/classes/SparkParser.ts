@@ -946,7 +946,7 @@ export default class SparkParser {
       enter: (node) => {
         const id = nodeNames[node.type]!;
         const from = node.from;
-        const to = node.to;
+        const to = node.to > script.length ? script.length : node.to;
         const tag = SPARK_TOKEN_TAGS[id];
         if (tag) {
           const text = script.slice(from, to);
@@ -1307,7 +1307,7 @@ export default class SparkParser {
       enter: (node) => {
         const id = nodeNames[node.type]!;
         const from = node.from;
-        const to = node.to;
+        const to = node.to > script.length ? script.length : node.to;
         const tag = SPARK_TOKEN_TAGS[id];
         if (tag) {
           const text = script.slice(from, to);
@@ -2356,12 +2356,6 @@ export default class SparkParser {
   parse(script: string, config?: SparkParserConfig): SparkProgram {
     // Pad script with newline to ensure any open scopes are closed by the end of the script.
     let paddedScript = script + "\n";
-    let parseConfig = config
-      ? {
-          ...this.config,
-          ...config,
-        }
-      : this.config;
     const result = this.compiler.compile(paddedScript);
     if (!result) {
       throw new Error("Could not compile sparkdown script");
@@ -2375,6 +2369,12 @@ export default class SparkParser {
       reused,
     });
     // console.log(printTree(tree, paddedScript, this.grammar.nodeNames));
-    return this.build(paddedScript, tree, parseConfig);
+    let parseConfig = config
+      ? {
+          ...this.config,
+          ...config,
+        }
+      : this.config;
+    return this.build(script, tree, parseConfig);
   }
 }
