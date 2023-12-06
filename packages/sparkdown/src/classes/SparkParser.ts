@@ -2080,7 +2080,6 @@ export default class SparkParser {
                 tok.type = tok.type ?? typeof tok.compiled;
               }
 
-              // Check if struct is being used to declare an object variable or define an object type
               if (validateName(tok, tok.name, tok.ranges?.name)) {
                 if (tok.tag === "store") {
                   tok.stored = true;
@@ -2349,7 +2348,7 @@ export default class SparkParser {
     program.metadata.parseTime = parseEndTime;
     program.metadata.parseDuration = parseEndTime - parseStartTime;
 
-    console.log(program);
+    // console.log(program);
 
     return program;
   }
