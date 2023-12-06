@@ -241,13 +241,37 @@ export default class SparkParser {
       program.variables[tok.name] ??= tok;
     };
 
-    const _construct = (variable: SparkVariable, combinedFieldValues: any) => {
+    const constructProperty = (obj: any, propertyPath: string, value: unknown, field: SparkField, prevField: SparkField | undefined) => {
+
+      const { successfullySet, error } = setProperty(
+        obj,
+        propertyPath,
+        value
+      );
+      if (error) {
+        const from = prevField?.to ?? 0;
+        const fullProp = script.slice(from, field.to);
+        const indentCols = fullProp.length - fullProp.trimStart().length;
+        const parentObj = getProperty(obj, successfullySet);
+        const parentType = Array.isArray(parentObj) ? "array" : "object";
+        diagnostic(
+          program,
+          field as SparkToken,
+          `Invalid property inside of ${parentType}`,
+          undefined,
+          from + indentCols,
+          field.to
+        );
+      }
+    }
+
+    const _construct = (variable: SparkVariable, objValue: any, objCompiled: any) => {
       if (variable.type && !PRIMITIVE_TYPES.includes(variable.type)) {
         const parentId = variable.type;
         if (parentId) {
           const parent = program.variables?.[parentId];
           if (parent && typeof parent.compiled === "object") {
-            _construct(parent, combinedFieldValues);
+            _construct(parent, objValue, objCompiled);
           }
         }
       }
@@ -258,34 +282,17 @@ export default class SparkParser {
           const propAccess = field.key ? "." + field.key : "";
           const propertyPath = field.path + propAccess;
           const isArrayItem =
-            Array.isArray(getProperty(combinedFieldValues, field.path)) ||
+            Array.isArray(getProperty(objCompiled, field.path)) ||
             !Number.isNaN(Number(field.key));
           if (isArrayItem && !arrays[field.path]) {
             // This is the first index of the new array
             // Clear any inherited array so that the child can override the entire array (not just the item at this index)
             arrays[field.path] = true;
-            setProperty(combinedFieldValues, field.path, []);
+            setProperty(objValue, field.path, []);
+            setProperty(objCompiled, field.path, []);
           }
-          const { successfullySet, error } = setProperty(
-            combinedFieldValues,
-            propertyPath,
-            field.value
-          );
-          if (error) {
-            const from = prevField?.to ?? 0;
-            const fullProp = script.slice(from, field.to);
-            const indentCols = fullProp.length - fullProp.trimStart().length;
-            const parentObj = getProperty(combinedFieldValues, successfullySet);
-            const parentType = Array.isArray(parentObj) ? "array" : "object";
-            diagnostic(
-              program,
-              field as SparkToken,
-              `Invalid property inside of ${parentType}`,
-              undefined,
-              from + indentCols,
-              field.to
-            );
-          }
+          constructProperty(objValue, propertyPath, field.value, field, prevField);
+          constructProperty(objCompiled, propertyPath, field.compiled, field, prevField);
           prevField = field;
         });
       }
@@ -295,9 +302,10 @@ export default class SparkParser {
       const firstField = variable.fields?.[0];
       const isArray =
         !firstField?.path && !Number.isNaN(Number(firstField?.key));
-      const obj = isArray ? [] : {};
-      _construct(variable, obj);
-      return obj;
+        const objValue = isArray ? [] : {};
+      const objCompiled = isArray ? [] : {};
+      _construct(variable,objValue, objCompiled);
+      return [objValue, objCompiled, ];
     };
 
     const diagnostic = (
@@ -1339,22 +1347,12 @@ export default class SparkParser {
             }
           } else if (tok.tag === "import") {
             addToken(tok);
-          } else if (tok.tag === "define_scalar") {
+          } else if (tok.tag === "define") {
             addToken(tok);
-          } else if (tok.tag === "store_scalar") {
-            addToken(tok);
-          } else if (tok.tag === "define_object") {
-            addToken(tok);
-          } else if (tok.tag === "store_object") {
+          } else if (tok.tag === "store") {
             addToken(tok);
           } else if (tok.tag === "type_name") {
-            const parent = lookup(
-              "define_scalar",
-              "store_scalar",
-              "define_object",
-              "store_object",
-              "import"
-            );
+            const parent = lookup("define", "store", "import");
             if (parent) {
               parent.type = text;
               parent.ranges ??= {};
@@ -1365,13 +1363,7 @@ export default class SparkParser {
               };
             }
           } else if (tok.tag === "declaration_name") {
-            const parent = lookup(
-              "define_scalar",
-              "store_scalar",
-              "define_object",
-              "store_object",
-              "import"
-            );
+            const parent = lookup("define", "store", "import");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
@@ -1385,10 +1377,8 @@ export default class SparkParser {
             const parent = lookup(
               "struct_scalar_item",
               "struct_scalar_property",
-              "define_scalar",
-              "store_scalar",
-              "define_object",
-              "store_object",
+              "define",
+              "store",
               "assign",
               "import"
             );
@@ -1403,13 +1393,8 @@ export default class SparkParser {
               };
               parent.ranges.value.to = tok.to;
             }
-          } else if (tok.tag === "struct_colon") {
-            const parent = lookup("define_object", "store_object");
-            if (parent) {
-              parent.colon = true;
-            }
           } else if (tok.tag === "struct_field") {
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             if (parent) {
               parent.ranges ??= {};
               parent.ranges.value ??= {
@@ -1421,7 +1406,7 @@ export default class SparkParser {
             }
           } else if (tok.tag === "struct_map_property") {
             tok.path = path("struct_map_item", "struct_map_property");
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
@@ -1438,7 +1423,7 @@ export default class SparkParser {
             }
             addToken(tok);
           } else if (tok.tag === "struct_map_item") {
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             const mapProperty = lookup("struct_map_property");
             if (mapProperty) {
               mapProperty.entriesLength ??= 0;
@@ -1452,7 +1437,7 @@ export default class SparkParser {
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
           } else if (tok.tag === "struct_scalar_item") {
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             if (parent) {
               parent.fields ??= [];
               parent.fields.push(tok);
@@ -1470,7 +1455,7 @@ export default class SparkParser {
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
           } else if (tok.tag === "struct_scalar_property") {
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             if (parent) {
               parent.fields ??= [];
               parent.fields.push(tok);
@@ -1489,7 +1474,7 @@ export default class SparkParser {
             addToken(tok);
           } else if (tok.tag === "struct_blank_property") {
             tok.path = path("struct_map_item", "struct_map_property");
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
@@ -1523,7 +1508,7 @@ export default class SparkParser {
               };
             }
           } else if (tok.tag === "assign_operator") {
-            const parent = lookup("assign");
+            const parent = lookup("define", "store", "assign");
             if (parent) {
               parent.operator = text;
               parent.ranges ??= {};
@@ -1822,7 +1807,7 @@ export default class SparkParser {
               parent.indent = calculateIndent(text);
             }
           } else if (tok.tag === "unknown") {
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             diagnostic(
               program,
               tok,
@@ -1920,24 +1905,21 @@ export default class SparkParser {
               );
               struct_empty_property.value = "{}";
               addToken(struct_empty_property);
-              const parent = lookup("define_object", "store_object");
+              const parent = lookup("define", "store");
               if (parent) {
                 parent.fields ??= [];
                 parent.fields.push(struct_empty_property);
               }
             }
           } else if (tok.tag === "struct_field") {
-            const parent = lookup("define_object", "store_object");
+            const parent = lookup("define", "store");
             if (parent) {
               program.metadata ??= {};
               program.metadata.lines ??= [];
               program.metadata.lines[tok.line] ??= {};
               program.metadata.lines[tok.line]!.struct = parent.name;
             }
-          } else if (
-            tok.tag === "define_object" ||
-            tok.tag === "store_object"
-          ) {
+          } else if (tok.tag === "define" || tok.tag === "store") {
             prevDisplayPositionalTokens.length = 0;
             const scopedParent = lookup(
               "if",
@@ -1963,7 +1945,10 @@ export default class SparkParser {
               tok.type = tok.type ?? "object";
 
               if (PRIMITIVE_SCALAR_TYPES.includes(tok.type)) {
-                if (tok.colon || (tok.fields && tok.fields.length > 0)) {
+                if (
+                  tok.operator === ":" ||
+                  (tok.fields && tok.fields.length > 0)
+                ) {
                   diagnostic(
                     program,
                     tok,
@@ -2048,17 +2033,16 @@ export default class SparkParser {
                     }
                   });
                 }
-                const obj = construct(tok);
-                const objectLiteral = JSON.stringify(obj)
+                const [objValue, objCompiled] = construct(tok);
+                const objectLiteral = JSON.stringify(objValue)
                   .replace(UNESCAPED_DOUBLE_QUOTE, "")
                   .replace(ESCAPED_DOUBLE_QUOTE, `"`)
                   .replace(DOUBLE_ESCAPE, `\\`);
                 tok.value = objectLiteral;
-                const [compiledValue] = compiler(objectLiteral, context);
-                tok.compiled = compiledValue;
+                tok.compiled = objCompiled;
                 validateTypeMatch(
                   tok,
-                  typeof compiledValue,
+                  typeof objCompiled,
                   tok.type,
                   tok?.ranges?.type
                 );
@@ -2066,58 +2050,7 @@ export default class SparkParser {
 
               // Check if struct is being used to declare an object variable or define an object type
               if (validateName(tok, tok.name, tok.ranges?.name)) {
-                if (tok.tag === "store_object") {
-                  tok.stored = true;
-                }
-                declareVariable(tok);
-              }
-            }
-          } else if (
-            tok.tag === "define_scalar" ||
-            tok.tag === "store_scalar"
-          ) {
-            // Process scalar (non-object) variable
-            prevDisplayPositionalTokens.length = 0;
-            const scopedParent = lookup(
-              "if",
-              "elseif",
-              "else",
-              "while",
-              "for",
-              "until"
-            );
-            if (scopedParent) {
-              diagnostic(
-                program,
-                tok,
-                `Cannot declare variable inside ${scopedParent.tag} scope`,
-                undefined,
-                tok.from,
-                tok.to
-              );
-            } else {
-              const context = getScopedContext(program.variables);
-
-              const compiledValue = compileAndValidate(
-                tok,
-                tok.value,
-                tok?.ranges?.value,
-                context
-              );
-              tok.compiled = compiledValue;
-              tok.type = tok.type ?? typeof compiledValue;
-
-              validateTypeExists(tok, tok.type, tok.ranges?.type);
-
-              validateTypeMatch(
-                tok,
-                typeof compiledValue,
-                tok.type,
-                tok?.ranges?.type
-              );
-
-              if (validateName(tok, tok.name, tok.ranges?.name)) {
-                if (tok.tag === "store_scalar") {
+                if (tok.tag === "store") {
                   tok.stored = true;
                 }
                 declareVariable(tok);

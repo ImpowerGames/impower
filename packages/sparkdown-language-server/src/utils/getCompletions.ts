@@ -15,8 +15,6 @@ import {
   ISparkDeclarationToken,
   ISparkStructFieldToken,
   SparkAssignToken,
-  SparkDefineObjectToken,
-  SparkStoreObjectToken,
   SparkStructBlankProperty,
   SparkStructMapPropertyToken,
 } from "@impower/sparkdown/src/types/SparkToken";
@@ -397,9 +395,9 @@ const getCompletions = (
       ) {
         const token = lineMetadata.tokens
           ?.map((i) => program?.tokens?.[i])
-          .findLast(
-            (t) => t?.tag === "define_object" || t?.tag === "store_object"
-          ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
+          .findLast((t) => t?.tag === "define" || t?.tag === "store") as
+          | ISparkDeclarationToken<string>
+          | undefined;
         const structMapPropertyToken = lineMetadata.tokens
           ?.map((i) => program?.tokens?.[i])
           .findLast((t) => t?.tag === "struct_map_property") as
@@ -421,9 +419,9 @@ const getCompletions = (
       ) {
         const token = lineMetadata.tokens
           ?.map((i) => program?.tokens?.[i])
-          .findLast(
-            (t) => t?.tag === "define_object" || t?.tag === "store_object"
-          ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
+          .findLast((t) => t?.tag === "define" || t?.tag === "store") as
+          | ISparkDeclarationToken<string>
+          | undefined;
         const structBlankProperty = lineMetadata.tokens
           ?.map((i) => program?.tokens?.[i])
           .findLast((t) => t?.tag === "struct_blank_property") as
@@ -467,10 +465,8 @@ const getCompletions = (
     }
     if (
       (scopes.includes("assign") ||
-        scopes.includes("define_scalar") ||
-        scopes.includes("define_object") ||
-        scopes.includes("store_scalar") ||
-        scopes.includes("store_object")) &&
+        scopes.includes("define") ||
+        scopes.includes("store")) &&
       scopes.includes("value_text") &&
       scopes.at(-1) === "variable_name"
     ) {
@@ -478,11 +474,7 @@ const getCompletions = (
         ?.map((i) => program?.tokens?.[i])
         .findLast(
           (t) =>
-            t?.tag === "assign" ||
-            t?.tag === "define_scalar" ||
-            t?.tag === "define_object" ||
-            t?.tag === "store_scalar" ||
-            t?.tag === "store_object"
+            t?.tag === "assign" || t?.tag === "define" || t?.tag === "store"
         ) as ISparkDeclarationToken<string> | undefined;
       if (declarationToken) {
         return getVariableCompletions(

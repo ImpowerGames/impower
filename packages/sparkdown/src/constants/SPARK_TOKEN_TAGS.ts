@@ -37,14 +37,9 @@ const SPARK_TOKEN_TAGS: {
   Import: "import",
 
   Store: "store",
-  StoreScalar: "store_scalar",
-  StoreObject: "store_object",
 
   Define: "define",
-  DefineScalar: "define_scalar",
-  DefineObject: "define_object",
 
-  StructColon: "struct_colon",
   StructField: "struct_field",
   StructMapItem: "struct_map_item",
   StructScalarItem: "struct_scalar_item",

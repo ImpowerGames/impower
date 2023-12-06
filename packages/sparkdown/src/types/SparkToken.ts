@@ -55,30 +55,23 @@ export interface ISparkDeclarationToken<T extends string>
   stored: boolean;
   type: string;
   name: string;
+  operator?: string;
   value: string;
   compiled: unknown;
   fields?: ISparkStructFieldToken[];
   entriesLength?: number;
-  colon?: boolean;
 
   ranges?: {
     type?: SparkRange;
     name?: SparkRange;
+    operator?: SparkRange;
     value?: SparkRange;
   };
 }
 
-export interface SparkDefineScalarToken
-  extends ISparkDeclarationToken<"define_scalar"> {}
+export interface SparkDefineToken extends ISparkDeclarationToken<"define"> {}
 
-export interface SparkStoreScalarToken
-  extends ISparkDeclarationToken<"store_scalar"> {}
-
-export interface SparkDefineObjectToken
-  extends ISparkDeclarationToken<"define_object"> {}
-
-export interface SparkStoreObjectToken
-  extends ISparkDeclarationToken<"store_object"> {}
+export interface SparkStoreToken extends ISparkDeclarationToken<"store"> {}
 
 export interface ISparkStructFieldToken<T extends string = string>
   extends ISparkToken<T> {
@@ -335,8 +328,6 @@ export interface SparkOtherToken
     | "variable_name"
     | "property_name"
     | "function_name"
-    | "define"
-    | "store"
     | "struct_colon"
     | "struct_field"
     | "struct_map_property_start"
@@ -382,10 +373,8 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   section: SparkSectionToken;
   checkpoint: SparkCheckpointToken;
   import: SparkImportToken;
-  define_scalar: SparkDefineScalarToken;
-  store_scalar: SparkStoreScalarToken;
-  define_object: SparkDefineObjectToken;
-  store_object: SparkStoreObjectToken;
+  define: SparkDefineToken;
+  store: SparkStoreToken;
   struct_map_item: SparkStructMapItemToken;
   struct_scalar_item: SparkStructScalarItemToken;
   struct_map_property: SparkStructMapPropertyToken;

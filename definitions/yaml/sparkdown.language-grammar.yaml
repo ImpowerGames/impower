@@ -479,7 +479,7 @@ repository:
           - { include: "#Whitespace" }
       10:
         patterns:
-          - { include: "#StructColon" }
+          - { include: "#AssignOperator" }
       11:
         patterns:
           - { include: "#Whitespace" }
@@ -647,7 +647,7 @@ repository:
           - { include: "#Whitespace" }
       10:
         patterns:
-          - { include: "#StructColon" }
+          - { include: "#AssignOperator" }
       11:
         patterns:
           - { include: "#Whitespace" }
@@ -681,11 +681,6 @@ repository:
       - { include: "#Newline" }
       - { include: "#Unknown" }
     end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
-
-  StructColon:
-    tag: punctuation
-    name: punctuation.separator.colon.sd
-    match: ([:])
 
   StructField:
     emit: true
@@ -1203,6 +1198,7 @@ repository:
       - { include: "#AssignEqualOperator" }
       - { include: "#AssignMultiplyOperator" }
       - { include: "#AssignDivideOperator" }
+      - { include: "#AssignColonOperator" }
       - { include: "#IllegalExpression" }
 
   ValueText:
@@ -2183,6 +2179,11 @@ repository:
       2:
         tag: arithmeticOperator
         name: keyword.operator.arithmetic.sd
+
+  AssignColonOperator:
+    tag: punctuation
+    name: punctuation.separator.colon.sd
+    match: ([:])
 
   Literal:
     emit: true
