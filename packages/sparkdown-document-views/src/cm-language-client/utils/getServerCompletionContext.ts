@@ -13,11 +13,9 @@ export const getServerCompletionContext = (
   const line = context.state.doc.lineAt(context.pos);
   let triggerKind: CompletionTriggerKind = CompletionTriggerKind.Invoked;
   let triggerCharacter = line.text[context.pos - line.from - 1];
-
   const historyState = context.state.field<{ prevUserEvent: string }>(
     historyField
   );
-  console.log(historyState.prevUserEvent);
   if (
     context.explicit &&
     serverCapabilities?.completionProvider?.triggerCharacters?.includes(
