@@ -1848,7 +1848,11 @@ export default class SparkParser {
           // push token onto current stack
           stack.push(tok);
 
-          if (tok.tag !== "newline" && tok.tag !== "punctuation_paren_close") {
+          if (
+            tok.tag !== "newline" &&
+            tok.tag !== "punctuation_paren_close" &&
+            tok.tag !== "struct_field"
+          ) {
             program.metadata.lines ??= [];
             program.metadata.lines[line] ??= {};
             program.metadata.lines[line]!.scopes = stack.map((s) => s.tag);

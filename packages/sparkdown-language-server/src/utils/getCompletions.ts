@@ -413,10 +413,7 @@ const getCompletions = (
           );
         }
       }
-      if (
-        scopes.includes("struct_blank_property") ||
-        scopes.at(-1) === "struct_field"
-      ) {
+      if (scopes.includes("struct_blank_property") && !triggerCharacter) {
         const token = lineMetadata.tokens
           ?.map((i) => program?.tokens?.[i])
           .findLast((t) => t?.tag === "define" || t?.tag === "store") as

@@ -1,4 +1,5 @@
 import { CompletionContext as ClientCompletionContext } from "@codemirror/autocomplete";
+import { historyField } from "@codemirror/commands";
 import { CompletionTriggerKind } from "../../../../spark-editor-protocol/src/enums/CompletionTriggerKind";
 import {
   ServerCapabilities,
@@ -11,31 +12,33 @@ export const getServerCompletionContext = (
 ): ServerCompletionContext | null => {
   const line = context.state.doc.lineAt(context.pos);
   let triggerKind: CompletionTriggerKind = CompletionTriggerKind.Invoked;
-  let triggerCharacter = line.text[context.pos - line.from - 1]!;
+  let triggerCharacter = line.text[context.pos - line.from - 1];
+
+  const historyState = context.state.field<{ prevUserEvent: string }>(
+    historyField
+  );
+  console.log(historyState.prevUserEvent);
   if (
     context.explicit &&
     serverCapabilities?.completionProvider?.triggerCharacters?.includes(
       context.state.lineBreak
     ) &&
-    !triggerCharacter?.trim()
+    historyState.prevUserEvent === "input"
   ) {
     // Handle startCompletion from onEnterRules
     triggerKind = CompletionTriggerKind.TriggerCharacter;
     triggerCharacter = context.state.lineBreak;
   } else if (
     !context.explicit &&
+    triggerCharacter &&
     serverCapabilities?.completionProvider?.triggerCharacters?.includes(
       triggerCharacter
     )
   ) {
-    //
     triggerKind = CompletionTriggerKind.TriggerCharacter;
   }
-  if (
-    triggerKind === CompletionTriggerKind.Invoked &&
-    !context.matchBefore(/\w+$/)
-  ) {
-    return null;
+  if (triggerKind === CompletionTriggerKind.Invoked) {
+    triggerCharacter = undefined;
   }
   return { triggerKind, triggerCharacter };
 };
