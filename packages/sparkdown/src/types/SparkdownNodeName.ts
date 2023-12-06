@@ -1,4 +1,4 @@
-import { NodeName } from "../../../grammar-compiler/src/grammar";
+import type { NodeName } from "../../../grammar-compiler/src/grammar/types/NodeName";
 import type GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 
 export type SparkdownRule = keyof typeof GRAMMAR_DEFINITION.repository;
