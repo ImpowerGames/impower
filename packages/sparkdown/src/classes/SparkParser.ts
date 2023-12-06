@@ -2355,8 +2355,7 @@ export default class SparkParser {
 
   parse(script: string, config?: SparkParserConfig): SparkProgram {
     // Pad script with newline to ensure any open scopes are closed by the end of the script.
-    let paddedScript = script + "\n";
-    const result = this.compiler.compile(paddedScript);
+    const result = this.compiler.compile(script + "\n");
     if (!result) {
       throw new Error("Could not compile sparkdown script");
     }
