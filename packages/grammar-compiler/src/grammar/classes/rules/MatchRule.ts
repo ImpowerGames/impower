@@ -79,7 +79,7 @@ export default class MatchRule implements Rule {
               let i = 0;
               while (i < resultStr.length) {
                 const matched = capture.match(resultStr, i, state, false);
-                if (matched) {
+                if (matched?.length) {
                   matched.offset(pos + i);
                   children.push(matched);
                   i += matched.length;
@@ -90,7 +90,7 @@ export default class MatchRule implements Rule {
                     1
                   );
                   children.push(noneMatched);
-                  i += noneMatched.length;
+                  break;
                 }
               }
               const captureMatched = Matched.create(

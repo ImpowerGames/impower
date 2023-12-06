@@ -744,7 +744,7 @@ repository:
   StructMapProperty:
     tag: meta
     name: meta.definition.struct.property.map.sd
-    begin: ^([ \t]*)([^ \t\r\n:]+)($|[:])($|[ \t]*$)
+    begin: ^([ \t]*)([^\s:]+)($|[:])($|[ \t]*$)
     beginCaptures:
       1:
         patterns:
@@ -773,7 +773,7 @@ repository:
   StructScalarProperty:
     tag: meta
     name: meta.definition.struct.property.scalar.sd
-    begin: ^([ \t]*)([^ \t\r\n:]+)($|[:])($|[ \t]*)(?=.*\S.*$)
+    begin: ^([ \t]*)([^\s:]+)($|[:])($|[ \t]*)(?=.*\S.*$)
     beginCaptures:
       1:
         patterns:
@@ -1434,7 +1434,7 @@ repository:
   Transition:
     tag: labelName
     name: keyword.control.transition.sd
-    match: ^(?:([%])($|[ \t]+)($|.+?)|((?:[^ \p{Ll}]+\b[ \t]+)*(?:(?:[^ \p{Ll}]+\b[ \t]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ \t]*$)
+    match: ^(?:([%])($|[ \t]+)($|.+?)|((?:[^\p{Ll}\s]+\b[ \t]+)*(?:(?:[^\p{Ll}\s]+\b[ \t]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ \t]*$)
     captures:
       1:
         tag: punctuation
