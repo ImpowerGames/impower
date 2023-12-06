@@ -482,6 +482,19 @@ const getCompletions = (
       }
     }
     if (
+      (scopes.at(0) === "assign" || scopes.at(0) === "delete") &&
+      scopes.at(1) === "whitespace"
+    ) {
+      return getVariableCompletions(
+        program,
+        (v) =>
+          v.line !== line &&
+          !v.implicit &&
+          (v.stored || typeof v.compiled === "object"),
+        (v) => typeof v.compiled !== "object"
+      );
+    }
+    if (
       (scopes.includes("assign_access_identifier") ||
         scopes.includes("delete_access_identifier")) &&
       scopes.at(-1) === "variable_name"
