@@ -10,7 +10,7 @@ import {
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { SparkDOMAudioPlayer } from "../../../spark-dom/src/classes/SparkDOMAudioPlayer";
 import type { AudioGroup } from "../../../spark-engine/src";
-import { SparkStruct } from "../../../sparkdown/src/index";
+import { SparkVariable } from "../../../sparkdown/src/index";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructPlayWidgetType from "./classes/StructPlayWidgetType";
 import { PreviewConfig } from "./types/PreviewConfig";
@@ -30,7 +30,7 @@ const STRUCT_WIDGET_CONTEXT: StructWidgetContext = {
 };
 
 const playAudioGroupStruct = async (
-  struct: SparkStruct,
+  struct: SparkVariable,
   fileSystemReader: FileSystemReader,
   button: HTMLElement,
   offset?: number,
@@ -89,7 +89,7 @@ const StopButtonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 
 const clearStructDecorationsEffect = StateEffect.define<{}>();
 
 const addStructDecorationEffect = StateEffect.define<{
-  struct: SparkStruct;
+  struct: SparkVariable;
   from: number;
   to: number;
 }>({
@@ -191,12 +191,12 @@ const structDecorationsField = StateField.define<DecorationSet>({
           playWidgetRanges.push(
             Decoration.widget({
               widget: new StructPlayWidgetType(
-                struct.id,
+                struct.name,
                 PlayButtonIcon,
                 (button) =>
                   playAudioGroupStruct(struct, config.fileSystemReader, button)
               ),
-              id: struct.id,
+              id: struct.name,
             }).range(to)
           );
           if (struct.fields) {
@@ -215,7 +215,7 @@ const structDecorationsField = StateField.define<DecorationSet>({
                 playWidgetRanges.push(
                   Decoration.widget({
                     widget: new StructPlayWidgetType(
-                      struct.id,
+                      struct.name,
                       PlayButtonIcon,
                       (button) =>
                         playAudioGroupStruct(
@@ -226,7 +226,7 @@ const structDecorationsField = StateField.define<DecorationSet>({
                           duration
                         )
                     ),
-                    id: struct.id,
+                    id: struct.name,
                   }).range(field.to)
                 );
               }
@@ -244,7 +244,7 @@ const structDecorationsField = StateField.define<DecorationSet>({
 });
 
 export const updateStructWidgets = (
-  structs: Record<string, SparkStruct>
+  structs: Record<string, SparkVariable>
 ): TransactionSpec => {
   const effects: StateEffect<unknown>[] = [];
   effects.push(clearStructDecorationsEffect.of({}));

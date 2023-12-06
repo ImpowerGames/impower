@@ -243,9 +243,9 @@ const createEditorView = (
   const disposable = serverConnection.onNotification(
     DidParseTextDocumentMessage.type,
     (params) => {
-      const structs = params.program.structs;
-      if (structs) {
-        const transaction = updateStructWidgets(structs);
+      const variables = params.program.variables;
+      if (variables) {
+        const transaction = updateStructWidgets(variables);
         view.dispatch(transaction);
       }
     }
