@@ -241,13 +241,14 @@ export default class SparkParser {
       program.variables[tok.name] ??= tok;
     };
 
-    const constructProperty = (obj: any, propertyPath: string, value: unknown, field: SparkField, prevField: SparkField | undefined) => {
-
-      const { successfullySet, error } = setProperty(
-        obj,
-        propertyPath,
-        value
-      );
+    const constructProperty = (
+      obj: any,
+      propertyPath: string,
+      value: unknown,
+      field: SparkField,
+      prevField: SparkField | undefined
+    ) => {
+      const { successfullySet, error } = setProperty(obj, propertyPath, value);
       if (error) {
         const from = prevField?.to ?? 0;
         const fullProp = script.slice(from, field.to);
@@ -263,16 +264,17 @@ export default class SparkParser {
           field.to
         );
       }
-    }
+    };
 
-    const _construct = (variable: SparkVariable, objValue: any, objCompiled: any) => {
+    const _construct = (
+      variable: SparkVariable,
+      objValue: any,
+      objCompiled: any
+    ) => {
       if (variable.type && !PRIMITIVE_TYPES.includes(variable.type)) {
-        const parentId = variable.type;
-        if (parentId) {
-          const parent = program.variables?.[parentId];
-          if (parent && typeof parent.compiled === "object") {
-            _construct(parent, objValue, objCompiled);
-          }
+        const parent = program.variables?.[variable.type];
+        if (parent && typeof parent.compiled === "object") {
+          _construct(parent, objValue, objCompiled);
         }
       }
       if (variable.fields) {
@@ -291,21 +293,46 @@ export default class SparkParser {
             setProperty(objValue, field.path, []);
             setProperty(objCompiled, field.path, []);
           }
-          constructProperty(objValue, propertyPath, field.value, field, prevField);
-          constructProperty(objCompiled, propertyPath, field.compiled, field, prevField);
+          constructProperty(
+            objValue,
+            propertyPath,
+            field.value,
+            field,
+            prevField
+          );
+          constructProperty(
+            objCompiled,
+            propertyPath,
+            field.compiled,
+            field,
+            prevField
+          );
           prevField = field;
         });
       }
     };
 
-    const construct = (variable: SparkVariable) => {
+    const construct = (variable: SparkVariable): [string, unknown] => {
+      if (variable.type === "string") {
+        return [`""`, ""];
+      }
+      if (variable.type === "number") {
+        return [`0`, 0];
+      }
+      if (variable.type === "boolean") {
+        return [`false`, false];
+      }
       const firstField = variable.fields?.[0];
       const isArray =
         !firstField?.path && !Number.isNaN(Number(firstField?.key));
-        const objValue = isArray ? [] : {};
+      const objValue = isArray ? [] : {};
       const objCompiled = isArray ? [] : {};
-      _construct(variable,objValue, objCompiled);
-      return [objValue, objCompiled, ];
+      _construct(variable, objValue, objCompiled);
+      const objectLiteral = JSON.stringify(objValue)
+        .replace(UNESCAPED_DOUBLE_QUOTE, "")
+        .replace(ESCAPED_DOUBLE_QUOTE, `"`)
+        .replace(DOUBLE_ESCAPE, `\\`);
+      return [objectLiteral, objCompiled];
     };
 
     const diagnostic = (
@@ -1941,9 +1968,6 @@ export default class SparkParser {
             } else {
               const context = getScopedContext(program.variables);
 
-              validateTypeExists(tok, tok.type, tok.ranges?.type);
-              tok.type = tok.type ?? "object";
-
               if (PRIMITIVE_SCALAR_TYPES.includes(tok.type)) {
                 if (
                   tok.operator === ":" ||
@@ -1976,76 +2000,84 @@ export default class SparkParser {
                   tok.compiled = compiledValue;
                 }
               } else {
-                if (tok.fields) {
-                  const propertyPaths: Record<string, SparkField> = {};
-                  tok.fields.forEach((field) => {
-                    if (
-                      validateNameAllowed(
-                        field,
-                        String(field.key),
-                        field.ranges?.key
-                      )
-                    ) {
-                      const propAccess = field.key ? "." + field.key : "";
-                      const propertyPath = field.path + propAccess;
-                      const existingField = propertyPaths[propertyPath];
-                      if (existingField) {
-                        // Error if field was defined multiple times in the current struct
-                        reportDuplicate(
+                if (tok.value) {
+                  tok.compiled = compileAndValidate(
+                    tok,
+                    tok.value,
+                    tok.ranges?.value,
+                    context
+                  );
+                } else {
+                  if (tok.fields) {
+                    const propertyPaths: Record<string, SparkField> = {};
+                    tok.fields.forEach((field) => {
+                      if (
+                        validateNameAllowed(
                           field,
-                          "field",
                           String(field.key),
-                          field.ranges?.key,
-                          existingField
-                        );
-                      } else {
-                        propertyPaths[propertyPath] = field;
-                        const compiledValue = compileAndValidate(
-                          field,
-                          field.value,
-                          field?.ranges?.value,
-                          context
-                        );
-                        field.compiled = compiledValue;
-                        // Check for type mismatch
-                        const parentPropertyAccessor =
-                          tok.type + "." + propertyPath;
-                        const declaredValue = getProperty(
-                          context,
-                          parentPropertyAccessor
-                        );
-                        const compiledType = typeof compiledValue;
-                        const declaredType = typeof declaredValue;
-                        if (
-                          compiledValue != null &&
-                          validateTypeMatch(
+                          field.ranges?.key
+                        )
+                      ) {
+                        const propAccess = field.key ? "." + field.key : "";
+                        const propertyPath = field.path + propAccess;
+                        const existingField = propertyPaths[propertyPath];
+                        if (existingField) {
+                          // Error if field was defined multiple times in the current struct
+                          reportDuplicate(
                             field,
-                            compiledType,
-                            declaredType,
-                            field?.ranges?.value
-                          )
-                        ) {
-                          field.type = compiledType;
+                            "field",
+                            String(field.key),
+                            field.ranges?.key,
+                            existingField
+                          );
                         } else {
-                          field.type = declaredType;
+                          propertyPaths[propertyPath] = field;
+                          const compiledValue = compileAndValidate(
+                            field,
+                            field.value,
+                            field?.ranges?.value,
+                            context
+                          );
+                          field.compiled = compiledValue;
+                          if (tok.type) {
+                            // Check for type mismatch
+                            const parentPropertyAccessor =
+                              tok.type + "." + propertyPath;
+                            const declaredValue = getProperty(
+                              context,
+                              parentPropertyAccessor
+                            );
+                            const compiledType = typeof compiledValue;
+                            const declaredType = typeof declaredValue;
+                            if (
+                              compiledValue != null &&
+                              validateTypeMatch(
+                                field,
+                                compiledType,
+                                declaredType,
+                                field?.ranges?.value
+                              )
+                            ) {
+                              field.type = compiledType;
+                            } else {
+                              field.type = declaredType;
+                            }
+                          }
                         }
                       }
-                    }
-                  });
+                    });
+                  }
+                  const [objectLiteral, objCompiled] = construct(tok);
+                  tok.value = objectLiteral;
+                  tok.compiled = objCompiled;
                 }
-                const [objValue, objCompiled] = construct(tok);
-                const objectLiteral = JSON.stringify(objValue)
-                  .replace(UNESCAPED_DOUBLE_QUOTE, "")
-                  .replace(ESCAPED_DOUBLE_QUOTE, `"`)
-                  .replace(DOUBLE_ESCAPE, `\\`);
-                tok.value = objectLiteral;
-                tok.compiled = objCompiled;
                 validateTypeMatch(
                   tok,
-                  typeof objCompiled,
+                  typeof tok.compiled,
                   tok.type,
                   tok?.ranges?.type
                 );
+                tok.type = tok.type ?? typeof tok.compiled;
               }
 
               // Check if struct is being used to declare an object variable or define an object type
@@ -2317,7 +2349,7 @@ export default class SparkParser {
     program.metadata.parseTime = parseEndTime;
     program.metadata.parseDuration = parseEndTime - parseStartTime;
 
-    // console.log(program);
+    console.log(program);
 
     return program;
   }
