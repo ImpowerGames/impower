@@ -194,6 +194,12 @@ const EDITOR_THEME: {
   "& .cm-completionIcon-quit": {
     "&:after": { content: "'×'", color: EDITOR_COLORS.sectionNameDefinition },
   },
+  "& .cm-completionIcon-keyword": {
+    "&:after": {
+      content: "'☱'",
+      color: EDITOR_COLORS.keyword,
+    },
+  },
   "& .cm-completionIcon-option": {
     "&:after": {
       content: "'☱'",
@@ -232,7 +238,7 @@ const EDITOR_THEME: {
   },
   "& .cm-completionIcon-type": {
     "&:after": {
-      content: "'ν'",
+      content: "'𝑡'",
       color: EDITOR_COLORS.keyword,
     },
   },
@@ -252,12 +258,6 @@ const EDITOR_THEME: {
     "&:after": {
       content: "'ρ'",
       color: EDITOR_COLORS.variableName,
-    },
-  },
-  "& .cm-completionIcon-trigger": {
-    "&:after": {
-      content: "'𝑡'",
-      color: EDITOR_COLORS.trigger,
     },
   },
   "& .cm-completionIcon-asset": {

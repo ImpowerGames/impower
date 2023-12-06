@@ -7,7 +7,10 @@ const COMPLETION_ITEM_KIND_MAP = Object.fromEntries(
 export const getClientCompletionType = (
   kind: CompletionItemKind | undefined
 ) => {
-  return COMPLETION_ITEM_KIND_MAP[
-    (kind || "") as CompletionItemKind
-  ]?.toLowerCase();
+  const name =
+    COMPLETION_ITEM_KIND_MAP[(kind || "") as CompletionItemKind]?.toLowerCase();
+  if (name === "typeparameter") {
+    return "type";
+  }
+  return name;
 };

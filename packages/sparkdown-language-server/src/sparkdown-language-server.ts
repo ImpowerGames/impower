@@ -81,14 +81,6 @@ try {
     return getFoldingRanges(document, program);
   });
 
-  // documentSymbolProvider
-  connection.onDocumentSymbol((params) => {
-    const uri = params.textDocument.uri;
-    const document = documents.get(uri);
-    const program = documents.program(uri);
-    return getDocumentSymbols(document, program);
-  });
-
   // colorProvider
   connection.onDocumentColor((params) => {
     const uri = params.textDocument.uri;
@@ -100,11 +92,19 @@ try {
     return getColorPresentations(params.color);
   });
 
+  // documentSymbolProvider
+  connection.onDocumentSymbol((params) => {
+    const uri = params.textDocument.uri;
+    const document = documents.get(uri);
+    const program = documents.program(uri);
+    return getDocumentSymbols(document, program);
+  });
+
   // hoverProvider
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program(uri);
+    const program = documents.parse(uri);
     return getHover(document, program, params.position);
   });
 
@@ -112,7 +112,7 @@ try {
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program(uri);
+    const program = documents.parse(uri);
     const result = getCompletions(
       document,
       program,

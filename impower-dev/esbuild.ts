@@ -320,6 +320,7 @@ const expandPageComponents = async () => {
 };
 
 const createPackageJson = async () => {
+  await fs.promises.rm(`${outdir}/package.json`);
   await fs.promises.writeFile(
     `${outdir}/package.json`,
     `{"type": "module"}`,
@@ -335,13 +336,13 @@ const buildWorkers = async () => {
 
 const buildAll = async () => {
   await clean();
+  await createPackageJson();
   await copyPublic();
   await buildApi();
   await buildPages();
   await buildComponents();
   await new Promise((resolve) => setTimeout(resolve, 100));
   await expandPageComponents();
-  await createPackageJson();
   await buildWorkers();
 };
 

@@ -163,18 +163,20 @@ export default class GrammarRepository {
    */
   getRules(items: IncludeDefinition[], idPrefix: string) {
     const rules: Rule[] = [];
-    items.forEach((item, i) => {
-      const patternId = idPrefix + `-p${i}`;
-      if (isIncludeDefinition(item)) {
-        rules.push(...this.include(item.include));
-      } else if (isMatchRuleDefinition(item)) {
-        rules.push(this.add(item, patternId));
-      } else if (isScopedRuleDefinition(item)) {
-        rules.push(this.add(item, patternId));
-      } else if (isSwitchRuleDefinition(item)) {
-        rules.push(this.add(item, patternId));
-      }
-    });
+    if (items) {
+      items.forEach((item, i) => {
+        const patternId = idPrefix + `-p${i}`;
+        if (isIncludeDefinition(item)) {
+          rules.push(...this.include(item.include));
+        } else if (isMatchRuleDefinition(item)) {
+          rules.push(this.add(item, patternId));
+        } else if (isScopedRuleDefinition(item)) {
+          rules.push(this.add(item, patternId));
+        } else if (isSwitchRuleDefinition(item)) {
+          rules.push(this.add(item, patternId));
+        }
+      });
+    }
     return rules;
   }
 }

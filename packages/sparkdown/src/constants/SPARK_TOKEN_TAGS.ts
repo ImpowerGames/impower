@@ -30,17 +30,21 @@ const SPARK_TOKEN_TAGS: {
   PropertyName: "property_name",
   FunctionName: "function_name",
   ValueText: "value_text",
+  String: "string",
 
   FlowBreak: "flow_break",
 
   Import: "import",
 
+  Store: "store",
   StoreScalar: "store_scalar",
   StoreObject: "store_object",
 
+  Define: "define",
   DefineScalar: "define_scalar",
   DefineObject: "define_object",
 
+  StructColon: "struct_colon",
   StructField: "struct_field",
   StructMapItem: "struct_map_item",
   StructScalarItem: "struct_scalar_item",
@@ -50,7 +54,7 @@ const SPARK_TOKEN_TAGS: {
   StructScalarProperty_begin: "struct_scalar_property_start",
   StructBlankProperty: "struct_blank_property",
 
-  Function: "function",
+  DefineFunction: "function",
 
   Break: "break",
   Continue: "continue",
@@ -106,8 +110,21 @@ const SPARK_TOKEN_TAGS: {
   DisplayText_c7: "display_text_content",
   DisplayString: "text",
 
+  Newline: "newline",
   Indent: "indent",
+  Whitespace: "whitespace",
+  PunctuationSemicolon: "punctuation_semicolon",
+  PunctuationComma: "punctuation_comma",
+  PunctuationAccessor: "punctuation_accessor",
+  PunctuationParenOpen: "punctuation_paren_open",
+  PunctuationParenClose: "punctuation_paren_close",
 
+  Operator: "operator",
+  Literal: "literal",
+
+  IllegalPropertyDeclaration: "illegal",
+  IllegalExpression: "illegal",
+  IllegalChar: "illegal",
   Unknown: "unknown",
 };
 

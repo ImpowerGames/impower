@@ -145,6 +145,7 @@ export default class CompletionSupport implements FeatureSupport {
       completionTheme,
       autocompletion({
         override: this.completionSources,
+        aboveCursor: true,
         positionInfo,
       }),
     ];

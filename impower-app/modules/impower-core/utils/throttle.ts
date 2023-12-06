@@ -7,14 +7,14 @@ const throttle = <T extends (...args: any[]) => void>(
   let lastTime: number;
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
-      callback(args);
+      callback(...args);
       lastTime = Date.now();
       inThrottle = true;
     } else {
       clearTimeout(lastFn);
       lastFn = setTimeout(() => {
         if (Date.now() - lastTime >= delay) {
-          callback(args);
+          callback(...args);
           lastTime = Date.now();
         }
       }, Math.max(delay - (Date.now() - lastTime), 0));

@@ -147,13 +147,15 @@ export default class LanguageClientPluginValue implements PluginValue {
     const items = "items" in result ? result.items : result;
     let options = items
       .sort((a, b) => {
-        const aSortText = a.sortText || "";
-        const bSortText = b.sortText || "";
-        if (aSortText < bSortText) {
-          return -1;
-        }
-        if (aSortText > bSortText) {
-          return 1;
+        if (a.sortText != null && b.sortText != null) {
+          const aSortText = a.sortText;
+          const bSortText = b.sortText;
+          if (aSortText < bSortText) {
+            return -1;
+          }
+          if (aSortText > bSortText) {
+            return 1;
+          }
         }
         return 0;
       })

@@ -59,6 +59,7 @@ export interface ISparkDeclarationToken<T extends string>
   compiled: unknown;
   fields?: ISparkStructFieldToken[];
   entriesLength?: number;
+  colon?: boolean;
 
   ranges?: {
     type?: SparkRange;
@@ -141,6 +142,7 @@ export interface SparkReturnToken extends ISparkToken<"return"> {
 }
 
 export interface SparkDeleteToken extends ISparkToken<"delete"> {
+  type: string;
   name: string;
 
   ranges?: {
@@ -164,6 +166,7 @@ export interface SparkCallToken extends ISparkToken<"call"> {
 }
 
 export interface SparkAssignToken extends ISparkToken<"assign"> {
+  type: string;
   name: string;
   operator: string;
   value: string;
@@ -332,9 +335,12 @@ export interface SparkOtherToken
     | "variable_name"
     | "property_name"
     | "function_name"
+    | "define"
+    | "store"
+    | "struct_colon"
+    | "struct_field"
     | "struct_map_property_start"
     | "struct_scalar_property_start"
-    | "struct_field"
     | "assign_access_identifier"
     | "assign_operator"
     | "delete_access_identifier"
@@ -351,7 +357,18 @@ export interface SparkOtherToken
     | "asset_target"
     | "asset_names"
     | "asset_args"
+    | "string"
+    | "newline"
+    | "whitespace"
     | "indent"
+    | "punctuation_semicolon"
+    | "punctuation_comma"
+    | "punctuation_accessor"
+    | "punctuation_paren_open"
+    | "punctuation_paren_close"
+    | "operator"
+    | "literal"
+    | "illegal"
   > {}
 
 type SparkOtherTokenTagMap = {

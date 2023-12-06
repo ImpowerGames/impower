@@ -32,6 +32,7 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
+import throttle from "../utils/throttle";
 import { EditorSparkParser } from "./EditorSparkParser";
 
 const globToRegex = (glob: string) => {
@@ -169,9 +170,17 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
+  throttledParse = throttle((uri: string) => {
+    this.parse(uri);
+  }, 300);
+
   parse(uri: string) {
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
+      const syncedProgram = this._syncedPrograms.get(uri);
+      if (syncedDocument.version === syncedProgram?.version) {
+        return syncedProgram;
+      }
       const files = Object.values(this._files);
       const variables: Record<string, SparkVariable> = {};
       files.forEach((file) => {
@@ -194,17 +203,19 @@ export default class SparkdownTextDocuments<
             name: file.name,
             value: JSON.stringify(obj),
             compiled: obj,
+            implicit: true,
           };
         }
       });
-      const syncedProgram = this._parser.parse(syncedDocument.getText(), {
+      const newSyncedProgram = this._parser.parse(syncedDocument.getText(), {
         augmentations: { builtins: STRUCT_DEFAULTS, variables },
       });
-      this._syncedPrograms.set(uri, syncedProgram);
+      newSyncedProgram.version = syncedDocument.version;
+      this._syncedPrograms.set(uri, newSyncedProgram);
       this._onDidParse.fire(
         Object.freeze({
           document: syncedDocument,
-          program: syncedProgram,
+          program: newSyncedProgram,
         })
       );
     }
@@ -326,7 +337,7 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              this.parse(td.uri);
+              this.throttledParse(td.uri);
             }
           }
         }

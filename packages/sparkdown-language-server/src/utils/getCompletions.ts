@@ -12,18 +12,22 @@ import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getA
 import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
+  ISparkDeclarationToken,
+  ISparkStructFieldToken,
+  SparkAssignToken,
   SparkDefineObjectToken,
   SparkStoreObjectToken,
-  SparkStructEmptyProperty,
+  SparkStructBlankProperty,
   SparkStructMapPropertyToken,
 } from "@impower/sparkdown/src/types/SparkToken";
+import { SparkVariable } from "@impower/sparkdown/src/types/SparkVariable";
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";
 import getLineTextBefore from "./getLineTextBefore";
 import { Asset, isAssetOfType } from "./isAsset";
 import isEmptyLine from "./isEmptyLine";
 
-const WHITESPACE_REGEX = /\s/g;
+const WHITESPACE_REGEX = /\s+/g;
 
 const getImageCompletions = (
   program: SparkProgram | undefined
@@ -205,26 +209,30 @@ const getStructMapPropertyNameCompletions = (
   path: string,
   beforeText: string
 ): CompletionItem[] | null => {
+  if (!type) {
+    return null;
+  }
   const parentObj = program?.variables?.[type]?.compiled;
   const result: CompletionItem[] = [];
   const existingProps = new Set<string>();
   const possibleNames = new Set<string>();
-  const prefix = path ? `.${path}.` : ".";
+  const trimmedPath = path.endsWith(".") ? path.slice(0, -1) : path;
+  const prefix = trimmedPath ? `.${trimmedPath}.` : ".";
   const trimmedText = beforeText.trimStart();
   const indentLength = beforeText.length - trimmedText.length;
   const indentedStr = beforeText.slice(0, indentLength) + "  ";
   const parentProperties = getAllProperties(parentObj);
   fields?.forEach((field) => {
     const prop = "." + field.path + "." + field.key;
-    let path = "";
+    let existingPath = "";
     prop.split(".").forEach((p) => {
       if (p) {
-        path += "." + p;
-        existingProps.add(path);
+        existingPath += "." + p;
+        existingProps.add(existingPath);
       }
     });
   });
-  Object.entries(parentProperties).forEach(([p, v], index) => {
+  Object.entries(parentProperties).forEach(([p, v]) => {
     if (p.startsWith(prefix)) {
       const [name, child] = p.slice(prefix.length).split(".");
       const targetPath = p.slice(0, prefix.length) + name;
@@ -234,23 +242,101 @@ const getStructMapPropertyNameCompletions = (
           possibleNames.add(name);
           // TODO: When inserting string prop (that takes fixed values), use snippet syntax to allow user to choose between all possible string values ${1|one,two,three|}
           const insertSuffix = child ? `:\n${indentedStr}` : ": ";
-          const sortText = index.toString().padStart(3, "0");
           result.push({
             label: name,
             insertText: name + insertSuffix,
-            sortText,
             labelDetails: { description },
             kind: CompletionItemKind.Property,
             insertTextMode: InsertTextMode.asIs,
-            command: {
-              title: "Trigger Suggestions",
-              command: "editor.action.triggerSuggest",
-            },
           });
         }
       }
     }
   });
+  return result;
+};
+
+const getPropertyNameCompletions = (
+  program: SparkProgram | undefined,
+  type: string,
+  path: string
+): CompletionItem[] | null => {
+  if (!type) {
+    return null;
+  }
+  const parentObj = program?.variables?.[type]?.compiled;
+  const result: CompletionItem[] = [];
+  const possibleNames = new Set<string>();
+  const trimmedPath = path.replace(/^[.]+/, "").replace(/[.]+$/, "");
+  const prefix = trimmedPath ? `.${trimmedPath}.` : ".";
+  const parentProperties = getAllProperties(parentObj);
+  Object.entries(parentProperties).forEach(([p, v]) => {
+    if (p.startsWith(prefix)) {
+      const [name, child] = p.slice(prefix.length).split(".");
+      const description = child ? "object" : typeof v;
+      if (name && Number.isNaN(Number(name))) {
+        if (!possibleNames.has(name)) {
+          possibleNames.add(name);
+          result.push({
+            label: name,
+            labelDetails: { description },
+            kind: CompletionItemKind.Property,
+            insertTextMode: InsertTextMode.asIs,
+          });
+        }
+      }
+    }
+  });
+  return result;
+};
+
+const getVariableCompletions = (
+  program: SparkProgram | undefined,
+  filter?: (variable: SparkVariable) => boolean,
+  boost?: (variable: SparkVariable) => boolean
+) => {
+  if (!program?.variables) {
+    return [];
+  }
+  const result: CompletionItem[] = [];
+  Object.entries(program.variables).forEach(([name, variable]) => {
+    if (!filter || filter(variable)) {
+      const description = variable.type ?? "object";
+      const sortText = boost?.(variable) ? "0" : "1";
+      result.push({
+        label: name,
+        labelDetails: { description },
+        kind: CompletionItemKind.Variable,
+        insertTextMode: InsertTextMode.asIs,
+        sortText,
+      });
+    }
+  });
+  return result;
+};
+
+const PRIMITIVE_TYPES = ["string", "number", "boolean"];
+
+const getTypeCompletions = (program: SparkProgram | undefined) => {
+  const result: CompletionItem[] = [];
+  PRIMITIVE_TYPES.forEach((type) => {
+    result.push({
+      label: type,
+      kind: CompletionItemKind.Keyword,
+      insertTextMode: InsertTextMode.asIs,
+    });
+  });
+  if (program?.variables) {
+    Object.entries(program.variables).forEach(([name, variable]) => {
+      if (!variable.type || variable.type === "object") {
+        result.push({
+          label: name,
+          kind: CompletionItemKind.TypeParameter,
+          insertTextMode: InsertTextMode.asIs,
+        });
+      }
+    });
+  }
   return result;
 };
 
@@ -263,6 +349,7 @@ const getCompletions = (
   if (!document) {
     return undefined;
   }
+  const line = position?.line;
   const prevLineText = getLineText(document, position, -1);
   const lineText = getLineText(document, position);
   const nextLineText = getLineText(document, position, 1);
@@ -270,7 +357,7 @@ const getCompletions = (
   const afterText = getLineTextAfter(document, position);
   const trimmedBeforeText = beforeText.trimStart();
   const trimmedAfterText = afterText.trimEnd();
-  const lineMetadata = program?.metadata?.lines?.[position?.line];
+  const lineMetadata = program?.metadata?.lines?.[line];
   const scopes = lineMetadata?.scopes;
   const triggerCharacter = context?.triggerCharacter;
   if (scopes) {
@@ -285,10 +372,12 @@ const getCompletions = (
       } else if (triggerCharacter !== "@") {
         return getAudioCompletions(program);
       }
+      return null;
     }
     if (
       scopes.includes("action") &&
       scopes.includes("text") &&
+      !beforeText &&
       isEmptyLine(prevLineText) &&
       isEmptyLine(nextLineText)
     ) {
@@ -301,63 +390,151 @@ const getCompletions = (
     ) {
       return getCharacterCompletions(position.line, program, trimmedBeforeText);
     }
+    if (scopes.includes("define") || scopes.includes("store")) {
+      if (
+        scopes.includes("struct_map_property_start") &&
+        scopes.includes("property_name")
+      ) {
+        const token = lineMetadata.tokens
+          ?.map((i) => program?.tokens?.[i])
+          .findLast(
+            (t) => t?.tag === "define_object" || t?.tag === "store_object"
+          ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
+        const structMapPropertyToken = lineMetadata.tokens
+          ?.map((i) => program?.tokens?.[i])
+          .findLast((t) => t?.tag === "struct_map_property") as
+          | SparkStructMapPropertyToken
+          | undefined;
+        if (token && !beforeText.includes(":")) {
+          return getStructMapPropertyNameCompletions(
+            program,
+            token.type,
+            token.fields,
+            structMapPropertyToken?.path ?? "",
+            beforeText
+          );
+        }
+      }
+      if (
+        scopes.includes("struct_blank_property") ||
+        scopes.at(-1) === "struct_field"
+      ) {
+        const token = lineMetadata.tokens
+          ?.map((i) => program?.tokens?.[i])
+          .findLast(
+            (t) => t?.tag === "define_object" || t?.tag === "store_object"
+          ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
+        const structBlankProperty = lineMetadata.tokens
+          ?.map((i) => program?.tokens?.[i])
+          .findLast((t) => t?.tag === "struct_blank_property") as
+          | SparkStructBlankProperty
+          | undefined;
+        if (token && !beforeText.includes(":")) {
+          return getStructMapPropertyNameCompletions(
+            program,
+            token.type,
+            token.fields,
+            structBlankProperty?.path ?? "",
+            beforeText
+          );
+        }
+      }
+      if (scopes.at(-1) === "type_name") {
+        return getTypeCompletions(program);
+      }
+      if (
+        (scopes.includes("struct_scalar_property") ||
+          scopes.includes("struct_scalar_item")) &&
+        scopes.includes("value_text") &&
+        scopes.at(-1) === "variable_name"
+      ) {
+        const fieldToken = lineMetadata.tokens
+          ?.map((i) => program?.tokens?.[i])
+          .findLast(
+            (t) =>
+              t?.tag === "struct_scalar_property" ||
+              t?.tag === "struct_scalar_item"
+          ) as ISparkStructFieldToken<string> | undefined;
+        if (fieldToken) {
+          return getVariableCompletions(
+            program,
+            (v) => v.line !== line && !v.implicit,
+            (v) => v.type === fieldToken.type
+          );
+        }
+        // TODO: Use struct validation to autocomplete enum strings
+      }
+    }
     if (
-      scopes.includes("struct_map_property_start") &&
-      scopes.includes("property_name")
+      (scopes.includes("assign") ||
+        scopes.includes("define_scalar") ||
+        scopes.includes("define_object") ||
+        scopes.includes("store_scalar") ||
+        scopes.includes("store_object")) &&
+      scopes.includes("value_text") &&
+      scopes.at(-1) === "variable_name"
     ) {
-      const structToken = lineMetadata.tokens
+      const declarationToken = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
         .findLast(
-          (t) => t?.tag === "define_object" || t?.tag === "store_object"
-        ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
-      const structMapPropertyToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "struct_map_property") as
-        | SparkStructMapPropertyToken
-        | undefined;
-      if (structToken && structMapPropertyToken && !beforeText.includes(":")) {
-        return getStructMapPropertyNameCompletions(
+          (t) =>
+            t?.tag === "assign" ||
+            t?.tag === "define_scalar" ||
+            t?.tag === "define_object" ||
+            t?.tag === "store_scalar" ||
+            t?.tag === "store_object"
+        ) as ISparkDeclarationToken<string> | undefined;
+      if (declarationToken) {
+        return getVariableCompletions(
           program,
-          structToken.type,
-          structToken.fields,
-          structMapPropertyToken.path,
-          beforeText
+          (v) => v.line !== line && !v.implicit,
+          (v) => v.type === declarationToken.type
         );
       }
     }
     if (
-      (scopes.includes("define_object") || scopes.includes("store_object")) &&
-      (scopes.includes("struct_blank_property") ||
-        scopes.at(-1) === "struct_field")
+      (scopes.includes("assign_access_identifier") ||
+        scopes.includes("delete_access_identifier")) &&
+      scopes.at(-1) === "variable_name"
     ) {
-      const structToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast(
-          (t) => t?.tag === "define_object" || t?.tag === "store_object"
-        ) as SparkDefineObjectToken | SparkStoreObjectToken | undefined;
-      const structEmptyProperty = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "struct_blank_property") as
-        | SparkStructEmptyProperty
-        | undefined;
-      if (structToken && structEmptyProperty && !beforeText.includes(":")) {
-        return getStructMapPropertyNameCompletions(
-          program,
-          structToken.type,
-          structToken.fields,
-          structEmptyProperty.path,
-          beforeText
-        );
-      }
+      return getVariableCompletions(
+        program,
+        (v) =>
+          v.line !== line &&
+          !v.implicit &&
+          (v.stored || typeof v.compiled === "object")
+      );
     }
-    if (
-      scopes.includes("struct_scalar_property") &&
-      scopes.includes("value_text")
-    ) {
-      // TODO: Use struct validation to autocomplete enum strings
+    if (scopes.includes("value_text") && scopes.at(-1) === "variable_name") {
+      return getVariableCompletions(
+        program,
+        (v) => v.line !== line && !v.implicit
+      );
+    }
+    if (scopes.at(-1) === "punctuation_accessor") {
+      const assignToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "assign") as SparkAssignToken | undefined;
+      const pathParts = assignToken?.content;
+      if (pathParts) {
+        const variableName = pathParts?.[0]?.text;
+        if (variableName) {
+          const variable = program?.variables?.[variableName];
+          if (variable) {
+            return getPropertyNameCompletions(
+              program,
+              variable.type,
+              pathParts
+                .slice(1)
+                .map((p) => p.text)
+                .join("")
+            );
+          }
+        }
+      }
     }
   } else {
-    if (isEmptyLine(prevLineText) && isEmptyLine(nextLineText)) {
+    if (!beforeText && isEmptyLine(prevLineText) && isEmptyLine(nextLineText)) {
       return getCharacterCompletions(position.line, program);
     }
   }
