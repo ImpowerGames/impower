@@ -352,9 +352,19 @@ export const executeDisplayCommand = (
             if (sounds.length > 0) {
               const groupId = assetNames.join("+");
               const scheduled = assetArgs?.includes("schedule");
-              if (assetArgs?.includes("start")) {
+              if (
+                assetArgs?.includes("mute") ||
+                assetArgs?.includes("unmute")
+              ) {
                 soundEvents.push(() =>
-                  game.sound.startAll(sounds, target, groupId, after, over)
+                  game.sound.fadeAll(
+                    sounds,
+                    target,
+                    groupId,
+                    after,
+                    over,
+                    scheduled
+                  )
                 );
               } else if (assetArgs?.includes("stop")) {
                 soundEvents.push(() =>
@@ -369,14 +379,7 @@ export const executeDisplayCommand = (
                 );
               } else {
                 soundEvents.push(() =>
-                  game.sound.fadeAll(
-                    sounds,
-                    target,
-                    groupId,
-                    after,
-                    over,
-                    scheduled
-                  )
+                  game.sound.startAll(sounds, target, groupId, after, over)
                 );
               }
             }
