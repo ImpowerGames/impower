@@ -352,7 +352,11 @@ export const executeDisplayCommand = (
             if (sounds.length > 0) {
               const groupId = assetNames.join("+");
               const scheduled = assetArgs?.includes("schedule");
-              if (
+              if (assetArgs?.includes("start")) {
+                soundEvents.push(() =>
+                  game.sound.startAll(sounds, target, groupId, after, over)
+                );
+              } else if (
                 assetArgs?.includes("mute") ||
                 assetArgs?.includes("unmute")
               ) {
