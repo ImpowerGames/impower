@@ -61,6 +61,10 @@ export class Compiler {
     this.index = 0;
   }
 
+  private emitReused(type: number, from: number, to: number) {
+    this.emit(type, from, to, SpecialRecord.Reuse);
+  }
+
   private emit(type: number, from: number, to: number, children: number) {
     const idx = this.size * 4;
 
@@ -95,7 +99,7 @@ export class Compiler {
     if (chunk.tryForTree()) {
       const tree = chunk.tree!;
       const reusedIndex = this.reused.length;
-      this.emit(reusedIndex, from, to, SpecialRecord.Reuse);
+      this.emitReused(reusedIndex, from, to);
       this.reused.push(tree);
       return;
     }
