@@ -335,13 +335,13 @@ const buildWorkers = async () => {
 
 const buildAll = async () => {
   await clean();
-  await createPackageJson();
   await copyPublic();
   await buildApi();
   await buildPages();
   await buildComponents();
   await new Promise((resolve) => setTimeout(resolve, 100));
   await expandPageComponents();
+  await createPackageJson();
   await buildWorkers();
 };
 
