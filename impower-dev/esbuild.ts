@@ -320,12 +320,11 @@ const expandPageComponents = async () => {
 };
 
 const createPackageJson = async () => {
-  await fs.promises.rm(`${outdir}/package.json`);
-  await fs.promises.writeFile(
-    `${outdir}/package.json`,
-    `{"type": "module"}`,
-    "utf-8"
-  );
+  const packagePath = `${outdir}/package.json`;
+  if (fs.existsSync(packagePath)) {
+    await fs.promises.rm(packagePath);
+  }
+  await fs.promises.writeFile(packagePath, `{"type": "module"}`, "utf-8");
 };
 
 const buildWorkers = async () => {
