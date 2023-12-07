@@ -134,7 +134,11 @@ export default class GrammarParse implements PartialParse {
             const right = this.tryToReuseBehind(cachedBehindBuffer);
             if (right) {
               if (!this.tryToSaveAhead(right)) {
-                if (cachedAheadBuffer) {
+                if (
+                  !this.aheadBuffer &&
+                  !this.region.edit?.offset &&
+                  cachedAheadBuffer
+                ) {
                   this.aheadBuffer = cachedAheadBuffer;
                 }
               }
