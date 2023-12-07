@@ -1685,16 +1685,16 @@ repository:
   PlainText:
     emit: true
     patterns:
+      - { include: "#Newline" }
       - { include: "#Space" }
       - { include: "#Word" }
       - { include: "#EmDash" }
-      - { include: "#Newline" }
       - { include: "#Punctuation" }
 
   Word:
     tag: content
     name: markup.raw.text.sd
-    match: ([\p{L}\p{N}\p{Mn}_']+)
+    match: ([\p{L}\p{N}\p{Mn}']+)
 
   Space:
     tag: content

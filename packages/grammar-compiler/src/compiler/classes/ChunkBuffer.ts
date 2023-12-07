@@ -24,13 +24,25 @@ export class ChunkBuffer {
   /** The node(s) that are open at the end of this buffer. */
   scopes: ParserAction = [];
 
+  names: string[] = [];
+
   /** @param chunks - The chunks to populate the buffer with. */
-  constructor(chunks?: Chunk[]) {
-    if (chunks !== undefined) {
+  constructor(chunks?: Chunk[], names?: string[]) {
+    if (chunks) {
       this.chunks = chunks;
     }
-    const lastChunkScopes = chunks?.at(-1)?.scopes;
-    this.scopes = lastChunkScopes ? [...lastChunkScopes] : [];
+    if (names) {
+      this.names = names;
+    }
+    this.scopes = [];
+  }
+
+  /** The first chunk in the buffer. */
+  get first() {
+    if (!this.chunks.length) {
+      return null;
+    }
+    return this.chunks[0] ?? null;
   }
 
   /** The last chunk in the buffer. */
@@ -57,6 +69,8 @@ export class ChunkBuffer {
     const [id, from, to, open, close] = token;
     let newChunk = false;
 
+    let current = this.chunks[this.chunks.length - 1];
+
     if (open) {
       this.scopes.push(...open);
     }
@@ -69,20 +83,13 @@ export class ChunkBuffer {
       });
     }
 
-    let current = this.chunks[this.chunks.length - 1];
-
-    if (!current) {
-      // Initial chunk
+    if (!current || this.scopes.length === 0 || open) {
       current = new Chunk(from, [...this.scopes]);
       this.chunks.push(current);
+      newChunk = true;
     }
 
     if (open) {
-      if (current.length !== 0) {
-        current = new Chunk(current.to, [...this.scopes]);
-        this.chunks.push(current);
-        newChunk = true;
-      }
       current.pushOpen(...open);
     }
 
@@ -96,6 +103,77 @@ export class ChunkBuffer {
     }
 
     return newChunk;
+  }
+
+  /** Binary search comparator function. */
+  private searchCmp = ({ from: pos }: Chunk, target: number) =>
+    pos === target || pos - target;
+
+  /**
+   * Searches backwards for the closest chunk that parsing can restart from.
+   *
+   * @param editedFrom - The starting position of the edit.
+   */
+  findBehindSplitPoint(editedFrom: number) {
+    const result = search(this.chunks, editedFrom, this.searchCmp, {
+      precise: false,
+    });
+
+    if (!result || !this.chunks[result.index]) {
+      return { chunk: null, index: null };
+    }
+
+    let index = result.index;
+    let chunk = this.chunks[index];
+
+    while (chunk) {
+      index = index - 1;
+      chunk = this.chunks[index];
+      if (chunk && chunk.isPure()) {
+        return { chunk, index };
+      }
+    }
+
+    return { chunk: null, index: null };
+  }
+
+  findAheadSplitPoint(editedTo: number) {
+    const result = search(this.chunks, editedTo, this.searchCmp, {
+      precise: false,
+    });
+
+    if (!result || !this.chunks[result.index]) {
+      return { chunk: null, index: null };
+    }
+
+    let index = result.index;
+    let chunk = this.chunks[index];
+
+    while (chunk) {
+      if (chunk && chunk.isPure() && chunk.from >= editedTo) {
+        // First pure chunk after edit range found
+        // Now find the point where scope is no longer pure
+        return this.findNextUnpureChunk(index);
+      }
+      index = index + 1;
+      chunk = this.chunks[index];
+    }
+
+    return { chunk: null, index: null };
+  }
+
+  findNextUnpureChunk(index: number) {
+    let chunk = this.chunks[index];
+
+    while (chunk) {
+      if (chunk && !chunk.isPure()) {
+        return { chunk, index };
+      }
+      index = index + 1;
+      chunk = this.chunks[index];
+    }
+
+    return { chunk: null, index: null };
   }
 
   /**
@@ -113,45 +191,65 @@ export class ChunkBuffer {
     let right: ChunkBuffer;
 
     if (this.chunks.length <= 1) {
-      left = new ChunkBuffer(this.chunks.slice(0));
-      right = new ChunkBuffer(); // empty
+      left = new ChunkBuffer(this.chunks.slice(0), this.names);
+      right = new ChunkBuffer([], this.names); // empty
     } else {
-      left = new ChunkBuffer(this.chunks.slice(0, index));
-      right = new ChunkBuffer(this.chunks.slice(index));
+      left = new ChunkBuffer(this.chunks.slice(0, index), this.names);
+      right = new ChunkBuffer(this.chunks.slice(index), this.names);
     }
 
     return { left, right };
   }
 
-  /** Binary search comparator function. */
-  private searchCmp = ({ from: pos }: Chunk, target: number) =>
-    pos === target || pos - target;
+  /**
+   * Offsets every chunk's position whose index is past or at the given index.
+   *
+   * @param index - The index the slide will start at.
+   * @param offset - The positional offset that is applied to the chunks.
+   * @param cutLeft - If true, every chunk previous to `index` will be
+   *   removed from the buffer.
+   */
+  slide(index: number, offset: number, cutLeft = false) {
+    if (!offset) {
+      return this;
+    }
+    if (!this.get(index))
+      throw new Error("Tried to slide buffer on invalid index!");
+
+    if (this.chunks.length === 0) return this;
+    if (this.chunks.length === 1) {
+      this.last!.offset(offset);
+      return this;
+    }
+
+    if (cutLeft) this.chunks = this.chunks.slice(index);
+
+    for (let idx = cutLeft ? 0 : index; idx < this.chunks.length; idx++) {
+      const chunk = this.chunks[idx]!;
+      chunk.offset(offset);
+    }
+
+    return this;
+  }
 
   /**
-   * Searches backwards for the closest chunk that parsing can restart from.
+   * Appends another `ChunkBuffer` to the end of this buffer.
    *
-   * @param editedFrom - The starting position of the edit.
+   * @param right - The buffer to link.
+   * @param max - If given, the maximum size of the buffer (by document
+   *   position) will be clamped to below this number.
    */
-  findPreviousUnscopedChunk(editedFrom: number) {
-    const result = search(this.chunks, editedFrom, this.searchCmp, {
-      precise: false,
-    });
-
-    if (!result || !this.chunks[result.index]) {
-      return { chunk: null, index: null };
-    }
-
-    let { index } = result;
-    let chunk = this.chunks[index];
-
-    while (chunk) {
-      index = index - 1;
-      chunk = this.chunks[index];
-      if (chunk && chunk.scopes.length === 0) {
-        return { chunk, index };
+  append(right: ChunkBuffer, max?: number) {
+    this.chunks = [...this.chunks, ...right.chunks];
+    if (max != null) {
+      for (let idx = 0; idx < this.chunks.length; idx++) {
+        const chunk = this.chunks[idx]!;
+        if (chunk.to > max) {
+          this.chunks = this.chunks.slice(0, idx);
+          break;
+        }
       }
     }
-
-    return { chunk: null, index: null };
+    return this;
   }
 }

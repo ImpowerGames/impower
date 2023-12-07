@@ -13,6 +13,7 @@ import {
 } from "@lezer/common";
 
 import {
+  Chunk,
   ChunkBuffer,
   Compiler,
 } from "../../../../grammar-compiler/src/compiler";
@@ -30,10 +31,9 @@ const MARGIN_BEFORE = 32;
 /** Amount of characters to slice after the requested ending position of a parse. */
 const MARGIN_AFTER = 128;
 
-/** If true, the "left" (previous) side of a parse will be reused. */
-const REUSE_LEFT = true;
+const BUFFER_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
 
-const STATE_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
+const AHEAD_BUFFER_PROP = new NodeProp<ChunkBuffer>({ perNode: true });
 
 /**
  * `Parse` is the main interface for tokenizing and parsing, and what
@@ -72,7 +72,7 @@ export default class GrammarParse implements PartialParse {
    * As in, when a user makes a change, this is all of the tokenization
    * data for the previous document after the location of that new change.
    */
-  private declare previousRight?: ChunkBuffer;
+  private declare aheadBuffer?: ChunkBuffer;
 
   /** The current position of the parser. */
   declare parsedPos: number;
@@ -100,55 +100,45 @@ export default class GrammarParse implements PartialParse {
     fragments: readonly TreeFragment[],
     ranges: { from: number; to: number }[]
   ) {
+    // console.log(
+    //   "NEW PARSE",
+    //   ranges.map((r) => input.read(r.from, r.to))
+    // );
+
     this.grammar = grammar;
     this.nodeSet = nodeSet;
     this.stoppedAt = null;
 
     this.region = new LezerParseRegion(input, ranges, fragments);
 
-    // find cached data, if possible
-    if (REUSE_LEFT && fragments?.length) {
+    if (fragments) {
+      // find cached chunks, if possible
       for (let idx = 0; idx < fragments.length; idx++) {
         const f = fragments[idx]!;
         // make sure fragment is within the region of the document we care about
-        if (f.from > this.region.from || f.to < this.region.from) {
-          continue;
-        }
-
-        // try to find the buffer for this fragment's tree in the cache
-        const buffer = this.find(f.tree, this.region.from, f.to);
-
-        if (buffer) {
-          const editFrom = this.region.edit!.from;
-          // console.log(
-          //   "ALL CHUNKS",
-          //   buffer?.chunks.map((chunk) => [
-          //     input.read(chunk.from, chunk.to),
-          //     chunk.from,
-          //     chunk.open?.map((n) => this.nodeSet.types[n]?.name),
-          //     chunk.close?.map((n) => this.nodeSet.types[n]?.name),
-          //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-          //   ])
-          // );
-          const { chunk, index } = buffer.findPreviousUnscopedChunk(editFrom);
-          // console.log("editFrom", editFrom);
-          // console.log("splitAt", index);
-          if (chunk && index !== null) {
-            // split the buffer, reuse the left side
-            const { left } = buffer.split(index);
-            // console.log(
-            //   "REUSE CHUNKS",
-            //   left?.chunks.map((chunk) => [
-            //     input.read(chunk.from, chunk.to),
-            //     chunk.from,
-            //     chunk.open?.map((n) => this.nodeSet.types[n]?.name),
-            //     chunk.close?.map((n) => this.nodeSet.types[n]?.name),
-            //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
-            //   ])
-            // );
-            this.region.from = chunk.from;
-            this.buffer = left;
-            this.state = this.grammar.startState();
+        if (f.from <= this.region.from && f.to >= this.region.from) {
+          // try to find the buffer for this fragment's tree in the cache
+          const cachedBehindBuffer = this.findProp(
+            BUFFER_PROP,
+            f.tree,
+            this.region.from,
+            f.to
+          );
+          const cachedAheadBuffer = this.findProp(
+            AHEAD_BUFFER_PROP,
+            f.tree,
+            this.region.from,
+            f.to
+          );
+          if (cachedBehindBuffer) {
+            const right = this.tryToReuseBehind(cachedBehindBuffer);
+            if (right) {
+              if (!this.tryToSaveAhead(right)) {
+                if (cachedAheadBuffer) {
+                  this.aheadBuffer = cachedAheadBuffer;
+                }
+              }
+            }
           }
         }
       }
@@ -158,7 +148,10 @@ export default class GrammarParse implements PartialParse {
 
     // if we couldn't reuse state, we'll need to startup things with a default state
     if (!this.buffer || !this.state) {
-      this.buffer = new ChunkBuffer();
+      this.buffer = new ChunkBuffer(
+        [],
+        this.nodeSet.types.map((n) => n.name)
+      );
       this.state = this.grammar.startState();
     }
 
@@ -229,7 +222,9 @@ export default class GrammarParse implements PartialParse {
       // this is so that we don't need to build another tree
       const props = Object.create(null);
       // @ts-ignore
-      props[STATE_PROP.id] = this.buffer;
+      props[BUFFER_PROP.id] = this.buffer;
+      // @ts-ignore
+      props[AHEAD_BUFFER_PROP.id] = this.aheadBuffer;
       // @ts-ignore
       tree.props = props;
 
@@ -248,9 +243,6 @@ export default class GrammarParse implements PartialParse {
     while (this.parsedPos < this.region.to) {
       const pos = this.parsedPos;
 
-      let matchTokens: GrammarToken[] | null = null;
-      let length = 0;
-
       const start = Math.max(pos - MARGIN_BEFORE, this.region.from);
       const startCompensated = this.region.compensate(pos, start - pos);
 
@@ -261,6 +253,9 @@ export default class GrammarParse implements PartialParse {
       );
 
       const match = this.grammar.match(this.state, str, pos - start, pos, true);
+
+      let matchTokens: GrammarToken[] | null = null;
+      let length = 0;
 
       if (match) {
         matchTokens = match.compile();
@@ -290,6 +285,22 @@ export default class GrammarParse implements PartialParse {
         }
       }
 
+      // console.log(
+      //   "PARSED",
+      //   JSON.stringify(this.region.input.read(pos, this.parsedPos)),
+      //   this.parsedPos,
+      //   this.aheadBuffer
+      // );
+
+      if (this.aheadBuffer) {
+        // TRY TO REUSE STATE AHEAD OF EDITED RANGE
+        const reused = this.tryToReuseAhead(this.aheadBuffer);
+        if (reused) {
+          // can't reuse the buffer more than once (pointless)
+          this.aheadBuffer = undefined;
+        }
+      }
+
       if (addedChunk) {
         return true;
       }
@@ -307,7 +318,8 @@ export default class GrammarParse implements PartialParse {
    * @param offset - An offset added to the tree's positions, so that they
    *   may match some other source's positions.
    */
-  private find(
+  private findProp(
+    prop: NodeProp<ChunkBuffer>,
     tree: Tree,
     from: number,
     to: number,
@@ -315,7 +327,7 @@ export default class GrammarParse implements PartialParse {
   ): ChunkBuffer | null {
     const bundle: ChunkBuffer | undefined =
       offset >= from && offset + tree.length >= to
-        ? tree.prop(STATE_PROP)
+        ? tree.prop(prop)
         : undefined;
 
     if (bundle) {
@@ -329,12 +341,142 @@ export default class GrammarParse implements PartialParse {
       if (!(child instanceof Tree && pos < to)) {
         continue;
       }
-      const found = this.find(child, from, to, pos);
+      const found = this.findProp(prop, child, from, to, pos);
       if (found) {
         return found;
       }
     }
 
     return null;
+  }
+
+  /**
+   * Tries to reuse chunks BEHIND the edited range.
+   * Returns true if this was successful, otherwise false.
+   *
+   * @param cachedBuffer - The buffer to split in two
+   */
+  private tryToReuseBehind(cachedBuffer: ChunkBuffer) {
+    if (!this.region.edit) {
+      // can't reuse if we don't know what range has been edited
+      return null;
+    }
+    const editedFrom = this.region.edit.from;
+    const splitBehind = cachedBuffer.findBehindSplitPoint(editedFrom);
+    if (splitBehind.chunk && splitBehind.index != null) {
+      // REUSE CHUNKS THAT ARE BEHIND THE EDITED RANGE
+      const { left, right } = cachedBuffer.split(splitBehind.index);
+      // console.log(
+      //   "REUSE BEHIND",
+      //   JSON.stringify(
+      //     left?.chunks
+      //       .map((chunk) => this.region.input.read(chunk.from, chunk.to))
+      //       .join("")
+      //   )
+      //   // left?.chunks.map((chunk) => [
+      //   //   this.region.input.read(chunk.from, chunk.to),
+      //   //   chunk.from,
+      //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+      //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+      //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+      //   // ])
+      // );
+      this.region.from = splitBehind.chunk.from;
+      this.state = this.grammar.startState();
+      this.buffer = left;
+      return right;
+    }
+    return null;
+  }
+
+  /**
+   * Tries to save chunks AHEAD of the edited range.
+   * Returns true if this was successful, otherwise false.
+   *
+   * @param cachedBuffer - The buffer to split in two
+   */
+  private tryToSaveAhead(right: ChunkBuffer) {
+    if (!this.region.edit) {
+      // can't reuse if we don't know what range has been edited
+      return false;
+    }
+    const editedTo = this.region.edit.to;
+    const editedOffset = this.region.edit.offset;
+    // SAVE CHUNKS THAT ARE AHEAD OF THE EDITED RANGE
+    // (must offset ahead chunks to match edited offset)
+    // TODO: doesn't work for subsequent reuses. (is it because we should use aheadBuffer from tree prop?)
+    right.slide(0, editedOffset, true);
+    // console.log(
+    //   "RIGHT CHUNKS",
+    //   editedTo,
+    //   editedOffset,
+    //   JSON.stringify(
+    //     right?.chunks
+    //       .map((chunk) => this.region.input.read(chunk.from, chunk.to))
+    //       .join("")
+    //   ),
+    //   right?.chunks.map((chunk) => [
+    //     this.region.input.read(chunk.from, chunk.to),
+    //     chunk.from,
+    //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+    //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+    //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+    //   ])
+    // );
+    const splitAhead = right.findAheadSplitPoint(editedTo);
+    if (splitAhead.chunk && splitAhead.index != null) {
+      const aheadSplitBuffer = right.split(splitAhead.index);
+      this.aheadBuffer = aheadSplitBuffer.right;
+      // console.log(
+      //   "SAVE AHEAD",
+      //   JSON.stringify(
+      //     this.region.input.read(splitAhead.chunk.from, this.region.to)
+      //   )
+      //   // this.aheadBuffer?.chunks.map((chunk) => [
+      //   //   this.region.input.read(chunk.from, chunk.to),
+      //   //   chunk.from,
+      //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+      //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+      //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+      //   // ])
+      // );
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Tries to reuse chunks AHEAD of the edited range.
+   * Returns true if this was successful, otherwise false.
+   *
+   * @param aheadBuffer - The buffer to try and reuse.
+   */
+  private tryToReuseAhead(aheadBuffer: ChunkBuffer) {
+    const firstChunk = aheadBuffer.first;
+    if (firstChunk) {
+      const pos = this.parsedPos;
+      const reusablePos = firstChunk.from;
+      // console.log("REUSABLE?", pos, "===", reusablePos, pos === reusablePos);
+      if (pos === reusablePos) {
+        // console.log(
+        //   "REUSE AHEAD",
+        //   JSON.stringify(
+        //     this.region.input.read(firstChunk.from, this.region.to)
+        //   )
+        //   // this.aheadBuffer?.chunks.map((chunk) => [
+        //   //   this.region.input.read(chunk.from, chunk.to),
+        //   //   chunk.from,
+        //   //   chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+        //   //   chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+        //   //   chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+        //   // ])
+        // );
+        this.buffer.append(aheadBuffer, this.region.original.length);
+        this.state = this.grammar.startState();
+        this.parsedPos = this.buffer.last!.to;
+        return true;
+      }
+    }
+    return false;
   }
 }

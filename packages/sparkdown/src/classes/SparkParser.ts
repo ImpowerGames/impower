@@ -521,7 +521,7 @@ export default class SparkParser {
         diagnostic(
           program,
           tok,
-          `'${name}' is not ${prefixWithArticle(type)}`,
+          `'${name}' is not ${prefixWithArticle(type)} file`,
           [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
           from,
           to

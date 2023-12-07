@@ -37,7 +37,7 @@ export class Compiler {
   constructor(grammar: Grammar, buffer?: ChunkBuffer) {
     this.grammar = grammar;
     this.stack = new CompileStack();
-    this.buffer = buffer || new ChunkBuffer();
+    this.buffer = buffer || new ChunkBuffer([], grammar.nodeNames);
     this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.size = 0;
     this.reused = [];
@@ -54,7 +54,7 @@ export class Compiler {
 
   reset() {
     this.stack = new CompileStack();
-    this.buffer = new ChunkBuffer();
+    this.buffer = new ChunkBuffer([], this.grammar.nodeNames);
     this.compiled = new Int32Array(COMPILER_ARRAY_INTERVAL);
     this.size = 0;
     this.reused = [];
@@ -103,9 +103,9 @@ export class Compiler {
     // add open nodes to stack
     // this doesn't affect the buffer at all, but now we can watch for
     // when another node closes one of the open nodes we added
-    if (chunk.open) {
-      for (let i = 0; i < chunk.open.length; i++) {
-        this.stack.push(chunk.open[i]!, from, 0);
+    if (chunk.opens) {
+      for (let i = 0; i < chunk.opens.length; i++) {
+        this.stack.push(chunk.opens[i]!, from, 0);
       }
     }
 
@@ -121,9 +121,9 @@ export class Compiler {
     }
 
     // pop close nodes from the stack, if they can be paired with an open node
-    if (chunk.close) {
-      for (let i = 0; i < chunk.close.length; i++) {
-        const id = chunk.close[i]!;
+    if (chunk.closes) {
+      for (let i = 0; i < chunk.closes.length; i++) {
+        const id = chunk.closes[i]!;
         const idx = this.stack.last(id);
 
         if (idx !== null) {

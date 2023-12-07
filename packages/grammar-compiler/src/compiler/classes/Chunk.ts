@@ -37,12 +37,12 @@ export class Chunk {
   declare size: number;
 
   /** The node(s) to open when this chunk starts. `null` if the chunk opens nothing. */
-  declare open: ParserAction | null;
+  declare opens: ParserAction | null;
 
   /** The node(s) to close when this chunk ends. `null` if the chunk closes nothing. */
-  declare close: ParserAction | null;
+  declare closes: ParserAction | null;
 
-  /** The node(s) that are currently open at the start of this chunk. */
+  /** The node(s) active in this chunk (scopes the chunk opens or inherits (i.e. were already open when the chunk was created)). */
   declare scopes: ParserAction;
 
   /**
@@ -53,17 +53,17 @@ export class Chunk {
 
   /**
    * @param from - The starting position.
-   * @param scopes - The scopes at the starting position.
+   * @param inherits - The scopes at the starting position.
    */
-  constructor(from: number, scopes: ParserAction) {
+  constructor(from: number, inherits: ParserAction) {
     this.from = from;
     this.to = from;
     this.length = 0;
-    this.scopes = scopes;
+    this.scopes = inherits;
     this.tokens = new Int16Array(CHUNK_ARRAY_INTERVAL);
     this.size = 0;
-    this.open = null;
-    this.close = null;
+    this.opens = null;
+    this.closes = null;
   }
 
   /**
@@ -119,9 +119,9 @@ export class Chunk {
   pushOpen(...ids: number[]) {
     this.tree = undefined;
     ids.forEach((id) => {
-      this.open ??= [];
-      if (!this.open.includes(id)) {
-        this.open.push(id);
+      this.opens ??= [];
+      if (!this.opens.includes(id)) {
+        this.opens.push(id);
       }
     });
   }
@@ -134,9 +134,9 @@ export class Chunk {
   pushClose(...ids: number[]) {
     this.tree = undefined;
     ids.forEach((id) => {
-      this.close ??= [];
-      if (!this.close.includes(id)) {
-        this.close.push(id);
+      this.closes ??= [];
+      if (!this.closes.includes(id)) {
+        this.closes.push(id);
       }
     });
   }
@@ -151,15 +151,15 @@ export class Chunk {
       return false;
     }
 
-    if (this.open || this.close) {
-      if (!(this.open && this.close)) {
+    if (this.opens || this.closes) {
+      if (!(this.opens && this.closes)) {
         return false;
       }
-      if (this.open.length !== this.close.length) {
+      if (this.opens.length !== this.closes.length) {
         return false;
       }
-      const open = this.open.slice().reverse();
-      const close = this.close;
+      const open = this.opens.slice().reverse();
+      const close = this.closes;
       for (let i = 0; i < open.length; i++) {
         if (open[i] !== close[i]) {
           return false;
@@ -192,11 +192,11 @@ export class Chunk {
 
     const buffer: number[] = [];
 
-    const total = this.size * 4 + (this.open?.length ?? 0) * 4;
+    const total = this.size * 4 + (this.opens?.length ?? 0) * 4;
 
-    if (this.open) {
-      for (let i = this.open.length - 1; i >= 0; i--) {
-        buffer.push(this.open[i]!, 0, this.length, total);
+    if (this.opens) {
+      for (let i = this.opens.length - 1; i >= 0; i--) {
+        buffer.push(this.opens[i]!, 0, this.length, total);
       }
     }
 
@@ -213,5 +213,14 @@ export class Chunk {
     this.tree = new TreeBuffer(new Uint16Array(buffer), this.length);
 
     return this.tree;
+  }
+
+  isPure() {
+    // Chunk is completely pure (it does not inherit any scope, open any scope, or close any scope).
+    return (
+      this.scopes.length === 0 &&
+      (!this.opens || this.opens.length === 0) &&
+      (!this.closes || this.closes.length === 0)
+    );
   }
 }
