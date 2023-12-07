@@ -227,19 +227,19 @@ export default class SparkWebPlayer extends Component(spec) {
     const programs = this._programs;
     const options = this._options;
     if (programs && options) {
-      const createElement = (type: string) => {
-        return new SparkDOMElement(document.createElement(type));
-      };
       if (!this._root) {
         this._root = new SparkDOMElement(this.ref.sparkRoot!);
       }
       const context = new SparkContext(programs, {
         config: {
+          ...(options?.config || {}),
           ui: {
             root: this._root,
-            createElement,
+            createElement: (type: string) => {
+              return new SparkDOMElement(document.createElement(type));
+            },
+            ...(options?.config?.ui || {}),
           },
-          ...(options?.config || {}),
         },
         ...(options || {}),
       });

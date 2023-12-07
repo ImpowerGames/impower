@@ -9,7 +9,9 @@ import { MidiEvent } from "../types/MidiEvent";
 import { MidiTrackState } from "../types/MidiTrackState";
 import { Sound } from "../types/Sound";
 import { SoundPlaybackControl } from "../types/SoundPlaybackControl";
+import { Tone } from "../types/Tone";
 import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackState";
+import { SynthBuffer } from "./SynthBuffer";
 
 export interface SoundEvents extends Record<string, GameEvent> {
   onLoad: GameEvent1<Sound>;
@@ -34,6 +36,7 @@ export interface SoundConfig {
   synths: Record<string, SynthConfig>;
   midis: Map<string, Midi>;
   sounds: Map<string, Sound>;
+  audioContext: AudioContext;
 }
 
 export interface SoundState {
@@ -69,6 +72,12 @@ export class SoundManager extends Manager<
       synths: {},
       midis: new Map(),
       sounds: new Map(),
+      audioContext: {
+        baseLatency: 0,
+        outputLatency: 0,
+        currentTime: 0,
+        sampleRate: 44100,
+      },
       ...(config || {}),
     };
     const initialState: SoundState = {
@@ -94,6 +103,10 @@ export class SoundManager extends Manager<
 
   protected deletePlaybackState(id: string) {
     delete this._state.playbackStates[id];
+  }
+
+  synthesize(tones: Tone[]) {
+    return new SynthBuffer(tones, this.config.audioContext.sampleRate);
   }
 
   setChannel(id: string, channel: string): SoundPlaybackControl {
@@ -155,6 +168,10 @@ export class SoundManager extends Manager<
     return new Promise((resolve) => {
       this._load(sound, resolve);
     });
+  }
+
+  setAudioContext(audioContext: AudioContext) {
+    this._config.audioContext = audioContext;
   }
 
   notifyReady(id: string) {

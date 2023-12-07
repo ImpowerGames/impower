@@ -10,9 +10,10 @@ export default spec({
       running: workspace?.current?.preview?.modes?.game?.running || false,
       paused: workspace?.current?.preview?.modes?.game?.paused || false,
       debugging: workspace?.current?.preview?.modes?.game?.debugging || false,
+      loading: workspace?.current?.preview?.modes?.game?.loading || false,
     } as const),
   html: ({ context }) => {
-    const { running, paused, debugging } = context;
+    const { running, paused, debugging, loading } = context;
     const titleEl = () =>
       html`<s-box child-justify="center" text-align="center" grow inert
         >Game Preview</s-box
@@ -84,6 +85,45 @@ export default spec({
         icon="player-skip-forward-fill"
       ></s-button>
     `;
+    const loadingToolbar = () => html`
+      <s-button
+        id="runToggleButton"
+        variant="text"
+        width="48"
+        height="44"
+        text-size="2xs"
+        child-layout="column"
+        color="primary-70"
+      >
+        <s-icon icon="${`loading-dots`}" size="20" m-b="1"></s-icon>
+      </s-button>
+      <s-box grow inert></s-box>
+      ${titleEl}
+      <s-box grow inert></s-box>
+      ${modeButton}
+    `;
+    const readyToolbar = () => html`
+      <s-button
+        id="runToggleButton"
+        variant="text"
+        width="48"
+        height="44"
+        text-size="2xs"
+        child-layout="column"
+        color="primary-70"
+      >
+        <s-icon
+          icon="${running ? `player-stop` : `player-play`}"
+          size="20"
+          m-b="1"
+        ></s-icon>
+        ${running ? `STOP` : `PLAY`}
+      </s-button>
+      <s-box grow inert></s-box>
+      ${running ? playbackControls : titleEl}
+      <s-box grow inert></s-box>
+      ${running ? settingsDropdown : modeButton}
+    `;
     return html`
       <s-box
         height="panel-nav"
@@ -101,26 +141,7 @@ export default spec({
           grow
         >
           <s-list child-layout="row" child-justify="center" grow>
-            <s-button
-              id="runToggleButton"
-              variant="text"
-              width="48"
-              height="44"
-              text-size="2xs"
-              child-layout="column"
-              color="primary-70"
-            >
-              <s-icon
-                icon="${running ? `player-stop` : `player-play`}"
-                size="20"
-                m-b="1"
-              ></s-icon>
-              ${running ? `STOP` : `PLAY`}
-            </s-button>
-            <s-box grow inert></s-box>
-            ${running ? playbackControls : titleEl}
-            <s-box grow inert></s-box>
-            ${running ? settingsDropdown : modeButton}
+            ${loading ? loadingToolbar : readyToolbar}
           </s-list>
         </s-box>
       </s-box>

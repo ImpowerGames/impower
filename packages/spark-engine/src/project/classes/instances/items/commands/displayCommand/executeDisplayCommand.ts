@@ -3,7 +3,6 @@ import {
   Chunk,
   IElement,
   SparkGame,
-  SynthBuffer,
   Tone,
   Writer,
   clone,
@@ -614,7 +613,7 @@ export const executeDisplayCommand = (
       });
       // Start writer typing tones
       game.sound.start(
-        { id, src: new SynthBuffer(tones) },
+        { id, src: game.sound.synthesize(tones) },
         "writer",
         0,
         0,

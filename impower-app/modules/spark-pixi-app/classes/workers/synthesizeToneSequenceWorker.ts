@@ -1,8 +1,8 @@
 /* eslint-disable no-restricted-globals */
 import {
-    fillArrayWithTone,
-    getNumberOfSamples,
-    modulateSoundBuffer,
+  fillArrayWithTone,
+  getNumberOfSamples,
+  modulateSoundBuffer,
 } from "../../../../../spark-engine";
 import { ToneSequence } from "../../../../../spark-engine/src/game/sound/types/ToneSequence";
 
@@ -11,7 +11,7 @@ self.onmessage = (event): void => {
   self.postMessage({ progress });
   const toneSequence = event.data as ToneSequence;
   const sampleRate = 44100;
-  const length = getNumberOfSamples(toneSequence.tones, sampleRate);
+  const length = getNumberOfSamples(toneSequence.tones, toneSequence.sampleRate);
   const result = new Float32Array(length);
   progress += 0.1;
   self.postMessage({ progress });

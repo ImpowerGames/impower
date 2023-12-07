@@ -2,6 +2,7 @@ import { Event, Object3D } from "three";
 import { SparkDOMAudioPlayer } from "../../../../spark-dom/src/classes/SparkDOMAudioPlayer";
 import { SynthBuffer } from "../../../../spark-engine/src";
 import { Sound } from "../../../../spark-engine/src/game/sound/types/Sound";
+import Application from "../Application";
 import { Disposable } from "../Disposable";
 import Scene from "../Scene";
 
@@ -9,6 +10,11 @@ export default class SoundScene extends Scene {
   protected _audioContext: AudioContext = new AudioContext();
 
   protected _audioPlayers = new Map<string, SparkDOMAudioPlayer>();
+
+  constructor(app: Application) {
+    super(app);
+    this.context.game.sound.setAudioContext(this._audioContext);
+  }
 
   override start() {}
 

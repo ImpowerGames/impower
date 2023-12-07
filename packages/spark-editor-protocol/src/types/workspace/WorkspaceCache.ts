@@ -40,6 +40,7 @@ export type ProjectMetadataField =
   | "zipSynced";
 
 export interface GameState {
+  loading?: boolean;
   running?: boolean;
   paused?: boolean;
   debugging?: boolean;

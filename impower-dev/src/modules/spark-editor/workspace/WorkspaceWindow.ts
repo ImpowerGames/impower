@@ -31,10 +31,20 @@ import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 
+const FIRST_TIME_AUDIO_LOAD_WAIT = 2000;
+
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
     this._loadProject.bind(this)
   );
+
+  protected _audioContextReady = false;
+
+  protected _audioContext?: AudioContext;
+
+  protected _audioStartedLoadingAt = 0;
+
+  protected _audioLoadingTimeout = 0;
 
   constructor() {
     const cachedProjectId = localStorage.getItem(
@@ -545,6 +555,7 @@ export default class WorkspaceWindow {
           ...this.store.preview.modes,
           game: {
             ...this.store.preview.modes.game,
+            loading: false,
             running: true,
           },
         },
@@ -565,6 +576,7 @@ export default class WorkspaceWindow {
           ...this.store.preview.modes,
           game: {
             ...this.store.preview.modes.game,
+            loading: false,
             running: false,
           },
         },
@@ -620,11 +632,62 @@ export default class WorkspaceWindow {
     );
   }
 
-  toggleGameRunning() {
+  protected _toggleGameRunningNow() {
     if (this.store.preview.modes.game.running) {
       this.stopGame();
     } else {
       this.startGame();
+    }
+  }
+
+  protected _toggleGameRunningAfterAudioContextReady() {
+    if (this._audioLoadingTimeout) {
+      // Cancel existing toggleGameRunning callback
+      window.clearTimeout(this._audioLoadingTimeout);
+    }
+    // Calculate how much longer we have to wait
+    const currentTime = performance.now();
+    if (!this._audioStartedLoadingAt) {
+      this._audioStartedLoadingAt = currentTime;
+    }
+    const timeElapsed = currentTime - this._audioStartedLoadingAt;
+    const timeLeft = FIRST_TIME_AUDIO_LOAD_WAIT - timeElapsed;
+    if (timeLeft > 0) {
+      // Still need to wait some more before we toggle
+      this._audioLoadingTimeout = window.setTimeout(() => {
+        this._audioContextReady = true;
+        this._toggleGameRunningNow();
+      }, timeLeft);
+    } else {
+      // No need to wait, toggle immediately
+      this._audioContextReady = true;
+      this._toggleGameRunningNow();
+    }
+  }
+
+  toggleGameRunning() {
+    if (!this._audioContextReady) {
+      if (!this._audioContext) {
+        // Start loading audio context for the first time
+        // (we only need to do this once for the web audio api to start preparing itself)
+        this._audioContext = new AudioContext();
+      }
+      this.update({
+        ...this.store,
+        preview: {
+          ...this.store.preview,
+          modes: {
+            ...this.store.preview.modes,
+            game: {
+              ...this.store.preview.modes.game,
+              loading: true,
+            },
+          },
+        },
+      });
+      this._toggleGameRunningAfterAudioContextReady();
+    } else {
+      this._toggleGameRunningNow();
     }
   }
 
