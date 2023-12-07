@@ -238,7 +238,7 @@ export default class SparkParser {
     const declareVariable = (tok: SparkVariable) => {
       // Add variable declaration to program
       program.variables ??= {};
-      program.variables[tok.name] ??= tok;
+      program.variables[tok.name] = tok;
     };
 
     const constructProperty = (
@@ -300,10 +300,14 @@ export default class SparkParser {
             field,
             prevField
           );
+          const clonedFieldCompiled =
+            field.compiled != null
+              ? JSON.parse(JSON.stringify(field.compiled))
+              : field.compiled;
           constructProperty(
             objCompiled,
             propertyPath,
-            field.compiled,
+            clonedFieldCompiled,
             field,
             prevField
           );
