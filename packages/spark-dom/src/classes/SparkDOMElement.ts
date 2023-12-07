@@ -166,9 +166,13 @@ export class SparkDOMElement implements IElement {
       const content = Object.entries(fields)
         .map(([k, v]) => {
           const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, typeMap);
-          return `${cssProp}: ${cssValue};`;
+          if (cssValue) {
+            return `\n  ${cssProp}: ${cssValue};`;
+          }
+          return "";
         })
-        .join(`\n  `);
+        .join("")
+        .trim();
       const fieldsContent = `{\n    ${content}\n  }`;
       textContent += `  ${keyframe} ${fieldsContent}\n`;
     });
@@ -212,9 +216,13 @@ export class SparkDOMElement implements IElement {
       const content = Object.entries(fields)
         .map(([k, v]) => {
           const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v, typeMap);
-          return `${cssProp}: ${cssValue};`;
+          if (cssValue) {
+            return `\n  ${cssProp}: ${cssValue};`;
+          }
+          return "";
         })
-        .join(`\n  `);
+        .join("")
+        .trim();
       const fieldsContent = `{\n  ${content}\n}`;
       const isBreakpointGroup = groupName && breakpoints[groupName];
       const rootId = this.id?.split(".")?.[0] || "";

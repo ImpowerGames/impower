@@ -92,5 +92,8 @@ export const getCSSPropertyKeyValue = (
       return [cssProp, `${cssValue}px`];
     }
   }
+  if (typeof cssValue === "object") {
+    return [cssProp, ""];
+  }
   return [cssProp, String(cssValue)];
 };
