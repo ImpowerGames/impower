@@ -2652,6 +2652,9 @@
         "1": {
           "patterns": [
             {
+              "include": "#Whitespace"
+            },
+            {
               "include": "#AssetControl"
             },
             {

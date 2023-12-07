@@ -1423,6 +1423,7 @@ repository:
     captures:
       1:
         patterns:
+          - { include: "#Whitespace" }
           - { include: "#AssetControl" }
           - { include: "#NumericLiteral" }
 
