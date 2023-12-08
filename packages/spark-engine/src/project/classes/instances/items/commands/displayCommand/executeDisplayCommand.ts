@@ -362,12 +362,10 @@ export const executeDisplayCommand = (
                 assetArgs?.includes("start") ||
                 !assetArgs.some((a) => controlKeywords.includes(a))
               ) {
-                console.log("START", sounds);
                 soundEvents.push(() =>
                   game.sound.startAll(sounds, target, groupId, after, over)
                 );
               } else if (assetArgs?.includes("stop")) {
-                console.log("STOP", sounds);
                 soundEvents.push(() =>
                   game.sound.stopAll(
                     sounds,
@@ -379,7 +377,6 @@ export const executeDisplayCommand = (
                   )
                 );
               } else {
-                console.log("FADE", sounds);
                 soundEvents.push(() =>
                   game.sound.fadeAll(sounds, target, groupId, after, over)
                 );
