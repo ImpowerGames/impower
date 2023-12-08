@@ -2573,6 +2573,7 @@ repository:
         name: entity.name.function.sd
 
   Color:
+    emit: true
     patterns:
       - { include: "#HEXColor" }
       - { include: "#RGBColor" }

@@ -108,6 +108,9 @@ const SPARK_TOKEN_TAGS: {
   Newline: "newline",
   Indent: "indent",
   Whitespace: "whitespace",
+
+  Color: "color",
+
   PunctuationSemicolon: "punctuation_semicolon",
   PunctuationComma: "punctuation_comma",
   PunctuationAccessor: "punctuation_accessor",

@@ -28,7 +28,6 @@ import { StructureItem } from "../types/StructureItem";
 import calculateSpeechDuration from "../utils/calculateSpeechDuration";
 import createSparkToken from "../utils/createSparkToken";
 import getAncestorIds from "../utils/getAncestorIds";
-import getColorMetadata from "../utils/getColorMetadata";
 import { getProperty } from "../utils/getProperty";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
 import getScopedContext from "../utils/getScopedContext";
@@ -535,19 +534,6 @@ export default class SparkParser {
       return found;
     };
 
-    const recordColors = (
-      value: string,
-      expressionRange: SparkRange | undefined
-    ) => {
-      // Record any color strings
-      const colorMetadata = getColorMetadata(value, expressionRange);
-      if (colorMetadata) {
-        program.metadata ??= {};
-        program.metadata.colors ??= [];
-        program.metadata.colors?.push(colorMetadata);
-      }
-    };
-
     const recordExpressionReferences = (
       tok: ISparkToken,
       expressionFrom: number | undefined,
@@ -615,7 +601,6 @@ export default class SparkParser {
         value,
         context
       );
-      recordColors(value, valueRange);
       recordExpressionReferences(tok, valueRange?.from, valueReferences);
       reportExpressionDiagnostics(tok, valueRange, valueDiagnostics);
       return formattedValue;
@@ -631,7 +616,6 @@ export default class SparkParser {
         value,
         context
       );
-      recordColors(value, valueRange);
       recordExpressionReferences(tok, valueRange?.from, valueReferences);
       reportExpressionDiagnostics(tok, valueRange, valueDiagnostics);
       return compiledValue;
@@ -1599,6 +1583,15 @@ export default class SparkParser {
                 parent.content.push(tok);
               }
             }
+          } else if (tok.tag === "color") {
+            program.metadata ??= {};
+            program.metadata.colors ??= [];
+            program.metadata.colors?.push({
+              line: tok.line,
+              from: tok.from,
+              to: tok.to,
+              value: text,
+            });
           } else if (tok.tag === "flow_break") {
             addToken(tok);
           } else if (tok.tag === "jump") {

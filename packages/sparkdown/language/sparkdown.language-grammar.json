@@ -4473,6 +4473,7 @@
       }
     },
     "Color": {
+      "emit": true,
       "patterns": [
         {
           "include": "#HEXColor"

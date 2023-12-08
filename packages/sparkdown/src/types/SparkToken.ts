@@ -349,6 +349,7 @@ export interface SparkOtherToken
     | "asset_names"
     | "asset_args"
     | "string"
+    | "color"
     | "newline"
     | "whitespace"
     | "indent"
