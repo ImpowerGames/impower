@@ -14,6 +14,7 @@ import {
   MessageConnection,
   ServerCapabilities,
 } from "../../../../../spark-editor-protocol/src/types";
+import { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
@@ -107,6 +108,11 @@ const createEditorView = (
     defaultState?.selection != null
       ? EditorSelection.fromJSON(defaultState?.selection)
       : { anchor: 0, head: 0 };
+
+  const programContext: {
+    program?: SparkProgram;
+  } = {};
+
   let restoredState: EditorState | undefined;
   if (defaultState?.selection) {
     const selection = defaultState?.selection;
@@ -149,6 +155,7 @@ const createEditorView = (
       }),
       structWidgets({
         fileSystemReader,
+        programContext,
       }),
       EditorView.updateListener.of((u) => {
         const parsed = syntaxTreeAvailable(u.state);
@@ -243,11 +250,8 @@ const createEditorView = (
   const disposable = serverConnection.onNotification(
     DidParseTextDocumentMessage.type,
     (params) => {
-      const variables = params.program.variables;
-      if (variables) {
-        const transaction = updateStructWidgets(variables);
-        view.dispatch(transaction);
-      }
+      programContext.program = params.program;
+      view.dispatch(updateStructWidgets());
     }
   );
   return [view, disposable];

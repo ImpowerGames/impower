@@ -5,6 +5,8 @@ const DEFAULT_COLOR = "#00000000";
 const HOVER_COLOR = "#00000040";
 const TAP_COLOR = "#000000";
 
+export const STRUCT_PLAY_BUTTON_CLASS_NAME = "cm-struct-play-button";
+
 export default class StructPlayWidgetType extends WidgetType {
   id: string;
 
@@ -32,7 +34,8 @@ export default class StructPlayWidgetType extends WidgetType {
     root.style.float = "right";
 
     const button = document.createElement("button");
-    button.className = "cm-struct-play-autofill";
+    button.classList.add(STRUCT_PLAY_BUTTON_CLASS_NAME);
+    button.classList.add(this.id);
     button.innerHTML = this.icon;
     button.style.color = ICON_COLOR;
     button.style.width = "1.25rem";

@@ -21,7 +21,7 @@ export const fillArrayWithTone = (
     tone.pitchHertz ??
     convertPitchNoteToHertz(tone.pitchNote) ??
     convertPitchNumberToHertz(tone.pitchNumber) ??
-    0;
+    440;
   if (duration) {
     const startIndex = Math.floor(time * sampleRate);
     const endIndex = Math.floor((time + duration) * sampleRate);

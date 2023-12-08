@@ -2,6 +2,11 @@ import type { SynthBuffer } from "../../../spark-engine/src/game/sound/classes/S
 
 const DEFAULT_FADE_DURATION = 0.025;
 
+type AudioListener = (
+  this: AudioBufferSourceNode,
+  ev: AudioScheduledSourceNodeEventMap[keyof AudioScheduledSourceNodeEventMap]
+) => any;
+
 export class SparkDOMAudioPlayer {
   protected _gainNode: GainNode;
   public get gainNode(): GainNode {
@@ -92,6 +97,13 @@ export class SparkDOMAudioPlayer {
     return this._cues;
   }
 
+  protected _events: Record<
+    keyof AudioScheduledSourceNodeEventMap,
+    Map<AudioListener, boolean | AddEventListenerOptions | undefined>
+  > = {
+    ended: new Map(),
+  };
+
   constructor(
     sound: AudioBuffer | Float32Array | SynthBuffer,
     audioContext: AudioContext,
@@ -126,6 +138,11 @@ export class SparkDOMAudioPlayer {
     this._sourceNode = this._context.createBufferSource();
     this._sourceNode.loop = this._loop;
     this._sourceNode.connect(this._gainNode);
+    this._events.ended.forEach((options, listener) => {
+      if (this._sourceNode) {
+        this._sourceNode.addEventListener("ended", listener, options);
+      }
+    });
     if (this._audioBuffer) {
       this._sourceNode.buffer = this._audioBuffer;
     } else if (this._soundBuffer) {
@@ -136,6 +153,27 @@ export class SparkDOMAudioPlayer {
       );
       buffer.copyToChannel(this._soundBuffer, 0);
       this._sourceNode.buffer = buffer;
+    }
+  }
+
+  addEventListener<K extends keyof AudioScheduledSourceNodeEventMap>(
+    type: K,
+    listener: AudioListener,
+    options?: boolean | AddEventListenerOptions
+  ): void {
+    this._events[type] ??= new Map();
+    this._events[type].set(listener, options);
+  }
+
+  removeEventListener<K extends keyof AudioScheduledSourceNodeEventMap>(
+    type: K,
+    listener: AudioListener,
+    options?: boolean | EventListenerOptions
+  ): void {
+    this._events[type] ??= new Map();
+    this._events[type].delete(listener);
+    if (this._sourceNode) {
+      this._sourceNode.removeEventListener("ended", listener, options);
     }
   }
 

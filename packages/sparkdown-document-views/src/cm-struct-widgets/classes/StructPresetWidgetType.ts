@@ -24,7 +24,7 @@ export const getPresetPreviewClassName = (id: string): string => {
 export interface StructPresetOption {
   label?: string;
   innerHTML?: string;
-  onClick?: (e: PointerEvent, previewEl: HTMLElement) => void;
+  onClick?: (e: PointerEvent, previewEl: HTMLElement, dom: HTMLElement) => void;
 }
 
 export default class StructPresetWidgetType extends WidgetType {
@@ -157,7 +157,7 @@ export default class StructPresetWidgetType extends WidgetType {
         overlay.style.backgroundColor = HOVER_COLOR;
       };
       optionButton.onclick = (e: MouseEvent): void => {
-        option.onClick?.(e as PointerEvent, previewEl);
+        option.onClick?.(e as PointerEvent, previewEl, root);
       };
       listItem.appendChild(optionButton);
       return listItem;
