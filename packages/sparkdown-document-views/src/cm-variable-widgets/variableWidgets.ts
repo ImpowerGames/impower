@@ -1,3 +1,4 @@
+import { getIndentUnit, indentString } from "@codemirror/language";
 import {
   EditorState,
   Facet,
@@ -40,20 +41,20 @@ import { WaveformConfig } from "./types/WaveformConfig";
 import { getAudioBuffer } from "./utils/getAudioBuffer";
 import { updateWaveformElement } from "./utils/updateWaveformElement";
 
-export interface StructWidgetsConfiguration {
+export interface VariableWidgetsConfiguration {
   fileSystemReader?: FileSystemReader;
   waveformSettings?: WaveformConfig;
   previewSettings?: PreviewConfig;
   programContext?: { program?: SparkProgram };
 }
 
-interface StructWidgetContext {
+interface VariableWidgetContext {
   audioContext?: AudioContext;
   audioPlayers: SparkDOMAudioPlayer[];
   audioPlayingButton?: HTMLElement | null;
 }
 
-const STRUCT_WIDGET_CONTEXT: StructWidgetContext = {
+const VARIABLE_WIDGET_CONTEXT: VariableWidgetContext = {
   audioContext: undefined,
   audioPlayers: [],
   audioPlayingButton: undefined,
@@ -67,7 +68,7 @@ const getPlayButton = (dom: HTMLElement, variableName: string) => {
 };
 
 const playAudio = async (
-  context: StructWidgetContext,
+  context: VariableWidgetContext,
   button: HTMLElement,
   getPlayers: () => SparkDOMAudioPlayer[] | Promise<SparkDOMAudioPlayer[]>,
   duration?: number,
@@ -107,10 +108,10 @@ const playAudio = async (
   }
 };
 
-const playAudioGroupStruct = async (
+const playAudioGroupVariable = async (
   audioGroup: AudioGroup,
   fileSystemReader: FileSystemReader,
-  context: StructWidgetContext,
+  context: VariableWidgetContext,
   button: HTMLElement,
   duration?: number,
   offset?: number
@@ -135,9 +136,9 @@ const playAudioGroupStruct = async (
   playAudio(context, button, getPlayers, duration, offset);
 };
 
-const playSynthStruct = async (
+const playSynthVariable = async (
   synth: Synth,
-  context: StructWidgetContext,
+  context: VariableWidgetContext,
   button: HTMLElement
 ) => {
   context.audioContext ??= new AudioContext();
@@ -149,7 +150,7 @@ const playSynthStruct = async (
   playAudio(context, button, getPlayers);
 };
 
-const createSynthBuffer = (synth: Synth, context: StructWidgetContext) => {
+const createSynthBuffer = (synth: Synth, context: VariableWidgetContext) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
   const duration =
@@ -173,8 +174,8 @@ const createSynthBuffer = (synth: Synth, context: StructWidgetContext) => {
 const updateSynthWaveform = (
   previewEl: HTMLElement,
   synth: Synth,
-  context: StructWidgetContext,
-  config: Required<StructWidgetsConfiguration>
+  context: VariableWidgetContext,
+  config: Required<VariableWidgetsConfiguration>
 ) => {
   context.audioContext ??= new AudioContext();
   const synthBuffer = createSynthBuffer(synth, context);
@@ -234,32 +235,48 @@ const getNextUnindentedLine = (
   return prevLine;
 };
 
-const autofillStruct = (
-  view: EditorView,
-  widgetPos: number,
-  structObj: unknown
-): boolean => {
-  const widgetLine = view.state.doc.lineAt(widgetPos);
+const getStructValueRange = (view: EditorView, structWidgetPos: number) => {
+  const widgetLine = view.state.doc.lineAt(structWidgetPos);
   const indentCols =
     widgetLine.text.length - widgetLine.text.trimStart().length;
-  const indentStr = widgetLine.text.slice(0, indentCols);
+  const indent = widgetLine.text.slice(0, indentCols);
   const valueFromLine = getFirstIndentedLine(
     view.state,
     widgetLine.number,
-    indentStr
+    indent
   );
   const valueToLine = getNextUnindentedLine(
     view.state,
     widgetLine.number,
-    indentStr
+    indent
   );
   if (valueFromLine && valueToLine) {
-    const indentedStr = indentStr + "  ";
-    const lineSeparator = `\n${indentedStr}`;
-    let insert = indentedStr + yamlStringify(structObj, lineSeparator);
-    const changes = {
+    const indentSize = getIndentUnit(view.state);
+    const indentStr = indentString(view.state, indentSize);
+    const indentedPrefix = indent + indentStr;
+    return {
       from: valueFromLine.from,
       to: Math.min(view.state.doc.length, valueToLine.to),
+      indent: indentedPrefix,
+    };
+  }
+  return null;
+};
+
+const overwriteStructValue = (
+  view: EditorView,
+  structWidgetPos: number,
+  structObj: unknown
+): boolean => {
+  const structValueRange = getStructValueRange(view, structWidgetPos);
+  if (structValueRange) {
+    const newline = view.state.lineBreak;
+    const lineSeparator = `${newline}${structValueRange.indent}`;
+    let insert =
+      structValueRange.indent + yamlStringify(structObj, lineSeparator);
+    const changes = {
+      from: structValueRange.from,
+      to: structValueRange.to,
       insert,
     };
     view.dispatch({ changes });
@@ -274,9 +291,9 @@ const LoadingButtonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 
 
 const StopButtonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d='M 4 6 C 4 4.9 4.9 4 6 4 L 18 4 C 19.1 4 20 4.9 20 6 L 20 18 C 20 19.1 19.1 20 18 20 L 6 20 C 4.9 20 4 19.1 4 18 L 4 6 Z'></path></svg>`;
 
-const structWidgetsConfig = Facet.define<
-  StructWidgetsConfiguration,
-  Required<StructWidgetsConfiguration>
+const variableWidgetsConfig = Facet.define<
+  VariableWidgetsConfiguration,
+  Required<VariableWidgetsConfiguration>
 >({
   combine(configs) {
     return combineConfig(configs, {
@@ -307,172 +324,159 @@ const structWidgetsConfig = Facet.define<
   },
 });
 
-const updateStructDecorationsEffect = StateEffect.define<{}>();
+const updateVariableDecorationsEffect = StateEffect.define<{}>();
 
-export const updateStructWidgets = (): TransactionSpec => {
+export const updateVariableWidgets = (): TransactionSpec => {
   const effects: StateEffect<unknown>[] = [];
-  effects.push(updateStructDecorationsEffect.of({}));
+  effects.push(updateVariableDecorationsEffect.of({}));
   return { effects };
 };
 
-const createStructWidgets = (view: EditorView) => {
-  const config = view.state.facet(structWidgetsConfig);
+const getSynthVariableWidgets = (
+  view: EditorView,
+  widgetPos: number,
+  variableName: string,
+  compiled: Synth
+) => {
+  const config = view.state.facet(variableWidgetsConfig);
+  const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
-  const context = STRUCT_WIDGET_CONTEXT;
+  const defaultObj = SYNTH_DEFAULTS[""];
+  const validation = SYNTH_VALIDATION;
+  const options: StructPresetOption[] = Object.entries({
+    default: defaultObj,
+    ...(SYNTH_RANDOMIZATIONS || {}),
+  }).map(([label, randomization]) => {
+    let validLabel = label;
+    let validInnerHTML = "";
+    const option: StructPresetOption = {
+      label: validLabel,
+      innerHTML: validInnerHTML,
+      onClick: (_e, previewEl, dom): void => {
+        const preset = randomization ? {} : defaultObj;
+        if (randomization) {
+          const cullProp =
+            label?.toLowerCase() !== "default" ? "on" : undefined;
+          randomize(preset, validation, randomization, cullProp);
+        }
+        if (overwriteStructValue(view, view.posAtDOM(dom), preset)) {
+          const randomizedObj = clone(defaultObj, preset);
+          updateSynthWaveform(previewEl, randomizedObj, context, config);
+          const button = getPlayButton(dom, variableName);
+          if (button) {
+            playSynthVariable(randomizedObj, context, button);
+          }
+        }
+      },
+    };
+    return option;
+  });
+  const presetWidget = Decoration.widget({
+    side: 1,
+    widget: new StructPresetWidgetType(
+      variableName,
+      options,
+      async (previewEl) => {
+        updateSynthWaveform(previewEl, compiled, context, config);
+      }
+    ),
+  });
+  const playWidget = Decoration.widget({
+    side: 1,
+    id: variableName,
+    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) => {
+      playSynthVariable(compiled, context, button);
+    }),
+  });
+  widgetRanges.push(presetWidget.range(widgetPos));
+  widgetRanges.push(playWidget.range(widgetPos));
+  return widgetRanges;
+};
+
+const getAudioGroupVariableWidgets = (
+  view: EditorView,
+  widgetPos: number,
+  variableName: string,
+  compiled: AudioGroup,
+  fields:
+    | { from: number; to: number; path: string; key: string; compiled: any }[]
+    | undefined
+) => {
+  const config = view.state.facet(variableWidgetsConfig);
+  const context = VARIABLE_WIDGET_CONTEXT;
+  const widgetRanges: Range<Decoration>[] = [];
+  // TODO: Allow editing cues with visual waveform sliders
+  const playWidget = Decoration.widget({
+    side: 1,
+    id: variableName,
+    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) =>
+      playAudioGroupVariable(compiled, config.fileSystemReader, context, button)
+    ),
+  });
+  widgetRanges.push(playWidget.range(widgetPos));
+  if (fields) {
+    for (let i = 0; i < fields.length; i += 1) {
+      const field = fields[i]!;
+      const nextField = fields[i + 1];
+      const timeFrom = field.compiled;
+      const timeTo = nextField?.compiled;
+      if (
+        field.path === "cues" &&
+        typeof timeFrom === "number" &&
+        (timeTo === undefined || typeof timeTo === "number")
+      ) {
+        const offset = timeFrom;
+        const duration = timeTo != null ? timeTo - timeFrom : undefined;
+        const fieldId = variableName + "." + field.path + "." + field.key;
+        const fieldPlayWidget = Decoration.widget({
+          side: 1,
+          id: fieldId,
+          widget: new StructPlayWidgetType(fieldId, PlayButtonIcon, (button) =>
+            playAudioGroupVariable(
+              compiled,
+              config.fileSystemReader,
+              context,
+              button,
+              duration,
+              offset
+            )
+          ),
+        });
+        widgetRanges.push(fieldPlayWidget.range(field.to));
+      }
+    }
+  }
+  return widgetRanges;
+};
+
+const createVariableWidgets = (view: EditorView) => {
+  const config = view.state.facet(variableWidgetsConfig);
+  const widgetRanges: Range<Decoration>[] = [];
   const program = config.programContext.program;
   if (program?.variables) {
     Object.values(program.variables).forEach((variable) => {
       const to = variable.ranges?.name?.to;
       if (to != null) {
         if (variable.type === "synth" && !variable.implicit) {
-          const synth = variable.compiled as Synth;
-          const defaultObj = SYNTH_DEFAULTS[""];
-          const validation = SYNTH_VALIDATION;
-          const options: StructPresetOption[] = Object.entries({
-            default: defaultObj,
-            ...(SYNTH_RANDOMIZATIONS || {}),
-          }).map(([label, randomization]) => {
-            let validLabel = label;
-            let validInnerHTML = "";
-            const option: StructPresetOption = {
-              label: validLabel,
-              innerHTML: validInnerHTML,
-              onClick: (_e, previewEl, dom): void => {
-                const program = config.programContext.program;
-                if (program) {
-                  const preset = randomization ? {} : defaultObj;
-                  if (randomization) {
-                    const cullProp =
-                      label?.toLowerCase() !== "default" ? "on" : undefined;
-                    randomize(preset, validation, randomization, cullProp);
-                  }
-                  if (autofillStruct(view, view.posAtDOM(dom), preset)) {
-                    const randomizedObj = clone(defaultObj, preset);
-                    updateSynthWaveform(
-                      previewEl,
-                      randomizedObj,
-                      context,
-                      config
-                    );
-                    const button = getPlayButton(dom, variable.name);
-                    if (button) {
-                      playSynthStruct(randomizedObj, context, button);
-                    }
-                  }
-                }
-              },
-            };
-            return option;
-          });
-          const presetWidget = Decoration.widget({
-            side: 1,
-            widget: new StructPresetWidgetType(
+          widgetRanges.push(
+            ...getSynthVariableWidgets(
+              view,
+              to,
               variable.name,
-              options,
-              async (previewEl) => {
-                updateSynthWaveform(previewEl, synth, context, config);
-              }
-            ),
-          });
-          const structPlayWidget = Decoration.widget({
-            side: 1,
-            id: variable.name,
-            widget: new StructPlayWidgetType(
-              variable.name,
-              PlayButtonIcon,
-              (button) => {
-                playSynthStruct(synth, context, button);
-              }
-            ),
-          });
-          widgetRanges.push(presetWidget.range(to));
-          widgetRanges.push(structPlayWidget.range(to));
+              variable.compiled
+            )
+          );
         }
         if (variable.type === "audio_group") {
-          const audioGroup = variable.compiled as AudioGroup;
-          // TODO: Allow editing cues with visual waveform sliders
-          // const presetWidget = Decoration.widget({
-          //   widget: new StructPresetWidgetType(
-          //     struct.name,
-          //     [],
-          //     async (previewEl) => {
-          //       const audioGroup = struct.compiled as AudioGroup;
-          //       const firstAudioSrc = audioGroup.assets?.[0]?.src;
-          //       if (firstAudioSrc) {
-          //         const url = await config.fileSystemReader.url(firstAudioSrc);
-          //         if (url) {
-          //           const soundBuffer = await loadAudioBytes(
-          //             url,
-          //             context.audioContext
-          //           );
-          //           updateWaveformElement(
-          //             {
-          //               ...config.waveformSettings,
-          //               xOffset: 0,
-          //               zoomOffset: 0,
-          //               visible: "both",
-          //               visibleIndex: 0,
-          //               soundBuffer,
-          //             },
-          //             config.previewSettings,
-          //             context.audioContext,
-          //             previewEl
-          //           );
-          //         }
-          //       }
-          //     }
-          //   ),
-          // });
-          const structPlayWidget = Decoration.widget({
-            side: 1,
-            id: variable.name,
-            widget: new StructPlayWidgetType(
+          widgetRanges.push(
+            ...getAudioGroupVariableWidgets(
+              view,
+              to,
               variable.name,
-              PlayButtonIcon,
-              (button) =>
-                playAudioGroupStruct(
-                  audioGroup,
-                  config.fileSystemReader,
-                  context,
-                  button
-                )
-            ),
-          });
-          widgetRanges.push(structPlayWidget.range(to));
-          if (variable.fields) {
-            for (let i = 0; i < variable.fields.length; i += 1) {
-              const field = variable.fields[i]!;
-              const nextField = variable.fields[i + 1];
-              const from = field.compiled;
-              const to = nextField?.compiled;
-              if (
-                field.path === "cues" &&
-                typeof from === "number" &&
-                (to === undefined || typeof to === "number")
-              ) {
-                const offset = from;
-                const duration = to != null ? to - from : undefined;
-                const fieldPlayWidget = Decoration.widget({
-                  side: 1,
-                  id: variable.name,
-                  widget: new StructPlayWidgetType(
-                    variable.name,
-                    PlayButtonIcon,
-                    (button) =>
-                      playAudioGroupStruct(
-                        audioGroup,
-                        config.fileSystemReader,
-                        context,
-                        button,
-                        duration,
-                        offset
-                      )
-                  ),
-                });
-                widgetRanges.push(fieldPlayWidget.range(field.to));
-              }
-            }
-          }
+              variable.compiled,
+              variable.fields
+            )
+          );
         }
       }
     });
@@ -480,21 +484,21 @@ const createStructWidgets = (view: EditorView) => {
   return Decoration.set(widgetRanges);
 };
 
-const structWidgetsChanged = (update: ViewUpdate): boolean => {
+const variableWidgetsChanged = (update: ViewUpdate): boolean => {
   return update.transactions.some((t) =>
-    t.effects.some((e) => e.is(updateStructDecorationsEffect))
+    t.effects.some((e) => e.is(updateVariableDecorationsEffect))
   );
 };
 
-const structPresetWidgetsPlugin = ViewPlugin.fromClass(
+const variablePresetWidgetsPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
     constructor(view: EditorView) {
-      this.decorations = createStructWidgets(view);
+      this.decorations = createVariableWidgets(view);
     }
     update(update: ViewUpdate) {
-      if (structWidgetsChanged(update)) {
-        this.decorations = createStructWidgets(update.view);
+      if (variableWidgetsChanged(update)) {
+        this.decorations = createVariableWidgets(update.view);
       }
     }
   },
@@ -503,7 +507,7 @@ const structPresetWidgetsPlugin = ViewPlugin.fromClass(
   }
 );
 
-export const structWidgets = (options: StructWidgetsConfiguration = {}) => [
-  structWidgetsConfig.of(options),
-  structPresetWidgetsPlugin,
+export const variableWidgets = (options: VariableWidgetsConfiguration = {}) => [
+  variableWidgetsConfig.of(options),
+  variablePresetWidgetsPlugin,
 ];

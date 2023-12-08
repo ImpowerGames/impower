@@ -19,11 +19,11 @@ import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
 import { scrollMargins } from "../../../cm-scroll-margins/scrollMargins";
-import {
-  structWidgets,
-  updateStructWidgets,
-} from "../../../cm-struct-widgets/structWidgets";
 import { syncDispatch } from "../../../cm-sync/syncDispatch";
+import {
+  updateVariableWidgets,
+  variableWidgets,
+} from "../../../cm-variable-widgets/variableWidgets";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
@@ -153,7 +153,7 @@ const createEditorView = (
         serverCapabilities,
         fileSystemReader,
       }),
-      structWidgets({
+      variableWidgets({
         fileSystemReader,
         programContext,
       }),
@@ -251,7 +251,7 @@ const createEditorView = (
     DidParseTextDocumentMessage.type,
     (params) => {
       programContext.program = params.program;
-      view.dispatch(updateStructWidgets());
+      view.dispatch(updateVariableWidgets());
     }
   );
   return [view, disposable];
