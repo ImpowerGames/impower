@@ -62,6 +62,7 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
         this.chosenSection = chosenSection || "";
       }
     );
+    this.onTick?.(0);
     return super.onExecute(game, data, context);
   }
 

@@ -607,22 +607,26 @@ export const executeDisplayCommand = (
           c.element.style["display"] = null;
         }
       });
-      // Start writer typing tones
-      game.sound.start(
-        { id, src: game.sound.synthesize(tones) },
-        "writer",
-        0,
-        0,
-        () => {
-          started = true;
-        }
-      );
       // Load and modulate ((sounds))
       game.sound.loadAll(soundsToLoad).then(() => {
         soundEvents.forEach((event) => {
           event?.();
         });
       });
+      // Start writer typing tones
+      if (tones.length > 0) {
+        game.sound.start(
+          { id, src: game.sound.synthesize(tones) },
+          "writer",
+          0,
+          0,
+          () => {
+            started = true;
+          }
+        );
+      } else {
+        started = true;
+      }
     }
   }
   if (data) {
@@ -635,16 +639,14 @@ export const executeDisplayCommand = (
   let finished = false;
   const totalDurationMS = allChunks.reduce((p, c) => p + c.duration * 1000, 0);
   const handleTick = (deltaMS: number): void => {
-    if (deltaMS) {
-      if (started && !finished) {
-        if (elapsedMS === 0) {
-          doTransitions();
-        }
-        elapsedMS += deltaMS;
-        if (elapsedMS >= totalDurationMS) {
-          finished = true;
-          handleFinished();
-        }
+    if (started && !finished) {
+      if (elapsedMS === 0) {
+        doTransitions();
+      }
+      elapsedMS += deltaMS;
+      if (elapsedMS >= totalDurationMS) {
+        finished = true;
+        handleFinished();
       }
     }
   };
