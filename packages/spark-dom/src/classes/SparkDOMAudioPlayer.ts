@@ -177,11 +177,15 @@ export class SparkDOMAudioPlayer {
     }
   }
 
+  secondsToApproximateTimeConstant(sec: number = 0) {
+    return (sec * 2) / 10;
+  }
+
   protected fade(when: number, value: number, duration?: number): void {
     this._gainNode.gain.setTargetAtTime(
       value,
       when,
-      duration ?? Number.EPSILON
+      this.secondsToApproximateTimeConstant(duration)
     );
   }
 

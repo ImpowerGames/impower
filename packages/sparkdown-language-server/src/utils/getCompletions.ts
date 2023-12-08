@@ -122,7 +122,8 @@ const getAudioCompletions = (
 };
 
 const getAudioArgumentCompletions = (
-  content: string
+  content: string,
+  triggerCharacter: string | undefined
 ): CompletionItem[] | null => {
   const args = content.split(WHITESPACE_REGEX);
   const completions = [
@@ -141,8 +142,7 @@ const getAudioArgumentCompletions = (
     .filter((c) => !args.includes(c))
     .map((label) => ({
       label,
-      insertText:
-        content.startsWith(" ") && !content.trim() ? label : " " + label,
+      insertText: triggerCharacter === ":" ? " " + label : label,
       kind: CompletionItemKind.Keyword,
     }));
 };
@@ -365,7 +365,8 @@ const getCompletions = (
     if (scopes.includes("audio")) {
       if (triggerCharacter === ":" || scopes.includes("asset_args")) {
         return getAudioArgumentCompletions(
-          lineText.slice(lineText.indexOf(":") + 1, lineText.indexOf(")"))
+          lineText.slice(lineText.indexOf(":") + 1, lineText.indexOf(")")),
+          triggerCharacter
         );
       } else if (triggerCharacter !== "@") {
         return getAudioCompletions(program);

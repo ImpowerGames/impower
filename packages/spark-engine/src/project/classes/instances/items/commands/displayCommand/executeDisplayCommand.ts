@@ -351,25 +351,23 @@ export const executeDisplayCommand = (
             if (sounds.length > 0) {
               const groupId = assetNames.join("+");
               const scheduled = assetArgs?.includes("schedule");
-              if (assetArgs?.includes("start")) {
+              const controlKeywords = [
+                "start",
+                "mute",
+                "unmute",
+                "volume",
+                "stop",
+              ];
+              if (
+                assetArgs?.includes("start") ||
+                !assetArgs.some((a) => controlKeywords.includes(a))
+              ) {
+                console.log("START", sounds);
                 soundEvents.push(() =>
                   game.sound.startAll(sounds, target, groupId, after, over)
                 );
-              } else if (
-                assetArgs?.includes("mute") ||
-                assetArgs?.includes("unmute")
-              ) {
-                soundEvents.push(() =>
-                  game.sound.fadeAll(
-                    sounds,
-                    target,
-                    groupId,
-                    after,
-                    over,
-                    scheduled
-                  )
-                );
               } else if (assetArgs?.includes("stop")) {
+                console.log("STOP", sounds);
                 soundEvents.push(() =>
                   game.sound.stopAll(
                     sounds,
@@ -381,8 +379,9 @@ export const executeDisplayCommand = (
                   )
                 );
               } else {
+                console.log("FADE", sounds);
                 soundEvents.push(() =>
-                  game.sound.startAll(sounds, target, groupId, after, over)
+                  game.sound.fadeAll(sounds, target, groupId, after, over)
                 );
               }
             }
