@@ -157,7 +157,6 @@ const createSynthBuffer = (synth: Synth, context: StructWidgetContext) => {
     synth.envelope.decay +
     synth.envelope.sustain +
     synth.envelope.release;
-  console.log(duration);
   return new SynthBuffer(
     [
       {
@@ -366,6 +365,7 @@ const createStructWidgets = (view: EditorView) => {
             return option;
           });
           const presetWidget = Decoration.widget({
+            side: 1,
             widget: new StructPresetWidgetType(
               variable.name,
               options,
@@ -375,6 +375,8 @@ const createStructWidgets = (view: EditorView) => {
             ),
           });
           const structPlayWidget = Decoration.widget({
+            side: 1,
+            id: variable.name,
             widget: new StructPlayWidgetType(
               variable.name,
               PlayButtonIcon,
@@ -382,7 +384,6 @@ const createStructWidgets = (view: EditorView) => {
                 playSynthStruct(synth, context, button);
               }
             ),
-            id: variable.name,
           });
           widgetRanges.push(presetWidget.range(to));
           widgetRanges.push(structPlayWidget.range(to));
@@ -423,6 +424,8 @@ const createStructWidgets = (view: EditorView) => {
           //   ),
           // });
           const structPlayWidget = Decoration.widget({
+            side: 1,
+            id: variable.name,
             widget: new StructPlayWidgetType(
               variable.name,
               PlayButtonIcon,
@@ -434,7 +437,6 @@ const createStructWidgets = (view: EditorView) => {
                   button
                 )
             ),
-            id: variable.name,
           });
           widgetRanges.push(structPlayWidget.range(to));
           if (variable.fields) {
@@ -451,6 +453,8 @@ const createStructWidgets = (view: EditorView) => {
                 const offset = from;
                 const duration = to != null ? to - from : undefined;
                 const fieldPlayWidget = Decoration.widget({
+                  side: 1,
+                  id: variable.name,
                   widget: new StructPlayWidgetType(
                     variable.name,
                     PlayButtonIcon,
@@ -464,7 +468,6 @@ const createStructWidgets = (view: EditorView) => {
                         offset
                       )
                   ),
-                  id: variable.name,
                 });
                 widgetRanges.push(fieldPlayWidget.range(field.to));
               }
