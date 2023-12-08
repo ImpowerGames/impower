@@ -23,9 +23,8 @@ const getHover = (
     };
     const hoveredOffset = document.offsetAt(position);
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
-      const id = reference.id || "";
       const name = reference.name;
-      const asset = program.variables?.[id]?.compiled;
+      const asset = program.variables?.[name]?.compiled;
       if (isAssetOfType(asset, "image")) {
         const src = asset.src;
         return {
@@ -36,8 +35,8 @@ const getHover = (
           range,
         };
       }
-      if (id && !reference.declaration) {
-        const section = program.sections?.[id];
+      if (name && !reference.declaration) {
+        const section = program.sections?.[name];
         if (section) {
           const fencedCode = getFencedCode(
             `${"".padStart(section.level, "#")} ${section.name}`
@@ -50,7 +49,7 @@ const getHover = (
             range,
           };
         }
-        const variable = program.variables?.[id];
+        const variable = program.variables?.[name];
         if (variable && typeof variable?.compiled !== "object") {
           const fencedCode = getFencedCode(
             `: ${JSON.stringify(variable?.compiled)}`
