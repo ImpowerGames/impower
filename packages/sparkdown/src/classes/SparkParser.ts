@@ -740,7 +740,10 @@ export default class SparkParser {
       if (!name) {
         return false;
       }
-      if (SPARK_RESERVED_KEYWORDS.includes(name)) {
+      if (
+        SPARK_RESERVED_KEYWORDS.includes(name) ||
+        builtinTypeNames.has(name)
+      ) {
         diagnostic(
           program,
           tok,
@@ -847,66 +850,69 @@ export default class SparkParser {
     let currentSectionPath: string[] = [];
 
     /* PROCESS DEFAULT BUILTINS */
+    const builtinTypeNames = new Set<string>();
     if (program.builtins) {
       Object.entries(program.builtins).forEach(([type, objectsOfType]) => {
+        const defaultObj = objectsOfType[""] ?? {};
         program.variables ??= {};
+        program.variables[type] = {
+          tag: "builtin",
+          line,
+          from: -1,
+          to: -1,
+          indent: 0,
+          stored: false,
+          type: typeof defaultObj,
+          name: type,
+          value: JSON.stringify(defaultObj),
+          compiled: defaultObj,
+          implicit: true,
+        };
+        builtinTypeNames.add(type);
         const objectsOfTypeEntries = Object.entries(objectsOfType);
         if (objectsOfTypeEntries.length > 0) {
           objectsOfTypeEntries.forEach(([name, compiled]) => {
-            const variableName = name ? name : type;
-            const variableType = name ? type : typeof compiled;
-            const variable: SparkVariable = {
-              tag: "builtin",
-              line,
-              from: -1,
-              to: -1,
-              indent: 0,
-              stored: false,
-              type: variableType,
-              name: variableName,
-              value: JSON.stringify(compiled),
-              compiled,
-              implicit: true,
-            };
-            if (typeof compiled === "object") {
-              // Populate fields
-              traverse(compiled, (path, v) => {
-                const parts = path.split(".");
-                const field = {
-                  tag: "field",
-                  line,
-                  from: -1,
-                  to: -1,
-                  indent: 0,
-                  path: parts.slice(0, -1).join("."),
-                  key: parts.at(-1) || "",
-                  type: typeof v,
-                  value: JSON.stringify(v),
-                  compiled: v,
-                  implicit: true,
-                };
-                variable.fields ??= [];
-                variable.fields.push(field);
-              });
+            if (name) {
+              const variableName = name;
+              const variableType = type;
+              const variable: SparkVariable = {
+                tag: "builtin",
+                line,
+                from: -1,
+                to: -1,
+                indent: 0,
+                stored: false,
+                type: variableType,
+                name: variableName,
+                value: JSON.stringify(compiled),
+                compiled,
+                implicit: true,
+              };
+              if (typeof compiled === "object") {
+                // Populate fields
+                traverse(compiled, (path, v) => {
+                  const parts = path.split(".");
+                  const field = {
+                    tag: "field",
+                    line,
+                    from: -1,
+                    to: -1,
+                    indent: 0,
+                    path: parts.slice(0, -1).join("."),
+                    key: parts.at(-1) || "",
+                    type: typeof v,
+                    value: JSON.stringify(v),
+                    compiled: v,
+                    implicit: true,
+                  };
+                  variable.fields ??= [];
+                  variable.fields.push(field);
+                });
+              }
+              program.variables ??= {};
+              program.variables[variableName] = variable;
             }
-            program.variables ??= {};
-            program.variables[variableName] = variable;
           });
-        } else {
-          program.variables ??= {};
-          program.variables[type] = {
-            tag: "builtin",
-            line,
-            from: -1,
-            to: -1,
-            indent: 0,
-            stored: false,
-            type: "object",
-            name: type,
-            value: "{}",
-            compiled: {},
-            implicit: true,
-          };
         }
       });
     }

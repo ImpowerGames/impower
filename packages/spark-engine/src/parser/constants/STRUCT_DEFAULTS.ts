@@ -18,19 +18,25 @@ import {
 export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   html: {},
   css: {},
-  camera: {},
-  audio_group: AUDIO_GROUP_DEFAULTS,
+
   image: IMAGE_DEFAULTS,
   audio: AUDIO_DEFAULTS,
+  audio_group: AUDIO_GROUP_DEFAULTS,
+
+  synth: SYNTH_DEFAULTS,
   graphic: GRAPHIC_DEFAULTS,
-  font: FONT_DEFAULTS,
-  shadow: SHADOW_DEFAULTS,
-  gradient: GRADIENT_DEFAULTS,
-  ease: EASE_DEFAULTS,
-  animation: ANIMATION_DEFAULTS,
+
+  character: CHARACTER_DEFAULTS,
+
+  writer: WRITER_DEFAULTS,
+
   style: STYLE_DEFAULTS,
   ui: UI_DEFAULTS,
-  character: CHARACTER_DEFAULTS,
-  writer: WRITER_DEFAULTS,
-  synth: SYNTH_DEFAULTS,
+  animation: ANIMATION_DEFAULTS,
+
+  font: FONT_DEFAULTS,
+  shadow: SHADOW_DEFAULTS,
+  ease: EASE_DEFAULTS,
+
+  gradient: GRADIENT_DEFAULTS,
 };

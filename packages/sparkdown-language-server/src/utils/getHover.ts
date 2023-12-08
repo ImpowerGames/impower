@@ -4,7 +4,6 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import type { SparkReference } from "@impower/sparkdown/src/types/SparkReference";
 import getFencedCode from "./getFencedCode";
-import { isAssetOfType } from "./isAsset";
 
 const getHover = (
   document: TextDocument | undefined,
@@ -24,16 +23,23 @@ const getHover = (
     const hoveredOffset = document.offsetAt(position);
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
       const name = reference.name;
-      const asset = program.variables?.[name]?.compiled;
-      if (isAssetOfType(asset, "image")) {
-        const src = asset.src;
-        return {
-          contents: {
-            kind: MarkupKind.Markdown,
-            value: `![${name}](${src})`,
-          },
-          range,
-        };
+      const variable = program.variables?.[name];
+      if (variable) {
+        if (
+          variable.type === "image" &&
+          typeof variable.compiled === "object"
+        ) {
+          const src = variable.compiled?.src;
+          if (src) {
+            return {
+              contents: {
+                kind: MarkupKind.Markdown,
+                value: `![${name}](${src})`,
+              },
+              range,
+            };
+          }
+        }
       }
       if (name && !reference.declaration) {
         const section = program.sections?.[name];

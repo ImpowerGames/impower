@@ -1,3 +1,5 @@
+import { Vector3 } from "../../../data";
+
 export interface Shape {
   path?: string;
   frames?: string[];
@@ -22,5 +24,10 @@ export interface Graphic {
   height: number;
   tiling: Tiling;
   shapes: Shape[];
+  transform: {
+    position: Vector3;
+    rotation: Vector3;
+    scale: Vector3;
+  };
   src?: string;
 }

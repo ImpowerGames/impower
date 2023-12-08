@@ -19,10 +19,10 @@ import {
   SparkStructMapPropertyToken,
 } from "@impower/sparkdown/src/types/SparkToken";
 import { SparkVariable } from "@impower/sparkdown/src/types/SparkVariable";
+import { Asset } from "../types/Asset";
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";
 import getLineTextBefore from "./getLineTextBefore";
-import { Asset } from "./isAsset";
 import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s+/g;

@@ -2,7 +2,7 @@ import { Create } from "../../../core/types/Create";
 import { _synth } from "../../../sound/specs/defaults/_synth";
 import { Writer } from "../Writer";
 
-export const _writer: Create<Writer> = (obj?: Partial<Writer>) => ({
+export const _writer: Create<Writer> = (obj) => ({
   target: "",
   letter_fade_duration: 0,
   letter_pause: 0.025,
