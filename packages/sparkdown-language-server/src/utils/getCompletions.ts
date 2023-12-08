@@ -22,7 +22,7 @@ import { SparkVariable } from "@impower/sparkdown/src/types/SparkVariable";
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";
 import getLineTextBefore from "./getLineTextBefore";
-import { Asset, isAssetOfType } from "./isAsset";
+import { Asset } from "./isAsset";
 import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s+/g;
@@ -31,7 +31,7 @@ const getImageCompletions = (
   program: SparkProgram | undefined
 ): CompletionItem[] | null => {
   const images = Object.values(program?.variables || {})
-    .filter((v) => isAssetOfType(v.compiled, "image"))
+    .filter((v) => v.type === "image")
     .map((v) => v.compiled as Asset);
   const imageCompletions = images.map((asset) => ({
     label: asset.name,
@@ -45,8 +45,7 @@ const getImageCompletions = (
   const imageArrayNames = Object.values(program?.variables || {})
     .filter(
       (v) =>
-        Array.isArray(v.compiled) &&
-        v.compiled.every((x) => isAssetOfType(x, "image"))
+        Array.isArray(v.compiled) && v.compiled.every((x) => x.type === "image")
     )
     .map((v) => v.name as string);
   const imageArrayCompletions = imageArrayNames.map((name) => ({
@@ -55,14 +54,7 @@ const getImageCompletions = (
     kind: CompletionItemKind.Constructor,
   }));
   const imageGroupNames = Object.values(program?.variables || {})
-    .filter(
-      (v) =>
-        v.compiled &&
-        typeof v.compiled === "object" &&
-        "assets" in v.compiled &&
-        Array.isArray(v.compiled.assets) &&
-        v.compiled.assets.every((x: unknown) => isAssetOfType(x, "image"))
-    )
+    .filter((v) => v.type === "image_group")
     .map((v) => v.name as string);
   const imageGroupCompletions = imageGroupNames.map((name) => ({
     label: name,
@@ -80,7 +72,7 @@ const getAudioCompletions = (
   program: SparkProgram | undefined
 ): CompletionItem[] | null => {
   const audio = Object.values(program?.variables || {})
-    .filter((v) => isAssetOfType(v.compiled, "audio"))
+    .filter((v) => v.type === "audio")
     .map((v) => v.compiled as Asset);
   const audioCompletions = audio.map((asset) => ({
     label: asset.name,
@@ -90,8 +82,7 @@ const getAudioCompletions = (
   const audioArrayNames = Object.values(program?.variables || {})
     .filter(
       (v) =>
-        Array.isArray(v.compiled) &&
-        v.compiled.every((x) => isAssetOfType(x, "audio"))
+        Array.isArray(v.compiled) && v.compiled.every((x) => x.type === "audio")
     )
     .map((v) => v.name as string);
   const audioArrayCompletions = audioArrayNames.map((arrayName) => ({
@@ -100,14 +91,7 @@ const getAudioCompletions = (
     kind: CompletionItemKind.Constructor,
   }));
   const audioGroupNames = Object.values(program?.variables || {})
-    .filter(
-      (v) =>
-        v.compiled &&
-        typeof v.compiled === "object" &&
-        "assets" in v.compiled &&
-        Array.isArray(v.compiled.assets) &&
-        v.compiled.assets.every((x: unknown) => isAssetOfType(x, "audio"))
-    )
+    .filter((v) => v.type === "audio_group")
     .map((v) => v.name as string);
   const audioGroupCompletions = audioGroupNames.map((name) => ({
     label: name,
