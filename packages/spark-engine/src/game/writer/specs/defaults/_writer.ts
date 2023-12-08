@@ -18,6 +18,7 @@ export const _writer: Create<Writer> = (obj?: Partial<Writer>) => ({
   skipped: "",
   floating_animation: "floating 750ms ease-in-out infinite",
   trembling_animation: "trembling 300ms ease-in-out infinite",
+  ...(obj || {}),
   synth: _synth({
     shape: "whitenoise",
     envelope: {
@@ -27,12 +28,12 @@ export const _writer: Create<Writer> = (obj?: Partial<Writer>) => ({
       release: 0.01,
       level: 0.14,
     },
-    pitch: { frequency: 9790 },
+    pitch: { frequency: 4790 },
     arpeggio: {
       on: true,
       rate: 100,
       levels: [0.05, 0.15, 0.1, 0.01, 0, 0.05, 0],
     },
+    ...(obj?.synth || {}),
   }),
-  ...(obj || {}),
 });

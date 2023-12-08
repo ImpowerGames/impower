@@ -31,7 +31,7 @@ import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
 
-const FIRST_TIME_AUDIO_LOAD_WAIT = 2000;
+const FIRST_TIME_AUDIO_LOAD_WAIT = 1000;
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(

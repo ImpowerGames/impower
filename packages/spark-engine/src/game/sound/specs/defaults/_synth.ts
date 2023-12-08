@@ -3,8 +3,8 @@ import { A } from "../../constants/A";
 import { Synth } from "../Synth";
 
 export const _synth: Create<Synth> = (obj) => ({
-  ...(obj || {}),
   shape: "triangle",
+  ...(obj || {}),
   envelope: {
     volume: 0.5,
     volume_ramp: 0,

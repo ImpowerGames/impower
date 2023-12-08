@@ -157,6 +157,7 @@ const createSynthBuffer = (synth: Synth, context: StructWidgetContext) => {
     synth.envelope.decay +
     synth.envelope.sustain +
     synth.envelope.release;
+  console.log(duration);
   return new SynthBuffer(
     [
       {
