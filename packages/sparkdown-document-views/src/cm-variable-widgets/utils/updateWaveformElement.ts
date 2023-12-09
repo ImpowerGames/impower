@@ -8,8 +8,6 @@ import { panWaveform } from "./panWaveform";
 import throttle from "./throttle";
 import { zoomWaveform } from "./zoomWaveform";
 
-const VISIBLE_WAVE_TYPES = ["both", "sound"] as const;
-
 const getOrCreateCanvas = (previewEl: HTMLElement): HTMLCanvasElement => {
   const existing = previewEl.getElementsByTagName("canvas")?.[0];
   if (existing) {
