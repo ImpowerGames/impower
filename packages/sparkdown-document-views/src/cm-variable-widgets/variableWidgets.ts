@@ -70,9 +70,13 @@ const getPlayButton = (dom: HTMLElement, id: string) => {
   );
 };
 
-const getPreviewElement = (dom: HTMLElement, id: string) => {
-  const rootEl = dom.getRootNode().firstChild as HTMLElement;
-  return rootEl?.querySelector<HTMLElement>(
+const getPreviewElement = (
+  dom: HTMLElement | EventTarget | null,
+  id: string
+) => {
+  const rootEl = (dom as HTMLElement)?.getRootNode?.()
+    ?.firstChild as HTMLElement;
+  return rootEl?.querySelector?.<HTMLElement>(
     `.${STRUCT_PRESET_PREVIEW_CLASS_NAME}.${id}`
   );
 };
@@ -95,13 +99,15 @@ const playAudio = async (
   Object.entries(context.audioPlayerGroups).forEach(([id, players]) => {
     delete context.audioPlayerGroups[id];
     if (players) {
-      players.forEach((player) => {
-        player.stop();
-      });
-      const playButton = getPlayButton(dom, id);
-      if (playButton) {
-        playButton.dataset["action"] = "play";
-        playButton.innerHTML = PlayButtonIcon;
+      if (toggle || id !== playId) {
+        players.forEach((player) => {
+          player.stop();
+        });
+        const playButton = getPlayButton(dom, id);
+        if (playButton) {
+          playButton.dataset["action"] = "play";
+          playButton.innerHTML = PlayButtonIcon;
+        }
       }
     }
   });
@@ -209,12 +215,12 @@ const updateSynthWaveform = (
   previewEl: HTMLElement,
   synth: Synth,
   context: VariableWidgetContext,
-  playId: string,
+  variableName: string,
   config: Required<VariableWidgetsConfiguration>
 ) => {
   context.audioContext ??= new AudioContext();
   const synthBuffer = createSynthBuffer(synth, context);
-  const waveform: WaveformContext = context.waveforms[playId] ?? {
+  const waveform: WaveformContext = context.waveforms[variableName] ?? {
     ...config.waveformSettings,
     xOffset: 0,
     zoomOffset: 0,
@@ -224,7 +230,7 @@ const updateSynthWaveform = (
   waveform.volumeBuffer = synthBuffer.volumeBuffer;
   waveform.pitchBuffer = synthBuffer.pitchBuffer;
   waveform.pitchRange = synthBuffer.pitchRange;
-  context.waveforms[playId] = waveform;
+  context.waveforms[variableName] = waveform;
   updateWaveformElement(
     waveform,
     config.previewSettings,
@@ -396,7 +402,8 @@ const getSynthVariableWidgets = (
     const option: StructPresetOption = {
       label: validLabel,
       innerHTML: validInnerHTML,
-      onClick: (_e, previewEl, dom): void => {
+      onClick: (e): void => {
+        const dom = e.target as HTMLElement;
         const preset = randomization ? {} : defaultObj;
         if (randomization) {
           const cullProp =
@@ -417,13 +424,16 @@ const getSynthVariableWidgets = (
               false
             );
           }
-          updateSynthWaveform(
-            previewEl,
-            randomizedObj,
-            context,
-            variableName,
-            config
-          );
+          const previewEl = getPreviewElement(e.target, variableName);
+          if (previewEl) {
+            updateSynthWaveform(
+              previewEl,
+              randomizedObj,
+              context,
+              variableName,
+              config
+            );
+          }
           view.dispatch({ changes });
         } else {
           console.warn(
@@ -438,26 +448,26 @@ const getSynthVariableWidgets = (
   });
   const presetWidget = Decoration.widget({
     side: 1,
-    widget: new StructPresetWidgetType(
-      variableName,
-      options,
-      async (previewEl) => {
+    widget: new StructPresetWidgetType(variableName, options, async (e) => {
+      const previewEl = getPreviewElement(e.target, variableName);
+      if (previewEl) {
         const synth =
           config.programContext.program?.variables?.[variableName]?.compiled;
         if (synth) {
           updateSynthWaveform(previewEl, synth, context, variableName, config);
         }
       }
-    ),
+    }),
   });
   const playWidget = Decoration.widget({
     side: 1,
     id: variableName,
-    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) => {
+    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (e) => {
+      const dom = e.target as HTMLElement;
       const synth =
         config.programContext.program?.variables?.[variableName]?.compiled;
       if (synth) {
-        playSynthVariable(synth, context, variableName, button, true);
+        playSynthVariable(synth, context, variableName, dom, true);
       }
     }),
   });
@@ -467,10 +477,7 @@ const getSynthVariableWidgets = (
       variableName,
       (e: PointerEvent, semitones: number) => {
         const dom = e.target as HTMLElement;
-        const previewEl = getPreviewElement(
-          e.target as HTMLElement,
-          variableName
-        );
+        const previewEl = getPreviewElement(e.target, variableName);
         const synth =
           config.programContext.program?.variables?.[variableName]?.compiled;
         if (synth) {
@@ -513,7 +520,8 @@ const getAudioGroupVariableWidgets = (
   const playWidget = Decoration.widget({
     side: 1,
     id: variableName,
-    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) => {
+    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (e) => {
+      const dom = e.target as HTMLElement;
       const audioGroup =
         config.programContext.program?.variables?.[variableName]?.compiled;
       if (audioGroup) {
@@ -522,7 +530,7 @@ const getAudioGroupVariableWidgets = (
           config.fileSystemReader,
           context,
           variableName,
-          button,
+          dom,
           true
         );
       }
@@ -555,27 +563,24 @@ const getAudioGroupVariableWidgets = (
           const fieldPlayWidget = Decoration.widget({
             side: 1,
             id: fieldId,
-            widget: new StructPlayWidgetType(
-              fieldId,
-              PlayButtonIcon,
-              (button) => {
-                const audioGroup =
-                  config.programContext.program?.variables?.[variableName]
-                    ?.compiled;
-                if (audioGroup) {
-                  playAudioGroupVariable(
-                    audioGroup,
-                    config.fileSystemReader,
-                    context,
-                    fieldId,
-                    button,
-                    true,
-                    duration,
-                    offset
-                  );
-                }
+            widget: new StructPlayWidgetType(fieldId, PlayButtonIcon, (e) => {
+              const dom = e.target as HTMLElement;
+              const audioGroup =
+                config.programContext.program?.variables?.[variableName]
+                  ?.compiled;
+              if (audioGroup) {
+                playAudioGroupVariable(
+                  audioGroup,
+                  config.fileSystemReader,
+                  context,
+                  fieldId,
+                  dom,
+                  true,
+                  duration,
+                  offset
+                );
               }
-            ),
+            }),
           });
           widgetRanges.push(fieldPlayWidget.range(field.to));
         }

@@ -16,7 +16,7 @@ export const STRUCT_PRESET_PREVIEW_CLASS_NAME = "cm-struct-preset-preview";
 export interface StructPresetOption {
   label?: string;
   innerHTML?: string;
-  onClick?: (e: PointerEvent, previewEl: HTMLElement, dom: HTMLElement) => void;
+  onClick?: (e: PointerEvent) => void;
 }
 
 export default class StructPresetWidgetType extends WidgetType {
@@ -24,17 +24,17 @@ export default class StructPresetWidgetType extends WidgetType {
 
   options?: StructPresetOption[] = [];
 
-  updatePreview: (previewEl: HTMLElement) => void;
+  onOpenPopup: (e: MouseEvent) => void;
 
   constructor(
     id: string,
     options: StructPresetOption[],
-    updatePreview: (previewEl: HTMLElement) => void
+    onOpenPopup: (e: MouseEvent) => void
   ) {
     super();
     this.id = id;
     this.options = options;
-    this.updatePreview = updatePreview;
+    this.onOpenPopup = onOpenPopup;
   }
 
   toDOM(): HTMLElement {
@@ -151,7 +151,7 @@ export default class StructPresetWidgetType extends WidgetType {
         overlay.style.backgroundColor = HOVER_COLOR;
       };
       optionButton.onclick = (e: MouseEvent): void => {
-        option.onClick?.(e as PointerEvent, previewEl, root);
+        option.onClick?.(e as PointerEvent);
       };
       listItem.appendChild(optionButton);
       return listItem;
@@ -212,7 +212,7 @@ export default class StructPresetWidgetType extends WidgetType {
         if (popup.style.display !== "none") {
           popup.style.display = "none";
         } else {
-          this.updatePreview?.(previewEl);
+          this.onOpenPopup?.(e);
           popup.style.display = "block";
           button.style.backgroundColor = TAP_COLOR;
         }

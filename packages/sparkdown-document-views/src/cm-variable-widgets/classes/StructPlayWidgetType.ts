@@ -12,13 +12,9 @@ export default class StructPlayWidgetType extends WidgetType {
 
   icon: string;
 
-  onClick: (button: HTMLElement) => void;
+  onClick: (e: MouseEvent) => void;
 
-  constructor(
-    id: string,
-    icon: string,
-    onClick: (button: HTMLElement) => void
-  ) {
+  constructor(id: string, icon: string, onClick: (e: MouseEvent) => void) {
     super();
     this.id = id;
     this.icon = icon;
@@ -66,8 +62,8 @@ export default class StructPlayWidgetType extends WidgetType {
       e.preventDefault();
       button.style.backgroundColor = TAP_COLOR;
     };
-    button.onclick = (): void => {
-      this.onClick?.(button);
+    button.onclick = (e): void => {
+      this.onClick?.(e);
     };
     return root;
   }
