@@ -3,6 +3,7 @@ import { LogicConfig, LogicManager, LogicState } from "../../logic";
 import { RandomConfig, RandomManager, RandomState } from "../../random";
 import { TickerConfig, TickerManager, TickerState } from "../../ticker";
 import { UIConfig, UIManager, UIState } from "../../ui";
+import { UUIDConfig, UUIDManager, UUIDState } from "../../uuid";
 import { ListenOnly } from "../types/ListenOnly";
 import { GameEvent } from "./GameEvent";
 import { GameEvent0 } from "./GameEvent0";
@@ -15,6 +16,7 @@ export interface GameEvents extends Record<string, GameEvent> {
 
 export interface GameConfig {
   ticker?: Partial<TickerConfig>;
+  uuid?: Partial<UUIDConfig>;
   ui?: Partial<UIConfig>;
   random?: Partial<RandomConfig>;
   logic?: Partial<LogicConfig>;
@@ -23,6 +25,7 @@ export interface GameConfig {
 
 export interface GameState {
   ticker?: Partial<TickerState>;
+  uuid?: Partial<UUIDState>;
   ui?: Partial<UIState>;
   random?: Partial<RandomState>;
   logic?: Partial<LogicState>;
@@ -32,28 +35,32 @@ export interface GameState {
 export class Game {
   ticker: TickerManager;
 
-  ui: UIManager;
+  uuid: UUIDManager;
 
   random: RandomManager;
 
   logic: LogicManager;
 
+  ui: UIManager;
+
   debug: DebugManager;
 
   constructor(config?: Partial<GameConfig>, state?: Partial<GameState>) {
     this.ticker = new TickerManager(config?.ticker, state?.ticker);
-    this.ui = new UIManager(config?.ui, state?.ui);
+    this.uuid = new UUIDManager(config?.uuid, state?.uuid);
     this.random = new RandomManager(config?.random, state?.random);
     this.logic = new LogicManager(config?.logic, state?.logic);
+    this.ui = new UIManager(config?.ui, state?.ui);
     this.debug = new DebugManager(config?.debug, state?.debug);
   }
 
   managers(): Record<string, Manager> {
     return {
       ticker: this.ticker,
-      ui: this.ui,
+      uuid: this.uuid,
       random: this.random,
       logic: this.logic,
+      ui: this.ui,
       debug: this.debug,
     };
   }

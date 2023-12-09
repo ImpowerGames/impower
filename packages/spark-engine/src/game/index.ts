@@ -9,5 +9,6 @@ export * from "./rhythm";
 export * from "./sound";
 export * from "./ticker";
 export * from "./ui";
+export * from "./uuid";
 export * from "./world";
 export * from "./writer";

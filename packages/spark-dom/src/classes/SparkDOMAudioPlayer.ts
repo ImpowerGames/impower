@@ -204,7 +204,7 @@ export class SparkDOMAudioPlayer {
   }
 
   start(
-    when: number,
+    when: number = 0,
     fadeDuration = 0,
     offset?: number,
     duration?: number

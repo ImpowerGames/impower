@@ -516,6 +516,8 @@ export default class SparkParser {
           );
           return undefined;
         }
+      } else if (type === "audio" && found.type === "synth") {
+        // TODO: ensure synth definition is valid
       } else if (
         !value ||
         typeof value !== "object" ||
@@ -740,10 +742,7 @@ export default class SparkParser {
       if (!name) {
         return false;
       }
-      if (
-        SPARK_RESERVED_KEYWORDS.includes(name) ||
-        builtinTypeNames.has(name)
-      ) {
+      if (SPARK_RESERVED_KEYWORDS.includes(name)) {
         diagnostic(
           program,
           tok,
@@ -850,12 +849,11 @@ export default class SparkParser {
     let currentSectionPath: string[] = [];
 
     /* PROCESS DEFAULT BUILTINS */
-    const builtinTypeNames = new Set<string>();
     if (program.builtins) {
       Object.entries(program.builtins).forEach(([type, objectsOfType]) => {
         const defaultObj = objectsOfType[""] ?? {};
         program.variables ??= {};
-        program.variables[type] = {
+        const variable: SparkVariable = {
           tag: "builtin",
           line,
           from: -1,
@@ -868,7 +866,28 @@ export default class SparkParser {
           compiled: defaultObj,
           implicit: true,
         };
-        builtinTypeNames.add(type);
+        if (typeof variable.compiled === "object") {
+          // Populate fields
+          traverse(variable.compiled, (path, v) => {
+            const parts = path.split(".");
+            const field = {
+              tag: "field",
+              line,
+              from: -1,
+              to: -1,
+              indent: 0,
+              path: parts.slice(0, -1).join("."),
+              key: parts.at(-1) || "",
+              type: typeof v,
+              value: JSON.stringify(v),
+              compiled: v,
+              implicit: true,
+            };
+            variable.fields ??= [];
+            variable.fields.push(field);
+          });
+        }
+        program.variables[type] = variable;
         const objectsOfTypeEntries = Object.entries(objectsOfType);
         if (objectsOfTypeEntries.length > 0) {
           objectsOfTypeEntries.forEach(([name, compiled]) => {
@@ -2036,57 +2055,49 @@ export default class SparkParser {
                   if (tok.fields) {
                     const propertyPaths: Record<string, SparkField> = {};
                     tok.fields.forEach((field) => {
-                      if (
-                        validateNameAllowed(
+                      const propAccess = field.key ? "." + field.key : "";
+                      const propertyPath = field.path + propAccess;
+                      const existingField = propertyPaths[propertyPath];
+                      if (existingField) {
+                        // Error if field was defined multiple times in the current struct
+                        reportDuplicate(
                           field,
+                          "field",
                           String(field.key),
-                          field.ranges?.key
-                        )
-                      ) {
-                        const propAccess = field.key ? "." + field.key : "";
-                        const propertyPath = field.path + propAccess;
-                        const existingField = propertyPaths[propertyPath];
-                        if (existingField) {
-                          // Error if field was defined multiple times in the current struct
-                          reportDuplicate(
-                            field,
-                            "field",
-                            String(field.key),
-                            field.ranges?.key,
-                            existingField
+                          field.ranges?.key,
+                          existingField
+                        );
+                      } else {
+                        propertyPaths[propertyPath] = field;
+                        const compiledValue = compileAndValidate(
+                          field,
+                          field.value,
+                          field?.ranges?.value,
+                          context
+                        );
+                        field.compiled = compiledValue;
+                        if (tok.type) {
+                          // Check for type mismatch
+                          const parentPropertyAccessor =
+                            tok.type + "." + propertyPath;
+                          const declaredValue = getProperty(
+                            context,
+                            parentPropertyAccessor
                           );
-                        } else {
-                          propertyPaths[propertyPath] = field;
-                          const compiledValue = compileAndValidate(
-                            field,
-                            field.value,
-                            field?.ranges?.value,
-                            context
-                          );
-                          field.compiled = compiledValue;
-                          if (tok.type) {
-                            // Check for type mismatch
-                            const parentPropertyAccessor =
-                              tok.type + "." + propertyPath;
-                            const declaredValue = getProperty(
-                              context,
-                              parentPropertyAccessor
-                            );
-                            const compiledType = typeof compiledValue;
-                            const declaredType = typeof declaredValue;
-                            if (
-                              compiledValue != null &&
-                              validateTypeMatch(
-                                field,
-                                compiledType,
-                                declaredType,
-                                field?.ranges?.value
-                              )
-                            ) {
-                              field.type = compiledType;
-                            } else {
-                              field.type = declaredType;
-                            }
+                          const compiledType = typeof compiledValue;
+                          const declaredType = typeof declaredValue;
+                          if (
+                            compiledValue != null &&
+                            validateTypeMatch(
+                              field,
+                              compiledType,
+                              declaredType,
+                              field?.ranges?.value
+                            )
+                          ) {
+                            field.type = compiledType;
+                          } else {
+                            field.type = declaredType;
                           }
                         }
                       }

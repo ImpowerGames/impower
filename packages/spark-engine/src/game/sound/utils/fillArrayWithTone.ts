@@ -13,10 +13,15 @@ export const fillArrayWithTone = (
   pitchBuffer?: Float32Array,
   pitchRange?: [number, number]
 ): void => {
-  const time = tone.time ?? 0;
-  const duration = tone.duration ?? 0;
-  const volume = tone.velocity ?? 1;
   const synth = clone(_synth(), tone.synth);
+  const envelopeDuration =
+    synth.envelope.attack +
+    synth.envelope.decay +
+    synth.envelope.sustain +
+    synth.envelope.release;
+  const time = tone.time ?? 0;
+  const duration = tone.duration ?? envelopeDuration;
+  const volume = tone.velocity ?? 1;
   const pitch =
     tone.pitchHertz ??
     convertPitchNoteToHertz(tone.pitchNote) ??

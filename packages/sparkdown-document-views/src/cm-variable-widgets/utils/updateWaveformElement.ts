@@ -8,7 +8,7 @@ import { panWaveform } from "./panWaveform";
 import throttle from "./throttle";
 import { zoomWaveform } from "./zoomWaveform";
 
-const VISIBLE_WAVE_TYPES: ("sound" | "reference")[] = ["reference", "sound"];
+const VISIBLE_WAVE_TYPES = ["both", "sound"] as const;
 
 const getOrCreateCanvas = (previewEl: HTMLElement): HTMLCanvasElement => {
   const existing = previewEl.getElementsByTagName("canvas")?.[0];
@@ -86,7 +86,8 @@ const updateFilenameElement = (
   waveformContext: WaveformContext,
   previewContext: PreviewConfig,
   el: HTMLElement,
-  playSound?: (buffer: Float32Array) => void
+  drawWaveform: () => void,
+  playSound: (buffer: Float32Array) => void
 ): void => {
   if (el) {
     if (waveformContext.referenceBuffer && waveformContext.referenceFileName) {
@@ -99,6 +100,9 @@ const updateFilenameElement = (
         el.style.backgroundColor = null as unknown as string;
       };
       el.onclick = (): void => {
+        waveformContext.referenceVisible = true;
+        waveformContext.soundVisible = true;
+        drawWaveform?.();
         if (waveformContext.referenceBuffer) {
           playSound?.(waveformContext.referenceBuffer);
         }
@@ -131,8 +135,8 @@ const getOrCreateFileInput = (
   waveformContext: WaveformContext,
   previewContext: PreviewConfig,
   previewEl: HTMLElement,
-  onSwapWaveClick: () => void,
-  playSound?: (buffer: Float32Array) => void
+  drawWaveform: () => void,
+  playSound: (buffer: Float32Array) => void
 ): HTMLInputElement => {
   const existing = Array.from(previewEl.getElementsByTagName("input")).find(
     (el) => el.type === "file"
@@ -159,7 +163,6 @@ const getOrCreateFileInput = (
   filenameEl.style.display = "flex";
   filenameEl.style.justifyContent = "center";
   filenameEl.style.alignItems = "center";
-  filenameEl.style.color = waveformContext.referenceColor;
   filenameEl.textContent = waveformContext.referenceFileName || "";
   containerEl.appendChild(filenameEl);
   const swapButtonEl = document.createElement("label");
@@ -169,6 +172,7 @@ const getOrCreateFileInput = (
   swapButtonEl.style.display = "flex";
   swapButtonEl.style.justifyContent = "center";
   swapButtonEl.style.alignItems = "center";
+  swapButtonEl.style.color = waveformContext.referenceColor;
   const swapEl = document.createElement("div");
   swapEl.style.height = "1.5rem";
   swapEl.style.minWidth = "1.5rem";
@@ -193,18 +197,16 @@ const getOrCreateFileInput = (
     swapButtonEl.style.backgroundColor = previewContext.hoverColor;
   };
   swapButtonEl.onclick = (): void => {
-    waveformContext.visible =
-      VISIBLE_WAVE_TYPES[
-        (waveformContext.visibleIndex ?? 0) % VISIBLE_WAVE_TYPES.length
-      ] || "both";
-    waveformContext.visibleIndex = (waveformContext.visibleIndex ?? 0) + 1;
-    if (waveformContext.visible === "reference") {
-      swapButtonEl.style.color = waveformContext.referenceColor;
-    }
-    if (waveformContext.visible === "sound") {
+    if (waveformContext.referenceVisible) {
       swapButtonEl.style.color = waveformContext.waveColor;
+      waveformContext.soundVisible = true;
+      waveformContext.referenceVisible = false;
+    } else {
+      swapButtonEl.style.color = waveformContext.referenceColor;
+      waveformContext.referenceVisible = true;
+      waveformContext.soundVisible = false;
     }
-    onSwapWaveClick?.();
+    drawWaveform?.();
   };
   const plusButtonEl = document.createElement("label");
   plusButtonEl.style.borderRadius = "4px";
@@ -242,7 +244,13 @@ const getOrCreateFileInput = (
   plusButtonEl.onpointerup = (): void => {
     plusButtonEl.style.backgroundColor = previewContext.hoverColor;
   };
-  updateFilenameElement(waveformContext, previewContext, filenameEl, playSound);
+  updateFilenameElement(
+    waveformContext,
+    previewContext,
+    filenameEl,
+    drawWaveform,
+    playSound
+  );
   updateSwapElement(waveformContext, previewContext, swapButtonEl);
   return newEl;
 };
@@ -264,10 +272,11 @@ export const updateWaveformElement = (
   previewContext: PreviewConfig,
   audioContext: AudioContext,
   el: HTMLElement,
-  playSound?: (audioContext: AudioContext, buffer: Float32Array) => void
+  playSound: (audioContext: AudioContext, buffer: Float32Array) => void
 ): void => {
   if (el) {
     const play = (buffer: Float32Array) => playSound?.(audioContext, buffer);
+    const draw = () => drawSoundWaveform(canvasContext, waveformContext);
 
     el.style.minWidth = `${waveformContext.width}px`;
 
@@ -292,7 +301,7 @@ export const updateWaveformElement = (
         bufferLength
       );
       updateRangeFill(waveformContext, rangeInput);
-      drawSoundWaveform(canvasContext, waveformContext);
+      draw();
       draggableArea.style.cursor = "grab";
     }, 100);
     const onRangePointerUp = (): void => {
@@ -310,7 +319,7 @@ export const updateWaveformElement = (
         bufferLength
       );
       updateRangeFill(waveformContext, rangeInput);
-      drawSoundWaveform(canvasContext, waveformContext);
+      draw();
       draggableArea.style.cursor = "grab";
       window.removeEventListener("pointermove", onRangePointerMove);
     };
@@ -329,7 +338,7 @@ export const updateWaveformElement = (
         bufferLength
       );
       updateRangeFill(waveformContext, rangeInput);
-      drawSoundWaveform(canvasContext, waveformContext);
+      draw();
       draggableArea.style.cursor = "grab";
       window.addEventListener("pointermove", onRangePointerMove);
       window.addEventListener("pointerup", onRangePointerUp, {
@@ -345,14 +354,14 @@ export const updateWaveformElement = (
     canvas.width = waveformContext.width;
     canvas.height = waveformContext.height;
     const canvasContext = canvas.getContext("2d");
-    drawSoundWaveform(canvasContext, waveformContext);
+    draw();
 
     if (waveformContext.referenceFileName != null) {
       const fileInput = getOrCreateFileInput(
         waveformContext,
         previewContext,
         el,
-        () => drawSoundWaveform(canvasContext, waveformContext),
+        draw,
         play
       );
       fileInput.onchange = (e: Event): void => {
@@ -374,7 +383,9 @@ export const updateWaveformElement = (
               updateFilenameElement(
                 waveformContext,
                 previewContext,
-                filenameEl
+                filenameEl,
+                draw,
+                play
               );
             }
             if (swapLabelEl) {
@@ -386,7 +397,13 @@ export const updateWaveformElement = (
           waveformContext.referenceFileName = "";
           waveformContext.referenceBuffer = undefined;
           if (filenameEl) {
-            updateFilenameElement(waveformContext, previewContext, filenameEl);
+            updateFilenameElement(
+              waveformContext,
+              previewContext,
+              filenameEl,
+              draw,
+              play
+            );
           }
           if (swapLabelEl) {
             updateSwapElement(waveformContext, previewContext, swapLabelEl);

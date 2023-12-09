@@ -40,7 +40,17 @@ export class SynthBuffer {
     this._tones = tones;
     const duration =
       tones?.length > 0
-        ? Math.max(...tones.map((t) => (t?.time || 0) + (t?.duration || 0)))
+        ? Math.max(
+            ...tones.map(
+              (t) =>
+                (t?.time ?? 0) +
+                (t?.duration ??
+                  (t.synth?.envelope?.attack ?? 0) +
+                    (t.synth?.envelope?.decay ?? 0) +
+                    (t.synth?.envelope?.sustain ?? 0) +
+                    (t.synth?.envelope?.release ?? 0))
+            )
+          )
         : 0;
     this._durationInSamples = Math.max(1, sampleRate * duration);
     this._soundBuffer = new Float32Array(this._durationInSamples);

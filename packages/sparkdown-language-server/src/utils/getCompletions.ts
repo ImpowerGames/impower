@@ -98,10 +98,19 @@ const getAudioCompletions = (
     labelDetails: { description: "audio_group" },
     kind: CompletionItemKind.Constructor,
   }));
+  const synthNames = Object.values(program?.variables || {})
+    .filter((v) => v.type === "synth")
+    .map((v) => v.name as string);
+  const synthCompletions = synthNames.map((name) => ({
+    label: name,
+    labelDetails: { description: "synth" },
+    kind: CompletionItemKind.Constructor,
+  }));
   return [
     ...audioCompletions,
     ...audioArrayCompletions,
     ...audioGroupCompletions,
+    ...synthCompletions,
   ];
 };
 

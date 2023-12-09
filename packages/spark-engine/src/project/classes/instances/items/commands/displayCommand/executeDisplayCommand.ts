@@ -3,6 +3,7 @@ import {
   Chunk,
   IElement,
   SparkGame,
+  Synth,
   Tone,
   Writer,
   clone,
@@ -42,6 +43,40 @@ const getArgumentValue = (args: string[], name: string): number | undefined => {
     return undefined;
   }
   return numValue;
+};
+
+const getSound = (
+  game: SparkGame,
+  asset: unknown,
+  cues: number[],
+  loop: boolean,
+  volume: number
+): Sound | null => {
+  if (!asset) {
+    return null;
+  }
+  if (typeof asset !== "object") {
+    return null;
+  }
+  if ("src" in asset && typeof asset.src === "string") {
+    return {
+      id: asset.src,
+      src: asset.src,
+      cues: cues ?? [],
+      loop,
+      volume,
+    };
+  }
+  if ("shape" in asset && typeof asset.shape === "string") {
+    return {
+      id: game.uuid.generate(),
+      src: game.sound.synthesize([{ synth: asset as Synth }]),
+      cues: cues ?? [],
+      loop,
+      volume,
+    };
+  }
+  return null;
 };
 
 export const executeDisplayCommand = (
@@ -303,10 +338,10 @@ export const executeDisplayCommand = (
             assetNames.forEach((assetName) => {
               if (assetName) {
                 const value = valueMap?.[assetName] as
-                  | { name: string; src: string }
-                  | { name: string; src: string }[]
+                  | object
+                  | object[]
                   | {
-                      assets: { name: string; src: string }[];
+                      assets: object[];
                       cues: number[];
                       loop: boolean;
                       volume: number;
@@ -317,15 +352,24 @@ export const executeDisplayCommand = (
                   ? value.assets.map((a) => a)
                   : [value];
                 const cues =
-                  value && typeof value === "object" && "cues" in value
-                    ? value.cues
-                    : undefined;
+                  value &&
+                  typeof value === "object" &&
+                  "cues" in value &&
+                  Array.isArray(value.cues)
+                    ? value.cues ?? []
+                    : [];
                 const groupLoop =
-                  value && typeof value === "object" && "loop" in value
+                  value &&
+                  typeof value === "object" &&
+                  "loop" in value &&
+                  typeof value.loop === "boolean"
                     ? value.loop
                     : undefined;
                 const groupVolume =
-                  value && typeof value === "object" && "volume" in value
+                  value &&
+                  typeof value === "object" &&
+                  "volume" in value &&
+                  typeof value.volume === "number"
                     ? value.volume ?? 1
                     : 1;
                 const loop =
@@ -333,17 +377,11 @@ export const executeDisplayCommand = (
                 const volume = groupVolume * trackVolume * trackMuteMultiplier;
                 assets.forEach((asset) => {
                   if (asset) {
-                    const audioId = asset.name || asset.src;
-                    const audioData = asset.src;
-                    const sound = {
-                      id: audioId,
-                      src: audioData,
-                      cues: cues ?? [],
-                      loop,
-                      volume,
-                    };
-                    soundsToLoad.push(sound);
-                    sounds.push(sound);
+                    const sound = getSound(game, asset, cues, loop, volume);
+                    if (sound) {
+                      soundsToLoad.push(sound);
+                      sounds.push(sound);
+                    }
                   }
                 });
               }

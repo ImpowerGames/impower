@@ -10,6 +10,6 @@ export interface WaveformContext extends WaveformConfig {
 
   xOffset: number;
   zoomOffset: number;
-  visible: "sound" | "reference" | "both";
-  visibleIndex: number;
+  soundVisible?: boolean;
+  referenceVisible?: boolean;
 }

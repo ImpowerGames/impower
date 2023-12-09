@@ -38,6 +38,7 @@ import StructPresetWidgetType, {
 } from "./classes/StructPresetWidgetType";
 import { PreviewConfig } from "./types/PreviewConfig";
 import { WaveformConfig } from "./types/WaveformConfig";
+import { WaveformContext } from "./types/WaveformContext";
 import { getAudioBuffer } from "./utils/getAudioBuffer";
 import { updateWaveformElement } from "./utils/updateWaveformElement";
 
@@ -50,59 +51,81 @@ export interface VariableWidgetsConfiguration {
 
 interface VariableWidgetContext {
   audioContext?: AudioContext;
-  audioPlayers: SparkDOMAudioPlayer[];
-  audioPlayingButton?: HTMLElement | null;
+  audioPlayerQueue: Record<string, SparkDOMAudioPlayer[] | null>;
+  waveforms: Record<string, WaveformContext>;
 }
 
 const VARIABLE_WIDGET_CONTEXT: VariableWidgetContext = {
   audioContext: undefined,
-  audioPlayers: [],
-  audioPlayingButton: undefined,
+  audioPlayerQueue: {},
+  waveforms: {},
 };
 
-const getPlayButton = (dom: HTMLElement, variableName: string) => {
+const getPlayButton = (dom: HTMLElement, id: string) => {
   const rootEl = dom.getRootNode().firstChild as HTMLElement;
   return rootEl?.querySelector<HTMLElement>(
-    `.${STRUCT_PLAY_BUTTON_CLASS_NAME}.${variableName}`
+    `.${STRUCT_PLAY_BUTTON_CLASS_NAME}.${id}`
   );
 };
 
 const playAudio = async (
   context: VariableWidgetContext,
-  button: HTMLElement,
-  getPlayers: () => SparkDOMAudioPlayer[] | Promise<SparkDOMAudioPlayer[]>,
+  playId: string,
+  dom: HTMLElement,
+  toggle: boolean,
+  loadPlayers: () => Promise<SparkDOMAudioPlayer[]>,
   duration?: number,
   offset: number = 0
 ) => {
   // TODO: Retain play button state even on editor teardown.
   context.audioContext ??= new AudioContext();
-  const toggleOffAudio = context.audioPlayingButton === button;
-  if (context.audioPlayingButton && context.audioPlayingButton !== button) {
-    context.audioPlayingButton.innerHTML = PlayButtonIcon;
-  }
-  context.audioPlayingButton = button;
-  button.innerHTML = LoadingButtonIcon;
-  await Promise.all(context.audioPlayers.map((p) => p.stopAsync(0)));
-  if (context.audioPlayingButton === button) {
-    context.audioPlayers.length = 0;
-    if (toggleOffAudio) {
-      button.innerHTML = PlayButtonIcon;
-      context.audioPlayingButton = undefined;
-    } else {
-      const players = await getPlayers();
-      if (context.audioPlayingButton === button) {
-        const currentTime = context.audioContext.currentTime + 0.025;
-        players.forEach((player) => {
-          player.addEventListener("ended", () => {
-            if (context.audioPlayingButton === button) {
-              button.innerHTML = PlayButtonIcon;
-              context.audioPlayingButton = undefined;
-            }
+  const playButton = getPlayButton(dom, playId);
+  const shouldQueue = !toggle || playButton?.dataset["action"] !== "stop";
+  Object.entries(context.audioPlayerQueue).forEach(([id, players]) => {
+    delete context.audioPlayerQueue[id];
+    if (players) {
+      players.forEach((player) => {
+        player.stop(0);
+      });
+      const playButton = getPlayButton(dom, id);
+      if (playButton) {
+        playButton.dataset["action"] = "play";
+        playButton.innerHTML = PlayButtonIcon;
+      }
+    }
+  });
+  if (shouldQueue) {
+    if (playButton) {
+      playButton.dataset["action"] = "stop";
+      playButton.innerHTML = LoadingButtonIcon;
+    }
+    context.audioPlayerQueue[playId] = null;
+    const players = await loadPlayers();
+    if (context.audioPlayerQueue[playId] === null) {
+      // Loading wasn't interrupted, so we should play
+      context.audioPlayerQueue[playId] = players;
+      const playButton = getPlayButton(dom, playId);
+      if (playButton) {
+        playButton.dataset["action"] = "stop";
+        playButton.innerHTML = StopButtonIcon;
+      }
+      const currentTime = context.audioContext.currentTime + 0.025;
+      await Promise.all(
+        players.map((player) => {
+          return new Promise<void>((resolve) => {
+            player.addEventListener("ended", () => {
+              resolve();
+            });
+            player.start(currentTime, 0, offset, duration);
           });
-          player.start(currentTime, 0, offset, duration);
-          context.audioPlayers.push(player);
-        });
-        button.innerHTML = StopButtonIcon;
+        })
+      );
+      if (context.audioPlayerQueue[playId] === players) {
+        const playButton = getPlayButton(dom, playId);
+        if (playButton) {
+          playButton.dataset["action"] = "play";
+          playButton.innerHTML = PlayButtonIcon;
+        }
       }
     }
   }
@@ -112,7 +135,9 @@ const playAudioGroupVariable = async (
   audioGroup: AudioGroup,
   fileSystemReader: FileSystemReader,
   context: VariableWidgetContext,
-  button: HTMLElement,
+  buttonId: string,
+  dom: HTMLElement,
+  toggle: boolean,
   duration?: number,
   offset?: number
 ) => {
@@ -133,67 +158,59 @@ const playAudioGroupVariable = async (
         return player;
       })
     );
-  playAudio(context, button, getPlayers, duration, offset);
+  playAudio(context, buttonId, dom, toggle, getPlayers, duration, offset);
 };
 
 const playSynthVariable = async (
   synth: Synth,
   context: VariableWidgetContext,
-  button: HTMLElement
+  buttonId: string,
+  dom: HTMLElement,
+  toggle = false
 ) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
-  const getPlayers = () => {
+  const getPlayers = async () => {
     const buffer = createSynthBuffer(synth, context);
     return [new SparkDOMAudioPlayer(buffer, audioContext)];
   };
-  playAudio(context, button, getPlayers);
+  playAudio(context, buttonId, dom, toggle, getPlayers);
 };
 
 const createSynthBuffer = (synth: Synth, context: VariableWidgetContext) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
-  const duration =
-    synth.envelope.attack +
-    synth.envelope.decay +
-    synth.envelope.sustain +
-    synth.envelope.release;
-  return new SynthBuffer(
-    [
-      {
-        instrument: 0,
-        synth,
-        time: 0,
-        duration,
-      },
-    ],
-    audioContext.sampleRate
-  );
+  return new SynthBuffer([{ synth }], audioContext.sampleRate);
 };
 
 const updateSynthWaveform = (
   previewEl: HTMLElement,
   synth: Synth,
   context: VariableWidgetContext,
+  playId: string,
   config: Required<VariableWidgetsConfiguration>
 ) => {
   context.audioContext ??= new AudioContext();
   const synthBuffer = createSynthBuffer(synth, context);
+  const waveform: WaveformContext = context.waveforms[playId] ?? {
+    ...config.waveformSettings,
+    xOffset: 0,
+    zoomOffset: 0,
+    referenceFileName: "",
+  };
+  waveform.soundBuffer = synthBuffer.soundBuffer;
+  waveform.volumeBuffer = synthBuffer.volumeBuffer;
+  waveform.pitchBuffer = synthBuffer.pitchBuffer;
+  waveform.pitchRange = synthBuffer.pitchRange;
+  context.waveforms[playId] = waveform;
   updateWaveformElement(
-    {
-      ...config.waveformSettings,
-      xOffset: 0,
-      zoomOffset: 0,
-      visible: "both",
-      visibleIndex: 0,
-      soundBuffer: synthBuffer.soundBuffer,
-      volumeBuffer: synthBuffer.volumeBuffer,
-      pitchBuffer: synthBuffer.pitchBuffer,
-      pitchRange: synthBuffer.pitchRange,
-    },
+    waveform,
     config.previewSettings,
     context.audioContext,
-    previewEl
+    previewEl,
+    (audioContext, buffer) => {
+      new SparkDOMAudioPlayer(buffer, audioContext).start();
+    }
   );
 };
 
@@ -250,12 +267,12 @@ const getStructValueRange = (view: EditorView, structWidgetPos: number) => {
     widgetLine.number,
     indent
   );
-  if (valueFromLine && valueToLine) {
+  if (valueToLine) {
     const indentSize = getIndentUnit(view.state);
     const indentStr = indentString(view.state, indentSize);
     const indentedPrefix = indent + indentStr;
     return {
-      from: valueFromLine.from,
+      from: valueFromLine?.from ?? widgetLine.to,
       to: Math.min(view.state.doc.length, valueToLine.to),
       indent: indentedPrefix,
     };
@@ -263,26 +280,32 @@ const getStructValueRange = (view: EditorView, structWidgetPos: number) => {
   return null;
 };
 
-const overwriteStructValue = (
+const getStructValueChanges = (
   view: EditorView,
   structWidgetPos: number,
   structObj: unknown
-): boolean => {
+) => {
   const structValueRange = getStructValueRange(view, structWidgetPos);
   if (structValueRange) {
+    const isEmptyStruct = structValueRange.from === structValueRange.to;
     const newline = view.state.lineBreak;
     const lineSeparator = `${newline}${structValueRange.indent}`;
-    let insert =
-      structValueRange.indent + yamlStringify(structObj, lineSeparator);
+    let insert = "";
+    if (isEmptyStruct) {
+      insert += newline;
+    }
+    insert += structValueRange.indent + yamlStringify(structObj, lineSeparator);
+    if (isEmptyStruct) {
+      insert += newline;
+    }
     const changes = {
       from: structValueRange.from,
       to: structValueRange.to,
       insert,
     };
-    view.dispatch({ changes });
-    return true;
+    return changes;
   }
-  return false;
+  return null;
 };
 
 const PlayButtonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d='M 5.7 4.8 C 5.8 3.8 6.8 3.2 7.7 3.6 C 8.8 4 11.2 5.1 14.2 6.9 C 17.2 8.6 19.3 10.1 20.2 10.8 C 21 11.4 21 12.6 20.2 13.2 C 19.3 13.9 17.2 15.4 14.2 17.1 C 11.1 18.9 8.8 20 7.7 20.4 C 6.8 20.8 5.8 20.2 5.7 19.2 C 5.5 18.1 5.3 15.5 5.3 12 C 5.3 8.5 5.5 5.9 5.7 4.8 Z'></path></svg>`;
@@ -359,13 +382,28 @@ const getSynthVariableWidgets = (
             label?.toLowerCase() !== "default" ? "on" : undefined;
           randomize(preset, validation, randomization, cullProp);
         }
-        if (overwriteStructValue(view, view.posAtDOM(dom), preset)) {
+        const structWidgetPos = view.posAtDOM(dom);
+        const changes = getStructValueChanges(view, structWidgetPos, preset);
+        if (changes) {
           const randomizedObj = clone(defaultObj, preset);
-          updateSynthWaveform(previewEl, randomizedObj, context, config);
           const button = getPlayButton(dom, variableName);
           if (button) {
-            playSynthVariable(randomizedObj, context, button);
+            playSynthVariable(randomizedObj, context, variableName, button);
           }
+          updateSynthWaveform(
+            previewEl,
+            randomizedObj,
+            context,
+            variableName,
+            config
+          );
+          view.dispatch({ changes });
+        } else {
+          console.warn(
+            `Could not overwrite struct at line ${
+              view.state.doc.lineAt(structWidgetPos).number
+            }`
+          );
         }
       },
     };
@@ -377,7 +415,7 @@ const getSynthVariableWidgets = (
       variableName,
       options,
       async (previewEl) => {
-        updateSynthWaveform(previewEl, compiled, context, config);
+        updateSynthWaveform(previewEl, compiled, context, variableName, config);
       }
     ),
   });
@@ -385,7 +423,7 @@ const getSynthVariableWidgets = (
     side: 1,
     id: variableName,
     widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) => {
-      playSynthVariable(compiled, context, button);
+      playSynthVariable(compiled, context, variableName, button, true);
     }),
   });
   widgetRanges.push(presetWidget.range(widgetPos));
@@ -410,7 +448,14 @@ const getAudioGroupVariableWidgets = (
     side: 1,
     id: variableName,
     widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) =>
-      playAudioGroupVariable(compiled, config.fileSystemReader, context, button)
+      playAudioGroupVariable(
+        compiled,
+        config.fileSystemReader,
+        context,
+        variableName,
+        button,
+        true
+      )
     ),
   });
   widgetRanges.push(playWidget.range(widgetPos));
@@ -427,7 +472,13 @@ const getAudioGroupVariableWidgets = (
       ) {
         const offset = timeFrom;
         const duration = timeTo != null ? timeTo - timeFrom : undefined;
-        const fieldId = variableName + "." + field.path + "." + field.key;
+        const fieldId = (
+          variableName +
+          "." +
+          field.path +
+          "." +
+          field.key
+        ).replaceAll(".", "-");
         const fieldPlayWidget = Decoration.widget({
           side: 1,
           id: fieldId,
@@ -436,7 +487,9 @@ const getAudioGroupVariableWidgets = (
               compiled,
               config.fileSystemReader,
               context,
+              fieldId,
               button,
+              true,
               duration,
               offset
             )

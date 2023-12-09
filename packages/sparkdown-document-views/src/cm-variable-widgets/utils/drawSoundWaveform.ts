@@ -21,7 +21,8 @@ export const drawSoundWaveform = (
   const referenceBuffer = context.referenceBuffer;
   const pitchRange = context.pitchRange ?? [0, 0];
 
-  const visible = context?.visible ?? "both";
+  const soundVisible = context?.soundVisible ?? true;
+  const referenceVisible = context?.referenceVisible ?? true;
 
   const xAxisColor = context?.xAxisColor;
   const frequencyFillColor = context?.frequencyFillColor;
@@ -94,7 +95,7 @@ export const drawSoundWaveform = (
     canvasContext.fill();
   }
 
-  if (referenceBuffer && (visible === "both" || visible === "reference")) {
+  if (referenceBuffer && referenceVisible) {
     // Reference Wave
     canvasContext.lineWidth = 1;
     canvasContext.strokeStyle = referenceColor;
@@ -112,7 +113,7 @@ export const drawSoundWaveform = (
     canvasContext.stroke();
   }
 
-  if (soundBuffer && (visible === "both" || visible === "sound")) {
+  if (soundBuffer && soundVisible) {
     // Wave
     canvasContext.lineWidth = 1;
     canvasContext.strokeStyle = waveColor;
