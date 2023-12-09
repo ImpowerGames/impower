@@ -23,7 +23,9 @@ const SPARK_TOKEN_TAGS: {
   CheckpointName: "checkpoint_name",
 
   TypeIdentifier: "type_name",
+  DeclarationType: "declaration_type",
   DeclarationName: "declaration_name",
+  DeclarationProperty: "declaration_property",
   AccessIdentifier: "access_identifier",
   AccessIdentifierPart: "access_identifier_part",
   VariableName: "variable_name",

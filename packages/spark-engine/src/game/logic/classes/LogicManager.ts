@@ -1,6 +1,6 @@
 import { format } from "../../../../../spark-evaluate/src";
 import { evaluate } from "../../../../../spark-evaluate/src/utils/evaluate";
-import { ReadOnly } from "../../core";
+import { setProperty } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { GameEvent2 } from "../../core/classes/GameEvent2";
 import { Manager } from "../../core/classes/Manager";
@@ -51,14 +51,9 @@ export class LogicManager extends Manager<
 > {
   protected _storedVariables: string[] = [];
 
-  protected _valueMap: Record<string, unknown> = {};
+  protected _valueMap: Record<string, Record<string, any>> = {};
   get valueMap() {
-    return this._valueMap as ReadOnly<Record<string, unknown>>;
-  }
-
-  protected _typeMap: { [type: string]: Record<string, any> } = {};
-  get typeMap() {
-    return this._typeMap as ReadOnly<Record<string, unknown>>;
+    return this._valueMap;
   }
 
   constructor(config?: Partial<LogicConfig>, state?: Partial<LogicState>) {
@@ -110,7 +105,9 @@ export class LogicManager extends Manager<
     if (this.config?.blockMap) {
       Object.entries(this.config?.blockMap).forEach(([sectionName]) => {
         const blockState = this._state.blockStates[sectionName];
-        this._valueMap[sectionName] = blockState?.executionCount ?? 0;
+        const executionCount = blockState?.executionCount ?? 0;
+        this._valueMap["section"] ??= {};
+        this._valueMap["section"]![sectionName] = executionCount;
       });
     }
     if (this.config?.variableMap) {
@@ -118,11 +115,12 @@ export class LogicManager extends Manager<
         ([variableName, variable]) => {
           const variableState = this._state.variableStates[variableName];
           const value = variableState?.value ?? variable.compiled;
-          this._valueMap[variableName] = value;
-          this._typeMap[variable.type] ??= {};
-          this._typeMap[variable.type]![variable.name] = value;
-          this._typeMap[variable.name] ??= {};
-          this._typeMap[variable.name]![""] ??= value;
+          if (variable.type === "type") {
+            this._valueMap[variableName] ??= {};
+            this._valueMap[variableName]![""] = value;
+          } else {
+            setProperty(this._valueMap, variableName, value);
+          }
           if (variable.stored) {
             this._storedVariables.push(variableName);
           }
@@ -218,24 +216,25 @@ export class LogicManager extends Manager<
   }
 
   executeBlock(
-    blockId: string,
-    executedByBlockId: string | null,
+    blockName: string,
+    executedBy: string | null,
     startIndex?: number
   ): void {
-    const block = this._config.blockMap[blockId];
+    const block = this._config.blockMap[blockName];
     if (!block) {
       return;
     }
-    this.resetBlockExecution(blockId);
-    const blockState = this._state.blockStates[blockId];
+    this.resetBlockExecution(blockName);
+    const blockState = this._state.blockStates[blockName];
     if (blockState) {
-      blockState.executedBy = executedByBlockId;
+      blockState.executedBy = executedBy;
       blockState.isExecuting = true;
       blockState.startIndex = startIndex || 0;
       blockState.executionCount += 1;
-      this._valueMap[blockId] = blockState.executionCount;
+      this._valueMap["section"] ??= {};
+      this._valueMap["section"]![blockName] = blockState.executionCount;
     }
-    this._events.onExecuteBlock.dispatch(blockId, block.source);
+    this._events.onExecuteBlock.dispatch(blockName, block.source);
   }
 
   getNextBlockId(blockId: string): string | null | undefined {
@@ -398,8 +397,8 @@ export class LogicManager extends Manager<
     if (blockState) {
       const currentExecutionCount =
         blockState.commandExecutionCounts[commandId] || 0;
-      this._valueMap["$seed"] = seed + commandId;
-      this._valueMap["$value"] = currentExecutionCount;
+      this._valueMap["$seed"] = (seed + commandId) as any;
+      this._valueMap["$value"] = currentExecutionCount as any;
     }
   }
 

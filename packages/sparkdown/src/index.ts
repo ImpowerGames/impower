@@ -43,5 +43,5 @@ export * from "./utils/isMonologue";
 export * from "./utils/isPrimitiveType";
 export * from "./utils/isSparkReference";
 export * from "./utils/isVariableType";
+export * from "./utils/structStringify";
 export * from "./utils/unwrapString";
-export * from "./utils/yamlStringify";

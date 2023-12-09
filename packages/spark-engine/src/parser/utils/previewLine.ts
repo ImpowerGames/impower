@@ -16,9 +16,9 @@ export const previewLine = (
         runtimeCommand.reference.typeId
       );
       if (commandRunner) {
-        context.game.ui.loadTheme(context.game.logic.typeMap);
-        context.game.ui.loadStyles(context.game.logic.typeMap);
-        context.game.ui.loadUI(context.game.logic.typeMap);
+        context.game.ui.loadTheme(context.game.logic.valueMap);
+        context.game.ui.loadStyles(context.game.logic.valueMap);
+        context.game.ui.loadUI(context.game.logic.valueMap);
         commandRunner.onPreview(context.game, runtimeCommand, {
           instant,
           debug,
@@ -28,16 +28,16 @@ export const previewLine = (
       const previewStruct = getPreviewStruct(program, line);
       if (previewStruct?.type === "style") {
         context.game.ui.loadStyles(
-          context.game.logic.typeMap,
+          context.game.logic.valueMap,
           previewStruct.name
         );
       }
       if (previewStruct?.type === "ui") {
         context.game.ui.hideUI(
-          ...Object.keys(context.game.logic.typeMap?.["ui"] || {})
+          ...Object.keys(context.game.logic.valueMap?.["ui"] || {})
         );
-        context.game.ui.loadStyles(context.game.logic.typeMap);
-        context.game.ui.loadUI(context.game.logic.typeMap, previewStruct.name);
+        context.game.ui.loadStyles(context.game.logic.valueMap);
+        context.game.ui.loadUI(context.game.logic.valueMap, previewStruct.name);
         context.game.ui.showUI(previewStruct.name);
       }
     }

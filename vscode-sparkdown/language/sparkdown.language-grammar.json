@@ -210,7 +210,7 @@
     "FrontMatterField": {
       "tag": "meta",
       "name": "meta.front-matter.field.sd",
-      "begin": "^([_a-zA-Z][_a-zA-Z0-9]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
+      "begin": "^([_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -220,10 +220,17 @@
           ]
         },
         "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
           "tag": "punctuation",
           "name": "punctuation.separator.colon.sd"
         },
-        "3": {
+        "4": {
           "patterns": [
             {
               "include": "#FrontMatterStringInline"
@@ -245,7 +252,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^[_a-zA-Z][_a-zA-Z0-9]*[:]|[-]{3,})"
+      "end": "(?=^[_a-zA-Z][_a-zA-Z0-9]*[ \\t]*[:]|[-]{3,})"
     },
     "FrontMatterArrayItem": {
       "match": "^([ ]{2,}|[\\t]+)([-])($|[ \\t]+)(.*$(?:\\r\\n|\\r|\\n)?)",
@@ -552,7 +559,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#TypeIdentifier"
+              "include": "#DeclarationType"
             }
           ]
         },
@@ -694,10 +701,10 @@
       "emit": true,
       "patterns": [
         {
-          "include": "#StoreObject"
+          "include": "#StoreScalar"
         },
         {
-          "include": "#StoreScalar"
+          "include": "#StoreObject"
         },
         {
           "include": "#StoreInvalid"
@@ -707,7 +714,7 @@
     "StoreScalar": {
       "tag": "meta",
       "name": "meta.definition.store.scalar.sd",
-      "begin": "^([ \\t]*)(store)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)(?=[=])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*))($|[=])($|[ \\t]*)",
+      "begin": "^([ \\t]*)(store)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)($|[=])($|[ \\t]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -744,39 +751,11 @@
         "6": {
           "patterns": [
             {
-              "include": "#TypeIdentifier"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#DeclarationName"
-            }
-          ]
-        },
-        "9": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "10": {
-          "patterns": [
-            {
               "include": "#AssignOperator"
             }
           ]
         },
-        "11": {
+        "7": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -803,7 +782,7 @@
     "StoreObject": {
       "tag": "meta",
       "name": "meta.definition.store.object.sd",
-      "begin": "^([ \\t]*)(store)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)(?=[:])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*))($|[:])($|[ \\t]*)($|.+$)",
+      "begin": "^([ \\t]*)(store)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ \\t]*)($|[:])($|[ \\t]*)($|.+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -826,21 +805,21 @@
         "4": {
           "patterns": [
             {
-              "include": "#DeclarationName"
+              "include": "#DeclarationType"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#PunctuationAccessor"
             }
           ]
         },
         "6": {
           "patterns": [
             {
-              "include": "#TypeIdentifier"
+              "include": "#DeclarationName"
             }
           ]
         },
@@ -854,7 +833,7 @@
         "8": {
           "patterns": [
             {
-              "include": "#DeclarationName"
+              "include": "#AssignOperator"
             }
           ]
         },
@@ -866,20 +845,6 @@
           ]
         },
         "10": {
-          "patterns": [
-            {
-              "include": "#AssignOperator"
-            }
-          ]
-        },
-        "11": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "12": {
           "patterns": [
             {
               "include": "#Unknown"
@@ -948,10 +913,10 @@
           "include": "#DefineFunction"
         },
         {
-          "include": "#DefineObject"
+          "include": "#DefineScalar"
         },
         {
-          "include": "#DefineScalar"
+          "include": "#DefineObject"
         },
         {
           "include": "#DefineInvalid"
@@ -1057,7 +1022,7 @@
     "DefineScalar": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)(?=[=])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*))($|[=])($|[ \\t]*)",
+      "begin": "^([ \\t]*)(define)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)($|[=])($|[ \\t]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1094,39 +1059,11 @@
         "6": {
           "patterns": [
             {
-              "include": "#TypeIdentifier"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#DeclarationName"
-            }
-          ]
-        },
-        "9": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "10": {
-          "patterns": [
-            {
               "include": "#AssignOperator"
             }
           ]
         },
-        "11": {
+        "7": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -1153,7 +1090,7 @@
     "DefineObject": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)(?=[:])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*))($|[:])($|[ \\t]*)($|.+$)",
+      "begin": "^([ \\t]*)(define)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ \\t]*)($|[:])($|[ \\t]*)($|.+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1176,21 +1113,21 @@
         "4": {
           "patterns": [
             {
-              "include": "#DeclarationName"
+              "include": "#DeclarationType"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#PunctuationAccessor"
             }
           ]
         },
         "6": {
           "patterns": [
             {
-              "include": "#TypeIdentifier"
+              "include": "#DeclarationName"
             }
           ]
         },
@@ -1204,7 +1141,7 @@
         "8": {
           "patterns": [
             {
-              "include": "#DeclarationName"
+              "include": "#AssignOperator"
             }
           ]
         },
@@ -1216,20 +1153,6 @@
           ]
         },
         "10": {
-          "patterns": [
-            {
-              "include": "#AssignOperator"
-            }
-          ]
-        },
-        "11": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "12": {
           "patterns": [
             {
               "include": "#Unknown"
@@ -1409,7 +1332,7 @@
     "StructMapProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.map.sd",
-      "begin": "^([ \\t]*)([^\\s:]+)($|[:])($|[ \\t]*$)",
+      "begin": "^([ \\t]*)([^\\s:]+)($|[ \\t]*)($|[:])($|[ \\t]*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1421,18 +1344,22 @@
         "2": {
           "patterns": [
             {
-              "include": "#PropertyName"
-            },
-            {
-              "include": "#IllegalExpression"
+              "include": "#DeclarationProperty"
             }
           ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
           "tag": "punctuation",
           "name": "punctuation.separator.colon.sd"
         },
-        "4": {
+        "5": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -1471,7 +1398,7 @@
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([ \\t]*)([^\\s:]+)($|[:])($|[ \\t]*)(?=.*\\S.*$)",
+      "begin": "^([ \\t]*)([^\\s:]+)($|[ \\t]*)(?:($|[=])($|[ \\t]*)|($|[:])($|[ \\t]*)(?=.*\\S.*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1483,18 +1410,33 @@
         "2": {
           "patterns": [
             {
-              "include": "#PropertyName"
-            },
-            {
-              "include": "#IllegalExpression"
+              "include": "#DeclarationProperty"
             }
           ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
           "tag": "updateOperator",
           "name": "keyword.operator.assignment.sd"
         },
-        "4": {
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "7": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -2305,10 +2247,24 @@
           "include": "#PropertyAccessor"
         },
         {
+          "include": "#NamespaceAccessor"
+        },
+        {
           "include": "#VariableName"
         },
         {
           "include": "#PunctuationAccessor"
+        }
+      ]
+    },
+    "DeclarationType": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#TypeIdentifier"
+        },
+        {
+          "include": "#Unknown"
         }
       ]
     },
@@ -2317,6 +2273,17 @@
       "patterns": [
         {
           "include": "#VariableName"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ]
+    },
+    "DeclarationProperty": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#PropertyName"
         },
         {
           "include": "#Unknown"
@@ -4149,6 +4116,32 @@
         }
       }
     },
+    "NamespaceAccessor": {
+      "match": "([a-zA-Z][_$0-9a-zA-Z]*)([.]|[?][.](?!\\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)?(?![_a-zA-Z0-9])(?![(])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#TypeIdentifier"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PunctuationAccessor"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#VariableName"
+            }
+          ]
+        }
+      }
+    },
     "PropertyAccessor": {
       "match": "([.]|[?][.](?!\\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)(?![_a-zA-Z0-9])(?![(])",
       "captures": {
@@ -4171,7 +4164,7 @@
     "IllegalPropertyDeclaration": {
       "tag": "invalid",
       "name": "invalid.illegal.property-declaration.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)([:])(.*?)($|(?=[;}]))"
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)([:])(.*?)($|(?=[;}]))"
     },
     "StructName": {
       "tag": "variableName",

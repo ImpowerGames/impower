@@ -54,6 +54,7 @@ const generateDisplayCommand = (
           ? "transition"
           : "action",
       position: token.position || "",
+      characterKey: token.characterKey || "",
       characterName: token.characterName?.text || "",
       characterParenthetical: token.characterParenthetical?.text || "",
       content: token.content || [],
@@ -74,12 +75,7 @@ export const generateCommand = (
   if (token.ignore) {
     return null;
   }
-  if (
-    token.tag === "store_scalar" ||
-    token.tag === "store_object" ||
-    token.tag === "define_scalar" ||
-    token.tag === "define_object"
-  ) {
+  if (token.tag === "store" || token.tag === "define") {
     const refId = getCommandId(token, file, sectionId);
     const refTypeId: CommandTypeId = "EvaluateCommand";
     const newCommand: EvaluateCommandData = {

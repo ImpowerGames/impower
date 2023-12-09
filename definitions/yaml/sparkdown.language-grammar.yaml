@@ -119,15 +119,18 @@ repository:
   FrontMatterField:
     tag: meta
     name: meta.front-matter.field.sd
-    begin: ^([_a-zA-Z][_a-zA-Z0-9]*)($|[:])(.*$(?:\r\n|\r|\n)?)
+    begin: ^([_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]*)($|[:])(.*$(?:\r\n|\r|\n)?)
     beginCaptures:
       1:
         patterns:
           - { include: "#FrontMatterFieldKeyword" }
       2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
         tag: punctuation
         name: punctuation.separator.colon.sd
-      3:
+      4:
         patterns:
           - { include: "#FrontMatterStringInline" }
     patterns:
@@ -135,7 +138,7 @@ repository:
       - { include: "#FrontMatterStringBlock" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: (?=^[_a-zA-Z][_a-zA-Z0-9]*[:]|[-]{3,})
+    end: (?=^[_a-zA-Z][_a-zA-Z0-9]*[ \t]*[:]|[-]{3,})
 
   FrontMatterArrayItem:
     match: ^([ ]{2,}|[\t]+)([-])($|[ \t]+)(.*$(?:\r\n|\r|\n)?)
@@ -314,7 +317,7 @@ repository:
     captures:
       1:
         patterns:
-          - { include: "#TypeIdentifier" }
+          - { include: "#DeclarationType" }
       2:
         patterns:
           - { include: "#Whitespace" }
@@ -395,14 +398,14 @@ repository:
   Store:
     emit: true
     patterns:
-      - { include: "#StoreObject" }
       - { include: "#StoreScalar" }
+      - { include: "#StoreObject" }
       - { include: "#StoreInvalid" }
 
   StoreScalar:
     tag: meta
     name: meta.definition.store.scalar.sd
-    begin: ^([ \t]*)(store)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)(?=[=])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*))($|[=])($|[ \t]*)
+    begin: ^([ \t]*)(store)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)($|[=])($|[ \t]*)
     beginCaptures:
       1:
         patterns:
@@ -421,20 +424,8 @@ repository:
           - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#TypeIdentifier" }
-      7:
-        patterns:
-          - { include: "#Whitespace" }
-      8:
-        patterns:
-          - { include: "#DeclarationName" }
-      9:
-        patterns:
-          - { include: "#Whitespace" }
-      10:
-        patterns:
           - { include: "#AssignOperator" }
-      11:
+      7:
         patterns:
           - { include: "#Whitespace" }
     patterns:
@@ -448,7 +439,7 @@ repository:
   StoreObject:
     tag: meta
     name: meta.definition.store.object.sd
-    begin: ^([ \t]*)(store)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)(?=[:])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*))($|[:])($|[ \t]*)($|.+$)
+    begin: ^([ \t]*)(store)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ \t]*)($|[:])($|[ \t]*)($|.+$)
     beginCaptures:
       1:
         patterns:
@@ -461,29 +452,23 @@ repository:
           - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#DeclarationName" }
+          - { include: "#DeclarationType" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#PunctuationAccessor" }
       6:
         patterns:
-          - { include: "#TypeIdentifier" }
+          - { include: "#DeclarationName" }
       7:
         patterns:
           - { include: "#Whitespace" }
       8:
         patterns:
-          - { include: "#DeclarationName" }
+          - { include: "#AssignOperator" }
       9:
         patterns:
           - { include: "#Whitespace" }
       10:
-        patterns:
-          - { include: "#AssignOperator" }
-      11:
-        patterns:
-          - { include: "#Whitespace" }
-      12:
         patterns:
           - { include: "#Unknown" }
     patterns:
@@ -518,8 +503,8 @@ repository:
     emit: true
     patterns:
       - { include: "#DefineFunction" }
-      - { include: "#DefineObject" }
       - { include: "#DefineScalar" }
+      - { include: "#DefineObject" }
       - { include: "#DefineInvalid" }
 
   DefineFunction:
@@ -570,7 +555,7 @@ repository:
   DefineScalar:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^([ \t]*)(define)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)(?=[=])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*))($|[=])($|[ \t]*)
+    begin: ^([ \t]*)(define)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)($|[=])($|[ \t]*)
     beginCaptures:
       1:
         patterns:
@@ -589,20 +574,8 @@ repository:
           - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#TypeIdentifier" }
-      7:
-        patterns:
-          - { include: "#Whitespace" }
-      8:
-        patterns:
-          - { include: "#DeclarationName" }
-      9:
-        patterns:
-          - { include: "#Whitespace" }
-      10:
-        patterns:
           - { include: "#AssignOperator" }
-      11:
+      7:
         patterns:
           - { include: "#Whitespace" }
     patterns:
@@ -616,7 +589,7 @@ repository:
   DefineObject:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^([ \t]*)(define)($|[ \t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)(?=[:])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*))($|[:])($|[ \t]*)($|.+$)
+    begin: ^([ \t]*)(define)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ \t]*)($|[:])($|[ \t]*)($|.+$)
     beginCaptures:
       1:
         patterns:
@@ -629,29 +602,23 @@ repository:
           - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#DeclarationName" }
+          - { include: "#DeclarationType" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#PunctuationAccessor" }
       6:
         patterns:
-          - { include: "#TypeIdentifier" }
+          - { include: "#DeclarationName" }
       7:
         patterns:
           - { include: "#Whitespace" }
       8:
         patterns:
-          - { include: "#DeclarationName" }
+          - { include: "#AssignOperator" }
       9:
         patterns:
           - { include: "#Whitespace" }
       10:
-        patterns:
-          - { include: "#AssignOperator" }
-      11:
-        patterns:
-          - { include: "#Whitespace" }
-      12:
         patterns:
           - { include: "#Unknown" }
     patterns:
@@ -744,19 +711,21 @@ repository:
   StructMapProperty:
     tag: meta
     name: meta.definition.struct.property.map.sd
-    begin: ^([ \t]*)([^\s:]+)($|[:])($|[ \t]*$)
+    begin: ^([ \t]*)([^\s:]+)($|[ \t]*)($|[:])($|[ \t]*$)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#PropertyName" }
-          - { include: "#IllegalExpression" }
+          - { include: "#DeclarationProperty" }
       3:
+        patterns:
+          - { include: "#Whitespace" }
+      4:
         tag: punctuation
         name: punctuation.separator.colon.sd
-      4:
+      5:
         patterns:
           - { include: "#Whitespace" }
     patterns:
@@ -773,19 +742,27 @@ repository:
   StructScalarProperty:
     tag: meta
     name: meta.definition.struct.property.scalar.sd
-    begin: ^([ \t]*)([^\s:]+)($|[:])($|[ \t]*)(?=.*\S.*$)
+    begin: ^([ \t]*)([^\s:]+)($|[ \t]*)(?:($|[=])($|[ \t]*)|($|[:])($|[ \t]*)(?=.*\S.*$))
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#PropertyName" }
-          - { include: "#IllegalExpression" }
+          - { include: "#DeclarationProperty" }
       3:
+        patterns:
+          - { include: "#Whitespace" }
+      4:
         tag: updateOperator
         name: keyword.operator.assignment.sd
-      4:
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        tag: updateOperator
+        name: keyword.operator.assignment.sd
+      7:
         patterns:
           - { include: "#Whitespace" }
     patterns:
@@ -1218,13 +1195,26 @@ repository:
       - { include: "#ArrayLiteral" }
       - { include: "#FunctionAccessor" }
       - { include: "#PropertyAccessor" }
+      - { include: "#NamespaceAccessor" }
       - { include: "#VariableName" }
       - { include: "#PunctuationAccessor" }
+
+  DeclarationType:
+    emit: true
+    patterns:
+      - { include: "#TypeIdentifier" }
+      - { include: "#Unknown" }
 
   DeclarationName:
     emit: true
     patterns:
       - { include: "#VariableName" }
+      - { include: "#Unknown" }
+
+  DeclarationProperty:
+    emit: true
+    patterns:
+      - { include: "#PropertyName" }
       - { include: "#Unknown" }
 
   Jump:
@@ -2369,6 +2359,19 @@ repository:
         patterns:
           - { include: "#PunctuationParenClose" }
 
+  NamespaceAccessor:
+    match: ([a-zA-Z][_$0-9a-zA-Z]*)([.]|[?][.](?!\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)?(?![_a-zA-Z0-9])(?![(])
+    captures:
+      1:
+        patterns: 
+          - { include: "#TypeIdentifier" }
+      2:
+        patterns: 
+          - { include: "#PunctuationAccessor" }
+      3:
+        patterns: 
+          - { include: "#VariableName" }
+
   PropertyAccessor:
     match: ([.]|[?][.](?!\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)(?![_a-zA-Z0-9])(?![(])
     captures:
@@ -2382,7 +2385,7 @@ repository:
   IllegalPropertyDeclaration:
     tag: invalid
     name: invalid.illegal.property-declaration.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)([:])(.*?)($|(?=[;}]))
+    match: ([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)([:])(.*?)($|(?=[;}]))
 
   StructName:
     tag: variableName

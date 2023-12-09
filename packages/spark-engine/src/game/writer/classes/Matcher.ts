@@ -1,17 +1,19 @@
 const REGEX_PATTERN = /^([/])(.*)([/])([a-z]*)$/;
 
 export default class Matcher {
-  protected _pattern: string;
+  protected _pattern?: string;
 
   protected _regex?: RegExp;
 
-  constructor(pattern: string) {
-    this._pattern = pattern;
-    const match = pattern.match(REGEX_PATTERN);
-    if (match) {
-      const source = match[2] || "";
-      const flags = match[4] || "u";
-      this._regex = new RegExp(source, flags);
+  constructor(pattern: string | undefined) {
+    if (pattern != null) {
+      this._pattern = pattern;
+      const match = pattern.match(REGEX_PATTERN);
+      if (match) {
+        const source = match[2] || "";
+        const flags = match[4] || "u";
+        this._regex = new RegExp(source, flags);
+      }
     }
   }
 

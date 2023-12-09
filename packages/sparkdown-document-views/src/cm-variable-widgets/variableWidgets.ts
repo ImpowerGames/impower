@@ -28,7 +28,7 @@ import {
   randomize,
 } from "../../../spark-engine/src/inspector";
 import { SparkProgram } from "../../../sparkdown/src/index";
-import yamlStringify from "../../../sparkdown/src/utils/yamlStringify";
+import structStringify from "../../../sparkdown/src/utils/structStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
 import StructPlayWidgetType, {
@@ -215,12 +215,12 @@ const updateSynthWaveform = (
   previewEl: HTMLElement,
   synth: Synth,
   context: VariableWidgetContext,
-  variableName: string,
+  variableId: string,
   config: Required<VariableWidgetsConfiguration>
 ) => {
   context.audioContext ??= new AudioContext();
   const synthBuffer = createSynthBuffer(synth, context);
-  const waveform: WaveformContext = context.waveforms[variableName] ?? {
+  const waveform: WaveformContext = context.waveforms[variableId] ?? {
     ...config.waveformSettings,
     xOffset: 0,
     zoomOffset: 0,
@@ -230,7 +230,7 @@ const updateSynthWaveform = (
   waveform.volumeBuffer = synthBuffer.volumeBuffer;
   waveform.pitchBuffer = synthBuffer.pitchBuffer;
   waveform.pitchRange = synthBuffer.pitchRange;
-  context.waveforms[variableName] = waveform;
+  context.waveforms[variableId] = waveform;
   updateWaveformElement(
     waveform,
     config.previewSettings,
@@ -322,7 +322,8 @@ const getStructValueChanges = (
     if (isEmptyStruct) {
       insert += newline;
     }
-    insert += structValueRange.indent + yamlStringify(structObj, lineSeparator);
+    insert +=
+      structValueRange.indent + structStringify(structObj, lineSeparator);
     if (isEmptyStruct) {
       insert += newline;
     }
@@ -386,7 +387,7 @@ export const updateVariableWidgets = (): TransactionSpec => {
 const getSynthVariableWidgets = (
   view: EditorView,
   widgetPos: number,
-  variableName: string
+  variableId: string
 ) => {
   const config = view.state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
@@ -414,23 +415,23 @@ const getSynthVariableWidgets = (
         const changes = getStructValueChanges(view, structWidgetPos, preset);
         if (changes) {
           const randomizedObj = clone(defaultObj, preset);
-          const button = getPlayButton(dom, variableName);
+          const button = getPlayButton(dom, variableId);
           if (button) {
             playSynthVariable(
               randomizedObj,
               context,
-              variableName,
+              variableId,
               button,
               false
             );
           }
-          const previewEl = getPreviewElement(e.target, variableName);
+          const previewEl = getPreviewElement(e.target, variableId);
           if (previewEl) {
             updateSynthWaveform(
               previewEl,
               randomizedObj,
               context,
-              variableName,
+              variableId,
               config
             );
           }
@@ -448,56 +449,43 @@ const getSynthVariableWidgets = (
   });
   const presetWidget = Decoration.widget({
     side: 1,
-    widget: new StructPresetWidgetType(variableName, options, async (e) => {
-      const previewEl = getPreviewElement(e.target, variableName);
+    widget: new StructPresetWidgetType(variableId, options, async (e) => {
+      const previewEl = getPreviewElement(e.target, variableId);
       if (previewEl) {
         const synth =
-          config.programContext.program?.variables?.[variableName]?.compiled;
+          config.programContext.program?.variables?.[variableId]?.compiled;
         if (synth) {
-          updateSynthWaveform(previewEl, synth, context, variableName, config);
+          updateSynthWaveform(previewEl, synth, context, variableId, config);
         }
       }
     }),
   });
   const playWidget = Decoration.widget({
     side: 1,
-    id: variableName,
-    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (e) => {
+    id: variableId,
+    widget: new StructPlayWidgetType(variableId, PlayButtonIcon, (e) => {
       const dom = e.target as HTMLElement;
       const synth =
-        config.programContext.program?.variables?.[variableName]?.compiled;
+        config.programContext.program?.variables?.[variableId]?.compiled;
       if (synth) {
-        playSynthVariable(synth, context, variableName, dom, true);
+        playSynthVariable(synth, context, variableId, dom, true);
       }
     }),
   });
   const keyboardWidget = Decoration.widget({
     side: 1,
     widget: new StructKeyboardWidgetType(
-      variableName,
+      variableId,
       (e: PointerEvent, semitones: number) => {
         const dom = e.target as HTMLElement;
-        const previewEl = getPreviewElement(e.target, variableName);
+        const previewEl = getPreviewElement(e.target, variableId);
         const synth =
-          config.programContext.program?.variables?.[variableName]?.compiled;
+          config.programContext.program?.variables?.[variableId]?.compiled;
         if (synth) {
           if (previewEl) {
-            updateSynthWaveform(
-              previewEl,
-              synth,
-              context,
-              variableName,
-              config
-            );
+            updateSynthWaveform(previewEl, synth, context, variableId, config);
           }
-          playSynthVariable(
-            synth,
-            context,
-            variableName,
-            dom,
-            false,
-            semitones
-          );
+          playSynthVariable(synth, context, variableId, dom, false, semitones);
         }
       }
     ),
@@ -511,7 +499,7 @@ const getSynthVariableWidgets = (
 const getAudioGroupVariableWidgets = (
   view: EditorView,
   widgetPos: number,
-  variableName: string
+  variableId: string
 ) => {
   const config = view.state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
@@ -519,17 +507,17 @@ const getAudioGroupVariableWidgets = (
   // TODO: Allow editing cues with visual waveform sliders
   const playWidget = Decoration.widget({
     side: 1,
-    id: variableName,
-    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (e) => {
+    id: variableId,
+    widget: new StructPlayWidgetType(variableId, PlayButtonIcon, (e) => {
       const dom = e.target as HTMLElement;
       const audioGroup =
-        config.programContext.program?.variables?.[variableName]?.compiled;
+        config.programContext.program?.variables?.[variableId]?.compiled;
       if (audioGroup) {
         playAudioGroupVariable(
           audioGroup,
           config.fileSystemReader,
           context,
-          variableName,
+          variableId,
           dom,
           true
         );
@@ -538,7 +526,7 @@ const getAudioGroupVariableWidgets = (
   });
   widgetRanges.push(playWidget.range(widgetPos));
   const audioGroupVariable =
-    config.programContext.program?.variables?.[variableName];
+    config.programContext.program?.variables?.[variableId];
   if (audioGroupVariable) {
     if (audioGroupVariable.fields) {
       for (let i = 0; i < audioGroupVariable.fields.length; i += 1) {
@@ -554,7 +542,7 @@ const getAudioGroupVariableWidgets = (
           const offset = timeFrom;
           const duration = timeTo != null ? timeTo - timeFrom : undefined;
           const fieldId = (
-            variableName +
+            variableId +
             "." +
             field.path +
             "." +
@@ -566,7 +554,7 @@ const getAudioGroupVariableWidgets = (
             widget: new StructPlayWidgetType(fieldId, PlayButtonIcon, (e) => {
               const dom = e.target as HTMLElement;
               const audioGroup =
-                config.programContext.program?.variables?.[variableName]
+                config.programContext.program?.variables?.[variableId]
                   ?.compiled;
               if (audioGroup) {
                 playAudioGroupVariable(
@@ -595,17 +583,15 @@ const createVariableWidgets = (view: EditorView) => {
   const widgetRanges: Range<Decoration>[] = [];
   const program = config.programContext.program;
   if (program?.variables) {
-    Object.values(program.variables).forEach((variable) => {
+    Object.entries(program.variables).forEach(([variableId, variable]) => {
       const to = variable.ranges?.name?.to;
       if (to != null) {
         if (variable.type === "synth" && !variable.implicit) {
-          widgetRanges.push(
-            ...getSynthVariableWidgets(view, to, variable.name)
-          );
+          widgetRanges.push(...getSynthVariableWidgets(view, to, variableId));
         }
         if (variable.type === "audio_group") {
           widgetRanges.push(
-            ...getAudioGroupVariableWidgets(view, to, variable.name)
+            ...getAudioGroupVariableWidgets(view, to, variableId)
           );
         }
       }

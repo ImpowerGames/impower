@@ -232,7 +232,7 @@ const getStructMapPropertyNameCompletions = (
         if (!existingProps.has(targetPath) && !possibleNames.has(name)) {
           possibleNames.add(name);
           // TODO: When inserting string prop (that takes fixed values), use snippet syntax to allow user to choose between all possible string values ${1|one,two,three|}
-          const insertSuffix = child ? `:\n${indentedStr}` : ": ";
+          const insertSuffix = child ? `:\n${indentedStr}` : " = ";
           result.push({
             label: name,
             insertText: name + insertSuffix,
@@ -481,10 +481,7 @@ const getCompletions = (
     ) {
       return getVariableCompletions(
         program,
-        (v) =>
-          v.line !== line &&
-          !v.implicit &&
-          (v.stored || typeof v.compiled === "object"),
+        (v) => v.line !== line && !v.implicit && v.stored,
         (v) => typeof v.compiled !== "object"
       );
     }

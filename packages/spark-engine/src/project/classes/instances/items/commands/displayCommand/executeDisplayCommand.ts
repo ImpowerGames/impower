@@ -1,11 +1,9 @@
 import {
-  Character,
   Chunk,
   IElement,
   SparkGame,
   Synth,
   Tone,
-  Writer,
   clone,
   convertPitchNoteToHertz,
   transpose,
@@ -92,14 +90,13 @@ export const executeDisplayCommand = (
   const valueMap = game.logic.valueMap;
   const structName = "display";
 
-  const actionWriter = valueMap?.["action_writer"] as Writer;
-  const dialogueWriter = valueMap?.["dialogue_writer"] as Writer;
-  const sceneWriter = valueMap?.["scene_writer"] as Writer;
-  const transitionWriter = valueMap?.["transition_writer"] as Writer;
-  const characterNameWriter = valueMap?.["character_name_writer"] as Writer;
-  const characterParentheticalWriter = valueMap?.[
-    "character_parenthetical_writer"
-  ] as Writer;
+  const actionWriter = valueMap?.["writer"]?.["action"];
+  const dialogueWriter = valueMap?.["writer"]?.["dialogue"];
+  const sceneWriter = valueMap?.["writer"]?.["scene"];
+  const transitionWriter = valueMap?.["writer"]?.["transition"];
+  const characterNameWriter = valueMap?.["writer"]?.["character_name"];
+  const characterParentheticalWriter =
+    valueMap?.["writer"]?.["character_parenthetical"];
 
   const writerConfig =
     type === "action"
@@ -110,7 +107,7 @@ export const executeDisplayCommand = (
       ? sceneWriter
       : type === "transition"
       ? transitionWriter
-      : (valueMap?.["writer"] as Writer);
+      : valueMap?.["writer"]?.[""];
 
   const structEl = game.ui.findFirstUIElement(structName);
 
@@ -118,17 +115,14 @@ export const executeDisplayCommand = (
     structEl.removeState("hidden");
   }
 
+  const characterKey = data?.params?.characterKey || "";
   const characterName = data?.params?.characterName || "";
   const characterParenthetical = data?.params?.characterParenthetical || "";
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
-  const characterKey = characterName
-    .replace(/([ ])/g, "_")
-    .replace(/([.'"`])/g, "")
-    .toLowerCase();
 
-  const characterConfig = characterName
-    ? ((valueMap?.[characterKey] || valueMap?.["character"]) as Character)
+  const characterConfig = characterKey
+    ? valueMap?.["character"]?.[characterKey]
     : undefined;
 
   const characterNameSkippedMatcher = new Matcher(characterNameWriter?.skipped);
@@ -136,10 +130,12 @@ export const executeDisplayCommand = (
     characterParentheticalWriter?.skipped
   );
 
+  const characterDisplayName = characterConfig?.name || characterName || "";
+
   const validCharacterName =
     type === "dialogue" &&
-    !isSkipped(characterName, characterNameSkippedMatcher)
-      ? characterConfig?.name || characterName || ""
+    !isSkipped(characterDisplayName, characterNameSkippedMatcher)
+      ? characterDisplayName
       : "";
   const validCharacterParenthetical =
     type === "dialogue" &&
@@ -279,15 +275,14 @@ export const executeDisplayCommand = (
               const imageSrcs: string[] = [];
               assetNames.forEach((assetName) => {
                 if (assetName) {
-                  const value = valueMap?.[assetName] as
+                  const value = (valueMap?.["image"]?.[assetName] ??
+                    valueMap?.["image_group"]?.[assetName]) as
                     | { name: string; src: string }
-                    | { name: string; src: string }[]
                     | { assets: { name: string; src: string }[] };
-                  const assets = Array.isArray(value)
-                    ? value.map((a) => a)
-                    : value && typeof value === "object" && "assets" in value
-                    ? value.assets.map((a) => a)
-                    : [value];
+                  const assets =
+                    value && typeof value === "object" && "assets" in value
+                      ? value.assets.map((a) => a)
+                      : [value];
                   assets.forEach((asset) => {
                     if (asset) {
                       imageSrcs.push(asset.src);
@@ -337,20 +332,19 @@ export const executeDisplayCommand = (
             const over = getArgumentValue(assetArgs, "over");
             assetNames.forEach((assetName) => {
               if (assetName) {
-                const value = valueMap?.[assetName] as
+                const value = (valueMap?.["audio"]?.[assetName] ||
+                  valueMap?.["audio_group"]?.[assetName]) as
                   | object
-                  | object[]
                   | {
                       assets: object[];
                       cues: number[];
                       loop: boolean;
                       volume: number;
                     };
-                const assets = Array.isArray(value)
-                  ? value.map((a) => a)
-                  : value && typeof value === "object" && "assets" in value
-                  ? value.assets.map((a) => a)
-                  : [value];
+                const assets =
+                  value && typeof value === "object" && "assets" in value
+                    ? value.assets.map((a) => a)
+                    : [value];
                 const cues =
                   value &&
                   typeof value === "object" &&

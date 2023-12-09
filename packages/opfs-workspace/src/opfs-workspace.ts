@@ -56,14 +56,14 @@ const parse = (file: FileData, files: FileData[]) => {
           ext: file.ext,
           type: file.type,
         };
-        variables[file.name] ??= {
+        variables[file.type + "." + file.name] ??= {
           tag: "asset",
           line: -1,
           from: -1,
           to: -1,
           indent: 0,
           stored: false,
-          type: obj.type,
+          type: file.type,
           name: file.name,
           value: JSON.stringify(obj),
           compiled: obj,

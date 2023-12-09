@@ -1,8 +1,7 @@
 import { IGameEvent } from "../types/IGameEvent";
 import { ListenOnly } from "../types/ListenOnly";
-import { ReadOnly } from "../types/ReadOnly";
+import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { GameEvent } from "./GameEvent";
-
 export abstract class Manager<
   E extends Record<string, IGameEvent> = any,
   C = any,
@@ -22,8 +21,8 @@ export abstract class Manager<
 
   protected _state: S;
 
-  public get state(): ReadOnly<S> {
-    return this._state;
+  public get state(): RecursiveReadonly<S> {
+    return this._state as RecursiveReadonly<S>;
   }
 
   constructor(events: E, config: C, state: S) {

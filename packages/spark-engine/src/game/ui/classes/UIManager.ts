@@ -126,8 +126,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return [this._config.root.id, this._config.uiClassName, ...path];
   }
 
-  loadTheme(typeMap: { [type: string]: Record<string, any> }): void {
-    const breakpoints = typeMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+  loadTheme(valueMap: { [type: string]: Record<string, any> }): void {
+    const breakpoints = valueMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
     if (breakpoints) {
       this._disposeSizeObservers.push(
         this._config.root.observeSize(breakpoints)
@@ -136,16 +136,16 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   loadStyles(
-    typeMap: { [type: string]: Record<string, any> },
+    valueMap: { [type: string]: Record<string, any> },
     ...structNames: string[]
   ): void {
     // Get or create style root
     const styleRootEl = this.getOrCreateStyleRoot();
-    if (!styleRootEl || !typeMap) {
+    if (!styleRootEl || !valueMap) {
       return;
     }
     // Process Imports
-    const cssStructObj = typeMap?.["css"];
+    const cssStructObj = valueMap?.["css"];
     if (cssStructObj) {
       if (cssStructObj) {
         const structEl = this.constructStyleElement("css", cssStructObj);
@@ -160,13 +160,13 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       structNames?.length > 0
         ? structNames
         : [
-            ...Object.keys(typeMap?.["animation"] || {}),
-            ...Object.keys(typeMap?.["style"] || {}),
+            ...Object.keys(valueMap?.["animation"] || {}),
+            ...Object.keys(valueMap?.["style"] || {}),
           ];
     const styleStructNames = new Set<string>();
     validStructNames.forEach((structName) => {
       if (structName) {
-        const styleStructObj = typeMap?.["style"]?.[structName];
+        const styleStructObj = valueMap?.["style"]?.[structName];
         if (styleStructObj) {
           const structEl = this.constructStyleElement(
             structName,
@@ -174,16 +174,16 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(styleStructObj, isAssetLeaf);
-            const breakpoints = typeMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+            const breakpoints = valueMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
             structEl.setStyleContent(
               structName,
               properties,
               breakpoints,
-              typeMap
+              valueMap
             );
           }
         }
-        const animationStructObj = typeMap?.["animation"]?.[structName];
+        const animationStructObj = valueMap?.["animation"]?.[structName];
         if (animationStructObj) {
           const structEl = this.constructStyleElement(
             structName,
@@ -191,10 +191,10 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(animationStructObj);
-            structEl.setAnimationContent(structName, properties, typeMap);
+            structEl.setAnimationContent(structName, properties, valueMap);
           }
         }
-        const uiStructObj = typeMap?.["ui"]?.[structName];
+        const uiStructObj = valueMap?.["ui"]?.[structName];
         if (uiStructObj) {
           const properties = getAllProperties(uiStructObj);
           Object.keys(properties).forEach((fk) => {
@@ -207,7 +207,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       }
     });
     styleStructNames.forEach((styleStructName) => {
-      this.loadStyles(typeMap, styleStructName);
+      this.loadStyles(valueMap, styleStructName);
     });
   }
 
@@ -246,11 +246,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   loadUI(
-    typeMap: { [type: string]: Record<string, any> },
+    valueMap: { [type: string]: Record<string, any> },
     ...structNames: string[]
   ): void {
     const uiRootEl = this.getOrCreateUIRoot();
-    if (!uiRootEl || !typeMap) {
+    if (!uiRootEl || !valueMap) {
       return;
     }
     const rootStyleProperties = {
@@ -274,11 +274,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     this.overrideStyle(uiRootEl, uiRootStyleProperties);
     const targetAllStructs = !structNames || structNames.length === 0;
     const validStructNames = targetAllStructs
-      ? Object.keys(typeMap?.["ui"] || {})
+      ? Object.keys(valueMap?.["ui"] || {})
       : structNames;
     validStructNames.forEach((structName) => {
       if (structName) {
-        const structObj = typeMap?.["ui"]?.[structName];
+        const structObj = valueMap?.["ui"]?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
           const structEl = this.constructUI(structName, properties);

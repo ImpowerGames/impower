@@ -76,9 +76,9 @@ export class Game {
 
   init(): void {
     Object.values(this.managers()).forEach((m) => m.init());
-    this.ui.loadTheme(this.logic.typeMap);
-    this.ui.loadStyles(this.logic.typeMap);
-    this.ui.loadUI(this.logic.typeMap);
+    this.ui.loadTheme(this.logic.valueMap);
+    this.ui.loadStyles(this.logic.valueMap);
+    this.ui.loadUI(this.logic.valueMap);
     this._events.onInit.dispatch();
   }
 

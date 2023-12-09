@@ -2,16 +2,16 @@ import { _writer } from "./_writer";
 
 export const WRITER_DEFAULTS = {
   "": _writer(),
-  transition_writer: _writer({}),
-  scene_writer: _writer({}),
-  action_writer: _writer({}),
-  dialogue_writer: _writer({
+  transition: _writer({}),
+  scene: _writer({}),
+  action: _writer({}),
+  dialogue: _writer({
     skipped: "(beat)",
   }),
-  character_name_writer: _writer({
+  character_name: _writer({
     letter_pause: 0,
   }),
-  character_parenthetical_writer: _writer({
+  character_parenthetical: _writer({
     letter_pause: 0,
   }),
 };

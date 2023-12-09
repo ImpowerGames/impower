@@ -13,12 +13,13 @@ import { SparkField } from "../types/SparkField";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkRange } from "../types/SparkRange";
-import { SparkSection } from "../types/SparkSection";
 import {
   SparkCheckpointToken,
+  SparkChunkToken,
   SparkDialogueBoxToken,
   SparkDialogueToken,
   SparkDisplayToken,
+  SparkSectionToken,
   SparkToken,
   SparkTokenTagMap,
 } from "../types/SparkToken";
@@ -83,39 +84,17 @@ const calculateIndent = (text: string): number => {
   return tabCount + spaceCount * spaceMultiplier;
 };
 
-interface Asset<T extends string = string> {
-  type: T;
-  src: string;
-}
-
-interface AssetGroup<T extends string = string> {
-  assets: Asset<T>[];
-}
-
-const isAsset = (obj: unknown): obj is Asset => {
-  return Boolean(
-    obj && typeof obj === "object" && "type" in obj && "src" in obj
-  );
+const getVariableId = (tok: { type?: string; name?: string }) => {
+  return tok.type && PRIMITIVE_SCALAR_TYPES.includes(tok.type)
+    ? tok.name || ""
+    : [tok.type, tok.name].filter((p) => p).join(".");
 };
 
-const isAssetOfType = <T extends string>(
-  value: unknown,
-  type: T
-): value is Asset<T> => {
-  return isAsset(value) && value.type === type;
-};
-
-const isAssetArray = (obj: unknown): obj is Asset[] => {
-  return Boolean(Array.isArray(obj) && obj.every((x) => isAsset(x)));
-};
-
-const isAssetGroup = (obj: unknown): obj is AssetGroup => {
-  return Boolean(
-    obj &&
-      typeof obj === "object" &&
-      "assets" in obj &&
-      isAssetArray(obj.assets)
-  );
+const getDialogueCharacterKey = (name: string) => {
+  return name
+    .replace(/([ ])/g, "_")
+    .replace(/([.'"`])/g, "")
+    .toLowerCase();
 };
 
 export default class SparkParser {
@@ -170,15 +149,19 @@ export default class SparkParser {
       },
     };
     program.chunks[""] = {
+      tag: "chunk",
       line: 0,
       from: 0,
       to: 0,
+      indent: 0,
       name: "",
     };
     program.sections[""] = {
+      tag: "section",
       line: 0,
       from: 0,
       to: 0,
+      indent: 0,
       level: 0,
       path: [],
       parent: undefined,
@@ -234,10 +217,25 @@ export default class SparkParser {
       }
     };
 
+    const declareType = (type: string, tok: SparkVariable) => {
+      // Add variable declaration to program
+      program.variables ??= {};
+      program.variables[type] = tok;
+    };
+
     const declareVariable = (tok: SparkVariable) => {
       // Add variable declaration to program
       program.variables ??= {};
-      program.variables[tok.name] = tok;
+      if (tok.type && !tok.name) {
+        // User is declaring a new type
+        const typeName = tok.type;
+        tok.name = typeName;
+        tok.type = "type";
+        program.variables[typeName] = tok;
+      } else {
+        const id = getVariableId(tok);
+        program.variables[id] = tok;
+      }
     };
 
     const constructProperty = (
@@ -486,43 +484,18 @@ export default class SparkParser {
         to,
         name,
       });
-      const found = name ? program.variables?.[name] : undefined;
+      const found =
+        program.variables?.[getVariableId({ type, name })] ??
+        program.variables?.[getVariableId({ type: type + "_group", name })];
       if (!found) {
         reportMissing(tok, type, name, nameRange, "warning");
         return undefined;
       }
-      const value = found.compiled;
-      if (Array.isArray(value)) {
-        if (value.some((x) => !isAssetOfType(x, type))) {
-          diagnostic(
-            program,
-            tok,
-            `'${name}' is not ${prefixWithArticle(type)} array`,
-            [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-            from,
-            to
-          );
-          return undefined;
-        }
-      } else if (isAssetGroup(value)) {
-        if (value.assets.some((x) => !isAssetOfType(x, type))) {
-          diagnostic(
-            program,
-            tok,
-            `'${name}' is not ${prefixWithArticle(type)} group`,
-            [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-            from,
-            to
-          );
-          return undefined;
-        }
+      if (type === "audio" && found.type === "audio_group") {
+        // TODO: ensure audio_group definition is valid
       } else if (type === "audio" && found.type === "synth") {
         // TODO: ensure synth definition is valid
-      } else if (
-        !value ||
-        typeof value !== "object" ||
-        !isAssetOfType(value, type)
-      ) {
+      } else if (found.type !== type) {
         diagnostic(
           program,
           tok,
@@ -658,10 +631,11 @@ export default class SparkParser {
         declaredToken && declaredToken?.line >= 0
           ? [{ name: "FOCUS", focus: declaredToken }]
           : undefined;
+      const message = `${prefix} named '${name}' already exists${location}`;
       diagnostic(
         program,
         tok,
-        `${prefix} named '${name}' already exists${location}`,
+        message,
         actions,
         assignedRange?.from,
         assignedRange?.to
@@ -734,14 +708,11 @@ export default class SparkParser {
       return true;
     };
 
-    const validateNameAllowed = (
+    const validateDeclarationAllowed = (
       tok: ISparkToken,
       name: string,
       nameRange?: SparkRange
     ): boolean => {
-      if (!name) {
-        return false;
-      }
       if (SPARK_RESERVED_KEYWORDS.includes(name)) {
         diagnostic(
           program,
@@ -756,53 +727,85 @@ export default class SparkParser {
       return true;
     };
 
-    const validateNameUnique = <T extends SparkSection | SparkVariable>(
+    const validateDeclarationUnique = (
       tok: ISparkToken,
       type: string,
-      found: T,
+      found: ISparkToken | undefined,
+      name: string,
       nameRange?: SparkRange
     ): boolean => {
-      if (found?.name && found.from >= 0 && found.from !== nameRange?.from) {
-        reportDuplicate(tok, type, found.name, nameRange, found);
+      if (found && found.from !== nameRange?.from) {
+        reportDuplicate(tok, type, name, nameRange, found);
         return false;
       }
       return true;
     };
 
-    const validateName = <T extends SparkSection | SparkVariable>(
-      tok: ISparkToken,
-      name: string,
-      nameRange?: SparkRange
+    const validateDeclaration = <
+      T extends SparkChunkToken | SparkSectionToken | SparkVariable
+    >(
+      tok: T
     ): boolean => {
-      if (!validateNameAllowed(tok, name, nameRange)) {
+      if (!validateDeclarationAllowed(tok, tok.name, tok.ranges?.name)) {
         return false;
       }
       if (
-        !validateNameUnique<T>(
+        !validateDeclarationUnique(
           tok,
           "chunk",
-          program.chunks?.[name] as T,
-          nameRange
+          program.chunks?.[tok.name],
+          tok.name,
+          tok.ranges?.name
         )
       ) {
         return false;
       }
       if (
-        !validateNameUnique<T>(
+        !validateDeclarationUnique(
           tok,
           "section",
-          program.sections?.[name] as T,
-          nameRange
+          program.sections?.[tok.name],
+          tok.name,
+          tok.ranges?.name
         )
       ) {
         return false;
       }
       if (
-        !validateNameUnique<T>(
+        "type" in tok &&
+        tok.type &&
+        !tok.name &&
+        !validateDeclarationUnique(
+          tok,
+          "type",
+          program.variables?.[tok.type],
+          tok.type,
+          tok.ranges?.type
+        )
+      ) {
+        return false;
+      }
+      if (
+        !validateDeclarationUnique(
+          tok,
+          "type",
+          program.variables?.[tok.name],
+          tok.name,
+          tok.ranges?.name
+        )
+      ) {
+        return false;
+      }
+      const existingVariable = program.variables?.[getVariableId(tok)];
+      if (
+        existingVariable &&
+        !existingVariable.implicit &&
+        !validateDeclarationUnique(
           tok,
           "variable",
-          program.variables?.[name] as T,
-          nameRange
+          existingVariable,
+          getVariableId(tok),
+          tok.ranges?.name
         )
       ) {
         return false;
@@ -851,7 +854,9 @@ export default class SparkParser {
     /* PROCESS DEFAULT BUILTINS */
     if (program.builtins) {
       Object.entries(program.builtins).forEach(([type, objectsOfType]) => {
-        const defaultObj = objectsOfType[""] ?? {};
+        // Define type
+        const compiled = objectsOfType[""] ?? {};
+        const compiledType = typeof compiled;
         program.variables ??= {};
         const variable: SparkVariable = {
           tag: "builtin",
@@ -860,10 +865,10 @@ export default class SparkParser {
           to: -1,
           indent: 0,
           stored: false,
-          type: typeof defaultObj,
+          type: compiledType === "object" ? "type" : compiledType,
           name: type,
-          value: JSON.stringify(defaultObj),
-          compiled: defaultObj,
+          value: JSON.stringify(compiled),
+          compiled,
           implicit: true,
         };
         if (typeof variable.compiled === "object") {
@@ -887,7 +892,8 @@ export default class SparkParser {
             variable.fields.push(field);
           });
         }
-        program.variables[type] = variable;
+        declareType(type, variable);
+        // Define variables of type
         const objectsOfTypeEntries = Object.entries(objectsOfType);
         if (objectsOfTypeEntries.length > 0) {
           objectsOfTypeEntries.forEach(([name, compiled]) => {
@@ -928,15 +934,14 @@ export default class SparkParser {
                   variable.fields.push(field);
                 });
               }
-              program.variables ??= {};
-              program.variables[variableName] = variable;
+              declareVariable(variable);
             }
           });
         }
       });
     }
 
-    /* PROCESS DEFAULT DEFINITIONS */
+    /* PROCESS DEFAULT VARIABLES */
     if (program.variables) {
       Object.entries(program.variables).forEach(([variableName, v]) => {
         const variable: SparkVariable = { ...v };
@@ -1103,12 +1108,14 @@ export default class SparkParser {
           if (tok.tag === "chunk") {
             prevDisplayPositionalTokens.length = 0;
             const chunk = {
+              tag: "chunk",
               line: tok.line,
               from: tok.from,
               to: tok.to,
+              indent: 0,
               name: tok.name,
             };
-            if (validateName(tok, tok.name, tok.ranges?.name)) {
+            if (validateDeclaration(tok)) {
               currentSectionPath = [];
               program.chunks[chunk.name] = chunk;
               program.metadata ??= {};
@@ -1178,32 +1185,34 @@ export default class SparkParser {
               );
             }
             const parentSection = program.sections[parentSectionName];
-            if (validateName(tok, tok.name, tok.ranges?.name)) {
+            if (validateDeclaration(tok)) {
               currentSectionPath = [...parentSectionPath, tok.name];
               program.sections[tok.name] = {
+                tag: "section",
                 line: tok.line,
                 from: tok.from,
                 to: tok.to,
+                indent: 0,
                 level: tok.level,
                 path: [...parentSectionPath, tok.name],
                 parent: parentSectionName,
                 name: tok.name,
                 tokens: [],
               };
-              program.variables ??= {};
-              program.variables[tok.name] = {
+              const sectionVariable = {
                 tag: "section",
                 line: tok.line,
                 from: tok.from,
                 to: tok.to,
                 indent: 0,
                 stored: true,
-                type: "number",
+                type: "section",
                 name: tok.name,
                 value: "0",
                 compiled: 0,
                 implicit: true,
               };
+              declareVariable(sectionVariable);
               if (parentSection) {
                 parentSection.children ??= [];
                 parentSection.children.push(tok.name);
@@ -1409,7 +1418,7 @@ export default class SparkParser {
             addToken(tok);
           } else if (tok.tag === "store") {
             addToken(tok);
-          } else if (tok.tag === "type_name") {
+          } else if (tok.tag === "declaration_type") {
             const parent = lookup("define", "store", "import");
             if (parent) {
               parent.type = text;
@@ -1538,7 +1547,7 @@ export default class SparkParser {
               parent.content.push(tok);
             }
             addToken(tok);
-          } else if (tok.tag === "property_name") {
+          } else if (tok.tag === "declaration_property") {
             const parent = lookup(
               "struct_map_property",
               "struct_scalar_property"
@@ -1662,13 +1671,45 @@ export default class SparkParser {
             tok.target = "character_name";
             tok.ignore = true;
             tok.text = text;
+            const characterKey = getDialogueCharacterKey(text);
             const dialogue = lookup("dialogue");
             if (dialogue) {
               dialogue.characterName = tok;
+              dialogue.characterKey = characterKey;
             }
             const dialogue_start = lookup("dialogue_start");
             if (dialogue_start) {
               dialogue_start.print = text;
+            }
+            const existingCharacterVariable =
+              program.variables?.[
+                getVariableId({ type: "character", name: characterKey })
+              ];
+            if (!existingCharacterVariable) {
+              const characterTypeVariable = program.variables?.["character"];
+              if (
+                characterTypeVariable &&
+                typeof characterTypeVariable?.compiled === "object"
+              ) {
+                const clonedCharacterObj = JSON.parse(
+                  JSON.stringify(characterTypeVariable.compiled)
+                );
+                clonedCharacterObj.name = text;
+                const characterVariable = {
+                  tag: "character",
+                  line: tok.line,
+                  from: tok.from,
+                  to: tok.to,
+                  indent: 0,
+                  stored: true,
+                  type: "character",
+                  name: characterKey,
+                  value: JSON.stringify(clonedCharacterObj),
+                  compiled: clonedCharacterObj,
+                  implicit: true,
+                };
+                declareVariable(characterVariable);
+              }
             }
           } else if (tok.tag === "dialogue_character_parenthetical" && text) {
             tok.target = "character_parenthetical";
@@ -1722,6 +1763,7 @@ export default class SparkParser {
                 tok.content.push(parent.characterParenthetical);
               }
               tok.position = parent.position;
+              tok.characterKey = parent.characterKey;
               tok.characterName = parent.characterName;
               tok.characterParenthetical = parent.characterParenthetical;
             }
@@ -1940,7 +1982,7 @@ export default class SparkParser {
             tok.compiled = compiledValue;
 
             validateTypeExists(tok, tok.type, tok.ranges?.type);
-            tok.type = tok.type ?? typeof compiledValue;
+            tok.type ??= "url";
 
             if (
               typeof compiledValue !== "string" ||
@@ -1956,7 +1998,7 @@ export default class SparkParser {
               );
             }
 
-            if (validateName(tok, tok.name, tok.ranges?.name)) {
+            if (validateDeclaration(tok)) {
               declareVariable(tok);
             }
           } else if (tok.tag === "struct_map_property") {
@@ -2113,10 +2155,13 @@ export default class SparkParser {
                   tok.type,
                   tok?.ranges?.type
                 );
-                tok.type = tok.type ?? typeof tok.compiled;
+                tok.type ??=
+                  typeof tok.compiled === "object"
+                    ? "type"
+                    : typeof tok.compiled;
               }
 
-              if (validateName(tok, tok.name, tok.ranges?.name)) {
+              if (validateDeclaration(tok)) {
                 if (tok.tag === "store") {
                   tok.stored = true;
                 }
@@ -2269,7 +2314,6 @@ export default class SparkParser {
             }
           } else if (tok.tag === "assign") {
             const context = getScopedContext(program.variables);
-            // Validate accessor
             const declaredValue = compileAndValidate(
               tok,
               tok.name,
@@ -2326,7 +2370,6 @@ export default class SparkParser {
             }
           } else if (tok.tag === "delete") {
             const context = getScopedContext(program.variables);
-            // Validate accessor
             const declaredValue = compileAndValidate(
               tok,
               tok.name,
