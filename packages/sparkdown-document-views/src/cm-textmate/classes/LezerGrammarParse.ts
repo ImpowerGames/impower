@@ -367,6 +367,18 @@ export default class GrammarParse implements PartialParse {
     }
     const editedFrom = this.region.edit.from;
     const splitBehind = cachedBuffer.findBehindSplitPoint(editedFrom);
+    // console.log(
+    //   "CACHED BUFFER",
+    //   cachedBuffer?.chunks.map((chunk) => [
+    //     this.region.input.read(chunk.from, chunk.to),
+    //     chunk.from,
+    //     chunk.scopes?.map((n) => this.nodeSet.types[n]?.name),
+    //     chunk.opens?.map((n) => this.nodeSet.types[n]?.name),
+    //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
+    //   ]),
+    //   editedFrom,
+    //   splitBehind
+    // );
     if (splitBehind.chunk && splitBehind.index != null) {
       // REUSE CHUNKS THAT ARE BEHIND THE EDITED RANGE
       const { left, right } = cachedBuffer.split(splitBehind.index);

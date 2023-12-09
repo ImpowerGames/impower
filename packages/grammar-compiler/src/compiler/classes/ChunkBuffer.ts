@@ -129,7 +129,7 @@ export class ChunkBuffer {
     while (chunk) {
       index = index - 1;
       chunk = this.chunks[index];
-      if (chunk && chunk.isPure()) {
+      if (chunk && chunk.isPure() && chunk.from < editedFrom) {
         return { chunk, index };
       }
     }
