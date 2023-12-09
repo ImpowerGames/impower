@@ -5,9 +5,9 @@ const DEFAULT_COLOR = "#00000000";
 const HOVER_COLOR = "#00000040";
 const TAP_COLOR = "#000000";
 
-const ButtonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><path d="M 512 64 H 64 C 28.8 64 0 92.8 0 128 V 384 C 0 419.2 28.8 448 64 448 H 512 C 547.2 448 576 419.2 576 384 V 128 C 576 92.8 547.2 64 512 64 Z M 144 400 H 64 C 55.2 400 48 392.8 48 384 V 224 H 128 V 304 C 128 312.9 135.1 320 144 320 V 400 Z M 272 400 H 176 V 320 C 184.9 320 192 312.9 192 304 V 224 H 256 V 304 C 256 312.9 263.1 320 272 320 V 400 Z M 400 400 H 304 V 320 C 312.9 320 320 312.9 320 304 V 224 H 384 V 304 C 384 312.9 391.1 320 400 320 V 400 Z M 512 400 H 432 V 320 C 440.9 320 448 312.9 448 304 V 224 H 528 V 384 C 528 392.8 520.8 400 512 400 Z M 528 176 H 48 V 128 C 48 119.2 55.2 112 64 112 H 512 C 520.8 112 528 119.2 528 128 V 176 Z"/></svg>`;
+const ButtonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512" fill="currentColor"><path d="M 512 64 H 64 C 28.8 64 0 92.8 0 128 V 384 C 0 419.2 28.8 448 64 448 H 512 C 547.2 448 576 419.2 576 384 V 128 C 576 92.8 547.2 64 512 64 Z M 144 400 H 64 C 55.2 400 48 392.8 48 384 V 224 H 128 V 304 C 128 312.9 135.1 320 144 320 V 400 Z M 272 400 H 176 V 320 C 184.9 320 192 312.9 192 304 V 224 H 256 V 304 C 256 312.9 263.1 320 272 320 V 400 Z M 400 400 H 304 V 320 C 312.9 320 320 312.9 320 304 V 224 H 384 V 304 C 384 312.9 391.1 320 400 320 V 400 Z M 512 400 H 432 V 320 C 440.9 320 448 312.9 448 304 V 224 H 528 V 384 C 528 392.8 520.8 400 512 400 Z M 528 176 H 48 V 128 C 48 119.2 55.2 112 64 112 H 512 C 520.8 112 528 119.2 528 128 V 176 Z"/></svg>`;
 
-const STRUCT_keyboard_POPUP_CLASS_PREFIX = "cm-struct-keyboard-popup-";
+const STRUCT_KEYBOARD_POPUP_CLASS_NAME = "cm-struct-keyboard-popup";
 
 const blackKeyNotes = ["", "C#", "D#", "", "", "F#", "G#", "A#", ""];
 
@@ -28,16 +28,12 @@ const allNotes = [
   "B",
 ];
 
-export const getKeyboardPopupClassName = (id: string): string => {
-  return `${STRUCT_keyboard_POPUP_CLASS_PREFIX}${id}`;
-};
-
 export default class StructKeyboardWidgetType extends WidgetType {
   id: string;
 
-  onKeyUp?: (semitones: number) => void;
+  onKeyUp?: (e: PointerEvent, semitones: number) => void;
 
-  onKeyDown: (semitones: number) => void;
+  onKeyDown: (e: PointerEvent, semitones: number) => void;
 
   isPointerDown?: boolean;
 
@@ -51,8 +47,8 @@ export default class StructKeyboardWidgetType extends WidgetType {
 
   constructor(
     id: string,
-    onKeyDown: (semitones: number) => void,
-    onKeyUp?: (semitones: number) => void
+    onKeyDown: (e: PointerEvent, semitones: number) => void,
+    onKeyUp?: (e: PointerEvent, semitones: number) => void
   ) {
     super();
     this.id = id;
@@ -89,6 +85,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
     button.style.padding = "0px 3px 2px 4px";
     button.style.border = "none";
     button.style.borderRadius = "4px";
+    button.style.cursor = "pointer";
 
     const popup = document.createElement("div");
     popup.style.userSelect = "none";
@@ -97,7 +94,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
     popup.style.top = "100%";
     popup.style.right = "0";
     popup.style.zIndex = "1";
-    popup.style.width = "224px";
+    popup.style.width = "238px";
     popup.style.height = "80px";
     popup.style.padding = "0";
     popup.style.whiteSpace = "nowrap";
@@ -106,7 +103,8 @@ export default class StructKeyboardWidgetType extends WidgetType {
     popup.style.overflow = "hidden";
     popup.style.boxShadow =
       "0 5px 5px -3px rgb(0 0 0 / 20%), 0 8px 10px 1px rgb(0 0 0 / 14%), 0 3px 14px 2px rgb(0 0 0 / 12%)";
-    popup.className = getKeyboardPopupClassName(this.id);
+    popup.classList.add(STRUCT_KEYBOARD_POPUP_CLASS_NAME);
+    popup.classList.add(this.id);
 
     const whiteKeyList = document.createElement("ul");
     whiteKeyList.style.pointerEvents = "none";
@@ -170,6 +168,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
       optionButton.style.transition = "background-color 0.15s";
       optionButton.style.textTransform = "uppercase";
       optionButton.style.borderRadius = "2px";
+      optionButton.style.cursor = "pointer";
       const overlay = document.createElement("div");
       overlay.style.position = "absolute";
       overlay.style.top = "0";
@@ -188,22 +187,22 @@ export default class StructKeyboardWidgetType extends WidgetType {
         optionButton.onmouseenter = (): void => {
           overlay.style.backgroundColor = HOVER_COLOR;
         };
-        optionButton.onmouseleave = (): void => {
+        optionButton.onmouseleave = (e): void => {
           overlay.style.backgroundColor = DEFAULT_COLOR;
-          this.onKeyUp?.(semitones);
+          this.onKeyUp?.(e as unknown as PointerEvent, semitones);
         };
-        optionButton.onpointerup = (): void => {
+        optionButton.onpointerup = (e): void => {
           overlay.style.backgroundColor = HOVER_COLOR;
-          this.onKeyUp?.(semitones);
+          this.onKeyUp?.(e, semitones);
         };
         optionButton.onpointerdown = (e): void => {
           e.preventDefault();
-          this.onKeyDown?.(semitones);
+          this.onKeyDown?.(e, semitones);
         };
         optionButton.onpointerenter = (e): void => {
           e.preventDefault();
           if (this.isPointerDown) {
-            this.onKeyDown?.(semitones);
+            this.onKeyDown?.(e, semitones);
           }
         };
       }

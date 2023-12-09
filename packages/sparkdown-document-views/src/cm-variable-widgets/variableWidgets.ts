@@ -30,10 +30,12 @@ import {
 import { SparkProgram } from "../../../sparkdown/src/index";
 import yamlStringify from "../../../sparkdown/src/utils/yamlStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
+import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
 import StructPlayWidgetType, {
   STRUCT_PLAY_BUTTON_CLASS_NAME,
 } from "./classes/StructPlayWidgetType";
 import StructPresetWidgetType, {
+  STRUCT_PRESET_PREVIEW_CLASS_NAME,
   StructPresetOption,
 } from "./classes/StructPresetWidgetType";
 import { PreviewConfig } from "./types/PreviewConfig";
@@ -51,13 +53,13 @@ export interface VariableWidgetsConfiguration {
 
 interface VariableWidgetContext {
   audioContext?: AudioContext;
-  audioPlayerQueue: Record<string, SparkDOMAudioPlayer[] | null>;
+  audioPlayerGroups: Record<string, SparkDOMAudioPlayer[] | null>;
   waveforms: Record<string, WaveformContext>;
 }
 
 const VARIABLE_WIDGET_CONTEXT: VariableWidgetContext = {
   audioContext: undefined,
-  audioPlayerQueue: {},
+  audioPlayerGroups: {},
   waveforms: {},
 };
 
@@ -68,6 +70,13 @@ const getPlayButton = (dom: HTMLElement, id: string) => {
   );
 };
 
+const getPreviewElement = (dom: HTMLElement, id: string) => {
+  const rootEl = dom.getRootNode().firstChild as HTMLElement;
+  return rootEl?.querySelector<HTMLElement>(
+    `.${STRUCT_PRESET_PREVIEW_CLASS_NAME}.${id}`
+  );
+};
+
 const playAudio = async (
   context: VariableWidgetContext,
   playId: string,
@@ -75,17 +84,19 @@ const playAudio = async (
   toggle: boolean,
   loadPlayers: () => Promise<SparkDOMAudioPlayer[]>,
   duration?: number,
-  offset: number = 0
+  offset: number = 0,
+  pitchBend: number = 0
 ) => {
   // TODO: Retain play button state even on editor teardown.
   context.audioContext ??= new AudioContext();
   const playButton = getPlayButton(dom, playId);
-  const shouldQueue = !toggle || playButton?.dataset["action"] !== "stop";
-  Object.entries(context.audioPlayerQueue).forEach(([id, players]) => {
-    delete context.audioPlayerQueue[id];
+  const isPlaying = playButton?.dataset["action"] === "stop";
+  const shouldQueue = !toggle || !isPlaying;
+  Object.entries(context.audioPlayerGroups).forEach(([id, players]) => {
+    delete context.audioPlayerGroups[id];
     if (players) {
       players.forEach((player) => {
-        player.stop(0);
+        player.stop();
       });
       const playButton = getPlayButton(dom, id);
       if (playButton) {
@@ -99,11 +110,11 @@ const playAudio = async (
       playButton.dataset["action"] = "stop";
       playButton.innerHTML = LoadingButtonIcon;
     }
-    context.audioPlayerQueue[playId] = null;
+    context.audioPlayerGroups[playId] = null;
     const players = await loadPlayers();
-    if (context.audioPlayerQueue[playId] === null) {
+    if (context.audioPlayerGroups[playId] === null) {
       // Loading wasn't interrupted, so we should play
-      context.audioPlayerQueue[playId] = players;
+      context.audioPlayerGroups[playId] = players;
       const playButton = getPlayButton(dom, playId);
       if (playButton) {
         playButton.dataset["action"] = "stop";
@@ -113,6 +124,7 @@ const playAudio = async (
       await Promise.all(
         players.map((player) => {
           return new Promise<void>((resolve) => {
+            player.pitchBend = pitchBend;
             player.addEventListener("ended", () => {
               resolve();
             });
@@ -120,7 +132,7 @@ const playAudio = async (
           });
         })
       );
-      if (context.audioPlayerQueue[playId] === players) {
+      if (context.audioPlayerGroups[playId] === players) {
         const playButton = getPlayButton(dom, playId);
         if (playButton) {
           playButton.dataset["action"] = "play";
@@ -166,7 +178,8 @@ const playSynthVariable = async (
   context: VariableWidgetContext,
   buttonId: string,
   dom: HTMLElement,
-  toggle = false
+  toggle: boolean,
+  pitchBend: number = 0
 ) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
@@ -174,7 +187,16 @@ const playSynthVariable = async (
     const buffer = createSynthBuffer(synth, context);
     return [new SparkDOMAudioPlayer(buffer, audioContext)];
   };
-  playAudio(context, buttonId, dom, toggle, getPlayers);
+  playAudio(
+    context,
+    buttonId,
+    dom,
+    toggle,
+    getPlayers,
+    undefined,
+    undefined,
+    pitchBend
+  );
 };
 
 const createSynthBuffer = (synth: Synth, context: VariableWidgetContext) => {
@@ -358,8 +380,7 @@ export const updateVariableWidgets = (): TransactionSpec => {
 const getSynthVariableWidgets = (
   view: EditorView,
   widgetPos: number,
-  variableName: string,
-  compiled: Synth
+  variableName: string
 ) => {
   const config = view.state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
@@ -367,7 +388,7 @@ const getSynthVariableWidgets = (
   const defaultObj = SYNTH_DEFAULTS[""];
   const validation = SYNTH_VALIDATION;
   const options: StructPresetOption[] = Object.entries({
-    default: defaultObj,
+    default: undefined,
     ...(SYNTH_RANDOMIZATIONS || {}),
   }).map(([label, randomization]) => {
     let validLabel = label;
@@ -388,7 +409,13 @@ const getSynthVariableWidgets = (
           const randomizedObj = clone(defaultObj, preset);
           const button = getPlayButton(dom, variableName);
           if (button) {
-            playSynthVariable(randomizedObj, context, variableName, button);
+            playSynthVariable(
+              randomizedObj,
+              context,
+              variableName,
+              button,
+              false
+            );
           }
           updateSynthWaveform(
             previewEl,
@@ -415,7 +442,11 @@ const getSynthVariableWidgets = (
       variableName,
       options,
       async (previewEl) => {
-        updateSynthWaveform(previewEl, compiled, context, variableName, config);
+        const synth =
+          config.programContext.program?.variables?.[variableName]?.compiled;
+        if (synth) {
+          updateSynthWaveform(previewEl, synth, context, variableName, config);
+        }
       }
     ),
   });
@@ -423,10 +454,49 @@ const getSynthVariableWidgets = (
     side: 1,
     id: variableName,
     widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) => {
-      playSynthVariable(compiled, context, variableName, button, true);
+      const synth =
+        config.programContext.program?.variables?.[variableName]?.compiled;
+      if (synth) {
+        playSynthVariable(synth, context, variableName, button, true);
+      }
     }),
   });
+  const keyboardWidget = Decoration.widget({
+    side: 1,
+    widget: new StructKeyboardWidgetType(
+      variableName,
+      (e: PointerEvent, semitones: number) => {
+        const dom = e.target as HTMLElement;
+        const previewEl = getPreviewElement(
+          e.target as HTMLElement,
+          variableName
+        );
+        const synth =
+          config.programContext.program?.variables?.[variableName]?.compiled;
+        if (synth) {
+          if (previewEl) {
+            updateSynthWaveform(
+              previewEl,
+              synth,
+              context,
+              variableName,
+              config
+            );
+          }
+          playSynthVariable(
+            synth,
+            context,
+            variableName,
+            dom,
+            false,
+            semitones
+          );
+        }
+      }
+    ),
+  });
   widgetRanges.push(presetWidget.range(widgetPos));
+  widgetRanges.push(keyboardWidget.range(widgetPos));
   widgetRanges.push(playWidget.range(widgetPos));
   return widgetRanges;
 };
@@ -434,11 +504,7 @@ const getSynthVariableWidgets = (
 const getAudioGroupVariableWidgets = (
   view: EditorView,
   widgetPos: number,
-  variableName: string,
-  compiled: AudioGroup,
-  fields:
-    | { from: number; to: number; path: string; key: string; compiled: any }[]
-    | undefined
+  variableName: string
 ) => {
   const config = view.state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
@@ -447,55 +513,72 @@ const getAudioGroupVariableWidgets = (
   const playWidget = Decoration.widget({
     side: 1,
     id: variableName,
-    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) =>
-      playAudioGroupVariable(
-        compiled,
-        config.fileSystemReader,
-        context,
-        variableName,
-        button,
-        true
-      )
-    ),
+    widget: new StructPlayWidgetType(variableName, PlayButtonIcon, (button) => {
+      const audioGroup =
+        config.programContext.program?.variables?.[variableName]?.compiled;
+      if (audioGroup) {
+        playAudioGroupVariable(
+          audioGroup,
+          config.fileSystemReader,
+          context,
+          variableName,
+          button,
+          true
+        );
+      }
+    }),
   });
   widgetRanges.push(playWidget.range(widgetPos));
-  if (fields) {
-    for (let i = 0; i < fields.length; i += 1) {
-      const field = fields[i]!;
-      const nextField = fields[i + 1];
-      const timeFrom = field.compiled;
-      const timeTo = nextField?.compiled;
-      if (
-        field.path === "cues" &&
-        typeof timeFrom === "number" &&
-        (timeTo === undefined || typeof timeTo === "number")
-      ) {
-        const offset = timeFrom;
-        const duration = timeTo != null ? timeTo - timeFrom : undefined;
-        const fieldId = (
-          variableName +
-          "." +
-          field.path +
-          "." +
-          field.key
-        ).replaceAll(".", "-");
-        const fieldPlayWidget = Decoration.widget({
-          side: 1,
-          id: fieldId,
-          widget: new StructPlayWidgetType(fieldId, PlayButtonIcon, (button) =>
-            playAudioGroupVariable(
-              compiled,
-              config.fileSystemReader,
-              context,
+  const audioGroupVariable =
+    config.programContext.program?.variables?.[variableName];
+  if (audioGroupVariable) {
+    if (audioGroupVariable.fields) {
+      for (let i = 0; i < audioGroupVariable.fields.length; i += 1) {
+        const field = audioGroupVariable.fields[i]!;
+        const nextField = audioGroupVariable.fields[i + 1];
+        const timeFrom = field.compiled;
+        const timeTo = nextField?.compiled;
+        if (
+          field.path === "cues" &&
+          typeof timeFrom === "number" &&
+          (timeTo === undefined || typeof timeTo === "number")
+        ) {
+          const offset = timeFrom;
+          const duration = timeTo != null ? timeTo - timeFrom : undefined;
+          const fieldId = (
+            variableName +
+            "." +
+            field.path +
+            "." +
+            field.key
+          ).replaceAll(".", "-");
+          const fieldPlayWidget = Decoration.widget({
+            side: 1,
+            id: fieldId,
+            widget: new StructPlayWidgetType(
               fieldId,
-              button,
-              true,
-              duration,
-              offset
-            )
-          ),
-        });
-        widgetRanges.push(fieldPlayWidget.range(field.to));
+              PlayButtonIcon,
+              (button) => {
+                const audioGroup =
+                  config.programContext.program?.variables?.[variableName]
+                    ?.compiled;
+                if (audioGroup) {
+                  playAudioGroupVariable(
+                    audioGroup,
+                    config.fileSystemReader,
+                    context,
+                    fieldId,
+                    button,
+                    true,
+                    duration,
+                    offset
+                  );
+                }
+              }
+            ),
+          });
+          widgetRanges.push(fieldPlayWidget.range(field.to));
+        }
       }
     }
   }
@@ -512,23 +595,12 @@ const createVariableWidgets = (view: EditorView) => {
       if (to != null) {
         if (variable.type === "synth" && !variable.implicit) {
           widgetRanges.push(
-            ...getSynthVariableWidgets(
-              view,
-              to,
-              variable.name,
-              variable.compiled
-            )
+            ...getSynthVariableWidgets(view, to, variable.name)
           );
         }
         if (variable.type === "audio_group") {
           widgetRanges.push(
-            ...getAudioGroupVariableWidgets(
-              view,
-              to,
-              variable.name,
-              variable.compiled,
-              variable.fields
-            )
+            ...getAudioGroupVariableWidgets(view, to, variable.name)
           );
         }
       }

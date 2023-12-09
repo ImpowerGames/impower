@@ -48,9 +48,14 @@ export class SparkDOMAudioPlayer {
     return 0;
   }
 
-  public set pitchBend(semitones: number) {
+  protected _pitchBend = 0;
+  public get pitchBend() {
+    return this._pitchBend;
+  }
+  public set pitchBend(value) {
+    this._pitchBend = value;
     if (this.sourceNode) {
-      this.sourceNode.detune.value = ((semitones ?? 0) - 3) * 100;
+      this.sourceNode.detune.value = (value ?? 0) * 100;
     }
   }
 
@@ -136,6 +141,7 @@ export class SparkDOMAudioPlayer {
       this._sourceNode.disconnect();
     }
     this._sourceNode = this._context.createBufferSource();
+    this._sourceNode.detune.value = this._pitchBend * 100;
     this._sourceNode.loop = this._loop;
     this._sourceNode.connect(this._gainNode);
     this._events.ended.forEach((options, listener) => {
@@ -214,7 +220,7 @@ export class SparkDOMAudioPlayer {
     this._pausedAt = 0;
   }
 
-  stop(when: number, fadeDuration = 0.05, onDisconnected?: () => void): void {
+  stop(when = 0, fadeDuration = 0.05, onDisconnected?: () => void): void {
     this._pausedAt = 0;
     this._startedAt = 0;
     const targetSourceNode = this._sourceNode;

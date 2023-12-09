@@ -9,17 +9,9 @@ const ButtonIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" 
 
 const CheckIcon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5l10 -10" /></svg>`;
 
-const STRUCT_PRESET_POPUP_CLASS_PREFIX = "cm-struct-preset-popup-";
+export const STRUCT_PRESET_POPUP_CLASS_NAME = "cm-struct-preset-popup";
 
-const STRUCT_PRESET_PREVIEW_CLASS_PREFIX = "cm-struct-preset-preview-";
-
-export const getPresetPopupClassName = (id: string): string => {
-  return `${STRUCT_PRESET_POPUP_CLASS_PREFIX}${id}`;
-};
-
-export const getPresetPreviewClassName = (id: string): string => {
-  return `${STRUCT_PRESET_PREVIEW_CLASS_PREFIX}${id}`;
-};
+export const STRUCT_PRESET_PREVIEW_CLASS_NAME = "cm-struct-preset-preview";
 
 export interface StructPresetOption {
   label?: string;
@@ -84,13 +76,15 @@ export default class StructPresetWidgetType extends WidgetType {
     popup.style.overflow = "hidden";
     popup.style.boxShadow =
       "0 5px 5px -3px rgb(0 0 0 / 20%), 0 8px 10px 1px rgb(0 0 0 / 14%), 0 3px 14px 2px rgb(0 0 0 / 12%)";
-    popup.className = getPresetPopupClassName(this.id);
+    popup.classList.add(STRUCT_PRESET_POPUP_CLASS_NAME);
+    popup.classList.add(this.id);
 
     const previewEl = document.createElement("div");
     previewEl.style.padding = "0";
     previewEl.style.display = "flex";
     previewEl.style.flexDirection = "column";
-    previewEl.className = getPresetPreviewClassName(this.id);
+    previewEl.classList.add(STRUCT_PRESET_PREVIEW_CLASS_NAME);
+    previewEl.classList.add(this.id);
     popup.appendChild(previewEl);
 
     const unorderedList = document.createElement("ul");
