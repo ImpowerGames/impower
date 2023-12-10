@@ -8,7 +8,7 @@ import {
 } from "@codemirror/autocomplete";
 import { Language } from "@codemirror/language";
 import { setDiagnostics } from "@codemirror/lint";
-import { EditorView, PluginValue } from "@codemirror/view";
+import { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
 import { CompletionMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
@@ -23,6 +23,7 @@ import {
   MessageConnection,
   ServerCapabilities,
 } from "../../../../spark-editor-protocol/src/types";
+import { getDocumentVersion } from "../../cm-versioning/versioning";
 import { languageClientConfig } from "../extensions/languageClient";
 import { FileSystemReader } from "../types/FileSystemReader";
 import { getClientCompletionType } from "../utils/getClientCompletionType";
@@ -90,6 +91,12 @@ export default class LanguageClientPluginValue implements PluginValue {
     this.bind();
   }
 
+  update(update: ViewUpdate): void {
+    if (update.docChanged) {
+      this._textDocument.version = getDocumentVersion(update.state);
+    }
+  }
+
   destroy() {
     this.unbind();
   }
@@ -100,6 +107,9 @@ export default class LanguageClientPluginValue implements PluginValue {
         PublishDiagnosticsMessage.type,
         (params) => {
           if (params.uri !== this._textDocument.uri) {
+            return;
+          }
+          if (params.version !== getDocumentVersion(this._view.state)) {
             return;
           }
           this.updateDiagnostics(this._view, params.diagnostics);

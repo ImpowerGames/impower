@@ -7,6 +7,7 @@ import {
   MessageConnection,
   ServerCapabilities,
 } from "../../../../spark-editor-protocol/src/types";
+import { versioning } from "../../cm-versioning/versioning";
 import LanguageClientPluginValue from "../classes/LanguageClientPluginValue";
 import ColorSupport from "../classes/features/ColorSupport";
 import CompletionSupport from "../classes/features/CompletionSupport";
@@ -46,6 +47,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
   const completion = new CompletionSupport();
   const hover = new HoverSupport();
   return [
+    versioning(),
     languageClientConfig.of(config),
     ViewPlugin.define((view) => {
       const plugin = new LanguageClientPluginValue(view, {

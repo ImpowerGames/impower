@@ -66,14 +66,18 @@ const setFoldables = (
   effects.push(clearFoldablesEffect.of({}));
   effects.push(
     ...ranges.map((r) => {
+      const fromLineNumber = Math.max(
+        1,
+        Math.min(state.doc.lines, r.startLine + 1)
+      );
+      const toLineNumber = Math.max(
+        1,
+        Math.min(state.doc.lines, r.endLine + 1)
+      );
       const effect = {
         kind: r.kind,
-        from: state.doc.line(
-          Math.max(1, Math.min(state.doc.lines, r.startLine + 1))
-        ).from,
-        to: state.doc.line(
-          Math.max(1, Math.min(state.doc.lines, r.endLine + 1))
-        ).to,
+        from: state.doc.line(fromLineNumber).from,
+        to: state.doc.line(toLineNumber).to,
       };
       return addFoldableEffect.of(effect);
     })

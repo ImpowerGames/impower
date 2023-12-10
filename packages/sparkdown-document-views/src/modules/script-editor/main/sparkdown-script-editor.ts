@@ -314,7 +314,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
           const { before, transaction } = e;
           if (transaction.docChanged) {
             if (this._textDocument) {
-              this._textDocument.version += 1;
               const changeParams = {
                 textDocument: this._textDocument,
                 contentChanges: getServerChanges(before, transaction.changes),

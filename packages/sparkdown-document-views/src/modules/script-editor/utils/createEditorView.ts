@@ -24,6 +24,10 @@ import {
   updateVariableWidgets,
   variableWidgets,
 } from "../../../cm-variable-widgets/variableWidgets";
+import {
+  getDocumentVersion,
+  versioning,
+} from "../../../cm-versioning/versioning";
 import debounce from "../../../utils/debounce";
 import EDITOR_EXTENSIONS from "../constants/EDITOR_EXTENSIONS";
 import EDITOR_THEME from "../constants/EDITOR_THEME";
@@ -146,6 +150,7 @@ const createEditorView = (
       EDITOR_EXTENSIONS,
       readOnly.of(EditorState.readOnly.of(false)),
       editable.of(EditorView.editable.of(true)),
+      versioning(),
       scrollMargins(scrollMargin),
       sparkdownLanguageExtension({
         textDocument,
@@ -250,8 +255,14 @@ const createEditorView = (
   const disposable = serverConnection.onNotification(
     DidParseTextDocumentMessage.type,
     (params) => {
-      programContext.program = params.program;
-      view.dispatch(updateVariableWidgets());
+      const program = params.program;
+      const version = params.textDocument.version;
+      programContext.program = program;
+      if (version === getDocumentVersion(view.state)) {
+        view.dispatch(
+          updateVariableWidgets({ variables: program.variables || {} })
+        );
+      }
     }
   );
   return [view, disposable];

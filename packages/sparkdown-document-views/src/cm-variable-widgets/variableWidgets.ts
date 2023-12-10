@@ -28,7 +28,7 @@ import {
   SYNTH_VALIDATION,
   randomize,
 } from "../../../spark-engine/src/inspector";
-import { SparkProgram } from "../../../sparkdown/src/index";
+import { SparkProgram, SparkVariable } from "../../../sparkdown/src/index";
 import structStringify from "../../../sparkdown/src/utils/structStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
 import StructKeyboardWidgetType from "./classes/StructKeyboardWidgetType";
@@ -44,6 +44,35 @@ import { WaveformConfig } from "./types/WaveformConfig";
 import { WaveformContext } from "./types/WaveformContext";
 import { getAudioBuffer } from "./utils/getAudioBuffer";
 import { updateWaveformElement } from "./utils/updateWaveformElement";
+
+const updateVariableDecorationsEffect = StateEffect.define<{
+  variables: Record<string, SparkVariable>;
+}>({
+  map: (value, change) => {
+    const variables: Record<string, SparkVariable> = {};
+    Object.entries(value.variables).forEach(([id, v]) => {
+      const variable: SparkVariable = JSON.parse(JSON.stringify(v));
+      variable.from = change.mapPos(variable.from);
+      variable.to = change.mapPos(variable.to);
+      Object.values(variable.ranges || {}).forEach((r) => {
+        r.from = change.mapPos(r.from);
+        r.to = change.mapPos(r.to);
+      });
+      variable.fields?.forEach((f) => {
+        f.from = change.mapPos(f.from);
+        f.to = change.mapPos(f.to);
+        Object.values(f.ranges || {}).forEach((r) => {
+          r.from = change.mapPos(r.from);
+          r.to = change.mapPos(r.to);
+        });
+      });
+      variables[id] = v;
+    });
+    return {
+      variables,
+    };
+  },
+});
 
 export interface VariableWidgetsConfiguration {
   fileSystemReader?: FileSystemReader;
@@ -308,27 +337,21 @@ const getNextUnindentedLine = (
 };
 
 const getStructValueRange = (view: EditorView, structWidgetPos: number) => {
-  const widgetLine = view.state.doc.lineAt(structWidgetPos);
+  // Use latest view state
+  const state = view.state;
+  const widgetLine = state.doc.lineAt(structWidgetPos);
   const indentCols =
     widgetLine.text.length - widgetLine.text.trimStart().length;
   const indent = widgetLine.text.slice(0, indentCols);
-  const valueFromLine = getFirstIndentedLine(
-    view.state,
-    widgetLine.number,
-    indent
-  );
-  const valueToLine = getNextUnindentedLine(
-    view.state,
-    widgetLine.number,
-    indent
-  );
+  const valueFromLine = getFirstIndentedLine(state, widgetLine.number, indent);
+  const valueToLine = getNextUnindentedLine(state, widgetLine.number, indent);
   if (valueToLine) {
-    const indentSize = getIndentUnit(view.state);
-    const indentStr = indentString(view.state, indentSize);
+    const indentSize = getIndentUnit(state);
+    const indentStr = indentString(state, indentSize);
     const indentedPrefix = indent + indentStr;
     return {
       from: valueFromLine?.from ?? widgetLine.to,
-      to: Math.min(view.state.doc.length, valueToLine.to),
+      to: Math.min(state.doc.length, valueToLine.to),
       indent: indentedPrefix,
     };
   }
@@ -340,10 +363,12 @@ const getStructValueChanges = (
   structWidgetPos: number,
   structObj: unknown
 ) => {
+  // Use latest view state
+  const state = view.state;
   const structValueRange = getStructValueRange(view, structWidgetPos);
   if (structValueRange) {
     const isEmptyStruct = structValueRange.from === structValueRange.to;
-    const newline = view.state.lineBreak;
+    const newline = state.lineBreak;
     const lineSeparator = `${newline}${structValueRange.indent}`;
     let insert = "";
     if (isEmptyStruct) {
@@ -403,20 +428,22 @@ const variableWidgetsConfig = Facet.define<
   },
 });
 
-const updateVariableDecorationsEffect = StateEffect.define<{}>();
-
-export const updateVariableWidgets = (): TransactionSpec => {
+export const updateVariableWidgets = (value: {
+  variables: Record<string, SparkVariable>;
+}): TransactionSpec => {
   const effects: StateEffect<unknown>[] = [];
-  effects.push(updateVariableDecorationsEffect.of({}));
+  effects.push(updateVariableDecorationsEffect.of(value));
   return { effects };
 };
 
 const getSynthVariableWidgets = (
   view: EditorView,
+  state: EditorState,
   widgetPos: number,
-  variableId: string
+  variableId: string,
+  _variable: SparkVariable
 ) => {
-  const config = view.state.facet(variableWidgetsConfig);
+  const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
   const defaultObj = SYNTH_DEFAULTS[""];
@@ -466,7 +493,7 @@ const getSynthVariableWidgets = (
         } else {
           console.warn(
             `Could not overwrite struct at line ${
-              view.state.doc.lineAt(structWidgetPos).number
+              state.doc.lineAt(structWidgetPos).number
             }`
           );
         }
@@ -524,11 +551,13 @@ const getSynthVariableWidgets = (
 };
 
 const getAudioVariableWidgets = (
-  view: EditorView,
+  _view: EditorView,
+  state: EditorState,
   widgetPos: number,
-  variableId: string
+  variableId: string,
+  _variable: SparkVariable
 ) => {
-  const config = view.state.facet(variableWidgetsConfig);
+  const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
   // TODO: Allow editing cues with visual waveform sliders
@@ -556,11 +585,13 @@ const getAudioVariableWidgets = (
 };
 
 const getAudioGroupVariableWidgets = (
-  view: EditorView,
+  _view: EditorView,
+  state: EditorState,
   widgetPos: number,
-  variableId: string
+  variableId: string,
+  variable: SparkVariable
 ) => {
-  const config = view.state.facet(variableWidgetsConfig);
+  const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
   // TODO: Allow editing cues with visual waveform sliders
@@ -584,13 +615,11 @@ const getAudioGroupVariableWidgets = (
     }),
   });
   widgetRanges.push(playWidget.range(widgetPos));
-  const audioGroupVariable =
-    config.programContext.program?.variables?.[variableId];
-  if (audioGroupVariable) {
-    if (audioGroupVariable.fields) {
-      for (let i = 0; i < audioGroupVariable.fields.length; i += 1) {
-        const field = audioGroupVariable.fields[i]!;
-        const nextField = audioGroupVariable.fields[i + 1];
+  if (variable) {
+    if (variable.fields) {
+      for (let i = 0; i < variable.fields.length; i += 1) {
+        const field = variable.fields[i]!;
+        const nextField = variable.fields[i + 1];
         const timeFrom = field.compiled;
         const timeTo = nextField?.compiled;
         const index = Number(field.key);
@@ -657,46 +686,53 @@ const getAudioGroupVariableWidgets = (
   return widgetRanges;
 };
 
-const createVariableWidgets = (view: EditorView) => {
-  const config = view.state.facet(variableWidgetsConfig);
+const createVariableWidgets = (
+  view: EditorView,
+  state: EditorState,
+  variables: Record<string, SparkVariable>
+) => {
   const widgetRanges: Range<Decoration>[] = [];
-  const program = config.programContext.program;
-  if (program?.variables) {
-    Object.entries(program.variables).forEach(([variableId, variable]) => {
-      const to = variable.ranges?.name?.to;
-      if (to != null) {
-        if (variable.type === "synth" && !variable.implicit) {
-          widgetRanges.push(...getSynthVariableWidgets(view, to, variableId));
-        }
-        if (variable.type === "audio") {
-          widgetRanges.push(...getAudioVariableWidgets(view, to, variableId));
-        }
-        if (variable.type === "audio_group") {
-          widgetRanges.push(
-            ...getAudioGroupVariableWidgets(view, to, variableId)
-          );
-        }
+  Object.entries(variables).forEach(([variableId, variable]) => {
+    const to = variable.ranges?.name?.to;
+    if (to != null && to < state.doc.length - 1) {
+      if (variable.type === "synth" && !variable.implicit) {
+        widgetRanges.push(
+          ...getSynthVariableWidgets(view, state, to, variableId, variable)
+        );
       }
-    });
-  }
+      if (variable.type === "audio" && !variable.implicit) {
+        widgetRanges.push(
+          ...getAudioVariableWidgets(view, state, to, variableId, variable)
+        );
+      }
+      if (variable.type === "audio_group" && !variable.implicit) {
+        widgetRanges.push(
+          ...getAudioGroupVariableWidgets(view, state, to, variableId, variable)
+        );
+      }
+    }
+  });
   return Decoration.set(widgetRanges);
-};
-
-const variableWidgetsChanged = (update: ViewUpdate): boolean => {
-  return update.transactions.some((t) =>
-    t.effects.some((e) => e.is(updateVariableDecorationsEffect))
-  );
 };
 
 const variablePresetWidgetsPlugin = ViewPlugin.fromClass(
   class {
-    decorations: DecorationSet;
-    constructor(view: EditorView) {
-      this.decorations = createVariableWidgets(view);
-    }
+    decorations: DecorationSet = Decoration.none;
     update(update: ViewUpdate) {
-      if (variableWidgetsChanged(update)) {
-        this.decorations = createVariableWidgets(update.view);
+      for (let tr of update.transactions) {
+        for (let e of tr.effects) {
+          if (e.is(updateVariableDecorationsEffect)) {
+            this.decorations = createVariableWidgets(
+              update.view,
+              update.state,
+              e.value.variables
+            );
+            return;
+          }
+        }
+      }
+      if (update.docChanged) {
+        this.decorations = this.decorations.map(update.changes);
       }
     }
   },

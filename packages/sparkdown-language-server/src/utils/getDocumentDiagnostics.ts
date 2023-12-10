@@ -16,24 +16,33 @@ const getDocumentDiagnostics = (
     return { uri: document.uri, diagnostics: result };
   }
   diagnostics.forEach((d) => {
-    const diagnostic: Diagnostic = {
-      severity:
-        d.severity === "error"
-          ? DiagnosticSeverity.Error
-          : d.severity === "warning"
-          ? DiagnosticSeverity.Warning
-          : DiagnosticSeverity.Information,
-      range: {
-        start: document.positionAt(d.from),
-        end: document.positionAt(d.to),
-      },
-      message: d.message,
-      source: "sparkdown",
-      data: d.actions,
-    };
-    result.push(diagnostic);
+    const start = document.positionAt(d.from);
+    const end = document.positionAt(d.to);
+    if (
+      start.line >= 0 &&
+      start.line < document.lineCount &&
+      end.line >= 0 &&
+      end.line < document.lineCount
+    ) {
+      const diagnostic: Diagnostic = {
+        severity:
+          d.severity === "error"
+            ? DiagnosticSeverity.Error
+            : d.severity === "warning"
+            ? DiagnosticSeverity.Warning
+            : DiagnosticSeverity.Information,
+        range: {
+          start,
+          end,
+        },
+        message: d.message,
+        source: "sparkdown",
+        data: d.actions,
+      };
+      result.push(diagnostic);
+    }
   });
-  return { uri: document.uri, diagnostics: result };
+  return { uri: document.uri, version: document.version, diagnostics: result };
 };
 
 export default getDocumentDiagnostics;
