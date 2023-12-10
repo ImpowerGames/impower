@@ -95,6 +95,30 @@ const getDialogueCharacterKey = (name: string) => {
     .toLowerCase();
 };
 
+const populateVariableFields = (variable: SparkVariable) => {
+  if (variable.compiled && typeof variable.compiled === "object") {
+    // Populate fields
+    traverse(variable.compiled, (path, v) => {
+      const parts = path.split(".");
+      const field = {
+        tag: "field",
+        line: variable.line,
+        from: -1,
+        to: -1,
+        indent: 0,
+        path: parts.slice(0, -1).join("."),
+        key: parts.at(-1) || "",
+        type: typeof v,
+        value: JSON.stringify(v),
+        compiled: v,
+        implicit: true,
+      };
+      variable.fields ??= [];
+      variable.fields.push(field);
+    });
+  }
+};
+
 export default class SparkParser {
   config: SparkParserConfig = {};
 
@@ -321,21 +345,21 @@ export default class SparkParser {
     const _construct = (
       variable: SparkVariable,
       objValue: any,
-      objCompiled: any,
-      root: boolean
+      objCompiled: any
     ) => {
-      const existingVariable = program.variables?.[getVariableId(variable)];
-      if (root && existingVariable && existingVariable.implicit) {
-        _inheritFields(existingVariable, objValue, objCompiled);
-      } else if (
+      if (
         variable.type &&
         variable.type !== "type" &&
         !PRIMITIVE_TYPES.includes(variable.type)
       ) {
         const parent = program.variables?.[variable.type];
         if (parent && typeof parent.compiled === "object") {
-          _construct(parent, objValue, objCompiled, false);
+          _construct(parent, objValue, objCompiled);
         }
+      }
+      const existingVariable = program.variables?.[getVariableId(variable)];
+      if (existingVariable && existingVariable.tag !== "builtin") {
+        _inheritFields(existingVariable, objValue, objCompiled);
       }
       _inheritFields(variable, objValue, objCompiled);
     };
@@ -355,7 +379,7 @@ export default class SparkParser {
         !firstField?.path && !Number.isNaN(Number(firstField?.key));
       const objValue = isArray ? [] : {};
       const objCompiled = isArray ? [] : {};
-      _construct(variable, objValue, objCompiled, true);
+      _construct(variable, objValue, objCompiled);
       const objectLiteral = JSON.stringify(objValue)
         .replace(UNESCAPED_DOUBLE_QUOTE, "")
         .replace(ESCAPED_DOUBLE_QUOTE, `"`)
@@ -881,27 +905,7 @@ export default class SparkParser {
           compiled,
           implicit: true,
         };
-        if (typeof variable.compiled === "object") {
-          // Populate fields
-          traverse(variable.compiled, (path, v) => {
-            const parts = path.split(".");
-            const field = {
-              tag: "field",
-              line,
-              from: -1,
-              to: -1,
-              indent: 0,
-              path: parts.slice(0, -1).join("."),
-              key: parts.at(-1) || "",
-              type: typeof v,
-              value: JSON.stringify(v),
-              compiled: v,
-              implicit: true,
-            };
-            variable.fields ??= [];
-            variable.fields.push(field);
-          });
-        }
+        populateVariableFields(variable);
         declareType(type, variable);
         // Define variables of type
         const objectsOfTypeEntries = Object.entries(objectsOfType);
@@ -923,27 +927,7 @@ export default class SparkParser {
                 compiled,
                 implicit: true,
               };
-              if (typeof compiled === "object") {
-                // Populate fields
-                traverse(compiled, (path, v) => {
-                  const parts = path.split(".");
-                  const field = {
-                    tag: "field",
-                    line,
-                    from: -1,
-                    to: -1,
-                    indent: 0,
-                    path: parts.slice(0, -1).join("."),
-                    key: parts.at(-1) || "",
-                    type: typeof v,
-                    value: JSON.stringify(v),
-                    compiled: v,
-                    implicit: true,
-                  };
-                  variable.fields ??= [];
-                  variable.fields.push(field);
-                });
-              }
+              populateVariableFields(variable);
               declareVariable(variable);
             }
           });
@@ -955,31 +939,7 @@ export default class SparkParser {
     if (program.variables) {
       Object.entries(program.variables).forEach(([, v]) => {
         const variable: SparkVariable = { ...v };
-        if (
-          variable.compiled &&
-          typeof variable.compiled === "object" &&
-          !variable.fields
-        ) {
-          // Populate fields
-          traverse(variable.compiled, (path, v) => {
-            const parts = path.split(".");
-            const field = {
-              tag: "field",
-              line,
-              from: -1,
-              to: -1,
-              indent: 0,
-              path: parts.slice(0, -1).join("."),
-              key: parts.at(-1) || "",
-              type: typeof v,
-              value: JSON.stringify(v),
-              compiled: v,
-              implicit: true,
-            };
-            variable.fields ??= [];
-            variable.fields.push(field);
-          });
-        }
+        populateVariableFields(variable);
         declareVariable(variable);
       });
     }
@@ -1209,6 +1169,7 @@ export default class SparkParser {
                 compiled: 0,
                 implicit: true,
               };
+              populateVariableFields(sectionVariable);
               declareVariable(sectionVariable);
               if (parentSection) {
                 parentSection.children ??= [];
@@ -1683,6 +1644,7 @@ export default class SparkParser {
                   compiled: clonedCharacterObj,
                   implicit: true,
                 };
+                populateVariableFields(characterVariable);
                 declareVariable(characterVariable);
               }
             }
