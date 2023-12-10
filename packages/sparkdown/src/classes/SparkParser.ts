@@ -28,7 +28,6 @@ import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { StructureItem } from "../types/StructureItem";
 import calculateSpeechDuration from "../utils/calculateSpeechDuration";
 import createSparkToken from "../utils/createSparkToken";
-import getAncestorIds from "../utils/getAncestorIds";
 import { getProperty } from "../utils/getProperty";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
 import setProperty from "../utils/setProperty";
@@ -131,22 +130,23 @@ export default class SparkParser {
       | SparkDialogueToken
       | SparkDialogueBoxToken
     )[] = [];
-    program.metadata.structure = {
-      "": {
-        type: "chunk",
-        level: -1,
-        text: "",
-        id: "",
-        range: {
-          start: { line: 0, character: 0 },
-          end: { line: 0, character: 0 },
-        },
-        selectionRange: {
-          start: { line: 0, character: 0 },
-          end: { line: 0, character: 0 },
-        },
-        children: [],
+    const rootStructure: StructureItem = {
+      type: "chunk",
+      level: 0,
+      text: "",
+      id: "",
+      range: {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 0 },
       },
+      selectionRange: {
+        start: { line: 0, character: 0 },
+        end: { line: 0, character: 0 },
+      },
+      children: [],
+    };
+    program.metadata.structure = {
+      "": rootStructure,
     };
     program.chunks[""] = {
       tag: "chunk",
@@ -168,6 +168,7 @@ export default class SparkParser {
       name: "",
       tokens: [],
     };
+    const structure: StructureItem[] = [rootStructure];
 
     /* HELPER FUNCTIONS */
     const compiler = config?.compiler || defaultCompiler;
@@ -839,39 +840,22 @@ export default class SparkParser {
       return true;
     };
 
-    const getLastStructureItem = (
-      program: SparkProgram,
-      condition: (item?: StructureItem) => boolean = () => true
-    ): StructureItem | undefined => {
-      const structures = Object.values(program.metadata?.structure || {});
-      for (let i = structures.length - 1; i >= 0; i -= 1) {
-        const structItem = structures[i];
-        if (!condition || condition(structItem)) {
-          return structItem;
-        }
-      }
-      return undefined;
+    const extendStructureRange = () => {
+      structure.forEach((item) => {
+        item.range.end.line = Math.max(0, line);
+        item.range.end.character = 0;
+      });
     };
 
-    const extendStructureRange = (
-      program: SparkProgram,
-      id: string,
-      end: {
-        line: number;
-        character: number;
+    const addStructureItem = (item: StructureItem) => {
+      extendStructureRange();
+      while (structure.at(-1) && structure.at(-1)!.level >= item.level) {
+        structure.pop();
       }
-    ) => {
-      const structure = program.metadata?.structure;
-      if (structure) {
-        [id, ...getAncestorIds(id)].forEach((id) => {
-          const item = structure[id];
-          if (item) {
-            if (item.range.end.line < end.line) {
-              item.range.end = { ...end };
-            }
-          }
-        });
-      }
+      const lastStructure = structure.at(-1);
+      item.id = (lastStructure?.id || "") + "." + item.range.start.line;
+      lastStructure?.children.push(item.id);
+      structure.push(item);
     };
 
     let line = -1;
@@ -969,7 +953,7 @@ export default class SparkParser {
 
     /* PROCESS DEFAULT VARIABLES */
     if (program.variables) {
-      Object.entries(program.variables).forEach(([variableId, v]) => {
+      Object.entries(program.variables).forEach(([, v]) => {
         const variable: SparkVariable = { ...v };
         if (
           variable.compiled &&
@@ -1111,17 +1095,6 @@ export default class SparkParser {
 
         // newline
         if (id === "Newline") {
-          const latestStructureItem = getLastStructureItem(program);
-          if (
-            latestStructureItem &&
-            latestStructureItem.level != null &&
-            latestStructureItem.level >= 0
-          ) {
-            extendStructureRange(program, latestStructureItem.id, {
-              line: Math.max(0, line),
-              character: 0,
-            });
-          }
           line += 1;
         }
       },
@@ -1164,13 +1137,11 @@ export default class SparkParser {
                 character: 0,
               },
             };
-            const id = "." + tok.line;
             const structureItem: StructureItem = {
-              ...(program.metadata?.structure?.[id] || {}),
               type: "chunk",
               level: 0,
               text: tok.name,
-              id,
+              id: "",
               range: {
                 start: { ...selectionRange.start },
                 end: { ...selectionRange.end },
@@ -1178,10 +1149,11 @@ export default class SparkParser {
               selectionRange,
               children: [],
             };
-            program.metadata?.structure?.[""]?.children.push(id);
+            addStructureItem(structureItem);
             program.metadata ??= {};
             program.metadata.structure ??= {};
-            program.metadata.structure[id] = structureItem;
+            program.metadata.structure[""]?.children.push(structureItem.id);
+            program.metadata.structure[structureItem.id] = structureItem;
           }
 
           if (tok.tag === "section") {
@@ -1255,13 +1227,8 @@ export default class SparkParser {
                 });
               }
               // Record structure
-              const latestSectionOrChunk = getLastStructureItem(
-                program,
-                (t) =>
-                  (t?.type === "section" || t?.type === "chunk") &&
-                  (t?.level || 0) < currentLevel
-              );
-              if (latestSectionOrChunk) {
+              const lastStructure = structure.at(-1);
+              if (lastStructure) {
                 const selectionRange = {
                   start: { line: tok.line, character: 0 },
                   end: {
@@ -1269,13 +1236,11 @@ export default class SparkParser {
                     character: 0,
                   },
                 };
-                const id = latestSectionOrChunk.id + "." + tok.line;
                 const structureItem: StructureItem = {
-                  ...(program.metadata?.structure?.[id] || {}),
                   type: "section",
                   level: tok.level,
                   text: tok.name,
-                  id,
+                  id: "",
                   range: {
                     start: { ...selectionRange.start },
                     end: { ...selectionRange.end },
@@ -1283,21 +1248,18 @@ export default class SparkParser {
                   selectionRange,
                   children: [],
                 };
-                latestSectionOrChunk.children.push(id);
+                addStructureItem(structureItem);
                 program.metadata ??= {};
                 program.metadata.structure ??= {};
-                program.metadata.structure[id] = structureItem;
+                program.metadata.structure[structureItem.id] = structureItem;
               }
             }
           }
 
           if (tok.tag === "scene") {
             // Record structure
-            const latestSectionOrChunk = getLastStructureItem(
-              program,
-              (t) => t?.type === "section" || t?.type === "chunk"
-            );
-            if (latestSectionOrChunk) {
+            const lastStructure = structure.at(-1);
+            if (lastStructure) {
               const selectionRange = {
                 start: { line: tok.line, character: 0 },
                 end: {
@@ -1305,13 +1267,14 @@ export default class SparkParser {
                   character: 0,
                 },
               };
-              const id = latestSectionOrChunk.id + "." + tok.line;
               const structureItem: StructureItem = {
-                ...(program.metadata?.structure?.[id] || {}),
                 type: "scene",
-                level: (latestSectionOrChunk.level || 0) + 1,
+                level:
+                  (structure.findLast(
+                    (s) => s.type === "section" || s.type === "chunk"
+                  )?.level || 0) + 1,
                 text: tok.content?.map((c) => c.text)?.join("") || "",
-                id,
+                id: "",
                 range: {
                   start: { ...selectionRange.start },
                   end: { ...selectionRange.end },
@@ -1319,10 +1282,10 @@ export default class SparkParser {
                 selectionRange,
                 children: [],
               };
-              latestSectionOrChunk.children.push(id);
+              addStructureItem(structureItem);
               program.metadata ??= {};
               program.metadata.structure ??= {};
-              program.metadata.structure[id] = structureItem;
+              program.metadata.structure[structureItem.id] = structureItem;
             }
           }
 
@@ -1331,19 +1294,7 @@ export default class SparkParser {
       },
     });
 
-    const endRange = { line, character: 0 };
-    const root = program.metadata.structure[""];
-    if (root) {
-      root.range.end = endRange;
-    }
-    const latestStructureItem = getLastStructureItem(program);
-    if (
-      latestStructureItem &&
-      latestStructureItem.level != null &&
-      latestStructureItem.level >= 0
-    ) {
-      extendStructureRange(program, latestStructureItem.id, endRange);
-    }
+    extendStructureRange();
 
     const currentSectionCheckpoints = new Map<
       string,
