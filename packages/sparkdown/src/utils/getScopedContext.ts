@@ -1,5 +1,3 @@
-import setProperty from "./setProperty";
-
 const getScopedContext = <
   Variable extends {
     name: string;
@@ -20,8 +18,11 @@ const getScopedContext = <
       if (variable.type === "type") {
         context[variableName] ??= {};
         context[variableName][""] = value;
+      } else if (typeof variable.compiled === "object") {
+        context[variable.type] ??= {};
+        context[variable.type][variable.name] = value;
       } else {
-        setProperty(context, variableName, value);
+        context[variableName] = value;
       }
     });
   }

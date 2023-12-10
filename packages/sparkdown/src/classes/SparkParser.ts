@@ -31,7 +31,6 @@ import createSparkToken from "../utils/createSparkToken";
 import getAncestorIds from "../utils/getAncestorIds";
 import { getProperty } from "../utils/getProperty";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
-import getScopedContext from "../utils/getScopedContext";
 import setProperty from "../utils/setProperty";
 import { traverse } from "../utils/traverse";
 
@@ -125,6 +124,7 @@ export default class SparkParser {
       tokens: [],
       ...augmentations,
     };
+    const context: any = {};
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
     const stack: SparkToken[] = [];
     const prevDisplayPositionalTokens: (
@@ -221,6 +221,8 @@ export default class SparkParser {
       // Add variable declaration to program
       program.variables ??= {};
       program.variables[type] = tok;
+      context[type] ??= {};
+      context[type][""] = tok.compiled;
     };
 
     const declareVariable = (tok: SparkVariable) => {
@@ -232,9 +234,17 @@ export default class SparkParser {
         tok.name = typeName;
         tok.type = "type";
         program.variables[typeName] = tok;
+        context[tok.type] ??= {};
+        context[tok.type][""] = tok.compiled;
       } else {
         const id = getVariableId(tok);
         program.variables[id] = tok;
+        if (typeof tok.compiled === "object") {
+          context[tok.type] ??= {};
+          context[tok.type][tok.name] = tok.compiled;
+        } else {
+          context[tok.name] = tok.compiled;
+        }
       }
     };
 
@@ -986,8 +996,7 @@ export default class SparkParser {
             variable.fields.push(field);
           });
         }
-        program.variables ??= {};
-        program.variables[variableId] = variable;
+        declareVariable(variable);
       });
     }
 
@@ -1650,7 +1659,6 @@ export default class SparkParser {
             const parent = lookup("jump", "choice");
             if (parent) {
               parent.section = text;
-              const context = getScopedContext(program.variables);
               validateSectionReferences(
                 tok,
                 currentSectionPath.at(-1) || "",
@@ -1804,7 +1812,6 @@ export default class SparkParser {
               parent.target = text;
             }
           } else if (tok.tag === "display_text_content") {
-            const context = getScopedContext(program.variables);
             formatAndValidate(
               tok,
               text,
@@ -1987,7 +1994,6 @@ export default class SparkParser {
             prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "import") {
             prevDisplayPositionalTokens.length = 0;
-            const context = getScopedContext(program.variables);
             // Compile value
             const compiledValue = compileAndValidate(
               tok,
@@ -2068,8 +2074,6 @@ export default class SparkParser {
                 tok.to
               );
             } else {
-              const context = getScopedContext(program.variables);
-
               if (PRIMITIVE_SCALAR_TYPES.includes(tok.type)) {
                 if (
                   tok.operator === ":" ||
@@ -2329,7 +2333,6 @@ export default class SparkParser {
               prevDisplayPositionalTokens.push(dialogue);
             }
           } else if (tok.tag === "assign") {
-            const context = getScopedContext(program.variables);
             const declaredValue = compileAndValidate(
               tok,
               tok.name,
@@ -2385,7 +2388,6 @@ export default class SparkParser {
               }
             }
           } else if (tok.tag === "delete") {
-            const context = getScopedContext(program.variables);
             const declaredValue = compileAndValidate(
               tok,
               tok.name,
