@@ -43,38 +43,92 @@ const getArgumentValue = (args: string[], name: string): number | undefined => {
   return numValue;
 };
 
-const getSound = (
-  game: SparkGame,
-  asset: unknown,
-  cues: number[],
-  loop: boolean,
-  volume: number
-): Sound | null => {
+const getSound = (asset: unknown, game: SparkGame): Required<Sound> | null => {
   if (!asset) {
     return null;
   }
   if (typeof asset !== "object") {
     return null;
   }
+  const sound: Required<Sound> = {
+    id: "",
+    src: "",
+    cues: [],
+    volume: 1,
+    loop: false,
+  };
   if ("src" in asset && typeof asset.src === "string") {
-    return {
-      id: asset.src,
-      src: asset.src,
-      cues: cues ?? [],
-      loop,
-      volume,
-    };
+    sound.id = asset.src;
+    sound.src = asset.src;
   }
   if ("shape" in asset && typeof asset.shape === "string") {
-    return {
-      id: game.uuid.generate(),
-      src: game.sound.synthesize([{ synth: asset as Synth }]),
-      cues: cues ?? [],
-      loop,
-      volume,
-    };
+    sound.id = game.uuid.generate();
+    sound.src = game.sound.synthesize([{ synth: asset as Synth }]);
   }
-  return null;
+  if ("cues" in asset && Array.isArray(asset.cues)) {
+    sound.cues = asset.cues;
+  }
+  if ("volume" in asset && typeof asset.volume === "number") {
+    sound.volume = asset.volume;
+  }
+  if ("loop" in asset && typeof asset.loop === "boolean") {
+    sound.loop = asset.loop;
+  }
+  return sound;
+};
+
+const getAssetSounds = (
+  compiled: unknown,
+  game: SparkGame
+): Required<Sound>[] => {
+  if (!compiled) {
+    return [];
+  }
+  if (typeof compiled !== "object") {
+    return [];
+  }
+  if (Array.isArray(compiled)) {
+    const sounds: Required<Sound>[] = [];
+    compiled.forEach((asset) => {
+      const sound = getSound(asset, game);
+      if (sound) {
+        sounds.push(sound);
+      }
+    });
+    return sounds;
+  }
+  if ("assets" in compiled && Array.isArray(compiled.assets)) {
+    const sounds: Required<Sound>[] = [];
+    compiled.assets.forEach((asset) => {
+      const sound = getSound(asset, game);
+      if (sound) {
+        if ("cues" in compiled && Array.isArray(compiled.cues)) {
+          sound.cues = sound.cues?.length ? sound.cues : compiled.cues;
+        }
+        if ("volume" in compiled && typeof compiled.volume === "number") {
+          sound.volume = sound.volume * compiled.volume;
+        }
+        if ("loop" in compiled && typeof compiled.loop === "boolean") {
+          sound.loop = compiled.loop;
+        }
+        sounds.push(sound);
+      }
+    });
+    return sounds;
+  }
+  if ("src" in compiled) {
+    const sound = getSound(compiled, game);
+    if (sound) {
+      return [sound];
+    }
+  }
+  if ("shape" in compiled) {
+    const sound = getSound(compiled, game);
+    if (sound) {
+      return [sound];
+    }
+  }
+  return [];
 };
 
 export const executeDisplayCommand = (
@@ -321,7 +375,7 @@ export const executeDisplayCommand = (
             const target = p.target || "voice";
             const assetNames = p.audio;
             const assetArgs = p.args || [];
-            const sounds: Sound[] = [];
+            const sounds: Required<Sound>[] = [];
             const channelLoop = target === "music";
             const trackLoop = assetArgs.includes("loop");
             const trackNoloop = assetArgs.includes("noloop");
@@ -332,51 +386,21 @@ export const executeDisplayCommand = (
             const over = getArgumentValue(assetArgs, "over");
             assetNames.forEach((assetName) => {
               if (assetName) {
-                const value = (valueMap?.["audio"]?.[assetName] ||
-                  valueMap?.["audio_group"]?.[assetName]) as
-                  | object
-                  | {
-                      assets: object[];
-                      cues: number[];
-                      loop: boolean;
-                      volume: number;
-                    };
-                const assets =
-                  value && typeof value === "object" && "assets" in value
-                    ? value.assets.map((a) => a)
-                    : [value];
-                const cues =
-                  value &&
-                  typeof value === "object" &&
-                  "cues" in value &&
-                  Array.isArray(value.cues)
-                    ? value.cues ?? []
-                    : [];
-                const groupLoop =
-                  value &&
-                  typeof value === "object" &&
-                  "loop" in value &&
-                  typeof value.loop === "boolean"
-                    ? value.loop
-                    : undefined;
-                const groupVolume =
-                  value &&
-                  typeof value === "object" &&
-                  "volume" in value &&
-                  typeof value.volume === "number"
-                    ? value.volume ?? 1
-                    : 1;
-                const loop =
-                  !trackNoloop && (trackLoop || groupLoop || channelLoop);
-                const volume = groupVolume * trackVolume * trackMuteMultiplier;
-                assets.forEach((asset) => {
-                  if (asset) {
-                    const sound = getSound(game, asset, cues, loop, volume);
-                    if (sound) {
-                      soundsToLoad.push(sound);
-                      sounds.push(sound);
-                    }
-                  }
+                const value =
+                  valueMap?.["audio"]?.[assetName] ||
+                  valueMap?.["audio_group"]?.[assetName];
+                const assetSounds = getAssetSounds(value, game);
+                assetSounds.forEach((asset) => {
+                  const sound = {
+                    id: asset.id,
+                    src: asset.src,
+                    volume: asset.volume * trackVolume * trackMuteMultiplier,
+                    loop:
+                      !trackNoloop && (trackLoop || asset.loop || channelLoop),
+                    cues: asset.cues,
+                  };
+                  soundsToLoad.push(sound);
+                  sounds.push(sound);
                 });
               }
             });
