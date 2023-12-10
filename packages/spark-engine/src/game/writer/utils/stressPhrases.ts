@@ -44,7 +44,7 @@ export const stressPhrases = (
           phrase.text,
           character?.prosody
         );
-        const inflection = character?.inflection[
+        const inflection = character?.inflection?.[
           finalStressType || "statement"
         ] || [0];
         const startLevel = inflection[0]!;
