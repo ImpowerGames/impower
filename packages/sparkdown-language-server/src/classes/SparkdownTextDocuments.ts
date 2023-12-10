@@ -35,6 +35,8 @@ import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments"
 import throttle from "../utils/throttle";
 import { EditorSparkParser } from "./EditorSparkParser";
 
+const PARSE_THROTTLE_DELAY = 100;
+
 const globToRegex = (glob: string) => {
   return RegExp(
     glob
@@ -172,7 +174,7 @@ export default class SparkdownTextDocuments<
 
   throttledParse = throttle((uri: string) => {
     this.parse(uri);
-  }, 300);
+  }, PARSE_THROTTLE_DELAY);
 
   parse(uri: string) {
     const syncedDocument = this.__syncedDocuments.get(uri);
