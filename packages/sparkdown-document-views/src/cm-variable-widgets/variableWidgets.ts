@@ -16,6 +16,7 @@ import {
 } from "@codemirror/view";
 import { SparkDOMAudioPlayer } from "../../../spark-dom/src/classes/SparkDOMAudioPlayer";
 import {
+  Audio,
   SYNTH_DEFAULTS,
   SynthBuffer,
   clone,
@@ -66,7 +67,7 @@ const VARIABLE_WIDGET_CONTEXT: VariableWidgetContext = {
 const getPlayButton = (dom: HTMLElement, id: string) => {
   const rootEl = dom.getRootNode().firstChild as HTMLElement;
   return rootEl?.querySelector<HTMLElement>(
-    `.${STRUCT_PLAY_BUTTON_CLASS_NAME}.${id}`
+    `.${STRUCT_PLAY_BUTTON_CLASS_NAME}.${id.replaceAll(".", "-")}`
   );
 };
 
@@ -77,7 +78,7 @@ const getPreviewElement = (
   const rootEl = (dom as HTMLElement)?.getRootNode?.()
     ?.firstChild as HTMLElement;
   return rootEl?.querySelector?.<HTMLElement>(
-    `.${STRUCT_PRESET_PREVIEW_CLASS_NAME}.${id}`
+    `.${STRUCT_PRESET_PREVIEW_CLASS_NAME}.${id.replaceAll(".", "-")}`
   );
 };
 
@@ -121,7 +122,6 @@ const playAudio = async (
     if (context.audioPlayerGroups[playId] === null) {
       // Loading wasn't interrupted, so we should play
       context.audioPlayerGroups[playId] = players;
-      const playButton = getPlayButton(dom, playId);
       if (playButton) {
         playButton.dataset["action"] = "stop";
         playButton.innerHTML = StopButtonIcon;
@@ -147,6 +147,33 @@ const playAudio = async (
       }
     }
   }
+};
+
+const playAudioVariable = async (
+  audio: Audio,
+  fileSystemReader: FileSystemReader,
+  context: VariableWidgetContext,
+  buttonId: string,
+  dom: HTMLElement,
+  toggle: boolean,
+  duration?: number,
+  offset?: number
+) => {
+  context.audioContext ??= new AudioContext();
+  const audioContext = context.audioContext;
+  const getPlayers = async () => {
+    const url = await fileSystemReader.url(audio.src);
+    const buffer = url
+      ? await getAudioBuffer(url, audioContext)
+      : new Float32Array(0);
+    const player = new SparkDOMAudioPlayer(buffer, audioContext, {
+      loop: audio.loop,
+      volume: audio.volume,
+      cues: audio.cues,
+    });
+    return [player];
+  };
+  playAudio(context, buttonId, dom, toggle, getPlayers, duration, offset);
 };
 
 const playAudioGroupVariable = async (
@@ -496,6 +523,38 @@ const getSynthVariableWidgets = (
   return widgetRanges;
 };
 
+const getAudioVariableWidgets = (
+  view: EditorView,
+  widgetPos: number,
+  variableId: string
+) => {
+  const config = view.state.facet(variableWidgetsConfig);
+  const context = VARIABLE_WIDGET_CONTEXT;
+  const widgetRanges: Range<Decoration>[] = [];
+  // TODO: Allow editing cues with visual waveform sliders
+  const playWidget = Decoration.widget({
+    side: 1,
+    id: variableId,
+    widget: new StructPlayWidgetType(variableId, PlayButtonIcon, (e) => {
+      const dom = e.target as HTMLElement;
+      const audio =
+        config.programContext.program?.variables?.[variableId]?.compiled;
+      if (audio) {
+        playAudioVariable(
+          audio,
+          config.fileSystemReader,
+          context,
+          variableId,
+          dom,
+          true
+        );
+      }
+    }),
+  });
+  widgetRanges.push(playWidget.range(widgetPos));
+  return widgetRanges;
+};
+
 const getAudioGroupVariableWidgets = (
   view: EditorView,
   widgetPos: number,
@@ -534,6 +593,32 @@ const getAudioGroupVariableWidgets = (
         const nextField = audioGroupVariable.fields[i + 1];
         const timeFrom = field.compiled;
         const timeTo = nextField?.compiled;
+        const index = Number(field.key);
+        if (field.path === "assets" && !Number.isNaN(index)) {
+          const fieldId = variableId + "." + field.path + "." + field.key;
+          const fieldPlayWidget = Decoration.widget({
+            side: 1,
+            id: fieldId,
+            widget: new StructPlayWidgetType(fieldId, PlayButtonIcon, (e) => {
+              const dom = e.target as HTMLElement;
+              const audioGroup =
+                config.programContext.program?.variables?.[variableId]
+                  ?.compiled;
+              const audio = audioGroup?.["assets"]?.[index];
+              if (audio) {
+                playAudioVariable(
+                  audio,
+                  config.fileSystemReader,
+                  context,
+                  fieldId,
+                  dom,
+                  true
+                );
+              }
+            }),
+          });
+          widgetRanges.push(fieldPlayWidget.range(field.to));
+        }
         if (
           field.path === "cues" &&
           typeof timeFrom === "number" &&
@@ -541,13 +626,7 @@ const getAudioGroupVariableWidgets = (
         ) {
           const offset = timeFrom;
           const duration = timeTo != null ? timeTo - timeFrom : undefined;
-          const fieldId = (
-            variableId +
-            "." +
-            field.path +
-            "." +
-            field.key
-          ).replaceAll(".", "-");
+          const fieldId = variableId + "." + field.path + "." + field.key;
           const fieldPlayWidget = Decoration.widget({
             side: 1,
             id: fieldId,
@@ -588,6 +667,9 @@ const createVariableWidgets = (view: EditorView) => {
       if (to != null) {
         if (variable.type === "synth" && !variable.implicit) {
           widgetRanges.push(...getSynthVariableWidgets(view, to, variableId));
+        }
+        if (variable.type === "audio") {
+          widgetRanges.push(...getAudioVariableWidgets(view, to, variableId));
         }
         if (variable.type === "audio_group") {
           widgetRanges.push(

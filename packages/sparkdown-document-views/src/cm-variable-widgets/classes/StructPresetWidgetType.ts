@@ -77,14 +77,14 @@ export default class StructPresetWidgetType extends WidgetType {
     popup.style.boxShadow =
       "0 5px 5px -3px rgb(0 0 0 / 20%), 0 8px 10px 1px rgb(0 0 0 / 14%), 0 3px 14px 2px rgb(0 0 0 / 12%)";
     popup.classList.add(STRUCT_PRESET_POPUP_CLASS_NAME);
-    popup.classList.add(this.id);
+    popup.classList.add(this.id.replaceAll(".", "-"));
 
     const previewEl = document.createElement("div");
     previewEl.style.padding = "0";
     previewEl.style.display = "flex";
     previewEl.style.flexDirection = "column";
     previewEl.classList.add(STRUCT_PRESET_PREVIEW_CLASS_NAME);
-    previewEl.classList.add(this.id);
+    previewEl.classList.add(this.id.replaceAll(".", "-"));
     popup.appendChild(previewEl);
 
     const unorderedList = document.createElement("ul");

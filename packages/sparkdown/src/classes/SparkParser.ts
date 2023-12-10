@@ -263,17 +263,11 @@ export default class SparkParser {
       }
     };
 
-    const _construct = (
+    const _inheritFields = (
       variable: SparkVariable,
       objValue: any,
       objCompiled: any
     ) => {
-      if (variable.type && !PRIMITIVE_TYPES.includes(variable.type)) {
-        const parent = program.variables?.[variable.type];
-        if (parent && typeof parent.compiled === "object") {
-          _construct(parent, objValue, objCompiled);
-        }
-      }
       if (variable.fields) {
         let prevField: SparkField | undefined = undefined;
         const arrays: Record<string, boolean> = {};
@@ -313,6 +307,28 @@ export default class SparkParser {
       }
     };
 
+    const _construct = (
+      variable: SparkVariable,
+      objValue: any,
+      objCompiled: any,
+      root: boolean
+    ) => {
+      const existingVariable = program.variables?.[getVariableId(variable)];
+      if (root && existingVariable && existingVariable.implicit) {
+        _inheritFields(existingVariable, objValue, objCompiled);
+      } else if (
+        variable.type &&
+        variable.type !== "type" &&
+        !PRIMITIVE_TYPES.includes(variable.type)
+      ) {
+        const parent = program.variables?.[variable.type];
+        if (parent && typeof parent.compiled === "object") {
+          _construct(parent, objValue, objCompiled, false);
+        }
+      }
+      _inheritFields(variable, objValue, objCompiled);
+    };
+
     const construct = (variable: SparkVariable): [string, unknown] => {
       if (variable.type === "string") {
         return [`""`, ""];
@@ -328,7 +344,7 @@ export default class SparkParser {
         !firstField?.path && !Number.isNaN(Number(firstField?.key));
       const objValue = isArray ? [] : {};
       const objCompiled = isArray ? [] : {};
-      _construct(variable, objValue, objCompiled);
+      _construct(variable, objValue, objCompiled, true);
       const objectLiteral = JSON.stringify(objValue)
         .replace(UNESCAPED_DOUBLE_QUOTE, "")
         .replace(ESCAPED_DOUBLE_QUOTE, `"`)
@@ -943,7 +959,7 @@ export default class SparkParser {
 
     /* PROCESS DEFAULT VARIABLES */
     if (program.variables) {
-      Object.entries(program.variables).forEach(([variableName, v]) => {
+      Object.entries(program.variables).forEach(([variableId, v]) => {
         const variable: SparkVariable = { ...v };
         if (
           variable.compiled &&
@@ -971,7 +987,7 @@ export default class SparkParser {
           });
         }
         program.variables ??= {};
-        program.variables[variableName] ??= variable;
+        program.variables[variableId] = variable;
       });
     }
 

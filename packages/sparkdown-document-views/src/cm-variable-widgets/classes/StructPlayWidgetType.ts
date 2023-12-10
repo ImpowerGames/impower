@@ -31,7 +31,7 @@ export default class StructPlayWidgetType extends WidgetType {
 
     const button = document.createElement("button");
     button.classList.add(STRUCT_PLAY_BUTTON_CLASS_NAME);
-    button.classList.add(this.id);
+    button.classList.add(this.id.replaceAll(".", "-"));
     button.innerHTML = this.icon;
     button.style.color = ICON_COLOR;
     button.style.width = "1.25rem";

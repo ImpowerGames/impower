@@ -104,7 +104,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
     popup.style.boxShadow =
       "0 5px 5px -3px rgb(0 0 0 / 20%), 0 8px 10px 1px rgb(0 0 0 / 14%), 0 3px 14px 2px rgb(0 0 0 / 12%)";
     popup.classList.add(STRUCT_KEYBOARD_POPUP_CLASS_NAME);
-    popup.classList.add(this.id);
+    popup.classList.add(this.id.replaceAll(".", "-"));
 
     const whiteKeyList = document.createElement("ul");
     whiteKeyList.style.pointerEvents = "none";

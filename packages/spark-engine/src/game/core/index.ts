@@ -9,6 +9,8 @@ export * from "./classes/GameEvent4";
 export * from "./classes/GameEvent5";
 export * from "./classes/Manager";
 export * from "./constants/EASE";
+export * from "./specs/Asset";
+export * from "./specs/Audio";
 export * from "./specs/Ease";
 export * from "./specs/Font";
 export * from "./specs/defaults/AUDIO_DEFAULTS";

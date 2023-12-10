@@ -151,7 +151,7 @@ export class SparkDOMAudioPlayer {
     });
     if (this._audioBuffer) {
       this._sourceNode.buffer = this._audioBuffer;
-    } else if (this._soundBuffer) {
+    } else if (this._soundBuffer && this._soundBuffer.length > 0) {
       const buffer = this._context.createBuffer(
         1,
         this._soundBuffer.length,
