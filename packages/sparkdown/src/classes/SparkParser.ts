@@ -359,6 +359,8 @@ export default class SparkParser {
       }
       const existingVariable = program.variables?.[getVariableId(variable)];
       if (existingVariable && existingVariable.tag !== "builtin") {
+        // Inherit fields of variables that were implicitly declared due to usage (like character variables),
+        // but don't inherit fields of builtin defaults like ui or style variables.
         _inheritFields(existingVariable, objValue, objCompiled);
       }
       _inheritFields(variable, objValue, objCompiled);
