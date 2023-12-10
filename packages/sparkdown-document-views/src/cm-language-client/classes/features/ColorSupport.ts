@@ -13,18 +13,19 @@ import ColorSupportWidget, {
   COLOR_SUPPORT_WIDGET_THEME,
 } from "../ColorSupportWidget";
 
-const clearColorDecorationsEffect = StateEffect.define<{}>();
-
-const addColorDecorationEffect = StateEffect.define<{
-  color: string;
-  from: number;
-  to: number;
-}>({
-  map: ({ color, from, to }, change) => ({
-    color,
-    from: change.mapPos(from),
-    to: change.mapPos(to),
-  }),
+const updateColorDecorationEffect = StateEffect.define<
+  {
+    color: string;
+    from: number;
+    to: number;
+  }[]
+>({
+  map: (value, change) =>
+    value.map((v) => ({
+      color: v.color,
+      from: change.mapPos(v.from),
+      to: change.mapPos(v.to),
+    })),
 });
 
 const setColorDecorations = (
@@ -32,21 +33,21 @@ const setColorDecorations = (
   colors: ColorInformation[]
 ): TransactionSpec => {
   const effects: StateEffect<unknown>[] = [];
-  effects.push(clearColorDecorationsEffect.of({}));
-  effects.push(
-    ...colors.map((c) => {
+  const value = colors
+    .map((c) => {
       const r = c.color.red * 255;
       const g = c.color.green * 255;
       const b = c.color.blue * 255;
       const a = c.color.alpha;
       const rgb = `rgb(${r} ${g} ${b} / ${a * 100}%)`;
-      return addColorDecorationEffect.of({
+      return {
         color: rgb,
         from: positionToOffset(state.doc, c.range.start),
         to: positionToOffset(state.doc, c.range.end),
-      });
+      };
     })
-  );
+    .sort((a, b) => a.from - b.from);
+  effects.push(updateColorDecorationEffect.of(value));
   return { effects };
 };
 
@@ -55,28 +56,24 @@ const colorDecorationsField = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(decorations: DecorationSet, tr: Transaction) {
-    decorations = decorations.map(tr.changes);
     for (let e of tr.effects) {
-      if (e.is(clearColorDecorationsEffect)) {
-        decorations = Decoration.none;
-      }
-      if (e.is(addColorDecorationEffect)) {
-        const color = e.value.color;
-        const from = e.value.from;
-        const to = e.value.to;
-        const widget = Decoration.widget({
-          widget: new ColorSupportWidget({
-            color,
-            from,
-            to,
-          }),
-          side: 1,
-        });
-        decorations = decorations.update({
-          add: [widget.range(from)],
-        });
+      if (e.is(updateColorDecorationEffect)) {
+        decorations = Decoration.set(
+          e.value.map((r) =>
+            Decoration.widget({
+              widget: new ColorSupportWidget({
+                color: r.color,
+                from: r.from,
+                to: r.to,
+              }),
+              side: 1,
+            }).range(r.from)
+          )
+        );
+        return decorations;
       }
     }
+    decorations = decorations.map(tr.changes);
     return decorations;
   },
   provide: (f) => EditorView.decorations.from(f),

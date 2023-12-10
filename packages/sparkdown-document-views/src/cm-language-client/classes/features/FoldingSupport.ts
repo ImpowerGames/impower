@@ -44,18 +44,19 @@ const foldingTheme = EditorView.baseTheme({
 
 const foldableMark = Decoration.mark({ class: "cm-foldable" });
 
-const clearFoldablesEffect = StateEffect.define<{}>();
-
-const addFoldableEffect = StateEffect.define<{
-  kind?: string;
-  from: number;
-  to: number;
-}>({
-  map: ({ kind, from, to }, change) => ({
-    kind,
-    from: change.mapPos(from),
-    to: change.mapPos(to),
-  }),
+const updateFoldablesEffect = StateEffect.define<
+  {
+    kind?: string;
+    from: number;
+    to: number;
+  }[]
+>({
+  map: (value, change) =>
+    value.map((r) => ({
+      kind: r.kind,
+      from: change.mapPos(r.from),
+      to: change.mapPos(r.to),
+    })),
 });
 
 const setFoldables = (
@@ -63,9 +64,8 @@ const setFoldables = (
   ranges: FoldingRange[]
 ): TransactionSpec => {
   const effects: StateEffect<unknown>[] = [];
-  effects.push(clearFoldablesEffect.of({}));
-  effects.push(
-    ...ranges.map((r) => {
+  const foldables = ranges
+    .map((r) => {
       const fromLineNumber = Math.max(
         1,
         Math.min(state.doc.lines, r.startLine + 1)
@@ -74,14 +74,14 @@ const setFoldables = (
         1,
         Math.min(state.doc.lines, r.endLine + 1)
       );
-      const effect = {
+      return {
         kind: r.kind,
         from: state.doc.line(fromLineNumber).from,
         to: state.doc.line(toLineNumber).to,
       };
-      return addFoldableEffect.of(effect);
     })
-  );
+    .sort((a, b) => a.from - b.from);
+  effects.push(updateFoldablesEffect.of(foldables));
   return { effects };
 };
 
@@ -90,17 +90,15 @@ const foldableDecorationsField = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(decorations: DecorationSet, tr: Transaction) {
-    decorations = decorations.map(tr.changes);
     for (let e of tr.effects) {
-      if (e.is(clearFoldablesEffect)) {
-        decorations = Decoration.none;
-      }
-      if (e.is(addFoldableEffect) && e.value.to > e.value.from) {
-        decorations = decorations.update({
-          add: [foldableMark.range(e.value.from, e.value.to)],
-        });
+      if (e.is(updateFoldablesEffect)) {
+        decorations = Decoration.set(
+          e.value.map((r) => foldableMark.range(r.from, r.to))
+        );
+        return decorations;
       }
     }
+    decorations = decorations.map(tr.changes);
     return decorations;
   },
   provide: (f) => EditorView.decorations.from(f),
@@ -126,7 +124,7 @@ export const foldingRangesService = foldService.of((state, from, to) => {
 
 const foldingChanged = (update: ViewUpdate): boolean => {
   return update.transactions.some((t) =>
-    t.effects.some((e) => e.is(clearFoldablesEffect) || e.is(addFoldableEffect))
+    t.effects.some((e) => e.is(updateFoldablesEffect))
   );
 };
 
