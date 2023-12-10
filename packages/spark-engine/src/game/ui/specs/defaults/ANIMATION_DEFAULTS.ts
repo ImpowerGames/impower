@@ -18,12 +18,12 @@ export const ANIMATION_DEFAULTS = {
   },
   bounce: {
     "0%, 100%": {
-      transform: "translateY(-25%)",
-      animationTimingFunction: "cubic-bezier(0.8,0,1,1)",
+      transform: "translateY(-50%)",
+      animation_timing_function: "cubic-bezier(0.8,0,1,1)",
     },
     "50%": {
       transform: "none",
-      animationTimingFunction: "cubic-bezier(0,0,0.2,1)",
+      animation_timing_function: "cubic-bezier(0,0,0.2,1)",
     },
   },
   floating: {

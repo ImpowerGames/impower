@@ -106,7 +106,7 @@ export const STYLE_DEFAULTS = {
     right: 16,
     bottom: 16,
     transition: `opacity 0.25s linear`,
-    animation: "0.25s infinite bounce",
+    animation: "0.5s infinite bounce",
     animation_play_state: "paused",
   },
   description_group: {
