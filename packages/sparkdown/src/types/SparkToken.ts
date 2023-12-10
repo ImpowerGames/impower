@@ -55,7 +55,8 @@ export interface ISparkDeclarationToken<T extends string>
   stored: boolean;
   type: string;
   name: string;
-  operator?: string;
+  access_operator?: string;
+  assign_operator?: string;
   value: string;
   compiled: unknown;
   fields?: ISparkStructFieldToken[];
@@ -64,7 +65,8 @@ export interface ISparkDeclarationToken<T extends string>
   ranges?: {
     type?: SparkRange;
     name?: SparkRange;
-    operator?: SparkRange;
+    access_operator?: SparkRange;
+    assign_operator?: SparkRange;
     value?: SparkRange;
   };
 }
@@ -161,19 +163,18 @@ export interface SparkCallToken extends ISparkToken<"call"> {
 export interface SparkAssignToken extends ISparkToken<"assign"> {
   type: string;
   name: string;
-  operator: string;
+  assign_operator: string;
   value: string;
-  content?: SparkAccessIdentifierPartToken[];
+  content?: SparkAccessPartToken[];
 
   ranges?: {
     name?: SparkRange;
-    operator?: SparkRange;
+    assign_operator?: SparkRange;
     value?: SparkRange;
   };
 }
 
-export interface SparkAccessIdentifierPartToken
-  extends ISparkToken<"access_identifier_part"> {
+export interface SparkAccessPartToken extends ISparkToken<"access_part"> {
   text: string;
 }
 
@@ -327,9 +328,12 @@ export interface SparkOtherToken
     | "continue"
     | "type_name"
     | "declaration_type"
+    | "declaration_access_operator"
     | "declaration_name"
+    | "declaration_assign_operator"
     | "declaration_property"
-    | "access_identifier"
+    | "target_access_path"
+    | "access_path"
     | "variable_name"
     | "property_name"
     | "function_name"
@@ -337,9 +341,7 @@ export interface SparkOtherToken
     | "struct_field"
     | "struct_map_property_start"
     | "struct_scalar_property_start"
-    | "assign_access_identifier"
     | "assign_operator"
-    | "delete_access_identifier"
     | "value_text"
     | "jump_to_section"
     | "display_text_prerequisite_value"
@@ -387,7 +389,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   struct_scalar_property: SparkStructScalarPropertyToken;
   struct_blank_property: SparkStructBlankProperty;
   struct_empty_property: SparkStructEmptyProperty;
-  access_identifier_part: SparkAccessIdentifierPartToken;
+  access_part: SparkAccessPartToken;
   function: SparkFunctionToken;
   call: SparkCallToken;
   assign: SparkAssignToken;

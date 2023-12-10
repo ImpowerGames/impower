@@ -13,6 +13,7 @@ import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
 import { CompletionMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/CompletionMessage";
 import { DocumentColorMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DocumentColorMessage";
+import { DocumentDiagnosticMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/DocumentDiagnosticMessage";
 import { FoldingRangeMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/FoldingRangeMessage";
 import { HoverMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/HoverMessage";
 import { PublishDiagnosticsMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
@@ -109,9 +110,6 @@ export default class LanguageClientPluginValue implements PluginValue {
           if (params.uri !== this._textDocument.uri) {
             return;
           }
-          if (params.version !== getDocumentVersion(this._view.state)) {
-            return;
-          }
           this.updateDiagnostics(this._view, params.diagnostics);
           this.updateFoldingRanges(this._view);
           this.updateDocumentColors(this._view);
@@ -120,6 +118,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     );
     this._supports.completion.addCompletionSource(this.handleCompletions);
     this._supports.hover.addHoverSource(this.handleHovers);
+    this.pullDiagnostics();
   }
 
   unbind() {
@@ -127,6 +126,18 @@ export default class LanguageClientPluginValue implements PluginValue {
     this._disposables = [];
     this._supports.completion.removeCompletionSource(this.handleCompletions);
     this._supports.hover.removeHoverSource(this.handleHovers);
+  }
+
+  async pullDiagnostics() {
+    const diagnostics = await this._serverConnection.sendRequest(
+      DocumentDiagnosticMessage.type,
+      {
+        textDocument: this._textDocument,
+      }
+    );
+    if (diagnostics.kind === "full") {
+      this.updateDiagnostics(this._view, diagnostics.items);
+    }
   }
 
   handleCompletions = async (

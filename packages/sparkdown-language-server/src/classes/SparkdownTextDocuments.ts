@@ -19,6 +19,9 @@ import {
   DidOpenTextDocumentParams,
   DidSaveTextDocumentParams,
   Disposable,
+  DocumentDiagnosticParams,
+  DocumentDiagnosticReport,
+  DocumentDiagnosticRequest,
   Emitter,
   FileChangeType,
   RequestHandler,
@@ -32,6 +35,7 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
+import getDocumentDiagnostics from "../utils/getDocumentDiagnostics";
 import throttle from "../utils/throttle";
 import { EditorSparkParser } from "./EditorSparkParser";
 
@@ -265,6 +269,24 @@ export default class SparkdownTextDocuments<
         (event: DidChangeConfigurationParams) => {
           const settings = event.settings;
           this.loadConfiguration(settings);
+        }
+      )
+    );
+    disposables.push(
+      connection.onRequest(
+        DocumentDiagnosticRequest.method,
+        (params: DocumentDiagnosticParams): DocumentDiagnosticReport => {
+          const uri = params.textDocument.uri;
+          const document = this.get(uri);
+          const program = this.program(uri);
+          if (document && program) {
+            return {
+              kind: "full",
+              resultId: uri,
+              items: getDocumentDiagnostics(document, program).diagnostics,
+            };
+          }
+          return { kind: "unchanged", resultId: uri };
         }
       )
     );

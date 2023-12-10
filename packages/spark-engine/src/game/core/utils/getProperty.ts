@@ -1,4 +1,7 @@
 export const getProperty = <T>(obj: any, propertyPath: string): T => {
+  if (!propertyPath) {
+    return obj;
+  }
   let cur = obj;
   const parts = propertyPath.split(".");
   parts.forEach((part) => {

@@ -24,10 +24,13 @@ const SPARK_TOKEN_TAGS: {
 
   TypeIdentifier: "type_name",
   DeclarationType: "declaration_type",
+  DeclarationAccessOperator: "declaration_access_operator",
   DeclarationName: "declaration_name",
+  DeclarationAssignOperator: "declaration_assign_operator",
   DeclarationProperty: "declaration_property",
-  AccessIdentifier: "access_identifier",
-  AccessIdentifierPart: "access_identifier_part",
+  TargetAccessPath: "target_access_path",
+  AccessPath: "access_path",
+  AccessPart: "access_part",
   VariableName: "variable_name",
   PropertyName: "property_name",
   FunctionName: "function_name",
@@ -66,11 +69,8 @@ const SPARK_TOKEN_TAGS: {
   Call: "call",
 
   Assign: "assign",
-  AssignAccessIdentifier: "assign_access_identifier",
-  AssignOperator: "assign_operator",
 
   Delete: "delete",
-  DeleteAccessIdentifier: "delete_access_identifier",
 
   Jump: "jump",
   JumpToSection: "jump_to_section",

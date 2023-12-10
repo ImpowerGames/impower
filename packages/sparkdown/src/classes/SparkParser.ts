@@ -14,6 +14,7 @@ import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkRange } from "../types/SparkRange";
 import {
+  ISparkDeclarationToken,
   SparkCheckpointToken,
   SparkChunkToken,
   SparkDialogueBoxToken,
@@ -282,7 +283,7 @@ export default class SparkParser {
     ) => {
       const { successfullySet, error } = setProperty(obj, propertyPath, value);
       if (error) {
-        const from = prevField?.to ?? 0;
+        const from = prevField?.to ?? field.from;
         const fullProp = script.slice(from, field.to);
         const indentCols = fullProp.length - fullProp.trimStart().length;
         const parentObj = getProperty(obj, successfullySet);
@@ -378,7 +379,8 @@ export default class SparkParser {
       }
       const firstField = variable.fields?.[0];
       const isArray =
-        !firstField?.path && !Number.isNaN(Number(firstField?.key));
+        variable.type === "array" ||
+        (!firstField?.path && !Number.isNaN(Number(firstField?.key)));
       const objValue = isArray ? [] : {};
       const objCompiled = isArray ? [] : {};
       _construct(variable, objValue, objCompiled);
@@ -795,7 +797,10 @@ export default class SparkParser {
     };
 
     const validateDeclaration = <
-      T extends SparkChunkToken | SparkSectionToken | SparkVariable
+      T extends
+        | SparkChunkToken
+        | SparkSectionToken
+        | ISparkDeclarationToken<string>
     >(
       tok: T
     ): boolean => {
@@ -827,6 +832,7 @@ export default class SparkParser {
       if (
         "type" in tok &&
         tok.type &&
+        !tok.access_operator &&
         !tok.name &&
         !validateDeclarationUnique(
           tok,
@@ -1379,6 +1385,28 @@ export default class SparkParser {
                 to: tok.to,
               };
             }
+          } else if (tok.tag === "declaration_access_operator") {
+            const parent = lookup("define", "store");
+            if (parent) {
+              parent.access_operator = text;
+              parent.ranges ??= {};
+              parent.ranges.access_operator = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          } else if (tok.tag === "declaration_assign_operator") {
+            const parent = lookup("define", "store", "assign");
+            if (parent) {
+              parent.assign_operator = text;
+              parent.ranges ??= {};
+              parent.ranges.assign_operator = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
           } else if (tok.tag === "value_text") {
             const parent = lookup(
               "struct_scalar_item",
@@ -1502,32 +1530,10 @@ export default class SparkParser {
             }
           } else if (tok.tag === "assign") {
             addToken(tok);
-          } else if (tok.tag === "assign_access_identifier") {
-            const parent = lookup("assign");
-            if (parent) {
-              parent.name = text;
-              parent.ranges ??= {};
-              parent.ranges.name = {
-                line: tok.line,
-                from: tok.from,
-                to: tok.to,
-              };
-            }
-          } else if (tok.tag === "assign_operator") {
-            const parent = lookup("define", "store", "assign");
-            if (parent) {
-              parent.operator = text;
-              parent.ranges ??= {};
-              parent.ranges.operator = {
-                line: tok.line,
-                from: tok.from,
-                to: tok.to,
-              };
-            }
           } else if (tok.tag === "delete") {
             addToken(tok);
-          } else if (tok.tag === "delete_access_identifier") {
-            const parent = lookup("delete");
+          } else if (tok.tag === "target_access_path") {
+            const parent = lookup("assign", "delete");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
@@ -1537,20 +1543,12 @@ export default class SparkParser {
                 to: tok.to,
               };
             }
-          } else if (tok.tag === "access_identifier_part") {
+          } else if (tok.tag === "access_part") {
             tok.text = text;
-            const parent_parent = stack.at(-2);
-            if (parent_parent?.tag === "assign_access_identifier") {
-              // Push top-level assign access identifier parts
-              const parent = lookup("assign");
-              if (parent) {
-                parent.content ??= [];
-                parent.content.push(tok);
-              }
-            }
-            if (parent_parent?.tag === "delete_access_identifier") {
-              // Push top-level delete access identifier parts
-              const parent = lookup("delete");
+            const target_access_path = lookup("target_access_path");
+            if (target_access_path) {
+              // Push top-level access parts
+              const parent = lookup("assign", "delete");
               if (parent) {
                 parent.content ??= [];
                 parent.content.push(tok);
@@ -1991,7 +1989,7 @@ export default class SparkParser {
             } else {
               if (PRIMITIVE_SCALAR_TYPES.includes(tok.type)) {
                 if (
-                  tok.operator === ":" ||
+                  tok.assign_operator === ":" ||
                   (tok.fields && tok.fields.length > 0)
                 ) {
                   diagnostic(
@@ -2096,7 +2094,10 @@ export default class SparkParser {
                     : typeof tok.compiled;
               }
 
-              if (validateDeclaration(tok)) {
+              if (
+                (tok.access_operator || tok.assign_operator) &&
+                validateDeclaration(tok)
+              ) {
                 if (tok.tag === "store") {
                   tok.stored = true;
                 }

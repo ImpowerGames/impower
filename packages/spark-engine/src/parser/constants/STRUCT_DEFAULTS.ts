@@ -16,8 +16,9 @@ import {
 } from "../../game";
 
 export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
-  html: {},
-  css: {},
+  array: { "": [] },
+  html: { "": "" },
+  css: { "": "" },
 
   image: IMAGE_DEFAULTS,
   audio: AUDIO_DEFAULTS,

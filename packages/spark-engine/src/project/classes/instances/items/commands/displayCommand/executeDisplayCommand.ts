@@ -74,7 +74,10 @@ const getSound = (asset: unknown, game: SparkGame): Required<Sound> | null => {
   if ("loop" in asset && typeof asset.loop === "boolean") {
     sound.loop = asset.loop;
   }
-  return sound;
+  if (sound.src) {
+    return sound;
+  }
+  return null;
 };
 
 const getAssetSounds = (
@@ -329,8 +332,9 @@ export const executeDisplayCommand = (
               const imageSrcs: string[] = [];
               assetNames.forEach((assetName) => {
                 if (assetName) {
-                  const value = (valueMap?.["image"]?.[assetName] ??
-                    valueMap?.["image_group"]?.[assetName]) as
+                  const value = (valueMap?.["image"]?.[assetName] ||
+                    valueMap?.["image_group"]?.[assetName] ||
+                    valueMap?.["array"]?.[assetName]) as
                     | { name: string; src: string }
                     | { assets: { name: string; src: string }[] };
                   const assets =
@@ -388,7 +392,8 @@ export const executeDisplayCommand = (
               if (assetName) {
                 const value =
                   valueMap?.["audio"]?.[assetName] ||
-                  valueMap?.["audio_group"]?.[assetName];
+                  valueMap?.["audio_group"]?.[assetName] ||
+                  valueMap?.["array"]?.[assetName];
                 const assetSounds = getAssetSounds(value, game);
                 assetSounds.forEach((asset) => {
                   const sound = {

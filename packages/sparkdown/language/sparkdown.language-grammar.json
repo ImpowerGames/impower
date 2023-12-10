@@ -812,7 +812,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#PunctuationAccessor"
+              "include": "#DeclarationAccessOperator"
             }
           ]
         },
@@ -833,7 +833,7 @@
         "8": {
           "patterns": [
             {
-              "include": "#AssignOperator"
+              "include": "#DeclarationAssignOperator"
             }
           ]
         },
@@ -991,7 +991,7 @@
         "10": {
           "patterns": [
             {
-              "include": "#AssignOperator"
+              "include": "#DeclarationAssignOperator"
             }
           ]
         },
@@ -1059,7 +1059,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#AssignOperator"
+              "include": "#DeclarationAssignOperator"
             }
           ]
         },
@@ -1120,7 +1120,7 @@
         "5": {
           "patterns": [
             {
-              "include": "#PunctuationAccessor"
+              "include": "#DeclarationAccessOperator"
             }
           ]
         },
@@ -1141,7 +1141,7 @@
         "8": {
           "patterns": [
             {
-              "include": "#AssignOperator"
+              "include": "#DeclarationAssignOperator"
             }
           ]
         },
@@ -1641,18 +1641,10 @@
       },
       "patterns": [
         {
-          "include": "#DeleteAccessIdentifier"
+          "include": "#TargetAccessPath"
         }
       ],
       "end": "($)"
-    },
-    "DeleteAccessIdentifier": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#AccessIdentifier"
-        }
-      ]
     },
     "Branch": {
       "patterns": [
@@ -2057,7 +2049,7 @@
       },
       "patterns": [
         {
-          "include": "#AccessIdentifier"
+          "include": "#AccessPath"
         }
       ],
       "end": "([;])|(?=$)",
@@ -2131,7 +2123,7 @@
       },
       "patterns": [
         {
-          "include": "#AssignAccessIdentifier"
+          "include": "#TargetAccessPath"
         },
         {
           "include": "#AssignmentExpression"
@@ -2142,11 +2134,11 @@
       ],
       "end": "($)"
     },
-    "AssignAccessIdentifier": {
+    "TargetAccessPath": {
       "emit": true,
       "patterns": [
         {
-          "include": "#AccessIdentifier"
+          "include": "#AccessPath"
         }
       ]
     },
@@ -2163,7 +2155,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssignOperator"
+              "include": "#DeclarationAssignOperator"
             }
           ]
         },
@@ -2225,16 +2217,16 @@
         }
       ]
     },
-    "AccessIdentifier": {
+    "AccessPath": {
       "begin": "(?=[_a-zA-Z])",
       "patterns": [
         {
-          "include": "#AccessIdentifierPart"
+          "include": "#AccessPart"
         }
       ],
       "end": "(?=$|[^_a-zA-Z\\[?!.])"
     },
-    "AccessIdentifierPart": {
+    "AccessPart": {
       "emit": true,
       "patterns": [
         {
@@ -2268,6 +2260,14 @@
         }
       ]
     },
+    "DeclarationAccessOperator": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#PunctuationAccessor"
+        }
+      ]
+    },
     "DeclarationName": {
       "emit": true,
       "patterns": [
@@ -2287,6 +2287,14 @@
         },
         {
           "include": "#Unknown"
+        }
+      ]
+    },
+    "DeclarationAssignOperator": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#AssignOperator"
         }
       ]
     },
@@ -3496,7 +3504,7 @@
           "include": "#ParenExpression"
         },
         {
-          "include": "#AccessIdentifier"
+          "include": "#AccessPath"
         },
         {
           "include": "#PunctuationSemicolon"
