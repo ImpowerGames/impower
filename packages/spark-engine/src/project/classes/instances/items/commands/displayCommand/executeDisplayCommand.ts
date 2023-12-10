@@ -410,7 +410,14 @@ export const executeDisplayCommand = (
                 );
               } else {
                 soundEvents.push(() =>
-                  game.sound.fadeAll(sounds, target, groupId, after, over)
+                  game.sound.fadeAll(
+                    sounds,
+                    target,
+                    groupId,
+                    after,
+                    over,
+                    scheduled
+                  )
                 );
               }
             }
