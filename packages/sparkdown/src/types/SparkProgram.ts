@@ -12,6 +12,7 @@ export interface SparkProgram {
   chunks: Record<string, SparkChunk>;
   sections: Record<string, SparkSection>;
   variables?: Record<string, SparkVariable>;
+  stored?: string[];
 
   tokens: SparkToken[];
 

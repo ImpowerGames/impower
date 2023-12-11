@@ -37,7 +37,6 @@ export interface SparkCheckpointToken extends ISparkToken<"checkpoint"> {
 }
 
 export interface SparkImportToken extends ISparkToken<"import"> {
-  stored: boolean;
   type: string;
   name: string;
   value: string;
@@ -52,7 +51,6 @@ export interface SparkImportToken extends ISparkToken<"import"> {
 
 export interface ISparkDeclarationToken<T extends string>
   extends ISparkToken<T> {
-  stored: boolean;
   type: string;
   name: string;
   access_operator?: string;
@@ -73,11 +71,12 @@ export interface ISparkDeclarationToken<T extends string>
 
 export interface SparkDefineToken extends ISparkDeclarationToken<"define"> {}
 
-export interface SparkStoreToken extends ISparkDeclarationToken<"store"> {}
+export interface SparkStoreToken extends ISparkDeclarationToken<"store"> {
+  content?: SparkAccessPartToken[];
+}
 
 export interface ISparkStructFieldToken<T extends string = string>
   extends ISparkToken<T> {
-  stored: boolean;
   type: string;
   path: string;
   key: string;

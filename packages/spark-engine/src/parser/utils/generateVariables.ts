@@ -17,7 +17,6 @@ export const generateVariables = (
         from: v.from,
         to: v.to,
       },
-      stored: v.stored,
       name: v.name,
       type: v.type,
       value: v.value,

@@ -43,6 +43,10 @@ export abstract class Manager<
     );
   }
 
+  onSave() {
+    // executed before manager is saved
+  }
+
   getSaveData(): S {
     return this.deepCopy(this.state) as S;
   }

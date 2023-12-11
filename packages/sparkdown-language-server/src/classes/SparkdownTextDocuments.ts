@@ -204,7 +204,6 @@ export default class SparkdownTextDocuments<
             from: -1,
             to: -1,
             indent: 0,
-            stored: false,
             type: file.type,
             name: file.name,
             value: JSON.stringify(obj),

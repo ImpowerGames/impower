@@ -15,12 +15,14 @@ import { SparkProgram } from "../types/SparkProgram";
 import { SparkRange } from "../types/SparkRange";
 import {
   ISparkDeclarationToken,
+  SparkAssignToken,
   SparkCheckpointToken,
   SparkChunkToken,
   SparkDialogueBoxToken,
   SparkDialogueToken,
   SparkDisplayToken,
   SparkSectionToken,
+  SparkStoreToken,
   SparkToken,
   SparkTokenTagMap,
 } from "../types/SparkToken";
@@ -763,6 +765,38 @@ export default class SparkParser {
       return true;
     };
 
+    const validateAssignment = (
+      tok: SparkStoreToken | SparkAssignToken,
+      declaredValue: unknown
+    ) => {
+      if (declaredValue === undefined && tok.content) {
+        const parentPropertyParts = tok.content.slice(0, -1);
+        const parentPropertyPath = parentPropertyParts
+          .map((c) => c.text)
+          .join("") as string;
+        if (parentPropertyPath) {
+          const [parentProperty] = compiler(parentPropertyPath, context);
+          if (tok.name?.endsWith("]")) {
+            if (parentProperty && typeof parentProperty !== "object") {
+              // Error if user is attempting to index a scalar value (i.e. a number, string, or boolean)
+              diagnostic(
+                program,
+                tok,
+                `'${parentPropertyPath}' is not an array or object`,
+                undefined,
+                tok?.ranges?.name?.from,
+                (tok?.ranges?.name?.from ?? 0) + parentPropertyPath.length
+              );
+            }
+          } else if (tok.name?.endsWith(".")) {
+            if (parentProperty === undefined) {
+              reportMissing(tok, "", tok.name, parentPropertyParts?.at(-1));
+            }
+          }
+        }
+      }
+    };
+
     const validateDeclarationAllowed = (
       tok: ISparkToken,
       name: string,
@@ -906,7 +940,6 @@ export default class SparkParser {
           from: -1,
           to: -1,
           indent: 0,
-          stored: false,
           type: compiledType === "object" ? "type" : compiledType,
           name: type,
           value: JSON.stringify(compiled),
@@ -928,7 +961,6 @@ export default class SparkParser {
                 from: -1,
                 to: -1,
                 indent: 0,
-                stored: false,
                 type: variableType,
                 name: variableName,
                 value: JSON.stringify(compiled),
@@ -1170,7 +1202,6 @@ export default class SparkParser {
                 from: tok.from,
                 to: tok.to,
                 indent: 0,
-                stored: true,
                 type: "section",
                 name: tok.name,
                 value: "0",
@@ -1364,7 +1395,7 @@ export default class SparkParser {
           } else if (tok.tag === "store") {
             addToken(tok);
           } else if (tok.tag === "declaration_type") {
-            const parent = lookup("define", "store", "import");
+            const parent = lookup("define", "import");
             if (parent) {
               parent.type = text;
               parent.ranges ??= {};
@@ -1375,7 +1406,7 @@ export default class SparkParser {
               };
             }
           } else if (tok.tag === "declaration_name") {
-            const parent = lookup("define", "store", "import");
+            const parent = lookup("define", "import");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
@@ -1386,7 +1417,7 @@ export default class SparkParser {
               };
             }
           } else if (tok.tag === "declaration_access_operator") {
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             if (parent) {
               parent.access_operator = text;
               parent.ranges ??= {};
@@ -1428,7 +1459,7 @@ export default class SparkParser {
               parent.ranges.value.to = tok.to;
             }
           } else if (tok.tag === "struct_field") {
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             if (parent) {
               parent.ranges ??= {};
               parent.ranges.value ??= {
@@ -1440,7 +1471,7 @@ export default class SparkParser {
             }
           } else if (tok.tag === "struct_map_property") {
             tok.path = path("struct_map_item", "struct_map_property");
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
@@ -1457,7 +1488,7 @@ export default class SparkParser {
             }
             addToken(tok);
           } else if (tok.tag === "struct_map_item") {
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             const mapProperty = lookup("struct_map_property");
             if (mapProperty) {
               mapProperty.entriesLength ??= 0;
@@ -1471,7 +1502,7 @@ export default class SparkParser {
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
           } else if (tok.tag === "struct_scalar_item") {
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             if (parent) {
               parent.fields ??= [];
               parent.fields.push(tok);
@@ -1489,7 +1520,7 @@ export default class SparkParser {
             tok.path = path("struct_map_item", "struct_map_property");
             addToken(tok);
           } else if (tok.tag === "struct_scalar_property") {
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             if (parent) {
               parent.fields ??= [];
               parent.fields.push(tok);
@@ -1508,7 +1539,7 @@ export default class SparkParser {
             addToken(tok);
           } else if (tok.tag === "struct_blank_property") {
             tok.path = path("struct_map_item", "struct_map_property");
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
@@ -1533,7 +1564,7 @@ export default class SparkParser {
           } else if (tok.tag === "delete") {
             addToken(tok);
           } else if (tok.tag === "target_access_path") {
-            const parent = lookup("assign", "delete");
+            const parent = lookup("store", "assign", "delete");
             if (parent) {
               parent.name = text;
               parent.ranges ??= {};
@@ -1548,7 +1579,7 @@ export default class SparkParser {
             const target_access_path = lookup("target_access_path");
             if (target_access_path) {
               // Push top-level access parts
-              const parent = lookup("assign", "delete");
+              const parent = lookup("store", "assign", "delete");
               if (parent) {
                 parent.content ??= [];
                 parent.content.push(tok);
@@ -1631,13 +1662,12 @@ export default class SparkParser {
                   JSON.stringify(characterTypeVariable.compiled)
                 );
                 clonedCharacterObj.name = text;
-                const characterVariable = {
+                const characterVariable: SparkVariable = {
                   tag: "character",
                   line: tok.line,
                   from: tok.from,
                   to: tok.to,
                   indent: 0,
-                  stored: true,
                   type: "character",
                   name: characterKey,
                   value: JSON.stringify(clonedCharacterObj),
@@ -1852,7 +1882,7 @@ export default class SparkParser {
               parent.indent = calculateIndent(text);
             }
           } else if (tok.tag === "unknown") {
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             diagnostic(
               program,
               tok,
@@ -1953,21 +1983,21 @@ export default class SparkParser {
               );
               struct_empty_property.value = "{}";
               addToken(struct_empty_property);
-              const parent = lookup("define", "store");
+              const parent = lookup("define");
               if (parent) {
                 parent.fields ??= [];
                 parent.fields.push(struct_empty_property);
               }
             }
           } else if (tok.tag === "struct_field") {
-            const parent = lookup("define", "store");
+            const parent = lookup("define");
             if (parent) {
               program.metadata ??= {};
               program.metadata.lines ??= [];
               program.metadata.lines[tok.line] ??= {};
               program.metadata.lines[tok.line]!.struct = parent.name;
             }
-          } else if (tok.tag === "define" || tok.tag === "store") {
+          } else if (tok.tag === "define") {
             prevDisplayPositionalTokens.length = 0;
             const scopedParent = lookup(
               "if",
@@ -1981,7 +2011,7 @@ export default class SparkParser {
               diagnostic(
                 program,
                 tok,
-                `Cannot declare variable inside ${scopedParent.tag} scope`,
+                `Cannot define variable inside ${scopedParent.tag} scope`,
                 undefined,
                 tok.from,
                 tok.to
@@ -2098,12 +2128,101 @@ export default class SparkParser {
                 (tok.access_operator || tok.assign_operator) &&
                 validateDeclaration(tok)
               ) {
-                if (tok.tag === "store") {
-                  tok.stored = true;
-                }
                 declareVariable(tok);
               }
             }
+          } else if (tok.tag === "store") {
+            prevDisplayPositionalTokens.length = 0;
+            const scopedParent = lookup(
+              "if",
+              "elseif",
+              "else",
+              "while",
+              "for",
+              "until"
+            );
+            if (scopedParent) {
+              diagnostic(
+                program,
+                tok,
+                `Cannot store variable inside ${scopedParent.tag} scope`,
+                undefined,
+                tok.from,
+                tok.to
+              );
+            } else {
+              if (tok.value) {
+                tok.compiled = compileAndValidate(
+                  tok,
+                  tok.value,
+                  tok.ranges?.value,
+                  context
+                );
+              }
+              const existingVariable = program.variables?.[getVariableId(tok)];
+              if (existingVariable) {
+                tok.type = existingVariable.type;
+              } else if (
+                tok.assign_operator &&
+                !tok.name.includes(".") &&
+                validateDeclaration(tok)
+              ) {
+                tok.type = typeof tok.compiled;
+                declareVariable(tok);
+              } else {
+                const declaredValue = compileAndValidate(
+                  tok,
+                  tok.name,
+                  tok?.ranges?.name,
+                  context
+                );
+                const declaredType = typeof declaredValue;
+                tok.type = declaredType;
+                validateAssignment(tok, declaredValue);
+              }
+              validateTypeMatch(
+                tok,
+                typeof tok.compiled,
+                tok.type,
+                tok?.ranges?.type
+              );
+              program.stored ??= [];
+              program.stored.push(tok.name);
+            }
+          } else if (tok.tag === "assign") {
+            const declaredValue = compileAndValidate(
+              tok,
+              tok.name,
+              tok?.ranges?.name,
+              context
+            );
+            // Validate value
+            const compiledValue = compileAndValidate(
+              tok,
+              tok.value,
+              tok?.ranges?.value,
+              context
+            );
+            // Check for type mismatch
+            const compiledType = typeof compiledValue;
+            const declaredType = typeof declaredValue;
+            validateTypeMatch(
+              tok,
+              compiledType,
+              declaredType,
+              tok.ranges?.name
+            );
+            tok.type = declaredType;
+            validateAssignment(tok, declaredValue);
+          } else if (tok.tag === "delete") {
+            const declaredValue = compileAndValidate(
+              tok,
+              tok.name,
+              tok?.ranges?.name,
+              context
+            );
+            const declaredType = typeof declaredValue;
+            tok.type = declaredType;
           } else if (tok.tag === "image") {
             const nameRanges = tok.nameRanges;
             if (nameRanges) {
@@ -2248,70 +2367,6 @@ export default class SparkParser {
               prevDisplayPositionalTokens.length = 0;
               prevDisplayPositionalTokens.push(dialogue);
             }
-          } else if (tok.tag === "assign") {
-            const declaredValue = compileAndValidate(
-              tok,
-              tok.name,
-              tok?.ranges?.name,
-              context
-            );
-            // Validate value
-            const compiledValue = compileAndValidate(
-              tok,
-              tok.value,
-              tok?.ranges?.value,
-              context
-            );
-            // Check for type mismatch
-            const compiledType = typeof compiledValue;
-            const declaredType = typeof declaredValue;
-            validateTypeMatch(
-              tok,
-              compiledType,
-              declaredType,
-              tok.ranges?.name
-            );
-            tok.type = declaredType;
-            if (declaredValue === undefined && tok.content) {
-              const parentPropertyParts = tok.content.slice(0, -1);
-              const parentPropertyPath = parentPropertyParts
-                .map((c) => c.text)
-                .join("") as string;
-              if (parentPropertyPath) {
-                const [parentProperty] = compiler(parentPropertyPath, context);
-                if (tok.name?.endsWith("]")) {
-                  if (parentProperty && typeof parentProperty !== "object") {
-                    // Error if user is attempting to index a scalar value (i.e. a number, string, or boolean)
-                    diagnostic(
-                      program,
-                      tok,
-                      `'${parentPropertyPath}' is not an array or object`,
-                      undefined,
-                      tok?.ranges?.name?.from,
-                      (tok?.ranges?.name?.from ?? 0) + parentPropertyPath.length
-                    );
-                  }
-                } else if (tok.name?.endsWith(".")) {
-                  if (parentProperty === undefined) {
-                    reportMissing(
-                      tok,
-                      "",
-                      tok.name,
-                      parentPropertyParts?.at(-1)
-                    );
-                  }
-                }
-              }
-            }
-          } else if (tok.tag === "delete") {
-            const declaredValue = compileAndValidate(
-              tok,
-              tok.name,
-              tok?.ranges?.name,
-              context
-            );
-            const declaredType = typeof declaredValue;
-            tok.type = declaredType;
           }
 
           stack.pop();

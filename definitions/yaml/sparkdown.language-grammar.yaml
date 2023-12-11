@@ -395,110 +395,6 @@ repository:
         tag: punctuation
         name: punctuation.separator.comma.sd
 
-  Store:
-    emit: true
-    patterns:
-      - { include: "#StoreScalar" }
-      - { include: "#StoreObject" }
-      - { include: "#StoreInvalid" }
-
-  StoreScalar:
-    tag: meta
-    name: meta.definition.store.scalar.sd
-    begin: ^([ \t]*)(store)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)($|[=])($|[ \t]*)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: controlKeyword
-        name: keyword.control.definition.object.sd
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-      4:
-        patterns:
-          - { include: "#DeclarationName" }
-      5:
-        patterns:
-          - { include: "#Whitespace" }
-      6:
-        patterns:
-          - { include: "#AssignOperator" }
-      7:
-        patterns:
-          - { include: "#Whitespace" }
-    patterns:
-      - { include: "#ValueText" }
-    end: ([;])|(?=$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationSemicolon" }
-
-  StoreObject:
-    tag: meta
-    name: meta.definition.store.object.sd
-    begin: ^([ \t]*)(store)($|[ \t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ \t]*)($|[:])($|[ \t]*)($|.+$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: controlKeyword
-        name: keyword.control.definition.object.sd
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-      4:
-        patterns:
-          - { include: "#DeclarationType" }
-      5:
-        patterns:
-          - { include: "#DeclarationAccessOperator" }
-      6:
-        patterns:
-          - { include: "#DeclarationName" }
-      7:
-        patterns:
-          - { include: "#Whitespace" }
-      8:
-        patterns:
-          - { include: "#DeclarationAssignOperator" }
-      9:
-        patterns:
-          - { include: "#Whitespace" }
-      10:
-        patterns:
-          - { include: "#Unknown" }
-    patterns:
-      - { include: "#Comment" }
-      - { include: "#StructField" }
-      - { include: "#Unknown" }
-    end: (?=^[ ]?$)|(?=^(?!\1(?:[ ]{2,}|[\t]+)))
-
-  StoreInvalid:
-    tag: meta
-    name: meta.define.invalid.sd
-    begin: ^([ \t]*)(store)($|[ \t]+)($|.+$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: controlKeyword
-        name: keyword.control.definition.define.sd
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-      4:
-        patterns:
-          - { include: "#Unknown" }
-    patterns:
-      - { include: "#Newline" }
-      - { include: "#Unknown" }
-    end: (?=^(?!\1(?:[ ]{2,}|[\t]+)))
-
   Define: 
     emit: true
     patterns:
@@ -1116,6 +1012,26 @@ repository:
       1:
         patterns:
           - { include: "#PunctuationSemicolon" }
+
+  Store:
+    tag: meta
+    name: meta.assign.sd
+    begin: ^([ \t]*)(store)($|[ \t]+)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: keyword
+        name: keyword.operator.expression.assign.sd
+      3:
+        patterns:
+          - { include: "#Whitespace" }
+    patterns:
+      - { include: "#TargetAccessPath" }
+      - { include: "#AssignmentExpression" }
+      - { include: "#IllegalExpression" }
+    end: ($)
 
   Assign:
     tag: meta

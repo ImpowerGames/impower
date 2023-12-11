@@ -62,7 +62,6 @@ const parse = (file: FileData, files: FileData[]) => {
           from: -1,
           to: -1,
           indent: 0,
-          stored: false,
           type: file.type,
           name: file.name,
           value: JSON.stringify(obj),

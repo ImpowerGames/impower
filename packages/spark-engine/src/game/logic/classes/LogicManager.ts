@@ -33,6 +33,7 @@ export interface LogicEvents extends Record<string, GameEvent> {
 export interface LogicConfig {
   blockMap: Record<string, Block>;
   variableMap: Record<string, Variable>;
+  stored: string[];
 }
 
 export interface LogicState {
@@ -41,7 +42,7 @@ export interface LogicState {
   loadedBlockIds: string[];
   loadedAssetIds: string[];
   blockStates: Record<string, BlockState>;
-  variableStates: Record<string, any>;
+  valueStates: Record<string, any>;
 }
 
 export class LogicManager extends Manager<
@@ -49,8 +50,6 @@ export class LogicManager extends Manager<
   LogicConfig,
   LogicState
 > {
-  protected _storedVariables: string[] = [];
-
   protected _valueMap: Record<string, Record<string, any>> = {};
   get valueMap() {
     return this._valueMap;
@@ -90,6 +89,7 @@ export class LogicManager extends Manager<
     const initialConfig: LogicConfig = {
       blockMap: {},
       variableMap: {},
+      stored: [],
       ...(config || {}),
     };
     const initialState: LogicState = {
@@ -98,7 +98,7 @@ export class LogicManager extends Manager<
       loadedBlockIds: [],
       loadedAssetIds: [],
       blockStates: {},
-      variableStates: {},
+      valueStates: {},
       ...(state || {}),
     };
     super(initialEvents, initialConfig, initialState);
@@ -113,16 +113,12 @@ export class LogicManager extends Manager<
     if (this.config?.variableMap) {
       Object.entries(this.config?.variableMap).forEach(
         ([variableName, variable]) => {
-          const variableState = this._state.variableStates[variableName];
-          const value = variableState?.value ?? variable.compiled;
+          const value = variable.compiled;
           if (variable.type === "type") {
             this._valueMap[variableName] ??= {};
             this._valueMap[variableName]![""] = value;
           } else {
             setProperty(this._valueMap, variableName, value);
-          }
-          if (variable.stored) {
-            this._storedVariables.push(variableName);
           }
         }
       );
@@ -474,11 +470,6 @@ export class LogicManager extends Manager<
   evaluate(expression: string): unknown {
     const context = this._valueMap;
     const result = evaluate(expression, context);
-    this._storedVariables.forEach((storedVariableName) => {
-      // Update stored variables in case any assignments occurred when evaluating expression
-      this._state.variableStates[storedVariableName] =
-        this._valueMap[storedVariableName];
-    });
     return result;
   }
 
@@ -490,15 +481,18 @@ export class LogicManager extends Manager<
     return result;
   }
 
-  getRuntimeValue(id: string): unknown {
-    const variableState = this._state.variableStates?.[id];
-    if (variableState) {
-      return variableState.value;
+  override onSave() {
+    if (this.config?.stored) {
+      this.config.stored.forEach((accessPath) => {
+        try {
+          this._state.valueStates[accessPath] = evaluate(
+            accessPath,
+            this._valueMap
+          );
+        } catch {
+          // value does not exist
+        }
+      });
     }
-    const blockState = this._state.blockStates?.[id];
-    if (blockState) {
-      return blockState.executionCount;
-    }
-    return undefined;
   }
 }
