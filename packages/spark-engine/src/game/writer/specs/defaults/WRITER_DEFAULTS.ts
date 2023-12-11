@@ -1,7 +1,7 @@
 import { _writer } from "./_writer";
 
 export const WRITER_DEFAULTS = {
-  "": _writer(),
+  default: _writer(),
   transition: _writer({}),
   scene: _writer({}),
   action: _writer({}),

@@ -17,7 +17,7 @@ const getScopedContext = <
         : variable.compiled;
       if (variable.type === "type") {
         context[variableName] ??= {};
-        context[variableName][""] = value;
+        context[variableName]["default"] = value;
       } else if (typeof variable.compiled === "object") {
         context[variable.type] ??= {};
         context[variable.type][variable.name] = value;

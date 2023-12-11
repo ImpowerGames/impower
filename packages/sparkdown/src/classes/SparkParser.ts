@@ -250,7 +250,7 @@ export default class SparkParser {
       program.variables ??= {};
       program.variables[type] = tok;
       context[type] ??= {};
-      context[type][""] = tok.compiled;
+      context[type]["default"] = tok.compiled;
     };
 
     const declareVariable = (tok: SparkVariable) => {
@@ -270,7 +270,7 @@ export default class SparkParser {
       }
       if (tok.type === "type") {
         context[tok.name] ??= {};
-        context[tok.name][""] = tok.compiled;
+        context[tok.name]["default"] = tok.compiled;
       } else if (typeof tok.compiled === "object") {
         context[tok.type] ??= {};
         context[tok.type][tok.name] = tok.compiled;
@@ -944,7 +944,7 @@ export default class SparkParser {
     if (program.builtins) {
       Object.entries(program.builtins).forEach(([type, objectsOfType]) => {
         // Define type
-        const compiled = objectsOfType[""] ?? {};
+        const compiled = objectsOfType["default"] ?? {};
         const compiledType = typeof compiled;
         program.variables ??= {};
         const variable: SparkVariable = {
@@ -2430,7 +2430,7 @@ export default class SparkParser {
     program.metadata.parseTime = parseEndTime;
     program.metadata.parseDuration = parseEndTime - parseStartTime;
 
-   // console.log(program);
+    // console.log(program);
 
     return program;
   }

@@ -164,7 +164,7 @@ export const executeDisplayCommand = (
       ? sceneWriter
       : type === "transition"
       ? transitionWriter
-      : valueMap?.["writer"]?.[""];
+      : valueMap?.["writer"]?.["default"];
 
   const structEl = game.ui.findFirstUIElement(structName);
 

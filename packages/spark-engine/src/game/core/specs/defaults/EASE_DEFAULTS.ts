@@ -3,7 +3,7 @@ import { Ease } from "../Ease";
 import { _ease } from "./_ease";
 
 export const EASE_DEFAULTS: Record<"" | EaseType, Ease> = {
-  "": _ease(),
+  default: _ease(),
   none: { x1: 0, y1: 0, x2: 0, y2: 0 },
   linear: { x1: 0, y1: 0, x2: 1, y2: 1 },
   sine_in: { x1: 0.12, y1: 0, x2: 0.39, y2: 0 },

@@ -1,5 +1,5 @@
 export const UI_DEFAULTS = {
-  "": {},
+  default: {},
   loading: {
     loading_bar: {
       loading_fill: {},

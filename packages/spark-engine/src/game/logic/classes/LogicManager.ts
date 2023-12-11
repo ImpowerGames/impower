@@ -116,7 +116,7 @@ export class LogicManager extends Manager<
           const value = variable.compiled;
           if (variable.type === "type") {
             this._valueMap[variableName] ??= {};
-            this._valueMap[variableName]![""] = value;
+            this._valueMap[variableName]!["default"] = value;
           } else {
             setProperty(this._valueMap, variableName, value);
           }

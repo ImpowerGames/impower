@@ -2,7 +2,7 @@ import { Font } from "../Font";
 import { _font } from "./_font";
 
 export const FONT_DEFAULTS: Record<string, Font> = {
-  "": _font(),
+  default: _font(),
   roboto400: {
     type: "font",
     src: "local('Roboto'), local('Roboto-Regular'), url(http://fonts.gstatic.com/s/roboto/v15/oMMgfZMQthOryQo9n22dcuvvDin1pK8aKteLpeZ5c0A.woff2) format('woff2')",

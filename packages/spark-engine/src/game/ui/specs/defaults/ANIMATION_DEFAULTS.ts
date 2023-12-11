@@ -1,5 +1,5 @@
 export const ANIMATION_DEFAULTS = {
-  "": {},
+  default: {},
   spin: {
     to: {
       transform: "rotate(360deg)",

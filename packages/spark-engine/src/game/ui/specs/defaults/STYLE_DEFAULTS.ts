@@ -1,7 +1,7 @@
 const STYLE_PROPS = {};
 
 export const STYLE_DEFAULTS = {
-  "": {
+  default: {
     ...STYLE_PROPS,
     xs: STYLE_PROPS,
     sm: STYLE_PROPS,

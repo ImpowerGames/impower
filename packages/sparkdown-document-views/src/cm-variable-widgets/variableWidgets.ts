@@ -446,10 +446,10 @@ const getSynthVariableWidgets = (
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
-  const defaultObj = SYNTH_DEFAULTS[""];
+  const defaultObj = SYNTH_DEFAULTS["default"];
   const validation = SYNTH_VALIDATION;
   const options: StructPresetOption[] = Object.entries({
-    default: undefined,
+    default: null,
     ...(SYNTH_RANDOMIZATIONS || {}),
   }).map(([label, randomization]) => {
     let validLabel = label;

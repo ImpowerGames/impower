@@ -2,7 +2,7 @@ import { Shadow } from "../Shadow";
 import { _shadow } from "./_shadow";
 
 export const SHADOW_DEFAULTS: Record<string, Shadow> = {
-  "": _shadow(),
+  default: _shadow(),
   xs: {
     layers: [
       {

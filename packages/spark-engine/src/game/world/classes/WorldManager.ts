@@ -38,7 +38,7 @@ export class WorldManager extends Manager<
     };
     const initialConfig: WorldConfig = {
       defaultCameras: {
-        "": createCameraState(),
+        default: createCameraState(),
       },
       defaultEntities: {},
       ...(config || {}),
@@ -46,7 +46,7 @@ export class WorldManager extends Manager<
     const initialState: WorldState = {
       mainCamera: "",
       activeCameras: [""],
-      cameraStates: { "": createCameraState() },
+      cameraStates: { default: createCameraState() },
       ...(state || {}),
     };
     super(initialEvents, initialConfig, initialState);
