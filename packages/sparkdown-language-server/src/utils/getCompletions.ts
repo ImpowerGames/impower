@@ -15,6 +15,7 @@ import {
   ISparkDeclarationToken,
   ISparkStructFieldToken,
   SparkAssignToken,
+  SparkStoreToken,
   SparkStructBlankProperty,
   SparkStructMapPropertyToken,
 } from "@impower/sparkdown/src/types/SparkToken";
@@ -382,14 +383,14 @@ const getCompletions = (
     ) {
       return getCharacterCompletions(position.line, program, trimmedBeforeText);
     }
-    if (scopes.includes("define") || scopes.includes("store")) {
+    if (scopes.includes("define")) {
       if (
         scopes.includes("struct_map_property_start") &&
         scopes.includes("property_name")
       ) {
         const token = lineMetadata.tokens
           ?.map((i) => program?.tokens?.[i])
-          .findLast((t) => t?.tag === "define" || t?.tag === "store") as
+          .findLast((t) => t?.tag === "define") as
           | ISparkDeclarationToken<string>
           | undefined;
         const structMapPropertyToken = lineMetadata.tokens
@@ -410,7 +411,7 @@ const getCompletions = (
       if (scopes.includes("struct_blank_property") && !triggerCharacter) {
         const token = lineMetadata.tokens
           ?.map((i) => program?.tokens?.[i])
-          .findLast((t) => t?.tag === "define" || t?.tag === "store") as
+          .findLast((t) => t?.tag === "define") as
           | ISparkDeclarationToken<string>
           | undefined;
         const structBlankProperty = lineMetadata.tokens
@@ -455,9 +456,9 @@ const getCompletions = (
       }
     }
     if (
-      (scopes.includes("assign") ||
-        scopes.includes("define") ||
-        scopes.includes("store")) &&
+      (scopes.includes("define") ||
+        scopes.includes("store") ||
+        scopes.includes("assign")) &&
       scopes.includes("value_text") &&
       scopes.at(-1) === "variable_name"
     ) {
@@ -465,7 +466,7 @@ const getCompletions = (
         ?.map((i) => program?.tokens?.[i])
         .findLast(
           (t) =>
-            t?.tag === "assign" || t?.tag === "define" || t?.tag === "store"
+            t?.tag === "define" || t?.tag === "store" || t?.tag === "assign"
         ) as ISparkDeclarationToken<string> | undefined;
       if (declarationToken) {
         return getVariableCompletions(
@@ -476,26 +477,24 @@ const getCompletions = (
       }
     }
     if (
-      (scopes.at(0) === "assign" || scopes.at(0) === "delete") &&
+      (scopes.at(0) === "store" ||
+        scopes.at(0) === "assign" ||
+        scopes.at(0) === "delete") &&
       scopes.at(1) === "whitespace"
     ) {
       return getVariableCompletions(
         program,
-        (v) => v.line !== line && !v.implicit && v.stored,
+        (v) => v.line !== line && !v.implicit,
         (v) => typeof v.compiled !== "object"
       );
     }
     if (
-      (scopes.includes("assign_access_identifier") ||
-        scopes.includes("delete_access_identifier")) &&
+      scopes.includes("target_access_path") &&
       scopes.at(-1) === "variable_name"
     ) {
       return getVariableCompletions(
         program,
-        (v) =>
-          v.line !== line &&
-          !v.implicit &&
-          (v.stored || typeof v.compiled === "object")
+        (v) => v.line !== line && !v.implicit && typeof v.compiled === "object"
       );
     }
     if (scopes.includes("value_text") && scopes.at(-1) === "variable_name") {
@@ -507,7 +506,10 @@ const getCompletions = (
     if (scopes.at(-1) === "punctuation_accessor") {
       const assignToken = lineMetadata.tokens
         ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "assign") as SparkAssignToken | undefined;
+        .findLast((t) => t?.tag === "store" || t?.tag === "assign") as
+        | SparkStoreToken
+        | SparkAssignToken
+        | undefined;
       const pathParts = assignToken?.content;
       if (pathParts) {
         const variableName = pathParts?.[0]?.text;

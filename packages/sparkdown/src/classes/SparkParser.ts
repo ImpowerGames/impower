@@ -261,18 +261,21 @@ export default class SparkParser {
         const typeName = tok.type;
         tok.name = typeName;
         tok.type = "type";
-        program.variables[typeName] = tok;
-        context[tok.type] ??= {};
-        context[tok.type][""] = tok.compiled;
+      }
+      if (tok.type === "type") {
+        program.variables[tok.name] = tok;
       } else {
         const id = getVariableId(tok);
         program.variables[id] = tok;
-        if (typeof tok.compiled === "object") {
-          context[tok.type] ??= {};
-          context[tok.type][tok.name] = tok.compiled;
-        } else {
-          context[tok.name] = tok.compiled;
-        }
+      }
+      if (tok.type === "type") {
+        context[tok.name] ??= {};
+        context[tok.name][""] = tok.compiled;
+      } else if (typeof tok.compiled === "object") {
+        context[tok.type] ??= {};
+        context[tok.type][tok.name] = tok.compiled;
+      } else {
+        context[tok.name] = tok.compiled;
       }
     };
 
@@ -650,6 +653,16 @@ export default class SparkParser {
       );
       recordExpressionReferences(tok, valueRange?.from, valueReferences);
       reportExpressionDiagnostics(tok, valueRange, valueDiagnostics);
+      if (compiledValue === undefined && valueDiagnostics.length === 0) {
+        diagnostic(
+          program,
+          tok,
+          `Value is undefined`,
+          undefined,
+          valueRange?.from,
+          valueRange?.to
+        );
+      }
       return compiledValue;
     };
 
@@ -2118,17 +2131,18 @@ export default class SparkParser {
                   tok.type,
                   tok?.ranges?.type
                 );
+              }
+              if (tok.compiled != null) {
                 tok.type ??=
                   typeof tok.compiled === "object"
                     ? "type"
                     : typeof tok.compiled;
-              }
-
-              if (
-                (tok.access_operator || tok.assign_operator) &&
-                validateDeclaration(tok)
-              ) {
-                declareVariable(tok);
+                if (
+                  (tok.access_operator || tok.assign_operator) &&
+                  validateDeclaration(tok)
+                ) {
+                  declareVariable(tok);
+                }
               }
             }
           } else if (tok.tag === "store") {
@@ -2416,7 +2430,7 @@ export default class SparkParser {
     program.metadata.parseTime = parseEndTime;
     program.metadata.parseDuration = parseEndTime - parseStartTime;
 
-    // console.log(program);
+   // console.log(program);
 
     return program;
   }
