@@ -110,9 +110,6 @@ export default class LanguageClientPluginValue implements PluginValue {
           if (params.uri !== this._textDocument.uri) {
             return;
           }
-          if (params.version !== this._textDocument.version) {
-            return;
-          }
           this.updateDiagnostics(this._view, params.diagnostics);
           this.updateFoldingRanges(this._view);
           this.updateDocumentColors(this._view);
