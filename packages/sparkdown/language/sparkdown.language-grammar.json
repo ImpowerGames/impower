@@ -74,7 +74,7 @@
     "Comment": {
       "tag": "lineComment",
       "name": "comment.line.sd",
-      "match": "^([ \\t]*)([/][/])($|[ \\t]*)($|.*$)",
+      "match": "([ ]*)([/][/])($|[ ]*)($|.*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -139,7 +139,7 @@
       }
     },
     "Label": {
-      "match": "^([:])($|[ \\t]+)(.*$)",
+      "match": "^([:])($|[ ]+)(.*$)",
       "captures": {
         "1": {
           "tag": "contentSeparator",
@@ -164,7 +164,7 @@
     "FrontMatter": {
       "tag": "meta",
       "name": "meta.front-matter.sd",
-      "begin": "^([-]{3,})($|[ \\t]*$)",
+      "begin": "^([-]{3,})($|[ ]*$)",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -192,7 +192,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "^([-]{3,})($|[ \\t]*$)?",
+      "end": "^([-]{3,})($|[ ]*$)?",
       "endCaptures": {
         "1": {
           "tag": "keyword",
@@ -210,7 +210,7 @@
     "FrontMatterField": {
       "tag": "meta",
       "name": "meta.front-matter.field.sd",
-      "begin": "^([_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
+      "begin": "^([_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -252,10 +252,10 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^[_a-zA-Z][_a-zA-Z0-9]*[ \\t]*[:]|[-]{3,})"
+      "end": "(?=^[_a-zA-Z][_a-zA-Z0-9]*[ ]*[:]|[-]{3,})"
     },
     "FrontMatterArrayItem": {
-      "match": "^([ ]{2,}|[\\t]+)([-])($|[ \\t]+)(.*$(?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ ]{2,})([-])($|[ ]+)(.*$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -285,7 +285,7 @@
       }
     },
     "FrontMatterStringInline": {
-      "match": "($|[ \\t]*)(.*$(?:\\r\\n|\\r|\\n)?)",
+      "match": "($|[ ]*)(.*$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -304,7 +304,7 @@
       }
     },
     "FrontMatterStringBlock": {
-      "match": "^($|[ \\t]*)(.*$(?:\\r\\n|\\r|\\n)?)",
+      "match": "^($|[ ]*)(.*$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -348,12 +348,12 @@
       "match": "(.+)"
     },
     "ChunkSplitter": {
-      "match": "^((?:[@])(?:$|[ \\t]+)(?:$|[._a-zA-Z][._a-zA-Z0-9]*)(?:$|[ \\t]*$))"
+      "match": "^((?:[@])(?:$|[ ]+)(?:$|[._a-zA-Z][._a-zA-Z0-9]*)(?:$|[ ]*$))"
     },
     "Chunk": {
       "tag": "definition(annotation)",
       "name": "keyword.control.chunk.sd",
-      "match": "^([@])($|[ \\t]+)($|[._a-zA-Z][._a-zA-Z0-9]*)($|[ \\t]*$)",
+      "match": "^([@])($|[ ]+)($|[._a-zA-Z][._a-zA-Z0-9]*)($|[ ]*$)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -390,7 +390,7 @@
     "Section": {
       "tag": "definition(heading)",
       "name": "keyword.control.section.sd",
-      "match": "^([#]+)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*$)",
+      "match": "^([#]+)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -433,7 +433,7 @@
       "match": "(.+)"
     },
     "Checkpoint": {
-      "match": "^([=])($|[ \\t]+)(.*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([=])($|[ ]+)(.*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "tag": "contentSeparator",
@@ -470,7 +470,7 @@
     "FlowBreak": {
       "tag": "meta",
       "name": "meta.break.sd",
-      "match": "^(===+)($|[ \\t]*$)",
+      "match": "^(===+)($|[ ]*$)",
       "captures": {
         "1": {
           "tag": "contentSeparator",
@@ -519,7 +519,7 @@
     "Import": {
       "tag": "meta",
       "name": "meta.import.sd",
-      "begin": "^([ \\t]*)(import)($|[ \\t]+)",
+      "begin": "^([ ]*)(import)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -554,7 +554,7 @@
       "end": "($)"
     },
     "ImportDeclaration": {
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]*)($|.+$)",
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*)($|.+$)",
       "captures": {
         "1": {
           "patterns": [
@@ -597,7 +597,7 @@
       }
     },
     "ImportAssignment": {
-      "match": "($|from)($|[ \\t]+)($|.*$)",
+      "match": "($|from)($|[ ]+)($|.*$)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -639,7 +639,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "([)])([ \\t]*)([:]?)",
+      "end": "([)])([ ]*)([:]?)",
       "endCaptures": {
         "1": {
           "tag": "paren",
@@ -717,7 +717,7 @@
     "DefineFunction": {
       "tag": "meta",
       "name": "meta.definition.function.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)(?=[(])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*))(?=[(])",
+      "begin": "^([ ]*)(define)($|[ ]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)(?=[(])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*))(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -808,12 +808,12 @@
           "include": "#Expression"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "DefineScalar": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)($|[=])($|[ \\t]*)",
+      "begin": "^([ ]*)(define)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*)($|[=])($|[ ]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -881,7 +881,7 @@
     "DefineObject": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ \\t]*)($|[:])($|[ \\t]*)($|.+$)",
+      "begin": "^([ ]*)(define)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*)($|[:])($|[ ]*)($|.+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -962,12 +962,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^[ ]?$)|(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^[ ]?(?=$|[/][/]))|(?=^(?!\\1(?:[ ]{2,})))"
     },
     "DefineInvalid": {
       "tag": "meta",
       "name": "meta.define.invalid.sd",
-      "begin": "^([ \\t]*)(define)($|[ \\t]+)($|.+$)",
+      "begin": "^([ ]*)(define)($|[ ]+)($|.+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1003,7 +1003,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "StructField": {
       "emit": true,
@@ -1043,7 +1043,7 @@
     "StructMapItem": {
       "tag": "meta",
       "name": "meta.definition.struct.item.map.sd",
-      "begin": "^([ \\t]*)([-])($|[ \\t]+$)",
+      "begin": "^([ ]*)([-])($|[ ]+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1087,12 +1087,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "StructScalarItem": {
       "tag": "meta",
       "name": "meta.definition.struct.item.scalar.sd",
-      "begin": "^([ \\t]*)([-])($|[ \\t]+)(?=.*\\S.*$)",
+      "begin": "^([ ]*)([-])($|[ ]+)(?=.*\\S.*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1123,7 +1123,7 @@
     "StructMapProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.map.sd",
-      "begin": "^([ \\t]*)([^\\s:]+)($|[ \\t]*)($|[:])($|[ \\t]*$)",
+      "begin": "^([ ]*)([^\\s:]+)($|[ ]*)($|[:])($|[ ]*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1184,12 +1184,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([ \\t]*)([^\\s:]+)($|[ \\t]*)(?:($|[=])($|[ \\t]*)|($|[:])($|[ \\t]*)(?=.*\\S.*$))",
+      "begin": "^([ ]*)([^\\s:]+)($|[ ]*)(?:($|[=])($|[ ]*)|($|[:])($|[ ]*)(?=.*\\S.*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1245,7 +1245,7 @@
     "Break": {
       "tag": "meta",
       "name": "meta.break.sd",
-      "match": "^([ \\t]*)(break)($|[ \\t]+$|[ \\t]*[;])",
+      "match": "^([ ]*)(break)($|[ ]+$|[ ]*[;])",
       "captures": {
         "1": {
           "patterns": [
@@ -1270,7 +1270,7 @@
     "Continue": {
       "tag": "meta",
       "name": "meta.continue.sd",
-      "match": "^([ \\t]*)(continue)($|[ \\t]+$|[ \\t]*[;])",
+      "match": "^([ ]*)(continue)($|[ ]+$|[ ]*[;])",
       "captures": {
         "1": {
           "patterns": [
@@ -1305,7 +1305,7 @@
     "ReturnVoid": {
       "tag": "meta",
       "name": "meta.return.sd",
-      "match": "^([ \\t]*)(return)($|[ \\t]+$|[ \\t]*[;])",
+      "match": "^([ ]*)(return)($|[ ]+$|[ ]*[;])",
       "captures": {
         "1": {
           "patterns": [
@@ -1330,7 +1330,7 @@
     "ReturnValue": {
       "tag": "meta",
       "name": "meta.return.sd",
-      "begin": "^([ \\t]*)(return)($|[ \\t]+)",
+      "begin": "^([ ]*)(return)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1409,7 +1409,7 @@
     "Delete": {
       "tag": "meta",
       "name": "meta.delete.sd",
-      "begin": "^([ \\t]*)(delete)($|[ \\t]+)",
+      "begin": "^([ ]*)(delete)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1453,7 +1453,7 @@
     "If": {
       "tag": "meta",
       "name": "meta.branch.if.sd",
-      "begin": "^([ \\t]*)(if)($|[ \\t]+)",
+      "begin": "^([ ]*)(if)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1494,12 +1494,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+|elseif|else)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,}|elseif|else)))"
     },
     "Elseif": {
       "tag": "meta",
       "name": "meta.branch.elseif.sd",
-      "begin": "^([ \\t]*)(elseif)($|[ \\t]+)",
+      "begin": "^([ ]*)(elseif)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1540,12 +1540,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "Else": {
       "tag": "meta",
       "name": "meta.branch.else.sd",
-      "begin": "^([ \\t]*)(else)($|[ \\t]*)($|[:])",
+      "begin": "^([ ]*)(else)($|[ ]*)($|[:])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1590,7 +1590,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "Repeat": {
       "patterns": [
@@ -1608,7 +1608,7 @@
     "While": {
       "tag": "meta",
       "name": "meta.repeat.while.sd",
-      "begin": "^([ \\t]*)(while)($|[ \\t]+)",
+      "begin": "^([ ]*)(while)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1649,12 +1649,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "Until": {
       "tag": "meta",
       "name": "meta.repeat.until.sd",
-      "begin": "^([ \\t]*)(until)($|[ \\t]+)",
+      "begin": "^([ ]*)(until)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1695,12 +1695,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "For": {
       "tag": "meta",
       "name": "meta.repeat.for.sd",
-      "begin": "^([ \\t]*)(for)($|[ \\t]+)",
+      "begin": "^([ ]*)(for)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1741,7 +1741,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|[\\t]+)))"
+      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "Condition": {
       "patterns": [
@@ -1778,7 +1778,7 @@
     },
     "NonParentheticalCondition": {
       "name": "meta.condition.nonparenthetical.sd",
-      "match": "(.+?)([:])($|[ \\t]*)($|.+)|(.+$)",
+      "match": "(.+?)([:])($|[ ]*)($|.+)|(.+$)",
       "captures": {
         "1": {
           "patterns": [
@@ -1817,7 +1817,7 @@
     "Call": {
       "tag": "meta",
       "name": "meta.call.sd",
-      "begin": "^([ \\t]*)(do)($|[ \\t]+)",
+      "begin": "^([ ]*)(do)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1891,7 +1891,7 @@
     "Store": {
       "tag": "meta",
       "name": "meta.assign.sd",
-      "begin": "^([ \\t]*)(store)($|[ \\t]+)",
+      "begin": "^([ ]*)(store)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1928,7 +1928,7 @@
     "Assign": {
       "tag": "meta",
       "name": "meta.assign.sd",
-      "begin": "^([ \\t]*)(set)($|[ \\t]+)",
+      "begin": "^([ ]*)(set)($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1971,7 +1971,7 @@
       ]
     },
     "AssignmentExpression": {
-      "begin": "([ \\t]*)([!?~^|&<>%\\/*+-]{0,2}[=])($|[ \\t]+)",
+      "begin": "([ ]*)([!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]+)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2129,7 +2129,7 @@
     "Jump": {
       "tag": "meta",
       "name": "meta.jump.sd",
-      "match": "^([ \\t]*)((?=[-][>]).+$)",
+      "match": "^([ ]*)((?=[-][>]).+$)",
       "captures": {
         "1": {
           "patterns": [
@@ -2148,7 +2148,7 @@
       }
     },
     "JumpTo": {
-      "begin": "([-][>])($|[ \\t]+)",
+      "begin": "([-][>])($|[ ]+)",
       "beginCaptures": {
         "1": {
           "tag": "function(variableName)",
@@ -2167,7 +2167,7 @@
           "include": "#JumpToSection"
         }
       ],
-      "end": "($|[ \\t]*$)",
+      "end": "($|[ ]*$)",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -2197,7 +2197,7 @@
     },
     "Choice": {
       "name": "entity.choice.sd",
-      "match": "^([+])($|[ \\t]+)($|.*?)($|[-][>].*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([+])($|[ ]+)($|.*?)($|[-][>].*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -2250,7 +2250,7 @@
     "Image": {
       "tag": "macroName",
       "name": "meta.image.sd",
-      "match": "^([ \\t]*)(\\[\\[)(.*?)(\\]\\])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ ]*)(\\[\\[)(.*?)(\\]\\])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2327,7 +2327,7 @@
     "Audio": {
       "tag": "macroName",
       "name": "meta.audio.sd",
-      "match": "^([ \\t]*)([(][(])(.*?)([)][)])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ ]*)([(][(])(.*?)([)][)])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2402,7 +2402,7 @@
       }
     },
     "AssetContent": {
-      "match": "(?:([@])($|[_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*))?((?:[^@ \\t:]+[ \\t]*)+)?($|[:])($|.*)",
+      "match": "(?:([@])($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*))?((?:[^@ :]+[ ]*)+)?($|[:])($|.*)",
       "captures": {
         "1": {
           "tag": "controlKeyword",
@@ -2478,7 +2478,7 @@
     "Transition": {
       "tag": "labelName",
       "name": "keyword.control.transition.sd",
-      "match": "^(?:([%])($|[ \\t]+)($|.+?)|((?:[^\\p{Ll}\\s]+\\b[ \\t]+)*(?:(?:[^\\p{Ll}\\s]+\\b[ \\t]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ \\t]*$)",
+      "match": "^(?:([%])($|[ ]+)($|.+?)|((?:[^\\p{Ll}\\s]+\\b[ ]+)*(?:(?:[^\\p{Ll}\\s]+\\b[ ]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ ]*$)",
       "captures": {
         "1": {
           "tag": "punctuation",
@@ -2517,7 +2517,7 @@
     "Scene": {
       "tag": "regexp",
       "name": "string.regexp.scene.sd",
-      "match": "^(?:([$])($|[ \\t]+)($|.+?)|((?:INT[.]?[\\/]EXT[.]|INT[.]|EXT[.]|CLOSEUP[ \\t]*[-])(?:$|[ \\t]+)(?:$|.+?)))($|[ \\t]*$)",
+      "match": "^(?:([$])($|[ ]+)($|.+?)|((?:INT[.]?[\\/]EXT[.]|INT[.]|EXT[.]|CLOSEUP[ ]*[-])(?:$|[ ]+)(?:$|.+?)))($|[ ]*$)",
       "captures": {
         "1": {
           "tag": "punctuation",
@@ -2554,11 +2554,11 @@
       }
     },
     "SceneLocationTime": {
-      "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][ \\t]*(.*?)[ \\t]+[-][ \\t]+(.*?)[ \\t]*$"
+      "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][ ]*(.*?)[ ]+[-][ ]+(.*?)[ ]*$"
     },
     "Dialogue": {
       "name": "entity.dialogue.sd",
-      "begin": "^(?:([*])($|[ \\t]+)(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]*[\\p{Lu}?]))($|[ \\t]*)([(][^)]*(?:$|[)]))?($|[ \\t]*)(\\^)?($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
+      "begin": "^(?:([*])($|[ ]+)(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]*[\\p{Lu}?]))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\\^)?($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -2639,7 +2639,7 @@
           "include": "#DialogueBox"
         }
       ],
-      "end": "^[ ]?$"
+      "end": "^[ ]?(?=$|[/][/])"
     },
     "DialogueCharacterName": {
       "tag": "typeName",
@@ -2680,7 +2680,7 @@
           "include": "#BoxLineComplete"
         }
       ],
-      "end": "(?=^[ ]?$)|(\\r\\n|\\r|\\n)",
+      "end": "(?=^[ ]?(?=$|[/][/]))|(\\r\\n|\\r|\\n)",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -2694,7 +2694,7 @@
     "DialogueLineParenthetical": {
       "tag": "tagName",
       "name": "constant.character.escape.sd",
-      "match": "^([ \\t]*)([(][^()]*[)])($|[ \\t]*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ ]*)([(][^()]*[)])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2741,7 +2741,7 @@
       }
     },
     "BoxLineContinue": {
-      "match": "(.*[ \\t]$(?:\\r\\n|\\r|\\n)?)",
+      "match": "(.*[ ]$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2767,7 +2767,7 @@
     "ExplicitAction": {
       "tag": "content",
       "name": "entity.paragraph.text.action.explicit.sd",
-      "begin": "^([!])($|[ \\t]+)(?=.+$)",
+      "begin": "^([!])($|[ ]+)(?=.+$)",
       "beginCaptures": {
         "1": {
           "tag": "punctuation",
@@ -2792,7 +2792,7 @@
           "include": "#ActionBox"
         }
       ],
-      "end": "^[ ]?$"
+      "end": "^[ ]?(?=$|[/][/])"
     },
     "ImplicitAction": {
       "tag": "content",
@@ -2809,7 +2809,7 @@
           "include": "#ActionBox"
         }
       ],
-      "end": "^[ ]?$"
+      "end": "^[ ]?(?=$|[/][/])"
     },
     "ActionBox": {
       "tag": "content",
@@ -2832,7 +2832,7 @@
           "include": "#BoxLineComplete"
         }
       ],
-      "end": "(?=^[ ]?$)|(\\r\\n|\\r|\\n)",
+      "end": "(?=^[ ]?(?=$|[/][/]))|(\\r\\n|\\r|\\n)",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -2845,7 +2845,7 @@
     },
     "DisplayText": {
       "name": "entity.display.sd",
-      "match": "(?:([!]?(?:\\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ \\t]*))?(?:([@])([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*))?($|.+$(?:\\r\\n|\\r|\\n)?)",
+      "match": "(?:([!]?(?:\\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?(?:([@])([_a-zA-Z][_a-zA-Z0-9]*)([ ]*))?($|.+$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "tag": "variableName",
@@ -2959,7 +2959,7 @@
     "Space": {
       "tag": "content",
       "name": "markup.raw.space.sd",
-      "match": "([ \\t])"
+      "match": "([ ])"
     },
     "EmDash": {
       "tag": "content",
@@ -3201,7 +3201,7 @@
     "EmphasisTilde": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([~][~]+)((?:(?![~][~][ \\t]+).)*)(\\1)",
+      "match": "([~][~]+)((?:(?![~][~][ ]+).)*)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3223,7 +3223,7 @@
     "EmphasisEqual": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([=][=]+)((?:(?![=][=][ \\t]+).)*)(\\1)",
+      "match": "([=][=]+)((?:(?![=][=][ ]+).)*)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3245,7 +3245,7 @@
     "EmphasisAngleRight": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([>][>]+)((?:(?![>][>][ \\t]+).)*)(\\1)",
+      "match": "([>][>]+)((?:(?![>][>][ ]+).)*)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3267,7 +3267,7 @@
     "EmphasisAngleLeft": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([<][<]+)((?:(?![<][<][ \\t]+).)*)(\\1)",
+      "match": "([<][<]+)((?:(?![<][<][ ]+).)*)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3289,7 +3289,7 @@
     "EmphasisColon": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([:][:]+)((?:(?![:][:][ \\t]+).)*)(\\1)",
+      "match": "([:][:]+)((?:(?![:][:][ ]+).)*)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3348,12 +3348,12 @@
     "Indent": {
       "tag": "content",
       "name": "markup.raw.whitespace.indent.sd",
-      "match": "^([ \\t]+)"
+      "match": "^([ ]+)"
     },
     "Whitespace": {
       "tag": "content",
       "name": "markup.raw.whitespace.sd",
-      "match": "([ \\t]+)"
+      "match": "([ ]+)"
     },
     "String": {
       "emit": true,
@@ -4000,7 +4000,7 @@
     "IllegalPropertyDeclaration": {
       "tag": "invalid",
       "name": "invalid.illegal.property-declaration.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)([:])(.*?)($|(?=[;}]))"
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)([:])(.*?)($|(?=[;}]))"
     },
     "StructName": {
       "tag": "variableName",
@@ -4108,7 +4108,7 @@
     },
     "TemplateStringConditionalSubstitution": {
       "brackets": true,
-      "begin": "([{])(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?",
+      "begin": "([{])(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -4209,7 +4209,7 @@
     },
     "InlineTemplateStringConditionalSubstitution": {
       "brackets": true,
-      "begin": "([{])(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?(?:([ \\t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \\t]*)((?=[}])|[:]))?",
+      "begin": "([{])(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
