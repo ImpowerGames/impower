@@ -150,7 +150,7 @@ export class ChunkBuffer {
     let chunk = this.chunks[index];
 
     while (chunk) {
-      if (chunk && chunk.isPure() && chunk.from >= editedTo) {
+      if (chunk && chunk.isPure() && chunk.from > editedTo) {
         // First pure chunk after edit range found
         // Now find the point where scope is no longer pure
         return this.findNextUnpureChunk(index);
