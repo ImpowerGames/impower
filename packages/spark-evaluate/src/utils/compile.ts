@@ -11,6 +11,13 @@ export const compile = (
   let diagnostics: Diagnostic[] = [];
   let references: Diagnostic[] = [];
   if (!expr) {
+    diagnostics.push({
+      content: "",
+      from: 0,
+      to: 0,
+      severity: "error",
+      message: "Expression expected.",
+    });
     return [undefined, diagnostics, references];
   }
   try {

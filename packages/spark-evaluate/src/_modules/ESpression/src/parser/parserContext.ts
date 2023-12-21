@@ -301,12 +301,12 @@ export class ParserContext {
     const rules = this.rules[this.branch];
 
     if (!rules || this.level >= rules.length) {
-      throw this.err("No matching rule", true);
+      throw this.err("Invalid syntax.", true);
     }
 
     const rule = rules[this.level];
     if (rule === undefined) {
-      throw this.err("No matching rule", true);
+      throw this.err("Invalid syntax.", true);
     }
 
     return typeof rule === "string" ? this.moveRule(rule) : rule;
@@ -350,7 +350,7 @@ export class ParserContext {
             // empty last expression
 
             if (!c.trailing && index > 0) {
-              return this.err("Expected expression");
+              return this.err("Expression expected.");
             }
             if (index > 0) {
               sep = true;
@@ -359,7 +359,7 @@ export class ParserContext {
 
             // sparse
           } else if (!c.sparse) {
-            return this.err("Expected expression");
+            return this.err("Expression expected.");
           } else {
             nodes[index] = c.sparse !== true ? c.sparse : null;
             const node = nodes[index];
@@ -375,7 +375,7 @@ export class ParserContext {
     } while (sep && !this.eof() && index <= c.maxSep!);
 
     if (sep && this.eof() && !c.trailing) {
-      return this.err("Expected expression");
+      return this.err("Expression expected.");
     }
     if (
       (sep && !nodes.length) ||

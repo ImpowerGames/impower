@@ -58,12 +58,36 @@ export class SparkGame extends Game {
     state?: Partial<SparkGameState>
   ) {
     super(config, state);
-    this.input = new InputManager(config?.input, state?.input);
-    this.tween = new TweenManager(config?.tween, state?.tween);
-    this.sound = new SoundManager(config?.sound, state?.sound);
-    this.writer = new WriterManager(config?.writer, state?.writer);
-    this.world = new WorldManager(config?.world, state?.world);
-    this.physics = new PhysicsManager(config?.physics, state?.physics);
+    this.input = new InputManager(
+      this.environment,
+      config?.input,
+      state?.input
+    );
+    this.tween = new TweenManager(
+      this.environment,
+      config?.tween,
+      state?.tween
+    );
+    this.sound = new SoundManager(
+      this.environment,
+      config?.sound,
+      state?.sound
+    );
+    this.writer = new WriterManager(
+      this.environment,
+      config?.writer,
+      state?.writer
+    );
+    this.world = new WorldManager(
+      this.environment,
+      config?.world,
+      state?.world
+    );
+    this.physics = new PhysicsManager(
+      this.environment,
+      config?.physics,
+      state?.physics
+    );
   }
 
   override managers(): Record<string, Manager> {

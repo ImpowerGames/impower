@@ -63,18 +63,15 @@ export class BlockRunner<G extends Game> extends ContainerRunner<BlockData> {
         const commandId = command.data.reference.id;
         const commandIndex = blockState.executingIndex;
         const source = command?.data?.source;
-        const fastForward = blockState.startIndex > blockState.executingIndex;
         context.debug = game?.debug?.state?.debugging;
         if (!blockState.isExecutingCommand) {
           game.logic.setCommandSeed(blockId, commandId, game.random.state.seed);
           game.logic.executeCommand(blockId, commandId, source);
           let nextJumps: number[] = [];
-          if (!fastForward) {
-            nextJumps = command.runner.onExecute(game, command.data, {
-              index: blockState.executingIndex,
-              commands,
-            });
-          }
+          nextJumps = command.runner.onExecute(game, command.data, {
+            index: blockState.executingIndex,
+            commands,
+          });
           if (nextJumps.length > 0) {
             game.logic.commandJumpStackPush(blockId, nextJumps, source);
           }
@@ -82,7 +79,10 @@ export class BlockRunner<G extends Game> extends ContainerRunner<BlockData> {
             return true;
           }
         }
-        if (!fastForward && command.data.params.waitUntilFinished) {
+        if (
+          !game.environment.simulating &&
+          command.data.params.waitUntilFinished
+        ) {
           const finished = command.runner.isFinished(game, command.data, {
             index: blockState.executingIndex,
             commands,

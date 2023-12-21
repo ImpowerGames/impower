@@ -6,25 +6,19 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
   G,
   WaitCommandData
 > {
-  msTimers: Map<string, number> = new Map();
+  elapsedMS: number = 0;
 
   override onExecute(
     game: G,
     data: WaitCommandData,
     context: CommandContext<G>
   ): number[] {
-    const { seconds } = data;
-    this.msTimers.set(data.reference.id, 0);
-    if (!seconds) {
-      return super.onExecute(game, data, context);
-    }
+    this.elapsedMS = 0;
     return super.onExecute(game, data, context);
   }
 
   override onUpdate(_game: G, deltaMS: number): void {
-    this.msTimers.forEach((_, key) => {
-      this.msTimers.set(key, this.msTimers.get(key) ?? 0 + deltaMS);
-    });
+    this.elapsedMS += deltaMS;
   }
 
   override isFinished(
@@ -37,7 +31,7 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
       return super.isFinished(game, data, context);
     }
     const blockState = game.logic.state.blockStates[data.reference.parentId];
-    const timeMS = this.msTimers.get(data.reference.id) ?? 0;
+    const timeMS = this.elapsedMS;
     if (blockState) {
       if (seconds < 0) {
         return false;

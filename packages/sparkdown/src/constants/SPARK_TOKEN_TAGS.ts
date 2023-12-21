@@ -24,13 +24,11 @@ const SPARK_TOKEN_TAGS: {
 
   TypeIdentifier: "type_name",
   DeclarationType: "declaration_type",
-  DeclarationAccessOperator: "declaration_access_operator",
   DeclarationName: "declaration_name",
   DeclarationAssignOperator: "declaration_assign_operator",
   DeclarationProperty: "declaration_property",
   TargetAccessPath: "target_access_path",
   AccessPath: "access_path",
-  AccessPart: "access_part",
   VariableName: "variable_name",
   PropertyName: "property_name",
   FunctionName: "function_name",

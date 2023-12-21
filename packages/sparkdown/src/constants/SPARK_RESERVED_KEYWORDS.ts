@@ -4,7 +4,6 @@ const SPARK_RESERVED_KEYWORDS = [
   ...SPARK_PRIMITIVE_TYPES,
   "locale",
   "any",
-  "as",
   "boolean",
   "break",
   "case",

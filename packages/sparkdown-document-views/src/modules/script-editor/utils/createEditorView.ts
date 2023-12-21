@@ -15,6 +15,10 @@ import {
   ServerCapabilities,
 } from "../../../../../spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
+import {
+  breakpointsChanged,
+  getBreakpointLines,
+} from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { offsetToPosition } from "../../../cm-language-client/utils/offsetToPosition";
@@ -76,6 +80,7 @@ interface EditorConfig {
     };
     docChanged: boolean;
   }) => void;
+  onBreakpointsChanged?: (lines: number[]) => void;
   onHeightChanged?: () => void;
   onEdit?: (change: {
     transaction: Transaction;
@@ -102,6 +107,7 @@ const createEditorView = (
   const onFocus = config?.onFocus;
   const onIdle = config?.onIdle ?? (() => {});
   const onSelectionChanged = config?.onSelectionChanged;
+  const onBreakpointsChanged = config?.onBreakpointsChanged;
   const onHeightChanged = config?.onHeightChanged;
   const debouncedIdle = debounce(onIdle, stabilizationDuration);
   const getEditorState = config?.getEditorState;
@@ -183,6 +189,9 @@ const createEditorView = (
           };
           const docChanged = u.docChanged;
           onSelectionChanged?.({ selectedRange, docChanged });
+        }
+        if (breakpointsChanged(u)) {
+          onBreakpointsChanged?.(getBreakpointLines(u.view));
         }
         onViewUpdate?.(u);
         const json: {

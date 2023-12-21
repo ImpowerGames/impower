@@ -10,5 +10,6 @@ export * from "./specs/defaults/STYLE_DEFAULTS";
 export * from "./specs/defaults/UI_DEFAULTS";
 export * from "./specs/defaults/_gradient";
 export * from "./specs/defaults/_shadow";
+export * from "./types/ElementState";
 export * from "./types/IElement";
 export * from "./utils/getHash";

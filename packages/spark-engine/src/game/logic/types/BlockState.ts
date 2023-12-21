@@ -11,8 +11,6 @@ export interface BlockState {
   isExecutingCommand: boolean;
   hasFinished: boolean;
   hasReturned: boolean;
-  satisfiedTriggers: string[];
-  unsatisfiedTriggers: string[];
   startIndex: number;
   executingIndex: number;
   previousIndex: number;

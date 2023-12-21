@@ -1,6 +1,7 @@
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { TextDocumentSaveReason } from "../../../../../spark-editor-protocol/src/enums/TextDocumentSaveReason";
+import { ChangedEditorBreakpointsMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
 import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
@@ -355,6 +356,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 textDocument: { uri },
                 selectedRange,
                 docChanged,
+              })
+            );
+          }
+        },
+        onBreakpointsChanged: (breakpoints) => {
+          const uri = this._textDocument?.uri;
+          if (uri) {
+            this.emit(
+              ChangedEditorBreakpointsMessage.method,
+              ChangedEditorBreakpointsMessage.type.notification({
+                textDocument: { uri },
+                breakpoints,
               })
             );
           }

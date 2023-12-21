@@ -1,6 +1,7 @@
 import { GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 
 export interface InputEvents extends Record<string, GameEvent> {
   onPointerDown: GameEvent2<number, string>;
@@ -25,7 +26,11 @@ export class InputManager extends Manager<
   InputConfig,
   InputState
 > {
-  constructor(config?: Partial<InputConfig>, state?: Partial<InputState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<InputConfig>,
+    state?: Partial<InputState>
+  ) {
     const initialEvents: InputEvents = {
       onPointerDown: new GameEvent2<number, string>(),
       onPointerUp: new GameEvent2<number, string>(),
@@ -42,7 +47,7 @@ export class InputManager extends Manager<
       },
       ...(state || {}),
     };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   pointerDown(button: number, target?: string): void {

@@ -1,3 +1,5 @@
+import { ElementState } from "./ElementState";
+
 export interface IElement {
   id: string;
 
@@ -10,6 +12,8 @@ export interface IElement {
   dataset: Record<string, string | undefined>;
 
   onclick: ((this: any, ev: any) => any) | null;
+
+  init: (state: ElementState) => this;
 
   cloneChild: (index: number) => IElement | undefined;
 

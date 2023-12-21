@@ -1,6 +1,7 @@
 import { GameEvent1, interpolate } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 import { TweenTiming } from "../types/TweenTiming";
 
 export interface TweenEvents extends Record<string, GameEvent> {
@@ -22,7 +23,11 @@ export class TweenManager extends Manager<
   TweenConfig,
   TweenState
 > {
-  constructor(config?: Partial<TweenConfig>, state?: Partial<TweenState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<TweenConfig>,
+    state?: Partial<TweenState>
+  ) {
     const initialEvents: TweenEvents = {
       onAdded: new GameEvent1<string>(),
       onRemoved: new GameEvent1<string>(),
@@ -36,7 +41,7 @@ export class TweenManager extends Manager<
       elapsedMS: 0,
       ...(state || {}),
     };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   get(key: string): TweenTiming | undefined {

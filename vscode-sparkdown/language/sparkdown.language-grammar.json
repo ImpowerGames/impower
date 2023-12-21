@@ -813,7 +813,7 @@
     "DefineScalar": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([ ]*)(define)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*)($|[=])($|[ ]*)",
+      "begin": "^([ ]*)(define)($|[ ]+)([^:]*?)([ ]*)($|[!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -836,7 +836,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#DeclarationName"
+              "include": "#TargetAccessPath"
             }
           ]
         },
@@ -881,7 +881,7 @@
     "DefineObject": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([ ]*)(define)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*)($|[:])($|[ ]*)($|.+$)",
+      "begin": "^([ ]*)(define)($|[ ]+)([^:]*?)($|[ ]*)($|[:])($|[ ]*)($|(?!.+)$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -904,21 +904,21 @@
         "4": {
           "patterns": [
             {
-              "include": "#DeclarationType"
+              "include": "#TargetAccessPath"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#DeclarationAccessOperator"
+              "include": "#Whitespace"
             }
           ]
         },
         "6": {
           "patterns": [
             {
-              "include": "#DeclarationName"
+              "include": "#DeclarationAssignOperator"
             }
           ]
         },
@@ -926,27 +926,6 @@
           "patterns": [
             {
               "include": "#Whitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "9": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "10": {
-          "patterns": [
-            {
-              "include": "#Unknown"
             }
           ]
         }
@@ -1891,7 +1870,7 @@
     "Store": {
       "tag": "meta",
       "name": "meta.assign.sd",
-      "begin": "^([ ]*)(store)($|[ ]+)",
+      "begin": "^([ ]*)(store)($|[ ]+)(.*?)([ ]*)($|[!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1910,84 +1889,29 @@
               "include": "#Whitespace"
             }
           ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#TargetAccessPath"
         },
-        {
-          "include": "#AssignmentExpression"
-        },
-        {
-          "include": "#IllegalExpression"
-        }
-      ],
-      "end": "($)"
-    },
-    "Assign": {
-      "tag": "meta",
-      "name": "meta.assign.sd",
-      "begin": "^([ ]*)(set)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
+        "4": {
           "patterns": [
             {
-              "include": "#Indent"
+              "include": "#TargetAccessPath"
             }
           ]
         },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.assign.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#TargetAccessPath"
-        },
-        {
-          "include": "#AssignmentExpression"
-        },
-        {
-          "include": "#IllegalExpression"
-        }
-      ],
-      "end": "($)"
-    },
-    "TargetAccessPath": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#AccessPath"
-        }
-      ]
-    },
-    "AssignmentExpression": {
-      "begin": "([ ]*)([!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]+)",
-      "beginCaptures": {
-        "1": {
+        "5": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
         },
-        "2": {
+        "6": {
           "patterns": [
             {
               "include": "#DeclarationAssignOperator"
             }
           ]
         },
-        "3": {
+        "7": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -2000,16 +1924,77 @@
           "include": "#ValueText"
         }
       ],
-      "end": "([;])|(?=$)",
-      "endCaptures": {
+      "end": "($)"
+    },
+    "Assign": {
+      "tag": "meta",
+      "name": "meta.assign.sd",
+      "begin": "^([ ]*)(set)($|[ ]+)(.*?)([ ]*)($|[!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]*)",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#PunctuationSemicolon"
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.assign.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#TargetAccessPath"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#DeclarationAssignOperator"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
             }
           ]
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#ValueText"
+        }
+      ],
+      "end": "($)"
+    },
+    "TargetAccessPath": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#AccessPath"
+        },
+        {
+          "include": "#IllegalExpression"
+        }
+      ]
     },
     "AssignOperator": {
       "emit": true,
@@ -2085,14 +2070,6 @@
         },
         {
           "include": "#Unknown"
-        }
-      ]
-    },
-    "DeclarationAccessOperator": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#PunctuationAccessor"
         }
       ]
     },

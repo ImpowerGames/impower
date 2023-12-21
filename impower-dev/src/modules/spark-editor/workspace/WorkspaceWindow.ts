@@ -1,3 +1,4 @@
+import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { RevealEditorRangeMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RevealEditorRangeMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
@@ -59,6 +60,10 @@ export default class WorkspaceWindow {
     window.addEventListener(
       SelectedEditorMessage.method,
       this.handleSelectedEditor
+    );
+    window.addEventListener(
+      ChangedEditorBreakpointsMessage.method,
+      this.handleChangedEditorBreakpoints
     );
   }
 
@@ -157,6 +162,40 @@ export default class WorkspaceWindow {
     }
   };
 
+  protected handleChangedEditorBreakpoints = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (ChangedEditorBreakpointsMessage.type.isNotification(message)) {
+        const { textDocument, breakpoints } = message.params;
+        const uri = textDocument.uri;
+        const filename = uri.split("/").slice(-1).join("");
+        const pane = this.getPaneType(filename);
+        const panel = this.getPanelType(filename);
+        if (pane && panel) {
+          this.update({
+            ...this.store,
+            panes: {
+              ...this.store.panes,
+              [pane]: {
+                ...this.store.panes[pane],
+                panels: {
+                  ...this.store.panes[pane].panels,
+                  [panel]: {
+                    ...this.store.panes[pane].panels[panel],
+                    activeEditor: {
+                      ...this.store.panes[pane].panels[panel]!.activeEditor,
+                      breakpoints,
+                    },
+                  },
+                },
+              },
+            },
+          });
+        }
+      }
+    }
+  };
+
   getPaneState(pane: PaneType) {
     const paneState = this.store.panes[pane];
     if (!paneState) {
@@ -236,6 +275,7 @@ export default class WorkspaceWindow {
         uri: string;
         visibleRange: Range | undefined;
         selectedRange: Range | undefined;
+        breakpoints: number[] | undefined;
       }
     | undefined {
     const projectId = this.store.project.id;
@@ -252,6 +292,7 @@ export default class WorkspaceWindow {
           return {
             visibleRange: panelState.activeEditor.visibleRange,
             selectedRange: panelState.activeEditor.selectedRange,
+            breakpoints: panelState.activeEditor.breakpoints,
             uri,
           };
         }
@@ -266,6 +307,7 @@ export default class WorkspaceWindow {
         uri: string;
         visibleRange: Range | undefined;
         selectedRange: Range | undefined;
+        breakpoints: number[] | undefined;
       }
     | undefined {
     const projectId = this.store.project.id;
@@ -283,6 +325,7 @@ export default class WorkspaceWindow {
           uri,
           visibleRange: openEditor.visibleRange,
           selectedRange: openEditor.selectedRange,
+          breakpoints: openEditor.breakpoints,
         };
       }
     }

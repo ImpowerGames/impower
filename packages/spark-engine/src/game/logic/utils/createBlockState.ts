@@ -15,8 +15,6 @@ export const createBlockState = (
   isExecuting: false,
   hasFinished: false,
   hasReturned: false,
-  satisfiedTriggers: [],
-  unsatisfiedTriggers: [],
   startIndex: 0,
   executingIndex: 0,
   previousIndex: 0,

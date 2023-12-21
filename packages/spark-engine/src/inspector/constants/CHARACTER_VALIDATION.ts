@@ -1,6 +1,5 @@
 import { Character } from "../../game";
 import { RecursiveValidation } from "../types/RecursiveValidation";
-import { SYNTH_VALIDATION } from "./SYNTH_VALIDATION";
 
 const CONTOUR_VALIDATION = [1, 0, 10];
 
@@ -20,5 +19,4 @@ export const CHARACTER_VALIDATION: RecursiveValidation<Character> = {
     statement: CONTOUR_VALIDATION,
   },
   prosody: {},
-  synth: SYNTH_VALIDATION,
 };

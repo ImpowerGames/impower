@@ -12,9 +12,10 @@ export interface SparkProgram {
   chunks: Record<string, SparkChunk>;
   sections: Record<string, SparkSection>;
   variables?: Record<string, SparkVariable>;
-  stored?: string[];
 
   tokens: SparkToken[];
+  context: { [type: string]: { [name: string]: any } };
+  stored?: string[];
 
   metadata: SparkProgramMetadata;
   diagnostics?: SparkDiagnostic[];

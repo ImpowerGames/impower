@@ -2,6 +2,7 @@ import { randomizer, shuffle, uuid } from "../../../../../spark-evaluate/src";
 import { GameEvent1 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 
 export interface RandomEvents extends Record<string, GameEvent> {
   onRegenerateSeed: GameEvent1<string>;
@@ -21,7 +22,11 @@ export class RandomManager extends Manager<
   RandomConfig,
   RandomState
 > {
-  constructor(config?: Partial<RandomConfig>, state?: Partial<RandomState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<RandomConfig>,
+    state?: Partial<RandomState>
+  ) {
     const initialEvents: RandomEvents = {
       onRegenerateSeed: new GameEvent1<string>(),
       onSetSeed: new GameEvent1<string>(),
@@ -31,7 +36,7 @@ export class RandomManager extends Manager<
       ...(config || {}),
     };
     const initialState: RandomState = { seed: "", ...(state || {}) };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   getNewSeed(): string {

@@ -1,9 +1,12 @@
 import {
+  Character,
   Chunk,
   IElement,
+  Phrase,
   SparkGame,
   Synth,
   Tone,
+  Writer,
   clone,
   convertPitchNoteToHertz,
   transpose,
@@ -143,9 +146,35 @@ export const executeDisplayCommand = (
 ): ((deltaMS: number) => void) | undefined => {
   const id = data.reference.id;
   const type = data.params.type;
+  const characterKey = data?.params?.characterKey || "";
+  const characterName = data?.params?.characterName || "";
+  const characterParenthetical = data?.params?.characterParenthetical || "";
+  const content = data?.params?.content;
+  const autoAdvance = data?.params?.autoAdvance;
+
+  const displayedContent: Phrase[] = [];
+  content.forEach((c) => {
+    // Only display content without prerequisites or that have truthy prerequisites
+    if (!c.prerequisite || Boolean(game.logic.evaluate(c.prerequisite))) {
+      const r: Phrase = {
+        ...c,
+      };
+      if (r.text) {
+        // Substitute any {variables} in text
+        r.text = game.logic.format(r.text);
+      }
+      displayedContent.push(r);
+    }
+  });
+
+  if (displayedContent.length === 0) {
+    // No content to display
+    return undefined;
+  }
+
+  const structName = "display";
 
   const valueMap = game.logic.valueMap;
-  const structName = "display";
 
   const actionWriter = valueMap?.["writer"]?.["action"];
   const dialogueWriter = valueMap?.["writer"]?.["dialogue"];
@@ -155,7 +184,7 @@ export const executeDisplayCommand = (
   const characterParentheticalWriter =
     valueMap?.["writer"]?.["character_parenthetical"];
 
-  const writerConfig =
+  const writer: Writer =
     type === "action"
       ? actionWriter
       : type === "dialogue"
@@ -172,22 +201,22 @@ export const executeDisplayCommand = (
     structEl.removeState("hidden");
   }
 
-  const characterKey = data?.params?.characterKey || "";
-  const characterName = data?.params?.characterName || "";
-  const characterParenthetical = data?.params?.characterParenthetical || "";
-  const content = data?.params?.content;
-  const autoAdvance = data?.params?.autoAdvance;
-
-  const characterConfig = characterKey
+  const character: Character | undefined = characterKey
     ? valueMap?.["character"]?.[characterKey]
     : undefined;
+
+  const characterSynth: Synth | undefined =
+    valueMap?.["synth"]?.[characterKey] ?? valueMap?.["synth"]?.["character"];
+
+  const writerSynth: Synth | undefined =
+    valueMap?.["synth"]?.[type] ?? valueMap?.["synth"]?.["writer"];
 
   const characterNameSkippedMatcher = new Matcher(characterNameWriter?.skipped);
   const characterParentheticalSkippedMatcher = new Matcher(
     characterParentheticalWriter?.skipped
   );
 
-  const characterDisplayName = characterConfig?.name || characterName || "";
+  const characterDisplayName = character?.name || characterName || "";
 
   const validCharacterName =
     type === "dialogue" &&
@@ -200,46 +229,22 @@ export const executeDisplayCommand = (
       ? characterParenthetical || ""
       : "";
 
-  const resolvedContent = content
-    .filter(
-      (c) =>
-        // Only show content that have no prerequisites or have truthy prerequisites
-        !c.prerequisite || Boolean(game.logic.evaluate(c.prerequisite))
-    )
-    .map((c) => {
-      if (c.text) {
-        // Substitute any {variables} in text
-        const formattedContent = game.logic.format(c.text);
-        const resolved = {
-          ...c,
-          text: formattedContent,
-        };
-        return resolved;
-      }
-      return { ...c };
-    });
-
-  if (resolvedContent.length === 0) {
-    // No content to display
-    return undefined;
-  }
-
   const instant = context?.instant;
   const debug = context?.debug;
 
   const indicatorEl = game.ui.findFirstUIElement(structName, "indicator");
   const boxEl = game.ui.findFirstUIElement(structName, "box");
 
-  // TODO: Instead of hardcoding whether or not a channel should replace old audio, check for defined Channel settings
+  // TODO: Instead of hardcoding whether or not a channel should replace old audio, check defined audio_channel settings
   game.sound.stopChannel("writer");
   game.sound.stopChannel("voice");
 
   hideChoices(game, structName);
 
-  const changesBackdrop = resolvedContent.some(
+  const changesBackdrop = content.some(
     (p) => p.image && p.target === "backdrop"
   );
-  const changesText = resolvedContent.some((p) => p.text);
+  const changesText = content.some((p) => p.text);
 
   if (boxEl) {
     boxEl.style["display"] = changesText ? null : "none";
@@ -265,19 +270,19 @@ export const executeDisplayCommand = (
   const contentElEntries = [
     {
       key: "dialogue",
-      value: game.ui.findFirstUIElement(structName, "dialogue"),
+      parent: game.ui.findFirstUIElement(structName, "dialogue"),
     },
     {
       key: "action",
-      value: game.ui.findFirstUIElement(structName, "action"),
+      parent: game.ui.findFirstUIElement(structName, "action"),
     },
     {
       key: "scene",
-      value: game.ui.findFirstUIElement(structName, "scene"),
+      parent: game.ui.findFirstUIElement(structName, "scene"),
     },
     {
       key: "transition",
-      value: game.ui.findFirstUIElement(structName, "transition"),
+      parent: game.ui.findFirstUIElement(structName, "transition"),
     },
   ];
 
@@ -293,36 +298,49 @@ export const executeDisplayCommand = (
   }
   if (parentheticalEl) {
     parentheticalEl.style["display"] = "none";
+    parentheticalEl.replaceChildren();
   }
 
   const stalePortraits: IElement[] | undefined = portraitEl?.getChildren();
   const staleInserts: IElement[] | undefined = insertEl?.getChildren();
   let staleBackdrops: IElement[] | undefined = undefined;
-  // TODO: Instead of hardcoding whether or not a layer should replace old images, check for defined Layer settings
+  // TODO: Instead of hardcoding whether or not a layer should replace old images, check defined image_layer settings
   if (changesBackdrop) {
     staleBackdrops = backdropEl?.getChildren();
   }
 
-  const phrases = game.writer.write(
-    resolvedContent,
-    writerConfig,
-    characterConfig,
+  const clackSound = writerSynth;
+  const beepSound = characterKey ? characterSynth : writerSynth;
+  const beepEnvelope = beepSound?.envelope;
+  const beepDuration = beepEnvelope
+    ? (beepEnvelope.attack ?? 0) +
+      (beepEnvelope.decay ?? 0) +
+      (beepEnvelope.sustain ?? 0) +
+      (beepEnvelope.release ?? 0)
+    : 0;
+
+  const phrases = game.writer.write(displayedContent, {
+    syllableDuration: beepDuration,
+    writer,
+    character,
     instant,
     debug,
-    () => game.ui.createElement("span")
-  );
+  });
 
   const soundsToLoad: Sound[] = [];
   const soundEvents: (() => void)[] = [];
 
   const nextIndices: Record<string, number> = {};
-  const layerImages: Record<string, IElement[]> = {};
-  const layerElements = new Set<IElement>();
+  const stackedElements = new Set<IElement>();
 
-  contentElEntries.forEach(({ key, value }) => {
-    if (value) {
+  const inElements: IElement[] = [];
+  const outElements: IElement[] = [];
+
+  contentElEntries.forEach(({ key, parent }) => {
+    if (parent) {
       if (key === type) {
-        value.replaceChildren();
+        // TODO: Instead of hardcoding whether or not a layer should replace old text, check defined text_layer settings
+        parent.replaceChildren();
         phrases.forEach((p) => {
           if (p.image) {
             const assetNames = p.image;
@@ -354,20 +372,18 @@ export const executeDisplayCommand = (
               if (imageSrcs.length > 0) {
                 p.chunks?.forEach((c) => {
                   if (c.element) {
-                    const prevImage = layerImages[target]?.at(-1);
-                    if (prevImage) {
-                      // fade out previous image on this layer before showing this image
-                      prevImage.style["transition"] = instant
-                        ? "none"
-                        : `opacity 0s linear ${c.time}s`;
-                    }
+                    const element = game.ui
+                      .createElement("span")
+                      .init(c.element);
+                    targetEl.appendChild(element);
+                    inElements.push(element);
                     if (c.image) {
+                      c.image.style ??= {};
                       c.image.style["backgroundImage"] =
                         combinedBackgroundImage;
-                      targetEl.appendChild(c.element);
-                      c.element.appendChild(c.image);
-                      layerImages[target] ??= [];
-                      layerImages[target]!.push(c.image);
+                      const image = game.ui.createElement("span").init(c.image);
+                      element.appendChild(image);
+                      outElements.push(image);
                     }
                   }
                 });
@@ -453,90 +469,130 @@ export const executeDisplayCommand = (
           }
           if (p.text) {
             if (p.target) {
-              const targetClassName = p.target;
-              const index = nextIndices[targetClassName] ?? 0;
-              const targetEls = game.ui.findAllUIElements(
-                structName,
-                targetClassName
-              );
-              const lastContentEl = targetEls?.at(-1);
-              if (lastContentEl) {
-                const parentEl = game.ui.getParent(lastContentEl);
-                if (parentEl) {
-                  for (
-                    let i = 0;
-                    i < Math.max(targetEls.length, index + 1);
-                    i += 1
-                  ) {
-                    const el =
-                      targetEls?.[i] ||
-                      parentEl?.cloneChild(targetEls.length - 1);
-                    if (el) {
-                      if (index === i) {
-                        el.replaceChildren();
-                        p.chunks?.forEach((c) => {
-                          if (c.element) {
-                            if (c.wrapper) {
-                              el.appendChild(c.wrapper);
-                              c.wrapper.appendChild(c.element);
-                            } else {
-                              el.appendChild(c.element);
-                            }
-                          }
-                        });
-                        const firstChunk = p.chunks?.[0];
-                        if (firstChunk) {
-                          el.style["opacity"] = "0";
-                          el.style["transition"] = instant
-                            ? "none"
-                            : `opacity 0s linear ${firstChunk.time}s`;
-                        }
-                        el.style["pointerEvents"] = "auto";
-                        el.style["display"] = "block";
-                        layerElements.add(el);
-                        if (p.target === "choice") {
-                          const handleClick = (e?: {
-                            stopPropagation: () => void;
-                          }): void => {
-                            if (e) {
-                              e.stopPropagation();
-                            }
-                            targetEls.forEach((targetEl) => {
-                              if (targetEl) {
-                                targetEl.replaceChildren();
-                                targetEl.style["pointerEvents"] = null;
-                                targetEl.style["display"] = "none";
+              const target = p.target;
+              const index = nextIndices[target] ?? 0;
+              // TODO: instead of hardcoding, check if text_layer.stack is true
+              if (target === "choice") {
+                const targetEls = game.ui.findAllUIElements(structName, target);
+                const lastContentEl = targetEls?.at(-1);
+                if (lastContentEl) {
+                  const parentEl = game.ui.getParent(lastContentEl);
+                  if (parentEl) {
+                    for (
+                      let i = 0;
+                      i < Math.max(targetEls.length, index + 1);
+                      i += 1
+                    ) {
+                      const el =
+                        targetEls?.[i] ||
+                        parentEl?.cloneChild(targetEls.length - 1);
+                      if (el) {
+                        if (index === i) {
+                          el.replaceChildren();
+                          p.chunks?.forEach((c) => {
+                            if (c.element) {
+                              const element = game.ui
+                                .createElement("span")
+                                .init(c.element);
+                              if (c.wrapper) {
+                                const wrapper = game.ui
+                                  .createElement("span")
+                                  .init(c.wrapper);
+                                el.appendChild(wrapper);
+                                inElements.push(wrapper);
+                                wrapper.appendChild(element);
+                                inElements.push(element);
+                              } else {
+                                el.appendChild(element);
+                                inElements.push(element);
                               }
-                            });
-                            onClickChoice?.(...(p.args || []));
-                          };
-                          el.onclick = handleClick;
+                            }
+                          });
+                          const firstChunk = p.chunks?.[0];
+                          if (firstChunk) {
+                            el.style["opacity"] = "0";
+                            el.style["transition"] = instant
+                              ? "none"
+                              : `opacity 0s linear ${firstChunk.time}s`;
+                          }
+                          el.style["pointerEvents"] = "auto";
+                          el.style["display"] = "block";
+                          stackedElements.add(el);
+                          if (p.target === "choice") {
+                            const handleClick = (e?: {
+                              stopPropagation: () => void;
+                            }): void => {
+                              if (e) {
+                                e.stopPropagation();
+                              }
+                              targetEls.forEach((targetEl) => {
+                                if (targetEl) {
+                                  targetEl.replaceChildren();
+                                  targetEl.style["pointerEvents"] = null;
+                                  targetEl.style["display"] = "none";
+                                }
+                              });
+                              onClickChoice?.(...(p.args || []));
+                            };
+                            el.onclick = handleClick;
+                          }
                         }
                       }
                     }
                   }
-                }
 
-                nextIndices[targetClassName] = index + 1;
+                  nextIndices[target] = index + 1;
+                }
+              } else {
+                const targetEl = game.ui.findFirstUIElement(structName, target);
+                if (targetEl) {
+                  targetEl.style["display"] = "block";
+                  p.chunks?.forEach((c) => {
+                    if (c.element) {
+                      const element = game.ui
+                        .createElement("span")
+                        .init(c.element);
+                      if (c.wrapper) {
+                        const wrapper = game.ui
+                          .createElement("span")
+                          .init(c.wrapper);
+                        targetEl.appendChild(wrapper);
+                        inElements.push(wrapper);
+                        wrapper.appendChild(element);
+                        inElements.push(element);
+                      } else {
+                        targetEl.appendChild(element);
+                        inElements.push(element);
+                      }
+                    }
+                  });
+                }
               }
             } else {
               p.chunks?.forEach((c) => {
                 if (c.element) {
+                  const element = game.ui.createElement("span").init(c.element);
                   if (c.wrapper) {
-                    value.appendChild(c.wrapper);
-                    c.wrapper.appendChild(c.element);
+                    const wrapper = game.ui
+                      .createElement("span")
+                      .init(c.wrapper);
+                    parent.appendChild(wrapper);
+                    inElements.push(wrapper);
+                    wrapper.appendChild(element);
+                    inElements.push(element);
                   } else {
-                    value.appendChild(c.element);
+                    parent.appendChild(element);
+                    inElements.push(element);
                   }
                 }
               });
             }
           }
         });
-        value.style["display"] = null;
+        parent.style["display"] = null;
       } else {
-        value.replaceChildren();
-        value.style["display"] = "none";
+        // TODO: Instead of hardcoding whether or not text layers that are mutually exclusive, check defined text_layer settings
+        parent.style["display"] = "none";
       }
     }
   });
@@ -552,6 +608,7 @@ export const executeDisplayCommand = (
   }
 
   const doTransitions = () => {
+    // TODO: Instead of hardcoding whether or not a layer should replace stale elements, check defined text_layer and image_layer settings
     // To prevent flickers, wait until the last possible second to remove old images
     if (portraitEl) {
       stalePortraits?.forEach((p) => {
@@ -568,30 +625,22 @@ export const executeDisplayCommand = (
         backdropEl.removeChild(p);
       });
     }
-    layerElements.forEach((layerEl) => {
+    stackedElements.forEach((layerEl) => {
       layerEl.style["display"] = "block";
       layerEl.style["opacity"] = "1";
     });
     // Transition in new elements
-    allChunks.forEach((c) => {
-      if (c.wrapper) {
-        // Fade in wrapper
-        c.wrapper.style["opacity"] = "1";
-      }
-      if (c.element) {
-        // Fade in element
-        c.element.style["opacity"] = "1";
-      }
-      if (c.image) {
-        // Fade out images that have an out transition
-        if (c.image.style["transition"]) {
-          c.image.style["opacity"] = "0";
-        }
+    inElements.forEach((e) => {
+      e.style["opacity"] = "1";
+    });
+    // Transition out elements that are hidden after a delay
+    outElements.forEach((e) => {
+      if (e.style["transition"]) {
+        e.style["opacity"] = "0";
       }
     });
   };
 
-  const allChunks = phrases.flatMap((x) => x.chunks || []);
   const handleFinished = (): void => {
     doTransitions();
     if (indicatorEl) {
@@ -610,16 +659,6 @@ export const executeDisplayCommand = (
     if (instant) {
       handleFinished();
     } else {
-      const voiceSound = characterConfig?.synth;
-      const clackSound = writerConfig?.synth;
-      const beepSound = voiceSound || clackSound;
-      const beepEnvelope = beepSound?.envelope;
-      const beepDuration = beepEnvelope
-        ? (beepEnvelope.attack ?? 0) +
-          (beepEnvelope.decay ?? 0) +
-          (beepEnvelope.sustain ?? 0) +
-          (beepEnvelope.release ?? 0)
-        : 0;
       const tones: Tone[] = phrases.flatMap((phrase): Tone[] => {
         let lastCharacterBeep:
           | ({
@@ -670,9 +709,10 @@ export const executeDisplayCommand = (
 
         return phraseBeeps as Tone[];
       });
-      allChunks.forEach((c) => {
-        if (c.element) {
-          c.element.style["display"] = null;
+      // Load all chunks in their default state
+      inElements.forEach((e) => {
+        if (e) {
+          e.style["display"] = null;
         }
       });
       // Load and modulate ((sounds))
@@ -705,7 +745,8 @@ export const executeDisplayCommand = (
   }
   let elapsedMS = 0;
   let finished = false;
-  const totalDurationMS = allChunks.reduce((p, c) => p + c.duration * 1000, 0);
+  const lastChunk = phrases.at(-1)?.chunks?.at(-1);
+  const totalDurationMS = (lastChunk?.time ?? 0) + (lastChunk?.duration ?? 0);
   const handleTick = (deltaMS: number): void => {
     if (started && !finished) {
       if (elapsedMS === 0) {

@@ -1,12 +1,13 @@
 import { SparkProgram } from "../../../../sparkdown/src";
-import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { CommandData } from "../../data";
-import { Game, GameConfig, GameState } from "../../game";
+import { Block, Game, GameConfig, GameState } from "../../game";
 import { CommandRunner } from "../../runner";
 import { GameRunner } from "../../runner/classes/GameRunner";
 import { ContextOptions } from "../interfaces/ContextOptions";
-import { generateBlocks } from "../utils/generateBlocks";
-import { generateVariables } from "../utils/generateVariables";
+import { combineBlockMap } from "../utils/combineBlockMap";
+import { combineValueMap } from "../utils/combineValueMap";
+import getCommandIndexAtLine from "../utils/getCommandIndexAtLine";
+import getSectionAtLine from "../utils/getSectionAtLine";
 
 export class Context<
   G extends Game = Game,
@@ -70,57 +71,70 @@ export class Context<
     this._runner = options.runner || (new GameRunner() as R);
     this._editable = options?.editable || false;
     this._game = this.load(programs, options);
-    this._entryProgramId = options.entryProgram || "";
+    this._entryProgramId = options.startFromProgram || "";
   }
 
   load(
     programs: Record<string, SparkProgram>,
     options: ContextOptions<G, C, S, R>
   ): G {
-    const entryProgramId = options?.entryProgram || "";
-    const entryLine = options?.entryLine || 0;
-    const program = entryProgramId
-      ? programs[entryProgramId]
+    const startFromProgramId = options?.startFromProgram ?? "";
+    const startFromLine = options?.startFromLine ?? 0;
+    const simulating =
+      options?.simulateFromProgram != null || options?.simulateFromLine != null;
+    const simulateFromProgramId = options?.simulateFromProgram ?? "";
+    const simulateFromLine = options?.simulateFromLine ?? 0;
+    const startFromProgram = startFromProgramId
+      ? programs[startFromProgramId]
       : Object.values(programs)[0];
-    if (!program) {
+    if (!startFromProgram) {
       throw new Error(
-        `Could not find program with id '${entryProgramId}' in: ${Object.keys(
+        `Could not find program with id '${startFromProgramId}' in: ${Object.keys(
           programs
         )}`
       );
     }
-    const blockMap = generateBlocks(entryProgramId, program?.sections || {});
-    const variableMap = generateVariables(
-      entryProgramId,
-      program?.variables || {}
+    const blockMap: Record<string, Block> = {};
+    const valueMap: Record<string, Record<string, any>> = {};
+    Object.entries(programs).forEach(([programId, program]) => {
+      combineBlockMap(programId, program?.sections, blockMap);
+      combineValueMap(program?.context, valueMap);
+    });
+    const startFromBlockId =
+      getSectionAtLine(startFromLine, startFromProgram?.sections) ?? "";
+    const startFromCommandIndex = getCommandIndexAtLine(
+      startFromLine,
+      blockMap?.[startFromBlockId]?.commands
     );
-    const [startBlockId] = getSectionAtLine(entryLine, program?.sections || {});
-    const startRuntimeBlock = blockMap?.[startBlockId];
-    let startCommandIndex = 0;
-    const startCommands = Object.values(startRuntimeBlock?.commands || {});
-    for (let i = 1; i < startCommands?.length || 0; i += 1) {
-      const command = startCommands[i];
-      if (
-        command &&
-        command.params?.check !== "end" &&
-        command.source.line > entryLine
-      ) {
-        break;
-      } else {
-        startCommandIndex = i;
-      }
-    }
+    const simulationBlockId = simulating
+      ? getSectionAtLine(
+          simulateFromLine,
+          programs[simulateFromProgramId]?.sections
+        )
+      : undefined;
+    const simulationCommandIndex = simulating
+      ? getCommandIndexAtLine(
+          simulateFromLine,
+          blockMap?.[simulationBlockId ?? ""]?.commands
+        )
+      : undefined;
     const c = {
       ...(options?.config || {}),
-      logic: { blockMap, variableMap },
+      environment: {
+        simulating,
+      },
+      logic: {
+        ...(options?.config?.logic || {}),
+        blockMap,
+        valueMap,
+        simulateFromBlockId: simulationBlockId,
+        simulateFromCommandIndex: simulationCommandIndex,
+        startFromBlockId: startFromBlockId,
+        startFromCommandIndex: startFromCommandIndex,
+      },
     } as C;
     const s = {
       ...(options?.state || {}),
-      logic: {
-        ...(options?.state?.logic || {}),
-        activeParentBlockId: startBlockId,
-        activeCommandIndex: startCommandIndex,
-      },
     } as S;
     const game = options.createGame?.(c, s) || (new Game(c, s) as G);
     Object.entries(game?.logic?.config?.blockMap).forEach(

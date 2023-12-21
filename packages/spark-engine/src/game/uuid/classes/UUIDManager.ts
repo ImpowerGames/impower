@@ -1,6 +1,7 @@
 import { uuid } from "../../../../../spark-evaluate/src";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 
 export interface UUIDEvents extends Record<string, GameEvent> {}
 
@@ -11,14 +12,18 @@ export interface UUIDConfig {
 export interface UUIDState {}
 
 export class UUIDManager extends Manager<UUIDEvents, UUIDConfig, UUIDState> {
-  constructor(config?: Partial<UUIDConfig>, state?: Partial<UUIDState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<UUIDConfig>,
+    state?: Partial<UUIDState>
+  ) {
     const initialEvents: UUIDEvents = {};
     const initialConfig: UUIDConfig = {
       generator: uuid,
       ...(config || {}),
     };
     const initialState: UUIDState = { seed: "", ...(state || {}) };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   generate(): string {

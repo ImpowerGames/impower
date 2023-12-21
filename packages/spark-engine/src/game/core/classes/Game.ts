@@ -4,6 +4,7 @@ import { RandomConfig, RandomManager, RandomState } from "../../random";
 import { TickerConfig, TickerManager, TickerState } from "../../ticker";
 import { UIConfig, UIManager, UIState } from "../../ui";
 import { UUIDConfig, UUIDManager, UUIDState } from "../../uuid";
+import { Environment } from "../types/Environment";
 import { ListenOnly } from "../types/ListenOnly";
 import { GameEvent } from "./GameEvent";
 import { GameEvent0 } from "./GameEvent0";
@@ -15,6 +16,7 @@ export interface GameEvents extends Record<string, GameEvent> {
 }
 
 export interface GameConfig {
+  environment?: Partial<Environment>;
   ticker?: Partial<TickerConfig>;
   uuid?: Partial<UUIDConfig>;
   ui?: Partial<UIConfig>;
@@ -33,6 +35,8 @@ export interface GameState {
 }
 
 export class Game {
+  environment: Environment = { simulating: false };
+
   ticker: TickerManager;
 
   uuid: UUIDManager;
@@ -46,12 +50,29 @@ export class Game {
   debug: DebugManager;
 
   constructor(config?: Partial<GameConfig>, state?: Partial<GameState>) {
-    this.ticker = new TickerManager(config?.ticker, state?.ticker);
-    this.uuid = new UUIDManager(config?.uuid, state?.uuid);
-    this.random = new RandomManager(config?.random, state?.random);
-    this.logic = new LogicManager(config?.logic, state?.logic);
-    this.ui = new UIManager(config?.ui, state?.ui);
-    this.debug = new DebugManager(config?.debug, state?.debug);
+    this.environment = { ...this.environment, ...(config?.environment || {}) };
+    this.ticker = new TickerManager(
+      this.environment,
+      config?.ticker,
+      state?.ticker
+    );
+    this.uuid = new UUIDManager(this.environment, config?.uuid, state?.uuid);
+    this.random = new RandomManager(
+      this.environment,
+      config?.random,
+      state?.random
+    );
+    this.logic = new LogicManager(
+      this.environment,
+      config?.logic,
+      state?.logic
+    );
+    this.ui = new UIManager(this.environment, config?.ui, state?.ui);
+    this.debug = new DebugManager(
+      this.environment,
+      config?.debug,
+      state?.debug
+    );
   }
 
   managers(): Record<string, Manager> {

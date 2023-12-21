@@ -13,13 +13,10 @@ import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import {
   ISparkDeclarationToken,
-  ISparkStructFieldToken,
-  SparkAssignToken,
-  SparkStoreToken,
   SparkStructBlankProperty,
   SparkStructMapPropertyToken,
 } from "@impower/sparkdown/src/types/SparkToken";
-import { SparkVariable } from "@impower/sparkdown/src/types/SparkVariable";
+import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
 import { Asset } from "../types/Asset";
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";
@@ -228,7 +225,7 @@ const getStructMapPropertyNameCompletions = (
     if (p.startsWith(prefix)) {
       const [name, child] = p.slice(prefix.length).split(".");
       const targetPath = p.slice(0, prefix.length) + name;
-      const description = child ? "object" : typeof v;
+      const description = child ? undefined : typeof v;
       if (name && Number.isNaN(Number(name))) {
         if (!existingProps.has(targetPath) && !possibleNames.has(name)) {
           possibleNames.add(name);
@@ -248,86 +245,65 @@ const getStructMapPropertyNameCompletions = (
   return result;
 };
 
-const getPropertyNameCompletions = (
-  program: SparkProgram | undefined,
-  type: string,
-  path: string
-): CompletionItem[] | null => {
-  if (!type) {
-    return null;
-  }
-  const parentObj = program?.variables?.[type]?.compiled;
+const getTypeOrNameCompletions = (program: SparkProgram | undefined) => {
   const result: CompletionItem[] = [];
-  const possibleNames = new Set<string>();
-  const trimmedPath = path.replace(/^[.]+/, "").replace(/[.]+$/, "");
-  const prefix = trimmedPath ? `.${trimmedPath}.` : ".";
-  const parentProperties = getAllProperties(parentObj);
-  Object.entries(parentProperties).forEach(([p, v]) => {
-    if (p.startsWith(prefix)) {
-      const [name, child] = p.slice(prefix.length).split(".");
-      const description = child ? "object" : typeof v;
-      if (name && Number.isNaN(Number(name))) {
-        if (!possibleNames.has(name)) {
-          possibleNames.add(name);
-          result.push({
-            label: name,
-            labelDetails: { description },
-            kind: CompletionItemKind.Property,
-            insertTextMode: InsertTextMode.asIs,
-          });
-        }
-      }
-    }
-  });
-  return result;
-};
-
-const getVariableCompletions = (
-  program: SparkProgram | undefined,
-  filter?: (variable: SparkVariable) => boolean,
-  boost?: (variable: SparkVariable) => boolean
-) => {
-  if (!program?.variables) {
-    return [];
-  }
-  const result: CompletionItem[] = [];
-  Object.entries(program.variables).forEach(([name, variable]) => {
-    if (!filter || filter(variable)) {
-      const description = variable.type ?? "object";
-      const sortText = boost?.(variable) ? "0" : "1";
+  if (program?.context) {
+    Object.entries(program?.context).forEach(([k, v]) => {
+      const description = typeof v === "object" ? undefined : typeof v;
+      const sortText = typeof v !== "object" ? "0" : "1";
+      const kind =
+        typeof v === "object"
+          ? CompletionItemKind.TypeParameter
+          : CompletionItemKind.Variable;
       result.push({
-        label: name,
+        label: k,
         labelDetails: { description },
-        kind: CompletionItemKind.Variable,
+        kind,
         insertTextMode: InsertTextMode.asIs,
         sortText,
       });
-    }
-  });
+    });
+  }
   return result;
 };
 
-const PRIMITIVE_TYPES = ["string", "number", "boolean"];
-
-const getTypeCompletions = (program: SparkProgram | undefined) => {
+const getAccessPathCompletions = (
+  program: SparkProgram | undefined,
+  beforeText: string
+) => {
+  const match = beforeText.match(/([_a-zA-Z0-9.]+?)$/);
+  const path = match?.[1]?.trim();
+  const parts = path?.split(".") || [];
+  const parentPath =
+    parts.length === 1
+      ? ""
+      : path?.endsWith(".")
+      ? parts.slice(0, -1).join(".")
+      : parts.join(".");
+  const keyStartsWith =
+    parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
   const result: CompletionItem[] = [];
-  PRIMITIVE_TYPES.forEach((type) => {
-    result.push({
-      label: type,
-      kind: CompletionItemKind.Keyword,
-      insertTextMode: InsertTextMode.asIs,
-    });
-  });
-  if (program?.variables) {
-    Object.entries(program.variables).forEach(([name, variable]) => {
-      if (!variable.type || variable.type === "object") {
-        result.push({
-          label: name,
-          kind: CompletionItemKind.TypeParameter,
-          insertTextMode: InsertTextMode.asIs,
-        });
-      }
-    });
+  if (program?.context) {
+    const props = getProperty(program.context, parentPath);
+    if (props) {
+      Object.entries(props).forEach(([k, v]) => {
+        if (!keyStartsWith || k.startsWith(keyStartsWith)) {
+          const description = typeof v === "object" ? undefined : typeof v;
+          const kind =
+            parts.length <= 1
+              ? CompletionItemKind.TypeParameter
+              : parts.length === 2
+              ? CompletionItemKind.Variable
+              : CompletionItemKind.Property;
+          result.push({
+            label: k,
+            labelDetails: { description },
+            kind,
+            insertTextMode: InsertTextMode.asIs,
+          });
+        }
+      });
+    }
   }
   return result;
 };
@@ -347,11 +323,13 @@ const getCompletions = (
   const nextLineText = getLineText(document, position, 1);
   const beforeText = getLineTextBefore(document, position);
   const afterText = getLineTextAfter(document, position);
-  const trimmedBeforeText = beforeText.trimStart();
-  const trimmedAfterText = afterText.trimEnd();
+  const trimmedBeforeText = beforeText.trim();
+  const trimmedAfterText = afterText.trim();
+  const trimmedStartBeforeText = beforeText.trimStart();
   const lineMetadata = program?.metadata?.lines?.[line];
   const scopes = lineMetadata?.scopes;
   const triggerCharacter = context?.triggerCharacter;
+  // console.log(scopes, JSON.stringify(beforeText));
   if (scopes) {
     if (scopes.includes("image")) {
       return getImageCompletions(program);
@@ -370,167 +348,88 @@ const getCompletions = (
     if (
       scopes.includes("action") &&
       scopes.includes("text") &&
-      !beforeText &&
       isEmptyLine(prevLineText) &&
-      isEmptyLine(nextLineText)
+      isEmptyLine(nextLineText) &&
+      !trimmedAfterText
     ) {
-      return getCharacterCompletions(position.line, program, trimmedBeforeText);
+      return getCharacterCompletions(
+        position.line,
+        program,
+        trimmedStartBeforeText
+      );
     }
     if (
       scopes.includes("dialogue") &&
       scopes.includes("dialogue_character_name") &&
       !trimmedAfterText
     ) {
-      return getCharacterCompletions(position.line, program, trimmedBeforeText);
+      return getCharacterCompletions(
+        position.line,
+        program,
+        trimmedStartBeforeText
+      );
     }
-    if (scopes.includes("define")) {
-      if (
-        scopes.includes("struct_map_property_start") &&
-        scopes.includes("property_name")
-      ) {
-        const token = lineMetadata.tokens
-          ?.map((i) => program?.tokens?.[i])
-          .findLast((t) => t?.tag === "define") as
-          | ISparkDeclarationToken<string>
-          | undefined;
-        const structMapPropertyToken = lineMetadata.tokens
-          ?.map((i) => program?.tokens?.[i])
-          .findLast((t) => t?.tag === "struct_map_property") as
-          | SparkStructMapPropertyToken
-          | undefined;
-        if (token && !beforeText.includes(":")) {
+    if (scopes.includes("access_path")) {
+      return getAccessPathCompletions(program, beforeText);
+    }
+    if (
+      (trimmedBeforeText === "define" ||
+        trimmedBeforeText === "store" ||
+        trimmedBeforeText === "set") &&
+      !trimmedAfterText
+    ) {
+      return getTypeOrNameCompletions(program);
+    }
+    if (
+      scopes.includes("struct_map_property_start") &&
+      scopes.includes("property_name")
+    ) {
+      const defineToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "define") as
+        | ISparkDeclarationToken<string>
+        | undefined;
+      const structMapPropertyToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct_map_property") as
+        | SparkStructMapPropertyToken
+        | undefined;
+      if (defineToken?.name) {
+        const variable = program?.variables?.[defineToken.name];
+        if (variable && !beforeText.includes(":")) {
           return getStructMapPropertyNameCompletions(
             program,
-            token.type,
-            token.fields,
+            variable.type,
+            variable.fields,
             structMapPropertyToken?.path ?? "",
             beforeText
           );
         }
       }
-      if (scopes.includes("struct_blank_property") && !triggerCharacter) {
-        const token = lineMetadata.tokens
-          ?.map((i) => program?.tokens?.[i])
-          .findLast((t) => t?.tag === "define") as
-          | ISparkDeclarationToken<string>
-          | undefined;
-        const structBlankProperty = lineMetadata.tokens
-          ?.map((i) => program?.tokens?.[i])
-          .findLast((t) => t?.tag === "struct_blank_property") as
-          | SparkStructBlankProperty
-          | undefined;
-        if (token && !beforeText.includes(":")) {
+    }
+    if (scopes.includes("struct_blank_property") && !triggerCharacter) {
+      const defineToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "define") as
+        | ISparkDeclarationToken<string>
+        | undefined;
+      const structBlankPropertyToken = lineMetadata.tokens
+        ?.map((i) => program?.tokens?.[i])
+        .findLast((t) => t?.tag === "struct_blank_property") as
+        | SparkStructBlankProperty
+        | undefined;
+      if (defineToken?.name) {
+        const variable = program?.variables?.[defineToken.name];
+        if (variable && !beforeText.includes(":")) {
           return getStructMapPropertyNameCompletions(
             program,
-            token.type,
-            token.fields,
-            structBlankProperty?.path ?? "",
+            variable.type,
+            variable.fields,
+            structBlankPropertyToken?.path ?? "",
             beforeText
           );
         }
       }
-      if (scopes.at(-1) === "type_name") {
-        return getTypeCompletions(program);
-      }
-      if (
-        (scopes.includes("struct_scalar_property") ||
-          scopes.includes("struct_scalar_item")) &&
-        scopes.includes("value_text") &&
-        scopes.at(-1) === "variable_name"
-      ) {
-        const fieldToken = lineMetadata.tokens
-          ?.map((i) => program?.tokens?.[i])
-          .findLast(
-            (t) =>
-              t?.tag === "struct_scalar_property" ||
-              t?.tag === "struct_scalar_item"
-          ) as ISparkStructFieldToken<string> | undefined;
-        if (fieldToken) {
-          return getVariableCompletions(
-            program,
-            (v) => v.line !== line && !v.implicit,
-            (v) => v.type === fieldToken.type
-          );
-        }
-        // TODO: Use struct validation to autocomplete enum strings
-      }
-    }
-    if (
-      (scopes.includes("define") ||
-        scopes.includes("store") ||
-        scopes.includes("assign")) &&
-      scopes.includes("value_text") &&
-      scopes.at(-1) === "variable_name"
-    ) {
-      const declarationToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast(
-          (t) =>
-            t?.tag === "define" || t?.tag === "store" || t?.tag === "assign"
-        ) as ISparkDeclarationToken<string> | undefined;
-      if (declarationToken) {
-        return getVariableCompletions(
-          program,
-          (v) => v.line !== line && !v.implicit,
-          (v) => v.type === declarationToken.type
-        );
-      }
-    }
-    if (
-      (scopes.at(0) === "store" ||
-        scopes.at(0) === "assign" ||
-        scopes.at(0) === "delete") &&
-      scopes.at(1) === "whitespace"
-    ) {
-      return getVariableCompletions(
-        program,
-        (v) => v.line !== line && !v.implicit,
-        (v) => typeof v.compiled !== "object"
-      );
-    }
-    if (
-      scopes.includes("target_access_path") &&
-      scopes.at(-1) === "variable_name"
-    ) {
-      return getVariableCompletions(
-        program,
-        (v) => v.line !== line && !v.implicit && typeof v.compiled === "object"
-      );
-    }
-    if (scopes.includes("value_text") && scopes.at(-1) === "variable_name") {
-      return getVariableCompletions(
-        program,
-        (v) => v.line !== line && !v.implicit
-      );
-    }
-    if (scopes.at(-1) === "punctuation_accessor") {
-      const assignToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "store" || t?.tag === "assign") as
-        | SparkStoreToken
-        | SparkAssignToken
-        | undefined;
-      const pathParts = assignToken?.content;
-      if (pathParts) {
-        const variableName = pathParts?.[0]?.text;
-        if (variableName) {
-          const variable = program?.variables?.[variableName];
-          if (variable) {
-            return getPropertyNameCompletions(
-              program,
-              variable.type,
-              pathParts
-                .slice(1)
-                .map((p) => p.text)
-                .join("")
-            );
-          }
-        }
-      }
-    }
-  } else {
-    if (!beforeText && isEmptyLine(prevLineText) && isEmptyLine(nextLineText)) {
-      return getCharacterCompletions(position.line, program);
     }
   }
   return undefined;

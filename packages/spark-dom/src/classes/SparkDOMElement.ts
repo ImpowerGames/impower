@@ -1,4 +1,4 @@
-import { IElement } from "../../../spark-engine/src";
+import { ElementState, IElement } from "../../../spark-engine/src";
 import { getCSSPropertyKeyValue } from "../utils/getCSSPropertyKeyValue";
 import { getCSSPropertyName } from "../utils/getCSSPropertyName";
 
@@ -50,6 +50,18 @@ export class SparkDOMElement implements IElement {
     this._htmlElement = htmlElement;
     this._id = htmlElement.id;
     this._children = [...children];
+  }
+
+  init(state: ElementState) {
+    if (state.textContent != null) {
+      this.textContent = state.textContent;
+    }
+    if (state.style != null) {
+      Object.entries(state.style).forEach(([key, value]) => {
+        this.style[key] = value as string;
+      });
+    }
+    return this;
   }
 
   cloneChild(index: number): IElement | undefined {

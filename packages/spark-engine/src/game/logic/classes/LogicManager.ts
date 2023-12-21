@@ -4,10 +4,10 @@ import { setProperty } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { GameEvent2 } from "../../core/classes/GameEvent2";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 import { Block } from "../types/Block";
 import { BlockState } from "../types/BlockState";
 import { DocumentSource } from "../types/DocumentSource";
-import { Variable } from "../types/Variable";
 import { createBlockState } from "../utils/createBlockState";
 
 export interface LogicEvents extends Record<string, GameEvent> {
@@ -31,14 +31,18 @@ export interface LogicEvents extends Record<string, GameEvent> {
 }
 
 export interface LogicConfig {
+  simulateFromBlockId?: string;
+  simulateFromCommandIndex?: number;
+  startFromBlockId: string;
+  startFromCommandIndex: number;
   blockMap: Record<string, Block>;
-  variableMap: Record<string, Variable>;
+  valueMap: Record<string, Record<string, any>>;
   stored: string[];
 }
 
 export interface LogicState {
-  activeParentBlockId: string;
-  activeCommandIndex: number;
+  currentBlockId: string;
+  currentCommandIndex: number;
   loadedBlockIds: string[];
   loadedAssetIds: string[];
   blockStates: Record<string, BlockState>;
@@ -55,7 +59,11 @@ export class LogicManager extends Manager<
     return this._valueMap;
   }
 
-  constructor(config?: Partial<LogicConfig>, state?: Partial<LogicState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<LogicConfig>,
+    state?: Partial<LogicState>
+  ) {
     const initialEvents: LogicEvents = {
       onLoadBlock: new GameEvent2<string, DocumentSource | undefined>(),
       onUnloadBlock: new GameEvent2<string, DocumentSource | undefined>(),
@@ -88,57 +96,59 @@ export class LogicManager extends Manager<
     };
     const initialConfig: LogicConfig = {
       blockMap: {},
-      variableMap: {},
+      valueMap: {},
       stored: [],
+      startFromBlockId: "",
+      startFromCommandIndex: 0,
       ...(config || {}),
     };
     const initialState: LogicState = {
-      activeParentBlockId: "",
-      activeCommandIndex: 0,
+      currentBlockId: "",
+      currentCommandIndex: 0,
       loadedBlockIds: [],
       loadedAssetIds: [],
       blockStates: {},
       valueStates: {},
       ...(state || {}),
     };
-    super(initialEvents, initialConfig, initialState);
-    if (this.config?.blockMap) {
-      Object.entries(this.config?.blockMap).forEach(([sectionName]) => {
-        const blockState = this._state.blockStates[sectionName];
-        const executionCount = blockState?.executionCount ?? 0;
-        this._valueMap["section"] ??= {};
-        this._valueMap["section"]![sectionName] = executionCount;
-      });
+    super(environment, initialEvents, initialConfig, initialState);
+    if (this.config?.valueMap) {
+      this._valueMap = this.config?.valueMap;
     }
-    if (this.config?.variableMap) {
-      Object.entries(this.config?.variableMap).forEach(
-        ([variableName, variable]) => {
-          const value = variable.compiled;
-          if (variable.type === "type") {
-            this._valueMap[variableName] ??= {};
-            this._valueMap[variableName]!["default"] = value;
-          } else {
-            setProperty(this._valueMap, variableName, value);
-          }
-        }
-      );
+    if (this._state.valueStates) {
+      // Restore value states
+      Object.entries(this._state.valueStates).forEach(([accessPath, value]) => {
+        setProperty(this._valueMap, accessPath, value);
+      });
     }
   }
 
   override init() {
+    const simulating =
+      this._config?.simulateFromBlockId != null ||
+      this._config?.simulateFromCommandIndex != null;
     this.enterBlock(
-      this._state.activeParentBlockId,
+      simulating
+        ? this._config.simulateFromBlockId ?? ""
+        : this._config.startFromBlockId,
       false,
       null,
-      this._state.activeCommandIndex
+      simulating
+        ? this._config.simulateFromCommandIndex ?? 0
+        : this._config.startFromCommandIndex
     );
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
-    if (this._state.activeParentBlockId === newParentBlockId) {
+    if (this._state.currentBlockId === newParentBlockId) {
       return;
     }
-    this._state.activeParentBlockId = newParentBlockId;
+    this._state.currentBlockId = newParentBlockId;
+    if (
+      this._config.simulateFromBlockId != null &&
+      this._state.currentBlockId
+    ) {
+    }
     const parent = this._config.blockMap?.[newParentBlockId]!;
     this._events.onChangeActiveParentBlock.dispatch(
       newParentBlockId,
@@ -226,6 +236,7 @@ export class LogicManager extends Manager<
       blockState.executedBy = executedBy;
       blockState.isExecuting = true;
       blockState.startIndex = startIndex || 0;
+      blockState.executingIndex = startIndex || 0;
       blockState.executionCount += 1;
       this._valueMap["section"] ??= {};
       this._valueMap["section"]![blockName] = blockState.executionCount;
@@ -405,6 +416,15 @@ export class LogicManager extends Manager<
   ): void {
     const blockState = this._state.blockStates[blockId];
     if (blockState) {
+      if (
+        (this._config.simulateFromBlockId != null ||
+          this._config.simulateFromCommandIndex != null) &&
+        this._config.startFromBlockId === blockId &&
+        this._config.startFromCommandIndex === blockState.executingIndex
+      ) {
+        // We've caught up, stop simulating
+        this._environment.simulating = false;
+      }
       blockState.isExecutingCommand = true;
       const currentExecutionCount =
         blockState.commandExecutionCounts[commandId] || 0;
@@ -467,8 +487,13 @@ export class LogicManager extends Manager<
     return undefined;
   }
 
-  evaluate(expression: string): unknown {
-    const context = this._valueMap;
+  evaluate(
+    expression: string,
+    overrides?: { $value: number; $seed: string }
+  ): unknown {
+    const context = overrides
+      ? { ...this._valueMap, ...overrides }
+      : this._valueMap;
     const result = evaluate(expression, context);
     return result;
   }

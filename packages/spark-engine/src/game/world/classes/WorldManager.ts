@@ -1,6 +1,7 @@
 import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 import { CameraState } from "../types/CameraState";
 import { EntityState } from "../types/EntityState";
 import { createCameraState } from "../utils/createCameraState";
@@ -29,7 +30,11 @@ export class WorldManager extends Manager<
   WorldConfig,
   WorldState
 > {
-  constructor(config?: Partial<WorldConfig>, state?: Partial<WorldState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<WorldConfig>,
+    state?: Partial<WorldState>
+  ) {
     const initialEvents: WorldEvents = {
       onSpawnEntity: new GameEvent3<string, string, EntityState>(),
       onDestroyEntity: new GameEvent2<string, string>(),
@@ -49,7 +54,7 @@ export class WorldManager extends Manager<
       cameraStates: { default: createCameraState() },
       ...(state || {}),
     };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   private getCameraState(cameraId?: string): CameraState | undefined {

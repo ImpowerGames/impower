@@ -15,7 +15,6 @@ export interface SparkVariable extends SparkRange {
   implicit?: boolean;
 
   ranges?: {
-    type?: SparkRange;
     name?: SparkRange;
     value?: SparkRange;
   };

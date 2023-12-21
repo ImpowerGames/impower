@@ -51,29 +51,23 @@ export interface SparkImportToken extends ISparkToken<"import"> {
 
 export interface ISparkDeclarationToken<T extends string>
   extends ISparkToken<T> {
-  type: string;
   name: string;
-  access_operator?: string;
-  assign_operator?: string;
+  operator?: string;
   value: string;
   compiled: unknown;
   fields?: ISparkStructFieldToken[];
   entriesLength?: number;
 
   ranges?: {
-    type?: SparkRange;
     name?: SparkRange;
-    access_operator?: SparkRange;
-    assign_operator?: SparkRange;
+    operator?: SparkRange;
     value?: SparkRange;
   };
 }
 
 export interface SparkDefineToken extends ISparkDeclarationToken<"define"> {}
 
-export interface SparkStoreToken extends ISparkDeclarationToken<"store"> {
-  content?: SparkAccessPartToken[];
-}
+export interface SparkStoreToken extends ISparkDeclarationToken<"store"> {}
 
 export interface ISparkStructFieldToken<T extends string = string>
   extends ISparkToken<T> {
@@ -136,7 +130,6 @@ export interface SparkReturnToken extends ISparkToken<"return"> {
 }
 
 export interface SparkDeleteToken extends ISparkToken<"delete"> {
-  type: string;
   name: string;
 
   ranges?: {
@@ -160,21 +153,16 @@ export interface SparkCallToken extends ISparkToken<"call"> {
 }
 
 export interface SparkAssignToken extends ISparkToken<"assign"> {
-  type: string;
   name: string;
-  assign_operator: string;
+  operator: string;
   value: string;
-  content?: SparkAccessPartToken[];
+  compiled: unknown;
 
   ranges?: {
     name?: SparkRange;
-    assign_operator?: SparkRange;
+    operator?: SparkRange;
     value?: SparkRange;
   };
-}
-
-export interface SparkAccessPartToken extends ISparkToken<"access_part"> {
-  text: string;
 }
 
 export interface SparkJumpToken extends ISparkToken<"jump"> {
@@ -327,7 +315,6 @@ export interface SparkOtherToken
     | "continue"
     | "type_name"
     | "declaration_type"
-    | "declaration_access_operator"
     | "declaration_name"
     | "declaration_assign_operator"
     | "declaration_property"
@@ -388,7 +375,6 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   struct_scalar_property: SparkStructScalarPropertyToken;
   struct_blank_property: SparkStructBlankProperty;
   struct_empty_property: SparkStructEmptyProperty;
-  access_part: SparkAccessPartToken;
   function: SparkFunctionToken;
   call: SparkCallToken;
   assign: SparkAssignToken;

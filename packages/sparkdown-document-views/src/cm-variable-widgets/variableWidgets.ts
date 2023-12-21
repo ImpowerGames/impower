@@ -167,12 +167,9 @@ const playAudio = async (
           });
         })
       );
-      if (context.audioPlayerGroups[playId] === players) {
-        const playButton = getPlayButton(dom, playId);
-        if (playButton) {
-          playButton.dataset["action"] = "play";
-          playButton.innerHTML = PlayButtonIcon;
-        }
+      if (playButton) {
+        playButton.dataset["action"] = "play";
+        playButton.innerHTML = PlayButtonIcon;
       }
     }
   }
@@ -264,7 +261,10 @@ const playSynthVariable = async (
 const createSynthBuffer = (synth: Synth, context: VariableWidgetContext) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
-  return new SynthBuffer([{ synth }], audioContext.sampleRate);
+  return new SynthBuffer(
+    [{ pitchHertz: synth.pitch.frequency, synth }],
+    audioContext.sampleRate
+  );
 };
 
 const updateSynthWaveform = (

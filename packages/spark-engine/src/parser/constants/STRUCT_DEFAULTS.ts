@@ -16,10 +16,6 @@ import {
 } from "../../game";
 
 export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
-  array: { default: [] },
-  html: { default: "" },
-  css: { default: "" },
-
   image: IMAGE_DEFAULTS,
   audio: AUDIO_DEFAULTS,
   audio_group: AUDIO_GROUP_DEFAULTS,
@@ -40,4 +36,8 @@ export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   ease: EASE_DEFAULTS,
 
   gradient: GRADIENT_DEFAULTS,
+
+  array: { default: [] },
+  html: { default: [] },
+  css: { default: [] },
 };

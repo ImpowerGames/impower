@@ -1,3 +1,4 @@
+import { ElementState } from "../types/ElementState";
 import { IElement } from "../types/IElement";
 
 export class Element implements IElement {
@@ -68,6 +69,18 @@ export class Element implements IElement {
     this._textContent = textContent || this._textContent;
     this._style = { ...(style || this._style) };
     this._dataset = { ...(dataset || this._dataset) };
+  }
+
+  init(state: ElementState) {
+    if (state.textContent != null) {
+      this.textContent = state.textContent;
+    }
+    if (state.style != null) {
+      Object.entries(state.style).forEach(([key, value]) => {
+        this.style[key] = value;
+      });
+    }
+    return this;
   }
 
   cloneChild(index: number): IElement | undefined {

@@ -61,15 +61,17 @@ export interface PreviewState {
     file: {};
   };
 }
+export interface EditorState {
+  open?: boolean;
+  filename?: string;
+  visibleRange?: Range;
+  selectedRange?: Range;
+  breakpoints?: number[];
+}
 
 export interface PanelState {
   scrollIndex?: number;
-  activeEditor?: {
-    open?: boolean;
-    filename?: string;
-    visibleRange?: Range;
-    selectedRange?: Range;
-  };
+  activeEditor?: EditorState;
 }
 
 export interface PaneState<T extends string = string> {

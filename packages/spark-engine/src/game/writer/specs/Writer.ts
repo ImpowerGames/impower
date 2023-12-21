@@ -1,5 +1,3 @@
-import { SynthConfig } from "../../sound";
-
 export interface Writer {
   skipped: string;
   letter_pause: number;
@@ -11,7 +9,6 @@ export interface Writer {
   floating_animation: string;
   trembling_animation: string;
   letter_fade_duration: number;
-  synth: SynthConfig;
   min_syllable_length: number;
   /** Words that are spoken aloud */
   voiced: string;

@@ -69,7 +69,7 @@ export class MultiOperatorRule extends BaseRule<IConfMultipleRule> {
     delete nodes.match;
 
     if (!nodes.length && (!c.empty || !c.separators)) {
-      return ctx.err("Expression expected");
+      return ctx.err("Expression expected.");
     }
 
     const to = ctx.eof() && !ctx.lt ? ctx.ch : ctx.i;

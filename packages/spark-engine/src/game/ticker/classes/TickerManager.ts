@@ -1,6 +1,7 @@
 import { GameEvent1, GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 
 export interface TickerEvents extends Record<string, GameEvent> {
   onAdded: GameEvent2<string, (deltaMS: number) => void>;
@@ -21,7 +22,11 @@ export class TickerManager extends Manager<
   TickerConfig,
   TickerState
 > {
-  constructor(config?: Partial<TickerConfig>, state?: Partial<TickerState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<TickerConfig>,
+    state?: Partial<TickerState>
+  ) {
     const initialEvents: TickerEvents = {
       onAdded: new GameEvent2<string, (deltaMS: number) => void>(),
       onRemoved: new GameEvent1<string>(),
@@ -32,7 +37,7 @@ export class TickerManager extends Manager<
       ...(config || {}),
     };
     const initialState: TickerState = { elapsedMS: 0, ...(state || {}) };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   add(key: string, callback: (deltaMS: number) => void): void {

@@ -1,7 +1,7 @@
 import { SparkProgram } from "../../../../sparkdown/src";
-import getSectionAtLine from "../../../../sparkdown/src/utils/getSectionAtLine";
 import { CommandData } from "../../data";
 import { generateCommand } from "./generateCommand";
+import getSectionAtLine from "./getSectionAtLine";
 
 export const getPreviewCommand = (
   program: SparkProgram,
@@ -21,7 +21,7 @@ export const getPreviewCommand = (
     const tokenIndex = lineTokens[i]!;
     const token = program.tokens[tokenIndex];
     if (token) {
-      const [sectionId] = getSectionAtLine(line, program?.sections || {});
+      const sectionId = getSectionAtLine(line, program?.sections || {});
       const runtimeCommand = generateCommand(token, "", sectionId);
       if (runtimeCommand) {
         return runtimeCommand;

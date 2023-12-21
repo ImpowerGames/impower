@@ -1,4 +1,4 @@
-import { IElement } from "../../ui";
+import { ElementState } from "../../ui";
 
 export interface Chunk {
   char: string;
@@ -20,7 +20,7 @@ export interface Chunk {
   sustained?: boolean;
   pitch?: number;
   time?: number;
-  wrapper?: IElement;
-  element?: IElement;
-  image?: IElement;
+  wrapper?: ElementState;
+  element?: ElementState;
+  image?: ElementState;
 }

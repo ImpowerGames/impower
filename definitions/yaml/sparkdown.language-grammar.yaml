@@ -451,7 +451,7 @@ repository:
   DefineScalar:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^([ ]*)(define)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*)($|[=])($|[ ]*)
+    begin: ^([ ]*)(define)($|[ ]+)([^:]*?)([ ]*)($|[!?~^|&<>%\/*+-]{0,2}[=])($|[ ]*)
     beginCaptures:
       1:
         patterns:
@@ -464,7 +464,7 @@ repository:
           - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#DeclarationName" }
+          - { include: "#TargetAccessPath" }
       5:
         patterns:
           - { include: "#Whitespace" }
@@ -485,7 +485,7 @@ repository:
   DefineObject:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^([ ]*)(define)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)(?:($|[.])($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*)($|[:])($|[ ]*)($|.+$)
+    begin: ^([ ]*)(define)($|[ ]+)([^:]*?)($|[ ]*)($|[:])($|[ ]*)($|(?!.+)$)
     beginCaptures:
       1:
         patterns:
@@ -498,25 +498,16 @@ repository:
           - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#DeclarationType" }
+          - { include: "#TargetAccessPath" }
       5:
         patterns:
-          - { include: "#DeclarationAccessOperator" }
+          - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#DeclarationName" }
+          - { include: "#DeclarationAssignOperator" }
       7:
         patterns:
           - { include: "#Whitespace" }
-      8:
-        patterns:
-          - { include: "#DeclarationAssignOperator" }
-      9:
-        patterns:
-          - { include: "#Whitespace" }
-      10:
-        patterns:
-          - { include: "#Unknown" }
     patterns:
       - { include: "#Comment" }
       - { include: "#StructField" }
@@ -1016,7 +1007,7 @@ repository:
   Store:
     tag: meta
     name: meta.assign.sd
-    begin: ^([ ]*)(store)($|[ ]+)
+    begin: ^([ ]*)(store)($|[ ]+)(.*?)([ ]*)($|[!?~^|&<>%\/*+-]{0,2}[=])($|[ ]*)
     beginCaptures:
       1:
         patterns:
@@ -1027,16 +1018,26 @@ repository:
       3:
         patterns:
           - { include: "#Whitespace" }
+      4:
+        patterns:
+          - { include: "#TargetAccessPath" }
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        patterns:
+          - { include: "#DeclarationAssignOperator" }
+      7:
+        patterns:
+          - { include: "#Whitespace" }
     patterns:
-      - { include: "#TargetAccessPath" }
-      - { include: "#AssignmentExpression" }
-      - { include: "#IllegalExpression" }
+      - { include: "#ValueText" }
     end: ($)
 
   Assign:
     tag: meta
     name: meta.assign.sd
-    begin: ^([ ]*)(set)($|[ ]+)
+    begin: ^([ ]*)(set)($|[ ]+)(.*?)([ ]*)($|[!?~^|&<>%\/*+-]{0,2}[=])($|[ ]*)
     beginCaptures:
       1:
         patterns:
@@ -1047,36 +1048,27 @@ repository:
       3:
         patterns:
           - { include: "#Whitespace" }
+      4:
+        patterns:
+          - { include: "#TargetAccessPath" }
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        patterns:
+          - { include: "#DeclarationAssignOperator" }
+      7:
+        patterns:
+          - { include: "#Whitespace" }
     patterns:
-      - { include: "#TargetAccessPath" }
-      - { include: "#AssignmentExpression" }
-      - { include: "#IllegalExpression" }
+      - { include: "#ValueText" }
     end: ($)
 
   TargetAccessPath:
     emit: true
     patterns:
       - { include: "#AccessPath" }
-
-  AssignmentExpression:
-    begin: ([ ]*)([!?~^|&<>%\/*+-]{0,2}[=])($|[ ]+)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
-        patterns:
-          - { include: "#DeclarationAssignOperator" }
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-    patterns:
-      - { include: "#ValueText" }
-    end: ([;])|(?=$)
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationSemicolon" }
+      - { include: "#IllegalExpression" }
 
   AssignOperator:
     emit: true
@@ -1115,11 +1107,6 @@ repository:
     patterns:
       - { include: "#TypeIdentifier" }
       - { include: "#Unknown" }
-
-  DeclarationAccessOperator:
-    emit: true
-    patterns:
-      - { include: "#PunctuationAccessor" }
 
   DeclarationName:
     emit: true

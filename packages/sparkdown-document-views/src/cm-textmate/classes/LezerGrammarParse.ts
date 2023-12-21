@@ -445,6 +445,8 @@ export default class GrammarParse implements PartialParse {
       this.aheadBuffer = aheadSplitBuffer.right;
       // console.log(
       //   "SAVE AHEAD",
+      //   editedTo,
+      //   splitAhead.index,
       //   JSON.stringify(
       //     this.region.input.read(splitAhead.chunk.from, this.region.to)
       //   )

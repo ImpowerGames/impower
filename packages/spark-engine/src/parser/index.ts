@@ -2,7 +2,7 @@ export * from "./classes/EngineSparkParser";
 export * from "./classes/SparkContext";
 export * from "./constants/STRUCT_DEFAULTS";
 export * from "./interfaces/SparkContextOptions";
-export * from "./utils/generateBlocks";
+export * from "./utils/combineBlockMap";
 export * from "./utils/generateCommand";
 export * from "./utils/getNextPreviewCommand";
 export * from "./utils/getPreviewCommand";

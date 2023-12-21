@@ -75,41 +75,29 @@ export const generateCommand = (
   if (token.ignore) {
     return null;
   }
-  if (token.tag === "store" || token.tag === "define") {
-    const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "EvaluateCommand";
-    const newCommand: EvaluateCommandData = {
-      reference: {
-        parentId: sectionId,
-        type: "Command",
-        id: refId,
-        typeId: refTypeId,
-      },
-      source: getSource(token, file),
-      indent: token.indent,
-      params: {
-        expression: `${token.name} = ${token.value}`,
-      },
-    };
-    return newCommand;
-  }
-  if (token.tag === "assign") {
-    const refId = getCommandId(token, file, sectionId);
-    const refTypeId: CommandTypeId = "EvaluateCommand";
-    const newCommand: EvaluateCommandData = {
-      reference: {
-        parentId: sectionId,
-        type: "Command",
-        id: refId,
-        typeId: refTypeId,
-      },
-      source: getSource(token, file),
-      indent: token.indent,
-      params: {
-        expression: `${token.name} ${token.operator} ${token.value}`,
-      },
-    };
-    return newCommand;
+  if (
+    token.tag === "define" ||
+    token.tag === "store" ||
+    token.tag === "assign"
+  ) {
+    if (token.operator) {
+      const refId = getCommandId(token, file, sectionId);
+      const refTypeId: CommandTypeId = "EvaluateCommand";
+      const newCommand: EvaluateCommandData = {
+        reference: {
+          parentId: sectionId,
+          type: "Command",
+          id: refId,
+          typeId: refTypeId,
+        },
+        source: getSource(token, file),
+        indent: token.indent,
+        params: {
+          expression: `${token.name} ${token.operator} ${token.value}`,
+        },
+      };
+      return newCommand;
+    }
   }
   if (token.tag === "delete") {
     const refId = getCommandId(token, file, sectionId);

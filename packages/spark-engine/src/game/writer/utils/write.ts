@@ -1,4 +1,4 @@
-import { IElement } from "../../ui";
+import { ElementState } from "../../ui";
 import Matcher from "../classes/Matcher";
 import { Character } from "../specs/Character";
 import { Writer } from "../specs/Writer";
@@ -9,18 +9,6 @@ import { stressPhrases } from "./stressPhrases";
 const SINGLE_MARKERS = ["*", "_", "^", "|"];
 
 const DOUBLE_MARKERS = ["~~", "==", ">>", "<<", "::"];
-
-const populateAndStyleElement = (
-  spanEl: IElement,
-  textContent: string,
-  style?: Record<string, string | null>
-): IElement => {
-  Object.entries(style || {}).forEach(([k, v]) => {
-    spanEl.style[k as "all"] = v as string;
-  });
-  spanEl.textContent = textContent;
-  return spanEl;
-};
 
 const isWhitespaceOrEmpty = (part: string) => {
   if (!part) {
@@ -57,20 +45,19 @@ const isDash = (part: string) => {
 
 export const write = (
   content: Phrase[],
-  writer: Writer | undefined,
-  character: Character | undefined,
-  instant = false,
-  debug?: boolean,
-  onCreateElement?: () => IElement
+  options?: {
+    writer?: Writer;
+    character?: Character;
+    syllableDuration: number;
+    instant?: boolean;
+    debug?: boolean;
+  }
 ): Phrase[] => {
-  const beepSound = character?.synth || writer?.synth;
-  const beepEnvelope = beepSound?.envelope;
-  const beepDuration = beepEnvelope
-    ? (beepEnvelope.attack ?? 0) +
-      (beepEnvelope.decay ?? 0) +
-      (beepEnvelope.sustain ?? 0) +
-      (beepEnvelope.release ?? 0)
-    : 0;
+  const writer = options?.writer;
+  const character = options?.character;
+  const syllableDuration = options?.syllableDuration ?? 0;
+  const instant = options?.instant;
+  const debug = options?.debug;
   const letterDelay = writer?.letter_pause ?? 0;
   const animationOffset = writer?.animation_offset ?? 0;
   const floatingAnimation = writer?.floating_animation;
@@ -81,7 +68,7 @@ export const write = (
   const interjectionPause = writer?.punctuated_pause_scale ?? 1;
   const syllableLength = Math.max(
     writer?.min_syllable_length || 0,
-    Math.round(beepDuration / letterDelay)
+    Math.round(syllableDuration / letterDelay)
   );
   const voicedMatcher = writer?.voiced
     ? new Matcher(writer?.voiced)
@@ -107,7 +94,7 @@ export const write = (
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
   let escaped = false;
-  let wrapper: IElement | undefined = undefined;
+  let wrapper: ElementState | undefined = undefined;
   let currChunk: Chunk | undefined = undefined;
 
   const startNewPhrase = () => {
@@ -123,8 +110,6 @@ export const write = (
     wrapper = undefined;
   };
 
-  const imageLayerChunks: Record<string, Chunk[]> = {};
-
   content.forEach((p, contentIndex) => {
     if (p.ignore) {
       return;
@@ -132,22 +117,18 @@ export const write = (
     const nextContent = content[contentIndex + 1];
     const image = p.image;
     if (image) {
-      const target = p.target ?? "Portrait";
-      const spanEl = onCreateElement?.();
-      if (spanEl) {
-        const spanStyle = {
+      const spanEl: ElementState = {
+        style: {
           opacity: "0",
           willChange: "opacity",
           position: "absolute",
           inset: "0",
           width: "100%",
           height: "100%",
-        };
-        populateAndStyleElement(spanEl, "", spanStyle);
-      }
-      const imageEl = onCreateElement?.();
-      if (imageEl) {
-        const imageStyle = {
+        },
+      };
+      const imageEl = {
+        style: {
           position: "absolute",
           inset: "0",
           width: "100%",
@@ -158,9 +139,8 @@ export const write = (
           opacity: "1",
           pointerEvents: "none",
           willChange: "opacity",
-        };
-        populateAndStyleElement(imageEl, "", imageStyle);
-      }
+        },
+      };
       const chunk: Chunk = {
         char: "",
         duration: 0,
@@ -168,8 +148,6 @@ export const write = (
         element: spanEl,
         image: imageEl,
       };
-      imageLayerChunks[target] ??= [];
-      imageLayerChunks[target]?.push(chunk);
       result.push({
         ...p,
         chunks: [chunk],
@@ -195,7 +173,7 @@ export const write = (
         startNewPhrase();
       }
       const marks: [string, number][] = [];
-      const partEls: IElement[] = [];
+      const partEls: ElementState[] = [];
       const chars = text.split("");
       for (let i = 0; i < chars.length; ) {
         const char = chars[i] || "";
@@ -378,11 +356,12 @@ export const write = (
         // create wrapper element for centered chunks
         if (isCentered) {
           if (!currChunk?.centered) {
-            wrapper = onCreateElement?.();
-            if (wrapper) {
-              wrapper.style["display"] = "block";
-              wrapper.style["textAlign"] = "center";
-            }
+            wrapper = {
+              style: {
+                display: "block",
+                textAlign: "center",
+              },
+            };
           }
         } else {
           wrapper = undefined;
@@ -390,11 +369,11 @@ export const write = (
 
         if (phraseUnpauseLength === 1) {
           // start voiced phrase
-          const span = onCreateElement?.();
-          if (span) {
-            populateAndStyleElement(span, char, style);
-            partEls.push(span);
-          }
+          const span: ElementState = {
+            textContent: char,
+            style,
+          };
+          partEls.push(span);
           currChunk = {
             char,
             duration,
@@ -443,11 +422,11 @@ export const write = (
               currChunk.element.textContent += char;
             } else {
               // Create new element and chunk
-              const span = onCreateElement?.();
-              if (span) {
-                populateAndStyleElement(span, char, style);
-                partEls.push(span);
-              }
+              const span: ElementState = {
+                textContent: char,
+                style,
+              };
+              partEls.push(span);
               currChunk = {
                 char,
                 duration,
@@ -484,16 +463,20 @@ export const write = (
           const invalidStyleEls = partEls.slice(lastMarkIndex).map((x) => x);
           invalidStyleEls.forEach((e) => {
             if (lastMark.startsWith("***")) {
+              e.style ??= {};
               e.style["fontWeight"] = null;
               e.style["fontStyle"] = null;
             }
             if (lastMark.startsWith("**")) {
+              e.style ??= {};
               e.style["fontWeight"] = null;
             }
             if (lastMark.startsWith("*")) {
+              e.style ??= {};
               e.style["fontStyle"] = null;
             }
             if (lastMark.startsWith("_")) {
+              e.style ??= {};
               e.style["textDecoration"] = null;
             }
           });
@@ -537,12 +520,27 @@ export const write = (
   let time = 0;
   let floatingIndex = 0;
   let tremblingIndex = 0;
+  const layerElements: Record<string, ElementState[]> = {};
   result.forEach((phrase) => {
     if (phrase.chunks) {
       phrase.chunks.forEach((c) => {
         c.time = time;
+        const fadeDuration = c.char ? letterFadeDuration : 0;
+        const target = phrase.target;
+        if (c.image && target) {
+          const prevEl = layerElements[target]?.at(-1);
+          if (prevEl) {
+            // fade out previous image on same layer before showing this image
+            prevEl.style ??= {};
+            prevEl.style["transition"] = instant
+              ? "none"
+              : `opacity ${fadeDuration}s linear ${c.time}s`;
+          }
+          layerElements[target] ??= [];
+          layerElements[target]!.push(c.image);
+        }
         if (c.element) {
-          const fadeDuration = c.char ? letterFadeDuration : 0;
+          c.element.style ??= {};
           c.element.style["transition"] = instant
             ? "none"
             : `opacity ${fadeDuration}s linear ${c.time}s`;
@@ -575,12 +573,14 @@ export const write = (
           if (c.element) {
             if (c.duration > letterDelay) {
               // color pauses (longer time = darker color)
+              c.element.style ??= {};
               c.element.style["backgroundColor"] = `hsla(0, 100%, 50%, ${
                 0.5 - letterDelay / c.duration
               })`;
             }
             if (c.startOfSyllable) {
               // color beeps
+              c.element.style ??= {};
               c.element.style["backgroundColor"] = `hsl(185, 100%, 50%)`;
             }
           }

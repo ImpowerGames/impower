@@ -1,6 +1,7 @@
 import { GameEvent1, GameEvent2, GameEvent3, GameEvent4 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
 import { MIDI_STATUS_SYSTEM } from "../constants/MIDI_STATUS_TYPE";
 import { SynthConfig } from "../specs/Synth";
@@ -59,7 +60,11 @@ export class SoundManager extends Manager<
 
   protected _ready = new Map<string, Sound | Midi>();
 
-  constructor(config?: Partial<SoundConfig>, state?: Partial<SoundState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<SoundConfig>,
+    state?: Partial<SoundState>
+  ) {
     const initialEvents: SoundEvents = {
       onLoad: new GameEvent1<Sound>(),
       onStart: new GameEvent3<Sound[], number, number>(),
@@ -86,7 +91,7 @@ export class SoundManager extends Manager<
       groups: {},
       ...(state || {}),
     };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   protected getOrCreatePlaybackState(id: string) {

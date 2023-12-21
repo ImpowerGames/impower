@@ -1,3 +1,4 @@
+import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { DidExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
@@ -18,7 +19,11 @@ export default class GamePreview extends Component(spec) {
 
   _programs: { uri: string; name: string; program: SparkProgram }[] = [];
 
-  _entryLine = 0;
+  _simulateFromProgram: string | undefined = undefined;
+
+  _simulateFromLine: number | undefined = undefined;
+
+  _startFromLine = 0;
 
   override onConnected() {
     this.configureGame();
@@ -31,6 +36,10 @@ export default class GamePreview extends Component(spec) {
     window.addEventListener(
       SelectedEditorMessage.method,
       this.handleSelectedEditor
+    );
+    window.addEventListener(
+      ChangedEditorBreakpointsMessage.method,
+      this.handleChangedEditorBreakpoints
     );
     window.addEventListener(
       DidExecuteGameCommandMessage.method,
@@ -47,6 +56,10 @@ export default class GamePreview extends Component(spec) {
     window.removeEventListener(
       SelectedEditorMessage.method,
       this.handleSelectedEditor
+    );
+    window.removeEventListener(
+      ChangedEditorBreakpointsMessage.method,
+      this.handleChangedEditorBreakpoints
     );
     window.removeEventListener(
       DidExecuteGameCommandMessage.method,
@@ -70,11 +83,22 @@ export default class GamePreview extends Component(spec) {
         const { textDocument, selectedRange, docChanged } = message.params;
         if (textDocument.uri === this._uri && !docChanged) {
           const newEntryLine = selectedRange?.start?.line ?? 0;
-          if (newEntryLine !== this._entryLine) {
+          if (newEntryLine !== this._startFromLine) {
             await this.configureGame();
             await this.loadPreview();
           }
         }
+      }
+    }
+  };
+
+  handleChangedEditorBreakpoints = async (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (ChangedEditorBreakpointsMessage.type.isNotification(message)) {
+        const { textDocument, breakpoints } = message.params;
+        this._simulateFromProgram = textDocument.uri;
+        this._simulateFromLine = breakpoints[0];
       }
     }
   };
@@ -113,17 +137,20 @@ export default class GamePreview extends Component(spec) {
   async configureGame() {
     const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
-      const { projectId, uri, selectedRange } = editor;
+      const { projectId, uri, selectedRange, breakpoints } = editor;
       this._programs = await Workspace.fs.getPrograms(projectId);
-      this._entryLine = selectedRange?.start?.line ?? 0;
+      this._simulateFromLine = breakpoints?.[0];
+      this._startFromLine = selectedRange?.start?.line ?? 0;
       this._uri = uri;
       if (this._programs.some((p) => p.uri === uri)) {
         this.emit(
           ConfigureGameMessage.method,
           ConfigureGameMessage.type.request({
             settings: {
-              entryProgram: uri,
-              entryLine: this._entryLine,
+              simulateFromProgram: this._simulateFromProgram,
+              simulateFromLine: this._simulateFromLine,
+              startFromProgram: uri,
+              startFromLine: this._startFromLine,
             },
           })
         );
@@ -140,7 +167,7 @@ export default class GamePreview extends Component(spec) {
         const { uri, selectedRange } = editor;
         if (uri) {
           this._programs = await Workspace.fs.getPrograms(projectId);
-          this._entryLine = selectedRange?.start?.line ?? 0;
+          this._startFromLine = selectedRange?.start?.line ?? 0;
           this._uri = uri;
           if (this._programs.some((p) => p.uri === uri)) {
             this.emit(

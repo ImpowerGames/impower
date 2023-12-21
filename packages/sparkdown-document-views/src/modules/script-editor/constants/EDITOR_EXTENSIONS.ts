@@ -24,6 +24,7 @@ import {
   lineNumbers,
   rectangularSelection,
 } from "@codemirror/view";
+import { breakpoints } from "../../../cm-breakpoints/breakpoints";
 import { indentationGuides } from "../../../cm-indentation-guides/indentationGuides";
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
 import { whitespaceMarkers } from "../../../cm-whitespace-markers/whitespaceMarkers";
@@ -31,6 +32,7 @@ import { whitespaceMarkers } from "../../../cm-whitespace-markers/whitespaceMark
 const EDITOR_EXTENSIONS = [
   history(),
   search(),
+  breakpoints({ singular: true }),
   lineNumbers(),
   indentUnit.of("  "),
   whitespaceMarkers(),

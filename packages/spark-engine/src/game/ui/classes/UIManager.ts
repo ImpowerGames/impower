@@ -1,6 +1,7 @@
 import { GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { Environment } from "../../core/types/Environment";
 import { getAllProperties } from "../../core/utils/getAllProperties";
 import { IElement } from "../types/IElement";
 import { getHash } from "../utils/getHash";
@@ -41,7 +42,11 @@ export interface UIState {}
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   protected _disposeSizeObservers: (() => void)[] = [];
 
-  constructor(config?: Partial<UIConfig>, state?: Partial<UIState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<UIConfig>,
+    state?: Partial<UIState>
+  ) {
     const initialEvents: UIEvents = {
       onCreateElement: new GameEvent2<string, string>(),
     };
@@ -53,7 +58,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ...(config || {}),
     };
     const initialState: UIState = { theme: "", ...(state || {}) };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   override destroy(): void {
@@ -211,28 +216,6 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     });
   }
 
-  hideUI(...structNames: string[]): void {
-    structNames.forEach((structName) => {
-      if (structName) {
-        const structEl = this.getUIElement(structName);
-        if (structEl && !structEl.hasState("hidden")) {
-          structEl.addState("hidden");
-        }
-      }
-    });
-  }
-
-  showUI(...structNames: string[]): void {
-    structNames.forEach((structName) => {
-      if (structName) {
-        const structEl = this.getUIElement(structName);
-        if (structEl) {
-          structEl.removeState("hidden");
-        }
-      }
-    });
-  }
-
   updateStyleProperty(
     propName: string,
     propValue: unknown,
@@ -300,18 +283,6 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         }
       }
     });
-  }
-
-  createElement(type: string, ...path: string[]): IElement {
-    const newEl = this._config.createElement(type);
-    if (path?.length > 0) {
-      newEl.id = this.getId(...path);
-      if (type !== "style") {
-        newEl.className = this.getName(newEl.id);
-      }
-    }
-    this._events.onCreateElement.dispatch(type, newEl.id);
-    return newEl;
   }
 
   getOrCreateStyleRoot(): IElement {
@@ -471,5 +442,39 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       return this._searchForFirst(parent, childName);
     }
     return undefined;
+  }
+
+  createElement(type: string, ...path: string[]): IElement {
+    const newEl = this._config.createElement(type);
+    if (path?.length > 0) {
+      newEl.id = this.getId(...path);
+      if (type !== "style") {
+        newEl.className = this.getName(newEl.id);
+      }
+    }
+    this._events.onCreateElement.dispatch(type, newEl.id);
+    return newEl;
+  }
+
+  hideUI(...structNames: string[]): void {
+    structNames.forEach((structName) => {
+      if (structName) {
+        const structEl = this.getUIElement(structName);
+        if (structEl && !structEl.hasState("hidden")) {
+          structEl.addState("hidden");
+        }
+      }
+    });
+  }
+
+  showUI(...structNames: string[]): void {
+    structNames.forEach((structName) => {
+      if (structName) {
+        const structEl = this.getUIElement(structName);
+        if (structEl) {
+          structEl.removeState("hidden");
+        }
+      }
+    });
   }
 }

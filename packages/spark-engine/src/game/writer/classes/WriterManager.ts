@@ -1,6 +1,6 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { IElement } from "../../ui";
+import { Environment } from "../../core/types/Environment";
 import { Character } from "../specs/Character";
 import { Writer } from "../specs/Writer";
 import { Phrase } from "../types/Phrase";
@@ -17,29 +17,27 @@ export class WriterManager extends Manager<
   WriterConfig,
   WriterState
 > {
-  constructor(config?: Partial<WriterConfig>, state?: Partial<WriterState>) {
+  constructor(
+    environment: Environment,
+    config?: Partial<WriterConfig>,
+    state?: Partial<WriterState>
+  ) {
     const initialEvents: WriterEvents = {};
     const initialConfig: WriterConfig = { ...(config || {}) };
     const initialState: WriterState = { ...(state || {}) };
-    super(initialEvents, initialConfig, initialState);
+    super(environment, initialEvents, initialConfig, initialState);
   }
 
   write(
     content: Phrase[],
-    writer: Writer | undefined,
-    character: Character | undefined,
-    instant = false,
-    debug?: boolean,
-    onCreateElement?: () => IElement
+    options?: {
+      writer?: Writer;
+      character?: Character;
+      syllableDuration: number;
+      instant?: boolean;
+      debug?: boolean;
+    }
   ): Phrase[] {
-    const phrases = write(
-      content,
-      writer,
-      character,
-      instant,
-      debug,
-      onCreateElement
-    );
-    return phrases;
+    return write(content, options);
   }
 }
