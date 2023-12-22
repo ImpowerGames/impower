@@ -2,13 +2,12 @@ import {
   adoptAll,
   defineAll,
 } from "../../../../packages/spec-component/src/component";
-import Access from "./components/access/access";
 import Account from "./components/account/account";
+import AssetsFiles from "./components/assets-files/assets-files";
+import AssetsSpecs from "./components/assets-specs/assets-specs";
 import Assets from "./components/assets/assets";
-import Audio from "./components/audio/audio";
 import Demo from "./components/demo/demo";
 import Details from "./components/details/details";
-import Displays from "./components/displays/displays";
 import FileAddButton from "./components/file-add-button/file-add-button";
 import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
 import FileItem from "./components/file-item/file-item";
@@ -17,7 +16,6 @@ import FileList from "./components/file-list/file-list";
 import FileOptionsButton from "./components/file-options-button/file-options-button";
 import FileUploadButton from "./components/file-upload-button/file-upload-button";
 import FooterNavigation from "./components/footer-navigation/footer-navigation";
-import Graphics from "./components/graphics/graphics";
 import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/header-sync-conflict-toolbar";
@@ -30,8 +28,6 @@ import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import Logic from "./components/logic/logic";
 import MainPanel from "./components/main-panel/main-panel";
-import Maps from "./components/maps/maps";
-import Music from "./components/music/music";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-toolbar";
@@ -43,12 +39,9 @@ import PreviewScreenplay from "./components/preview-screenplay/preview-screenpla
 import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
 import Preview from "./components/preview/preview";
 import ScriptEditor from "./components/script-editor/script-editor";
-import Setup from "./components/setup/setup";
+import ShareGame from "./components/share-game/share-game";
+import ShareProject from "./components/share-project/share-project";
 import Share from "./components/share/share";
-import Sounds from "./components/sounds/sounds";
-import Sprites from "./components/sprites/sprites";
-import Views from "./components/views/views";
-import Widgets from "./components/widgets/widgets";
 import Main from "./main/spark-editor";
 import icons from "./styles/icons/icons.css";
 import theme from "./styles/theme/theme.css";
@@ -65,23 +58,17 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   FileList,
   ScriptEditor,
   Assets,
+  AssetsFiles,
+  AssetsSpecs,
   LogicScriptsEditor,
   LogicScriptsList,
   LogicList,
   Logic,
-  Maps,
-  Sprites,
-  Graphics,
-  Widgets,
-  Views,
-  Displays,
-  Music,
-  Sounds,
   Audio,
-  Access,
   Details,
   Share,
-  Setup,
+  ShareGame,
+  ShareProject,
   Demo,
   MainPanel,
   PreviewGameToolbar,

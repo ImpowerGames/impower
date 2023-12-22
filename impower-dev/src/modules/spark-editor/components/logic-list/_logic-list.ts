@@ -25,7 +25,7 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="code"
+              icon="star"
               value="main"
               ${panel === "main" ? "active" : ""}
             >
@@ -37,7 +37,7 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="file-code"
+              icon="code"
               value="scripts"
               ${panel === "scripts" ? "active" : ""}
             >
@@ -45,6 +45,7 @@ export default spec({
             </s-tab>
           </s-tabs>
         </s-box>
+        <se-script-editor filename="main.script"></se-script-editor>
         <template value="main">
           <se-script-editor filename="main.script"></se-script-editor>
         </template>

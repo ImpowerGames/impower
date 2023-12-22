@@ -1,19 +1,14 @@
 import type { Range } from "vscode-languageserver-protocol";
 
 export type PanelType =
-  | "details"
-  | "share"
-  | "assets"
-  | "music"
   | "main"
-  | "sounds"
-  | "widgets"
-  | "views"
-  | "sprites"
-  | "maps"
-  | "scripts";
+  | "scripts"
+  | "files"
+  | "specs"
+  | "game"
+  | "project";
 
-export type PaneType = "setup" | "audio" | "displays" | "graphics" | "logic";
+export type PaneType = "logic" | "assets" | "share";
 
 export type PreviewMode = "page" | "game" | "screenplay" | "file";
 

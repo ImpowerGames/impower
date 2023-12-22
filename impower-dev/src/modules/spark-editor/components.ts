@@ -3,13 +3,12 @@ import sparkleIconsCSS from "../../../../packages/sparkle/src/styles/icons/icons
 import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns/patterns.css";
 import { ComponentSpec } from "../../../../packages/spec-component/src/spec";
 import baseNormalize from "../../../../packages/spec-component/src/styles/normalize/normalize.css";
-import Access from "./components/access/_access";
 import Account from "./components/account/_account";
+import AssetsFiles from "./components/assets-files/_assets-files";
+import AssetsSpecs from "./components/assets-specs/_assets-specs";
 import Assets from "./components/assets/_assets";
-import Audio from "./components/audio/_audio";
 import Demo from "./components/demo/_demo";
 import Details from "./components/details/_details";
-import Displays from "./components/displays/_displays";
 import FileAddButton from "./components/file-add-button/_file-add-button";
 import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
 import FileItem from "./components/file-item/_file-item";
@@ -18,7 +17,6 @@ import FileList from "./components/file-list/_file-list";
 import FileOptionsButton from "./components/file-options-button/_file-options-button";
 import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import FooterNavigation from "./components/footer-navigation/_footer-navigation";
-import Graphics from "./components/graphics/_graphics";
 import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/_header-sync-conflict-toolbar";
@@ -31,8 +29,6 @@ import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
 import Logic from "./components/logic/_logic";
 import MainPanel from "./components/main-panel/_main-panel";
-import Maps from "./components/maps/_maps";
-import Music from "./components/music/_music";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
@@ -44,12 +40,9 @@ import PreviewScreenplay from "./components/preview-screenplay/_preview-screenpl
 import PreviewToggleButton from "./components/preview-toggle-button/_preview-toggle-button";
 import Preview from "./components/preview/_preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
-import Setup from "./components/setup/_setup";
+import ShareGame from "./components/share-game/_share-game";
+import ShareProject from "./components/share-project/_share-project";
 import Share from "./components/share/_share";
-import Sounds from "./components/sounds/_sounds";
-import Sprites from "./components/sprites/_sprites";
-import Views from "./components/views/_views";
-import Widgets from "./components/widgets/_widgets";
 import Main from "./main/_spark-editor";
 import {
   default as icons,
@@ -104,24 +97,16 @@ const components = [
   style(PreviewScreenplayToolbar),
   style(PreviewScreenplay),
   style(Assets),
+  style(AssetsFiles),
+  style(AssetsSpecs),
   style(LogicScriptsEditor),
   style(LogicScriptsList),
   style(LogicList),
   style(Logic),
-  style(Maps),
-  style(Sprites),
-  style(Graphics),
-  style(Widgets),
-  style(Views),
-  style(Displays),
-  style(Music),
-  style(Sounds),
-  style(Audio),
-  style(Access),
   style(Details),
   style(Share),
-  style(Setup),
-  style(Demo),
+  style(ShareGame),
+  style(ShareProject),
   style(MainPanel),
   style(PreviewToggleButton),
   style(PreviewOptionsDropdown),
@@ -137,6 +122,7 @@ const components = [
   style(HeaderNavigation),
   style(FooterNavigation),
   style(Main),
+  style(Demo),
 ] as const;
 
 export default components;

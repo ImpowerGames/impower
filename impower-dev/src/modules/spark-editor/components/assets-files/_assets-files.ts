@@ -1,10 +1,10 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
-import html from "./sprites.html";
+import html from "./assets-files.html";
 
 export default spec({
-  tag: "se-sprites",
+  tag: "se-assets-files",
   stores: { workspace },
   html,
   css,

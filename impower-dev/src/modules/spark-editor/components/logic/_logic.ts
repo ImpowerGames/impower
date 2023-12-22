@@ -9,6 +9,7 @@ export default spec({
     const view = stores?.workspace?.current?.panes?.logic?.view || "list";
     return html`
       <s-router key="logic-view" active="${view}">
+        <se-logic-list></se-logic-list>
         <template value="list">
           <se-logic-list></se-logic-list>
         </template>
