@@ -37,7 +37,7 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="code"
+              icon="file-text"
               value="scripts"
               ${panel === "scripts" ? "active" : ""}
             >

@@ -89,6 +89,7 @@
   --s-icon-code: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M7 8l-4 4l4 4M17 8l4 4l-4 4M14 4l-4 16"></path></svg>');
 
   --s-icon-file-code: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M14 3v4a1 1 0 0 0 1 1h4M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2zM10 13l-1 2l1 2M14 13l1 2l-1 2"></path></svg>');
+  --s-icon-file-text: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M14 3v4a1 1 0 0 0 1 1h4M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2zM9 9l1 0M9 13l6 0M9 17l6 0" /></svg>');
 
   --s-icon-trash: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M4 7l16 0M10 11l0 6M14 11l0 6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3"></path></svg>');
 
