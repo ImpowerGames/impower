@@ -347,7 +347,7 @@ export const executeDisplayCommand = (
             const target = p.target || "portrait";
             const targetEl = game.ui.findFirstUIElement(structName, target);
             if (targetEl) {
-              const imageSrcs: string[] = [];
+              const imageVars: string[] = [];
               assetNames.forEach((assetName) => {
                 if (assetName) {
                   const value = (valueMap?.["image"]?.[assetName] ||
@@ -361,15 +361,13 @@ export const executeDisplayCommand = (
                       : [value];
                   assets.forEach((asset) => {
                     if (asset) {
-                      imageSrcs.push(asset.src);
+                      imageVars.push(game.ui.getImageVar(asset.name));
                     }
                   });
                 }
               });
-              const combinedBackgroundImage = imageSrcs
-                .map((src) => `url("${src}")`)
-                .join(", ");
-              if (imageSrcs.length > 0) {
+              const combinedBackgroundImage = imageVars.join(", ");
+              if (imageVars.length > 0) {
                 p.chunks?.forEach((c) => {
                   if (c.element) {
                     const element = game.ui

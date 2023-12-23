@@ -131,7 +131,30 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return [this._config.root.id, this._config.uiClassName, ...path];
   }
 
+  getImageVarName(name: string) {
+    return `--image-${name}`;
+  }
+
+  getImageVarValue(src: string) {
+    return `url('${src}')`;
+  }
+
+  getImageVar(name: string) {
+    return `var(${this.getImageVarName(name)})`;
+  }
+
   loadTheme(valueMap: { [type: string]: Record<string, any> }): void {
+    const images = valueMap?.["image"];
+    if (images) {
+      Object.entries(images).forEach(([name, image]) => {
+        if (image.src) {
+          this._config.root.setStyleProperty(
+            this.getImageVarName(name),
+            this.getImageVarValue(image.src)
+          );
+        }
+      });
+    }
     const breakpoints = valueMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
     if (breakpoints) {
       this._disposeSizeObservers.push(
