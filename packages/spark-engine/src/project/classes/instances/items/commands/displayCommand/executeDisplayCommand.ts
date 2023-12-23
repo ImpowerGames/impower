@@ -137,6 +137,41 @@ const getAssetSounds = (
   return [];
 };
 
+const appendElements = (
+  game: SparkGame,
+  c: Chunk,
+  parent: IElement,
+  inElementsCache: IElement[],
+  outElementsCache: IElement[]
+) => {
+  if (c.wrapper) {
+    const wrapper = game.ui.createElement("span").init(c.wrapper);
+    parent.appendChild(wrapper);
+    inElementsCache.push(wrapper);
+    if (c.element) {
+      const element = game.ui.createElement("span").init(c.element);
+      wrapper.appendChild(element);
+      if (c.element.style?.["filter"]) {
+        inElementsCache.push(element);
+        outElementsCache.push(element);
+      } else {
+        inElementsCache.push(element);
+      }
+    }
+  } else {
+    if (c.element) {
+      const element = game.ui.createElement("span").init(c.element);
+      parent.appendChild(element);
+      if (c.element.style?.["filter"]) {
+        inElementsCache.push(element);
+        outElementsCache.push(element);
+      } else {
+        inElementsCache.push(element);
+      }
+    }
+  }
+};
+
 export const executeDisplayCommand = (
   game: SparkGame,
   data: DisplayCommandData,
@@ -370,20 +405,11 @@ export const executeDisplayCommand = (
               if (imageVars.length > 0) {
                 p.chunks?.forEach((c) => {
                   if (c.element) {
-                    const element = game.ui
-                      .createElement("span")
-                      .init(c.element);
-                    targetEl.appendChild(element);
-                    inElements.push(element);
-                    if (c.image) {
-                      c.image.style ??= {};
-                      c.image.style["backgroundImage"] =
-                        combinedBackgroundImage;
-                      const image = game.ui.createElement("span").init(c.image);
-                      element.appendChild(image);
-                      outElements.push(image);
-                    }
+                    c.element.style ??= {};
+                    c.element.style["backgroundImage"] =
+                      combinedBackgroundImage;
                   }
+                  appendElements(game, c, targetEl, inElements, outElements);
                 });
               }
             }
@@ -488,23 +514,13 @@ export const executeDisplayCommand = (
                         if (index === i) {
                           el.replaceChildren();
                           p.chunks?.forEach((c) => {
-                            if (c.element) {
-                              const element = game.ui
-                                .createElement("span")
-                                .init(c.element);
-                              if (c.wrapper) {
-                                const wrapper = game.ui
-                                  .createElement("span")
-                                  .init(c.wrapper);
-                                el.appendChild(wrapper);
-                                inElements.push(wrapper);
-                                wrapper.appendChild(element);
-                                inElements.push(element);
-                              } else {
-                                el.appendChild(element);
-                                inElements.push(element);
-                              }
-                            }
+                            appendElements(
+                              game,
+                              c,
+                              el,
+                              inElements,
+                              outElements
+                            );
                           });
                           const firstChunk = p.chunks?.[0];
                           if (firstChunk) {
@@ -546,43 +562,13 @@ export const executeDisplayCommand = (
                 if (targetEl) {
                   targetEl.style["display"] = "block";
                   p.chunks?.forEach((c) => {
-                    if (c.element) {
-                      const element = game.ui
-                        .createElement("span")
-                        .init(c.element);
-                      if (c.wrapper) {
-                        const wrapper = game.ui
-                          .createElement("span")
-                          .init(c.wrapper);
-                        targetEl.appendChild(wrapper);
-                        inElements.push(wrapper);
-                        wrapper.appendChild(element);
-                        inElements.push(element);
-                      } else {
-                        targetEl.appendChild(element);
-                        inElements.push(element);
-                      }
-                    }
+                    appendElements(game, c, targetEl, inElements, outElements);
                   });
                 }
               }
             } else {
               p.chunks?.forEach((c) => {
-                if (c.element) {
-                  const element = game.ui.createElement("span").init(c.element);
-                  if (c.wrapper) {
-                    const wrapper = game.ui
-                      .createElement("span")
-                      .init(c.wrapper);
-                    parent.appendChild(wrapper);
-                    inElements.push(wrapper);
-                    wrapper.appendChild(element);
-                    inElements.push(element);
-                  } else {
-                    parent.appendChild(element);
-                    inElements.push(element);
-                  }
-                }
+                appendElements(game, c, parent, inElements, outElements);
               });
             }
           }
@@ -627,14 +613,14 @@ export const executeDisplayCommand = (
       layerEl.style["display"] = "block";
       layerEl.style["opacity"] = "1";
     });
-    // Transition in new elements
+    // Transition in elements
     inElements.forEach((e) => {
       e.style["opacity"] = "1";
     });
-    // Transition out elements that are hidden after a delay
+    // Transition out elements
     outElements.forEach((e) => {
-      if (e.style["transition"]) {
-        e.style["opacity"] = "0";
+      if (e.style["filter"]) {
+        e.style["filter"] = "opacity(0)";
       }
     });
   };

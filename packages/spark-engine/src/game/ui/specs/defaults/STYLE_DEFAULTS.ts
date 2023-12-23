@@ -158,6 +158,7 @@ export const STYLE_DEFAULTS = {
     display: "block",
     color: "black",
     text_align: "center",
+    position: "relative",
   },
   dialogue: {
     color: "black",

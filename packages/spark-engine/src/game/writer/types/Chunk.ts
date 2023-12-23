@@ -22,5 +22,4 @@ export interface Chunk {
   time?: number;
   wrapper?: ElementState;
   element?: ElementState;
-  image?: ElementState;
 }

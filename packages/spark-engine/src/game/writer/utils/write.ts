@@ -117,26 +117,14 @@ export const write = (
     const nextContent = content[contentIndex + 1];
     const image = p.image;
     if (image) {
-      const spanEl: ElementState = {
-        style: {
-          opacity: "0",
-          willChange: "opacity",
-          position: "absolute",
-          inset: "0",
-          width: "100%",
-          height: "100%",
-        },
-      };
-      const imageEl = {
+      const element = {
         style: {
           position: "absolute",
           inset: "0",
-          width: "100%",
-          height: "100%",
           backgroundSize: "auto 100%",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
-          opacity: "1",
+          opacity: "0",
           pointerEvents: "none",
           willChange: "opacity",
         },
@@ -145,8 +133,7 @@ export const write = (
         char: "",
         duration: 0,
         speed: 0,
-        element: spanEl,
-        image: imageEl,
+        element,
       };
       result.push({
         ...p,
@@ -237,7 +224,7 @@ export const write = (
         const isItalicized = hasBoldItalicMark || hasItalicMark;
         const isBolded = hasBoldItalicMark || hasBoldMark;
         const style = {
-          opacity: instant || p.speed === 0 ? "1" : "0",
+          opacity: "0",
           willChange: "opacity",
           position: "relative",
           textDecoration: isUnderlined ? "underline" : null,
@@ -527,17 +514,26 @@ export const write = (
         c.time = time;
         const fadeDuration = c.char ? letterFadeDuration : 0;
         const target = phrase.target;
-        if (c.image && target) {
+        if (target && c.element) {
           const prevEl = layerElements[target]?.at(-1);
           if (prevEl) {
-            // fade out previous image on same layer before showing this image
+            // Add fade out transition to the previous element that was shown on this layer
             prevEl.style ??= {};
-            prevEl.style["transition"] = instant
-              ? "none"
-              : `opacity ${fadeDuration}s linear ${c.time}s`;
+            if (prevEl.style["transition"]) {
+              prevEl.style["position"] = "absolute";
+              prevEl.style["inset"] = "0";
+              if (prevEl.style["transition"] === "none") {
+                prevEl.style["filter"] = "opacity(0)";
+              } else {
+                prevEl.style["filter"] = "opacity(1)";
+                prevEl.style[
+                  "transition"
+                ] += `, filter ${fadeDuration}s linear ${c.time}s`;
+              }
+            }
           }
           layerElements[target] ??= [];
-          layerElements[target]!.push(c.image);
+          layerElements[target]!.push(c.element);
         }
         if (c.element) {
           c.element.style ??= {};
