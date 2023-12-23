@@ -13,6 +13,10 @@ export interface IElement {
 
   onclick: ((this: any, ev: any) => any) | null;
 
+  onpointerdown: ((this: any, ev: any) => any) | null;
+
+  onpointerup: ((this: any, ev: any) => any) | null;
+
   init: (state: ElementState) => this;
 
   cloneChild: (index: number) => IElement | undefined;

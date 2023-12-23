@@ -130,6 +130,7 @@
   display: none;
 }
 :host > .root > .content > .new-fade {
+  display: none;
   position: absolute;
   inset: 0;
   pointer-events: none;

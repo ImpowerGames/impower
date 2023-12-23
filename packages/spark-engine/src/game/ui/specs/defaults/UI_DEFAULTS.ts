@@ -1,36 +1,59 @@
 export const UI_DEFAULTS = {
   default: {},
+  image: { image: {} },
+  text: { text: {} },
   loading: {
     loading_bar: {
       loading_fill: {},
     },
   },
   display: {
-    backdrop: {},
-    portrait: {},
-    choice_menu: {
-      choice_list: {
-        choice: {},
+    backdrop: {
+      image: {},
+    },
+    portrait: {
+      image: {},
+    },
+    top: {},
+    middle: {
+      choices: {
+        choice: {
+          text: {},
+        },
       },
     },
-    box: {
-      content: {
-        dialogue_group: {
-          character_name: {},
-          character_parenthetical: {},
-          dialogue_content: {
-            parenthetical: {},
-            dialogue: {},
+    bottom: {
+      box: {
+        content: {
+          dialogue_group: {
+            character_name: {
+              text: {},
+            },
+            character_parenthetical: {
+              text: {},
+            },
+            dialogue_content: {
+              parenthetical: {
+                text: {},
+              },
+              dialogue: {
+                text: {},
+              },
+            },
+          },
+          action: {
+            text: {},
+          },
+          transition: {
+            text: {},
+          },
+          scene: {
+            text: {},
           },
         },
-        description_group: {
-          description_content: {
-            action: {},
-            transition: {},
-            scene: {},
-          },
+        indicator: {
+          text: "▼",
         },
-        indicator: "▼",
       },
     },
   },

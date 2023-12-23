@@ -16,6 +16,94 @@ import Matcher from "../../../../../../game/writer/classes/Matcher";
 import { CommandContext } from "../../command/CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
 
+const getExistingContent = (element: IElement | undefined) => {
+  if (!element) {
+    return undefined;
+  }
+  const children = element.getChildren();
+  const contentChildren = [];
+  let hasContentChild = false;
+  children.forEach((child) => {
+    if (child.className === "text" || child.className === "image") {
+      hasContentChild = true;
+      contentChildren.push(...child.getChildren());
+    }
+  });
+  if (!hasContentChild) {
+    contentChildren.push(...children);
+  }
+  return contentChildren;
+};
+
+const clearContent = (element: IElement) => {
+  const children = element.getChildren();
+  let hasContentChild = false;
+  children.forEach((child) => {
+    if (child.className === "text" || child.className === "image") {
+      hasContentChild = true;
+      child.replaceChildren();
+    }
+  });
+  if (!hasContentChild) {
+    element.replaceChildren();
+  }
+};
+
+const setTextContent = (element: IElement, textContent: string) => {
+  const children = element.getChildren();
+  let hasContentChild = false;
+  children.forEach((child) => {
+    if (child.className === "text") {
+      hasContentChild = true;
+      child.textContent = textContent;
+    }
+  });
+  if (!hasContentChild) {
+    element.textContent = textContent;
+  }
+};
+
+const appendElements = (
+  game: SparkGame,
+  c: Chunk,
+  parent: IElement,
+  inElementsCache: IElement[],
+  outElementsCache: IElement[]
+) => {
+  const contentClassName = c.image ? "image" : "text";
+  const children = parent.getChildren();
+  const contentChild = children.find(
+    (child) => child.className === contentClassName
+  );
+  const contentEl = contentChild || parent;
+  if (c.wrapper) {
+    const wrapper = game.ui.createElement("span").init(c.wrapper);
+    contentEl.appendChild(wrapper);
+    inElementsCache.push(wrapper);
+    if (c.element) {
+      const element = game.ui.createElement("span").init(c.element);
+      wrapper.appendChild(element);
+      if (c.element.style?.["filter"]) {
+        inElementsCache.push(element);
+        outElementsCache.push(element);
+      } else {
+        inElementsCache.push(element);
+      }
+    }
+  } else {
+    if (c.element) {
+      const element = game.ui.createElement("span").init(c.element);
+      contentEl.appendChild(element);
+      if (c.element.style?.["filter"]) {
+        inElementsCache.push(element);
+        outElementsCache.push(element);
+      } else {
+        inElementsCache.push(element);
+      }
+    }
+  }
+};
+
 const hideChoices = (game: SparkGame, structName: string): void => {
   const choiceEls = game.ui.findAllUIElements(structName, "choice");
   choiceEls.forEach((el) => {
@@ -135,41 +223,6 @@ const getAssetSounds = (
     }
   }
   return [];
-};
-
-const appendElements = (
-  game: SparkGame,
-  c: Chunk,
-  parent: IElement,
-  inElementsCache: IElement[],
-  outElementsCache: IElement[]
-) => {
-  if (c.wrapper) {
-    const wrapper = game.ui.createElement("span").init(c.wrapper);
-    parent.appendChild(wrapper);
-    inElementsCache.push(wrapper);
-    if (c.element) {
-      const element = game.ui.createElement("span").init(c.element);
-      wrapper.appendChild(element);
-      if (c.element.style?.["filter"]) {
-        inElementsCache.push(element);
-        outElementsCache.push(element);
-      } else {
-        inElementsCache.push(element);
-      }
-    }
-  } else {
-    if (c.element) {
-      const element = game.ui.createElement("span").init(c.element);
-      parent.appendChild(element);
-      if (c.element.style?.["filter"]) {
-        inElementsCache.push(element);
-        outElementsCache.push(element);
-      } else {
-        inElementsCache.push(element);
-      }
-    }
-  }
 };
 
 export const executeDisplayCommand = (
@@ -323,25 +376,25 @@ export const executeDisplayCommand = (
 
   if (characterNameEl) {
     characterNameEl.style["display"] = validCharacterName ? null : "none";
-    characterNameEl.textContent = validCharacterName;
+    setTextContent(characterNameEl, validCharacterName);
   }
   if (characterParentheticalEl) {
     characterParentheticalEl.style["display"] = validCharacterParenthetical
       ? null
       : "none";
-    characterParentheticalEl.textContent = validCharacterParenthetical;
+    setTextContent(characterParentheticalEl, validCharacterParenthetical);
   }
   if (parentheticalEl) {
-    parentheticalEl.style["display"] = "none";
-    parentheticalEl.replaceChildren();
+    parentheticalEl.style["display"] = type !== "dialogue" ? "none" : null;
+    clearContent(parentheticalEl);
   }
 
-  const stalePortraits: IElement[] | undefined = portraitEl?.getChildren();
-  const staleInserts: IElement[] | undefined = insertEl?.getChildren();
+  const stalePortraits: IElement[] | undefined = getExistingContent(portraitEl);
+  const staleInserts: IElement[] | undefined = getExistingContent(insertEl);
   let staleBackdrops: IElement[] | undefined = undefined;
   // TODO: Instead of hardcoding whether or not a layer should replace old images, check defined image_layer settings
   if (changesBackdrop) {
-    staleBackdrops = backdropEl?.getChildren();
+    staleBackdrops = getExistingContent(backdropEl);
   }
 
   const clackSound = writerSynth;
@@ -375,7 +428,7 @@ export const executeDisplayCommand = (
     if (parent) {
       if (key === type) {
         // TODO: Instead of hardcoding whether or not a layer should replace old text, check defined text_layer settings
-        parent.replaceChildren();
+        clearContent(parent);
         phrases.forEach((p) => {
           if (p.image) {
             const assetNames = p.image;
@@ -730,7 +783,8 @@ export const executeDisplayCommand = (
   let elapsedMS = 0;
   let finished = false;
   const lastChunk = phrases.at(-1)?.chunks?.at(-1);
-  const totalDurationMS = (lastChunk?.time ?? 0) + (lastChunk?.duration ?? 0);
+  const totalDurationMS =
+    ((lastChunk?.time ?? 0) + (lastChunk?.duration ?? 0)) * 1000;
   const handleTick = (deltaMS: number): void => {
     if (started && !finished) {
       if (elapsedMS === 0) {

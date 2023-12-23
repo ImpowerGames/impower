@@ -163,10 +163,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     }
   }
 
-  loadStyles(
-    valueMap: { [type: string]: Record<string, any> },
-    ...structNames: string[]
-  ): void {
+  loadStyles(valueMap: { [type: string]: Record<string, any> }): void {
     // Get or create style root
     const styleRootEl = this.getOrCreateStyleRoot();
     if (!styleRootEl || !valueMap) {
@@ -184,14 +181,10 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       }
     }
     // Process Style and Animation
-    const validStructNames =
-      structNames?.length > 0
-        ? structNames
-        : [
-            ...Object.keys(valueMap?.["animation"] || {}),
-            ...Object.keys(valueMap?.["style"] || {}),
-          ];
-    const styleStructNames = new Set<string>();
+    const validStructNames = [
+      ...Object.keys(valueMap?.["animation"] || {}),
+      ...Object.keys(valueMap?.["style"] || {}),
+    ];
     validStructNames.forEach((structName) => {
       if (structName) {
         const styleStructObj = valueMap?.["style"]?.[structName];
@@ -222,20 +215,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
             structEl.setAnimationContent(structName, properties, valueMap);
           }
         }
-        const uiStructObj = valueMap?.["ui"]?.[structName];
-        if (uiStructObj) {
-          const properties = getAllProperties(uiStructObj);
-          Object.keys(properties).forEach((fk) => {
-            const uiPath = fk.split(".");
-            uiPath.forEach((styleStructName) => {
-              styleStructNames.add(styleStructName);
-            });
-          });
-        }
       }
-    });
-    styleStructNames.forEach((styleStructName) => {
-      this.loadStyles(valueMap, styleStructName);
     });
   }
 

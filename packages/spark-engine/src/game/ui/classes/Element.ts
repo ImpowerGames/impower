@@ -18,6 +18,10 @@ export class Element implements IElement {
 
   protected _onclick: ((this: any, ev: any) => any) | null = null;
 
+  protected _onpointerdown: ((this: any, ev: any) => any) | null = null;
+
+  protected _onpointerup: ((this: any, ev: any) => any) | null = null;
+
   get id(): string {
     return this._id;
   }
@@ -56,6 +60,22 @@ export class Element implements IElement {
 
   set onclick(listener: ((this: any, ev: any) => any) | null) {
     this._onclick = listener;
+  }
+
+  get onpointerdown(): ((this: any, ev: any) => any) | null {
+    return this._onpointerdown;
+  }
+
+  set onpointerdown(listener: ((this: any, ev: any) => any) | null) {
+    this._onpointerdown = listener;
+  }
+
+  get onpointerup(): ((this: any, ev: any) => any) | null {
+    return this._onpointerup;
+  }
+
+  set onpointerup(listener: ((this: any, ev: any) => any) | null) {
+    this._onpointerup = listener;
   }
 
   constructor(

@@ -102,11 +102,12 @@ export default class Application {
     this._context = context;
     if (this.context) {
       this.context.init();
+      this.bindUI();
     }
 
-    this.bindView();
     if (this._view) {
       this._dom.appendChild(this._view);
+      this.bindView();
     }
 
     const startTicker = !context?.editable;
@@ -182,17 +183,31 @@ export default class Application {
     }
   }
 
+  bindUI() {
+    if (this.context.game.ui.config.root) {
+      this.context.game.ui.config.root.onpointerdown = this.onPointerDownUI;
+      this.context.game.ui.config.root.onpointerup = this.onPointerUpUI;
+    }
+  }
+
+  unbindUI() {
+    if (this.context.game.ui.config.root) {
+      this.context.game.ui.config.root.onpointerdown = null;
+      this.context.game.ui.config.root.onpointerup = null;
+    }
+  }
+
   bindView() {
     if (this._view) {
-      this._view.addEventListener("pointerdown", this.onPointerDown);
-      this._view.addEventListener("pointerup", this.onPointerUp);
+      this._view.addEventListener("pointerdown", this.onPointerDownView);
+      this._view.addEventListener("pointerup", this.onPointerUpView);
     }
   }
 
   unbindView() {
     if (this._view) {
-      this._view.removeEventListener("pointerdown", this.onPointerDown);
-      this._view.removeEventListener("pointerup", this.onPointerUp);
+      this._view.removeEventListener("pointerdown", this.onPointerDownView);
+      this._view.removeEventListener("pointerup", this.onPointerUpView);
     }
   }
 
@@ -202,6 +217,7 @@ export default class Application {
     }
     this._ticker.dispose();
     this.unbindView();
+    this.unbindUI();
     this.resizeObserver.disconnect();
     this.scenes.forEach((scene) => {
       scene.ready = false;
@@ -216,11 +232,19 @@ export default class Application {
     }
   }
 
-  onPointerDown = (event: PointerEvent): void => {
+  onPointerDownView = (event: PointerEvent): void => {
     this.context.game.input.pointerDown(event.button, "");
   };
 
-  onPointerUp = (event: PointerEvent): void => {
+  onPointerUpView = (event: PointerEvent): void => {
+    this.context.game.input.pointerUp(event.button, "");
+  };
+
+  onPointerDownUI = (event: PointerEvent): void => {
+    this.context.game.input.pointerDown(event.button, "");
+  };
+
+  onPointerUpUI = (event: PointerEvent): void => {
     this.context.game.input.pointerUp(event.button, "");
   };
 

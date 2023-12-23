@@ -27,10 +27,7 @@ export const previewLine = (
     } else {
       const previewStruct = getPreviewStruct(program, line);
       if (previewStruct?.type === "style") {
-        context.game.ui.loadStyles(
-          context.game.logic.valueMap,
-          previewStruct.name
-        );
+        context.game.ui.loadStyles(context.game.logic.valueMap);
       }
       if (previewStruct?.type === "ui") {
         context.game.ui.hideUI(

@@ -131,6 +131,7 @@ export const write = (
       };
       const chunk: Chunk = {
         char: "",
+        image: true,
         duration: 0,
         speed: 0,
         element,

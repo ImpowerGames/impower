@@ -659,6 +659,7 @@
 }
 
 .root::after {
+  display: none;
   --focus-duration: 50ms;
   position: absolute;
   inset: 0;
@@ -671,6 +672,7 @@
   pointer-events: none;
 }
 .root.focused::after {
+  display: flex;
   outline: var(--s-color-focus) var(--s-focus-ring-style)
     var(--s-focus-ring-width);
   outline-offset: calc(-1 * var(--s-focus-ring-width));
@@ -678,6 +680,7 @@
   mask: none;
 }
 .root.focused.pressed::after {
+  display: flex;
   outline-offset: calc((-1 * var(--s-focus-ring-width)) - 2px);
 }
 

@@ -46,6 +46,22 @@ export class SparkDOMElement implements IElement {
     this._htmlElement.onclick = listener;
   }
 
+  get onpointerdown(): ((this: any, ev: any) => any) | null {
+    return this._htmlElement.onpointerdown;
+  }
+
+  set onpointerdown(listener: ((this: any, ev: any) => any) | null) {
+    this._htmlElement.onpointerdown = listener;
+  }
+
+  get onpointerup(): ((this: any, ev: any) => any) | null {
+    return this._htmlElement.onpointerup;
+  }
+
+  set onpointerup(listener: ((this: any, ev: any) => any) | null) {
+    this._htmlElement.onpointerup = listener;
+  }
+
   constructor(htmlElement: HTMLElement, ...children: SparkDOMElement[]) {
     this._htmlElement = htmlElement;
     this._id = htmlElement.id;
@@ -238,7 +254,7 @@ export class SparkDOMElement implements IElement {
       const fieldsContent = `{\n  ${content}\n}`;
       const isBreakpointGroup = groupName && breakpoints[groupName];
       const rootId = this.id?.split(".")?.[0] || "";
-      const target = targetName === "*" ? targetName : `.${targetName}`;
+      const target = targetName.startsWith("*") ? targetName : `.${targetName}`;
       if (isBreakpointGroup) {
         textContent += `#${rootId}.${groupName} ${target} ${fieldsContent}\n`;
       } else if (groupName) {
