@@ -464,7 +464,12 @@ export default class SparkParser {
             field.compiled = compiledValue;
             if (variable.type) {
               // Check for type mismatch
-              const parentPropertyAccessor = variable.type + "." + propertyPath;
+              const parentPropertyAccessor =
+                variable.type +
+                "." +
+                (propertyPath.startsWith(".")
+                  ? "default" + propertyPath
+                  : propertyPath);
               const declaredValue = getProperty(
                 program.context,
                 parentPropertyAccessor
