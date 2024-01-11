@@ -11,12 +11,14 @@ export interface ISparkToken<T extends string = string> extends SparkRange {
 
   indent: number;
 
+  checkpoint?: string;
+
   ignore?: boolean;
 
   html?: string;
   duration?: number;
 
-  ranges?: Partial<Record<string, SparkRange>>;
+  ranges?: Partial<Record<string, SparkRange>> & { checkpoint?: SparkRange };
 
   content?: ISparkToken<string>[];
 }

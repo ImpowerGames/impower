@@ -130,18 +130,16 @@ export default class Application {
   }
 
   async loadScenes(scenes: Record<string, Scene>): Promise<void> {
-    const loadingUIName = "Loading";
+    const loadingUIName = "loading";
     const loadingProgressVariable = "--loading_progress";
     this._scenes.clear();
     Object.entries(scenes).forEach(([id, scene]) => {
       this._scenes.set(id, scene);
     });
     if (this.context.game.ui) {
-      this.context.game.ui.updateStyleProperty(
-        loadingProgressVariable,
-        0,
-        loadingUIName
-      );
+      this.context.game.ui.style.update(loadingUIName, "", {
+        [loadingProgressVariable]: "0",
+      });
     }
     if (this.context.game.ui) {
       this.context.game.ui.showUI(loadingUIName);

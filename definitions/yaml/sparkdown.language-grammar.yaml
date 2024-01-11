@@ -1166,11 +1166,11 @@ repository:
 
   Choice:
     name: entity.choice.sd
-    match: ^([+])($|[ ]+)($|.*?)($|[-][>].*$)((?:\r\n|\r|\n)?)
+    match: ^([+])($|[ ]+)($|.*?)($|[ ]+)($|[-][>].*$)((?:\r\n|\r|\n)?)
     captures:
       1:
-        tag: keyword
-        name: keyword.operator.expression.list.sd
+        patterns:
+          - { include: "#ChoiceOperator" }
       2:
         patterns:
           - { include: "#Whitespace" }
@@ -1179,10 +1179,18 @@ repository:
           - { include: "#ChoiceContent" }
       4:
         patterns:
-          - { include: "#JumpTo" }
+          - { include: "#Whitespace" }
       5:
         patterns:
+          - { include: "#JumpTo" }
+      6:
+        patterns:
           - { include: "#Newline" }
+
+  ChoiceOperator:
+    tag: keyword
+    name: keyword.operator.expression.list.sd
+    match: (.+)
 
   ChoiceContent:
     tag: string
@@ -1476,7 +1484,7 @@ repository:
           - { include: "#InlineText" }
 
   BoxLineContinue:
-    match: (.*[ ]$(?:\r\n|\r|\n)?)
+    match: ((?:[@].*|.*[ ])$(?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
@@ -1534,36 +1542,51 @@ repository:
 
   DisplayText:
     name: entity.display.sd
-    match: (?:([!]?(?:\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?(?:([@])([_a-zA-Z][_a-zA-Z0-9]*)([ ]*))?($|.+$(?:\r\n|\r|\n)?)
+    match: (?:([@])([_a-zA-Z][_a-zA-Z0-9]*)([ ]*))?(?:([!]?(?:\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?($|.+?(?=[@])|.+$(?:\r\n|\r|\n)?)
     captures:
       1:
-        tag: variableName
-        name: variable.other.constant.sd
+        tag: controlKeyword
+        name: keyword.control.asset.target.sd
       2:
-        tag: keyword
-        name: keyword.operator.expression.prerequisite.sd
+        patterns:
+          - { include: "#TargetName" }
       3:
         patterns:
           - { include: "#Whitespace" }
       4:
-        tag: controlKeyword
-        name: keyword.control.asset.target.sd
+        patterns:
+          - { include: "#DisplayTextPrerequisiteValue" }
       5:
         patterns:
-          - { include: "#TextTarget" }
+          - { include: "#DisplayTextPrerequisiteOperator" }
       6:
         patterns:
           - { include: "#Whitespace" }
       7:
         patterns:
-          - { include: "#InlineImage" }
-          - { include: "#InlineAudio" }
-          - { include: "#DisplayString" }
+          - { include: "#DisplayTextContent" }
 
-  TextTarget:
+  TargetName:
     tag: controlKeyword
     name: keyword.control.text.target.sd
     match: (.+)
+
+  DisplayTextPrerequisiteValue:
+    tag: variableName
+    name: variable.other.constant.sd
+    match: (.+)
+
+  DisplayTextPrerequisiteOperator:
+    tag: keyword
+    name: keyword.operator.expression.prerequisite.sd
+    match: (.+)
+
+  DisplayTextContent:
+    emit: true
+    patterns:
+      - { include: "#InlineImage" }
+      - { include: "#InlineAudio" }
+      - { include: "#DisplayString" }
 
   # Markdown (inline subset)
 
@@ -2313,6 +2336,9 @@ repository:
   TypeIdentifier:
     tag: typeName
     name: support.type.sd
+    match: ([_a-zA-Z][_a-zA-Z0-9]*)
+
+  Identifier:
     match: ([_a-zA-Z][_a-zA-Z0-9]*)
 
   PunctuationAccessor:

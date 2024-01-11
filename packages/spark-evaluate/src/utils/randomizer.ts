@@ -38,15 +38,9 @@ export const randomizer = (seed?: string | number): (() => number) => {
 
   const masher = createMasher();
 
-  const next = () => {
-    const t = 2091639 * s0 + c * 2.3283064365386963e-10; // 2^-32
-    s0 = s1;
-    s1 = s2;
-    return (s2 = t - (c = t | 0));
-  };
-
   // Apply the seeding algorithm from Baagoe.
-  const validSeed = seed === undefined ? uuid() : seed;
+  const validSeed = seed == null ? uuid() : seed;
+
   c = 1;
   s0 = masher(" ");
   s1 = masher(" ");
@@ -63,6 +57,13 @@ export const randomizer = (seed?: string | number): (() => number) => {
   if (s2 < 0) {
     s2 += 1;
   }
+
+  const next = () => {
+    const t = 2091639 * s0 + c * 2.3283064365386963e-10; // 2^-32
+    s0 = s1;
+    s1 = s2;
+    return (s2 = t - (c = t | 0));
+  };
 
   return next;
 };

@@ -68,11 +68,11 @@ const replace =
     const _10_args = captures[10] || "";
 
     const locale = context?.["$locale"];
-    const value = context?.["$value"];
+    const visited = context?.["$visited"];
+    const choice = context?.["$choice"];
     const seed = context?.["$seed"];
     const validLocale = typeof locale === "string" ? locale : "";
-    const chooseValue = typeof value === "number" ? value : 0;
-    const chooseSeed = seed ?? "";
+    const validVisited = typeof visited === "number" ? visited : 0;
 
     const replacers = { ...DEFAULT_REPLACERS };
     const customReplacers = context?.["$replacers"];
@@ -83,8 +83,8 @@ const replace =
     }
 
     if (_10_args && !_3_key && !_7_replacer) {
-      const matchSeed = chooseSeed + String(from);
-      const validChooseVal = [chooseValue, matchSeed];
+      const choiceId = (choice || "") + String(from);
+      const validChooseVal = [validVisited, choiceId, seed];
       return select(
         _10_args,
         validChooseVal,

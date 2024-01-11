@@ -1,138 +1,19 @@
 import {
-  Character,
-  Chunk,
-  IElement,
+  ImageEvent,
   Phrase,
+  Sound,
   SparkGame,
   Synth,
+  TextEvent,
   Tone,
-  Writer,
   clone,
   convertPitchNoteToHertz,
   transpose,
 } from "../../../../../../game";
-import { Sound } from "../../../../../../game/sound/types/Sound";
-import Matcher from "../../../../../../game/writer/classes/Matcher";
 import { CommandContext } from "../../command/CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
 
-const getExistingContent = (element: IElement | undefined) => {
-  if (!element) {
-    return undefined;
-  }
-  const children = element.getChildren();
-  const contentChildren = [];
-  let hasContentChild = false;
-  children.forEach((child) => {
-    if (child.className === "text" || child.className === "image") {
-      hasContentChild = true;
-      contentChildren.push(...child.getChildren());
-    }
-  });
-  if (!hasContentChild) {
-    contentChildren.push(...children);
-  }
-  return contentChildren;
-};
-
-const clearContent = (element: IElement) => {
-  const children = element.getChildren();
-  let hasContentChild = false;
-  children.forEach((child) => {
-    if (child.className === "text" || child.className === "image") {
-      hasContentChild = true;
-      child.replaceChildren();
-    }
-  });
-  if (!hasContentChild) {
-    element.replaceChildren();
-  }
-};
-
-const setTextContent = (element: IElement, textContent: string) => {
-  const children = element.getChildren();
-  let hasContentChild = false;
-  children.forEach((child) => {
-    if (child.className === "text") {
-      hasContentChild = true;
-      child.textContent = textContent;
-    }
-  });
-  if (!hasContentChild) {
-    element.textContent = textContent;
-  }
-};
-
-const appendElements = (
-  game: SparkGame,
-  c: Chunk,
-  parent: IElement,
-  inElementsCache: IElement[],
-  outElementsCache: IElement[]
-) => {
-  const contentClassName = c.image ? "image" : "text";
-  const children = parent.getChildren();
-  const contentChild = children.find(
-    (child) => child.className === contentClassName
-  );
-  const contentEl = contentChild || parent;
-  if (c.wrapper) {
-    const wrapper = game.ui.createElement("span").init(c.wrapper);
-    contentEl.appendChild(wrapper);
-    inElementsCache.push(wrapper);
-    if (c.element) {
-      const element = game.ui.createElement("span").init(c.element);
-      wrapper.appendChild(element);
-      if (c.element.style?.["filter"]) {
-        inElementsCache.push(element);
-        outElementsCache.push(element);
-      } else {
-        inElementsCache.push(element);
-      }
-    }
-  } else {
-    if (c.element) {
-      const element = game.ui.createElement("span").init(c.element);
-      contentEl.appendChild(element);
-      if (c.element.style?.["filter"]) {
-        inElementsCache.push(element);
-        outElementsCache.push(element);
-      } else {
-        inElementsCache.push(element);
-      }
-    }
-  }
-};
-
-const hideChoices = (game: SparkGame, structName: string): void => {
-  const choiceEls = game.ui.findAllUIElements(structName, "choice");
-  choiceEls.forEach((el) => {
-    if (el) {
-      el.onclick = null;
-      el.replaceChildren();
-      el.style["display"] = "none";
-    }
-  });
-};
-
-const isSkipped = (content: string, matcher?: Matcher): boolean => {
-  if (!matcher) {
-    return false;
-  }
-  return matcher.test(content);
-};
-
-const getArgumentValue = (args: string[], name: string): number | undefined => {
-  const argIndex = args.indexOf(name);
-  if (argIndex < 0) {
-    return undefined;
-  }
-  const numValue = Number(args[argIndex + 1]);
-  if (Number.isNaN(numValue)) {
-    return undefined;
-  }
-  return numValue;
-};
+// Helpers
 
 const getSound = (asset: unknown, game: SparkGame): Required<Sound> | null => {
   if (!asset) {
@@ -228,20 +109,28 @@ const getAssetSounds = (
 export const executeDisplayCommand = (
   game: SparkGame,
   data: DisplayCommandData,
-  context?: CommandContext,
+  context?: CommandContext & { instant?: boolean; preview?: boolean },
   onFinished?: () => void,
-  onClickChoice?: (...args: string[]) => void
+  onClickButton?: (...args: unknown[]) => void
 ): ((deltaMS: number) => void) | undefined => {
   const id = data.reference.id;
   const type = data.params.type;
   const characterKey = data?.params?.characterKey || "";
-  const characterName = data?.params?.characterName || "";
-  const characterParenthetical = data?.params?.characterParenthetical || "";
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
 
+  const uiName = "display";
+
+  const valueMap = game.logic.valueMap;
+
+  let targetsCharacterName = false;
   const displayedContent: Phrase[] = [];
-  content.forEach((c) => {
+  content.forEach((c, index) => {
+    // Override first instance of character_name with character's display name
+    if (!targetsCharacterName && c.target === "character_name") {
+      targetsCharacterName = true;
+      c.text = valueMap?.["character"]?.[characterKey]?.name || c.text;
+    }
     // Only display content without prerequisites or that have truthy prerequisites
     if (!c.prerequisite || Boolean(game.logic.evaluate(c.prerequisite))) {
       const r: Phrase = {
@@ -249,7 +138,10 @@ export const executeDisplayCommand = (
       };
       if (r.text) {
         // Substitute any {variables} in text
-        r.text = game.logic.format(r.text);
+        r.text = game.logic.format(r.text, { $choice: id + index });
+      }
+      if (!r.target) {
+        r.target = type;
       }
       displayedContent.push(r);
     }
@@ -260,157 +152,34 @@ export const executeDisplayCommand = (
     return undefined;
   }
 
-  const structName = "display";
-
-  const valueMap = game.logic.valueMap;
-
-  const actionWriter = valueMap?.["writer"]?.["action"];
-  const dialogueWriter = valueMap?.["writer"]?.["dialogue"];
-  const sceneWriter = valueMap?.["writer"]?.["scene"];
-  const transitionWriter = valueMap?.["writer"]?.["transition"];
-  const characterNameWriter = valueMap?.["writer"]?.["character_name"];
-  const characterParentheticalWriter =
-    valueMap?.["writer"]?.["character_parenthetical"];
-
-  const writer: Writer =
-    type === "action"
-      ? actionWriter
-      : type === "dialogue"
-      ? dialogueWriter
-      : type === "scene"
-      ? sceneWriter
-      : type === "transition"
-      ? transitionWriter
-      : valueMap?.["writer"]?.["default"];
-
-  const structEl = game.ui.findFirstUIElement(structName);
-
-  if (structEl) {
-    structEl.removeState("hidden");
-  }
-
-  const character: Character | undefined = characterKey
-    ? valueMap?.["character"]?.[characterKey]
-    : undefined;
-
-  const characterSynth: Synth | undefined =
-    valueMap?.["synth"]?.[characterKey] ?? valueMap?.["synth"]?.["character"];
-
-  const writerSynth: Synth | undefined =
-    valueMap?.["synth"]?.[type] ?? valueMap?.["synth"]?.["writer"];
-
-  const characterNameSkippedMatcher = new Matcher(characterNameWriter?.skipped);
-  const characterParentheticalSkippedMatcher = new Matcher(
-    characterParentheticalWriter?.skipped
-  );
-
-  const characterDisplayName = character?.name || characterName || "";
-
-  const validCharacterName =
-    type === "dialogue" &&
-    !isSkipped(characterDisplayName, characterNameSkippedMatcher)
-      ? characterDisplayName
-      : "";
-  const validCharacterParenthetical =
-    type === "dialogue" &&
-    !isSkipped(characterParenthetical, characterParentheticalSkippedMatcher)
-      ? characterParenthetical || ""
-      : "";
-
-  const instant = context?.instant;
-  const debug = context?.debug;
-
-  const indicatorEl = game.ui.findFirstUIElement(structName, "indicator");
-  const boxEl = game.ui.findFirstUIElement(structName, "box");
-
-  // TODO: Instead of hardcoding whether or not a channel should replace old audio, check defined audio_channel settings
+  // Stop stale sounds
   game.sound.stopChannel("writer");
   game.sound.stopChannel("voice");
 
-  hideChoices(game, structName);
+  // Clear stale text
+  game.ui.text.getTargets(uiName).forEach((target) => {
+    const textLayer = valueMap?.["text_layer"]?.[target];
+    if (!textLayer?.preserve) {
+      game.ui.style.update(uiName, target, { display: "none" });
+      game.ui.text.clear(uiName, target);
+    }
+  });
 
-  const changesBackdrop = content.some(
-    (p) => p.image && p.target === "backdrop"
-  );
-  const changesText = content.some((p) => p.text);
+  // Clear stale images
+  game.ui.image.getTargets(uiName).forEach((target) => {
+    const imageLayer = valueMap?.["image_layer"]?.[target];
+    if (!imageLayer?.preserve) {
+      game.ui.style.update(uiName, target, { display: "none" });
+      game.ui.image.clear(uiName, target);
+    }
+  });
 
-  if (boxEl) {
-    boxEl.style["display"] = changesText ? null : "none";
-  }
+  const instant = context?.instant;
+  const debug = game.debug.state.debugging;
 
-  const characterNameEl = game.ui.findFirstUIElement(
-    structName,
-    "character_name"
-  );
-  const characterParentheticalEl = game.ui.findFirstUIElement(
-    structName,
-    "character_parenthetical"
-  );
-  const parentheticalEl = game.ui.findFirstUIElement(
-    structName,
-    "parenthetical"
-  );
-
-  const portraitEl = game.ui.findFirstUIElement(structName, "portrait");
-  const insertEl = game.ui.findFirstUIElement(structName, "insert");
-  const backdropEl = game.ui.findFirstUIElement(structName, "backdrop");
-
-  const contentElEntries = [
-    {
-      key: "dialogue",
-      parent: game.ui.findFirstUIElement(structName, "dialogue"),
-    },
-    {
-      key: "action",
-      parent: game.ui.findFirstUIElement(structName, "action"),
-    },
-    {
-      key: "scene",
-      parent: game.ui.findFirstUIElement(structName, "scene"),
-    },
-    {
-      key: "transition",
-      parent: game.ui.findFirstUIElement(structName, "transition"),
-    },
-  ];
-
-  if (characterNameEl) {
-    characterNameEl.style["display"] = validCharacterName ? null : "none";
-    setTextContent(characterNameEl, validCharacterName);
-  }
-  if (characterParentheticalEl) {
-    characterParentheticalEl.style["display"] = validCharacterParenthetical
-      ? null
-      : "none";
-    setTextContent(characterParentheticalEl, validCharacterParenthetical);
-  }
-  if (parentheticalEl) {
-    parentheticalEl.style["display"] = type !== "dialogue" ? "none" : null;
-    clearContent(parentheticalEl);
-  }
-
-  const stalePortraits: IElement[] | undefined = getExistingContent(portraitEl);
-  const staleInserts: IElement[] | undefined = getExistingContent(insertEl);
-  let staleBackdrops: IElement[] | undefined = undefined;
-  // TODO: Instead of hardcoding whether or not a layer should replace old images, check defined image_layer settings
-  if (changesBackdrop) {
-    staleBackdrops = getExistingContent(backdropEl);
-  }
-
-  const clackSound = writerSynth;
-  const beepSound = characterKey ? characterSynth : writerSynth;
-  const beepEnvelope = beepSound?.envelope;
-  const beepDuration = beepEnvelope
-    ? (beepEnvelope.attack ?? 0) +
-      (beepEnvelope.decay ?? 0) +
-      (beepEnvelope.sustain ?? 0) +
-      (beepEnvelope.release ?? 0)
-    : 0;
-
-  const phrases = game.writer.write(displayedContent, {
-    syllableDuration: beepDuration,
-    writer,
-    character,
+  const sequence = game.writer.write(displayedContent, {
+    character: characterKey,
+    valueMap,
     instant,
     debug,
   });
@@ -418,275 +187,158 @@ export const executeDisplayCommand = (
   const soundsToLoad: Sound[] = [];
   const soundEvents: (() => void)[] = [];
 
-  const nextIndices: Record<string, number> = {};
-  const stackedElements = new Set<IElement>();
+  const targetTextEvents: Record<string, TextEvent[]> = {};
+  const targetImageEvents: Record<string, ImageEvent[]> = {};
 
-  const inElements: IElement[] = [];
-  const outElements: IElement[] = [];
-
-  contentElEntries.forEach(({ key, parent }) => {
-    if (parent) {
-      if (key === type) {
-        // TODO: Instead of hardcoding whether or not a layer should replace old text, check defined text_layer settings
-        clearContent(parent);
-        phrases.forEach((p) => {
-          if (p.image) {
-            const assetNames = p.image;
-            const target = p.target || "portrait";
-            const targetEl = game.ui.findFirstUIElement(structName, target);
-            if (targetEl) {
-              const imageVars: string[] = [];
-              assetNames.forEach((assetName) => {
-                if (assetName) {
-                  const value = (valueMap?.["image"]?.[assetName] ||
-                    valueMap?.["image_group"]?.[assetName] ||
-                    valueMap?.["array"]?.[assetName]) as
-                    | { name: string; src: string }
-                    | { assets: { name: string; src: string }[] };
-                  const assets =
-                    value && typeof value === "object" && "assets" in value
-                      ? value.assets.map((a) => a)
-                      : [value];
-                  assets.forEach((asset) => {
-                    if (asset) {
-                      imageVars.push(game.ui.getImageVar(asset.name));
-                    }
-                  });
-                }
-              });
-              const combinedBackgroundImage = imageVars.join(", ");
-              if (imageVars.length > 0) {
-                p.chunks?.forEach((c) => {
-                  if (c.element) {
-                    c.element.style ??= {};
-                    c.element.style["backgroundImage"] =
-                      combinedBackgroundImage;
-                  }
-                  appendElements(game, c, targetEl, inElements, outElements);
-                });
-              }
-            }
-          }
-          if (p.audio) {
-            const chunkOffset = p.chunks?.[0]?.time ?? 0;
-            const target = p.target || "voice";
-            const assetNames = p.audio;
-            const assetArgs = p.args || [];
-            const sounds: Required<Sound>[] = [];
-            const channelLoop = target === "music";
-            const trackLoop = assetArgs.includes("loop");
-            const trackNoloop = assetArgs.includes("noloop");
-            const trackVolume = getArgumentValue(assetArgs, "volume") ?? 1;
-            const trackMuteMultiplier = assetArgs?.includes("mute") ? 0 : 1;
-            const after =
-              chunkOffset + (getArgumentValue(assetArgs, "after") ?? 0);
-            const over = getArgumentValue(assetArgs, "over");
-            assetNames.forEach((assetName) => {
-              if (assetName) {
-                const value =
-                  valueMap?.["audio"]?.[assetName] ||
-                  valueMap?.["audio_group"]?.[assetName] ||
-                  valueMap?.["array"]?.[assetName];
-                const assetSounds = getAssetSounds(value, game);
-                assetSounds.forEach((asset) => {
-                  const sound = {
-                    id: asset.id,
-                    src: asset.src,
-                    volume: asset.volume * trackVolume * trackMuteMultiplier,
-                    loop:
-                      !trackNoloop && (trackLoop || asset.loop || channelLoop),
-                    cues: asset.cues,
-                  };
-                  soundsToLoad.push(sound);
-                  sounds.push(sound);
-                });
-              }
-            });
-            if (sounds.length > 0) {
-              const groupId = assetNames.join("+");
-              const scheduled = assetArgs?.includes("schedule");
-              const controlKeywords = [
-                "start",
-                "mute",
-                "unmute",
-                "volume",
-                "stop",
-              ];
-              if (
-                assetArgs?.includes("start") ||
-                !assetArgs.some((a) => controlKeywords.includes(a))
-              ) {
-                soundEvents.push(() =>
-                  game.sound.startAll(sounds, target, groupId, after, over)
-                );
-              } else if (assetArgs?.includes("stop")) {
-                soundEvents.push(() =>
-                  game.sound.stopAll(
-                    sounds,
-                    target,
-                    groupId,
-                    after,
-                    over,
-                    scheduled
-                  )
-                );
-              } else {
-                soundEvents.push(() =>
-                  game.sound.fadeAll(
-                    sounds,
-                    target,
-                    groupId,
-                    after,
-                    over,
-                    scheduled
-                  )
-                );
-              }
-            }
-          }
-          if (p.text) {
-            if (p.target) {
-              const target = p.target;
-              const index = nextIndices[target] ?? 0;
-              // TODO: instead of hardcoding, check if text_layer.stack is true
-              if (target === "choice") {
-                const targetEls = game.ui.findAllUIElements(structName, target);
-                const lastContentEl = targetEls?.at(-1);
-                if (lastContentEl) {
-                  const parentEl = game.ui.getParent(lastContentEl);
-                  if (parentEl) {
-                    for (
-                      let i = 0;
-                      i < Math.max(targetEls.length, index + 1);
-                      i += 1
-                    ) {
-                      const el =
-                        targetEls?.[i] ||
-                        parentEl?.cloneChild(targetEls.length - 1);
-                      if (el) {
-                        if (index === i) {
-                          el.replaceChildren();
-                          p.chunks?.forEach((c) => {
-                            appendElements(
-                              game,
-                              c,
-                              el,
-                              inElements,
-                              outElements
-                            );
-                          });
-                          const firstChunk = p.chunks?.[0];
-                          if (firstChunk) {
-                            el.style["opacity"] = "0";
-                            el.style["transition"] = instant
-                              ? "none"
-                              : `opacity 0s linear ${firstChunk.time}s`;
-                          }
-                          el.style["pointerEvents"] = "auto";
-                          el.style["display"] = "block";
-                          stackedElements.add(el);
-                          if (p.target === "choice") {
-                            const handleClick = (e?: {
-                              stopPropagation: () => void;
-                            }): void => {
-                              if (e) {
-                                e.stopPropagation();
-                              }
-                              targetEls.forEach((targetEl) => {
-                                if (targetEl) {
-                                  targetEl.replaceChildren();
-                                  targetEl.style["pointerEvents"] = null;
-                                  targetEl.style["display"] = "none";
-                                }
-                              });
-                              onClickChoice?.(...(p.args || []));
-                            };
-                            el.onclick = handleClick;
-                          }
-                        }
-                      }
-                    }
-                  }
-
-                  nextIndices[target] = index + 1;
-                }
-              } else {
-                const targetEl = game.ui.findFirstUIElement(structName, target);
-                if (targetEl) {
-                  targetEl.style["display"] = "block";
-                  p.chunks?.forEach((c) => {
-                    appendElements(game, c, targetEl, inElements, outElements);
-                  });
-                }
-              }
-            } else {
-              p.chunks?.forEach((c) => {
-                appendElements(game, c, parent, inElements, outElements);
-              });
-            }
-          }
-        });
-        parent.style["display"] = null;
-      } else {
-        // TODO: Instead of hardcoding whether or not text layers that are mutually exclusive, check defined text_layer settings
-        parent.style["display"] = "none";
+  Object.entries(sequence.button).forEach(([k, events]) => {
+    const target = k || "choice";
+    events.forEach((e) => {
+      const instanceName = game.ui.instance.get(uiName, target, e.instance);
+      if (instanceName) {
+        const handleClick = (event?: {
+          stopPropagation?: () => void;
+        }): void => {
+          event?.stopPropagation?.();
+          onClickButton?.(e.instance, e.button);
+          game.ui.style.update(uiName, target, { display: "none" });
+          game.ui.text.clear(uiName, target);
+          game.ui.setOnClick(uiName, target, null);
+        };
+        game.ui.setOnClick(uiName, instanceName, handleClick);
       }
-    }
+    });
   });
-  if (indicatorEl) {
-    if (data && !autoAdvance) {
-      indicatorEl.style["transition"] = "none";
-      indicatorEl.style["opacity"] = instant ? "1" : "0";
-      indicatorEl.style["display"] = null;
-      indicatorEl.style["animation-play-state"] = "paused";
-    } else {
-      indicatorEl.style["display"] = "none";
-    }
+
+  Object.entries(sequence.text).forEach(([k, events]) => {
+    const target = k || type;
+    events.forEach((e) => {
+      const key = e.instance ? target + " " + e.instance : target;
+      targetTextEvents[key] ??= [];
+      targetTextEvents[key]!.push(e);
+    });
+  });
+
+  Object.entries(sequence.image).forEach(([k, events]) => {
+    const target = k || "portrait";
+    events.forEach((e) => {
+      const key = e.instance ? target + " " + e.instance : target;
+      targetImageEvents[key] ??= [];
+      targetImageEvents[key]!.push(e);
+    });
+  });
+
+  Object.entries(sequence.audio).forEach(([k, events]) => {
+    const target = k || "voice";
+    events.forEach((e) => {
+      const assetNames = e.audio;
+      const sounds: Required<Sound>[] = [];
+      const channelLoop = target === "music";
+      const scheduled = e.params?.schedule;
+      const trackLoop = e.params?.loop;
+      const trackNoloop = e.params?.noloop;
+      const trackVolume = e.params?.volume ?? 1;
+      const trackMuteMultiplier = e.params?.mute ? 0 : 1;
+      const after = (e.enter ?? 0) + (e.params?.after ?? 0);
+      const over = e.params?.over;
+      assetNames.forEach((assetName) => {
+        if (assetName) {
+          const value =
+            valueMap?.["audio"]?.[assetName] ||
+            valueMap?.["audio_group"]?.[assetName] ||
+            valueMap?.["array"]?.[assetName];
+          const assetSounds = getAssetSounds(value, game);
+          assetSounds.forEach((asset) => {
+            const sound = {
+              id: asset.id,
+              src: asset.src,
+              volume: asset.volume * trackVolume * trackMuteMultiplier,
+              loop: !trackNoloop && (trackLoop || asset.loop || channelLoop),
+              cues: asset.cues,
+            };
+            soundsToLoad.push(sound);
+            sounds.push(sound);
+          });
+        }
+      });
+      if (sounds.length > 0) {
+        const groupId = assetNames.join("+");
+        if (
+          e.params?.start ||
+          (!e.params?.start &&
+            !e.params?.stop &&
+            !e.params?.mute &&
+            !e.params?.unmute &&
+            !e.params?.volume)
+        ) {
+          soundEvents.push(() =>
+            game.sound.startAll(sounds, target, groupId, after, over)
+          );
+        } else if (e.params?.stop) {
+          soundEvents.push(() =>
+            game.sound.stopAll(sounds, target, groupId, after, over, scheduled)
+          );
+        } else {
+          soundEvents.push(() =>
+            game.sound.fadeAll(sounds, target, groupId, after, over, scheduled)
+          );
+        }
+      }
+    });
+  });
+
+  // Display indicator
+  const indicatorStyle: Record<string, string | null> = {};
+  if (data && !autoAdvance) {
+    indicatorStyle["transition"] = "none";
+    indicatorStyle["opacity"] = instant ? "1" : "0";
+    indicatorStyle["animation-play-state"] = "paused";
+    indicatorStyle["display"] = null;
+  } else {
+    indicatorStyle["display"] = "none";
   }
+  game.ui.style.update(uiName, "indicator", indicatorStyle);
+
+  // Display new text
+  const textTransitions: (() => void)[] = [];
+  Object.entries(targetTextEvents).forEach(([target, textEvents]) => {
+    const transition = game.ui.text.write(uiName, target, textEvents, instant);
+    textTransitions.push(transition);
+    game.ui.style.update(uiName, target, { display: null });
+  });
+
+  // Display new images
+  const imageTransitions: (() => void)[] = [];
+  Object.entries(targetImageEvents).forEach(([target, imageEvents]) => {
+    const transition = game.ui.image.write(
+      uiName,
+      target,
+      imageEvents,
+      instant
+    );
+    imageTransitions.push(transition);
+    game.ui.style.update(uiName, target, { display: null });
+  });
+
+  game.ui.showUI(uiName);
 
   const doTransitions = () => {
-    // TODO: Instead of hardcoding whether or not a layer should replace stale elements, check defined text_layer and image_layer settings
-    // To prevent flickers, wait until the last possible second to remove old images
-    if (portraitEl) {
-      stalePortraits?.forEach((p) => {
-        portraitEl.removeChild(p);
-      });
-    }
-    if (insertEl) {
-      staleInserts?.forEach((p) => {
-        insertEl.removeChild(p);
-      });
-    }
-    if (backdropEl) {
-      staleBackdrops?.forEach((p) => {
-        backdropEl.removeChild(p);
-      });
-    }
-    stackedElements.forEach((layerEl) => {
-      layerEl.style["display"] = "block";
-      layerEl.style["opacity"] = "1";
+    textTransitions.forEach((transition) => {
+      transition();
     });
-    // Transition in elements
-    inElements.forEach((e) => {
-      e.style["opacity"] = "1";
-    });
-    // Transition out elements
-    outElements.forEach((e) => {
-      if (e.style["filter"]) {
-        e.style["filter"] = "opacity(0)";
-      }
+    imageTransitions.forEach((transition) => {
+      transition();
     });
   };
 
   const handleFinished = (): void => {
     doTransitions();
-    if (indicatorEl) {
-      indicatorEl.style["transition"] = null;
-      indicatorEl.style["opacity"] = "1";
-      indicatorEl.style["animation-play-state"] = context?.preview
-        ? "paused"
-        : "running";
-    }
+    const indicatorStyle: Record<string, string | null> = {};
+    indicatorStyle["transition"] = null;
+    indicatorStyle["opacity"] = "1";
+    indicatorStyle["animation-play-state"] = context?.preview
+      ? "paused"
+      : "running";
+    game.ui.style.update(uiName, "indicator", indicatorStyle);
     onFinished?.();
   };
 
@@ -696,61 +348,24 @@ export const executeDisplayCommand = (
     if (instant) {
       handleFinished();
     } else {
-      const tones: Tone[] = phrases.flatMap((phrase): Tone[] => {
-        let lastCharacterBeep:
-          | ({
-              time: number;
-            } & Chunk &
-              Partial<Tone>)
-          | undefined = undefined;
-        const phraseBeeps: ({
-          time: number;
-        } & Chunk &
-          Partial<Tone>)[] = (phrase.chunks || []).flatMap((c) => {
-          if (!c.duration) {
-            return [];
-          }
-          if (c.startOfSyllable || c.punctuated) {
-            const sound = c.punctuated ? clone(clackSound) : clone(beepSound);
-            lastCharacterBeep = {
-              ...c,
+      const tones: Tone[] = [];
+      Object.entries(sequence.synth).forEach(([_, events]) => {
+        events.forEach((e) => {
+          e.synth.forEach((s) => {
+            const sound = clone(valueMap?.["synth"]?.[s]);
+            const beep: Tone = {
               synth: sound,
-              time: c.time || 0,
-              duration: c.duration || 0,
+              time: e.enter ?? 0,
+              duration: e.params?.duration ?? 0,
             };
-            return [lastCharacterBeep];
-          }
-          if (lastCharacterBeep) {
-            lastCharacterBeep.duration += c.duration;
-          }
-          return [];
+            const freq = convertPitchNoteToHertz(
+              beep.synth?.pitch?.frequency || "A4"
+            );
+            // Transpose waves according to stress contour
+            beep.pitchHertz = transpose(freq, e.params?.pitch ?? 0);
+            tones.push(beep);
+          });
         });
-
-        if (phraseBeeps.length === 0) {
-          return [];
-        }
-
-        for (let i = phraseBeeps.length - 1; i >= 0; i -= 1) {
-          const b = phraseBeeps[i];
-          if (b) {
-            b.duration = b.sustained ? b.duration : beepDuration / b.speed;
-            if (b.synth) {
-              const freq = convertPitchNoteToHertz(
-                b.pitchHertz || b.synth.pitch?.frequency || "A4"
-              );
-              // Transpose waves according to stress contour
-              b.pitchHertz = transpose(freq, b.pitch || 0);
-            }
-          }
-        }
-
-        return phraseBeeps as Tone[];
-      });
-      // Load all chunks in their default state
-      inElements.forEach((e) => {
-        if (e) {
-          e.style["display"] = null;
-        }
       });
       // Load and modulate ((sounds))
       game.sound.loadAll(soundsToLoad).then(() => {
@@ -775,16 +390,16 @@ export const executeDisplayCommand = (
     }
   }
   if (data) {
-    if (indicatorEl && (!game || instant)) {
-      indicatorEl.style["transition"] = "none";
-      indicatorEl.style["opacity"] = "1";
+    if (!game || instant) {
+      const indicatorStyle: Record<string, string | null> = {};
+      indicatorStyle["transition"] = "none";
+      indicatorStyle["opacity"] = "1";
+      game.ui.style.update(uiName, "indicator", indicatorStyle);
     }
   }
   let elapsedMS = 0;
   let finished = false;
-  const lastChunk = phrases.at(-1)?.chunks?.at(-1);
-  const totalDurationMS =
-    ((lastChunk?.time ?? 0) + (lastChunk?.duration ?? 0)) * 1000;
+  const totalDurationMS = (sequence.end ?? 0) * 1000;
   const handleTick = (deltaMS: number): void => {
     if (started && !finished) {
       if (elapsedMS === 0) {

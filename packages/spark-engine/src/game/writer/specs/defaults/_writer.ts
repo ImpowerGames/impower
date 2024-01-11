@@ -3,8 +3,8 @@ import { Writer } from "../Writer";
 
 export const _writer: Create<Writer> = (obj) => ({
   target: "",
-  letter_fade_duration: 0,
-  letter_pause: 0.025,
+  fade_duration: 0,
+  letter_pause: 0,
   phrase_pause_scale: 5,
   em_dash_pause_scale: 16,
   stressed_pause_scale: 10,

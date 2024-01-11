@@ -7,18 +7,17 @@ export class EvaluateCommandRunner<G extends Game> extends CommandRunner<
   EvaluateCommandData
 > {
   override onExecute(
-    game: G,
     data: EvaluateCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): number[] {
     const { expression } = data.params;
 
     if (!expression) {
-      return super.onExecute(game, data, context);
+      return super.onExecute(data, context);
     }
 
-    game.logic.evaluate(expression);
+    this.game.logic.evaluate(expression);
 
-    return super.onExecute(game, data, context);
+    return super.onExecute(data, context);
   }
 }

@@ -8,7 +8,7 @@ export interface Writer {
   punctuated_pause_scale: number;
   floating_animation: string;
   trembling_animation: string;
-  letter_fade_duration: number;
+  fade_duration: number;
   min_syllable_length: number;
   /** Words that are spoken aloud */
   voiced: string;

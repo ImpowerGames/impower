@@ -15,6 +15,6 @@ export interface ContextOptions<
   config?: C;
   state?: S;
   defaults?: Record<string, Record<string, object>>;
-  runner?: R;
   createGame?: (config?: C, state?: S) => G;
+  createRunner?: (game: G) => R;
 }

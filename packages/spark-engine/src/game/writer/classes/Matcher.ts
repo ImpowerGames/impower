@@ -1,6 +1,6 @@
 const REGEX_PATTERN = /^([/])(.*)([/])([a-z]*)$/;
 
-export default class Matcher {
+export class Matcher {
   protected _pattern?: string;
 
   protected _regex?: RegExp;

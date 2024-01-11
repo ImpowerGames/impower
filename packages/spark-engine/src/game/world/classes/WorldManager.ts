@@ -19,17 +19,19 @@ export interface WorldConfig {
   defaultEntities: Record<string, EntityState>;
 }
 
-export interface WorldState {
-  mainCamera: string;
-  activeCameras: string[];
-  cameraStates: Record<string, CameraState>;
-}
+export interface WorldState {}
 
 export class WorldManager extends Manager<
   WorldEvents,
   WorldConfig,
   WorldState
 > {
+  protected _mainCamera: string = "";
+
+  protected _activeCameras: string[] = [];
+
+  protected _cameraStates: Record<string, CameraState> = {};
+
   constructor(
     environment: Environment,
     config?: Partial<WorldConfig>,
@@ -48,26 +50,21 @@ export class WorldManager extends Manager<
       defaultEntities: {},
       ...(config || {}),
     };
-    const initialState: WorldState = {
-      mainCamera: "",
-      activeCameras: [""],
-      cameraStates: { default: createCameraState() },
-      ...(state || {}),
-    };
+    const initialState: WorldState = { ...(state || {}) };
     super(environment, initialEvents, initialConfig, initialState);
   }
 
   private getCameraState(cameraId?: string): CameraState | undefined {
-    const id = cameraId || this._state.mainCamera;
-    if (this._state.cameraStates[id]) {
-      return this._state.cameraStates[id];
+    const id = cameraId || this._mainCamera;
+    if (this._cameraStates[id]) {
+      return this._cameraStates[id];
     }
     return undefined;
   }
 
   private getOrCreateCameraState(cameraId?: string): CameraState {
-    const id = cameraId || this._state.mainCamera;
-    const state = this._state.cameraStates[id];
+    const id = cameraId || this._mainCamera;
+    const state = this._cameraStates[id];
     if (state) {
       return state;
     }
@@ -109,12 +106,12 @@ export class WorldManager extends Manager<
 
   addCamera(cameraId: string, cameraState?: CameraState): void {
     const s = cameraState || this.getOrCreateCameraState(cameraId);
-    this._state.cameraStates[cameraId] = s;
+    this._cameraStates[cameraId] = s;
     this._events.onAddCamera.dispatch(cameraId, s);
   }
 
   removeCamera(cameraId: string): void {
-    delete this._state.cameraStates[cameraId];
+    delete this._cameraStates[cameraId];
     this._events.onRemoveCamera.dispatch(cameraId);
   }
 
@@ -143,5 +140,9 @@ export class WorldManager extends Manager<
       (x) => x !== entityId
     );
     this._events.onDestroyEntity.dispatch(entityId, cameraId ?? "");
+  }
+
+  deepCopy<T>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj));
   }
 }

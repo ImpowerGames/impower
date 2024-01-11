@@ -1,26 +1,29 @@
-import { ElementState } from "../../ui";
-
 export interface Chunk {
-  char: string;
-  duration: number;
+  target?: string;
+  instance?: number;
+  button?: string;
+  text?: string;
+  image?: string[];
+  audio?: string[];
+  args?: string[];
+
+  voicedSyllable?: boolean;
+  punctuatedSyllable?: boolean;
+  pitch?: number;
+
   speed: number;
-  startOfWord?: boolean;
-  startOfSyllable?: boolean;
+
+  duration: number;
+
   voiced?: boolean;
   yelled?: number;
+  emDash?: boolean;
+  tilde?: boolean;
+
   centered?: number;
   bolded?: number;
   italicized?: number;
   underlined?: number;
   floating?: number;
   trembling?: number;
-  punctuated?: boolean;
-  emDash?: boolean;
-  tilde?: boolean;
-  sustained?: boolean;
-  pitch?: number;
-  time?: number;
-  wrapper?: ElementState;
-  element?: ElementState;
-  image?: boolean;
 }

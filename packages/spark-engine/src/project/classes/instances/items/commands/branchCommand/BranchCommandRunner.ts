@@ -1,4 +1,4 @@
-import { BranchCommandData, InstanceData } from "../../../../../../data";
+import { BranchCommandData } from "../../../../../../data";
 import { Game } from "../../../../../../game";
 import { getNextJumpIndex } from "../../../../../../runner";
 import { CommandContext, CommandRunner } from "../../command/CommandRunner";
@@ -7,24 +7,15 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
   G,
   BranchCommandData
 > {
-  override closesGroup(data: BranchCommandData, group?: InstanceData): boolean {
-    return super.closesGroup(data, group);
-  }
-
-  override opensGroup(): boolean {
-    return true;
-  }
-
   override onExecute(
-    game: G,
     data: BranchCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): number[] {
     const { check, condition } = data.params;
     const { index, commands } = context;
 
     if (check === "if") {
-      const shouldExecute = game.logic.evaluate(condition);
+      const shouldExecute = this.game.logic.evaluate(condition);
       if (!shouldExecute) {
         const nextCommandIndex = getNextJumpIndex(index, commands, [
           { check: (c): boolean => c === "elseif", offset: 0 },
@@ -33,13 +24,13 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
         return [nextCommandIndex];
       }
     } else if (check === "elseif") {
-      const shouldExecute = game.logic.evaluate(condition);
+      const shouldExecute = this.game.logic.evaluate(condition);
       if (!shouldExecute) {
         const blockState =
-          game.logic.state.blockStates[data.reference.parentId];
+          this.game.logic.state.blockStates[data.reference.parentId];
         if (blockState) {
           const prevCheck =
-            commands?.[blockState.previousIndex]?.data?.["check"];
+            commands?.[blockState.previousIndex]?.params?.["check"];
           if (prevCheck === "end") {
             const nextCommandIndex = getNextJumpIndex(index, commands, [
               { check: (c): boolean => c === "else", offset: 0 },
@@ -58,6 +49,6 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
       const nextCommandIndex = getNextJumpIndex(index, commands);
       return [nextCommandIndex];
     }
-    return super.onExecute(game, data, context);
+    return super.onExecute(data, context);
   }
 }

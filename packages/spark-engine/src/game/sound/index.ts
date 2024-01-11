@@ -23,6 +23,7 @@ export * from "./types/MidiEvent";
 export * from "./types/MidiTrackState";
 export * from "./types/Note";
 export * from "./types/OscillatorType";
+export * from "./types/Sound";
 export * from "./types/Tone";
 export * from "./utils/convertHertzToPitchNote";
 export * from "./utils/convertMidiToToneSequences";

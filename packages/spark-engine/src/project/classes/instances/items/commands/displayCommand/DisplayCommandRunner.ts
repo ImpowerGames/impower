@@ -1,4 +1,3 @@
-import getRelativeSectionName from "../../../../../../../../sparkdown/src/utils/getRelativeSectionName";
 import { SparkGame } from "../../../../../../game";
 import { CommandContext, CommandRunner } from "../../command/CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
@@ -8,163 +7,138 @@ export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
   G,
   DisplayCommandData
 > {
-  autoDelay = 0.5;
+  protected _autoDelay = 0.5;
 
-  down = false;
+  protected _wasPressed = false;
 
-  wasPressed = false;
+  protected _wasTyped = false;
 
-  wasTyped = false;
+  protected _timeTypedMS = -1;
 
-  timeTypedMS = -1;
+  protected _elapsedMS = 0;
 
-  elapsedMS = 0;
+  protected _waitingForChoice = false;
 
-  waitingForChoice = false;
+  protected _chosenBlockId: string | undefined = undefined;
 
-  chosenCount = 0;
-
-  chosenId: string = "";
-
-  chosenSection: string | undefined = undefined;
-
-  onTick?: (deltaMS: number) => void;
+  protected _onTick?: (deltaMS: number) => void;
 
   override onExecute(
-    game: G,
     data: DisplayCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): number[] {
-    const blockId = data.reference.parentId;
-    const commandId = data.reference.id;
-    this.wasPressed = false;
-    this.wasTyped = false;
-    this.timeTypedMS = -1;
-    this.elapsedMS = 0;
-    this.down = game.input.state.pointer.down.includes(0);
-    this.waitingForChoice = data?.params?.content?.some(
-      (p) => p.tag === "choice"
-    );
-    this.onTick = executeDisplayCommand(
-      game,
+    const currentBlockId = data.reference.parentId;
+    const currentCommandId = data.reference.id;
+    this.game.checkpoint(currentCommandId);
+    this._wasPressed = false;
+    this._wasTyped = false;
+    this._timeTypedMS = -1;
+    this._elapsedMS = 0;
+    this.game.input.events.onPointerDown.addListener(this.onPointerDown);
+    this._waitingForChoice = data?.params?.content?.some((p) => p.button);
+    this._chosenBlockId = undefined;
+    this._onTick = executeDisplayCommand(
+      this.game,
       data,
       context,
       () => {
-        this.wasTyped = true;
+        this._wasTyped = true;
       },
-      (chosenSection, optionId) => {
-        [this.chosenCount, this.chosenId] = game.logic.chooseChoice(
-          blockId,
-          commandId,
-          optionId,
+      (instance, jump) => {
+        this._chosenBlockId = this.game.logic.choose(
+          currentBlockId,
+          currentCommandId + "." + instance || "",
+          typeof jump === "string" ? jump : "",
           data.source
         );
-        this.chosenSection = chosenSection || "";
       }
     );
-    this.onTick?.(0);
-    return super.onExecute(game, data, context);
+    this._onTick?.(0);
+    return super.onExecute(data, context);
   }
 
-  override onUpdate(_game: G, deltaMS: number): void {
-    if (this.onTick) {
-      this.onTick(deltaMS);
-      this.elapsedMS += deltaMS;
+  override onUpdate(deltaMS: number): void {
+    if (this._onTick) {
+      this._onTick(deltaMS);
+      this._elapsedMS += deltaMS;
     }
   }
 
-  override onDestroy(_game: G): void {
-    this.onTick = undefined;
+  override onDestroy(): void {
+    this._onTick = undefined;
+    this.game.input.events.onPointerDown.removeListener(this.onPointerDown);
   }
 
+  onPointerDown = () => {
+    this._wasPressed = true;
+  };
+
   override isFinished(
-    game: G,
     data: DisplayCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): boolean {
     const { autoAdvance } = data.params;
-    const prevDown = this.down;
-    this.down = game.input.state.pointer.down.includes(0);
-    const blockState = game.logic.state.blockStates[data.reference.parentId];
+    const blockState =
+      this.game.logic.state.blockStates[data.reference.parentId];
     if (!blockState) {
       return false;
     }
-    if (this.wasTyped && this.timeTypedMS < 0) {
-      this.timeTypedMS = this.elapsedMS;
+    if (this._wasTyped && this._timeTypedMS < 0) {
+      this._timeTypedMS = this._elapsedMS;
     }
-    const timeMSSinceTyped = this.elapsedMS - this.timeTypedMS;
+    const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
     if (
-      !this.waitingForChoice &&
+      !this._waitingForChoice &&
       autoAdvance &&
-      this.wasTyped &&
-      timeMSSinceTyped / 1000 >= this.autoDelay
+      this._wasTyped &&
+      timeMSSinceTyped / 1000 >= this._autoDelay
     ) {
       return true;
     }
-    if (!prevDown && this.down) {
-      this.wasPressed = true;
-    }
-    if (this.wasPressed) {
-      this.wasPressed = false;
-      if (this.wasTyped) {
-        this.wasTyped = false;
-        if (!this.waitingForChoice) {
+    if (this._wasPressed) {
+      this._wasPressed = false;
+      if (this._wasTyped) {
+        this._wasTyped = false;
+        if (!this._waitingForChoice) {
           return true;
         }
       }
       let msAfterStopped = 0;
-      this.onTick = (deltaMS: number) => {
+      this._onTick = (deltaMS: number) => {
         // Wait until typing sound has had enough time to fade out
         // So that it doesn't crackle when cut short
         msAfterStopped += deltaMS;
         const elapsed = msAfterStopped / 1000;
         if (elapsed > 0.03) {
-          this.wasTyped = true;
+          this._wasTyped = true;
         }
       };
-      executeDisplayCommand(game, data, {
-        ...context,
-        instant: true,
-      });
+      if (!this._waitingForChoice) {
+        executeDisplayCommand(this.game, data, {
+          ...context,
+          instant: true,
+        });
+      }
     }
-    if (this.waitingForChoice && this.chosenSection != null) {
-      const blockId = data.reference.parentId;
+    if (this._waitingForChoice && this._chosenBlockId != null) {
+      const chosenBlockId = this._chosenBlockId;
+      this._chosenBlockId = undefined;
 
-      const chosenSection = this.chosenSection;
-      this.chosenSection = undefined;
-
-      if (chosenSection === "") {
+      if (chosenBlockId === "") {
         return true;
       }
 
-      // Seed is determined by how many times the choice has been chosen,
-      // (instead of how many times the choice has been seen)
-      const selectedBlock = game.logic.format(chosenSection, {
-        $value: this.chosenCount - 1,
-        $seed: this.chosenId,
-      });
-      const blocks = game.logic.config.blockMap;
-      const id = getRelativeSectionName(blockId, blocks, selectedBlock);
-
-      if (id == null) {
-        return false;
-      }
-
-      const executedByBlockId = data.reference.parentId;
-
-      const parentId = data?.reference?.parentId;
-      game.logic.stopBlock(parentId);
-      game.logic.enterBlock(id, false, executedByBlockId);
+      const currentBlockId = data?.reference?.parentId;
+      this.game.logic.jumpToBlock(currentBlockId, chosenBlockId, false);
     }
     return false;
   }
 
   override onPreview(
-    game: G,
     data: DisplayCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): boolean {
-    executeDisplayCommand(game, data, { ...context, preview: true });
+    executeDisplayCommand(this.game, data, { ...context, preview: true });
     return true;
   }
 }

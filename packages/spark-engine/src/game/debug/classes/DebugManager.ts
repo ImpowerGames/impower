@@ -11,8 +11,8 @@ export interface DebugEvents extends Record<string, GameEvent> {
 export interface DebugConfig {}
 
 export interface DebugState {
-  debugging: boolean;
-  currentLogs: LogData[];
+  debugging?: boolean;
+  logs?: LogData[];
 }
 
 export class DebugManager extends Manager<
@@ -28,8 +28,6 @@ export class DebugManager extends Manager<
     const initialEvents: DebugEvents = { onLog: new GameEvent1<LogData>() };
     const initialConfig: DebugConfig = { ...(config || {}) };
     const initialState: DebugState = {
-      debugging: false,
-      currentLogs: [],
       ...(state || {}),
     };
     super(environment, initialEvents, initialConfig, initialState);
@@ -44,11 +42,12 @@ export class DebugManager extends Manager<
   }
 
   log(data: LogData): void {
-    this._state.currentLogs.push({ ...data });
+    this._state.logs ??= [];
+    this._state.logs.push({ ...data });
     this._events.onLog.dispatch({ ...data });
   }
 
   clearLogs(): void {
-    this._state.currentLogs = [];
+    this._state.logs = [];
   }
 }

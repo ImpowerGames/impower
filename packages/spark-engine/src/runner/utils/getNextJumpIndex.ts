@@ -1,30 +1,28 @@
-import { InstanceData } from "../../data";
-import { Game } from "../../game";
-import { InstanceRunner } from "../../project/classes/instance/InstanceRunner";
+import { CommandData } from "../../data";
 
-export const getNextJumpIndex = <
-  G extends Game,
-  D extends InstanceData,
-  R extends InstanceRunner<G, D>
->(
+export const getNextJumpIndex = <D extends CommandData>(
   index: number,
-  iterableRunners: { runner: R; data: D }[],
+  commands: D[],
   validJumps: {
     check: (c: "if" | "elseif" | "else" | "end") => boolean;
     offset: number;
   }[] = []
 ): number => {
-  const currentLevel = iterableRunners[index]?.data.indent || 0;
+  const currentLevel = commands[index]?.indent || 0;
   if (validJumps?.length > 0) {
     // Skip to the next instance that matches any of the specified jump points
-    for (let i = index + 1; i < iterableRunners.length; i += 1) {
-      const c = iterableRunners[i];
+    for (let i = index + 1; i < commands.length; i += 1) {
+      const c = commands[i];
       if (c) {
-        if (c.data.indent < currentLevel) {
+        if (c.indent < currentLevel) {
           break;
         }
-        if (c.data.indent === currentLevel) {
-          const check = c?.data?.["check"] as "if" | "elseif" | "else" | "end";
+        if (c.indent === currentLevel) {
+          const check = c?.params?.["check"] as
+            | "if"
+            | "elseif"
+            | "else"
+            | "end";
           const nextJump = validJumps.find((next) => next.check(check));
           if (nextJump) {
             return i + nextJump.offset;
@@ -34,19 +32,19 @@ export const getNextJumpIndex = <
     }
   }
   // Skip to command after next end
-  for (let i = index + 1; i < iterableRunners.length; i += 1) {
-    const c = iterableRunners[i];
+  for (let i = index + 1; i < commands.length; i += 1) {
+    const c = commands[i];
     if (c) {
-      if (c.data.indent < currentLevel) {
+      if (c.indent < currentLevel) {
         break;
       }
-      if (c.data.indent === currentLevel) {
-        const check = c?.data?.["check"] as "if" | "elseif" | "else" | "end";
+      if (c.indent === currentLevel) {
+        const check = c?.params?.["check"] as "if" | "elseif" | "else" | "end";
         if (check === "end") {
           return i + 1;
         }
       }
     }
   }
-  return iterableRunners.length;
+  return commands.length;
 };

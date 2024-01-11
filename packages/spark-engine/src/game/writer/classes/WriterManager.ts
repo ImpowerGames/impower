@@ -1,10 +1,15 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { Environment } from "../../core/types/Environment";
-import { Character } from "../specs/Character";
-import { Writer } from "../specs/Writer";
 import { Phrase } from "../types/Phrase";
-import { write } from "../utils/write";
+import {
+  AudioEvent,
+  ButtonEvent,
+  ImageEvent,
+  SynthEvent,
+  TextEvent,
+} from "../types/SequenceEvent";
+import { WriteOptions, write } from "../utils/write";
 
 export interface WriterEvents extends Record<string, GameEvent> {}
 
@@ -30,14 +35,15 @@ export class WriterManager extends Manager<
 
   write(
     content: Phrase[],
-    options?: {
-      writer?: Writer;
-      character?: Character;
-      syllableDuration: number;
-      instant?: boolean;
-      debug?: boolean;
-    }
-  ): Phrase[] {
+    options?: WriteOptions
+  ): {
+    button: Record<string, ButtonEvent[]>;
+    text: Record<string, TextEvent[]>;
+    image: Record<string, ImageEvent[]>;
+    audio: Record<string, AudioEvent[]>;
+    synth: Record<string, SynthEvent[]>;
+    end: number;
+  } {
     return write(content, options);
   }
 }

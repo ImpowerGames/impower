@@ -14,20 +14,33 @@ export const STYLE_DEFAULTS = {
     checked: STYLE_PROPS,
     disabled: STYLE_PROPS,
   },
-  "hidden *": {
-    opacity: 0,
-    pointer_events: "none",
-  },
-  "*, *::before, *::after ": {
+  all: {
+    target: "*, *::before, *::after",
     box_sizing: "border-box",
+  },
+  is_hidden: {
+    target: "[hidden]",
+    display: "none",
   },
   text: {
     pointer_events: "auto",
+    position: "relative",
+    white_space: "pre-line",
+    "*": {
+      position: "relative",
+    },
   },
   image: {
-    pointer_events: "auto",
     position: "absolute",
+    pointer_events: "auto",
     inset: 0,
+    "*": {
+      position: "absolute",
+      inset: "0",
+      background_position: "center",
+      background_repeat: "no-repeat",
+      background_size: "auto 100%",
+    },
   },
   loading_bar: {
     z_index: 1000,

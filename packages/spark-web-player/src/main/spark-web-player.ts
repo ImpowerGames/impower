@@ -12,7 +12,6 @@ import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
 import { SparkContextOptions } from "../../../spark-engine/src/parser/interfaces/SparkContextOptions";
-import { previewLine } from "../../../spark-engine/src/parser/utils/previewLine";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import Application from "../app/Application";
@@ -228,15 +227,29 @@ export default class SparkWebPlayer extends Component(spec) {
     const options = this._options;
     if (programs && options) {
       if (!this._root) {
-        this._root = new SparkDOMElement(this.ref.sparkRoot!);
+        this._root = SparkDOMElement.wrap(this.ref.sparkRoot!);
       }
       const context = new SparkContext(programs, {
         config: {
           ...(options?.config || {}),
           ui: {
             root: this._root,
-            createElement: (type: string) => {
-              return new SparkDOMElement(document.createElement(type));
+            createElement: (
+              type: string,
+              id: string,
+              name: string,
+              text?: string,
+              style?: Record<string, string | null>,
+              attributes?: Record<string, string | null>
+            ) => {
+              return new SparkDOMElement(
+                type,
+                id,
+                name,
+                text,
+                style,
+                attributes
+              );
             },
             ...(options?.config?.ui || {}),
           },
@@ -277,7 +290,7 @@ export default class SparkWebPlayer extends Component(spec) {
       this._context = this.loadGame();
     }
     if (this._context) {
-      previewLine(this._context, line, true, this._debugging);
+      this._context.preview(line, this._debugging);
     }
   }
 }

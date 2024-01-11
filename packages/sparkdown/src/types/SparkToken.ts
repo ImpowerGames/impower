@@ -14,6 +14,7 @@ export interface SparkChunkToken extends ISparkToken<"chunk"> {
   name: string;
 
   ranges?: {
+    checkpoint?: SparkRange;
     name?: SparkRange;
   };
 }
@@ -23,6 +24,7 @@ export interface SparkSectionToken extends ISparkToken<"section"> {
   name: string;
 
   ranges?: {
+    checkpoint?: SparkRange;
     level?: SparkRange;
     name?: SparkRange;
   };
@@ -30,10 +32,6 @@ export interface SparkSectionToken extends ISparkToken<"section"> {
 
 export interface SparkCheckpointToken extends ISparkToken<"checkpoint"> {
   checkpoint: string;
-
-  ranges?: {
-    checkpoint?: SparkRange;
-  };
 }
 
 export interface SparkImportToken extends ISparkToken<"import"> {
@@ -43,6 +41,7 @@ export interface SparkImportToken extends ISparkToken<"import"> {
   compiled: unknown;
 
   ranges?: {
+    checkpoint?: SparkRange;
     type?: SparkRange;
     name?: SparkRange;
     value?: SparkRange;
@@ -59,6 +58,7 @@ export interface ISparkDeclarationToken<T extends string>
   entriesLength?: number;
 
   ranges?: {
+    checkpoint?: SparkRange;
     name?: SparkRange;
     operator?: SparkRange;
     value?: SparkRange;
@@ -78,6 +78,7 @@ export interface ISparkStructFieldToken<T extends string = string>
   compiled: unknown;
 
   ranges?: {
+    checkpoint?: SparkRange;
     key?: SparkRange;
     value?: SparkRange;
   };
@@ -133,6 +134,7 @@ export interface SparkDeleteToken extends ISparkToken<"delete"> {
   name: string;
 
   ranges?: {
+    checkpoint?: SparkRange;
     name?: SparkRange;
   };
 }
@@ -159,6 +161,7 @@ export interface SparkAssignToken extends ISparkToken<"assign"> {
   compiled: unknown;
 
   ranges?: {
+    checkpoint?: SparkRange;
     name?: SparkRange;
     operator?: SparkRange;
     value?: SparkRange;
@@ -170,8 +173,15 @@ export interface SparkJumpToken extends ISparkToken<"jump"> {
 }
 
 export interface SparkChoiceToken extends ISparkToken<"choice"> {
+  operator: string;
   section: string;
   content?: SparkTextToken[];
+  ranges?: {
+    checkpoint?: SparkRange;
+    operator?: SparkRange;
+    text?: SparkRange;
+    section?: SparkRange;
+  };
 }
 
 export interface SparkImageToken extends ISparkToken<"image"> {
@@ -181,6 +191,7 @@ export interface SparkImageToken extends ISparkToken<"image"> {
   nameRanges: SparkRange[];
 
   ranges?: {
+    checkpoint?: SparkRange;
     target?: SparkRange;
     image?: SparkRange;
     args?: SparkRange;
@@ -194,6 +205,7 @@ export interface SparkAudioToken extends ISparkToken<"audio"> {
   nameRanges: SparkRange[];
 
   ranges?: {
+    checkpoint?: SparkRange;
     target?: SparkRange;
     audio?: SparkRange;
     args?: SparkRange;
@@ -207,10 +219,11 @@ export interface DisplayContent {
   indent: number;
 
   tag: string;
-  prerequisite?: string;
-  speed?: number;
-  text?: string;
   target?: string;
+  instance?: number;
+  button?: string;
+  prerequisite?: string;
+  text?: string;
   image?: string[];
   audio?: string[];
   args?: string[];
@@ -226,8 +239,8 @@ export interface SparkTextToken<T extends string = "text">
   extends ISparkToken<T> {
   prerequisite?: string;
   text: string;
-  speed?: number;
   target?: string;
+  button?: string;
 }
 
 export interface SparkDialogueCharacterNameToken
@@ -247,10 +260,10 @@ export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
   content?: DisplayContent[];
   waitUntilFinished: boolean;
   autoAdvance: boolean;
-  checkpoint: string;
 
   ranges?: {
     checkpoint?: SparkRange;
+    text?: SparkRange;
   };
 }
 
@@ -332,8 +345,9 @@ export interface SparkOtherToken
     | "jump_to_section"
     | "display_text_prerequisite_value"
     | "display_text_prerequisite_operator"
-    | "display_text_target"
+    | "targeted_display_text_content"
     | "display_text_content"
+    | "target_name"
     | "action_end"
     | "unknown"
     | "dialogue_end"
@@ -341,6 +355,7 @@ export interface SparkOtherToken
     | "asset_target"
     | "asset_names"
     | "asset_args"
+    | "choice_operator"
     | "string"
     | "color"
     | "newline"
@@ -362,10 +377,10 @@ type SparkOtherTokenTagMap = {
 
 export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   comment: SparkCommentToken;
+  checkpoint: SparkCheckpointToken;
   front_matter_field: SparkFrontMatterFieldToken;
   chunk: SparkChunkToken;
   section: SparkSectionToken;
-  checkpoint: SparkCheckpointToken;
   import: SparkImportToken;
   define: SparkDefineToken;
   store: SparkStoreToken;

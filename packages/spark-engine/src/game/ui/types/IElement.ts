@@ -1,15 +1,19 @@
 import { ElementState } from "./ElementState";
 
 export interface IElement {
-  id: string;
+  get type(): string;
 
-  className: string;
+  get id(): string;
 
-  textContent: string;
+  get name(): string;
 
-  style: Record<string, string | null>;
+  get text(): string;
 
-  dataset: Record<string, string | undefined>;
+  get style(): Readonly<Record<string, string | null>>;
+
+  get attributes(): Readonly<Record<string, string | null>>;
+
+  get children(): Readonly<IElement[]>;
 
   onclick: ((this: any, ev: any) => any) | null;
 
@@ -17,17 +21,21 @@ export interface IElement {
 
   onpointerup: ((this: any, ev: any) => any) | null;
 
-  init: (state: ElementState) => this;
+  update: (state: ElementState) => this;
 
   cloneChild: (index: number) => IElement | undefined;
 
-  getChildren: () => IElement[];
+  getChild: (id: string) => IElement | undefined;
 
-  appendChild: (child: IElement) => void;
+  findChild: (name: string) => IElement | undefined;
 
-  removeChild: (child: IElement) => void;
+  findChildren: (...names: string[]) => IElement[];
 
-  replaceChildren: (...children: IElement[]) => void;
+  appendChild: (child: IElement) => IElement;
+
+  removeChild: (child: IElement) => boolean;
+
+  clear: () => void;
 
   observeSize: (breakpoints: Record<string, number>) => () => void;
 
@@ -35,22 +43,24 @@ export interface IElement {
 
   setAnimationContent: (
     animationName: string,
-    properties: Record<string, any>,
-    typeMap: { [type: string]: Record<string, any> }
+    properties: Record<string, any>
   ) => void;
 
   setStyleContent: (
     targetName: string,
     properties: Record<string, any>,
-    breakpoints: Record<string, number>,
-    typeMap: { [type: string]: Record<string, any> }
+    breakpoints: Record<string, number>
   ) => void;
 
-  setStyleProperty: (propName: string, propValue: unknown) => void;
+  updateText: (text: string | undefined) => void;
 
-  hasState: (state: string) => boolean;
+  updateStyle: (
+    style: Record<string, string | null> | null | undefined
+  ) => void;
 
-  addState: (state: string) => void;
+  updateAttributes: (
+    attributes: Record<string, string | null> | null | undefined
+  ) => void;
 
-  removeState: (state: string) => void;
+  getAttribute: (attr: string) => string | null;
 }

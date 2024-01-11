@@ -7,18 +7,17 @@ export class SpawnCommandRunner<G extends SparkGame> extends CommandRunner<
   SpawnCommandData
 > {
   override onExecute(
-    game: G,
     data: SpawnCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): number[] {
     const { entity } = data.params;
 
     if (!entity) {
-      return super.onExecute(game, data, context);
+      return super.onExecute(data, context);
     }
 
-    game.world.spawnEntity(entity);
+    this.game.world.spawnEntity(entity);
 
-    return super.onExecute(game, data, context);
+    return super.onExecute(data, context);
   }
 }

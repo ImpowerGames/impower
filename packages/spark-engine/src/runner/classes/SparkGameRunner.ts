@@ -5,13 +5,11 @@ import { SpawnCommandRunner } from "../../project/classes/instances/items/comman
 import { GameRunner } from "./GameRunner";
 
 export class SparkGameRunner<G extends SparkGame> extends GameRunner<G> {
-  constructor() {
-    super();
-    this._commandRunners = {
-      ...this._commandRunners,
-      SpawnCommand: new SpawnCommandRunner(),
-      DestroyCommand: new DestroyCommandRunner(),
-      DisplayCommand: new DisplayCommandRunner(),
-    };
+  constructor(game: G) {
+    super(game, {
+      SpawnCommand: new SpawnCommandRunner(game),
+      DestroyCommand: new DestroyCommandRunner(game),
+      DisplayCommand: new DisplayCommandRunner(game),
+    });
   }
 }

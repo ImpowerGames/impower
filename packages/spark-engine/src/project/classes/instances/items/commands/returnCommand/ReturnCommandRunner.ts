@@ -7,17 +7,16 @@ export class ReturnCommandRunner<G extends Game> extends CommandRunner<
   ReturnCommandData
 > {
   override onExecute(
-    game: G,
     data: ReturnCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): number[] {
     const { value } = data.params;
 
-    const returnValue = game.logic.evaluate(value);
+    const returnValue = this.game.logic.evaluate(value);
 
     const id = data.reference.parentId;
-    game.logic.returnFromBlock(id, returnValue);
+    this.game.logic.returnFromBlock(id, returnValue);
 
-    return super.onExecute(game, data, context);
+    return super.onExecute(data, context);
   }
 }

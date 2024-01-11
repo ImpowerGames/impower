@@ -2,117 +2,101 @@ import { ElementState } from "../types/ElementState";
 import { IElement } from "../types/IElement";
 
 export class Element implements IElement {
+  protected _type: string;
+  get type(): string {
+    return this._type;
+  }
+
   protected _id: string;
-
-  protected _className: string;
-
-  protected _textContent: string = "";
-
-  protected _style: Record<string, string | null> = {};
-
-  protected _dataset: Record<string, string | undefined> = {};
-
-  protected _children: IElement[] = [];
-
-  protected _states: Set<string> = new Set();
-
-  protected _onclick: ((this: any, ev: any) => any) | null = null;
-
-  protected _onpointerdown: ((this: any, ev: any) => any) | null = null;
-
-  protected _onpointerup: ((this: any, ev: any) => any) | null = null;
-
   get id(): string {
     return this._id;
   }
 
-  set id(value: string) {
-    this._id = value;
+  protected _name: string;
+  get name(): string {
+    return this._name;
   }
 
-  get className(): string {
-    return this._className;
+  protected _text: string = "";
+  get text(): string {
+    return this._text;
   }
 
-  set className(value: string) {
-    this._className = value;
+  protected _style: Record<string, string | null> = {};
+  get style() {
+    return this._style as Readonly<Record<string, string | null>>;
   }
 
-  get textContent(): string {
-    return this._textContent;
+  protected _attributes: Record<string, string | null> = {};
+  get attributes() {
+    return this._attributes as Readonly<Record<string, string | null>>;
   }
 
-  set textContent(value: string) {
-    this._textContent = value;
+  protected _children: IElement[] = [];
+  get children() {
+    return this._children as Readonly<IElement[]>;
   }
 
-  get style(): Record<string, string | null> {
-    return this._style;
-  }
-
-  get dataset(): Record<string, string | undefined> {
-    return this._dataset;
-  }
-
+  protected _onclick: ((this: any, ev: any) => any) | null = null;
   get onclick(): ((this: any, ev: any) => any) | null {
     return this._onclick;
   }
-
   set onclick(listener: ((this: any, ev: any) => any) | null) {
     this._onclick = listener;
   }
 
+  protected _onpointerdown: ((this: any, ev: any) => any) | null = null;
   get onpointerdown(): ((this: any, ev: any) => any) | null {
     return this._onpointerdown;
   }
-
   set onpointerdown(listener: ((this: any, ev: any) => any) | null) {
     this._onpointerdown = listener;
   }
 
+  protected _onpointerup: ((this: any, ev: any) => any) | null = null;
   get onpointerup(): ((this: any, ev: any) => any) | null {
     return this._onpointerup;
   }
-
   set onpointerup(listener: ((this: any, ev: any) => any) | null) {
     this._onpointerup = listener;
   }
 
   constructor(
+    type: string,
     id: string,
-    textContent?: string,
+    name: string,
+    text?: string,
     style?: Record<string, string | null>,
-    dataset?: Record<string, string | undefined>
+    attributes?: Record<string, string | null>
   ) {
+    this._type = type;
     this._id = id;
-    this._className = id.split(".").slice(-1).join();
-    this._textContent = textContent || this._textContent;
+    this._name = name;
+    this._text = text || this._text;
     this._style = { ...(style || this._style) };
-    this._dataset = { ...(dataset || this._dataset) };
+    this._attributes = { ...(attributes || this._attributes) };
   }
 
-  init(state: ElementState) {
-    if (state.textContent != null) {
-      this.textContent = state.textContent;
-    }
-    if (state.style != null) {
-      Object.entries(state.style).forEach(([key, value]) => {
-        this.style[key] = value;
-      });
-    }
+  update(state: ElementState) {
+    this.updateText(state.text);
+    this.updateStyle(state.style);
+    this.updateAttributes(state.attributes);
     return this;
   }
 
   cloneChild(index: number): IElement | undefined {
-    const children = this.getChildren();
-    const validIndex = Math.max(0, Math.min(index, children.length - 1));
+    const children = this.children;
+    const targetIndex = index < 0 ? children.length + index : index;
+    const validIndex = Math.max(0, Math.min(targetIndex, children.length - 1));
     const child = children[validIndex];
     if (child) {
       const newChild = new Element(
+        child.type,
         child.id,
-        child.textContent,
+        child.name,
+        child.text,
         child.style,
-        child.dataset
+        child.attributes
       );
       this.appendChild(newChild);
       return newChild;
@@ -120,20 +104,41 @@ export class Element implements IElement {
     return undefined;
   }
 
-  getChildren(): IElement[] {
-    return [...this._children];
+  getChild(id: string): IElement | undefined {
+    return this._children.find((child) => child.id === id);
   }
 
-  appendChild(child: IElement): void {
+  findChild(name: string): IElement | undefined {
+    return this._children.find(
+      (child) => child.name === name || child.name.split(" ").includes(name)
+    );
+  }
+
+  findChildren(...names: string[]): IElement[] {
+    return this._children.filter(
+      (child) =>
+        names.includes(child.name) ||
+        child.name.split(" ").some((n) => names.includes(n))
+    );
+  }
+
+  appendChild(child: IElement): IElement {
     this._children.push(child);
+    return child;
   }
 
-  removeChild(child: IElement): void {
-    this._children = this._children.filter((x) => x !== child);
+  removeChild(child: IElement): boolean {
+    const childIndex = this._children.indexOf(child);
+    if (childIndex < 0) {
+      return false;
+    }
+    this._children.splice(childIndex, 1);
+    return true;
   }
 
-  replaceChildren(...children: IElement[]): void {
-    this._children = children;
+  clear(): void {
+    this._children = [];
+    this._text = "";
   }
 
   observeSize(_breakpoints: Record<string, number>): () => void {
@@ -145,27 +150,49 @@ export class Element implements IElement {
   setStyleContent(
     _targetName: string,
     _properties: Record<string, any>,
-    _breakpoints: Record<string, number>,
-    _typeMap: { [type: string]: Record<string, any> }
+    _breakpoints: Record<string, number>
   ): void {}
 
   setAnimationContent(
     _animationName: string,
-    _properties: Record<string, any>,
-    _typeMap: { [type: string]: Record<string, any> }
+    _properties: Record<string, any>
   ): void {}
 
-  setStyleProperty(_propName: string, _propValue: unknown): void {}
-
-  hasState(state: string): boolean {
-    return this._states.has(state);
+  updateText(text: string | undefined) {
+    this._text = text || "";
   }
 
-  addState(state: string): void {
-    this._states.add(state);
+  updateStyle(style: Record<string, string | null> | null | undefined): void {
+    if (!style) {
+      this._style = {};
+    } else {
+      Object.entries(style).forEach(([k, v]) => {
+        if (v == null) {
+          delete this._style[k];
+        } else {
+          this._style[k] = v;
+        }
+      });
+    }
   }
 
-  removeState(state: string): void {
-    this._states.delete(state);
+  updateAttributes(
+    attributes: Record<string, string | null> | null | undefined
+  ): void {
+    if (!attributes) {
+      this._attributes = {};
+    } else {
+      Object.entries(attributes).forEach(([k, v]) => {
+        if (v == null) {
+          delete this._attributes[k];
+        } else {
+          this._attributes[k] = v;
+        }
+      });
+    }
+  }
+
+  getAttribute(attr: string): string | null {
+    return this._attributes[attr] ?? null;
   }
 }

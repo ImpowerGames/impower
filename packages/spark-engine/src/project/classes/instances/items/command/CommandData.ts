@@ -1,11 +1,17 @@
 import { CommandReference } from "../../../../../data/interfaces/references/CommandReference";
-import { ItemData } from "../../item/ItemData";
 import { CommandParams } from "./CommandParams";
-import { CommandTypeId } from "./CommandTypeId";
 
 export interface CommandData<
-  T extends CommandTypeId = CommandTypeId,
+  T extends string = string,
   P extends CommandParams = CommandParams
-> extends ItemData<"Command", CommandReference<T>> {
+> {
+  reference: CommandReference<T>;
+  source: {
+    file: string;
+    line: number;
+    from: number;
+    to: number;
+  };
+  indent: number;
   params: P;
 }

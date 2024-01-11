@@ -1,16 +1,31 @@
-import { GameEvent2 } from "../../core";
+import { GameEvent1 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
+import { ManagerUpdate } from "../../core/classes/ManagerUpdate";
 import { Environment } from "../../core/types/Environment";
+import { RequestMessage } from "../../core/types/RequestMessage";
 import { getAllProperties } from "../../core/utils/getAllProperties";
+import { uuid } from "../../core/utils/uuid";
+import { ElementState } from "../types/ElementState";
 import { IElement } from "../types/IElement";
+import { ImageEvent } from "../types/ImageEvent";
+import { ImageState } from "../types/ImageState";
+import { TextEvent } from "../types/TextEvent";
+import { TextState } from "../types/TextState";
 import { getHash } from "../utils/getHash";
 import { Element } from "./Element";
 
 const DEFAULT_ROOT_CLASS_NAME = "spark-root";
 const DEFAULT_UI_CLASS_NAME = "spark-ui";
 const DEFAULT_STYLE_CLASS_NAME = "spark-style";
-const DEFAULT_CREATE_ELEMENT = (id: string) => new Element(id);
+const DEFAULT_CREATE_ELEMENT = (
+  type: string,
+  id: string,
+  name: string,
+  text?: string,
+  style?: Record<string, string | null>,
+  attributes?: Record<string, string | null>
+) => new Element(type, id, name, text, style, attributes);
 const DEFAULT_BREAKPOINTS = {
   xs: 400,
   sm: 600,
@@ -18,6 +33,7 @@ const DEFAULT_BREAKPOINTS = {
   lg: 1280,
   xl: 1920,
 };
+const DEFAULT_BASE_CLASS_NAMES = ["default", "text", "image"];
 const isAsset = (obj: unknown): obj is { type: string; src: string } => {
   const asset = obj as { type: string; src: string };
   return asset && Boolean(asset.type && asset.src);
@@ -27,17 +43,59 @@ const isAssetLeaf = (_: string, v: unknown) =>
   isAsset(v) || (Array.isArray(v) && v.every((x) => isAsset(x)));
 
 export interface UIEvents extends Record<string, GameEvent> {
-  onCreateElement: GameEvent2<string, string>;
+  onUpdate: GameEvent1<RequestMessage[]>;
 }
 
 export interface UIConfig {
+  baseClassNames: string[];
   styleClassName: string;
   uiClassName: string;
   root: IElement;
-  createElement: (type: string) => IElement;
+  createElement: (
+    type: string,
+    id: string,
+    name: string,
+    text?: string,
+    style?: Record<string, string | null>,
+    attributes?: Record<string, string | null>
+  ) => IElement;
 }
 
-export interface UIState {}
+export interface UIState {
+  instance: Record<string, number>;
+  text: Record<string, TextState[]>;
+  image: Record<string, ImageState[]>;
+  style: Record<string, Record<string, string | null>>;
+  attributes: Record<string, Record<string, string | null>>;
+}
+
+export class UIManagerUpdate extends ManagerUpdate {
+  append(
+    parent: string,
+    id: string,
+    name: string,
+    text?: string,
+    style?: Record<string, string | null>
+  ) {
+    this.request("ui/append", { parent, id, name, text, style });
+  }
+
+  remove(id: string) {
+    this.request("ui/remove", { id });
+  }
+
+  text(id: string, text: string) {
+    this.request("ui/text", { id, text });
+  }
+
+  style(id: string, style: Record<string, string | null>) {
+    this.request("ui/style", { id, style });
+  }
+
+  attributes(id: string, attributes: Record<string, string | null>) {
+    this.request("ui/attributes", { id, attributes });
+  }
+}
 
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   protected _disposeSizeObservers: (() => void)[] = [];
@@ -48,16 +106,28 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     state?: Partial<UIState>
   ) {
     const initialEvents: UIEvents = {
-      onCreateElement: new GameEvent2<string, string>(),
+      onUpdate: new GameEvent1<RequestMessage[]>(),
     };
     const initialConfig: UIConfig = {
+      baseClassNames: DEFAULT_BASE_CLASS_NAMES,
       styleClassName: DEFAULT_STYLE_CLASS_NAME,
       uiClassName: DEFAULT_UI_CLASS_NAME,
-      root: DEFAULT_CREATE_ELEMENT(DEFAULT_ROOT_CLASS_NAME),
+      root: DEFAULT_CREATE_ELEMENT(
+        "div",
+        DEFAULT_ROOT_CLASS_NAME,
+        DEFAULT_ROOT_CLASS_NAME
+      ),
       createElement: DEFAULT_CREATE_ELEMENT,
       ...(config || {}),
     };
-    const initialState: UIState = { theme: "", ...(state || {}) };
+    const initialState: UIState = {
+      instance: {},
+      text: {},
+      image: {},
+      style: {},
+      attributes: {},
+      ...(state || {}),
+    };
     super(environment, initialEvents, initialConfig, initialState);
   }
 
@@ -68,11 +138,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     });
     const uiRoot = this.getElement(this.getUIPath());
     if (uiRoot) {
-      uiRoot.replaceChildren();
+      uiRoot.clear();
     }
     const styleRoot = this.getElement(this.getStylePath());
     if (styleRoot) {
-      styleRoot.replaceChildren();
+      styleRoot.clear();
     }
   }
 
@@ -84,33 +154,23 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return id.split(".");
   }
 
-  protected getName(id: string): string {
-    return this.getId(...this.getPath(id).slice(-1));
-  }
-
   protected getParentPath(id: string): string[] {
     return this.getPath(id).slice(0, -1);
   }
 
-  protected overrideStyle(
-    element: IElement,
-    properties: Record<string, any>
-  ): void {
-    Object.entries(properties).forEach(([k, v]) => {
-      element.style[k] = v;
-    });
-  }
-
-  getElement(path: string[]): IElement | undefined {
-    if (this.getId(...path) === this._config.root.id) {
+  protected getElement(path: string[]): IElement | undefined {
+    const id = this.getId(...path);
+    if (id === this._config.root.id) {
       return this._config.root;
     }
     let el: IElement | undefined = this._config.root;
     for (let i = 1; i < path.length; i += 1) {
-      const part = path[i];
-      const nextEl: IElement | undefined = el
-        ?.getChildren()
-        .find((c) => this.getName(c.id) === part);
+      const part = path[i] || "";
+      const match = el.getChild(id);
+      if (match) {
+        return match;
+      }
+      const nextEl: IElement | undefined = el.findChild(part);
       if (!nextEl) {
         return undefined;
       }
@@ -119,7 +179,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return el;
   }
 
-  getParent(el: IElement): IElement | undefined {
+  protected getParentElement(el: IElement): IElement | undefined {
     return this.getElement(this.getParentPath(el.id));
   }
 
@@ -132,7 +192,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   getImageVarName(name: string) {
-    return `--image-${name}`;
+    return `--image_${name}`;
   }
 
   getImageVarValue(src: string) {
@@ -148,10 +208,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     if (images) {
       Object.entries(images).forEach(([name, image]) => {
         if (image.src) {
-          this._config.root.setStyleProperty(
-            this.getImageVarName(name),
-            this.getImageVarValue(image.src)
-          );
+          this._config.root.updateStyle({
+            [this.getImageVarName(name)]: this.getImageVarValue(image.src),
+          });
         }
       });
     }
@@ -196,12 +255,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           if (structEl) {
             const properties = getAllProperties(styleStructObj, isAssetLeaf);
             const breakpoints = valueMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
-            structEl.setStyleContent(
-              structName,
-              properties,
-              breakpoints,
-              valueMap
-            );
+            structEl.setStyleContent(structName, properties, breakpoints);
           }
         }
         const animationStructObj = valueMap?.["animation"]?.[structName];
@@ -212,23 +266,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(animationStructObj);
-            structEl.setAnimationContent(structName, properties, valueMap);
+            structEl.setAnimationContent(structName, properties);
           }
         }
       }
     });
-  }
-
-  updateStyleProperty(
-    propName: string,
-    propValue: unknown,
-    structName: string,
-    ...childPath: string[]
-  ): void {
-    const structEl = this.getUIElement(structName, ...childPath);
-    if (structEl) {
-      structEl.setStyleProperty(propName, propValue);
-    }
   }
 
   loadUI(
@@ -246,7 +288,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       left: "0",
       right: "0",
       display: "flex",
-      flexDirection: "column",
+      "flex-direction": "column",
     };
     const uiRootStyleProperties = {
       position: "absolute",
@@ -254,21 +296,21 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       bottom: "0",
       left: "0",
       right: "0",
-      fontFamily: "Courier Prime Sans",
-      fontSize: "1em",
+      "font-family": "Courier Prime Sans",
+      "font-size": "1em",
     };
-    this.overrideStyle(uiRootEl, uiRootStyleProperties);
+    uiRootEl.updateStyle(uiRootStyleProperties);
     const targetAllStructs = !structNames || structNames.length === 0;
     const validStructNames = targetAllStructs
       ? Object.keys(valueMap?.["ui"] || {})
       : structNames;
     validStructNames.forEach((structName) => {
-      if (structName) {
+      if (structName && !this.config.baseClassNames.includes(structName)) {
         const structObj = valueMap?.["ui"]?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
           const structEl = this.constructUI(structName, properties);
-          this.overrideStyle(structEl, rootStyleProperties);
+          structEl.updateStyle(rootStyleProperties);
           Object.entries(properties).forEach(([k, v]) => {
             const childPath = k.split(".").filter((f) => f);
             const fieldEl =
@@ -280,7 +322,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                 ...childPath
               );
             if (fieldEl && v && typeof v === "string") {
-              fieldEl.textContent = v;
+              fieldEl.updateText(v);
             }
           });
         }
@@ -288,41 +330,41 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     });
   }
 
-  getOrCreateStyleRoot(): IElement {
+  protected getOrCreateStyleRoot(): IElement {
     const root = this._config.root;
     const path = this.getStylePath();
     const newEl = this.getElement(path) || this.createElement("div", ...path);
-    if (!root.getChildren().find((c) => c.id === newEl.id)) {
+    if (!root.children.find((c) => c.id === newEl.id)) {
       root.appendChild(newEl);
     }
     return newEl;
   }
 
-  getOrCreateUIRoot(): IElement {
+  protected getOrCreateUIRoot(): IElement {
     const root = this._config.root;
     const path = this.getUIPath();
     const newEl = this.getElement(path) || this.createElement("div", ...path);
-    if (!root.getChildren().find((c) => c.id === newEl.id)) {
+    if (!root.children.find((c) => c.id === newEl.id)) {
       root.appendChild(newEl);
     }
     return newEl;
   }
 
-  getStyleElement(
+  protected getStyleElement(
     structName: string,
     ...childPath: string[]
   ): IElement | undefined {
     return this.getElement(this.getStylePath(structName, ...childPath));
   }
 
-  getUIElement(
+  protected getUIElement(
     structName: string,
     ...childPath: string[]
   ): IElement | undefined {
     return this.getElement(this.getUIPath(structName, ...childPath));
   }
 
-  constructElement(
+  protected constructElement(
     type: string,
     rootPath: string[],
     structName: string,
@@ -341,130 +383,65 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return this.getElement([...rootPath, structName, ...childPath]) as IElement;
   }
 
-  constructStyleElement(
+  protected constructStyleElement(
     structName: string,
     fields?: unknown
   ): IElement | undefined {
+    const styleName = "style-" + structName;
     const hash = getHash(fields).toString();
-    const existingStructEl = this.getStyleElement(structName);
+    const existingStructEl = this.getStyleElement(styleName);
     if (!existingStructEl) {
       const structEl = this.constructElement(
         "style",
         this.getStylePath(),
-        structName
+        styleName
       );
-      structEl.dataset["hash"] = hash;
+      structEl.updateAttributes({ hash });
       return structEl;
     }
-    if (existingStructEl.dataset["hash"] !== hash) {
+    if (existingStructEl.getAttribute("hash") !== hash) {
       // Content of existing element has changed, needs update
-      existingStructEl.replaceChildren();
-      existingStructEl.dataset["hash"] = hash;
+      existingStructEl.clear();
+      existingStructEl.updateAttributes({ hash });
       return existingStructEl;
     }
     // Content of existing element is the same, no need to construct
     return undefined;
   }
 
-  constructUI(structName: string, fields: Record<string, unknown>): IElement {
+  protected constructUI(
+    structName: string,
+    fields: Record<string, unknown>
+  ): IElement {
     const hash = getHash(fields).toString();
     const existingStructEl = this.getUIElement(structName);
-    if (existingStructEl && existingStructEl.dataset["hash"] !== hash) {
-      existingStructEl.replaceChildren();
+    if (existingStructEl && existingStructEl.getAttribute("hash") !== hash) {
+      existingStructEl.clear();
     }
     const structEl =
       existingStructEl ||
       this.constructElement("div", this.getUIPath(), structName);
-    if (structEl.dataset["hash"] !== hash) {
-      structEl.dataset["hash"] = hash;
+    if (structEl.getAttribute("hash") !== hash) {
+      structEl.updateAttributes({ hash });
     }
     if (!existingStructEl) {
-      structEl.addState("hidden");
+      structEl.updateAttributes({ hidden: "" });
     }
     return structEl;
   }
 
-  protected _searchForFirst(
-    parent: IElement,
-    name: string
-  ): IElement | undefined {
-    if (this.getName(parent.id) === name) {
-      return parent;
-    }
-    const children = parent.getChildren();
-    for (let i = 0; i < children.length; i += 1) {
-      const child = children[i];
-      if (child) {
-        let result = this._searchForFirst(child, name);
-        if (result) {
-          return result;
-        }
-      }
-    }
-    return undefined;
-  }
-
-  protected _searchForAll(
-    parent: IElement,
-    name: string,
-    found: IElement[]
-  ): IElement[] {
-    if (parent) {
-      const children = parent.getChildren();
-      for (let i = 0; i < children.length; i += 1) {
-        const child = children[i];
-        if (child) {
-          if (this.getName(child.id) === name) {
-            found.push(child);
-          }
-          this._searchForAll(child, name, found);
-        }
-      }
-    }
-    return found;
-  }
-
-  findAllUIElements(structName: string, childName: string): IElement[] {
-    const found: IElement[] = [];
-    const parent = this.getElement(this.getUIPath(structName));
-    if (parent) {
-      this._searchForAll(parent, childName, found);
-    }
-    return found;
-  }
-
-  findFirstUIElement(
-    structName: string,
-    childName?: string
-  ): IElement | undefined {
-    const parent = this.getElement(this.getUIPath(structName));
-    if (!childName) {
-      return parent;
-    }
-    if (parent) {
-      return this._searchForFirst(parent, childName);
-    }
-    return undefined;
-  }
-
-  createElement(type: string, ...path: string[]): IElement {
-    const newEl = this._config.createElement(type);
-    if (path?.length > 0) {
-      newEl.id = this.getId(...path);
-      if (type !== "style") {
-        newEl.className = this.getName(newEl.id);
-      }
-    }
-    this._events.onCreateElement.dispatch(type, newEl.id);
-    return newEl;
+  protected createElement(type: string, ...path: string[]): IElement {
+    const id = this.getId(...path);
+    const name = path.at(-1) || "";
+    return this._config.createElement(type, id, name);
   }
 
   hideUI(...structNames: string[]): void {
     structNames.forEach((structName) => {
       if (structName) {
         const structEl = this.getUIElement(structName);
-        if (structEl && !structEl.hasState("hidden")) {
-          structEl.addState("hidden");
+        if (structEl) {
+          structEl.updateAttributes({ hidden: "" });
         }
       }
     });
@@ -475,9 +452,606 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       if (structName) {
         const structEl = this.getUIElement(structName);
         if (structEl) {
-          structEl.removeState("hidden");
+          structEl.updateAttributes({ hidden: null });
         }
       }
     });
   }
+
+  protected findElement(uiName: string, target?: string): IElement | undefined {
+    const parent = this.getElement(this.getUIPath(uiName));
+    if (!target) {
+      return parent;
+    }
+    if (parent) {
+      return this.searchForFirst(parent, target);
+    }
+    return undefined;
+  }
+
+  protected searchForFirst(
+    parent: IElement,
+    name: string
+  ): IElement | undefined {
+    if (parent.name === name) {
+      return parent;
+    }
+    const child = parent.findChild(name);
+    if (child) {
+      return child;
+    }
+    for (let i = 0; i < parent.children.length; i += 1) {
+      const child = parent.children[i];
+      if (child) {
+        const found = this.searchForFirst(child, name);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    return undefined;
+  }
+
+  protected findElements(uiName: string, target: string): IElement[] {
+    const found: IElement[] = [];
+    const parent = this.getElement(this.getUIPath(uiName));
+    if (parent) {
+      this.searchForAll(parent, target, found);
+    }
+    return found;
+  }
+
+  protected searchForAll(
+    parent: IElement,
+    name: string,
+    found: IElement[]
+  ): IElement[] {
+    if (parent) {
+      const matchingChildren = parent.findChildren(name);
+      found.push(...matchingChildren);
+      for (let i = 0; i < parent.children.length; i += 1) {
+        const child = parent.children[i];
+        if (child) {
+          this.searchForAll(child, name, found);
+        }
+      }
+    }
+    return found;
+  }
+
+  protected appendChildElement(
+    parent: IElement,
+    state: ElementState
+  ): IElement | undefined {
+    if (parent) {
+      const type = state.type || "div";
+      const name = state?.name || uuid();
+      const id = this.getId(...this.getPath(parent.id), name);
+      const newEl = this._config.createElement(type, id, name);
+      const appendedChild = parent.appendChild(newEl);
+      appendedChild.update(state);
+      return appendedChild;
+    }
+    return undefined;
+  }
+
+  protected getStateKey(uiName: string, target: string): string {
+    if (target) {
+      return `${uiName}@${target}`;
+    }
+    return uiName;
+  }
+
+  protected getOrCreateContentElement(
+    element: IElement,
+    name: "image" | "text"
+  ): IElement | undefined {
+    const contentChild = element.findChild(name);
+    if (contentChild) {
+      return contentChild;
+    }
+    return this.appendChildElement(element, { name, type: "div" });
+  }
+
+  findIds(uiName: string, target: string): string[] {
+    return this.findElements(uiName, target).map((c) => c.id);
+  }
+
+  getTransitionStyle(
+    event: TextEvent | ImageEvent,
+    instant: boolean
+  ): Record<string, string | null> {
+    const style: Record<string, string | null> = {};
+    style["will-change"] = "opacity";
+    style["opacity"] = !event.enter ? "1" : "0";
+    if (instant) {
+      style["transition-property"] = "none";
+      if (event.exit) {
+        style["filter"] = "opacity(0)";
+      }
+    } else {
+      style["transition-property"] = "opacity";
+      style["transition-delay"] = `${event.enter ?? 0}s`;
+      style["transition-timing-function"] = `linear`;
+      if (event.exit) {
+        style["position"] = "absolute";
+        style["inset"] = "0";
+        style["will-change"] += `, filter`;
+        style["filter"] = "opacity(1)";
+        style["transition-property"] += `, filter`;
+        style["transition-delay"] += `, ${event.exit ?? 0}s`;
+      }
+    }
+    return style;
+  }
+
+  // PUBLIC SETTER METHODS
+
+  setOnClick(
+    uiName: string,
+    target: string,
+    onclick: ((this: any, ev: any) => any) | null
+  ): boolean {
+    const targetEls = this.findElements(uiName, target);
+    targetEls.forEach((targetEl) => {
+      targetEl.onclick = onclick;
+      targetEl.updateStyle({ "pointer-events": "auto" });
+    });
+    return targetEls.length > 0;
+  }
+
+  setOnPointerDown(
+    uiName: string,
+    target: string,
+    onpointerdown: ((this: any, ev: any) => any) | null
+  ): boolean {
+    const targetEls = this.findElements(uiName, target);
+    targetEls.forEach((targetEl) => {
+      targetEl.onpointerup = onpointerdown;
+      targetEl.updateStyle({ "pointer-events": "auto" });
+    });
+    return targetEls.length > 0;
+  }
+
+  setOnPointerUp(
+    uiName: string,
+    target: string,
+    onpointerup: ((this: any, ev: any) => any) | null
+  ): boolean {
+    const targetEls = this.findElements(uiName, target);
+    targetEls.forEach((targetEl) => {
+      targetEl.onpointerup = onpointerup;
+      targetEl.updateStyle({ "pointer-events": "auto" });
+    });
+    return targetEls.length > 0;
+  }
+
+  Instance = (($) => {
+    class Instance {
+      protected saveState(
+        uiName: string,
+        target: string,
+        instanceNumber: number
+      ) {
+        const key = $.getStateKey(uiName, target);
+        const validInstanceNumber = Math.max(1, instanceNumber);
+        const instanceCount = $._state.instance[key] ?? 0;
+        if (validInstanceNumber > instanceCount) {
+          $._state.instance[key] = validInstanceNumber;
+        }
+      }
+
+      get(
+        uiName: string,
+        target: string,
+        instanceNumber: number
+      ): string | undefined {
+        // Save state
+        this.saveState(uiName, target, instanceNumber);
+        // Update ui
+        const targetEls = $.findElements(uiName, target);
+        const existingEl = targetEls[instanceNumber];
+        if (existingEl) {
+          return existingEl.name;
+        }
+        const firstEl = targetEls.at(0);
+        if (firstEl) {
+          const parentEl = $.getParentElement(firstEl);
+          if (parentEl) {
+            for (let i = 0; i < instanceNumber + 1; i += 1) {
+              const el = targetEls?.[i] || parentEl.cloneChild(0);
+              if (el) {
+                if (instanceNumber === i) {
+                  return el.name;
+                }
+              }
+            }
+          }
+        }
+        return undefined;
+      }
+    }
+    return Instance;
+  })(this);
+
+  Text = (($) => {
+    class Text {
+      protected saveState(
+        uiName: string,
+        target: string,
+        sequence: TextEvent[] | null
+      ) {
+        const key = $.getStateKey(uiName, target);
+        if (sequence) {
+          const textState = $._state.text[key] ?? [];
+          sequence.forEach((e) => {
+            if (!e.exit) {
+              const prev = textState.at(-1);
+              if (
+                prev &&
+                JSON.stringify(prev.params || {}) ===
+                  JSON.stringify(e.params || {})
+              ) {
+                prev.text = (prev.text ?? "") + e.text;
+              } else {
+                const s: TextState = { text: e.text };
+                if (e.params) {
+                  s.params = e.params;
+                }
+                textState.push(s);
+              }
+            }
+          });
+          $._state.text[key] = textState;
+        } else {
+          delete $._state.text[key];
+        }
+      }
+
+      protected applyChanges(
+        uiName: string,
+        target: string,
+        sequence: TextEvent[] | null,
+        instant: boolean
+      ): () => void {
+        const inElements: IElement[] = [];
+        const outElements: IElement[] = [];
+        const enterAt = sequence?.[0]?.enter ?? 0;
+        $.findElements(uiName, target).forEach((targetEl) => {
+          if (targetEl) {
+            if (enterAt > 0) {
+              targetEl.updateStyle({
+                opacity: "0",
+                transition: instant ? "none" : `opacity 0s linear ${enterAt}s`,
+              });
+              inElements.push(targetEl);
+            }
+            const contentEl = $.getOrCreateContentElement(targetEl, "text");
+            if (contentEl) {
+              if (sequence) {
+                let blockEl: IElement | undefined = undefined;
+                sequence.forEach((e) => {
+                  const textAlign = e.params?.["text-align"];
+                  if (textAlign) {
+                    // text-align must be applied to a parent element
+                    if (blockEl?.style["text-align"] !== textAlign) {
+                      // Group consecutive spans that have the same text-alignment under the same block wrapper
+                      const wrapperStyle: Record<string, string | null> = {};
+                      wrapperStyle["display"] = "block";
+                      wrapperStyle["text-align"] = textAlign;
+                      blockEl = $.appendChildElement(contentEl, {
+                        type: "div",
+                        style: wrapperStyle,
+                      });
+                    }
+                  } else {
+                    blockEl = undefined;
+                  }
+                  const parentEl = blockEl || contentEl;
+                  const name = parentEl.children.length.toString();
+                  const text = e.text;
+                  const style = { ...(e.params || {}) };
+                  const transitionStyle = $.getTransitionStyle(e, instant);
+                  const childEl = $.appendChildElement(parentEl, {
+                    name,
+                    type: "span",
+                    text,
+                    style: { ...style, ...transitionStyle },
+                  });
+                  if (childEl) {
+                    inElements.push(childEl);
+                    if (e.exit) {
+                      outElements.push(childEl);
+                    }
+                  }
+                });
+              } else {
+                contentEl.clear();
+              }
+            }
+          }
+        });
+        return () => {
+          // Transition in elements
+          inElements.forEach((el) => {
+            el.updateStyle({ opacity: "1" });
+          });
+          // Transition out elements
+          outElements.forEach((el) => {
+            el.updateStyle({ filter: "opacity(0)" });
+          });
+        };
+      }
+
+      clear(uiName: string, target: string): void {
+        this.saveState(uiName, target, null);
+        this.applyChanges(uiName, target, null, true);
+      }
+
+      write(
+        uiName: string,
+        target: string,
+        sequence: TextEvent[],
+        instant = false
+      ): () => void {
+        this.saveState(uiName, target, sequence);
+        return this.applyChanges(uiName, target, sequence, instant);
+      }
+
+      set(uiName: string, target: string, text: string): void {
+        this.clear(uiName, target);
+        const triggerTransition = this.write(uiName, target, [{ text }], true);
+        triggerTransition();
+      }
+
+      getTargets(uiName: string): string[] {
+        const targets: string[] = [];
+        $.findElements(uiName, "text").forEach((textEl) => {
+          const parent = $.getParentElement(textEl);
+          if (parent) {
+            targets.push(parent.name);
+          }
+        });
+        return targets;
+      }
+    }
+    return Text;
+  })(this);
+
+  Image = (($) => {
+    class Image {
+      protected saveState(
+        uiName: string,
+        target: string,
+        sequence: ImageEvent[] | null
+      ) {
+        const key = $.getStateKey(uiName, target);
+        if (sequence) {
+          const imageState = $._state.image[key] ?? [];
+          sequence.forEach((e) => {
+            if (!e.exit) {
+              const prev = imageState.at(-1);
+              if (
+                prev &&
+                JSON.stringify(prev.params || {}) ===
+                  JSON.stringify(e.params || {})
+              ) {
+                prev.image = e.image;
+              } else {
+                const s: ImageState = { image: e.image };
+                if (e.params) {
+                  s.params = e.params;
+                }
+                imageState.push(s);
+              }
+            }
+          });
+          $._state.image[key] = imageState;
+        } else {
+          delete $._state.image[key];
+        }
+      }
+
+      protected applyChanges(
+        uiName: string,
+        target: string,
+        sequence: ImageEvent[] | null,
+        instant: boolean
+      ): () => void {
+        const inElements: IElement[] = [];
+        const outElements: IElement[] = [];
+        const enterAt = sequence?.[0]?.enter ?? 0;
+        $.findElements(uiName, target).forEach((targetEl) => {
+          if (targetEl) {
+            const contentEl = $.getOrCreateContentElement(targetEl, "image");
+            if (contentEl) {
+              if (enterAt > 0) {
+                targetEl.updateStyle({
+                  opacity: "0",
+                  transition: instant
+                    ? "none"
+                    : `opacity 0s linear ${enterAt}s`,
+                });
+                inElements.push(targetEl);
+              }
+              if (sequence) {
+                sequence.forEach((e) => {
+                  const parentEl = contentEl;
+                  const name = parentEl.children.length.toString();
+                  const style = { ...(e.params || {}) };
+                  if (e.image) {
+                    const combinedBackgroundImage = e.image
+                      .map((n) => $.getImageVar(n))
+                      .join(", ");
+                    style["background-image"] = combinedBackgroundImage;
+                  }
+                  const transitionStyle = $.getTransitionStyle(e, instant);
+                  const childEl = $.appendChildElement(parentEl, {
+                    name,
+                    type: "span",
+                    style: { ...style, ...transitionStyle },
+                  });
+                  if (childEl) {
+                    inElements.push(childEl);
+                    if (e.exit) {
+                      outElements.push(childEl);
+                    }
+                  }
+                });
+              } else {
+                contentEl.clear();
+              }
+            }
+          }
+        });
+        return () => {
+          // Transition in elements
+          inElements.forEach((el) => {
+            el.updateStyle({ opacity: "1" });
+          });
+          // Transition out elements
+          outElements.forEach((el) => {
+            el.updateStyle({ filter: "opacity(0)" });
+          });
+        };
+      }
+
+      clear(uiName: string, target: string): void {
+        this.saveState(uiName, target, null);
+        this.applyChanges(uiName, target, null, true);
+      }
+
+      write(
+        uiName: string,
+        target: string,
+        sequence: ImageEvent[],
+        instant = false
+      ): () => void {
+        this.saveState(uiName, target, sequence);
+        return this.applyChanges(uiName, target, sequence, instant);
+      }
+
+      getTargets(uiName: string): string[] {
+        const targets: string[] = [];
+        $.findElements(uiName, "image").forEach((textEl) => {
+          const parent = $.getParentElement(textEl);
+          if (parent) {
+            targets.push(parent.name);
+          }
+        });
+        return targets;
+      }
+    }
+    return Image;
+  })(this);
+
+  Style = (($) => {
+    class Style {
+      protected saveState(
+        uiName: string,
+        target: string,
+        style: Record<string, string | null> | null
+      ) {
+        const key = $.getStateKey(uiName, target);
+        if (style) {
+          const styleState = $._state.style[key] ?? {};
+          $._state.style[key] = styleState;
+          Object.entries(style).forEach(([k, v]) => {
+            if (v) {
+              styleState[k] = v;
+            } else {
+              delete styleState[k];
+            }
+          });
+          if (Object.entries(styleState).length === 0) {
+            delete $._state.style[key];
+          }
+        } else {
+          delete $._state.style[key];
+        }
+      }
+
+      protected applyChanges(
+        uiName: string,
+        target: string,
+        style: Record<string, string | null> | null
+      ): void {
+        $.findElements(uiName, target).forEach((targetEl) => {
+          if (targetEl) {
+            targetEl.updateStyle(style);
+          }
+        });
+      }
+
+      update(
+        uiName: string,
+        target: string,
+        style: Record<string, string | null> | null
+      ): void {
+        this.saveState(uiName, target, style);
+        this.applyChanges(uiName, target, style);
+      }
+    }
+    return Style;
+  })(this);
+
+  Attributes = (($) => {
+    class Attributes {
+      protected saveState(
+        uiName: string,
+        target: string,
+        attributes: Record<string, string | null> | null
+      ) {
+        const key = $.getStateKey(uiName, target);
+        if (attributes) {
+          const attributesState = $._state.attributes[key] ?? {};
+          $._state.attributes[key] = attributesState;
+          Object.entries(attributes).forEach(([k, v]) => {
+            if (v) {
+              attributesState[k] = v;
+            } else {
+              delete attributesState[k];
+            }
+          });
+          if (Object.entries(attributesState).length === 0) {
+            delete $._state.attributes[key];
+          }
+        } else {
+          delete $._state.attributes[key];
+        }
+      }
+
+      applyChanges(
+        uiName: string,
+        target: string,
+        attributes: Record<string, string | null> | null
+      ): void {
+        $.findElements(uiName, target).forEach((targetEl) => {
+          if (targetEl) {
+            targetEl.updateAttributes(attributes);
+          }
+        });
+      }
+
+      update(
+        uiName: string,
+        target: string,
+        attributes: Record<string, string | null> | null
+      ): void {
+        this.saveState(uiName, target, attributes);
+        this.applyChanges(uiName, target, attributes);
+      }
+    }
+    return Attributes;
+  })(this);
+
+  instance = new this.Instance();
+
+  text = new this.Text();
+
+  image = new this.Image();
+
+  style = new this.Style();
+
+  attributes = new this.Attributes();
 }

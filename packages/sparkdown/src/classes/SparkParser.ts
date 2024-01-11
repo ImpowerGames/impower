@@ -161,6 +161,7 @@ export default class SparkParser {
       sections: {},
       tokens: [],
       context: {},
+      stored: ["visited"],
       ...augmentations,
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
@@ -1384,7 +1385,7 @@ export default class SparkParser {
                 from: tok.from,
                 to: tok.to,
                 indent: 0,
-                type: "section",
+                type: "visited",
                 name: tok.name,
                 value: "0",
                 compiled: 0,
@@ -1478,24 +1479,18 @@ export default class SparkParser {
 
     extendStructureRange();
 
-    const currentSectionCheckpoints = new Map<
-      string,
-      SparkCheckpointToken | SparkDisplayToken
-    >();
+    const currentSectionCheckpoints = new Set<string>();
 
     const setCheckpoint = (
       tok: SparkCheckpointToken | SparkDisplayToken,
       checkpointId?: string
     ) => {
       const checkpointIndex = currentSectionCheckpoints.size;
-      const checkpoint = checkpointId ?? String(checkpointIndex);
-      const existingCheckpoint = currentSectionCheckpoints.get(checkpoint);
-      if (existingCheckpoint) {
-        reportDuplicate(tok, "checkpoint", checkpoint, tok, existingCheckpoint);
-      } else {
-        tok.checkpoint = checkpoint;
-        currentSectionCheckpoints.set(checkpoint, tok);
-      }
+      const currentSectionName = currentSectionPath.at(-1) || "";
+      const checkpoint =
+        checkpointId ?? currentSectionName + "." + String(checkpointIndex);
+      tok.checkpoint = checkpoint;
+      currentSectionCheckpoints.add(checkpoint);
     };
 
     /* PROCESS COMMANDS */
@@ -1762,6 +1757,12 @@ export default class SparkParser {
             const parent = lookup("jump", "choice");
             if (parent) {
               parent.section = text;
+              parent.ranges ??= {};
+              parent.ranges!.section = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
               validateSectionReferences(
                 tok,
                 currentSectionPath.at(-1) || "",
@@ -1796,7 +1797,6 @@ export default class SparkParser {
             addToken(tok);
           } else if (tok.tag === "dialogue_character_name" && text) {
             tok.target = "character_name";
-            tok.ignore = true;
             tok.text = text;
             const characterKey = getDialogueCharacterKey(text);
             const dialogue = lookup("dialogue");
@@ -1814,7 +1814,6 @@ export default class SparkParser {
             declareImplicitVariable(tok, "synth", characterKey, "character");
           } else if (tok.tag === "dialogue_character_parenthetical" && text) {
             tok.target = "character_parenthetical";
-            tok.ignore = true;
             tok.text = text;
             const dialogue = lookup("dialogue");
             if (dialogue) {
@@ -1870,7 +1869,6 @@ export default class SparkParser {
             }
           } else if (tok.tag === "dialogue_line_parenthetical") {
             tok.target = "parenthetical";
-            tok.speed = 0;
             tok.text = text;
             tok.print = text;
             const parent = lookup("dialogue_box");
@@ -1883,7 +1881,7 @@ export default class SparkParser {
             if (parent) {
               parent.prerequisite = text;
             }
-          } else if (tok.tag === "display_text_target") {
+          } else if (tok.tag === "target_name") {
             const parent = lookup("display_text");
             if (parent) {
               parent.target = text;
@@ -1900,7 +1898,6 @@ export default class SparkParser {
               parent.text = text;
             }
           } else if (tok.tag === "text") {
-            tok.text = text;
             const parent = lookup(
               "choice",
               "action_box",
@@ -1908,16 +1905,44 @@ export default class SparkParser {
               "transition",
               "scene"
             );
-            if (parent) {
-              parent.content ??= [];
-              parent.content.push(tok);
-            }
+            tok.text = text;
             const display_text = lookup("display_text");
             if (display_text) {
               if (display_text.prerequisite) {
                 tok.prerequisite = display_text.prerequisite;
-                tok.target = display_text.target;
               }
+              if (display_text.target) {
+                tok.target = display_text.target;
+              } else {
+                tok.target =
+                  parent?.tag === "dialogue_box"
+                    ? "dialogue"
+                    : parent?.tag === "action_box"
+                    ? "action"
+                    : parent?.tag;
+              }
+            }
+            if (parent) {
+              parent.content ??= [];
+              const lastContent = parent.content.at(-1);
+              if (
+                lastContent &&
+                lastContent.tag === "text" &&
+                lastContent.target === tok.target &&
+                !lastContent.text?.endsWith("\n") &&
+                !lastContent.text?.endsWith("\r")
+              ) {
+                lastContent.text += tok.text;
+              } else {
+                parent.content.push(tok);
+              }
+              parent.ranges ??= {};
+              parent.ranges!.text ??= {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+              parent.ranges!.text.to = tok.to;
             }
           } else if (tok.tag === "image") {
             tok.target = id === "InlineImage" ? "insert" : "portrait";
@@ -2005,6 +2030,17 @@ export default class SparkParser {
               });
               parent.ranges ??= {};
               parent.ranges.args = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
+            }
+          } else if (tok.tag === "choice_operator") {
+            const parent = lookup("choice");
+            if (parent) {
+              parent.operator = text;
+              parent.ranges ??= {};
+              parent.ranges!.operator = {
                 line: tok.line,
                 from: tok.from,
                 to: tok.to,
@@ -2307,19 +2343,30 @@ export default class SparkParser {
             if (lastBox) {
               const text =
                 tok.content?.map((c) => c.text || "")?.join("") || "";
-              const choices = tok.content?.filter((c) => c.target === "choice");
-              const choiceId = String(choices?.length);
+              const choices = lastBox.content?.filter(
+                (c) => c.target === "choice" && c.button
+              );
+              const choiceInstance = (choices?.length ?? 0) + 1;
               lastBox.content ??= [];
               lastBox.content.push({
                 tag: "choice",
-                line: tok.line,
-                from: tok.from,
-                to: tok.to,
+                line: tok.ranges?.operator?.line ?? tok.line,
+                from: tok.ranges?.operator?.from ?? tok.from,
+                to: tok.ranges?.operator?.to ?? tok.to,
                 indent: tok.indent,
                 target: "choice",
-                speed: 0,
+                instance: choiceInstance,
+                button: tok.section,
+              });
+              lastBox.content.push({
+                tag: "choice",
+                line: tok.ranges?.text?.line ?? tok.line,
+                from: tok.ranges?.text?.from ?? tok.from,
+                to: tok.ranges?.text?.to ?? tok.to,
+                indent: tok.indent,
+                target: "choice",
+                instance: choiceInstance,
                 text,
-                args: [tok.section, choiceId],
               });
             }
           } else if (tok.tag === "transition") {

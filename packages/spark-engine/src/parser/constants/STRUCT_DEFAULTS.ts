@@ -8,15 +8,21 @@ import {
   GRADIENT_DEFAULTS,
   GRAPHIC_DEFAULTS,
   IMAGE_DEFAULTS,
+  IMAGE_LAYER_DEFAULTS,
   SHADOW_DEFAULTS,
   STYLE_DEFAULTS,
   SYNTH_DEFAULTS,
+  TEXT_LAYER_DEFAULTS,
   UI_DEFAULTS,
   WRITER_DEFAULTS,
 } from "../../game";
 
 export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
+  text_layer: TEXT_LAYER_DEFAULTS,
+
   image: IMAGE_DEFAULTS,
+  image_layer: IMAGE_LAYER_DEFAULTS,
+
   audio: AUDIO_DEFAULTS,
   audio_group: AUDIO_GROUP_DEFAULTS,
 

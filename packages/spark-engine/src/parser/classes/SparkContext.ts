@@ -15,8 +15,8 @@ export default class SparkContext<
     options?: SparkContextOptions<G, C, S, R>
   ) {
     super(programs, {
-      runner: new SparkGameRunner<G>() as R,
       createGame: (c?: C, s?: S) => new SparkGame(c, s) as G,
+      createRunner: (g: G) => new SparkGameRunner<G>(g) as R,
       ...(options || {}),
     });
   }

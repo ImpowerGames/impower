@@ -1,12 +1,12 @@
 import { SparkProgram } from "../../../../sparkdown/src";
-import { CommandData } from "../../data";
 import { Block, Game, GameConfig, GameState } from "../../game";
-import { CommandRunner } from "../../runner";
 import { GameRunner } from "../../runner/classes/GameRunner";
 import { ContextOptions } from "../interfaces/ContextOptions";
 import { combineBlockMap } from "../utils/combineBlockMap";
 import { combineValueMap } from "../utils/combineValueMap";
 import getCommandIndexAtLine from "../utils/getCommandIndexAtLine";
+import { getPreviewCommand } from "../utils/getPreviewCommand";
+import { getPreviewVariable } from "../utils/getPreviewVariable";
 import getSectionAtLine from "../utils/getSectionAtLine";
 
 export class Context<
@@ -16,50 +16,22 @@ export class Context<
   R extends GameRunner<G> = GameRunner<G>
 > {
   private _game: G;
-  public get game(): G {
+  public get game() {
     return this._game;
   }
 
   private _runner: R;
-  public get runner(): R {
+  public get runner() {
     return this._runner;
   }
 
-  private _editable: boolean;
-  public get editable(): boolean {
-    return this._editable;
-  }
-
-  public get loadedBlockIds(): readonly string[] {
-    return this.game.logic.state.loadedBlockIds;
-  }
-
-  private _contexts: {
-    [id: string]: {
-      commands: {
-        runner: CommandRunner<G>;
-        data: CommandData;
-      }[];
-    };
-  } = {};
-  public get contexts(): {
-    [id: string]: {
-      commands: {
-        runner: CommandRunner<G>;
-        data: CommandData;
-      }[];
-    };
-  } {
-    return this._contexts;
-  }
-
   private _programs: Record<string, SparkProgram>;
-  public get programs(): Record<string, SparkProgram> {
+  public get programs() {
     return this._programs;
   }
 
   private _entryProgramId: string;
-  public get entryProgramId(): string {
+  public get entryProgramId() {
     return this._entryProgramId;
   }
 
@@ -68,13 +40,17 @@ export class Context<
     options: ContextOptions<G, C, S, R>
   ) {
     this._programs = programs;
-    this._runner = options.runner || (new GameRunner() as R);
-    this._editable = options?.editable || false;
-    this._game = this.load(programs, options);
     this._entryProgramId = options.startFromProgram || "";
+    this._game = this.load(programs, options);
+    this._runner =
+      options.createRunner?.(this._game) || (new GameRunner(this._game) as R);
+
+    this.runner.commandRunners.forEach((r) => {
+      r.init();
+    });
   }
 
-  load(
+  protected load(
     programs: Record<string, SparkProgram>,
     options: ContextOptions<G, C, S, R>
   ): G {
@@ -137,23 +113,6 @@ export class Context<
       ...(options?.state || {}),
     } as S;
     const game = options.createGame?.(c, s) || (new Game(c, s) as G);
-    Object.entries(game?.logic?.config?.blockMap).forEach(
-      ([blockId, block]) => {
-        const commands: {
-          runner: CommandRunner<G>;
-          data: CommandData;
-        }[] = Object.entries(block.commands || {}).map(([_, v]) => {
-          const r = this.runner.getCommandRunner(v.reference.typeId);
-          return { runner: r as CommandRunner<G>, data: v as CommandData };
-        });
-        this._contexts[blockId] = {
-          commands,
-        };
-      }
-    );
-    this.runner.commandRunners.forEach((r) => {
-      r.init(game);
-    });
     this._game = game;
     return game;
   }
@@ -164,7 +123,7 @@ export class Context<
 
   dispose(): void {
     this.runner.commandRunners.forEach((r) => {
-      r.onDestroy(this.game);
+      r.onDestroy();
     });
     this.game.destroy();
   }
@@ -173,11 +132,12 @@ export class Context<
     if (deltaMS) {
       this.game.update(deltaMS);
       this.runner.commandRunners.forEach((r) => {
-        r.onUpdate(this.game, deltaMS);
+        r.onUpdate(deltaMS);
       });
-      if (this.loadedBlockIds) {
-        for (let i = 0; i < this.loadedBlockIds.length; i += 1) {
-          const blockId = this.loadedBlockIds[i];
+      const loadedBlockIds = this.game.logic.state.loadedBlockIds;
+      if (loadedBlockIds) {
+        for (let i = 0; i < loadedBlockIds.length; i += 1) {
+          const blockId = loadedBlockIds[i];
           if (blockId !== undefined) {
             if (!this.updateBlock(blockId)) {
               return false; // Player quit the game
@@ -189,22 +149,53 @@ export class Context<
     return true;
   }
 
-  updateBlock(blockId: string): boolean {
+  getRunner = (typeId: string) => this.runner.getCommandRunner(typeId);
+
+  protected updateBlock(blockId: string): boolean {
     const blockStates = this.game.logic.state?.blockStates;
     const blockState = blockStates[blockId];
-    const context = this.contexts[blockId];
-    if (context && blockState) {
-      if (blockState.loaded && this.runner.blockRunner) {
-        const running = this.runner.blockRunner.update(
-          blockId,
-          context,
-          this.game
-        );
+    if (blockState) {
+      if (blockState.loaded) {
+        const running = this.game.logic.updateBlock(blockId, this.getRunner);
         if (running === null) {
           return false;
         }
       }
     }
     return true;
+  }
+
+  preview(line: number, debug: boolean): void {
+    const program = this.programs[this.entryProgramId];
+    if (program) {
+      const runtimeCommand = getPreviewCommand(program, line);
+      if (runtimeCommand) {
+        const commandRunner = this?.runner?.getCommandRunner(
+          runtimeCommand.reference.typeId
+        );
+        if (commandRunner) {
+          this.game.ui.loadTheme(this.game.logic.valueMap);
+          this.game.ui.loadStyles(this.game.logic.valueMap);
+          this.game.ui.loadUI(this.game.logic.valueMap);
+          commandRunner.onPreview(runtimeCommand, {
+            instant: true,
+            debug,
+          });
+        }
+      } else {
+        const previewVariable = getPreviewVariable(program, line);
+        if (previewVariable?.type === "style") {
+          this.game.ui.loadStyles(this.game.logic.valueMap);
+        }
+        if (previewVariable?.type === "ui") {
+          this.game.ui.hideUI(
+            ...Object.keys(this.game.logic.valueMap?.["ui"] || {})
+          );
+          this.game.ui.loadStyles(this.game.logic.valueMap);
+          this.game.ui.loadUI(this.game.logic.valueMap, previewVariable.name);
+          this.game.ui.showUI(previewVariable.name);
+        }
+      }
+    }
   }
 }

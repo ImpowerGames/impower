@@ -1,6 +1,5 @@
 import { DebugConfig, DebugManager, DebugState } from "../../debug";
 import { LogicConfig, LogicManager, LogicState } from "../../logic";
-import { RandomConfig, RandomManager, RandomState } from "../../random";
 import { TickerConfig, TickerManager, TickerState } from "../../ticker";
 import { UIConfig, UIManager, UIState } from "../../ui";
 import { UUIDConfig, UUIDManager, UUIDState } from "../../uuid";
@@ -20,7 +19,6 @@ export interface GameConfig {
   ticker?: Partial<TickerConfig>;
   uuid?: Partial<UUIDConfig>;
   ui?: Partial<UIConfig>;
-  random?: Partial<RandomConfig>;
   logic?: Partial<LogicConfig>;
   debug?: Partial<DebugConfig>;
 }
@@ -29,7 +27,6 @@ export interface GameState {
   ticker?: Partial<TickerState>;
   uuid?: Partial<UUIDState>;
   ui?: Partial<UIState>;
-  random?: Partial<RandomState>;
   logic?: Partial<LogicState>;
   debug?: Partial<DebugState>;
 }
@@ -41,13 +38,28 @@ export class Game {
 
   uuid: UUIDManager;
 
-  random: RandomManager;
-
   logic: LogicManager;
 
   ui: UIManager;
 
   debug: DebugManager;
+
+  protected _events: GameEvents = {
+    onInit: new GameEvent0(),
+    onDestroy: new GameEvent0(),
+  };
+
+  public get events(): ListenOnly<GameEvents> {
+    return this._events;
+  }
+
+  protected _managers: Record<string, Manager>;
+
+  protected _managerNames: string[];
+
+  protected _latestCheckpointId: string;
+
+  protected _latestCheckpointData: string;
 
   constructor(config?: Partial<GameConfig>, state?: Partial<GameState>) {
     this.environment = { ...this.environment, ...(config?.environment || {}) };
@@ -57,11 +69,6 @@ export class Game {
       state?.ticker
     );
     this.uuid = new UUIDManager(this.environment, config?.uuid, state?.uuid);
-    this.random = new RandomManager(
-      this.environment,
-      config?.random,
-      state?.random
-    );
     this.logic = new LogicManager(
       this.environment,
       config?.logic,
@@ -73,30 +80,24 @@ export class Game {
       config?.debug,
       state?.debug
     );
+    this._managers = this.managers();
+    this._managerNames = Object.keys(this._managers);
+    this._latestCheckpointId = "";
+    this._latestCheckpointData = this.serialize();
   }
 
   managers(): Record<string, Manager> {
     return {
       ticker: this.ticker,
       uuid: this.uuid,
-      random: this.random,
       logic: this.logic,
       ui: this.ui,
       debug: this.debug,
     };
   }
 
-  protected _events: GameEvents = {
-    onInit: new GameEvent0(),
-    onDestroy: new GameEvent0(),
-  };
-
-  public get events(): ListenOnly<GameEvents> {
-    return this._events;
-  }
-
   init(): void {
-    Object.values(this.managers()).forEach((m) => m.init());
+    this._managerNames.forEach((k) => this._managers[k]?.init());
     this.ui.loadTheme(this.logic.valueMap);
     this.ui.loadStyles(this.logic.valueMap);
     this.ui.loadUI(this.logic.valueMap);
@@ -104,21 +105,35 @@ export class Game {
   }
 
   update(deltaMS: number): void {
-    Object.values(this.managers()).forEach((manager) => {
-      manager.update(deltaMS);
+    this._managerNames.forEach((k) => {
+      this._managers[k]?.update(deltaMS);
     });
   }
 
   destroy(): void {
     this._events.onDestroy.dispatch();
-    Object.values(this.managers()).forEach((m) => m.destroy());
+    this._managerNames.forEach((k) => this._managers[k]?.destroy());
   }
 
   serialize(): string {
     const saveData: Record<string, unknown> = {};
-    Object.entries(this.managers()).forEach(([key, value]) => {
-      saveData[key] = value.getSaveData();
+    this._managerNames.forEach((k) => {
+      const manager = this._managers[k];
+      if (manager) {
+        manager.onSerialize();
+        saveData[k] = manager.state;
+      }
     });
-    return JSON.stringify(saveData);
+    const serialized = JSON.stringify(saveData);
+    // console.log(JSON.parse(serialized));
+    return serialized;
+  }
+
+  checkpoint(id: string): void {
+    this._managerNames.forEach((k) => {
+      this._managers[k]?.onCheckpoint(id);
+    });
+    this._latestCheckpointId = id;
+    this._latestCheckpointData = this.serialize();
   }
 }

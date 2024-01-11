@@ -10,19 +10,19 @@ export interface TweenEvents extends Record<string, GameEvent> {
   onUpdate: GameEvent1<number>;
 }
 
-export interface TweenConfig {
-  timings: Map<string, TweenTiming>;
-}
+export interface TweenConfig {}
 
-export interface TweenState {
-  elapsedMS: number;
-}
+export interface TweenState {}
 
 export class TweenManager extends Manager<
   TweenEvents,
   TweenConfig,
   TweenState
 > {
+  protected _elapsedMS = 0;
+
+  protected _timings = new Map<string, TweenTiming>();
+
   constructor(
     environment: Environment,
     config?: Partial<TweenConfig>,
@@ -37,33 +37,30 @@ export class TweenManager extends Manager<
       timings: new Map(),
       ...(config || {}),
     };
-    const initialState: TweenState = {
-      elapsedMS: 0,
-      ...(state || {}),
-    };
+    const initialState: TweenState = { ...(state || {}) };
     super(environment, initialEvents, initialConfig, initialState);
   }
 
   get(key: string): TweenTiming | undefined {
-    return this._config.timings.get(key);
+    return this._timings.get(key);
   }
 
   add(key: string, timing: TweenTiming): void {
-    this._config.timings.set(key, timing);
+    this._timings.set(key, timing);
     this._events.onAdded.dispatch(key);
   }
 
   remove(key: string): void {
-    this._config.timings.delete(key);
+    this._timings.delete(key);
     this._events.onRemoved.dispatch(key);
   }
 
   override update(deltaMS: number): void {
-    this._state.elapsedMS += deltaMS;
-    this._config.timings.forEach((timing) => {
+    this._elapsedMS += deltaMS;
+    this._timings.forEach((timing) => {
       const delayMS = (timing.delay ?? 0) * 1000;
       const durationMS = (timing.duration ?? 0) * 1000;
-      const tweenElapsedMS = this._state.elapsedMS - delayMS;
+      const tweenElapsedMS = this._elapsedMS - delayMS;
       const iteration = tweenElapsedMS / durationMS;
       const tween = (
         a: number,

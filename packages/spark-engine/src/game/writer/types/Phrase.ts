@@ -1,13 +1,13 @@
 import { Chunk } from "./Chunk";
 
 export interface Phrase {
-  target?: string | undefined;
-  text?: string | undefined;
-  image?: string[] | undefined;
-  audio?: string[] | undefined;
-  args?: string[] | undefined;
-  speed?: number;
-  ignore?: boolean;
+  target?: string;
+  instance?: number;
+  button?: string;
+  text?: string;
+  image?: string[];
+  audio?: string[];
+  args?: string[];
 
   chunks?: Chunk[];
 }

@@ -1,6 +1,6 @@
-import { ContainerReference } from "./ContainerReference";
-
-export interface BlockReference extends ContainerReference<"Block"> {
+export interface BlockReference {
   type: "Block";
   typeId: "Block";
+  parentId: string;
+  id: string;
 }

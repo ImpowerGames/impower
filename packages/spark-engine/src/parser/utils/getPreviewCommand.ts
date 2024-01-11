@@ -22,7 +22,7 @@ export const getPreviewCommand = (
     const token = program.tokens[tokenIndex];
     if (token) {
       const sectionId = getSectionAtLine(line, program?.sections || {});
-      const runtimeCommand = generateCommand(token, "", sectionId);
+      const runtimeCommand = generateCommand(token, "", sectionId, tokenIndex);
       if (runtimeCommand) {
         return runtimeCommand;
       }

@@ -2,7 +2,7 @@ import { randomizer } from "../randomizer";
 import { shuffle } from "../shuffle";
 
 export const choose = (
-  value: number | [value: number] | [value: number, seed: string],
+  value: number | [visited: number, choice?: string, seed?: string],
   _locale?: string,
   ...args: readonly string[]
 ): [
@@ -24,8 +24,12 @@ export const choose = (
     severity?: "info" | "warning" | "error";
     message?: string;
   }[] = [];
-  const v = (Array.isArray(value) ? value[0] : value) || 0;
-  const seed = Array.isArray(value) ? value[1] : undefined;
+  // The number of times we've made this choice.
+  const visited = (Array.isArray(value) ? value[0] : value) || 0;
+  // A unique identifier for this choice.
+  const choice = String((Array.isArray(value) ? value[1] : undefined) || "");
+  // The seed for this playthrough.
+  const seed = String((Array.isArray(value) ? value[2] : undefined) || "");
   const firstParamIndex = 0;
   const lastParamIndex = newArgs.length - 1;
   const firstParam = newArgs[firstParamIndex];
@@ -37,33 +41,36 @@ export const choose = (
   if (shuffled || randomized) {
     ignoreArgs.push(firstParamIndex);
     newArgs.shift();
-    const cycleIndex = Math.floor(v / newArgs.length);
-    // When shuffling, we seed the "random" order so that
-    // each option is selected only once per cycle.
-    // When randomizing, we don't seed, so that it can be truly random.
-    const cycleSeed = shuffled ? (seed || "") + cycleIndex : undefined;
-    const rng = seed ? randomizer(cycleSeed) : randomizer();
+    // The number of times we've cycled through all the options.
+    const cycled = Math.floor(visited / newArgs.length);
+    const rng = shuffled
+      ? // When shuffling, we seed with cycle count so that
+        // the option order only changes when the cycle count changes (once we've cycled through all the options)
+        randomizer(seed + choice + cycled)
+      : // When randomizing, we seed with visited count so that
+        // the option order changes every time we revisit this choice.
+        randomizer(seed + choice + visited);
     if (repeatLast) {
-      // Shuffle all except last two
-      const cycleMark = newArgs.pop();
-      const last = newArgs.pop();
+      // Shuffle all except last option and repeat mark
+      const repeatMark = newArgs.pop();
+      const lastOption = newArgs.pop();
       newArgs = shuffle(newArgs, rng);
-      if (last !== undefined) {
-        newArgs.push(last);
+      if (lastOption !== undefined) {
+        newArgs.push(lastOption);
       }
-      if (cycleMark !== undefined) {
-        newArgs.push(cycleMark);
+      if (repeatMark !== undefined) {
+        newArgs.push(repeatMark);
       }
     } else {
-      // Shuffle all possible
+      // Shuffle all options
       newArgs = shuffle(newArgs, rng);
     }
   }
   if (repeatLast) {
     ignoreArgs.push(lastParamIndex);
     newArgs.pop();
-    const iterationIndex = v % newArgs.length;
-    const loopIndex = Math.floor(v / newArgs.length);
+    const iterationIndex = visited % newArgs.length;
+    const loopIndex = Math.floor(visited / newArgs.length);
     return [
       loopIndex < 1
         ? newArgs[iterationIndex] || ""
@@ -72,6 +79,6 @@ export const choose = (
       ignoreArgs,
     ];
   }
-  const iterationIndex = v % newArgs.length;
+  const iterationIndex = visited % newArgs.length;
   return [newArgs[iterationIndex] || "", diagnostics, ignoreArgs];
 };

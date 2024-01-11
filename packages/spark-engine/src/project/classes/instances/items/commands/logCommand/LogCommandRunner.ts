@@ -7,22 +7,18 @@ export class LogCommandRunner<G extends Game> extends CommandRunner<
   G,
   LogCommandData
 > {
-  override onExecute(
-    game: G,
-    data: LogCommandData,
-    context: CommandContext<G>
-  ): number[] {
+  override onExecute(data: LogCommandData, context: CommandContext): number[] {
     const { severity, message } = data.params;
     if (severity === undefined) {
-      return super.onExecute(game, data, context);
+      return super.onExecute(data, context);
     }
     if (message === undefined) {
-      return super.onExecute(game, data, context);
+      return super.onExecute(data, context);
     }
     const { parentId: parentContainerId, id: refId } = data.reference;
-    const parentNode = game.logic.config.blockMap[parentContainerId];
+    const parentNode = this.game.logic.config.blockMap[parentContainerId];
     const parentParentContainerId = parentNode?.parent;
-    game.debug.log({
+    this.game.debug.log({
       id: uuid(),
       parentBlockId: parentParentContainerId || "",
       blockId: parentContainerId,
@@ -31,6 +27,6 @@ export class LogCommandRunner<G extends Game> extends CommandRunner<
       severity,
       message,
     });
-    return super.onExecute(game, data, context);
+    return super.onExecute(data, context);
   }
 }

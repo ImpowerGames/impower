@@ -1,4 +1,4 @@
-import Matcher from "../classes/Matcher";
+import { Matcher } from "../classes/Matcher";
 import { Prosody } from "../specs/Prosody";
 
 export const getStressMatch = (

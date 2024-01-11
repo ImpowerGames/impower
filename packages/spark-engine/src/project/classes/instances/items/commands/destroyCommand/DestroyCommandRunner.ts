@@ -7,18 +7,17 @@ export class DestroyCommandRunner<G extends SparkGame> extends CommandRunner<
   DestroyCommandData
 > {
   override onExecute(
-    game: G,
     data: DestroyCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): number[] {
     const { entity } = data.params;
 
     if (!entity) {
-      return super.onExecute(game, data, context);
+      return super.onExecute(data, context);
     }
 
-    game.world.destroyEntity(entity);
+    this.game.world.destroyEntity(entity);
 
-    return super.onExecute(game, data, context);
+    return super.onExecute(data, context);
   }
 }

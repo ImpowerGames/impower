@@ -712,7 +712,7 @@ const createVariableWidgets = (
       }
     }
   });
-  return Decoration.set(widgetRanges);
+  return Decoration.set(widgetRanges, true);
 };
 
 const variablePresetWidgetsPlugin = ViewPlugin.fromClass(

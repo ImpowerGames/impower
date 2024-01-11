@@ -9,12 +9,8 @@ import type {
   ReturnCommandData,
 } from "../../data";
 
-const getCommandId = (
-  token: SparkToken,
-  file: string,
-  sectionId: string
-): string => {
-  return `${file}+${sectionId}.${token.tag}_${token.line}`;
+const getCommandId = (sectionId: string, index: number): string => {
+  return `${sectionId}.${index}`;
 };
 
 const getSource = (token: SparkToken, file: string) => {
@@ -29,9 +25,10 @@ const getSource = (token: SparkToken, file: string) => {
 const generateDisplayCommand = (
   token: SparkDisplayToken,
   file: string,
-  sectionId: string
+  sectionId: string,
+  index: number
 ): DisplayCommandData => {
-  const refId = getCommandId(token as SparkToken, file, sectionId);
+  const refId = token.checkpoint || getCommandId(sectionId, index);
   const refTypeId: CommandTypeId = "DisplayCommand";
   return {
     reference: {
@@ -55,8 +52,6 @@ const generateDisplayCommand = (
           : "action",
       position: token.position || "",
       characterKey: token.characterKey || "",
-      characterName: token.characterName?.text || "",
-      characterParenthetical: token.characterParenthetical?.text || "",
       content: token.content || [],
       autoAdvance: token.autoAdvance ?? false,
       waitUntilFinished: token.waitUntilFinished ?? true,
@@ -67,7 +62,8 @@ const generateDisplayCommand = (
 export const generateCommand = (
   token: SparkToken,
   file: string,
-  sectionId: string
+  sectionId: string,
+  index: number
 ): CommandData | null => {
   if (!token) {
     return null;
@@ -81,7 +77,7 @@ export const generateCommand = (
     token.tag === "assign"
   ) {
     if (token.operator) {
-      const refId = getCommandId(token, file, sectionId);
+      const refId = token.checkpoint || getCommandId(sectionId, index);
       const refTypeId: CommandTypeId = "EvaluateCommand";
       const newCommand: EvaluateCommandData = {
         reference: {
@@ -100,7 +96,7 @@ export const generateCommand = (
     }
   }
   if (token.tag === "delete") {
-    const refId = getCommandId(token, file, sectionId);
+    const refId = token.checkpoint || getCommandId(sectionId, index);
     const refTypeId: CommandTypeId = "EvaluateCommand";
     const newCommand: EvaluateCommandData = {
       reference: {
@@ -123,7 +119,7 @@ export const generateCommand = (
     token.tag === "else" ||
     token.tag === "end"
   ) {
-    const refId = getCommandId(token, file, sectionId);
+    const refId = token.checkpoint || getCommandId(sectionId, index);
     const refTypeId: CommandTypeId = "BranchCommand";
     const newCommand: BranchCommandData = {
       reference: {
@@ -142,7 +138,7 @@ export const generateCommand = (
     return newCommand;
   }
   if (token.tag === "jump") {
-    const refId = getCommandId(token, file, sectionId);
+    const refId = token.checkpoint || getCommandId(sectionId, index);
     const refTypeId: CommandTypeId = "JumpCommand";
     const newCommand: JumpCommandData = {
       reference: {
@@ -162,7 +158,7 @@ export const generateCommand = (
     return newCommand;
   }
   if (token.tag === "return") {
-    const refId = getCommandId(token, file, sectionId);
+    const refId = token.checkpoint || getCommandId(sectionId, index);
     const refTypeId: CommandTypeId = "ReturnCommand";
     const newCommand: ReturnCommandData = {
       reference: {
@@ -181,16 +177,16 @@ export const generateCommand = (
     return newCommand;
   }
   if (token.tag === "dialogue_box") {
-    return generateDisplayCommand(token, file, sectionId);
+    return generateDisplayCommand(token, file, sectionId, index);
   }
   if (token.tag === "action_box") {
-    return generateDisplayCommand(token, file, sectionId);
+    return generateDisplayCommand(token, file, sectionId, index);
   }
   if (token.tag === "transition") {
-    return generateDisplayCommand(token, file, sectionId);
+    return generateDisplayCommand(token, file, sectionId, index);
   }
   if (token.tag === "scene") {
-    return generateDisplayCommand(token, file, sectionId);
+    return generateDisplayCommand(token, file, sectionId, index);
   }
 
   return null;

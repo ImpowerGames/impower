@@ -22,15 +22,19 @@ export const combineBlockMap = (
       level: s.level,
       parent: s.parent,
       children: s.children || [],
-      commands: {},
+      commands: [],
     };
     s.tokens?.forEach((token) => {
-      const runtimeCommand = generateCommand(token, file, sectionId);
+      block.commands ??= [];
+      const commandIndex = block.commands.length;
+      const runtimeCommand = generateCommand(
+        token,
+        file,
+        sectionId,
+        commandIndex
+      );
       if (runtimeCommand) {
-        if (!block.commands) {
-          block.commands = {};
-        }
-        block.commands[runtimeCommand.reference.id] = runtimeCommand;
+        block.commands.push(runtimeCommand);
       }
     });
     result[sectionId] = block;

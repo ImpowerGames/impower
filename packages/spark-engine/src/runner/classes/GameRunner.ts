@@ -1,5 +1,4 @@
 import { Game } from "../../game";
-import { BlockRunner } from "../../project/classes/instances/containers/block/BlockRunner";
 import { CommandRunner } from "../../project/classes/instances/items/command/CommandRunner";
 import { BranchCommandRunner } from "../../project/classes/instances/items/commands/branchCommand/BranchCommandRunner";
 import { EndCommandRunner } from "../../project/classes/instances/items/commands/endCommand/EndCommandRunner";
@@ -10,42 +9,38 @@ import { ReturnCommandRunner } from "../../project/classes/instances/items/comma
 import { WaitCommandRunner } from "../../project/classes/instances/items/commands/waitCommand/WaitCommandRunner";
 
 export class GameRunner<G extends Game> {
-  protected _blockRunner: BlockRunner<G> = new BlockRunner();
-  public get blockRunner(): BlockRunner<G> {
-    return this._blockRunner;
+  private _game: G;
+  get game() {
+    return this._game;
   }
 
-  protected _commandRunners: Record<string, CommandRunner<G>> = {
-    LogCommand: new LogCommandRunner(),
-    JumpCommand: new JumpCommandRunner(),
-    ReturnCommand: new ReturnCommandRunner(),
-    EndCommand: new EndCommandRunner(),
-    WaitCommand: new WaitCommandRunner(),
-    BranchCommand: new BranchCommandRunner(),
-    EvaluateCommand: new EvaluateCommandRunner(),
-  };
-  protected _commandRunnersArray?: CommandRunner<G>[];
-  public get commandRunners(): readonly CommandRunner<G>[] {
-    if (!this._commandRunnersArray) {
-      this._commandRunnersArray = Object.values(this._commandRunners);
-    }
-    return this._commandRunnersArray;
+  protected _commandRunnerMap: Record<string, CommandRunner<G>>;
+  protected _commandRunnerArray: CommandRunner<G>[];
+  get commandRunners() {
+    return this._commandRunnerArray;
   }
 
-  registerBlockRunner(_refTypeId: string, inspector: BlockRunner<G>) {
-    this._blockRunner = inspector;
+  constructor(game: G, commandRunners?: Record<string, CommandRunner<G>>) {
+    this._game = game;
+    this._commandRunnerMap = {
+      LogCommand: new LogCommandRunner(game),
+      JumpCommand: new JumpCommandRunner(game),
+      ReturnCommand: new ReturnCommandRunner(game),
+      EndCommand: new EndCommandRunner(game),
+      WaitCommand: new WaitCommandRunner(game),
+      BranchCommand: new BranchCommandRunner(game),
+      EvaluateCommand: new EvaluateCommandRunner(game),
+      ...(commandRunners || {}),
+    };
+    this._commandRunnerArray = Object.values(this._commandRunnerMap);
   }
 
-  registerCommandRunner(refTypeId: string, inspector: CommandRunner<G>) {
-    this._commandRunners[refTypeId] = inspector;
-    this._commandRunnersArray = Object.values(this._commandRunners);
-  }
-
-  getBlockRunner() {
-    return this._blockRunner || new BlockRunner();
+  registerCommandRunner(refTypeId: string, runner: CommandRunner<G>) {
+    this._commandRunnerMap[refTypeId] = runner;
+    this._commandRunnerArray = Object.values(this._commandRunnerMap);
   }
 
   getCommandRunner(typeId: string) {
-    return this._commandRunners[typeId] || new CommandRunner();
+    return this._commandRunnerMap[typeId] || new CommandRunner(this.game);
   }
 }

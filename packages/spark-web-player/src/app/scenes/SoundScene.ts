@@ -19,8 +19,8 @@ export default class SoundScene extends Scene {
   override start() {}
 
   override async load(): Promise<Object3D<Event>[]> {
-    // TODO: Load audio ahead of time
-    // const audioAssets = this.context.game.struct.config.typeMap["audio"];
+    // TODO: Check if asset.preload === true (ensure loading screen shows while preloading)
+    // const audioAssets = this.context.game.logic.valueMap["audio"];
     // if (audioAssets) {
     //   await Promise.all(
     //     Object.entries(audioAssets).map(async ([name, asset]) => {
@@ -29,7 +29,7 @@ export default class SoundScene extends Scene {
     //           if (asset.ext === "midi" || asset.ext === "mid") {
     //             await this.loadMidi(name, asset.src);
     //           } else {
-    //             await this.loadSound(name, asset.src);
+    //             await this.loadSound({ id: asset.name, ...asset });
     //           }
     //         }
     //       } catch {
@@ -95,10 +95,12 @@ export default class SoundScene extends Scene {
 
   async loadSound(sound: Sound) {
     if (this._audioPlayers.get(sound.id)) {
+      this.context.game.sound.notifyReady(sound.id);
       return this._audioPlayers.get(sound.id)!;
     }
     const buffer = await this.getAudioBuffer(sound.src);
     if (this._audioPlayers.get(sound.id)) {
+      this.context.game.sound.notifyReady(sound.id);
       return this._audioPlayers.get(sound.id)!;
     }
     const audioPlayer = new SparkDOMAudioPlayer(buffer, this._audioContext, {

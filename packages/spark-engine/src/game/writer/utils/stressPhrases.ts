@@ -15,7 +15,7 @@ const getFormattingStress = (
   if (level) {
     return level;
   }
-  if (chunk.char === " ") {
+  if (chunk.text === " ") {
     const prevLevel = prevChunk?.[formatting];
     if (prevLevel) {
       return prevLevel;
@@ -85,7 +85,7 @@ export const stressPhrases = (
             if (yelledStressLevel) {
               chunk.pitch += yelledStressLevel;
             }
-            if (chunk.startOfSyllable) {
+            if (chunk.voicedSyllable) {
               inflectionIndex = Math.max(0, inflectionIndex - 1);
             }
             chunk.pitch *= stressLevelIncrement;
@@ -103,7 +103,7 @@ export const stressPhrases = (
         // console.log(
         //   phrase.text,
         //   phrase.chunks
-        //     .filter((c) => c.startOfSyllable || c.punctuated)
+        //     .filter((c) => c.voicedSyllable || c.punctuated)
         //     .map((c) => c.pitch)
         // );
       }

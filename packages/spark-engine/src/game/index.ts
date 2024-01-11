@@ -4,7 +4,6 @@ export * from "./debug";
 export * from "./input";
 export * from "./logic";
 export * from "./physics";
-export * from "./random";
 export * from "./rhythm";
 export * from "./sound";
 export * from "./ticker";

@@ -1,3 +1,4 @@
+import { Command } from "./Command";
 import { DocumentSource } from "./DocumentSource";
 
 export interface Block {
@@ -6,26 +7,5 @@ export interface Block {
   name: string;
   parent?: string;
   children?: string[];
-  commands?: Record<
-    string,
-    {
-      reference: {
-        type: "Command";
-        id: string;
-        typeId: string;
-        parentId?: string;
-      };
-      source: {
-        file: string;
-        line: number;
-        from: number;
-        to: number;
-      };
-      indent: number;
-      params: {
-        check?: string;
-        waitUntilFinished?: boolean;
-      };
-    }
-  >;
+  commands?: Command[];
 }

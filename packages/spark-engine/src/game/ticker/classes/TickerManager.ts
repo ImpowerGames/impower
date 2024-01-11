@@ -13,9 +13,7 @@ export interface TickerConfig {
   listeners: Map<string, (deltaMS: number) => void>;
 }
 
-export interface TickerState {
-  elapsedMS: number;
-}
+export interface TickerState {}
 
 export class TickerManager extends Manager<
   TickerEvents,
@@ -36,7 +34,7 @@ export class TickerManager extends Manager<
       listeners: new Map(),
       ...(config || {}),
     };
-    const initialState: TickerState = { elapsedMS: 0, ...(state || {}) };
+    const initialState: TickerState = { ...(state || {}) };
     super(environment, initialEvents, initialConfig, initialState);
   }
 
@@ -52,7 +50,6 @@ export class TickerManager extends Manager<
 
   override update(deltaMS: number): void {
     super.update(deltaMS);
-    this._state.elapsedMS += deltaMS;
     this._config.listeners.forEach((l) => l?.(deltaMS));
     this._events.onUpdate.dispatch(deltaMS);
   }

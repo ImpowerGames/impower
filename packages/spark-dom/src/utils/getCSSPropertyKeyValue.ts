@@ -17,21 +17,12 @@ const createTextShadow = (r: number, color = "black"): string => {
 
 export const getCSSPropertyKeyValue = (
   name: string,
-  value: unknown,
-  typeMap?: { [type: string]: Record<string, any> }
+  value: unknown
 ): [string, string] => {
-  const theme = typeMap?.["theme"]?.["default"];
   const cssProp = getCSSPropertyName(name);
   const cssValue = value;
   if (cssValue == null || cssValue === "") {
     return [cssProp, ""];
-  }
-  if (
-    cssProp === "background-color" &&
-    typeof cssValue === "string" &&
-    theme?.colors[cssValue]
-  ) {
-    return [cssProp, theme.colors[cssValue]];
   }
   if (cssProp === "background-image" && typeof cssValue === "string") {
     const src = cssValue.trim();

@@ -6,32 +6,28 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
   G,
   WaitCommandData
 > {
-  elapsedMS: number = 0;
+  protected _elapsedMS: number = 0;
 
-  override onExecute(
-    game: G,
-    data: WaitCommandData,
-    context: CommandContext<G>
-  ): number[] {
-    this.elapsedMS = 0;
-    return super.onExecute(game, data, context);
+  override onExecute(data: WaitCommandData, context: CommandContext): number[] {
+    this._elapsedMS = 0;
+    return super.onExecute(data, context);
   }
 
-  override onUpdate(_game: G, deltaMS: number): void {
-    this.elapsedMS += deltaMS;
+  override onUpdate(deltaMS: number): void {
+    this._elapsedMS += deltaMS;
   }
 
   override isFinished(
-    game: G,
     data: WaitCommandData,
-    context: CommandContext<G>
+    context: CommandContext
   ): boolean | null {
     const { seconds } = data.params;
     if (seconds === undefined || seconds === 0) {
-      return super.isFinished(game, data, context);
+      return super.isFinished(data, context);
     }
-    const blockState = game.logic.state.blockStates[data.reference.parentId];
-    const timeMS = this.elapsedMS;
+    const blockState =
+      this.game.logic.state.blockStates[data.reference.parentId];
+    const timeMS = this._elapsedMS;
     if (blockState) {
       if (seconds < 0) {
         return false;
@@ -40,6 +36,6 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
         return false;
       }
     }
-    return super.isFinished(game, data, context);
+    return super.isFinished(data, context);
   }
 }

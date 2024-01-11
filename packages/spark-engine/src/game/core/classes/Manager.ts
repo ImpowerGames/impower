@@ -3,6 +3,7 @@ import { IGameEvent } from "../types/IGameEvent";
 import { ListenOnly } from "../types/ListenOnly";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { GameEvent } from "./GameEvent";
+
 export abstract class Manager<
   E extends Record<string, IGameEvent> = any,
   C = any,
@@ -47,15 +48,11 @@ export abstract class Manager<
     );
   }
 
-  onSave() {
-    // executed before manager is saved
+  onSerialize() {
+    // executed before manager state is serialized
   }
 
-  getSaveData(): S {
-    return this.deepCopy(this.state) as S;
-  }
-
-  deepCopy<T>(obj: T): T {
-    return JSON.parse(JSON.stringify(obj));
+  onCheckpoint(_id: string) {
+    // executed before game is checkpointed
   }
 }
