@@ -1,10 +1,14 @@
-import type { SparkContextOptions } from "../../../../spark-engine/src/parser/interfaces/SparkContextOptions";
 import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 
 export type ConfigureGameMethod = typeof ConfigureGameMessage.method;
 
 export interface ConfigureGameParams {
-  settings: SparkContextOptions;
+  settings: {
+    simulateFromProgram?: string;
+    simulateFromLine?: number;
+    startFromProgram?: string;
+    startFromLine?: number;
+  };
 }
 
 export class ConfigureGameMessage {

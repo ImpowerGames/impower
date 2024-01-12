@@ -1,4 +1,4 @@
-import type { SparkProgram } from "../../../../sparkdown/src";
+import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
 import type { CommandData } from "../../data";
 import { getPreviewCommand } from "./getPreviewCommand";
 

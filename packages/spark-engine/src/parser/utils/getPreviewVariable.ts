@@ -1,4 +1,5 @@
-import type { SparkProgram, SparkVariable } from "../../../../sparkdown/src";
+import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import type { SparkVariable } from "../../../../sparkdown/src/types/SparkVariable";
 
 export const getPreviewVariable = (
   program: SparkProgram,

@@ -10,15 +10,15 @@ import { StepGameMessage } from "../../../spark-editor-protocol/src/protocols/ga
 import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
-import { SparkContextOptions } from "../../../spark-engine/src/parser/interfaces/SparkContextOptions";
+import { GameContext } from "../../../spark-engine/src/parser/classes/GameContext";
+import { GameContextOptions } from "../../../spark-engine/src/parser/interfaces/GameContextOptions";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import Application from "../app/Application";
 import spec from "./_spark-web-player";
 
 export default class SparkWebPlayer extends Component(spec) {
-  _context?: SparkContext;
+  _context?: GameContext;
 
   _app?: Application;
 
@@ -28,7 +28,12 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _programs: Record<string, SparkProgram> = {};
 
-  _options?: SparkContextOptions;
+  _options?: {
+    simulateFromProgram?: string;
+    simulateFromLine?: number;
+    startFromProgram?: string;
+    startFromLine?: number;
+  };
 
   override onConnected() {
     window.addEventListener(
@@ -223,15 +228,27 @@ export default class SparkWebPlayer extends Component(spec) {
   };
 
   loadGame() {
-    const programs = this._programs;
-    const options = this._options;
-    if (programs && options) {
+    if (this._programs && this._options) {
+      const programUris = Object.keys(this._programs);
+      const programs = Object.values(this._programs);
+      const options = this._options;
       if (!this._root) {
         this._root = SparkDOMElement.wrap(this.ref.sparkRoot!);
       }
-      const context = new SparkContext(programs, {
+      const simulateFromProgram = options.simulateFromProgram
+        ? programUris.indexOf(options.simulateFromProgram)
+        : undefined;
+      const simulateFromLine = options.simulateFromLine;
+      const startFromProgram = options.startFromProgram
+        ? programUris.indexOf(options.startFromProgram)
+        : undefined;
+      const startFromLine = options.startFromLine;
+      const gameContextOptions: GameContextOptions = {
+        simulateFromProgram,
+        simulateFromLine,
+        startFromProgram,
+        startFromLine,
         config: {
-          ...(options?.config || {}),
           ui: {
             root: this._root,
             createElement: (
@@ -251,11 +268,10 @@ export default class SparkWebPlayer extends Component(spec) {
                 attributes
               );
             },
-            ...(options?.config?.ui || {}),
           },
         },
-        ...(options || {}),
-      });
+      };
+      const context = new GameContext(programs, gameContextOptions);
       context.game.logic.events.onExecuteCommand.addListener((_id, source) => {
         if (source) {
           window.dispatchEvent(

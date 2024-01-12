@@ -16,7 +16,7 @@ import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protoco
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage.js";
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import { Zippable, unzipSync, zipSync } from "fflate";
-import EngineSparkParser from "../../spark-engine/src/parser/classes/EngineSparkParser";
+import GameParser from "../../spark-engine/src/parser/classes/GameParser";
 import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import { SparkVariable } from "../../sparkdown/src";
 import debounce from "./utils/debounce";
@@ -70,7 +70,7 @@ const parse = (file: FileData, files: FileData[]) => {
         };
       }
     });
-    const program = EngineSparkParser.instance.parse(file.text, {
+    const program = GameParser.instance.parse(file.text, {
       augmentations: { builtins: STRUCT_DEFAULTS, variables },
     });
     return program;

@@ -1,4 +1,7 @@
-import type { SparkDisplayToken, SparkToken } from "../../../../sparkdown/src";
+import type {
+  SparkDisplayToken,
+  SparkToken,
+} from "../../../../sparkdown/src/types/SparkToken";
 import type {
   BranchCommandData,
   CommandData,

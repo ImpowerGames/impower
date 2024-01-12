@@ -1,8 +1,8 @@
 import {
+  Game,
   ImageEvent,
   Phrase,
   Sound,
-  SparkGame,
   Synth,
   TextEvent,
   Tone,
@@ -15,7 +15,7 @@ import { DisplayCommandData } from "../DisplayCommandData";
 
 // Helpers
 
-const getSound = (asset: unknown, game: SparkGame): Required<Sound> | null => {
+const getSound = (asset: unknown, game: Game): Required<Sound> | null => {
   if (!asset) {
     return null;
   }
@@ -52,10 +52,7 @@ const getSound = (asset: unknown, game: SparkGame): Required<Sound> | null => {
   return null;
 };
 
-const getAssetSounds = (
-  compiled: unknown,
-  game: SparkGame
-): Required<Sound>[] => {
+const getAssetSounds = (compiled: unknown, game: Game): Required<Sound>[] => {
   if (!compiled) {
     return [];
   }
@@ -107,7 +104,7 @@ const getAssetSounds = (
 };
 
 export const executeDisplayCommand = (
-  game: SparkGame,
+  game: Game,
   data: DisplayCommandData,
   context?: CommandContext & { instant?: boolean; preview?: boolean },
   onFinished?: () => void,

@@ -1,9 +1,9 @@
-import { SparkGame } from "../../../game/SparkGame";
+import { Game } from "../../../game/core/classes/Game";
 import { CommandContext, CommandRunner } from "../../command/CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
 import { executeDisplayCommand } from "./utils/executeDisplayCommand";
 
-export class DisplayCommandRunner<G extends SparkGame> extends CommandRunner<
+export class DisplayCommandRunner<G extends Game> extends CommandRunner<
   G,
   DisplayCommandData
 > {

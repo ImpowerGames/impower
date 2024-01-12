@@ -3,11 +3,11 @@ Run spark games in a browser environment.
 ## Getting Started
 
 ```javascript
-import { SparkParser, SparkContext } from "spark-engine";
+import { GameParser, GameContext } from "spark-engine";
 
-const parser = new SparkParser();
-const result = parser.parse(script);
-const gameContext = new SparkContext(result);
+const parser = new GameParser();
+const program = parser.parse(script);
+const game = new GameContext(program);
 
 let prevTime = 0;
 let loopRequestId = 0;
@@ -20,7 +20,7 @@ const gameLoop = () => {
   const delta = (time - prevTime) / 1000; // Get time since last frame
   prevTime = time;
   // Execute game logic
-  if (gameContext.update(time, delta)) {
+  if (game.update(time, delta)) {
     loopRequestId = window.requestAnimationFrame(gameLoop); // Continue the game loop
   } else {
     window.cancelAnimationFrame(loopRequestId); // Stop the game loop
@@ -31,8 +31,8 @@ const gameLoop = () => {
  * Load the game
  */
 const loadGame = async () => {
-  gameContext.init(); // Initialize game
-  await gameContext.start(); // Start game
+  game.init(); // Initialize game
+  await game.start(); // Start game
   loopRequestId = window.requestAnimationFrame(gameLoop); // Start the game loop
 };
 

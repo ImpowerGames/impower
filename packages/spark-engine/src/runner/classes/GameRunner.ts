@@ -1,11 +1,14 @@
 import { Game } from "../../game";
 import { CommandRunner } from "../../project/command/CommandRunner";
 import { BranchCommandRunner } from "../../project/commands/branchCommand/BranchCommandRunner";
+import { DestroyCommandRunner } from "../../project/commands/destroyCommand/DestroyCommandRunner";
+import { DisplayCommandRunner } from "../../project/commands/displayCommand/DisplayCommandRunner";
 import { EndCommandRunner } from "../../project/commands/endCommand/EndCommandRunner";
 import { EvaluateCommandRunner } from "../../project/commands/evaluateCommand/EvaluateCommandRunner";
 import { JumpCommandRunner } from "../../project/commands/jumpCommand/JumpCommandRunner";
 import { LogCommandRunner } from "../../project/commands/logCommand/LogCommandRunner";
 import { ReturnCommandRunner } from "../../project/commands/returnCommand/ReturnCommandRunner";
+import { SpawnCommandRunner } from "../../project/commands/spawnCommand/SpawnCommandRunner";
 import { WaitCommandRunner } from "../../project/commands/waitCommand/WaitCommandRunner";
 
 export class GameRunner<G extends Game> {
@@ -30,6 +33,9 @@ export class GameRunner<G extends Game> {
       WaitCommand: new WaitCommandRunner(game),
       BranchCommand: new BranchCommandRunner(game),
       EvaluateCommand: new EvaluateCommandRunner(game),
+      SpawnCommand: new SpawnCommandRunner(game),
+      DestroyCommand: new DestroyCommandRunner(game),
+      DisplayCommand: new DisplayCommandRunner(game),
       ...(commandRunners || {}),
     };
     this._commandRunnerArray = Object.values(this._commandRunnerMap);

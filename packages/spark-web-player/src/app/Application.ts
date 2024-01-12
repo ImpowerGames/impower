@@ -1,4 +1,4 @@
-import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
+import { GameContext } from "../../../spark-engine/src/parser/classes/GameContext";
 import Scene from "./Scene";
 import Ticker from "./Ticker";
 import PerspectiveCamera from "./render/cameras/PerspectiveCamera";
@@ -8,8 +8,8 @@ import MainScene from "./scenes/MainScene";
 import SoundScene from "./scenes/SoundScene";
 
 export default class Application {
-  protected _context: SparkContext;
-  public get context(): SparkContext {
+  protected _context: GameContext;
+  public get context(): GameContext {
     return this._context;
   }
 
@@ -62,7 +62,7 @@ export default class Application {
 
   protected _ready = false;
 
-  constructor(dom: HTMLElement, context: SparkContext) {
+  constructor(dom: HTMLElement, context: GameContext) {
     this._dom = dom;
     const width = this._dom.clientWidth;
     const height = this._dom.clientHeight;
@@ -110,20 +110,15 @@ export default class Application {
       this.bindView();
     }
 
-    const startTicker = !context?.editable;
-
     this.ticker.add(this.onUpdate);
-    if (startTicker) {
-      this.ticker.start();
-    }
+    this.ticker.start();
 
-    const scenesToLoad: Record<string, Scene> =
-      !context || context?.editable
-        ? {}
-        : {
-            sound: new SoundScene(this),
-            main: new MainScene(this),
-          };
+    const scenesToLoad: Record<string, Scene> = !context
+      ? {}
+      : {
+          sound: new SoundScene(this),
+          main: new MainScene(this),
+        };
     this.loadScenes(scenesToLoad).then(() => {
       this._ready = true;
     });

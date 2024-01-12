@@ -1,5 +1,5 @@
-import { SparkProgram } from "../../../../sparkdown/src";
-import { CommandData } from "../../data";
+import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import type { CommandData } from "../../data";
 import { generateCommand } from "./generateCommand";
 import getSectionAtLine from "./getSectionAtLine";
 

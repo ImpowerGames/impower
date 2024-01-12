@@ -1,6 +1,6 @@
 import { Object3D } from "three";
 import * as THREE from "three/src/scenes/Scene.js";
-import SparkContext from "../../../spark-engine/src/parser/classes/SparkContext";
+import { GameContext } from "../../../spark-engine/src/parser/classes/GameContext";
 import Application from "./Application";
 import { Disposable } from "./Disposable";
 
@@ -31,7 +31,7 @@ export default class Scene extends THREE.Scene {
     return this._app.camera;
   }
 
-  get context(): SparkContext {
+  get context(): GameContext {
     return this._app.context;
   }
 

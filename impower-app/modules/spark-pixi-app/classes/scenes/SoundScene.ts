@@ -1,5 +1,5 @@
 import { SparkDOMAudioPlayer } from "../../../../../spark-dom";
-import { SparkContext } from "../../../../../spark-engine";
+import { GameContext } from "../../../../../spark-engine";
 import { Application } from "../../plugins/app";
 import { Graphics } from "../../plugins/graphics";
 import { SparkAssets } from "../SparkAssets";
@@ -16,7 +16,7 @@ export class SoundScene extends SparkScene {
 
   private _playheadGraphic?: Graphics;
 
-  constructor(context: SparkContext, app: Application, assets: SparkAssets) {
+  constructor(context: GameContext, app: Application, assets: SparkAssets) {
     super(context, app, assets);
     this._axisGraphic = new Graphics();
     this._waveGraphic = new Graphics();

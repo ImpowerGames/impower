@@ -1,7 +1,7 @@
 import { SparkProgram } from "../../../../sparkdown/src";
 import { Block, Game, GameConfig, GameState } from "../../game";
 import { GameRunner } from "../../runner/classes/GameRunner";
-import { ContextOptions } from "../interfaces/ContextOptions";
+import { GameContextOptions } from "../interfaces/GameContextOptions";
 import { combineBlockMap } from "../utils/combineBlockMap";
 import { combineValueMap } from "../utils/combineValueMap";
 import getCommandIndexAtLine from "../utils/getCommandIndexAtLine";
@@ -9,7 +9,7 @@ import { getPreviewCommand } from "../utils/getPreviewCommand";
 import { getPreviewVariable } from "../utils/getPreviewVariable";
 import getSectionAtLine from "../utils/getSectionAtLine";
 
-export class Context<
+export class GameContext<
   G extends Game = Game,
   C extends GameConfig = GameConfig,
   S extends GameState = GameState,
@@ -25,23 +25,23 @@ export class Context<
     return this._runner;
   }
 
-  private _programs: Record<string, SparkProgram>;
+  private _programs: SparkProgram[];
   public get programs() {
     return this._programs;
   }
 
-  private _entryProgramId: string;
-  public get entryProgramId() {
-    return this._entryProgramId;
+  private _startProgramIndex: number;
+  public get startProgramIndex() {
+    return this._startProgramIndex;
   }
 
   constructor(
-    programs: Record<string, SparkProgram>,
-    options: ContextOptions<G, C, S, R>
+    program: SparkProgram | SparkProgram[],
+    options: GameContextOptions<G, C, S, R>
   ) {
-    this._programs = programs;
-    this._entryProgramId = options.startFromProgram || "";
-    this._game = this.load(programs, options);
+    this._programs = Array.isArray(program) ? program : [program];
+    this._startProgramIndex = options.startFromProgram ?? 0;
+    this._game = this.load(this._programs, options);
     this._runner =
       options.createRunner?.(this._game) || (new GameRunner(this._game) as R);
 
@@ -51,21 +51,21 @@ export class Context<
   }
 
   protected load(
-    programs: Record<string, SparkProgram>,
-    options: ContextOptions<G, C, S, R>
+    programs: SparkProgram[],
+    options: GameContextOptions<G, C, S, R>
   ): G {
-    const startFromProgramId = options?.startFromProgram ?? "";
+    const startFromProgramIndex = options?.startFromProgram ?? 0;
     const startFromLine = options?.startFromLine ?? 0;
     const simulating =
       options?.simulateFromProgram != null || options?.simulateFromLine != null;
-    const simulateFromProgramId = options?.simulateFromProgram ?? "";
+    const simulateFromProgramIndex = options?.simulateFromProgram ?? 0;
     const simulateFromLine = options?.simulateFromLine ?? 0;
-    const startFromProgram = startFromProgramId
-      ? programs[startFromProgramId]
-      : Object.values(programs)[0];
+    const startFromProgram = startFromProgramIndex
+      ? programs[startFromProgramIndex]
+      : programs[0];
     if (!startFromProgram) {
       throw new Error(
-        `Could not find program with id '${startFromProgramId}' in: ${Object.keys(
+        `Could not find program with id '${startFromProgramIndex}' in: ${Object.keys(
           programs
         )}`
       );
@@ -85,7 +85,7 @@ export class Context<
     const simulationBlockId = simulating
       ? getSectionAtLine(
           simulateFromLine,
-          programs[simulateFromProgramId]?.sections
+          programs[simulateFromProgramIndex]?.sections
         )
       : undefined;
     const simulationCommandIndex = simulating
@@ -166,7 +166,7 @@ export class Context<
   }
 
   preview(line: number, debug: boolean): void {
-    const program = this.programs[this.entryProgramId];
+    const program = this.programs[this.startProgramIndex];
     if (program) {
       const runtimeCommand = getPreviewCommand(program, line);
       if (runtimeCommand) {
