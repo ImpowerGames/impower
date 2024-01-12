@@ -177,10 +177,7 @@ export class GameContext<
           this.game.ui.loadTheme(this.game.logic.valueMap);
           this.game.ui.loadStyles(this.game.logic.valueMap);
           this.game.ui.loadUI(this.game.logic.valueMap);
-          commandRunner.onPreview(runtimeCommand, {
-            instant: true,
-            debug,
-          });
+          commandRunner.onPreview(runtimeCommand, debug);
         }
       } else {
         const previewVariable = getPreviewVariable(program, line);

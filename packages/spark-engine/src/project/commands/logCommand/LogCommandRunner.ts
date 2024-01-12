@@ -1,18 +1,18 @@
 import { Game } from "../../../game/core/classes/Game";
-import { CommandContext, CommandRunner } from "../../command/CommandRunner";
+import { CommandRunner } from "../../command/CommandRunner";
 import { LogCommandData } from "./LogCommandData";
 
 export class LogCommandRunner<G extends Game> extends CommandRunner<
   G,
   LogCommandData
 > {
-  override onExecute(data: LogCommandData, context: CommandContext): number[] {
+  override onExecute(data: LogCommandData): number[] {
     const { severity, message } = data.params;
     if (severity === undefined) {
-      return super.onExecute(data, context);
+      return super.onExecute(data);
     }
     if (message === undefined) {
-      return super.onExecute(data, context);
+      return super.onExecute(data);
     }
     this.game.debug.log({
       id: this.game.uuid.generate(),
@@ -20,6 +20,6 @@ export class LogCommandRunner<G extends Game> extends CommandRunner<
       severity,
       message,
     });
-    return super.onExecute(data, context);
+    return super.onExecute(data);
   }
 }

@@ -1,5 +1,5 @@
 import { Game } from "../../../game/core/classes/Game";
-import { CommandContext, CommandRunner } from "../../command/CommandRunner";
+import { CommandRunner } from "../../command/CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
 import { executeDisplayCommand } from "./utils/executeDisplayCommand";
 
@@ -23,10 +23,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   protected _onTick?: (deltaMS: number) => void;
 
-  override onExecute(
-    data: DisplayCommandData,
-    context: CommandContext
-  ): number[] {
+  override onExecute(data: DisplayCommandData): number[] {
     const currentBlockId = data.reference.parentId;
     const currentCommandId = data.reference.id;
     this.game.checkpoint(currentCommandId);
@@ -40,7 +37,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     this._onTick = executeDisplayCommand(
       this.game,
       data,
-      context,
+      {},
       () => {
         this._wasTyped = true;
       },
@@ -54,7 +51,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       }
     );
     this._onTick?.(0);
-    return super.onExecute(data, context);
+    return super.onExecute(data);
   }
 
   override onUpdate(deltaMS: number): void {
@@ -73,10 +70,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     this._wasPressed = true;
   };
 
-  override isFinished(
-    data: DisplayCommandData,
-    context: CommandContext
-  ): boolean {
+  override isFinished(data: DisplayCommandData): boolean {
     const { autoAdvance } = data.params;
     const blockState =
       this.game.logic.state.blockStates[data.reference.parentId];
@@ -115,7 +109,6 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       };
       if (!this._waitingForChoice) {
         executeDisplayCommand(this.game, data, {
-          ...context,
           instant: true,
         });
       }
@@ -134,11 +127,8 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     return false;
   }
 
-  override onPreview(
-    data: DisplayCommandData,
-    context: CommandContext
-  ): boolean {
-    executeDisplayCommand(this.game, data, { ...context, preview: true });
+  override onPreview(data: DisplayCommandData): boolean {
+    executeDisplayCommand(this.game, data, { preview: true });
     return true;
   }
 }

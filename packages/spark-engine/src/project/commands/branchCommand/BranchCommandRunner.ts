@@ -1,5 +1,5 @@
 import { Game } from "../../../game/core/classes/Game";
-import { CommandContext, CommandRunner } from "../../command/CommandRunner";
+import { CommandRunner } from "../../command/CommandRunner";
 import { BranchCommandData } from "./BranchCommandData";
 import { getNextJumpIndex } from "./utils/getNextJumpIndex";
 
@@ -7,12 +7,16 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
   G,
   BranchCommandData
 > {
-  override onExecute(
-    data: BranchCommandData,
-    context: CommandContext
-  ): number[] {
+  override onExecute(data: BranchCommandData): number[] {
     const { check, condition } = data.params;
-    const { index, commands } = context;
+    const index = data.index;
+    const blockId = data.reference.parentId;
+
+    const commands = this.game.logic.config.blockMap[blockId]?.commands;
+
+    if (!commands) {
+      return super.onExecute(data);
+    }
 
     if (check === "if") {
       const shouldExecute = this.game.logic.evaluate(condition);
@@ -49,6 +53,6 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
       const nextCommandIndex = getNextJumpIndex(index, commands);
       return [nextCommandIndex];
     }
-    return super.onExecute(data, context);
+    return super.onExecute(data);
   }
 }

@@ -69,7 +69,7 @@ const replace =
 
     const locale = context?.["$locale"];
     const visited = context?.["$visited"];
-    const choice = context?.["$choice"];
+    const key = context?.["$key"];
     const seed = context?.["$seed"];
     const validLocale = typeof locale === "string" ? locale : "";
     const validVisited = typeof visited === "number" ? visited : 0;
@@ -83,8 +83,11 @@ const replace =
     }
 
     if (_10_args && !_3_key && !_7_replacer) {
-      const choiceId = (choice || "") + String(from);
-      const validChooseVal = [validVisited, choiceId, seed];
+      const tokenKey = (key || "") + String(from);
+      const validChooseVal = [validVisited, tokenKey, seed];
+      if (context) {
+        context["$formatted_with_visited"] = true;
+      }
       return select(
         _10_args,
         validChooseVal,

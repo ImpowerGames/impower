@@ -3,7 +3,7 @@ export interface BlockState {
   isExecuting?: boolean;
   isExecutingCommand?: boolean;
   hasFinished?: boolean;
-  returnWhenFinished?: boolean;
+  willReturn?: boolean;
   executedBy: string | null;
 
   executingIndex: number;

@@ -2,7 +2,7 @@ import { randomizer } from "../randomizer";
 import { shuffle } from "../shuffle";
 
 export const choose = (
-  value: number | [visited: number, choice?: string, seed?: string],
+  value: number | [$visited: number, $key?: string, $seed?: string],
   _locale?: string,
   ...args: readonly string[]
 ): [
@@ -27,7 +27,7 @@ export const choose = (
   // The number of times we've made this choice.
   const visited = (Array.isArray(value) ? value[0] : value) || 0;
   // A unique identifier for this choice.
-  const choice = String((Array.isArray(value) ? value[1] : undefined) || "");
+  const key = String((Array.isArray(value) ? value[1] : undefined) || "");
   // The seed for this playthrough.
   const seed = String((Array.isArray(value) ? value[2] : undefined) || "");
   const firstParamIndex = 0;
@@ -46,10 +46,10 @@ export const choose = (
     const rng = shuffled
       ? // When shuffling, we seed with cycle count so that
         // the option order only changes when the cycle count changes (once we've cycled through all the options)
-        randomizer(seed + choice + cycled)
+        randomizer(seed + key + cycled)
       : // When randomizing, we seed with visited count so that
         // the option order changes every time we revisit this choice.
-        randomizer(seed + choice + visited);
+        randomizer(seed + key + visited);
     if (repeatLast) {
       // Shuffle all except last option and repeat mark
       const repeatMark = newArgs.pop();

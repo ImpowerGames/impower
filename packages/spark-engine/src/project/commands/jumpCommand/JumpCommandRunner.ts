@@ -1,5 +1,5 @@
 import { Game } from "../../../game/core/classes/Game";
-import { CommandContext, CommandRunner } from "../../command/CommandRunner";
+import { CommandRunner } from "../../command/CommandRunner";
 import { JumpCommandData } from "./JumpCommandData";
 
 export class JumpCommandRunner<G extends Game> extends CommandRunner<
@@ -8,12 +8,12 @@ export class JumpCommandRunner<G extends Game> extends CommandRunner<
 > {
   protected _targetId?: string | null;
 
-  override onExecute(data: JumpCommandData, context: CommandContext): number[] {
+  override onExecute(data: JumpCommandData): number[] {
     const { value, returnWhenFinished } = data.params;
     const currentBlockId = data.reference.parentId;
 
     if (!value) {
-      return super.onExecute(data, context);
+      return super.onExecute(data);
     }
 
     const newBlockId = this.game.logic.evaluateBlockId(currentBlockId, value);
@@ -21,23 +21,20 @@ export class JumpCommandRunner<G extends Game> extends CommandRunner<
     this._targetId = newBlockId;
 
     if (!newBlockId) {
-      return super.onExecute(data, context);
+      return super.onExecute(data);
     }
 
     this.game.logic.jumpToBlock(currentBlockId, newBlockId, returnWhenFinished);
 
-    return super.onExecute(data, context);
+    return super.onExecute(data);
   }
 
-  override isFinished(
-    data: JumpCommandData,
-    context: CommandContext
-  ): boolean | null {
+  override isFinished(data: JumpCommandData): boolean | null {
     const { returnWhenFinished } = data.params;
     if (this._targetId != null && returnWhenFinished) {
       const blockState = this.game.logic.state.blockStates[this._targetId];
       return Boolean(blockState?.hasFinished);
     }
-    return super.isFinished(data, context);
+    return super.isFinished(data);
   }
 }

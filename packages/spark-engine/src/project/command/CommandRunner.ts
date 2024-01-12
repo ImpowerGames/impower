@@ -1,11 +1,6 @@
 import { Game } from "../../game/core/classes/Game";
 import { CommandData } from "./CommandData";
 
-export interface CommandContext {
-  index: number;
-  commands: CommandData[];
-}
-
 export class CommandRunner<
   G extends Game,
   T extends CommandData = CommandData
@@ -23,7 +18,7 @@ export class CommandRunner<
     // NoOp
   }
 
-  onExecute(_data: T, _context: CommandContext): number[] {
+  onExecute(_data: T): number[] {
     return [];
   }
 
@@ -31,11 +26,11 @@ export class CommandRunner<
     // NoOp
   }
 
-  onFinished(_data: T, _context: CommandContext): void {
+  onFinished(_data: T): void {
     // NoOp
   }
 
-  isFinished(_data: T, _context: CommandContext): boolean | null {
+  isFinished(_data: T): boolean | null {
     return true;
   }
 
@@ -43,10 +38,7 @@ export class CommandRunner<
     // NoOp
   }
 
-  onPreview(
-    _data: T,
-    _context: Omit<CommandContext, "index" | "commands">
-  ): boolean {
+  onPreview(_data: T, _debug: boolean): boolean {
     // NoOp
     return false;
   }

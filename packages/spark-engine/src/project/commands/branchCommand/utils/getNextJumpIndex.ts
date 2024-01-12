@@ -1,6 +1,6 @@
-import { CommandData } from "../../../command/CommandData";
-
-export const getNextJumpIndex = <D extends CommandData>(
+export const getNextJumpIndex = <
+  D extends { indent: number; params: Record<string, unknown> }
+>(
   index: number,
   commands: D[],
   validJumps: {

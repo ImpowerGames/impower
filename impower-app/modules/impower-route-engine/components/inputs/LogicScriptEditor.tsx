@@ -142,7 +142,7 @@ const LogicScriptEditor = React.memo(
     );
 
     useEffect(() => {
-      const onExecuteCommand = (data: {
+      const onWillExecuteCommand = (data: {
         from?: number;
         line?: number;
       }): void => {
@@ -158,11 +158,11 @@ const LogicScriptEditor = React.memo(
         }
       };
       if (events) {
-        events.onExecuteCommand.addListener(onExecuteCommand);
+        events.onWillExecuteCommand.addListener(onWillExecuteCommand);
       }
       return (): void => {
         if (events) {
-          events.onExecuteCommand.removeListener(onExecuteCommand);
+          events.onWillExecuteCommand.removeListener(onWillExecuteCommand);
         }
       };
     }, [events]);

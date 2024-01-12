@@ -39,6 +39,7 @@ const generateDisplayCommand = (
       id: refId,
     },
     source: getSource(token, file),
+    index,
     indent: token.indent,
     params: {
       type:
@@ -87,6 +88,7 @@ export const generateCommand = (
           id: refId,
         },
         source: getSource(token, file),
+        index,
         indent: token.indent,
         params: {
           expression: `${token.name} ${token.operator} ${token.value}`,
@@ -105,6 +107,7 @@ export const generateCommand = (
         id: refId,
       },
       source: getSource(token, file),
+      index,
       indent: token.indent,
       params: {
         expression: `delete ${token.name}`,
@@ -127,6 +130,7 @@ export const generateCommand = (
         id: refId,
       },
       source: getSource(token, file),
+      index,
       indent: token.indent,
       params: {
         condition: token.condition as string,
@@ -145,6 +149,7 @@ export const generateCommand = (
         id: refId,
       },
       source: getSource(token, file),
+      index,
       indent: token.indent,
       params: {
         value: token.section as string,
@@ -164,6 +169,7 @@ export const generateCommand = (
         id: refId,
       },
       source: getSource(token, file),
+      index,
       indent: token.indent,
       params: {
         value: token.value as string,

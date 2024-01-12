@@ -1,6 +1,5 @@
 import { SparkDOMElement } from "../../../spark-dom/src";
 import { ConfigureGameMessage } from "../../../spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
-import { DidExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { DisableGameDebugMessage } from "../../../spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "../../../spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
 import { LoadGameMessage } from "../../../spark-editor-protocol/src/protocols/game/LoadGameMessage";
@@ -9,6 +8,7 @@ import { StartGameMessage } from "../../../spark-editor-protocol/src/protocols/g
 import { StepGameMessage } from "../../../spark-editor-protocol/src/protocols/game/StepGameMessage";
 import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/game/StopGameMessage";
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
+import { WillExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { GameContext } from "../../../spark-engine/src/parser/classes/GameContext";
 import { GameContextOptions } from "../../../spark-engine/src/parser/interfaces/GameContextOptions";
@@ -272,30 +272,32 @@ export default class SparkWebPlayer extends Component(spec) {
         },
       };
       const context = new GameContext(programs, gameContextOptions);
-      context.game.logic.events.onExecuteCommand.addListener((_id, source) => {
-        if (source) {
-          window.dispatchEvent(
-            new CustomEvent(DidExecuteGameCommandMessage.method, {
-              bubbles: true,
-              cancelable: true,
-              composed: true,
-              detail: DidExecuteGameCommandMessage.type.notification({
-                textDocument: { uri: source.file },
-                range: {
-                  start: {
-                    line: source.line,
-                    character: 0,
+      context.game.logic.events.onWillExecuteCommand.addListener(
+        (_id, source) => {
+          if (source) {
+            window.dispatchEvent(
+              new CustomEvent(WillExecuteGameCommandMessage.method, {
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                detail: WillExecuteGameCommandMessage.type.notification({
+                  textDocument: { uri: source.file },
+                  range: {
+                    start: {
+                      line: source.line,
+                      character: 0,
+                    },
+                    end: {
+                      line: source.line,
+                      character: source.to - source.from - 1,
+                    },
                   },
-                  end: {
-                    line: source.line,
-                    character: source.to - source.from - 1,
-                  },
-                },
-              }),
-            })
-          );
+                }),
+              })
+            );
+          }
         }
-      });
+      );
       return context;
     }
     return undefined;

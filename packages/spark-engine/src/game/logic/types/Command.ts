@@ -11,6 +11,7 @@ export interface Command {
     from: number;
     to: number;
   };
+  index: number;
   indent: number;
   params: {
     check?: string;

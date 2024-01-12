@@ -10,7 +10,6 @@ import {
   convertPitchNoteToHertz,
   transpose,
 } from "../../../../game";
-import { CommandContext } from "../../../command/CommandRunner";
 import { DisplayCommandData } from "../DisplayCommandData";
 
 // Helpers
@@ -106,7 +105,7 @@ const getAssetSounds = (compiled: unknown, game: Game): Required<Sound>[] => {
 export const executeDisplayCommand = (
   game: Game,
   data: DisplayCommandData,
-  context?: CommandContext & { instant?: boolean; preview?: boolean },
+  context?: { instant?: boolean; preview?: boolean },
   onFinished?: () => void,
   onClickButton?: (...args: unknown[]) => void
 ): ((deltaMS: number) => void) | undefined => {
@@ -122,7 +121,7 @@ export const executeDisplayCommand = (
 
   let targetsCharacterName = false;
   const displayedContent: Phrase[] = [];
-  content.forEach((c, index) => {
+  content.forEach((c) => {
     // Override first instance of character_name with character's display name
     if (!targetsCharacterName && c.target === "character_name") {
       targetsCharacterName = true;
@@ -135,7 +134,7 @@ export const executeDisplayCommand = (
       };
       if (r.text) {
         // Substitute any {variables} in text
-        r.text = game.logic.format(r.text, { $choice: id + index });
+        r.text = game.logic.format(r.text);
       }
       if (!r.target) {
         r.target = type;
