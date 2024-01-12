@@ -1,12 +1,12 @@
 import { Game } from "../../game";
-import { CommandRunner } from "../../project/classes/command/CommandRunner";
-import { BranchCommandRunner } from "../../project/classes/commands/branchCommand/BranchCommandRunner";
-import { EndCommandRunner } from "../../project/classes/commands/endCommand/EndCommandRunner";
-import { EvaluateCommandRunner } from "../../project/classes/commands/evaluateCommand/EvaluateCommandRunner";
-import { JumpCommandRunner } from "../../project/classes/commands/jumpCommand/JumpCommandRunner";
-import { LogCommandRunner } from "../../project/classes/commands/logCommand/LogCommandRunner";
-import { ReturnCommandRunner } from "../../project/classes/commands/returnCommand/ReturnCommandRunner";
-import { WaitCommandRunner } from "../../project/classes/commands/waitCommand/WaitCommandRunner";
+import { CommandRunner } from "../../project/command/CommandRunner";
+import { BranchCommandRunner } from "../../project/commands/branchCommand/BranchCommandRunner";
+import { EndCommandRunner } from "../../project/commands/endCommand/EndCommandRunner";
+import { EvaluateCommandRunner } from "../../project/commands/evaluateCommand/EvaluateCommandRunner";
+import { JumpCommandRunner } from "../../project/commands/jumpCommand/JumpCommandRunner";
+import { LogCommandRunner } from "../../project/commands/logCommand/LogCommandRunner";
+import { ReturnCommandRunner } from "../../project/commands/returnCommand/ReturnCommandRunner";
+import { WaitCommandRunner } from "../../project/commands/waitCommand/WaitCommandRunner";
 
 export class GameRunner<G extends Game> {
   private _game: G;
