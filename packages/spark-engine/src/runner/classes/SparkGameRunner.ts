@@ -1,7 +1,7 @@
 import { SparkGame } from "../../game";
-import { DestroyCommandRunner } from "../../project/classes/instances/items/commands/destroyCommand/DestroyCommandRunner";
-import { DisplayCommandRunner } from "../../project/classes/instances/items/commands/displayCommand/DisplayCommandRunner";
-import { SpawnCommandRunner } from "../../project/classes/instances/items/commands/spawnCommand/SpawnCommandRunner";
+import { DestroyCommandRunner } from "../../project/classes/commands/destroyCommand/DestroyCommandRunner";
+import { DisplayCommandRunner } from "../../project/classes/commands/displayCommand/DisplayCommandRunner";
+import { SpawnCommandRunner } from "../../project/classes/commands/spawnCommand/SpawnCommandRunner";
 import { GameRunner } from "./GameRunner";
 
 export class SparkGameRunner<G extends SparkGame> extends GameRunner<G> {
