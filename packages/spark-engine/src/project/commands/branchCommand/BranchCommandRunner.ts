@@ -1,7 +1,7 @@
 import { Game } from "../../../game/core/classes/Game";
-import { getNextJumpIndex } from "../../../runner/utils/getNextJumpIndex";
 import { CommandContext, CommandRunner } from "../../command/CommandRunner";
 import { BranchCommandData } from "./BranchCommandData";
+import { getNextJumpIndex } from "./utils/getNextJumpIndex";
 
 export class BranchCommandRunner<G extends Game> extends CommandRunner<
   G,

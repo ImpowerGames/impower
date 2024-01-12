@@ -9,9 +9,9 @@ import {
   clone,
   convertPitchNoteToHertz,
   transpose,
-} from "../../../game";
-import { CommandContext } from "../../command/CommandRunner";
-import { DisplayCommandData } from "./DisplayCommandData";
+} from "../../../../game";
+import { CommandContext } from "../../../command/CommandRunner";
+import { DisplayCommandData } from "../DisplayCommandData";
 
 // Helpers
 

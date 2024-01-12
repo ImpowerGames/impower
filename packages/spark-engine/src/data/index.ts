@@ -1,4 +1,5 @@
 export * from "../project/command/CommandData";
+export * from "../project/command/CommandReference";
 export * from "../project/command/CommandTypeId";
 export * from "../project/commands/branchCommand/BranchCommandData";
 export * from "../project/commands/destroyCommand/DestroyCommandData";
@@ -52,5 +53,3 @@ export * from "./interfaces/configs/TimeConfig";
 export * from "./interfaces/configs/VideoConfig";
 export * from "./interfaces/props/AudioRequestProps";
 export * from "./interfaces/props/ImageRequestProps";
-export * from "./interfaces/references/BlockReference";
-export * from "./interfaces/references/CommandReference";

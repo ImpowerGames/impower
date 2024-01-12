@@ -1,5 +1,5 @@
-import { CommandReference } from "../../data/interfaces/references/CommandReference";
 import { CommandParams } from "./CommandParams";
+import { CommandReference } from "./CommandReference";
 
 export interface CommandData<
   T extends string = string,

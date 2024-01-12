@@ -1,4 +1,4 @@
-import { CommandData } from "../../data";
+import { CommandData } from "../../../command/CommandData";
 
 export const getNextJumpIndex = <D extends CommandData>(
   index: number,

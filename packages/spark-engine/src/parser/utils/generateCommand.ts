@@ -2,7 +2,6 @@ import type { SparkDisplayToken, SparkToken } from "../../../../sparkdown/src";
 import type {
   BranchCommandData,
   CommandData,
-  CommandTypeId,
   DisplayCommandData,
   EvaluateCommandData,
   JumpCommandData,
@@ -29,12 +28,11 @@ const generateDisplayCommand = (
   index: number
 ): DisplayCommandData => {
   const refId = token.checkpoint || getCommandId(sectionId, index);
-  const refTypeId: CommandTypeId = "DisplayCommand";
   return {
     reference: {
-      parentId: sectionId,
       type: "Command",
-      typeId: refTypeId,
+      typeId: "DisplayCommand",
+      parentId: sectionId,
       id: refId,
     },
     source: getSource(token, file),
@@ -78,13 +76,12 @@ export const generateCommand = (
   ) {
     if (token.operator) {
       const refId = token.checkpoint || getCommandId(sectionId, index);
-      const refTypeId: CommandTypeId = "EvaluateCommand";
       const newCommand: EvaluateCommandData = {
         reference: {
-          parentId: sectionId,
           type: "Command",
+          typeId: "EvaluateCommand",
+          parentId: sectionId,
           id: refId,
-          typeId: refTypeId,
         },
         source: getSource(token, file),
         indent: token.indent,
@@ -97,13 +94,12 @@ export const generateCommand = (
   }
   if (token.tag === "delete") {
     const refId = token.checkpoint || getCommandId(sectionId, index);
-    const refTypeId: CommandTypeId = "EvaluateCommand";
     const newCommand: EvaluateCommandData = {
       reference: {
-        parentId: sectionId,
         type: "Command",
+        typeId: "EvaluateCommand",
+        parentId: sectionId,
         id: refId,
-        typeId: refTypeId,
       },
       source: getSource(token, file),
       indent: token.indent,
@@ -120,13 +116,12 @@ export const generateCommand = (
     token.tag === "end"
   ) {
     const refId = token.checkpoint || getCommandId(sectionId, index);
-    const refTypeId: CommandTypeId = "BranchCommand";
     const newCommand: BranchCommandData = {
       reference: {
-        parentId: sectionId,
         type: "Command",
+        typeId: "BranchCommand",
+        parentId: sectionId,
         id: refId,
-        typeId: refTypeId,
       },
       source: getSource(token, file),
       indent: token.indent,
@@ -139,13 +134,12 @@ export const generateCommand = (
   }
   if (token.tag === "jump") {
     const refId = token.checkpoint || getCommandId(sectionId, index);
-    const refTypeId: CommandTypeId = "JumpCommand";
     const newCommand: JumpCommandData = {
       reference: {
-        parentId: sectionId,
         type: "Command",
+        typeId: "JumpCommand",
+        parentId: sectionId,
         id: refId,
-        typeId: refTypeId,
       },
       source: getSource(token, file),
       indent: token.indent,
@@ -159,13 +153,12 @@ export const generateCommand = (
   }
   if (token.tag === "return") {
     const refId = token.checkpoint || getCommandId(sectionId, index);
-    const refTypeId: CommandTypeId = "ReturnCommand";
     const newCommand: ReturnCommandData = {
       reference: {
-        parentId: sectionId,
         type: "Command",
+        typeId: "ReturnCommand",
+        parentId: sectionId,
         id: refId,
-        typeId: refTypeId,
       },
       source: getSource(token, file),
       indent: token.indent,
