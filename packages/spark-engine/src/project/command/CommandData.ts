@@ -13,6 +13,5 @@ export interface CommandData<
     to: number;
   };
   indent: number;
-  index: number;
   params: P;
 }

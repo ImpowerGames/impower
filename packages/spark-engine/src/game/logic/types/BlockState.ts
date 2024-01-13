@@ -1,12 +1,9 @@
 export interface BlockState {
-  loaded?: boolean;
-  isExecuting?: boolean;
-  isExecutingCommand?: boolean;
-  hasFinished?: boolean;
-  willReturn?: boolean;
-  executedBy: string | null;
+  isLoaded?: boolean;
+  willReturnToBlockId?: string;
+  willReturnToCommandId?: string;
 
-  executingIndex: number;
-  previousIndex: number;
-  commandJumpStack: number[];
+  isExecuting?: boolean;
+  isFinished?: boolean;
+  commandJumpStack?: string[];
 }

@@ -33,13 +33,12 @@ const generateDisplayCommand = (
   const refId = token.checkpoint || getCommandId(sectionId, index);
   return {
     reference: {
-      type: "Command",
       typeId: "DisplayCommand",
       parentId: sectionId,
       id: refId,
+      index,
     },
     source: getSource(token, file),
-    index,
     indent: token.indent,
     params: {
       type:
@@ -82,13 +81,12 @@ export const generateCommand = (
       const refId = token.checkpoint || getCommandId(sectionId, index);
       const newCommand: EvaluateCommandData = {
         reference: {
-          type: "Command",
           typeId: "EvaluateCommand",
           parentId: sectionId,
           id: refId,
+          index,
         },
         source: getSource(token, file),
-        index,
         indent: token.indent,
         params: {
           expression: `${token.name} ${token.operator} ${token.value}`,
@@ -101,13 +99,12 @@ export const generateCommand = (
     const refId = token.checkpoint || getCommandId(sectionId, index);
     const newCommand: EvaluateCommandData = {
       reference: {
-        type: "Command",
         typeId: "EvaluateCommand",
         parentId: sectionId,
         id: refId,
+        index,
       },
       source: getSource(token, file),
-      index,
       indent: token.indent,
       params: {
         expression: `delete ${token.name}`,
@@ -124,13 +121,12 @@ export const generateCommand = (
     const refId = token.checkpoint || getCommandId(sectionId, index);
     const newCommand: BranchCommandData = {
       reference: {
-        type: "Command",
         typeId: "BranchCommand",
         parentId: sectionId,
         id: refId,
+        index,
       },
       source: getSource(token, file),
-      index,
       indent: token.indent,
       params: {
         condition: token.condition as string,
@@ -143,13 +139,12 @@ export const generateCommand = (
     const refId = token.checkpoint || getCommandId(sectionId, index);
     const newCommand: JumpCommandData = {
       reference: {
-        type: "Command",
         typeId: "JumpCommand",
         parentId: sectionId,
         id: refId,
+        index,
       },
       source: getSource(token, file),
-      index,
       indent: token.indent,
       params: {
         value: token.section as string,
@@ -163,13 +158,12 @@ export const generateCommand = (
     const refId = token.checkpoint || getCommandId(sectionId, index);
     const newCommand: ReturnCommandData = {
       reference: {
-        type: "Command",
         typeId: "ReturnCommand",
         parentId: sectionId,
         id: refId,
+        index,
       },
       source: getSource(token, file),
-      index,
       indent: token.indent,
       params: {
         value: token.value as string,

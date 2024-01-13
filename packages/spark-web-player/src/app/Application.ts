@@ -177,17 +177,13 @@ export default class Application {
   }
 
   bindUI() {
-    if (this.context.game.ui.config.root) {
-      this.context.game.ui.config.root.onpointerdown = this.onPointerDownUI;
-      this.context.game.ui.config.root.onpointerup = this.onPointerUpUI;
-    }
+    this.context.game.ui.setOnPointerDown("", "", this.onPointerDownUI);
+    this.context.game.ui.setOnPointerUp("", "", this.onPointerDownUI);
   }
 
   unbindUI() {
-    if (this.context.game.ui.config.root) {
-      this.context.game.ui.config.root.onpointerdown = null;
-      this.context.game.ui.config.root.onpointerup = null;
-    }
+    this.context.game.ui.setOnPointerDown("", "", null);
+    this.context.game.ui.setOnPointerUp("", "", null);
   }
 
   bindView() {

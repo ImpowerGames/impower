@@ -1,9 +1,9 @@
 export interface Command {
   reference: {
-    type: "Command";
     id: string;
     typeId: string;
     parentId: string;
+    index: number;
   };
   source: {
     file: string;
@@ -11,7 +11,6 @@ export interface Command {
     from: number;
     to: number;
   };
-  index: number;
   indent: number;
   params: {
     check?: string;

@@ -72,8 +72,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   override isFinished(data: DisplayCommandData): boolean {
     const { autoAdvance } = data.params;
-    const blockState =
-      this.game.logic.state.blockStates[data.reference.parentId];
+    const blockState = this.game.logic.state.blocks[data.reference.parentId];
     if (!blockState) {
       return false;
     }
@@ -121,14 +120,19 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
         return true;
       }
 
-      const currentBlockId = data?.reference?.parentId;
-      this.game.logic.jumpToBlock(currentBlockId, chosenBlockId, false);
+      const currentBlockId = data.reference.parentId;
+      const currentCommandIndex = data.reference.index;
+      this.game.logic.jumpToBlock(
+        currentBlockId,
+        currentCommandIndex,
+        chosenBlockId
+      );
     }
     return false;
   }
 
   override onPreview(data: DisplayCommandData): boolean {
-    executeDisplayCommand(this.game, data, { preview: true });
+    executeDisplayCommand(this.game, data, { instant: true, preview: true });
     return true;
   }
 }

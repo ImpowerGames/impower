@@ -9,14 +9,10 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
 > {
   override onExecute(data: BranchCommandData): number[] {
     const { check, condition } = data.params;
-    const index = data.index;
-    const blockId = data.reference.parentId;
+    const index = data.reference.index;
+    const currentBlockId = data.reference.parentId;
 
-    const commands = this.game.logic.config.blockMap[blockId]?.commands;
-
-    if (!commands) {
-      return super.onExecute(data);
-    }
+    const commands = this.game.logic.getCommands(currentBlockId);
 
     if (check === "if") {
       const shouldExecute = this.game.logic.evaluate(condition);
@@ -30,12 +26,13 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
     } else if (check === "elseif") {
       const shouldExecute = this.game.logic.evaluate(condition);
       if (!shouldExecute) {
-        const blockState =
-          this.game.logic.state.blockStates[data.reference.parentId];
-        if (blockState) {
-          const prevCheck =
-            commands?.[blockState.previousIndex]?.params?.["check"];
-          if (prevCheck === "end") {
+        const flow = this.game.logic.flowMap[currentBlockId];
+        if (flow && flow.previousCommandIndex) {
+          const previousCommand = this.game.logic.getCommandAt(
+            currentBlockId,
+            flow.previousCommandIndex
+          );
+          if (previousCommand?.params?.["check"] === "end") {
             const nextCommandIndex = getNextJumpIndex(index, commands, [
               { check: (c): boolean => c === "else", offset: 0 },
             ]);

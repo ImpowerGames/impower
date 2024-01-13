@@ -23,6 +23,7 @@ export const combineBlockMap = (
       parent: s.parent,
       children: s.children || [],
       commands: [],
+      path: s.path,
     };
     s.tokens?.forEach((token) => {
       block.commands ??= [];

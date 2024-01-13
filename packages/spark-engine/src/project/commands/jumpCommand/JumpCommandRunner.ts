@@ -11,6 +11,7 @@ export class JumpCommandRunner<G extends Game> extends CommandRunner<
   override onExecute(data: JumpCommandData): number[] {
     const { value, returnWhenFinished } = data.params;
     const currentBlockId = data.reference.parentId;
+    const currentCommandIndex = data.reference.index;
 
     if (!value) {
       return super.onExecute(data);
@@ -24,7 +25,12 @@ export class JumpCommandRunner<G extends Game> extends CommandRunner<
       return super.onExecute(data);
     }
 
-    this.game.logic.jumpToBlock(currentBlockId, newBlockId, returnWhenFinished);
+    this.game.logic.jumpToBlock(
+      currentBlockId,
+      currentCommandIndex,
+      newBlockId,
+      returnWhenFinished
+    );
 
     return super.onExecute(data);
   }
@@ -32,8 +38,8 @@ export class JumpCommandRunner<G extends Game> extends CommandRunner<
   override isFinished(data: JumpCommandData): boolean | null {
     const { returnWhenFinished } = data.params;
     if (this._targetId != null && returnWhenFinished) {
-      const blockState = this.game.logic.state.blockStates[this._targetId];
-      return Boolean(blockState?.hasFinished);
+      const blockState = this.game.logic.state.blocks[this._targetId];
+      return Boolean(blockState?.isFinished);
     }
     return super.isFinished(data);
   }

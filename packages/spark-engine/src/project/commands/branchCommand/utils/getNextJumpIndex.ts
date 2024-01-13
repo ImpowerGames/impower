@@ -1,5 +1,8 @@
 export const getNextJumpIndex = <
-  D extends { indent: number; params: Record<string, unknown> }
+  D extends {
+    indent: number;
+    params: Record<string, unknown>;
+  }
 >(
   index: number,
   commands: D[],

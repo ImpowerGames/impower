@@ -134,7 +134,7 @@ export class GameContext<
       this.runner.commandRunners.forEach((r) => {
         r.onUpdate(deltaMS);
       });
-      const loadedBlockIds = this.game.logic.state.loadedBlockIds;
+      const loadedBlockIds = this.game.logic.loaded;
       if (loadedBlockIds) {
         for (let i = 0; i < loadedBlockIds.length; i += 1) {
           const blockId = loadedBlockIds[i];
@@ -152,10 +152,10 @@ export class GameContext<
   getRunner = (typeId: string) => this.runner.getCommandRunner(typeId);
 
   protected updateBlock(blockId: string): boolean {
-    const blockStates = this.game.logic.state?.blockStates;
+    const blockStates = this.game.logic.state?.blocks;
     const blockState = blockStates[blockId];
     if (blockState) {
-      if (blockState.loaded) {
+      if (blockState.isLoaded) {
         const running = this.game.logic.updateBlock(blockId, this.getRunner);
         if (running === null) {
           return false;

@@ -305,7 +305,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ? Object.keys(valueMap?.["ui"] || {})
       : structNames;
     validStructNames.forEach((structName) => {
-      if (structName && !this.config.baseClassNames.includes(structName)) {
+      if (structName && !this._config.baseClassNames.includes(structName)) {
         const structObj = valueMap?.["ui"]?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
@@ -493,6 +493,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   protected findElements(uiName: string, target: string): IElement[] {
+    if (!uiName) {
+      return [this._config.root];
+    }
     const found: IElement[] = [];
     const parent = this.getElement(this.getUIPath(uiName));
     if (parent) {
@@ -563,13 +566,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   ): Record<string, string | null> {
     const style: Record<string, string | null> = {};
     style["will-change"] = "opacity";
-    style["opacity"] = !event.enter ? "1" : "0";
     if (instant) {
+      style["opacity"] = "1";
       style["transition-property"] = "none";
       if (event.exit) {
         style["filter"] = "opacity(0)";
       }
     } else {
+      style["opacity"] = !event.enter ? "1" : "0";
       style["transition-property"] = "opacity";
       style["transition-delay"] = `${event.enter ?? 0}s`;
       style["transition-timing-function"] = `linear`;

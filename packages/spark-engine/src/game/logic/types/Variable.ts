@@ -1,7 +1,7 @@
 import { DocumentSource } from "./DocumentSource";
 
 export interface Variable {
-  source?: DocumentSource;
+  source: DocumentSource;
   name: string;
   type: string;
   value: string;

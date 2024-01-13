@@ -60,6 +60,8 @@ export class SoundManager extends Manager<
 
   protected _ready = new Map<string, Sound | Midi>();
 
+  protected _audioContext?: AudioContext;
+
   constructor(
     environment: Environment,
     config?: Partial<SoundConfig>,
@@ -92,6 +94,7 @@ export class SoundManager extends Manager<
       ...(state || {}),
     };
     super(environment, initialEvents, initialConfig, initialState);
+    this._audioContext = initialConfig.audioContext;
   }
 
   protected getOrCreatePlaybackState(id: string) {
@@ -111,7 +114,7 @@ export class SoundManager extends Manager<
   }
 
   synthesize(tones: Tone[]) {
-    return new SynthBuffer(tones, this.config.audioContext.sampleRate);
+    return new SynthBuffer(tones, this._audioContext?.sampleRate ?? 0);
   }
 
   setChannel(id: string, channel: string): SoundPlaybackControl {
@@ -176,7 +179,7 @@ export class SoundManager extends Manager<
   }
 
   setAudioContext(audioContext: AudioContext) {
-    this._config.audioContext = audioContext;
+    this._audioContext = audioContext;
   }
 
   notifyReady(id: string) {

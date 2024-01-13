@@ -195,7 +195,7 @@ export class Game {
       }
     });
     const serialized = JSON.stringify(saveData);
-    console.log(JSON.parse(serialized));
+    // console.log(JSON.parse(serialized));
     return serialized;
   }
 

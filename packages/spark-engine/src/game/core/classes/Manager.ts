@@ -19,10 +19,7 @@ export abstract class Manager<
     return this._events;
   }
 
-  protected _config: C;
-  public get config(): C {
-    return this._config;
-  }
+  protected _config: RecursiveReadonly<C>;
 
   protected _state: S;
   public get state(): RecursiveReadonly<S> {
@@ -32,7 +29,7 @@ export abstract class Manager<
   constructor(environment: Environment, events: E, config: C, state: S) {
     this._environment = environment;
     this._events = events;
-    this._config = config;
+    this._config = config as RecursiveReadonly<C>;
     this._state = state;
   }
 

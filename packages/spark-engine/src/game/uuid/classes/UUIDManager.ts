@@ -27,6 +27,6 @@ export class UUIDManager extends Manager<UUIDEvents, UUIDConfig, UUIDState> {
   }
 
   generate(): string {
-    return this.config.generator();
+    return this._config.generator();
   }
 }
