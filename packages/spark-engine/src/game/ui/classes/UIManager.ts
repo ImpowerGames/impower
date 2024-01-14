@@ -857,19 +857,19 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       }
 
       getTargets(uiName: string): string[] {
-        const targets: string[] = [];
+        const targets = new Set<string>();
         $.findElements(uiName, "text").forEach((textEl) => {
           const parent = $.getParentElement(textEl);
           if (parent) {
-            targets.push(parent.name);
+            targets.add(parent.name);
           }
         });
         if ($._state.text?.[uiName]) {
           Object.entries($._state.text[uiName]!).forEach(([target]) => {
-            targets.push(target);
+            targets.add(target);
           });
         }
-        return targets;
+        return Array.from(targets);
       }
     }
     return Text;
@@ -1002,19 +1002,19 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       }
 
       getTargets(uiName: string): string[] {
-        const targets: string[] = [];
+        const targets = new Set<string>();
         $.findElements(uiName, "image").forEach((imageEl) => {
           const parent = $.getParentElement(imageEl);
           if (parent) {
-            targets.push(parent.name);
+            targets.add(parent.name);
           }
         });
         if ($._state.image?.[uiName]) {
           Object.entries($._state.image[uiName]!).forEach(([target]) => {
-            targets.push(target);
+            targets.add(target);
           });
         }
-        return targets;
+        return Array.from(targets);
       }
     }
     return Image;
