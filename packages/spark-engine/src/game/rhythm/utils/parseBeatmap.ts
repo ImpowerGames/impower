@@ -1,5 +1,5 @@
-import { Beat } from "../types/Beat";
-import { roundToRatioDecimal } from "./roundToRatioDecimal";
+import type { Beat } from "../types/Beat";
+import roundToRatioDecimal from "./roundToRatioDecimal";
 
 const WHITESPACE_REGEX = /[ ]/g;
 const SEPARATOR_REGEX = /[-]/g;

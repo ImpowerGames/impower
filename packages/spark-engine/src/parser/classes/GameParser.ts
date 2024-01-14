@@ -1,8 +1,9 @@
-import { compile, format } from "../../../../spark-evaluate/src";
+import compile from "../../../../spark-evaluate/src/utils/compile";
+import format from "../../../../spark-evaluate/src/utils/format";
 import SparkParser from "../../../../sparkdown/src/classes/SparkParser";
-import { SparkParserConfig } from "../../../../sparkdown/src/types/SparkParserConfig";
-import { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import { processBeatmap } from "../../game/rhythm";
+import type { SparkParserConfig } from "../../../../sparkdown/src/types/SparkParserConfig";
+import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
+import processBeatmap from "../../game/rhythm/utils/processBeatmap";
 
 export default class GameParser extends SparkParser {
   private static _instance: GameParser;

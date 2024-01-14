@@ -1,8 +1,8 @@
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import type { CommandData } from "../../data";
-import { getPreviewCommand } from "./getPreviewCommand";
+import type { CommandData } from "../../game/logic/types/CommandData";
+import getPreviewCommand from "./getPreviewCommand";
 
-export const getPreviousPreviewCommand = (
+const getPreviousPreviewCommand = (
   program: SparkProgram,
   line: number
 ): CommandData | null | undefined => {
@@ -21,3 +21,5 @@ export const getPreviousPreviewCommand = (
   }
   return null;
 };
+
+export default getPreviousPreviewCommand;

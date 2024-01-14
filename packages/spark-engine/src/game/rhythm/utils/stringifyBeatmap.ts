@@ -1,5 +1,5 @@
-import { Beat } from "../types/Beat";
-import { getRatio } from "./getRatio";
+import type { Beat } from "../types/Beat";
+import getRatio from "./getRatio";
 
 const getIntegerSeparators = (diff: number): string[] => {
   if (diff === 1) {
@@ -66,7 +66,7 @@ const columnsOf = (str: string, length: number): string => {
   return result;
 };
 
-export const stringifyBeatmap = (
+const stringifyBeatmap = (
   name: string,
   beats: Beat[],
   reversed = false,
@@ -125,3 +125,5 @@ export const stringifyBeatmap = (
   }
   return tokens.join("\n");
 };
+
+export default stringifyBeatmap;

@@ -1,7 +1,7 @@
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
 import type { SparkVariable } from "../../../../sparkdown/src/types/SparkVariable";
 
-export const getPreviewVariable = (
+const getPreviewVariable = (
   program: SparkProgram,
   line: number
 ): SparkVariable | null | undefined => {
@@ -14,3 +14,5 @@ export const getPreviewVariable = (
   }
   return program.variables?.[id];
 };
+
+export default getPreviewVariable;

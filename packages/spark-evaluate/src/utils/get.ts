@@ -51,7 +51,7 @@ const isValidObject = (val: unknown): boolean => {
   return typeof val === "object" || typeof val === "function";
 };
 
-export const get = <T extends object, V>(
+const get = <T extends object, V>(
   target: T,
   path: string,
   options: Options<T, V> = {}
@@ -141,3 +141,5 @@ export const get = <T extends object, V>(
 
   return options.default;
 };
+
+export default get;

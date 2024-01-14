@@ -1,4 +1,4 @@
-export const shuffle = <T>(array: T[], rng?: () => number): T[] => {
+const shuffle = <T>(array: T[], rng?: () => number): T[] => {
   const newArray = [...array];
   let currentIndex = newArray.length;
   let temporaryValue;
@@ -19,3 +19,5 @@ export const shuffle = <T>(array: T[], rng?: () => number): T[] => {
 
   return newArray;
 };
+
+export default shuffle;

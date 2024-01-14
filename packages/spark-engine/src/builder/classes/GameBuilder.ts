@@ -2,11 +2,11 @@ import { SparkProgram } from "../../../../sparkdown/src";
 import { BlockData, Game, GameConfig, GameState } from "../../game";
 import { ICommandRunner } from "../../game/logic/types/ICommandRunner";
 import { GameBuilderOptions } from "../types/GameBuilderOptions";
-import { combineBlockMap } from "../utils/combineBlockMap";
-import { combineValueMap } from "../utils/combineValueMap";
+import combineBlockMap from "../utils/combineBlockMap";
+import combineValueMap from "../utils/combineValueMap";
 import getCommandIndexAtLine from "../utils/getCommandIndexAtLine";
-import { getPreviewCommand } from "../utils/getPreviewCommand";
-import { getPreviewVariable } from "../utils/getPreviewVariable";
+import getPreviewCommand from "../utils/getPreviewCommand";
+import getPreviewVariable from "../utils/getPreviewVariable";
 import getSectionAtLine from "../utils/getSectionAtLine";
 import { BranchCommandRunner } from "./commands/branchCommand/BranchCommandRunner";
 import { DestroyCommandRunner } from "./commands/destroyCommand/DestroyCommandRunner";
@@ -148,8 +148,7 @@ export class GameBuilder<
     if (program) {
       const runtimeCommand = getPreviewCommand(program, line);
       if (runtimeCommand) {
-        const commandRunner =
-          this._commandRunnerMap[runtimeCommand.reference.typeId];
+        const commandRunner = this._commandRunnerMap[runtimeCommand.type];
         if (commandRunner) {
           this.game.ui.loadTheme(this.game.logic.context);
           this.game.ui.loadStyles(this.game.logic.context);

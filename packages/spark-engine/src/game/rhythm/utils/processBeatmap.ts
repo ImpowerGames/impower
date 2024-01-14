@@ -3,14 +3,10 @@ import { parseBeatmap } from "./parseBeatmap";
 
 const NAME_REGEX = /[_a-zA-Z]+[_a-zA-Z0-9]*/;
 
-export const last = function <T>(array: T[]): T {
-  return array[array.length - 1] as T;
-};
-
-export const processBeatmap = (
+const processBeatmap = (
   context: SparkParserContext
 ): { type: string } | undefined => {
-  const scope = last(context.scopes);
+  const scope = context.scopes.at(-1)!;
   const from = context.from;
   const to = context.to;
   const line = context.line;
@@ -90,3 +86,5 @@ export const processBeatmap = (
   }
   return undefined;
 };
+
+export default processBeatmap;

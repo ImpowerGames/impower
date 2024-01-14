@@ -1,8 +1,8 @@
-import { SparkExpressionCompiler } from "../classes/SparkExpressionCompiler";
-import { DEFAULT_COMPILER_CONFIG } from "../constants/DEFAULT_COMPILER_CONFIG";
-import { DEFAULT_PARSER } from "../constants/DEFAULT_PARSER";
+import SparkExpressionCompiler from "../classes/SparkExpressionCompiler";
+import DEFAULT_COMPILER_CONFIG from "../constants/DEFAULT_COMPILER_CONFIG";
+import DEFAULT_PARSER from "../constants/DEFAULT_PARSER";
 
-export const evaluate = (
+const evaluate = (
   expr: string,
   context: Record<string, unknown> = {},
   config = DEFAULT_COMPILER_CONFIG
@@ -15,3 +15,5 @@ export const evaluate = (
   const result = compiler.evaluate(node, context);
   return result;
 };
+
+export default evaluate;

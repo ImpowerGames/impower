@@ -3,9 +3,9 @@ import {
   INode,
   KeyedObject,
 } from "../_modules/ESpression/src";
-import { DEFAULT_COMPILER_CONFIG } from "../constants/DEFAULT_COMPILER_CONFIG";
+import DEFAULT_COMPILER_CONFIG from "../constants/DEFAULT_COMPILER_CONFIG";
 
-export class SparkExpressionCompiler extends ESNextStaticEval {
+export default class SparkExpressionCompiler extends ESNextStaticEval {
   constructor(public config = DEFAULT_COMPILER_CONFIG) {
     super();
   }

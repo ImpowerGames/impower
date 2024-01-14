@@ -1,9 +1,9 @@
 import { Replacer } from "../types/Replacer";
-import { choose } from "../utils/formatters/choose";
-import { pluralize } from "../utils/formatters/pluralize";
-import { regex } from "../utils/formatters/regex";
+import choose from "../utils/formatters/choose";
+import pluralize from "../utils/formatters/pluralize";
+import regex from "../utils/formatters/regex";
 
-export const DEFAULT_REPLACERS: Record<string, Replacer> = {
+const DEFAULT_REPLACERS: Record<string, Replacer> = {
   regex,
   r: regex,
   choose,
@@ -11,3 +11,5 @@ export const DEFAULT_REPLACERS: Record<string, Replacer> = {
   pluralize,
   p: pluralize,
 };
+
+export default DEFAULT_REPLACERS;

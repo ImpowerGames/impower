@@ -1,4 +1,4 @@
-export const RATIOS: Record<number, string> = {
+const RATIOS: Record<number, string> = {
   0: "0",
   0.0625: "1:16",
   0.125: "1:8",
@@ -19,3 +19,5 @@ export const RATIOS: Record<number, string> = {
   0.9375: "15:16",
   1: "1",
 } as const;
+
+export default RATIOS;

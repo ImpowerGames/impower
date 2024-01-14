@@ -13,7 +13,7 @@ while (IDX--) {
   HEX[IDX] = (IDX + 256).toString(16).substring(1);
 }
 
-export const uuid = (): string => {
+const uuid = (): string => {
   var i = 0,
     num,
     out = "";
@@ -36,3 +36,5 @@ export const uuid = (): string => {
   IDX++;
   return out;
 };
+
+export default uuid;

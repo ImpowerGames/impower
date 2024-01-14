@@ -1,9 +1,9 @@
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import type { CommandData } from "../../data";
-import { generateCommand } from "./generateCommand";
+import type { CommandData } from "../../game/logic/types/CommandData";
+import generateCommand from "./generateCommand";
 import getSectionAtLine from "./getSectionAtLine";
 
-export const getPreviewCommand = (
+const getPreviewCommand = (
   program: SparkProgram,
   line: number
 ): CommandData | null | undefined => {
@@ -30,3 +30,5 @@ export const getPreviewCommand = (
   }
   return null;
 };
+
+export default getPreviewCommand;

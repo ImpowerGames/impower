@@ -9,7 +9,7 @@ export const regexes: Record<string, Record<string, string>> = {
   },
 };
 
-export const regex = (
+const regex = (
   value: string,
   _locale: string,
   arg: string
@@ -38,3 +38,5 @@ export const regex = (
   const result = varRegexes[""] || "";
   return [result, [], []];
 };
+
+export default regex;

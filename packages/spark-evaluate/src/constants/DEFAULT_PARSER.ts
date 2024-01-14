@@ -1,3 +1,5 @@
-import { SparkExpressionParser } from "../classes/SparkExpressionParser";
+import SparkExpressionParser from "../classes/SparkExpressionParser";
 
-export const DEFAULT_PARSER = new SparkExpressionParser(true);
+const DEFAULT_PARSER = new SparkExpressionParser(true);
+
+export default DEFAULT_PARSER;

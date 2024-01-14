@@ -3,8 +3,8 @@
  * https://bsmg.wiki/mapping/map-format.html#base-object-2
  */
 
-import { Beat } from "../types/Beat";
-import { BSNote } from "../types/BSNote";
+import type { Beat } from "../types/Beat";
+import type { BSNote } from "../types/BSNote";
 
 const getDirection = (v: number | string): string | undefined => {
   if (typeof v === "string") {
@@ -32,7 +32,7 @@ const getDirection = (v: number | string): string | undefined => {
   }
 };
 
-export const convertBSData = (dat: string | object): Beat[] => {
+const convertBSData = (dat: string | object): Beat[] => {
   const data = typeof dat === "string" ? JSON.parse(dat) : dat;
   const notes: BSNote[] = Array.isArray(data)
     ? data
@@ -50,3 +50,5 @@ export const convertBSData = (dat: string | object): Beat[] => {
   }
   return beats;
 };
+
+export default convertBSData;

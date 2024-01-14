@@ -17,7 +17,7 @@ import {
   WRITER_DEFAULTS,
 } from "../../game";
 
-export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
+const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   text_layer: TEXT_LAYER_DEFAULTS,
 
   image: IMAGE_DEFAULTS,
@@ -47,3 +47,5 @@ export const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   html: { default: [] },
   css: { default: [] },
 };
+
+export default STRUCT_DEFAULTS;

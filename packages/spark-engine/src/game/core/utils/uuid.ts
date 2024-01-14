@@ -1,1 +1,1 @@
-export { uuid } from "../../../../../spark-evaluate/src/utils/uuid";
+export { default as uuid } from "../../../../../spark-evaluate/src/utils/uuid";

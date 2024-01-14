@@ -6,7 +6,7 @@ import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import { STRUCT_DEFAULTS } from "@impower/spark-engine/src/parser/constants/STRUCT_DEFAULTS";
+import STRUCT_DEFAULTS from "@impower/spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { SparkVariable } from "@impower/sparkdown/src/types/SparkVariable";
 import {

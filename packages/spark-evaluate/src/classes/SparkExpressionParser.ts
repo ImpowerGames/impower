@@ -8,8 +8,7 @@ import {
   UNARY_EXP,
 } from "../_modules/ESpression/src";
 import { biOpConfs } from "../_modules/ESpression/src/parser/presets/es5";
-import {
-  CustomTemplateExpressionRule,
+import CustomTemplateExpressionRule, {
   IConfCustomTemplateExpressionRule,
 } from "./CustomTemplateExpressionRule";
 
@@ -19,7 +18,7 @@ const CUSTOM_TEMPLATE_EXPR_TYPE: IConfCustomTemplateExpressionRule = {
   type: "CustomTemplateExpression",
 };
 
-export class SparkExpressionParser extends ESnextParser {
+export default class SparkExpressionParser extends ESnextParser {
   constructor(
     noStatement?: boolean,
     identStart?: ICharClass,

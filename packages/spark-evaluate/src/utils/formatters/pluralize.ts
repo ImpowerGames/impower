@@ -1,4 +1,4 @@
-export const pluralize = (
+const pluralize = (
   value: number,
   locale?: string,
   ...args: string[]
@@ -39,3 +39,5 @@ export const pluralize = (
   }
   return [result, diagnostics, []];
 };
+
+export default pluralize;

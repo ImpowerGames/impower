@@ -17,7 +17,7 @@ import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/wo
 import { FileData } from "@impower/spark-editor-protocol/src/types";
 import { Zippable, unzipSync, zipSync } from "fflate";
 import GameParser from "../../spark-engine/src/parser/classes/GameParser";
-import { STRUCT_DEFAULTS } from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
+import STRUCT_DEFAULTS from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
 import { SparkVariable } from "../../sparkdown/src";
 import debounce from "./utils/debounce";
 import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";

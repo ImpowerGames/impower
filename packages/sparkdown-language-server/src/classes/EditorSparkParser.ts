@@ -1,4 +1,5 @@
-import { compile, format } from "@impower/spark-evaluate/src/index";
+import compile from "@impower/spark-evaluate/src/utils/compile";
+import format from "@impower/spark-evaluate/src/utils/format";
 import SparkParser from "@impower/sparkdown/src/classes/SparkParser";
 import { SparkParserConfig } from "@impower/sparkdown/src/types/SparkParserConfig";
 

@@ -1,7 +1,7 @@
-import { randomizer } from "../randomizer";
-import { shuffle } from "../shuffle";
+import randomizer from "../randomizer";
+import shuffle from "../shuffle";
 
-export const choose = (
+const choose = (
   value: number | [$visited: number, $key?: string, $seed?: string],
   _locale?: string,
   ...args: readonly string[]
@@ -82,3 +82,5 @@ export const choose = (
   const iterationIndex = visited % newArgs.length;
   return [newArgs[iterationIndex] || "", diagnostics, ignoreArgs];
 };
+
+export default choose;

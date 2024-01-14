@@ -9,7 +9,7 @@ export interface IConfCustomTemplateExpressionRule extends ISubRuleConf {
   type: string;
 }
 
-export class CustomTemplateExpressionRule extends BaseRule<IConfCustomTemplateExpressionRule> {
+export default class CustomTemplateExpressionRule extends BaseRule<IConfCustomTemplateExpressionRule> {
   constructor(public override config: IConfCustomTemplateExpressionRule) {
     super();
   }

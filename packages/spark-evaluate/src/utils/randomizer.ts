@@ -7,7 +7,7 @@
  * Released under the MIT License.
  */
 
-import { uuid } from "./uuid";
+import uuid from "./uuid";
 
 const createMasher = (): ((data: string | number) => number) => {
   let n = 0xefc8249d;
@@ -30,7 +30,7 @@ const createMasher = (): ((data: string | number) => number) => {
   return func;
 };
 
-export const randomizer = (seed?: string | number): (() => number) => {
+const randomizer = (seed?: string | number): (() => number) => {
   let s0 = 0;
   let s1 = 0;
   let s2 = 0;
@@ -67,3 +67,5 @@ export const randomizer = (seed?: string | number): (() => number) => {
 
   return next;
 };
+
+export default randomizer;

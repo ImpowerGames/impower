@@ -1,8 +1,8 @@
-import { DEFAULT_REPLACERS } from "../constants/DEFAULT_REPLACERS";
+import DEFAULT_REPLACERS from "../constants/DEFAULT_REPLACERS";
 import { Diagnostic } from "../types/Diagnostic";
 import { Replacer } from "../types/Replacer";
-import { choose } from "./formatters/choose";
-import { pluralize } from "./formatters/pluralize";
+import choose from "./formatters/choose";
+import pluralize from "./formatters/pluralize";
 
 const PIPE_SEPARATOR_REGEX = /((?<!\\)[|])/;
 const SUBSTITUTION_ELEMENT_REGEX = /((?<![$])[{](?:\\.|[^}])*?[}])/g;
@@ -198,7 +198,7 @@ const replace =
     return String(val);
   };
 
-export const format = (
+const format = (
   str: string,
   context: Record<string, unknown> = {}
 ): [string, Diagnostic[], Diagnostic[]] => {
@@ -220,3 +220,5 @@ export const format = (
   const result = parts.join("");
   return [result, diagnostics, references];
 };
+
+export default format;

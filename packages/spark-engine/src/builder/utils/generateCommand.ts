@@ -2,12 +2,12 @@ import type {
   SparkDisplayToken,
   SparkToken,
 } from "../../../../sparkdown/src/types/SparkToken";
-import { CommandData } from "../../game/logic/types/CommandData";
-import { BranchCommandData } from "../classes/commands/branchCommand/BranchCommandData";
-import { DisplayCommandData } from "../classes/commands/displayCommand/DisplayCommandData";
-import { EvaluateCommandData } from "../classes/commands/evaluateCommand/EvaluateCommandData";
-import { JumpCommandData } from "../classes/commands/jumpCommand/JumpCommandData";
-import { ReturnCommandData } from "../classes/commands/returnCommand/ReturnCommandData";
+import type { CommandData } from "../../game/logic/types/CommandData";
+import type { BranchCommandData } from "../classes/commands/branchCommand/BranchCommandData";
+import type { DisplayCommandData } from "../classes/commands/displayCommand/DisplayCommandData";
+import type { EvaluateCommandData } from "../classes/commands/evaluateCommand/EvaluateCommandData";
+import type { JumpCommandData } from "../classes/commands/jumpCommand/JumpCommandData";
+import type { ReturnCommandData } from "../classes/commands/returnCommand/ReturnCommandData";
 
 const getCommandId = (parent: string, index: number): string => {
   return `${parent}.${index}`;
@@ -56,7 +56,7 @@ const generateDisplayCommand = (
   };
 };
 
-export const generateCommand = (
+const generateCommand = (
   token: SparkToken,
   file: string,
   parent: string,
@@ -173,3 +173,5 @@ export const generateCommand = (
 
   return null;
 };
+
+export default generateCommand;

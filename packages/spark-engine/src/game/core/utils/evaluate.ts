@@ -1,1 +1,1 @@
-export { evaluate } from "../../../../../spark-evaluate/src/utils/evaluate";
+export { default as evaluate } from "../../../../../spark-evaluate/src/utils/evaluate";

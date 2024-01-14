@@ -1,6 +1,6 @@
-import { DEFAULT_PARSER } from "../constants/DEFAULT_PARSER";
+import DEFAULT_PARSER from "../constants/DEFAULT_PARSER";
 
-export const tokenize = (
+const tokenize = (
   expr: string
 ): {
   type: string;
@@ -16,3 +16,5 @@ export const tokenize = (
   }
   return [];
 };
+
+export default tokenize;

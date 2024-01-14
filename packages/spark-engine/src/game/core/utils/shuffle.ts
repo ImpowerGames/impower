@@ -1,1 +1,1 @@
-export { shuffle } from "../../../../../spark-evaluate/src/utils/shuffle";
+export { default as shuffle } from "../../../../../spark-evaluate/src/utils/shuffle";

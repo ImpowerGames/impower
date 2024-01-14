@@ -1,8 +1,8 @@
 import type { SparkSection } from "../../../../sparkdown/src/types/SparkSection";
 import type { BlockData } from "../../game";
-import { generateCommand } from "./generateCommand";
+import generateCommand from "./generateCommand";
 
-export const combineBlockMap = (
+const combineBlockMap = (
   file: string,
   sections: Record<string, SparkSection> | undefined,
   result: Record<string, BlockData> = {}
@@ -43,3 +43,5 @@ export const combineBlockMap = (
 
   return result;
 };
+
+export default combineBlockMap;

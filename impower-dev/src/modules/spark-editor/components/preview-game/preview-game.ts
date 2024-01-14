@@ -5,11 +5,9 @@ import { DidExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
-import {
-  getNextPreviewCommand,
-  getPreviousPreviewCommand,
-} from "../../../../../../packages/spark-engine/src";
-import { SparkProgram } from "../../../../../../packages/sparkdown/src";
+import getNextPreviewCommand from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommand";
+import getPreviousPreviewCommand from "../../../../../../packages/spark-engine/src/builder/utils/getPreviousPreviewCommand";
+import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game";
