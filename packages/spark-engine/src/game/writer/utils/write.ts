@@ -48,38 +48,38 @@ const isDash = (part: string) => {
 };
 
 const getValue = (
-  valueMap: Record<string, Record<string, any>> | undefined,
+  context: Record<string, Record<string, any>> | undefined,
   type: string,
   name: string,
   ...fallbacks: string[]
 ) => {
-  const value = valueMap?.[type]?.[name];
+  const value = context?.[type]?.[name];
   if (value) {
     return value;
   }
   for (let i = 0; i < fallbacks.length; i += 1) {
     const fallbackName = fallbacks[i] || "";
-    const fallbackValue = valueMap?.[type]?.[fallbackName];
+    const fallbackValue = context?.[type]?.[fallbackName];
     if (fallbackValue) {
       return fallbackValue;
     }
   }
-  return valueMap?.[type]?.["default"];
+  return context?.[type]?.["default"];
 };
 
 const getValueName = (
-  valueMap: Record<string, Record<string, any>> | undefined,
+  context: Record<string, Record<string, any>> | undefined,
   type: string,
   name: string,
   ...fallbacks: string[]
 ) => {
-  const value = valueMap?.[type]?.[name];
+  const value = context?.[type]?.[name];
   if (value) {
     return name;
   }
   for (let i = 0; i < fallbacks.length; i += 1) {
     const fallbackName = fallbacks[i] || "";
-    const fallbackValue = valueMap?.[type]?.[fallbackName];
+    const fallbackValue = context?.[type]?.[fallbackName];
     if (fallbackValue) {
       return fallbackName;
     }
@@ -89,14 +89,14 @@ const getValueName = (
 
 const getImageNames = (
   assetNames: string[],
-  valueMap: Record<string, Record<string, any>> | undefined
+  context: Record<string, Record<string, any>> | undefined
 ) => {
   const imageNames: string[] = [];
   assetNames.forEach((assetName) => {
     if (assetName) {
-      const value = (valueMap?.["image"]?.[assetName] ||
-        valueMap?.["image_group"]?.[assetName] ||
-        valueMap?.["array"]?.[assetName]) as
+      const value = (context?.["image"]?.[assetName] ||
+        context?.["image_group"]?.[assetName] ||
+        context?.["array"]?.[assetName]) as
         | { name: string; src: string }
         | { assets: { name: string; src: string }[] };
       const assets =
@@ -138,7 +138,7 @@ const getMinSynthDuration = (synth: {
 };
 
 export interface WriteOptions {
-  valueMap?: Record<string, Record<string, any>>;
+  context?: Record<string, Record<string, any>>;
   character?: string;
   instant?: boolean;
   debug?: boolean;
@@ -157,7 +157,7 @@ export const write = (
 } => {
   const phrases: Phrase[] = [];
 
-  const valueMap = options?.valueMap;
+  const context = options?.context;
   const character = options?.character;
   const instant = options?.instant;
   const debug = options?.debug;
@@ -187,10 +187,10 @@ export const write = (
 
   content.forEach((p, contentIndex) => {
     const target = p.target || "";
-    const writer = getValue(valueMap, "writer", target);
-    const writerSynth = getValue(valueMap, "synth", target, "writer");
+    const writer = getValue(context, "writer", target);
+    const writerSynth = getValue(context, "synth", target, "writer");
     const characterSynth = character
-      ? getValue(valueMap, "synth", character, "character")
+      ? getValue(context, "synth", character, "character")
       : undefined;
     const synth = characterSynth ?? writerSynth;
     const minSynthDuration = getMinSynthDuration(synth);
@@ -231,7 +231,7 @@ export const write = (
       const chunk: Chunk = {
         target: p.target,
         instance: p.instance,
-        image: getImageNames(p.image, valueMap),
+        image: getImageNames(p.image, context),
         args: p.args,
         duration: 0,
         speed: 0,
@@ -539,7 +539,7 @@ export const write = (
   });
   phrases.forEach((phrase) => {
     const target = phrase.target || "";
-    const writer = getValue(valueMap, "writer", target);
+    const writer = getValue(context, "writer", target);
     const letterPause = writer?.letter_pause ?? 0;
     const interjectionPause = writer?.punctuated_pause_scale ?? 1;
     const punctuatedMatcher = writer?.punctuated
@@ -559,7 +559,7 @@ export const write = (
       // Voice any phrases that are entirely composed of ellipsis.
       if (phrase.text) {
         if (punctuatedMatcher?.test(phrase.text)) {
-          const writerSynth = getValue(valueMap, "synth", target, "writer");
+          const writerSynth = getValue(context, "synth", target, "writer");
           const minSynthDuration = getMinSynthDuration(writerSynth);
           for (let c = 0; c < phrase.chunks.length; c += 1) {
             const chunk = phrase.chunks[c]!;
@@ -577,7 +577,7 @@ export const write = (
   });
 
   if (character && !instant) {
-    stressPhrases(phrases, getValue(valueMap, "character", character));
+    stressPhrases(phrases, getValue(context, "character", character));
   }
 
   let time = 0;
@@ -600,7 +600,7 @@ export const write = (
     let floatingIndex = 0;
     let tremblingIndex = 0;
     const target = phrase.target || "";
-    const writer = getValue(valueMap, "writer", target);
+    const writer = getValue(context, "writer", target);
     const fadeDuration = writer?.fade_duration ?? 0;
     const letterPause = writer?.letter_pause ?? 0;
     const animationOffset = writer?.animation_offset ?? 0;
@@ -776,10 +776,10 @@ export const write = (
         if (c.duration) {
           if (c.voicedSyllable) {
             const synthName = character
-              ? getValueName(valueMap, "synth", character, "character")
-              : getValueName(valueMap, "synth", c.target || "", "writer");
+              ? getValueName(context, "synth", character, "character")
+              : getValueName(context, "synth", c.target || "", "writer");
             const minSynthDuration = getMinSynthDuration(
-              getValue(valueMap, "synth", synthName)
+              getValue(context, "synth", synthName)
             );
             const synthEvent: SynthEvent = {
               synth: [synthName],
@@ -801,9 +801,9 @@ export const write = (
             result.synth["writer"]!.push(synthEvent);
           }
           if (c.punctuatedSyllable) {
-            const synthName = getValueName(valueMap, "synth", "writer");
+            const synthName = getValueName(context, "synth", "writer");
             const minSynthDuration = getMinSynthDuration(
-              getValue(valueMap, "synth", synthName)
+              getValue(context, "synth", synthName)
             );
             const synthEvent: SynthEvent = {
               synth: [synthName],

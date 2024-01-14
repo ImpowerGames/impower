@@ -1,4 +1,4 @@
-import { GameContext } from "../../../spark-engine/src/parser/classes/GameContext";
+import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import Scene from "./Scene";
 import Ticker from "./Ticker";
 import PerspectiveCamera from "./render/cameras/PerspectiveCamera";
@@ -8,9 +8,9 @@ import MainScene from "./scenes/MainScene";
 import SoundScene from "./scenes/SoundScene";
 
 export default class Application {
-  protected _context: GameContext;
-  public get context(): GameContext {
-    return this._context;
+  protected _game: Game;
+  public get game(): Game {
+    return this._game;
   }
 
   protected _ticker = new Ticker();
@@ -62,7 +62,7 @@ export default class Application {
 
   protected _ready = false;
 
-  constructor(dom: HTMLElement, context: GameContext) {
+  constructor(dom: HTMLElement, game: Game) {
     this._dom = dom;
     const width = this._dom.clientWidth;
     const height = this._dom.clientHeight;
@@ -99,9 +99,9 @@ export default class Application {
     });
     this._resizeObserver.observe(this._dom);
 
-    this._context = context;
-    if (this.context) {
-      this.context.init();
+    this._game = game;
+    if (this.game) {
+      this.game.init();
       this.bindUI();
     }
 
@@ -113,7 +113,7 @@ export default class Application {
     this.ticker.add(this.onUpdate);
     this.ticker.start();
 
-    const scenesToLoad: Record<string, Scene> = !context
+    const scenesToLoad: Record<string, Scene> = !game
       ? {}
       : {
           sound: new SoundScene(this),
@@ -131,13 +131,13 @@ export default class Application {
     Object.entries(scenes).forEach(([id, scene]) => {
       this._scenes.set(id, scene);
     });
-    if (this.context.game.ui) {
-      this.context.game.ui.style.update(loadingUIName, "", {
+    if (this.game.ui) {
+      this.game.ui.style.update(loadingUIName, "", {
         [loadingProgressVariable]: "0",
       });
     }
-    if (this.context.game.ui) {
-      this.context.game.ui.showUI(loadingUIName);
+    if (this.game.ui) {
+      this.game.ui.showUI(loadingUIName);
     }
     const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
     this._scenes.forEach((scene) => {
@@ -147,8 +147,8 @@ export default class Application {
     });
     // TODO:
     // await this.assets.loadAssets(allRequiredAssets, (p) => {
-    //   if (this.context.game.ui) {
-    //     this.context.game.ui.updateStyleProperty(
+    //   if (this.game.ui) {
+    //     this.game.ui.updateStyleProperty(
     //       loadingProgressVariable,
     //       p,
     //       loadingUIName
@@ -171,19 +171,19 @@ export default class Application {
     scenesArray.forEach((scene) => {
       scene.ready = true;
     });
-    if (this.context.game.ui) {
-      this.context.game.ui.hideUI(loadingUIName);
+    if (this.game.ui) {
+      this.game.ui.hideUI(loadingUIName);
     }
   }
 
   bindUI() {
-    this.context.game.ui.setOnPointerDown("", "", this.onPointerDownUI);
-    this.context.game.ui.setOnPointerUp("", "", this.onPointerDownUI);
+    this.game.ui.setOnPointerDown("", "", this.onPointerDownUI);
+    this.game.ui.setOnPointerUp("", "", this.onPointerDownUI);
   }
 
   unbindUI() {
-    this.context.game.ui.setOnPointerDown("", "", null);
-    this.context.game.ui.setOnPointerUp("", "", null);
+    this.game.ui.setOnPointerDown("", "", null);
+    this.game.ui.setOnPointerUp("", "", null);
   }
 
   bindView() {
@@ -213,8 +213,8 @@ export default class Application {
       scene.unbind();
       scene.dispose().forEach((d) => d.dispose());
     });
-    if (this.context) {
-      this.context.dispose();
+    if (this.game) {
+      this.game.destroy();
     }
     if (removeView && this.view) {
       this.view.remove();
@@ -222,19 +222,19 @@ export default class Application {
   }
 
   onPointerDownView = (event: PointerEvent): void => {
-    this.context.game.input.pointerDown(event.button, "");
+    this.game.input.pointerDown(event.button, "");
   };
 
   onPointerUpView = (event: PointerEvent): void => {
-    this.context.game.input.pointerUp(event.button, "");
+    this.game.input.pointerUp(event.button, "");
   };
 
   onPointerDownUI = (event: PointerEvent): void => {
-    this.context.game.input.pointerDown(event.button, "");
+    this.game.input.pointerDown(event.button, "");
   };
 
   onPointerUpUI = (event: PointerEvent): void => {
-    this.context.game.input.pointerUp(event.button, "");
+    this.game.input.pointerUp(event.button, "");
   };
 
   pause(): void {
@@ -284,8 +284,8 @@ export default class Application {
       }
     }
 
-    if (this.context) {
-      if (!this.context.update(deltaMS)) {
+    if (this.game) {
+      if (!this.game.update(deltaMS)) {
         this.destroy(true);
       }
     }

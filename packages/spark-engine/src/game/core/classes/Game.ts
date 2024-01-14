@@ -166,23 +166,27 @@ export class Game {
   }
 
   init(): void {
-    this._managerNames.forEach((k) => this._managers[k]?.init());
-    this.ui.loadTheme(this.logic.valueMap);
-    this.ui.loadStyles(this.logic.valueMap);
-    this.ui.loadUI(this.logic.valueMap);
+    this._managerNames.forEach((k) => this._managers[k]?.onInit());
+    this.ui.loadTheme(this.logic.context);
+    this.ui.loadStyles(this.logic.context);
+    this.ui.loadUI(this.logic.context);
     this._events.onInit.dispatch();
   }
 
-  update(deltaMS: number): void {
+  update(deltaMS: number): boolean {
+    let running = true;
     this._managerNames.forEach((k) => {
-      this._managers[k]?.update(deltaMS);
+      if (!this._managers[k]?.update(deltaMS)) {
+        running = false;
+      }
     });
     this._events.onUpdate.dispatch(deltaMS);
+    return running;
   }
 
   destroy(): void {
     this._events.onDestroy.dispatch();
-    this._managerNames.forEach((k) => this._managers[k]?.destroy());
+    this._managerNames.forEach((k) => this._managers[k]?.onDestroy());
   }
 
   serialize(): string {

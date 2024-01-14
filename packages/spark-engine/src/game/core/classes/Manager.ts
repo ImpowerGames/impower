@@ -33,11 +33,13 @@ export abstract class Manager<
     this._state = state;
   }
 
-  init(): void {}
+  onInit(): void {}
 
-  update(_deltaMS: number): void {}
+  update(_deltaMS: number): boolean {
+    return true;
+  }
 
-  destroy(): void {
+  onDestroy(): void {
     Object.values(this.events as unknown as Record<string, GameEvent>).forEach(
       (event) => {
         event.removeAllListeners();

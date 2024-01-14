@@ -13,14 +13,14 @@ export default class SoundScene extends Scene {
 
   constructor(app: Application) {
     super(app);
-    this.context.game.sound.setAudioContext(this._audioContext);
+    this.game.sound.setAudioContext(this._audioContext);
   }
 
   override start() {}
 
   override async load(): Promise<Object3D<Event>[]> {
     // TODO: Check if asset.preload === true (ensure loading screen shows while preloading)
-    // const audioAssets = this.context.game.logic.valueMap["audio"];
+    // const audioAssets = this.game.logic["audio"];
     // if (audioAssets) {
     //   await Promise.all(
     //     Object.entries(audioAssets).map(async ([name, asset]) => {
@@ -43,17 +43,17 @@ export default class SoundScene extends Scene {
 
   override bind(): void {
     super.bind();
-    this.context?.game?.sound?.events?.onLoad?.addListener((sound) =>
+    this.game?.sound?.events?.onLoad?.addListener((sound) =>
       this.loadSound(sound)
     );
-    this.context?.game?.sound?.events?.onStart?.addListener(
-      (sounds, after, over) => this.startSounds(sounds, after, over)
+    this.game?.sound?.events?.onStart?.addListener((sounds, after, over) =>
+      this.startSounds(sounds, after, over)
     );
-    this.context?.game?.sound?.events.onStop?.addListener(
+    this.game?.sound?.events.onStop?.addListener(
       (sounds, after, over, scheduled) =>
         this.stopSounds(sounds, after, over, scheduled)
     );
-    this.context?.game?.sound?.events?.onFade?.addListener(
+    this.game?.sound?.events?.onFade?.addListener(
       (sounds, after, over, scheduled) =>
         this.fadeSounds(sounds, after, over, scheduled)
     );
@@ -61,10 +61,10 @@ export default class SoundScene extends Scene {
 
   override unbind(): void {
     super.unbind();
-    this.context?.game?.sound?.events?.onLoad?.removeAllListeners();
-    this.context?.game?.sound?.events?.onStart?.removeAllListeners();
-    this.context?.game?.sound?.events?.onStop?.removeAllListeners();
-    this.context?.game?.sound?.events?.onFade?.removeAllListeners();
+    this.game?.sound?.events?.onLoad?.removeAllListeners();
+    this.game?.sound?.events?.onStart?.removeAllListeners();
+    this.game?.sound?.events?.onStop?.removeAllListeners();
+    this.game?.sound?.events?.onFade?.removeAllListeners();
   }
 
   override dispose(): Disposable[] {
@@ -95,12 +95,12 @@ export default class SoundScene extends Scene {
 
   async loadSound(sound: Sound) {
     if (this._audioPlayers.get(sound.id)) {
-      this.context.game.sound.notifyReady(sound.id);
+      this.game.sound.notifyReady(sound.id);
       return this._audioPlayers.get(sound.id)!;
     }
     const buffer = await this.getAudioBuffer(sound.src);
     if (this._audioPlayers.get(sound.id)) {
-      this.context.game.sound.notifyReady(sound.id);
+      this.game.sound.notifyReady(sound.id);
       return this._audioPlayers.get(sound.id)!;
     }
     const audioPlayer = new SparkDOMAudioPlayer(buffer, this._audioContext, {
@@ -109,7 +109,7 @@ export default class SoundScene extends Scene {
       volume: sound.volume,
     });
     this._audioPlayers.set(sound.id, audioPlayer);
-    this.context.game.sound.notifyReady(sound.id);
+    this.game.sound.notifyReady(sound.id);
     return audioPlayer;
   }
 
@@ -159,11 +159,6 @@ export default class SoundScene extends Scene {
         audioPlayer.fadeVolume(when, volume, over);
       }
     });
-  }
-
-  override update(deltaMS: number): boolean {
-    this.context.game.sound.update(deltaMS);
-    return false;
   }
 
   override step(deltaMS: number): void {

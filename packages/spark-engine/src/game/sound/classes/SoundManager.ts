@@ -482,5 +482,6 @@ export class SoundManager extends Manager<
 
     // Notify update
     this._events.onUpdate.dispatch(deltaMS);
+    return true;
   }
 }

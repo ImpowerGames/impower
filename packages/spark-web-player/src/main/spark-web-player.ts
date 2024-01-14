@@ -10,15 +10,15 @@ import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/ga
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { WillExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { GameContext } from "../../../spark-engine/src/parser/classes/GameContext";
-import { GameContextOptions } from "../../../spark-engine/src/parser/interfaces/GameContextOptions";
+import { GameBuilder } from "../../../spark-engine/src/builder/classes/GameBuilder";
+import { GameBuilderOptions } from "../../../spark-engine/src/builder/types/GameBuilderOptions";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import Application from "../app/Application";
 import spec from "./_spark-web-player";
 
 export default class SparkWebPlayer extends Component(spec) {
-  _context?: GameContext;
+  _builder?: GameBuilder;
 
   _app?: Application;
 
@@ -110,10 +110,10 @@ export default class SparkWebPlayer extends Component(spec) {
         programs.forEach((p) => {
           this._programs[p.uri] = p.program;
         });
-        if (this._context) {
-          this._context.dispose();
+        if (this._builder) {
+          this._builder.game.destroy();
         }
-        this._context = this.loadGame();
+        this._builder = this.loadGame();
         this.emit(
           LoadGameMessage.method,
           LoadGameMessage.type.response(message.id, null)
@@ -127,12 +127,12 @@ export default class SparkWebPlayer extends Component(spec) {
       const message = e.detail;
       if (StartGameMessage.type.isRequest(message)) {
         const gameDOM = this.ref.sparkGame;
-        if (this._context) {
-          this._context.dispose();
+        if (this._builder) {
+          this._builder.game.destroy();
         }
-        this._context = this.loadGame();
-        if (gameDOM && this._context) {
-          this._app = new Application(gameDOM, this._context);
+        this._builder = this.loadGame();
+        if (gameDOM && this._builder) {
+          this._app = new Application(gameDOM, this._builder.game);
         }
       }
     }
@@ -146,9 +146,9 @@ export default class SparkWebPlayer extends Component(spec) {
           this._app.destroy(true);
           this._app = undefined;
         }
-        if (this._context) {
-          this._context.dispose();
-          this._context = undefined;
+        if (this._builder) {
+          this._builder.game.destroy();
+          this._builder = undefined;
         }
       }
     }
@@ -192,8 +192,8 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (EnableGameDebugMessage.type.isRequest(message)) {
-        if (this._context) {
-          this._context.game.debug.startDebugging();
+        if (this._builder) {
+          this._builder.game.debug.startDebugging();
         }
       }
     }
@@ -203,8 +203,8 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (DisableGameDebugMessage.type.isRequest(message)) {
-        if (this._context) {
-          this._context.game.debug.stopDebugging();
+        if (this._builder) {
+          this._builder.game.debug.stopDebugging();
         }
       }
     }
@@ -243,7 +243,7 @@ export default class SparkWebPlayer extends Component(spec) {
         ? programUris.indexOf(options.startFromProgram)
         : undefined;
       const startFromLine = options.startFromLine;
-      const gameContextOptions: GameContextOptions = {
+      const gameBuilderOptions: GameBuilderOptions = {
         simulateFromProgram,
         simulateFromLine,
         startFromProgram,
@@ -271,7 +271,7 @@ export default class SparkWebPlayer extends Component(spec) {
           },
         },
       };
-      const context = new GameContext(programs, gameContextOptions);
+      const context = new GameBuilder(programs, gameBuilderOptions);
       context.game.logic.events.onWillExecuteCommand.addListener(
         (_id, source) => {
           if (source) {
@@ -304,11 +304,11 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   updatePreview(line: number) {
-    if (!this._context) {
-      this._context = this.loadGame();
+    if (!this._builder) {
+      this._builder = this.loadGame();
     }
-    if (this._context) {
-      this._context.preview(line, this._debugging);
+    if (this._builder) {
+      this._builder.preview(line);
     }
   }
 }

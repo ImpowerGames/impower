@@ -70,7 +70,7 @@ const parse = (file: FileData, files: FileData[]) => {
         };
       }
     });
-    const program = GameParser.instance.parse(file.text, {
+    const program = GameParser.parse(file.text, {
       augmentations: { builtins: STRUCT_DEFAULTS, variables },
     });
     return program;

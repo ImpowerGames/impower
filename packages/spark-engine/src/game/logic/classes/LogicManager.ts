@@ -10,11 +10,11 @@ import { randomizer } from "../../core/utils/randomizer";
 import { setProperty } from "../../core/utils/setProperty";
 import { shuffle } from "../../core/utils/shuffle";
 import { uuid } from "../../core/utils/uuid";
-import { Block } from "../types/Block";
+import { BlockData } from "../types/BlockData";
 import { BlockState } from "../types/BlockState";
-import { Command } from "../types/Command";
-import { CommandRunner } from "../types/CommandRunner";
+import { CommandData } from "../types/CommandData";
 import { DocumentSource } from "../types/DocumentSource";
+import { ICommandRunner } from "../types/ICommandRunner";
 import createBlockState from "../utils/createBlockState";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
 
@@ -43,8 +43,8 @@ export interface LogicConfig {
   simulateFromCommandIndex?: number;
   startFromBlockId: string;
   startFromCommandIndex: number;
-  valueMap: Record<string, Record<string, any>>;
-  blockMap: Record<string, Block>;
+  context: Record<string, Record<string, any>>;
+  blockMap: Record<string, BlockData>;
   stored: string[];
   seeder: () => string;
 }
@@ -61,14 +61,14 @@ export class LogicManager extends Manager<
   LogicConfig,
   LogicState
 > {
-  FINISH_COMMAND_TYPE_ID = "FinishCommand";
+  FINISH_COMMAND_TYPE = "FinishCommand";
 
-  protected _valueMap: Record<string, Record<string, any>> = {};
-  get valueMap() {
-    return this._valueMap;
+  protected _context: Record<string, Record<string, any>> = {};
+  get context() {
+    return this._context;
   }
 
-  protected _blockMap: Record<string, Block> = {};
+  protected _blockMap: Record<string, BlockData> = {};
   get blockMap() {
     return this._blockMap;
   }
@@ -106,6 +106,13 @@ export class LogicManager extends Manager<
   // Randomizer for this run
   protected _random: () => number;
 
+  protected _runnerMap: Record<string, ICommandRunner> = {};
+  get runnerMap() {
+    return this._runnerMap as RecursiveReadonly<typeof this._runnerMap>;
+  }
+
+  protected _runners: ICommandRunner[] = [];
+
   constructor(
     environment: Environment,
     config?: Partial<LogicConfig>,
@@ -140,7 +147,7 @@ export class LogicManager extends Manager<
     };
     const initialConfig: LogicConfig = {
       blockMap: {},
-      valueMap: {},
+      context: {},
       stored: [],
       startFromBlockId: "",
       startFromCommandIndex: 0,
@@ -155,8 +162,8 @@ export class LogicManager extends Manager<
       ...(state || {}),
     };
     super(environment, initialEvents, initialConfig, initialState);
-    if (this._config?.valueMap) {
-      this._valueMap = JSON.parse(JSON.stringify(this._config?.valueMap));
+    if (this._config?.context) {
+      this._context = JSON.parse(JSON.stringify(this._config?.context));
     }
     if (this._config?.blockMap) {
       // Populate _blockMap
@@ -167,20 +174,18 @@ export class LogicManager extends Manager<
         const lastSource = block.commands?.at(-1)?.source || block.source;
         block.commands ??= [];
         block.commands.push({
-          reference: {
-            typeId: this.FINISH_COMMAND_TYPE_ID,
-            parentId: blockId,
-            id: `${blockId}.finish`,
-            index: block.commands.length,
-          },
+          type: this.FINISH_COMMAND_TYPE,
+          parent: blockId,
+          id: `${blockId}.finish`,
+          index: block.commands.length,
+          indent: 0,
+          params: {},
           source: {
             file: lastSource?.file,
             line: lastSource?.line,
             from: lastSource?.to,
             to: lastSource?.to,
           },
-          indent: 0,
-          params: {},
         });
         // Populate _flowMap
         this._flowMap[blockId] = {
@@ -190,9 +195,9 @@ export class LogicManager extends Manager<
         };
         block.commands.forEach((command) => {
           // Populate _commandMap
-          this._commandMap[command.reference.id] = {
-            parent: command.reference.parentId,
-            index: command.reference.index,
+          this._commandMap[command.id] = {
+            parent: command.parent,
+            index: command.index,
           };
         });
       });
@@ -206,9 +211,9 @@ export class LogicManager extends Manager<
       });
     }
     if (this._state.values) {
-      // Restore _valueMap
+      // Restore _context
       Object.entries(this._state.values).forEach(([accessPath, valueState]) => {
-        setProperty(this._valueMap, accessPath, valueState);
+        setProperty(this._context, accessPath, valueState);
       });
     }
     if (this._state.values["visited"]) {
@@ -231,7 +236,10 @@ export class LogicManager extends Manager<
     }
   }
 
-  override init() {
+  override onInit() {
+    this._runners.forEach((r) => {
+      r.onInit();
+    });
     const entryBlockId = this.environment.simulating
       ? this._config.simulateFromBlockId ?? ""
       : this._config.startFromBlockId;
@@ -241,6 +249,17 @@ export class LogicManager extends Manager<
     if (entryBlockId != null) {
       this.enterBlock(entryBlockId, entryCommandIndex);
     }
+  }
+
+  override onDestroy() {
+    this._runners.forEach((r) => {
+      r.onDestroy();
+    });
+  }
+
+  registerRunners(runners: Record<string, ICommandRunner>) {
+    this._runnerMap = { ...this._runnerMap, ...runners };
+    this._runners = Object.values(this._runnerMap);
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
@@ -299,14 +318,36 @@ export class LogicManager extends Manager<
   }
 
   /**
+   * Updates logic.
+   *
+   * @return {boolean} False, if quit. Otherwise, true
+   */
+  override update(deltaMS: number): boolean {
+    if (deltaMS) {
+      this._runners.forEach((r) => {
+        r.onUpdate(deltaMS);
+      });
+      const loadedBlockIds = this._loaded;
+      if (loadedBlockIds) {
+        for (let i = 0; i < loadedBlockIds.length; i += 1) {
+          const blockId = loadedBlockIds[i];
+          if (blockId !== undefined) {
+            if (this.updateBlock(blockId) === null) {
+              return false; // Player quit the game
+            }
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
    * Updates block.
    *
    * @return {boolean} True, if still executing. False, if the block is finished executing and there are no more commands left to execute, Null, if quit.
    */
-  updateBlock(
-    blockId: string,
-    getRunner: (commandTypeId: string) => CommandRunner | undefined
-  ): boolean | null {
+  updateBlock(blockId: string): boolean | null {
     const block = this._blockMap[blockId];
     if (!block) {
       return false;
@@ -318,8 +359,8 @@ export class LogicManager extends Manager<
       return false;
     }
 
-    if (blockState.isExecuting) {
-      const running = this.runCommands(blockId, getRunner);
+    if (blockState.isLoaded && blockState.isExecuting) {
+      const running = this.runCommands(blockId);
       if (running === null) {
         return running;
       }
@@ -339,10 +380,7 @@ export class LogicManager extends Manager<
    *
    * @return {boolean} True, if still executing. False, if the block is finished executing and there are no more commands left to execute, Null, if quit.
    */
-  protected runCommands(
-    blockId: string,
-    getRunner: (commandTypeId: string) => CommandRunner | undefined
-  ): boolean | null {
+  protected runCommands(blockId: string): boolean | null {
     const commands = this._blockMap[blockId]?.commands;
     if (!commands) {
       return false;
@@ -360,9 +398,9 @@ export class LogicManager extends Manager<
       const commandIndex = flow.currentCommandIndex;
       const command = commands[commandIndex];
       if (command) {
-        const runner = getRunner(command.reference.typeId);
+        const runner = this._runnerMap[command.type];
         if (runner) {
-          const commandId = command.reference.id;
+          const commandId = command.id;
           if (!flow.isExecutingCommand) {
             this.willExecuteCommand(blockId, commandId, command?.source);
             let nextJumps: number[] = [];
@@ -476,7 +514,7 @@ export class LogicManager extends Manager<
     if (blockState) {
       commandIndices.forEach((index) => {
         blockState.commandJumpStack ??= [];
-        const commandId = this.getCommandAt(blockId, index)?.reference?.id;
+        const commandId = this.getCommandAt(blockId, index)?.id;
         if (commandId) {
           blockState.commandJumpStack.unshift(commandId);
         }
@@ -632,7 +670,7 @@ export class LogicManager extends Manager<
       newBlockId,
       0,
       returnWhenFinished ? currentBlockId : undefined,
-      returnWhenFinished ? nextCommand?.reference?.id : undefined
+      returnWhenFinished ? nextCommand?.id : undefined
     );
   }
 
@@ -661,7 +699,7 @@ export class LogicManager extends Manager<
     const returnToCommandIndex =
       this.getCommandLocation(returnToCommandId)?.index;
 
-    this._valueMap["returned"] ??= {};
+    this._context["returned"] ??= {};
     this.evaluate(`returned.${blockId} = ${value}`);
 
     const returnToBlockState = this._state.blocks[returnToBlockId];
@@ -706,33 +744,33 @@ export class LogicManager extends Manager<
 
   visit(key: string, stored: boolean) {
     this._visited[key] ??= 0;
-    this._valueMap["$visited"] = this._visited[key] as any;
-    this._valueMap["$key"] = key as any;
+    this._context["$visited"] = this._visited[key] as any;
+    this._context["$key"] = key as any;
     this._visited[key] += 1;
     const count = this._visited[key]!;
     if (stored) {
       // Store in save state
-      this._valueMap["visited"] ??= {};
-      this._valueMap["visited"]![key] = count;
+      this._context["visited"] ??= {};
+      this._context["visited"]![key] = count;
     }
     return count;
   }
 
   protected trackVisited() {
-    this._valueMap["$formatted_with_visited"] = false as any;
+    this._context["$formatted_with_visited"] = false as any;
   }
 
   protected recordVisited() {
     // If format or evaluate uses $visited to determine its result,
     // it sets "$formatted_with_visited" to true
     // We can use this to determine which visitation counts should be automatically stored in the save state
-    if (this._valueMap["$formatted_with_visited"]) {
-      const key = this._valueMap["$key"] as any;
+    if (this._context["$formatted_with_visited"]) {
+      const key = this._context["$key"] as any;
       if (key != null) {
         const count = this._visited[key];
         if (count != null) {
-          this._valueMap["visited"] ??= {};
-          this._valueMap["visited"]![key] = count;
+          this._context["visited"] ??= {};
+          this._context["visited"]![key] = count;
         }
       }
     }
@@ -740,16 +778,16 @@ export class LogicManager extends Manager<
 
   format(text: string): string {
     this.trackVisited();
-    this._valueMap["$seed"] = this._state.seed as any;
-    const [result] = format(text, this._valueMap);
+    this._context["$seed"] = this._state.seed as any;
+    const [result] = format(text, this._context);
     this.recordVisited();
     return result;
   }
 
   evaluate(expression: string): unknown {
     this.trackVisited();
-    this._valueMap["$seed"] = this._state.seed as any;
-    const result = evaluate(expression, this._valueMap);
+    this._context["$seed"] = this._state.seed as any;
+    const result = evaluate(expression, this._context);
     this.recordVisited();
     return result;
   }
@@ -780,14 +818,14 @@ export class LogicManager extends Manager<
     return this._random() * 0x100000000; // 2^32
   }
 
-  getCommands(blockId: string | undefined): Command[] {
+  getCommands(blockId: string | undefined): CommandData[] {
     if (blockId) {
       return this._blockMap[blockId]?.commands || [];
     }
     return [];
   }
 
-  getCommandAt(blockId: string, index: number): Command | undefined {
+  getCommandAt(blockId: string, index: number): CommandData | undefined {
     return this._blockMap[blockId]?.commands?.[index];
   }
 
@@ -800,7 +838,7 @@ export class LogicManager extends Manager<
     if (this._config?.stored) {
       this._config.stored.forEach((accessPath) => {
         try {
-          this._state.values[accessPath] = evaluate(accessPath, this._valueMap);
+          this._state.values[accessPath] = evaluate(accessPath, this._context);
         } catch {
           // value does not exist
         }

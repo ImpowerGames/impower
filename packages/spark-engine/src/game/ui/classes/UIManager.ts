@@ -131,8 +131,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     super(environment, initialEvents, initialConfig, initialState);
   }
 
-  override destroy(): void {
-    super.destroy();
+  override onDestroy(): void {
+    super.onDestroy();
     this._disposeSizeObservers.forEach((dispose) => {
       dispose();
     });
@@ -203,8 +203,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return `var(${this.getImageVarName(name)})`;
   }
 
-  loadTheme(valueMap: { [type: string]: Record<string, any> }): void {
-    const images = valueMap?.["image"];
+  loadTheme(context: { [type: string]: Record<string, any> }): void {
+    const images = context?.["image"];
     if (images) {
       Object.entries(images).forEach(([name, image]) => {
         if (image.src) {
@@ -214,7 +214,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         }
       });
     }
-    const breakpoints = valueMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+    const breakpoints = context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
     if (breakpoints) {
       this._disposeSizeObservers.push(
         this._config.root.observeSize(breakpoints)
@@ -222,14 +222,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     }
   }
 
-  loadStyles(valueMap: { [type: string]: Record<string, any> }): void {
+  loadStyles(context: { [type: string]: Record<string, any> }): void {
     // Get or create style root
     const styleRootEl = this.getOrCreateStyleRoot();
-    if (!styleRootEl || !valueMap) {
+    if (!styleRootEl || !context) {
       return;
     }
     // Process Imports
-    const cssStructObj = valueMap?.["css"];
+    const cssStructObj = context?.["css"];
     if (cssStructObj) {
       if (cssStructObj) {
         const structEl = this.constructStyleElement("css", cssStructObj);
@@ -241,12 +241,12 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     }
     // Process Style and Animation
     const validStructNames = [
-      ...Object.keys(valueMap?.["animation"] || {}),
-      ...Object.keys(valueMap?.["style"] || {}),
+      ...Object.keys(context?.["animation"] || {}),
+      ...Object.keys(context?.["style"] || {}),
     ];
     validStructNames.forEach((structName) => {
       if (structName) {
-        const styleStructObj = valueMap?.["style"]?.[structName];
+        const styleStructObj = context?.["style"]?.[structName];
         if (styleStructObj) {
           const structEl = this.constructStyleElement(
             structName,
@@ -254,11 +254,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(styleStructObj, isAssetLeaf);
-            const breakpoints = valueMap?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+            const breakpoints = context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
             structEl.setStyleContent(structName, properties, breakpoints);
           }
         }
-        const animationStructObj = valueMap?.["animation"]?.[structName];
+        const animationStructObj = context?.["animation"]?.[structName];
         if (animationStructObj) {
           const structEl = this.constructStyleElement(
             structName,
@@ -274,11 +274,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   }
 
   loadUI(
-    valueMap: { [type: string]: Record<string, any> },
+    context: { [type: string]: Record<string, any> },
     ...structNames: string[]
   ): void {
     const uiRootEl = this.getOrCreateUIRoot();
-    if (!uiRootEl || !valueMap) {
+    if (!uiRootEl || !context) {
       return;
     }
     const rootStyleProperties = {
@@ -302,11 +302,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     uiRootEl.updateStyle(uiRootStyleProperties);
     const targetAllStructs = !structNames || structNames.length === 0;
     const validStructNames = targetAllStructs
-      ? Object.keys(valueMap?.["ui"] || {})
+      ? Object.keys(context?.["ui"] || {})
       : structNames;
     validStructNames.forEach((structName) => {
       if (structName && !this._config.baseClassNames.includes(structName)) {
-        const structObj = valueMap?.["ui"]?.[structName];
+        const structObj = context?.["ui"]?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
           const structEl = this.constructUI(structName, properties);

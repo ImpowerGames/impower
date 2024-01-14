@@ -3,11 +3,10 @@ Run spark games in a browser environment.
 ## Getting Started
 
 ```javascript
-import { GameParser, GameContext } from "spark-engine";
+import { GameParser, GameBuilder } from "spark-engine";
 
-const parser = new GameParser();
-const program = parser.parse(script);
-const game = new GameContext(program);
+const program = GameParser.parse(script);
+const game = GameBuilder.build(program);
 
 let prevTime = 0;
 let loopRequestId = 0;
