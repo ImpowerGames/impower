@@ -62,15 +62,11 @@ export interface UIConfig {
 }
 
 export interface UIState {
-  instance?: Record<string, number>;
-  text?: Record<string, TextState[]>;
-  image?: Record<string, ImageState[]>;
-  style?: Record<string, Record<string, string | null>>;
-  attributes?: Record<string, Record<string, string | null>>;
-  targeted?: {
-    text?: Record<string, string[]>;
-    image?: Record<string, string[]>;
-  };
+  instance?: Record<string, Record<string, number>>;
+  text?: Record<string, Record<string, TextState[]>>;
+  image?: Record<string, Record<string, ImageState[]>>;
+  style?: Record<string, Record<string, Record<string, string | null>>>;
+  attributes?: Record<string, Record<string, Record<string, string | null>>>;
 }
 
 export class UIManagerUpdate extends ManagerUpdate {
@@ -104,11 +100,6 @@ export class UIManagerUpdate extends ManagerUpdate {
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   protected _disposeSizeObservers: (() => void)[] = [];
 
-  protected _targeted: {
-    text: Record<string, Set<string>>;
-    image: Record<string, Set<string>>;
-  } = { text: {}, image: {} };
-
   constructor(
     context: GameContext,
     config?: Partial<UIConfig>,
@@ -134,54 +125,39 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     this.loadStyles();
     this.loadUI();
     if (this._state.instance) {
-      Object.keys(this._state.instance).forEach((stateKey) => {
-        const loc = this.getLocation(stateKey);
-        this.instance.restore(loc.uiName, loc.target);
+      Object.entries(this._state.instance).forEach(([uiName, targets]) => {
+        Object.entries(targets).forEach(([target]) => {
+          this.instance.restore(uiName, target);
+        });
       });
     }
     if (this._state.text) {
-      Object.keys(this._state.text).forEach((stateKey) => {
-        const loc = this.getLocation(stateKey);
-        this.text.restore(loc.uiName, loc.target);
+      Object.entries(this._state.text).forEach(([uiName, targets]) => {
+        Object.entries(targets).forEach(([target]) => {
+          this.text.restore(uiName, target);
+        });
       });
     }
     if (this._state.image) {
-      Object.keys(this._state.image).forEach((stateKey) => {
-        const loc = this.getLocation(stateKey);
-        this.image.restore(loc.uiName, loc.target);
+      Object.entries(this._state.image).forEach(([uiName, targets]) => {
+        Object.entries(targets).forEach(([target]) => {
+          this.image.restore(uiName, target);
+        });
       });
     }
     if (this._state.style) {
-      Object.keys(this._state.style).forEach((stateKey) => {
-        const loc = this.getLocation(stateKey);
-        this.style.restore(loc.uiName, loc.target);
+      Object.entries(this._state.style).forEach(([uiName, targets]) => {
+        Object.entries(targets).forEach(([target]) => {
+          this.style.restore(uiName, target);
+        });
       });
     }
     if (this._state.attributes) {
-      Object.keys(this._state.attributes).forEach((stateKey) => {
-        const loc = this.getLocation(stateKey);
-        this.attributes.restore(loc.uiName, loc.target);
+      Object.entries(this._state.attributes).forEach(([uiName, targets]) => {
+        Object.entries(targets).forEach(([target]) => {
+          this.attributes.restore(uiName, target);
+        });
       });
-    }
-    if (this._state.targeted?.text) {
-      Object.entries(this._state.targeted?.text).forEach(
-        ([uiName, targets]) => {
-          this._targeted.text[uiName] ??= new Set();
-          targets.forEach((target) => {
-            this._targeted.text[uiName]?.add(target);
-          });
-        }
-      );
-    }
-    if (this._state.targeted?.image) {
-      Object.entries(this._state.targeted?.image).forEach(
-        ([uiName, targets]) => {
-          this._targeted.image[uiName] ??= new Set();
-          targets.forEach((target) => {
-            this._targeted.image[uiName]?.add(target);
-          });
-        }
-      );
     }
   }
 
@@ -595,21 +571,6 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return undefined;
   }
 
-  protected getStateKey(uiName: string, target: string): string {
-    if (target) {
-      return `${uiName}@${target}`;
-    }
-    return uiName;
-  }
-
-  protected getLocation(stateKey: string): {
-    uiName: string;
-    target: string;
-  } {
-    const [uiName, target] = stateKey.split("@");
-    return { uiName: uiName || "", target: target || "" };
-  }
-
   protected getOrCreateContentElement(
     element: IElement,
     name: "image" | "text"
@@ -702,18 +663,18 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         target: string,
         instanceNumber: number
       ) {
-        const key = $.getStateKey(uiName, target);
+        $._state.instance ??= {};
+        $._state.instance[uiName] ??= {};
+        $._state.instance[uiName]![target] ??= 0;
         const validInstanceNumber = Math.max(1, instanceNumber);
-        const instanceCount = $._state.instance?.[key] ?? 0;
+        const instanceCount = $._state.instance[uiName]![target] ?? 0;
         if (validInstanceNumber > instanceCount) {
-          $._state.instance ??= {};
-          $._state.instance[key] = validInstanceNumber;
+          $._state.instance[uiName]![target] = validInstanceNumber;
         }
       }
 
       restore(uiName: string, target: string) {
-        const key = $.getStateKey(uiName, target);
-        const state = $._state.instance?.[key];
+        const state = $._state.instance?.[uiName]?.[target];
         if (state) {
           this.get(uiName, target, state);
         }
@@ -754,25 +715,16 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   Text = (($) => {
     class Text {
-      protected updateTargeted(uiName: string, target: string) {
-        if (!$._targeted.text[uiName]?.has(target)) {
-          $._targeted.text[uiName] ??= new Set();
-          $._targeted.text[uiName]?.add(target);
-          $._state.targeted ??= {};
-          $._state.targeted.text ??= {};
-          $._state.targeted.text[uiName] ??= [];
-          $._state.targeted.text[uiName]?.push(target);
-        }
-      }
-
       protected saveState(
         uiName: string,
         target: string,
         sequence: TextEvent[] | null
       ) {
-        const key = $.getStateKey(uiName, target);
+        $._state.text ??= {};
+        $._state.text[uiName] ??= {};
+        $._state.text[uiName]![target] ??= [];
+        const state = $._state.text[uiName]![target]!;
         if (sequence) {
-          const state = $._state.text?.[key] ?? [];
           sequence.forEach((e) => {
             if (!e.exit) {
               const prev = state.at(-1);
@@ -791,17 +743,13 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
               }
             }
           });
-          $._state.text ??= {};
-          $._state.text[key] = state;
         } else {
-          delete $._state.text?.[key];
+          state.length = 0;
         }
-        this.updateTargeted(uiName, target);
       }
 
       restore(uiName: string, target: string) {
-        const key = $.getStateKey(uiName, target);
-        const state = $._state.text?.[key];
+        const state = $._state.text?.[uiName]?.[target];
         if (state) {
           this.applyChanges(uiName, target, state, true);
         }
@@ -916,8 +864,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
             targets.push(parent.name);
           }
         });
-        if ($._targeted.text[uiName]) {
-          $._targeted.text[uiName]?.forEach((target) => {
+        if ($._state.text?.[uiName]) {
+          Object.entries($._state.text[uiName]!).forEach(([target]) => {
             targets.push(target);
           });
         }
@@ -929,25 +877,16 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   Image = (($) => {
     class Image {
-      protected updateTargeted(uiName: string, target: string) {
-        if (!$._targeted.image[uiName]?.has(target)) {
-          $._targeted.image[uiName] ??= new Set();
-          $._targeted.image[uiName]?.add(target);
-          $._state.targeted ??= {};
-          $._state.targeted.image ??= {};
-          $._state.targeted.image[uiName] ??= [];
-          $._state.targeted.image[uiName]?.push(target);
-        }
-      }
-
       protected saveState(
         uiName: string,
         target: string,
         sequence: ImageEvent[] | null
       ) {
-        const key = $.getStateKey(uiName, target);
+        $._state.image ??= {};
+        $._state.image[uiName] ??= {};
+        $._state.image[uiName]![target] ??= [];
+        const state = $._state.image[uiName]![target]!;
         if (sequence) {
-          const state = $._state.image?.[key] ?? [];
           sequence.forEach((e) => {
             if (!e.exit) {
               const prev = state.at(-1);
@@ -966,17 +905,13 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
               }
             }
           });
-          $._state.image ??= {};
-          $._state.image[key] = state;
         } else {
-          delete $._state.image?.[key];
+          state.length = 0;
         }
-        this.updateTargeted(uiName, target);
       }
 
       restore(uiName: string, target: string) {
-        const key = $.getStateKey(uiName, target);
-        const state = $._state.image?.[key];
+        const state = $._state.image?.[uiName]?.[target];
         if (state) {
           this.applyChanges(uiName, target, state, true);
         }
@@ -1074,8 +1009,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
             targets.push(parent.name);
           }
         });
-        if ($._targeted.image[uiName]) {
-          $._targeted.image[uiName]?.forEach((target) => {
+        if ($._state.image?.[uiName]) {
+          Object.entries($._state.image[uiName]!).forEach(([target]) => {
             targets.push(target);
           });
         }
@@ -1092,11 +1027,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         target: string,
         style: Record<string, string | null> | null
       ) {
-        const key = $.getStateKey(uiName, target);
+        $._state.style ??= {};
+        $._state.style[uiName] ??= {};
+        $._state.style[uiName]![target] ??= {};
+        const state = $._state.style[uiName]![target]!;
         if (style) {
-          const state = $._state.style?.[key] ?? {};
-          $._state.style ??= {};
-          $._state.style[key] = state;
           Object.entries(style).forEach(([k, v]) => {
             if (v) {
               state[k] = v;
@@ -1104,17 +1039,13 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
               delete state[k];
             }
           });
-          if (Object.entries(state).length === 0) {
-            delete $._state.style[key];
-          }
         } else {
-          delete $._state.style?.[key];
+          $._state.style[uiName]![target] = {};
         }
       }
 
       restore(uiName: string, target: string) {
-        const key = $.getStateKey(uiName, target);
-        const state = $._state.style?.[key];
+        const state = $._state.style?.[uiName]?.[target];
         if (state) {
           this.applyChanges(uiName, target, state);
         }
@@ -1153,11 +1084,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         target: string,
         attributes: Record<string, string | null> | null
       ) {
-        const key = $.getStateKey(uiName, target);
+        $._state.attributes ??= {};
+        $._state.attributes[uiName] ??= {};
+        $._state.attributes[uiName]![target] ??= {};
+        const state = $._state.attributes[uiName]![target]!;
         if (attributes) {
-          const state = $._state.attributes?.[key] ?? {};
-          $._state.attributes ??= {};
-          $._state.attributes[key] = state;
           Object.entries(attributes).forEach(([k, v]) => {
             if (v) {
               state[k] = v;
@@ -1165,17 +1096,13 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
               delete state[k];
             }
           });
-          if (Object.entries(state).length === 0) {
-            delete $._state.attributes[key];
-          }
         } else {
-          delete $._state.attributes?.[key];
+          $._state.attributes[uiName]![target] = {};
         }
       }
 
       restore(uiName: string, target: string) {
-        const key = $.getStateKey(uiName, target);
-        const state = $._state.attributes?.[key];
+        const state = $._state.attributes?.[uiName]?.[target];
         if (state) {
           this.applyChanges(uiName, target, state);
         }
