@@ -6,7 +6,7 @@ export class EvaluateCommandRunner<G extends Game> extends CommandRunner<
   G,
   EvaluateCommandData
 > {
-  override onExecute(data: EvaluateCommandData): number[] {
+  override onExecute(data: EvaluateCommandData) {
     const { expression } = data.params;
 
     if (!expression) {

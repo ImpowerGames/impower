@@ -18,6 +18,10 @@ export class CommandRunner<G extends Game, D extends CommandData = CommandData>
     // NoOp
   }
 
+  isCheckpoint(_data: D): boolean {
+    return false;
+  }
+
   onExecute(_data: D): number[] {
     return [];
   }
@@ -30,7 +34,7 @@ export class CommandRunner<G extends Game, D extends CommandData = CommandData>
     // NoOp
   }
 
-  isFinished(_data: D): boolean | null {
+  isFinished(_data: D): boolean {
     return true;
   }
 

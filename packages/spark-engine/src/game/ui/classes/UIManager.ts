@@ -2,7 +2,7 @@ import { GameEvent1 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
 import { ManagerUpdate } from "../../core/classes/ManagerUpdate";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 import { RequestMessage } from "../../core/types/RequestMessage";
 import { getAllProperties } from "../../core/utils/getAllProperties";
 import { uuid } from "../../core/utils/uuid";
@@ -62,11 +62,15 @@ export interface UIConfig {
 }
 
 export interface UIState {
-  instance: Record<string, number>;
-  text: Record<string, TextState[]>;
-  image: Record<string, ImageState[]>;
-  style: Record<string, Record<string, string | null>>;
-  attributes: Record<string, Record<string, string | null>>;
+  instance?: Record<string, number>;
+  text?: Record<string, TextState[]>;
+  image?: Record<string, ImageState[]>;
+  style?: Record<string, Record<string, string | null>>;
+  attributes?: Record<string, Record<string, string | null>>;
+  targeted?: {
+    text?: Record<string, string[]>;
+    image?: Record<string, string[]>;
+  };
 }
 
 export class UIManagerUpdate extends ManagerUpdate {
@@ -100,8 +104,13 @@ export class UIManagerUpdate extends ManagerUpdate {
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   protected _disposeSizeObservers: (() => void)[] = [];
 
+  protected _targeted: {
+    text: Record<string, Set<string>>;
+    image: Record<string, Set<string>>;
+  } = { text: {}, image: {} };
+
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<UIConfig>,
     state?: Partial<UIState>
   ) {
@@ -120,15 +129,60 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       createElement: DEFAULT_CREATE_ELEMENT,
       ...(config || {}),
     };
-    const initialState: UIState = {
-      instance: {},
-      text: {},
-      image: {},
-      style: {},
-      attributes: {},
-      ...(state || {}),
-    };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
+    this.loadTheme();
+    this.loadStyles();
+    this.loadUI();
+    if (this._state.instance) {
+      Object.keys(this._state.instance).forEach((stateKey) => {
+        const loc = this.getLocation(stateKey);
+        this.instance.restore(loc.uiName, loc.target);
+      });
+    }
+    if (this._state.text) {
+      Object.keys(this._state.text).forEach((stateKey) => {
+        const loc = this.getLocation(stateKey);
+        this.text.restore(loc.uiName, loc.target);
+      });
+    }
+    if (this._state.image) {
+      Object.keys(this._state.image).forEach((stateKey) => {
+        const loc = this.getLocation(stateKey);
+        this.image.restore(loc.uiName, loc.target);
+      });
+    }
+    if (this._state.style) {
+      Object.keys(this._state.style).forEach((stateKey) => {
+        const loc = this.getLocation(stateKey);
+        this.style.restore(loc.uiName, loc.target);
+      });
+    }
+    if (this._state.attributes) {
+      Object.keys(this._state.attributes).forEach((stateKey) => {
+        const loc = this.getLocation(stateKey);
+        this.attributes.restore(loc.uiName, loc.target);
+      });
+    }
+    if (this._state.targeted?.text) {
+      Object.entries(this._state.targeted?.text).forEach(
+        ([uiName, targets]) => {
+          this._targeted.text[uiName] ??= new Set();
+          targets.forEach((target) => {
+            this._targeted.text[uiName]?.add(target);
+          });
+        }
+      );
+    }
+    if (this._state.targeted?.image) {
+      Object.entries(this._state.targeted?.image).forEach(
+        ([uiName, targets]) => {
+          this._targeted.image[uiName] ??= new Set();
+          targets.forEach((target) => {
+            this._targeted.image[uiName]?.add(target);
+          });
+        }
+      );
+    }
   }
 
   override onDestroy(): void {
@@ -203,18 +257,23 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return `var(${this.getImageVarName(name)})`;
   }
 
-  loadTheme(context: { [type: string]: Record<string, any> }): void {
-    const images = context?.["image"];
+  loadTheme(): void {
+    const images = this._context?.["image"];
     if (images) {
       Object.entries(images).forEach(([name, image]) => {
-        if (image.src) {
+        if (
+          image &&
+          typeof image === "object" &&
+          "src" in image &&
+          typeof image.src === "string"
+        ) {
           this._config.root.updateStyle({
             [this.getImageVarName(name)]: this.getImageVarValue(image.src),
           });
         }
       });
     }
-    const breakpoints = context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+    const breakpoints = this._context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
     if (breakpoints) {
       this._disposeSizeObservers.push(
         this._config.root.observeSize(breakpoints)
@@ -222,14 +281,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     }
   }
 
-  loadStyles(context: { [type: string]: Record<string, any> }): void {
+  loadStyles(): void {
     // Get or create style root
     const styleRootEl = this.getOrCreateStyleRoot();
-    if (!styleRootEl || !context) {
+    if (!styleRootEl) {
       return;
     }
     // Process Imports
-    const cssStructObj = context?.["css"];
+    const cssStructObj = this._context?.["css"];
     if (cssStructObj) {
       if (cssStructObj) {
         const structEl = this.constructStyleElement("css", cssStructObj);
@@ -241,12 +300,12 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     }
     // Process Style and Animation
     const validStructNames = [
-      ...Object.keys(context?.["animation"] || {}),
-      ...Object.keys(context?.["style"] || {}),
+      ...Object.keys(this._context?.["animation"] || {}),
+      ...Object.keys(this._context?.["style"] || {}),
     ];
     validStructNames.forEach((structName) => {
       if (structName) {
-        const styleStructObj = context?.["style"]?.[structName];
+        const styleStructObj = this._context?.["style"]?.[structName];
         if (styleStructObj) {
           const structEl = this.constructStyleElement(
             structName,
@@ -254,11 +313,12 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           );
           if (structEl) {
             const properties = getAllProperties(styleStructObj, isAssetLeaf);
-            const breakpoints = context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+            const breakpoints =
+              this._context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
             structEl.setStyleContent(structName, properties, breakpoints);
           }
         }
-        const animationStructObj = context?.["animation"]?.[structName];
+        const animationStructObj = this._context?.["animation"]?.[structName];
         if (animationStructObj) {
           const structEl = this.constructStyleElement(
             structName,
@@ -273,12 +333,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     });
   }
 
-  loadUI(
-    context: { [type: string]: Record<string, any> },
-    ...structNames: string[]
-  ): void {
+  loadUI(...structNames: string[]): void {
     const uiRootEl = this.getOrCreateUIRoot();
-    if (!uiRootEl || !context) {
+    if (!uiRootEl) {
       return;
     }
     const rootStyleProperties = {
@@ -302,11 +359,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     uiRootEl.updateStyle(uiRootStyleProperties);
     const targetAllStructs = !structNames || structNames.length === 0;
     const validStructNames = targetAllStructs
-      ? Object.keys(context?.["ui"] || {})
+      ? Object.keys(this._context?.["ui"] || {})
       : structNames;
     validStructNames.forEach((structName) => {
       if (structName && !this._config.baseClassNames.includes(structName)) {
-        const structObj = context?.["ui"]?.[structName];
+        const structObj = this._context?.["ui"]?.[structName];
         if (structObj) {
           const properties = getAllProperties(structObj);
           const structEl = this.constructUI(structName, properties);
@@ -545,6 +602,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return uiName;
   }
 
+  protected getLocation(stateKey: string): {
+    uiName: string;
+    target: string;
+  } {
+    const [uiName, target] = stateKey.split("@");
+    return { uiName: uiName || "", target: target || "" };
+  }
+
   protected getOrCreateContentElement(
     element: IElement,
     name: "image" | "text"
@@ -639,9 +704,18 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ) {
         const key = $.getStateKey(uiName, target);
         const validInstanceNumber = Math.max(1, instanceNumber);
-        const instanceCount = $._state.instance[key] ?? 0;
+        const instanceCount = $._state.instance?.[key] ?? 0;
         if (validInstanceNumber > instanceCount) {
+          $._state.instance ??= {};
           $._state.instance[key] = validInstanceNumber;
+        }
+      }
+
+      restore(uiName: string, target: string) {
+        const key = $.getStateKey(uiName, target);
+        const state = $._state.instance?.[key];
+        if (state) {
+          this.get(uiName, target, state);
         }
       }
 
@@ -680,6 +754,17 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   Text = (($) => {
     class Text {
+      protected updateTargeted(uiName: string, target: string) {
+        if (!$._targeted.text[uiName]?.has(target)) {
+          $._targeted.text[uiName] ??= new Set();
+          $._targeted.text[uiName]?.add(target);
+          $._state.targeted ??= {};
+          $._state.targeted.text ??= {};
+          $._state.targeted.text[uiName] ??= [];
+          $._state.targeted.text[uiName]?.push(target);
+        }
+      }
+
       protected saveState(
         uiName: string,
         target: string,
@@ -687,10 +772,10 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ) {
         const key = $.getStateKey(uiName, target);
         if (sequence) {
-          const textState = $._state.text[key] ?? [];
+          const state = $._state.text?.[key] ?? [];
           sequence.forEach((e) => {
             if (!e.exit) {
-              const prev = textState.at(-1);
+              const prev = state.at(-1);
               if (
                 prev &&
                 JSON.stringify(prev.params || {}) ===
@@ -702,13 +787,23 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                 if (e.params) {
                   s.params = e.params;
                 }
-                textState.push(s);
+                state.push(s);
               }
             }
           });
-          $._state.text[key] = textState;
+          $._state.text ??= {};
+          $._state.text[key] = state;
         } else {
-          delete $._state.text[key];
+          delete $._state.text?.[key];
+        }
+        this.updateTargeted(uiName, target);
+      }
+
+      restore(uiName: string, target: string) {
+        const key = $.getStateKey(uiName, target);
+        const state = $._state.text?.[key];
+        if (state) {
+          this.applyChanges(uiName, target, state, true);
         }
       }
 
@@ -789,7 +884,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
       clear(uiName: string, target: string): void {
         this.saveState(uiName, target, null);
-        this.applyChanges(uiName, target, null, true);
+        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+          this.applyChanges(uiName, target, null, true);
+        }
       }
 
       write(
@@ -799,7 +896,10 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         instant = false
       ): () => void {
         this.saveState(uiName, target, sequence);
-        return this.applyChanges(uiName, target, sequence, instant);
+        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+          return this.applyChanges(uiName, target, sequence, instant);
+        }
+        return () => null;
       }
 
       set(uiName: string, target: string, text: string): void {
@@ -816,6 +916,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
             targets.push(parent.name);
           }
         });
+        if ($._targeted.text[uiName]) {
+          $._targeted.text[uiName]?.forEach((target) => {
+            targets.push(target);
+          });
+        }
         return targets;
       }
     }
@@ -824,6 +929,17 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   Image = (($) => {
     class Image {
+      protected updateTargeted(uiName: string, target: string) {
+        if (!$._targeted.image[uiName]?.has(target)) {
+          $._targeted.image[uiName] ??= new Set();
+          $._targeted.image[uiName]?.add(target);
+          $._state.targeted ??= {};
+          $._state.targeted.image ??= {};
+          $._state.targeted.image[uiName] ??= [];
+          $._state.targeted.image[uiName]?.push(target);
+        }
+      }
+
       protected saveState(
         uiName: string,
         target: string,
@@ -831,10 +947,10 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ) {
         const key = $.getStateKey(uiName, target);
         if (sequence) {
-          const imageState = $._state.image[key] ?? [];
+          const state = $._state.image?.[key] ?? [];
           sequence.forEach((e) => {
             if (!e.exit) {
-              const prev = imageState.at(-1);
+              const prev = state.at(-1);
               if (
                 prev &&
                 JSON.stringify(prev.params || {}) ===
@@ -846,13 +962,23 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                 if (e.params) {
                   s.params = e.params;
                 }
-                imageState.push(s);
+                state.push(s);
               }
             }
           });
-          $._state.image[key] = imageState;
+          $._state.image ??= {};
+          $._state.image[key] = state;
         } else {
-          delete $._state.image[key];
+          delete $._state.image?.[key];
+        }
+        this.updateTargeted(uiName, target);
+      }
+
+      restore(uiName: string, target: string) {
+        const key = $.getStateKey(uiName, target);
+        const state = $._state.image?.[key];
+        if (state) {
+          this.applyChanges(uiName, target, state, true);
         }
       }
 
@@ -922,7 +1048,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
       clear(uiName: string, target: string): void {
         this.saveState(uiName, target, null);
-        this.applyChanges(uiName, target, null, true);
+        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+          this.applyChanges(uiName, target, null, true);
+        }
       }
 
       write(
@@ -932,17 +1060,25 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         instant = false
       ): () => void {
         this.saveState(uiName, target, sequence);
-        return this.applyChanges(uiName, target, sequence, instant);
+        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+          return this.applyChanges(uiName, target, sequence, instant);
+        }
+        return () => null;
       }
 
       getTargets(uiName: string): string[] {
         const targets: string[] = [];
-        $.findElements(uiName, "image").forEach((textEl) => {
-          const parent = $.getParentElement(textEl);
+        $.findElements(uiName, "image").forEach((imageEl) => {
+          const parent = $.getParentElement(imageEl);
           if (parent) {
             targets.push(parent.name);
           }
         });
+        if ($._targeted.image[uiName]) {
+          $._targeted.image[uiName]?.forEach((target) => {
+            targets.push(target);
+          });
+        }
         return targets;
       }
     }
@@ -958,20 +1094,29 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ) {
         const key = $.getStateKey(uiName, target);
         if (style) {
-          const styleState = $._state.style[key] ?? {};
-          $._state.style[key] = styleState;
+          const state = $._state.style?.[key] ?? {};
+          $._state.style ??= {};
+          $._state.style[key] = state;
           Object.entries(style).forEach(([k, v]) => {
             if (v) {
-              styleState[k] = v;
+              state[k] = v;
             } else {
-              delete styleState[k];
+              delete state[k];
             }
           });
-          if (Object.entries(styleState).length === 0) {
+          if (Object.entries(state).length === 0) {
             delete $._state.style[key];
           }
         } else {
-          delete $._state.style[key];
+          delete $._state.style?.[key];
+        }
+      }
+
+      restore(uiName: string, target: string) {
+        const key = $.getStateKey(uiName, target);
+        const state = $._state.style?.[key];
+        if (state) {
+          this.applyChanges(uiName, target, state);
         }
       }
 
@@ -993,7 +1138,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         style: Record<string, string | null> | null
       ): void {
         this.saveState(uiName, target, style);
-        this.applyChanges(uiName, target, style);
+        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+          this.applyChanges(uiName, target, style);
+        }
       }
     }
     return Style;
@@ -1008,20 +1155,29 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ) {
         const key = $.getStateKey(uiName, target);
         if (attributes) {
-          const attributesState = $._state.attributes[key] ?? {};
-          $._state.attributes[key] = attributesState;
+          const state = $._state.attributes?.[key] ?? {};
+          $._state.attributes ??= {};
+          $._state.attributes[key] = state;
           Object.entries(attributes).forEach(([k, v]) => {
             if (v) {
-              attributesState[k] = v;
+              state[k] = v;
             } else {
-              delete attributesState[k];
+              delete state[k];
             }
           });
-          if (Object.entries(attributesState).length === 0) {
+          if (Object.entries(state).length === 0) {
             delete $._state.attributes[key];
           }
         } else {
-          delete $._state.attributes[key];
+          delete $._state.attributes?.[key];
+        }
+      }
+
+      restore(uiName: string, target: string) {
+        const key = $.getStateKey(uiName, target);
+        const state = $._state.attributes?.[key];
+        if (state) {
+          this.applyChanges(uiName, target, state);
         }
       }
 
@@ -1043,7 +1199,9 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         attributes: Record<string, string | null> | null
       ): void {
         this.saveState(uiName, target, attributes);
-        this.applyChanges(uiName, target, attributes);
+        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+          this.applyChanges(uiName, target, attributes);
+        }
       }
     }
     return Attributes;

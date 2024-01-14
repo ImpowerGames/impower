@@ -1,7 +1,7 @@
 import { GameEvent1, GameEvent2 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 
 export interface TickerEvents extends Record<string, GameEvent> {
   onAdded: GameEvent2<string, (deltaMS: number) => void>;
@@ -21,7 +21,7 @@ export class TickerManager extends Manager<
   TickerState
 > {
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<TickerConfig>,
     state?: Partial<TickerState>
   ) {
@@ -34,8 +34,7 @@ export class TickerManager extends Manager<
       listeners: new Map(),
       ...(config || {}),
     };
-    const initialState: TickerState = { ...(state || {}) };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
   }
 
   add(key: string, callback: (deltaMS: number) => void): void {
@@ -48,7 +47,7 @@ export class TickerManager extends Manager<
     this._events.onRemoved.dispatch(key);
   }
 
-  override update(deltaMS: number): boolean {
+  override update(deltaMS: number) {
     super.update(deltaMS);
     this._config.listeners.forEach((l) => l?.(deltaMS));
     this._events.onUpdate.dispatch(deltaMS);

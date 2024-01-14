@@ -1,4 +1,4 @@
-const combineValueMap = (
+const combineContext = (
   context: Record<string, Record<string, any>> | undefined,
   result: Record<string, Record<string, any>> = {}
 ) => {
@@ -19,4 +19,4 @@ const combineValueMap = (
   return result;
 };
 
-export default combineValueMap;
+export default combineContext;

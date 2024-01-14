@@ -1,18 +1,14 @@
-import { Environment } from "../types/Environment";
+import { GameContext } from "../types/GameContext";
 import { IGameEvent } from "../types/IGameEvent";
 import { ListenOnly } from "../types/ListenOnly";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
-import { GameEvent } from "./GameEvent";
 
 export abstract class Manager<
   E extends Record<string, IGameEvent> = any,
   C = any,
   S = any
 > {
-  protected _environment: Environment;
-  public get environment(): Environment {
-    return this._environment;
-  }
+  protected _context: GameContext;
 
   protected _events: E;
   public get events(): ListenOnly<E> {
@@ -26,25 +22,23 @@ export abstract class Manager<
     return this._state as RecursiveReadonly<S>;
   }
 
-  constructor(environment: Environment, events: E, config: C, state: S) {
-    this._environment = environment;
+  constructor(context: GameContext, events: E, config: C, state: S) {
+    this._context = context;
     this._events = events;
     this._config = config as RecursiveReadonly<C>;
     this._state = state;
   }
 
-  onInit(): void {}
+  onStart(): void {}
 
-  update(_deltaMS: number): boolean {
+  update(_deltaMS: number): null | boolean {
     return true;
   }
 
   onDestroy(): void {
-    Object.values(this.events as unknown as Record<string, GameEvent>).forEach(
-      (event) => {
-        event.removeAllListeners();
-      }
-    );
+    Object.values(this._events).forEach((event) => {
+      event.removeAllListeners();
+    });
   }
 
   onSerialize() {

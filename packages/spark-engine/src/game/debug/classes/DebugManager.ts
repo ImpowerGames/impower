@@ -1,7 +1,7 @@
 import { GameEvent1 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 import { LogData } from "../types/LogData";
 
 export interface DebugEvents extends Record<string, GameEvent> {
@@ -21,16 +21,13 @@ export class DebugManager extends Manager<
   DebugState
 > {
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<DebugConfig>,
     state?: Partial<DebugState>
   ) {
     const initialEvents: DebugEvents = { onLog: new GameEvent1<LogData>() };
     const initialConfig: DebugConfig = { ...(config || {}) };
-    const initialState: DebugState = {
-      ...(state || {}),
-    };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
   }
 
   startDebugging(): void {

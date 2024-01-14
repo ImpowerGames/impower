@@ -1,7 +1,7 @@
 import { GameEvent1, GameEvent2, GameEvent3, GameEvent4 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
 import { MIDI_STATUS_SYSTEM } from "../constants/MIDI_STATUS_TYPE";
 import { SynthConfig } from "../specs/Synth";
@@ -41,9 +41,9 @@ export interface SoundConfig {
 }
 
 export interface SoundState {
-  playbackStates: Record<string, SoundPlaybackControl>;
-  channels: Record<string, string[]>;
-  groups: Record<string, string[]>;
+  playbackStates?: Record<string, SoundPlaybackControl>;
+  channels?: Record<string, string[]>;
+  groups?: Record<string, string[]>;
 }
 
 export class SoundManager extends Manager<
@@ -63,7 +63,7 @@ export class SoundManager extends Manager<
   protected _audioContext?: AudioContext;
 
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<SoundConfig>,
     state?: Partial<SoundState>
   ) {
@@ -87,17 +87,12 @@ export class SoundManager extends Manager<
       },
       ...(config || {}),
     };
-    const initialState: SoundState = {
-      playbackStates: {},
-      channels: {},
-      groups: {},
-      ...(state || {}),
-    };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
     this._audioContext = initialConfig.audioContext;
   }
 
   protected getOrCreatePlaybackState(id: string) {
+    this._state.playbackStates ??= {};
     this._state.playbackStates[id] ??= {
       elapsedMS: -1,
       latestEvent: -1,
@@ -110,7 +105,7 @@ export class SoundManager extends Manager<
   }
 
   protected deletePlaybackState(id: string) {
-    delete this._state.playbackStates[id];
+    delete this._state.playbackStates?.[id];
   }
 
   synthesize(tones: Tone[]) {
@@ -121,6 +116,7 @@ export class SoundManager extends Manager<
     const controlState = this.getOrCreatePlaybackState(id);
     if (channel) {
       controlState.channel = channel;
+      this._state.channels ??= {};
       this._state.channels[channel] ??= [];
       this._state.channels[channel]!.push(id);
     }
@@ -131,6 +127,7 @@ export class SoundManager extends Manager<
     const controlState = this.getOrCreatePlaybackState(id);
     if (group) {
       controlState.group = group;
+      this._state.groups ??= {};
       this._state.groups[group] ??= [];
       this._state.groups[group]!.push(id);
     }
@@ -138,15 +135,15 @@ export class SoundManager extends Manager<
   }
 
   removeFromChannel(id: string, channel: string) {
-    const state = this._state.channels[channel];
-    if (state) {
+    const state = this._state.channels?.[channel];
+    if (this._state.channels && state) {
       this._state.channels[channel] = state.filter((x) => x != id) ?? [];
     }
   }
 
   removeFromGroup(id: string, group: string) {
-    const groupState = this._state.groups[group];
-    if (groupState) {
+    const groupState = this._state.groups?.[group];
+    if (this._state.groups && groupState) {
       this._state.groups[group] = groupState.filter((x) => x != id) ?? [];
     }
   }
@@ -169,7 +166,9 @@ export class SoundManager extends Manager<
     }
     this._loading.add(id);
     this._config.sounds.set(id, sound);
-    this._events.onLoad.dispatch(sound);
+    if (!this._context.game?.simulating) {
+      this._events.onLoad.dispatch(sound);
+    }
   }
 
   async load(sound: Sound): Promise<void> {
@@ -217,7 +216,9 @@ export class SoundManager extends Manager<
         this.setGroup(sound.id, group);
       }
     });
-    this._events.onStart.dispatch(sounds, after, over);
+    if (!this._context.game?.simulating) {
+      this._events.onStart.dispatch(sounds, after, over);
+    }
     onReady?.();
   }
 
@@ -261,7 +262,9 @@ export class SoundManager extends Manager<
       }
       this.deletePlaybackState(sound.id);
     });
-    this._events.onStop.dispatch(sounds, after, over, scheduled);
+    if (!this._context.game?.simulating) {
+      this._events.onStop.dispatch(sounds, after, over, scheduled);
+    }
     onReady?.();
   }
 
@@ -311,7 +314,7 @@ export class SoundManager extends Manager<
     scheduled?: boolean,
     onReady?: () => void
   ) {
-    const ids = this._state.channels[channel];
+    const ids = this._state.channels?.[channel];
     if (!ids) {
       return;
     }
@@ -347,7 +350,9 @@ export class SoundManager extends Manager<
       controlState.muted = false;
     });
     await this.loadAll(sounds);
-    this._events.onFade.dispatch(sounds, after, over, scheduled);
+    if (!this._context.game?.simulating) {
+      this._events.onFade.dispatch(sounds, after, over, scheduled);
+    }
     onReady?.();
   }
 
@@ -398,7 +403,7 @@ export class SoundManager extends Manager<
     scheduled?: boolean,
     onReady?: () => void
   ) {
-    const ids = this._state.channels[channel];
+    const ids = this._state.channels?.[channel];
     if (!ids) {
       return;
     }
@@ -419,7 +424,7 @@ export class SoundManager extends Manager<
   }
 
   protected updateMidi(deltaMS: number, id: string, midi: Midi) {
-    const controlState = this._state.playbackStates[id];
+    const controlState = this._state.playbackStates?.[id];
     if (!controlState) {
       return;
     }
@@ -450,7 +455,9 @@ export class SoundManager extends Manager<
           index > controlState.latestEvent &&
           controlState.elapsedMS >= timeMS
         ) {
-          this._events.onMidiEvent.dispatch(id, event);
+          if (!this._context.game?.simulating) {
+            this._events.onMidiEvent.dispatch(id, event);
+          }
           controlState.latestEvent = index;
         }
       });
@@ -458,7 +465,7 @@ export class SoundManager extends Manager<
   }
 
   protected updateSound(deltaMS: number, id: string) {
-    const controlState = this._state.playbackStates[id];
+    const controlState = this._state.playbackStates?.[id];
     if (!controlState) {
       return;
     }

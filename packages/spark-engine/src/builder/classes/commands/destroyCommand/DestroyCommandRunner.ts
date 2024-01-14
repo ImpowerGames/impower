@@ -6,7 +6,7 @@ export class DestroyCommandRunner<G extends Game> extends CommandRunner<
   G,
   DestroyCommandData
 > {
-  override onExecute(data: DestroyCommandData): number[] {
+  override onExecute(data: DestroyCommandData) {
     const { entity } = data.params;
 
     if (!entity) {

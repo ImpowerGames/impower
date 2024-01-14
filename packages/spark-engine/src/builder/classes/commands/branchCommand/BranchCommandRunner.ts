@@ -7,7 +7,7 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
   G,
   BranchCommandData
 > {
-  override onExecute(data: BranchCommandData): number[] {
+  override onExecute(data: BranchCommandData) {
     const { check, condition } = data.params;
 
     const commands = this.game.logic.getCommands(data.parent);

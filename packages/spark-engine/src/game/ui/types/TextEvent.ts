@@ -1,7 +1,6 @@
-export interface TextEvent {
+import { TextState } from "./TextState";
+
+export interface TextEvent extends TextState {
   enter?: number;
   exit?: number;
-
-  text?: string;
-  params?: Record<string, string | null>;
 }

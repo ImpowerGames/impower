@@ -6,7 +6,7 @@ export class ReturnCommandRunner<G extends Game> extends CommandRunner<
   G,
   ReturnCommandData
 > {
-  override onExecute(data: ReturnCommandData): number[] {
+  override onExecute(data: ReturnCommandData) {
     const { value } = data.params;
 
     const returnValue = this.game.logic.evaluate(value);

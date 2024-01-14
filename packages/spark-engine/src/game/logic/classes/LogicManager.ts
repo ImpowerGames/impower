@@ -3,7 +3,7 @@ import { GameEvent } from "../../core/classes/GameEvent";
 import { GameEvent1 } from "../../core/classes/GameEvent1";
 import { GameEvent2 } from "../../core/classes/GameEvent2";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 import { evaluate } from "../../core/utils/evaluate";
 import { format } from "../../core/utils/format";
 import { randomizer } from "../../core/utils/randomizer";
@@ -39,21 +39,21 @@ export interface LogicEvents extends Record<string, GameEvent> {
 }
 
 export interface LogicConfig {
-  simulateFromBlockId?: string;
-  simulateFromCommandIndex?: number;
-  startFromBlockId: string;
-  startFromCommandIndex: number;
-  context: Record<string, Record<string, any>>;
+  simulation?: {
+    simulateFromBlockId?: string;
+    simulateFromCommandIndex?: number;
+    startFromBlockId: string;
+    startFromCommandIndex: number;
+  };
   blockMap: Record<string, BlockData>;
-  stored: string[];
   seeder: () => string;
 }
 
 export interface LogicState {
-  values: Record<string, any>;
-  blocks: Record<string, BlockState>;
-  seed: string;
-  checkpoint: string;
+  values?: Record<string, any>;
+  blocks?: Record<string, BlockState>;
+  seed?: string;
+  checkpoint?: string;
 }
 
 export class LogicManager extends Manager<
@@ -62,11 +62,6 @@ export class LogicManager extends Manager<
   LogicState
 > {
   FINISH_COMMAND_TYPE = "FinishCommand";
-
-  protected _context: Record<string, Record<string, any>> = {};
-  get context() {
-    return this._context;
-  }
 
   protected _blockMap: Record<string, BlockData> = {};
   get blockMap() {
@@ -114,7 +109,7 @@ export class LogicManager extends Manager<
   protected _runners: ICommandRunner[] = [];
 
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<LogicConfig>,
     state?: Partial<LogicState>
   ) {
@@ -147,24 +142,10 @@ export class LogicManager extends Manager<
     };
     const initialConfig: LogicConfig = {
       blockMap: {},
-      context: {},
-      stored: [],
-      startFromBlockId: "",
-      startFromCommandIndex: 0,
       seeder: uuid,
       ...(config || {}),
     };
-    const initialState: LogicState = {
-      blocks: {},
-      values: {},
-      seed: initialConfig.seeder(),
-      checkpoint: "",
-      ...(state || {}),
-    };
-    super(environment, initialEvents, initialConfig, initialState);
-    if (this._config?.context) {
-      this._context = JSON.parse(JSON.stringify(this._config?.context));
-    }
+    super(context, initialEvents, initialConfig, state || {});
     if (this._config?.blockMap) {
       // Populate _blockMap
       this._blockMap = JSON.parse(JSON.stringify(this._config?.blockMap));
@@ -216,7 +197,7 @@ export class LogicManager extends Manager<
         setProperty(this._context, accessPath, valueState);
       });
     }
-    if (this._state.values["visited"]) {
+    if (this._state.values?.["visited"]) {
       // Restore _visited
       Object.entries(this._state.values["visited"]).forEach(([key, count]) => {
         if (typeof count === "number") {
@@ -227,27 +208,33 @@ export class LogicManager extends Manager<
     // Restore _random
     this._random = randomizer(this._state.seed);
     // Restore checkpoint
-    const checkpointLocation = this.getCommandLocation(this._state.checkpoint);
-    if (checkpointLocation) {
-      const flow = this._flowMap[checkpointLocation.parent];
-      if (flow) {
-        flow.currentCommandIndex = checkpointLocation.index;
+    if (this._state.checkpoint) {
+      const checkpointLocation = this.getCommandLocation(
+        this._state.checkpoint
+      );
+      if (checkpointLocation) {
+        const flow = this._flowMap[checkpointLocation.parent];
+        if (flow) {
+          flow.currentCommandIndex = checkpointLocation.index;
+        }
       }
     }
   }
 
-  override onInit() {
+  override onStart() {
     this._runners.forEach((r) => {
       r.onInit();
     });
-    const entryBlockId = this.environment.simulating
-      ? this._config.simulateFromBlockId ?? ""
-      : this._config.startFromBlockId;
-    const entryCommandIndex = this.environment.simulating
-      ? this._config.simulateFromCommandIndex ?? 0
-      : this._config.startFromCommandIndex;
-    if (entryBlockId != null) {
-      this.enterBlock(entryBlockId, entryCommandIndex);
+    if (this._config.simulation) {
+      const entryBlockId = this._context.game?.simulating
+        ? this._config.simulation.simulateFromBlockId ?? ""
+        : this._config.simulation.startFromBlockId;
+      const entryCommandIndex = this._context.game?.simulating
+        ? this._config.simulation.simulateFromCommandIndex ?? 0
+        : this._config.simulation.startFromCommandIndex;
+      if (entryBlockId != null) {
+        this.enterBlock(entryBlockId, entryCommandIndex);
+      }
     }
   }
 
@@ -263,8 +250,6 @@ export class LogicManager extends Manager<
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
-    if (this._config.simulateFromBlockId != null) {
-    }
     const parent = this._blockMap?.[newParentBlockId]!;
     this._events.onChangeActiveParentBlock.dispatch(
       newParentBlockId,
@@ -273,10 +258,11 @@ export class LogicManager extends Manager<
   }
 
   private resetBlockExecution(blockId: string): void {
-    const blockState = this._state.blocks[blockId] || createBlockState();
+    const blockState = this._state.blocks?.[blockId] || createBlockState();
     delete blockState.isExecuting;
     delete blockState.isFinished;
     delete blockState.commandJumpStack;
+    this._state.blocks ??= {};
     this._state.blocks[blockId] = blockState;
     const flow = this._flowMap[blockId];
     if (flow) {
@@ -287,7 +273,8 @@ export class LogicManager extends Manager<
   }
 
   private loadBlock(blockId: string): void {
-    const blockState = this._state.blocks[blockId] || createBlockState();
+    const blockState = this._state.blocks?.[blockId] || createBlockState();
+    this._state.blocks ??= {};
     this._state.blocks[blockId] = blockState;
     if (blockState.isLoaded) {
       return;
@@ -305,7 +292,7 @@ export class LogicManager extends Manager<
   }
 
   private unloadBlock(blockId: string): void {
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (!blockState?.isLoaded) {
       return;
     }
@@ -320,9 +307,9 @@ export class LogicManager extends Manager<
   /**
    * Updates logic.
    *
-   * @return {boolean} False, if quit. Otherwise, true
+   * @return {boolean} Null, if should reload. Otherwise, true
    */
-  override update(deltaMS: number): boolean {
+  override update(deltaMS: number) {
     if (deltaMS) {
       this._runners.forEach((r) => {
         r.onUpdate(deltaMS);
@@ -333,7 +320,7 @@ export class LogicManager extends Manager<
           const blockId = loadedBlockIds[i];
           if (blockId !== undefined) {
             if (this.updateBlock(blockId) === null) {
-              return false; // Player quit the game
+              return null;
             }
           }
         }
@@ -345,7 +332,7 @@ export class LogicManager extends Manager<
   /**
    * Updates block.
    *
-   * @return {boolean} True, if still executing. False, if the block is finished executing and there are no more commands left to execute, Null, if quit.
+   * @return {boolean} True, if still executing. False, if the block is finished executing and there are no more commands left to execute, Null, if should reload.
    */
   updateBlock(blockId: string): boolean | null {
     const block = this._blockMap[blockId];
@@ -354,7 +341,7 @@ export class LogicManager extends Manager<
     }
     this._events.onUpdateBlock.dispatch(blockId, block.source);
 
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (!blockState) {
       return false;
     }
@@ -378,7 +365,7 @@ export class LogicManager extends Manager<
   /**
    * Iterates over commands and executes each one in sequence.
    *
-   * @return {boolean} True, if still executing. False, if the block is finished executing and there are no more commands left to execute, Null, if quit.
+   * @return {boolean} True, if still executing. False, if the block is finished executing and there are no more commands left to execute, Null, if should reload.
    */
   protected runCommands(blockId: string): boolean | null {
     const commands = this._blockMap[blockId]?.commands;
@@ -389,7 +376,7 @@ export class LogicManager extends Manager<
     if (!flow) {
       return false;
     }
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (!blockState) {
       return false;
     }
@@ -402,6 +389,23 @@ export class LogicManager extends Manager<
         if (runner) {
           const commandId = command.id;
           if (!flow.isExecutingCommand) {
+            if (runner.isCheckpoint(command)) {
+              this._context.game?.checkpoint?.(commandId);
+            }
+            if (
+              this._config.simulation &&
+              (this._config.simulation.simulateFromBlockId != null ||
+                this._config.simulation.simulateFromCommandIndex != null) &&
+              this._config.simulation.startFromBlockId === blockId &&
+              this._config.simulation.startFromCommandIndex ===
+                flow.currentCommandIndex
+            ) {
+              if (this._context.game) {
+                this._context.game.simulating = false;
+              }
+              // We've caught up, stop simulating and reload game
+              return null;
+            }
             this.willExecuteCommand(blockId, commandId, command?.source);
             let nextJumps: number[] = [];
             nextJumps = runner.onExecute(command);
@@ -413,7 +417,7 @@ export class LogicManager extends Manager<
             }
           }
           if (
-            !this.environment.simulating &&
+            !this._context.game?.simulating &&
             command.params.waitUntilFinished
           ) {
             const finished = runner.isFinished(command);
@@ -460,18 +464,9 @@ export class LogicManager extends Manager<
     blockId: string,
     commandId: string,
     source?: DocumentSource
-  ): void {
+  ) {
     const flow = this._flowMap[blockId];
     if (flow) {
-      if (
-        (this._config.simulateFromBlockId != null ||
-          this._config.simulateFromCommandIndex != null) &&
-        this._config.startFromBlockId === blockId &&
-        this._config.startFromCommandIndex === flow.currentCommandIndex
-      ) {
-        // We've caught up, stop simulating
-        this._environment.simulating = false;
-      }
       flow.isExecutingCommand = true;
     }
     // Command visits should only be stored in save state if they are used by a string substitution formatter
@@ -510,7 +505,7 @@ export class LogicManager extends Manager<
     blockId: string,
     commandIndices: number[]
   ): void {
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (blockState) {
       commandIndices.forEach((index) => {
         blockState.commandJumpStack ??= [];
@@ -523,7 +518,7 @@ export class LogicManager extends Manager<
   }
 
   protected commandJumpStackPop(blockId: string): number | undefined {
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (blockState && blockState.commandJumpStack) {
       const commandId = blockState.commandJumpStack.shift();
       if (commandId) {
@@ -539,7 +534,7 @@ export class LogicManager extends Manager<
       return;
     }
     this.resetBlockExecution(blockName);
-    const blockState = this._state.blocks[blockName];
+    const blockState = this._state.blocks?.[blockName];
     const flow = this._flowMap[blockName];
     if (blockState && flow) {
       blockState.isExecuting = true;
@@ -570,7 +565,7 @@ export class LogicManager extends Manager<
   }
 
   continue(blockId: string): boolean {
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (blockState) {
       if (
         blockState.willReturnToBlockId != null &&
@@ -587,7 +582,7 @@ export class LogicManager extends Manager<
     if (!block) {
       return;
     }
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (blockState) {
       blockState.isExecuting = false;
       blockState.isFinished = true;
@@ -600,7 +595,7 @@ export class LogicManager extends Manager<
     if (!block) {
       return;
     }
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (blockState) {
       blockState.isExecuting = false;
     }
@@ -620,9 +615,10 @@ export class LogicManager extends Manager<
     if (!this._blockMap[blockId]) {
       return;
     }
-    const blockState = this._state.blocks[blockId] || createBlockState();
+    const blockState = this._state.blocks?.[blockId] || createBlockState();
     blockState.willReturnToBlockId = returnToBlockId;
     blockState.willReturnToCommandId = returnToCommandId;
+    this._state.blocks ??= {};
     this._state.blocks[blockId] = blockState;
 
     // Change activeParent
@@ -680,7 +676,7 @@ export class LogicManager extends Manager<
       return false;
     }
 
-    const blockState = this._state.blocks[blockId];
+    const blockState = this._state.blocks?.[blockId];
     if (blockState) {
       blockState.isExecuting = false;
       blockState.isFinished = true;
@@ -702,7 +698,7 @@ export class LogicManager extends Manager<
     this._context["returned"] ??= {};
     this.evaluate(`returned.${blockId} = ${value}`);
 
-    const returnToBlockState = this._state.blocks[returnToBlockId];
+    const returnToBlockState = this._state.blocks?.[returnToBlockId];
     if (returnToBlockState) {
       this.enterBlock(
         returnToBlockId,
@@ -834,19 +830,11 @@ export class LogicManager extends Manager<
     return this._commandMap[commandId];
   }
 
-  override onSerialize() {
-    if (this._config?.stored) {
-      this._config.stored.forEach((accessPath) => {
-        try {
-          this._state.values[accessPath] = evaluate(accessPath, this._context);
-        } catch {
-          // value does not exist
-        }
-      });
-    }
-  }
-
   override onCheckpoint(id: string) {
+    const loc = this._commandMap[id];
+    if (loc) {
+      // console.log("checkpointed at", this.getCommandAt(loc.parent, loc.index));
+    }
     this._state.checkpoint = id;
   }
 }

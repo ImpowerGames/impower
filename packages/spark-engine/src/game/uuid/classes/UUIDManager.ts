@@ -1,6 +1,6 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 import { uuid } from "../../core/utils/uuid";
 
 export interface UUIDEvents extends Record<string, GameEvent> {}
@@ -13,7 +13,7 @@ export interface UUIDState {}
 
 export class UUIDManager extends Manager<UUIDEvents, UUIDConfig, UUIDState> {
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<UUIDConfig>,
     state?: Partial<UUIDState>
   ) {
@@ -22,8 +22,7 @@ export class UUIDManager extends Manager<UUIDEvents, UUIDConfig, UUIDState> {
       generator: uuid,
       ...(config || {}),
     };
-    const initialState: UUIDState = { ...(state || {}) };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
   }
 
   generate(): string {

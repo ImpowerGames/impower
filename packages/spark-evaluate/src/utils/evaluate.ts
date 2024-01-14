@@ -10,10 +10,13 @@ const evaluate = (
   if (!expr) {
     return undefined;
   }
-  const [node] = DEFAULT_PARSER.parse(expr);
-  const compiler = new SparkExpressionCompiler(config);
-  const result = compiler.evaluate(node, context);
-  return result;
+  try {
+    const [node] = DEFAULT_PARSER.parse(expr);
+    const compiler = new SparkExpressionCompiler(config);
+    const result = compiler.evaluate(node, context);
+    return result;
+  } catch {}
+  return undefined;
 };
 
 export default evaluate;

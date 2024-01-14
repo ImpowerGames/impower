@@ -23,8 +23,11 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   protected _onTick?: (deltaMS: number) => void;
 
-  override onExecute(data: DisplayCommandData): number[] {
-    this.game.checkpoint(data.id);
+  override isCheckpoint(_data: DisplayCommandData): boolean {
+    return true;
+  }
+
+  override onExecute(data: DisplayCommandData) {
     this._wasPressed = false;
     this._wasTyped = false;
     this._timeTypedMS = -1;
@@ -52,14 +55,14 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     return super.onExecute(data);
   }
 
-  override onUpdate(deltaMS: number): void {
+  override onUpdate(deltaMS: number) {
     if (this._onTick) {
       this._onTick(deltaMS);
       this._elapsedMS += deltaMS;
     }
   }
 
-  override onDestroy(): void {
+  override onDestroy() {
     this._onTick = undefined;
     this.game.input.events.onPointerDown.removeListener(this.onPointerDown);
   }
@@ -68,9 +71,9 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     this._wasPressed = true;
   };
 
-  override isFinished(data: DisplayCommandData): boolean {
+  override isFinished(data: DisplayCommandData) {
     const { autoAdvance } = data.params;
-    const blockState = this.game.logic.state.blocks[data.parent];
+    const blockState = this.game.logic.state.blocks?.[data.parent];
     if (!blockState) {
       return false;
     }
@@ -123,7 +126,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     return false;
   }
 
-  override onPreview(data: DisplayCommandData): boolean {
+  override onPreview(data: DisplayCommandData) {
     executeDisplayCommand(this.game, data, { instant: true, preview: true });
     return true;
   }

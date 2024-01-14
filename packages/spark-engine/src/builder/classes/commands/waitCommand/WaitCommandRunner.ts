@@ -8,21 +8,21 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
 > {
   protected _elapsedMS: number = 0;
 
-  override onExecute(data: WaitCommandData): number[] {
+  override onExecute(data: WaitCommandData) {
     this._elapsedMS = 0;
     return super.onExecute(data);
   }
 
-  override onUpdate(deltaMS: number): void {
+  override onUpdate(deltaMS: number) {
     this._elapsedMS += deltaMS;
   }
 
-  override isFinished(data: WaitCommandData): boolean | null {
+  override isFinished(data: WaitCommandData) {
     const { seconds } = data.params;
     if (seconds === undefined || seconds === 0) {
       return super.isFinished(data);
     }
-    const blockState = this.game.logic.state.blocks[data.parent];
+    const blockState = this.game.logic.state.blocks?.[data.parent];
     const timeMS = this._elapsedMS;
     if (blockState) {
       if (seconds < 0) {

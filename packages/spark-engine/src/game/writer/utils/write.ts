@@ -1,3 +1,4 @@
+import { GameContext } from "../../core/types/GameContext";
 import { Matcher } from "../classes/Matcher";
 import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
@@ -48,7 +49,7 @@ const isDash = (part: string) => {
 };
 
 const getValue = (
-  context: Record<string, Record<string, any>> | undefined,
+  context: GameContext | undefined,
   type: string,
   name: string,
   ...fallbacks: string[]
@@ -68,7 +69,7 @@ const getValue = (
 };
 
 const getValueName = (
-  context: Record<string, Record<string, any>> | undefined,
+  context: GameContext | undefined,
   type: string,
   name: string,
   ...fallbacks: string[]
@@ -89,7 +90,7 @@ const getValueName = (
 
 const getImageNames = (
   assetNames: string[],
-  context: Record<string, Record<string, any>> | undefined
+  context: GameContext | undefined
 ) => {
   const imageNames: string[] = [];
   assetNames.forEach((assetName) => {
@@ -111,6 +112,16 @@ const getImageNames = (
     }
   });
   return imageNames;
+};
+
+const getInstanceName = (
+  target: string,
+  instanceNumber: number | undefined
+): string => {
+  if (instanceNumber != null) {
+    return `${target} ${instanceNumber}`;
+  }
+  return target;
 };
 
 const getArgumentValue = (args: string[], name: string): number | undefined => {
@@ -138,7 +149,6 @@ const getMinSynthDuration = (synth: {
 };
 
 export interface WriteOptions {
-  context?: Record<string, Record<string, any>>;
   character?: string;
   instant?: boolean;
   debug?: boolean;
@@ -146,6 +156,7 @@ export interface WriteOptions {
 
 export const write = (
   content: Phrase[],
+  context: GameContext,
   options?: WriteOptions
 ): {
   button: Record<string, ButtonEvent[]>;
@@ -157,7 +168,6 @@ export const write = (
 } => {
   const phrases: Phrase[] = [];
 
-  const context = options?.context;
   const character = options?.character;
   const instant = options?.instant;
   const debug = options?.debug;
@@ -687,14 +697,15 @@ export const write = (
               textEvent.params["background-color"] = `hsl(185, 100%, 50%)`;
             }
           }
-          result.text[target] ??= [];
-          result.text[target]!.push(textEvent);
-          if (target && !c.instance && letterPause === 0) {
-            const prevEvent = result.text[target]?.at(-1);
+          const key = getInstanceName(target, textEvent.instance);
+          if (key && !c.instance && letterPause === 0) {
+            const prevEvent = result.text[key]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;
             }
           }
+          result.text[key] ??= [];
+          result.text[key]!.push(textEvent);
         }
         if (c.image != null) {
           const imageEvent: ImageEvent = { image: c.image };
@@ -708,14 +719,15 @@ export const write = (
             imageEvent.params ??= {};
             imageEvent.params["transition-duration"] = `${fadeDuration}s`;
           }
-          result.image[target] ??= [];
-          result.image[target]!.push(imageEvent);
-          if (target && !c.instance) {
-            const prevEvent = result.image[target]?.at(-1);
+          const key = getInstanceName(target, imageEvent.instance);
+          if (key && !c.instance) {
+            const prevEvent = result.image[key]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;
             }
           }
+          result.image[key] ??= [];
+          result.image[key]!.push(imageEvent);
         }
         if (c.audio != null) {
           const audioEvent: AudioEvent = { audio: c.audio };

@@ -101,7 +101,7 @@ export default class Application {
 
     this._game = game;
     if (this.game) {
-      this.game.init();
+      this.game.start();
       this.bindUI();
     }
 
@@ -285,9 +285,7 @@ export default class Application {
     }
 
     if (this.game) {
-      if (!this.game.update(deltaMS)) {
-        this.destroy(true);
-      }
+      this.game.update(deltaMS);
     }
   }
 

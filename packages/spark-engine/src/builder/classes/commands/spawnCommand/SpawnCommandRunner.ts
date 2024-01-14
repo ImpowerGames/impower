@@ -6,7 +6,7 @@ export class SpawnCommandRunner<G extends Game> extends CommandRunner<
   G,
   SpawnCommandData
 > {
-  override onExecute(data: SpawnCommandData): number[] {
+  override onExecute(data: SpawnCommandData) {
     const { entity } = data.params;
 
     if (!entity) {

@@ -10,6 +10,7 @@ import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/ga
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { WillExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
+import { GameState } from "../../../spark-engine/src";
 import { GameBuilder } from "../../../spark-engine/src/builder/classes/GameBuilder";
 import { GameBuilderOptions } from "../../../spark-engine/src/builder/types/GameBuilderOptions";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
@@ -227,7 +228,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   };
 
-  loadGame() {
+  loadGame(state?: GameState) {
     if (this._programs && this._options) {
       const programUris = Object.keys(this._programs);
       const programs = Object.values(this._programs);
@@ -243,11 +244,16 @@ export default class SparkWebPlayer extends Component(spec) {
         ? programUris.indexOf(options.startFromProgram)
         : undefined;
       const startFromLine = options.startFromLine;
+      const simulation = state
+        ? undefined
+        : {
+            simulateFromProgram,
+            simulateFromLine,
+            startFromProgram,
+            startFromLine,
+          };
       const gameBuilderOptions: GameBuilderOptions = {
-        simulateFromProgram,
-        simulateFromLine,
-        startFromProgram,
-        startFromLine,
+        simulation,
         config: {
           ui: {
             root: this._root,
@@ -270,6 +276,7 @@ export default class SparkWebPlayer extends Component(spec) {
             },
           },
         },
+        state,
       };
       const context = new GameBuilder(programs, gameBuilderOptions);
       context.game.logic.events.onWillExecuteCommand.addListener(
@@ -298,9 +305,28 @@ export default class SparkWebPlayer extends Component(spec) {
           }
         }
       );
+      context.game.events.onReload.addListener((state) => {
+        this.reloadGame(state);
+      });
       return context;
     }
     return undefined;
+  }
+
+  reloadGame(state: GameState) {
+    if (this._app) {
+      this._app.destroy(true);
+      this._app = undefined;
+    }
+    if (this._builder) {
+      this._builder.game.destroy();
+      this._builder = undefined;
+    }
+    const gameDOM = this.ref.sparkGame;
+    this._builder = this.loadGame(state);
+    if (gameDOM && this._builder) {
+      this._app = new Application(gameDOM, this._builder.game);
+    }
   }
 
   updatePreview(line: number) {

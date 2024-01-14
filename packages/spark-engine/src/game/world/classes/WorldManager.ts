@@ -1,7 +1,7 @@
-import { GameEvent1, GameEvent2, GameEvent3 } from "../../core";
+import { GameEvent1, GameEvent2, GameEvent3, clone } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 import { CameraState } from "../types/CameraState";
 import { EntityState } from "../types/EntityState";
 import { createCameraState } from "../utils/createCameraState";
@@ -33,7 +33,7 @@ export class WorldManager extends Manager<
   protected _cameraStates: Record<string, CameraState> = {};
 
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<WorldConfig>,
     state?: Partial<WorldState>
   ) {
@@ -50,8 +50,7 @@ export class WorldManager extends Manager<
       defaultEntities: {},
       ...(config || {}),
     };
-    const initialState: WorldState = { ...(state || {}) };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
   }
 
   private getCameraState(cameraId?: string): CameraState | undefined {
@@ -70,7 +69,7 @@ export class WorldManager extends Manager<
     }
     const d = this._config.defaultCameras[id];
     const c = createCameraState();
-    return this.deepCopy({
+    return clone({
       position: d?.position || c.position,
       rotation: d?.rotation || c.rotation,
       scale: d?.scale || c.scale,
@@ -83,7 +82,7 @@ export class WorldManager extends Manager<
       color: d?.color || c.color,
       spawnedEntities: d?.spawnedEntities || c.spawnedEntities,
       entities: d?.entities || c.entities,
-    });
+    }) as CameraState;
   }
 
   private getOrCreateEntityState(
@@ -97,7 +96,7 @@ export class WorldManager extends Manager<
     }
     const d = this._config.defaultEntities[entityId];
     const c = createEntityState();
-    return this.deepCopy({
+    return clone({
       position: d?.position || c.position,
       rotation: d?.rotation || c.rotation,
       scale: d?.scale || c.scale,
@@ -140,9 +139,5 @@ export class WorldManager extends Manager<
       (x) => x !== entityId
     );
     this._events.onDestroyEntity.dispatch(entityId, cameraId ?? "");
-  }
-
-  deepCopy<T>(obj: T): T {
-    return JSON.parse(JSON.stringify(obj));
   }
 }

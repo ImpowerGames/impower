@@ -1,16 +1,19 @@
 import { Game, GameConfig, GameState } from "../../game/core/classes/Game";
+import { GameContext } from "../../game/core/types/GameContext";
 
 export interface GameBuilderOptions<
   G extends Game = Game,
   C extends GameConfig = GameConfig,
   S extends GameState = GameState
 > {
-  simulateFromProgram?: number;
-  simulateFromLine?: number;
-  startFromProgram?: number;
-  startFromLine?: number;
+  simulation?: {
+    simulateFromProgram?: number;
+    simulateFromLine?: number;
+    startFromProgram?: number;
+    startFromLine?: number;
+  };
   config?: C;
   state?: S;
   defaults?: Record<string, Record<string, object>>;
-  createGame?: (config?: C, state?: S) => G;
+  createGame?: (context?: GameContext, config?: C, state?: S) => G;
 }

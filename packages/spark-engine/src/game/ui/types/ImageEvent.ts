@@ -1,7 +1,6 @@
-export interface ImageEvent {
+import { ImageState } from "./ImageState";
+
+export interface ImageEvent extends ImageState {
   enter?: number;
   exit?: number;
-
-  image?: string[];
-  params?: Record<string, string | null>;
 }

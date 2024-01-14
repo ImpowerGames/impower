@@ -6,7 +6,7 @@ export class LogCommandRunner<G extends Game> extends CommandRunner<
   G,
   LogCommandData
 > {
-  override onExecute(data: LogCommandData): number[] {
+  override onExecute(data: LogCommandData) {
     const { severity, message } = data.params;
     if (severity === undefined) {
       return super.onExecute(data);

@@ -2186,6 +2186,15 @@ export default class SparkParser {
                 tok.from,
                 tok.to
               );
+            } else if (tok.name?.includes("[")) {
+              diagnostic(
+                program,
+                tok,
+                `Cannot define variable using bracket notation`,
+                undefined,
+                tok.from + tok.name.indexOf("["),
+                tok.to
+              );
             } else {
               const namespaceMatch = tok.name?.match(NAMESPACE_REGEX);
               const type = namespaceMatch?.[1] || "";
@@ -2276,6 +2285,15 @@ export default class SparkParser {
                 `Cannot store variable inside ${scopedParent.tag} scope`,
                 undefined,
                 tok.from,
+                tok.to
+              );
+            } else if (tok.name?.includes("[")) {
+              diagnostic(
+                program,
+                tok,
+                `Cannot store variable using bracket notation`,
+                undefined,
+                tok.from + tok.name.indexOf("["),
                 tok.to
               );
             } else {

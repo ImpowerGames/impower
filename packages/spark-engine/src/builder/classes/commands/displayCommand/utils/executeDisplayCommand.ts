@@ -1,10 +1,8 @@
 import {
   Game,
-  ImageEvent,
   Phrase,
   Sound,
   Synth,
-  TextEvent,
   Tone,
   clone,
   convertPitchNoteToHertz,
@@ -117,7 +115,7 @@ export const executeDisplayCommand = (
 
   const uiName = "display";
 
-  const context = game.logic.context;
+  const context = game.context;
 
   let targetsCharacterName = false;
   const displayedContent: Phrase[] = [];
@@ -176,53 +174,12 @@ export const executeDisplayCommand = (
 
   const sequence = game.writer.write(displayedContent, {
     character: characterKey,
-    context,
     instant,
     debug: debugging,
   });
 
   const soundsToLoad: Sound[] = [];
   const soundEvents: (() => void)[] = [];
-
-  const targetTextEvents: Record<string, TextEvent[]> = {};
-  const targetImageEvents: Record<string, ImageEvent[]> = {};
-
-  Object.entries(sequence.button).forEach(([k, events]) => {
-    const target = k || "choice";
-    events.forEach((e) => {
-      const instanceName = game.ui.instance.get(uiName, target, e.instance);
-      if (instanceName) {
-        const handleClick = (event?: {
-          stopPropagation?: () => void;
-        }): void => {
-          event?.stopPropagation?.();
-          onClickButton?.(e.instance, e.button);
-          game.ui.style.update(uiName, target, { display: "none" });
-          game.ui.text.clear(uiName, target);
-          game.ui.setOnClick(uiName, target, null);
-        };
-        game.ui.setOnClick(uiName, instanceName, handleClick);
-      }
-    });
-  });
-
-  Object.entries(sequence.text).forEach(([k, events]) => {
-    const target = k || type;
-    events.forEach((e) => {
-      const key = e.instance ? target + " " + e.instance : target;
-      targetTextEvents[key] ??= [];
-      targetTextEvents[key]!.push(e);
-    });
-  });
-
-  Object.entries(sequence.image).forEach(([k, events]) => {
-    const target = k || "portrait";
-    events.forEach((e) => {
-      const key = e.instance ? target + " " + e.instance : target;
-      targetImageEvents[key] ??= [];
-      targetImageEvents[key]!.push(e);
-    });
-  });
 
   Object.entries(sequence.audio).forEach(([k, events]) => {
     const target = k || "voice";
@@ -295,17 +252,37 @@ export const executeDisplayCommand = (
   }
   game.ui.style.update(uiName, "indicator", indicatorStyle);
 
+  // Display buttons
+  Object.entries(sequence.button).forEach(([k, events]) => {
+    const target = k || "choice";
+    events.forEach((e) => {
+      const instanceName = game.ui.instance.get(uiName, target, e.instance);
+      if (instanceName) {
+        const handleClick = (event?: {
+          stopPropagation?: () => void;
+        }): void => {
+          event?.stopPropagation?.();
+          onClickButton?.(e.instance, e.button);
+          game.ui.style.update(uiName, target, { display: "none" });
+          game.ui.text.clear(uiName, target);
+          game.ui.setOnClick(uiName, target, null);
+        };
+        game.ui.setOnClick(uiName, instanceName, handleClick);
+      }
+    });
+  });
+
   // Display new text
   const textTransitions: (() => void)[] = [];
-  Object.entries(targetTextEvents).forEach(([target, textEvents]) => {
-    const transition = game.ui.text.write(uiName, target, textEvents, instant);
+  Object.entries(sequence.text).forEach(([target, events]) => {
+    const transition = game.ui.text.write(uiName, target, events, instant);
     textTransitions.push(transition);
     game.ui.style.update(uiName, target, { display: null });
   });
 
   // Display new images
   const imageTransitions: (() => void)[] = [];
-  Object.entries(targetImageEvents).forEach(([target, imageEvents]) => {
+  Object.entries(sequence.image).forEach(([target, imageEvents]) => {
     const transition = game.ui.image.write(
       uiName,
       target,

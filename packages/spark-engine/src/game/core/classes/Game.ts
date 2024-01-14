@@ -8,8 +8,11 @@ import { UIConfig, UIManager, UIState } from "../../ui";
 import { UUIDConfig, UUIDManager, UUIDState } from "../../uuid";
 import { WorldConfig, WorldManager, WorldState } from "../../world";
 import { WriterConfig, WriterManager, WriterState } from "../../writer";
-import { Environment } from "../types/Environment";
+import { GameContext } from "../types/GameContext";
 import { ListenOnly } from "../types/ListenOnly";
+import { clone } from "../utils/clone";
+import { evaluate } from "../utils/evaluate";
+import { setProperty } from "../utils/setProperty";
 import { GameEvent } from "./GameEvent";
 import { GameEvent0 } from "./GameEvent0";
 import { GameEvent1 } from "./GameEvent1";
@@ -17,14 +20,14 @@ import { GameEvent2 } from "./GameEvent2";
 import { Manager } from "./Manager";
 
 export interface GameEvents extends Record<string, GameEvent> {
-  onInit: GameEvent0;
+  onStart: GameEvent0;
   onUpdate: GameEvent1<number>;
   onDestroy: GameEvent0;
   onCheckpoint: GameEvent2<string, string>;
+  onReload: GameEvent1<GameState>;
 }
 
 export interface GameConfig {
-  environment?: Partial<Environment>;
   ticker?: Partial<TickerConfig>;
   uuid?: Partial<UUIDConfig>;
   ui?: Partial<UIConfig>;
@@ -35,6 +38,8 @@ export interface GameConfig {
   writer?: Partial<WriterConfig>;
   world?: Partial<WorldConfig>;
   physics?: Partial<PhysicsConfig>;
+
+  stored?: string[];
 }
 
 export interface GameState {
@@ -48,11 +53,11 @@ export interface GameState {
   writer?: Partial<WriterState>;
   world?: Partial<WorldState>;
   physics?: Partial<PhysicsState>;
+
+  context?: GameContext;
 }
 
 export class Game {
-  environment: Environment = { simulating: false };
-
   ticker: TickerManager;
 
   uuid: UUIDManager;
@@ -73,11 +78,19 @@ export class Game {
 
   physics: PhysicsManager;
 
+  protected _destroyed = false;
+
+  protected _context: GameContext;
+  get context() {
+    return this._context;
+  }
+
   protected _events: GameEvents = {
-    onInit: new GameEvent0(),
+    onStart: new GameEvent0(),
     onUpdate: new GameEvent1(),
     onDestroy: new GameEvent0(),
     onCheckpoint: new GameEvent2(),
+    onReload: new GameEvent1(),
   };
 
   public get events(): ListenOnly<GameEvents> {
@@ -98,50 +111,29 @@ export class Game {
 
   protected _managerNames: string[];
 
-  constructor(config?: Partial<GameConfig>, state?: Partial<GameState>) {
-    this.environment = { ...this.environment, ...(config?.environment || {}) };
-    this.ticker = new TickerManager(
-      this.environment,
-      config?.ticker,
-      state?.ticker
-    );
-    this.uuid = new UUIDManager(this.environment, config?.uuid, state?.uuid);
-    this.logic = new LogicManager(
-      this.environment,
-      config?.logic,
-      state?.logic
-    );
-    this.ui = new UIManager(this.environment, config?.ui, state?.ui);
-    this.debug = new DebugManager(
-      this.environment,
-      config?.debug,
-      state?.debug
-    );
-    this.input = new InputManager(
-      this.environment,
-      config?.input,
-      state?.input
-    );
-    this.sound = new SoundManager(
-      this.environment,
-      config?.sound,
-      state?.sound
-    );
-    this.writer = new WriterManager(
-      this.environment,
-      config?.writer,
-      state?.writer
-    );
-    this.world = new WorldManager(
-      this.environment,
-      config?.world,
-      state?.world
-    );
-    this.physics = new PhysicsManager(
-      this.environment,
-      config?.physics,
-      state?.physics
-    );
+  protected _stored: string[];
+
+  constructor(
+    context?: GameContext,
+    config?: Partial<GameConfig>,
+    state?: Partial<GameState>
+  ) {
+    const c = config;
+    const s = clone(state);
+    this._stored = config?.stored || [];
+    this._context = clone(context || {}, s?.context);
+    this._context.game ??= {};
+    this._context.game.checkpoint = (id: string) => this.checkpoint(id);
+    this.ticker = new TickerManager(this._context, c?.ticker, s?.ticker);
+    this.uuid = new UUIDManager(this._context, c?.uuid, s?.uuid);
+    this.logic = new LogicManager(this._context, c?.logic, s?.logic);
+    this.ui = new UIManager(this._context, c?.ui, s?.ui);
+    this.debug = new DebugManager(this._context, c?.debug, s?.debug);
+    this.input = new InputManager(this._context, c?.input, s?.input);
+    this.sound = new SoundManager(this._context, c?.sound, s?.sound);
+    this.writer = new WriterManager(this._context, c?.writer, s?.writer);
+    this.world = new WorldManager(this._context, c?.world, s?.world);
+    this.physics = new PhysicsManager(this._context, c?.physics, s?.physics);
     this._managers = {
       ticker: this.ticker,
       uuid: this.uuid,
@@ -165,32 +157,50 @@ export class Game {
     return Boolean(this._managers[name]);
   }
 
-  init(): void {
-    this._managerNames.forEach((k) => this._managers[k]?.onInit());
-    this.ui.loadTheme(this.logic.context);
-    this.ui.loadStyles(this.logic.context);
-    this.ui.loadUI(this.logic.context);
-    this._events.onInit.dispatch();
+  start(): void {
+    this._context.game ??= {};
+    this._context.game.previewing = false;
+    this._managerNames.forEach((k) => this._managers[k]?.onStart());
+    this._events.onStart.dispatch();
   }
 
-  update(deltaMS: number): boolean {
-    let running = true;
-    this._managerNames.forEach((k) => {
-      if (!this._managers[k]?.update(deltaMS)) {
-        running = false;
+  update(deltaMS: number) {
+    if (!this._destroyed) {
+      for (let i = 0; i < this._managerNames.length; i += 1) {
+        const k = this._managerNames[i]!;
+        if (this._managers[k]?.update(deltaMS) === null) {
+          this.reload();
+          this.destroy();
+          return;
+        }
       }
-    });
-    this._events.onUpdate.dispatch(deltaMS);
-    return running;
+      this._events.onUpdate.dispatch(deltaMS);
+    }
+  }
+
+  reload(): void {
+    this._events.onReload.dispatch(JSON.parse(this._latestCheckpointData));
   }
 
   destroy(): void {
+    this._destroyed = true;
     this._events.onDestroy.dispatch();
     this._managerNames.forEach((k) => this._managers[k]?.onDestroy());
+    this._managerNames = [];
+    Object.values(this._events).forEach((event) => event.removeAllListeners());
   }
 
   serialize(): string {
-    const saveData: Record<string, unknown> = {};
+    const context = {};
+    this._stored.forEach((accessPath) => {
+      const value = evaluate(accessPath, this._context);
+      if (value !== undefined) {
+        setProperty(context, accessPath, value);
+      }
+    });
+    const saveData: Record<string, unknown> = {
+      context,
+    };
     this._managerNames.forEach((k) => {
       const manager = this._managers[k];
       if (manager) {
@@ -199,7 +209,6 @@ export class Game {
       }
     });
     const serialized = JSON.stringify(saveData);
-    // console.log(JSON.parse(serialized));
     return serialized;
   }
 
@@ -213,5 +222,6 @@ export class Game {
       this._latestCheckpointId,
       this._latestCheckpointData
     );
+    // console.log("checkpoint", JSON.parse(this._latestCheckpointData));
   }
 }

@@ -1,6 +1,6 @@
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 import { Phrase } from "../types/Phrase";
 import {
   AudioEvent,
@@ -23,14 +23,13 @@ export class WriterManager extends Manager<
   WriterState
 > {
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<WriterConfig>,
     state?: Partial<WriterState>
   ) {
     const initialEvents: WriterEvents = {};
     const initialConfig: WriterConfig = { ...(config || {}) };
-    const initialState: WriterState = { ...(state || {}) };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
   }
 
   write(
@@ -44,6 +43,6 @@ export class WriterManager extends Manager<
     synth: Record<string, SynthEvent[]>;
     end: number;
   } {
-    return write(content, options);
+    return write(content, this._context, options);
   }
 }

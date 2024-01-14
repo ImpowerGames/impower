@@ -1,7 +1,7 @@
 import { GameEvent1 } from "../../core";
 import { GameEvent } from "../../core/classes/GameEvent";
 import { Manager } from "../../core/classes/Manager";
-import { Environment } from "../../core/types/Environment";
+import { GameContext } from "../../core/types/GameContext";
 
 export interface PhysicsEvents extends Record<string, GameEvent> {
   onTimeScaleChange: GameEvent1<number>;
@@ -17,7 +17,7 @@ export class PhysicsManager extends Manager<
   PhysicsState
 > {
   constructor(
-    environment: Environment,
+    context: GameContext,
     config?: Partial<PhysicsConfig>,
     state?: Partial<PhysicsState>
   ) {
@@ -25,8 +25,7 @@ export class PhysicsManager extends Manager<
       onTimeScaleChange: new GameEvent1<number>(),
     };
     const initialConfig: PhysicsConfig = { ...(config || {}) };
-    const initialState: PhysicsState = { ...(state || {}) };
-    super(environment, initialEvents, initialConfig, initialState);
+    super(context, initialEvents, initialConfig, state || {});
   }
 
   setTimeScale(timeScale: number): void {

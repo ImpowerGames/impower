@@ -6,7 +6,7 @@ export class EndCommandRunner<G extends Game> extends CommandRunner<
   G,
   CommandData
 > {
-  override onExecute(): number[] {
+  override onExecute() {
     return [];
   }
 }
