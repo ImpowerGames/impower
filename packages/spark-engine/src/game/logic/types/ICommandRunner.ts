@@ -5,7 +5,7 @@ export interface ICommandRunner<D extends CommandData = CommandData> {
   onUpdate: (deltaMS: number) => void;
   onDestroy: () => void;
 
-  isCheckpoint: (command: D) => boolean;
+  willSaveCheckpoint: (command: D) => boolean;
   onExecute: (command: D) => number[];
   isFinished: (command: D) => boolean;
   onFinished: (command: D) => void;

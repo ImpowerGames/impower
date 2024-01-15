@@ -4,7 +4,6 @@ import {
   Sound,
   Synth,
   Tone,
-  clone,
   convertPitchNoteToHertz,
   transpose,
 } from "../../../../../game";
@@ -324,9 +323,8 @@ export const executeDisplayCommand = (
       Object.entries(sequence.synth).forEach(([_, events]) => {
         events.forEach((e) => {
           e.synth.forEach((s) => {
-            const sound = clone(context?.["synth"]?.[s]);
             const beep: Tone = {
-              synth: sound,
+              synth: context?.["synth"]?.[s],
               time: e.enter ?? 0,
               duration: e.params?.duration ?? 0,
             };

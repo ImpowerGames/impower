@@ -18,7 +18,7 @@ export class CommandRunner<G extends Game, D extends CommandData = CommandData>
     // NoOp
   }
 
-  isCheckpoint(_data: D): boolean {
+  willSaveCheckpoint(_data: D): boolean {
     return false;
   }
 

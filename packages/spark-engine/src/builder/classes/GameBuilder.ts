@@ -101,34 +101,27 @@ export class GameBuilder<
       startFromLine,
       blockMap?.[startFromBlockId]?.commands
     );
-    const simulationBlockId = simulating
-      ? getSectionAtLine(
-          simulateFromLine,
-          programs[simulateFromProgramIndex]?.sections
-        )
-      : undefined;
-    const simulationCommandIndex = simulating
-      ? getCommandIndexAtLine(
-          simulateFromLine,
-          blockMap?.[simulationBlockId ?? ""]?.commands
-        )
-      : undefined;
+    const simulateFromBlockId = getSectionAtLine(
+      simulateFromLine,
+      programs[simulateFromProgramIndex]?.sections
+    );
+    const simulateFromCommandIndex = getCommandIndexAtLine(
+      simulateFromLine,
+      blockMap?.[simulateFromBlockId ?? ""]?.commands
+    );
     context.game ??= {};
     context.game.simulating = simulating;
-    const simulation = simulating
-      ? {
-          simulateFromBlockId: simulationBlockId,
-          simulateFromCommandIndex: simulationCommandIndex,
-          startFromBlockId: startFromBlockId,
-          startFromCommandIndex: startFromCommandIndex,
-        }
-      : undefined;
+    const simulateFromCheckpointId =
+      blockMap?.[simulateFromBlockId]?.commands?.[simulateFromCommandIndex]?.id;
+    const startFromCheckpointId =
+      blockMap?.[startFromBlockId]?.commands?.[startFromCommandIndex]?.id;
     const c = {
       ...(options?.config || {}),
       logic: {
         ...(options?.config?.logic || {}),
         blockMap,
-        simulation,
+        simulateFromCheckpointId,
+        startFromCheckpointId,
       },
       stored,
     } as C;

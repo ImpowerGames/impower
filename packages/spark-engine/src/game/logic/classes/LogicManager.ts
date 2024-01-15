@@ -14,6 +14,7 @@ import { BlockData } from "../types/BlockData";
 import { BlockState } from "../types/BlockState";
 import { CommandData } from "../types/CommandData";
 import { DocumentSource } from "../types/DocumentSource";
+import { FlowLocation } from "../types/FlowLocation";
 import { ICommandRunner } from "../types/ICommandRunner";
 import createBlockState from "../utils/createBlockState";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
@@ -39,12 +40,8 @@ export interface LogicEvents extends Record<string, GameEvent> {
 }
 
 export interface LogicConfig {
-  simulation?: {
-    simulateFromBlockId?: string;
-    simulateFromCommandIndex?: number;
-    startFromBlockId: string;
-    startFromCommandIndex: number;
-  };
+  simulateFromCheckpointId?: string;
+  startFromCheckpointId?: string;
   blockMap: Record<string, BlockData>;
   seeder: () => string;
 }
@@ -80,10 +77,19 @@ export class LogicManager extends Manager<
     return this._flowMap as RecursiveReadonly<typeof this._flowMap>;
   }
 
+  protected _blockLocations: Record<string, FlowLocation> = {};
+  get blockLocations() {
+    return this._blockLocations as RecursiveReadonly<
+      typeof this._blockLocations
+    >;
+  }
+
   // Command locations for this run
-  protected _commandMap: Record<string, { parent: string; index: number }> = {};
-  get commandMap() {
-    return this._commandMap as RecursiveReadonly<typeof this._commandMap>;
+  protected _commandLocations: Record<string, FlowLocation> = {};
+  get commandLocations() {
+    return this._commandLocations as RecursiveReadonly<
+      typeof this._commandLocations
+    >;
   }
 
   // Visitation counts for this run
@@ -107,6 +113,8 @@ export class LogicManager extends Manager<
   }
 
   protected _runners: ICommandRunner[] = [];
+
+  protected _stopSimulationAt?: FlowLocation;
 
   constructor(
     context: GameContext,
@@ -174,11 +182,15 @@ export class LogicManager extends Manager<
           previousCommandIndex: -1,
           currentCommandIndex: 0,
         };
+        this._blockLocations[blockId] = {
+          blockId: blockId,
+          commandIndex: 0,
+        };
         block.commands.forEach((command) => {
           // Populate _commandMap
-          this._commandMap[command.id] = {
-            parent: command.parent,
-            index: command.index,
+          this._commandLocations[command.id] = {
+            blockId: command.parent,
+            commandIndex: command.index,
           };
         });
       });
@@ -209,13 +221,11 @@ export class LogicManager extends Manager<
     this._random = randomizer(this._state.seed);
     // Restore checkpoint
     if (this._state.checkpoint) {
-      const checkpointLocation = this.getCommandLocation(
-        this._state.checkpoint
-      );
+      const checkpointLocation = this.getLocation(this._state.checkpoint);
       if (checkpointLocation) {
-        const flow = this._flowMap[checkpointLocation.parent];
+        const flow = this._flowMap[checkpointLocation.blockId];
         if (flow) {
-          flow.currentCommandIndex = checkpointLocation.index;
+          flow.currentCommandIndex = checkpointLocation.commandIndex;
         }
       }
     }
@@ -225,15 +235,17 @@ export class LogicManager extends Manager<
     this._runners.forEach((r) => {
       r.onInit();
     });
-    if (this._config.simulation) {
-      const entryBlockId = this._context.game?.simulating
-        ? this._config.simulation.simulateFromBlockId ?? ""
-        : this._config.simulation.startFromBlockId;
-      const entryCommandIndex = this._context.game?.simulating
-        ? this._config.simulation.simulateFromCommandIndex ?? 0
-        : this._config.simulation.startFromCommandIndex;
-      if (entryBlockId != null) {
-        this.enterBlock(entryBlockId, entryCommandIndex);
+    this._stopSimulationAt = this.getClosestSavepoint(
+      this._config.startFromCheckpointId || ""
+    );
+    if (!this.state.checkpoint) {
+      const entryCheckpointId =
+        (this._context.game?.simulating
+          ? this._config.simulateFromCheckpointId
+          : this._config.startFromCheckpointId) || "";
+      const location = this.getLocation(entryCheckpointId);
+      if (location) {
+        this.enterBlock(location.blockId, location.commandIndex);
       }
     }
   }
@@ -247,6 +259,10 @@ export class LogicManager extends Manager<
   registerRunners(runners: Record<string, ICommandRunner>) {
     this._runnerMap = { ...this._runnerMap, ...runners };
     this._runners = Object.values(this._runnerMap);
+  }
+
+  getRunner(command: CommandData) {
+    return this._runnerMap[command.type];
   }
 
   private changeActiveParentBlock(newParentBlockId: string): void {
@@ -378,30 +394,34 @@ export class LogicManager extends Manager<
     if (!blockState) {
       return false;
     }
-    let loopCount = 0;
-    while (flow.currentCommandIndex < commands.length && loopCount < 10000) {
+    let synchronousExecutionCount = 0;
+    while (
+      flow.currentCommandIndex < commands.length &&
+      synchronousExecutionCount < Number.MAX_SAFE_INTEGER
+    ) {
       const commandIndex = flow.currentCommandIndex;
       const command = commands[commandIndex];
       if (command) {
-        const runner = this._runnerMap[command.type];
+        const runner = this.getRunner(command);
         if (runner) {
           const commandId = command.id;
           if (!flow.isExecutingCommand) {
-            if (runner.isCheckpoint(command)) {
-              this._context.game?.checkpoint?.(commandId);
+            const isSavepoint =
+              commandIndex === 0 || runner.willSaveCheckpoint(command);
+            if (!this._context.game?.simulating) {
+              if (isSavepoint) {
+                this._context.game?.checkpoint?.(commandId);
+              }
             }
             if (
-              this._config.simulation &&
-              (this._config.simulation.simulateFromBlockId != null ||
-                this._config.simulation.simulateFromCommandIndex != null) &&
-              this._config.simulation.startFromBlockId === blockId &&
-              this._config.simulation.startFromCommandIndex ===
-                flow.currentCommandIndex
+              this._context.game?.simulating &&
+              this._stopSimulationAt?.blockId === blockId &&
+              this._stopSimulationAt?.commandIndex === commandIndex
             ) {
-              if (this._context.game) {
-                this._context.game.simulating = false;
+              // We've caught up, stop simulating, save latest data, and reload game with saved state
+              if (isSavepoint) {
+                this._context.game?.checkpoint?.(commandId);
               }
-              // We've caught up, stop simulating and reload game
               return null;
             }
             this.willExecuteCommand(blockId, commandId, command?.source);
@@ -444,17 +464,17 @@ export class LogicManager extends Manager<
         const nextCommandIndex = flow.currentCommandIndex + 1;
         this.goToCommandIndex(blockId, nextCommandIndex, command?.source);
       }
-      loopCount += 1;
+      synchronousExecutionCount += 1;
     }
     return false;
   }
 
   override onPreview(checkpointId: string) {
-    const checkpointLocation = this.getCommandLocation(checkpointId);
+    const checkpointLocation = this.getLocation(checkpointId);
     if (checkpointLocation) {
       const command = this.getCommandAt(
-        checkpointLocation.parent,
-        checkpointLocation.index
+        checkpointLocation.blockId,
+        checkpointLocation.commandIndex
       );
       if (command) {
         const runner = this._runnerMap[command.type];
@@ -528,7 +548,7 @@ export class LogicManager extends Manager<
     if (blockState && blockState.commandJumpStack) {
       const commandId = blockState.commandJumpStack.shift();
       if (commandId) {
-        return this.getCommandLocation(commandId)?.index;
+        return this.getLocation(commandId)?.commandIndex;
       }
     }
     return undefined;
@@ -699,7 +719,7 @@ export class LogicManager extends Manager<
     }
 
     const returnToCommandIndex =
-      this.getCommandLocation(returnToCommandId)?.index;
+      this.getLocation(returnToCommandId)?.commandIndex;
 
     this._context["returned"] ??= {};
     this.evaluate(`returned.${blockId} = ${value}`);
@@ -831,13 +851,43 @@ export class LogicManager extends Manager<
     return this._blockMap[blockId]?.commands?.[index];
   }
 
-  getCommandLocation(commandId: string) {
-    // TODO: Report error if command not found
-    return this._commandMap[commandId];
+  getLocation(checkpointId: string) {
+    // TODO: Report error if checkpoint not found
+    const commandLocation = this._commandLocations[checkpointId];
+    if (commandLocation) {
+      return commandLocation;
+    }
+    const blockLocation = this._blockLocations[checkpointId];
+    if (blockLocation) {
+      return blockLocation;
+    }
+    return undefined;
+  }
+
+  getClosestSavepoint(checkpointId: string) {
+    // TODO: Report error if checkpoint not found
+    const commandLocation = this._commandLocations[checkpointId];
+    if (commandLocation) {
+      for (let i = commandLocation.commandIndex; i >= 0; i -= 1) {
+        // Search backwards for closest savepoint
+        const command = this._blockMap[commandLocation.blockId]?.commands[i];
+        if (command && this.getRunner(command)?.willSaveCheckpoint(command)) {
+          return this._commandLocations[command.id];
+        }
+      }
+      // Start of block is always a valid savepoint
+      const blockLocation = this._blockLocations[commandLocation.blockId];
+      return blockLocation;
+    }
+    const blockLocation = this._blockLocations[checkpointId];
+    if (blockLocation) {
+      return blockLocation;
+    }
+    return { blockId: "", commandIndex: 0 };
   }
 
   override onCheckpoint(id: string) {
-    const loc = this._commandMap[id];
+    const loc = this._commandLocations[id];
     if (loc) {
       // console.log("checkpointed at", this.getCommandAt(loc.parent, loc.index));
     }

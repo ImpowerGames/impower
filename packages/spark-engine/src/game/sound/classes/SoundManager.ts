@@ -109,7 +109,10 @@ export class SoundManager extends Manager<
   }
 
   synthesize(tones: Tone[]) {
-    return new SynthBuffer(tones, this._audioContext?.sampleRate ?? 0);
+    if (!this._context.game?.simulating) {
+      return new SynthBuffer(tones, this._audioContext?.sampleRate ?? 0);
+    }
+    return new SynthBuffer([], this._audioContext?.sampleRate ?? 0);
   }
 
   setChannel(id: string, channel: string): SoundPlaybackControl {

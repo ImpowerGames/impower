@@ -23,7 +23,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   protected _onTick?: (deltaMS: number) => void;
 
-  override isCheckpoint(_data: DisplayCommandData): boolean {
+  override willSaveCheckpoint(_data: DisplayCommandData): boolean {
     return true;
   }
 

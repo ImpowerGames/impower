@@ -586,7 +586,7 @@ export const write = (
     }
   });
 
-  if (character && !instant) {
+  if (character && !instant && !context.game?.simulating) {
     stressPhrases(phrases, getValue(context, "character", character));
   }
 
