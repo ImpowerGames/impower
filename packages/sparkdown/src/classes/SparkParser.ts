@@ -1379,20 +1379,8 @@ export default class SparkParser {
                 name: tok.name,
                 tokens: [],
               };
-              const sectionVariable = {
-                tag: "section",
-                line: tok.line,
-                from: tok.from,
-                to: tok.to,
-                indent: 0,
-                type: "visited",
-                name: tok.name,
-                value: "0",
-                compiled: 0,
-                implicit: true,
-              };
-              populateVariableFields(sectionVariable);
-              declareVariable(sectionVariable);
+              program.context["visited"] ??= {};
+              program.context["visited"]![tok.name] = 0;
               if (parentSection) {
                 parentSection.children ??= [];
                 parentSection.children.push(tok.name);

@@ -8,6 +8,7 @@ import {
   transpose,
 } from "../../../../../game";
 import { DisplayCommandData } from "../DisplayCommandData";
+import { DisplayContentItem } from "../DisplayCommandParams";
 
 // Helpers
 
@@ -104,8 +105,8 @@ export const executeDisplayCommand = (
   data: DisplayCommandData,
   options?: { instant?: boolean; preview?: boolean },
   onFinished?: () => void,
-  onClickButton?: (...args: unknown[]) => void
-): ((deltaMS: number) => void) | undefined => {
+  onClickButton?: (content: DisplayContentItem) => void
+): { onTick?: (deltaMS: number) => void; displayed?: DisplayContentItem[] } => {
   const id = data.id;
   const type = data.params.type;
   const characterKey = data?.params?.characterKey || "";
@@ -117,7 +118,7 @@ export const executeDisplayCommand = (
   const context = game.context;
 
   let targetsCharacterName = false;
-  const displayedContent: Phrase[] = [];
+  const displayed: Phrase[] = [];
   content.forEach((c) => {
     // Override first instance of character_name with character's display name
     if (!targetsCharacterName && c.target === "character_name") {
@@ -136,13 +137,13 @@ export const executeDisplayCommand = (
       if (!r.target) {
         r.target = type;
       }
-      displayedContent.push(r);
+      displayed.push(r);
     }
   });
 
-  if (displayedContent.length === 0) {
+  if (displayed.length === 0) {
     // No content to display
-    return undefined;
+    return {};
   }
 
   // Stop stale sounds
@@ -171,7 +172,7 @@ export const executeDisplayCommand = (
   const previewing = options?.preview;
   const debugging = game.debug.state.debugging;
 
-  const sequence = game.writer.write(displayedContent, {
+  const sequence = game.writer.write(displayed, {
     character: characterKey,
     instant,
     debug: debugging,
@@ -261,7 +262,7 @@ export const executeDisplayCommand = (
           stopPropagation?: () => void;
         }): void => {
           event?.stopPropagation?.();
-          onClickButton?.(e.instance, e.button);
+          onClickButton?.(e);
           game.ui.style.update(uiName, target, { display: "none" });
           game.ui.text.clear(uiName, target);
           game.ui.setOnClick(uiName, target, null);
@@ -382,5 +383,5 @@ export const executeDisplayCommand = (
       }
     }
   };
-  return handleTick;
+  return { onTick: handleTick, displayed };
 };

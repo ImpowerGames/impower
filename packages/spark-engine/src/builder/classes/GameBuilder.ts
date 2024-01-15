@@ -48,9 +48,9 @@ export class GameBuilder<
     return this._programs;
   }
 
-  private _startProgramIndex: number;
-  public get startProgramIndex() {
-    return this._startProgramIndex;
+  private _startpoint: { program: number; line: number };
+  public get startpoint() {
+    return this._startpoint;
   }
 
   protected _commandRunnerMap: Record<string, ICommandRunner>;
@@ -60,7 +60,10 @@ export class GameBuilder<
     options: GameBuilderOptions<G, C, S>
   ) {
     this._programs = Array.isArray(program) ? program : [program];
-    this._startProgramIndex = options?.simulation?.startFromProgram ?? 0;
+    this._startpoint = options?.simulation?.startpoint || {
+      program: 0,
+      line: 0,
+    };
     const game = this.build(this._programs, options);
     this._commandRunnerMap = game.logic.runnerMap;
     this._game = game;
@@ -71,14 +74,9 @@ export class GameBuilder<
     options: GameBuilderOptions<G, C, S>
   ): G {
     const simulating = Boolean(options?.simulation);
-    const simulateFromProgramIndex =
-      options?.simulation?.simulateFromProgram ?? 0;
-    const simulateFromLine = options?.simulation?.simulateFromLine ?? 0;
-    const startFromProgramIndex = options?.simulation?.startFromProgram ?? 0;
-    const startFromLine = options?.simulation?.startFromLine ?? 0;
-    const startFromProgram = startFromProgramIndex
-      ? programs[startFromProgramIndex]
-      : programs[0];
+    const startFromProgramIndex = options.simulation?.startpoint?.program ?? 0;
+    const startFromLine = options.simulation?.startpoint?.line ?? 0;
+    const startFromProgram = programs[startFromProgramIndex];
     if (!startFromProgram) {
       throw new Error(
         `Could not find program with id '${startFromProgramIndex}' in: ${Object.keys(
@@ -101,27 +99,35 @@ export class GameBuilder<
       startFromLine,
       blockMap?.[startFromBlockId]?.commands
     );
-    const simulateFromBlockId = getSectionAtLine(
-      simulateFromLine,
-      programs[simulateFromProgramIndex]?.sections
-    );
-    const simulateFromCommandIndex = getCommandIndexAtLine(
-      simulateFromLine,
-      blockMap?.[simulateFromBlockId ?? ""]?.commands
-    );
-    context.game ??= {};
-    context.game.simulating = simulating;
-    const simulateFromCheckpointId =
-      blockMap?.[simulateFromBlockId]?.commands?.[simulateFromCommandIndex]?.id;
-    const startFromCheckpointId =
-      blockMap?.[startFromBlockId]?.commands?.[startFromCommandIndex]?.id;
+    const startpoint = simulating
+      ? blockMap?.[startFromBlockId]?.commands?.[startFromCommandIndex]?.id ??
+        ""
+      : undefined;
+    const waypoints: string[] = [];
+    options.simulation?.waypoints?.forEach((waypoint) => {
+      const simulateFromBlockId = getSectionAtLine(
+        waypoint.line,
+        programs[waypoint.program]?.sections
+      );
+      // TODO: Allow choices to be waypoints
+      const simulateFromCommandIndex = getCommandIndexAtLine(
+        waypoint.line,
+        blockMap?.[simulateFromBlockId ?? ""]?.commands
+      );
+      const simulateFromCheckpointId =
+        blockMap?.[simulateFromBlockId]?.commands?.[simulateFromCommandIndex]
+          ?.id;
+      if (simulateFromCheckpointId) {
+        waypoints.push(simulateFromCheckpointId);
+      }
+    });
     const c = {
       ...(options?.config || {}),
       logic: {
         ...(options?.config?.logic || {}),
         blockMap,
-        simulateFromCheckpointId,
-        startFromCheckpointId,
+        waypoints,
+        startpoint,
       },
       stored,
     } as C;
@@ -147,7 +153,7 @@ export class GameBuilder<
   }
 
   preview(line: number): void {
-    const program = this.programs[this.startProgramIndex];
+    const program = this.programs[this.startpoint.program];
     if (program) {
       const commandToken = getPreviewCommandToken(program, line);
       if (commandToken?.checkpoint) {

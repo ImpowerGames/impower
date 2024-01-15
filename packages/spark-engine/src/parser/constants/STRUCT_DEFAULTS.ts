@@ -43,6 +43,8 @@ const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
 
   gradient: GRADIENT_DEFAULTS,
 
+  visited: {},
+
   array: { default: [] },
   html: { default: [] },
   css: { default: [] },

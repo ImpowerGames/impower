@@ -3,11 +3,12 @@ import { Diagnostic } from "../types/Diagnostic";
 import { Replacer } from "../types/Replacer";
 import choose from "./formatters/choose";
 import pluralize from "./formatters/pluralize";
+import get from "./get";
 
 const PIPE_SEPARATOR_REGEX = /((?<!\\)[|])/;
 const SUBSTITUTION_ELEMENT_REGEX = /((?<![$])[{](?:\\.|[^}])*?[}])/g;
 const SUBSTITUTION_ELEMENT_CAPTURES_REGEX =
-  /([{])(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(?:([ \t]*)([_a-zA-Z][_a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(.*?)((?<!\\)[}])/;
+  /([{])(?:([ \t]*)([_a-zA-Z][._a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(?:([ \t]*)([_a-zA-Z][._a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(.*?)((?<!\\)[}])/;
 
 const captureOffset = (captures: string[], captureIndex: number) => {
   return captures.slice(1, captureIndex).join("").length;
@@ -102,7 +103,7 @@ const replace =
       return element;
     }
 
-    const val = context?.[_3_key];
+    const val = get(context, _3_key);
     if (val === undefined) {
       diagnostics.push({
         content: _3_key,

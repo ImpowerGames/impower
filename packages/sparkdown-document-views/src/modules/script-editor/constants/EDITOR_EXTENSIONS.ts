@@ -32,7 +32,7 @@ import { whitespaceMarkers } from "../../../cm-whitespace-markers/whitespaceMark
 const EDITOR_EXTENSIONS = [
   history(),
   search(),
-  breakpoints({ singular: true }),
+  breakpoints(),
   lineNumbers(),
   indentUnit.of("  "),
   whitespaceMarkers(),

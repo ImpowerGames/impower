@@ -4,10 +4,8 @@ export type ConfigureGameMethod = typeof ConfigureGameMessage.method;
 
 export interface ConfigureGameParams {
   settings: {
-    simulateFromProgram?: string;
-    simulateFromLine?: number;
-    startFromProgram?: string;
-    startFromLine?: number;
+    waypoints?: { uri: string; line: number }[];
+    startpoint?: { uri: string; line: number };
   };
 }
 

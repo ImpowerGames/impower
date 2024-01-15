@@ -7,10 +7,8 @@ export interface GameBuilderOptions<
   S extends GameState = GameState
 > {
   simulation?: {
-    simulateFromProgram?: number;
-    simulateFromLine?: number;
-    startFromProgram?: number;
-    startFromLine?: number;
+    waypoints?: { program: number; line: number }[];
+    startpoint?: { program: number; line: number };
   };
   config?: C;
   state?: S;

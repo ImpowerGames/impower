@@ -4228,7 +4228,7 @@
     },
     "InlineTemplateStringConditionalSubstitution": {
       "brackets": true,
-      "begin": "([{])(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?",
+      "begin": "([{])(?:([ ]*)([_a-zA-Z][._a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][._a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -4244,7 +4244,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#VariableName"
+              "include": "#AccessPath"
             },
             {
               "include": "#Unknown"

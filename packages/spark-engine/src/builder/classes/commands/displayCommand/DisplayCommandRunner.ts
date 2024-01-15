@@ -1,6 +1,7 @@
 import { Game } from "../../../../game/core/classes/Game";
 import { CommandRunner } from "../CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
+import { DisplayContentItem } from "./DisplayCommandParams";
 import { executeDisplayCommand } from "./utils/executeDisplayCommand";
 
 export class DisplayCommandRunner<G extends Game> extends CommandRunner<
@@ -17,7 +18,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   protected _elapsedMS = 0;
 
-  protected _waitingForChoice = false;
+  protected _choices: DisplayContentItem[] | undefined = undefined;
 
   protected _chosenBlockId: string | undefined = undefined;
 
@@ -33,25 +34,29 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     this._timeTypedMS = -1;
     this._elapsedMS = 0;
     this.game.input.events.onPointerDown.addListener(this.onPointerDown);
-    this._waitingForChoice = data?.params?.content?.some((p) => p.button);
     this._chosenBlockId = undefined;
-    this._onTick = executeDisplayCommand(
+    const { onTick, displayed } = executeDisplayCommand(
       this.game,
       data,
       {},
       () => {
         this._wasTyped = true;
       },
-      (instance, jump) => {
+      (c) => {
+        const choiceId = data.id + "." + c.instance || "";
+        const jumpTo = c.button || "";
         this._chosenBlockId = this.game.logic.choose(
           data.parent,
-          data.id + "." + instance || "",
-          typeof jump === "string" ? jump : "",
+          choiceId,
+          jumpTo,
           data.source
         );
       }
     );
+    this._choices = displayed?.filter((c) => c.button);
+    this._onTick = onTick;
     this._onTick?.(0);
+
     return super.onExecute(data);
   }
 
@@ -72,7 +77,26 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
   };
 
   override isFinished(data: DisplayCommandData) {
+    const simulating = this.game.context?.game?.simulating;
+    if (simulating) {
+      // TODO: If waiting for user choice, prioritize choiceIds included in waypoints
+      // if (this._choices && this._choices.length > 0) {
+      //   const lastVisibleChoice = this._choices.at(-1)!;
+      //   const choiceId = data.id + "." + lastVisibleChoice.instance || "";
+      //   const jumpTo = lastVisibleChoice.button || "";
+      //   this._chosenBlockId = this.game.logic.choose(
+      //     data.parent,
+      //     choiceId,
+      //     jumpTo,
+      //     data.source
+      //   );
+      // } else {
+      //   return true;
+      // }
+      return true;
+    }
     const { autoAdvance } = data.params;
+    const waitingForChoice = this._choices && this._choices.length > 0;
     const blockState = this.game.logic.state.blocks?.[data.parent];
     if (!blockState) {
       return false;
@@ -82,7 +106,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     }
     const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
     if (
-      !this._waitingForChoice &&
+      !waitingForChoice &&
       autoAdvance &&
       this._wasTyped &&
       timeMSSinceTyped / 1000 >= this._autoDelay
@@ -93,7 +117,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       this._wasPressed = false;
       if (this._wasTyped) {
         this._wasTyped = false;
-        if (!this._waitingForChoice) {
+        if (!waitingForChoice) {
           return true;
         }
       }
@@ -107,13 +131,13 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
           this._wasTyped = true;
         }
       };
-      if (!this._waitingForChoice) {
+      if (!waitingForChoice) {
         executeDisplayCommand(this.game, data, {
           instant: true,
         });
       }
     }
-    if (this._waitingForChoice && this._chosenBlockId != null) {
+    if (waitingForChoice && this._chosenBlockId != null) {
       const chosenBlockId = this._chosenBlockId;
       this._chosenBlockId = undefined;
 

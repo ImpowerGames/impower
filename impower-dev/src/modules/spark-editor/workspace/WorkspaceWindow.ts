@@ -190,6 +190,13 @@ export default class WorkspaceWindow {
                 },
               },
             },
+            project: {
+              ...this.store.project,
+              breakpoints: {
+                ...this.store.project.breakpoints,
+                [uri]: breakpoints,
+              },
+            },
           });
         }
       }
@@ -226,15 +233,6 @@ export default class WorkspaceWindow {
 
   getPaneType(filenameOrUri: string) {
     const [, ext] = filenameOrUri.split(".");
-    if (ext === "sound" || ext === "music") {
-      return "audio";
-    }
-    if (ext === "widget" || ext === "view") {
-      return "displays";
-    }
-    if (ext === "sprite" || ext === "map") {
-      return "graphics";
-    }
     if (ext === "script") {
       return "logic";
     }
@@ -245,24 +243,6 @@ export default class WorkspaceWindow {
     const [, ext] = filenameOrUri.split(".");
     if (filenameOrUri === "main.script") {
       return "main";
-    }
-    if (ext === "sound") {
-      return "sounds";
-    }
-    if (ext === "music") {
-      return "music";
-    }
-    if (ext === "widget") {
-      return "widgets";
-    }
-    if (ext === "view") {
-      return "views";
-    }
-    if (ext === "sprite") {
-      return "sprites";
-    }
-    if (ext === "map") {
-      return "maps";
     }
     if (ext === "script") {
       return "scripts";
@@ -292,7 +272,7 @@ export default class WorkspaceWindow {
           return {
             visibleRange: panelState.activeEditor.visibleRange,
             selectedRange: panelState.activeEditor.selectedRange,
-            breakpoints: panelState.activeEditor.breakpoints,
+            breakpoints: this.store.project.breakpoints?.[uri],
             uri,
           };
         }
@@ -325,7 +305,7 @@ export default class WorkspaceWindow {
           uri,
           visibleRange: openEditor.visibleRange,
           selectedRange: openEditor.selectedRange,
-          breakpoints: openEditor.breakpoints,
+          breakpoints: this.store.project.breakpoints?.[uri],
         };
       }
     }

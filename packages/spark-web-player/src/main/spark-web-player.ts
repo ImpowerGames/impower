@@ -30,10 +30,8 @@ export default class SparkWebPlayer extends Component(spec) {
   _programs: Record<string, SparkProgram> = {};
 
   _options?: {
-    simulateFromProgram?: string;
-    simulateFromLine?: number;
-    startFromProgram?: string;
-    startFromLine?: number;
+    waypoints?: { uri: string; line: number }[];
+    startpoint?: { uri: string; line: number };
   };
 
   override onConnected() {
@@ -230,27 +228,34 @@ export default class SparkWebPlayer extends Component(spec) {
 
   loadGame(state?: GameState) {
     if (this._programs && this._options) {
-      const programUris = Object.keys(this._programs);
-      const programs = Object.values(this._programs);
+      const programIndices: Record<string, number> = {};
+      const programs: SparkProgram[] = [];
+      Object.entries(this._programs).forEach(([uri, program], index) => {
+        programIndices[uri] = index;
+        programs.push(program);
+      });
       const options = this._options;
       if (!this._root) {
         this._root = SparkDOMElement.wrap(this.ref.sparkRoot!);
       }
-      const simulateFromProgram = options.simulateFromProgram
-        ? programUris.indexOf(options.simulateFromProgram)
-        : undefined;
-      const simulateFromLine = options.simulateFromLine;
-      const startFromProgram = options.startFromProgram
-        ? programUris.indexOf(options.startFromProgram)
-        : undefined;
-      const startFromLine = options.startFromLine;
+      const waypoints = options.waypoints
+        ?.filter((waypoint) => programIndices[waypoint.uri] != null)
+        ?.map((waypoint) => ({
+          program: programIndices[waypoint.uri]!,
+          line: waypoint.line,
+        }));
+      const startpoint =
+        options.startpoint && programIndices[options.startpoint.uri] != null
+          ? {
+              program: programIndices[options.startpoint.uri]!,
+              line: options.startpoint.line,
+            }
+          : undefined;
       const simulation = state
         ? undefined
         : {
-            simulateFromProgram,
-            simulateFromLine,
-            startFromProgram,
-            startFromLine,
+            waypoints,
+            startpoint,
           };
       const gameBuilderOptions: GameBuilderOptions = {
         simulation,

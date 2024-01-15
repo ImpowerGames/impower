@@ -39,8 +39,8 @@ export interface LogicEvents extends Record<string, GameEvent> {
 }
 
 export interface LogicConfig {
-  simulateFromCheckpointId?: string;
-  startFromCheckpointId?: string;
+  waypoints?: string[];
+  startpoint?: string;
   blockMap: Record<string, BlockData>;
   seeder: () => string;
 }
@@ -221,6 +221,8 @@ export class LogicManager extends Manager<
         }
       }
     }
+    this._context.game ??= {};
+    this._context.game.simulating = this._config.startpoint != null;
   }
 
   override onStart() {
@@ -228,13 +230,13 @@ export class LogicManager extends Manager<
       r.onInit();
     });
     this._stopSimulationAt = this.getClosestSavepoint(
-      this._config.startFromCheckpointId || ""
+      this._config.startpoint || ""
     );
     if (!this.state.checkpoint) {
       const entryCheckpointId =
         (this._context.game?.simulating
-          ? this._config.simulateFromCheckpointId
-          : this._config.startFromCheckpointId) || "";
+          ? this._config.waypoints?.[0]
+          : this._config.startpoint) || "";
       const location = this.getLocation(entryCheckpointId);
       if (location) {
         this.enterBlock(location.blockId, location.commandIndex);
@@ -426,10 +428,7 @@ export class LogicManager extends Manager<
               return true;
             }
           }
-          if (
-            !this._context.game?.simulating &&
-            command.params.waitUntilFinished
-          ) {
+          if (command.params.waitUntilFinished) {
             const finished = runner.isFinished(command);
             if (!finished) {
               return true;

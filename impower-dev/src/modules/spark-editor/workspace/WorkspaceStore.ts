@@ -3,64 +3,8 @@ import Store from "../../../../../packages/spec-component/src/mixins/Store";
 
 class WorkspaceStore extends Store({
   project: { id: "" },
-  pane: "setup",
+  pane: "logic",
   panes: {
-    setup: {
-      panel: "details",
-      panels: {
-        details: {
-          activeEditor: {},
-        },
-        share: {
-          activeEditor: {},
-        },
-        assets: {
-          activeEditor: {},
-        },
-      },
-    },
-    audio: {
-      view: "list",
-      panel: "sounds",
-      panels: {
-        sounds: {
-          scrollIndex: 0,
-          activeEditor: {},
-        },
-        music: {
-          scrollIndex: 0,
-          activeEditor: {},
-        },
-      },
-    },
-    displays: {
-      view: "list",
-      panel: "widgets",
-      panels: {
-        widgets: {
-          scrollIndex: 0,
-          activeEditor: {},
-        },
-        views: {
-          scrollIndex: 0,
-          activeEditor: {},
-        },
-      },
-    },
-    graphics: {
-      view: "list",
-      panel: "sprites",
-      panels: {
-        sprites: {
-          scrollIndex: 0,
-          activeEditor: {},
-        },
-        maps: {
-          scrollIndex: 0,
-          activeEditor: {},
-        },
-      },
-    },
     logic: {
       view: "list",
       panel: "main",
@@ -74,6 +18,28 @@ class WorkspaceStore extends Store({
         },
         scripts: {
           scrollIndex: 0,
+          activeEditor: {},
+        },
+      },
+    },
+    assets: {
+      panel: "files",
+      panels: {
+        files: {
+          activeEditor: {},
+        },
+        specs: {
+          activeEditor: {},
+        },
+      },
+    },
+    share: {
+      panel: "game",
+      panels: {
+        game: {
+          activeEditor: {},
+        },
+        project: {
           activeEditor: {},
         },
       },

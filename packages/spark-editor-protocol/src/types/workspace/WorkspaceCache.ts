@@ -116,6 +116,7 @@ export interface ProjectState {
   textPulledAt?: string;
   zipPulledAt?: string;
   revisions?: Revision[];
+  breakpoints?: Record<string, number[]>;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {
