@@ -125,6 +125,7 @@ export class Game {
     this._context = clone(context || {}, s?.context);
     this._context.game ??= {};
     this._context.game.checkpoint = (id: string) => this.checkpoint(id);
+    this._context.game.supports = (module: string) => this.supports(module);
     this.ticker = new TickerManager(this._context, c?.ticker, s?.ticker);
     this.uuid = new UUIDManager(this._context, c?.uuid, s?.uuid);
     this.logic = new LogicManager(this._context, c?.logic, s?.logic);
@@ -195,7 +196,7 @@ export class Game {
     const context = {};
     this._stored.forEach((accessPath) => {
       const value = evaluate(accessPath, this._context);
-      if (value !== undefined) {
+      if (value !== undefined && typeof value != "function") {
         setProperty(context, accessPath, value);
       }
     });
