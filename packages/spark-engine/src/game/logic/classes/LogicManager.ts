@@ -7,7 +7,6 @@ import { GameContext } from "../../core/types/GameContext";
 import { evaluate } from "../../core/utils/evaluate";
 import { format } from "../../core/utils/format";
 import { randomizer } from "../../core/utils/randomizer";
-import { setProperty } from "../../core/utils/setProperty";
 import { shuffle } from "../../core/utils/shuffle";
 import { uuid } from "../../core/utils/uuid";
 import { BlockData } from "../types/BlockData";
@@ -47,7 +46,6 @@ export interface LogicConfig {
 }
 
 export interface LogicState {
-  values?: Record<string, any>;
   blocks?: Record<string, BlockState>;
   seed?: string;
   checkpoint?: string;
@@ -203,15 +201,9 @@ export class LogicManager extends Manager<
         }
       });
     }
-    if (this._state.values) {
-      // Restore _context
-      Object.entries(this._state.values).forEach(([accessPath, valueState]) => {
-        setProperty(this._context, accessPath, valueState);
-      });
-    }
-    if (this._state.values?.["visited"]) {
+    if (this._context?.["visited"]) {
       // Restore _visited
-      Object.entries(this._state.values["visited"]).forEach(([key, count]) => {
+      Object.entries(this._context["visited"]).forEach(([key, count]) => {
         if (typeof count === "number") {
           this._visited[key] = count;
         }
