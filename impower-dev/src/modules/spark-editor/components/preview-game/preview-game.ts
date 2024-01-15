@@ -5,8 +5,8 @@ import { DidExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
-import getNextPreviewCommand from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommand";
-import getPreviousPreviewCommand from "../../../../../../packages/spark-engine/src/builder/utils/getPreviousPreviewCommand";
+import getNextPreviewCommandToken from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommandToken";
+import getPreviousPreviewCommandToken from "../../../../../../packages/spark-engine/src/builder/utils/getPreviousPreviewCommandToken";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -222,15 +222,18 @@ export default class GamePreview extends Component(spec) {
       const program = cached?.program;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
-        const previewCommand = getPreviousPreviewCommand(program, currLine);
-        if (previewCommand) {
+        const previewCommandToken = getPreviousPreviewCommandToken(
+          program,
+          currLine
+        );
+        if (previewCommandToken) {
           const range = {
             start: {
-              line: previewCommand.source.line,
+              line: previewCommandToken.line,
               character: 0,
             },
             end: {
-              line: previewCommand.source.line,
+              line: previewCommandToken.line,
               character: 0,
             },
           };
@@ -248,15 +251,18 @@ export default class GamePreview extends Component(spec) {
       const program = cached?.program;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
-        const previewCommand = getNextPreviewCommand(program, currLine);
-        if (previewCommand) {
+        const previewCommandToken = getNextPreviewCommandToken(
+          program,
+          currLine
+        );
+        if (previewCommandToken) {
           const range = {
             start: {
-              line: previewCommand.source.line,
+              line: previewCommandToken.line,
               character: 0,
             },
             end: {
-              line: previewCommand.source.line,
+              line: previewCommandToken.line,
               character: 0,
             },
           };

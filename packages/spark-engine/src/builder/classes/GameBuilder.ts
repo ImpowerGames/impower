@@ -7,7 +7,7 @@ import combineBlockMap from "../utils/combineBlockMap";
 import combineContext from "../utils/combineContext";
 import combineStored from "../utils/combineStored";
 import getCommandIndexAtLine from "../utils/getCommandIndexAtLine";
-import getPreviewCommand from "../utils/getPreviewCommand";
+import getPreviewCommandToken from "../utils/getPreviewCommandToken";
 import getPreviewVariable from "../utils/getPreviewVariable";
 import getSectionAtLine from "../utils/getSectionAtLine";
 import { BranchCommandRunner } from "./commands/branchCommand/BranchCommandRunner";
@@ -154,16 +154,11 @@ export class GameBuilder<
   }
 
   preview(line: number): void {
-    this.game.context.game ??= {};
-    this.game.context.game.previewing = true;
     const program = this.programs[this.startProgramIndex];
     if (program) {
-      const runtimeCommand = getPreviewCommand(program, line);
-      if (runtimeCommand) {
-        const commandRunner = this._commandRunnerMap[runtimeCommand.type];
-        if (commandRunner) {
-          commandRunner.onPreview(runtimeCommand);
-        }
+      const commandToken = getPreviewCommandToken(program, line);
+      if (commandToken?.checkpoint) {
+        this.game.preview(commandToken.checkpoint);
       } else {
         const previewVariable = getPreviewVariable(program, line);
         if (previewVariable?.type === "style") {

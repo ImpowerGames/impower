@@ -477,7 +477,7 @@ export class SoundManager extends Manager<
     }
   }
 
-  override update(deltaMS: number) {
+  override onUpdate(deltaMS: number) {
     // Update sound playback
     this._ready.forEach((audio, id) => {
       if ("tpq" in audio) {

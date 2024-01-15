@@ -309,19 +309,17 @@ export class LogicManager extends Manager<
    *
    * @return {boolean} Null, if should reload. Otherwise, true
    */
-  override update(deltaMS: number) {
-    if (deltaMS) {
-      this._runners.forEach((r) => {
-        r.onUpdate(deltaMS);
-      });
-      const loadedBlockIds = this._loaded;
-      if (loadedBlockIds) {
-        for (let i = 0; i < loadedBlockIds.length; i += 1) {
-          const blockId = loadedBlockIds[i];
-          if (blockId !== undefined) {
-            if (this.updateBlock(blockId) === null) {
-              return null;
-            }
+  override onUpdate(deltaMS: number) {
+    this._runners.forEach((r) => {
+      r.onUpdate(deltaMS);
+    });
+    const loadedBlockIds = this._loaded;
+    if (loadedBlockIds) {
+      for (let i = 0; i < loadedBlockIds.length; i += 1) {
+        const blockId = loadedBlockIds[i];
+        if (blockId !== undefined) {
+          if (this.updateBlock(blockId) === null) {
+            return null;
           }
         }
       }
@@ -421,15 +419,6 @@ export class LogicManager extends Manager<
             command.params.waitUntilFinished
           ) {
             const finished = runner.isFinished(command);
-            if (finished === null) {
-              this.didExecuteCommand(
-                blockId,
-                commandId,
-                commandIndex,
-                command?.source
-              );
-              return null;
-            }
             if (!finished) {
               return true;
             }
@@ -458,6 +447,23 @@ export class LogicManager extends Manager<
       loopCount += 1;
     }
     return false;
+  }
+
+  override onPreview(checkpointId: string) {
+    const checkpointLocation = this.getCommandLocation(checkpointId);
+    if (checkpointLocation) {
+      const command = this.getCommandAt(
+        checkpointLocation.parent,
+        checkpointLocation.index
+      );
+      if (command) {
+        const runner = this._runnerMap[command.type];
+        if (runner) {
+          runner.onPreview(command);
+        }
+      }
+    }
+    return super.onPreview(checkpointId);
   }
 
   protected willExecuteCommand(

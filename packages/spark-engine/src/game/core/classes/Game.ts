@@ -10,6 +10,7 @@ import { WorldConfig, WorldManager, WorldState } from "../../world";
 import { WriterConfig, WriterManager, WriterState } from "../../writer";
 import { GameContext } from "../types/GameContext";
 import { ListenOnly } from "../types/ListenOnly";
+import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { clone } from "../utils/clone";
 import { evaluate } from "../utils/evaluate";
 import { setProperty } from "../utils/setProperty";
@@ -82,7 +83,7 @@ export class Game {
 
   protected _context: GameContext;
   get context() {
-    return this._context;
+    return this._context as RecursiveReadonly<GameContext>;
   }
 
   protected _events: GameEvents = {
@@ -168,7 +169,7 @@ export class Game {
     if (!this._destroyed) {
       for (let i = 0; i < this._managerNames.length; i += 1) {
         const k = this._managerNames[i]!;
-        if (this._managers[k]?.update(deltaMS) === null) {
+        if (this._managers[k]?.onUpdate(deltaMS) === null) {
           this.reload();
           this.destroy();
           return;
@@ -212,16 +213,24 @@ export class Game {
     return serialized;
   }
 
-  checkpoint(id: string): void {
+  checkpoint(checkpointId: string): void {
     this._managerNames.forEach((k) => {
-      this._managers[k]?.onCheckpoint(id);
+      this._managers[k]?.onCheckpoint(checkpointId);
     });
-    this._latestCheckpointId = id;
+    this._latestCheckpointId = checkpointId;
     this._latestCheckpointData = this.serialize();
     this._events.onCheckpoint.dispatch(
       this._latestCheckpointId,
       this._latestCheckpointData
     );
     // console.log("checkpoint", JSON.parse(this._latestCheckpointData));
+  }
+
+  preview(checkpointId: string): void {
+    this._context.game ??= {};
+    this._context.game.previewing = true;
+    this._managerNames.forEach((k) => {
+      this._managers[k]?.onPreview(checkpointId);
+    });
   }
 }

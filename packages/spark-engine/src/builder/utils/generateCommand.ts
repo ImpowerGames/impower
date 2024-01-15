@@ -29,6 +29,7 @@ const generateDisplayCommand = (
   index: number
 ): DisplayCommandData => {
   const id = token.checkpoint || getCommandId(parent, index);
+  token.checkpoint = id;
   return {
     type: "DisplayCommand",
     parent,
@@ -75,6 +76,7 @@ const generateCommand = (
   ) {
     if (token.operator) {
       const id = token.checkpoint || getCommandId(parent, index);
+      token.checkpoint = id;
       const newCommand: EvaluateCommandData = {
         type: "EvaluateCommand",
         parent,
@@ -91,6 +93,7 @@ const generateCommand = (
   }
   if (token.tag === "delete") {
     const id = token.checkpoint || getCommandId(parent, index);
+    token.checkpoint = id;
     const newCommand: EvaluateCommandData = {
       type: "EvaluateCommand",
       parent,
@@ -111,6 +114,7 @@ const generateCommand = (
     token.tag === "end"
   ) {
     const id = token.checkpoint || getCommandId(parent, index);
+    token.checkpoint = id;
     const newCommand: BranchCommandData = {
       type: "BranchCommand",
       parent,
@@ -127,6 +131,7 @@ const generateCommand = (
   }
   if (token.tag === "jump") {
     const id = token.checkpoint || getCommandId(parent, index);
+    token.checkpoint = id;
     const newCommand: JumpCommandData = {
       type: "JumpCommand",
       parent,
@@ -144,6 +149,7 @@ const generateCommand = (
   }
   if (token.tag === "return") {
     const id = token.checkpoint || getCommandId(parent, index);
+    token.checkpoint = id;
     const newCommand: ReturnCommandData = {
       type: "ReturnCommand",
       parent,

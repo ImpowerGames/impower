@@ -47,8 +47,8 @@ export class TickerManager extends Manager<
     this._events.onRemoved.dispatch(key);
   }
 
-  override update(deltaMS: number) {
-    super.update(deltaMS);
+  override onUpdate(deltaMS: number) {
+    super.onUpdate(deltaMS);
     this._config.listeners.forEach((l) => l?.(deltaMS));
     this._events.onUpdate.dispatch(deltaMS);
     return true;

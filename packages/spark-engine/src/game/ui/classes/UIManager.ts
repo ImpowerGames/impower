@@ -100,6 +100,8 @@ export class UIManagerUpdate extends ManagerUpdate {
 export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   protected _disposeSizeObservers: (() => void)[] = [];
 
+  protected _firstUpdate = true;
+
   constructor(
     context: GameContext,
     config?: Partial<UIConfig>,
@@ -161,6 +163,19 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     }
   }
 
+  override onUpdate(deltaMS: number) {
+    if (this._firstUpdate) {
+      this._firstUpdate = false;
+      this.reveal();
+    }
+    return super.onUpdate(deltaMS);
+  }
+
+  override onPreview(checkpointId: string) {
+    this.reveal();
+    return super.onPreview(checkpointId);
+  }
+
   override onDestroy(): void {
     super.onDestroy();
     this._disposeSizeObservers.forEach((dispose) => {
@@ -174,6 +189,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     if (styleRoot) {
       styleRoot.clear();
     }
+  }
+
+  protected reveal() {
+    const uiRoot = this.getElement(this.getUIPath());
+    uiRoot?.updateStyle({ opacity: "1" });
   }
 
   protected getId(...path: string[]): string {
@@ -331,6 +351,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       right: "0",
       "font-family": "Courier Prime Sans",
       "font-size": "1em",
+      opacity: "0",
     };
     uiRootEl.updateStyle(uiRootStyleProperties);
     const targetAllStructs = !structNames || structNames.length === 0;
@@ -858,17 +879,17 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
       getTargets(uiName: string): string[] {
         const targets = new Set<string>();
+        if ($._state.text?.[uiName]) {
+          Object.entries($._state.text[uiName]!).forEach(([target]) => {
+            targets.add(target);
+          });
+        }
         $.findElements(uiName, "text").forEach((textEl) => {
           const parent = $.getParentElement(textEl);
           if (parent) {
             targets.add(parent.name);
           }
         });
-        if ($._state.text?.[uiName]) {
-          Object.entries($._state.text[uiName]!).forEach(([target]) => {
-            targets.add(target);
-          });
-        }
         return Array.from(targets);
       }
     }
@@ -1003,17 +1024,17 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
       getTargets(uiName: string): string[] {
         const targets = new Set<string>();
+        if ($._state.image?.[uiName]) {
+          Object.entries($._state.image[uiName]!).forEach(([target]) => {
+            targets.add(target);
+          });
+        }
         $.findElements(uiName, "image").forEach((imageEl) => {
           const parent = $.getParentElement(imageEl);
           if (parent) {
             targets.add(parent.name);
           }
         });
-        if ($._state.image?.[uiName]) {
-          Object.entries($._state.image[uiName]!).forEach(([target]) => {
-            targets.add(target);
-          });
-        }
         return Array.from(targets);
       }
     }

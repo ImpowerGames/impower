@@ -31,7 +31,7 @@ export abstract class Manager<
 
   onStart(): void {}
 
-  update(_deltaMS: number): null | boolean {
+  onUpdate(_deltaMS: number): null | boolean {
     return true;
   }
 
@@ -45,7 +45,11 @@ export abstract class Manager<
     // executed before manager state is serialized
   }
 
-  onCheckpoint(_id: string) {
-    // executed before game is checkpointed
+  onCheckpoint(_checkpointId: string) {
+    // executed before game is serialized
+  }
+
+  onPreview(_checkpointId: string) {
+    // executed when game is previewed at a specific checkpoint location
   }
 }
