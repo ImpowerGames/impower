@@ -13,14 +13,21 @@ import {
   lineNumbers,
 } from "@codemirror/view";
 
-export interface BreakpointsConfiguration {}
+export interface BreakpointsConfiguration {
+  /**
+   * Only allow one breakpoint
+   */
+  singular?: boolean;
+}
 
 export const breakpointsConfig = Facet.define<
   BreakpointsConfiguration,
   Required<BreakpointsConfiguration>
 >({
   combine(configs) {
-    return combineConfig(configs, {});
+    return combineConfig(configs, {
+      singular: false,
+    });
   },
 });
 
@@ -73,12 +80,16 @@ export const getBreakpointLines = (view: EditorView) => {
 };
 
 export const toggleBreakpoint = (view: EditorView, pos: number) => {
+  const config = view.state.facet(breakpointsConfig);
   let rangeSet = view.state.field(breakpointState);
   let hasBreakpoint = false;
   rangeSet.between(pos, pos, () => {
     hasBreakpoint = true;
   });
   const effects: StateEffect<any>[] = [];
+  if (!hasBreakpoint && config.singular) {
+    effects.push(clearBreakpointsEffect.of({}));
+  }
   effects.push(setBreakpointEffect.of({ pos, on: !hasBreakpoint }));
   view.dispatch({ effects });
 };
