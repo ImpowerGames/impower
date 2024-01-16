@@ -1477,7 +1477,7 @@ export default class SparkParser {
       const currentSectionName = currentSectionPath.at(-1) || "";
       const checkpoint =
         checkpointId ?? currentSectionName + "." + String(checkpointIndex);
-      tok.checkpoint = checkpoint;
+      tok.id = checkpoint;
       currentSectionCheckpoints.add(checkpoint);
     };
 
@@ -1541,7 +1541,7 @@ export default class SparkParser {
               ) {
                 // This explicit checkpoint immediately follows an implicit checkpoint (with no blank line between)
                 // and thus should override the implicit checkpoint instead of adding a new checkpoint
-                lastImplicitCheckpointToken.checkpoint = name;
+                lastImplicitCheckpointToken.id = name;
                 lastImplicitCheckpointToken.ranges ??= {};
                 lastImplicitCheckpointToken.ranges.checkpoint = {
                   line: tok.line,

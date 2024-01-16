@@ -4,6 +4,7 @@ import type {
 } from "../../../../sparkdown/src/types/SparkToken";
 import type { CommandData } from "../../game/logic/types/CommandData";
 import type { BranchCommandData } from "../classes/commands/branchCommand/BranchCommandData";
+import { ClearCommandData } from "../classes/commands/clearCommand/ClearCommandData";
 import type { DisplayCommandData } from "../classes/commands/displayCommand/DisplayCommandData";
 import type { EvaluateCommandData } from "../classes/commands/evaluateCommand/EvaluateCommandData";
 import type { JumpCommandData } from "../classes/commands/jumpCommand/JumpCommandData";
@@ -28,8 +29,8 @@ const generateDisplayCommand = (
   parent: string,
   index: number
 ): DisplayCommandData => {
-  const id = token.checkpoint || getCommandId(parent, index);
-  token.checkpoint = id;
+  const id = token.id || getCommandId(parent, index);
+  token.id = id;
   return {
     type: "DisplayCommand",
     parent,
@@ -51,7 +52,6 @@ const generateDisplayCommand = (
       characterKey: token.characterKey || "",
       content: token.content || [],
       autoAdvance: token.autoAdvance ?? false,
-      waitUntilFinished: token.waitUntilFinished ?? true,
     },
     source: getSource(token, file),
   };
@@ -75,8 +75,8 @@ const generateCommand = (
     token.tag === "assign"
   ) {
     if (token.operator) {
-      const id = token.checkpoint || getCommandId(parent, index);
-      token.checkpoint = id;
+      const id = token.id || getCommandId(parent, index);
+      token.id = id;
       const newCommand: EvaluateCommandData = {
         type: "EvaluateCommand",
         parent,
@@ -92,8 +92,8 @@ const generateCommand = (
     }
   }
   if (token.tag === "delete") {
-    const id = token.checkpoint || getCommandId(parent, index);
-    token.checkpoint = id;
+    const id = token.id || getCommandId(parent, index);
+    token.id = id;
     const newCommand: EvaluateCommandData = {
       type: "EvaluateCommand",
       parent,
@@ -113,8 +113,8 @@ const generateCommand = (
     token.tag === "else" ||
     token.tag === "end"
   ) {
-    const id = token.checkpoint || getCommandId(parent, index);
-    token.checkpoint = id;
+    const id = token.id || getCommandId(parent, index);
+    token.id = id;
     const newCommand: BranchCommandData = {
       type: "BranchCommand",
       parent,
@@ -130,8 +130,8 @@ const generateCommand = (
     return newCommand;
   }
   if (token.tag === "jump") {
-    const id = token.checkpoint || getCommandId(parent, index);
-    token.checkpoint = id;
+    const id = token.id || getCommandId(parent, index);
+    token.id = id;
     const newCommand: JumpCommandData = {
       type: "JumpCommand",
       parent,
@@ -141,15 +141,14 @@ const generateCommand = (
       params: {
         value: token.section as string,
         returnWhenFinished: false,
-        waitUntilFinished: true,
       },
       source: getSource(token, file),
     };
     return newCommand;
   }
   if (token.tag === "return") {
-    const id = token.checkpoint || getCommandId(parent, index);
-    token.checkpoint = id;
+    const id = token.id || getCommandId(parent, index);
+    token.id = id;
     const newCommand: ReturnCommandData = {
       type: "ReturnCommand",
       parent,
@@ -158,8 +157,21 @@ const generateCommand = (
       indent: token.indent,
       params: {
         value: token.value as string,
-        waitUntilFinished: true,
       },
+      source: getSource(token, file),
+    };
+    return newCommand;
+  }
+  if (token.tag === "flow_break") {
+    const id = token.id || getCommandId(parent, index);
+    token.id = id;
+    const newCommand: ClearCommandData = {
+      type: "ClearCommand",
+      parent,
+      id,
+      index,
+      indent: token.indent,
+      params: {},
       source: getSource(token, file),
     };
     return newCommand;

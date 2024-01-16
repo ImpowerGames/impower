@@ -126,6 +126,10 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     this.loadTheme();
     this.loadStyles();
     this.loadUI();
+    this.onRestore();
+  }
+
+  override onRestore() {
     if (this._state.instance) {
       Object.entries(this._state.instance).forEach(([uiName, targets]) => {
         Object.entries(targets).forEach(([target]) => {
@@ -181,14 +185,27 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     this._disposeSizeObservers.forEach((dispose) => {
       dispose();
     });
-    const uiRoot = this.getElement(this.getUIPath());
-    if (uiRoot) {
-      uiRoot.clear();
-    }
+    this.clearStyles();
+    this.clearUI();
+  }
+
+  clearStyles() {
     const styleRoot = this.getElement(this.getStylePath());
     if (styleRoot) {
       styleRoot.clear();
     }
+  }
+
+  clearUI() {
+    const uiRoot = this.getElement(this.getUIPath());
+    if (uiRoot) {
+      uiRoot.clear();
+    }
+  }
+
+  protected conceal() {
+    const uiRoot = this.getElement(this.getUIPath());
+    uiRoot?.updateStyle({ opacity: "0" });
   }
 
   protected reveal() {
@@ -787,6 +804,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         const enterAt = sequence?.[0]?.enter ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
+            targetEl.updateStyle({ display: null });
             if (enterAt > 0) {
               targetEl.updateStyle({
                 opacity: "0",
@@ -835,6 +853,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                 });
               } else {
                 contentEl.clear();
+                targetEl.updateStyle({ display: "none" });
               }
             }
           }
@@ -856,6 +875,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         if ($._context?.game?.previewing || !$._context?.game?.simulating) {
           this.applyChanges(uiName, target, null, true);
         }
+      }
+
+      clearAll(uiName: string, ignore?: string[]): void {
+        this.getTargets(uiName).forEach((target) => {
+          if (!ignore || !ignore.includes(target)) {
+            this.clear(uiName, target);
+          }
+        });
       }
 
       write(
@@ -951,6 +978,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           if (targetEl) {
             const contentEl = $.getOrCreateContentElement(targetEl, "image");
             if (contentEl) {
+              targetEl.updateStyle({ display: null });
               if (enterAt > 0) {
                 targetEl.updateStyle({
                   opacity: "0",
@@ -986,6 +1014,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                 });
               } else {
                 contentEl.clear();
+                targetEl.updateStyle({ display: "none" });
               }
             }
           }
@@ -1007,6 +1036,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         if ($._context?.game?.previewing || !$._context?.game?.simulating) {
           this.applyChanges(uiName, target, null, true);
         }
+      }
+
+      clearAll(uiName: string, ignore?: string[]): void {
+        this.getTargets(uiName).forEach((target) => {
+          if (!ignore || !ignore.includes(target)) {
+            this.clear(uiName, target);
+          }
+        });
       }
 
       write(

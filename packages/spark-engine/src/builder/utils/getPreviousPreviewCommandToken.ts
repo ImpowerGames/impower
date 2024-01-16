@@ -10,9 +10,8 @@ const getPreviousPreviewCommandToken = (
   for (let i = line; i >= 0; i -= 1) {
     const prevPreviewCommandToken = getPreviewCommandToken(program, i);
     if (
-      prevPreviewCommandToken?.checkpoint &&
-      prevPreviewCommandToken?.checkpoint !==
-        currentPreviewCommandToken?.checkpoint
+      prevPreviewCommandToken?.id &&
+      prevPreviewCommandToken?.id !== currentPreviewCommandToken?.id
     ) {
       return prevPreviewCommandToken;
     }

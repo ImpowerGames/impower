@@ -156,8 +156,8 @@ export class GameBuilder<
     const program = this.programs[this.startpoint.program];
     if (program) {
       const commandToken = getPreviewCommandToken(program, line);
-      if (commandToken?.checkpoint) {
-        this.game.preview(commandToken.checkpoint);
+      if (commandToken?.id) {
+        this.game.preview(commandToken.id);
       } else {
         const previewVariable = getPreviewVariable(program, line);
         if (previewVariable?.type === "style") {

@@ -151,22 +151,26 @@ export const executeDisplayCommand = (
   game.sound.stopChannel("voice");
 
   // Clear stale text
-  game.ui.text.getTargets(uiName).forEach((target) => {
-    const textLayer = context?.["text_layer"]?.[target];
-    if (!textLayer?.preserve) {
-      game.ui.style.update(uiName, target, { display: "none" });
-      game.ui.text.clear(uiName, target);
-    }
-  });
+  const textLayerMap = context?.["text_layer"];
+  const preservedTextLayers = textLayerMap
+    ? Object.keys(textLayerMap).filter(
+        (layer) => textLayerMap?.[layer]?.preserve
+      )
+    : undefined;
 
   // Clear stale images
-  game.ui.image.getTargets(uiName).forEach((target) => {
-    const imageLayer = context?.["image_layer"]?.[target];
-    if (!imageLayer?.preserve) {
-      game.ui.style.update(uiName, target, { display: "none" });
-      game.ui.image.clear(uiName, target);
-    }
-  });
+  const imageLayerMap = context?.["image_layer"];
+  const preservedImageLayers = imageLayerMap
+    ? Object.keys(imageLayerMap).filter(
+        (layer) => imageLayerMap?.[layer]?.preserve
+      )
+    : undefined;
+
+  const clearUI = () => {
+    game.ui.text.clearAll(uiName, preservedTextLayers);
+    game.ui.image.clearAll(uiName, preservedImageLayers);
+  };
+  clearUI();
 
   const instant = options?.instant;
   const previewing = options?.preview;
@@ -263,8 +267,7 @@ export const executeDisplayCommand = (
         }): void => {
           event?.stopPropagation?.();
           onClickButton?.(e);
-          game.ui.style.update(uiName, target, { display: "none" });
-          game.ui.text.clear(uiName, target);
+          clearUI();
           game.ui.setOnClick(uiName, target, null);
         };
         game.ui.setOnClick(uiName, instanceName, handleClick);
@@ -277,7 +280,6 @@ export const executeDisplayCommand = (
   Object.entries(sequence.text).forEach(([target, events]) => {
     const transition = game.ui.text.write(uiName, target, events, instant);
     textTransitions.push(transition);
-    game.ui.style.update(uiName, target, { display: null });
   });
 
   // Display new images
@@ -290,7 +292,6 @@ export const executeDisplayCommand = (
       instant
     );
     imageTransitions.push(transition);
-    game.ui.style.update(uiName, target, { display: null });
   });
 
   game.ui.showUI(uiName);

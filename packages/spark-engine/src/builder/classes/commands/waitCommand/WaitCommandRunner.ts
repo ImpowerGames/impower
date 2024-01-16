@@ -18,10 +18,6 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
   }
 
   override isFinished(data: WaitCommandData) {
-    const simulating = this.game.context?.game?.simulating;
-    if (simulating) {
-      return true;
-    }
     const { seconds } = data.params;
     if (seconds === undefined || seconds === 0) {
       return super.isFinished(data);

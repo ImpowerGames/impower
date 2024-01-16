@@ -28,6 +28,10 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     return true;
   }
 
+  override isChoicepoint(data: DisplayCommandData): boolean {
+    return data.params.content.some((c) => c.button);
+  }
+
   override onExecute(data: DisplayCommandData) {
     this._wasPressed = false;
     this._wasTyped = false;
@@ -35,10 +39,13 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     this._elapsedMS = 0;
     this.game.input.events.onPointerDown.addListener(this.onPointerDown);
     this._chosenBlockId = undefined;
+    const skipping = this.game.context.game?.skipping;
     const { onTick, displayed } = executeDisplayCommand(
       this.game,
       data,
-      {},
+      {
+        instant: skipping,
+      },
       () => {
         this._wasTyped = true;
       },
@@ -77,24 +84,6 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
   };
 
   override isFinished(data: DisplayCommandData) {
-    const simulating = this.game.context?.game?.simulating;
-    if (simulating) {
-      // TODO: If waiting for user choice, prioritize choiceIds included in waypoints
-      // if (this._choices && this._choices.length > 0) {
-      //   const lastVisibleChoice = this._choices.at(-1)!;
-      //   const choiceId = data.id + "." + lastVisibleChoice.instance || "";
-      //   const jumpTo = lastVisibleChoice.button || "";
-      //   this._chosenBlockId = this.game.logic.choose(
-      //     data.parent,
-      //     choiceId,
-      //     jumpTo,
-      //     data.source
-      //   );
-      // } else {
-      //   return true;
-      // }
-      return true;
-    }
     const { autoAdvance } = data.params;
     const waitingForChoice = this._choices && this._choices.length > 0;
     const blockState = this.game.logic.state.blocks?.[data.parent];
@@ -141,11 +130,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       const chosenBlockId = this._chosenBlockId;
       this._chosenBlockId = undefined;
 
-      if (chosenBlockId === "") {
-        return true;
-      }
-
-      this.game.logic.jumpToBlock(data.parent, data.index, chosenBlockId);
+      return chosenBlockId;
     }
     return false;
   }

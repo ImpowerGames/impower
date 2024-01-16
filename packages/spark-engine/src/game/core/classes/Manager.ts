@@ -41,6 +41,10 @@ export abstract class Manager<
     });
   }
 
+  onRestore() {
+    // restores from current state after instant skipping
+  }
+
   onSerialize() {
     // executed before manager state is serialized
   }

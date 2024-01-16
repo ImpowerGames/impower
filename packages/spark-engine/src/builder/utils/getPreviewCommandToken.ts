@@ -18,7 +18,7 @@ const getPreviewCommandToken = (
   for (let i = 0; i < lineTokens.length; i += 1) {
     const tokenIndex = lineTokens[i]!;
     const token = program.tokens[tokenIndex];
-    if (token?.checkpoint) {
+    if (token?.id) {
       return token;
     }
   }

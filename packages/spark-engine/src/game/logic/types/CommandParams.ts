@@ -1,3 +1,1 @@
-export interface CommandParams extends Record<string, any> {
-  waitUntilFinished?: boolean;
-}
+export interface CommandParams extends Record<string, any> {}

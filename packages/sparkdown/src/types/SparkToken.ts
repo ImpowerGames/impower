@@ -31,7 +31,7 @@ export interface SparkSectionToken extends ISparkToken<"section"> {
 }
 
 export interface SparkCheckpointToken extends ISparkToken<"checkpoint"> {
-  checkpoint: string;
+  id: string;
 }
 
 export interface SparkImportToken extends ISparkToken<"import"> {

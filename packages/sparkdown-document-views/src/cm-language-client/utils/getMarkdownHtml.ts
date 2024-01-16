@@ -11,6 +11,7 @@ const getSyntaxHighlightedHtml = (
     scope?(node: NodeType): boolean;
   }
 ) => {
+  console.log("str", str);
   const tree = language.parser.parse(str);
   let html = "";
   let prev = 0;
@@ -18,12 +19,31 @@ const getSyntaxHighlightedHtml = (
     const s = str.slice(from, to);
     const diff = from - prev;
     if (diff > 0) {
+      console.log("span", str.slice(from - diff, from));
       html += `<span>${str.slice(from - diff, from)}</span>`;
     }
+    console.log("s", s);
     html += `<span class="${token}">${s}</span>`;
     prev = to;
   });
   return html;
+};
+
+const syntaxHighlightingReplacer = (
+  language: Language,
+  highlighter: {
+    style(tags: readonly Tag[]): string | null;
+    scope?(node: NodeType): boolean;
+  },
+  match: string[]
+) => {
+  const $2 = match[2] || "";
+  const $4 = match[4] || "";
+  const content =
+    $2 === language.name
+      ? getSyntaxHighlightedHtml($4, language, highlighter)
+      : $4;
+  return `<pre><code>${content}</code></pre>`;
 };
 
 const getRules = (
@@ -34,8 +54,20 @@ const getRules = (
   }
 ): {
   regex: RegExp;
-  replacer: (substring: string, ...args: any[]) => string;
+  replacer: (...match: string[]) => string;
 }[] => [
+  {
+    regex: MARKDOWN_REGEX.fenced_code_backtick,
+    replacer: (...match: string[]) => {
+      return syntaxHighlightingReplacer(language, highlighter, match);
+    },
+  },
+  {
+    regex: MARKDOWN_REGEX.fenced_code_tilde,
+    replacer: (...match: string[]) => {
+      return syntaxHighlightingReplacer(language, highlighter, match);
+    },
+  },
   {
     regex: MARKDOWN_REGEX.header,
     replacer: (_match, $1, $2) => {
@@ -83,26 +115,6 @@ const getRules = (
     regex: MARKDOWN_REGEX.quote,
     replacer: (_match, $1, _$2) => {
       return `<q>${$1}</q>`;
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.fenced_code_backtick,
-    replacer: (_match, _$1, $2, _$3, $4) => {
-      const content =
-        $2 === language.name
-          ? getSyntaxHighlightedHtml($4, language, highlighter)
-          : $4;
-      return `<pre><code>${content}</code></pre>`;
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.fenced_code_tilde,
-    replacer: (_match, _$1, $2, _$3, $4) => {
-      const content =
-        $2 === language.name
-          ? getSyntaxHighlightedHtml($4, language, highlighter)
-          : $4;
-      return `<pre><code>${content}</code></pre>`;
     },
   },
   {
@@ -176,6 +188,12 @@ export const getMarkdownHtml = (
     scope?(node: NodeType): boolean;
   }
 ): string => {
+  const codeMatch =
+    markdown.match(MARKDOWN_REGEX.fenced_code_backtick) ||
+    markdown.match(MARKDOWN_REGEX.fenced_code_tilde);
+  if (codeMatch) {
+    return syntaxHighlightingReplacer(language, highlighter, codeMatch);
+  }
   const rules = getRules(language, highlighter);
   rules.forEach((rule) => {
     markdown = markdown.replace(rule.regex, rule.replacer);

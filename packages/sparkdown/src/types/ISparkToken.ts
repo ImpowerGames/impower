@@ -11,7 +11,7 @@ export interface ISparkToken<T extends string = string> extends SparkRange {
 
   indent: number;
 
-  checkpoint?: string;
+  id?: string;
 
   ignore?: boolean;
 

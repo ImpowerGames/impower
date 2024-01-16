@@ -14,9 +14,8 @@ const getNextPreviewCommandToken = (
   for (let i = line; i <= lastLine; i += 1) {
     const nextPreviewCommandToken = getPreviewCommandToken(program, i);
     if (
-      nextPreviewCommandToken?.checkpoint &&
-      nextPreviewCommandToken?.checkpoint !==
-        currentPreviewCommandToken?.checkpoint
+      nextPreviewCommandToken?.id &&
+      nextPreviewCommandToken?.id !== currentPreviewCommandToken?.id
     ) {
       return nextPreviewCommandToken;
     }

@@ -28,11 +28,8 @@ const createNode = (
   if (content) {
     const documentationNode = document.createElement("div");
     if (contentKind === "markdown") {
-      documentationNode.innerHTML = getMarkdownHtml(
-        content,
-        language,
-        highlighter
-      );
+      const html = getMarkdownHtml(content, language, highlighter);
+      documentationNode.innerHTML = html;
     } else {
       documentationNode.textContent = content;
     }

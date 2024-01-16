@@ -18,6 +18,10 @@ export class CommandRunner<G extends Game, D extends CommandData = CommandData>
     // NoOp
   }
 
+  isChoicepoint(_data: D): boolean {
+    return false;
+  }
+
   isSavepoint(_data: D): boolean {
     return false;
   }
@@ -34,7 +38,7 @@ export class CommandRunner<G extends Game, D extends CommandData = CommandData>
     // NoOp
   }
 
-  isFinished(_data: D): boolean {
+  isFinished(_data: D): boolean | string {
     return true;
   }
 

@@ -26,6 +26,7 @@ export interface GameEvents extends Record<string, GameEvent> {
   onDestroy: GameEvent0;
   onCheckpoint: GameEvent2<string, string>;
   onReload: GameEvent1<GameState>;
+  onRestore: GameEvent0;
 }
 
 export interface GameConfig {
@@ -92,6 +93,7 @@ export class Game {
     onDestroy: new GameEvent0(),
     onCheckpoint: new GameEvent2(),
     onReload: new GameEvent1(),
+    onRestore: new GameEvent0(),
   };
 
   public get events(): ListenOnly<GameEvents> {
@@ -125,6 +127,7 @@ export class Game {
     this._context = clone(context || {}, s?.context);
     this._context.game ??= {};
     this._context.game.checkpoint = (id: string) => this.checkpoint(id);
+    this._context.game.restore = () => this.restore();
     this._context.game.supports = (module: string) => this.supports(module);
     this.ticker = new TickerManager(this._context, c?.ticker, s?.ticker);
     this.uuid = new UUIDManager(this._context, c?.uuid, s?.uuid);
@@ -170,17 +173,19 @@ export class Game {
     if (!this._destroyed) {
       for (let i = 0; i < this._managerNames.length; i += 1) {
         const k = this._managerNames[i]!;
-        if (this._managers[k]?.onUpdate(deltaMS) === null) {
-          this.reload();
-          this.destroy();
-          return;
-        }
+        this._managers[k]?.onUpdate(deltaMS);
       }
       this._events.onUpdate.dispatch(deltaMS);
     }
   }
 
+  restore(): void {
+    this._events.onRestore.dispatch();
+    this._managerNames.forEach((k) => this._managers[k]?.onRestore());
+  }
+
   reload(): void {
+    this.destroy();
     this._events.onReload.dispatch(JSON.parse(this._latestCheckpointData));
   }
 

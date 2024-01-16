@@ -114,7 +114,9 @@ export class LogicManager extends Manager<
 
   protected _runners: ICommandRunner[] = [];
 
-  protected _stopSimulationAt?: FlowLocation;
+  protected _stopSimulatingAt?: FlowLocation;
+
+  protected _simulationAwaitingChoice = false;
 
   constructor(
     context: GameContext,
@@ -236,7 +238,7 @@ export class LogicManager extends Manager<
     this._runners.forEach((r) => {
       r.onInit();
     });
-    this._stopSimulationAt = this.getClosestSavepoint(
+    this._stopSimulatingAt = this.getClosestSavepoint(
       this._config.startpoint || ""
     );
     const firstWaypointLocation =
@@ -414,21 +416,30 @@ export class LogicManager extends Manager<
           if (!flow.isExecutingCommand) {
             const isSavepoint =
               commandIndex === 0 || runner.isSavepoint(command);
-            if (!this._context.game?.simulating) {
+            const isChoicepoint = runner.isChoicepoint(command);
+            if (this._context.game?.simulating) {
+              if (isChoicepoint) {
+                // Must wait for user to make a choice
+                this._simulationAwaitingChoice = true;
+                // Stop skipping, stop simulating, and restore from state
+                this._context.game ??= {};
+                this._context.game.simulating = false;
+                this._context.game.skipping = true;
+                this._context.game?.restore?.();
+              } else if (
+                this._stopSimulatingAt?.blockId === blockId &&
+                this._stopSimulatingAt?.commandIndex === commandIndex
+              ) {
+                // We've caught up
+                // Stop skipping, stop simulating, and restore from state
+                this._context.game.skipping = false;
+                this._context.game.simulating = false;
+                this._context.game?.restore?.();
+              }
+            } else {
               if (isSavepoint) {
                 this._context.game?.checkpoint?.(commandId);
               }
-            }
-            if (
-              this._context.game?.simulating &&
-              this._stopSimulationAt?.blockId === blockId &&
-              this._stopSimulationAt?.commandIndex === commandIndex
-            ) {
-              // We've caught up, stop simulating, save latest data, and reload game with saved state
-              if (isSavepoint) {
-                this._context.game?.checkpoint?.(commandId);
-              }
-              return null;
             }
             this.willExecuteCommand(blockId, commandId, command?.source);
             let nextJumps: number[] = [];
@@ -440,11 +451,26 @@ export class LogicManager extends Manager<
               return true;
             }
           }
-          if (command.params.waitUntilFinished) {
-            const finished = runner.isFinished(command);
-            if (!finished) {
-              return true;
+          const finished = runner.isFinished(command);
+          if (typeof finished === "string") {
+            if (this._simulationAwaitingChoice) {
+              this._simulationAwaitingChoice = false;
+              this._context.game ??= {};
+              this._context.game.simulating = true;
+              this._context.game.skipping = false;
             }
+            this.jumpToBlock(command.parent, command.index, finished);
+            runner.onFinished(command);
+            this.didExecuteCommand(
+              blockId,
+              commandId,
+              commandIndex,
+              command?.source
+            );
+            return true;
+          }
+          if (!this._context.game?.simulating && !finished) {
+            return true;
           }
           runner.onFinished(command);
           this.didExecuteCommand(
