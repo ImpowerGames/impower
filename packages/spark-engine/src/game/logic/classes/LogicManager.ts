@@ -58,6 +58,8 @@ export class LogicManager extends Manager<
 > {
   FINISH_COMMAND_TYPE = "FinishCommand";
 
+  DEFAULT_LOCATION = { blockId: "", commandIndex: 0, position: 0 };
+
   protected _blockMap: Record<string, BlockData> = {};
   get blockMap() {
     return this._blockMap;
@@ -152,6 +154,7 @@ export class LogicManager extends Manager<
       ...(config || {}),
     };
     super(context, initialEvents, initialConfig, state || {});
+    let position = 0;
     if (this._config?.blockMap) {
       // Populate _blockMap
       this._blockMap = JSON.parse(JSON.stringify(this._config?.blockMap));
@@ -183,13 +186,17 @@ export class LogicManager extends Manager<
         this._blockLocations[blockId] = {
           blockId: blockId,
           commandIndex: 0,
+          position,
         };
+        position += 1;
         block.commands.forEach((command) => {
           // Populate _commandMap
           this._commandLocations[command.id] = {
             blockId: command.parent,
             commandIndex: command.index,
+            position,
           };
+          position += 1;
         });
       });
     }
@@ -232,14 +239,19 @@ export class LogicManager extends Manager<
     this._stopSimulationAt = this.getClosestSavepoint(
       this._config.startpoint || ""
     );
+    const firstWaypointLocation =
+      this.getLocation(this._config.waypoints?.[0] || "") ||
+      this.DEFAULT_LOCATION;
+    const startLocation =
+      this.getLocation(this._config.startpoint || "") || this.DEFAULT_LOCATION;
     if (!this.state.checkpoint) {
-      const entryCheckpointId =
-        (this._context.game?.simulating
-          ? this._config.waypoints?.[0]
-          : this._config.startpoint) || "";
-      const location = this.getLocation(entryCheckpointId);
-      if (location) {
-        this.enterBlock(location.blockId, location.commandIndex);
+      const entryLocation = this._context.game?.simulating
+        ? firstWaypointLocation.position < startLocation.position
+          ? firstWaypointLocation
+          : this.DEFAULT_LOCATION
+        : startLocation;
+      if (entryLocation) {
+        this.enterBlock(entryLocation.blockId, entryLocation.commandIndex);
       }
     }
   }
@@ -874,7 +886,7 @@ export class LogicManager extends Manager<
     if (blockLocation) {
       return blockLocation;
     }
-    return { blockId: "", commandIndex: 0 };
+    return this.DEFAULT_LOCATION;
   }
 
   override onCheckpoint(id: string) {
