@@ -413,7 +413,7 @@ export class LogicManager extends Manager<
           const commandId = command.id;
           if (!flow.isExecutingCommand) {
             const isSavepoint =
-              commandIndex === 0 || runner.willSaveCheckpoint(command);
+              commandIndex === 0 || runner.isSavepoint(command);
             if (!this._context.game?.simulating) {
               if (isSavepoint) {
                 this._context.game?.checkpoint?.(commandId);
@@ -874,7 +874,7 @@ export class LogicManager extends Manager<
       for (let i = commandLocation.commandIndex; i >= 0; i -= 1) {
         // Search backwards for closest savepoint
         const command = this._blockMap[commandLocation.blockId]?.commands[i];
-        if (command && this.getRunner(command)?.willSaveCheckpoint(command)) {
+        if (command && this.getRunner(command)?.isSavepoint(command)) {
           return this._commandLocations[command.id];
         }
       }
