@@ -31,7 +31,7 @@ export const breakpointsConfig = Facet.define<
   },
 });
 
-const breakpointMarker = new (class extends GutterMarker {
+export const breakpointMarker = new (class extends GutterMarker {
   override toDOM() {
     return document.createTextNode("◈");
   }
@@ -43,7 +43,7 @@ const setBreakpointEffect = StateEffect.define<{ pos: number; on: boolean }>({
   map: (val, mapping) => ({ pos: mapping.mapPos(val.pos), on: val.on }),
 });
 
-const breakpointState = StateField.define<RangeSet<GutterMarker>>({
+export const breakpointsField = StateField.define<RangeSet<GutterMarker>>({
   create() {
     return RangeSet.empty;
   },
@@ -65,23 +65,21 @@ const breakpointState = StateField.define<RangeSet<GutterMarker>>({
   },
 });
 
-export const getBreakpointLines = (view: EditorView) => {
-  let rangeSet = view.state.field(breakpointState);
-  const breakpoints: number[] = [];
+export const getBreakpointPositions = (view: EditorView) => {
+  let rangeSet = view.state.field(breakpointsField);
+  const breakpointPositions: number[] = [];
   const iter = rangeSet.iter(0);
-  let from = iter.from;
   while (iter.value) {
-    const line = view.state.doc.lineAt(from).number - 1;
-    breakpoints.push(line);
-    from = iter.from;
+    const from = iter.from;
     iter.next();
+    breakpointPositions.push(from);
   }
-  return breakpoints;
+  return breakpointPositions;
 };
 
 export const toggleBreakpoint = (view: EditorView, pos: number) => {
   const config = view.state.facet(breakpointsConfig);
-  let rangeSet = view.state.field(breakpointState);
+  let rangeSet = view.state.field(breakpointsField);
   let hasBreakpoint = false;
   rangeSet.between(pos, pos, () => {
     hasBreakpoint = true;
@@ -104,10 +102,10 @@ export const breakpointsChanged = (update: ViewUpdate): boolean => {
 
 export const breakpoints = (config: BreakpointsConfiguration = {}) => [
   breakpointsConfig.of(config),
-  breakpointState,
+  breakpointsField,
   gutter({
     class: "cm-breakpoint-gutter",
-    markers: (v) => v.state.field(breakpointState),
+    markers: (v) => v.state.field(breakpointsField),
     initialSpacer: () => breakpointMarker,
     domEventHandlers: {
       mousedown(view, line) {

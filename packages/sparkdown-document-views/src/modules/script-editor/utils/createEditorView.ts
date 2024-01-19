@@ -5,10 +5,17 @@ import {
   Compartment,
   EditorSelection,
   EditorState,
+  Range,
+  RangeSet,
   Text,
   Transaction,
 } from "@codemirror/state";
-import { DecorationSet, EditorView, ViewUpdate } from "@codemirror/view";
+import {
+  DecorationSet,
+  EditorView,
+  GutterMarker,
+  ViewUpdate,
+} from "@codemirror/view";
 import { DidParseTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import {
   MessageConnection,
@@ -16,8 +23,10 @@ import {
 } from "../../../../../spark-editor-protocol/src/types";
 import { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
 import {
+  breakpointMarker,
   breakpointsChanged,
-  getBreakpointLines,
+  breakpointsField,
+  getBreakpointPositions,
 } from "../../../cm-breakpoints/breakpoints";
 import { foldedField } from "../../../cm-folded/foldedField";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
@@ -47,6 +56,17 @@ export const readOnly = new Compartment();
 
 export const editable = new Compartment();
 
+interface SerializableRange {
+  start: {
+    line: number;
+    character: number;
+  };
+  end: {
+    line: number;
+    character: number;
+  };
+}
+
 interface EditorConfig {
   serverConnection: MessageConnection;
   serverCapabilities: ServerCapabilities;
@@ -60,6 +80,7 @@ interface EditorConfig {
   };
   defaultState?: SerializableEditorState;
   stabilizationDuration?: number;
+  breakpointRanges?: SerializableRange[];
   getEditorState?: () => SerializableEditorState;
   setEditorState?: (value: SerializableEditorState) => void;
   onReady?: () => void;
@@ -68,19 +89,10 @@ interface EditorConfig {
   onBlur?: () => void;
   onIdle?: () => void;
   onSelectionChanged?: (update: {
-    selectedRange: {
-      start: {
-        line: number;
-        character: number;
-      };
-      end: {
-        line: number;
-        character: number;
-      };
-    };
+    selectedRange: SerializableRange;
     docChanged: boolean;
   }) => void;
-  onBreakpointsChanged?: (lines: number[]) => void;
+  onBreakpointsChanged?: (ranges: SerializableRange[]) => void;
   onHeightChanged?: () => void;
   onEdit?: (change: {
     transaction: Transaction;
@@ -101,6 +113,7 @@ const createEditorView = (
   const scrollMargin = config?.scrollMargin;
   const defaultState = config?.defaultState;
   const stabilizationDuration = config?.stabilizationDuration ?? 200;
+  const breakpointRanges = config?.breakpointRanges;
   const onReady = config?.onReady;
   const onViewUpdate = config?.onViewUpdate;
   const onBlur = config?.onBlur;
@@ -157,6 +170,17 @@ const createEditorView = (
       readOnly.of(EditorState.readOnly.of(false)),
       editable.of(EditorView.editable.of(true)),
       versioning(),
+      breakpointsField.init((state) => {
+        const gutterMarkers: Range<GutterMarker>[] =
+          breakpointRanges?.map((range) => {
+            const lineNumber = range.start.line + 1;
+            const line = state.doc.line(range.start.line + 1);
+            const pos = line.from + range.start.character;
+            console.log(lineNumber, pos);
+            return breakpointMarker.range(pos);
+          }) ?? [];
+        return RangeSet.of(gutterMarkers, true);
+      }),
       scrollMargins(scrollMargin),
       sparkdownLanguageExtension({
         textDocument,
@@ -191,7 +215,14 @@ const createEditorView = (
           onSelectionChanged?.({ selectedRange, docChanged });
         }
         if (breakpointsChanged(u)) {
-          onBreakpointsChanged?.(getBreakpointLines(u.view));
+          onBreakpointsChanged?.(
+            getBreakpointPositions(u.view).map((pos) => {
+              return {
+                start: offsetToPosition(u.state.doc, pos),
+                end: offsetToPosition(u.state.doc, pos),
+              };
+            })
+          );
         }
         onViewUpdate?.(u);
         const json: {

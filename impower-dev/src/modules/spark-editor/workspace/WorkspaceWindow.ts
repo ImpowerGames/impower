@@ -166,7 +166,7 @@ export default class WorkspaceWindow {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (ChangedEditorBreakpointsMessage.type.isNotification(message)) {
-        const { textDocument, breakpoints } = message.params;
+        const { textDocument, breakpointRanges } = message.params;
         const uri = textDocument.uri;
         const filename = uri.split("/").slice(-1).join("");
         const pane = this.getPaneType(filename);
@@ -184,7 +184,7 @@ export default class WorkspaceWindow {
                     ...this.store.panes[pane].panels[panel],
                     activeEditor: {
                       ...this.store.panes[pane].panels[panel]!.activeEditor,
-                      breakpoints,
+                      breakpointRanges,
                     },
                   },
                 },
@@ -192,9 +192,9 @@ export default class WorkspaceWindow {
             },
             project: {
               ...this.store.project,
-              breakpoints: {
-                ...this.store.project.breakpoints,
-                [uri]: breakpoints,
+              breakpointRanges: {
+                ...this.store.project.breakpointRanges,
+                [uri]: breakpointRanges,
               },
             },
           });
@@ -255,7 +255,7 @@ export default class WorkspaceWindow {
         uri: string;
         visibleRange: Range | undefined;
         selectedRange: Range | undefined;
-        breakpoints: number[] | undefined;
+        breakpointRanges: Range[] | undefined;
       }
     | undefined {
     const projectId = this.store.project.id;
@@ -272,7 +272,7 @@ export default class WorkspaceWindow {
           return {
             visibleRange: panelState.activeEditor.visibleRange,
             selectedRange: panelState.activeEditor.selectedRange,
-            breakpoints: this.store.project.breakpoints?.[uri],
+            breakpointRanges: this.store.project.breakpointRanges?.[uri],
             uri,
           };
         }
@@ -287,7 +287,7 @@ export default class WorkspaceWindow {
         uri: string;
         visibleRange: Range | undefined;
         selectedRange: Range | undefined;
-        breakpoints: number[] | undefined;
+        breakpointRanges: Range[] | undefined;
       }
     | undefined {
     const projectId = this.store.project.id;
@@ -305,7 +305,7 @@ export default class WorkspaceWindow {
           uri,
           visibleRange: openEditor.visibleRange,
           selectedRange: openEditor.selectedRange,
-          breakpoints: this.store.project.breakpoints?.[uri],
+          breakpointRanges: this.store.project.breakpointRanges?.[uri],
         };
       }
     }

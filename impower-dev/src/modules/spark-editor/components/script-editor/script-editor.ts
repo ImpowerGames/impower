@@ -108,6 +108,7 @@ export default class ScriptEditor extends Component(spec) {
         const uri = editor.uri;
         const visibleRange = editor.visibleRange;
         const selectedRange = editor.selectedRange;
+        const breakpointRanges = editor.breakpointRanges;
         const files = await Workspace.fs.getFiles(projectId);
         const file = files[uri];
         const text = file?.text || "";
@@ -127,6 +128,7 @@ export default class ScriptEditor extends Component(spec) {
             },
             visibleRange,
             selectedRange,
+            breakpointRanges,
             languageServerCapabilities,
           })
         );

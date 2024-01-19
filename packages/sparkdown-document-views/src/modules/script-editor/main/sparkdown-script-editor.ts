@@ -69,6 +69,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected _userInitiatedScroll = false;
 
+  protected _breakpoints: number[] = [];
+
   protected _scrollMargin: {
     top?: number;
     bottom?: number;
@@ -210,11 +212,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
         const params = message.params;
         const textDocument = params.textDocument;
         const visibleRange = params.visibleRange;
+        const breakpointRanges = params.breakpointRanges;
         const languageServerCapabilities = params.languageServerCapabilities;
         this._loadingRequest = message.id;
         SparkdownScriptEditor.languageServerCapabilities =
           languageServerCapabilities;
-        this.loadTextDocument(textDocument, visibleRange);
+        this.loadTextDocument(textDocument, visibleRange, breakpointRanges);
       }
     }
   };
@@ -268,7 +271,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected loadTextDocument(
     textDocument: TextDocumentItem,
-    visibleRange: Range | undefined
+    visibleRange: Range | undefined,
+    breakpointRanges: Range[] | undefined
   ) {
     if (this._view) {
       this._view.destroy();
@@ -288,6 +292,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,
         textDocument: this._textDocument,
         scrollMargin: this._scrollMargin,
+        breakpointRanges,
         onIdle: this.handleIdle,
         onFocus: () => {
           this._editing = true;
@@ -360,14 +365,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
             );
           }
         },
-        onBreakpointsChanged: (breakpoints) => {
+        onBreakpointsChanged: (breakpointRanges) => {
           const uri = this._textDocument?.uri;
           if (uri) {
             this.emit(
               ChangedEditorBreakpointsMessage.method,
               ChangedEditorBreakpointsMessage.type.notification({
                 textDocument: { uri },
-                breakpoints,
+                breakpointRanges,
               })
             );
           }

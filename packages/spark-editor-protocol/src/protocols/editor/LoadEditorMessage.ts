@@ -7,6 +7,7 @@ export interface LoadEditorParams {
   textDocument: TextDocumentItem;
   visibleRange?: Range;
   selectedRange?: Range;
+  breakpointRanges?: Range[];
   languageServerCapabilities: ServerCapabilities;
 }
 

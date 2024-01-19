@@ -117,10 +117,12 @@ export default class GamePreview extends Component(spec) {
       this._startFromLine = startLine;
       this._uri = uri;
       const waypoints: { uri: string; line: number }[] = [];
-      if (Workspace.window.store.project.breakpoints) {
-        Object.entries(Workspace.window.store.project.breakpoints).forEach(
-          ([uri, lines]) => {
-            lines.forEach((line) => waypoints.push({ uri, line }));
+      if (Workspace.window.store.project.breakpointRanges) {
+        Object.entries(Workspace.window.store.project.breakpointRanges).forEach(
+          ([uri, ranges]) => {
+            ranges.forEach((range) =>
+              waypoints.push({ uri, line: range.start.line })
+            );
           }
         );
       }

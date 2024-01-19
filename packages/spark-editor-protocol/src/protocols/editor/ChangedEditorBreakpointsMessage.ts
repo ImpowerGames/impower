@@ -1,4 +1,4 @@
-import { TextDocumentIdentifier } from "../../types";
+import { Range, TextDocumentIdentifier } from "../../types";
 import { MessageProtocolNotificationType } from "../MessageProtocolNotificationType";
 
 export type ChangedEditorBreakpointsMethod =
@@ -6,7 +6,7 @@ export type ChangedEditorBreakpointsMethod =
 
 export interface ChangedEditorBreakpointsParams {
   textDocument: TextDocumentIdentifier;
-  breakpoints: number[];
+  breakpointRanges: Range[];
 }
 
 export class ChangedEditorBreakpointsMessage {

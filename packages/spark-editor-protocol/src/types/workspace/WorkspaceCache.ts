@@ -61,7 +61,7 @@ export interface EditorState {
   filename?: string;
   visibleRange?: Range;
   selectedRange?: Range;
-  breakpoints?: number[];
+  breakpointRanges?: Range[];
 }
 
 export interface PanelState {
@@ -116,7 +116,7 @@ export interface ProjectState {
   textPulledAt?: string;
   zipPulledAt?: string;
   revisions?: Revision[];
-  breakpoints?: Record<string, number[]>;
+  breakpointRanges?: Record<string, Range[]>;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {
