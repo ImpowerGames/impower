@@ -266,9 +266,9 @@ export const executeDisplayCommand = (
           stopPropagation?: () => void;
         }): void => {
           event?.stopPropagation?.();
-          onClickButton?.(e);
           clearUI();
           game.ui.setOnClick(uiName, target, null);
+          onClickButton?.(e);
         };
         game.ui.setOnClick(uiName, instanceName, handleClick);
       }
