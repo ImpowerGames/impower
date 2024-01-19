@@ -1,5 +1,6 @@
 import { SparkDOMElement } from "../../../spark-dom/src";
 import { ConfigureGameMessage } from "../../../spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
+import { DidExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { DisableGameDebugMessage } from "../../../spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "../../../spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
 import { LoadGameMessage } from "../../../spark-editor-protocol/src/protocols/game/LoadGameMessage";
@@ -286,14 +287,14 @@ export default class SparkWebPlayer extends Component(spec) {
       const context = new GameBuilder(programs, gameBuilderOptions);
       context.game.logic.events.onWillExecuteCommand.addListener(
         (_id, source) => {
+          const programs = Object.keys(this._programs);
           if (source) {
-            window.dispatchEvent(
-              new CustomEvent(WillExecuteGameCommandMessage.method, {
-                bubbles: true,
-                cancelable: true,
-                composed: true,
-                detail: WillExecuteGameCommandMessage.type.notification({
-                  textDocument: { uri: source.file },
+            const uri = programs[source.file];
+            if (uri) {
+              this.emit(
+                WillExecuteGameCommandMessage.method,
+                WillExecuteGameCommandMessage.type.notification({
+                  textDocument: { uri },
                   range: {
                     start: {
                       line: source.line,
@@ -304,9 +305,35 @@ export default class SparkWebPlayer extends Component(spec) {
                       character: source.to - source.from - 1,
                     },
                   },
-                }),
-              })
-            );
+                })
+              );
+            }
+          }
+        }
+      );
+      context.game.logic.events.onDidExecuteCommand.addListener(
+        (_id, source) => {
+          const programs = Object.keys(this._programs);
+          if (source) {
+            const uri = programs[source.file];
+            if (uri) {
+              this.emit(
+                DidExecuteGameCommandMessage.method,
+                DidExecuteGameCommandMessage.type.notification({
+                  textDocument: { uri },
+                  range: {
+                    start: {
+                      line: source.line,
+                      character: 0,
+                    },
+                    end: {
+                      line: source.line,
+                      character: source.to - source.from - 1,
+                    },
+                  },
+                })
+              );
+            }
           }
         }
       );

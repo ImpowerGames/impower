@@ -1,7 +1,7 @@
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
-import { DidExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
+import { WillExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import getNextPreviewCommandToken from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommandToken";
@@ -31,8 +31,8 @@ export default class GamePreview extends Component(spec) {
       this.handleSelectedEditor
     );
     window.addEventListener(
-      DidExecuteGameCommandMessage.method,
-      this.handleDidExecuteGameCommand
+      WillExecuteGameCommandMessage.method,
+      this.handleWillExecuteGameCommand
     );
     window.addEventListener("keydown", this.handleKeyDown);
   }
@@ -47,8 +47,8 @@ export default class GamePreview extends Component(spec) {
       this.handleSelectedEditor
     );
     window.removeEventListener(
-      DidExecuteGameCommandMessage.method,
-      this.handleDidExecuteGameCommand
+      WillExecuteGameCommandMessage.method,
+      this.handleWillExecuteGameCommand
     );
     window.removeEventListener("keydown", this.handleKeyDown);
   }
@@ -77,12 +77,12 @@ export default class GamePreview extends Component(spec) {
     }
   };
 
-  handleDidExecuteGameCommand = async (e: Event) => {
+  handleWillExecuteGameCommand = async (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (DidExecuteGameCommandMessage.type.isNotification(message)) {
+      if (WillExecuteGameCommandMessage.type.isNotification(message)) {
         const { textDocument, range } = message.params;
-        Workspace.window.revealEditorRange(textDocument.uri, range, true);
+        Workspace.window.revealEditorRange(textDocument.uri, range, false);
       }
     }
   };
@@ -225,7 +225,7 @@ export default class GamePreview extends Component(spec) {
               character: 0,
             },
           };
-          Workspace.window.revealEditorRange(uri, range, true);
+          Workspace.window.revealEditorRange(uri, range, false);
         }
       }
     }
@@ -254,7 +254,7 @@ export default class GamePreview extends Component(spec) {
               character: 0,
             },
           };
-          Workspace.window.revealEditorRange(uri, range, true);
+          Workspace.window.revealEditorRange(uri, range, false);
         }
       }
     }

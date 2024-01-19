@@ -1,5 +1,5 @@
 export interface DocumentSource {
-  file: string;
+  file: number;
   line: number;
   from: number;
   to: number;
