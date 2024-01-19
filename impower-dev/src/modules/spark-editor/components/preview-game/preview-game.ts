@@ -82,7 +82,11 @@ export default class GamePreview extends Component(spec) {
       const message = e.detail;
       if (WillExecuteGameCommandMessage.type.isNotification(message)) {
         const { textDocument, range } = message.params;
-        Workspace.window.revealEditorRange(textDocument.uri, range, false);
+        Workspace.window.revealEditorRange(
+          textDocument.uri,
+          { start: range.start, end: range.start },
+          true
+        );
       }
     }
   };
@@ -225,7 +229,7 @@ export default class GamePreview extends Component(spec) {
               character: 0,
             },
           };
-          Workspace.window.revealEditorRange(uri, range, false);
+          Workspace.window.revealEditorRange(uri, range, true);
         }
       }
     }
@@ -254,7 +258,7 @@ export default class GamePreview extends Component(spec) {
               character: 0,
             },
           };
-          Workspace.window.revealEditorRange(uri, range, false);
+          Workspace.window.revealEditorRange(uri, range, true);
         }
       }
     }
