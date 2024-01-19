@@ -173,10 +173,8 @@ const createEditorView = (
       breakpointsField.init((state) => {
         const gutterMarkers: Range<GutterMarker>[] =
           breakpointRanges?.map((range) => {
-            const lineNumber = range.start.line + 1;
             const line = state.doc.line(range.start.line + 1);
             const pos = line.from + range.start.character;
-            console.log(lineNumber, pos);
             return breakpointMarker.range(pos);
           }) ?? [];
         return RangeSet.of(gutterMarkers, true);
