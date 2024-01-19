@@ -126,6 +126,7 @@ export class Game {
     this._stored = config?.stored || [];
     this._context = clone(context || {}, s?.context);
     this._context.game ??= {};
+    this._context.game.transitions ??= true;
     this._context.game.checkpoint = (id: string) => this.checkpoint(id);
     this._context.game.restore = () => this.restore();
     this._context.game.supports = (module: string) => this.supports(module);

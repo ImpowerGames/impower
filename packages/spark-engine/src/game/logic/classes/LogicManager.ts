@@ -230,27 +230,30 @@ export class LogicManager extends Manager<
         }
       }
     }
-    this._context.game ??= {};
-    this._context.game.simulating = this._config.startpoint != null;
   }
 
   override onStart() {
     this._runners.forEach((r) => {
       r.onInit();
     });
+    const closestWaypointLocation = this.getClosestLocationBefore(
+      this._config.startpoint || "",
+      (this._config.waypoints as string[]) || []
+    );
+    const startLocation =
+      this.getLocation(this._config.startpoint || "") || this.DEFAULT_LOCATION;
     this._stopSimulatingAt = this.getClosestSavepoint(
       this._config.startpoint || ""
     );
-    const firstWaypointLocation =
-      this.getLocation(this._config.waypoints?.[0] || "") ||
-      this.DEFAULT_LOCATION;
-    const startLocation =
-      this.getLocation(this._config.startpoint || "") || this.DEFAULT_LOCATION;
+    this._context.game ??= {};
+    this._context.game.simulating =
+      this._config.startpoint != null &&
+      this._stopSimulatingAt != null &&
+      closestWaypointLocation != null &&
+      this._stopSimulatingAt.position > closestWaypointLocation.position;
     if (!this.state.checkpoint) {
       const entryLocation = this._context.game?.simulating
-        ? firstWaypointLocation.position < startLocation.position
-          ? firstWaypointLocation
-          : this.DEFAULT_LOCATION
+        ? closestWaypointLocation
         : startLocation;
       if (entryLocation) {
         this.enterBlock(entryLocation.blockId, entryLocation.commandIndex);
@@ -421,19 +424,19 @@ export class LogicManager extends Manager<
               if (isChoicepoint) {
                 // Must wait for user to make a choice
                 this._simulationAwaitingChoice = true;
-                // Stop skipping, stop simulating, and restore from state
+                // Stop simulating, disable transitions, and restore from state
                 this._context.game ??= {};
                 this._context.game.simulating = false;
-                this._context.game.skipping = true;
+                this._context.game.transitions = false;
                 this._context.game?.restore?.();
               } else if (
                 this._stopSimulatingAt?.blockId === blockId &&
                 this._stopSimulatingAt?.commandIndex === commandIndex
               ) {
                 // We've caught up
-                // Stop skipping, stop simulating, and restore from state
-                this._context.game.skipping = false;
+                // Stop simulating, enable transitions, and restore from state
                 this._context.game.simulating = false;
+                this._context.game.transitions = true;
                 this._context.game?.restore?.();
               }
             } else {
@@ -454,10 +457,11 @@ export class LogicManager extends Manager<
           const finished = runner.isFinished(command);
           if (typeof finished === "string") {
             if (this._simulationAwaitingChoice) {
+              // Choice was made, resume simulating and enable transitions
               this._simulationAwaitingChoice = false;
               this._context.game ??= {};
               this._context.game.simulating = true;
-              this._context.game.skipping = false;
+              this._context.game.transitions = true;
             }
             this.jumpToBlock(command.parent, command.index, finished);
             runner.onFinished(command);
@@ -901,18 +905,46 @@ export class LogicManager extends Manager<
         // Search backwards for closest savepoint
         const command = this._blockMap[commandLocation.blockId]?.commands[i];
         if (command && this.getRunner(command)?.isSavepoint(command)) {
-          return this._commandLocations[command.id];
+          const commandLocation = this._commandLocations[command.id];
+          if (commandLocation) {
+            return commandLocation;
+          }
         }
       }
       // Start of block is always a valid savepoint
       const blockLocation = this._blockLocations[commandLocation.blockId];
-      return blockLocation;
+      if (blockLocation) {
+        return blockLocation;
+      }
     }
     const blockLocation = this._blockLocations[checkpointId];
     if (blockLocation) {
       return blockLocation;
     }
     return this.DEFAULT_LOCATION;
+  }
+
+  getClosestLocationBefore(
+    targetCheckpointId: string,
+    possibleCheckpointIds: string[]
+  ) {
+    // TODO: Report error if checkpoint not found
+    const possibleLocations = possibleCheckpointIds
+      .map((id) => this.getLocation(id))
+      .sort((a, b) => (a?.position ?? 0) - (b?.position ?? 0));
+    const targetLocation = this.getLocation(targetCheckpointId);
+    if (targetLocation) {
+      for (let i = possibleLocations.length; i >= 0; i -= 1) {
+        // Search backwards for closest
+        const possibleLocation = possibleLocations[i];
+        if (possibleLocation) {
+          if (possibleLocation.position < targetLocation.position) {
+            return possibleLocation;
+          }
+        }
+      }
+    }
+    return undefined;
   }
 
   override onCheckpoint(id: string) {

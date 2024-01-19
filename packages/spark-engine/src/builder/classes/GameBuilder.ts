@@ -116,8 +116,8 @@ export class GameBuilder<
       );
       const simulateFromCheckpointId =
         blockMap?.[simulateFromBlockId]?.commands?.[simulateFromCommandIndex]
-          ?.id;
-      if (simulateFromCheckpointId) {
+          ?.id ?? blockMap?.[simulateFromBlockId]?.name;
+      if (simulateFromCheckpointId != null) {
         waypoints.push(simulateFromCheckpointId);
       }
     });
