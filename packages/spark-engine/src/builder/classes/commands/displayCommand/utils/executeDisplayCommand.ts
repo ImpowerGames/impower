@@ -1,104 +1,6 @@
-import {
-  Game,
-  Phrase,
-  Sound,
-  Synth,
-  Tone,
-  convertPitchNoteToHertz,
-  transpose,
-} from "../../../../../game";
+import { Game, Phrase } from "../../../../../game";
 import { DisplayCommandData } from "../DisplayCommandData";
 import { DisplayContentItem } from "../DisplayCommandParams";
-
-// Helpers
-
-const getSound = (asset: unknown, game: Game): Required<Sound> | null => {
-  if (!asset) {
-    return null;
-  }
-  if (typeof asset !== "object") {
-    return null;
-  }
-  const sound: Required<Sound> = {
-    id: "",
-    src: "",
-    cues: [],
-    volume: 1,
-    loop: false,
-  };
-  if ("src" in asset && typeof asset.src === "string") {
-    sound.id = asset.src;
-    sound.src = asset.src;
-  }
-  if ("shape" in asset && typeof asset.shape === "string") {
-    sound.id = game.uuid.generate();
-    sound.src = game.sound.synthesize([{ synth: asset as Synth }]);
-  }
-  if ("cues" in asset && Array.isArray(asset.cues)) {
-    sound.cues = asset.cues;
-  }
-  if ("volume" in asset && typeof asset.volume === "number") {
-    sound.volume = asset.volume;
-  }
-  if ("loop" in asset && typeof asset.loop === "boolean") {
-    sound.loop = asset.loop;
-  }
-  if (sound.src) {
-    return sound;
-  }
-  return null;
-};
-
-const getAssetSounds = (compiled: unknown, game: Game): Required<Sound>[] => {
-  if (!compiled) {
-    return [];
-  }
-  if (typeof compiled !== "object") {
-    return [];
-  }
-  if (Array.isArray(compiled)) {
-    const sounds: Required<Sound>[] = [];
-    compiled.forEach((asset) => {
-      const sound = getSound(asset, game);
-      if (sound) {
-        sounds.push(sound);
-      }
-    });
-    return sounds;
-  }
-  if ("assets" in compiled && Array.isArray(compiled.assets)) {
-    const sounds: Required<Sound>[] = [];
-    compiled.assets.forEach((asset) => {
-      const sound = getSound(asset, game);
-      if (sound) {
-        if ("cues" in compiled && Array.isArray(compiled.cues)) {
-          sound.cues = sound.cues?.length ? sound.cues : compiled.cues;
-        }
-        if ("volume" in compiled && typeof compiled.volume === "number") {
-          sound.volume = sound.volume * compiled.volume;
-        }
-        if ("loop" in compiled && typeof compiled.loop === "boolean") {
-          sound.loop = compiled.loop;
-        }
-        sounds.push(sound);
-      }
-    });
-    return sounds;
-  }
-  if ("src" in compiled) {
-    const sound = getSound(compiled, game);
-    if (sound) {
-      return [sound];
-    }
-  }
-  if ("shape" in compiled) {
-    const sound = getSound(compiled, game);
-    if (sound) {
-      return [sound];
-    }
-  }
-  return [];
-};
 
 export const executeDisplayCommand = (
   game: Game,
@@ -106,8 +8,10 @@ export const executeDisplayCommand = (
   options?: { instant?: boolean; preview?: boolean },
   onFinished?: () => void,
   onClickButton?: (content: DisplayContentItem) => void
-): { onTick?: (deltaMS: number) => void; displayed?: DisplayContentItem[] } => {
-  const id = data.id;
+): {
+  onTick?: (deltaMS: number) => void;
+  displayed?: DisplayContentItem[];
+} => {
   const type = data.params.type;
   const characterKey = data?.params?.characterKey || "";
   const content = data?.params?.content;
@@ -147,8 +51,8 @@ export const executeDisplayCommand = (
   }
 
   // Stop stale sounds
-  game.sound.stopChannel("writer");
-  game.sound.stopChannel("voice");
+  game.audio.stopChannel("writer");
+  game.audio.stopChannel("voice");
 
   // Clear stale text
   const textLayerMap = context?.["text_layer"];
@@ -182,86 +86,23 @@ export const executeDisplayCommand = (
     debug: debugging,
   });
 
-  const soundsToLoad: Sound[] = [];
-  const soundEvents: (() => void)[] = [];
-
-  Object.entries(sequence.audio).forEach(([k, events]) => {
-    const target = k || "voice";
-    events.forEach((e) => {
-      const assetNames = e.audio;
-      const sounds: Required<Sound>[] = [];
-      const channelLoop = target === "music";
-      const scheduled = e.params?.schedule;
-      const trackLoop = e.params?.loop;
-      const trackNoloop = e.params?.noloop;
-      const trackVolume = e.params?.volume ?? 1;
-      const trackMuteMultiplier = e.params?.mute ? 0 : 1;
-      const after = (e.enter ?? 0) + (e.params?.after ?? 0);
-      const over = e.params?.over;
-      assetNames.forEach((assetName) => {
-        if (assetName) {
-          const value =
-            context?.["audio"]?.[assetName] ||
-            context?.["audio_group"]?.[assetName] ||
-            context?.["array"]?.[assetName];
-          const assetSounds = getAssetSounds(value, game);
-          assetSounds.forEach((asset) => {
-            const sound = {
-              id: asset.id,
-              src: asset.src,
-              volume: asset.volume * trackVolume * trackMuteMultiplier,
-              loop: !trackNoloop && (trackLoop || asset.loop || channelLoop),
-              cues: asset.cues,
-            };
-            soundsToLoad.push(sound);
-            sounds.push(sound);
-          });
-        }
-      });
-      if (sounds.length > 0) {
-        const groupId = assetNames.join("+");
-        if (
-          e.params?.start ||
-          (!e.params?.start &&
-            !e.params?.stop &&
-            !e.params?.mute &&
-            !e.params?.unmute &&
-            !e.params?.volume)
-        ) {
-          soundEvents.push(() =>
-            game.sound.startAll(sounds, target, groupId, after, over)
-          );
-        } else if (e.params?.stop) {
-          soundEvents.push(() =>
-            game.sound.stopAll(sounds, target, groupId, after, over, scheduled)
-          );
-        } else {
-          soundEvents.push(() =>
-            game.sound.fadeAll(sounds, target, groupId, after, over, scheduled)
-          );
-        }
-      }
-    });
-  });
-
   // Display indicator
   const indicatorStyle: Record<string, string | null> = {};
-  if (data && !autoAdvance) {
+  if (autoAdvance) {
+    indicatorStyle["display"] = "none";
+  } else {
     indicatorStyle["transition"] = "none";
     indicatorStyle["opacity"] = instant ? "1" : "0";
     indicatorStyle["animation-play-state"] = "paused";
     indicatorStyle["display"] = null;
-  } else {
-    indicatorStyle["display"] = "none";
   }
   game.ui.style.update(uiName, "indicator", indicatorStyle);
 
-  // Display buttons
-  Object.entries(sequence.button).forEach(([k, events]) => {
-    const target = k || "choice";
-    events.forEach((e) => {
-      const instanceName = game.ui.instance.get(uiName, target, e.instance);
-      if (instanceName) {
+  // Process buttons
+  const buttonTransitionIds = Object.entries(sequence.button).flatMap(
+    ([target, events]) =>
+      events.map((e) => {
+        const id = game.ui.instance.get(uiName, target, e.instance);
         const handleClick = (event?: {
           stopPropagation?: () => void;
         }): void => {
@@ -270,43 +111,24 @@ export const executeDisplayCommand = (
           game.ui.setOnClick(uiName, target, null);
           onClickButton?.(e);
         };
-        game.ui.setOnClick(uiName, instanceName, handleClick);
-      }
-    });
-  });
-
-  // Display new text
-  const textTransitions: (() => void)[] = [];
-  Object.entries(sequence.text).forEach(([target, events]) => {
-    const transition = game.ui.text.write(uiName, target, events, instant);
-    textTransitions.push(transition);
-  });
-
-  // Display new images
-  const imageTransitions: (() => void)[] = [];
-  Object.entries(sequence.image).forEach(([target, imageEvents]) => {
-    const transition = game.ui.image.write(
-      uiName,
-      target,
-      imageEvents,
-      instant
-    );
-    imageTransitions.push(transition);
-  });
-
-  game.ui.showUI(uiName);
-
-  const doTransitions = () => {
-    textTransitions.forEach((transition) => {
-      transition();
-    });
-    imageTransitions.forEach((transition) => {
-      transition();
-    });
-  };
+        game.ui.setOnClick(uiName, target + " " + e.instance, handleClick);
+        return id;
+      })
+  );
+  // Process text
+  const textTransitionIds = Object.entries(sequence.text).map(
+    ([target, events]) => game.ui.text.write(uiName, target, events, instant)
+  );
+  // Process images
+  const imageTransitionIds = Object.entries(sequence.image).map(
+    ([target, events]) => game.ui.image.write(uiName, target, events, instant)
+  );
+  // Process audio
+  const audioTransitionIds = Object.entries(sequence.audio).map(
+    ([channel, events]) => game.audio.queue(channel, events, instant)
+  );
 
   const handleFinished = (): void => {
-    doTransitions();
     const indicatorStyle: Record<string, string | null> = {};
     indicatorStyle["transition"] = null;
     indicatorStyle["opacity"] = "1";
@@ -315,68 +137,35 @@ export const executeDisplayCommand = (
     onFinished?.();
   };
 
-  let started = false;
+  game.ui.showUI(uiName);
 
-  if (game) {
-    if (instant) {
-      handleFinished();
-    } else {
-      const tones: Tone[] = [];
-      Object.entries(sequence.synth).forEach(([_, events]) => {
-        events.forEach((e) => {
-          e.synth.forEach((s) => {
-            const beep: Tone = {
-              synth: context?.["synth"]?.[s],
-              time: e.enter ?? 0,
-              duration: e.params?.duration ?? 0,
-            };
-            const freq = convertPitchNoteToHertz(
-              beep.synth?.pitch?.frequency || "A4"
-            );
-            // Transpose waves according to stress contour
-            beep.pitchHertz = transpose(freq, e.params?.pitch ?? 0);
-            tones.push(beep);
-          });
-        });
-      });
-      // Load and modulate ((sounds))
-      game.sound.loadAll(soundsToLoad).then(() => {
-        soundEvents.forEach((event) => {
-          event?.();
-        });
-      });
-      // Start writer typing tones
-      if (tones.length > 0) {
-        game.sound.start(
-          { id, src: game.sound.synthesize(tones) },
-          "writer",
-          0,
-          0,
-          () => {
-            started = true;
-          }
-        );
-      } else {
-        started = true;
-      }
-    }
+  if (instant) {
+    handleFinished();
+    const indicatorStyle: Record<string, string | null> = {};
+    indicatorStyle["transition"] = "none";
+    indicatorStyle["opacity"] = "1";
+    game.ui.style.update(uiName, "indicator", indicatorStyle);
   }
-  if (data) {
-    if (!game || instant) {
-      const indicatorStyle: Record<string, string | null> = {};
-      indicatorStyle["transition"] = "none";
-      indicatorStyle["opacity"] = "1";
-      game.ui.style.update(uiName, "indicator", indicatorStyle);
-    }
-  }
+
   let elapsedMS = 0;
+  let ready = false;
   let finished = false;
   const totalDurationMS = (sequence.end ?? 0) * 1000;
   const handleTick = (deltaMS: number): void => {
-    if (started && !finished) {
-      if (elapsedMS === 0) {
-        doTransitions();
+    if (!ready) {
+      if (
+        buttonTransitionIds.every((n) => game.ui.isReady(n)) &&
+        textTransitionIds.every((n) => game.ui.isReady(n)) &&
+        imageTransitionIds.every((n) => game.ui.isReady(n)) &&
+        audioTransitionIds.every((n) => game.audio.isReady(n))
+      ) {
+        ready = true;
+        game.ui.triggerAll(textTransitionIds);
+        game.ui.triggerAll(imageTransitionIds);
+        game.audio.triggerAll(audioTransitionIds);
       }
+    }
+    if (ready && !finished) {
       elapsedMS += deltaMS;
       if (elapsedMS >= totalDurationMS) {
         finished = true;

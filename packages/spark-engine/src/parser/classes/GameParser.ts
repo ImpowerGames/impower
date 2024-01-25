@@ -3,7 +3,7 @@ import format from "../../../../spark-evaluate/src/utils/format";
 import SparkParser from "../../../../sparkdown/src/classes/SparkParser";
 import type { SparkParserConfig } from "../../../../sparkdown/src/types/SparkParserConfig";
 import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-import processBeatmap from "../../game/rhythm/utils/processBeatmap";
+import processBeatmap from "../../game/modules/rhythm/utils/processBeatmap";
 
 export default class GameParser extends SparkParser {
   private static _instance: GameParser;

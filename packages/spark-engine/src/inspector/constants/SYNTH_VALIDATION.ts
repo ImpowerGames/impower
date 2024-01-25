@@ -2,6 +2,7 @@ import { A, Synth } from "../../game";
 import { RecursiveValidation } from "../types/RecursiveValidation";
 
 export const SYNTH_VALIDATION: RecursiveValidation<Synth> = {
+  volume: [0.01, 0, 1],
   shape: [
     "sine",
     "triangle",
@@ -14,8 +15,6 @@ export const SYNTH_VALIDATION: RecursiveValidation<Synth> = {
     "pinknoise",
   ],
   envelope: {
-    volume: [0.01, 0, 1],
-    volume_ramp: [0.01, -1, 1],
     offset: [0.001, 0, 1],
     attack: [0.001, 0, 1],
     decay: [0.001, 0, 1],

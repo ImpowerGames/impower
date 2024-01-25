@@ -5,7 +5,7 @@ import { Graphics } from "../../plugins/graphics";
 import { SparkAssets } from "../SparkAssets";
 import { SparkScene } from "../SparkScene";
 
-export class SoundScene extends SparkScene {
+export class AudioScene extends SparkScene {
   private _audioContext: AudioContext = new AudioContext();
 
   private _instruments: Map<string, SparkDOMAudioPlayer> = new Map();
@@ -26,23 +26,23 @@ export class SoundScene extends SparkScene {
       this._waveGraphic,
       this._playheadGraphic
     );
-    this.context.game.sound.config.sampleRate = this._audioContext.sampleRate;
-    this.context.game.sound.config.synths =
+    this.context.game.audio.config.sampleRate = this._audioContext.sampleRate;
+    this.context.game.audio.config.synths =
       this.context.game.struct.config.typeMap?.synth || {};
   }
 
   override bind(): void {
     super.bind();
-    this.context?.game?.sound?.events?.onStarted?.addListener((id, buffer) =>
+    this.context?.game?.audio?.events?.onStarted?.addListener((id, buffer) =>
       this.startInstrument(id, buffer)
     );
-    this.context?.game?.sound?.events?.onPaused?.addListener((id) =>
+    this.context?.game?.audio?.events?.onPaused?.addListener((id) =>
       this.pauseInstrument(id)
     );
-    this.context?.game?.sound?.events?.onUnpaused?.addListener((id) =>
+    this.context?.game?.audio?.events?.onUnpaused?.addListener((id) =>
       this.unpauseInstrument(id)
     );
-    this.context?.game?.sound?.events.onStopped?.addListener((id) =>
+    this.context?.game?.audio?.events.onStopped?.addListener((id) =>
       this.stopInstrument(id)
     );
   }
@@ -90,8 +90,8 @@ export class SoundScene extends SparkScene {
   }
 
   override update(deltaMS: number): boolean {
-    this.context.game.sound.update(deltaMS);
-    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+    this.context.game.audio.update(deltaMS);
+    Object.entries(this.context.game.audio.state.playbackStates).forEach(
       ([k, v]) => {
         const progress = v.elapsedMS / v.durationMS;
         const instrument = this._instruments.get(k);
@@ -105,7 +105,7 @@ export class SoundScene extends SparkScene {
   }
 
   override step(deltaMS: number): void {
-    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+    Object.entries(this.context.game.audio.state.playbackStates).forEach(
       ([k]) => {
         const instrument = this._instruments.get(k);
         if (instrument) {
@@ -116,7 +116,7 @@ export class SoundScene extends SparkScene {
   }
 
   override pause(): void {
-    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+    Object.entries(this.context.game.audio.state.playbackStates).forEach(
       ([k]) => {
         const instrument = this._instruments.get(k);
         if (instrument) {
@@ -127,7 +127,7 @@ export class SoundScene extends SparkScene {
   }
 
   override unpause(): void {
-    Object.entries(this.context.game.sound.state.playbackStates).forEach(
+    Object.entries(this.context.game.audio.state.playbackStates).forEach(
       ([k]) => {
         const instrument = this._instruments.get(k);
         if (instrument) {

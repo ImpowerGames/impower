@@ -1,6 +1,6 @@
 import { Game } from "../../../game/core/classes/Game";
-import { CommandData } from "../../../game/logic/types/CommandData";
-import { ICommandRunner } from "../../../game/logic/types/ICommandRunner";
+import { CommandData } from "../../../game/modules/logic/types/CommandData";
+import { ICommandRunner } from "../../../game/modules/logic/types/ICommandRunner";
 
 export class CommandRunner<G extends Game, D extends CommandData = CommandData>
   implements ICommandRunner<D>

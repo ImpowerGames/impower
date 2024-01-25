@@ -58,7 +58,6 @@ const LANGUAGE_SUPPORT = new TextmateLanguageSupport("sparkdown", GRAMMAR);
 
 const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.quote, fontStyle: "italic" },
-  { tag: tags.emphasis, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "bold" },
   {
     tag: tags.link,
@@ -94,9 +93,9 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Section",
   "Import",
   "Define",
-  "Function",
-  "Do",
-  "Set",
+  "Define",
+  "Store",
+  "Assign",
   "Delete",
   "If",
   "Repeat",

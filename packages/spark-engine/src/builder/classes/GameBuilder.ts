@@ -1,7 +1,7 @@
 import { SparkProgram } from "../../../../sparkdown/src";
 import { BlockData, Game, GameConfig, GameState } from "../../game";
 import { GameContext } from "../../game/core/types/GameContext";
-import { ICommandRunner } from "../../game/logic/types/ICommandRunner";
+import { ICommandRunner } from "../../game/modules/logic/types/ICommandRunner";
 import { GameBuilderOptions } from "../types/GameBuilderOptions";
 import combineBlockMap from "../utils/combineBlockMap";
 import combineContext from "../utils/combineContext";

@@ -1,5 +1,5 @@
-import { ElementState } from "../../../spark-engine/src/game/ui/types/ElementState";
-import { IElement } from "../../../spark-engine/src/game/ui/types/IElement";
+import { ElementState } from "../../../spark-engine/src/game/modules/ui/types/ElementState";
+import { IElement } from "../../../spark-engine/src/game/modules/ui/types/IElement";
 import { getAnimationContent } from "../utils/getAnimationContent";
 import { getImportContent } from "../utils/getImportContent";
 import { getStyleContent } from "../utils/getStyleContent";

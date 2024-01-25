@@ -2,7 +2,7 @@ import type {
   SparkDisplayToken,
   SparkToken,
 } from "../../../../sparkdown/src/types/SparkToken";
-import type { CommandData } from "../../game/logic/types/CommandData";
+import type { CommandData } from "../../game/modules/logic/types/CommandData";
 import type { BranchCommandData } from "../classes/commands/branchCommand/BranchCommandData";
 import { ClearCommandData } from "../classes/commands/clearCommand/ClearCommandData";
 import type { DisplayCommandData } from "../classes/commands/displayCommand/DisplayCommandData";

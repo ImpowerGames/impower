@@ -1,4 +1,4 @@
-import type { SynthBuffer } from "../../../spark-engine/src/game/sound/classes/SynthBuffer";
+import type { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
 
 const DEFAULT_FADE_DURATION = 0.025;
 
@@ -132,10 +132,10 @@ export class SparkDOMAudioPlayer {
     this._loop = options?.loop ?? this._loop;
     this._volume = options?.volume ?? this._volume;
     this._cues = options?.cues ?? this._cues;
-    this.load();
+    this.loadSourceNode();
   }
 
-  protected load(): void {
+  protected loadSourceNode(): void {
     const sampleRate = this._context.sampleRate;
     if (this._sourceNode) {
       this._sourceNode.disconnect();
@@ -195,18 +195,22 @@ export class SparkDOMAudioPlayer {
     );
   }
 
-  protected play(
+  play(
     when: number,
     fadeDuration = 0,
     offset?: number,
     duration?: number
   ): void {
-    this._started = true;
-    this.load();
-    if (this._sourceNode) {
-      this._sourceNode.start(when, offset, duration);
-      this.fade(when, this.volume, fadeDuration);
+    if (!this._sourceNode) {
+      this.loadSourceNode();
     }
+    if (!this._started) {
+      this._started = true;
+      this._sourceNode?.start(when, offset, duration);
+      this._startedAt = when;
+      this._pausedAt = 0;
+    }
+    this.fade(when, this.volume, fadeDuration);
   }
 
   start(
@@ -215,7 +219,10 @@ export class SparkDOMAudioPlayer {
     offset?: number,
     duration?: number
   ): void {
-    this.play(when, fadeDuration, offset, duration);
+    // reload source node so we can start from the beginning
+    this.loadSourceNode();
+    this._sourceNode?.start(when, offset, duration);
+    this.fade(when, this.volume, fadeDuration);
     this._startedAt = when;
     this._pausedAt = 0;
   }
@@ -273,7 +280,7 @@ export class SparkDOMAudioPlayer {
 
   unpause(when: number, fadeDuration = DEFAULT_FADE_DURATION) {
     const offset = this._pausedAt;
-    this.play(when, fadeDuration, offset);
+    this.start(when, fadeDuration, offset);
     this._startedAt = when - offset;
     this._pausedAt = 0;
   }
@@ -294,7 +301,14 @@ export class SparkDOMAudioPlayer {
 
   getNextCueOffset(from: number) {
     const currentOffset = this.getCurrentOffset(from);
-    return this._cues.find((t) => t >= currentOffset) ?? this.duration;
+    const next = this._cues?.find((t) => t >= currentOffset);
+    if (next != null) {
+      return next;
+    }
+    if (this._loop) {
+      return this._cues?.[0] ?? 0;
+    }
+    return this.duration;
   }
 
   getNextCueTime(from: number) {

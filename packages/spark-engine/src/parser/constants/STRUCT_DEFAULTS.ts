@@ -16,6 +16,8 @@ import {
   UI_DEFAULTS,
   WRITER_DEFAULTS,
 } from "../../game";
+import { CHANNEL_DEFAULTS } from "../../game/modules/audio/specs/defaults/CHANNEL_DEFAULTS";
+import { MIXER_DEFAULTS } from "../../game/modules/audio/specs/defaults/MIXER_DEFAULTS";
 
 const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   text_layer: TEXT_LAYER_DEFAULTS,
@@ -25,6 +27,8 @@ const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
 
   audio: AUDIO_DEFAULTS,
   audio_group: AUDIO_GROUP_DEFAULTS,
+  mixer: MIXER_DEFAULTS,
+  channel: CHANNEL_DEFAULTS,
 
   synth: SYNTH_DEFAULTS,
   graphic: GRAPHIC_DEFAULTS,

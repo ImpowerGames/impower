@@ -4,7 +4,7 @@ export interface GameContext extends Record<string, any> {
     skipping?: boolean;
     simulating?: boolean;
     previewing?: boolean;
-    restore?: () => void;
+    restore?: () => Promise<void>;
     checkpoint?: (id: string) => void;
     supports?: (module: string) => void;
   };

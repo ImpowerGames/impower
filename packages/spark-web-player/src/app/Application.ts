@@ -4,8 +4,8 @@ import Ticker from "./Ticker";
 import PerspectiveCamera from "./render/cameras/PerspectiveCamera";
 import OrbitControls from "./render/controls/OrbitControls";
 import WebGLRenderer from "./render/renderers/WebGLRenderer";
+import AudioScene from "./scenes/AudioScene";
 import MainScene from "./scenes/MainScene";
-import SoundScene from "./scenes/SoundScene";
 
 export default class Application {
   protected _game: Game;
@@ -116,7 +116,7 @@ export default class Application {
     const scenesToLoad: Record<string, Scene> = !game
       ? {}
       : {
-          sound: new SoundScene(this),
+          audio: new AudioScene(this),
           main: new MainScene(this),
         };
     this.loadScenes(scenesToLoad).then(() => {

@@ -1,4 +1,3 @@
-export * from "../world/specs/defaults/_graphic";
 export * from "./classes/Game";
 export * from "./classes/GameEvent";
 export * from "./classes/GameEvent0";

@@ -39,13 +39,10 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     this._elapsedMS = 0;
     this.game.input.events.onPointerDown.addListener(this.onPointerDown);
     this._chosenBlockId = undefined;
-    const transitions = this.game.context.game?.transitions;
     const { onTick, displayed } = executeDisplayCommand(
       this.game,
       data,
-      {
-        instant: !transitions,
-      },
+      {},
       () => {
         this._wasTyped = true;
       },

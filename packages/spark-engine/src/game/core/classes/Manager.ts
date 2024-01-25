@@ -22,11 +22,59 @@ export abstract class Manager<
     return this._state as RecursiveReadonly<S>;
   }
 
-  constructor(context: GameContext, events: E, config: C, state: S) {
+  protected _stored: string[];
+  public get stored(): readonly string[] {
+    return this._stored;
+  }
+
+  protected _triggerReady: Map<number, () => void> = new Map();
+
+  protected _triggersCreated = 0;
+
+  constructor(
+    context: GameContext,
+    events: E,
+    config: C,
+    state: S,
+    stored: string[] = []
+  ) {
     this._context = context;
     this._events = events;
     this._config = config as RecursiveReadonly<C>;
     this._state = state;
+    this._stored = stored;
+  }
+
+  protected nextTriggerId() {
+    this._triggersCreated += 1;
+    if (
+      this._triggersCreated <= 0 ||
+      this._triggersCreated >= Number.MAX_SAFE_INTEGER
+    ) {
+      this._triggersCreated = 1;
+    }
+    return this._triggersCreated;
+  }
+
+  protected enableTrigger(triggerId: number, callback: () => void) {
+    this._triggerReady.set(triggerId, callback);
+  }
+
+  isReady(triggerId: number) {
+    return Boolean(this._triggerReady.has(triggerId));
+  }
+
+  trigger(triggerId: number) {
+    const t = this._triggerReady.get(triggerId);
+    if (t) {
+      t();
+    }
+  }
+
+  triggerAll(transitionIds: number[]) {
+    transitionIds.forEach((transitionId) => {
+      this.trigger(transitionId);
+    });
   }
 
   onStart(): void {}
@@ -41,7 +89,7 @@ export abstract class Manager<
     });
   }
 
-  onRestore() {
+  async onRestore() {
     // restores from current state after instant skipping
   }
 

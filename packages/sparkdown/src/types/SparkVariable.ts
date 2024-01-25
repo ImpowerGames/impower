@@ -9,7 +9,6 @@ export interface SparkVariable extends SparkRange {
   indent: number;
   type: string;
   name: string;
-  value: string;
   compiled: any;
   fields?: SparkField[];
   implicit?: boolean;

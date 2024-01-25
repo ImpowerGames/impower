@@ -2465,7 +2465,7 @@
     "AssetControl": {
       "tag": "keyword",
       "name": "keyword.asset.arguments.control.sd",
-      "match": "(schedule|start|stop|mute|unmute|loop|noloop|volume|after|over)"
+      "match": "(schedule|load|unload|start|stop|mute|unmute|loop|noloop|volume|after|over)"
     },
     "Transition": {
       "tag": "labelName",
@@ -2937,7 +2937,32 @@
           "include": "#Styling"
         },
         {
-          "include": "#Emphasis"
+          "include": "#EmphasisStart"
+        },
+        {
+          "include": "#EmphasisSurround"
+        },
+        {
+          "include": "#Pause"
+        },
+        {
+          "include": "#PlainText"
+        }
+      ]
+    },
+    "InnerText": {
+      "patterns": [
+        {
+          "include": "#Escape"
+        },
+        {
+          "include": "#InlineTemplateStringSubstitution"
+        },
+        {
+          "include": "#Styling"
+        },
+        {
+          "include": "#EmphasisSurround"
         },
         {
           "include": "#Pause"
@@ -3073,7 +3098,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
             }
           ]
         },
@@ -3101,7 +3126,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
             }
           ]
         },
@@ -3129,7 +3154,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
             }
           ]
         },
@@ -3157,7 +3182,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
             }
           ]
         },
@@ -3170,29 +3195,69 @@
         }
       }
     },
-    "Emphasis": {
+    "EmphasisStart": {
       "patterns": [
         {
-          "include": "#EmphasisCaret"
+          "include": "#EmphasisCaretStart"
         },
         {
-          "include": "#EmphasisTilde"
+          "include": "#EmphasisTildeStart"
         },
         {
-          "include": "#EmphasisEqual"
+          "include": "#EmphasisEqualStart"
         },
         {
-          "include": "#EmphasisAngleRight"
+          "include": "#EmphasisAngleRightStart"
         },
         {
-          "include": "#EmphasisAngleLeft"
+          "include": "#EmphasisAngleLeftStart"
         },
         {
-          "include": "#EmphasisColon"
+          "include": "#EmphasisColonStart"
         }
       ]
     },
-    "EmphasisCaret": {
+    "EmphasisSurround": {
+      "patterns": [
+        {
+          "include": "#EmphasisCaretSurround"
+        },
+        {
+          "include": "#EmphasisTildeSurround"
+        },
+        {
+          "include": "#EmphasisEqualSurround"
+        },
+        {
+          "include": "#EmphasisAngleRightSurround"
+        },
+        {
+          "include": "#EmphasisAngleLeftSurround"
+        },
+        {
+          "include": "#EmphasisColonSurround"
+        }
+      ]
+    },
+    "EmphasisCaretStart": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "^([\\^]+)([^\\^]+)$",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InnerText"
+            }
+          ]
+        }
+      }
+    },
+    "EmphasisCaretSurround": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
       "match": "([\\^]+)([^\\^]+)(\\1)",
@@ -3204,7 +3269,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
             }
           ]
         },
@@ -3214,10 +3279,10 @@
         }
       }
     },
-    "EmphasisTilde": {
+    "EmphasisTildeStart": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([~][~]+)((?:(?![~][~][ ]+).)*)(\\1)",
+      "match": "^([~]+)([^~]+)$",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3226,7 +3291,25 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
+            }
+          ]
+        }
+      }
+    },
+    "EmphasisTildeSurround": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "([~]+)([^~]+)(\\1)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InnerText"
             }
           ]
         },
@@ -3236,10 +3319,10 @@
         }
       }
     },
-    "EmphasisEqual": {
+    "EmphasisColonStart": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([=][=]+)((?:(?![=][=][ ]+).)*)(\\1)",
+      "match": "^([:]+)([^:]+)$",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3248,7 +3331,25 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
+            }
+          ]
+        }
+      }
+    },
+    "EmphasisColonSurround": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "([:]+)([^:]+)(\\1)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InnerText"
             }
           ]
         },
@@ -3258,10 +3359,10 @@
         }
       }
     },
-    "EmphasisAngleRight": {
+    "EmphasisEqualStart": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([>][>]+)((?:(?![>][>][ ]+).)*)(\\1)",
+      "match": "^([=]+)([^=]+)$",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3270,7 +3371,25 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
+            }
+          ]
+        }
+      }
+    },
+    "EmphasisEqualSurround": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "([=]+)([^=]+)(\\1)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InnerText"
             }
           ]
         },
@@ -3280,10 +3399,10 @@
         }
       }
     },
-    "EmphasisAngleLeft": {
+    "EmphasisAngleLeftStart": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([<][<]+)((?:(?![<][<][ ]+).)*)(\\1)",
+      "match": "^([<]+)([^<]+)$",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3292,7 +3411,25 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
+            }
+          ]
+        }
+      }
+    },
+    "EmphasisAngleLeftSurround": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "([<]+)([^<]+)(\\1)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InnerText"
             }
           ]
         },
@@ -3302,10 +3439,10 @@
         }
       }
     },
-    "EmphasisColon": {
+    "EmphasisAngleRightStart": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([:][:]+)((?:(?![:][:][ ]+).)*)(\\1)",
+      "match": "^([>]+)([^>]+)$",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3314,7 +3451,25 @@
         "2": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#InnerText"
+            }
+          ]
+        }
+      }
+    },
+    "EmphasisAngleRightSurround": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "([>]+)([^>]+)(\\1)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InnerText"
             }
           ]
         },
@@ -4296,7 +4451,7 @@
           "include": "#TemplateStringConditionalDelimiter"
         },
         {
-          "include": "#InlineText"
+          "include": "#InnerText"
         }
       ],
       "end": "([}])",

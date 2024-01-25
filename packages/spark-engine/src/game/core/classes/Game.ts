@@ -1,18 +1,23 @@
-import { DebugConfig, DebugManager, DebugState } from "../../debug";
-import { InputConfig, InputManager, InputState } from "../../input";
-import { LogicConfig, LogicManager, LogicState } from "../../logic";
-import { PhysicsConfig, PhysicsManager, PhysicsState } from "../../physics";
-import { SoundConfig, SoundManager, SoundState } from "../../sound";
-import { TickerConfig, TickerManager, TickerState } from "../../ticker";
-import { UIConfig, UIManager, UIState } from "../../ui";
-import { UUIDConfig, UUIDManager, UUIDState } from "../../uuid";
-import { WorldConfig, WorldManager, WorldState } from "../../world";
-import { WriterConfig, WriterManager, WriterState } from "../../writer";
+import { AudioConfig, AudioManager, AudioState } from "../../modules/audio";
+import { DebugConfig, DebugManager, DebugState } from "../../modules/debug";
+import { InputConfig, InputManager, InputState } from "../../modules/input";
+import { LogicConfig, LogicManager, LogicState } from "../../modules/logic";
+import {
+  PhysicsConfig,
+  PhysicsManager,
+  PhysicsState,
+} from "../../modules/physics";
+import { TickerConfig, TickerManager, TickerState } from "../../modules/ticker";
+import { UIConfig, UIManager, UIState } from "../../modules/ui";
+import { UUIDConfig, UUIDManager, UUIDState } from "../../modules/uuid";
+import { WorldConfig, WorldManager, WorldState } from "../../modules/world";
+import { WriterConfig, WriterManager, WriterState } from "../../modules/writer";
 import { GameContext } from "../types/GameContext";
 import { ListenOnly } from "../types/ListenOnly";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { clone } from "../utils/clone";
 import { evaluate } from "../utils/evaluate";
+import { resolve } from "../utils/resolve";
 import { setProperty } from "../utils/setProperty";
 import { GameEvent } from "./GameEvent";
 import { GameEvent0 } from "./GameEvent0";
@@ -36,7 +41,7 @@ export interface GameConfig {
   logic?: Partial<LogicConfig>;
   debug?: Partial<DebugConfig>;
   input?: Partial<InputConfig>;
-  sound?: Partial<SoundConfig>;
+  audio?: Partial<AudioConfig>;
   writer?: Partial<WriterConfig>;
   world?: Partial<WorldConfig>;
   physics?: Partial<PhysicsConfig>;
@@ -51,7 +56,7 @@ export interface GameState {
   logic?: Partial<LogicState>;
   debug?: Partial<DebugState>;
   input?: Partial<InputState>;
-  sound?: Partial<SoundState>;
+  audio?: Partial<AudioState>;
   writer?: Partial<WriterState>;
   world?: Partial<WorldState>;
   physics?: Partial<PhysicsState>;
@@ -72,7 +77,7 @@ export class Game {
 
   input: InputManager;
 
-  sound: SoundManager;
+  audio: AudioManager;
 
   writer: WriterManager;
 
@@ -124,7 +129,7 @@ export class Game {
     const c = config;
     const s = clone(state);
     this._stored = config?.stored || [];
-    this._context = clone(context || {}, s?.context);
+    this._context = resolve(clone(context || {}, s?.context));
     this._context.game ??= {};
     this._context.game.transitions ??= true;
     this._context.game.checkpoint = (id: string) => this.checkpoint(id);
@@ -136,7 +141,7 @@ export class Game {
     this.ui = new UIManager(this._context, c?.ui, s?.ui);
     this.debug = new DebugManager(this._context, c?.debug, s?.debug);
     this.input = new InputManager(this._context, c?.input, s?.input);
-    this.sound = new SoundManager(this._context, c?.sound, s?.sound);
+    this.audio = new AudioManager(this._context, c?.audio, s?.audio);
     this.writer = new WriterManager(this._context, c?.writer, s?.writer);
     this.world = new WorldManager(this._context, c?.world, s?.world);
     this.physics = new PhysicsManager(this._context, c?.physics, s?.physics);
@@ -147,7 +152,7 @@ export class Game {
       ui: this.ui,
       debug: this.debug,
       input: this.input,
-      sound: this.sound,
+      audio: this.audio,
       writer: this.writer,
       world: this.world,
       physics: this.physics,
@@ -180,9 +185,11 @@ export class Game {
     }
   }
 
-  restore(): void {
+  async restore(): Promise<void> {
     this._events.onRestore.dispatch();
-    this._managerNames.forEach((k) => this._managers[k]?.onRestore());
+    await Promise.all(
+      this._managerNames.map((k) => this._managers[k]?.onRestore())
+    );
   }
 
   reload(): void {
@@ -198,17 +205,25 @@ export class Game {
     Object.values(this._events).forEach((event) => event.removeAllListeners());
   }
 
+  cache(cache: object, accessPath: string) {
+    const value = evaluate(accessPath, this._context);
+    if (value !== undefined && typeof value != "function") {
+      setProperty(cache, accessPath, value);
+    }
+  }
+
   serialize(): string {
-    const context = {};
-    this._stored.forEach((accessPath) => {
-      const value = evaluate(accessPath, this._context);
-      if (value !== undefined && typeof value != "function") {
-        setProperty(context, accessPath, value);
-      }
-    });
-    const saveData: Record<string, unknown> = {
-      context,
+    const saveData: Record<string, any> & { context: any } = {
+      context: {},
     };
+    this._stored.forEach((accessPath) => {
+      this.cache(saveData.context, accessPath);
+    });
+    this._managerNames.forEach((k) =>
+      this._managers[k]?.stored?.forEach((accessPath) => {
+        this.cache(saveData.context, accessPath);
+      })
+    );
     this._managerNames.forEach((k) => {
       const manager = this._managers[k];
       if (manager) {

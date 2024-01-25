@@ -1,7 +1,7 @@
 export const traverse = <T>(
   obj: T,
-  process: (fieldPath: string, fieldValue: unknown) => void,
-  shouldProcess?: (fieldPath: string, fieldValue: unknown) => boolean,
+  process: (fieldPath: string, fieldValue: any) => void,
+  shouldProcess?: (fieldPath: string, fieldValue: any) => boolean,
   fieldPath: string = ""
 ) => {
   if (obj) {

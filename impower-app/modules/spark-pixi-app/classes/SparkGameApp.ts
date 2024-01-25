@@ -1,9 +1,8 @@
 import { SparkContext } from "../../../../spark-engine/src";
 import { Application, ApplicationOptions } from "../plugins/app";
-import { MainScene } from "./scenes/MainScene";
-import { SoundScene } from "./scenes/SoundScene";
 import { SparkAssets } from "./SparkAssets";
 import { SparkScene } from "./SparkScene";
+import { MainScene } from "./scenes/MainScene";
 
 export interface SparkGameAppOptions extends ApplicationOptions {
   initialScenes?: Record<string, SparkScene>;
@@ -105,7 +104,7 @@ export class SparkGameApp {
         ? {}
         : options?.initialScenes ?? {
             main: new MainScene(context, this.app, this.assets),
-            sound: new SoundScene(context, this.app, this.assets),
+            audio: new AudioScene(context, this.app, this.assets),
           };
     this.loadScenes(scenesToLoad).then(() => {
       this._ready = true;

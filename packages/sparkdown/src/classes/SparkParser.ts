@@ -161,7 +161,7 @@ export default class SparkParser {
       sections: {},
       tokens: [],
       context: {},
-      stored: ["visited"],
+      stored: [],
       ...augmentations,
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
@@ -280,6 +280,8 @@ export default class SparkParser {
       } else if (typeof tok.compiled === "object") {
         program.context[tok.type] ??= {};
         program.context[tok.type]![tok.name] = tok.compiled;
+        tok.compiled["$type"] = tok.type;
+        tok.compiled["$name"] = tok.name;
       } else {
         program.context[tok.name] = tok.compiled;
       }
@@ -311,7 +313,6 @@ export default class SparkParser {
             indent: 0,
             type,
             name,
-            value: JSON.stringify(clonedDefaultObj),
             compiled: clonedDefaultObj,
             implicit: true,
           };
@@ -1115,6 +1116,9 @@ export default class SparkParser {
       Object.entries(program.builtins).forEach(([type, objectsOfType]) => {
         // Define type
         const compiled = objectsOfType["default"] ?? {};
+        if (typeof compiled === "object") {
+          compiled["$type"] = type;
+        }
         const compiledType = typeof compiled;
         program.variables ??= {};
         const variable: SparkVariable = {
@@ -1125,7 +1129,6 @@ export default class SparkParser {
           indent: 0,
           type: compiledType === "object" ? "type" : compiledType,
           name: type,
-          value: JSON.stringify(compiled),
           compiled,
           implicit: true,
         };
@@ -1138,6 +1141,10 @@ export default class SparkParser {
             if (name) {
               const variableName = name;
               const variableType = type;
+              if (typeof compiled === "object") {
+                compiled["$type"] = type;
+                compiled["$name"] = name;
+              }
               const variable: SparkVariable = {
                 tag: "builtin",
                 line,
@@ -1146,7 +1153,6 @@ export default class SparkParser {
                 indent: 0,
                 type: variableType,
                 name: variableName,
-                value: JSON.stringify(compiled),
                 compiled,
                 implicit: true,
               };

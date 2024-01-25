@@ -12,7 +12,7 @@ export const getStyleContent = (
   Object.entries(properties).forEach(([fk, fv]) => {
     const fieldPath = fk.split(".");
     const propName = fieldPath[2] || fieldPath[1];
-    if (propName !== "target") {
+    if (propName && propName !== "target" && !propName.startsWith("$")) {
       const group = fieldPath[2] ? fieldPath[1] : undefined;
       if (propName) {
         if (group) {

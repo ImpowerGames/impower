@@ -1,4 +1,4 @@
-import { CommandData } from "../../../../game/logic/types/CommandData";
+import { CommandData } from "../../../../game/modules/logic/types/CommandData";
 import { DisplayCommandParams } from "./DisplayCommandParams";
 
 export interface DisplayCommandData

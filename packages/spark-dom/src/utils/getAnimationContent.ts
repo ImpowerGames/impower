@@ -7,7 +7,7 @@ export const getAnimationContent = (
   const groupMap: Record<string, Record<string, unknown>> = {};
   Object.entries(properties).forEach(([fk, fv]) => {
     const [, keyframe, propName] = fk.split(".");
-    if (keyframe && propName) {
+    if (keyframe && propName && !propName.startsWith("$")) {
       if (!groupMap[keyframe]) {
         groupMap[keyframe] = {};
       }
