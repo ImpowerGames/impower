@@ -280,8 +280,10 @@ export default class SparkParser {
       } else if (typeof tok.compiled === "object") {
         program.context[tok.type] ??= {};
         program.context[tok.type]![tok.name] = tok.compiled;
-        tok.compiled["$type"] = tok.type;
-        tok.compiled["$name"] = tok.name;
+        if (!Array.isArray(tok.compiled)) {
+          tok.compiled["$type"] = tok.type;
+          tok.compiled["$name"] = tok.name;
+        }
       } else {
         program.context[tok.name] = tok.compiled;
       }
@@ -2102,6 +2104,9 @@ export default class SparkParser {
           } else if (tok.tag === "import") {
             prevDisplayPositionalTokens.length = 0;
             // Compile value
+            tok.value = tok.value.startsWith("[")
+              ? tok.value
+              : `[${tok.value}]`;
             const compiledValue = compileAndValidateExpression(
               tok,
               tok.value,
@@ -2126,7 +2131,6 @@ export default class SparkParser {
                 tok?.ranges?.value?.to
               );
             }
-
             if (validateDeclaration(tok)) {
               declareVariable(tok);
             }

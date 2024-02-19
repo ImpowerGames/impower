@@ -1,4 +1,3 @@
-import { SparkDOMElement } from "../../../spark-dom/src";
 import { ConfigureGameMessage } from "../../../spark-editor-protocol/src/protocols/game/ConfigureGameMessage";
 import { DidExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/DidExecuteGameCommandMessage";
 import { DisableGameDebugMessage } from "../../../spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
@@ -11,9 +10,9 @@ import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/ga
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { WillExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { GameState } from "../../../spark-engine/src";
 import { GameBuilder } from "../../../spark-engine/src/builder/classes/GameBuilder";
-import { GameBuilderOptions } from "../../../spark-engine/src/builder/types/GameBuilderOptions";
+import { DidExecuteMessage } from "../../../spark-engine/src/game/modules/logic/classes/messages/DidExecuteMessage";
+import { WillExecuteMessage } from "../../../spark-engine/src/game/modules/logic/classes/messages/WillExecuteMessage";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import Application from "../app/Application";
@@ -25,8 +24,6 @@ export default class SparkWebPlayer extends Component(spec) {
   _app?: Application;
 
   _debugging = false;
-
-  _root?: SparkDOMElement;
 
   _programs: Record<string, SparkProgram> = {};
 
@@ -110,10 +107,7 @@ export default class SparkWebPlayer extends Component(spec) {
         programs.forEach((p) => {
           this._programs[p.uri] = p.program;
         });
-        if (this._builder) {
-          this._builder.game.destroy();
-        }
-        this._builder = this.loadGame();
+        this.loadGame(true);
         this.emit(
           LoadGameMessage.method,
           LoadGameMessage.type.response(message.id, null)
@@ -126,14 +120,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (StartGameMessage.type.isRequest(message)) {
-        const gameDOM = this.ref.sparkGame;
-        if (this._builder) {
-          this._builder.game.destroy();
-        }
-        this._builder = this.loadGame();
-        if (gameDOM && this._builder) {
-          this._app = new Application(gameDOM, this._builder.game);
-        }
+        this.loadGame(false);
       }
     }
   };
@@ -193,7 +180,7 @@ export default class SparkWebPlayer extends Component(spec) {
       const message = e.detail;
       if (EnableGameDebugMessage.type.isRequest(message)) {
         if (this._builder) {
-          this._builder.game.debug.startDebugging();
+          this._builder.game.module.debug.startDebugging();
         }
       }
     }
@@ -204,7 +191,7 @@ export default class SparkWebPlayer extends Component(spec) {
       const message = e.detail;
       if (DisableGameDebugMessage.type.isRequest(message)) {
         if (this._builder) {
-          this._builder.game.debug.stopDebugging();
+          this._builder.game.module.debug.stopDebugging();
         }
       }
     }
@@ -227,7 +214,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   };
 
-  loadGame(state?: GameState) {
+  loadGame(preview: boolean): void {
     if (this._programs && this._options) {
       const programIndices: Record<string, number> = {};
       const programs: SparkProgram[] = [];
@@ -236,9 +223,6 @@ export default class SparkWebPlayer extends Component(spec) {
         programs.push(program);
       });
       const options = this._options;
-      if (!this._root) {
-        this._root = SparkDOMElement.wrap(this.ref.sparkRoot!);
-      }
       const waypoints = options.waypoints
         ?.filter((waypoint) => programIndices[waypoint.uri] != null)
         ?.map((waypoint) => ({
@@ -252,118 +236,95 @@ export default class SparkWebPlayer extends Component(spec) {
               line: options.startpoint.line,
             }
           : undefined;
-      const simulation = state
-        ? undefined
-        : {
-            waypoints,
-            startpoint,
-          };
-      const gameBuilderOptions: GameBuilderOptions = {
-        simulation,
-        config: {
-          ui: {
-            root: this._root,
-            createElement: (
-              type: string,
-              id: string,
-              name: string,
-              text?: string,
-              style?: Record<string, string | null>,
-              attributes?: Record<string, string | null>
-            ) => {
-              return new SparkDOMElement(
-                type,
-                id,
-                name,
-                text,
-                style,
-                attributes
-              );
-            },
-          },
-        },
-        state,
+      const simulation = {
+        waypoints,
+        startpoint,
       };
-      const context = new GameBuilder(programs, gameBuilderOptions);
-      context.game.logic.events.onWillExecuteCommand.addListener(
-        (_id, source) => {
-          const programs = Object.keys(this._programs);
-          if (source) {
-            const uri = programs[source.file];
-            if (uri) {
-              this.emit(
-                WillExecuteGameCommandMessage.method,
-                WillExecuteGameCommandMessage.type.notification({
-                  textDocument: { uri },
-                  range: {
-                    start: {
-                      line: source.line,
-                      character: 0,
-                    },
-                    end: {
-                      line: source.line,
-                      character: source.to - source.from - 1,
-                    },
-                  },
-                })
-              );
-            }
-          }
-        }
-      );
-      context.game.logic.events.onDidExecuteCommand.addListener(
-        (_id, source) => {
-          const programs = Object.keys(this._programs);
-          if (source) {
-            const uri = programs[source.file];
-            if (uri) {
-              this.emit(
-                DidExecuteGameCommandMessage.method,
-                DidExecuteGameCommandMessage.type.notification({
-                  textDocument: { uri },
-                  range: {
-                    start: {
-                      line: source.line,
-                      character: 0,
-                    },
-                    end: {
-                      line: source.line,
-                      character: source.to - source.from - 1,
-                    },
-                  },
-                })
-              );
-            }
-          }
-        }
-      );
-      context.game.events.onReload.addListener((state) => {
-        this.reloadGame(state);
+      if (this._builder?.game) {
+        this._builder.game.destroy();
+      }
+      this._builder = new GameBuilder(programs, {
+        simulation,
+        preview,
       });
-      return context;
+      this._builder.game.connection.outgoing.addListener(
+        "logic/willexecute",
+        (msg) => {
+          if (WillExecuteMessage.type.isNotification(msg)) {
+            const source = msg.params.source;
+            const programs = Object.keys(this._programs);
+            if (source) {
+              const uri = programs[source.file];
+              if (uri) {
+                this.emit(
+                  WillExecuteGameCommandMessage.method,
+                  WillExecuteGameCommandMessage.type.notification({
+                    textDocument: { uri },
+                    range: {
+                      start: {
+                        line: source.line,
+                        character: 0,
+                      },
+                      end: {
+                        line: source.line,
+                        character: source.to - source.from - 1,
+                      },
+                    },
+                  })
+                );
+              }
+            }
+          }
+        }
+      );
+      this._builder.game.connection.outgoing.addListener(
+        "logic/didexecute",
+        (msg) => {
+          if (DidExecuteMessage.type.isNotification(msg)) {
+            const source = msg.params.source;
+            const programs = Object.keys(this._programs);
+            if (source) {
+              const uri = programs[source.file];
+              if (uri) {
+                this.emit(
+                  DidExecuteGameCommandMessage.method,
+                  DidExecuteGameCommandMessage.type.notification({
+                    textDocument: { uri },
+                    range: {
+                      start: {
+                        line: source.line,
+                        character: 0,
+                      },
+                      end: {
+                        line: source.line,
+                        character: source.to - source.from - 1,
+                      },
+                    },
+                  })
+                );
+              }
+            }
+          }
+        }
+      );
+      if (this._builder) {
+        if (this._app) {
+          this._app.destroy(true);
+          this._app = undefined;
+        }
+        this._app = new Application(
+          this._builder.game,
+          this.ref.gameView,
+          this.ref.gameOverlay
+        );
+      }
     }
     return undefined;
   }
 
-  reloadGame(state: GameState) {
-    if (this._app) {
-      this._app.destroy(true);
-      this._app = undefined;
-    }
-    if (this._builder) {
-      this._builder.game.destroy();
-      this._builder = undefined;
-    }
-    const gameDOM = this.ref.sparkGame;
-    this._builder = this.loadGame(state);
-    if (gameDOM && this._builder) {
-      this._app = new Application(gameDOM, this._builder.game);
-    }
-  }
-
   updatePreview(line: number) {
     if (!this._builder) {
-      this._builder = this.loadGame();
+      this.loadGame(true);
     }
     if (this._builder) {
       this._builder.preview(line);

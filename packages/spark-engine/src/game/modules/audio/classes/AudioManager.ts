@@ -1,27 +1,19 @@
-import { GameEvent1, GameEvent2 } from "../../../core";
-import { GameEvent } from "../../../core/classes/GameEvent";
 import { Manager } from "../../../core/classes/Manager";
-import { GameContext } from "../../../core/types/GameContext";
 import { AudioEvent } from "../../../core/types/SequenceEvent";
-import { MIDI_STATUS_DATA } from "../constants/MIDI_STATUS_DATA";
-import { MIDI_STATUS_SYSTEM } from "../constants/MIDI_STATUS_TYPE";
 import { Channel } from "../specs/Channel";
 import { Synth } from "../specs/Synth";
 import { AudioData } from "../types/AudioData";
 import { AudioUpdate } from "../types/AudioUpdate";
 import { ChannelState } from "../types/ChannelState";
-import { Midi } from "../types/Midi";
-import { MidiEvent } from "../types/MidiEvent";
-import { MidiTrackState } from "../types/MidiTrackState";
-import { SoundPlaybackControl } from "../types/SoundPlaybackControl";
-import { createOrResetMidiTrackState } from "../utils/createOrResetMidiTrackState";
 import { parseTones } from "../utils/parseTones";
-
-export interface AudioEvents extends Record<string, GameEvent> {
-  onLoad: GameEvent1<AudioData>;
-  onUpdate: GameEvent1<AudioUpdate[]>;
-  onMidiEvent: GameEvent2<string, MidiEvent>;
-}
+import {
+  AudioLoadMessage,
+  AudioLoadMessageMap,
+} from "./messages/AudioLoadMessage";
+import {
+  AudioUpdateMessage,
+  AudioUpdateMessageMap,
+} from "./messages/AudioUpdateMessage";
 
 export interface AudioConfig {}
 
@@ -29,15 +21,9 @@ export interface AudioState {
   channels?: Record<string, ChannelState>;
 }
 
-export class AudioManager extends Manager<
-  AudioEvents,
-  AudioConfig,
-  AudioState
-> {
-  protected _midiPlayback: Record<string, SoundPlaybackControl> = {};
+export type AudioMessageMap = AudioLoadMessageMap & AudioUpdateMessageMap;
 
-  protected _midiTracks: Record<string, MidiTrackState> = {};
-
+export class AudioManager extends Manager<AudioState, AudioMessageMap> {
   protected _onReady: Map<string, undefined | (() => void)[]> = new Map();
 
   protected _ready = new Set<string>();
@@ -45,29 +31,6 @@ export class AudioManager extends Manager<
   protected _updates: AudioUpdate[] = [];
 
   protected _playing: Record<string, Map<string, AudioUpdate>> = {};
-
-  constructor(
-    context: GameContext,
-    config?: Partial<AudioConfig>,
-    state?: Partial<AudioState>
-  ) {
-    const initialEvents: AudioEvents = {
-      onLoad: new GameEvent1<AudioData>(),
-      onUpdate: new GameEvent1<AudioUpdate[]>(),
-      onMidiEvent: new GameEvent2<string, MidiEvent>(),
-    };
-    const initialConfig: AudioConfig = {
-      audioContext: {
-        baseLatency: 0,
-        outputLatency: 0,
-        currentTime: 0,
-        sampleRate: 44100,
-      },
-      ...(config || {}),
-    };
-    super(context, initialEvents, initialConfig, state || {});
-    this.onRestore();
-  }
 
   override async onRestore() {
     this._updates.length = 0;
@@ -89,7 +52,7 @@ export class AudioManager extends Manager<
           });
         }
       });
-      await this.loadAll(Array.from(audioToLoad));
+      await this.loadAllAudio(Array.from(audioToLoad));
       this._updates.push(...updates);
     }
   }
@@ -97,26 +60,19 @@ export class AudioManager extends Manager<
   override onUpdate() {
     if (this._updates.length > 0) {
       // Flush updates that should be handled this frame
-      this._events.onUpdate.dispatch([
+      const updates = [
         ...this._updates.map((u) => ({
           ...u,
           volume: u.volume * this.getVolumeMultiplier(u.channel, u.name),
         })),
-      ]);
+      ];
+      this.emit(AudioUpdateMessage.type.request(updates));
       this._updates.length = 0;
     }
     return true;
   }
 
-  notifyReady(id: string) {
-    this._ready.add(id);
-    const onReadyCallbacks = this._onReady.get(id);
-    if (onReadyCallbacks) {
-      onReadyCallbacks.forEach((callback) => callback?.());
-    }
-  }
-
-  protected _load(data: AudioData, callback?: () => void) {
+  protected _loadAudio(data: AudioData, callback?: () => void) {
     if (this._ready.has(data.id)) {
       callback?.();
       return;
@@ -128,60 +84,28 @@ export class AudioManager extends Manager<
       const listeners = this._onReady.get(data.id);
       listeners?.push(callback);
     }
-    if (!this._context.game?.simulating) {
-      this._events.onLoad.dispatch(data);
-    }
-  }
-
-  async load(data: AudioData): Promise<void> {
-    await new Promise<void>((resolve) => {
-      this._load(data, resolve);
-    });
-  }
-
-  async loadAll(dataArray: AudioData[]): Promise<void> {
-    await Promise.all(dataArray.map((d) => this.load(d)));
-  }
-
-  protected updateMidi(deltaMS: number, id: string, midi: Midi) {
-    const controlState = this._midiPlayback?.[id];
-    if (!controlState) {
-      return;
-    }
-    if (controlState.paused) {
-      return;
-    }
-    if (controlState.started) {
-      controlState.elapsedMS += deltaMS;
-    }
-    // For performance reasons, we reset all existing states
-    // rather than creating new state objects every tick
-    const midiTrackState = createOrResetMidiTrackState(this._midiTracks[id]);
-    midi.tracks.forEach((track) => {
-      track.forEach((event, index) => {
-        const ticks = event.ticks ?? 0;
-        if (
-          event.statusType === MIDI_STATUS_SYSTEM.system_meta &&
-          event.statusData === MIDI_STATUS_DATA.system_meta_tempo
-        ) {
-          midiTrackState.mpq = event.tempoMPQ;
-        }
-        const secondsPerQuarterNote = midiTrackState.mpq / 1000000;
-        const quarterNotesPerTick = 1 / midi.tpq;
-        const quarterNotes = ticks * quarterNotesPerTick;
-        const time = quarterNotes * secondsPerQuarterNote;
-        const timeMS = time * 1000;
-        if (
-          index > controlState.latestEvent &&
-          controlState.elapsedMS >= timeMS
-        ) {
-          if (!this._context.game?.simulating) {
-            this._events.onMidiEvent.dispatch(id, event);
+    if (!this._context.system?.simulating) {
+      this.emit(AudioLoadMessage.type.request(data)).then((msg) => {
+        const audioId = msg.result;
+        if (audioId) {
+          this._ready.add(audioId);
+          const onReadyCallbacks = this._onReady.get(audioId);
+          if (onReadyCallbacks) {
+            onReadyCallbacks.forEach((callback) => callback?.());
           }
-          controlState.latestEvent = index;
         }
       });
+    }
+  }
+
+  async loadAudio(data: AudioData): Promise<void> {
+    await new Promise<void>((resolve) => {
+      this._loadAudio(data, resolve);
     });
+  }
+
+  async loadAllAudio(dataArray: AudioData[]): Promise<void> {
+    await Promise.all(dataArray.map((d) => this.loadAudio(d)));
   }
 
   protected getModulatedVolume(obj?: { mute?: boolean; volume?: number }) {
@@ -393,7 +317,7 @@ export class AudioManager extends Manager<
     const trigger = () => {
       this._updates.push(...updates);
     };
-    this.loadAll(Array.from(audioToLoad)).then(() => {
+    this.loadAllAudio(Array.from(audioToLoad)).then(() => {
       this.enableTrigger(id, trigger);
       if (autoTrigger) {
         trigger();

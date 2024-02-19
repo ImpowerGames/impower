@@ -1,13 +1,8 @@
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
-export const getStyleContent = (
-  targetName: string,
-  properties: Record<string, any>,
-  breakpoints: Record<string, number>
-): string => {
-  const target = (properties[".target"] as string) || `.${targetName}`;
-  const selector = target.replaceAll("$", targetName);
+export const getStyleContent = (properties: Record<string, any>): string => {
+  const target = properties[".target"] as string;
   const groupMap: Record<string, Record<string, unknown>> = {};
   Object.entries(properties).forEach(([fk, fv]) => {
     const fieldPath = fk.split(".");
@@ -48,16 +43,15 @@ export const getStyleContent = (
       .join("")
       .trim();
     const fieldsContent = `{\n  ${content}\n}`;
-    const isBreakpointGroup = groupName && breakpoints[groupName];
-    if (isBreakpointGroup) {
-      textContent += `.${groupName} ${selector} ${fieldsContent}\n`;
+    const cssPropertyName = getCSSPropertyName(groupName);
+    if (cssPropertyName.startsWith(":")) {
+      textContent += `.${target}${cssPropertyName} ${fieldsContent}\n`;
     } else if (groupName.startsWith("*")) {
-      textContent += `${selector} ${groupName} ${fieldsContent}\n`;
+      textContent += `.${target} ${groupName} ${fieldsContent}\n`;
     } else if (groupName) {
-      const cssPseudoName = getCSSPropertyName(groupName);
-      textContent += `${selector}:${cssPseudoName} ${fieldsContent}\n`;
+      textContent += `.${groupName} .${target} ${fieldsContent}\n`;
     } else {
-      textContent += `${selector} ${fieldsContent}\n`;
+      textContent += `.${target} ${fieldsContent}\n`;
     }
   });
   textContent = textContent.trim();

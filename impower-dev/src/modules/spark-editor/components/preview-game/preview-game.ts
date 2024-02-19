@@ -20,7 +20,6 @@ export default class GamePreview extends Component(spec) {
 
   override onConnected() {
     this.configureGame();
-    this.loadGame();
     this.loadPreview();
     window.addEventListener(
       DidChangeWatchedFilesMessage.method,
@@ -35,6 +34,7 @@ export default class GamePreview extends Component(spec) {
       this.handleWillExecuteGameCommand
     );
     window.addEventListener("keydown", this.handleKeyDown);
+    this.loadGame();
   }
 
   override onDisconnected() {

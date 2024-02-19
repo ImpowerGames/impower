@@ -1,7 +1,9 @@
+import { ElementContent } from "./ElementContent";
+
 export interface ElementState {
-  type: string;
+  type?: string;
   name?: string;
-  text?: string;
-  style?: Record<string, string | null>;
-  attributes?: Record<string, string | null>;
+  content?: ElementContent;
+  style?: Record<string, string | null> | null;
+  attributes?: Record<string, string | null> | null;
 }

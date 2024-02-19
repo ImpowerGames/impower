@@ -11,7 +11,6 @@ const getSyntaxHighlightedHtml = (
     scope?(node: NodeType): boolean;
   }
 ) => {
-  console.log("str", str);
   const tree = language.parser.parse(str);
   let html = "";
   let prev = 0;
@@ -22,7 +21,6 @@ const getSyntaxHighlightedHtml = (
       console.log("span", str.slice(from - diff, from));
       html += `<span>${str.slice(from - diff, from)}</span>`;
     }
-    console.log("s", s);
     html += `<span class="${token}">${s}</span>`;
     prev = to;
   });

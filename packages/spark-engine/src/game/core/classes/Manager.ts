@@ -1,50 +1,95 @@
 import { GameContext } from "../types/GameContext";
-import { IGameEvent } from "../types/IGameEvent";
-import { ListenOnly } from "../types/ListenOnly";
+import { IMessage } from "../types/IMessage";
+import { NotificationMessage } from "../types/NotificationMessage";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
+import { RequestMessage } from "../types/RequestMessage";
+import { ResponseError } from "../types/ResponseError";
+import { Connection } from "./Connection";
 
-export abstract class Manager<
-  E extends Record<string, IGameEvent> = any,
-  C = any,
-  S = any
+export class Manager<
+  S = any,
+  M extends Record<string, [any, any]> = {
+    [method: string]: [IMessage, IMessage];
+  }
 > {
   protected _context: GameContext;
 
-  protected _events: E;
-  public get events(): ListenOnly<E> {
-    return this._events;
-  }
-
-  protected _config: RecursiveReadonly<C>;
-
-  protected _state: S;
-  public get state(): RecursiveReadonly<S> {
+  protected _state: S = {} as S;
+  public get state() {
     return this._state as RecursiveReadonly<S>;
   }
 
   protected _stored: string[];
-  public get stored(): readonly string[] {
-    return this._stored;
+  public get stored() {
+    return this._stored as readonly string[];
   }
 
   protected _triggerReady: Map<number, () => void> = new Map();
 
   protected _triggersCreated = 0;
 
+  private _connection: Connection;
+
   constructor(
     context: GameContext,
-    events: E,
-    config: C,
-    state: S,
+    connection: Connection,
     stored: string[] = []
   ) {
     this._context = context;
-    this._events = events;
-    this._config = config as RecursiveReadonly<C>;
-    this._state = state;
+    this._connection = connection;
     this._stored = stored;
   }
 
+  /** Executed when the game is initialized (after it is safe to emit game messages) */
+  onInit(): void {}
+
+  /** Executed when the game starts */
+  onStart(): void {}
+
+  /** Executed every frame */
+  onUpdate(_deltaMS: number): null | boolean {
+    return true;
+  }
+
+  /** Executed when the game is destroyed */
+  onDestroy(): void {}
+
+  /** Restores state from save file */
+  async load(state: S) {
+    this._state = state;
+    this.onLoad();
+  }
+
+  /** Executed when a save file is loaded */
+  async onLoad() {}
+
+  /** Executed when game has finished instant simulation and should restore from current state */
+  async onRestore() {}
+
+  /** Executed before manager state is serialized */
+  onSerialize() {}
+
+  /** Executed before game is checkpointed */
+  onCheckpoint(_checkpointId: string) {}
+
+  /** Executed when game is previewed at a specific checkpoint location */
+  onPreview(_checkpointId: string) {}
+
+  /** Executed when a relevant notification is received */
+  onReceiveNotification(_msg: NotificationMessage): void {}
+
+  /** Executed when a relevant request is received */
+  async onReceiveRequest(
+    _msg: RequestMessage
+  ): Promise<
+    | { error: ResponseError; transfer?: ArrayBuffer[] }
+    | { result: unknown; transfer?: ArrayBuffer[] }
+    | undefined
+  > {
+    return undefined;
+  }
+
+  /** Get next unique trigger id */
   protected nextTriggerId() {
     this._triggersCreated += 1;
     if (
@@ -56,52 +101,43 @@ export abstract class Manager<
     return this._triggersCreated;
   }
 
+  /** Allow the event to be triggered */
   protected enableTrigger(triggerId: number, callback: () => void) {
     this._triggerReady.set(triggerId, callback);
   }
 
+  /** Is the event ready to be triggered? */
   isReady(triggerId: number) {
     return Boolean(this._triggerReady.has(triggerId));
   }
 
+  /** Triggers the event (does nothing if the trigger is not yet ready) */
   trigger(triggerId: number) {
-    const t = this._triggerReady.get(triggerId);
-    if (t) {
-      t();
+    if (this.isReady(triggerId)) {
+      const t = this._triggerReady.get(triggerId);
+      if (t) {
+        t();
+      }
+      this._triggerReady.delete(triggerId);
     }
   }
 
+  /** Triggers all specified events (does nothing if the triggers are not yet ready) */
   triggerAll(transitionIds: number[]) {
-    transitionIds.forEach((transitionId) => {
-      this.trigger(transitionId);
-    });
+    if (transitionIds.every((id) => this.isReady(id))) {
+      transitionIds.forEach((transitionId) => {
+        this.trigger(transitionId);
+      });
+    }
   }
 
-  onStart(): void {}
-
-  onUpdate(_deltaMS: number): null | boolean {
-    return true;
-  }
-
-  onDestroy(): void {
-    Object.values(this._events).forEach((event) => {
-      event.removeAllListeners();
-    });
-  }
-
-  async onRestore() {
-    // restores from current state after instant skipping
-  }
-
-  onSerialize() {
-    // executed before manager state is serialized
-  }
-
-  onCheckpoint(_checkpointId: string) {
-    // executed before game is serialized
-  }
-
-  onPreview(_checkpointId: string) {
-    // executed when game is previewed at a specific checkpoint location
+  async emit<K extends keyof M>(
+    msg: M[K][0],
+    transfer?: ArrayBuffer[]
+  ): Promise<M[K][1]> {
+    return this._connection.emit(
+      msg as NotificationMessage | RequestMessage,
+      transfer
+    ) as Promise<M[K][1]>;
   }
 }

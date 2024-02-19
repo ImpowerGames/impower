@@ -10,10 +10,10 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
   override onExecute(data: BranchCommandData) {
     const { check, condition } = data.params;
 
-    const commands = this.game.logic.getCommands(data.parent);
+    const commands = this.game.module.logic.getCommands(data.parent);
 
     if (check === "if") {
-      const shouldExecute = this.game.logic.evaluate(condition);
+      const shouldExecute = this.game.module.logic.evaluate(condition);
       if (!shouldExecute) {
         const nextCommandIndex = getNextJumpIndex(data.index, commands, [
           { check: (c): boolean => c === "elseif", offset: 0 },
@@ -22,11 +22,11 @@ export class BranchCommandRunner<G extends Game> extends CommandRunner<
         return [nextCommandIndex];
       }
     } else if (check === "elseif") {
-      const shouldExecute = this.game.logic.evaluate(condition);
+      const shouldExecute = this.game.module.logic.evaluate(condition);
       if (!shouldExecute) {
-        const flow = this.game.logic.flowMap[data.parent];
+        const flow = this.game.module.logic.flowMap[data.parent];
         if (flow && flow.previousCommandIndex) {
-          const previousCommand = this.game.logic.getCommandAt(
+          const previousCommand = this.game.module.logic.getCommandAt(
             data.parent,
             flow.previousCommandIndex
           );

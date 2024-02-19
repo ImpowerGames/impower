@@ -1,4 +1,6 @@
 import { Game } from "../../../../game/core/classes/Game";
+import { EventMessage } from "../../../../game/core/classes/messages/EventMessage";
+import { MessageCallback } from "../../../../game/core/types/MessageCallback";
 import { CommandRunner } from "../CommandRunner";
 import { DisplayCommandData } from "./DisplayCommandData";
 import { DisplayContentItem } from "./DisplayCommandParams";
@@ -37,7 +39,6 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     this._wasTyped = false;
     this._timeTypedMS = -1;
     this._elapsedMS = 0;
-    this.game.input.events.onPointerDown.addListener(this.onPointerDown);
     this._chosenBlockId = undefined;
     const { onTick, displayed } = executeDisplayCommand(
       this.game,
@@ -49,11 +50,10 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       (c) => {
         const choiceId = data.id + "." + c.instance || "";
         const jumpTo = c.button || "";
-        this._chosenBlockId = this.game.logic.choose(
+        this._chosenBlockId = this.game.module.logic.choose(
           data.parent,
           choiceId,
-          jumpTo,
-          data.source
+          jumpTo
         );
       }
     );
@@ -71,19 +71,28 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     }
   }
 
-  override onDestroy() {
-    this._onTick = undefined;
-    this.game.input.events.onPointerDown.removeListener(this.onPointerDown);
+  override onInit(): void {
+    this.game.connection.incoming.addListener("event", this.onEvent);
   }
 
-  onPointerDown = () => {
-    this._wasPressed = true;
+  override onDestroy() {
+    this._onTick = undefined;
+    this.game.connection.incoming.removeListener("event", this.onEvent);
+  }
+
+  onEvent: MessageCallback = (msg) => {
+    if (EventMessage.type.isNotification(msg)) {
+      const params = msg.params;
+      if (params.type === "pointerdown") {
+        this._wasPressed = true;
+      }
+    }
   };
 
   override isFinished(data: DisplayCommandData) {
     const { autoAdvance } = data.params;
     const waitingForChoice = this._choices && this._choices.length > 0;
-    const blockState = this.game.logic.state.blocks?.[data.parent];
+    const blockState = this.game.module.logic.state.blocks?.[data.parent];
     if (!blockState) {
       return false;
     }

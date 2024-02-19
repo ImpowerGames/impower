@@ -1,6 +1,11 @@
 import { Object3D } from "three";
 import * as THREE from "three/src/scenes/Scene.js";
-import { Game } from "../../../spark-engine/src/game/core/classes/Game";
+import {
+  Message,
+  NotificationMessage,
+  RequestMessage,
+  ResponseError,
+} from "../../../spark-engine/src/game/core";
 import Application from "./Application";
 import { Disposable } from "./Disposable";
 
@@ -15,11 +20,19 @@ export default class Scene extends THREE.Scene {
     return this._app.view;
   }
 
+  get canvas() {
+    return this._app.canvas;
+  }
+
+  get overlay() {
+    return this._app.overlay;
+  }
+
   get renderer() {
     return this._app.renderer;
   }
 
-  get maxFPS(): number {
+  get maxFPS() {
     return this._app.ticker?.maxFPS;
   }
 
@@ -31,8 +44,8 @@ export default class Scene extends THREE.Scene {
     return this._app.camera;
   }
 
-  get game(): Game {
-    return this._app.game;
+  get connection() {
+    return this._app.connection;
   }
 
   protected _ready = false;
@@ -111,44 +124,44 @@ export default class Scene extends THREE.Scene {
     return {};
   }
 
-  async load(): Promise<Object3D[]> {
+  async onLoad(): Promise<Object3D[]> {
     // NoOp
     return [];
   }
 
-  start(): void {
+  onStart(): void {
     // NoOp
   }
 
-  tick(deltaMS: number): void {
+  onTick(deltaMS: number): void {
     this._time += deltaMS;
   }
 
-  update(_deltaMS: number): void {
+  onUpdate(_deltaMS: number): void {
     // NoOp
   }
 
-  step(_deltaMS: number): void {
+  onStep(_deltaMS: number): void {
     // NoOp
   }
 
-  pause(): void {
+  onPause(): void {
     // NoOp
   }
 
-  unpause(): void {
+  onUnpause(): void {
     // NoOp
   }
 
-  resize(): void {
+  onResize(_entry: ResizeObserverEntry): void {
     // NoOp
   }
 
-  reset(): void {
+  onReset(): void {
     // NoOp
   }
 
-  dispose(): Disposable[] {
+  onDispose(): Disposable[] {
     // NoOp
     return [];
   }
@@ -223,9 +236,9 @@ export default class Scene extends THREE.Scene {
   };
 
   bind(): void {
-    if (this.view) {
-      this.view.addEventListener("pointerdown", this._onPointerDown);
-      this.view.addEventListener("pointermove", this._onPointerMove);
+    if (this.canvas) {
+      this.canvas.addEventListener("pointerdown", this._onPointerDown);
+      this.canvas.addEventListener("pointermove", this._onPointerMove);
     }
     window.addEventListener("mouseup", this._onPointerUp);
     window.addEventListener("touchend", this._onTouchEnd);
@@ -234,9 +247,9 @@ export default class Scene extends THREE.Scene {
   protected onBind(): void {}
 
   unbind(): void {
-    if (this.view) {
-      this.view.removeEventListener("pointerdown", this._onPointerDown);
-      this.view.removeEventListener("pointermove", this._onPointerMove);
+    if (this.canvas) {
+      this.canvas.removeEventListener("pointerdown", this._onPointerDown);
+      this.canvas.removeEventListener("pointermove", this._onPointerMove);
     }
     window.removeEventListener("mouseup", this._onPointerUp);
     window.removeEventListener("touchend", this._onTouchEnd);
@@ -283,5 +296,21 @@ export default class Scene extends THREE.Scene {
 
   onDragEnd(_event: PointerEvent): void {
     // NoOp
+  }
+
+  onReceiveNotification(_msg: NotificationMessage): void {}
+
+  async onReceiveRequest(
+    _msg: RequestMessage
+  ): Promise<
+    | { error: ResponseError; transfer?: ArrayBuffer[] }
+    | { result: unknown; transfer?: ArrayBuffer[] }
+    | undefined
+  > {
+    return undefined;
+  }
+
+  emit(message: Message, transfer?: ArrayBuffer[]) {
+    this._app.emit(message, transfer);
   }
 }

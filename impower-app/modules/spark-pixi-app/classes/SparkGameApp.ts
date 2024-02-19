@@ -119,15 +119,15 @@ export class SparkGameApp {
     Object.entries(scenes).forEach(([id, scene]) => {
       this._scenes.set(id, scene);
     });
-    if (this.context.game.ui) {
-      this.context.game.ui.updateStyleProperty(
+    if (this.context.game.module.ui) {
+      this.context.game.module.ui.updateStyleProperty(
         loadingProgressVariable,
         0,
         loadingUIName
       );
     }
-    if (this.context.game.ui) {
-      this.context.game.ui.showUI(loadingUIName);
+    if (this.context.game.module.ui) {
+      this.context.game.module.ui.showUI(loadingUIName);
     }
     const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
     this._scenes.forEach((scene) => {
@@ -136,8 +136,8 @@ export class SparkGameApp {
       });
     });
     await this.assets.loadAssets(allRequiredAssets, (p) => {
-      if (this.context.game.ui) {
-        this.context.game.ui.updateStyleProperty(
+      if (this.context.game.module.ui) {
+        this.context.game.module.ui.updateStyleProperty(
           loadingProgressVariable,
           p,
           loadingUIName
@@ -155,8 +155,8 @@ export class SparkGameApp {
         this.app.stage.addChild(scene.root);
       }
     });
-    if (this.context.game.ui) {
-      this.context.game.ui.hideUI(loadingUIName);
+    if (this.context.game.module.ui) {
+      this.context.game.module.ui.hideUI(loadingUIName);
     }
   }
 
@@ -177,11 +177,11 @@ export class SparkGameApp {
   }
 
   onPointerDown = (event: PointerEvent): void => {
-    this.context.game.input.pointerDown(event.button, "");
+    this.context.game.module.input.pointerDown(event.button, "");
   };
 
   onPointerUp = (event: PointerEvent): void => {
-    this.context.game.input.pointerUp(event.button, "");
+    this.context.game.module.input.pointerUp(event.button, "");
   };
 
   pause(): void {

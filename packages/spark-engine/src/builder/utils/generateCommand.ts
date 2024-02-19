@@ -14,7 +14,7 @@ const getCommandId = (parent: string, index: number): string => {
   return `${parent}.${index}`;
 };
 
-const getSource = (token: SparkToken, file: string) => {
+const getSource = (token: SparkToken, file: number) => {
   return {
     file,
     line: token.line,
@@ -25,7 +25,7 @@ const getSource = (token: SparkToken, file: string) => {
 
 const generateDisplayCommand = (
   token: SparkDisplayToken,
-  file: string,
+  file: number,
   parent: string,
   index: number
 ): DisplayCommandData => {
@@ -59,7 +59,7 @@ const generateDisplayCommand = (
 
 const generateCommand = (
   token: SparkToken,
-  file: string,
+  file: number,
   parent: string,
   index: number
 ): CommandData | null => {

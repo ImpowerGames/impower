@@ -14,7 +14,10 @@ const normalize = (value: number, min: number, max: number): number => {
   return (value - min) / (max - min);
 };
 
-export const convertMidiToToneSequences = (midi: Midi): ToneSequence[] => {
+export const convertMidiToToneSequences = (
+  midi: Midi,
+  sampleRate: number
+): ToneSequence[] => {
   const midiTrackChannels: ToneSequence[] = [];
   midi.tracks.forEach((track) => {
     let absTicks = 0;
@@ -88,9 +91,10 @@ export const convertMidiToToneSequences = (midi: Midi): ToneSequence[] => {
       const time = quarterNotes * secondsPerQuarterNote;
       if (event.statusType === MIDI_STATUS_TYPE.voice_controller_change) {
         const channelNumber = event.statusChannel;
-        const midiChannel = midiChannels.get(channelNumber) || {
+        const midiChannel: ToneSequence = midiChannels.get(channelNumber) || {
           tones: [],
           events: [],
+          sampleRate,
         };
         const type = event.controllerNumber;
         const value = event.controllerValue;
@@ -134,9 +138,10 @@ export const convertMidiToToneSequences = (midi: Midi): ToneSequence[] => {
         const channelNumber = event.statusChannel;
         const noteNumber = event.noteOnNumber;
         const noteVelocity = event.noteOnVelocity;
-        const midiChannel = midiChannels.get(channelNumber) || {
+        const midiChannel: ToneSequence = midiChannels.get(channelNumber) || {
           tones: [],
           events: [],
+          sampleRate,
         };
         const instrumentNumber = instruments[channelNumber] ?? 0;
         const pitchBend = pitchBends[channelNumber] ?? 0;

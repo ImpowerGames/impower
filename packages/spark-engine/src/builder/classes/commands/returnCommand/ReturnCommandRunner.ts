@@ -9,9 +9,9 @@ export class ReturnCommandRunner<G extends Game> extends CommandRunner<
   override onExecute(data: ReturnCommandData) {
     const { value } = data.params;
 
-    const returnValue = this.game.logic.evaluate(value);
+    const returnValue = this.game.module.logic.evaluate(value);
 
-    this.game.logic.returnFromBlock(data.parent, returnValue);
+    this.game.module.logic.returnFromBlock(data.parent, returnValue);
 
     return super.onExecute(data);
   }

@@ -6,8 +6,9 @@ export default spec({
   tag: "spark-web-player",
   html,
   selectors: {
-    sparkRoot: "#spark-root",
-    sparkGame: "#spark-game",
+    gameBackground: "#game-background",
+    gameView: "#game-view",
+    gameOverlay: "#game-overlay",
   } as const,
   css,
 });

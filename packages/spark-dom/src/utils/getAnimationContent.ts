@@ -1,9 +1,9 @@
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 
 export const getAnimationContent = (
-  animationName: string,
   properties: Record<string, any>
 ): string => {
+  const target = properties[".target"] as string;
   const groupMap: Record<string, Record<string, unknown>> = {};
   Object.entries(properties).forEach(([fk, fv]) => {
     const [, keyframe, propName] = fk.split(".");
@@ -18,7 +18,7 @@ export const getAnimationContent = (
     }
   });
   let textContent = "";
-  textContent += `@keyframes ${animationName} {\n`;
+  textContent += `@keyframes ${target} {\n`;
   Object.entries(groupMap || {}).forEach(([keyframe, fields]) => {
     const content = Object.entries(fields)
       .map(([k, v]) => {

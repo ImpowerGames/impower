@@ -19,24 +19,6 @@ spark-web-player > .root > .wrapper {
   color: black;
 }
 
-#spark-background {
-  position: absolute;
-  inset: 0;
-  background-color: black;
-}
-
-#spark-overlay {
-  position: absolute;
-  inset: 0;
-}
-
-#spark-root {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 #spark-game {
   position: absolute;
   inset: 0;
@@ -44,4 +26,22 @@ spark-web-player > .root > .wrapper {
 
 #spark-game * {
   pointer-events: auto;
+}
+
+#game-background {
+  position: absolute;
+  inset: 0;
+  background-color: black;
+}
+
+#game-view {
+  position: absolute;
+  inset: 0;
+}
+
+#game-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
 }

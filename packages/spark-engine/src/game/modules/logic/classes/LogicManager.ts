@@ -1,14 +1,11 @@
 import { RecursiveReadonly } from "../../../core";
-import { GameEvent } from "../../../core/classes/GameEvent";
-import { GameEvent1 } from "../../../core/classes/GameEvent1";
-import { GameEvent2 } from "../../../core/classes/GameEvent2";
+import { Connection } from "../../../core/classes/Connection";
 import { Manager } from "../../../core/classes/Manager";
 import { GameContext } from "../../../core/types/GameContext";
 import { evaluate } from "../../../core/utils/evaluate";
 import { format } from "../../../core/utils/format";
 import { randomizer } from "../../../core/utils/randomizer";
 import { shuffle } from "../../../core/utils/shuffle";
-import { uuid } from "../../../core/utils/uuid";
 import { BlockData } from "../types/BlockData";
 import { BlockState } from "../types/BlockState";
 import { CommandData } from "../types/CommandData";
@@ -17,32 +14,19 @@ import { FlowLocation } from "../types/FlowLocation";
 import { ICommandRunner } from "../types/ICommandRunner";
 import createBlockState from "../utils/createBlockState";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
-
-export interface LogicEvents extends Record<string, GameEvent> {
-  onLoadBlock: GameEvent2<string, DocumentSource | undefined>;
-  onUnloadBlock: GameEvent2<string, DocumentSource | undefined>;
-  onUpdateBlock: GameEvent2<string, DocumentSource | undefined>;
-  onChangeActiveParentBlock: GameEvent2<string, DocumentSource | undefined>;
-  onExecuteBlock: GameEvent2<string, DocumentSource | undefined>;
-  onFinishBlock: GameEvent2<string, DocumentSource | undefined>;
-  onEnterBlock: GameEvent2<string, DocumentSource | undefined>;
-  onStopBlock: GameEvent2<string, DocumentSource | undefined>;
-  onReturnFromBlock: GameEvent2<string, DocumentSource | undefined>;
-  onWillExecuteCommand: GameEvent2<string, DocumentSource | undefined>;
-  onDidExecuteCommand: GameEvent2<string, DocumentSource | undefined>;
-  onGoToCommand: GameEvent2<string, DocumentSource | undefined>;
-  onChoose: GameEvent2<string, DocumentSource | undefined>;
-  onLoadAsset: GameEvent2<string, DocumentSource | undefined>;
-  onUnloadAsset: GameEvent2<string, DocumentSource | undefined>;
-  onRegenerateSeed: GameEvent1<string>;
-  onSetSeed: GameEvent1<string>;
-}
+import {
+  DidExecuteMessage,
+  DidExecuteMessageMap,
+} from "./messages/DidExecuteMessage";
+import {
+  WillExecuteMessage,
+  WillExecuteMessageMap,
+} from "./messages/WillExecuteMessage";
 
 export interface LogicConfig {
   waypoints?: string[];
   startpoint?: string;
-  blockMap: Record<string, BlockData>;
-  seeder: () => string;
+  blockMap?: Record<string, BlockData>;
 }
 
 export interface LogicState {
@@ -51,11 +35,9 @@ export interface LogicState {
   checkpoint?: string;
 }
 
-export class LogicManager extends Manager<
-  LogicEvents,
-  LogicConfig,
-  LogicState
-> {
+export type LogicMessageMap = DidExecuteMessageMap & WillExecuteMessageMap;
+
+export class LogicManager extends Manager<LogicState, LogicMessageMap> {
   FINISH_COMMAND_TYPE = "FinishCommand";
 
   DEFAULT_LOCATION = { blockId: "", commandIndex: 0, position: 0 };
@@ -120,48 +102,20 @@ export class LogicManager extends Manager<
 
   protected _restoring = false;
 
-  constructor(
-    context: GameContext,
-    config?: Partial<LogicConfig>,
-    state?: Partial<LogicState>
-  ) {
-    const initialEvents: LogicEvents = {
-      onLoadBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onUnloadBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onUpdateBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onExecuteBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onFinishBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onChangeActiveParentBlock: new GameEvent2<
-        string,
-        DocumentSource | undefined
-      >(),
-      onEnterBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onStopBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onReturnFromBlock: new GameEvent2<string, DocumentSource | undefined>(),
-      onCheckTriggers: new GameEvent2<string, DocumentSource | undefined>(),
-      onWillExecuteCommand: new GameEvent2<
-        string,
-        DocumentSource | undefined
-      >(),
-      onDidExecuteCommand: new GameEvent2<string, DocumentSource | undefined>(),
-      onChoose: new GameEvent2<string, DocumentSource | undefined>(),
-      onGoToCommand: new GameEvent2<string, DocumentSource | undefined>(),
-      onSetVariableValue: new GameEvent2<string, DocumentSource | undefined>(),
-      onLoadAsset: new GameEvent2<string, DocumentSource | undefined>(),
-      onUnloadAsset: new GameEvent2<string, DocumentSource | undefined>(),
-      onRegenerateSeed: new GameEvent1<string>(),
-      onSetSeed: new GameEvent1<string>(),
-    };
-    const initialConfig: LogicConfig = {
-      blockMap: {},
-      seeder: uuid,
-      ...(config || {}),
-    };
-    super(context, initialEvents, initialConfig, state || {}, ["visited"]);
+  protected _config: Required<LogicConfig>;
+
+  constructor(context: GameContext, connection: Connection) {
+    super(context, connection, ["visited"]);
     let position = 0;
+    this._config = {
+      blockMap: {},
+      waypoints: [],
+      startpoint: "",
+      ...(context?.config?.["logic"] || {}),
+    };
     if (this._config?.blockMap) {
       // Populate _blockMap
-      this._blockMap = JSON.parse(JSON.stringify(this._config?.blockMap));
+      this._blockMap = JSON.parse(JSON.stringify(this._config?.blockMap || {}));
       Object.entries(this._blockMap).forEach(([blockId, block]) => {
         // We add a special FinishCommand as the last command of every block.
         // This allows flow changes to resume flow from the very end of a block.
@@ -247,14 +201,13 @@ export class LogicManager extends Manager<
     this._stopSimulatingAt = this.getClosestSavepoint(
       this._config.startpoint || ""
     );
-    this._context.game ??= {};
-    this._context.game.simulating =
+    this._context.system.simulating =
       this._config.startpoint != null &&
       this._stopSimulatingAt != null &&
       closestWaypointLocation != null &&
       this._stopSimulatingAt.position > closestWaypointLocation.position;
     if (!this.state.checkpoint) {
-      const entryLocation = this._context.game?.simulating
+      const entryLocation = this._context.system?.simulating
         ? closestWaypointLocation
         : startLocation;
       if (entryLocation) {
@@ -276,14 +229,6 @@ export class LogicManager extends Manager<
 
   getRunner(command: CommandData) {
     return this._runnerMap[command.type];
-  }
-
-  private changeActiveParentBlock(newParentBlockId: string): void {
-    const parent = this._blockMap?.[newParentBlockId]!;
-    this._events.onChangeActiveParentBlock.dispatch(
-      newParentBlockId,
-      parent.source
-    );
   }
 
   private resetBlockExecution(blockId: string): void {
@@ -311,9 +256,6 @@ export class LogicManager extends Manager<
     blockState.isLoaded = true;
 
     this._loaded.push(blockId);
-
-    const block = this._blockMap[blockId];
-    this._events.onLoadBlock.dispatch(blockId, block?.source);
   }
 
   private loadBlocks(blockIds: string[]): void {
@@ -328,9 +270,6 @@ export class LogicManager extends Manager<
     blockState.isLoaded = false;
 
     this._loaded = this._loaded.filter((id) => id !== blockId);
-
-    const block = this._blockMap[blockId];
-    this._events.onUnloadBlock.dispatch(blockId, block?.source);
   }
 
   /**
@@ -366,7 +305,6 @@ export class LogicManager extends Manager<
     if (!block) {
       return false;
     }
-    this._events.onUpdateBlock.dispatch(blockId, block.source);
 
     const blockState = this._state.blocks?.[blockId];
     if (!blockState) {
@@ -422,16 +360,15 @@ export class LogicManager extends Manager<
             const isSavepoint =
               commandIndex === 0 || runner.isSavepoint(command);
             const isChoicepoint = runner.isChoicepoint(command);
-            if (this._context.game?.simulating) {
+            if (this._context.system?.simulating) {
               if (isChoicepoint) {
                 // Must wait for user to make a choice
                 this._simulationAwaitingChoice = true;
                 // Stop simulating, disable transitions, and restore from state
-                this._context.game ??= {};
-                this._context.game.simulating = false;
-                this._context.game.transitions = false;
+                this._context.system.simulating = false;
+                this._context.system.transitions = false;
                 this._restoring = true;
-                this._context.game?.restore?.().then(() => {
+                this._context.system?.restore?.().then(() => {
                   this._restoring = false;
                 });
               } else if (
@@ -440,16 +377,16 @@ export class LogicManager extends Manager<
               ) {
                 // We've caught up
                 // Stop simulating, enable transitions, and restore from state
-                this._context.game.simulating = false;
-                this._context.game.transitions = true;
+                this._context.system.simulating = false;
+                this._context.system.transitions = true;
                 this._restoring = true;
-                this._context.game?.restore?.().then(() => {
+                this._context.system?.restore?.().then(() => {
                   this._restoring = false;
                 });
               }
             } else {
               if (isSavepoint) {
-                this._context.game?.checkpoint?.(commandId);
+                this._context.system?.checkpoint?.(commandId);
               }
             }
             if (this._restoring) {
@@ -471,9 +408,8 @@ export class LogicManager extends Manager<
             if (this._simulationAwaitingChoice) {
               // Choice was made, resume simulating and enable transitions
               this._simulationAwaitingChoice = false;
-              this._context.game ??= {};
-              this._context.game.simulating = true;
-              this._context.game.transitions = true;
+              this._context.system.simulating = true;
+              this._context.system.transitions = true;
             }
             this.jumpToBlock(command.parent, command.index, finished);
             runner.onFinished(command);
@@ -485,7 +421,7 @@ export class LogicManager extends Manager<
             );
             return true;
           }
-          if (!this._context.game?.simulating && !finished) {
+          if (!this._context.system?.simulating && !finished) {
             return true;
           }
           runner.onFinished(command);
@@ -503,11 +439,11 @@ export class LogicManager extends Manager<
       ) {
         const nextCommandIndex = this.commandJumpStackPop(blockId);
         if (nextCommandIndex !== undefined) {
-          this.goToCommandIndex(blockId, nextCommandIndex, command?.source);
+          flow.currentCommandIndex = nextCommandIndex;
         }
       } else {
         const nextCommandIndex = flow.currentCommandIndex + 1;
-        this.goToCommandIndex(blockId, nextCommandIndex, command?.source);
+        flow.currentCommandIndex = nextCommandIndex;
       }
       synchronousExecutionCount += 1;
     }
@@ -543,7 +479,10 @@ export class LogicManager extends Manager<
     // Command visits should only be stored in save state if they are used by a string substitution formatter
     // (this lets us avoid having to save EVERY command execution in the save file)
     this.visit(commandId, false);
-    this._events.onWillExecuteCommand.dispatch(commandId, source);
+    const location = this.getLocation(commandId);
+    if (location) {
+      this.emit(WillExecuteMessage.type.notification({ ...location, source }));
+    }
   }
 
   protected didExecuteCommand(
@@ -557,19 +496,10 @@ export class LogicManager extends Manager<
       flow.isExecutingCommand = false;
       flow.previousCommandIndex = commandIndex;
     }
-    this._events.onDidExecuteCommand.dispatch(commandId, source);
-  }
-
-  protected goToCommandIndex(
-    blockId: string,
-    index: number,
-    source?: DocumentSource
-  ): void {
-    const flow = this._flowMap[blockId];
-    if (flow) {
-      flow.currentCommandIndex = index;
+    const location = this.getLocation(commandId);
+    if (location) {
+      this.emit(DidExecuteMessage.type.notification({ ...location, source }));
     }
-    this._events.onGoToCommand.dispatch(blockId, source);
   }
 
   protected commandJumpStackPush(
@@ -613,7 +543,6 @@ export class LogicManager extends Manager<
       // Block visits should always be stored in save state
       this.visit(blockName, true);
     }
-    this._events.onExecuteBlock.dispatch(blockName, block.source);
   }
 
   protected getNextBlockId(blockId: string): string | null | undefined {
@@ -658,7 +587,6 @@ export class LogicManager extends Manager<
       blockState.isExecuting = false;
       blockState.isFinished = true;
     }
-    this._events.onFinishBlock.dispatch(blockId, block.source);
   }
 
   stopBlock(blockId: string): void {
@@ -670,7 +598,6 @@ export class LogicManager extends Manager<
     if (blockState) {
       blockState.isExecuting = false;
     }
-    this._events.onStopBlock.dispatch(blockId, block.source);
   }
 
   enterBlock(
@@ -694,7 +621,6 @@ export class LogicManager extends Manager<
 
     // Change activeParent
     const newActiveParent = blockId;
-    this.changeActiveParentBlock(newActiveParent);
 
     // Unload all loaded blocks that are not an ancestor or direct child of new activeParent
     this._loaded.forEach((loadedBlockId) => {
@@ -718,8 +644,6 @@ export class LogicManager extends Manager<
 
     // Execute activeParent
     this.executeBlock(blockId, startCommandIndex);
-
-    this._events.onEnterBlock.dispatch(blockId, block.source);
   }
 
   jumpToBlock(
@@ -779,23 +703,15 @@ export class LogicManager extends Manager<
       );
     }
 
-    this._events.onReturnFromBlock.dispatch(blockId, block.source);
-
     return true;
   }
 
-  choose(
-    executingBlockId: string,
-    choiceId: string,
-    jumpTo: string,
-    source?: DocumentSource
-  ): string {
+  choose(executingBlockId: string, choiceId: string, jumpTo: string): string {
     // Choice visits should always be stored in save state
     this.visit(choiceId, true);
     // Seed is determined by how many times the choice has been chosen,
     // (instead of how many times the choice has been seen)
     const id = this.evaluateBlockId(executingBlockId, jumpTo);
-    this._events.onChoose.dispatch(choiceId, source);
     return id;
   }
 
@@ -860,17 +776,15 @@ export class LogicManager extends Manager<
   }
 
   regenerateSeed(): string {
-    const seed = this._config.seeder();
+    const seed = this._context.system.uuid();
     this._state.seed = seed;
     this._random = randomizer(this._state.seed);
-    this._events.onRegenerateSeed.dispatch(seed);
     return seed;
   }
 
   setSeed(seed: string): void {
     this._state.seed = seed;
     this._random = randomizer(this._state.seed);
-    this._events.onSetSeed.dispatch(seed);
   }
 
   shuffle<T>(array: T[]): T[] {

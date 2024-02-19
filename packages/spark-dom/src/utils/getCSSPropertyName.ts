@@ -7,13 +7,13 @@ export const getCSSPropertyName = (name: string, separator = "-"): string => {
     return `-${cssProp}`;
   }
   if (cssProp === "hovered") {
-    return "hover";
+    return ":hover";
   }
   if (cssProp === "pressed") {
-    return "active";
+    return ":active";
   }
   if (cssProp === "focused") {
-    return "focus";
+    return ":focus";
   }
   if (
     cssProp === "after" ||

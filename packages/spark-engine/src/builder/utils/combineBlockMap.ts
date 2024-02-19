@@ -1,9 +1,9 @@
 import type { SparkSection } from "../../../../sparkdown/src/types/SparkSection";
-import type { BlockData } from "../../game";
+import type { BlockData } from "../../game/modules/logic/types/BlockData";
 import generateCommand from "./generateCommand";
 
 const combineBlockMap = (
-  file: string,
+  file: number,
   sections: Record<string, SparkSection> | undefined,
   result: Record<string, BlockData> = {}
 ) => {

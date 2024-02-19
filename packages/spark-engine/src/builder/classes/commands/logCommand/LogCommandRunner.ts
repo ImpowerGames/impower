@@ -14,8 +14,8 @@ export class LogCommandRunner<G extends Game> extends CommandRunner<
     if (message === undefined) {
       return super.onExecute(data);
     }
-    this.game.debug.log({
-      id: this.game.uuid.generate(),
+    this.game.module.debug.log({
+      id: this.game.context.system.uuid(),
       time: new Date().getTime(),
       severity,
       message,

@@ -1,6 +1,8 @@
-import { Event, Object3D } from "three";
 import { SparkDOMAudioPlayer } from "../../../../spark-dom/src/classes/SparkDOMAudioPlayer";
+import { RequestMessage } from "../../../../spark-engine/src/game/core";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
+import { AudioLoadMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioLoadMessage";
+import { AudioUpdateMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioUpdateMessage";
 import { AudioData } from "../../../../spark-engine/src/game/modules/audio/types/AudioData";
 import { AudioUpdate } from "../../../../spark-engine/src/game/modules/audio/types/AudioUpdate";
 import { Disposable } from "../Disposable";
@@ -11,55 +13,14 @@ export default class AudioScene extends Scene {
 
   protected _audioPlayers = new Map<string, SparkDOMAudioPlayer>();
 
-  override start() {}
-
-  override async load(): Promise<Object3D<Event>[]> {
-    // TODO: Check if asset.preload === true (ensure loading screen shows while preloading)
-    // const audioAssets = this.game.logic["audio"];
-    // if (audioAssets) {
-    //   await Promise.all(
-    //     Object.entries(audioAssets).map(async ([name, asset]) => {
-    //       try {
-    //         if (asset.src) {
-    //           if (asset.ext === "midi" || asset.ext === "mid") {
-    //             await this.loadMidi(name, asset.src);
-    //           } else {
-    //             await this.loadSound({ id: asset.name, ...asset });
-    //           }
-    //         }
-    //       } catch {
-    //         console.error("Could not load: ", name);
-    //       }
-    //     })
-    //   );
-    // }
-    return super.load();
-  }
-
-  override bind(): void {
-    super.bind();
-    this.game?.audio?.events?.onLoad?.addListener((data) =>
-      this.onAudioLoad(data)
-    );
-    this.game?.audio?.events?.onUpdate?.addListener((updates) =>
-      this.onAudioUpdate(updates)
-    );
-  }
-
-  override unbind(): void {
-    super.unbind();
-    this.game?.audio?.events?.onLoad?.removeAllListeners();
-    this.game?.audio?.events?.onUpdate?.removeAllListeners();
-  }
-
-  override dispose(): Disposable[] {
+  override onDispose(): Disposable[] {
     this._audioPlayers.forEach((a) => {
       if (a.started) {
         a.stop(0);
       }
     });
     this._audioPlayers.clear();
-    return super.dispose();
+    return super.onDispose();
   }
 
   async getAudioBuffer(
@@ -83,12 +44,10 @@ export default class AudioScene extends Scene {
 
   async onAudioLoad(data: AudioData) {
     if (this._audioPlayers.get(data.id)) {
-      this.game.audio.notifyReady(data.id);
       return this._audioPlayers.get(data.id)!;
     }
     const buffer = await this.getAudioBuffer(data);
     if (this._audioPlayers.get(data.id)) {
-      this.game.audio.notifyReady(data.id);
       return this._audioPlayers.get(data.id)!;
     }
     const audioPlayer = new SparkDOMAudioPlayer(buffer, this._audioContext, {
@@ -96,7 +55,6 @@ export default class AudioScene extends Scene {
       cues: data.cues,
     });
     this._audioPlayers.set(data.id, audioPlayer);
-    this.game.audio.notifyReady(data.id);
     return audioPlayer;
   }
 
@@ -121,7 +79,7 @@ export default class AudioScene extends Scene {
     });
   }
 
-  override step(deltaMS: number): void {
+  override onStep(deltaMS: number): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
       if (audioPlayer.started) {
@@ -130,7 +88,7 @@ export default class AudioScene extends Scene {
     });
   }
 
-  override pause(): void {
+  override onPause(): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
       if (audioPlayer.started) {
@@ -139,12 +97,24 @@ export default class AudioScene extends Scene {
     });
   }
 
-  override unpause(): void {
+  override onUnpause(): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
       if (audioPlayer.started) {
         audioPlayer.unpause(scheduledTime);
       }
     });
+  }
+
+  override async onReceiveRequest(msg: RequestMessage) {
+    if (AudioLoadMessage.type.isRequest(msg)) {
+      await this.onAudioLoad(msg.params);
+      return AudioLoadMessage.type.result(msg.params.id);
+    }
+    if (AudioUpdateMessage.type.isRequest(msg)) {
+      await this.onAudioUpdate(msg.params);
+      return AudioUpdateMessage.type.result(msg.params.map((u) => u.id));
+    }
+    return undefined;
   }
 }

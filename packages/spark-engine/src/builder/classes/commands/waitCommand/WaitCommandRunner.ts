@@ -22,7 +22,7 @@ export class WaitCommandRunner<G extends Game> extends CommandRunner<
     if (seconds === undefined || seconds === 0) {
       return super.isFinished(data);
     }
-    const blockState = this.game.logic.state.blocks?.[data.parent];
+    const blockState = this.game.module.logic.state.blocks?.[data.parent];
     const timeMS = this._elapsedMS;
     if (blockState) {
       if (seconds < 0) {

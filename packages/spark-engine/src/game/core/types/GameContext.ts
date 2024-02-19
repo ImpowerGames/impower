@@ -1,11 +1,17 @@
 export interface GameContext extends Record<string, any> {
-  game?: {
+  system: {
+    initialized?: boolean;
     transitions?: boolean;
     skipping?: boolean;
     simulating?: boolean;
     previewing?: boolean;
-    restore?: () => Promise<void>;
-    checkpoint?: (id: string) => void;
-    supports?: (module: string) => void;
+    debugging?: boolean;
+    stored?: string[];
+    uuid: () => string;
+    restore: () => Promise<void>;
+    checkpoint: (id: string) => void;
+    supports: (module: string) => void;
   };
+  config?: Partial<Record<string, any>>;
+  preferences?: Partial<Record<string, any>>;
 }

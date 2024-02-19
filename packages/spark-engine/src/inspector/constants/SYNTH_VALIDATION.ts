@@ -1,4 +1,5 @@
-import { A, Synth } from "../../game";
+import { Synth } from "../../game";
+import { A } from "../../game/modules/audio/constants/A";
 import { RecursiveValidation } from "../types/RecursiveValidation";
 
 export const SYNTH_VALIDATION: RecursiveValidation<Synth> = {

@@ -1,5 +1,12 @@
 import { SparkProgram } from "../../../../sparkdown/src";
-import { BlockData, Game, GameConfig, GameState } from "../../game";
+import {
+  BlockData,
+  Game,
+  GameConfig,
+  GameModules,
+  RecursivePartial,
+  WorldManager,
+} from "../../game";
 import { GameContext } from "../../game/core/types/GameContext";
 import { ICommandRunner } from "../../game/modules/logic/types/ICommandRunner";
 import { GameBuilderOptions } from "../types/GameBuilderOptions";
@@ -22,9 +29,8 @@ import { SpawnCommandRunner } from "./commands/spawnCommand/SpawnCommandRunner";
 import { WaitCommandRunner } from "./commands/waitCommand/WaitCommandRunner";
 
 export class GameBuilder<
-  G extends Game = Game,
   C extends GameConfig = GameConfig,
-  S extends GameState = GameState
+  M extends GameModules = GameModules
 > {
   private static _instance: GameBuilder;
 
@@ -38,7 +44,7 @@ export class GameBuilder<
     return this._instance.build(programs, options);
   }
 
-  private _game: G;
+  private _game;
   public get game() {
     return this._game;
   }
@@ -57,7 +63,7 @@ export class GameBuilder<
 
   constructor(
     program: SparkProgram | SparkProgram[],
-    options: GameBuilderOptions<G, C, S>
+    options: GameBuilderOptions<C, M>
   ) {
     this._programs = Array.isArray(program) ? program : [program];
     this._startpoint = options?.simulation?.startpoint || {
@@ -65,14 +71,11 @@ export class GameBuilder<
       line: 0,
     };
     const game = this.build(this._programs, options);
-    this._commandRunnerMap = game.logic.runnerMap;
+    this._commandRunnerMap = game.module.logic.runnerMap;
     this._game = game;
   }
 
-  protected build(
-    programs: SparkProgram[],
-    options: GameBuilderOptions<G, C, S>
-  ): G {
+  protected build(programs: SparkProgram[], options: GameBuilderOptions<C, M>) {
     const simulating = Boolean(options?.simulation);
     const startFromProgramIndex = options.simulation?.startpoint?.program ?? 0;
     const startFromLine = options.simulation?.startpoint?.line ?? 0;
@@ -84,13 +87,13 @@ export class GameBuilder<
         )}`
       );
     }
-    const context: GameContext = {};
+    const context: RecursivePartial<GameContext> = {};
     const storedSet = new Set<string>();
     const blockMap: Record<string, BlockData> = {};
-    Object.entries(programs).forEach(([programId, program]) => {
+    programs.forEach((program, file) => {
       combineContext(program?.context, context);
       combineStored(program?.stored, storedSet);
-      combineBlockMap(programId, program?.sections, blockMap);
+      combineBlockMap(file, program?.sections, blockMap);
     });
     const stored = Array.from(storedSet);
     const startFromBlockId =
@@ -121,21 +124,19 @@ export class GameBuilder<
         waypoints.push(simulateFromCheckpointId);
       }
     });
-    const c = {
-      ...(options?.config || {}),
-      logic: {
-        ...(options?.config?.logic || {}),
-        blockMap,
-        waypoints,
-        startpoint,
-      },
-      stored,
-    } as C;
-    const s = {
-      ...(options?.state || {}),
-    } as S;
-    const game =
-      options.createGame?.(context, c, s) || (new Game(context, c, s) as G);
+    const m = {
+      ...(options?.modules || {}),
+      world: WorldManager,
+    };
+    context.system ??= {};
+    context.system!.previewing = options?.preview;
+    context.system!.stored = stored;
+    context.config = { ...(context.config || {}), ...(options?.config || {}) };
+    context.config["logic"] ??= {};
+    context.config["logic"]["blockMap"] = blockMap;
+    context.config["logic"]["waypoints"] = waypoints;
+    context.config["logic"]["startpoint"] = startpoint;
+    const game = new Game<{ world: WorldManager }>(context, m);
     const commandRunnerMap = {
       LogCommand: new LogCommandRunner(game),
       JumpCommand: new JumpCommandRunner(game),
@@ -144,11 +145,11 @@ export class GameBuilder<
       WaitCommand: new WaitCommandRunner(game),
       BranchCommand: new BranchCommandRunner(game),
       EvaluateCommand: new EvaluateCommandRunner(game),
+      DisplayCommand: new DisplayCommandRunner(game),
       SpawnCommand: new SpawnCommandRunner(game),
       DestroyCommand: new DestroyCommandRunner(game),
-      DisplayCommand: new DisplayCommandRunner(game),
     } as unknown as Record<string, ICommandRunner>;
-    game.logic.registerRunners(commandRunnerMap);
+    game.module.logic.registerRunners(commandRunnerMap);
     return game;
   }
 
@@ -161,13 +162,15 @@ export class GameBuilder<
       } else {
         const previewVariable = getPreviewVariable(program, line);
         if (previewVariable?.type === "style") {
-          this.game.ui.loadStyles();
+          this.game.module.ui.loadStyles();
         }
         if (previewVariable?.type === "ui") {
-          this.game.ui.hideUI(...Object.keys(this.game.context?.["ui"] || {}));
-          this.game.ui.loadStyles();
-          this.game.ui.loadUI(previewVariable.name);
-          this.game.ui.showUI(previewVariable.name);
+          this.game.module.ui.hideUI(
+            ...Object.keys(this.game.context?.["ui"] || {})
+          );
+          this.game.module.ui.loadStyles();
+          this.game.module.ui.loadUI(previewVariable.name);
+          this.game.module.ui.showUI(previewVariable.name);
         }
       }
     }

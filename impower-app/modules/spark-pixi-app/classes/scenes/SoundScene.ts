@@ -95,7 +95,7 @@ export class AudioScene extends SparkScene {
       ([k, v]) => {
         const progress = v.elapsedMS / v.durationMS;
         const instrument = this._instruments.get(k);
-        if (this.context.game.debug.state.debugging && instrument.duration) {
+        if (this.context.game.module.debug.state.debugging && instrument.duration) {
           this.renderWaveform(instrument);
           this._playheadGraphic.x = this.screen.width * progress;
         }

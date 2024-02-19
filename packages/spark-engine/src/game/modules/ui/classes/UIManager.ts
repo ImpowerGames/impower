@@ -1,30 +1,27 @@
-import { GameEvent } from "../../../core/classes/GameEvent";
-import { GameEvent1 } from "../../../core/classes/GameEvent1";
+import { Connection } from "../../../core/classes/Connection";
 import { Manager } from "../../../core/classes/Manager";
-import { ManagerUpdate } from "../../../core/classes/ManagerUpdate";
+import { EventMessage } from "../../../core/classes/messages/EventMessage";
+import { Event } from "../../../core/types/Event";
+import { EventMap } from "../../../core/types/EventMap";
 import { GameContext } from "../../../core/types/GameContext";
-import { RequestMessage } from "../../../core/types/RequestMessage";
+import { NotificationMessage } from "../../../core/types/NotificationMessage";
 import { ImageEvent, TextEvent } from "../../../core/types/SequenceEvent";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
-import { uuid } from "../../../core/utils/uuid";
+import { Element } from "../classes/Element";
+import { ElementContent } from "../types/ElementContent";
 import { ElementState } from "../types/ElementState";
-import { IElement } from "../types/IElement";
 import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
-import { getHash } from "../utils/getHash";
-import { Element } from "./Element";
+import { CloneElementMessage } from "./messages/CloneElementMessage";
+import { CreateElementMessage } from "./messages/CreateElementMessage";
+import { DestroyElementMessage } from "./messages/DestroyElementMessage";
+import { ObserveElementMessage } from "./messages/ObserveElementMessage";
+import { SetThemeMessage } from "./messages/SetThemeMessage";
+import { UnobserveElementMessage } from "./messages/UnobserveElementMessage";
+import { UpdateElementMessage } from "./messages/UpdateElementMessage";
 
-const DEFAULT_ROOT_CLASS_NAME = "spark-root";
-const DEFAULT_UI_CLASS_NAME = "spark-ui";
-const DEFAULT_STYLE_CLASS_NAME = "spark-style";
-const DEFAULT_CREATE_ELEMENT = (
-  type: string,
-  id: string,
-  name: string,
-  text?: string,
-  style?: Record<string, string | null>,
-  attributes?: Record<string, string | null>
-) => new Element(type, id, name, text, style, attributes);
+const DEFAULT_UI_CLASS_NAME = "game-ui";
+const DEFAULT_STYLE_CLASS_NAME = "game-style";
 const DEFAULT_BREAKPOINTS = {
   xs: 400,
   sm: 600,
@@ -43,23 +40,10 @@ const isAssetLeaf = (_: string, v: unknown) =>
 
 const NOP = () => null;
 
-export interface UIEvents extends Record<string, GameEvent> {
-  onUpdate: GameEvent1<RequestMessage[]>;
-}
-
 export interface UIConfig {
-  baseClassNames: string[];
-  styleClassName: string;
-  uiClassName: string;
-  root: IElement;
-  createElement: (
-    type: string,
-    id: string,
-    name: string,
-    text?: string,
-    style?: Record<string, string | null>,
-    attributes?: Record<string, string | null>
-  ) => IElement;
+  ignore?: string[];
+  style_element_name?: string;
+  ui_element_name?: string;
 }
 
 export interface UIState {
@@ -70,64 +54,32 @@ export interface UIState {
   attributes?: Record<string, Record<string, Record<string, string | null>>>;
 }
 
-export class UIManagerUpdate extends ManagerUpdate {
-  append(
-    parent: string,
-    id: string,
-    name: string,
-    text?: string,
-    style?: Record<string, string | null>
-  ) {
-    this.request("ui/append", { parent, id, name, text, style });
-  }
-
-  remove(id: string) {
-    this.request("ui/remove", { id });
-  }
-
-  text(id: string, text: string) {
-    this.request("ui/text", { id, text });
-  }
-
-  style(id: string, style: Record<string, string | null>) {
-    this.request("ui/style", { id, style });
-  }
-
-  attributes(id: string, attributes: Record<string, string | null>) {
-    this.request("ui/attributes", { id, attributes });
-  }
-}
-
-export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
-  protected _disposeSizeObservers: (() => void)[] = [];
-
+export class UIManager extends Manager<UIState> {
   protected _firstUpdate = true;
 
-  constructor(
-    context: GameContext,
-    config?: Partial<UIConfig>,
-    state?: Partial<UIState>
-  ) {
-    const initialEvents: UIEvents = {
-      onUpdate: new GameEvent1<RequestMessage[]>(),
+  protected _config: Required<UIConfig>;
+
+  protected _root?: Element;
+
+  protected _events: Partial<
+    Record<string, Record<string, (event: Event) => void>>
+  > = {};
+
+  constructor(context: GameContext, connection: Connection) {
+    super(context, connection);
+    this._config = {
+      ignore: DEFAULT_BASE_CLASS_NAMES,
+      style_element_name: DEFAULT_STYLE_CLASS_NAME,
+      ui_element_name: DEFAULT_UI_CLASS_NAME,
+      ...(context?.config?.["ui"] || {}),
     };
-    const initialConfig: UIConfig = {
-      baseClassNames: DEFAULT_BASE_CLASS_NAMES,
-      styleClassName: DEFAULT_STYLE_CLASS_NAME,
-      uiClassName: DEFAULT_UI_CLASS_NAME,
-      root: DEFAULT_CREATE_ELEMENT(
-        "div",
-        DEFAULT_ROOT_CLASS_NAME,
-        DEFAULT_ROOT_CLASS_NAME
-      ),
-      createElement: DEFAULT_CREATE_ELEMENT,
-      ...(config || {}),
-    };
-    super(context, initialEvents, initialConfig, state || {});
-    this.loadTheme();
+  }
+
+  override async onInit() {
+    this._root = this.getOrCreateRootElement();
     this.loadStyles();
     this.loadUI();
-    this.onRestore();
+    this.loadTheme();
   }
 
   override async onRestore() {
@@ -183,80 +135,125 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
   override onDestroy(): void {
     super.onDestroy();
-    this._disposeSizeObservers.forEach((dispose) => {
-      dispose();
-    });
-    this.clearStyles();
-    this.clearUI();
-  }
-
-  clearStyles() {
-    const styleRoot = this.getElement(this.getStylePath());
-    if (styleRoot) {
-      styleRoot.clear();
+    if (this._root) {
+      this.destroyElement(this._root);
     }
   }
 
-  clearUI() {
-    const uiRoot = this.getElement(this.getUIPath());
-    if (uiRoot) {
-      uiRoot.clear();
+  protected generateId() {
+    // Id must start with a letter
+    return "e-" + this._context.system.uuid();
+  }
+
+  protected createElement(
+    parent: Element | null,
+    state?: ElementState
+  ): Element {
+    const id = this.generateId();
+    const index = parent?.children?.length ?? 0;
+    const name = state?.name || "";
+    const type = state?.type || "div";
+    const content = state?.content;
+    const style = state?.style;
+    const attributes = state?.attributes;
+    const el = new Element(parent, id, type, name);
+    const isRootElement = !parent;
+    if (isRootElement) {
+      this._root = el;
     }
-  }
-
-  protected conceal() {
-    const uiRoot = this.getElement(this.getUIPath());
-    uiRoot?.updateStyle({ opacity: "0" });
-  }
-
-  protected reveal() {
-    const uiRoot = this.getElement(this.getUIPath());
-    uiRoot?.updateStyle({ opacity: "1" });
-  }
-
-  protected getId(...path: string[]): string {
-    return path.join(".");
-  }
-
-  protected getPath(id: string): string[] {
-    return id.split(".");
-  }
-
-  protected getParentPath(id: string): string[] {
-    return this.getPath(id).slice(0, -1);
-  }
-
-  protected getElement(path: string[]): IElement | undefined {
-    const id = this.getId(...path);
-    if (id === this._config.root.id) {
-      return this._config.root;
-    }
-    let el: IElement | undefined = this._config.root;
-    for (let i = 1; i < path.length; i += 1) {
-      const part = path[i] || "";
-      const match = el.getChild(id);
-      if (match) {
-        return match;
-      }
-      const nextEl: IElement | undefined = el.findChild(part);
-      if (!nextEl) {
-        return undefined;
-      }
-      el = nextEl;
-    }
+    this.emit(
+      CreateElementMessage.type.request({
+        parent: parent?.id ?? null,
+        id,
+        type,
+        name,
+        index,
+        content,
+        style,
+        attributes,
+      })
+    );
     return el;
   }
 
-  protected getParentElement(el: IElement): IElement | undefined {
-    return this.getElement(this.getParentPath(el.id));
+  protected destroyElement(element: Element) {
+    const isRootElement = !element.parent;
+    if (isRootElement) {
+      this._root = undefined;
+    }
+    element.remove();
+    this.emit(
+      DestroyElementMessage.type.request({
+        id: element.id,
+      })
+    );
   }
 
-  getStylePath(...path: string[]): string[] {
-    return [this._config.root.id, this._config.styleClassName, ...path];
+  protected clearElement(element: Element) {
+    this.updateElement(element, { content: { text: "" } });
+    element.children.forEach((child) => {
+      this.destroyElement(child);
+    });
   }
 
-  getUIPath(...path: string[]): string[] {
-    return [this._config.root.id, this._config.uiClassName, ...path];
+  protected updateElement(element: Element, state?: ElementState): void {
+    const content = state?.content;
+    const style = state?.style;
+    const attributes = state?.attributes;
+    this.emit(
+      UpdateElementMessage.type.request({
+        id: element.id,
+        content,
+        style,
+        attributes,
+      })
+    );
+  }
+
+  protected _duplicateElement(element: Element): Element | undefined {
+    const id = this.generateId();
+    const type = element.type;
+    const name = element.name;
+    const el = new Element(element.parent, id, type, name);
+    element.children.forEach((child) => {
+      this._duplicateElement(child);
+    });
+    return el;
+  }
+
+  protected duplicateElement(
+    element: Element | undefined
+  ): Element | undefined {
+    if (!element) {
+      return undefined;
+    }
+    const clonedEl = this._duplicateElement(element);
+    if (clonedEl) {
+      this.emit(
+        CloneElementMessage.type.request({
+          targetId: element.id,
+          newId: clonedEl.id,
+        })
+      );
+      return clonedEl;
+    }
+    return undefined;
+  }
+
+  protected conceal() {
+    const target = this._config.ui_element_name;
+    const uiRoot = this._root?.findChild(target);
+    if (uiRoot) {
+      this.updateElement(uiRoot, { style: { opacity: "0" } });
+    }
+  }
+
+  protected reveal() {
+    const target = this._config.ui_element_name;
+    const uiRoot = this._root?.findChild(target);
+    if (uiRoot) {
+      this.updateElement(uiRoot, { style: { opacity: "1" } });
+    }
   }
 
   getImageVarName(name: string) {
@@ -271,7 +268,14 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return `var(${this.getImageVarName(name)})`;
   }
 
-  loadTheme(): void {
+  getOrCreateRootElement(): Element {
+    if (this._root) {
+      return this._root;
+    }
+    const style: Record<string, string> = {
+      position: "absolute",
+      inset: "0",
+    };
     const images = this._context?.["image"];
     if (images) {
       Object.entries(images).forEach(([name, image]) => {
@@ -281,36 +285,112 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           "src" in image &&
           typeof image.src === "string"
         ) {
-          this._config.root.updateStyle({
-            [this.getImageVarName(name)]: this.getImageVarValue(image.src),
-          });
+          style[this.getImageVarName(name)] = this.getImageVarValue(image.src);
         }
       });
     }
-    const breakpoints = this._context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
-    if (breakpoints) {
-      this._disposeSizeObservers.push(
-        this._config.root.observeSize(breakpoints)
-      );
+    return this.createElement(null, { style });
+  }
+
+  protected getOrCreateRootStyleElement(): Element {
+    if (!this._root) {
+      this._root = this.getOrCreateRootElement();
     }
+    const target = this._config.style_element_name;
+    return (
+      this._root.findChild(target) ||
+      this.createElement(this._root, {
+        name: target,
+      })
+    );
+  }
+
+  protected getOrCreateRootUIElement(): Element {
+    const style = {
+      position: "absolute",
+      inset: "0",
+      "font-family": "Courier Prime Sans",
+      "font-size": "1em",
+      opacity: "0",
+    };
+    if (!this._root) {
+      this._root = this.getOrCreateRootElement();
+    }
+    const target = this._config.ui_element_name;
+    return (
+      this._root.findChild(target) ||
+      this.createElement(this._root, {
+        name: target,
+        style,
+      })
+    );
+  }
+
+  protected getUIElement(uiName: string): Element | undefined {
+    const rootUIElement = this.getOrCreateRootUIElement();
+    return rootUIElement.findChild(uiName);
+  }
+
+  protected constructStyleElement(
+    structName: string,
+    content: ElementContent
+  ): Element | undefined {
+    const parent = this.getOrCreateRootStyleElement();
+    return this.createElement(parent, {
+      type: "style",
+      name: "style-" + structName,
+      content,
+    });
+  }
+
+  protected constructUI(
+    structName: string,
+    properties: Record<string, any>
+  ): Element {
+    const parent = this.getOrCreateRootUIElement();
+    const uiEl = this.createElement(parent, {
+      type: "div",
+      name: structName,
+      style: {
+        position: "absolute",
+        inset: "0",
+        display: "flex",
+        "flex-direction": "column",
+      },
+    });
+    Object.entries(properties).forEach(([k, v]) => {
+      const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
+      const isValidNode = !path.at(-1)?.startsWith("$");
+      if (isValidNode) {
+        let cursor: Element = uiEl;
+        for (let i = 0; i < path.length; i += 1) {
+          const part = path[i]!;
+          const child = cursor.findChild(part);
+          if (child) {
+            cursor = child;
+          } else {
+            const isLast = i === path.length - 1;
+            const text = isLast && v && typeof v === "string" ? v : undefined;
+            cursor = this.createElement(cursor, {
+              type: "div",
+              name: part,
+              content: text ? { text } : undefined,
+            });
+          }
+        }
+      }
+    });
+    return uiEl;
   }
 
   loadStyles(): void {
-    // Get or create style root
-    const styleRootEl = this.getOrCreateStyleRoot();
-    if (!styleRootEl) {
-      return;
-    }
     // Process Imports
     const cssStructObj = this._context?.["css"];
     if (cssStructObj) {
-      if (cssStructObj) {
-        const structEl = this.constructStyleElement("css", cssStructObj);
-        if (structEl) {
-          const properties = getAllProperties(cssStructObj);
-          structEl.setImportContent(properties);
-        }
-      }
+      const properties = getAllProperties(cssStructObj);
+      this.constructStyleElement("import", {
+        import: properties,
+      });
     }
     // Process Style and Animation
     const validStructNames = [
@@ -321,195 +401,49 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       if (structName) {
         const styleStructObj = this._context?.["style"]?.[structName];
         if (styleStructObj) {
-          const structEl = this.constructStyleElement(
-            structName,
-            styleStructObj
-          );
-          if (structEl) {
-            const properties = getAllProperties(styleStructObj, isAssetLeaf);
-            const breakpoints =
-              this._context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
-            structEl.setStyleContent(structName, properties, breakpoints);
-          }
+          const properties = getAllProperties(styleStructObj, isAssetLeaf);
+          properties[".target"] ??= structName;
+          this.constructStyleElement(structName, {
+            style: properties,
+          });
         }
         const animationStructObj = this._context?.["animation"]?.[structName];
         if (animationStructObj) {
-          const structEl = this.constructStyleElement(
-            structName,
-            animationStructObj
-          );
-          if (structEl) {
-            const properties = getAllProperties(animationStructObj);
-            structEl.setAnimationContent(structName, properties);
-          }
-        }
-      }
-    });
-  }
-
-  loadUI(...structNames: string[]): void {
-    const uiRootEl = this.getOrCreateUIRoot();
-    if (!uiRootEl) {
-      return;
-    }
-    const rootStyleProperties = {
-      position: "absolute",
-      top: "0",
-      bottom: "0",
-      left: "0",
-      right: "0",
-      display: "flex",
-      "flex-direction": "column",
-    };
-    const uiRootStyleProperties = {
-      position: "absolute",
-      top: "0",
-      bottom: "0",
-      left: "0",
-      right: "0",
-      "font-family": "Courier Prime Sans",
-      "font-size": "1em",
-      opacity: "0",
-    };
-    uiRootEl.updateStyle(uiRootStyleProperties);
-    const targetAllStructs = !structNames || structNames.length === 0;
-    const validStructNames = targetAllStructs
-      ? Object.keys(this._context?.["ui"] || {})
-      : structNames;
-    validStructNames.forEach((structName) => {
-      if (structName && !this._config.baseClassNames.includes(structName)) {
-        const structObj = this._context?.["ui"]?.[structName];
-        if (structObj) {
-          const properties = getAllProperties(structObj);
-          const structEl = this.constructUI(structName, properties);
-          structEl.updateStyle(rootStyleProperties);
-          Object.entries(properties).forEach(([k, v]) => {
-            const parts = k.split(".");
-            const validNode = !parts.at(-1)?.startsWith("$");
-            if (validNode) {
-              const childPath = parts.filter((f) => f);
-              const fieldEl =
-                this.getUIElement(structName, ...childPath) ||
-                this.constructElement(
-                  "div",
-                  this.getUIPath(),
-                  structName,
-                  ...childPath
-                );
-              if (fieldEl && v && typeof v === "string") {
-                fieldEl.updateText(v);
-              }
-            }
+          const properties = getAllProperties(animationStructObj);
+          properties[".target"] ??= structName;
+          this.constructStyleElement(structName, {
+            animation: properties,
           });
         }
       }
     });
   }
 
-  protected getOrCreateStyleRoot(): IElement {
-    const root = this._config.root;
-    const path = this.getStylePath();
-    const newEl = this.getElement(path) || this.createElement("div", ...path);
-    if (!root.children.find((c) => c.id === newEl.id)) {
-      root.appendChild(newEl);
-    }
-    return newEl;
-  }
-
-  protected getOrCreateUIRoot(): IElement {
-    const root = this._config.root;
-    const path = this.getUIPath();
-    const newEl = this.getElement(path) || this.createElement("div", ...path);
-    if (!root.children.find((c) => c.id === newEl.id)) {
-      root.appendChild(newEl);
-    }
-    return newEl;
-  }
-
-  protected getStyleElement(
-    structName: string,
-    ...childPath: string[]
-  ): IElement | undefined {
-    return this.getElement(this.getStylePath(structName, ...childPath));
-  }
-
-  protected getUIElement(
-    structName: string,
-    ...childPath: string[]
-  ): IElement | undefined {
-    return this.getElement(this.getUIPath(structName, ...childPath));
-  }
-
-  protected constructElement(
-    type: string,
-    rootPath: string[],
-    structName: string,
-    ...childPath: string[]
-  ): IElement {
-    const currPath: string[] = [...rootPath];
-    [structName, ...childPath].forEach((part) => {
-      if (part) {
-        const parent = this.getElement(currPath);
-        currPath.push(part);
-        if (parent && !this.getElement(currPath)) {
-          parent.appendChild(this.createElement(type, ...currPath));
+  loadUI(...structNames: string[]): void {
+    const targetAllStructs = !structNames || structNames.length === 0;
+    const validStructNames = targetAllStructs
+      ? Object.keys(this._context?.["ui"] || {})
+      : structNames;
+    validStructNames.forEach((structName) => {
+      if (structName && !this._config.ignore.includes(structName)) {
+        const structObj = this._context?.["ui"]?.[structName];
+        if (structObj) {
+          const properties = getAllProperties(structObj);
+          this.constructUI(structName, properties);
         }
       }
     });
-    return this.getElement([...rootPath, structName, ...childPath]) as IElement;
   }
 
-  protected constructStyleElement(
-    structName: string,
-    fields?: unknown
-  ): IElement | undefined {
-    const styleName = "style-" + structName;
-    const hash = getHash(fields).toString();
-    const existingStructEl = this.getStyleElement(styleName);
-    if (!existingStructEl) {
-      const structEl = this.constructElement(
-        "style",
-        this.getStylePath(),
-        styleName
+  loadTheme(): void {
+    const breakpoints = this._context?.["breakpoint"] || DEFAULT_BREAKPOINTS;
+    if (breakpoints) {
+      this.emit(
+        SetThemeMessage.type.request({
+          breakpoints,
+        })
       );
-      structEl.updateAttributes({ hash });
-      return structEl;
     }
-    if (existingStructEl.getAttribute("hash") !== hash) {
-      // Content of existing element has changed, needs update
-      existingStructEl.clear();
-      existingStructEl.updateAttributes({ hash });
-      return existingStructEl;
-    }
-    // Content of existing element is the same, no need to construct
-    return undefined;
-  }
-
-  protected constructUI(
-    structName: string,
-    fields: Record<string, unknown>
-  ): IElement {
-    const hash = getHash(fields).toString();
-    const existingStructEl = this.getUIElement(structName);
-    if (existingStructEl && existingStructEl.getAttribute("hash") !== hash) {
-      existingStructEl.clear();
-    }
-    const structEl =
-      existingStructEl ||
-      this.constructElement("div", this.getUIPath(), structName);
-    if (structEl.getAttribute("hash") !== hash) {
-      structEl.updateAttributes({ hash });
-    }
-    if (!existingStructEl) {
-      structEl.updateAttributes({ hidden: "" });
-    }
-    return structEl;
-  }
-
-  protected createElement(type: string, ...path: string[]): IElement {
-    const id = this.getId(...path);
-    const name = path.at(-1) || "";
-    return this._config.createElement(type, id, name);
   }
 
   hideUI(...structNames: string[]): void {
@@ -517,7 +451,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       if (structName) {
         const structEl = this.getUIElement(structName);
         if (structEl) {
-          structEl.updateAttributes({ hidden: "" });
+          this.updateElement(structEl, { attributes: { hidden: "" } });
         }
       }
     });
@@ -528,101 +462,51 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       if (structName) {
         const structEl = this.getUIElement(structName);
         if (structEl) {
-          structEl.updateAttributes({ hidden: null });
+          this.updateElement(structEl, { attributes: { hidden: null } });
         }
       }
     });
   }
 
-  protected findElement(uiName: string, target?: string): IElement | undefined {
-    const parent = this.getElement(this.getUIPath(uiName));
-    if (!target) {
-      return parent;
+  protected findElements(uiName: string, target: string): Element[] {
+    if (!uiName && this._root) {
+      return [this._root];
     }
-    if (parent) {
-      return this.searchForFirst(parent, target);
-    }
-    return undefined;
-  }
-
-  protected searchForFirst(
-    parent: IElement,
-    name: string
-  ): IElement | undefined {
-    if (parent.name === name) {
-      return parent;
-    }
-    const child = parent.findChild(name);
-    if (child) {
-      return child;
-    }
-    for (let i = 0; i < parent.children.length; i += 1) {
-      const child = parent.children[i];
-      if (child) {
-        const found = this.searchForFirst(child, name);
-        if (found) {
-          return found;
-        }
-      }
-    }
-    return undefined;
-  }
-
-  protected findElements(uiName: string, target: string): IElement[] {
-    if (!uiName) {
-      return [this._config.root];
-    }
-    const found: IElement[] = [];
-    const parent = this.getElement(this.getUIPath(uiName));
-    if (parent) {
-      this.searchForAll(parent, target, found);
+    const found: Element[] = [];
+    const uiElement = this.getUIElement(uiName);
+    if (uiElement) {
+      this.searchForAll(uiElement, target, found);
     }
     return found;
   }
 
   protected searchForAll(
-    parent: IElement,
-    name: string,
-    found: IElement[]
-  ): IElement[] {
+    parent: Element,
+    target: string,
+    found: Element[]
+  ): Element[] {
     if (parent) {
-      const matchingChildren = parent.findChildren(name);
+      const matchingChildren = parent.findChildren(target);
       found.push(...matchingChildren);
       for (let i = 0; i < parent.children.length; i += 1) {
         const child = parent.children[i];
         if (child) {
-          this.searchForAll(child, name, found);
+          this.searchForAll(child, target, found);
         }
       }
     }
     return found;
   }
 
-  protected appendChildElement(
-    parent: IElement,
-    state: ElementState
-  ): IElement | undefined {
-    if (parent) {
-      const type = state.type || "div";
-      const name = state?.name || uuid();
-      const id = this.getId(...this.getPath(parent.id), name);
-      const newEl = this._config.createElement(type, id, name);
-      const appendedChild = parent.appendChild(newEl);
-      appendedChild.update(state);
-      return appendedChild;
-    }
-    return undefined;
-  }
-
   protected getOrCreateContentElement(
-    element: IElement,
-    name: "image" | "text"
-  ): IElement | undefined {
-    const contentChild = element.findChild(name);
+    element: Element,
+    tag: "image" | "text"
+  ): Element | undefined {
+    const contentChild = element.findChild(tag);
     if (contentChild) {
       return contentChild;
     }
-    return this.appendChildElement(element, { name, type: "div" });
+    return this.createElement(element, { name: tag, type: "div" });
   }
 
   findIds(uiName: string, target: string): string[] {
@@ -665,7 +549,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         style["filter"] = "opacity(0)";
       }
     } else {
-      style["opacity"] = !event.enter ? "1" : "0";
+      style["opacity"] = event.enter && event.enter > 0 ? "0" : "1";
       style["transition-property"] = "opacity";
       style["transition-delay"] = `${event.enter ?? 0}s`;
       style["transition-timing-function"] = `linear`;
@@ -684,45 +568,72 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
     return style;
   }
 
-  // PUBLIC SETTER METHODS
-
-  setOnClick(
+  protected setEventListener<T extends keyof EventMap>(
+    event: T,
     uiName: string,
     target: string,
-    onclick: ((this: any, ev: any) => any) | null
+    callback: ((event: EventMap[T]) => any) | null,
+    stopPropagation = true,
+    once = false
   ): boolean {
     const targetEls = this.findElements(uiName, target);
     targetEls.forEach((targetEl) => {
-      targetEl.onclick = onclick;
-      targetEl.updateStyle({ "pointer-events": "auto" });
+      const style = { "pointer-events": "auto" };
+      this.updateElement(targetEl, { style });
+      this.emit(
+        UpdateElementMessage.type.request({
+          id: targetEl.id,
+          style,
+        })
+      );
+      if (callback) {
+        this.emit(
+          ObserveElementMessage.type.request({
+            id: targetEl.id,
+            event,
+            stopPropagation,
+            once,
+          })
+        );
+        this._events[event] ??= {};
+        this._events[event]![targetEl.id] = callback as (event: Event) => any;
+      } else {
+        delete this._events[event]?.[targetEl.id];
+        this.emit(
+          UnobserveElementMessage.type.request({
+            id: targetEl.id,
+            event,
+          })
+        );
+      }
     });
     return targetEls.length > 0;
   }
 
-  setOnPointerDown(
+  observe<T extends keyof EventMap>(
+    event: T,
     uiName: string,
     target: string,
-    onpointerdown: ((this: any, ev: any) => any) | null
+    callback: (event: EventMap[T]) => any,
+    stopPropagation = true,
+    once = false
   ): boolean {
-    const targetEls = this.findElements(uiName, target);
-    targetEls.forEach((targetEl) => {
-      targetEl.onpointerup = onpointerdown;
-      targetEl.updateStyle({ "pointer-events": "auto" });
-    });
-    return targetEls.length > 0;
+    return this.setEventListener(
+      event,
+      uiName,
+      target,
+      callback,
+      stopPropagation,
+      once
+    );
   }
 
-  setOnPointerUp(
+  unobserve<T extends keyof EventMap>(
+    event: T,
     uiName: string,
-    target: string,
-    onpointerup: ((this: any, ev: any) => any) | null
+    target: string
   ): boolean {
-    const targetEls = this.findElements(uiName, target);
-    targetEls.forEach((targetEl) => {
-      targetEl.onpointerup = onpointerup;
-      targetEl.updateStyle({ "pointer-events": "auto" });
-    });
-    return targetEls.length > 0;
+    return this.setEventListener(event, uiName, target, null);
   }
 
   Instance = (($) => {
@@ -754,10 +665,11 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         }
         const firstEl = targetEls.at(0);
         if (firstEl) {
-          const parentEl = $.getParentElement(firstEl);
+          const parentEl = firstEl.parent;
           if (parentEl) {
             for (let i = 0; i < instanceNumber + 1; i += 1) {
-              const el = targetEls?.[i] || parentEl.cloneChild(0);
+              const el =
+                targetEls?.[i] || $.duplicateElement(parentEl?.children?.[0]);
               if (el) {
                 if (instanceNumber === i) {
                   return;
@@ -778,7 +690,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
 
       get(uiName: string, target: string, instanceNumber: number): number {
         this.saveState(uiName, target, instanceNumber);
-        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
           this.applyChanges(uiName, target, instanceNumber);
         }
         const id = $.nextTriggerId();
@@ -838,49 +750,53 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         sequence: TextEvent[] | null,
         instant: boolean
       ): () => void {
-        const inElements: IElement[] = [];
-        const outElements: IElement[] = [];
+        const inElements: Element[] = [];
+        const outElements: Element[] = [];
         const enterAt = sequence?.[0]?.enter ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
-            targetEl.updateStyle({ display: null });
+            const style: Record<string, string | null> = { display: null };
             if (enterAt > 0) {
-              targetEl.updateStyle({
-                opacity: "0",
-                transition: instant ? "none" : `opacity 0s linear ${enterAt}s`,
-              });
+              style["opacity"] = instant ? "1" : "0";
+              style["transition"] = instant
+                ? "none"
+                : `opacity 0s linear ${enterAt}s`;
               inElements.push(targetEl);
             }
+            $.updateElement(targetEl, { style });
             const contentEl = $.getOrCreateContentElement(targetEl, "text");
             if (contentEl) {
               if (sequence) {
-                let blockEl: IElement | undefined = undefined;
+                let blockWrapper:
+                  | { element: Element; style: Record<string, string | null> }
+                  | undefined = undefined;
                 sequence.forEach((e) => {
                   const textAlign = e.params?.["text-align"];
                   if (textAlign) {
                     // text-align must be applied to a parent element
-                    if (blockEl?.style["text-align"] !== textAlign) {
+                    if (blockWrapper?.style["text-align"] !== textAlign) {
                       // Group consecutive spans that have the same text-alignment under the same block wrapper
                       const wrapperStyle: Record<string, string | null> = {};
                       wrapperStyle["display"] = "block";
                       wrapperStyle["text-align"] = textAlign;
-                      blockEl = $.appendChildElement(contentEl, {
-                        type: "div",
+                      blockWrapper = {
+                        element: $.createElement(contentEl, {
+                          type: "div",
+                          style: wrapperStyle,
+                        }),
                         style: wrapperStyle,
-                      });
+                      };
                     }
                   } else {
-                    blockEl = undefined;
+                    blockWrapper = undefined;
                   }
-                  const parentEl = blockEl || contentEl;
-                  const name = parentEl.children.length.toString();
+                  const parentEl = blockWrapper?.element || contentEl;
                   const text = e.text;
                   const style = { ...(e.params || {}) };
                   const transitionStyle = $.getTransitionStyle(e, instant);
-                  const childEl = $.appendChildElement(parentEl, {
-                    name,
+                  const childEl = $.createElement(parentEl, {
                     type: "span",
-                    text,
+                    content: { text },
                     style: { ...style, ...transitionStyle },
                   });
                   if (childEl) {
@@ -891,8 +807,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                   }
                 });
               } else {
-                contentEl.clear();
-                targetEl.updateStyle({ display: "none" });
+                $.clearElement(contentEl);
+                $.updateElement(targetEl, { style: { display: "none" } });
               }
             }
           }
@@ -900,18 +816,18 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         return () => {
           // Transition in elements
           inElements.forEach((el) => {
-            el.updateStyle({ opacity: "1" });
+            $.updateElement(el, { style: { opacity: "1" } });
           });
           // Transition out elements
           outElements.forEach((el) => {
-            el.updateStyle({ filter: "opacity(0)" });
+            $.updateElement(el, { style: { filter: "opacity(0)" } });
           });
         };
       }
 
       clear(uiName: string, target: string): void {
         this.saveState(uiName, target, null);
-        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
           this.applyChanges(uiName, target, null, true);
         }
       }
@@ -932,7 +848,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ): number {
         this.saveState(uiName, target, sequence);
         const transition =
-          $._context?.game?.previewing || !$._context?.game?.simulating
+          $._context?.system?.previewing || !$._context?.system?.simulating
             ? this.applyChanges(uiName, target, sequence, instant)
             : NOP;
         const id = $.nextTriggerId();
@@ -954,9 +870,12 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           });
         }
         $.findElements(uiName, "text").forEach((textEl) => {
-          const parent = $.getParentElement(textEl);
+          const parent = textEl.parent;
           if (parent) {
-            targets.add(parent.name);
+            const mainTag = parent.name?.[0];
+            if (mainTag) {
+              targets.add(mainTag);
+            }
           }
         });
         return Array.from(targets);
@@ -1013,27 +932,25 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         sequence: ImageEvent[] | null,
         instant: boolean
       ): () => void {
-        const inElements: IElement[] = [];
-        const outElements: IElement[] = [];
+        const inElements: Element[] = [];
+        const outElements: Element[] = [];
         const enterAt = sequence?.[0]?.enter ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
             const contentEl = $.getOrCreateContentElement(targetEl, "image");
             if (contentEl) {
-              targetEl.updateStyle({ display: null });
+              const style: Record<string, string | null> = { display: null };
               if (enterAt > 0) {
-                targetEl.updateStyle({
-                  opacity: "0",
-                  transition: instant
-                    ? "none"
-                    : `opacity 0s linear ${enterAt}s`,
-                });
+                style["opacity"] = instant ? "1" : "0";
+                style["transition"] = instant
+                  ? "none"
+                  : `opacity 0s linear ${enterAt}s`;
                 inElements.push(targetEl);
               }
+              $.updateElement(targetEl, { style });
               if (sequence) {
                 sequence.forEach((e) => {
                   const parentEl = contentEl;
-                  const name = parentEl.children.length.toString();
                   const style: Record<string, string | null> = {};
                   if (e.image) {
                     const combinedBackgroundImage = $.getImageAssetNames(
@@ -1044,8 +961,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                     style["background-image"] = combinedBackgroundImage;
                   }
                   const transitionStyle = $.getTransitionStyle(e, instant);
-                  const childEl = $.appendChildElement(parentEl, {
-                    name,
+                  const childEl = $.createElement(parentEl, {
                     type: "span",
                     style: {
                       ...(e.params || {}),
@@ -1061,8 +977,8 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
                   }
                 });
               } else {
-                contentEl.clear();
-                targetEl.updateStyle({ display: "none" });
+                $.clearElement(contentEl);
+                $.updateElement(targetEl, { style: { display: "none" } });
               }
             }
           }
@@ -1073,18 +989,18 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         return () => {
           // Transition in elements
           inElements.forEach((el) => {
-            el.updateStyle({ opacity: "1" });
+            $.updateElement(el, { style: { opacity: "1" } });
           });
           // Transition out elements
           outElements.forEach((el) => {
-            el.updateStyle({ filter: "opacity(0)" });
+            $.updateElement(el, { style: { filter: "opacity(0)" } });
           });
         };
       }
 
       clear(uiName: string, target: string): void {
         this.saveState(uiName, target, null);
-        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
           this.applyChanges(uiName, target, null, true);
         }
       }
@@ -1105,7 +1021,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ): number {
         this.saveState(uiName, target, sequence);
         const transition =
-          $._context?.game?.previewing || !$._context?.game?.simulating
+          $._context?.system?.previewing || !$._context?.system?.simulating
             ? this.applyChanges(uiName, target, sequence, instant)
             : NOP;
         const id = $.nextTriggerId();
@@ -1127,9 +1043,12 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
           });
         }
         $.findElements(uiName, "image").forEach((imageEl) => {
-          const parent = $.getParentElement(imageEl);
+          const parent = imageEl.parent;
           if (parent) {
-            targets.add(parent.name);
+            const mainTag = parent.name?.[0];
+            if (mainTag) {
+              targets.add(mainTag);
+            }
           }
         });
         return Array.from(targets);
@@ -1176,7 +1095,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ): void {
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
-            targetEl.updateStyle(style);
+            $.updateElement(targetEl, { style });
           }
         });
       }
@@ -1187,7 +1106,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         style: Record<string, string | null> | null
       ): void {
         this.saveState(uiName, target, style);
-        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
           this.applyChanges(uiName, target, style);
         }
       }
@@ -1233,7 +1152,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
       ): void {
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
-            targetEl.updateAttributes(attributes);
+            $.updateElement(targetEl, { attributes });
           }
         });
       }
@@ -1244,7 +1163,7 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
         attributes: Record<string, string | null> | null
       ): void {
         this.saveState(uiName, target, attributes);
-        if ($._context?.game?.previewing || !$._context?.game?.simulating) {
+        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
           this.applyChanges(uiName, target, attributes);
         }
       }
@@ -1261,4 +1180,16 @@ export class UIManager extends Manager<UIEvents, UIConfig, UIState> {
   style = new this.Style();
 
   attributes = new this.Attributes();
+
+  override onReceiveNotification(msg: NotificationMessage): void {
+    if (EventMessage.type.isNotification(msg)) {
+      const params = msg.params;
+      if (params.element) {
+        const callback = this._events[params.type]?.[params.element];
+        if (callback) {
+          callback(params);
+        }
+      }
+    }
+  }
 }

@@ -13,7 +13,7 @@ export class EvaluateCommandRunner<G extends Game> extends CommandRunner<
       return super.onExecute(data);
     }
 
-    this.game.logic.evaluate(expression);
+    this.game.module.logic.evaluate(expression);
 
     return super.onExecute(data);
   }

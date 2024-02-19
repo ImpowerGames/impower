@@ -1,17 +1,14 @@
-import { Game, GameConfig, GameState } from "../../game/core/classes/Game";
-import { GameContext } from "../../game/core/types/GameContext";
+import { GameConfig, GameModules } from "../../game/core/classes/Game";
 
 export interface GameBuilderOptions<
-  G extends Game = Game,
   C extends GameConfig = GameConfig,
-  S extends GameState = GameState
+  M extends GameModules = GameModules
 > {
   simulation?: {
     waypoints?: { program: number; line: number }[];
     startpoint?: { program: number; line: number };
   };
   config?: C;
-  state?: S;
-  defaults?: Record<string, Record<string, object>>;
-  createGame?: (context?: GameContext, config?: C, state?: S) => G;
+  modules?: M;
+  preview?: boolean;
 }

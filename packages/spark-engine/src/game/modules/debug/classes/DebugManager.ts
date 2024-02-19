@@ -1,50 +1,30 @@
-import { GameEvent1 } from "../../../core";
-import { GameEvent } from "../../../core/classes/GameEvent";
 import { Manager } from "../../../core/classes/Manager";
-import { GameContext } from "../../../core/types/GameContext";
 import { LogData } from "../types/LogData";
-
-export interface DebugEvents extends Record<string, GameEvent> {
-  onLog: GameEvent1<LogData>;
-}
+import {
+  DebugLogMessage,
+  DebugLogMessageMap,
+} from "./messages/DebugLogMessage";
 
 export interface DebugConfig {}
 
 export interface DebugState {
-  debugging?: boolean;
   logs?: LogData[];
 }
 
-export class DebugManager extends Manager<
-  DebugEvents,
-  DebugConfig,
-  DebugState
-> {
-  constructor(
-    context: GameContext,
-    config?: Partial<DebugConfig>,
-    state?: Partial<DebugState>
-  ) {
-    const initialEvents: DebugEvents = { onLog: new GameEvent1<LogData>() };
-    const initialConfig: DebugConfig = { ...(config || {}) };
-    super(context, initialEvents, initialConfig, state || {});
-  }
+export type DebugMessageMap = DebugLogMessageMap;
 
+export class DebugManager extends Manager<DebugState, DebugMessageMap> {
   startDebugging(): void {
-    this._state.debugging = true;
+    this._context.system.debugging = true;
   }
 
   stopDebugging(): void {
-    this._state.debugging = false;
+    this._context.system.debugging = false;
   }
 
   log(data: LogData): void {
     this._state.logs ??= [];
     this._state.logs.push({ ...data });
-    this._events.onLog.dispatch({ ...data });
-  }
-
-  clearLogs(): void {
-    this._state.logs = [];
+    this.emit(DebugLogMessage.type.request(data));
   }
 }

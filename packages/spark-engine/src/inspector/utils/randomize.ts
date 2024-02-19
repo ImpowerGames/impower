@@ -1,11 +1,9 @@
-import {
-  clampedRandom,
-  cull,
-  getAllProperties,
-  getProperty,
-  pick,
-  setProperty,
-} from "../../game";
+import { clampedRandom } from "../../game/core/utils/clampedRandom";
+import { cull } from "../../game/core/utils/cull";
+import { getAllProperties } from "../../game/core/utils/getAllProperties";
+import { getProperty } from "../../game/core/utils/getProperty";
+import { pick } from "../../game/core/utils/pick";
+import { setProperty } from "../../game/core/utils/setProperty";
 import { RecursiveRandomization } from "../types/RecursiveRandomization";
 import { RecursiveValidation } from "../types/RecursiveValidation";
 

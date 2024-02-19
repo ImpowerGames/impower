@@ -2,7 +2,12 @@
  * Inspired by ChipTone <https://sfbgames.itch.io/chiptone>
  */
 
-import { A, MAJOR_ARPEGGIOS_DOWN, MAJOR_ARPEGGIOS_UP, Synth } from "../../game";
+import { Synth } from "../../game";
+import { A } from "../../game/modules/audio/constants/A";
+import {
+  MAJOR_ARPEGGIOS_DOWN,
+  MAJOR_ARPEGGIOS_UP,
+} from "../../game/modules/audio/constants/ARPEGGIOS";
 import { RecursiveRandomization } from "../types/RecursiveRandomization";
 
 export const SYNTH_RANDOMIZATIONS: Record<

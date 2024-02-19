@@ -1,4 +1,12 @@
+import {
+  Message,
+  NotificationMessage,
+  RequestMessage,
+  ResponseError,
+} from "../../../spark-engine/src/game/core";
+import { Connection } from "../../../spark-engine/src/game/core/classes/Connection";
 import { Game } from "../../../spark-engine/src/game/core/classes/Game";
+import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import Scene from "./Scene";
 import Ticker from "./Ticker";
 import PerspectiveCamera from "./render/cameras/PerspectiveCamera";
@@ -6,8 +14,11 @@ import OrbitControls from "./render/controls/OrbitControls";
 import WebGLRenderer from "./render/renderers/WebGLRenderer";
 import AudioScene from "./scenes/AudioScene";
 import MainScene from "./scenes/MainScene";
+import UIScene from "./scenes/UIScene";
+import { getEventData } from "./utils/getEventData";
 
 export default class Application {
+  // TODO: Application should only have a reference to gameWorker
   protected _game: Game;
   public get game(): Game {
     return this._game;
@@ -18,19 +29,24 @@ export default class Application {
     return this._ticker;
   }
 
-  protected _dom: HTMLElement | null;
-  public get dom(): HTMLElement | null {
-    return this._dom;
+  protected _view: HTMLElement | null;
+  public get view(): HTMLElement | null {
+    return this._view;
+  }
+
+  protected _canvas?: HTMLCanvasElement;
+  get canvas() {
+    return this._canvas;
+  }
+
+  protected _overlay: HTMLElement | null;
+  public get overlay(): HTMLElement | null {
+    return this._overlay;
   }
 
   protected _screen: { width: number; height: number };
   get screen() {
     return this._screen;
-  }
-
-  protected _view?: HTMLCanvasElement;
-  get view() {
-    return this._view;
   }
 
   protected _renderer?: WebGLRenderer;
@@ -58,19 +74,25 @@ export default class Application {
     return this._orbit;
   }
 
+  protected _connection: Connection;
+  public get connection() {
+    return this._connection;
+  }
+
   protected _timeMS = 0;
 
   protected _ready = false;
 
-  constructor(dom: HTMLElement, game: Game) {
-    this._dom = dom;
-    const width = this._dom.clientWidth;
-    const height = this._dom.clientHeight;
+  constructor(game: Game, view: HTMLElement, overlay: HTMLElement) {
+    this._view = view;
+    this._overlay = overlay;
+    const width = this._view.clientWidth;
+    const height = this._view.clientHeight;
     try {
       this._renderer = new WebGLRenderer({
         antialias: true,
       });
-      this._view = this._renderer.domElement;
+      this._canvas = this._renderer.domElement;
       this._renderer.setSize(width, height);
     } catch (e) {
       console.error(e);
@@ -93,51 +115,63 @@ export default class Application {
           this._renderer.setPixelRatio(window.devicePixelRatio);
         }
         this.scenes.forEach((scene) => {
-          scene.resize();
+          scene.onResize(entry);
         });
       }
     });
-    this._resizeObserver.observe(this._dom);
+    this._resizeObserver.observe(this._view);
 
     this._game = game;
-    if (this.game) {
-      this.game.start();
-      this.bindUI();
+
+    this._connection = new Connection({
+      onSend: (msg, t) => this.emit(msg, t),
+      onReceive: (msg) => this.onReceive(msg),
+    });
+
+    const scenesToLoad: Record<string, Scene> = {
+      main: new MainScene(this),
+      ui: new UIScene(this),
+    };
+    if (!game.context.system.previewing) {
+      scenesToLoad["audio"] = new AudioScene(this);
+    }
+    this._scenes.clear();
+    Object.entries(scenesToLoad).forEach(([id, scene]) => {
+      this._scenes.set(id, scene);
+    });
+
+    // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
+    game.init((msg: Message, _t?: ArrayBuffer[]) => {
+      this.connection.receive(msg);
+    });
+
+    if (this._canvas) {
+      this._view.appendChild(this._canvas);
+      this.bind();
     }
 
-    if (this._view) {
-      this._dom.appendChild(this._view);
-      this.bindView();
+    if (!game.context.system.previewing) {
+      game.start();
     }
 
     this.ticker.add(this.onUpdate);
     this.ticker.start();
 
-    const scenesToLoad: Record<string, Scene> = !game
-      ? {}
-      : {
-          audio: new AudioScene(this),
-          main: new MainScene(this),
-        };
-    this.loadScenes(scenesToLoad).then(() => {
+    this.loadScenes().then(() => {
       this._ready = true;
     });
   }
 
-  async loadScenes(scenes: Record<string, Scene>): Promise<void> {
+  async loadScenes(): Promise<void> {
     const loadingUIName = "loading";
     const loadingProgressVariable = "--loading_progress";
-    this._scenes.clear();
-    Object.entries(scenes).forEach(([id, scene]) => {
-      this._scenes.set(id, scene);
-    });
-    if (this.game.ui) {
-      this.game.ui.style.update(loadingUIName, "", {
+    if (this.game.module.ui) {
+      this.game.module.ui.style.update(loadingUIName, "", {
         [loadingProgressVariable]: "0",
       });
     }
-    if (this.game.ui) {
-      this.game.ui.showUI(loadingUIName);
+    if (this.game.module.ui) {
+      this.game.module.ui.showUI(loadingUIName);
     }
     const allRequiredAssets: Record<string, { src: string; ext: string }> = {};
     this._scenes.forEach((scene) => {
@@ -147,8 +181,8 @@ export default class Application {
     });
     // TODO:
     // await this.assets.loadAssets(allRequiredAssets, (p) => {
-    //   if (this.game.ui) {
-    //     this.game.ui.updateStyleProperty(
+    //   if (this.game.module.ui) {
+    //     this.game.module.ui.updateStyleProperty(
     //       loadingProgressVariable,
     //       p,
     //       loadingUIName
@@ -161,42 +195,47 @@ export default class Application {
     });
     await Promise.all(
       scenesArray.map(async (scene): Promise<void> => {
-        const objs = await scene.load();
+        const objs = await scene.onLoad();
         objs.forEach((obj) => scene.add(obj));
       })
     );
     scenesArray.forEach((scene) => {
-      scene.start();
+      scene.onStart();
     });
     scenesArray.forEach((scene) => {
       scene.ready = true;
     });
-    if (this.game.ui) {
-      this.game.ui.hideUI(loadingUIName);
+    if (this.game.module.ui) {
+      this.game.module.ui.hideUI(loadingUIName);
     }
   }
 
-  bindUI() {
-    this.game.ui.setOnPointerDown("", "", this.onPointerDownUI);
-    this.game.ui.setOnPointerUp("", "", this.onPointerDownUI);
-  }
-
-  unbindUI() {
-    this.game.ui.setOnPointerDown("", "", null);
-    this.game.ui.setOnPointerUp("", "", null);
-  }
-
-  bindView() {
-    if (this._view) {
-      this._view.addEventListener("pointerdown", this.onPointerDownView);
-      this._view.addEventListener("pointerup", this.onPointerUpView);
+  bind() {
+    if (this._canvas) {
+      this._canvas.addEventListener("pointerdown", this.onPointerDownView);
+      this._canvas.addEventListener("pointerup", this.onPointerUpView);
+      this._canvas.addEventListener("click", this.onClickView);
+    }
+    if (this._overlay) {
+      this._overlay.addEventListener("pointerdown", this.onPointerDownOverlay);
+      this._overlay.addEventListener("pointerup", this.onPointerUpOverlay);
+      this._overlay.addEventListener("click", this.onClickOverlay);
     }
   }
 
-  unbindView() {
-    if (this._view) {
-      this._view.removeEventListener("pointerdown", this.onPointerDownView);
-      this._view.removeEventListener("pointerup", this.onPointerUpView);
+  unbind() {
+    if (this._canvas) {
+      this._canvas.removeEventListener("pointerdown", this.onPointerDownView);
+      this._canvas.removeEventListener("pointerup", this.onPointerUpView);
+      this._canvas.removeEventListener("click", this.onClickView);
+    }
+    if (this._overlay) {
+      this._overlay.removeEventListener(
+        "pointerdown",
+        this.onPointerDownOverlay
+      );
+      this._overlay.removeEventListener("pointerup", this.onPointerUpOverlay);
+      this._overlay.removeEventListener("click", this.onClickOverlay);
     }
   }
 
@@ -205,36 +244,48 @@ export default class Application {
       this._renderer.dispose();
     }
     this._ticker.dispose();
-    this.unbindView();
-    this.unbindUI();
+    this.unbind();
     this.resizeObserver.disconnect();
     this.scenes.forEach((scene) => {
       scene.ready = false;
       scene.unbind();
-      scene.dispose().forEach((d) => d.dispose());
+      scene.onDispose().forEach((d) => d.dispose());
     });
     if (this.game) {
       this.game.destroy();
     }
-    if (removeView && this.view) {
-      this.view.remove();
+    if (removeView && this.canvas) {
+      this.canvas.remove();
     }
   }
 
+  emit(message: Message, _transfer?: ArrayBuffer[]) {
+    // TODO: Call gameWorker.postMessage instead (worker should call game.connection.receive from self.onmessage)
+    this.game.connection.receive(message);
+  }
+
   onPointerDownView = (event: PointerEvent): void => {
-    this.game.input.pointerDown(event.button, "");
+    this.emit(EventMessage.type.notification(getEventData(event, null)));
   };
 
   onPointerUpView = (event: PointerEvent): void => {
-    this.game.input.pointerUp(event.button, "");
+    this.emit(EventMessage.type.notification(getEventData(event, null)));
   };
 
-  onPointerDownUI = (event: PointerEvent): void => {
-    this.game.input.pointerDown(event.button, "");
+  onClickView = (event: MouseEvent): void => {
+    this.emit(EventMessage.type.notification(getEventData(event, null)));
   };
 
-  onPointerUpUI = (event: PointerEvent): void => {
-    this.game.input.pointerUp(event.button, "");
+  onPointerDownOverlay = (event: PointerEvent): void => {
+    this.emit(EventMessage.type.notification(getEventData(event, null)));
+  };
+
+  onPointerUpOverlay = (event: PointerEvent): void => {
+    this.emit(EventMessage.type.notification(getEventData(event, null)));
+  };
+
+  onClickOverlay = (event: MouseEvent): void => {
+    this.emit(EventMessage.type.notification(getEventData(event, null)));
   };
 
   pause(): void {
@@ -244,7 +295,7 @@ export default class Application {
     this.enableOrbitControls();
     this.scenes.forEach((scene) => {
       if (scene?.ready) {
-        scene.pause();
+        scene.onPause();
       }
     });
   }
@@ -253,7 +304,7 @@ export default class Application {
     this.disableOrbitControls();
     this.scenes.forEach((scene) => {
       if (scene?.ready) {
-        scene.unpause();
+        scene.onUnpause();
       }
     });
     if (this.ticker) {
@@ -265,8 +316,8 @@ export default class Application {
     if (this._ready) {
       this.scenes.forEach((scene) => {
         if (scene?.ready) {
-          scene.tick(deltaMS);
-          scene.update(deltaMS);
+          scene.onTick(deltaMS);
+          scene.onUpdate(deltaMS);
         }
       });
     }
@@ -292,7 +343,7 @@ export default class Application {
   step(deltaMS: number): void {
     this.scenes.forEach((scene) => {
       if (scene?.ready) {
-        scene.step(deltaMS);
+        scene.onStep(deltaMS);
       }
     });
     this.update(deltaMS);
@@ -303,7 +354,7 @@ export default class Application {
   };
 
   enableOrbitControls() {
-    this._orbit = new OrbitControls(this._camera, this._view);
+    this._orbit = new OrbitControls(this._camera, this._canvas);
     this._orbit.saveState();
   }
 
@@ -313,5 +364,27 @@ export default class Application {
       this._orbit.dispose();
       this._orbit = undefined;
     }
+  }
+
+  async onReceive(
+    msg: RequestMessage | NotificationMessage
+  ): Promise<
+    | { error: ResponseError; transfer?: ArrayBuffer[] }
+    | { result: unknown; transfer?: ArrayBuffer[] }
+    | undefined
+  > {
+    return new Promise((callback) => {
+      this._scenes.forEach((scene) => {
+        if ("id" in msg) {
+          scene.onReceiveRequest(msg).then((response) => {
+            if (response) {
+              callback(response as any);
+            }
+          });
+        } else {
+          scene.onReceiveNotification(msg);
+        }
+      });
+    });
   }
 }

@@ -15,14 +15,10 @@ import {
   ViewUpdate,
 } from "@codemirror/view";
 import { SparkDOMAudioPlayer } from "../../../spark-dom/src/classes/SparkDOMAudioPlayer";
-import {
-  Audio,
-  SYNTH_DEFAULTS,
-  SynthBuffer,
-  clone,
-  type AudioGroup,
-  type Synth,
-} from "../../../spark-engine/src";
+import { Audio, type AudioGroup, type Synth } from "../../../spark-engine/src";
+import { clone } from "../../../spark-engine/src/game/core/utils/clone";
+import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
+import { SYNTH_DEFAULTS } from "../../../spark-engine/src/game/modules/audio/specs/defaults/SYNTH_DEFAULTS";
 import {
   SYNTH_RANDOMIZATIONS,
   SYNTH_VALIDATION,
@@ -193,8 +189,6 @@ const playAudioVariable = async (
       ? await getAudioBuffer(url, audioContext)
       : new Float32Array(0);
     const player = new SparkDOMAudioPlayer(buffer, audioContext, {
-      loop: audio.loop,
-      volume: audio.volume,
       cues: audio.cues,
     });
     return [player];
@@ -222,8 +216,6 @@ const playAudioGroupVariable = async (
           ? await getAudioBuffer(url, audioContext)
           : new Float32Array(0);
         const player = new SparkDOMAudioPlayer(buffer, audioContext, {
-          loop: audioGroup.loop,
-          volume: audioGroup.volume,
           cues: audioGroup.cues,
         });
         return player;
@@ -262,7 +254,8 @@ const createSynthBuffer = (synth: Synth, context: VariableWidgetContext) => {
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
   return new SynthBuffer(
-    [{ pitchHertz: synth.pitch.frequency, synth }],
+    synth,
+    [{ pitch: synth.pitch.frequency }],
     audioContext.sampleRate
   );
 };

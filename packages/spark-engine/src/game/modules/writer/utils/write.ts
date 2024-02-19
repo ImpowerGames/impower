@@ -582,7 +582,7 @@ export const write = (
     }
   });
 
-  if (character && !instant && !context.game?.simulating) {
+  if (character && !instant && !context.system?.simulating) {
     stressPhrases(phrases, getValue(context, "character", character));
   }
 
@@ -651,9 +651,10 @@ export const write = (
           // Floating animation
           if (c.floating && floatingAnimation) {
             textEvent.params ??= {};
+            textEvent.params["position"] = "relative";
             textEvent.params["animation"] = floatingAnimation;
             textEvent.params["animation-delay"] = `${
-              floatingIndex * animationOffset
+              floatingIndex * animationOffset * -1
             }s`;
           }
           if (c.floating) {
@@ -664,9 +665,10 @@ export const write = (
           // Trembling animation
           if (c.trembling && tremblingAnimation) {
             textEvent.params ??= {};
+            textEvent.params["position"] = "relative";
             textEvent.params["animation"] = tremblingAnimation;
             textEvent.params["animation-delay"] = `${
-              tremblingIndex * animationOffset
+              tremblingIndex * animationOffset * -1
             }s`;
           }
           if (c.trembling) {

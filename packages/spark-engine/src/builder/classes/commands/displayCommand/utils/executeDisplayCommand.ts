@@ -30,13 +30,16 @@ export const executeDisplayCommand = (
       c.text = context?.["character"]?.[characterKey]?.name || c.text;
     }
     // Only display content without prerequisites or that have truthy prerequisites
-    if (!c.prerequisite || Boolean(game.logic.evaluate(c.prerequisite))) {
+    if (
+      !c.prerequisite ||
+      Boolean(game.module.logic.evaluate(c.prerequisite))
+    ) {
       const r: Phrase = {
         ...c,
       };
       if (r.text) {
         // Substitute any {variables} in text
-        r.text = game.logic.format(r.text);
+        r.text = game.module.logic.format(r.text);
       }
       if (!r.target) {
         r.target = type;
@@ -51,8 +54,8 @@ export const executeDisplayCommand = (
   }
 
   // Stop stale sounds
-  game.audio.stopChannel("writer");
-  game.audio.stopChannel("voice");
+  game.module.audio.stopChannel("writer");
+  game.module.audio.stopChannel("voice");
 
   // Clear stale text
   const textLayerMap = context?.["text_layer"];
@@ -71,16 +74,16 @@ export const executeDisplayCommand = (
     : undefined;
 
   const clearUI = () => {
-    game.ui.text.clearAll(uiName, preservedTextLayers);
-    game.ui.image.clearAll(uiName, preservedImageLayers);
+    game.module.ui.text.clearAll(uiName, preservedTextLayers);
+    game.module.ui.image.clearAll(uiName, preservedImageLayers);
   };
   clearUI();
 
   const instant = options?.instant;
   const previewing = options?.preview;
-  const debugging = game.debug.state.debugging;
+  const debugging = context.system.debugging;
 
-  const sequence = game.writer.write(displayed, {
+  const sequence = game.module.writer.write(displayed, {
     character: characterKey,
     instant,
     debug: debugging,
@@ -96,36 +99,40 @@ export const executeDisplayCommand = (
     indicatorStyle["animation-play-state"] = "paused";
     indicatorStyle["display"] = null;
   }
-  game.ui.style.update(uiName, "indicator", indicatorStyle);
+  game.module.ui.style.update(uiName, "indicator", indicatorStyle);
 
   // Process buttons
   const buttonTransitionIds = Object.entries(sequence.button).flatMap(
     ([target, events]) =>
       events.map((e) => {
-        const id = game.ui.instance.get(uiName, target, e.instance);
-        const handleClick = (event?: {
-          stopPropagation?: () => void;
-        }): void => {
-          event?.stopPropagation?.();
+        const id = game.module.ui.instance.get(uiName, target, e.instance);
+        const handleClick = (): void => {
           clearUI();
-          game.ui.setOnClick(uiName, target, null);
+          game.module.ui.unobserve("click", uiName, target);
           onClickButton?.(e);
         };
-        game.ui.setOnClick(uiName, target + " " + e.instance, handleClick);
+        game.module.ui.observe(
+          "click",
+          uiName,
+          target + " " + e.instance,
+          handleClick
+        );
         return id;
       })
   );
   // Process text
   const textTransitionIds = Object.entries(sequence.text).map(
-    ([target, events]) => game.ui.text.write(uiName, target, events, instant)
+    ([target, events]) =>
+      game.module.ui.text.write(uiName, target, events, instant)
   );
   // Process images
   const imageTransitionIds = Object.entries(sequence.image).map(
-    ([target, events]) => game.ui.image.write(uiName, target, events, instant)
+    ([target, events]) =>
+      game.module.ui.image.write(uiName, target, events, instant)
   );
   // Process audio
   const audioTransitionIds = Object.entries(sequence.audio).map(
-    ([channel, events]) => game.audio.queue(channel, events, instant)
+    ([channel, events]) => game.module.audio.queue(channel, events, instant)
   );
 
   const handleFinished = (): void => {
@@ -133,18 +140,18 @@ export const executeDisplayCommand = (
     indicatorStyle["transition"] = null;
     indicatorStyle["opacity"] = "1";
     indicatorStyle["animation-play-state"] = previewing ? "paused" : "running";
-    game.ui.style.update(uiName, "indicator", indicatorStyle);
+    game.module.ui.style.update(uiName, "indicator", indicatorStyle);
     onFinished?.();
   };
 
-  game.ui.showUI(uiName);
+  game.module.ui.showUI(uiName);
 
   if (instant) {
     handleFinished();
     const indicatorStyle: Record<string, string | null> = {};
     indicatorStyle["transition"] = "none";
     indicatorStyle["opacity"] = "1";
-    game.ui.style.update(uiName, "indicator", indicatorStyle);
+    game.module.ui.style.update(uiName, "indicator", indicatorStyle);
   }
 
   let elapsedMS = 0;
@@ -154,15 +161,15 @@ export const executeDisplayCommand = (
   const handleTick = (deltaMS: number): void => {
     if (!ready) {
       if (
-        buttonTransitionIds.every((n) => game.ui.isReady(n)) &&
-        textTransitionIds.every((n) => game.ui.isReady(n)) &&
-        imageTransitionIds.every((n) => game.ui.isReady(n)) &&
-        audioTransitionIds.every((n) => game.audio.isReady(n))
+        audioTransitionIds.every((n) => game.module.audio.isReady(n)) &&
+        buttonTransitionIds.every((n) => game.module.ui.isReady(n)) &&
+        textTransitionIds.every((n) => game.module.ui.isReady(n)) &&
+        imageTransitionIds.every((n) => game.module.ui.isReady(n))
       ) {
         ready = true;
-        game.ui.triggerAll(textTransitionIds);
-        game.ui.triggerAll(imageTransitionIds);
-        game.audio.triggerAll(audioTransitionIds);
+        game.module.audio.triggerAll(audioTransitionIds);
+        game.module.ui.triggerAll(textTransitionIds);
+        game.module.ui.triggerAll(imageTransitionIds);
       }
     }
     if (ready && !finished) {
