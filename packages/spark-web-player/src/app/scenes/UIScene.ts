@@ -154,9 +154,7 @@ export default class UIScene extends Scene {
       const el = this.getElement(params.id);
       if (el) {
         const listener = (event: Event) => {
-          this.emit(
-            EventMessage.type.notification(getEventData(event, params.id))
-          );
+          this.emit(EventMessage.type.notification(getEventData(event)));
         };
         this._listeners[params.id] = listener;
         el.addEventListener(params.event, listener);

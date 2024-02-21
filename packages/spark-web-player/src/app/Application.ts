@@ -265,27 +265,27 @@ export default class Application {
   }
 
   onPointerDownView = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event, null)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerUpView = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event, null)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onClickView = (event: MouseEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event, null)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerDownOverlay = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event, null)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onPointerUpOverlay = (event: PointerEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event, null)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   onClickOverlay = (event: MouseEvent): void => {
-    this.emit(EventMessage.type.notification(getEventData(event, null)));
+    this.emit(EventMessage.type.notification(getEventData(event)));
   };
 
   pause(): void {

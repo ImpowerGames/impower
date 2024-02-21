@@ -201,7 +201,7 @@ export class Game<CustomModules extends { [name: string]: Manager } = {}> {
   > {
     for (let i = 0; i < this._moduleNames.length; i += 1) {
       const n = this._moduleNames[i];
-      if (n && msg.method.startsWith(`${n}/`)) {
+      if (n) {
         const manager = this._managers[n];
         if (manager) {
           if ("id" in msg) {

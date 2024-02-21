@@ -1184,8 +1184,8 @@ export class UIManager extends Manager<UIState> {
   override onReceiveNotification(msg: NotificationMessage): void {
     if (EventMessage.type.isNotification(msg)) {
       const params = msg.params;
-      if (params.element) {
-        const callback = this._events[params.type]?.[params.element];
+      if (params.currentTargetId) {
+        const callback = this._events[params.type]?.[params.currentTargetId];
         if (callback) {
           callback(params);
         }
