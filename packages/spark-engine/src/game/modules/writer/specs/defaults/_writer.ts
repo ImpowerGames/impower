@@ -1,4 +1,4 @@
-import { Create } from "../../../core/types/Create";
+import { Create } from "../../../../core/types/Create";
 import { Writer } from "../Writer";
 
 export const _writer: Create<Writer> = (obj) => ({
