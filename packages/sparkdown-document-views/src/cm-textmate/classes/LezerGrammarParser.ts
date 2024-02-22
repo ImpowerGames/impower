@@ -2,7 +2,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { Input, NodeSet, NodeType, Parser, TreeFragment } from "@lezer/common";
+import {
+  Input,
+  NodeSet,
+  NodeType,
+  Parser,
+  Tree,
+  TreeBuffer,
+  TreeFragment,
+} from "@lezer/common";
 
 import {
   Grammar,
@@ -10,6 +18,9 @@ import {
   RuleDefinition,
 } from "../../../../grammar-compiler/src/grammar";
 
+import { ChunkBuffer } from "../../../../grammar-compiler/src/compiler/classes/ChunkBuffer";
+import { Compiler } from "../../../../grammar-compiler/src/compiler/classes/Compiler";
+import { NodeID } from "../../../../grammar-compiler/src/core/enums/NodeID";
 import getRuleNodeType from "../utils/getRuleNodeType";
 import LezerGrammarParse from "./LezerGrammarParse";
 
@@ -48,5 +59,38 @@ export default class LezerGrammarParser extends Parser {
       ranges
     );
     return parse;
+  }
+
+  override parse(
+    input: string | Input,
+    fragments?: readonly TreeFragment[] | undefined,
+    ranges?: readonly { from: number; to: number }[] | undefined
+  ): Tree {
+    if (!fragments && !ranges) {
+      const script =
+        typeof input === "string" ? input : input.read(0, input.length);
+      let paddedScript = script + "\n";
+      const buffer = new ChunkBuffer(
+        [],
+        this.nodeSet.types.map((n) => n.name)
+      );
+      const compiler = new Compiler(this.grammar, buffer);
+      const result = compiler.compile(paddedScript);
+      if (result) {
+        const topID = NodeID.top;
+        const tree = Tree.build({
+          topID,
+          buffer: result.cursor,
+          nodeSet: this.nodeSet,
+          reused: result.reused.map(
+            (b) => new TreeBuffer(b.buffer, b.length, this.nodeSet)
+          ) as unknown as readonly Tree[],
+          start: 0,
+          length: script.length,
+        });
+        return tree;
+      }
+    }
+    return super.parse(input, fragments, ranges);
   }
 }

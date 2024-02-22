@@ -1348,8 +1348,8 @@ repository:
         tag: punctuation
         name: punctuation.transition.mark.sd
       2:
-        patterns:
-          - { include: "#Whitespace" }
+        tag: punctuation
+        name: punctuation.transition.mark.sd
       3:
         patterns:
           - { include: "#DisplayText" }
@@ -1369,8 +1369,8 @@ repository:
         tag: punctuation
         name: punctuation.scene.mark.sd
       2:
-        patterns:
-          - { include: "#Whitespace" }
+        tag: punctuation
+        name: punctuation.scene.mark.sd
       3:
         patterns:
           - { include: "#DisplayText" }
@@ -1392,8 +1392,8 @@ repository:
         tag: keyword
         name: keyword.dialogue.mark.sd
       2:
-        patterns:
-          - { include: "#Whitespace" }
+        tag: keyword
+        name: keyword.dialogue.mark.sd
       3:
         patterns:
           - { include: "#DialogueCharacterName" }

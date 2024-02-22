@@ -3,6 +3,9 @@ import { StyleSpec } from "style-mod";
 const PREVIEW_THEME: {
   [selector: string]: StyleSpec;
 } = {
+  "*, *::before, *::after": {
+    boxSizing: "border-box",
+  },
   "&": {
     opacity: 0,
     transition: "opacity 0.25s",

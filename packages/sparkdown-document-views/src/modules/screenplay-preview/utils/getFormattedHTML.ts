@@ -15,15 +15,21 @@ export const getSyntaxHighlightedHtml = (
   let html = "";
   let prev = 0;
   highlightTree(tree, highlighter, (from, to, token) => {
-    const s = str.slice(from, to);
     const diff = from - prev;
     if (diff > 0) {
-      html += `<span>${str.slice(from - diff, from)}</span>`;
+      const unstyled = str.slice(from - diff, from);
+      if (unstyled) {
+        html += `<span>${unstyled}</span>`;
+      }
     }
+    const s = str.slice(from, to);
     html += `<span class="${token}">${s}</span>`;
     prev = to;
   });
-  html += `<span>${str.slice(prev)}</span>`;
+  const remainingUnstyled = str.slice(prev);
+  if (remainingUnstyled) {
+    html += `<span>${remainingUnstyled}</span>`;
+  }
   return html;
 };
 

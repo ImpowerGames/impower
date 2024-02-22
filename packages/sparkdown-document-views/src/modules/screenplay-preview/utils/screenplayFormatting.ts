@@ -8,7 +8,6 @@ import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
-import SPARK_TOKEN_TAGS from "../../../../../sparkdown/src/constants/SPARK_TOKEN_TAGS";
 import { SparkdownNodeName } from "../../../../../sparkdown/src/types/SparkdownNodeName";
 import TextmateLanguageSupport from "../../../cm-textmate/classes/TextmateLanguageSupport";
 import DialogueWidget, {
@@ -93,7 +92,6 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Section",
   "Import",
   "Define",
-  "Define",
   "Store",
   "Assign",
   "Delete",
@@ -130,19 +128,19 @@ const createDecorations = (
   if (spec.widget === DialogueWidget) {
     const dialogueSpec = spec as DialogueSpec;
     if (dialogueSpec.content && !dialogueSpec.left && !dialogueSpec.right) {
-      return dialogueSpec.content.map((b) => {
-        return Decoration.line({
+      return dialogueSpec.content.map((b) =>
+        Decoration.line({
           attributes: b.attributes,
-        }).range(doc.lineAt(b.from + 1).from);
-      });
+        }).range(doc.lineAt(b.from + 1).from)
+      );
     }
   }
   if (!spec.block && spec.content) {
-    return spec.content.map((b) => {
-      return Decoration.line({
+    return spec.content.map((b) =>
+      Decoration.line({
         attributes: b.attributes,
-      }).range(doc.lineAt(b.from + 1).from);
-    });
+      }).range(doc.lineAt(b.from + 1).from)
+    );
   }
   return [
     Decoration.replace({
@@ -158,6 +156,7 @@ const decorate = (state: EditorState) => {
   const doc = state.doc;
   const input = new DocInput(doc);
   const tree = LANGUAGE_SUPPORT.language.parser.parse(input);
+  // console.log(printTree(tree, input));
 
   let inFrontMatter = false;
   let frontMatterFrom = 0;
@@ -187,7 +186,7 @@ const decorate = (state: EditorState) => {
     if (inDialogue) {
       if (inDualDialogue) {
         if (prevDialogueSpec) {
-          prevDialogueSpec.to = to - 2;
+          prevDialogueSpec.to = to - 1;
           prevDialogueSpec.left = prevDialogueSpec.content?.map((b) => ({
             ...b,
             attributes: { style: getDualDialogueLineStyle(b.type) },
@@ -224,14 +223,14 @@ const decorate = (state: EditorState) => {
       const from = nodeRef.node.from;
       const to = nodeRef.node.to;
       const name = type.name as SparkdownNodeName;
-      const tag = SPARK_TOKEN_TAGS[name];
-      if (tag === "front_matter_start") {
+      // console.log(name, doc.sliceString(from, to));
+      if (name === "FrontMatter_begin") {
         inFrontMatter = true;
         frontMatterFrom = from;
         frontMatterPositionContent = {};
         return true;
       }
-      if (tag === "front_matter_field") {
+      if (name === "FrontMatterField") {
         const captureBlocks: MarkupBlock[] = [];
         const childTree = nodeRef.node.tree || nodeRef.node.toTree();
         let keyword = "";
@@ -244,6 +243,7 @@ const decorate = (state: EditorState) => {
               const captureTo = captureFrom + captureLength;
               const value = doc.sliceString(captureFrom, captureTo).trim();
               keyword = value;
+              return false;
             }
             if (captureName === "FrontMatterString") {
               const captureLength = captureNodeRef.to - captureNodeRef.from;
@@ -260,7 +260,9 @@ const decorate = (state: EditorState) => {
                   style: "min-height: 1em",
                 },
               });
+              return false;
             }
+            return true;
           },
         });
         const firstCaptureBlock = captureBlocks[0];
@@ -280,22 +282,22 @@ const decorate = (state: EditorState) => {
         }
         return false;
       }
-      if (tag === "front_matter_end") {
+      if (name === "FrontMatter_end") {
         endFrontMatter(to);
         return false;
       }
-      if (tag === "dialogue_start") {
+      if (name === "Dialogue_begin") {
         inDialogue = true;
         inDualDialogue = false;
         dialogueFrom = from;
         dialogueContent = [];
         return true;
       }
-      if (tag === "dialogue_end") {
+      if (name === "Dialogue_end") {
         endDialogue(to);
         return false;
       }
-      if (tag === "dialogue_character_name") {
+      if (name === "DialogueCharacterName") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
           type: "character",
@@ -308,7 +310,7 @@ const decorate = (state: EditorState) => {
         });
         return false;
       }
-      if (tag === "dialogue_character_parenthetical") {
+      if (name === "DialogueCharacterParenthetical") {
         const value = doc.sliceString(from, to).trim();
         const firstDialogueBlockLine = dialogueContent[0];
         if (firstDialogueBlockLine) {
@@ -317,14 +319,14 @@ const decorate = (state: EditorState) => {
         }
         return false;
       }
-      if (tag === "dialogue_character_simultaneous") {
+      if (name === "DialogueCharacterSimultaneous") {
         const value = doc.sliceString(from, to).trim();
         if (value) {
           inDualDialogue = true;
         }
         return false;
       }
-      if (tag === "dialogue_line_parenthetical") {
+      if (name === "DialogueLineParenthetical") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
           type: "parenthetical",
@@ -338,10 +340,10 @@ const decorate = (state: EditorState) => {
         return false;
       }
       if (
-        (tag === "box_line_continue" || tag === "box_line_complete") &&
+        (name === "BoxLineContinue" || name === "BoxLineComplete") &&
         inDialogue
       ) {
-        const value = doc.sliceString(from, to).trim();
+        const value = doc.sliceString(from, to).trimEnd();
         dialogueContent.push({
           type: "dialogue",
           from,
@@ -354,7 +356,7 @@ const decorate = (state: EditorState) => {
         });
         return false;
       }
-      if (tag === "centered") {
+      if (name === "Centered") {
         specs.push({
           from,
           to,
@@ -371,32 +373,23 @@ const decorate = (state: EditorState) => {
         });
         return false;
       }
-      if (tag === "flow_break") {
-        return false;
-      }
-      if (tag === "transition") {
-        return false;
-      }
-      if (tag === "scene") {
-        return false;
-      }
-      if (tag === "action_box") {
-        // TODO: Hide ! prefix in ExplicitAction
+      if (name === "FlowBreak") {
         return false;
       }
       if (HIDDEN_NODE_NAMES.includes(name)) {
-        const nextLine = to < doc.length - 1 ? doc.lineAt(to + 1) : null;
+        const nextLine = to < doc.length - 1 ? doc.lineAt(to) : null;
         const blockTo =
           nextLine && doc.sliceString(nextLine.from, nextLine.to) === ""
             ? nextLine.to
-            : to;
-        specs.push({
+            : to - 1;
+        const spec = {
           from,
           to: blockTo,
           block: true,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
-        });
+        };
+        specs.push(spec);
         return false;
       }
       return true;
@@ -405,7 +398,8 @@ const decorate = (state: EditorState) => {
   endFrontMatter(doc.length);
   endDialogue(doc.length);
   const decorations = specs.flatMap((b) => createDecorations(b, doc));
-  return specs.length > 0 ? RangeSet.of(decorations, true) : Decoration.none;
+  const rangeSet = RangeSet.of(decorations, true);
+  return specs.length > 0 ? rangeSet : Decoration.none;
 };
 
 const replaceDecorations = StateField.define<DecorationSet>({

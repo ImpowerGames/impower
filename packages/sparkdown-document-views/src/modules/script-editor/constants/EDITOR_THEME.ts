@@ -4,6 +4,9 @@ import EDITOR_COLORS from "./EDITOR_COLORS";
 const EDITOR_THEME: {
   [selector: string]: StyleSpec;
 } = {
+  "*, *::before, *::after": {
+    boxSizing: "border-box",
+  },
   "&": {
     opacity: 0,
     transition: "opacity 0.25s",
