@@ -2,6 +2,7 @@ export interface TextOptions {
   color?: string;
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
   lineBreak?: boolean;
   highlight?: boolean;
   highlightColor?: string;

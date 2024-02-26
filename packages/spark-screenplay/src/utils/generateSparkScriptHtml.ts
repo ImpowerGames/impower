@@ -1,10 +1,10 @@
-import { SparkProgram } from "../../../sparkdown/src";
+import { SparkToken } from "../../../sparkdown/src";
 import { HTML_REPLACEMENTS } from "../constants/HTML_REPLACEMENTS";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
 
 export const generateSparkScriptHtml = (
-  program: SparkProgram,
+  tokens: SparkToken[],
   config: SparkScreenplayConfig
 ): string[] => {
   const html: string[] = [];
@@ -22,10 +22,6 @@ export const generateSparkScriptHtml = (
       html.push(str);
     }
   };
-
-  const tokens = Object.values(program.sections || {}).flatMap(
-    (section) => section.tokens
-  );
 
   while (currentIndex < tokens.length) {
     const currentToken = tokens[currentIndex];
@@ -79,6 +75,16 @@ export const generateSparkScriptHtml = (
         isAction = false;
         append("</p>");
       }
+      if (currentToken.tag === "dialogue_box") {
+        if (currentToken.position === "left") {
+          push('<div class="dual-dialogue">');
+        }
+        push(
+          '<div class="dialogue' +
+            (currentToken.position ? " " + currentToken.position : "") +
+            '">'
+        );
+      }
       switch (currentToken.tag) {
         case "scene":
           let content = currentToken.html;
@@ -114,19 +120,7 @@ export const generateSparkScriptHtml = (
           push("");
           break;
 
-        case "dual_dialogue_start":
-          push('<div class="dual-dialogue">');
-          break;
-
-        case "dialogue_start":
-          push(
-            '<div class="dialogue' +
-              (currentToken.position ? " " + currentToken.position : "") +
-              '">'
-          );
-          break;
-
-        case "dialogue_character":
+        case "dialogue_character_name":
           if (currentToken.position == "left") {
             append('<div class="dialogue left">');
           } else if (currentToken.position == "right") {
@@ -142,7 +136,7 @@ export const generateSparkScriptHtml = (
           );
 
           break;
-        case "dialogue_parenthetical":
+        case "dialogue_line_parenthetical":
           append(
             '<p class="haseditorline dialogue_parenthetical" id="sourceline_' +
               line +
@@ -163,14 +157,6 @@ export const generateSparkScriptHtml = (
                 "</p>"
             );
           break;
-        case "dialogue_end":
-          append("</div> ");
-          push("");
-          break;
-        case "dual_dialogue_end":
-          append("</div></div> ");
-          push("");
-          break;
 
         case "section":
           if (config.screenplay_print_sections) {
@@ -189,7 +175,7 @@ export const generateSparkScriptHtml = (
           }
           break;
         case "label":
-          if (config.screenplay_print_labels) {
+          if (config.screenplay_print_chunks) {
             push(
               '<p class="haseditorline label" id="sourceline_' +
                 line +
@@ -217,6 +203,20 @@ export const generateSparkScriptHtml = (
           push("<hr />");
           push("");
           break;
+      }
+
+      if (
+        currentToken.tag === "dialogue_box" &&
+        currentToken.position === "right"
+      ) {
+      }
+
+      if (currentToken.tag === "dialogue_box") {
+        append("</div>");
+        if (currentToken.position === "right") {
+          append("</div>");
+        }
+        push("");
       }
     }
 

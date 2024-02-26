@@ -1777,19 +1777,11 @@ export default class SparkParser {
             addToken(tok);
           } else if (tok.tag === "action") {
             addToken(tok);
-          } else if (tok.tag === "action_start") {
-            addToken(tok);
-          } else if (tok.tag === "action_end") {
-            addToken(tok);
           } else if (tok.tag === "action_box") {
             tok.waitUntilFinished = true;
             setCheckpoint(tok);
             addToken(tok);
           } else if (tok.tag === "dialogue") {
-            addToken(tok);
-          } else if (tok.tag === "dialogue_start") {
-            addToken(tok);
-          } else if (tok.tag === "dialogue_end") {
             addToken(tok);
           } else if (tok.tag === "dialogue_character_name" && text) {
             tok.target = "character_name";
@@ -1799,10 +1791,6 @@ export default class SparkParser {
             if (dialogue) {
               dialogue.characterName = tok;
               dialogue.characterKey = characterKey;
-            }
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue_start) {
-              dialogue_start.print = text;
             }
             declareImplicitVariable(tok, "character", characterKey, "default", {
               name: text,
@@ -1815,14 +1803,9 @@ export default class SparkParser {
             if (dialogue) {
               dialogue.characterParenthetical = tok;
             }
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue_start) {
-              dialogue_start.print += " " + text;
-            }
           } else if (tok.tag === "dialogue_character_simultaneous" && text) {
             const dialogue = lookup("dialogue");
-            const dialogue_start = lookup("dialogue_start");
-            if (dialogue && dialogue_start) {
+            if (dialogue) {
               let prevPosition: "left" | "right" | undefined = undefined;
               let prevCharacterName: string | undefined = undefined;
               prevDisplayPositionalTokens.forEach((t) => {
@@ -1842,7 +1825,8 @@ export default class SparkParser {
                   }
                   prevPosition = t.position;
                 });
-                dialogue.position = reversePosition(prevPosition);
+                const reversedPosition = reversePosition(prevPosition);
+                dialogue.position = reversedPosition;
               }
             }
           } else if (tok.tag === "dialogue_box") {
@@ -1866,7 +1850,6 @@ export default class SparkParser {
           } else if (tok.tag === "dialogue_line_parenthetical") {
             tok.target = "parenthetical";
             tok.text = text;
-            tok.print = text;
             const parent = lookup("dialogue_box");
             if (parent) {
               parent.content ??= [];
@@ -2070,16 +2053,6 @@ export default class SparkParser {
             program.metadata.lines ??= [];
             program.metadata.lines[line] ??= {};
             program.metadata.lines[line]!.scopes = stack.map((s) => s.tag);
-          }
-        }
-
-        // Print screenplay content (include styling marks but not emphasis marks)
-        if (id === "PlainText" || id === "StylingMark") {
-          const text = script.slice(from, to);
-          const inline_text = lookup("text");
-          if (inline_text) {
-            inline_text.print ??= "";
-            inline_text.print += text;
           }
         }
 
@@ -2447,6 +2420,11 @@ export default class SparkParser {
               currentScene.actionDuration =
                 (currentScene.actionDuration || 0) + tok.speechDuration;
             }
+            const parent = lookup("action");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
+            }
           } else if (tok.tag === "dialogue_box") {
             prevDisplayPositionalTokens.push(tok);
             // Check if no text content
@@ -2471,6 +2449,11 @@ export default class SparkParser {
             if (currentScene) {
               currentScene.dialogueDuration =
                 (currentScene.dialogueDuration || 0) + tok.speechDuration;
+            }
+            const parent = lookup("dialogue");
+            if (parent) {
+              parent.content ??= [];
+              parent.content.push(tok);
             }
           } else if (tok.tag === "dialogue") {
             const characterName = tok.characterName?.text || "";

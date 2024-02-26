@@ -1,4 +1,4 @@
-export * from "./classes/Liner";
+export * from "./classes/DocumentFormatter";
 export * from "./classes/PdfWriteStream";
 export * from "./constants/FONT_KEY";
 export * from "./constants/PRINT_PROFILES";

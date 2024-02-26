@@ -140,6 +140,10 @@ const buildApi = async () => {
       ".html": "text",
       ".css": "text",
       ".svg": "text",
+      ".txt": "text",
+      ".csv": "text",
+      ".ttf": "binary",
+      ".woff2": "binary",
     },
     external: ["@fastify/secure-session"],
     plugins: [
@@ -182,6 +186,10 @@ const buildPages = async () => {
       ".html": "text",
       ".css": "text",
       ".svg": "text",
+      ".txt": "text",
+      ".csv": "text",
+      ".ttf": "binary",
+      ".woff2": "binary",
     },
     plugins: [envPlugin()],
   });
@@ -211,6 +219,10 @@ const buildComponents = async () => {
       ".html": "text",
       ".css": "text",
       ".svg": "text",
+      ".txt": "text",
+      ".csv": "text",
+      ".ttf": "binary",
+      ".woff2": "binary",
     },
   });
 };

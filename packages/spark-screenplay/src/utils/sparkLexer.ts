@@ -1,4 +1,3 @@
-import SPARK_REGEX from "../../../sparkdown/src/constants/SPARK_REGEX";
 import { LexerReplacements } from "../types/LexerReplacements";
 
 export const sparkLexer = (
@@ -24,9 +23,6 @@ export const sparkLexer = (
   let style;
   let match;
 
-  if (titlePage) {
-    s = s.replace(SPARK_REGEX.link, replacer.link);
-  }
   s = s
     .replace(SPARK_REGEX.note_inline, replacer.note)
     .replace(/\\\*/g, "[star]")

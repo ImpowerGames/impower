@@ -1,4 +1,5 @@
-import { LineItem } from "../classes/Liner";
+import FRONTMATTER_POSITIONS from "../../../sparkdown/src/constants/FRONTMATTER_POSITIONS";
+import { DocumentLine } from "../classes/Typesetter";
 import { LineStruct } from "../types/LineStruct";
 import { OutlineItem } from "../types/OutlineItem";
 import { PdfData } from "../types/PdfData";
@@ -23,24 +24,31 @@ const blankText = (text: string): string => {
   return (text || "").replace(REGEX_ANY_CHAR, " ");
 };
 
-const sortByOrder = (a: { order: number }, b: { order: number }): number => {
-  if (a.order === -1) {
-    return 0;
-  } else {
-    return a.order - b.order;
-  }
-};
-
 export const pdfGenerate = (
   doc: PdfDocument,
   data: PdfData,
   encode: (text: string) => string,
   lineStructs?: Record<number, LineStruct>
 ): void => {
-  const titleTokens = data?.titleTokens;
+  const frontMatter = data?.frontMatter;
   const lines = data?.lines;
   const print = data?.print;
   const config = data?.config;
+
+  const titleTokens: Record<string, string[]> = {
+    tl: [],
+    tc: [],
+    tr: [],
+    cc: [],
+    bl: [],
+    br: [],
+  };
+
+  Object.entries(frontMatter).forEach(([k, v]) => {
+    const position = FRONTMATTER_POSITIONS[k] || k;
+    titleTokens[position] ??= [];
+    titleTokens[position]?.push(...v);
+  });
 
   // helper
   const center = (txt: string, y: number): void => {
@@ -63,11 +71,7 @@ export const pdfGenerate = (
     const innerWidthHalf = innerWidth / 2;
     const joinChar = "\n\n";
     //top left
-    const tlText =
-      titleTokens?.["tl"]
-        ?.sort(sortByOrder)
-        ?.map((x: { text: string }) => x.text)
-        ?.join(joinChar) || "";
+    const tlText = titleTokens?.["tl"]?.join(joinChar) || "";
     const tlTextHeight = doc.heightOfString(tlText, {
       width: innerWidthThird * SIZE_FACTOR,
       align: "left",
@@ -80,11 +84,7 @@ export const pdfGenerate = (
     });
 
     //top center
-    const tcText =
-      titleTokens?.["tc"]
-        ?.sort(sortByOrder)
-        ?.map((x: { text: string }) => x.text)
-        ?.join(joinChar) || "";
+    const tcText = titleTokens?.["tc"]?.join(joinChar) || "";
     const tcTextHeight = doc.heightOfString(tcText, {
       width: innerWidthThird * SIZE_FACTOR,
       align: "center",
@@ -101,11 +101,7 @@ export const pdfGenerate = (
     );
 
     //top right
-    const trText =
-      titleTokens?.["tr"]
-        ?.sort(sortByOrder)
-        ?.map((x: { text: string }) => x.text)
-        ?.join(joinChar) || "";
+    const trText = titleTokens?.["tr"]?.join(joinChar) || "";
     const trTextHeight = doc.heightOfString(trText, {
       width: innerWidthThird * SIZE_FACTOR,
       align: "right",
@@ -122,11 +118,7 @@ export const pdfGenerate = (
     );
 
     //bottom left
-    const blText =
-      titleTokens?.["bl"]
-        ?.sort(sortByOrder)
-        ?.map((x: { text: string }) => x.text)
-        ?.join(joinChar) || "";
+    const blText = titleTokens?.["bl"]?.join(joinChar) || "";
     const blTextHeight = doc.heightOfString(blText, {
       width: innerWidthHalf * SIZE_FACTOR,
       align: "left",
@@ -143,11 +135,7 @@ export const pdfGenerate = (
     );
 
     //bottom right
-    const brText =
-      titleTokens?.["br"]
-        ?.sort(sortByOrder)
-        ?.map((x: { text: string }) => x.text)
-        ?.join(joinChar) || "";
+    const brText = titleTokens?.["br"]?.join(joinChar) || "";
     const brTextHeight = doc.heightOfString(brText, {
       width: innerWidthHalf * SIZE_FACTOR,
       align: "right",
@@ -167,11 +155,7 @@ export const pdfGenerate = (
     const topHeight = Math.max(tlTextHeight, tcTextHeight, trTextHeight, 0);
     const bottomHeight = Math.max(blTextHeight, brTextHeight, 0);
 
-    const ccText =
-      titleTokens?.["cc"]
-        ?.sort(sortByOrder)
-        ?.map((x: { text: string }) => x.text)
-        ?.join(joinChar) || "";
+    const ccText = titleTokens?.["cc"]?.join(joinChar) || "";
     const ccTextHeight = doc.heightOfString(ccText, {
       width: innerWidth * SIZE_FACTOR,
       align: "center",
@@ -195,19 +179,17 @@ export const pdfGenerate = (
   let prevSceneContinuationHeader = "";
   let currentSectionLevel = 0;
   let currentSectionNumber: string;
-  let currentSectionToken: LineItem;
+  let currentSectionToken: DocumentLine;
   let text: string;
   let afterSection = false;
   const sectionNumber = pdfVersionGenerator();
 
   const printHeaderAndFooter = (continuation_header?: string): void => {
-    if (config?.screenplay_print_header) {
+    const header = frontMatter["header"]?.join("\n");
+    if (header) {
       continuation_header = continuation_header || "";
       let offset = blankText(continuation_header);
-      if (
-        getIndentation(config?.screenplay_print_header).length >=
-        continuation_header.length
-      ) {
+      if (getIndentation(header).length >= continuation_header.length) {
         offset = "";
       }
       if (offset) {
@@ -215,7 +197,7 @@ export const pdfGenerate = (
       }
 
       doc.formatText?.(
-        offset + config?.screenplay_print_header,
+        offset + header,
         1.5,
         print.page_number_top_margin - 0.1,
         {
@@ -223,30 +205,24 @@ export const pdfGenerate = (
         }
       );
     }
-    if (config?.screenplay_print_footer) {
-      doc.formatText?.(
-        config?.screenplay_print_footer,
-        1.5,
-        print.page_height - 0.5,
-        {
-          color: "#777777",
-        }
-      );
+    const footer = frontMatter["footer"]?.join("\n");
+    if (footer) {
+      doc.formatText?.(footer, 1.5, print.page_height - 0.5, {
+        color: "#777777",
+      });
     }
   };
 
   const printWatermark = (): void => {
-    if (config?.screenplay_print_watermark) {
+    let watermark = frontMatter["watermark"]?.join("\n");
+    if (watermark) {
       const options = {
         origin: [0, 0],
       };
       const angle =
         (Math.atan(print.page_height / print.page_width) * 180) / Math.PI;
       // underline and rotate pdfkit bug (?) workaround
-      const watermark = config?.screenplay_print_watermark.replace(
-        REGEX_UNDERLINE_CHAR,
-        ""
-      );
+      watermark = watermark.replace(REGEX_UNDERLINE_CHAR, "");
       // un-format
       const len = watermark.replace(REGEX_ASTERISK_CHAR, "").length;
       let diagonal;
@@ -295,7 +271,7 @@ export const pdfGenerate = (
   let currentScene = "";
   const currentSections: string[] = [];
   let currentDuration = 0;
-  lines.forEach((line: LineItem) => {
+  lines.forEach((line: DocumentLine) => {
     if (line.tag === "page_break") {
       if (lineStructs) {
         if (line.token?.line && !lineStructs[line.token?.line || -1]) {
@@ -340,7 +316,7 @@ export const pdfGenerate = (
       }
     } else {
       // formatting not supported yet
-      text = line.text;
+      text = line.print || "";
 
       const textProperties: TextOptions = {
         color: print?.[line.tag as PrintableTokenType]?.color || DEFAULT_COLOR,
@@ -349,7 +325,7 @@ export const pdfGenerate = (
         highlightColor: DEFAULT_COLOR,
       };
 
-      if (line.tag === "dialogue_parenthetical" && !text.startsWith("(")) {
+      if (line.tag === "dialogue_line_parenthetical" && !text.startsWith("(")) {
         text = " " + text;
       }
 
@@ -363,22 +339,16 @@ export const pdfGenerate = (
           feed =
             print.action.feed +
             print.action.max * print.font_width -
-            line.text.length * print.font_width;
+            (line.print || "").length * print.font_width;
         }
 
-        const invisibleSections =
-          data.sceneInvisibleSections?.[line.scene || -1];
-        const hasInvisibleSection =
-          line.tag === "scene" && invisibleSections !== undefined;
-        const processSection = (sectionToken: LineItem): void => {
-          let sectionText = sectionToken.text;
+        const processSection = (sectionToken: DocumentLine): void => {
+          let sectionText = sectionToken.print || "";
           currentSectionLevel = sectionToken.level || 0;
           currentSections.length = Math.max(0, (sectionToken.level || 0) - 1);
 
           currentSections.push(encode(sectionText));
-          if (!hasInvisibleSection) {
-            feed += currentSectionLevel * (print.section.level_indent || 0);
-          }
+          feed += currentSectionLevel * (print.section.level_indent || 0);
           if (config?.screenplay_print_section_numbers) {
             if (sectionToken !== currentSectionToken) {
               currentSectionNumber = sectionNumber(sectionToken.level || 0);
@@ -390,12 +360,6 @@ export const pdfGenerate = (
             }
           }
           if (config?.screenplay_print_bookmarks) {
-            if (
-              hasInvisibleSection &&
-              !config?.screenplay_print_bookmarks_for_invisible_sections
-            ) {
-              return;
-            }
             if (outline) {
               const oc = getOutlineChild(
                 outline,
@@ -407,20 +371,11 @@ export const pdfGenerate = (
               }
             }
           }
-          if (!hasInvisibleSection) {
-            text = sectionText;
-          }
+          text = sectionText;
           outlineDepth = sectionToken.level || 0;
         };
-        if (line.tag === "section" || hasInvisibleSection) {
-          if (hasInvisibleSection) {
-            for (let i = 0; i < invisibleSections.length; i++) {
-              const invisibleSection = invisibleSections[i];
-              if (invisibleSection) {
-                processSection(invisibleSection);
-              }
-            }
-          } else if (line.token) {
+        if (line.tag === "section") {
+          if (line.token) {
             processSection(line.token);
           }
         }
@@ -454,10 +409,10 @@ export const pdfGenerate = (
           text = "*" + text + "*";
         }
 
-        if (line.token && line.token.position) {
+        if (line.column) {
           if (line.rightColumn) {
             let yRight = y;
-            line.rightColumn.forEach((rightLine: LineItem) => {
+            line.rightColumn.forEach((rightLine: DocumentLine) => {
               let feedRight =
                 (print[rightLine.tag as PrintableTokenType] || {}).feed ||
                 print.action.feed;
@@ -466,7 +421,7 @@ export const pdfGenerate = (
                 (print.page_width - print.right_margin - print.left_margin) / 2;
               const right_text_properties = { ...textProperties };
               doc.processText?.(
-                rightLine.text,
+                rightLine.print || "",
                 feedRight,
                 print.top_margin + print.font_height * yRight++,
                 right_text_properties

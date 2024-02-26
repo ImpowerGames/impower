@@ -2928,10 +2928,10 @@
           "include": "#Styling"
         },
         {
-          "include": "#EmphasisStart"
+          "include": "#EmphasisSurround"
         },
         {
-          "include": "#EmphasisSurround"
+          "include": "#EmphasisStart"
         },
         {
           "include": "#Pause"
@@ -3251,7 +3251,7 @@
     "EmphasisCaretSurround": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([\\^]+)([^\\^]+)(\\1)",
+      "match": "([\\^]+)((?:(?!\\1).*?)+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3273,7 +3273,7 @@
     "EmphasisTildeStart": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "^([~]+)([^~]+)$",
+      "match": "^([~][~]+)([^~]+)$",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3291,7 +3291,7 @@
     "EmphasisTildeSurround": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([~]+)([^~]+)(\\1)",
+      "match": "([~][~]+)((?:(?!\\1).*?)+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3313,7 +3313,7 @@
     "EmphasisColonStart": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "^([:]+)([^:]+)$",
+      "match": "^([:][:]+)([^:]+)$",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3331,7 +3331,7 @@
     "EmphasisColonSurround": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([:]+)([^:]+)(\\1)",
+      "match": "([:][:]+)((?:(?!\\1).*?)+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3371,7 +3371,7 @@
     "EmphasisEqualSurround": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([=]+)([^=]+)(\\1)",
+      "match": "([=]+)((?:(?!\\1).*?)+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3411,7 +3411,7 @@
     "EmphasisAngleLeftSurround": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([<]+)([^<]+)(\\1)",
+      "match": "([<]+)((?:(?!\\1).*?)+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3451,7 +3451,7 @@
     "EmphasisAngleRightSurround": {
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
-      "match": "([>]+)([^>]+)(\\1)",
+      "match": "([>]+)((?:(?!\\1).*?)+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",

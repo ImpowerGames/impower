@@ -1,15 +1,13 @@
 export type PrintableTokenType =
-  | "scene"
-  | "action"
-  | "shot"
-  | "dialogue_character"
-  | "dialogue_parenthetical"
-  | "more"
-  | "dialogue"
-  | "transition"
-  | "centered"
-  | "label"
+  | "chunk"
   | "section"
+  | "scene"
+  | "transition"
+  | "action"
+  | "dialogue_character_name"
+  | "dialogue_line_parenthetical"
+  | "dialogue"
+  | "more"
   | "note";
 
 export interface TokenPrintSettings {
@@ -19,7 +17,7 @@ export interface TokenPrintSettings {
   color?: string;
   padding?: number;
   level_indent?: number;
-  style?: string;
+  align?: string;
   feed_with_last_section?: boolean;
 }
 
@@ -43,16 +41,14 @@ export interface PrintProfile
     left_side: string[];
     right_side: string[];
   };
-  scene: TokenPrintSettings;
-  action: TokenPrintSettings;
-  shot: TokenPrintSettings;
-  dialogue_character: TokenPrintSettings;
-  dialogue_parenthetical: TokenPrintSettings;
-  more: TokenPrintSettings;
-  dialogue: TokenPrintSettings;
-  transition: TokenPrintSettings;
-  centered: TokenPrintSettings;
-  label: TokenPrintSettings;
+  chunk: TokenPrintSettings;
   section: TokenPrintSettings;
+  scene: TokenPrintSettings;
+  transition: TokenPrintSettings;
+  action: TokenPrintSettings;
+  dialogue_character_name: TokenPrintSettings;
+  dialogue_line_parenthetical: TokenPrintSettings;
+  dialogue: TokenPrintSettings;
+  more: TokenPrintSettings;
   note: TokenPrintSettings;
 }

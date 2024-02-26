@@ -8,6 +8,7 @@ import { Extension, Range, RangeSet, StateField } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import GRAMMAR from "../../../../../sparkdown/language/sparkdown.language-grammar.json";
+import FRONTMATTER_POSITIONS from "../../../../../sparkdown/src/constants/FRONTMATTER_POSITIONS";
 import { SparkdownNodeName } from "../../../../../sparkdown/src/types/SparkdownNodeName";
 import TextmateLanguageSupport from "../../../cm-textmate/classes/TextmateLanguageSupport";
 import DialogueWidget, {
@@ -102,24 +103,6 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Jump",
   "Unknown",
 ];
-
-const FRONTMATTER_POSITIONS: Record<string, string> = {
-  title: "cc",
-  credit: "cc",
-  author: "cc",
-  source: "cc",
-  notes: "bl",
-  date: "br",
-  contact: "br",
-  revision: "br",
-  copyright: "br",
-  tl: "tl",
-  tc: "tc",
-  tr: "tr",
-  cc: "cc",
-  bl: "bl",
-  br: "br",
-};
 
 const createDecorations = (
   spec: ReplaceSpec,
@@ -381,7 +364,9 @@ const decorate = (state: EditorState) => {
         const blockTo =
           nextLine && doc.sliceString(nextLine.from, nextLine.to) === ""
             ? nextLine.to
-            : to - 1;
+            : doc.sliceString(from, to).endsWith("\n")
+            ? to - 1
+            : to;
         const spec = {
           from,
           to: blockTo,

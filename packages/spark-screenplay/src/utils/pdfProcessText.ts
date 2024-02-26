@@ -1,4 +1,3 @@
-import SPARK_REGEX from "../../../sparkdown/src/constants/SPARK_REGEX";
 import { PdfDocument } from "../types/PdfDocument";
 import { TextOptions } from "../types/TextOptions";
 
@@ -44,41 +43,8 @@ export const pdfProcessText = (
   if (noteItalic) {
     text = text.replace(REGEX_NOTE_START, "*[[").replace(REGEX_NOTE_END, "]]*");
   }
-  const links: { start: number; length: number; url: string }[] = [];
-  if (options?.links) {
-    let match;
-    //Clean up all the links, while keeping track of their offset in order to add them back in later.
-    while ((match = SPARK_REGEX.link.exec(text)) !== null) {
-      match.index;
-      const trimmed = match[3];
-      links.push({
-        start: match.index,
-        length: trimmed?.length || 0,
-        url: match[6] || "",
-      });
-      text =
-        text.slice(0, match.index) +
-        match[3] +
-        text.slice(match.index + (match[0]?.length || 0));
-    }
-  }
   const splitForFormatting = [];
-  //Split the text from the start (or from the previous link) until the current one
-  //"This is a link: google.com and this is after"
-  // |--------------|----------| - - - - - - - |
-  let prevLink = 0;
-  for (let i = 0; i < links.length; i++) {
-    const link = links[i];
-    if (link) {
-      splitForFormatting.push(text.slice(prevLink, link.start));
-      splitForFormatting.push(text.slice(link.start, link.start + link.length));
-      prevLink = link.start + link.length;
-    }
-  }
-  //...And then add whatever is left over
-  //"This is a link: google.com and this is after"
-  // | - - - - - - -| - - - - -|----------------|
-  const leftover = text.slice(prevLink, text.length);
+  const leftover = text;
   if (leftover) {
     splitForFormatting.push(leftover);
   }
@@ -94,7 +60,13 @@ export const pdfProcessText = (
     i += innerSplit.length - 1;
   }
 
-  const textObjects = [];
+  const textObjects: {
+    text: string;
+    link: string | undefined;
+    font: string;
+    underline: string | boolean | undefined;
+    color: string;
+  }[] = [];
   let currentIndex = 0;
   for (let i = 0; i < splitForFormatting.length; i++) {
     let elem = splitForFormatting[i];
@@ -128,22 +100,6 @@ export const pdfProcessText = (
       if (elem === "\\_" || elem === "\\*") {
         elem = elem.substring(1, 1);
       }
-      let linkUrl = undefined;
-      for (const link of links) {
-        if (
-          link.start <= currentIndex &&
-          currentIndex < link.start + link.length
-        ) {
-          linkUrl = link.url;
-        }
-      }
-      textObjects.push({
-        text: elem,
-        link: linkUrl,
-        font: font,
-        underline: linkUrl || formatState.underline,
-        color: formatState.overrideColor || DEFAULT_COLOR,
-      });
     }
     currentIndex += elem.length;
   }

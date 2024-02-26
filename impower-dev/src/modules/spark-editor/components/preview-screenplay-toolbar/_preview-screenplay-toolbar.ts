@@ -8,4 +8,7 @@ export default spec({
   stores: { workspace },
   html,
   css,
+  selectors: {
+    downloadButton: "",
+  },
 });

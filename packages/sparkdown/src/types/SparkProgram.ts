@@ -19,5 +19,4 @@ export interface SparkProgram {
 
   metadata: SparkProgramMetadata;
   diagnostics?: SparkDiagnostic[];
-  version?: number;
 }

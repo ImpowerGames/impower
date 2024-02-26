@@ -3,7 +3,6 @@ import { SparkTokenTag } from "../types/SparkTokenTag";
 const SPARK_DISPLAY_TOKEN_TYPES: readonly SparkTokenTag[] = [
   "transition",
   "scene",
-  "centered",
   "dialogue_box",
   "action_box",
 ] as const;

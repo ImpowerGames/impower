@@ -1,21 +1,21 @@
-import { SparkProgram, SparkToken } from "../../../sparkdown/src";
+import { SparkToken } from "../../../sparkdown/src";
 import { HTML_REPLACEMENTS } from "../constants/HTML_REPLACEMENTS";
 import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 import { sparkLexer } from "./sparkLexer";
 
 export const generateSparkTitleHtml = (
-  program: SparkProgram,
+  frontMatter: Record<string, string[]>,
   config: SparkScreenplayConfig
 ): string => {
   if (!config.screenplay_print_title_page) {
     return "";
   }
 
-  if (!program.frontMatter) {
+  if (!frontMatter) {
     return "";
   }
 
-  const populatedTokenKeys = Object.keys(program.frontMatter);
+  const populatedTokenKeys = Object.keys(frontMatter);
   if (populatedTokenKeys.length === 0) {
     return "";
   }
@@ -38,7 +38,7 @@ export const generateSparkTitleHtml = (
   let footer: SparkToken | undefined;
 
   titleTokenKeys.forEach((section) => {
-    const tokens = program?.frontMatter?.[section] || [];
+    const tokens = frontMatter?.[section] || [];
     tokens.sort((a, b) => {
       if (a.order === -1) {
         return 0;

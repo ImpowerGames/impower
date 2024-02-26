@@ -277,9 +277,9 @@ export interface SparkSceneToken extends ISparkDisplayToken<"scene"> {
   index: number;
 }
 
-export interface SparkActionToken extends ISparkBoxToken<"action"> {}
-
-export interface SparkActionStartToken extends ISparkToken<"action_start"> {}
+export interface SparkActionToken extends ISparkBoxToken<"action"> {
+  content?: SparkActionBoxToken[];
+}
 
 export interface SparkActionBoxToken extends ISparkBoxToken<"action_box"> {
   speechDuration: number;
@@ -289,12 +289,11 @@ export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
   position?: "left" | "right";
   autoAdvance: boolean;
   characterKey: string;
-  characterName: SparkDialogueCharacterNameToken;
-  characterParenthetical: SparkDialogueCharacterParentheticalToken;
-}
+  characterName?: SparkDialogueCharacterNameToken;
+  characterParenthetical?: SparkDialogueCharacterParentheticalToken;
 
-export interface SparkDialogueStartToken
-  extends ISparkToken<"dialogue_start"> {}
+  content?: SparkDialogueBoxToken[];
+}
 
 export interface SparkDialogueBoxToken extends ISparkBoxToken<"dialogue_box"> {
   characterKey: string;
@@ -348,9 +347,7 @@ export interface SparkOtherToken
     | "targeted_display_text_content"
     | "display_text_content"
     | "target_name"
-    | "action_end"
     | "unknown"
-    | "dialogue_end"
     | "dialogue_character_simultaneous"
     | "asset_target"
     | "asset_names"
@@ -369,6 +366,8 @@ export interface SparkOtherToken
     | "operator"
     | "literal"
     | "illegal"
+    | "separator"
+    | "page_break"
   > {}
 
 type SparkOtherTokenTagMap = {
@@ -409,10 +408,8 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   transition: SparkTransitionToken;
   scene: SparkSceneToken;
   action: SparkActionToken;
-  action_start: SparkActionStartToken;
   action_box: SparkActionBoxToken;
   dialogue: SparkDialogueToken;
-  dialogue_start: SparkDialogueStartToken;
   dialogue_box: SparkDialogueBoxToken;
   dialogue_character_name: SparkDialogueCharacterNameToken;
   dialogue_character_parenthetical: SparkDialogueCharacterParentheticalToken;
