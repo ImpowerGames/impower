@@ -872,7 +872,7 @@ export class UIManager extends Manager<UIState> {
         $.findElements(uiName, "text").forEach((textEl) => {
           const parent = textEl.parent;
           if (parent) {
-            const mainTag = parent.name?.[0];
+            const mainTag = parent.name;
             if (mainTag) {
               targets.add(mainTag);
             }
@@ -1045,7 +1045,7 @@ export class UIManager extends Manager<UIState> {
         $.findElements(uiName, "image").forEach((imageEl) => {
           const parent = imageEl.parent;
           if (parent) {
-            const mainTag = parent.name?.[0];
+            const mainTag = parent.name;
             if (mainTag) {
               targets.add(mainTag);
             }
