@@ -35,7 +35,12 @@ export const exportPdf = async (
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
   const config = getSparkdownPreviewConfig(uri);
   const fonts = await getFonts(context);
-  const pdfData = generateSparkPdfData(result, config, fonts);
+  const pdfData = generateSparkPdfData(
+    result.frontMatter || {},
+    result.tokens,
+    config,
+    fonts
+  );
   const doc = createPdfDocument(pdfData);
   pdfGenerate(doc, pdfData, encode);
   const pdfBuffer = await new Promise<Uint8Array>((resolve) => {

@@ -15,7 +15,7 @@ import DialogueWidget, {
   DialogueSpec,
 } from "../classes/widgets/DialogueWidget";
 import TitlePageWidget from "../classes/widgets/TitlePageWidget";
-import { MarkupBlock } from "../types/MarkupBlock";
+import { MarkupContent } from "../types/MarkupContent";
 import { ReplaceSpec } from "../types/ReplaceSpec";
 
 const DIALOGUE_WIDTH = "60%";
@@ -110,15 +110,18 @@ const createDecorations = (
 ): Range<Decoration>[] => {
   if (spec.widget === DialogueWidget) {
     const dialogueSpec = spec as DialogueSpec;
-    if (dialogueSpec.content && !dialogueSpec.left && !dialogueSpec.right) {
-      return dialogueSpec.content.map((b) =>
-        Decoration.line({
-          attributes: b.attributes,
-        }).range(doc.lineAt(b.from + 1).from)
-      );
+    if (!dialogueSpec.dual) {
+      const blocks = dialogueSpec.blocks[0];
+      if (blocks) {
+        return blocks.map((b) =>
+          Decoration.line({
+            attributes: b.attributes,
+          }).range(doc.lineAt(b.from + 1).from)
+        );
+      }
     }
   }
-  if (!spec.block && spec.content) {
+  if (spec.content && !spec.block) {
     return spec.content.map((b) =>
       Decoration.line({
         attributes: b.attributes,
@@ -143,12 +146,13 @@ const decorate = (state: EditorState) => {
 
   let inFrontMatter = false;
   let frontMatterFrom = 0;
-  let frontMatterPositionContent: Record<string, MarkupBlock[]> = {};
+  let frontMatterPositionContent: Record<string, MarkupContent[]> = {};
 
   let inDialogue = false;
   let inDualDialogue = false;
+  let dialoguePosition = 0;
   let dialogueFrom = 0;
-  let dialogueContent: MarkupBlock[] = [];
+  let dialogueContent: MarkupContent[] = [];
 
   const endFrontMatter = (to: number) => {
     if (inFrontMatter) {
@@ -168,30 +172,55 @@ const decorate = (state: EditorState) => {
   const endDialogue = (to: number) => {
     if (inDialogue) {
       if (inDualDialogue) {
-        if (prevDialogueSpec) {
+        const isOdd = dialoguePosition % 2 !== 0;
+        if (isOdd) {
+          // left (odd position)
+          const spec: DialogueSpec = {
+            from: dialogueFrom,
+            to: to - 1,
+            widget: DialogueWidget,
+            language: LANGUAGE_SUPPORT.language,
+            highlighter: LANGUAGE_HIGHLIGHTS,
+            block: true,
+            blocks: [
+              dialogueContent.map((c) => {
+                c.attributes = {
+                  style: getDualDialogueLineStyle(c.type),
+                };
+                return c;
+              }),
+            ],
+            dual: true,
+          };
+          specs.push(spec);
+          prevDialogueSpec = spec;
+        } else if (prevDialogueSpec && prevDialogueSpec.blocks) {
+          // right (even position)
+          prevDialogueSpec.dual = true;
           prevDialogueSpec.to = to - 1;
-          prevDialogueSpec.left = prevDialogueSpec.content?.map((b) => ({
-            ...b,
-            attributes: { style: getDualDialogueLineStyle(b.type) },
-          }));
-          prevDialogueSpec.right = dialogueContent?.map((b) => ({
-            ...b,
-            attributes: { style: getDualDialogueLineStyle(b.type) },
-          }));
-          prevDialogueSpec.content = undefined;
+          prevDialogueSpec.blocks.push(dialogueContent);
+          prevDialogueSpec.blocks.forEach((blocks) => {
+            blocks.forEach((block) => {
+              block.attributes = {
+                style: getDualDialogueLineStyle(block.type),
+              };
+            });
+          });
         }
       } else {
-        const spec: ReplaceSpec = {
+        const spec: DialogueSpec = {
           from: dialogueFrom,
           to: to - 1,
           widget: DialogueWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
           block: true,
-          content: dialogueContent,
+          blocks: [dialogueContent],
+          dual: false,
         };
         specs.push(spec);
         prevDialogueSpec = spec;
+        dialoguePosition = 0;
       }
     }
     inDialogue = false;
@@ -214,7 +243,7 @@ const decorate = (state: EditorState) => {
         return true;
       }
       if (name === "FrontMatterField") {
-        const captureBlocks: MarkupBlock[] = [];
+        const captureBlocks: MarkupContent[] = [];
         const childTree = nodeRef.node.tree || nodeRef.node.toTree();
         let keyword = "";
         childTree.iterate({
@@ -306,6 +335,13 @@ const decorate = (state: EditorState) => {
         const value = doc.sliceString(from, to).trim();
         if (value) {
           inDualDialogue = true;
+          if (!dialoguePosition) {
+            dialoguePosition = 1;
+          }
+          dialoguePosition += 1;
+        } else {
+          inDualDialogue = false;
+          dialoguePosition = 0;
         }
         return false;
       }

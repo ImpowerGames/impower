@@ -1,10 +1,14 @@
-import { DocumentLine } from "../classes/Typesetter";
+import { DocumentSpan } from "../classes/Typesetter";
 import { PrintProfile } from "./PrintProfile";
 import { SparkScreenplayConfig } from "./SparkScreenplayConfig";
 
 export interface PdfData {
-  frontMatter: Record<string, string[]>;
-  lines: DocumentLine[];
+  info: {
+    title: string;
+    author: string;
+  };
+  frontMatterSpans: Record<string, DocumentSpan>;
+  bodySpans: DocumentSpan[];
   print: PrintProfile;
   fonts?: {
     normal?: ArrayBuffer | Uint8Array;

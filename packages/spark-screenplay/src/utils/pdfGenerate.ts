@@ -1,5 +1,4 @@
-import FRONTMATTER_POSITIONS from "../../../sparkdown/src/constants/FRONTMATTER_POSITIONS";
-import { DocumentLine } from "../classes/Typesetter";
+import { DocumentSpan, FormattedText } from "../classes/Typesetter";
 import { LineStruct } from "../types/LineStruct";
 import { OutlineItem } from "../types/OutlineItem";
 import { PdfData } from "../types/PdfData";
@@ -10,8 +9,6 @@ import { pdfVersionGenerator } from "./pdfVersionGenerator";
 
 const REGEX_INDENT = /^(\s+)/;
 const REGEX_ANY_CHAR = /./g;
-const REGEX_ASTERISK_CHAR = /\*/g;
-const REGEX_UNDERLINE_CHAR = /_/g;
 const SIZE_FACTOR = 72;
 const DEFAULT_COLOR = "#000000";
 
@@ -30,68 +27,55 @@ export const pdfGenerate = (
   encode: (text: string) => string,
   lineStructs?: Record<number, LineStruct>
 ): void => {
-  const frontMatter = data?.frontMatter;
-  const lines = data?.lines;
+  const frontMatterSpans = data?.frontMatterSpans;
+  const bodySpans = data?.bodySpans;
   const print = data?.print;
   const config = data?.config;
+  const innerWidth = print.page_width - print.left_margin - print.right_margin;
 
-  const titleTokens: Record<string, string[]> = {
-    tl: [],
-    tc: [],
-    tr: [],
-    cc: [],
-    bl: [],
-    br: [],
-  };
-
-  Object.entries(frontMatter).forEach(([k, v]) => {
-    const position = FRONTMATTER_POSITIONS[k] || k;
-    titleTokens[position] ??= [];
-    titleTokens[position]?.push(...v);
-  });
-
-  // helper
-  const center = (txt: string, y: number): void => {
-    const textLength = txt
-      .replace(REGEX_ASTERISK_CHAR, "")
-      .replace(REGEX_UNDERLINE_CHAR, "").length;
-    const feed = (print.page_width - textLength * print.font_width) / 2;
-    doc.processText?.(txt, feed, y);
+  const center = (content: FormattedText[], y: number): void => {
+    // TODO: Handle content centered inside columns
+    doc.printText?.(content, print.left_margin, y, {
+      width: innerWidth,
+      align: "center",
+    });
   };
 
   if (
     config?.screenplay_print_title_page &&
-    titleTokens &&
-    Object.keys(titleTokens)?.length > 0
+    Object.keys(frontMatterSpans).length > 0
   ) {
-    const innerWidth =
-      print.page_width - print.right_margin - print.right_margin;
     const innerHeight = print.page_height - print.top_margin;
     const innerWidthThird = innerWidth / 3;
     const innerWidthHalf = innerWidth / 2;
-    const joinChar = "\n\n";
     //top left
-    const tlText = titleTokens?.["tl"]?.join(joinChar) || "";
-    const tlTextHeight = doc.heightOfString(tlText, {
-      width: innerWidthThird * SIZE_FACTOR,
-      align: "left",
-    });
+    const tlText = frontMatterSpans?.["tl"]?.content || [];
+    const tlTextHeight = doc.heightOfString(
+      tlText.map((c) => c.text).join(""),
+      {
+        width: innerWidthThird * SIZE_FACTOR,
+        align: "left",
+      }
+    );
 
-    doc.processText?.(tlText, print.right_margin, print.top_margin, {
+    doc.printText?.(tlText, print.left_margin, print.top_margin, {
       width: innerWidthThird,
       align: "left",
       links: true,
     });
 
     //top center
-    const tcText = titleTokens?.["tc"]?.join(joinChar) || "";
-    const tcTextHeight = doc.heightOfString(tcText, {
-      width: innerWidthThird * SIZE_FACTOR,
-      align: "center",
-    });
-    doc.processText?.(
+    const tcText = frontMatterSpans?.["tc"]?.content || [];
+    const tcTextHeight = doc.heightOfString(
+      tcText.map((c) => c.text).join(""),
+      {
+        width: innerWidthThird * SIZE_FACTOR,
+        align: "center",
+      }
+    );
+    doc.printText?.(
       tcText,
-      print.right_margin + innerWidthThird,
+      print.left_margin + innerWidthThird,
       print.top_margin,
       {
         width: innerWidthThird,
@@ -101,14 +85,17 @@ export const pdfGenerate = (
     );
 
     //top right
-    const trText = titleTokens?.["tr"]?.join(joinChar) || "";
-    const trTextHeight = doc.heightOfString(trText, {
-      width: innerWidthThird * SIZE_FACTOR,
-      align: "right",
-    });
-    doc.processText?.(
+    const trText = frontMatterSpans?.["tr"]?.content || [];
+    const trTextHeight = doc.heightOfString(
+      trText.map((c) => c.text).join(""),
+      {
+        width: innerWidthThird * SIZE_FACTOR,
+        align: "right",
+      }
+    );
+    doc.printText?.(
       trText,
-      print.right_margin + innerWidthThird + innerWidthThird,
+      print.left_margin + innerWidthThird + innerWidthThird,
       print.top_margin,
       {
         width: innerWidthThird,
@@ -118,14 +105,17 @@ export const pdfGenerate = (
     );
 
     //bottom left
-    const blText = titleTokens?.["bl"]?.join(joinChar) || "";
-    const blTextHeight = doc.heightOfString(blText, {
-      width: innerWidthHalf * SIZE_FACTOR,
-      align: "left",
-    });
-    doc.processText?.(
+    const blText = frontMatterSpans?.["bl"]?.content || [];
+    const blTextHeight = doc.heightOfString(
+      blText.map((c) => c.text).join(""),
+      {
+        width: innerWidthHalf * SIZE_FACTOR,
+        align: "left",
+      }
+    );
+    doc.printText?.(
       blText,
-      print.right_margin,
+      print.left_margin,
       innerHeight - blTextHeight / SIZE_FACTOR,
       {
         width: innerWidthHalf,
@@ -135,14 +125,17 @@ export const pdfGenerate = (
     );
 
     //bottom right
-    const brText = titleTokens?.["br"]?.join(joinChar) || "";
-    const brTextHeight = doc.heightOfString(brText, {
-      width: innerWidthHalf * SIZE_FACTOR,
-      align: "right",
-    });
-    doc.processText?.(
+    const brText = frontMatterSpans?.["br"]?.content || [];
+    const brTextHeight = doc.heightOfString(
+      brText.map((c) => c.text).join(""),
+      {
+        width: innerWidthHalf * SIZE_FACTOR,
+        align: "right",
+      }
+    );
+    doc.printText?.(
       brText,
-      print.right_margin + innerWidthHalf,
+      print.left_margin + innerWidthHalf,
       innerHeight - brTextHeight / SIZE_FACTOR,
       {
         width: innerWidthHalf,
@@ -155,15 +148,18 @@ export const pdfGenerate = (
     const topHeight = Math.max(tlTextHeight, tcTextHeight, trTextHeight, 0);
     const bottomHeight = Math.max(blTextHeight, brTextHeight, 0);
 
-    const ccText = titleTokens?.["cc"]?.join(joinChar) || "";
-    const ccTextHeight = doc.heightOfString(ccText, {
-      width: innerWidth * SIZE_FACTOR,
-      align: "center",
-    });
+    const ccText = frontMatterSpans?.["cc"]?.content || [];
+    const ccTextHeight = doc.heightOfString(
+      ccText.map((c) => c.text).join(""),
+      {
+        width: innerWidth * SIZE_FACTOR,
+        align: "center",
+      }
+    );
     const centerStart =
       (innerHeight * SIZE_FACTOR - topHeight - bottomHeight) / 2 -
       ccTextHeight / 2;
-    doc.processText?.(ccText, print.right_margin, centerStart / SIZE_FACTOR, {
+    doc.printText?.(ccText, print.left_margin, centerStart / SIZE_FACTOR, {
       width: innerWidth,
       align: "center",
       links: true,
@@ -179,25 +175,24 @@ export const pdfGenerate = (
   let prevSceneContinuationHeader = "";
   let currentSectionLevel = 0;
   let currentSectionNumber: string;
-  let currentSectionToken: DocumentLine;
-  let text: string;
-  let afterSection = false;
+  let currentSectionToken: DocumentSpan;
   const sectionNumber = pdfVersionGenerator();
 
   const printHeaderAndFooter = (continuation_header?: string): void => {
-    const header = frontMatter["header"]?.join("\n");
+    const header = frontMatterSpans["header"];
     if (header) {
       continuation_header = continuation_header || "";
       let offset = blankText(continuation_header);
-      if (getIndentation(header).length >= continuation_header.length) {
+      const headerText = header.content?.map((c) => c.text).join("") || "";
+      if (getIndentation(headerText).length >= continuation_header.length) {
         offset = "";
       }
       if (offset) {
         offset += " ";
       }
 
-      doc.formatText?.(
-        offset + header,
+      doc.printText?.(
+        [{ text: offset + headerText }],
         1.5,
         print.page_number_top_margin - 0.1,
         {
@@ -205,26 +200,30 @@ export const pdfGenerate = (
         }
       );
     }
-    const footer = frontMatter["footer"]?.join("\n");
+    const footer = frontMatterSpans["footer"];
     if (footer) {
-      doc.formatText?.(footer, 1.5, print.page_height - 0.5, {
-        color: "#777777",
-      });
+      const footerText = footer.content?.map((c) => c.text).join("") || "";
+      if (footer) {
+        doc.printText?.([{ text: footerText }], 1.5, print.page_height - 0.5, {
+          color: "#777777",
+        });
+      }
     }
   };
 
   const printWatermark = (): void => {
-    let watermark = frontMatter["watermark"]?.join("\n");
+    const watermark = frontMatterSpans["watermark"];
     if (watermark) {
+      const watermarkText =
+        watermark.content?.map((c) => c.text).join("") || "";
       const options = {
         origin: [0, 0],
       };
       const angle =
         (Math.atan(print.page_height / print.page_width) * 180) / Math.PI;
       // underline and rotate pdfkit bug (?) workaround
-      watermark = watermark.replace(REGEX_UNDERLINE_CHAR, "");
       // un-format
-      const len = watermark.replace(REGEX_ASTERISK_CHAR, "").length;
+      const len = watermarkText.length;
       let diagonal;
       diagonal = Math.sqrt(
         Math.pow(print.page_width, 2) + Math.pow(print.page_height, 2)
@@ -233,10 +232,15 @@ export const pdfGenerate = (
       const font_size = ((1.667 * diagonal) / len) * SIZE_FACTOR;
       doc.fontSize(font_size);
       doc.rotate(angle, options);
-      doc.formatText?.(watermark, 2, -(font_size / 2) / SIZE_FACTOR, {
-        color: "#eeeeee",
-        lineBreak: false,
-      });
+      doc.printText?.(
+        [{ text: watermarkText }],
+        2,
+        -(font_size / 2) / SIZE_FACTOR,
+        {
+          color: "#eeeeee",
+          lineBreak: false,
+        }
+      );
       doc.rotate(-angle, options);
       doc.fontSize(print.font_size || 12);
     }
@@ -270,15 +274,14 @@ export const pdfGenerate = (
 
   let currentScene = "";
   const currentSections: string[] = [];
-  let currentDuration = 0;
-  lines.forEach((line: DocumentLine) => {
-    if (line.tag === "page_break") {
+
+  const printSpanContent = (span: DocumentSpan, offset: number = 0) => {
+    if (span.tag === "page_break") {
       if (lineStructs) {
-        if (line.token?.line && !lineStructs[line.token?.line || -1]) {
-          lineStructs[line.token.line] = {
+        if (span.line && !lineStructs[span.line || -1]) {
+          lineStructs[span.line] = {
             page: page,
             scene: currentScene,
-            cumulativeDuration: currentDuration,
             sections: currentSections.slice(0),
           };
         }
@@ -293,212 +296,186 @@ export const pdfGenerate = (
       if (config?.screenplay_print_page_numbers) {
         const pageNum = page.toFixed() + ".";
         const numberX =
-          print.action.feed +
-          print.action.max * print.font_width -
+          print.settings.action.feed +
+          print.settings.action.max * print.font_width -
           pageNum.length * print.font_width;
-        doc.font(doc?.fontKeys?.normal || "normal");
+        doc.font("normal");
         doc.text(pageNum, numberX * SIZE_FACTOR, numberY * SIZE_FACTOR);
       }
       printWatermark();
       printHeaderAndFooter(prevSceneContinuationHeader);
       prevSceneContinuationHeader = "";
-    } else if (line.tag === "separator") {
+    } else if (span.tag === "separator") {
       y++;
       if (lineStructs) {
-        if (line.token?.line && !lineStructs[line.token?.line]) {
-          lineStructs[line.token.line] = {
+        if (span.line && !lineStructs[span.line]) {
+          lineStructs[span.line] = {
             page: page,
             scene: currentScene,
-            cumulativeDuration: currentDuration,
             sections: currentSections.slice(0),
           };
         }
       }
-    } else {
-      // formatting not supported yet
-      text = line.print || "";
-
-      const textProperties: TextOptions = {
-        color: print?.[line.tag as PrintableTokenType]?.color || DEFAULT_COLOR,
-        highlight: false,
-        bold: false,
-        highlightColor: DEFAULT_COLOR,
-      };
-
-      if (line.tag === "dialogue_line_parenthetical" && !text.startsWith("(")) {
-        text = " " + text;
-      }
-
-      if (line.tag === "centered") {
-        center(text, print.top_margin + print.font_height * y++);
-      } else {
-        let feed: number =
-          (print[line.tag as PrintableTokenType] || {}).feed ||
-          print.action.feed;
-        if (line.tag === "transition") {
-          feed =
-            print.action.feed +
-            print.action.max * print.font_width -
-            (line.print || "").length * print.font_width;
+    } else if (span.content) {
+      const alignedGroups: { align?: string; content: FormattedText[] }[] = [];
+      span.content.forEach((textbox) => {
+        const currGroup = alignedGroups.at(-1);
+        if (currGroup && textbox.align === currGroup.align) {
+          currGroup.content.push(textbox);
+        } else {
+          alignedGroups.push({
+            align: textbox.align,
+            content: [textbox],
+          });
         }
+      });
 
-        const processSection = (sectionToken: DocumentLine): void => {
-          let sectionText = sectionToken.print || "";
-          currentSectionLevel = sectionToken.level || 0;
-          currentSections.length = Math.max(0, (sectionToken.level || 0) - 1);
+      alignedGroups.forEach((alignedGroup) => {
+        let content = alignedGroup.content;
 
-          currentSections.push(encode(sectionText));
-          feed += currentSectionLevel * (print.section.level_indent || 0);
-          if (config?.screenplay_print_section_numbers) {
-            if (sectionToken !== currentSectionToken) {
-              currentSectionNumber = sectionNumber(sectionToken.level || 0);
-              currentSectionToken = sectionToken;
-              sectionText = currentSectionNumber + ". " + sectionText;
-            } else {
-              sectionText =
-                Array(currentSectionNumber.length + 3).join(" ") + sectionText;
-            }
-          }
-          if (config?.screenplay_print_bookmarks) {
-            if (outline) {
-              const oc = getOutlineChild(
-                outline,
-                (sectionToken.level || 0) - 1,
-                0
-              );
-              if (oc !== undefined) {
-                oc.addItem(sectionText);
+        const textProperties: TextOptions = {
+          color:
+            print.settings[span.tag as PrintableTokenType]?.color ||
+            DEFAULT_COLOR,
+          highlight: false,
+          bold: false,
+          highlightColor: DEFAULT_COLOR,
+          width:
+            alignedGroup.align === "right" || alignedGroup.align === "center"
+              ? innerWidth
+              : undefined,
+        };
+
+        if (content.length > 0) {
+          let feed =
+            (print.settings[span.tag as PrintableTokenType] || {}).feed ||
+            print.settings.action.feed;
+
+          const processSection = (sectionToken: DocumentSpan): void => {
+            let sectionText =
+              sectionToken.content?.map((c) => c.text).join("") || "";
+            currentSectionLevel = sectionToken.level || 0;
+            currentSections.length = Math.max(0, (sectionToken.level || 0) - 1);
+
+            currentSections.push(encode(sectionText));
+            feed +=
+              currentSectionLevel * (print.settings.section.level_indent || 0);
+            if (config?.screenplay_print_section_numbers) {
+              if (sectionToken !== currentSectionToken) {
+                currentSectionNumber = sectionNumber(sectionToken.level || 0);
+                currentSectionToken = sectionToken;
+                sectionText = currentSectionNumber + ". " + sectionText;
+              } else {
+                sectionText =
+                  Array(currentSectionNumber.length + 3).join(" ") +
+                  sectionText;
               }
             }
-          }
-          text = sectionText;
-          outlineDepth = sectionToken.level || 0;
-        };
-        if (line.tag === "section") {
-          if (line.token) {
-            processSection(line.token);
-          }
-        }
+            if (config?.screenplay_print_bookmarks) {
+              if (outline) {
+                const oc = getOutlineChild(
+                  outline,
+                  (sectionToken.level || 0) - 1,
+                  0
+                );
+                if (oc !== undefined) {
+                  oc.addItem(sectionText);
+                }
+              }
+            }
+            content = [{ text: sectionText }];
+            outlineDepth = sectionToken.level || 0;
+          };
 
-        if (line.tag === "scene") {
-          if (config?.screenplay_print_bookmarks) {
-            if (outline) {
-              getOutlineChild(outline, outlineDepth, 0).addItem(text);
+          if (span.tag === "section") {
+            processSection(span);
+          }
+
+          if (span.tag === "scene") {
+            if (config?.screenplay_print_bookmarks) {
+              if (outline) {
+                getOutlineChild(outline, outlineDepth, 0).addItem(
+                  content.map((c) => c.text).join("")
+                );
+              }
+            }
+            currentScene = content.map((c) => c.text).join("");
+          }
+
+          doc.printText?.(
+            content,
+            feed + offset,
+            print.top_margin + print.font_height * y,
+            textProperties
+          );
+
+          if (span.scene) {
+            sceneNumber = String(span.scene);
+            const sceneTextLength = sceneNumber.length;
+
+            let shiftSceneNumber;
+
+            if (
+              config?.screenplay_print_scene_numbers === "both" ||
+              config?.screenplay_print_scene_numbers === "left"
+            ) {
+              shiftSceneNumber = (sceneTextLength + 4) * print.font_width;
+              doc.printText?.(
+                [{ text: sceneNumber }],
+                feed - shiftSceneNumber,
+                print.top_margin + print.font_height * y,
+                textProperties
+              );
+            }
+
+            if (
+              config?.screenplay_print_scene_numbers === "both" ||
+              config?.screenplay_print_scene_numbers === "right"
+            ) {
+              shiftSceneNumber =
+                (print.settings.scene.max + 1) * print.font_width;
+              doc.printText?.(
+                [{ text: sceneNumber }],
+                feed + shiftSceneNumber,
+                print.top_margin + print.font_height * y,
+                textProperties
+              );
             }
           }
-          currentScene = text;
-          if (config?.screenplay_print_scene_headers_bold) {
-            text = "**" + text + "**";
-          }
+          y++;
         }
 
-        if (line.tag === "label") {
-          feed += print.label.padding || 0;
-          if (print.label.feed_with_last_section && afterSection) {
-            feed += currentSectionLevel * (print.section.level_indent || 0);
-          } else {
-            feed = print.action.feed;
+        if (lineStructs) {
+          if (span.line && !lineStructs[span.line]) {
+            lineStructs[span.line] = {
+              page: page,
+              scene: currentScene,
+              sections: currentSections.slice(0),
+            };
           }
         }
-
-        if (
-          print[line.tag as PrintableTokenType] &&
-          print[line.tag as PrintableTokenType].italic &&
-          text
-        ) {
-          text = "*" + text + "*";
-        }
-
-        if (line.column) {
-          if (line.rightColumn) {
-            let yRight = y;
-            line.rightColumn.forEach((rightLine: DocumentLine) => {
-              let feedRight =
-                (print[rightLine.tag as PrintableTokenType] || {}).feed ||
-                print.action.feed;
-              feedRight -= (feedRight - print.left_margin) / 2;
-              feedRight +=
-                (print.page_width - print.right_margin - print.left_margin) / 2;
-              const right_text_properties = { ...textProperties };
-              doc.processText?.(
-                rightLine.print || "",
-                feedRight,
-                print.top_margin + print.font_height * yRight++,
-                right_text_properties
-              );
-            });
-          }
-          feed -= (feed - print.left_margin) / 2;
-        }
-
-        doc.processText?.(
-          text,
-          feed,
-          print.top_margin + print.font_height * y,
-          textProperties
-        );
-
-        if (line.scene) {
-          sceneNumber = String(line.scene);
-          const sceneTextLength = sceneNumber.length;
-          if (config?.screenplay_print_scene_headers_bold) {
-            sceneNumber = "**" + sceneNumber + "**";
-          }
-
-          let shiftSceneNumber;
-
-          if (
-            config?.screenplay_print_scene_numbers === "both" ||
-            config?.screenplay_print_scene_numbers === "left"
-          ) {
-            shiftSceneNumber = (sceneTextLength + 4) * print.font_width;
-            doc.processText?.(
-              sceneNumber,
-              feed - shiftSceneNumber,
-              print.top_margin + print.font_height * y,
-              textProperties
-            );
-          }
-
-          if (
-            config?.screenplay_print_scene_numbers === "both" ||
-            config?.screenplay_print_scene_numbers === "right"
-          ) {
-            shiftSceneNumber = (print.scene.max + 1) * print.font_width;
-            doc.processText?.(
-              sceneNumber,
-              feed + shiftSceneNumber,
-              print.top_margin + print.font_height * y,
-              textProperties
-            );
-          }
-        }
-        y++;
-      }
-      if (lineStructs) {
-        if (line.token?.line && !lineStructs[line.token.line]) {
-          if (line.token?.duration) {
-            currentDuration += line.token.duration;
-          }
-          lineStructs[line.token.line] = {
-            page: page,
-            scene: currentScene,
-            sections: currentSections.slice(0),
-            cumulativeDuration: currentDuration,
-          };
-        }
-      }
+      });
     }
+  };
 
-    // clear after section
-    if (line.tag === "section") {
-      afterSection = true;
-    } else if (
-      line.tag !== "separator" &&
-      line.tag !== "label" &&
-      line.tag !== "page_break"
-    ) {
-      afterSection = false;
+  bodySpans.forEach((span: DocumentSpan) => {
+    if (span.leftColumn || span.rightColumn) {
+      const yStartLeft = y;
+      if (span.leftColumn) {
+        span.leftColumn.forEach((leftSpan) => {
+          printSpanContent(leftSpan, print.left_margin * -0.5);
+        });
+      }
+      const yEndLeft = y;
+      y = yStartLeft;
+      if (span.rightColumn) {
+        span.rightColumn.forEach((rightSpan: DocumentSpan) => {
+          printSpanContent(rightSpan, print.left_margin * 1.5);
+        });
+      }
+      y = Math.max(yEndLeft, y);
+    } else {
+      printSpanContent(span);
     }
   });
 };

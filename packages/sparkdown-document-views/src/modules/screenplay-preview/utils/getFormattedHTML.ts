@@ -1,7 +1,7 @@
 import { Language } from "@codemirror/language";
 import { NodeType } from "@lezer/common";
 import { Tag, highlightTree } from "@lezer/highlight";
-import { MarkupBlock } from "../types/MarkupBlock";
+import { MarkupContent } from "../types/MarkupContent";
 
 export const getSyntaxHighlightedHtml = (
   str: string,
@@ -34,7 +34,7 @@ export const getSyntaxHighlightedHtml = (
 };
 
 export const getMarkupHtml = (
-  m: MarkupBlock,
+  m: MarkupContent,
   language?: Language,
   highlighter?: {
     style(tags: readonly Tag[]): string | null;
@@ -47,7 +47,7 @@ export const getMarkupHtml = (
 };
 
 const getFormattedHTML = (
-  lines: MarkupBlock[],
+  lines: MarkupContent[],
   language?: Language,
   highlighter?: {
     style(tags: readonly Tag[]): string | null;

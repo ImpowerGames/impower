@@ -19,7 +19,6 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
   }
 
   handleClickDownloadButton = async (e: Event) => {
-    console.log("download");
     const store = this.stores.workspace.current;
     const projectId = store.project.id;
     const projectName = store.project.name;

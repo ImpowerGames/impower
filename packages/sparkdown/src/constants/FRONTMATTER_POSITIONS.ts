@@ -14,6 +14,9 @@ const FRONTMATTER_POSITIONS: Record<string, string> = {
   cc: "cc",
   bl: "bl",
   br: "br",
+  header: "header",
+  footer: "footer",
+  watermark: "watermark",
 };
 
 export default FRONTMATTER_POSITIONS;

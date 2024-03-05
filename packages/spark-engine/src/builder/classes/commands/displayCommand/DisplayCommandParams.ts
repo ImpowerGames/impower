@@ -14,7 +14,7 @@ export interface DisplayContentItem {
 
 export interface DisplayCommandParams extends CommandParams {
   type: "action" | "transition" | "scene" | "dialogue";
-  position: string;
+  position: number;
   characterKey: string;
   content: DisplayContentItem[];
   autoAdvance: boolean;

@@ -2,7 +2,7 @@ import { Language } from "@codemirror/language";
 import { WidgetType } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
-import { MarkupBlock } from "./MarkupBlock";
+import { MarkupContent } from "./MarkupContent";
 
 export interface ReplaceSpec {
   from: number;
@@ -16,6 +16,6 @@ export interface ReplaceSpec {
     new (args: any): WidgetType;
   };
   block?: boolean;
-  content?: MarkupBlock[];
+  content?: MarkupContent[];
   [other: string]: any;
 }

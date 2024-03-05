@@ -18,16 +18,13 @@ export const generateSparkPdfData = (
   const print =
     PRINT_PROFILES[config.screenplay_print_profile || ""] ||
     PRINT_PROFILES.usletter;
-
   const typesetter = new Typesetter();
-  const lines = typesetter.layout(tokens, print, config);
-
-  const data: PdfData = {
-    frontMatter,
-    lines,
+  return {
+    info: typesetter.getInfo(frontMatter),
+    frontMatterSpans: typesetter.formatFrontMatter(frontMatter),
+    bodySpans: typesetter.formatBody(tokens, print, config),
     print,
     config,
     fonts,
   };
-  return data;
 };

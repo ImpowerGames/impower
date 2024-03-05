@@ -1,4 +1,5 @@
 export interface TextOptions {
+  font?: string;
   color?: string;
   bold?: boolean;
   italic?: boolean;

@@ -1,16 +1,16 @@
 import { EditorView } from "@codemirror/view";
-import { MarkupBlock } from "../../types/MarkupBlock";
+import { MarkupContent } from "../../types/MarkupContent";
 import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
 import ReplaceWidget from "../ReplaceWidget";
 
 export interface TitlePageSpec extends ReplaceSpec {
-  tl?: MarkupBlock[];
-  tc?: MarkupBlock[];
-  tr?: MarkupBlock[];
-  cc?: MarkupBlock[];
-  bl?: MarkupBlock[];
-  br?: MarkupBlock[];
+  tl?: MarkupContent[];
+  tc?: MarkupContent[];
+  tr?: MarkupContent[];
+  cc?: MarkupContent[];
+  bl?: MarkupContent[];
+  br?: MarkupContent[];
 }
 
 export default class TitlePageWidget extends ReplaceWidget<TitlePageSpec> {

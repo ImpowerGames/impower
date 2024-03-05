@@ -166,10 +166,6 @@ export default class SparkParser {
     };
     const nodeNames = this.grammar.nodeNames as SparkdownNodeName[];
     const stack: SparkToken[] = [];
-    const prevDisplayPositionalTokens: (
-      | SparkDialogueToken
-      | SparkDialogueBoxToken
-    )[] = [];
     const rootStructure: StructureItem = {
       type: "chunk",
       level: 0,
@@ -256,6 +252,12 @@ export default class SparkParser {
         currentSection.tokens ??= [];
         currentSection.tokens.push(tok);
       }
+    };
+
+    const getCurrentSection = () => {
+      const currentSectionName = currentSectionPath.at(-1) || "";
+      const currentSection = program.sections[currentSectionName];
+      return currentSection;
     };
 
     const declareVariable = (tok: SparkVariable) => {
@@ -1295,7 +1297,6 @@ export default class SparkParser {
 
         if (tok && tok.tag === tag) {
           if (tok.tag === "chunk") {
-            prevDisplayPositionalTokens.length = 0;
             const chunk = {
               tag: "chunk",
               line: tok.line,
@@ -1348,7 +1349,6 @@ export default class SparkParser {
           }
 
           if (tok.tag === "section") {
-            prevDisplayPositionalTokens.length = 0;
             const currentSectionName = currentSectionPath.at(-1) || "";
             const currentSection = program.sections[currentSectionName]!;
             const currentLevel = currentSection.level;
@@ -1805,28 +1805,42 @@ export default class SparkParser {
             }
           } else if (tok.tag === "dialogue_character_simultaneous" && text) {
             const dialogue = lookup("dialogue");
-            if (dialogue) {
-              let prevPosition: "left" | "right" | undefined = undefined;
-              let prevCharacterName: string | undefined = undefined;
-              prevDisplayPositionalTokens.forEach((t) => {
-                t.autoAdvance = true;
-                prevPosition ??= t.position;
-                prevCharacterName ??= t.characterName?.text;
-              });
-              if (dialogue.characterName.text === prevCharacterName) {
-                // Same character, so show in same spot
-                dialogue.position = prevPosition;
-              } else {
-                // Different character, so if a spot was not assigned for the previous character, move them to the left
-                // and display this character on the opposite side.
-                prevDisplayPositionalTokens.forEach((t) => {
+            const prevDialogueTokens: (
+              | SparkDialogueToken
+              | SparkDialogueBoxToken
+            )[] = [];
+            const currentSection = getCurrentSection();
+            if (currentSection) {
+              // Search backwards for the dialogue immediately preceding this one
+              let prevPosition: number = 0;
+              for (let i = currentSection.tokens.length - 1; i >= 0; i -= 1) {
+                const token = currentSection.tokens[i];
+                if (
+                  token?.tag === "dialogue" ||
+                  token?.tag === "dialogue_box"
+                ) {
+                  if (token !== dialogue) {
+                    token.autoAdvance = true;
+                    prevDialogueTokens.unshift(token);
+                    if (token.tag === "dialogue") {
+                      prevPosition = token.position ?? 0;
+                      break;
+                    }
+                  }
+                } else {
+                  break;
+                }
+              }
+              if (dialogue) {
+                // If a spot was not assigned for the previous character, move them to the left
+                // and display this character on the right.
+                prevDialogueTokens.forEach((t) => {
                   if (!t.position) {
-                    t.position = "left";
+                    t.position = 1;
                   }
                   prevPosition = t.position;
                 });
-                const reversedPosition = reversePosition(prevPosition);
-                dialogue.position = reversedPosition;
+                dialogue.position = prevPosition + 1;
               }
             }
           } else if (tok.tag === "dialogue_box") {
@@ -1842,10 +1856,18 @@ export default class SparkParser {
               if (parent.characterParenthetical) {
                 tok.content.push(parent.characterParenthetical);
               }
-              tok.position = parent.position;
-              tok.characterKey = parent.characterKey;
-              tok.characterName = parent.characterName;
-              tok.characterParenthetical = parent.characterParenthetical;
+              if (parent.position !== undefined) {
+                tok.position = parent.position;
+              }
+              if (parent.characterKey !== undefined) {
+                tok.characterKey = parent.characterKey;
+              }
+              if (parent.characterName !== undefined) {
+                tok.characterName = parent.characterName;
+              }
+              if (parent.characterParenthetical !== undefined) {
+                tok.characterParenthetical = parent.characterParenthetical;
+              }
             }
           } else if (tok.tag === "dialogue_line_parenthetical") {
             tok.target = "parenthetical";
@@ -2066,16 +2088,7 @@ export default class SparkParser {
         const tag = SPARK_TOKEN_TAGS[nodeNames[node.type]!];
 
         if (tok && tok.tag === tag) {
-          if (tok.tag === "front_matter_start") {
-            prevDisplayPositionalTokens.length = 0;
-          } else if (tok.tag === "chunk") {
-            prevDisplayPositionalTokens.length = 0;
-          } else if (tok.tag === "section") {
-            prevDisplayPositionalTokens.length = 0;
-          } else if (tok.tag === "flow_break") {
-            prevDisplayPositionalTokens.length = 0;
-          } else if (tok.tag === "import") {
-            prevDisplayPositionalTokens.length = 0;
+          if (tok.tag === "import") {
             // Compile value
             tok.value = tok.value.startsWith("[")
               ? tok.value
@@ -2139,7 +2152,6 @@ export default class SparkParser {
               program.metadata.lines[tok.line]!.struct = parent.name;
             }
           } else if (tok.tag === "define") {
-            prevDisplayPositionalTokens.length = 0;
             const scopedParent = lookup(
               "if",
               "elseif",
@@ -2240,7 +2252,6 @@ export default class SparkParser {
               }
             }
           } else if (tok.tag === "store") {
-            prevDisplayPositionalTokens.length = 0;
             const scopedParent = lookup(
               "if",
               "elseif",
@@ -2358,10 +2369,7 @@ export default class SparkParser {
                 text,
               });
             }
-          } else if (tok.tag === "transition") {
-            prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "scene") {
-            prevDisplayPositionalTokens.length = 0;
             const text =
               tok.content
                 ?.map((t) => t.text)
@@ -2384,8 +2392,6 @@ export default class SparkParser {
               actionDuration: 0,
               dialogueDuration: 0,
             });
-          } else if (tok.tag === "action") {
-            prevDisplayPositionalTokens.length = 0;
           } else if (tok.tag === "action_box") {
             const textContent = tok.content?.filter((p) => p.tag === "text");
             if (!textContent || textContent.length === 0) {
@@ -2426,7 +2432,6 @@ export default class SparkParser {
               parent.content.push(tok);
             }
           } else if (tok.tag === "dialogue_box") {
-            prevDisplayPositionalTokens.push(tok);
             // Check if no text content
             const textContent = tok.content?.filter((p) => p.tag === "text");
             if (!textContent || textContent.length === 0) {
@@ -2470,12 +2475,6 @@ export default class SparkParser {
             program.metadata.characters[characterName]!.name = characterName;
             program.metadata.characters[characterName]!.lines ??= [];
             program.metadata.characters[characterName]!.lines!.push(tok.line);
-          } else if (tok.tag === "dialogue_character_simultaneous") {
-            const dialogue = lookup("dialogue");
-            if (dialogue) {
-              prevDisplayPositionalTokens.length = 0;
-              prevDisplayPositionalTokens.push(dialogue);
-            }
           }
 
           stack.pop();

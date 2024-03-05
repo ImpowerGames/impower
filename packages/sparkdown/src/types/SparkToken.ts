@@ -256,7 +256,7 @@ export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
   characterKey?: string;
   characterName?: SparkDialogueCharacterNameToken;
   characterParenthetical?: SparkDialogueCharacterParentheticalToken;
-  position?: string;
+  position?: number;
   content?: DisplayContent[];
   waitUntilFinished: boolean;
   autoAdvance: boolean;
@@ -286,7 +286,7 @@ export interface SparkActionBoxToken extends ISparkBoxToken<"action_box"> {
 }
 
 export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
-  position?: "left" | "right";
+  position?: number;
   autoAdvance: boolean;
   characterKey: string;
   characterName?: SparkDialogueCharacterNameToken;
@@ -297,9 +297,9 @@ export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
 
 export interface SparkDialogueBoxToken extends ISparkBoxToken<"dialogue_box"> {
   characterKey: string;
-  characterName: SparkDialogueCharacterNameToken;
-  characterParenthetical: SparkDialogueCharacterParentheticalToken;
-  position?: "left" | "right";
+  characterName?: SparkDialogueCharacterNameToken;
+  characterParenthetical?: SparkDialogueCharacterParentheticalToken;
+  position?: number;
   autoAdvance: boolean;
   speechDuration: number;
 }

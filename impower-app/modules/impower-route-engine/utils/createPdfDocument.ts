@@ -7,8 +7,7 @@ import {
   PdfData,
   PdfDocument,
   pdfFormatText,
-  pdfProcessText,
-  TextOptions,
+  TextOptions
 } from "../../../../spark-screenplay";
 
 export const createPdfDocument = (data: PdfData): PdfDocument => {
@@ -58,14 +57,6 @@ export const createPdfDocument = (data: PdfData): PdfDocument => {
     options?: TextOptions
   ): void => {
     addTextbox(textObjects, doc, x, y, w, options);
-  };
-  doc.processText = (
-    text: string,
-    x: number,
-    y: number,
-    options?: TextOptions | undefined
-  ): void => {
-    pdfProcessText(doc, text, x, y, options);
   };
   doc.formatText = (
     text: string,

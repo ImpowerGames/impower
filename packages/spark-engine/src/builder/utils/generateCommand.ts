@@ -48,7 +48,7 @@ const generateDisplayCommand = (
           : token.tag === "transition"
           ? "transition"
           : "action",
-      position: token.position || "",
+      position: token.position || 0,
       characterKey: token.characterKey || "",
       content: token.content || [],
       autoAdvance: token.autoAdvance ?? false,

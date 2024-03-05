@@ -1,14 +1,11 @@
-import PDFKit from "pdfkit/index.js";
+import PDFKit from "pdfkit";
 import addTextbox from "textbox-for-pdfkit";
 import {
-  FONT_KEY,
-  getAuthor,
-  getTitle,
+  FormattedText,
   PdfData,
   PdfDocument,
-  pdfFormatText,
-  pdfProcessText,
   TextOptions,
+  pdfPrintText,
 } from "../../../../../packages/spark-screenplay/src";
 
 export const createPdfDocument = (data: PdfData): PdfDocument => {
@@ -30,54 +27,44 @@ export const createPdfDocument = (data: PdfData): PdfDocument => {
     info: { Title: string; Author: string; Creator: string };
   };
 
-  doc.fontKeys = FONT_KEY;
   doc.print = data.print;
   if (doc.info) {
-    doc.info.Title = getTitle(data?.frontMatter);
-    doc.info.Author = getAuthor(data?.frontMatter);
+    doc.info.Title = data.info.title;
+    doc.info.Author = data.info.author;
     doc.info.Creator = "sparkdown";
   }
 
   if (fonts) {
-    doc.registerFont(FONT_KEY.normal, fonts.normal);
-    doc.registerFont(FONT_KEY.italic, fonts.italic);
-    doc.registerFont(FONT_KEY.bold, fonts.bold);
-    doc.registerFont(FONT_KEY.bolditalic, fonts.bolditalic);
+    doc.registerFont("normal", fonts.normal);
+    doc.registerFont("italic", fonts.italic);
+    doc.registerFont("bold", fonts.bold);
+    doc.registerFont("bolditalic", fonts.bolditalic);
+    doc.registerFont("Times-Roman", fonts.normal);
+    if (fonts.normal) {
+      doc.font(fonts.normal);
+    }
   }
 
-  doc.font(doc?.fontKeys?.normal || "normal");
+  console.log(doc, fonts);
+
   doc.fontSize(fontSize);
 
   doc.textBox = (
-    textObjects: {
-      text: string;
-      link: string | undefined;
-      font: string;
-      underline: string | boolean | undefined;
-      color: string;
-    }[],
+    content: FormattedText[],
     x: number,
     y: number,
     w: number,
     options?: TextOptions
   ): void => {
-    addTextbox(textObjects, doc, x, y, w, options);
+    addTextbox(content, doc, x, y, w, options);
   };
-  doc.processText = (
-    text: string,
+  doc.printText = (
+    content: FormattedText[],
     x: number,
     y: number,
     options?: TextOptions | undefined
   ): void => {
-    pdfProcessText(doc, text, x, y, options);
-  };
-  doc.formatText = (
-    text: string,
-    x: number,
-    y: number,
-    options?: TextOptions
-  ): void => {
-    pdfFormatText(doc, text, x, y, options);
+    pdfPrintText(doc, content, x, y, options);
   };
 
   return doc;

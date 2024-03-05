@@ -1,4 +1,4 @@
-export interface MarkupBlock {
+export interface MarkupContent {
   type: string;
   from: number;
   to: number;

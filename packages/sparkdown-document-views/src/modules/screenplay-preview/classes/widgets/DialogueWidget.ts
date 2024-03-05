@@ -1,5 +1,5 @@
 import { EditorView } from "@codemirror/view";
-import { MarkupBlock } from "../../types/MarkupBlock";
+import { MarkupContent } from "../../types/MarkupContent";
 import { ReplaceSpec } from "../../types/ReplaceSpec";
 import getFormattedHTML from "../../utils/getFormattedHTML";
 import ReplaceWidget from "../ReplaceWidget";
@@ -9,9 +9,8 @@ const DUAL_DIALOGUE_CONTAINER_WIDTH = "95%";
 const DUAL_DIALOGUE_BLOCK_WIDTH = "100%";
 
 export interface DialogueSpec extends ReplaceSpec {
-  content?: MarkupBlock[];
-  left?: MarkupBlock[];
-  right?: MarkupBlock[];
+  blocks: MarkupContent[][];
+  dual: boolean;
 }
 
 export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
@@ -20,39 +19,29 @@ export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
     container.classList.add("cm-line");
     container.style.marginLeft = "auto";
     container.style.marginRight = "auto";
-    if (this.spec.content) {
-      container.style.width = DIALOGUE_CONTAINER_WIDTH;
-      container.innerHTML = getFormattedHTML(
-        this.spec.content,
-        this.spec.language,
-        this.spec.highlighter
-      );
-    } else if (this.spec.left || this.spec.right) {
+    if (this.spec.dual) {
       container.style.width = DUAL_DIALOGUE_CONTAINER_WIDTH;
-      container.style.display = "flex";
-      container.style.flexDirection = "row";
-      container.style.justifyContent = "space-between";
-      if (this.spec.left) {
-        const leftEl = document.createElement("div");
-        leftEl.classList.add("cm-block-left");
-        leftEl.style.width = DUAL_DIALOGUE_BLOCK_WIDTH;
-        leftEl.innerHTML = getFormattedHTML(
-          this.spec.left,
+      container.style.display = "grid";
+      container.style.gridTemplateColumns = "1fr 1fr";
+      this.spec.blocks.forEach((block) => {
+        const blockEl = document.createElement("div");
+        blockEl.style.width = DUAL_DIALOGUE_BLOCK_WIDTH;
+        blockEl.innerHTML = getFormattedHTML(
+          block,
           this.spec.language,
           this.spec.highlighter
         );
-        container.appendChild(leftEl);
-      }
-      if (this.spec.right) {
-        const rightEl = document.createElement("div");
-        rightEl.classList.add("cm-block-right");
-        rightEl.style.width = DUAL_DIALOGUE_BLOCK_WIDTH;
-        rightEl.innerHTML = getFormattedHTML(
-          this.spec.right,
+        container.appendChild(blockEl);
+      });
+    } else {
+      const standaloneBlock = this.spec.blocks[0];
+      if (standaloneBlock) {
+        container.style.width = DIALOGUE_CONTAINER_WIDTH;
+        container.innerHTML = getFormattedHTML(
+          standaloneBlock,
           this.spec.language,
           this.spec.highlighter
         );
-        container.appendChild(rightEl);
       }
     }
     view.requestMeasure();

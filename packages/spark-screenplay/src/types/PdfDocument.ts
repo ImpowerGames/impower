@@ -1,3 +1,4 @@
+import { FormattedText } from "../classes/Typesetter";
 import { OutlineItem } from "./OutlineItem";
 import { PrintProfile } from "./PrintProfile";
 import { TextOptions } from "./TextOptions";
@@ -7,39 +8,15 @@ export type PDFFontSource = string | Uint8Array | ArrayBuffer;
 export interface PdfDocument {
   outline?: OutlineItem;
   print?: PrintProfile;
-  formatState?: {
-    bold?: boolean;
-    italic?: boolean;
-    underline?: boolean;
-    overrideColor?: string;
-  };
-  fontKeys?: {
-    normal: string;
-    italic: string;
-    bold: string;
-    bolditalic: string;
-  };
 
-  formatText?: (
-    text: string,
-    x: number,
-    y: number,
-    options?: TextOptions
-  ) => void;
-  processText?: (
-    text: string,
+  printText?: (
+    content: FormattedText[],
     x: number,
     y: number,
     options?: TextOptions
   ) => void;
   textBox?: (
-    textObjects: {
-      text: string;
-      link: string | undefined;
-      font: string;
-      underline: string | boolean | undefined;
-      color: string;
-    }[],
+    content: FormattedText[],
     x: number,
     y: number,
     w: number,

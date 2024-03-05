@@ -1,5 +1,8 @@
+import { encode } from "html-entities";
+import { PdfWriteStream } from "../../../../../packages/spark-screenplay/src/classes/PdfWriteStream";
 import type { SparkScreenplayConfig } from "../../../../../packages/spark-screenplay/src/types/SparkScreenplayConfig";
 import { generateSparkPdfData } from "../../../../../packages/spark-screenplay/src/utils/generateSparkPdfData";
+import { pdfGenerate } from "../../../../../packages/spark-screenplay/src/utils/pdfGenerate";
 import type { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import combineFrontMatter from "../../../../../packages/sparkdown/src/utils/combineFrontMatter";
 import combineTokens from "../../../../../packages/sparkdown/src/utils/combineTokens";
@@ -7,6 +10,8 @@ import bolditalic from "../../../public/fonts/courier-prime-bold-italic.ttf";
 import bold from "../../../public/fonts/courier-prime-bold.ttf";
 import italic from "../../../public/fonts/courier-prime-italic.ttf";
 import normal from "../../../public/fonts/courier-prime.ttf";
+import { createPdfDocument } from "./createPdfDocument";
+import { downloadFile } from "./downloadFile";
 
 export const exportPdf = async (
   name: string,
@@ -28,17 +33,15 @@ export const exportPdf = async (
     italic,
     bolditalic,
   });
-  console.log(tokens);
-  console.log(pdfData);
-  // const doc = createPdfDocument(pdfData);
-  // pdfGenerate(doc, pdfData, encode);
-  // const pdf = await new Promise<Uint8Array>((resolve) => {
-  //   doc.pipe(
-  //     new PdfWriteStream(async (chunks) => {
-  //       resolve(Buffer.concat(chunks));
-  //     })
-  //   );
-  //   doc.end();
-  // });
-  // downloadFile(`${name}.pdf`, "application/pdf", pdf);
+  const doc = createPdfDocument(pdfData);
+  pdfGenerate(doc, pdfData, encode);
+  const pdf = await new Promise<Uint8Array>((resolve) => {
+    doc.pipe(
+      new PdfWriteStream(async (chunks) => {
+        resolve(Buffer.concat(chunks));
+      })
+    );
+    doc.end();
+  });
+  downloadFile(`${name}.pdf`, "application/pdf", pdf);
 };

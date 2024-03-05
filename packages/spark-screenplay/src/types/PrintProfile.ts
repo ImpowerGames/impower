@@ -21,8 +21,7 @@ export interface TokenPrintSettings {
   feed_with_last_section?: boolean;
 }
 
-export interface PrintProfile
-  extends Record<PrintableTokenType, TokenPrintSettings> {
+export interface PrintProfile {
   paper_size: string;
   font_size: number;
   lines_per_page: number;
@@ -41,14 +40,5 @@ export interface PrintProfile
     left_side: string[];
     right_side: string[];
   };
-  chunk: TokenPrintSettings;
-  section: TokenPrintSettings;
-  scene: TokenPrintSettings;
-  transition: TokenPrintSettings;
-  action: TokenPrintSettings;
-  dialogue_character_name: TokenPrintSettings;
-  dialogue_line_parenthetical: TokenPrintSettings;
-  dialogue: TokenPrintSettings;
-  more: TokenPrintSettings;
-  note: TokenPrintSettings;
+  settings: Record<PrintableTokenType, TokenPrintSettings>;
 }
