@@ -41,9 +41,17 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
       editor.revealRange(range, vscode.TextEditorRevealType.AtTop);
     })
   );
+  const pdfWorker = new Worker(
+    vscode.Uri.joinPath(
+      context.extensionUri,
+      "out",
+      "workers",
+      "sparkdown-screenplay-pdf.js"
+    ).toString(true)
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exportpdf", async () => {
-      await exportPdf(context);
+      await exportPdf(pdfWorker);
     })
   );
   context.subscriptions.push(

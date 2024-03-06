@@ -8,9 +8,7 @@ import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
 import { writeFile } from "./writeFile";
 
-export const exportPdf = async (
-  context: vscode.ExtensionContext
-): Promise<void> => {
+export const exportPdf = async (worker: Worker): Promise<void> => {
   const uri = getActiveSparkdownDocument();
   if (!uri) {
     return;
@@ -34,17 +32,9 @@ export const exportPdf = async (
       const sparkdown = editor.document.getText();
       const program = ScreenplaySparkParser.instance.parse(sparkdown);
       const config = getSparkdownPreviewConfig(uri);
-      const pdfWorkerPath = vscode.Uri.joinPath(
-        context.extensionUri,
-        "out",
-        "workers",
-        "sparkdown-screenplay-pdf.js"
-      );
-      const pdfWorkerUrl = pdfWorkerPath.toString(true);
-      const pdfWorker = new Worker(pdfWorkerUrl);
       let currentPercentage = 0;
       const pdfBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
-        pdfWorker.onmessage = (e) => {
+        worker.onmessage = (e) => {
           if (!token.isCancellationRequested) {
             const message = e.data;
             if (message.method?.endsWith("/progress")) {
@@ -64,7 +54,7 @@ export const exportPdf = async (
           config,
           workDoneToken: crypto.randomUUID(),
         });
-        pdfWorker.postMessage(request);
+        worker.postMessage(request);
       });
       if (token.isCancellationRequested) {
         return;
