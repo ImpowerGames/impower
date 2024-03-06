@@ -554,11 +554,6 @@ export default class SparkParser {
       }
     };
 
-    const reversePosition = (
-      position: "left" | "right" | undefined
-    ): "right" | "left" | undefined =>
-      position === "left" ? "right" : position === "right" ? "left" : undefined;
-
     const validateSectionReferences = (
       tok: ISparkToken,
       currentSectionName: string,
