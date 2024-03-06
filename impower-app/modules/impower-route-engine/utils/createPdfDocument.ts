@@ -8,7 +8,7 @@ import {
   PdfDocument,
   pdfFormatText,
   TextOptions
-} from "../../../../spark-screenplay";
+} from "../../../../sparkdown-screenplay";
 
 export const createPdfDocument = (data: PdfData): PdfDocument => {
   const size = data?.print.paper_size === "a4" ? "A4" : "LETTER";

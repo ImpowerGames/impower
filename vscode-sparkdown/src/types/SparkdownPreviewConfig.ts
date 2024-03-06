@@ -1,4 +1,4 @@
-import { SparkScreenplayConfig } from "@impower/spark-screenplay/src";
+import { SparkScreenplayConfig } from "@impower/sparkdown-screenplay/src";
 
 export interface SparkdownPreviewConfig extends SparkScreenplayConfig {
   game_preview_synchronized_with_cursor?: boolean;

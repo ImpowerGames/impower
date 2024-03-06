@@ -10,5 +10,6 @@ export default spec({
   css,
   selectors: {
     downloadButton: "",
+    progressBar: "",
   },
 });

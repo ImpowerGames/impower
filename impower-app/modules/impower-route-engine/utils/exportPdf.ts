@@ -1,14 +1,13 @@
-import { encode } from "html-entities";
 import {
-    EngineSparkParser,
-    getScriptAugmentations,
+  EngineSparkParser,
+  getScriptAugmentations,
 } from "../../../../spark-engine";
 import {
-    PdfWriteStream,
-    decodeBase64,
-    generateSparkPdfData,
-    pdfGenerate,
-} from "../../../../spark-screenplay";
+  PdfWriteStream,
+  decodeBase64,
+  generateSparkPdfData,
+  pdfGenerate,
+} from "../../../../sparkdown-screenplay";
 import bolditalic from "../../../public/fonts/courier-prime-bold-italic.ttf";
 import bold from "../../../public/fonts/courier-prime-bold.ttf";
 import italic from "../../../public/fonts/courier-prime-italic.ttf";
@@ -42,7 +41,7 @@ export const exportPdf = async (
     bolditalic: decodeBase64(bolditalic),
   });
   const doc = createPdfDocument(pdfData);
-  pdfGenerate(doc, pdfData, encode);
+  pdfGenerate(doc, pdfData);
   const pdf = await new Promise<Uint8Array>((resolve) => {
     doc.pipe(
       new PdfWriteStream(async (chunks) => {

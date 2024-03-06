@@ -1,4 +1,4 @@
-import { generateSparkCsvData } from "@impower/spark-screenplay/src/index";
+import { generateSparkCsvData } from "@impower/sparkdown-screenplay/src/index";
 import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";

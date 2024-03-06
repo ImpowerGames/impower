@@ -1,11 +1,11 @@
 import {
-    EngineSparkParser,
-    getScriptAugmentations,
+  EngineSparkParser,
+  getScriptAugmentations,
 } from "../../../../spark-engine";
 import {
-    decodeBase64,
-    generateSparkHtmlData,
-} from "../../../../spark-screenplay";
+  decodeBase64,
+  generateSparkHtmlData,
+} from "../../../../sparkdown-screenplay";
 import bolditalic from "../../../public/fonts/courier-prime-bold-italic.ttf";
 import bold from "../../../public/fonts/courier-prime-bold.ttf";
 import italic from "../../../public/fonts/courier-prime-italic.ttf";

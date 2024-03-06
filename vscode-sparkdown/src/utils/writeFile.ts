@@ -5,13 +5,17 @@ import { revealFile } from "./revealFile";
 
 export const writeFile = async (
   fsPath: string,
-  output: string | Uint8Array
+  output: string | Uint8Array | ArrayBuffer
 ): Promise<void> => {
   const ext = path.extname(fsPath)?.replace(".", "");
   try {
     await vscode.workspace.fs.writeFile(
       vscode.Uri.file(fsPath),
-      typeof output === "string" ? Buffer.from(output) : output
+      typeof output === "string"
+        ? Buffer.from(output)
+        : output instanceof Uint8Array
+        ? output
+        : new Uint8Array(output)
     );
     const open = "Open";
     let reveal = "Reveal in File Explorer";

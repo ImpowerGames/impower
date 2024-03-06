@@ -44,13 +44,9 @@ const watchDirs = [
   `${indir}/modules`,
   "../packages/spark-engine",
   "../packages/sparkdown",
-  "../packages/spark-screenplay",
   "../packages/spark-dom",
   "../packages/grammar-compiler",
 ];
-
-const resolve = (relativePath: string) =>
-  path.resolve(process.cwd(), relativePath);
 
 const args = process.argv.slice(2);
 const WATCH = args.includes("--watch");
@@ -195,21 +191,7 @@ const buildPages = async () => {
       ".ttf": "binary",
       ".woff2": "binary",
     },
-    alias: {
-      buffer: "buffer",
-      fs: "browserify-fs",
-      assert: "assert",
-      os: "os-browserify",
-      path: "path-browserify",
-      stream: "stream-browserify",
-      util: "util",
-      zlib: "browserify-zlib",
-    },
-    inject: [resolve("./src/shims/buffer.js")],
     plugins: [envPlugin()],
-    banner: {
-      js: `window.global = {};`,
-    },
   });
 };
 

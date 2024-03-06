@@ -16,8 +16,8 @@ export default spec({
         class="more"
         color="fg-50"
         variant="icon"
-        icon="${mode === "game" ? "gamepad" : "script"}"
-        active-icon="${mode === "game" ? "script" : "gamepad"}"
+        icon="${mode === "game" ? "script" : "gamepad"}"
+        active-icon="${mode === "game" ? "gamepad" : "script"}"
         value="${mode === "game" ? "screenplay" : "game"}"
       ></s-button>
     `;

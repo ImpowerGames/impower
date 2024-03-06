@@ -14,6 +14,9 @@ export class MessageProtocolRequestType<
   constructor(method: M) {
     super(method);
   }
+  uuid() {
+    return uuid();
+  }
   isRequest(obj: any): obj is RequestMessage<M, P> {
     return isRequest(obj, this.method);
   }
@@ -24,7 +27,7 @@ export class MessageProtocolRequestType<
     return {
       jsonrpc: "2.0",
       method: this.method,
-      id: uuid(),
+      id: this.uuid(),
       params,
     } as RequestMessage<M, P>;
   }

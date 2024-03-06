@@ -24,5 +24,5 @@
     "forceConsistentCasingInFileNames": true,
     "allowJs": true
   },
-  "include": ["src", "esbuild.ts", "../packages/pdfkit"]
+  "include": ["src", "esbuild.ts", "../packages/sparkdown-screenplay-pdf/src/shims", "../packages/sparkdown-screenplay-pdf/src/shims.js"]
 }

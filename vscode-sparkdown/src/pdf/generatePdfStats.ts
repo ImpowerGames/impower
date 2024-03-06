@@ -2,8 +2,7 @@ import {
   LineStruct,
   PdfData,
   pdfGenerate,
-} from "@impower/spark-screenplay/src/index";
-import { encode } from "html-entities";
+} from "@impower/sparkdown-screenplay/src/index";
 import { createPdfDocument } from "./createPdfDocument";
 
 export const generatePdfStats = (
@@ -23,6 +22,6 @@ export const generatePdfStats = (
   doc.on("pageAdded", () => {
     stats.pageCountReal++;
   });
-  pdfGenerate(doc, pdfData, encode, stats.lineMap);
+  pdfGenerate(doc, pdfData, stats.lineMap);
   return stats;
 };

@@ -1,4 +1,4 @@
-import { generateSparkJsonData } from "@impower/spark-screenplay/src/index";
+import { generateSparkJsonData } from "@impower/sparkdown-screenplay/src/index";
 import { GameSparkParser } from "../classes/GameSparkParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";

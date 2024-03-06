@@ -1,5 +1,5 @@
 import { EngineSparkParser } from "../../../../spark-engine";
-import { generateSparkCsvData } from "../../../../spark-screenplay";
+import { generateSparkCsvData } from "../../../../sparkdown-screenplay";
 import { downloadFile } from "./downloadFile";
 
 export const exportCsv = async (

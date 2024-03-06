@@ -2,7 +2,7 @@ import {
   generateSparkPdfData,
   LineStruct,
   SparkScreenplayConfig,
-} from "@impower/spark-screenplay/src/index";
+} from "@impower/sparkdown-screenplay/src/index";
 import SPARK_REGEX from "@impower/sparkdown/src/constants/SPARK_REGEX";
 import { SparkProgram, StructureItem } from "@impower/sparkdown/src/index";
 import calculateSpeechDuration from "@impower/sparkdown/src/utils/calculateSpeechDuration";

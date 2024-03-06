@@ -1,14 +1,26 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
-import { exportPdf } from "../../utils/exportPdf";
+import { downloadFile } from "../../utils/downloadFile";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-screenplay-toolbar";
 
 export default class PreviewScreenplayToolbar extends Component(spec) {
+  get progressBarEl() {
+    return this.ref.progressBar.shadowRoot?.firstElementChild as HTMLElement;
+  }
+
+  get downloadButtonEl() {
+    return this.ref.downloadButton.shadowRoot?.firstElementChild as HTMLElement;
+  }
+
   override onConnected() {
     this.ref.downloadButton.addEventListener(
       "click",
       this.handleClickDownloadButton
     );
+    if (!this.progressBarEl.style.transform) {
+      console.log("connected");
+      this.progressBarEl.style.transform = `scaleX(0)`;
+    }
   }
 
   override onDisconnected() {
@@ -19,6 +31,9 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
   }
 
   handleClickDownloadButton = async (e: Event) => {
+    this.downloadButtonEl.setAttribute("disabled", "");
+    this.progressBarEl.style.opacity = "1";
+    this.progressBarEl.style.transform = `scaleX(0)`;
     const store = this.stores.workspace.current;
     const projectId = store.project.id;
     const projectName = store.project.name;
@@ -26,7 +41,14 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
       const programs = (await Workspace.fs.getPrograms(projectId)).map(
         (x) => x.program
       );
-      exportPdf(`${projectName}.txt`, programs);
+      const pdf = await Workspace.print.exportPDF({ programs }, (value) => {
+        const scaleX = (value?.percentage ?? 0) / 100;
+        this.progressBarEl.style.transform = `scaleX(${scaleX})`;
+      });
+      downloadFile(`${projectName}.pdf`, "application/pdf", pdf);
     }
+    this.progressBarEl.style.opacity = "0";
+    this.progressBarEl.style.transform = "scaleX(0)";
+    this.downloadButtonEl.removeAttribute("disabled");
   };
 }

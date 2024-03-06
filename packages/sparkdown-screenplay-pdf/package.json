@@ -1,0 +1,53 @@
+{
+  "name": "@impower/sparkdown-screenplay-pdf",
+  "displayName": "Sparkdown Screenplay PDF",
+  "description": "Exports a Sparkdown script as a pdf screenplay.",
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": "*"
+  },
+  "exports": {
+    ".": {
+      "require": "./dist/sparkdown-screenplay-pdf.js",
+      "import": "./dist/sparkdown-screenplay-pdf.js"
+    },
+    "./*": {
+      "require": "./dist/*",
+      "import": "./dist/*"
+    }
+  },
+  "main": "dist/sparkdown-screenplay-pdf.js",
+  "scripts": {
+    "build": "node ./esbuild.js"
+  },
+  "browser": {
+    "assert": "assert",
+    "fs": "browserify-fs",
+    "zlib": "browserify-zlib",
+    "buffer": "buffer",
+    "os": "os-browserify",
+    "path": "path-browserify",
+    "stream": "stream-browserify",
+    "util": "util"
+  },
+  "devDependencies": {
+    "@types/pdfkit": "^0.13.4",
+    "esbuild": "^0.20.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "assert": "^2.1.0",
+    "browserify-fs": "^1.0.0",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "events": "^3.3.0",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
+    "pdfkit": "^0.14.0",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "textbox-for-pdfkit": "^0.2.1",
+    "util": "^0.12.5"
+  }
+}

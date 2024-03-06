@@ -2,6 +2,7 @@
 import * as vscode from "vscode";
 import { fileSystemWatcherState } from "./state/fileSystemWatcherState";
 import { activateCheatSheetView } from "./utils/activateCheatSheetView";
+import { activateCommandView } from "./utils/activateCommandView";
 import { activateDurationStatus } from "./utils/activateDurationStatus";
 import { activateFileWatcher } from "./utils/activateFileWatcher";
 import { activateLanguageClient } from "./utils/activateLanguageClient";
@@ -12,8 +13,7 @@ export const activate = async (
   context: vscode.ExtensionContext
 ): Promise<void> => {
   console.log("Sparkdown Activated");
-  // TODO:
-  // activateCommandView(context);
+  activateCommandView(context);
   activateCheatSheetView(context);
   activateDurationStatus(context);
   activatePreviewScreenplayPanel(context);

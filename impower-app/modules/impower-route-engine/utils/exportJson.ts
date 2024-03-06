@@ -1,8 +1,8 @@
 import {
-    EngineSparkParser,
-    getScriptAugmentations,
+  EngineSparkParser,
+  getScriptAugmentations,
 } from "../../../../spark-engine";
-import { generateSparkJsonData } from "../../../../spark-screenplay";
+import { generateSparkJsonData } from "../../../../sparkdown-screenplay";
 import { downloadFile } from "./downloadFile";
 
 export const exportJson = (

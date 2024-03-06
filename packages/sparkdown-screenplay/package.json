@@ -1,0 +1,6 @@
+{
+  "name": "@impower/sparkdown-screenplay",
+  "displayName": "Sparkdown Screenplay",
+  "description": "Exports a Sparkdown script as a formatted screenplay.",
+  "version": "0.0.1"
+}

@@ -32,13 +32,3 @@ declare module "*.woff2" {
   const value: Uint8Array;
   export default value;
 }
-
-declare module "textbox-for-pdfkit" {
-  const value: any;
-  export default value;
-}
-
-declare module "pdfkit/index.js" {
-  const value: any;
-  export default value;
-}

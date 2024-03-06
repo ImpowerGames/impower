@@ -45,13 +45,10 @@ const webExtensionConfig = {
       child_process: false,
       crypto: false,
       fs: false,
-      assert: require.resolve("assert/"),
       buffer: require.resolve("buffer/"),
       os: require.resolve("os-browserify/browser"),
       path: require.resolve("path-browserify"),
-      stream: require.resolve("readable-stream"),
-      util: require.resolve("util/"),
-      zlib: require.resolve("browserify-zlib"),
+      stream: require.resolve("stream-browserify"),
     },
   },
   module: {
@@ -104,6 +101,10 @@ const webExtensionConfig = {
         { from: "node_modules/@vscode/codicons/dist", to: "data" },
         {
           from: "node_modules/@impower/sparkdown-language-server/dist",
+          to: "workers",
+        },
+        {
+          from: "node_modules/@impower/sparkdown-screenplay-pdf/dist",
           to: "workers",
         },
       ],
