@@ -24,5 +24,6 @@
   -webkit-mask-size: cover;
   mask-size: cover;
   background-color: currentColor;
+  color-scheme: only light;
   will-change: transform;
 }

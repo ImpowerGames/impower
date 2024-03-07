@@ -144,6 +144,7 @@
   -webkit-mask-size: cover;
   mask-size: cover;
   background-color: var(--text-color);
+  color-scheme: only light;
   will-change: transform, opacity;
   transition-property: none;
 }
@@ -171,6 +172,7 @@
   -webkit-mask-size: cover;
   mask-size: cover;
   background-color: var(--color);
+  color-scheme: only light;
   will-change: transform, opacity;
   transition-property: none;
 }
