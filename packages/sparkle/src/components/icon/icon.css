@@ -23,7 +23,7 @@
   mask-position: center;
   -webkit-mask-size: cover;
   mask-size: cover;
+  background-image: var(--icon, none);
   background-color: currentColor;
-  color-scheme: only light;
   will-change: transform;
 }

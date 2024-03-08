@@ -22,10 +22,10 @@ export default spec({
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
-              text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="pacman"
+              icon="pacman #5b799a"
+              active-icon="pacman white"
               value="game"
               ${panel === "game" ? "active" : ""}
             >
@@ -34,10 +34,10 @@ export default spec({
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
-              text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="album"
+              icon="album #5b799a"
+              active-icon="album white"
               value="project"
               ${panel === "project" ? "active" : ""}
             >

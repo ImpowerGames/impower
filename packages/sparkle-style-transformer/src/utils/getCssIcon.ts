@@ -17,7 +17,7 @@ const getCssIcon = (value: string, icons: Record<string, Graphic>): string => {
     const iconGraphic = icons?.[name];
     if (iconGraphic) {
       const { graphic, angle, zoom } = generateCSSGraphic(iconGraphic, args);
-      if (graphic?.shapes?.some((shape) => shape?.stroke)) {
+      if (graphic?.shapes?.some((shape) => shape?.stroke || shape?.fill)) {
         const url = generateGraphicUrl(graphic, false, angle, zoom);
         return url;
       }

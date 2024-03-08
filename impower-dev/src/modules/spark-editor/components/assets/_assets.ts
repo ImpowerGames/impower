@@ -22,10 +22,10 @@ export default spec({
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
-              text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="photo"
+              active-icon="photo white"
+              icon="photo #5b799a"
               value="files"
               ${panel === "files" ? "active" : ""}
             >
@@ -34,10 +34,10 @@ export default spec({
             <s-tab
               color="tab-active"
               text-color="tab-inactive"
-              text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="sliders"
+              active-icon="sliders white"
+              icon="sliders #5b799a"
               value="specs"
               ${panel === "specs" ? "active" : ""}
             >

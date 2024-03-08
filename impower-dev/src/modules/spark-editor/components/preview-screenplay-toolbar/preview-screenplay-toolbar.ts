@@ -17,10 +17,7 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
       "click",
       this.handleClickDownloadButton
     );
-    if (!this.progressBarEl.style.transform) {
-      console.log("connected");
-      this.progressBarEl.style.transform = `scaleX(0)`;
-    }
+    this.progressBarEl.style.transform = `scaleX(0)`;
   }
 
   override onDisconnected() {
@@ -41,7 +38,7 @@ export default class PreviewScreenplayToolbar extends Component(spec) {
       const programs = (await Workspace.fs.getPrograms(projectId)).map(
         (x) => x.program
       );
-      const pdf = await Workspace.print.exportPDF({ programs }, (value) => {
+      const pdf = await Workspace.print.exportPDF(programs, (value) => {
         const scaleX = (value?.percentage ?? 0) / 100;
         this.progressBarEl.style.transform = `scaleX(${scaleX})`;
       });

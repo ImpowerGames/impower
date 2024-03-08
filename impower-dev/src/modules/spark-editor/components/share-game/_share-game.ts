@@ -8,4 +8,10 @@ export default spec({
   stores: { workspace },
   html,
   css,
+  selectors: {
+    htmlButton: "",
+    pdfButton: "",
+    htmlProgressBar: "",
+    pdfProgressBar: "",
+  },
 });

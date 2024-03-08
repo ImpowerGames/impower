@@ -24,7 +24,12 @@ const generateCSSGraphic = (
       ...graphic,
       shapes: graphic.shapes?.map((s, i) => ({
         ...s,
-        stroke: s.stroke ? colors[i] ?? s.stroke : s.stroke,
+        fill:
+          s.fill === "currentColor" ? colors[i] ?? colors[0] ?? s.fill : s.fill,
+        stroke:
+          s.stroke === "currentColor"
+            ? colors[i] ?? colors[0] ?? s.stroke
+            : s.stroke,
         strokeWidth: s.stroke ? strokeWidth ?? s.strokeWidth : s.strokeWidth,
       })),
     },

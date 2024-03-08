@@ -28,14 +28,14 @@ export default spec({
           height="48"
           color="fg-50"
           variant="icon"
-          icon="dots-vertical"
+          icon="dots-vertical #ffffff80"
         ></s-button>
         <slot slot="options">
           <s-option
             key="debug"
             type="toggle"
-            icon="bug-off"
-            active-icon="check"
+            icon="bug-off #ffffff80"
+            active-icon="check white"
             ${debugging ? "active" : ""}
             >Debugging</s-option
           >
@@ -49,7 +49,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-skip-back-fill"
+        icon="player-skip-back-fill white"
       ></s-button>
       <s-button
         id="fastBackwardButton"
@@ -57,7 +57,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-track-prev-fill"
+        icon="player-track-prev-fill white"
       ></s-button>
       <s-button
         id="pauseToggleButton"
@@ -66,7 +66,7 @@ export default spec({
         color="fg"
         variant="icon"
         text-size="20"
-        icon="${paused ? `player-play-fill` : `player-pause-fill`}"
+        icon="${paused ? `player-play-fill white` : `player-pause-fill white`}"
       ></s-button>
       <s-button
         id="fastForwardButton"
@@ -74,7 +74,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-track-next-fill"
+        icon="player-track-next-fill white"
       ></s-button>
       <s-button
         id="stepForwardButton"
@@ -82,7 +82,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-skip-forward-fill"
+        icon="player-skip-forward-fill white"
       ></s-button>
     `;
     const loadingToolbar = () => html`
@@ -95,7 +95,46 @@ export default spec({
         child-layout="column"
         color="primary-70"
       >
-        <s-icon icon="${`loading-dots`}" size="20" m-b="1"></s-icon>
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="#3abff8"
+        >
+          <circle cx="4" cy="12" r="3">
+            <animate
+              id="spinner_qFRN"
+              begin="0;spinner_OcgL.end+0.25s"
+              attributeName="cy"
+              calcMode="spline"
+              dur="0.6s"
+              values="12;6;12"
+              keySplines=".33,.66,.66,1;.33,0,.66,.33"
+            />
+          </circle>
+          <circle cx="12" cy="12" r="3">
+            <animate
+              begin="spinner_qFRN.begin+0.1s"
+              attributeName="cy"
+              calcMode="spline"
+              dur="0.6s"
+              values="12;6;12"
+              keySplines=".33,.66,.66,1;.33,0,.66,.33"
+            />
+          </circle>
+          <circle cx="20" cy="12" r="3">
+            <animate
+              id="spinner_OcgL"
+              begin="spinner_qFRN.begin+0.2s"
+              attributeName="cy"
+              calcMode="spline"
+              dur="0.6s"
+              values="12;6;12"
+              keySplines=".33,.66,.66,1;.33,0,.66,.33"
+            />
+          </circle>
+        </svg>
       </s-button>
       <s-box grow inert></s-box>
       ${titleEl}
@@ -113,7 +152,7 @@ export default spec({
         color="primary-70"
       >
         <s-icon
-          icon="${running ? `player-stop` : `player-play`}"
+          icon="${running ? `player-stop #3abff8` : `player-play #3abff8`}"
           size="20"
           m-b="1"
         ></s-icon>
