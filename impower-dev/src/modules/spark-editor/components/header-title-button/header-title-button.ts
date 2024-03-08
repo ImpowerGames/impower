@@ -37,18 +37,22 @@ export default class HeaderTitleButton extends Component(spec) {
   };
 
   handleBlurNameInput = async (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    const name = target.value;
+    const target = e.target as Input;
+    const name = target.ref.input.value;
+    if (name != null) {
+      await Workspace.window.finishedEditingProjectName(name);
+    }
     this.emit("input/unfocused");
-    await Workspace.window.finishedEditingProjectName(name);
   };
 
   handleKeyDownNameInput = async (e: KeyboardEvent) => {
+    const target = e.target as Input;
+    const name = target.ref.input.value;
     if (e.key === "Enter") {
-      const target = e.target as HTMLInputElement;
-      const name = target.value;
-      this.emit("input/unfocused");
-      await Workspace.window.finishedEditingProjectName(name);
+      if (name != null) {
+        await Workspace.window.finishedEditingProjectName(name);
+      }
     }
+    this.emit("input/unfocused");
   };
 }

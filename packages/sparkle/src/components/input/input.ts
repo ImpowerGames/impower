@@ -249,9 +249,15 @@ export default class Input
 
   /** The current value of the input, submitted as a name/value pair with form data. */
   get value() {
+    if (this.ref.input) {
+      return this.ref.input.value;
+    }
     return this.getStringAttribute(Input.attrs.value);
   }
   set value(value) {
+    if (this.ref.input) {
+      this.ref.input.value = value || "";
+    }
     this.setStringAttribute(Input.attrs.value, value);
   }
 

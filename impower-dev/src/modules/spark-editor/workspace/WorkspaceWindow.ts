@@ -530,6 +530,7 @@ export default class WorkspaceWindow {
         project: {
           ...this.store.project,
           editingName: false,
+          name,
         },
       });
       let changedName = name !== this.store.project.name;
@@ -823,7 +824,7 @@ export default class WorkspaceWindow {
   async syncProject(pushLocalChanges = true) {
     try {
       const id = this.store.project.id;
-      if (id) {
+      if (id && id !== "local") {
         this.update({
           ...this.store,
           project: {
@@ -1253,13 +1254,15 @@ export default class WorkspaceWindow {
         "textSynced",
         String(false)
       );
-      this.update({
-        ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "unsynced",
-        },
-      });
+      if (projectId !== "local") {
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "unsynced",
+          },
+        });
+      }
     }
   }
 
