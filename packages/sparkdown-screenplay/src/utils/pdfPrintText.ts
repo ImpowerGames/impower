@@ -1,4 +1,4 @@
-import { FormattedText } from "../classes/Typesetter";
+import { FormattedText } from "../types/FormattedText";
 import { PdfDocument } from "../types/PdfDocument";
 import { TextOptions } from "../types/TextOptions";
 

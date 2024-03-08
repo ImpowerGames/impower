@@ -4,10 +4,10 @@ import { readFile } from "./readFile";
 export const getFonts = async (
   context: vscode.ExtensionContext
 ): Promise<{
-  normal?: Uint8Array;
-  bold?: Uint8Array;
-  italic?: Uint8Array;
-  bolditalic?: Uint8Array;
+  normal: ArrayBuffer;
+  bold: ArrayBuffer;
+  italic: ArrayBuffer;
+  bolditalic: ArrayBuffer;
 }> => {
   const [normal, bold, italic, bolditalic] = await Promise.all([
     readFile(
@@ -49,5 +49,10 @@ export const getFonts = async (
     bold,
     italic,
     bolditalic,
+  } as {
+    normal: ArrayBuffer;
+    bold: ArrayBuffer;
+    italic: ArrayBuffer;
+    bolditalic: ArrayBuffer;
   };
 };

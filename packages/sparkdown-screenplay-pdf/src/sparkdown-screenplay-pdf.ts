@@ -12,11 +12,6 @@ import type { SparkProgram } from "../../sparkdown/src/types/SparkProgram";
 import combineFrontMatter from "../../sparkdown/src/utils/combineFrontMatter";
 import combineTokens from "../../sparkdown/src/utils/combineTokens";
 
-import bolditalic from "./fonts/courier-prime-bold-italic.ttf";
-import bold from "./fonts/courier-prime-bold.ttf";
-import italic from "./fonts/courier-prime-italic.ttf";
-import normal from "./fonts/courier-prime.ttf";
-
 onmessage = async (e) => {
   const message = e.data;
   if (message) {
@@ -26,6 +21,7 @@ onmessage = async (e) => {
     if (params) {
       const programs = params.programs;
       const config = params.config;
+      const fonts = params.fonts;
       const workDoneToken = params.workDoneToken;
       if (programs && fonts) {
         const onProgress = (value: {
@@ -44,7 +40,7 @@ onmessage = async (e) => {
             },
           });
         };
-        const arrayBuffer = await buildPDF(programs, config, onProgress);
+        const arrayBuffer = await buildPDF(programs, config, fonts, onProgress);
         postMessage({ jsonrpc: "2.0", method, id, result: arrayBuffer }, [
           arrayBuffer,
         ]);
@@ -55,15 +51,14 @@ onmessage = async (e) => {
 
 export const buildPDF = async (
   programs: SparkProgram[],
-  config: SparkScreenplayConfig = {
-    screenplay_print_title_page: true,
-    screenplay_print_bookmarks_for_invisible_sections: true,
-    screenplay_print_dialogue_split_across_pages: true,
-    screenplay_print_page_numbers: true,
-    screenplay_print_scene_headers_bold: true,
-    screenplay_print_scene_numbers: "left",
+  config?: SparkScreenplayConfig,
+  fonts?: {
+    normal: ArrayBuffer;
+    bold: ArrayBuffer;
+    italic: ArrayBuffer;
+    bolditalic: ArrayBuffer;
   },
-  onProgress: (value: {
+  onProgress?: (value: {
     kind: string;
     title: string;
     cancellable: boolean;
@@ -74,7 +69,7 @@ export const buildPDF = async (
   let currentProgress = 0;
 
   const progress = (kind: "begin" | "report" | "end", percentage: number) => {
-    onProgress({
+    onProgress?.({
       kind,
       title: "Exporting PDF",
       cancellable: false,
@@ -85,19 +80,12 @@ export const buildPDF = async (
 
   progress("begin", 0);
 
-  const fonts = {
-    normal,
-    bold,
-    italic,
-    bolditalic,
-  };
-
   // Layout PDF data
   const frontMatter = combineFrontMatter(programs);
   const tokens = combineTokens(programs);
   const pdfData = generateSparkPdfData(frontMatter, tokens, config, fonts);
 
-  progress("report", 5);
+  progress("report", 2);
 
   const size = pdfData?.print.paper_size === "a4" ? "A4" : "LETTER";
   const fontSize = pdfData?.print.font_size || 12;
@@ -151,7 +139,7 @@ export const buildPDF = async (
     pdfPrintText(doc, content, x, y, options);
   };
 
-  progress("report", 10);
+  progress("report", 5);
 
   // Generate PDF Document
   const progressBeforeGenerate = currentProgress;

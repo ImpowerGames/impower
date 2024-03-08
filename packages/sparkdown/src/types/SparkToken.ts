@@ -227,6 +227,7 @@ export interface DisplayContent {
   image?: string[];
   audio?: string[];
   args?: string[];
+  id: string;
 }
 
 export interface SparkDisplayTextToken extends ISparkToken<"display_text"> {

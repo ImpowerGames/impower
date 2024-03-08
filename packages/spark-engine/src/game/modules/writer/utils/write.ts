@@ -11,8 +11,8 @@ import { Phrase } from "../types/Phrase";
 import { WriteResult } from "../types/WriteResult";
 import { stressPhrases } from "./stressPhrases";
 
-const SINGLE_MARKERS = ["|", "*", "_", "^", "=", ">", "<"];
-const DOUBLE_MARKERS = ["~~", "::"];
+const SINGLE_MARKERS = ["|", "*", "_", "^"];
+const DOUBLE_MARKERS = ["~~", "::", "==", ">>", "<<"];
 
 const isWhitespaceOrEmpty = (part: string) => {
   if (!part) {
@@ -348,9 +348,9 @@ export const write = (
         const activePitchUpMark = markers.find((m) => m.startsWith("^"));
         const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
         const activeTremblingMark = markers.find((m) => m.startsWith("::"));
-        const activeInstantMark = markers.find((m) => m.startsWith("="));
-        const activeFasterMark = markers.find((m) => m.startsWith(">"));
-        const activeSlowerMark = markers.find((m) => m.startsWith("<"));
+        const activeInstantMark = markers.find((m) => m.startsWith("=="));
+        const activeFasterMark = markers.find((m) => m.startsWith(">>"));
+        const activeSlowerMark = markers.find((m) => m.startsWith("<<"));
         const isCentered = Boolean(activeCenteredMark);
         const hasBoldItalicMark = Boolean(activeBoldItalicMark);
         const isUnderlined = Boolean(activeUnderlineMark);

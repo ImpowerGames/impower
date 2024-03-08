@@ -51,7 +51,7 @@ export const activateCommandView = (context: vscode.ExtensionContext): void => {
   );
   context.subscriptions.push(
     vscode.commands.registerCommand("sparkdown.exportpdf", async () => {
-      await exportPdf(pdfWorker);
+      await exportPdf(context, pdfWorker);
     })
   );
   context.subscriptions.push(

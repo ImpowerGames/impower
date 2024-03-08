@@ -277,7 +277,6 @@ export const pdfGenerate = (
   printWatermark();
   printHeaderAndFooter();
 
-  let currentScene = "";
   const currentSections: string[] = [];
 
   const printSpanContent = (span: DocumentSpan, offset: number = 0) => {
@@ -385,7 +384,6 @@ export const pdfGenerate = (
                 );
               }
             }
-            currentScene = content.map((c) => c.text).join("");
           }
 
           doc.printText?.(

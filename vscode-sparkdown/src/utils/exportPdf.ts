@@ -4,11 +4,15 @@ import { ScreenplaySparkParser } from "../classes/ScreenplaySparkParser";
 import { SparkdownCommandTreeDataProvider } from "../providers/SparkdownCommandTreeDataProvider";
 import { getActiveSparkdownDocument } from "./getActiveSparkdownDocument";
 import { getEditor } from "./getEditor";
+import { getFonts } from "./getFonts";
 import { getSparkdownPreviewConfig } from "./getSparkdownPreviewConfig";
 import { getSyncOrExportPath } from "./getSyncOrExportPath";
 import { writeFile } from "./writeFile";
 
-export const exportPdf = async (worker: Worker): Promise<void> => {
+export const exportPdf = async (
+  context: vscode.ExtensionContext,
+  worker: Worker
+): Promise<void> => {
   const uri = getActiveSparkdownDocument();
   if (!uri) {
     return;
@@ -33,6 +37,7 @@ export const exportPdf = async (worker: Worker): Promise<void> => {
       const program = ScreenplaySparkParser.instance.parse(sparkdown);
       const config = getSparkdownPreviewConfig(uri);
       let currentPercentage = 0;
+      const fonts = await getFonts(context);
       const pdfBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
         worker.onmessage = (e) => {
           if (!token.isCancellationRequested) {
@@ -52,9 +57,15 @@ export const exportPdf = async (worker: Worker): Promise<void> => {
         const request = ExportPDFMessage.type.request({
           programs: [program],
           config,
+          fonts,
           workDoneToken: crypto.randomUUID(),
         });
-        worker.postMessage(request);
+        worker.postMessage(request, [
+          fonts.normal,
+          fonts.bold,
+          fonts.italic,
+          fonts.bolditalic,
+        ]);
       });
       if (token.isCancellationRequested) {
         return;

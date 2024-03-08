@@ -7,4 +7,5 @@ export interface SparkChunk extends SparkRange {
   to: number;
   indent: number;
   name: string;
+  id: string;
 }

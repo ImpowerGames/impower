@@ -22,6 +22,7 @@ export default class DialogueWidget extends ReplaceWidget<DialogueSpec> {
     if (this.spec.dual) {
       container.style.width = DUAL_DIALOGUE_CONTAINER_WIDTH;
       container.style.display = "grid";
+      container.style.gap = "8px";
       container.style.gridTemplateColumns = "1fr 1fr";
       this.spec.blocks.forEach((block) => {
         const blockEl = document.createElement("div");

@@ -50,11 +50,11 @@ const A4: PrintProfile = {
       feed: 1.5,
       max: A4_DEFAULT_MAX,
     },
-    dialogue_character_name: {
+    dialogue_character: {
       feed: 3.5,
       max: 33,
     },
-    dialogue_line_parenthetical: {
+    dialogue_parenthetical: {
       feed: 3,
       max: 26,
     },

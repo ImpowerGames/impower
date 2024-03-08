@@ -11,6 +11,7 @@ export interface SparkSection extends SparkRange {
   path: string[];
   parent?: string;
   name: string;
+  id: string;
   children?: string[];
   tokens: SparkToken[];
 

@@ -123,6 +123,7 @@ const populateVariableFields = (variable: SparkVariable) => {
         indent: 0,
         path: parts.slice(0, -1).join("."),
         key: parts.at(-1) || "",
+        id: parts.slice(0, -1).join(".") + (parts.at(-1) || ""),
         type: typeof v,
         value: JSON.stringify(v),
         compiled: v,
@@ -191,6 +192,7 @@ export default class SparkParser {
       to: 0,
       indent: 0,
       name: "",
+      id: "",
     };
     program.sections[""] = {
       tag: "section",
@@ -202,6 +204,7 @@ export default class SparkParser {
       path: [],
       parent: undefined,
       name: "",
+      id: "",
       tokens: [],
     };
     const structure: StructureItem[] = [rootStructure];
@@ -317,6 +320,7 @@ export default class SparkParser {
             indent: 0,
             type,
             name,
+            id: name,
             compiled: clonedDefaultObj,
             implicit: true,
           };
@@ -1128,6 +1132,7 @@ export default class SparkParser {
           indent: 0,
           type: compiledType === "object" ? "type" : compiledType,
           name: type,
+          id: type,
           compiled,
           implicit: true,
         };
@@ -1152,6 +1157,7 @@ export default class SparkParser {
                 indent: 0,
                 type: variableType,
                 name: variableName,
+                id: variableName,
                 compiled,
                 implicit: true,
               };
@@ -1299,6 +1305,7 @@ export default class SparkParser {
               to: tok.to,
               indent: 0,
               name: tok.name,
+              id: tok.name,
             };
             if (validateDeclaration(tok)) {
               currentSectionPath = [];
@@ -1380,6 +1387,7 @@ export default class SparkParser {
                 path: [...parentSectionPath, tok.name],
                 parent: parentSectionName,
                 name: tok.name,
+                id: tok.name,
                 tokens: [],
               };
               program.context["visited"] ??= {};
@@ -2352,6 +2360,7 @@ export default class SparkParser {
                 target: "choice",
                 instance: choiceInstance,
                 button: tok.section,
+                id: tok.id,
               });
               lastBox.content.push({
                 tag: "choice",
@@ -2362,6 +2371,7 @@ export default class SparkParser {
                 target: "choice",
                 instance: choiceInstance,
                 text,
+                id: tok.id,
               });
             }
           } else if (tok.tag === "scene") {

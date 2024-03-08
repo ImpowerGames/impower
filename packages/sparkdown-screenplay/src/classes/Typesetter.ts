@@ -39,7 +39,7 @@ export class Typesetter {
         line: -1,
         from: -1,
         to: -1,
-        content: this.style(text, { align }),
+        content: this.consolidateContent(this.style(text, { align })),
       };
     });
 
@@ -160,7 +160,7 @@ export class Typesetter {
       } else if (t.tag === "dialogue") {
         const dialogueLines: DocumentSpan[] = [];
         if (t.characterName?.text || t.characterParenthetical?.text) {
-          const tag = "dialogue_character_name";
+          const tag = "dialogue_character";
           const max =
             print?.settings?.[tag]?.max ??
             print?.settings?.dialogue?.max ??
@@ -184,7 +184,7 @@ export class Typesetter {
           box.content?.forEach((c) => {
             if (c.text != null) {
               if (c.tag === "dialogue_line_parenthetical") {
-                const tag = c.tag;
+                const tag = "dialogue_parenthetical";
                 const max =
                   print?.settings?.[tag]?.max ??
                   print?.settings?.dialogue?.max ??
@@ -351,28 +351,32 @@ export class Typesetter {
   ): DocumentSpan[] {
     const wrappedLines = this.wrapChars(tag, styledChars, max, line, from);
     wrappedLines.forEach((line) => {
-      const consolidatedContent: FormattedText[] = [];
-      line.content?.forEach((c) => {
-        const prev = consolidatedContent.at(-1);
-        if (
-          prev &&
-          c.bold === prev.bold &&
-          c.italic === prev.italic &&
-          c.underline === prev.underline &&
-          c.align === prev.align &&
-          c.color === prev.color &&
-          c.highlight === prev.highlight &&
-          c.highlightColor === prev.highlightColor
-        ) {
-          // Combine consecutive chunks that have the same style.
-          prev.text += c.text;
-        } else {
-          consolidatedContent.push(c);
-        }
-      });
-      line.content = consolidatedContent;
+      line.content = this.consolidateContent(line.content);
     });
     return wrappedLines;
+  }
+
+  protected consolidateContent(content: FormattedText[] | undefined) {
+    const consolidatedContent: FormattedText[] = [];
+    content?.forEach((c) => {
+      const prev = consolidatedContent.at(-1);
+      if (
+        prev &&
+        c.bold === prev.bold &&
+        c.italic === prev.italic &&
+        c.underline === prev.underline &&
+        c.align === prev.align &&
+        c.color === prev.color &&
+        c.highlight === prev.highlight &&
+        c.highlightColor === prev.highlightColor
+      ) {
+        // Combine consecutive chunks that have the same style.
+        prev.text += c.text;
+      } else {
+        consolidatedContent.push(c);
+      }
+    });
+    return consolidatedContent;
   }
 
   protected breakLinesAcrossPages(
@@ -432,11 +436,11 @@ export class Typesetter {
               lineOnBreak &&
               !lineOnBreak.leftColumn &&
               !lineOnBreak.rightColumn &&
-              lineBefore?.tag !== "dialogue_character_name" &&
-              lineBefore?.tag !== "dialogue_line_parenthetical" &&
+              lineBefore?.tag !== "dialogue_character" &&
+              lineBefore?.tag !== "dialogue_parenthetical" &&
               lineOnBreak.tag === "dialogue" && //                    dialogue <--
               (lineAfter?.tag === "dialogue" ||
-                lineAfter?.tag === "dialogue_line_parenthetical") // dialogue or (parenthetical);
+                lineAfter?.tag === "dialogue_parenthetical") // dialogue or (parenthetical);
             ) {
               const moreSpan: DocumentSpan = {
                 tag: "more",
@@ -447,7 +451,7 @@ export class Typesetter {
               };
               let characterLine = i;
               while (
-                spans[characterLine]?.tag !== "dialogue_character_name" &&
+                spans[characterLine]?.tag !== "dialogue_character" &&
                 characterLine > -1
               ) {
                 characterLine--;
@@ -600,11 +604,11 @@ export class Typesetter {
       return false;
     }
     // Don't page break after CHARACTER
-    else if (lineOnBreak.tag === "dialogue_character_name") {
+    else if (lineOnBreak.tag === "dialogue_character") {
       return false;
     }
     // Don't page break after (parenthetical)
-    else if (lineOnBreak.tag === "dialogue_line_parenthetical") {
+    else if (lineOnBreak.tag === "dialogue_parenthetical") {
       return false;
     }
     // Don't page break during dialogue if splitting dialogue across pages is not allowed
@@ -616,11 +620,11 @@ export class Typesetter {
       splitDialogueAcrossPages &&
       !lineOnBreak.leftColumn &&
       !lineOnBreak.rightColumn &&
-      (lineBefore?.tag === "dialogue_character_name" ||
-        lineBefore?.tag === "dialogue_line_parenthetical") && // CHARACTER or (parenthetical)
+      (lineBefore?.tag === "dialogue_character" ||
+        lineBefore?.tag === "dialogue_parenthetical") && // CHARACTER or (parenthetical)
       lineOnBreak.tag === "dialogue" && //                       dialogue <--
       (lineAfter?.tag === "dialogue" ||
-        lineAfter?.tag === "dialogue_line_parenthetical") //    dialogue or (parenthetical)
+        lineAfter?.tag === "dialogue_parenthetical") //    dialogue or (parenthetical)
     ) {
       return false;
     }

@@ -10,6 +10,7 @@ export interface SparkField extends SparkRange {
   key: string;
   type: string;
   value: string;
+  id: string;
   compiled: unknown;
   ranges?: {
     key?: SparkRange;

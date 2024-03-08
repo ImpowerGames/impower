@@ -4,8 +4,8 @@ export type PrintableTokenType =
   | "scene"
   | "transition"
   | "action"
-  | "dialogue_character_name"
-  | "dialogue_line_parenthetical"
+  | "dialogue_character"
+  | "dialogue_parenthetical"
   | "dialogue"
   | "more"
   | "note";

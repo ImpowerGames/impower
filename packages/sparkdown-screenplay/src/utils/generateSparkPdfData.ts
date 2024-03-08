@@ -7,7 +7,7 @@ import { SparkScreenplayConfig } from "../types/SparkScreenplayConfig";
 export const generateSparkPdfData = (
   frontMatter: Record<string, string[]>,
   tokens: SparkToken[],
-  config: SparkScreenplayConfig,
+  config?: SparkScreenplayConfig,
   fonts?: {
     normal?: ArrayBuffer | Uint8Array;
     bold?: ArrayBuffer | Uint8Array;
@@ -16,7 +16,7 @@ export const generateSparkPdfData = (
   }
 ): PdfData => {
   const print =
-    PRINT_PROFILES[config.screenplay_print_profile || ""] ||
+    PRINT_PROFILES[config?.screenplay_print_profile || ""] ||
     PRINT_PROFILES.usletter;
   const typesetter = new Typesetter();
   return {

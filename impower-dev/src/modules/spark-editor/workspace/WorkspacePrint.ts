@@ -4,11 +4,35 @@ import {
   ExportPDFParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ExportPDFMessage.js";
 import { ProgressValue } from "@impower/spark-editor-protocol/src/types/base/ProgressValue";
+import { SparkScreenplayConfig } from "../../../../../packages/sparkdown-screenplay/src";
+import { generateSparkHtmlData } from "../../../../../packages/sparkdown-screenplay/src/utils/generateSparkHtmlData";
+import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
+import combineFrontMatter from "../../../../../packages/sparkdown/src/utils/combineFrontMatter";
+import combineTokens from "../../../../../packages/sparkdown/src/utils/combineTokens";
 
 export default class WorkspacePrint {
   protected _screenplayPdfWorker = new Worker(
     "/public/sparkdown-screenplay-pdf.js"
   );
+
+  protected _messageQueue: Record<
+    string,
+    { resolve: (result: any) => void; reject: (err: any) => void }
+  > = {};
+
+  protected _progressQueue: Record<string, (value: ProgressValue) => void> = {};
+
+  protected _config: SparkScreenplayConfig = {
+    screenplay_print_title_page: true,
+    screenplay_print_bookmarks_for_invisible_sections: true,
+    screenplay_print_dialogue_split_across_pages: true,
+    screenplay_print_page_numbers: true,
+    screenplay_print_scene_headers_bold: true,
+    screenplay_print_scene_numbers: "left",
+  };
+  get config() {
+    return this._config;
+  }
 
   constructor() {
     this._screenplayPdfWorker.addEventListener(
@@ -17,12 +41,31 @@ export default class WorkspacePrint {
     );
   }
 
-  protected _messageQueue: Record<
-    string,
-    { resolve: (result: any) => void; reject: (err: any) => void }
-  > = {};
-
-  protected _progressQueue: Record<string, (value: ProgressValue) => void> = {};
+  protected async getFonts() {
+    const normalResp = await fetch("/public/fonts/courier-prime.ttf", {
+      cache: "force-cache",
+    });
+    const normal = await normalResp.arrayBuffer();
+    const boldResp = await fetch("/public/fonts/courier-prime-bold.ttf", {
+      cache: "force-cache",
+    });
+    const bold = await boldResp.arrayBuffer();
+    const italicResp = await fetch("/public/fonts/courier-prime-italic.ttf", {
+      cache: "force-cache",
+    });
+    const italic = await italicResp.arrayBuffer();
+    const boldItalicResp = await fetch(
+      "/public/fonts/courier-prime-bold-italic.ttf",
+      { cache: "force-cache" }
+    );
+    const bolditalic = await boldItalicResp.arrayBuffer();
+    return {
+      normal,
+      bold,
+      italic,
+      bolditalic,
+    };
+  }
 
   protected handleWorkerMessage = async (event: MessageEvent) => {
     const message = event.data;
@@ -65,13 +108,30 @@ export default class WorkspacePrint {
   }
 
   async exportPDF(
-    params: ExportPDFParams,
+    programs: SparkProgram[],
     onProgress?: (value: ProgressValue) => void
   ) {
+    const fonts = await this.getFonts();
+    const params: ExportPDFParams = { programs, fonts, config: this.config };
     if (onProgress) {
       params.workDoneToken = ExportPDFMessage.type.uuid();
       this._progressQueue[params.workDoneToken] = onProgress;
     }
-    return this.sendRequest(ExportPDFMessage.type, params);
+    return this.sendRequest(ExportPDFMessage.type, params, [
+      params.fonts.normal,
+      params.fonts.bold,
+      params.fonts.italic,
+      params.fonts.bolditalic,
+    ]);
+  }
+
+  async exportHTML(
+    programs: SparkProgram[],
+    onProgress?: (value: ProgressValue) => void
+  ) {
+    const fonts = await this.getFonts();
+    const frontMatter = combineFrontMatter(programs);
+    const tokens = combineTokens(programs);
+    return generateSparkHtmlData(frontMatter, tokens, this.config, fonts);
   }
 }

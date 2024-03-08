@@ -29,7 +29,12 @@ export const exportHtml = async (
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
   const config = getSparkdownPreviewConfig(uri);
   const fonts = await getFonts(context);
-  const rawHtml: string = generateSparkHtmlData(result, config, fonts);
+  const rawHtml: string = generateSparkHtmlData(
+    result.frontMatter,
+    result.tokens,
+    config,
+    fonts
+  );
   const output =
     process?.platform !== "win32" ? rawHtml.replace(/\r\n/g, "\n") : rawHtml;
   await writeFile(fsPath, output);

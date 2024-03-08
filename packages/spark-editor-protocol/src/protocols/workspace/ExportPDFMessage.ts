@@ -6,6 +6,12 @@ export type ExportPDFMethod = typeof ExportPDFMessage.method;
 
 export interface ExportPDFParams {
   programs: SparkProgram[];
+  fonts: {
+    normal: ArrayBuffer;
+    bold: ArrayBuffer;
+    italic: ArrayBuffer;
+    bolditalic: ArrayBuffer;
+  };
   config?: SparkScreenplayConfig;
   workDoneToken?: string;
 }

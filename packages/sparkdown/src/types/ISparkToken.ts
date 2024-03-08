@@ -9,7 +9,7 @@ export interface ISparkToken<T extends string = string> extends SparkRange {
 
   indent: number;
 
-  id?: string;
+  id: string;
 
   ignore?: boolean;
 

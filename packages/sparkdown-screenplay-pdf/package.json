@@ -1,7 +1,7 @@
 {
   "name": "@impower/sparkdown-screenplay-pdf",
   "displayName": "Sparkdown Screenplay PDF",
-  "description": "Exports a Sparkdown script as a pdf screenplay.",
+  "description": "Exports a sparkdown script as a screenplay PDF.",
   "version": "1.0.0",
   "type": "module",
   "engines": {

@@ -12,6 +12,7 @@ export interface SparkVariable extends SparkRange {
   compiled: any;
   fields?: SparkField[];
   implicit?: boolean;
+  id: string;
 
   ranges?: {
     name?: SparkRange;
