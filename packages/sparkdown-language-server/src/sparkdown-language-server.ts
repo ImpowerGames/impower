@@ -39,7 +39,21 @@ try {
       colorProvider: true,
       hoverProvider: true,
       completionProvider: {
-        triggerCharacters: [".", ",", " ", "\n", "\r", "-", "(", "[", "@", ":"],
+        triggerCharacters: [
+          ".",
+          ",",
+          " ",
+          "\n",
+          "\r",
+          "-",
+          "(",
+          "[",
+          "@",
+          ":",
+          "+",
+          "-",
+          "~",
+        ],
         completionItem: {
           labelDetailsSupport: true,
         },

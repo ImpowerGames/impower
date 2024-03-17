@@ -1280,7 +1280,7 @@ repository:
         name: keyword.operator.expression.end.audio.sd
 
   AssetCommand:
-    match: (?:(\b(?:show|hide|play|stop|fade)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*\S+)(.*)
+    match: (?:(\b(?:show|hide|play|stop|fade)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\b))?($|[ ]*\S*)(.*)
     captures:
       1:
         patterns:

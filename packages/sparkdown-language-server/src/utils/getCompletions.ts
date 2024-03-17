@@ -171,8 +171,7 @@ const getAudioCompletions = (
 };
 
 const getImageArgumentCompletions = (
-  content: string,
-  triggerCharacter: string | undefined
+  content: string
 ): CompletionItem[] | null => {
   const args = content.split(WHITESPACE_REGEX);
   const completions = ["after", "over", "with"];
@@ -180,7 +179,7 @@ const getImageArgumentCompletions = (
     .filter((c) => !args.includes(c))
     .map((label) => ({
       label,
-      insertText: triggerCharacter === " " ? " " + label : label,
+      insertText: label,
       kind: CompletionItemKind.Keyword,
     }));
 };
@@ -188,8 +187,7 @@ const getImageArgumentCompletions = (
 const getAudioArgumentCompletions = (
   program: SparkProgram,
   line: number,
-  content: string,
-  triggerCharacter: string | undefined
+  content: string
 ): CompletionItem[] | null => {
   const audioToken = getLineToken(program, line, "audio");
   const args = content.split(WHITESPACE_REGEX);
@@ -202,7 +200,7 @@ const getAudioArgumentCompletions = (
     .filter((c) => !args.includes(c))
     .map((label) => ({
       label,
-      insertText: triggerCharacter === " " ? " " + label : label,
+      insertText: label,
       kind: CompletionItemKind.Keyword,
     }));
 };
@@ -407,14 +405,13 @@ const getCompletions = (
     return undefined;
   }
 
-  // console.log(lineMetadata, JSON.stringify(beforeText));
+  console.log(lineMetadata, JSON.stringify(beforeText));
 
   if (scopes) {
     if (scopes.includes("image")) {
-      if (triggerCharacter === " " || scopes.includes("asset_args")) {
+      if (scopes.includes("asset_args")) {
         return getImageArgumentCompletions(
-          lineText.slice(lineText.indexOf(" ") + 1, lineText.indexOf("]")),
-          triggerCharacter
+          lineText.slice(lineText.indexOf(" ") + 1, lineText.indexOf("]"))
         );
       } else if (scopes.includes("asset_target_separator")) {
         return getElementCompletions(program);
@@ -422,12 +419,11 @@ const getCompletions = (
       return getImageCompletions(program, line);
     }
     if (scopes.includes("audio")) {
-      if (triggerCharacter === " " || scopes.includes("asset_args")) {
+      if (scopes.includes("asset_args")) {
         return getAudioArgumentCompletions(
           program,
           line,
-          lineText.slice(lineText.indexOf(" ") + 1, lineText.indexOf(")")),
-          triggerCharacter
+          lineText.slice(lineText.indexOf(" ") + 1, lineText.indexOf(")"))
         );
       }
       return getAudioCompletions(program);
