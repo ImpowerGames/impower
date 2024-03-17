@@ -45,7 +45,7 @@ const globToRegex = (glob: string) => {
 };
 
 const parse = (file: FileData, files: FileData[]) => {
-  if (file.text != null && file.name) {
+  if (file.type === "script" && file.text != null && file.name) {
     const variables: Record<string, SparkVariable> = {};
     files.forEach((file) => {
       if (file.name) {
@@ -55,8 +55,10 @@ const parse = (file: FileData, files: FileData[]) => {
           src: file.src,
           ext: file.ext,
           type: file.type,
+          text: file.text,
         };
-        variables[file.type + "." + file.name] ??= {
+        const id = file.type + "." + file.name;
+        variables[id] ??= {
           tag: "asset",
           line: -1,
           from: -1,
@@ -64,6 +66,7 @@ const parse = (file: FileData, files: FileData[]) => {
           indent: 0,
           type: file.type,
           name: file.name,
+          id,
           compiled: obj,
           implicit: true,
         };
@@ -535,7 +538,7 @@ const updateFileCache = (
     );
   }
   const text =
-    type === "script" || type === "text"
+    type === "script" || type === "text" || ext === "svg"
       ? new TextDecoder("utf-8").decode(buffer)
       : undefined;
   const program = existingFile?.program;

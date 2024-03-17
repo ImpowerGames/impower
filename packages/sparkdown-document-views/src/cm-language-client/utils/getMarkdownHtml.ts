@@ -98,18 +98,6 @@ const getRules = (
     },
   },
   {
-    regex: MARKDOWN_REGEX.underline,
-    replacer: (_match, _$1, $2) => {
-      return `<u>${$2}</u>`;
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.emphasis,
-    replacer: (_match, $1, _$2) => {
-      return `<em>${$1}</em>`;
-    },
-  },
-  {
     regex: MARKDOWN_REGEX.quote,
     replacer: (_match, $1, _$2) => {
       return `<q>${$1}</q>`;
@@ -122,27 +110,9 @@ const getRules = (
     },
   },
   {
-    regex: MARKDOWN_REGEX.list_unordered,
-    replacer: (_match, $1, _$2) => {
-      return `<ul><li>${$1.trim()}</li></ul>`;
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.list_ordered,
-    replacer: (_match, $1, _$2) => {
-      return `<ol><li>${$1.trim()}</li></ol>`;
-    },
-  },
-  {
     regex: MARKDOWN_REGEX.horizontal_rule,
     replacer: () => {
       return "<hr />";
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.blockquote,
-    replacer: (_$match, _$1, $2) => {
-      return `<blockquote>${$2}</blockquote>`;
     },
   },
   {
@@ -156,24 +126,6 @@ const getRules = (
         return `\n${trimmed}\n`;
       }
       return `<p>${trimmed}</p>`;
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.fix_list_unordered,
-    replacer: (_$match, _$1) => {
-      return "";
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.fix_list_ordered,
-    replacer: (_$match, _$1) => {
-      return "";
-    },
-  },
-  {
-    regex: MARKDOWN_REGEX.fix_blockquote,
-    replacer: (_$match, _$1) => {
-      return "";
     },
   },
 ];
@@ -193,8 +145,10 @@ export const getMarkdownHtml = (
     return syntaxHighlightingReplacer(language, highlighter, codeMatch);
   }
   const rules = getRules(language, highlighter);
+  let result = markdown;
   rules.forEach((rule) => {
-    markdown = markdown.replace(rule.regex, rule.replacer);
+    result = result.replace(rule.regex, rule.replacer);
   });
-  return markdown.trim();
+  result = result.trim();
+  return result;
 };

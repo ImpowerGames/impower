@@ -1,7 +1,5 @@
-import { Mixer } from "./Mixer";
-
 export interface Channel {
-  mixer?: Mixer;
+  mixer?: string;
   loop: boolean;
   fadein: number;
   fadeout: number;

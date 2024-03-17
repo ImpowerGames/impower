@@ -1,9 +1,9 @@
 export interface ISequenceEvent {
-  params?: Record<string, unknown | null>;
-
-  enter?: number;
+  instance?: number;
+  with?: string;
+  after?: number;
+  over?: number;
   exit?: number;
-  fade?: number;
 }
 
 export interface ButtonEvent extends ISequenceEvent {
@@ -12,44 +12,31 @@ export interface ButtonEvent extends ISequenceEvent {
 }
 
 export interface TextEvent extends ISequenceEvent {
-  instance?: number;
   text: string;
-  params?: {
+  style?: {
     position?: string;
-    "text-decoration"?: string;
-    "font-style"?: string;
-    "font-weight"?: string;
-    "text-align"?: string;
-    "white-space"?: string;
-    "background-color"?: string;
+    text_decoration?: string;
+    font_style?: string;
+    font_weight?: string;
+    text_align?: string;
+    white_space?: string;
+    background_color?: string;
     animation?: string;
-    "animation-delay"?: string;
+    animation_delay?: string;
   };
 }
 
 export interface ImageEvent extends ISequenceEvent {
-  instance?: number;
-  image: string[];
-  params?: {};
+  control: string;
+  assets?: string[];
 }
 
 export interface AudioEvent extends ISequenceEvent {
-  instance?: number;
-  audio: string[];
-  params?: {
-    load?: boolean;
-    unload?: boolean;
-    start?: boolean;
-    stop?: boolean;
-    schedule?: boolean;
-    loop?: boolean;
-    noloop?: boolean;
-    mute?: boolean;
-    unmute?: boolean;
-    volume?: number;
-    after?: number;
-    over?: number;
-  };
+  control: string;
+  assets?: string[];
+  gain?: number;
+  now?: boolean;
+  loop?: boolean;
 }
 
 export interface EndEvent extends ISequenceEvent {}

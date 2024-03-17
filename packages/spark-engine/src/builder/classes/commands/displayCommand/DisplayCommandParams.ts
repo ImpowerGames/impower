@@ -2,13 +2,14 @@ import { CommandParams } from "../../../../game/modules/logic/types/CommandParam
 
 export interface DisplayContentItem {
   tag?: string;
+  type?: string;
   prerequisite?: string;
   instance?: number;
   button?: string;
   text?: string;
+  control?: string;
   target?: string;
-  image?: string[];
-  audio?: string[];
+  assets?: string[];
   args?: string[];
 }
 

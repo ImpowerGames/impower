@@ -140,26 +140,28 @@ export default class Application {
       this._scenes.set(id, scene);
     });
 
-    // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
-    game.init((msg: Message, _t?: ArrayBuffer[]) => {
-      this.connection.receive(msg);
-    });
-
     if (this._canvas) {
       this._view.appendChild(this._canvas);
       this.bind();
     }
 
-    if (!game.context.system.previewing) {
-      game.start();
-    }
+    // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
+    game
+      .init((msg: Message, _t?: ArrayBuffer[]) => {
+        this.connection.receive(msg);
+      })
+      .then(() => {
+        if (!game.context.system.previewing) {
+          game.start();
+        }
 
-    this.ticker.add(this.onUpdate);
-    this.ticker.start();
+        this.ticker.add(this.onUpdate);
+        this.ticker.start();
 
-    this.loadScenes().then(() => {
-      this._ready = true;
-    });
+        this.loadScenes().then(() => {
+          this._ready = true;
+        });
+      });
   }
 
   async loadScenes(): Promise<void> {

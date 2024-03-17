@@ -107,14 +107,18 @@ export class Game<CustomModules extends { [name: string]: Manager } = {}> {
     this._moduleNames = Object.keys(this._managers);
   }
 
-  supports(name: string) {
+  supports(name: string): boolean {
     return Boolean(this._managers[name]);
   }
 
-  init(onSend: (message: Message, transfer?: ArrayBuffer[]) => void) {
+  async init(
+    onSend: (message: Message, transfer?: ArrayBuffer[]) => void
+  ): Promise<void> {
     this._connection.connectOutput(onSend);
     this._context.system.initialized = true;
-    this._moduleNames.forEach((k) => this._managers[k]?.onInit());
+    await Promise.all(
+      this._moduleNames.map((k) => this._managers[k]?.onInit())
+    );
   }
 
   start(): void {

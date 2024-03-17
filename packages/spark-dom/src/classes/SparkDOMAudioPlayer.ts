@@ -79,12 +79,12 @@ export class SparkDOMAudioPlayer {
     }
   }
 
-  protected _volume = 1;
-  public get volume() {
-    return this._volume;
+  protected _gain = 1;
+  public get gain() {
+    return this._gain;
   }
-  public set volume(value) {
-    this._volume = value;
+  public set gain(value) {
+    this._gain = value;
   }
 
   protected _startedAt = 0;
@@ -95,6 +95,11 @@ export class SparkDOMAudioPlayer {
   protected _pausedAt = 0;
   public get pausedAt() {
     return this._pausedAt;
+  }
+
+  protected _volume = 1;
+  public get volume() {
+    return this._volume;
   }
 
   protected _cues: number[] = [];
@@ -119,8 +124,6 @@ export class SparkDOMAudioPlayer {
     }
   ) {
     this._context = audioContext;
-    this._gainNode = this._context.createGain();
-    this._gainNode.connect(this._context.destination);
     if (sound instanceof AudioBuffer) {
       this._audioBuffer = sound;
     } else if (sound instanceof Float32Array) {
@@ -132,6 +135,9 @@ export class SparkDOMAudioPlayer {
     this._loop = options?.loop ?? this._loop;
     this._volume = options?.volume ?? this._volume;
     this._cues = options?.cues ?? this._cues;
+    this._gainNode = this._context.createGain();
+    this._gainNode.gain.value = this._volume;
+    this._gainNode.connect(this._context.destination);
     this.loadSourceNode();
   }
 
@@ -187,9 +193,9 @@ export class SparkDOMAudioPlayer {
     return (sec * 2) / 10;
   }
 
-  protected fade(when: number, value: number, duration?: number): void {
+  protected _fade(when: number, value: number, duration?: number): void {
     this._gainNode.gain.setTargetAtTime(
-      value,
+      this._volume * value,
       when,
       this.secondsToApproximateTimeConstant(duration)
     );
@@ -210,7 +216,7 @@ export class SparkDOMAudioPlayer {
       this._startedAt = when;
       this._pausedAt = 0;
     }
-    this.fade(when, this.volume, fadeDuration);
+    this._fade(when, this._gain, fadeDuration);
   }
 
   start(
@@ -222,7 +228,7 @@ export class SparkDOMAudioPlayer {
     // reload source node so we can start from the beginning
     this.loadSourceNode();
     this._sourceNode?.start(when, offset, duration);
-    this.fade(when, this.volume, fadeDuration);
+    this._fade(when, this._gain, fadeDuration);
     this._startedAt = when;
     this._pausedAt = 0;
   }
@@ -233,7 +239,7 @@ export class SparkDOMAudioPlayer {
     const targetSourceNode = this._sourceNode;
     if (this._started) {
       let startTime = performance.now();
-      this.fade(when, 0, fadeDuration);
+      this._fade(when, 0, fadeDuration);
       const disconnectAfterFade = () => {
         if (performance.now() < startTime + fadeDuration + 0.001) {
           window.requestAnimationFrame(disconnectAfterFade);
@@ -266,9 +272,13 @@ export class SparkDOMAudioPlayer {
     });
   }
 
-  fadeVolume(when: number, volume: number, fadeDuration?: number) {
-    this._volume = volume;
-    this.fade(when, this.volume, fadeDuration);
+  fadeTo(when: number, gain: number, fadeDuration?: number) {
+    this._gain = gain;
+    this._fade(when, this._gain, fadeDuration);
+  }
+
+  fade(when: number, fadeDuration?: number) {
+    this._fade(when, this._gain, fadeDuration);
   }
 
   pause(when: number, fadeDuration = DEFAULT_FADE_DURATION) {
@@ -312,6 +322,9 @@ export class SparkDOMAudioPlayer {
   }
 
   getNextCueTime(from: number) {
+    if (!this._cues || this._cues.length === 0) {
+      return from;
+    }
     return this.startedAt + this.getNextCueOffset(from);
   }
 }

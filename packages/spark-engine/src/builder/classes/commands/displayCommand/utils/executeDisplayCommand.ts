@@ -57,20 +57,16 @@ export const executeDisplayCommand = (
   game.module.audio.stopChannel("writer");
   game.module.audio.stopChannel("voice");
 
+  const styleMap = context?.["style"];
+
   // Clear stale text
-  const textLayerMap = context?.["text_layer"];
-  const preservedTextLayers = textLayerMap
-    ? Object.keys(textLayerMap).filter(
-        (layer) => textLayerMap?.[layer]?.preserve
-      )
+  const preservedTextLayers = styleMap
+    ? Object.keys(styleMap).filter((layer) => styleMap?.[layer]?.preserve_text)
     : undefined;
 
   // Clear stale images
-  const imageLayerMap = context?.["image_layer"];
-  const preservedImageLayers = imageLayerMap
-    ? Object.keys(imageLayerMap).filter(
-        (layer) => imageLayerMap?.[layer]?.preserve
-      )
+  const preservedImageLayers = styleMap
+    ? Object.keys(styleMap).filter((layer) => styleMap?.[layer]?.preserve_image)
     : undefined;
 
   const clearUI = () => {

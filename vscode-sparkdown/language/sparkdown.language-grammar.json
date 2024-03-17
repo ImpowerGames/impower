@@ -2258,7 +2258,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AudioContent"
+              "include": "#AssetCommand"
             }
           ]
         },
@@ -2294,25 +2294,13 @@
         "2": {
           "patterns": [
             {
-              "include": "#AudioContent"
+              "include": "#AssetCommand"
             }
           ]
         },
         "3": {
           "tag": "keyword",
           "name": "keyword.operator.expression.end.image.sd"
-        }
-      }
-    },
-    "ImageContent": {
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#AssetContent"
-            }
-          ]
         }
       }
     },
@@ -2335,7 +2323,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AudioContent"
+              "include": "#AssetCommand"
             }
           ]
         },
@@ -2371,7 +2359,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AudioContent"
+              "include": "#AssetCommand"
             }
           ]
         },
@@ -2381,51 +2369,17 @@
         }
       }
     },
-    "AudioContent": {
-      "match": "(.+)",
+    "AssetCommand": {
+      "match": "(.*?)($|\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#AssetContent"
+              "include": "#AssetInstruction"
             }
           ]
-        }
-      }
-    },
-    "AssetContent": {
-      "match": "(?:([@])($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*))?((?:[^@ :]+[ ]*)+)?($|[:])($|.*)",
-      "captures": {
-        "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.asset.target.sd"
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#AssetTarget"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#AssetNames"
-            }
-          ]
-        },
-        "5": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
-        },
-        "6": {
           "patterns": [
             {
               "include": "#AssetArgs"
@@ -2434,9 +2388,59 @@
         }
       }
     },
-    "AssetTarget": {
+    "AssetKeyword": {
+      "tag": "keyword",
+      "name": "keyword.asset.arguments.keyword.sd",
+      "match": "(\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b)"
+    },
+    "AssetInstruction": {
+      "match": "(?:(\\b(?:show|hide|play|stop|fade)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*)($|.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetControl"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetTarget"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#AssetNames"
+            }
+          ]
+        }
+      }
+    },
+    "AssetControl": {
       "tag": "controlKeyword",
-      "name": "keyword.control.asset.target.sd",
+      "name": "keyword.control.asset.action.sd",
+      "match": "(.+)"
+    },
+    "AssetTarget": {
+      "tag": "typeName",
+      "name": "entity.name.type.asset.target.sd",
       "match": "(.+)"
     },
     "AssetNames": {
@@ -2453,19 +2457,40 @@
               "include": "#Whitespace"
             },
             {
-              "include": "#AssetControl"
+              "include": "#AssetKeyword"
             },
             {
               "include": "#NumericLiteral"
+            },
+            {
+              "include": "#AssetEffect"
+            },
+            {
+              "include": "#TimeValue"
             }
           ]
         }
       }
     },
-    "AssetControl": {
-      "tag": "keyword",
-      "name": "keyword.asset.arguments.control.sd",
-      "match": "(schedule|load|unload|start|stop|mute|unmute|loop|noloop|volume|after|over)"
+    "AssetEffect": {
+      "tag": "propertyName",
+      "name": "variable.other.property.sd",
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
+    },
+    "TimeValue": {
+      "tag": "number",
+      "name": "constant.numeric.time.sd",
+      "match": "((?:\\d*[.])?\\d+)(ms|s)",
+      "captures": {
+        "1": {
+          "tag": "number",
+          "name": "constant.numeric.time.amount.sd"
+        },
+        "2": {
+          "tag": "number",
+          "name": "constant.numeric.time.unit.sd"
+        }
+      }
     },
     "Transition": {
       "tag": "labelName",
@@ -2828,16 +2853,19 @@
     },
     "DisplayText": {
       "name": "entity.display.sd",
-      "match": "(?:([@])([_a-zA-Z][_a-zA-Z0-9]*)([ ]*))?(?:([!]?(?:\\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?($|.+?(?=[@])|.+$(?:\\r\\n|\\r|\\n)?)",
+      "match": "(?:([!]?(?:\\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?($|.+?(?=[@])|.+$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.asset.target.sd"
+          "patterns": [
+            {
+              "include": "#DisplayTextPrerequisiteValue"
+            }
+          ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#TargetName"
+              "include": "#DisplayTextPrerequisiteOperator"
             }
           ]
         },
@@ -2851,27 +2879,6 @@
         "4": {
           "patterns": [
             {
-              "include": "#DisplayTextPrerequisiteValue"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#DisplayTextPrerequisiteOperator"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
               "include": "#DisplayTextContent"
             }
           ]
@@ -2879,8 +2886,8 @@
       }
     },
     "TargetName": {
-      "tag": "controlKeyword",
-      "name": "keyword.control.text.target.sd",
+      "tag": "typeName",
+      "name": "entity.name.type.text.target.sd",
       "match": "(.+)"
     },
     "DisplayTextPrerequisiteValue": {

@@ -81,6 +81,7 @@ const SPARK_TOKEN_TAGS: {
   Audio: "audio",
   InlineImage: "image",
   InlineAudio: "audio",
+  AssetControl: "asset_control",
   AssetTarget: "asset_target",
   AssetNames: "asset_names",
   AssetArgs: "asset_args",

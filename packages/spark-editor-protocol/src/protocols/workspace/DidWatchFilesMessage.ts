@@ -7,6 +7,10 @@ export interface FileWatch {
    * A file:// URI for the location of the file/folder being created.
    */
   uri: string;
+  /**
+   * Text content of file
+   */
+  text?: string;
 }
 
 export interface DidWatchFilesParams {

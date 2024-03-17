@@ -56,6 +56,7 @@ export const STYLE_DEFAULTS = {
     transform_origin: "left",
   },
   backdrop: {
+    preserve_image: true,
     position: "absolute",
     inset: 0,
     background_position: "center",

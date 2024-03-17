@@ -41,7 +41,7 @@ export class Manager<
   }
 
   /** Executed when the game is initialized (after it is safe to emit game messages) */
-  onInit(): void {}
+  async onInit(): Promise<void> {}
 
   /** Executed when the game starts */
   onStart(): void {}

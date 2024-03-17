@@ -29,40 +29,55 @@ const WHITESPACE_REGEX = /\s+/g;
 const getImageCompletions = (
   program: SparkProgram | undefined
 ): CompletionItem[] | null => {
-  const completions: CompletionItem[] = [];
-  Object.values(program?.variables || {}).forEach((v) => {
-    if (v.name !== "default") {
-      if (v.type === "image") {
-        const asset = v.compiled as Asset;
-        completions.push({
-          label: v.name,
-          labelDetails: { description: "image" },
-          kind: CompletionItemKind.Constructor,
-          documentation: {
-            kind: MarkupKind.Markdown,
-            value: `![${v.name}](${asset.src})`,
-          },
-        });
-      } else if (v.type === "image_group") {
-        completions.push({
-          label: v.name,
+  const completions: Map<string, CompletionItem> = new Map();
+  Object.entries(program?.context?.["image_group"] || {}).forEach(([, v]) => {
+    const name = v.$name;
+    if (name !== "default") {
+      const asset = v as {
+        assets: Asset[];
+        src: string;
+        data?: string;
+        mime?: string;
+      };
+      if (asset) {
+        const completion: CompletionItem = {
+          label: name,
           labelDetails: { description: "image_group" },
           kind: CompletionItemKind.Constructor,
-        });
-      } else if (
-        Array.isArray(v.compiled) &&
-        v.compiled.length > 0 &&
-        v.compiled.every((x) => x.type === "image")
-      ) {
-        completions.push({
-          label: v.name,
-          labelDetails: { description: "image[]" },
-          kind: CompletionItemKind.Constructor,
-        });
+        };
+        completion.documentation = {
+          kind: MarkupKind.Markdown,
+          value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
+        };
+        if (!completions.has(name)) {
+          completions.set(name, completion);
+        }
       }
     }
   });
-  return completions;
+  Object.entries(program?.context?.["image"] || {}).forEach(([, v]) => {
+    const name = v.$name;
+    if (name !== "default") {
+      const asset = v as Asset;
+      if (asset) {
+        const completion: CompletionItem = {
+          label: name,
+          labelDetails: { description: "image" },
+          kind: CompletionItemKind.Constructor,
+        };
+        if (asset.src) {
+          completion.documentation = {
+            kind: MarkupKind.Markdown,
+            value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
+          };
+        }
+        if (!completions.has(name)) {
+          completions.set(name, completion);
+        }
+      }
+    }
+  });
+  return Array.from(completions.values());
 };
 
 const getAudioCompletions = (

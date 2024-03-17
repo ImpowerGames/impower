@@ -62,7 +62,10 @@ export default class UIScene extends Scene {
       }
       if (params.style) {
         el.style.cssText = Object.entries(params.style)
-          .map(([k, v]) => `${k}: ${v}`)
+          .map(([k, v]) => {
+            const prop = k.startsWith("--") ? k : k.replaceAll("_", "-");
+            return `${prop}: ${v}`;
+          })
           .join(";");
       }
       if (params.attributes) {
@@ -132,13 +135,14 @@ export default class UIScene extends Scene {
         if (params.style != undefined) {
           if (params.style) {
             Object.entries(params.style).forEach(([k, v]) => {
+              const prop = k.startsWith("--") ? k : k.replaceAll("_", "-");
               if (v == null) {
                 if (element) {
-                  element.style.removeProperty(k);
+                  element.style.removeProperty(prop);
                 }
               } else {
                 if (element) {
-                  element.style.setProperty(k, v);
+                  element.style.setProperty(prop, v);
                 }
               }
             });

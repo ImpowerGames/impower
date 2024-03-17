@@ -13,6 +13,8 @@ import { stressPhrases } from "./stressPhrases";
 
 const SINGLE_MARKERS = ["|", "*", "_", "^"];
 const DOUBLE_MARKERS = ["~~", "::", "==", ">>", "<<"];
+const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
+const SECONDS_REGEX = /((?:\d*[.])?\d+)s/;
 
 const isWhitespaceOrEmpty = (part: string) => {
   if (!part) {
@@ -110,7 +112,45 @@ const getInstanceName = (
   return target;
 };
 
-const getArgumentValue = (args: string[], name: string): number | undefined => {
+const getArgumentTimeValue = (
+  args: string[],
+  name: string
+): number | undefined => {
+  const argIndex = args.indexOf(name);
+  if (argIndex < 0) {
+    return undefined;
+  }
+  const val = args[argIndex + 1];
+  if (val == null) {
+    return undefined;
+  }
+  const numValue = Number(val);
+  if (!Number.isNaN(numValue)) {
+    return numValue;
+  }
+  const msMatch = val.match(MILLISECONDS_REGEX);
+  if (msMatch) {
+    const msVal = msMatch[1];
+    const msNumValue = Number(msVal);
+    if (!Number.isNaN(msNumValue)) {
+      return msNumValue / 1000;
+    }
+  }
+  const sMatch = val.match(SECONDS_REGEX);
+  if (sMatch) {
+    const sVal = sMatch[1];
+    const sNumValue = Number(sVal);
+    if (!Number.isNaN(sNumValue)) {
+      return sNumValue;
+    }
+  }
+  return undefined;
+};
+
+const getArgumentNumberValue = (
+  args: string[],
+  name: string
+): number | undefined => {
   const argIndex = args.indexOf(name);
   if (argIndex < 0) {
     return undefined;
@@ -120,6 +160,17 @@ const getArgumentValue = (args: string[], name: string): number | undefined => {
     return undefined;
   }
   return numValue;
+};
+
+const getArgumentStringValue = (
+  args: string[],
+  name: string
+): string | undefined => {
+  const argIndex = args.indexOf(name);
+  if (argIndex < 0) {
+    return undefined;
+  }
+  return args[argIndex + 1];
 };
 
 const getMinSynthDuration = (synth: {
@@ -268,11 +319,13 @@ export const write = (
       });
       startNewPhrase();
     }
-    if (p.image != null) {
+    if (p.tag === "image") {
       const chunk: Chunk = {
-        target: p.target,
+        tag: p.tag,
         instance: p.instance,
-        image: p.image,
+        control: p.control,
+        target: p.target,
+        assets: p.assets,
         args: p.args,
         duration: 0,
         speed: 0,
@@ -283,14 +336,16 @@ export const write = (
       });
       startNewPhrase();
     }
-    if (p.audio != null) {
+    if (p.tag === "audio") {
       phrases.push({
         ...p,
         chunks: [
           {
+            tag: p.tag,
+            control: p.control,
             target: p.target,
             instance: p.instance,
-            audio: p.audio,
+            assets: p.assets,
             args: p.args,
             duration: 0,
             speed: 0,
@@ -615,49 +670,49 @@ export const write = (
     if (phrase.chunks) {
       phrase.chunks.forEach((c) => {
         if (c.button != null) {
-          const buttonEvent: ButtonEvent = {
+          const event: ButtonEvent = {
             button: c.button,
             instance: c.instance ?? 0,
-            enter: time,
+            after: time,
           };
           result.button ??= {};
           result.button[target] ??= [];
-          result.button[target]!.push(buttonEvent);
+          result.button[target]!.push(event);
         }
         if (c.text != null) {
-          const textEvent: TextEvent = { text: c.text };
+          const event: TextEvent = { text: c.text };
           if (time) {
-            textEvent.enter = time;
+            event.after = time;
           }
           if (fadeDuration) {
-            textEvent.fade = fadeDuration;
+            event.over = fadeDuration;
           }
           if (c.instance) {
-            textEvent.instance = c.instance;
+            event.instance = c.instance;
           }
           if (c.underlined) {
-            textEvent.params ??= {};
-            textEvent.params["text-decoration"] = "underline";
+            event.style ??= {};
+            event.style["text_decoration"] = "underline";
           }
           if (c.italicized) {
-            textEvent.params ??= {};
-            textEvent.params["font-style"] = "italic";
+            event.style ??= {};
+            event.style["font_style"] = "italic";
           }
           if (c.bolded) {
-            textEvent.params ??= {};
-            textEvent.params["font-weight"] = "bold";
+            event.style ??= {};
+            event.style["font_weight"] = "bold";
           }
           if (c.centered) {
-            textEvent.params ??= {};
-            textEvent.params["text-align"] = "center";
+            event.style ??= {};
+            event.style["text_align"] = "center";
           }
 
           // Floating animation
           if (c.floating && floatingAnimation) {
-            textEvent.params ??= {};
-            textEvent.params["position"] = "relative";
-            textEvent.params["animation"] = floatingAnimation;
-            textEvent.params["animation-delay"] = `${
+            event.style ??= {};
+            event.style["position"] = "relative";
+            event.style["animation"] = floatingAnimation;
+            event.style["animation_delay"] = `${
               floatingIndex * animationOffset * -1
             }s`;
           }
@@ -668,10 +723,10 @@ export const write = (
           }
           // Trembling animation
           if (c.trembling && tremblingAnimation) {
-            textEvent.params ??= {};
-            textEvent.params["position"] = "relative";
-            textEvent.params["animation"] = tremblingAnimation;
-            textEvent.params["animation-delay"] = `${
+            event.style ??= {};
+            event.style["position"] = "relative";
+            event.style["animation"] = tremblingAnimation;
+            event.style["animation_delay"] = `${
               tremblingIndex * animationOffset * -1
             }s`;
           }
@@ -684,19 +739,19 @@ export const write = (
           if (debug) {
             if (c.duration > letterPause) {
               // color pauses (longer time = darker color)
-              textEvent.params ??= {};
-              textEvent.params["background-color"] = `hsla(0, 100%, 50%, ${
+              event.style ??= {};
+              event.style["background_color"] = `hsla(0, 100%, 50%, ${
                 0.5 - letterPause / c.duration
               })`;
             }
             if (c.voicedSyllable) {
               // color beeps
-              textEvent.params ??= {};
-              textEvent.params["background-color"] = `hsl(185, 100%, 50%)`;
+              event.style ??= {};
+              event.style["background_color"] = `hsl(185, 100%, 50%)`;
             }
           }
           result.text ??= {};
-          const key = getInstanceName(target, textEvent.instance);
+          const key = getInstanceName(target, event.instance);
           if (key && !c.instance && letterPause === 0) {
             const prevEvent = result.text[key]?.at(-1);
             if (prevEvent) {
@@ -704,21 +759,38 @@ export const write = (
             }
           }
           result.text[key] ??= [];
-          result.text[key]!.push(textEvent);
+          result.text[key]!.push(event);
         }
-        if (c.image != null) {
-          const imageEvent: ImageEvent = { image: c.image };
+        if (c.tag === "image") {
+          const event: ImageEvent = {
+            control: c.control || "show",
+            assets: c.assets,
+          };
+          if (c.instance) {
+            event.instance = c.instance;
+          }
           if (time) {
-            imageEvent.enter = time;
+            event.after = time;
           }
           if (fadeDuration) {
-            imageEvent.fade = fadeDuration;
+            event.over = fadeDuration;
           }
-          if (c.instance) {
-            imageEvent.instance = c.instance;
+          if (c.args) {
+            const withValue = getArgumentStringValue(c.args, "with");
+            if (withValue) {
+              event.with = withValue;
+            }
+            const afterValue = getArgumentTimeValue(c.args, "after");
+            if (afterValue) {
+              event.after = (event.after ?? 0) + afterValue;
+            }
+            const overValue = getArgumentTimeValue(c.args, "over");
+            if (overValue) {
+              event.over = overValue;
+            }
           }
           result.image ??= {};
-          const key = getInstanceName(target, imageEvent.instance);
+          const key = getInstanceName(target, event.instance);
           if (key && !c.instance) {
             const prevEvent = result.image[key]?.at(-1);
             if (prevEvent) {
@@ -726,72 +798,60 @@ export const write = (
             }
           }
           result.image[key] ??= [];
-          result.image[key]!.push(imageEvent);
+          result.image[key]!.push(event);
         }
-        if (c.audio != null) {
-          const audioEvent: AudioEvent = { audio: c.audio };
-          if (time) {
-            audioEvent.enter = time;
-          }
+        if (c.tag === "audio") {
+          const event: AudioEvent = {
+            control: c.control || "start",
+            assets: c.assets,
+          };
           if (c.instance) {
-            audioEvent.instance = c.instance;
+            event.instance = c.instance;
+          }
+          if (time) {
+            event.after = time;
           }
           if (c.args) {
-            if (c.args.includes("load")) {
-              audioEvent.params ??= {};
-              audioEvent.params.load = true;
+            const withValue = getArgumentStringValue(c.args, "with");
+            if (withValue) {
+              event.with = withValue;
             }
-            if (c.args.includes("unload")) {
-              audioEvent.params ??= {};
-              audioEvent.params.unload = true;
+            const afterValue = getArgumentTimeValue(c.args, "after");
+            if (afterValue) {
+              event.after = (event.after ?? 0) + afterValue;
             }
-            if (c.args.includes("start")) {
-              audioEvent.params ??= {};
-              audioEvent.params.start = true;
+            const overValue = getArgumentTimeValue(c.args, "over");
+            if (overValue) {
+              event.over = overValue;
             }
-            if (c.args.includes("stop")) {
-              audioEvent.params ??= {};
-              audioEvent.params.stop = true;
+            const unmuteValue = c.args.includes("unmute");
+            if (unmuteValue) {
+              event.gain = 1;
             }
-            if (c.args.includes("schedule")) {
-              audioEvent.params ??= {};
-              audioEvent.params.schedule = true;
+            const toValue = getArgumentNumberValue(c.args, "to");
+            if (toValue != null) {
+              event.gain = toValue;
             }
-            if (c.args.includes("mute")) {
-              audioEvent.params ??= {};
-              audioEvent.params.mute = true;
+            const muteValue = c.args.includes("mute");
+            if (muteValue) {
+              event.gain = 0;
             }
-            if (c.args.includes("unmute")) {
-              audioEvent.params ??= {};
-              audioEvent.params.unmute = true;
+            const loopValue = c.args.includes("loop");
+            if (loopValue) {
+              event.loop = true;
             }
-            if (c.args.includes("loop")) {
-              audioEvent.params ??= {};
-              audioEvent.params.loop = true;
+            const noloopValue = c.args.includes("noloop");
+            if (noloopValue) {
+              event.loop = false;
             }
-            if (c.args.includes("noloop")) {
-              audioEvent.params ??= {};
-              audioEvent.params.noloop = true;
-            }
-            const volume = getArgumentValue(c.args, "volume");
-            if (volume != null) {
-              audioEvent.params ??= {};
-              audioEvent.params.volume = volume;
-            }
-            const after = getArgumentValue(c.args, "after");
-            if (after) {
-              audioEvent.params ??= {};
-              audioEvent.params.after = after;
-            }
-            const over = getArgumentValue(c.args, "over");
-            if (over) {
-              audioEvent.params ??= {};
-              audioEvent.params.over = over;
+            const nowValue = c.args.includes("now");
+            if (nowValue) {
+              event.now = nowValue;
             }
           }
           result.audio ??= {};
           result.audio[target] ??= [];
-          result.audio[target]!.push(audioEvent);
+          result.audio[target]!.push(event);
         }
         if (c.duration && !instant) {
           if (c.punctuatedSyllable) {
@@ -824,7 +884,8 @@ export const write = (
     result.audio ??= {};
     result.audio["writer"] ??= [];
     result.audio["writer"]!.push({
-      audio: [
+      control: "start",
+      assets: [
         synthName +
           "-" +
           tones

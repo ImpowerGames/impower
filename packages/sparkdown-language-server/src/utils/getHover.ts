@@ -23,22 +23,18 @@ const getHover = (
     const hoveredOffset = document.offsetAt(position);
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
       const name = reference.name;
-      const variable = program.variables?.[name];
-      if (variable) {
-        if (
-          variable.type === "image" &&
-          typeof variable.compiled === "object"
-        ) {
-          const src = variable.compiled?.src;
-          if (src) {
-            return {
-              contents: {
-                kind: MarkupKind.Markdown,
-                value: `![${name}](${src})`,
-              },
-              range,
-            };
-          }
+      const asset =
+        program.context["image_group"]?.[name] ||
+        program.context["image"]?.[name];
+      if (asset) {
+        if (asset.src) {
+          return {
+            contents: {
+              kind: MarkupKind.Markdown,
+              value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
+            },
+            range,
+          };
         }
       }
       if (name && !reference.declaration) {

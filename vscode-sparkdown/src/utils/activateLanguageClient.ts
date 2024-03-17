@@ -13,11 +13,15 @@ import { getEditor } from "./getEditor";
 export const activateLanguageClient = async (
   context: vscode.ExtensionContext
 ): Promise<void> => {
-  const filePattern = "**/*.{sd,svg,png,midi,wav}";
+  const filePattern = "**/assets/**.{sd,svg,png,midi,wav}";
   const fileWatcher = vscode.workspace.createFileSystemWatcher(filePattern);
   const client = await createSparkdownLanguageClient(context, {
     synchronize: {
       fileEvents: fileWatcher,
+    },
+    markdown: {
+      isTrusted: true,
+      supportHtml: true,
     },
   });
   client.onNotification(
@@ -36,8 +40,20 @@ export const activateLanguageClient = async (
     })
   );
   const fileUris = await vscode.workspace.findFiles(filePattern);
+  const files = await Promise.all(
+    fileUris.map(async (fileUri) => {
+      const uri = fileUri.toString();
+      if (uri.endsWith("svg")) {
+        const buffer = await vscode.workspace.fs.readFile(fileUri);
+        const text = Buffer.from(buffer).toString("utf8");
+        const params = { uri, text };
+        return params;
+      }
+      return { uri };
+    })
+  );
   client.sendNotification(DidWatchFilesMessage.method, {
-    files: fileUris.map((fileUri) => ({ uri: fileUri.toString() })),
+    files,
   });
 };
 

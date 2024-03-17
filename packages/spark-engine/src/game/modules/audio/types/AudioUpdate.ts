@@ -1,12 +1,11 @@
-export interface AudioUpdate {
-  id: string;
-  name: string;
+import { AudioEvent } from "../../../core/types/SequenceEvent";
+
+export interface AudioUpdate extends AudioEvent {
+  control: string;
   channel: string;
-  playing: boolean;
-  looping: boolean;
-  scheduled: boolean;
-  volume: number;
-  after: number;
-  over: number;
+  id: string;
+  name?: string;
+  syncedTo?: string;
   cues?: number[];
+  level?: number;
 }

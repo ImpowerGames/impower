@@ -34,6 +34,7 @@ import calculateSpeechDuration from "../utils/calculateSpeechDuration";
 import createSparkToken from "../utils/createSparkToken";
 import { getProperty } from "../utils/getProperty";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
+import { parseXML, stringifyXML, tNode } from "../utils/parseXML";
 import setProperty from "../utils/setProperty";
 import { traverse } from "../utils/traverse";
 
@@ -61,24 +62,30 @@ const PRIMITIVE_TYPES = [
   "function",
 ];
 
-const vowels = ["a", "e", "i", "o", "u"];
-const lowercaseArticles = ["an", "a"] as const;
-const capitalizedArticles = ["An", "A"] as const;
+const VOWELS = ["a", "e", "i", "o", "u"];
+const LOWERCASE_ARTICLES = ["an", "a"] as const;
+const CAPITALIZED_ARTICLES = ["An", "A"] as const;
+
+const COMBINE_OPERATORS = ["~", "+", "-"];
+
+const isCombineOperator = (str: string): boolean => {
+  return COMBINE_OPERATORS.includes(str);
+};
 
 const getArticle = (str: string, capitalize?: boolean): string => {
   if (!str[0]) {
     return "";
   }
-  const articles = capitalize ? capitalizedArticles : lowercaseArticles;
-  return vowels.includes(str[0]) ? articles[0] : articles[1];
+  const articles = capitalize ? CAPITALIZED_ARTICLES : LOWERCASE_ARTICLES;
+  return VOWELS.includes(str[0]) ? articles[0] : articles[1];
 };
 
 const prefixWithArticle = (str: string, capitalize?: boolean): string => {
   if (!str[0]) {
     return "";
   }
-  const articles = capitalize ? capitalizedArticles : lowercaseArticles;
-  return `${vowels.includes(str[0]) ? articles[0] : articles[1]} ${str}`;
+  const articles = capitalize ? CAPITALIZED_ARTICLES : LOWERCASE_ARTICLES;
+  return `${VOWELS.includes(str[0]) ? articles[0] : articles[1]} ${str}`;
 };
 
 const calculateIndent = (text: string): number => {
@@ -133,6 +140,18 @@ const populateVariableFields = (variable: SparkVariable) => {
       variable.fields.push(field);
     });
   }
+};
+
+const encodeSVG = (data: string) => {
+  return data
+    .replace(/"/g, "'")
+    .replace(/%/g, "%25")
+    .replace(/#/g, "%23")
+    .replace(/{/g, "%7B")
+    .replace(/}/g, "%7D")
+    .replace(/</g, "%3C")
+    .replace(/>/g, "%3E")
+    .replace(/\s+/g, " ");
 };
 
 export default class SparkParser {
@@ -305,27 +324,99 @@ export default class SparkParser {
         program.variables?.[getVariableId({ type, name })];
       if (!existingVariable) {
         const defaultObj = program.context[type]?.[inheritFrom];
-        if (defaultObj) {
-          const clonedDefaultObj = JSON.parse(JSON.stringify(defaultObj));
-          if (propOverrides) {
-            Object.entries(propOverrides).forEach(([key, value]) => {
-              clonedDefaultObj[key] = value;
-            });
+        const clonedDefaultObj = defaultObj
+          ? JSON.parse(JSON.stringify(defaultObj))
+          : {};
+        if (propOverrides) {
+          Object.entries(propOverrides).forEach(([key, value]) => {
+            clonedDefaultObj[key] = value;
+          });
+        }
+        const variable: SparkVariable = {
+          tag: type,
+          line: tok.line,
+          from: tok.from,
+          to: tok.to,
+          indent: 0,
+          type,
+          name,
+          id: type + "." + name,
+          compiled: clonedDefaultObj,
+          implicit: true,
+        };
+        populateVariableFields(variable);
+        declareVariable(variable);
+      }
+    };
+
+    const processAssetVariable = (variable: SparkVariable) => {
+      const nestedSVGs: {
+        tags: string[];
+        ext: string;
+        text?: string;
+        data?: string;
+        mime?: string;
+      }[] = [];
+      if (
+        variable.type === "image" &&
+        variable.compiled.ext === "svg" &&
+        variable.compiled.text
+      ) {
+        const ext = "svg";
+        const mime = "image/svg+xml";
+        const text = variable.compiled.text;
+        const xml = parseXML(text);
+        const addNestedSVG = (child: tNode) => {
+          const tags = child.attributes?.class?.split(" ") || [];
+          const text = stringifyXML(child);
+          if (tags.includes("default")) {
+            svgDefaultChildren.push(child);
           }
-          const variable: SparkVariable = {
-            tag: type,
-            line: tok.line,
-            from: tok.from,
-            to: tok.to,
-            indent: 0,
-            type,
-            name,
-            id: name,
-            compiled: clonedDefaultObj,
-            implicit: true,
-          };
-          populateVariableFields(variable);
-          declareVariable(variable);
+          nestedSVGs.push({
+            tags,
+            ext,
+            text,
+            data: encodeSVG(text),
+            mime,
+          });
+        };
+        let svgDefaultChildren: tNode[] = [];
+        let rootSVG: tNode = undefined as unknown as tNode;
+        xml.forEach((s) => {
+          if (typeof s !== "string") {
+            if (s.tagName === "svg") {
+              rootSVG = s;
+              (s.children as (string | tNode)[]).forEach((rootChild) => {
+                if (
+                  typeof rootChild === "object" &&
+                  rootChild.tagName === "svg"
+                ) {
+                  addNestedSVG(rootChild);
+                }
+              });
+            }
+          }
+        });
+        if (rootSVG && nestedSVGs.length > 0) {
+          const defaultSVGText = stringifyXML({
+            ...rootSVG,
+            children: svgDefaultChildren,
+          });
+          const data = encodeSVG(defaultSVGText);
+          declareImplicitVariable(
+            variable,
+            "image_group",
+            variable.name,
+            "default",
+            {
+              src: `data:${mime},${data}`,
+              ext,
+              text: defaultSVGText,
+              data,
+              assets: nestedSVGs,
+              mime,
+            }
+          );
         }
       }
     };
@@ -1124,15 +1215,17 @@ export default class SparkParser {
         }
         const compiledType = typeof compiled;
         program.variables ??= {};
+        const variableType = compiledType === "object" ? "type" : compiledType;
+        const variableName = type;
         const variable: SparkVariable = {
           tag: "builtin",
           line,
           from: -1,
           to: -1,
           indent: 0,
-          type: compiledType === "object" ? "type" : compiledType,
-          name: type,
-          id: type,
+          type: variableType,
+          name: variableName,
+          id: variableType + "." + variableName,
           compiled,
           implicit: true,
         };
@@ -1157,7 +1250,7 @@ export default class SparkParser {
                 indent: 0,
                 type: variableType,
                 name: variableName,
-                id: variableName,
+                id: variableType + "." + variableName,
                 compiled,
                 implicit: true,
               };
@@ -1175,6 +1268,9 @@ export default class SparkParser {
         const variable: SparkVariable = { ...v };
         populateVariableFields(variable);
         declareVariable(variable);
+        if (v.tag === "asset") {
+          processAssetVariable(variable);
+        }
       });
     }
 
@@ -1387,7 +1483,7 @@ export default class SparkParser {
                 path: [...parentSectionPath, tok.name],
                 parent: parentSectionName,
                 name: tok.name,
-                id: tok.name,
+                id: "visited" + "." + tok.name,
                 tokens: [],
               };
               program.context["visited"] ??= {};
@@ -1949,18 +2045,27 @@ export default class SparkParser {
               parent.ranges!.text.to = tok.to;
             }
           } else if (tok.tag === "image") {
-            tok.target = id === "InlineImage" ? "insert" : "portrait";
             const parent = lookup("dialogue_box", "action_box");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
             }
           } else if (tok.tag === "audio") {
-            tok.target = "InlineAudio" ? "sound" : "voice";
             const parent = lookup("dialogue_box", "action_box");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
+            }
+          } else if (tok.tag === "asset_control") {
+            const parent = lookup("image", "audio");
+            if (parent) {
+              parent.control = text;
+              parent.ranges ??= {};
+              parent.ranges.control = {
+                line: tok.line,
+                from: tok.from,
+                to: tok.to,
+              };
             }
           } else if (tok.tag === "asset_target") {
             const parent = lookup("image", "audio");
@@ -1974,49 +2079,44 @@ export default class SparkParser {
               };
             }
           } else if (tok.tag === "asset_names") {
-            const image = lookup("image");
-            if (image) {
-              image.image = [];
-              image.nameRanges = [];
+            const parent = lookup("image", "audio");
+            if (parent) {
+              const assetRanges: { name: string; range: SparkRange }[] = [];
               let from = tok.from;
-              text.split(WHITESPACE_REGEX).forEach((p) => {
+              const parts = text.split(WHITESPACE_REGEX);
+              let prevContent = "";
+              parts.forEach((p) => {
                 const name = p.trim();
                 if (name) {
-                  image.image.push(name);
-                  image.nameRanges.push({
-                    line: tok.line,
-                    from,
-                    to: from + p.length,
-                  });
+                  if (
+                    isCombineOperator(name) ||
+                    isCombineOperator(prevContent)
+                  ) {
+                    const last = assetRanges.at(-1);
+                    if (last) {
+                      last.name += name;
+                      last.range.to = from + p.length;
+                    }
+                  } else {
+                    assetRanges.push({
+                      name,
+                      range: {
+                        line: tok.line,
+                        from,
+                        to: from + p.length,
+                      },
+                    });
+                  }
                 }
+                prevContent = name;
                 from += p.length;
               });
-              image.ranges ??= {};
-              image.ranges.image = {
-                line: tok.line,
-                from: tok.from,
-                to: tok.to,
-              };
-            }
-            const audio = lookup("audio");
-            if (audio) {
-              audio.audio = [];
-              audio.nameRanges = [];
-              let from = tok.from;
-              text.split(WHITESPACE_REGEX).forEach((p) => {
-                const name = p.trim();
-                if (name) {
-                  audio.audio.push(name);
-                  audio.nameRanges.push({
-                    line: tok.line,
-                    from,
-                    to: from + p.length,
-                  });
-                }
-                from += p.length;
+              parent.assets = assetRanges.map((p) => p.name);
+              assetRanges.forEach((part) => {
+                validateAssetReference(tok, parent.tag, part.name, part.range);
               });
-              audio.ranges ??= {};
-              audio.ranges.audio = {
+              parent.ranges ??= {};
+              parent.ranges.assets = {
                 line: tok.line,
                 from: tok.from,
                 to: tok.to,
@@ -2326,20 +2426,12 @@ export default class SparkParser {
               program.context
             );
           } else if (tok.tag === "image") {
-            const nameRanges = tok.nameRanges;
-            if (nameRanges) {
-              nameRanges.forEach((nameRange) => {
-                const name = script.slice(nameRange.from, nameRange.to);
-                validateAssetReference(tok, "image", name, nameRange);
-              });
+            if (!tok.target) {
+              tok.target = "portrait";
             }
           } else if (tok.tag === "audio") {
-            const nameRanges = tok.nameRanges;
-            if (nameRanges) {
-              nameRanges.forEach((nameRange) => {
-                const name = script.slice(nameRange.from, nameRange.to);
-                validateAssetReference(tok, "audio", name, nameRange);
-              });
+            if (!tok.target) {
+              tok.target = "sound";
             }
           } else if (tok.tag === "choice") {
             const lastBox = search("action_box", "dialogue_box");
@@ -2400,17 +2492,6 @@ export default class SparkParser {
           } else if (tok.tag === "action_box") {
             const textContent = tok.content?.filter((p) => p.tag === "text");
             if (!textContent || textContent.length === 0) {
-              // Check for images or audio not associated with any box text
-              tok.content?.forEach((p) => {
-                if (p.audio) {
-                  // Assume playing standalone music
-                  p.target = "music";
-                }
-                if (p.image) {
-                  //Assume displaying standalone image
-                  p.target = "backdrop";
-                }
-              });
               // No text to display, so no need to wait for user input
               tok.waitUntilFinished = false;
               tok.autoAdvance = true;

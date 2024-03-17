@@ -64,6 +64,8 @@
     "editor.formatOnPaste": false
   },
   "cSpell.words": [
+    "fadein",
+    "noloop",
     "Sparkdown",
     "Struct",
     "unmuting"

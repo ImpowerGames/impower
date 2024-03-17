@@ -115,6 +115,7 @@ export default class SparkdownTextDocuments<
       src: string;
       ext: string;
       type: string;
+      text?: string;
     }
   > = {};
 
@@ -180,11 +181,11 @@ export default class SparkdownTextDocuments<
     this.parse(uri);
   }, PARSE_THROTTLE_DELAY);
 
-  parse(uri: string) {
+  parse(uri: string, force = false) {
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
       const syncedProgram = this._syncedPrograms.get(uri);
-      if (syncedDocument.version === syncedProgram?.version) {
+      if (!force && syncedDocument.version === syncedProgram?.version) {
         return syncedProgram;
       }
       const files = Object.values(this._files);
@@ -197,6 +198,7 @@ export default class SparkdownTextDocuments<
             src: file.src,
             ext: file.ext,
             type: file.type,
+            text: file.text,
           };
           variables[file.type + "." + file.name] ??= {
             tag: "asset",
@@ -206,7 +208,7 @@ export default class SparkdownTextDocuments<
             indent: 0,
             type: file.type,
             name: file.name,
-            value: JSON.stringify(obj),
+            id: file.type + "." + file.name,
             compiled: obj,
             implicit: true,
           };
@@ -296,6 +298,7 @@ export default class SparkdownTextDocuments<
           const files = params.files;
           files.forEach((file) => {
             const fileUri = file.uri;
+            const text = file.text;
             const name = this.getFileName(fileUri);
             const type = this.getFileType(fileUri);
             const ext = this.getFileExtension(fileUri);
@@ -304,8 +307,12 @@ export default class SparkdownTextDocuments<
               name,
               type,
               ext,
+              text,
               src: fileUri,
             };
+          });
+          this._syncedPrograms.forEach((_, uri) => {
+            this.parse(uri, true);
           });
         }
       )

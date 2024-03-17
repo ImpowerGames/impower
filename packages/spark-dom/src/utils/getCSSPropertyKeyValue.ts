@@ -39,6 +39,29 @@ export const getCSSPropertyKeyValue = (
     const url = /^[ ]*url[ ]*[(]/.test(src) ? src : `url('${encodeURI(src)}')`;
     return [cssProp, url];
   }
+  if (
+    cssProp === "background-image" &&
+    typeof cssValue === "object" &&
+    "data" in cssValue &&
+    typeof cssValue.data === "string" &&
+    "ext" in cssValue &&
+    typeof cssValue.ext === "string"
+  ) {
+    const data = cssValue.data.trim();
+    const ext = cssValue.ext;
+    const encoding =
+      ext === "svg"
+        ? "image/svg+xml;utf8"
+        : ext === "png"
+        ? "image/png;base64"
+        : ext === "jpg" || ext === "jpeg"
+        ? "image/jpeg;base64"
+        : `image/${ext};base64`;
+    const url = /^[ ]*url[ ]*[(]/.test(data)
+      ? data
+      : `url(data:${encoding},${encodeURIComponent(data)})`;
+    return [cssProp, url];
+  }
   if (cssProp === "text-stroke") {
     if (typeof cssValue === "number") {
       return ["text-shadow", createTextShadow(cssValue)];

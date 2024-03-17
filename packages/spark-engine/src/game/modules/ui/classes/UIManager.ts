@@ -261,7 +261,7 @@ export class UIManager extends Manager<UIState> {
   }
 
   getImageVarValue(src: string) {
-    return `url('${src}')`;
+    return `url("${src}")`;
   }
 
   getImageVar(name: string) {
@@ -289,6 +289,21 @@ export class UIManager extends Manager<UIState> {
         }
       });
     }
+    const imageGroups = this._context?.["image_group"];
+    if (imageGroups) {
+      Object.entries(imageGroups).forEach(([name, imageGroup]) => {
+        if (
+          imageGroup &&
+          typeof imageGroup === "object" &&
+          "src" in imageGroup &&
+          typeof imageGroup.src === "string"
+        ) {
+          style[this.getImageVarName(name)] = this.getImageVarValue(
+            imageGroup.src
+          );
+        }
+      });
+    }
     return this.createElement(null, { style });
   }
 
@@ -309,8 +324,8 @@ export class UIManager extends Manager<UIState> {
     const style = {
       position: "absolute",
       inset: "0",
-      "font-family": "Courier Prime Sans",
-      "font-size": "1em",
+      font_family: "Courier Prime Sans",
+      font_size: "1em",
       opacity: "0",
     };
     if (!this._root) {
@@ -355,7 +370,7 @@ export class UIManager extends Manager<UIState> {
         position: "absolute",
         inset: "0",
         display: "flex",
-        "flex-direction": "column",
+        flex_direction: "column",
       },
     });
     Object.entries(properties).forEach(([k, v]) => {
@@ -517,18 +532,15 @@ export class UIManager extends Manager<UIState> {
     const names: string[] = [];
     assetNames.forEach((assetName) => {
       if (assetName) {
-        const value = (this._context?.["image"]?.[assetName] ||
-          this._context?.["image_group"]?.[assetName] ||
+        const value = (this._context?.["image_group"]?.[assetName] ||
+          this._context?.["image"]?.[assetName] ||
           this._context?.["array"]?.[assetName]) as
-          | { name: string; src: string }
-          | { assets: { name: string; src: string }[] };
-        const assets =
-          value && typeof value === "object" && "assets" in value
-            ? value.assets.map((a) => a)
-            : [value];
+          | { $name: string; src: string }
+          | { assets: { $name: string; src: string }[] };
+        const assets = Array.isArray(value) ? value : [value];
         assets.forEach((asset) => {
           if (asset) {
-            names.push(asset.name);
+            names.push(asset.$name);
           }
         });
       }
@@ -541,28 +553,28 @@ export class UIManager extends Manager<UIState> {
     instant: boolean
   ): Record<string, string | null> {
     const style: Record<string, string | null> = {};
-    style["will-change"] = "opacity";
+    style["will_change"] = "opacity";
     if (instant) {
       style["opacity"] = "1";
-      style["transition-property"] = "none";
+      style["transition_property"] = "none";
       if (event.exit) {
         style["filter"] = "opacity(0)";
       }
     } else {
-      style["opacity"] = event.enter && event.enter > 0 ? "0" : "1";
-      style["transition-property"] = "opacity";
-      style["transition-delay"] = `${event.enter ?? 0}s`;
-      style["transition-timing-function"] = `linear`;
-      if (event.fade) {
-        style["transition-duration"] = `${event.fade ?? 0}s`;
+      style["opacity"] = event.after && event.after > 0 ? "0" : "1";
+      style["transition_property"] = "opacity";
+      style["transition_delay"] = `${event.after ?? 0}s`;
+      style["transition_timing_function"] = `linear`;
+      if (event.over) {
+        style["transition_duration"] = `${event.over ?? 0}s`;
       }
       if (event.exit) {
         style["position"] = "absolute";
         style["inset"] = "0";
-        style["will-change"] += `, filter`;
+        style["will_change"] += `, filter`;
         style["filter"] = "opacity(1)";
-        style["transition-property"] += `, filter`;
-        style["transition-delay"] += `, ${event.exit ?? 0}s`;
+        style["transition_property"] += `, filter`;
+        style["transition_delay"] += `, ${event.exit ?? 0}s`;
       }
     }
     return style;
@@ -578,7 +590,7 @@ export class UIManager extends Manager<UIState> {
   ): boolean {
     const targetEls = this.findElements(uiName, target);
     targetEls.forEach((targetEl) => {
-      const style = { "pointer-events": "auto" };
+      const style = { pointer_events: "auto" };
       this.updateElement(targetEl, { style });
       this.emit(
         UpdateElementMessage.type.request({
@@ -719,14 +731,14 @@ export class UIManager extends Manager<UIState> {
               const prev = state.at(-1);
               if (
                 prev &&
-                JSON.stringify(prev.params || {}) ===
-                  JSON.stringify(e.params || {})
+                JSON.stringify(prev.style || {}) ===
+                  JSON.stringify(e.style || {})
               ) {
                 prev.text = (prev.text ?? "") + e.text;
               } else {
                 const s: TextState = { text: e.text };
-                if (e.params) {
-                  s.params = e.params;
+                if (e.style) {
+                  s.style = e.style;
                 }
                 state.push(s);
               }
@@ -752,7 +764,7 @@ export class UIManager extends Manager<UIState> {
       ): () => void {
         const inElements: Element[] = [];
         const outElements: Element[] = [];
-        const enterAt = sequence?.[0]?.enter ?? 0;
+        const enterAt = sequence?.[0]?.after ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
             const style: Record<string, string | null> = { display: null };
@@ -771,14 +783,14 @@ export class UIManager extends Manager<UIState> {
                   | { element: Element; style: Record<string, string | null> }
                   | undefined = undefined;
                 sequence.forEach((e) => {
-                  const textAlign = e.params?.["text-align"];
+                  const textAlign = e.style?.["text_align"];
                   if (textAlign) {
-                    // text-align must be applied to a parent element
-                    if (blockWrapper?.style["text-align"] !== textAlign) {
-                      // Group consecutive spans that have the same text-alignment under the same block wrapper
+                    // text_align must be applied to a parent element
+                    if (blockWrapper?.style["text_align"] !== textAlign) {
+                      // Group consecutive spans that have the same text alignment under the same block wrapper
                       const wrapperStyle: Record<string, string | null> = {};
                       wrapperStyle["display"] = "block";
-                      wrapperStyle["text-align"] = textAlign;
+                      wrapperStyle["text_align"] = textAlign;
                       blockWrapper = {
                         element: $.createElement(contentEl, {
                           type: "div",
@@ -792,7 +804,7 @@ export class UIManager extends Manager<UIState> {
                   }
                   const parentEl = blockWrapper?.element || contentEl;
                   const text = e.text;
-                  const style = { ...(e.params || {}) };
+                  const style = { ...(e.style || {}) };
                   const transitionStyle = $.getTransitionStyle(e, instant);
                   const childEl = $.createElement(parentEl, {
                     type: "span",
@@ -899,17 +911,10 @@ export class UIManager extends Manager<UIState> {
           sequence.forEach((e) => {
             if (!e.exit) {
               const prev = state.at(-1);
-              if (
-                prev &&
-                JSON.stringify(prev.params || {}) ===
-                  JSON.stringify(e.params || {})
-              ) {
-                prev.image = e.image;
+              if (prev) {
+                prev.assets = e.assets;
               } else {
-                const s: ImageState = { image: e.image };
-                if (e.params) {
-                  s.params = e.params;
-                }
+                const s: ImageState = { control: e.control, assets: e.assets };
                 state.push(s);
               }
             }
@@ -934,7 +939,7 @@ export class UIManager extends Manager<UIState> {
       ): () => void {
         const inElements: Element[] = [];
         const outElements: Element[] = [];
-        const enterAt = sequence?.[0]?.enter ?? 0;
+        const enterAt = sequence?.[0]?.after ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
             const contentEl = $.getOrCreateContentElement(targetEl, "image");
@@ -952,19 +957,19 @@ export class UIManager extends Manager<UIState> {
                 sequence.forEach((e) => {
                   const parentEl = contentEl;
                   const style: Record<string, string | null> = {};
-                  if (e.image) {
+                  // TODO: Support e.control === "hide"
+                  if (e.assets) {
                     const combinedBackgroundImage = $.getImageAssetNames(
-                      e.image
+                      e.assets
                     )
                       .map((n) => $.getImageVar(n))
                       .join(", ");
-                    style["background-image"] = combinedBackgroundImage;
+                    style["background_image"] = combinedBackgroundImage;
                   }
                   const transitionStyle = $.getTransitionStyle(e, instant);
                   const childEl = $.createElement(parentEl, {
                     type: "span",
                     style: {
-                      ...(e.params || {}),
                       ...style,
                       ...transitionStyle,
                     },
@@ -1032,7 +1037,7 @@ export class UIManager extends Manager<UIState> {
 
       set(uiName: string, target: string, image: string[]): void {
         this.clear(uiName, target);
-        this.write(uiName, target, [{ image }], true);
+        this.write(uiName, target, [{ control: "show", assets: image }], true);
       }
 
       getTargets(uiName: string): string[] {

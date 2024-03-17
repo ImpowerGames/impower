@@ -53,6 +53,7 @@ export default class AudioScene extends Scene {
     const audioPlayer = new SparkDOMAudioPlayer(buffer, this._audioContext, {
       volume: data.volume,
       cues: data.cues,
+      loop: data.loop,
     });
     this._audioPlayers.set(data.id, audioPlayer);
     return audioPlayer;
@@ -63,17 +64,25 @@ export default class AudioScene extends Scene {
     updates.forEach((update) => {
       const audioPlayer = this._audioPlayers.get(update.id);
       if (audioPlayer) {
-        audioPlayer.loop = update.looping;
-        audioPlayer.volume = update.volume;
-        const updateTime = now + update.after;
-        const when = update.scheduled
-          ? audioPlayer.getNextCueTime(updateTime)
-          : updateTime;
+        const updateTime = now + (update.after ?? 0);
+        const when = update.now
+          ? updateTime
+          : audioPlayer.getNextCueTime(updateTime);
         const over = update.over;
-        if (!update.playing) {
-          audioPlayer.stop(when, over);
-        } else {
+        if (update.loop != null) {
+          audioPlayer.loop = update.loop;
+        }
+        if (update.gain != null) {
+          audioPlayer.gain = update.gain * (update.level ?? 1);
+        }
+        if (update.control === "fade") {
+          audioPlayer.fade(when, over);
+        }
+        if (update.control === "play") {
           audioPlayer.play(when, over);
+        }
+        if (update.control === "stop") {
+          audioPlayer.stop(when, over);
         }
       }
     });

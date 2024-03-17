@@ -185,29 +185,31 @@ export interface SparkChoiceToken extends ISparkToken<"choice"> {
 }
 
 export interface SparkImageToken extends ISparkToken<"image"> {
+  control: string;
   target: string;
-  image: string[];
+  assets: string[];
   args: string[];
-  nameRanges: SparkRange[];
 
   ranges?: {
     checkpoint?: SparkRange;
+    control?: SparkRange;
     target?: SparkRange;
-    image?: SparkRange;
+    assets?: SparkRange;
     args?: SparkRange;
   };
 }
 
 export interface SparkAudioToken extends ISparkToken<"audio"> {
+  control: string;
   target: string;
-  audio: string[];
+  assets: string[];
   args: string[];
-  nameRanges: SparkRange[];
 
   ranges?: {
     checkpoint?: SparkRange;
+    control?: SparkRange;
     target?: SparkRange;
-    audio?: SparkRange;
+    assets?: SparkRange;
     args?: SparkRange;
   };
 }
@@ -219,13 +221,14 @@ export interface DisplayContent {
   indent: number;
 
   tag: string;
+  control?: string;
   target?: string;
   instance?: number;
   button?: string;
   prerequisite?: string;
   text?: string;
-  image?: string[];
-  audio?: string[];
+  action?: string;
+  assets?: string[];
   args?: string[];
   id: string;
 }
@@ -350,6 +353,7 @@ export interface SparkOtherToken
     | "target_name"
     | "unknown"
     | "dialogue_character_simultaneous"
+    | "asset_control"
     | "asset_target"
     | "asset_names"
     | "asset_args"

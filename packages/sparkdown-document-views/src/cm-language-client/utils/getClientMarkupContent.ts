@@ -19,8 +19,23 @@ export const getClientMarkupContent = async (
   fileSystemReader: FileSystemReader
 ) => {
   const kind = content.kind;
-  const value = await replaceAsync(
-    content.value,
+  let value = content.value;
+  value = await replaceAsync(
+    value,
+    MARKDOWN_REGEX.src,
+    async (_match, $1, $2, $3, $4) => {
+      let src: string = $3;
+      if (src.startsWith(fileSystemReader.scheme)) {
+        const fileSrc = await fileSystemReader.url(src);
+        if (fileSrc) {
+          src = fileSrc;
+        }
+      }
+      return `${$1}${$2}${src}${$4}`;
+    }
+  );
+  value = await replaceAsync(
+    value,
     MARKDOWN_REGEX.image,
     async (_match, $1, $2) => {
       let src: string = $2;
