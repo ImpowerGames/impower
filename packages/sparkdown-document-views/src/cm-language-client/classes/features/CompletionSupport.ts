@@ -147,6 +147,7 @@ export default class CompletionSupport implements FeatureSupport {
         override: this.completionSources,
         aboveCursor: true,
         positionInfo,
+        filterStrict: true,
       }),
     ];
   }
