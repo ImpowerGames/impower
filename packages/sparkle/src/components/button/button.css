@@ -336,7 +336,6 @@
   mask-position: center;
   -webkit-mask-size: cover;
   mask-size: cover;
-  background-image: var(--icon, none);
   background-color: var(--text-color);
   will-change: transform, opacity;
   transition-property: none;
@@ -368,7 +367,6 @@
   mask-position: center;
   -webkit-mask-size: cover;
   mask-size: cover;
-  background-image: var(--active-icon, none);
   background-color: var(--active-color, var(--text-color), transparent);
   will-change: transform, opacity;
   transition-property: none;
