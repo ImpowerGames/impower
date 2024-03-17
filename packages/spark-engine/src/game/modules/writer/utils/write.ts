@@ -884,7 +884,7 @@ export const write = (
     result.audio ??= {};
     result.audio["writer"] ??= [];
     result.audio["writer"]!.push({
-      control: "start",
+      control: "play",
       assets: [
         synthName +
           "-" +
