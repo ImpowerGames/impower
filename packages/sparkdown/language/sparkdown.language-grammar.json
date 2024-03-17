@@ -2370,31 +2370,7 @@
       }
     },
     "AssetCommand": {
-      "match": "(.*?)($|\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#AssetInstruction"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#AssetArgs"
-            }
-          ]
-        }
-      }
-    },
-    "AssetKeyword": {
-      "tag": "keyword",
-      "name": "keyword.asset.arguments.keyword.sd",
-      "match": "(\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b)"
-    },
-    "AssetInstruction": {
-      "match": "(?:(\\b(?:show|hide|play|stop|fade)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*)($|.+)",
+      "match": "(?:(\\b(?:show|hide|play|stop|fade)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*\\S+)(.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -2406,7 +2382,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#AssetTargetSeparator"
             }
           ]
         },
@@ -2420,23 +2396,42 @@
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#AssetNames"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#AssetNames"
+              "include": "#AssetArgs"
             }
           ]
         }
       }
     },
+    "AssetKeyword": {
+      "tag": "keyword",
+      "name": "keyword.asset.arguments.keyword.sd",
+      "match": "(\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b)"
+    },
     "AssetControl": {
       "tag": "controlKeyword",
       "name": "keyword.control.asset.action.sd",
       "match": "(.+)"
+    },
+    "AssetTargetSeparator": {
+      "tag": "typeName",
+      "name": "entity.name.type.asset.target.separator.sd",
+      "match": "([ ]+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      }
     },
     "AssetTarget": {
       "tag": "typeName",

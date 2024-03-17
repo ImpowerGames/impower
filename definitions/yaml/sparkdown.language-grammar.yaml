@@ -1280,12 +1280,21 @@ repository:
         name: keyword.operator.expression.end.audio.sd
 
   AssetCommand:
-    match: (.*?)($|\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
+    match: (?:(\b(?:show|hide|play|stop|fade)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*\S+)(.*)
     captures:
       1:
         patterns:
-          - { include: "#AssetInstruction" }
+          - { include: "#AssetControl" }
       2:
+        patterns:
+          - { include: "#AssetTargetSeparator" }
+      3:
+        patterns:
+          - { include: "#AssetTarget" }
+      4:
+        patterns:
+          - { include: "#AssetNames" }
+      5:
         patterns:
           - { include: "#AssetArgs" }
 
@@ -1294,29 +1303,19 @@ repository:
     name: keyword.asset.arguments.keyword.sd
     match: (\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b)
 
-  AssetInstruction:
-    match: (?:(\b(?:show|hide|play|stop|fade)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*))?($|[ ]*)($|.+)
-    captures:
-      1:
-        patterns:
-          - { include: "#AssetControl" }
-      2:
-        patterns:
-          - { include: "#Whitespace" }
-      3:
-        patterns:
-          - { include: "#AssetTarget" }
-      4:
-        patterns:
-          - { include: "#Whitespace" }
-      5:
-        patterns:
-          - { include: "#AssetNames" }
-
   AssetControl:
     tag: controlKeyword
     name: keyword.control.asset.action.sd
     match: (.+)
+
+  AssetTargetSeparator:
+    tag: typeName
+    name: entity.name.type.asset.target.separator.sd
+    match: ([ ]+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
 
   AssetTarget:
     tag: typeName

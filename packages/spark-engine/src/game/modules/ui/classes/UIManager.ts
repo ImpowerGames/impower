@@ -963,6 +963,7 @@ export class UIManager extends Manager<UIState> {
                       e.assets
                     )
                       .map((n) => $.getImageVar(n))
+                      .reverse()
                       .join(", ");
                     style["background_image"] = combinedBackgroundImage;
                   }

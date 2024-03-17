@@ -372,7 +372,7 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
     sequence.forEach((event) => {
       if (event.assets && event.assets.length > 0) {
         this.getAllAudioData(event.assets).forEach((d) => {
-          d.loop ??= channelDef.loop;
+          d.loop ??= channelDef?.loop;
           audioToLoad.add(d);
           const update = this.process(channel, event, d);
           this.updatePlaying(channel, update, d);

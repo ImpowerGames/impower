@@ -11,13 +11,10 @@ import type { TextDocument } from "vscode-languageserver-textdocument";
 import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getAllProperties";
 import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import {
-  ISparkDeclarationToken,
-  SparkStructBlankProperty,
-  SparkStructMapPropertyToken,
-} from "@impower/sparkdown/src/types/SparkToken";
+import { SparkTokenTagMap } from "@impower/sparkdown/src/types/SparkToken";
 import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
 import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
+import { traverse } from "@impower/sparkdown/src/utils/traverse";
 import { Asset } from "../types/Asset";
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";
@@ -26,9 +23,49 @@ import isEmptyLine from "./isEmptyLine";
 
 const WHITESPACE_REGEX = /\s+/g;
 
-const getImageCompletions = (
-  program: SparkProgram | undefined
+const getLineToken = <K extends keyof SparkTokenTagMap>(
+  program: SparkProgram,
+  line: number,
+  ...tags: K[]
+): SparkTokenTagMap[K] | undefined => {
+  const lineMetadata = program?.metadata?.lines?.[line];
+  const lineTokens = lineMetadata?.tokens?.map((i) => program?.tokens?.[i]);
+  return (
+    tags.length > 0
+      ? lineTokens?.findLast((t) => tags.includes(t?.tag as unknown as K))
+      : lineTokens?.at(-1)
+  ) as SparkTokenTagMap[K];
+};
+
+const getElementCompletions = (
+  program: SparkProgram
 ): CompletionItem[] | null => {
+  const completions: Map<string, CompletionItem> = new Map();
+  Object.entries(program?.context?.["ui"] || {}).forEach(([, v]) => {
+    traverse(v, (fieldPath) => {
+      if (fieldPath.endsWith(".image")) {
+        const layer = fieldPath.split(".").at(-2);
+        if (layer) {
+          const completion: CompletionItem = {
+            label: layer,
+            labelDetails: { description: "element" },
+            kind: CompletionItemKind.Constructor,
+          };
+          if (!completions.has(completion.label)) {
+            completions.set(completion.label, completion);
+          }
+        }
+      }
+    });
+  });
+  return Array.from(completions.values());
+};
+
+const getImageCompletions = (
+  program: SparkProgram,
+  line: number
+): CompletionItem[] | null => {
+  const imageToken = getLineToken(program, line, "image");
   const completions: Map<string, CompletionItem> = new Map();
   Object.entries(program?.context?.["image_group"] || {}).forEach(([, v]) => {
     const name = v.$name;
@@ -49,8 +86,8 @@ const getImageCompletions = (
           kind: MarkupKind.Markdown,
           value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
         };
-        if (!completions.has(name)) {
-          completions.set(name, completion);
+        if (!completions.has(completion.label)) {
+          completions.set(completion.label, completion);
         }
       }
     }
@@ -71,12 +108,25 @@ const getImageCompletions = (
             value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
           };
         }
-        if (!completions.has(name)) {
-          completions.set(name, completion);
+        if (!completions.has(completion.label)) {
+          completions.set(completion.label, completion);
         }
       }
     }
   });
+  if (!imageToken?.control) {
+    const controls = ["show", "hide", "fade"];
+    controls.forEach((label) => {
+      const completion = {
+        label,
+        labelDetails: { description: "control" },
+        kind: CompletionItemKind.Keyword,
+      };
+      if (!completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
+    });
+  }
   return Array.from(completions.values());
 };
 
@@ -120,28 +170,39 @@ const getAudioCompletions = (
   return completions;
 };
 
-const getAudioArgumentCompletions = (
+const getImageArgumentCompletions = (
   content: string,
   triggerCharacter: string | undefined
 ): CompletionItem[] | null => {
   const args = content.split(WHITESPACE_REGEX);
-  const completions = [
-    "schedule",
-    "stop",
-    "start",
-    "mute",
-    "unmute",
-    "loop",
-    "noloop",
-    "volume",
-    "after",
-    "over",
-  ];
+  const completions = ["after", "over", "with"];
   return completions
     .filter((c) => !args.includes(c))
     .map((label) => ({
       label,
-      insertText: triggerCharacter === ":" ? " " + label : label,
+      insertText: triggerCharacter === " " ? " " + label : label,
+      kind: CompletionItemKind.Keyword,
+    }));
+};
+
+const getAudioArgumentCompletions = (
+  program: SparkProgram,
+  line: number,
+  content: string,
+  triggerCharacter: string | undefined
+): CompletionItem[] | null => {
+  const audioToken = getLineToken(program, line, "audio");
+  const args = content.split(WHITESPACE_REGEX);
+  const completions: string[] = [];
+  if (audioToken?.control === "fade") {
+    completions.push("to");
+  }
+  completions.push("after", "over", "mute", "unmute", "loop", "noloop", "now");
+  return completions
+    .filter((c) => !args.includes(c))
+    .map((label) => ({
+      label,
+      insertText: triggerCharacter === " " ? " " + label : label,
       kind: CompletionItemKind.Keyword,
     }));
 };
@@ -341,21 +402,35 @@ const getCompletions = (
   const lineMetadata = program?.metadata?.lines?.[line];
   const scopes = lineMetadata?.scopes;
   const triggerCharacter = context?.triggerCharacter;
-  // console.log(scopes, JSON.stringify(beforeText));
+
+  if (!program) {
+    return undefined;
+  }
+
+  // console.log(lineMetadata, JSON.stringify(beforeText));
+
   if (scopes) {
     if (scopes.includes("image")) {
-      return getImageCompletions(program);
-    }
-    if (scopes.includes("audio")) {
-      if (triggerCharacter === ":" || scopes.includes("asset_args")) {
-        return getAudioArgumentCompletions(
-          lineText.slice(lineText.indexOf(":") + 1, lineText.indexOf(")")),
+      if (triggerCharacter === " " || scopes.includes("asset_args")) {
+        return getImageArgumentCompletions(
+          lineText.slice(lineText.indexOf(" ") + 1, lineText.indexOf("]")),
           triggerCharacter
         );
-      } else if (triggerCharacter !== "@") {
-        return getAudioCompletions(program);
+      } else if (scopes.includes("asset_target_separator")) {
+        return getElementCompletions(program);
       }
-      return null;
+      return getImageCompletions(program, line);
+    }
+    if (scopes.includes("audio")) {
+      if (triggerCharacter === " " || scopes.includes("asset_args")) {
+        return getAudioArgumentCompletions(
+          program,
+          line,
+          lineText.slice(lineText.indexOf(" ") + 1, lineText.indexOf(")")),
+          triggerCharacter
+        );
+      }
+      return getAudioCompletions(program);
     }
     if (
       scopes.includes("action") &&
@@ -393,16 +468,12 @@ const getCompletions = (
       scopes.includes("struct_map_property_start") &&
       scopes.includes("property_name")
     ) {
-      const defineToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "define") as
-        | ISparkDeclarationToken<string>
-        | undefined;
-      const structMapPropertyToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "struct_map_property") as
-        | SparkStructMapPropertyToken
-        | undefined;
+      const defineToken = getLineToken(program, line, "define");
+      const structMapPropertyToken = getLineToken(
+        program,
+        line,
+        "struct_map_property"
+      );
       if (defineToken?.name) {
         const variable = program?.variables?.[defineToken.name];
         if (variable && !beforeText.includes(":")) {
@@ -417,16 +488,12 @@ const getCompletions = (
       }
     }
     if (scopes.includes("struct_blank_property") && !triggerCharacter) {
-      const defineToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "define") as
-        | ISparkDeclarationToken<string>
-        | undefined;
-      const structBlankPropertyToken = lineMetadata.tokens
-        ?.map((i) => program?.tokens?.[i])
-        .findLast((t) => t?.tag === "struct_blank_property") as
-        | SparkStructBlankProperty
-        | undefined;
+      const defineToken = getLineToken(program, line, "define");
+      const structBlankPropertyToken = getLineToken(
+        program,
+        line,
+        "struct_blank_property"
+      );
       if (defineToken?.name) {
         const variable = program?.variables?.[defineToken.name];
         if (variable && !beforeText.includes(":")) {

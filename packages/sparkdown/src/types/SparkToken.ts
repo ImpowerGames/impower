@@ -355,6 +355,7 @@ export interface SparkOtherToken
     | "dialogue_character_simultaneous"
     | "asset_control"
     | "asset_target"
+    | "asset_target_separator"
     | "asset_names"
     | "asset_args"
     | "choice_operator"

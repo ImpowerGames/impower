@@ -40,6 +40,8 @@ import { traverse } from "../utils/traverse";
 
 const WHITESPACE_REGEX = /([ \t]+)/;
 
+const COMBINE_OPERATOR_REGEX = /([~+-]+)/;
+
 const DOUBLE_ESCAPE = /\\\\/g;
 const UNESCAPED_DOUBLE_QUOTE = /(?<!\\)["]/g;
 const ESCAPED_DOUBLE_QUOTE = /\\["]/g;
@@ -2050,12 +2052,14 @@ export default class SparkParser {
               parent.content ??= [];
               parent.content.push(tok);
             }
+            addToken(tok);
           } else if (tok.tag === "audio") {
             const parent = lookup("dialogue_box", "action_box");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
             }
+            addToken(tok);
           } else if (tok.tag === "asset_control") {
             const parent = lookup("image", "audio");
             if (parent) {
@@ -2083,32 +2087,19 @@ export default class SparkParser {
             if (parent) {
               const assetRanges: { name: string; range: SparkRange }[] = [];
               let from = tok.from;
-              const parts = text.split(WHITESPACE_REGEX);
-              let prevContent = "";
+              const parts = text.split(COMBINE_OPERATOR_REGEX);
               parts.forEach((p) => {
                 const name = p.trim();
-                if (name) {
-                  if (
-                    isCombineOperator(name) ||
-                    isCombineOperator(prevContent)
-                  ) {
-                    const last = assetRanges.at(-1);
-                    if (last) {
-                      last.name += name;
-                      last.range.to = from + p.length;
-                    }
-                  } else {
-                    assetRanges.push({
-                      name,
-                      range: {
-                        line: tok.line,
-                        from,
-                        to: from + p.length,
-                      },
-                    });
-                  }
+                if (name && !COMBINE_OPERATOR_REGEX.test(name)) {
+                  assetRanges.push({
+                    name,
+                    range: {
+                      line: tok.line,
+                      from,
+                      to: from + p.length,
+                    },
+                  });
                 }
-                prevContent = name;
                 from += p.length;
               });
               parent.assets = assetRanges.map((p) => p.name);
