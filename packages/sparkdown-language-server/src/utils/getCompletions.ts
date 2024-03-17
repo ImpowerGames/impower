@@ -21,8 +21,6 @@ import getLineTextAfter from "./getLineTextAfter";
 import getLineTextBefore from "./getLineTextBefore";
 import isEmptyLine from "./isEmptyLine";
 
-const WHITESPACE_REGEX = /\s+/g;
-
 const getLineToken = <K extends keyof SparkTokenTagMap>(
   program: SparkProgram,
   line: number,
@@ -130,44 +128,91 @@ const getImageCompletions = (
   return Array.from(completions.values());
 };
 
-const getAudioCompletions = (
-  program: SparkProgram | undefined
+const getChannelCompletions = (
+  program: SparkProgram
 ): CompletionItem[] | null => {
-  const completions: CompletionItem[] = [];
+  const completions: Map<string, CompletionItem> = new Map();
+  Object.entries(program?.context?.["channel"] || {}).forEach(([, v]) => {
+    const name = v.$name;
+    if (name !== "default") {
+      const completion: CompletionItem = {
+        label: name,
+        labelDetails: { description: "channel" },
+        kind: CompletionItemKind.Constructor,
+      };
+      if (!completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
+    }
+  });
+  return Array.from(completions.values());
+};
+
+const getAudioCompletions = (
+  program: SparkProgram,
+  line: number
+): CompletionItem[] | null => {
+  const audioToken = getLineToken(program, line, "audio");
+  const completions: Map<string, CompletionItem> = new Map();
   Object.values(program?.variables || {}).forEach((v) => {
     if (v.name !== "default") {
       if (v.type === "audio") {
-        completions.push({
+        const completion = {
           label: v.name,
           labelDetails: { description: "audio" },
           kind: CompletionItemKind.Constructor,
-        });
+        };
+        if (!completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
       } else if (v.type === "audio_group") {
-        completions.push({
+        const completion = {
           label: v.name,
           labelDetails: { description: "audio_group" },
           kind: CompletionItemKind.Constructor,
-        });
+        };
+        if (!completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
       } else if (
         Array.isArray(v.compiled) &&
         v.compiled.length > 0 &&
         v.compiled.every((x) => x.type === "audio")
       ) {
-        completions.push({
+        const completion = {
           label: v.name,
           labelDetails: { description: "audio[]" },
           kind: CompletionItemKind.Constructor,
-        });
+        };
+        if (!completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
       } else if (v.type === "synth") {
-        completions.push({
+        const completion = {
           label: v.name,
           labelDetails: { description: "synth" },
           kind: CompletionItemKind.Constructor,
-        });
+        };
+        if (!completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
       }
     }
   });
-  return completions;
+  if (!audioToken?.control) {
+    const controls = ["play", "stop", "fade"];
+    controls.forEach((label) => {
+      const completion = {
+        label,
+        labelDetails: { description: "control" },
+        kind: CompletionItemKind.Keyword,
+      };
+      if (!completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
+    });
+  }
+  return Array.from(completions.values());
 };
 
 const getImageArgumentCompletions = (
@@ -420,8 +465,10 @@ const getCompletions = (
     if (scopes.includes("audio")) {
       if (scopes.includes("asset_args")) {
         return getAudioArgumentCompletions(program, line);
+      } else if (scopes.includes("asset_target_separator")) {
+        return getChannelCompletions(program);
       } else {
-        return getAudioCompletions(program);
+        return getAudioCompletions(program, line);
       }
     }
     if (
