@@ -2198,10 +2198,14 @@ export default class SparkParser {
             validateTypeExists(tok, tok.type, tok.ranges?.type);
             tok.type ??= "url";
 
-            if (
-              typeof compiledValue !== "string" ||
-              !compiledValue.startsWith("https://")
-            ) {
+            const url =
+              typeof compiledValue === "object" && Array.isArray(compiledValue)
+                ? compiledValue[0]
+                : typeof compiledValue === "string"
+                ? compiledValue
+                : undefined;
+
+            if (typeof url !== "string" || !url.startsWith("https://")) {
               diagnostic(
                 program,
                 tok,
