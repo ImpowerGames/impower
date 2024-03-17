@@ -51,8 +51,8 @@ try {
           "@",
           ":",
           "+",
-          "-",
           "~",
+          "-",
         ],
         completionItem: {
           labelDetailsSupport: true,
