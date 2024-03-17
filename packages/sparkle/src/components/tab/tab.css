@@ -171,7 +171,6 @@
   mask-position: center;
   -webkit-mask-size: cover;
   mask-size: cover;
-  background-image: var(--active-icon, none);
   background-color: var(--color);
   color: var(--color);
   will-change: transform, opacity;
