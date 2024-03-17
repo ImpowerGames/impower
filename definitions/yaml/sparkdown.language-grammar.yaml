@@ -1323,9 +1323,23 @@ repository:
     match: (.+)
 
   AssetNames:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+          - { include: "#AssetName" }
+          - { include: "#CombineOperator" }
+
+  AssetName:
     tag: variableName
     name: variable.other.constant.asset.name.sd
-    match: (.+)
+    match: ([_a-zA-Z][_a-zA-Z0-9]*)
+
+  CombineOperator:
+    tag: propertyName
+    name: variable.other.property.combine.sd
+    match: ([~+-]+)
 
   AssetArgs:
     match: (.+)
@@ -1339,8 +1353,8 @@ repository:
           - { include: "#TimeValue" }
 
   AssetEffect:
-    tag: propertyName
-    name: variable.other.property.sd
+    tag: string
+    name: string.asset.sd
     match: ([_a-zA-Z][_a-zA-Z0-9]*)
 
   TimeValue:
