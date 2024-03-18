@@ -30,11 +30,11 @@ import {
 import { SparkVariable } from "../types/SparkVariable";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
 import { StructureItem } from "../types/StructureItem";
+import buildSVGSource from "../utils/buildSVGSource";
 import calculateSpeechDuration from "../utils/calculateSpeechDuration";
 import createSparkToken from "../utils/createSparkToken";
 import { getProperty } from "../utils/getProperty";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
-import { parseXML, stringifyXML, tNode } from "../utils/parseXML";
 import setProperty from "../utils/setProperty";
 import { traverse } from "../utils/traverse";
 
@@ -142,18 +142,6 @@ const populateVariableFields = (variable: SparkVariable) => {
       variable.fields.push(field);
     });
   }
-};
-
-const encodeSVG = (data: string) => {
-  return data
-    .replace(/"/g, "'")
-    .replace(/%/g, "%25")
-    .replace(/#/g, "%23")
-    .replace(/{/g, "%7B")
-    .replace(/}/g, "%7D")
-    .replace(/</g, "%3C")
-    .replace(/>/g, "%3E")
-    .replace(/\s+/g, " ");
 };
 
 export default class SparkParser {
@@ -352,73 +340,16 @@ export default class SparkParser {
     };
 
     const processAssetVariable = (variable: SparkVariable) => {
-      const nestedSVGs: {
-        tags: string[];
-        ext: string;
-        text?: string;
-        data?: string;
-        mime?: string;
-      }[] = [];
       if (
         variable.type === "image" &&
         variable.compiled.ext === "svg" &&
         variable.compiled.text
       ) {
-        const ext = "svg";
-        const mime = "image/svg+xml";
         const text = variable.compiled.text;
-        const xml = parseXML(text);
-        const addNestedSVG = (child: tNode) => {
-          const tags = child.attributes?.class?.split(" ") || [];
-          const text = stringifyXML(child);
-          if (tags.includes("default")) {
-            svgDefaultChildren.push(child);
-          }
-          nestedSVGs.push({
-            tags,
-            ext,
-            text,
-            data: encodeSVG(text),
-            mime,
+        if (typeof text === "string") {
+          variable.compiled.src = buildSVGSource(text, {
+            includes: ["default"],
           });
-        };
-        let svgDefaultChildren: tNode[] = [];
-        let rootSVG: tNode = undefined as unknown as tNode;
-        xml.forEach((s) => {
-          if (typeof s !== "string") {
-            if (s.tagName === "svg") {
-              rootSVG = s;
-              (s.children as (string | tNode)[]).forEach((rootChild) => {
-                if (
-                  typeof rootChild === "object" &&
-                  rootChild.tagName === "svg"
-                ) {
-                  addNestedSVG(rootChild);
-                }
-              });
-            }
-          }
-        });
-        if (rootSVG && nestedSVGs.length > 0) {
-          const defaultSVGText = stringifyXML({
-            ...rootSVG,
-            children: svgDefaultChildren,
-          });
-          const data = encodeSVG(defaultSVGText);
-          declareImplicitVariable(
-            variable,
-            "image_group",
-            variable.name,
-            "default",
-            {
-              src: `data:${mime},${data}`,
-              ext,
-              text: defaultSVGText,
-              data,
-              assets: nestedSVGs,
-              mime,
-            }
-          );
         }
       }
     };
@@ -1268,11 +1199,11 @@ export default class SparkParser {
     if (program.variables) {
       Object.entries(program.variables).forEach(([, v]) => {
         const variable: SparkVariable = { ...v };
-        populateVariableFields(variable);
-        declareVariable(variable);
         if (v.tag === "asset") {
           processAssetVariable(variable);
         }
+        populateVariableFields(variable);
+        declareVariable(variable);
       });
     }
 
@@ -2085,26 +2016,105 @@ export default class SparkParser {
           } else if (tok.tag === "asset_names") {
             const parent = lookup("image", "audio");
             if (parent) {
-              const assetRanges: { name: string; range: SparkRange }[] = [];
+              const assetRanges: {
+                name: string;
+                range: SparkRange;
+                filters: {
+                  $name: string;
+                  includes?: string[];
+                  excludes?: string[];
+                }[];
+              }[] = [];
               let from = tok.from;
               const parts = text.split(COMBINE_OPERATOR_REGEX);
+              let prevOperator = "";
               parts.forEach((p) => {
                 const name = p.trim();
-                if (name && !COMBINE_OPERATOR_REGEX.test(name)) {
-                  assetRanges.push({
-                    name,
-                    range: {
-                      line: tok.line,
-                      from,
-                      to: from + p.length,
-                    },
-                  });
+                if (name) {
+                  if (COMBINE_OPERATOR_REGEX.test(name)) {
+                    prevOperator = name;
+                  } else {
+                    if (prevOperator === "~") {
+                      // name is filter
+                      const filterType =
+                        parent.tag === "audio"
+                          ? "audio_filter"
+                          : "image_filter";
+                      const filter = program.context?.[filterType]?.[name];
+                      const asset = assetRanges.at(-1);
+                      if (asset) {
+                        asset.range.to = from + p.length;
+                        if (filter) {
+                          if (
+                            !filter.includes ||
+                            filter.includes.length === 0
+                          ) {
+                            filter.includes ??= [];
+                            filter.includes.push(name);
+                          }
+                          asset.filters.push(filter);
+                        } else {
+                          asset.filters.push({
+                            $name: name,
+                            includes: [name],
+                          });
+                        }
+                      }
+                    } else {
+                      // name is asset
+                      assetRanges.push({
+                        name,
+                        range: {
+                          line: tok.line,
+                          from,
+                          to: from + p.length,
+                        },
+                        filters: [],
+                      });
+                    }
+                    prevOperator = "";
+                  }
                 }
                 from += p.length;
               });
-              parent.assets = assetRanges.map((p) => p.name);
-              assetRanges.forEach((part) => {
-                validateAssetReference(tok, parent.tag, part.name, part.range);
+              parent.assets = assetRanges.map((a) => {
+                if (a.filters.length > 0) {
+                  const type = parent.tag;
+                  if (parent.tag === "image") {
+                    const asset = program.context?.["image"]?.[a.name];
+                    if (asset && asset.ext === "svg" && asset.text) {
+                      const includes = a.filters
+                        .flatMap((f) => f.includes)
+                        .filter((s) => typeof s === "string") as string[];
+                      includes.push("default");
+                      const excludes = a.filters
+                        .flatMap((f) => f.excludes)
+                        .filter((s) => typeof s === "string") as string[];
+                      const filter = { includes, excludes };
+                      const filteredAssetName = [
+                        a.name,
+                        ...a.filters.map((f) => f.$name),
+                      ].join("_");
+                      declareImplicitVariable(
+                        tok,
+                        type,
+                        filteredAssetName,
+                        "default",
+                        {
+                          ext: "svg",
+                          type: "image",
+                          name: filteredAssetName,
+                          src: buildSVGSource(asset.text, filter),
+                        }
+                      );
+                      return filteredAssetName;
+                    }
+                  }
+                }
+                return a.name;
+              });
+              assetRanges.forEach((a) => {
+                validateAssetReference(tok, parent.tag, a.name, a.range);
               });
               parent.ranges ??= {};
               parent.ranges.assets = {
