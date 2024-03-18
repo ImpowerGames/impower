@@ -802,7 +802,7 @@ export const write = (
         }
         if (c.tag === "audio") {
           const event: AudioEvent = {
-            control: c.control || "start",
+            control: c.control || "play",
             assets: c.assets,
           };
           if (c.instance) {
