@@ -2016,13 +2016,14 @@ export default class SparkParser {
           } else if (tok.tag === "asset_names") {
             const parent = lookup("image", "audio");
             if (parent) {
-              const assetRanges: {
+              const assetGroups: {
                 name: string;
                 range: SparkRange;
                 filters: {
                   $name: string;
                   includes?: string[];
                   excludes?: string[];
+                  range: SparkRange;
                 }[];
               }[] = [];
               let from = tok.from;
@@ -2041,9 +2042,8 @@ export default class SparkParser {
                           ? "audio_filter"
                           : "image_filter";
                       const filter = program.context?.[filterType]?.[name];
-                      const asset = assetRanges.at(-1);
+                      const asset = assetGroups.at(-1);
                       if (asset) {
-                        asset.range.to = from + p.length;
                         if (filter) {
                           if (
                             !filter.includes ||
@@ -2052,17 +2052,29 @@ export default class SparkParser {
                             filter.includes ??= [];
                             filter.includes.push(name);
                           }
-                          asset.filters.push(filter);
+                          asset.filters.push({
+                            ...filter,
+                            range: {
+                              line: tok.line,
+                              from,
+                              to: from + p.length,
+                            },
+                          });
                         } else {
                           asset.filters.push({
                             $name: name,
                             includes: [name],
+                            range: {
+                              line: tok.line,
+                              from,
+                              to: from + p.length,
+                            },
                           });
                         }
                       }
                     } else {
                       // name is asset
-                      assetRanges.push({
+                      assetGroups.push({
                         name,
                         range: {
                           line: tok.line,
@@ -2077,7 +2089,10 @@ export default class SparkParser {
                 }
                 from += p.length;
               });
-              parent.assets = assetRanges.map((a) => {
+              const assetRanges: {
+                name: string;
+                range: SparkRange;
+              }[] = assetGroups.map((a) => {
                 if (a.filters.length > 0) {
                   const type = parent.tag;
                   if (parent.tag === "image") {
@@ -2107,12 +2122,19 @@ export default class SparkParser {
                           src: buildSVGSource(asset.text, filter),
                         }
                       );
-                      return filteredAssetName;
+                      return {
+                        name: filteredAssetName,
+                        range: {
+                          ...a.range,
+                          to: a.filters?.at(-1)?.range?.to ?? a.range.to,
+                        },
+                      };
                     }
                   }
                 }
-                return a.name;
+                return { name: a.name, range: a.range };
               });
+              parent.assets = assetRanges.map((a) => a.name);
               assetRanges.forEach((a) => {
                 validateAssetReference(tok, parent.tag, a.name, a.range);
               });
@@ -2290,10 +2312,8 @@ export default class SparkParser {
               const namespaceMatch = tok.name?.match(NAMESPACE_REGEX);
               const type = namespaceMatch?.[1] || "";
               const name = namespaceMatch?.[2] || "";
-              if (name && (tok.operator === "=" || tok.operator === ":")) {
-                if (tok.operator === ":") {
-                  tok.operator = "=";
-                }
+              if (name) {
+                tok.operator = "=";
                 const variable = {
                   ...tok,
                   type,
@@ -2301,6 +2321,10 @@ export default class SparkParser {
                 };
                 if (variable.fields) {
                   validateFields(variable);
+                  const [objectLiteral, objCompiled] = construct(variable);
+                  variable.value = objectLiteral;
+                  variable.compiled = objCompiled;
+                } else if (!variable.value) {
                   const [objectLiteral, objCompiled] = construct(variable);
                   variable.value = objectLiteral;
                   variable.compiled = objCompiled;

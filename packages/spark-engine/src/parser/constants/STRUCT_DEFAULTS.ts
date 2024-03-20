@@ -8,6 +8,7 @@ import { MIXER_DEFAULTS } from "../../game/modules/audio/specs/defaults/MIXER_DE
 import { SYNTH_DEFAULTS } from "../../game/modules/audio/specs/defaults/SYNTH_DEFAULTS";
 import { ANIMATION_DEFAULTS } from "../../game/modules/ui/specs/defaults/ANIMATION_DEFAULTS";
 import { GRADIENT_DEFAULTS } from "../../game/modules/ui/specs/defaults/GRADIENT_DEFAULTS";
+import { IMAGE_FILTER_DEFAULTS } from "../../game/modules/ui/specs/defaults/IMAGE_FILTER_DEFAULTS";
 import { IMAGE_GROUP_DEFAULTS } from "../../game/modules/ui/specs/defaults/IMAGE_GROUP_DEFAULTS";
 import { SHADOW_DEFAULTS } from "../../game/modules/ui/specs/defaults/SHADOW_DEFAULTS";
 import { STYLE_DEFAULTS } from "../../game/modules/ui/specs/defaults/STYLE_DEFAULTS";
@@ -19,6 +20,7 @@ import { WRITER_DEFAULTS } from "../../game/modules/writer/specs/defaults/WRITER
 const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
   image: IMAGE_DEFAULTS,
   image_group: IMAGE_GROUP_DEFAULTS,
+  image_filter: IMAGE_FILTER_DEFAULTS,
 
   audio: AUDIO_DEFAULTS,
   audio_group: AUDIO_GROUP_DEFAULTS,

@@ -128,6 +128,31 @@ const getImageCompletions = (
   return Array.from(completions.values());
 };
 
+const getImageFilterCompletions = (
+  program: SparkProgram,
+  beforeText: string
+): CompletionItem[] | null => {
+  const existingTags = beforeText.split("~").slice(1);
+
+  const completions: Map<string, CompletionItem> = new Map();
+  Object.entries(program?.context?.["image_filter"] || {}).forEach(([, v]) => {
+    const name = v.$name;
+    if (!existingTags.includes(name)) {
+      if (name && name !== "default") {
+        const completion: CompletionItem = {
+          label: name,
+          labelDetails: { description: "image_filter" },
+          kind: CompletionItemKind.Constructor,
+        };
+        if (!completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
+      }
+    }
+  });
+  return Array.from(completions.values());
+};
+
 const getChannelCompletions = (
   program: SparkProgram
 ): CompletionItem[] | null => {
@@ -458,6 +483,8 @@ const getCompletions = (
         return getImageArgumentCompletions(program, line);
       } else if (scopes.includes("asset_target_separator")) {
         return getElementCompletions(program);
+      } else if (triggerCharacter === "~") {
+        return getImageFilterCompletions(program, beforeText);
       } else {
         return getImageCompletions(program, line);
       }
