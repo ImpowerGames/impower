@@ -68,12 +68,6 @@ const VOWELS = ["a", "e", "i", "o", "u"];
 const LOWERCASE_ARTICLES = ["an", "a"] as const;
 const CAPITALIZED_ARTICLES = ["An", "A"] as const;
 
-const COMBINE_OPERATORS = ["~", "+", "-"];
-
-const isCombineOperator = (str: string): boolean => {
-  return COMBINE_OPERATORS.includes(str);
-};
-
 const getArticle = (str: string, capitalize?: boolean): string => {
   if (!str[0]) {
     return "";

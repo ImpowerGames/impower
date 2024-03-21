@@ -16,13 +16,13 @@ const filterSVG = (
     ID_ATTRIBUTE_REGEX,
     (
       $0: string,
-      $1: string,
-      $2: string,
-      $3: string,
-      $4: string,
+      _$1: string,
+      _$2: string,
+      _$3: string,
+      _$4: string,
       $5: string,
       $6: string,
-      $7: string
+      _$7: string
     ): string => {
       const quote = $5;
       const id = $6;
