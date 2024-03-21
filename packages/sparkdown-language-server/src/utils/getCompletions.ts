@@ -130,9 +130,11 @@ const getImageCompletions = (
 
 const getImageFilterCompletions = (
   program: SparkProgram,
-  beforeText: string
+  lineText: string
 ): CompletionItem[] | null => {
-  const existingTags = beforeText.split("~").slice(1);
+  const startIndex = lineText.indexOf("~");
+  const endIndex = lineText.indexOf(" ", startIndex);
+  const existingTags = lineText.slice(startIndex, endIndex).split("~").slice(1);
 
   const completions: Map<string, CompletionItem> = new Map();
   Object.entries(program?.context?.["image_filter"] || {}).forEach(([, v]) => {
@@ -483,8 +485,8 @@ const getCompletions = (
         return getImageArgumentCompletions(program, line);
       } else if (scopes.includes("asset_target_separator")) {
         return getElementCompletions(program);
-      } else if (triggerCharacter === "~") {
-        return getImageFilterCompletions(program, beforeText);
+      } else if (triggerCharacter === "~" || lineText.includes("~")) {
+        return getImageFilterCompletions(program, lineText);
       } else {
         return getImageCompletions(program, line);
       }
