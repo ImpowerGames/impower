@@ -1236,7 +1236,7 @@ export default class SparkParser {
       });
     }
 
-    /* HOIST FRONTMATTER, CHUNKS, AND SECTIONS */
+    /* HOIST FRONTMATTER, CHUNKS, SECTIONS, AND IMPLICIT VARIABLES */
     line = 0;
     currentSectionPath = [];
     tree.iterate({
@@ -1260,8 +1260,7 @@ export default class SparkParser {
             if (parent) {
               parent.name = text;
             }
-          }
-          if (tok.tag === "front_matter_field_item") {
+          } else if (tok.tag === "front_matter_field_item") {
             const parent = lookup("front_matter_field");
             if (parent) {
               const keyword = parent.name;
@@ -1272,8 +1271,7 @@ export default class SparkParser {
                 program.frontMatter[keyword] = [""];
               }
             }
-          }
-          if (tok.tag === "front_matter_field_string") {
+          } else if (tok.tag === "front_matter_field_string") {
             const parent = lookup("front_matter_field");
             if (parent) {
               const keyword = parent.name;
@@ -1285,7 +1283,7 @@ export default class SparkParser {
           }
 
           // chunk
-          if (tok.tag === "chunk_name") {
+          else if (tok.tag === "chunk_name") {
             const parent = lookup("chunk");
             if (parent) {
               parent.name = text.split(".")[0] || "";
@@ -1299,7 +1297,7 @@ export default class SparkParser {
           }
 
           // section
-          if (tok.tag === "section_level") {
+          else if (tok.tag === "section_level") {
             const parent = lookup("section");
             if (parent) {
               parent.level = text.length;
@@ -1310,8 +1308,7 @@ export default class SparkParser {
                 to: tok.to,
               };
             }
-          }
-          if (tok.tag === "section_name") {
+          } else if (tok.tag === "section_name") {
             const parent = lookup("section");
             if (parent) {
               parent.name = text;
@@ -1325,20 +1322,27 @@ export default class SparkParser {
           }
 
           // scene
-          if (tok.tag === "text") {
+          else if (tok.tag === "text") {
             tok.text = text;
             const parent = lookup("scene");
             if (parent) {
               parent.content ??= [];
               parent.content.push(tok);
             }
-          }
-
-          if (tok.tag === "indent") {
+          } else if (tok.tag === "indent") {
             const parent = lookup();
             if (parent) {
               parent.indent = calculateIndent(text);
             }
+          }
+
+          // character
+          else if (tok.tag === "dialogue_character_name" && text) {
+            const characterKey = getDialogueCharacterKey(text);
+            declareImplicitVariable(tok, "character", characterKey, "default", {
+              name: text,
+            });
+            declareImplicitVariable(tok, "synth", characterKey, "character");
           }
 
           // push token onto current stack
@@ -1853,10 +1857,6 @@ export default class SparkParser {
               dialogue.characterName = tok;
               dialogue.characterKey = characterKey;
             }
-            declareImplicitVariable(tok, "character", characterKey, "default", {
-              name: text,
-            });
-            declareImplicitVariable(tok, "synth", characterKey, "character");
           } else if (tok.tag === "dialogue_character_parenthetical" && text) {
             tok.target = "character_parenthetical";
             tok.text = text;
