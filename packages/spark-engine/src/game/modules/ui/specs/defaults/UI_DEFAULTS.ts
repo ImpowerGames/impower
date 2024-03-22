@@ -7,7 +7,7 @@ export const UI_DEFAULTS = {
       loading_fill: {},
     },
   },
-  display: {
+  stage: {
     backdrop: {
       image: {},
     },

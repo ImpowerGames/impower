@@ -17,7 +17,7 @@ export const executeDisplayCommand = (
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
 
-  const uiName = "display";
+  const uiName = "stage";
 
   const context = game.context;
 
