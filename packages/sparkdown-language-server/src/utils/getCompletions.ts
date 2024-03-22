@@ -12,9 +12,9 @@ import { getAllProperties } from "@impower/spark-engine/src/game/core/utils/getA
 import { SparkField } from "@impower/sparkdown/src/types/SparkField";
 import type { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
 import { SparkTokenTagMap } from "@impower/sparkdown/src/types/SparkToken";
-import { getProperty } from "@impower/sparkdown/src/utils/getProperty";
+import getProperty from "@impower/sparkdown/src/utils/getProperty";
 import isIdentifier from "@impower/sparkdown/src/utils/isIdentifier";
-import { traverse } from "@impower/sparkdown/src/utils/traverse";
+import traverse from "@impower/sparkdown/src/utils/traverse";
 import { Asset } from "../types/Asset";
 import getLineText from "./getLineText";
 import getLineTextAfter from "./getLineTextAfter";

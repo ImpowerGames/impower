@@ -1,4 +1,4 @@
-export const getProperty = <T>(obj: any, propertyPath: string): T => {
+const getProperty = <T>(obj: any, propertyPath: string): T => {
   if (!propertyPath) {
     return obj;
   }
@@ -11,3 +11,5 @@ export const getProperty = <T>(obj: any, propertyPath: string): T => {
   });
   return cur;
 };
+
+export default getProperty;

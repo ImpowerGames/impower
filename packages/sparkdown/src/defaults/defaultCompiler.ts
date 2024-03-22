@@ -1,4 +1,4 @@
-import SPARK_PRIMITIVE_TYPE_REGEX from "../constants/SPARK_PRIMITIVE_TYPE_REGEX";
+import PRIMITIVE_TYPE_REGEX from "../constants/PRIMITIVE_TYPE_REGEX";
 import { CompilerDiagnostic } from "../types/CompilerDiagnostic";
 
 const defaultCompiler = (
@@ -18,16 +18,16 @@ const defaultCompiler = (
   const from = expr.length - expr.trimStart().length;
   const to = from + trimmedExpr.length;
   let match: RegExpMatchArray | null = null;
-  if ((match = trimmedExpr.match(SPARK_PRIMITIVE_TYPE_REGEX.string))) {
+  if ((match = trimmedExpr.match(PRIMITIVE_TYPE_REGEX.string))) {
     return [match[2], diagnostics, references];
   }
-  if ((match = trimmedExpr.match(SPARK_PRIMITIVE_TYPE_REGEX.number))) {
+  if ((match = trimmedExpr.match(PRIMITIVE_TYPE_REGEX.number))) {
     return [Number(trimmedExpr), diagnostics, references];
   }
-  if ((match = trimmedExpr.match(SPARK_PRIMITIVE_TYPE_REGEX.boolean))) {
+  if ((match = trimmedExpr.match(PRIMITIVE_TYPE_REGEX.boolean))) {
     return [trimmedExpr === "true" ? true : false, diagnostics, references];
   }
-  if ((match = trimmedExpr.match(SPARK_PRIMITIVE_TYPE_REGEX.variableAccess))) {
+  if ((match = trimmedExpr.match(PRIMITIVE_TYPE_REGEX.variableAccess))) {
     const result = context?.[trimmedExpr];
     if (result === undefined) {
       diagnostics.push({

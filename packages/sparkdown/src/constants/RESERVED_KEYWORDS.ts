@@ -1,7 +1,7 @@
-import SPARK_PRIMITIVE_TYPES from "./SPARK_PRIMITIVE_TYPES";
+import PRIMITIVE_SCALAR_TYPES from "./PRIMITIVE_SCALAR_TYPES";
 
-const SPARK_RESERVED_KEYWORDS = [
-  ...SPARK_PRIMITIVE_TYPES,
+const RESERVED_KEYWORDS = [
+  ...PRIMITIVE_SCALAR_TYPES,
   "locale",
   "any",
   "boolean",
@@ -66,4 +66,4 @@ const SPARK_RESERVED_KEYWORDS = [
   "yield",
 ];
 
-export default SPARK_RESERVED_KEYWORDS;
+export default RESERVED_KEYWORDS;
