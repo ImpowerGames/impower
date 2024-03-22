@@ -107,7 +107,6 @@ export default class SparkWebPlayer extends Component(spec) {
         programs.forEach((p) => {
           this._programs[p.uri] = p.program;
         });
-        this.loadGame(true);
         this.emit(
           LoadGameMessage.method,
           LoadGameMessage.type.response(message.id, null)
@@ -120,7 +119,7 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (StartGameMessage.type.isRequest(message)) {
-        this.loadGame(false);
+        this.buildGame(false);
       }
     }
   };
@@ -214,7 +213,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   };
 
-  loadGame(preview: boolean): void {
+  buildGame(preview: boolean): void {
     if (this._programs && this._options) {
       const programIndices: Record<string, number> = {};
       const programs: SparkProgram[] = [];
@@ -323,9 +322,7 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   updatePreview(line: number) {
-    if (!this._builder) {
-      this.loadGame(true);
-    }
+    this.buildGame(true);
     if (this._builder) {
       this._builder.preview(line);
     }
