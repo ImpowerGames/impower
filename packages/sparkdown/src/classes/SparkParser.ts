@@ -649,12 +649,47 @@ export default class SparkParser {
       }
     };
 
-    const validateAssetReference = (
+    const getUIElementNames = () => {
+      const names = new Set<string>();
+      Object.entries(program?.context?.["ui"] || {}).forEach(([, v]) => {
+        traverse(v, (fieldPath) => {
+          const element = fieldPath.split(".").at(-2);
+          if (element) {
+            names.add(element);
+          }
+        });
+      });
+      return names;
+    };
+
+    const validateAssetTarget = (
       tok: ISparkToken,
       type: string,
       name: string,
       nameRange: SparkRange | undefined
-    ): SparkVariable | undefined => {
+    ) => {
+      if (!name) {
+        return undefined;
+      }
+      if (type === "audio") {
+        if (!program?.context?.["channel"]?.[name]) {
+          reportMissing(tok, "channel", name, nameRange, "warning");
+        }
+      }
+      if (type === "image") {
+        const imageTargets = getUIElementNames();
+        if (!imageTargets.has(name)) {
+          reportMissing(tok, "ui element", name, nameRange, "warning");
+        }
+      }
+    };
+
+    const validateAssetName = (
+      tok: ISparkToken,
+      type: string,
+      name: string,
+      nameRange: SparkRange | undefined
+    ) => {
       if (!name) {
         return undefined;
       }
@@ -671,29 +706,24 @@ export default class SparkParser {
         to,
         name,
       });
-      const found =
-        program.variables?.[getVariableId({ type, name })] ??
-        program.variables?.[getVariableId({ type: type + "_group", name })];
-      if (!found) {
-        reportMissing(tok, type, name, nameRange, "warning");
-        return undefined;
+
+      if (type === "audio") {
+        if (
+          !program?.context?.["audio"]?.[name] &&
+          !program?.context?.["audio_group"]?.[name] &&
+          !program?.context?.["synth"]?.[name]
+        ) {
+          reportMissing(tok, type, name, nameRange, "warning");
+        }
       }
-      if (type === "audio" && found.type === "audio_group") {
-        // TODO: ensure audio_group definition is valid
-      } else if (type === "audio" && found.type === "synth") {
-        // TODO: ensure synth definition is valid
-      } else if (found.type !== type) {
-        diagnostic(
-          program,
-          tok,
-          `'${name}' is not ${prefixWithArticle(type)} file`,
-          [{ name: "FOCUS", focus: { from: found.from, to: found.from } }],
-          from,
-          to
-        );
-        return undefined;
+      if (type === "image") {
+        if (
+          !program?.context?.["image"]?.[name] &&
+          !program?.context?.["image_group"]?.[name]
+        ) {
+          reportMissing(tok, type, name, nameRange, "warning");
+        }
       }
-      return found;
     };
 
     const recordExpressionReferences = (
@@ -2011,6 +2041,7 @@ export default class SparkParser {
                 from: tok.from,
                 to: tok.to,
               };
+              validateAssetTarget(tok, parent.tag, text, parent.ranges.target);
             }
           } else if (tok.tag === "asset_names") {
             const parent = lookup("image", "audio");
@@ -2025,8 +2056,13 @@ export default class SparkParser {
                   range: SparkRange;
                 }[];
               }[] = [];
+              let trimmedText = text;
               let from = tok.from;
-              const parts = text.split(COMBINE_OPERATOR_REGEX);
+              while (trimmedText[0] && WHITESPACE_REGEX.test(trimmedText[0]!)) {
+                trimmedText = trimmedText.slice(1);
+                from += 1;
+              }
+              const parts = trimmedText.split(COMBINE_OPERATOR_REGEX);
               let prevOperator = "";
               parts.forEach((p) => {
                 const name = p.trim();
@@ -2144,7 +2180,7 @@ export default class SparkParser {
               });
               parent.assets = assetRanges.map((a) => a.name);
               assetRanges.forEach((a) => {
-                validateAssetReference(tok, parent.tag, a.name, a.range);
+                validateAssetName(tok, parent.tag, a.name, a.range);
               });
               parent.ranges ??= {};
               parent.ranges.assets = {
