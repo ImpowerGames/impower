@@ -181,48 +181,39 @@ const getAudioCompletions = (
 ): CompletionItem[] | null => {
   const audioToken = getLineToken(program, line, "audio");
   const completions: Map<string, CompletionItem> = new Map();
-  Object.values(program?.variables || {}).forEach((v) => {
+  Object.values(program?.context?.["audio"] || {}).forEach((v) => {
     if (v.name !== "default") {
-      if (v.type === "audio") {
-        const completion = {
-          label: v.name,
-          labelDetails: { description: "audio" },
-          kind: CompletionItemKind.Constructor,
-        };
-        if (!completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      } else if (v.type === "audio_group") {
-        const completion = {
-          label: v.name,
-          labelDetails: { description: "audio_group" },
-          kind: CompletionItemKind.Constructor,
-        };
-        if (!completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      } else if (
-        Array.isArray(v.compiled) &&
-        v.compiled.length > 0 &&
-        v.compiled.every((x) => x.type === "audio")
-      ) {
-        const completion = {
-          label: v.name,
-          labelDetails: { description: "audio[]" },
-          kind: CompletionItemKind.Constructor,
-        };
-        if (!completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      } else if (v.type === "synth") {
-        const completion = {
-          label: v.name,
-          labelDetails: { description: "synth" },
-          kind: CompletionItemKind.Constructor,
-        };
-        if (!completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
+      const completion = {
+        label: v.name,
+        labelDetails: { description: "audio" },
+        kind: CompletionItemKind.Constructor,
+      };
+      if (!completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
+    }
+  });
+  Object.values(program?.context?.["audio_group"] || {}).forEach((v) => {
+    if (v.name !== "default") {
+      const completion = {
+        label: v.name,
+        labelDetails: { description: "audio_group" },
+        kind: CompletionItemKind.Constructor,
+      };
+      if (!completions.has(completion.label)) {
+        completions.set(completion.label, completion);
+      }
+    }
+  });
+  Object.values(program?.context?.["synth"] || {}).forEach((v) => {
+    if (v.name !== "default") {
+      const completion = {
+        label: v.name,
+        labelDetails: { description: "synth" },
+        kind: CompletionItemKind.Constructor,
+      };
+      if (!completions.has(completion.label)) {
+        completions.set(completion.label, completion);
       }
     }
   });
