@@ -341,9 +341,14 @@ export default class SparkParser {
       ) {
         const text = variable.compiled.text;
         if (typeof text === "string") {
-          variable.compiled.src = buildSVGSource(text, {
-            includes: ["default"],
-          });
+          variable.compiled.src = buildSVGSource(
+            text,
+            {
+              includes: ["default"],
+            },
+            program.context?.["config"]?.["image_filter"]?.["prefix"],
+            program.context?.["config"]?.["image_filter"]?.["separator"]
+          );
         }
       }
     };
@@ -2113,7 +2118,16 @@ export default class SparkParser {
                           ext: "svg",
                           type: "image",
                           name: filteredAssetName,
-                          src: buildSVGSource(asset.text, filter),
+                          src: buildSVGSource(
+                            asset.text,
+                            filter,
+                            program.context?.["config"]?.["image_filter"]?.[
+                              "prefix"
+                            ],
+                            program.context?.["config"]?.["image_filter"]?.[
+                              "separator"
+                            ]
+                          ),
                         }
                       );
                       return {

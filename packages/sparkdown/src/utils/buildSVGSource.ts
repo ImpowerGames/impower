@@ -6,10 +6,14 @@ const buildSVGSource = (
   filter?: {
     includes?: string[] | undefined;
     excludes?: string[] | undefined;
-  }
+  },
+  filteredIdPrefix = "filter",
+  filterTagSeparator = "-"
 ) => {
   const mime = "image/svg+xml";
-  const filteredText = filter ? filterSVG(svg, filter) : svg;
+  const filteredText = filter
+    ? filterSVG(svg, filter, filteredIdPrefix, filterTagSeparator)
+    : svg;
   const data = encodeSVG(filteredText);
   const src = `data:${mime},${data}`;
   return src;
