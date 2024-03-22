@@ -5,7 +5,7 @@ import GRAMMAR_DEFINITION from "../../language/sparkdown.language-grammar.json";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
-import declare from "../utils/declare";
+import build from "../utils/build";
 
 export default class SparkParser {
   config: SparkParserConfig = {};
@@ -28,7 +28,7 @@ export default class SparkParser {
           ...config,
         }
       : this.config;
-    const program = declare(
+    const program = build(
       script,
       tree,
       this.grammar.nodeNames as SparkdownNodeName[],

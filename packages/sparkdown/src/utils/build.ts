@@ -58,7 +58,7 @@ const SCENE_LOCATION_TIME_REGEX = new RegExp(
   GRAMMAR_DEFINITION.flags
 );
 
-const declare = (
+const build = (
   script: string,
   tree: Tree,
   nodeNames: SparkdownNodeName[],
@@ -2577,4 +2577,4 @@ const declare = (
   return program;
 };
 
-export default declare;
+export default build;
