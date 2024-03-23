@@ -692,8 +692,8 @@
       "end": "(?=[)])|([,])",
       "endCaptures": {
         "1": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.comma.sd"
+          "tag": "separator",
+          "name": "meta.template.expression.comma.sd"
         }
       }
     },
@@ -2239,10 +2239,10 @@
         }
       }
     },
-    "Image": {
+    "ImageTag": {
       "tag": "macroName",
       "name": "meta.image.sd",
-      "match": "^([ ]*)(\\[\\[)(.*?)(\\]\\])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ ]*)(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2258,7 +2258,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AssetCommand"
+              "include": "#AssetTagCommand"
             }
           ]
         },
@@ -2282,10 +2282,10 @@
         }
       }
     },
-    "InlineImage": {
+    "InlineImageTag": {
       "tag": "macroName",
       "name": "meta.image.sd",
-      "match": "(\\[\\[)((?:\\\\.|[^\\]])*)(\\]\\])",
+      "match": "(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -2294,7 +2294,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetCommand"
+              "include": "#AssetTagCommand"
             }
           ]
         },
@@ -2304,10 +2304,10 @@
         }
       }
     },
-    "Audio": {
+    "AudioTag": {
       "tag": "macroName",
       "name": "meta.audio.sd",
-      "match": "^([ ]*)([(][(])(.*?)([)][)])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([ ]*)([(][(])((?:\\\\.|[^)])*?)([)][)])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2323,7 +2323,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AssetCommand"
+              "include": "#AssetTagCommand"
             }
           ]
         },
@@ -2347,10 +2347,10 @@
         }
       }
     },
-    "InlineAudio": {
+    "InlineAudioTag": {
       "tag": "macroName",
       "name": "meta.audio.sd",
-      "match": "([(][(])((?:\\\\.|[^)])*)([)][)])",
+      "match": "([(][(])((?:\\\\.|[^)])*?)([)][)])",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -2359,7 +2359,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetCommand"
+              "include": "#AssetTagCommand"
             }
           ]
         },
@@ -2369,57 +2369,122 @@
         }
       }
     },
-    "AssetCommand": {
+    "StyleTag": {
+      "tag": "macroName",
+      "name": "meta.audio.sd",
+      "match": "^([ ]*)([<])((?:\\\\.|[^>])*?)([>])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.tag.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#StyleTagCommand"
+            }
+          ]
+        },
+        "4": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.tag.sd"
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "InlineStyleTag": {
+      "tag": "macroName",
+      "name": "meta.audio.sd",
+      "match": "([<])((?:\\\\.|[^>])*?)([>])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.tag.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleTagCommand"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.tag.sd"
+        }
+      }
+    },
+    "AssetTagCommand": {
       "match": "(?:(\\b(?:show|hide|play|stop|fade)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\\b))?($|[ ]*\\S*)(.*)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#AssetControl"
+              "include": "#AssetTagControl"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#AssetTargetSeparator"
+              "include": "#AssetTagTargetSeparator"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#AssetTarget"
+              "include": "#AssetTagTarget"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#AssetNames"
+              "include": "#AssetTagNames"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#AssetArgs"
+              "include": "#AssetTagArguments"
             }
           ]
         }
       }
     },
-    "AssetKeyword": {
+    "AssetTagKeyword": {
       "tag": "keyword",
       "name": "keyword.asset.arguments.keyword.sd",
       "match": "(\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b)"
     },
-    "AssetControl": {
+    "AssetTagControl": {
       "tag": "controlKeyword",
-      "name": "keyword.control.asset.action.sd",
+      "name": "keyword.control.asset.control.sd",
       "match": "(.+)"
     },
-    "AssetTargetSeparator": {
+    "AssetTagTargetSeparator": {
       "tag": "typeName",
       "name": "entity.name.type.asset.target.separator.sd",
       "match": "([ ]+)",
@@ -2433,12 +2498,12 @@
         }
       }
     },
-    "AssetTarget": {
+    "AssetTagTarget": {
       "tag": "typeName",
       "name": "entity.name.type.asset.target.sd",
       "match": "(.+)"
     },
-    "AssetNames": {
+    "AssetTagNames": {
       "match": "(.+)",
       "captures": {
         "1": {
@@ -2447,7 +2512,7 @@
               "include": "#Whitespace"
             },
             {
-              "include": "#AssetName"
+              "include": "#AssetTagName"
             },
             {
               "include": "#CombineOperator"
@@ -2456,7 +2521,7 @@
         }
       }
     },
-    "AssetName": {
+    "AssetTagName": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.name.sd",
       "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
@@ -2466,34 +2531,40 @@
       "name": "variable.other.property.combine.sd",
       "match": "([~+-]+)"
     },
-    "AssetArgs": {
+    "AssetTagArguments": {
       "match": "(.+)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#Whitespace"
-            },
-            {
-              "include": "#AssetKeyword"
-            },
-            {
-              "include": "#NumericLiteral"
-            },
-            {
-              "include": "#AssetEffect"
-            },
-            {
-              "include": "#TimeValue"
+              "include": "#AssetTagArgument"
             }
           ]
         }
       }
     },
-    "AssetEffect": {
-      "tag": "string",
-      "name": "string.asset.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
+    "AssetTagArgument": {
+      "tag": "meta",
+      "name": "meta.argument.sd",
+      "begin": "(?=.+$)",
+      "patterns": [
+        {
+          "include": "#AssetTagKeyword"
+        },
+        {
+          "include": "#TimeValue"
+        },
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)|([ ])",
+      "endCaptures": {
+        "1": {
+          "tag": "separator",
+          "name": "meta.template.expression.space.sd"
+        }
+      }
     },
     "TimeValue": {
       "tag": "number",
@@ -2507,6 +2578,107 @@
         "2": {
           "tag": "number",
           "name": "constant.numeric.time.unit.sd"
+        }
+      }
+    },
+    "StyleTagCommand": {
+      "match": "([ ]*)([^ :]+)([ ]*)(?:([:])([ ]*)(.*))?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#StyleTagControl"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#StyleTagColon"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#StyleTagArguments"
+            }
+          ]
+        }
+      }
+    },
+    "StyleTagControl": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#NumericLiteral"
+            },
+            {
+              "include": "#StyleTagControlKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "StyleTagControlKeyword": {
+      "tag": "variableName",
+      "name": "variable.other.constant.tag.name.sd",
+      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
+    },
+    "StyleTagColon": {
+      "tag": "separator",
+      "name": "meta.template.expression.colon.sd",
+      "match": "([:])"
+    },
+    "StyleTagArguments": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StyleTagArgument"
+            }
+          ]
+        }
+      }
+    },
+    "StyleTagArgument": {
+      "tag": "meta",
+      "name": "meta.argument.sd",
+      "begin": "(?=.+$)",
+      "patterns": [
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)|([,])",
+      "endCaptures": {
+        "1": {
+          "tag": "separator",
+          "name": "meta.template.expression.comma.sd"
         }
       }
     },
@@ -2691,10 +2863,13 @@
           "include": "#Comment"
         },
         {
-          "include": "#Image"
+          "include": "#ImageTag"
         },
         {
-          "include": "#Audio"
+          "include": "#AudioTag"
+        },
+        {
+          "include": "#StyleTag"
         },
         {
           "include": "#DialogueLineParenthetical"
@@ -2846,10 +3021,13 @@
           "include": "#Comment"
         },
         {
-          "include": "#Image"
+          "include": "#ImageTag"
         },
         {
-          "include": "#Audio"
+          "include": "#AudioTag"
+        },
+        {
+          "include": "#StyleTag"
         },
         {
           "include": "#BoxLineContinue"
@@ -2922,10 +3100,13 @@
       "emit": true,
       "patterns": [
         {
-          "include": "#InlineImage"
+          "include": "#InlineImageTag"
         },
         {
-          "include": "#InlineAudio"
+          "include": "#InlineAudioTag"
+        },
+        {
+          "include": "#InlineStyleTag"
         },
         {
           "include": "#DisplayString"
@@ -3223,12 +3404,6 @@
           "include": "#EmphasisEqualStart"
         },
         {
-          "include": "#EmphasisAngleRightStart"
-        },
-        {
-          "include": "#EmphasisAngleLeftStart"
-        },
-        {
           "include": "#EmphasisColonStart"
         }
       ]
@@ -3243,12 +3418,6 @@
         },
         {
           "include": "#EmphasisEqualSurround"
-        },
-        {
-          "include": "#EmphasisAngleRightSurround"
-        },
-        {
-          "include": "#EmphasisAngleLeftSurround"
         },
         {
           "include": "#EmphasisColonSurround"
@@ -3397,86 +3566,6 @@
       "tag": "emphasis",
       "name": "markup.emphasis.sd",
       "match": "([=]+)((?:(?!\\1).*?)+)(\\1)",
-      "captures": {
-        "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        }
-      }
-    },
-    "EmphasisAngleLeftStart": {
-      "tag": "emphasis",
-      "name": "markup.emphasis.sd",
-      "match": "^([<]+)([^<]+)$",
-      "captures": {
-        "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        }
-      }
-    },
-    "EmphasisAngleLeftSurround": {
-      "tag": "emphasis",
-      "name": "markup.emphasis.sd",
-      "match": "([<]+)((?:(?!\\1).*?)+)(\\1)",
-      "captures": {
-        "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        }
-      }
-    },
-    "EmphasisAngleRightStart": {
-      "tag": "emphasis",
-      "name": "markup.emphasis.sd",
-      "match": "^([>]+)([^>]+)$",
-      "captures": {
-        "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        }
-      }
-    },
-    "EmphasisAngleRightSurround": {
-      "tag": "emphasis",
-      "name": "markup.emphasis.sd",
-      "match": "([>]+)((?:(?!\\1).*?)+)(\\1)",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -4092,14 +4181,14 @@
       }
     },
     "PunctuationComma": {
-      "tag": "punctuation",
-      "name": "punctuation.separator.comma.sd",
-      "match": ","
+      "tag": "separator",
+      "name": "meta.template.expression.comma.sd",
+      "match": "([,])"
     },
     "PunctuationSemicolon": {
-      "tag": "punctuation",
-      "name": "punctuation.separator.semicolon.sd",
-      "match": ";"
+      "tag": "separator",
+      "name": "meta.template.expression.semicolon.sd",
+      "match": "([;])"
     },
     "PunctuationParenOpen": {
       "match": "([(])",

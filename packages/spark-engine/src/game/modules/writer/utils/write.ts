@@ -147,6 +147,25 @@ const getArgumentTimeValue = (
   return undefined;
 };
 
+const isNumberValue = (arg: string | undefined): boolean => {
+  const numValue = Number(arg);
+  if (numValue == null || Number.isNaN(numValue)) {
+    return false;
+  }
+  return true;
+};
+
+const getNumberValue = (
+  arg: string | undefined,
+  defaultValue: number
+): number => {
+  const numValue = Number(arg);
+  if (numValue == null || Number.isNaN(numValue)) {
+    return defaultValue;
+  }
+  return numValue;
+};
+
 const getArgumentNumberValue = (
   args: string[],
   name: string
@@ -276,6 +295,7 @@ export const write = (
 
   const marks: [string, number][] = [];
   const textChunks: Chunk[] = [];
+  let speedModifier = 1;
 
   content.forEach((p, contentIndex) => {
     const target = p.target || "";
@@ -354,6 +374,14 @@ export const write = (
       });
       startNewPhrase();
     }
+    if (p.tag === "style") {
+      if (isNumberValue(p.control)) {
+        speedModifier = getNumberValue(p.control, 1);
+      }
+      if (p.control === "speed") {
+        speedModifier = getNumberValue(p.args?.[0], 1);
+      }
+    }
     const text = p.text;
     if (text != null) {
       if (skippedMatcher && skippedMatcher.test(text)) {
@@ -404,8 +432,6 @@ export const write = (
         const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
         const activeTremblingMark = markers.find((m) => m.startsWith("::"));
         const activeInstantMark = markers.find((m) => m.startsWith("=="));
-        const activeFasterMark = markers.find((m) => m.startsWith(">>"));
-        const activeSlowerMark = markers.find((m) => m.startsWith("<<"));
         const isCentered = Boolean(activeCenteredMark);
         const hasBoldItalicMark = Boolean(activeBoldItalicMark);
         const isUnderlined = Boolean(activeUnderlineMark);
@@ -485,16 +511,11 @@ export const write = (
         // Determine beep timing
         const charIndex = phraseUnpauseLength - 1;
         const voicedSyllable = charIndex % syllableLength === 0;
-        const speedFaster = activeFasterMark?.length ?? 1;
-        const speedSlower = activeSlowerMark?.length ?? 1;
         const speedInstant = activeInstantMark ? 0 : 1;
         const speedFloating = floating ? floating : 1;
         const speedTrembling = trembling ? trembling : 1;
         const speed =
-          (1 * speedInstant * speedFaster) /
-          speedSlower /
-          speedFloating /
-          speedTrembling;
+          (1 * speedInstant * speedModifier) / speedFloating / speedTrembling;
         const isPhrasePause = isPhraseBoundary;
         const isEmDashPause = currChunk && currChunk.emDash && !emDash;
         const isStressPause: boolean = Boolean(
@@ -559,7 +580,8 @@ export const write = (
               italicized === currChunk.italicized &&
               underlined === currChunk.underlined &&
               floating === currChunk.floating &&
-              trembling === currChunk.trembling
+              trembling === currChunk.trembling &&
+              speed === currChunk.speed
             ) {
               // No need to create new element, simply append char to previous chunk
               currChunk.text += char;

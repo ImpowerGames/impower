@@ -5,6 +5,7 @@ brackets:
   - ["{", "}"]
   - ["[", "]"]
   - ["(", ")"]
+  - ["<", ">"]
 
 autoClosingPairs:
   - open: "{"
@@ -13,6 +14,8 @@ autoClosingPairs:
     close: "]"
   - open: "("
     close: ")"
+  - open: "<"
+    close: ">"
   - open: "`"
     close: "`"
   - open: '"'

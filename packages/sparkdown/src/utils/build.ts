@@ -43,7 +43,6 @@ import prefixWithArticle from "./prefixWithArticle";
 import setProperty from "./setProperty";
 import traverse from "./traverse";
 
-const WHITESPACE_REGEX = /([ \t]+)/;
 const COMBINE_OPERATOR_REGEX = /([~+-]+)/;
 
 const DOUBLE_ESCAPE = /\\\\/g;
@@ -1922,7 +1921,14 @@ const build = (
             parent.content.push(tok);
           }
           addToken(tok);
-        } else if (tok.tag === "asset_control") {
+        } else if (tok.tag === "style") {
+          const parent = lookup("dialogue_box", "action_box");
+          if (parent) {
+            parent.content ??= [];
+            parent.content.push(tok);
+          }
+          addToken(tok);
+        } else if (tok.tag === "asset_tag_control") {
           const parent = lookup("image", "audio");
           if (parent) {
             parent.control = text;
@@ -1933,7 +1939,7 @@ const build = (
               to: tok.to,
             };
           }
-        } else if (tok.tag === "asset_target") {
+        } else if (tok.tag === "asset_tag_target") {
           const parent = lookup("image", "audio");
           if (parent) {
             parent.target = text;
@@ -1945,7 +1951,7 @@ const build = (
             };
             validateAssetTarget(tok, parent.tag, text, parent.ranges.target);
           }
-        } else if (tok.tag === "asset_names") {
+        } else if (tok.tag === "asset_tag_names") {
           const parent = lookup("image", "audio");
           if (parent) {
             const assetGroups: {
@@ -1960,7 +1966,7 @@ const build = (
             }[] = [];
             let trimmedText = text;
             let from = tok.from;
-            while (trimmedText[0] && WHITESPACE_REGEX.test(trimmedText[0]!)) {
+            while (trimmedText[0] === " " || trimmedText[0] === "\t") {
               trimmedText = trimmedText.slice(1);
               from += 1;
             }
@@ -2086,22 +2092,42 @@ const build = (
               to: tok.to,
             };
           }
-        } else if (tok.tag === "asset_args") {
+        } else if (tok.tag === "asset_tag_argument") {
           const parent = lookup("image", "audio");
           if (parent) {
-            parent.args = [];
-            text.split(WHITESPACE_REGEX).forEach((p) => {
-              const arg = p.trim();
-              if (arg) {
-                parent.args.push(arg);
-              }
-            });
+            parent.args ??= [];
+            parent.args.push(text);
             parent.ranges ??= {};
-            parent.ranges.args = {
+            parent.ranges.args ??= {
               line: tok.line,
               from: tok.from,
               to: tok.to,
             };
+            parent.ranges.args!.to = tok.to;
+          }
+        } else if (tok.tag === "style_tag_control") {
+          const parent = lookup("style");
+          if (parent) {
+            parent.control = text;
+            parent.ranges ??= {};
+            parent.ranges.control = {
+              line: tok.line,
+              from: tok.from,
+              to: tok.to,
+            };
+          }
+        } else if (tok.tag === "style_tag_argument") {
+          const parent = lookup("style");
+          if (parent) {
+            parent.args ??= [];
+            parent.args.push(text);
+            parent.ranges ??= {};
+            parent.ranges.args ??= {
+              line: tok.line,
+              from: tok.from,
+              to: tok.to,
+            };
+            parent.ranges.args!.to = tok.to;
           }
         } else if (tok.tag === "choice_operator") {
           const parent = lookup("choice");

@@ -214,6 +214,17 @@ export interface SparkAudioToken extends ISparkToken<"audio"> {
   };
 }
 
+export interface SparkStyleToken extends ISparkToken<"style"> {
+  control: string;
+  args: string[];
+
+  ranges?: {
+    checkpoint?: SparkRange;
+    control?: SparkRange;
+    args?: SparkRange;
+  };
+}
+
 export interface DisplayContent {
   line: number;
   from: number;
@@ -227,7 +238,6 @@ export interface DisplayContent {
   button?: string;
   prerequisite?: string;
   text?: string;
-  action?: string;
   assets?: string[];
   args?: string[];
   id: string;
@@ -353,11 +363,15 @@ export interface SparkOtherToken
     | "target_name"
     | "unknown"
     | "dialogue_character_simultaneous"
-    | "asset_control"
-    | "asset_target"
-    | "asset_target_separator"
-    | "asset_names"
-    | "asset_args"
+    | "asset_tag_control"
+    | "asset_tag_target"
+    | "asset_tag_target_separator"
+    | "asset_tag_names"
+    | "asset_tag_arguments"
+    | "asset_tag_argument"
+    | "style_tag_control"
+    | "style_tag_arguments"
+    | "style_tag_argument"
     | "choice_operator"
     | "string"
     | "color"
@@ -411,6 +425,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   choice: SparkChoiceToken;
   image: SparkImageToken;
   audio: SparkAudioToken;
+  style: SparkStyleToken;
   transition: SparkTransitionToken;
   scene: SparkSceneToken;
   action: SparkActionToken;

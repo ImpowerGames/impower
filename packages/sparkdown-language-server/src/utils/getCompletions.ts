@@ -472,9 +472,9 @@ const getCompletions = (
 
   if (scopes) {
     if (scopes.includes("image")) {
-      if (scopes.includes("asset_args")) {
+      if (scopes.includes("asset_tag_arguments")) {
         return getImageArgumentCompletions(program, line);
-      } else if (scopes.includes("asset_target_separator")) {
+      } else if (scopes.includes("asset_tag_target_separator")) {
         return getElementCompletions(program);
       } else if (triggerCharacter === "~" || lineText.includes("~")) {
         return getImageFilterCompletions(program, lineText);
@@ -483,9 +483,9 @@ const getCompletions = (
       }
     }
     if (scopes.includes("audio")) {
-      if (scopes.includes("asset_args")) {
+      if (scopes.includes("asset_tag_arguments")) {
         return getAudioArgumentCompletions(program, line);
-      } else if (scopes.includes("asset_target_separator")) {
+      } else if (scopes.includes("asset_tag_target_separator")) {
         return getChannelCompletions(program);
       } else {
         return getAudioCompletions(program, line);
