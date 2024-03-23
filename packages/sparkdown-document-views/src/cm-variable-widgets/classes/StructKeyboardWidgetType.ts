@@ -94,7 +94,7 @@ export default class StructKeyboardWidgetType extends WidgetType {
     popup.style.top = "100%";
     popup.style.right = "0";
     popup.style.zIndex = "1";
-    popup.style.width = "238px";
+    popup.style.width = `${7 * 32}px`;
     popup.style.height = "80px";
     popup.style.padding = "0";
     popup.style.whiteSpace = "nowrap";
