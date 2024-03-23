@@ -322,7 +322,9 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   updatePreview(line: number) {
-    this.buildGame(true);
+    if (!this._builder) {
+      this.buildGame(true);
+    }
     if (this._builder) {
       this._builder.preview(line);
     }
