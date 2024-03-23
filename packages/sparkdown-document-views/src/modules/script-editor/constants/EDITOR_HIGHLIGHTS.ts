@@ -25,8 +25,8 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
     textDecoration: "line-through",
   },
 
-  { tag: tags.typeName, color: c.typeName },
   { tag: tags.string, color: c.string },
+  { tag: tags.typeName, color: c.typeName },
   { tag: tags.number, color: c.number },
   { tag: tags.bool, color: c.bool },
   { tag: tags.escape, color: c.escape },
