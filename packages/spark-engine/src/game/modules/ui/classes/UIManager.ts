@@ -20,6 +20,7 @@ import { SetThemeMessage } from "./messages/SetThemeMessage";
 import { UnobserveElementMessage } from "./messages/UnobserveElementMessage";
 import { UpdateElementMessage } from "./messages/UpdateElementMessage";
 
+const INVALID_VAR_NAME_CHAR = /[^_a-zA-Z0-9]/g;
 const DEFAULT_UI_CLASS_NAME = "game-ui";
 const DEFAULT_STYLE_CLASS_NAME = "game-style";
 const DEFAULT_BREAKPOINTS = {
@@ -257,7 +258,7 @@ export class UIManager extends Manager<UIState> {
   }
 
   getImageVarName(name: string) {
-    return `--image_${name}`;
+    return `--image_${name.replaceAll(INVALID_VAR_NAME_CHAR, "_")}`;
   }
 
   getImageVarValue(src: string) {
