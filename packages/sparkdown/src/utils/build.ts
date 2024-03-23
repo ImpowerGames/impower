@@ -2041,7 +2041,7 @@ const build = (
                     const filteredAssetName = [
                       a.name,
                       ...a.filters.map((f) => f.$name),
-                    ].join("_");
+                    ].join("~");
                     declareImplicitVariable(
                       tok,
                       type,
