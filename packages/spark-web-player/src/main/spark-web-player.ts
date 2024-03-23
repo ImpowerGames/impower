@@ -322,6 +322,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   updatePreview(line: number) {
     if (!this._builder || this._builder.programs !== this._programs) {
+      // If haven't built game yet, or programs have changed since last build, build game.
       this.buildGame(true);
     }
     if (this._builder) {
