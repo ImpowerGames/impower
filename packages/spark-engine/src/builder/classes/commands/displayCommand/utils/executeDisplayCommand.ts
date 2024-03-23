@@ -55,6 +55,7 @@ export const executeDisplayCommand = (
 
   // Stop stale sounds
   game.module.audio.stopChannel("writer");
+  game.module.audio.stopChannel("sound");
   game.module.audio.stopChannel("voice");
 
   const styleMap = context?.["style"];
