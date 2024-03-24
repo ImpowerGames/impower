@@ -16,7 +16,6 @@ import { EditorState } from "@codemirror/state";
 import {
   EditorView,
   crosshairCursor,
-  drawSelection,
   dropCursor,
   highlightActiveLine,
   highlightActiveLineGutter,
@@ -38,7 +37,6 @@ const EDITOR_EXTENSIONS = [
   whitespaceMarkers(),
   indentationGuides(),
   indentedLineWrapping(),
-  drawSelection(),
   dropCursor(),
   crosshairCursor(),
   rectangularSelection(),
