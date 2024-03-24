@@ -27,7 +27,6 @@ import {
 import { breakpoints } from "../../../cm-breakpoints/breakpoints";
 import { indentationGuides } from "../../../cm-indentation-guides/indentationGuides";
 import { indentedLineWrapping } from "../../../cm-indented-line-wrapping/indentedLineWrapping";
-import { whitespaceMarkers } from "../../../cm-whitespace-markers/whitespaceMarkers";
 
 const EDITOR_EXTENSIONS = [
   history(),
@@ -35,7 +34,7 @@ const EDITOR_EXTENSIONS = [
   breakpoints({ singular: true }),
   lineNumbers(),
   indentUnit.of("  "),
-  whitespaceMarkers(),
+  // whitespaceMarkers(),
   indentationGuides(),
   indentedLineWrapping(),
   drawSelection(),
