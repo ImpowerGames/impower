@@ -2,7 +2,7 @@ import { FormattedText } from "../types/FormattedText";
 import { TextOptions } from "../types/TextOptions";
 
 const SINGLE_MARKERS = ["|", "*", "_", "^"];
-const DOUBLE_MARKERS = ["~~", "::", "==", ">>", "<<"];
+const DOUBLE_MARKERS = ["~~", "::"];
 
 export const styleText = (
   text: string,

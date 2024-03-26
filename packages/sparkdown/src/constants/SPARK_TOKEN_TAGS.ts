@@ -35,8 +35,6 @@ const SPARK_TOKEN_TAGS: {
   ValueText: "value_text",
   String: "string",
 
-  FlowBreak: "flow_break",
-
   Import: "import",
 
   Store: "store",

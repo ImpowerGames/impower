@@ -37,9 +37,6 @@
       "include": "#Checkpoint"
     },
     {
-      "include": "#FlowBreak"
-    },
-    {
       "include": "#Import"
     },
     {
@@ -348,16 +345,16 @@
       "match": "(.+)"
     },
     "ChunkSplitter": {
-      "match": "^((?:[@])(?:$|[ ]+)(?:$|[._a-zA-Z][._a-zA-Z0-9]*)(?:$|[ ]*$))"
+      "match": "^((?:[=]{3,})(?:$|[ ]*)(?:$|[^=]*?)(?:$|[ ]*)(?:$|[=].*)(?:$|[ ]*$))"
     },
     "Chunk": {
       "tag": "definition(annotation)",
       "name": "keyword.control.chunk.sd",
-      "match": "^([@])($|[ ]+)($|[._a-zA-Z][._a-zA-Z0-9]*)($|[ ]*$)",
+      "match": "^([=]{3,})($|[ ]*)($|[^=]*?)($|[ ]*)($|[=].*)($|[ ]*$)",
       "captures": {
         "1": {
           "tag": "keyword",
-          "name": "keyword.control.chunk.percent.sd"
+          "name": "keyword.control.chunk.equal.sd"
         },
         "2": {
           "patterns": [
@@ -374,6 +371,17 @@
           ]
         },
         "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
+          "tag": "keyword",
+          "name": "keyword.control.chunk.equal.sd"
+        },
+        "6": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -466,24 +474,6 @@
       "tag": "contentSeparator",
       "name": "keyword.control.flow-break.sd",
       "match": "(.+)"
-    },
-    "FlowBreak": {
-      "tag": "meta",
-      "name": "meta.break.sd",
-      "match": "^(===+)($|[ ]*$)",
-      "captures": {
-        "1": {
-          "tag": "contentSeparator",
-          "name": "keyword.control.flow-break.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
     },
     "Logic": {
       "patterns": [
@@ -2174,7 +2164,7 @@
     },
     "Choice": {
       "name": "entity.choice.sd",
-      "match": "^([+])($|[ ]+)($|.*?)($|[ ]+)($|[-][>].*$)((?:\\r\\n|\\r|\\n)?)",
+      "match": "^([+-])($|[ ]+)($|.*?)($|[ ]+)($|[-][>].*$)((?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -2435,7 +2425,7 @@
       }
     },
     "AssetTagCommand": {
-      "match": "(?:(\\b(?:show|hide|play|stop|fade)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\\b))?($|[ ]*\\S*)(.*)",
+      "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\\b))?($|[ ]*\\S*)(.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -2644,9 +2634,9 @@
       }
     },
     "StyleTagControlKeyword": {
-      "tag": "variableName",
-      "name": "variable.other.constant.tag.name.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
+      "tag": "keyword",
+      "name": "keyword.style.control.keyword.sd",
+      "match": "(speed|wait|s|w)"
     },
     "StyleTagColon": {
       "tag": "separator",
@@ -2759,7 +2749,7 @@
     },
     "Dialogue": {
       "name": "entity.dialogue.sd",
-      "begin": "^(?:([*])($|[ ]+)(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]*[\\p{Lu}?]))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\\^)?($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
+      "begin": "^(?:([@])($|[ ]+)(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]*[\\p{Lu}?])|([*])($|[ ]+))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\\^)?($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -2784,18 +2774,12 @@
           ]
         },
         "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
+          "tag": "keyword",
+          "name": "keyword.dialogue.mark.sd"
         },
         "6": {
-          "patterns": [
-            {
-              "include": "#DialogueCharacterParenthetical"
-            }
-          ]
+          "tag": "keyword",
+          "name": "keyword.dialogue.mark.sd"
         },
         "7": {
           "patterns": [
@@ -2807,7 +2791,7 @@
         "8": {
           "patterns": [
             {
-              "include": "#DialogueCharacterSimultaneous"
+              "include": "#DialogueCharacterParenthetical"
             }
           ]
         },
@@ -2819,6 +2803,20 @@
           ]
         },
         "10": {
+          "patterns": [
+            {
+              "include": "#DialogueCharacterSimultaneous"
+            }
+          ]
+        },
+        "11": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "12": {
           "patterns": [
             {
               "include": "#Newline"
@@ -2942,7 +2940,7 @@
       }
     },
     "BoxLineContinue": {
-      "match": "((?:[@].*|.*[ ])$(?:\\r\\n|\\r|\\n)?)",
+      "match": "(.*[ ]$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
@@ -3049,7 +3047,7 @@
     },
     "DisplayText": {
       "name": "entity.display.sd",
-      "match": "(?:([!]?(?:\\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?($|.+?(?=[@])|.+$(?:\\r\\n|\\r|\\n)?)",
+      "match": "(?:([!]?(?:\\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?($|.+$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [

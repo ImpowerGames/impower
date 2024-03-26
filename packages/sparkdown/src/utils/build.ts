@@ -1714,8 +1714,6 @@ const build = (
             to: tok.to,
             value: text,
           });
-        } else if (tok.tag === "flow_break") {
-          addToken(tok);
         } else if (tok.tag === "jump") {
           addToken(tok);
         } else if (tok.tag === "jump_to_section") {

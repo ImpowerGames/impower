@@ -162,7 +162,7 @@ const generateCommand = (
     };
     return newCommand;
   }
-  if (token.tag === "flow_break") {
+  if (token.tag === "chunk") {
     const id = token.id || getCommandId(parent, index);
     token.id = id;
     const newCommand: ClearCommandData = {

@@ -12,7 +12,7 @@ import { WriteResult } from "../types/WriteResult";
 import { stressPhrases } from "./stressPhrases";
 
 const SINGLE_MARKERS = ["|", "*", "_", "^"];
-const DOUBLE_MARKERS = ["~~", "::", "==", ">>", "<<"];
+const DOUBLE_MARKERS = ["~~", "::"];
 const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
 const SECONDS_REGEX = /((?:\d*[.])?\d+)s/;
 
@@ -378,8 +378,21 @@ export const write = (
       if (isNumberValue(p.control)) {
         speedModifier = getNumberValue(p.control, 1);
       }
-      if (p.control === "speed") {
+      if (p.control === "speed" || p.control === "s") {
         speedModifier = getNumberValue(p.args?.[0], 1);
+      }
+      if (p.control === "wait" || p.control === "w") {
+        const waitModifier = getNumberValue(p.args?.[0], 0);
+        phrases.push({
+          ...p,
+          chunks: [
+            {
+              tag: p.tag,
+              duration: waitModifier,
+              speed: 1,
+            },
+          ],
+        });
       }
     }
     const text = p.text;
@@ -431,7 +444,6 @@ export const write = (
         const activePitchUpMark = markers.find((m) => m.startsWith("^"));
         const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
         const activeTremblingMark = markers.find((m) => m.startsWith("::"));
-        const activeInstantMark = markers.find((m) => m.startsWith("=="));
         const isCentered = Boolean(activeCenteredMark);
         const hasBoldItalicMark = Boolean(activeBoldItalicMark);
         const isUnderlined = Boolean(activeUnderlineMark);
@@ -502,20 +514,20 @@ export const write = (
             ? 1
             : 0;
         // floating level = number of `~`
-        const floating = activeFloatingMark ? activeFloatingMark.length : 0;
+        const floating = activeFloatingMark ? activeFloatingMark.length - 1 : 0;
         // trembling level = number of `=`
-        const trembling = activeTremblingMark ? activeTremblingMark.length : 0;
+        const trembling = activeTremblingMark
+          ? activeTremblingMark.length - 1
+          : 0;
         // stress level = number of `^`
         const pitch = activePitchUpMark ? activePitchUpMark.length : 0;
 
         // Determine beep timing
         const charIndex = phraseUnpauseLength - 1;
         const voicedSyllable = charIndex % syllableLength === 0;
-        const speedInstant = activeInstantMark ? 0 : 1;
         const speedFloating = floating ? floating : 1;
         const speedTrembling = trembling ? trembling : 1;
-        const speed =
-          (1 * speedInstant * speedModifier) / speedFloating / speedTrembling;
+        const speed = (1 * speedModifier) / speedFloating / speedTrembling;
         const isPhrasePause = isPhraseBoundary;
         const isEmDashPause = currChunk && currChunk.emDash && !emDash;
         const isStressPause: boolean = Boolean(

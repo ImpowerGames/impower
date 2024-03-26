@@ -393,7 +393,7 @@ const decorate = (state: EditorState) => {
         });
         return false;
       }
-      if (name === "FlowBreak") {
+      if (name === "Chunk") {
         return false;
       }
       if (HIDDEN_NODE_NAMES.includes(name)) {

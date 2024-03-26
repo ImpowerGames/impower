@@ -67,22 +67,13 @@ export class Typesetter {
     };
 
     tokens.forEach((t: SparkToken) => {
-      if (t.tag === "flow_break") {
+      if (t.tag === "chunk") {
         lines.push({
           tag: "page_break",
           line: t.line,
           from: t.from,
           to: t.to,
         });
-      } else if (t.tag === "chunk") {
-        const max =
-          print?.settings?.[t.tag]?.max ?? print?.settings?.action.max ?? null;
-        lines.push(
-          ...this.formatLine(t.tag, t.name, max, t.line, t.from, print)
-        );
-        if (config?.screenplay_print_chunks) {
-          pushSeparator();
-        }
       } else if (t.tag === "section") {
         const max =
           print?.settings?.[t.tag]?.max ?? print?.settings?.action.max ?? null;

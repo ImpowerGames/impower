@@ -336,7 +336,6 @@ export interface SparkOtherToken
     | "section_level"
     | "section_name"
     | "checkpoint_name"
-    | "flow_break"
     | "break"
     | "continue"
     | "type_name"
