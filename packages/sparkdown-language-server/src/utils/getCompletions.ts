@@ -49,7 +49,7 @@ const getElementCompletions = (
             labelDetails: { description: "element" },
             kind: CompletionItemKind.Constructor,
           };
-          if (!completions.has(completion.label)) {
+          if (completion.label && !completions.has(completion.label)) {
             completions.set(completion.label, completion);
           }
         }
@@ -84,7 +84,7 @@ const getImageCompletions = (
           kind: MarkupKind.Markdown,
           value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
         };
-        if (!completions.has(completion.label)) {
+        if (completion.label && !completions.has(completion.label)) {
           completions.set(completion.label, completion);
         }
       }
@@ -106,7 +106,7 @@ const getImageCompletions = (
             value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
           };
         }
-        if (!completions.has(completion.label)) {
+        if (completion.label && !completions.has(completion.label)) {
           completions.set(completion.label, completion);
         }
       }
@@ -120,7 +120,7 @@ const getImageCompletions = (
         labelDetails: { description: "control" },
         kind: CompletionItemKind.Keyword,
       };
-      if (!completions.has(completion.label)) {
+      if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
     });
@@ -146,7 +146,7 @@ const getImageFilterCompletions = (
           labelDetails: { description: "image_filter" },
           kind: CompletionItemKind.Constructor,
         };
-        if (!completions.has(completion.label)) {
+        if (completion.label && !completions.has(completion.label)) {
           completions.set(completion.label, completion);
         }
       }
@@ -167,7 +167,7 @@ const getChannelCompletions = (
         labelDetails: { description: "channel" },
         kind: CompletionItemKind.Constructor,
       };
-      if (!completions.has(completion.label)) {
+      if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
     }
@@ -188,7 +188,7 @@ const getAudioCompletions = (
         labelDetails: { description: "audio" },
         kind: CompletionItemKind.Constructor,
       };
-      if (!completions.has(completion.label)) {
+      if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
     }
@@ -200,7 +200,7 @@ const getAudioCompletions = (
         labelDetails: { description: "audio_group" },
         kind: CompletionItemKind.Constructor,
       };
-      if (!completions.has(completion.label)) {
+      if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
     }
@@ -212,7 +212,7 @@ const getAudioCompletions = (
         labelDetails: { description: "synth" },
         kind: CompletionItemKind.Constructor,
       };
-      if (!completions.has(completion.label)) {
+      if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
     }
@@ -225,7 +225,7 @@ const getAudioCompletions = (
         labelDetails: { description: "control" },
         kind: CompletionItemKind.Keyword,
       };
-      if (!completions.has(completion.label)) {
+      if (completion.label && !completions.has(completion.label)) {
         completions.set(completion.label, completion);
       }
     });
