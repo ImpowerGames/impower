@@ -1,5 +1,3 @@
-import type { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
-
 const DEFAULT_FADE_DURATION = 0.025;
 
 type AudioListener = (
@@ -7,43 +5,35 @@ type AudioListener = (
   ev: AudioScheduledSourceNodeEventMap[keyof AudioScheduledSourceNodeEventMap]
 ) => any;
 
+interface AudioNode {
+  sourceNode: AudioBufferSourceNode;
+  gainNode: GainNode;
+}
+
 export class SparkDOMAudioPlayer {
-  protected _gainNode: GainNode;
-  public get gainNode(): GainNode {
-    return this._gainNode;
-  }
-
-  protected _context: AudioContext;
-  public get context(): AudioContext {
-    return this._context;
-  }
-
-  protected _sourceNode?: AudioBufferSourceNode;
-  public get sourceNode(): AudioBufferSourceNode | undefined {
-    return this._sourceNode;
-  }
-
-  protected _soundBuffer?: Float32Array;
-  public get soundBuffer(): Float32Array | undefined {
-    return this._soundBuffer;
-  }
-
-  protected _audioBuffer?: AudioBuffer;
+  protected _audioBuffer: AudioBuffer;
   public get audioBuffer(): AudioBuffer | undefined {
     return this._audioBuffer;
   }
 
-  protected _synthBuffer?: SynthBuffer;
-  public get synthBuffer(): SynthBuffer | undefined {
-    return this._synthBuffer;
+  protected _audioContext: AudioContext;
+  public get context(): AudioContext {
+    return this._audioContext;
   }
+
+  protected _volumeNode: GainNode;
+  public get volumeNode(): GainNode {
+    return this._volumeNode;
+  }
+
+  protected _nodes = new Set<AudioNode>();
 
   public get currentTime(): number {
     if (this._pausedAt) {
       return this._pausedAt;
     }
     if (this._startedAt) {
-      return this._context.currentTime - this._startedAt;
+      return this._audioContext.currentTime - this._startedAt;
     }
     return 0;
   }
@@ -54,18 +44,18 @@ export class SparkDOMAudioPlayer {
   }
   public set pitchBend(value) {
     this._pitchBend = value;
-    if (this.sourceNode) {
-      this.sourceNode.detune.value = (value ?? 0) * 100;
-    }
+    this._nodes.forEach((node) => {
+      node.sourceNode.detune.value = (value ?? 0) * 100;
+    });
   }
 
   public get duration(): number {
-    return this._sourceNode?.buffer?.duration ?? 0;
+    return this._audioBuffer?.duration ?? 0;
   }
 
-  protected _started = false;
-  public get started(): boolean {
-    return this._started;
+  protected _mixer?: GainNode;
+  public get mixer() {
+    return this._mixer;
   }
 
   protected _loop = false;
@@ -74,9 +64,9 @@ export class SparkDOMAudioPlayer {
   }
   public set loop(value) {
     this._loop = value;
-    if (this.sourceNode) {
-      this.sourceNode.loop = value;
-    }
+    this._nodes.forEach((node) => {
+      node.sourceNode.loop = value;
+    });
   }
 
   protected _gain = 1;
@@ -97,11 +87,6 @@ export class SparkDOMAudioPlayer {
     return this._pausedAt;
   }
 
-  protected _volume = 1;
-  public get volume() {
-    return this._volume;
-  }
-
   protected _cues: number[] = [];
   public get cues() {
     return this._cues;
@@ -115,57 +100,53 @@ export class SparkDOMAudioPlayer {
   };
 
   constructor(
-    sound: AudioBuffer | Float32Array | SynthBuffer,
+    audioBuffer: AudioBuffer,
     audioContext: AudioContext,
     options?: {
+      mixer?: GainNode;
+      cues?: number[];
       loop?: boolean;
       volume?: number;
-      cues?: number[];
     }
   ) {
-    this._context = audioContext;
-    if (sound instanceof AudioBuffer) {
-      this._audioBuffer = sound;
-    } else if (sound instanceof Float32Array) {
-      this._soundBuffer = sound;
-    } else {
-      this._soundBuffer = sound.soundBuffer;
-      this._synthBuffer = sound;
-    }
-    this._loop = options?.loop ?? this._loop;
-    this._volume = options?.volume ?? this._volume;
+    this._audioBuffer = audioBuffer;
+    this._audioContext = audioContext;
+    this._mixer = options?.mixer;
     this._cues = options?.cues ?? this._cues;
-    this._gainNode = this._context.createGain();
-    this._gainNode.gain.value = this._volume;
-    this._gainNode.connect(this._context.destination);
-    this.loadSourceNode();
+    this._loop = options?.loop ?? this._loop;
+    const volume = options?.volume ?? 1;
+    this._volumeNode = this._audioContext.createGain();
+    this._volumeNode.gain.value = volume;
+    this._volumeNode.connect(this._mixer ?? this._audioContext.destination);
   }
 
-  protected loadSourceNode(): void {
-    const sampleRate = this._context.sampleRate;
-    if (this._sourceNode) {
-      this._sourceNode.disconnect();
-    }
-    this._sourceNode = this._context.createBufferSource();
-    this._sourceNode.detune.value = this._pitchBend * 100;
-    this._sourceNode.loop = this._loop;
-    this._sourceNode.connect(this._gainNode);
+  protected playSound(
+    when: number = 0,
+    offset?: number,
+    duration?: number
+  ): AudioNode {
+    const gainNode = this._audioContext.createGain();
+    const sourceNode = this._audioContext.createBufferSource();
+    const node: AudioNode = {
+      gainNode: gainNode,
+      sourceNode: sourceNode,
+    };
+    // Setup gain node
+    gainNode.connect(this._volumeNode);
+    // Setup source node
+    sourceNode.detune.value = this._pitchBend * 100;
+    sourceNode.loop = this._loop;
+    sourceNode.buffer = this._audioBuffer;
     this._events.ended.forEach((options, listener) => {
-      if (this._sourceNode) {
-        this._sourceNode.addEventListener("ended", listener, options);
-      }
+      sourceNode.addEventListener("ended", listener, options);
+      sourceNode.stop(0);
+      sourceNode.disconnect();
+      this._nodes.delete(node);
     });
-    if (this._audioBuffer) {
-      this._sourceNode.buffer = this._audioBuffer;
-    } else if (this._soundBuffer && this._soundBuffer.length > 0) {
-      const buffer = this._context.createBuffer(
-        1,
-        this._soundBuffer.length,
-        sampleRate
-      );
-      buffer.copyToChannel(this._soundBuffer, 0);
-      this._sourceNode.buffer = buffer;
-    }
+    sourceNode.connect(gainNode);
+    sourceNode.start(when, offset, duration);
+    this._nodes.add(node);
+    return node;
   }
 
   addEventListener<K extends keyof AudioScheduledSourceNodeEventMap>(
@@ -184,39 +165,26 @@ export class SparkDOMAudioPlayer {
   ): void {
     this._events[type] ??= new Map();
     this._events[type].delete(listener);
-    if (this._sourceNode) {
-      this._sourceNode.removeEventListener("ended", listener, options);
-    }
+    this._nodes.forEach((node) => {
+      node.sourceNode.removeEventListener("ended", listener, options);
+    });
   }
 
   secondsToApproximateTimeConstant(sec: number = 0) {
     return (sec * 2) / 10;
   }
 
-  protected _fade(when: number, value: number, duration?: number): void {
-    this._gainNode.gain.setTargetAtTime(
-      this._volume * value,
+  protected _fade(
+    gainNode: GainNode,
+    when: number,
+    value: number,
+    duration?: number
+  ): void {
+    gainNode.gain.setTargetAtTime(
+      value,
       when,
       this.secondsToApproximateTimeConstant(duration)
     );
-  }
-
-  play(
-    when: number,
-    fadeDuration = 0,
-    offset?: number,
-    duration?: number
-  ): void {
-    if (!this._sourceNode) {
-      this.loadSourceNode();
-    }
-    if (!this._started) {
-      this._started = true;
-      this._sourceNode?.start(when, offset, duration);
-      this._startedAt = when;
-      this._pausedAt = 0;
-    }
-    this._fade(when, this._gain, fadeDuration);
   }
 
   start(
@@ -225,10 +193,9 @@ export class SparkDOMAudioPlayer {
     offset?: number,
     duration?: number
   ): void {
-    // reload source node so we can start from the beginning
-    this.loadSourceNode();
-    this._sourceNode?.start(when, offset, duration);
-    this._fade(when, this._gain, fadeDuration);
+    // Reload source node so we can start from the beginning
+    const node = this.playSound(when, offset, duration);
+    this._fade(node.gainNode, when, this._gain, fadeDuration);
     this._startedAt = when;
     this._pausedAt = 0;
   }
@@ -236,34 +203,24 @@ export class SparkDOMAudioPlayer {
   stop(when = 0, fadeDuration = 0.05, onDisconnected?: () => void): void {
     this._pausedAt = 0;
     this._startedAt = 0;
-    const targetSourceNode = this._sourceNode;
-    if (this._started) {
-      let startTime = performance.now();
-      this._fade(when, 0, fadeDuration);
-      const disconnectAfterFade = () => {
-        if (performance.now() < startTime + fadeDuration + 0.001) {
-          window.requestAnimationFrame(disconnectAfterFade);
-        } else {
-          if (this._sourceNode && this._sourceNode === targetSourceNode) {
-            // Disconnect source node after finished fading out
-            this._sourceNode.stop(0);
-            this._sourceNode.disconnect();
-            this._sourceNode = undefined;
-          }
-          this._started = false;
-          onDisconnected?.();
-        }
-      };
-      disconnectAfterFade();
-    } else {
-      if (this._sourceNode && this._sourceNode === targetSourceNode) {
-        // Disconnect right away
-        this._sourceNode.stop(0);
-        this._sourceNode.disconnect();
-        this._sourceNode = undefined;
+    let startTime = performance.now();
+    this._nodes.forEach((node) => {
+      this._fade(node.gainNode, when, 0, fadeDuration);
+    });
+    const disconnectAfterFade = () => {
+      if (performance.now() < startTime + fadeDuration + 0.001) {
+        window.requestAnimationFrame(disconnectAfterFade);
+      } else {
+        // Disconnect source node after finished fading out
+        this._nodes.forEach((node) => {
+          node.sourceNode.stop(0);
+          node.sourceNode.disconnect();
+        });
+        this._nodes.clear();
+        onDisconnected?.();
       }
-      onDisconnected?.();
-    }
+    };
+    disconnectAfterFade();
   }
 
   stopAsync(when: number, fadeDuration = 0.05) {
@@ -274,11 +231,15 @@ export class SparkDOMAudioPlayer {
 
   fadeTo(when: number, gain: number, fadeDuration?: number) {
     this._gain = gain;
-    this._fade(when, this._gain, fadeDuration);
+    this._nodes.forEach((node) => {
+      this._fade(node.gainNode, when, gain, fadeDuration);
+    });
   }
 
   fade(when: number, fadeDuration?: number) {
-    this._fade(when, this._gain, fadeDuration);
+    this._nodes.forEach((node) => {
+      this._fade(node.gainNode, when, this._gain, fadeDuration);
+    });
   }
 
   pause(when: number, fadeDuration = DEFAULT_FADE_DURATION) {
@@ -296,9 +257,7 @@ export class SparkDOMAudioPlayer {
   }
 
   step(when: number, deltaSeconds: number) {
-    if (this._started) {
-      this.start(when, when + deltaSeconds);
-    }
+    this.start(when, when + deltaSeconds);
   }
 
   getCurrentOffset(from: number) {

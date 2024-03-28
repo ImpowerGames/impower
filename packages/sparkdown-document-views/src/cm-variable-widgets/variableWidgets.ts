@@ -235,8 +235,14 @@ const playSynthVariable = async (
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
   const getPlayers = async () => {
-    const buffer = createSynthBuffer(synth, context);
-    return [new SparkDOMAudioPlayer(buffer, audioContext)];
+    const synthBuffer = createSynthBuffer(synth, context);
+    const audioBuffer = audioContext.createBuffer(
+      1,
+      synthBuffer.soundBuffer.length,
+      audioContext.sampleRate
+    );
+    audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
+    return [new SparkDOMAudioPlayer(audioBuffer, audioContext)];
   };
   playAudio(
     context,
@@ -286,7 +292,13 @@ const updateSynthWaveform = (
     context.audioContext,
     previewEl,
     (audioContext, buffer) => {
-      new SparkDOMAudioPlayer(buffer, audioContext).start();
+      const audioBuffer = audioContext.createBuffer(
+        1,
+        buffer.length,
+        audioContext.sampleRate
+      );
+      audioBuffer.copyToChannel(buffer, 0);
+      new SparkDOMAudioPlayer(audioBuffer, audioContext).start();
     }
   );
 };

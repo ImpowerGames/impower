@@ -15,31 +15,34 @@ export default class AudioScene extends Scene {
 
   override onDispose(): Disposable[] {
     this._audioPlayers.forEach((a) => {
-      if (a.started) {
-        a.stop(0);
-      }
+      a.stop(0);
     });
     this._audioPlayers.clear();
     return super.onDispose();
   }
 
-  async getAudioBuffer(
-    data: AudioData
-  ): Promise<AudioBuffer | Float32Array | SynthBuffer> {
+  async getAudioBuffer(data: AudioData): Promise<AudioBuffer> {
     if (data.src) {
       const response = await fetch(data.src);
       const buffer = await response.arrayBuffer();
-      const decoded = await this._audioContext.decodeAudioData(buffer);
-      return decoded;
+      const audioBuffer = await this._audioContext.decodeAudioData(buffer);
+      return audioBuffer;
     }
     if (data.synth && data.tones) {
-      return new SynthBuffer(
+      const synthBuffer = new SynthBuffer(
         data.synth,
         data.tones,
         this._audioContext.sampleRate
       );
+      const audioBuffer = this._audioContext.createBuffer(
+        1,
+        synthBuffer.soundBuffer.length,
+        this._audioContext.sampleRate
+      );
+      audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
+      return audioBuffer;
     }
-    return new Float32Array();
+    return this._audioContext.createBuffer(1, 0, this._audioContext.sampleRate);
   }
 
   async onAudioLoad(data: AudioData) {
@@ -79,7 +82,7 @@ export default class AudioScene extends Scene {
           audioPlayer.fade(when, over);
         }
         if (update.control === "play") {
-          audioPlayer.play(when, over);
+          audioPlayer.start(when, over);
         }
         if (update.control === "stop") {
           audioPlayer.stop(when, over);
@@ -91,27 +94,21 @@ export default class AudioScene extends Scene {
   override onStep(deltaMS: number): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
-      if (audioPlayer.started) {
-        audioPlayer.step(scheduledTime, deltaMS);
-      }
+      audioPlayer.step(scheduledTime, deltaMS);
     });
   }
 
   override onPause(): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
-      if (audioPlayer.started) {
-        audioPlayer.pause(scheduledTime);
-      }
+      audioPlayer.pause(scheduledTime);
     });
   }
 
   override onUnpause(): void {
     const scheduledTime = this._audioContext.currentTime;
     this._audioPlayers.forEach((audioPlayer) => {
-      if (audioPlayer.started) {
-        audioPlayer.unpause(scheduledTime);
-      }
+      audioPlayer.unpause(scheduledTime);
     });
   }
 
