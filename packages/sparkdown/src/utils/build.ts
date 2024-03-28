@@ -2090,18 +2090,24 @@ const build = (
               to: tok.to,
             };
           }
-        } else if (tok.tag === "asset_tag_argument") {
+        } else if (tok.tag === "asset_tag_arguments") {
           const parent = lookup("image", "audio");
           if (parent) {
-            parent.args ??= [];
-            parent.args.push(text);
             parent.ranges ??= {};
-            parent.ranges.args ??= {
+            parent.ranges.args = {
               line: tok.line,
               from: tok.from,
               to: tok.to,
             };
-            parent.ranges.args!.to = tok.to;
+          }
+        } else if (tok.tag === "asset_tag_argument") {
+          const parent = lookup("image", "audio");
+          if (parent) {
+            const arg = text.trim();
+            if (arg) {
+              parent.args ??= [];
+              parent.args.push(arg);
+            }
           }
         } else if (tok.tag === "style_tag_control") {
           const parent = lookup("style");
