@@ -14,7 +14,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { SparkDOMAudioPlayer } from "../../../spark-dom/src/classes/SparkDOMAudioPlayer";
+import { AudioPlayer } from "../../../spark-dom/src/classes/AudioPlayer";
 import { Audio, type AudioGroup, type Synth } from "../../../spark-engine/src";
 import { clone } from "../../../spark-engine/src/game/core/utils/clone";
 import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
@@ -79,7 +79,7 @@ export interface VariableWidgetsConfiguration {
 
 interface VariableWidgetContext {
   audioContext?: AudioContext;
-  audioPlayerGroups: Record<string, SparkDOMAudioPlayer[] | null>;
+  audioPlayerGroups: Record<string, AudioPlayer[] | null>;
   waveforms: Record<string, WaveformContext>;
 }
 
@@ -112,7 +112,7 @@ const playAudio = async (
   playId: string,
   dom: HTMLElement,
   toggle: boolean,
-  loadPlayers: () => Promise<SparkDOMAudioPlayer[]>,
+  loadPlayers: () => Promise<AudioPlayer[]>,
   duration?: number,
   offset: number = 0,
   pitchBend: number = 0
@@ -188,7 +188,7 @@ const playAudioVariable = async (
     const buffer = url
       ? await getAudioBuffer(url, audioContext)
       : new Float32Array(0);
-    const player = new SparkDOMAudioPlayer(buffer, audioContext, {
+    const player = new AudioPlayer(buffer, audioContext, {
       cues: audio.cues,
     });
     return [player];
@@ -209,13 +209,13 @@ const playAudioGroupVariable = async (
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
   const getPlayers = () =>
-    Promise.all<SparkDOMAudioPlayer>(
+    Promise.all<AudioPlayer>(
       audioGroup?.assets?.map(async (a) => {
         const url = await fileSystemReader.url(a.src);
         const buffer = url
           ? await getAudioBuffer(url, audioContext)
           : new Float32Array(0);
-        const player = new SparkDOMAudioPlayer(buffer, audioContext, {
+        const player = new AudioPlayer(buffer, audioContext, {
           cues: audioGroup.cues,
         });
         return player;
@@ -242,7 +242,7 @@ const playSynthVariable = async (
       audioContext.sampleRate
     );
     audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
-    return [new SparkDOMAudioPlayer(audioBuffer, audioContext)];
+    return [new AudioPlayer(audioBuffer, audioContext)];
   };
   playAudio(
     context,
@@ -298,7 +298,7 @@ const updateSynthWaveform = (
         audioContext.sampleRate
       );
       audioBuffer.copyToChannel(buffer, 0);
-      new SparkDOMAudioPlayer(audioBuffer, audioContext).start();
+      new AudioPlayer(audioBuffer, audioContext).start();
     }
   );
 };

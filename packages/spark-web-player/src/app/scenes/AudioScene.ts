@@ -1,4 +1,4 @@
-import { SparkDOMAudioPlayer } from "../../../../spark-dom/src/classes/SparkDOMAudioPlayer";
+import { AudioPlayer } from "../../../../spark-dom/src/classes/AudioPlayer";
 import { RequestMessage } from "../../../../spark-engine/src/game/core";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
 import { AudioLoadMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioLoadMessage";
@@ -11,7 +11,7 @@ import Scene from "../Scene";
 export default class AudioScene extends Scene {
   protected _audioContext: AudioContext = new AudioContext();
 
-  protected _audioPlayers = new Map<string, SparkDOMAudioPlayer>();
+  protected _audioPlayers = new Map<string, AudioPlayer>();
 
   override onDispose(): Disposable[] {
     this._audioPlayers.forEach((a) => {
@@ -53,7 +53,7 @@ export default class AudioScene extends Scene {
     if (this._audioPlayers.get(data.id)) {
       return this._audioPlayers.get(data.id)!;
     }
-    const audioPlayer = new SparkDOMAudioPlayer(buffer, this._audioContext, {
+    const audioPlayer = new AudioPlayer(buffer, this._audioContext, {
       volume: data.volume,
       cues: data.cues,
       loop: data.loop,
@@ -75,14 +75,11 @@ export default class AudioScene extends Scene {
         if (update.loop != null) {
           audioPlayer.loop = update.loop;
         }
-        if (update.gain != null) {
-          audioPlayer.gain = update.gain * (update.level ?? 1);
-        }
         if (update.control === "fade") {
-          audioPlayer.fade(when, over);
+          audioPlayer.fade(when, over, update.gain);
         }
         if (update.control === "play") {
-          audioPlayer.start(when, over);
+          audioPlayer.start(when, over, undefined, undefined, update.gain);
         }
         if (update.control === "stop") {
           audioPlayer.stop(when, over);

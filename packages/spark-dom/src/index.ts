@@ -1,2 +1,2 @@
-export * from "./classes/SparkDOMAudioPlayer";
+export * from "./classes/AudioPlayer";
 export * from "./classes/SparkDOMElement";
