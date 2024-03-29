@@ -123,7 +123,7 @@ export default class AudioPlayer {
   }
 
   dispose() {
-    this._nodes.forEach((node) => this._disconnect(node));
+    [...this._nodes].forEach((node) => this._disconnect(node));
   }
 
   protected _disconnect(node: AudioNode) {
@@ -241,7 +241,7 @@ export default class AudioPlayer {
     fadeDuration = DEFAULT_FADE_DURATION
   ): Promise<number[]> {
     return Promise.all(
-      this._nodes.map((node) => this._stopAsync(node, when, fadeDuration))
+      [...this._nodes].map((node) => this._stopAsync(node, when, fadeDuration))
     );
   }
 
