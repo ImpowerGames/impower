@@ -1,5 +1,5 @@
-import { AudioUpdate } from "./AudioUpdate";
+import { AudioPlayerUpdate } from "./AudioPlayerUpdate";
 
 export interface ChannelState {
-  looping?: Record<string, AudioUpdate>;
+  looping?: Record<string, AudioPlayerUpdate>;
 }

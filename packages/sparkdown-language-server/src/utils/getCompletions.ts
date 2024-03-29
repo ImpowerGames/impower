@@ -30,7 +30,7 @@ const getLineToken = <K extends keyof SparkTokenTagMap>(
   const lineTokens = lineMetadata?.tokens?.map((i) => program?.tokens?.[i]);
   return (
     tags.length > 0
-      ? lineTokens?.findLast((t) => tags.includes(t?.tag as unknown as K))
+      ? lineTokens?.findLast((t) => tags?.includes(t?.tag as unknown as K))
       : lineTokens?.at(-1)
   ) as SparkTokenTagMap[K];
 };
@@ -139,7 +139,7 @@ const getImageFilterCompletions = (
   const completions: Map<string, CompletionItem> = new Map();
   Object.entries(program?.context?.["image_filter"] || {}).forEach(([, v]) => {
     const name = v.$name;
-    if (!existingTags.includes(name)) {
+    if (!existingTags?.includes(name)) {
       if (name && name !== "default") {
         const completion: CompletionItem = {
           label: name,
@@ -260,7 +260,7 @@ const getAudioArgumentCompletions = (
   }
   completions.push("after", "over", "mute", "unmute", "loop", "noloop", "now");
   return completions
-    .filter((c) => !audioToken?.args.includes(c))
+    .filter((c) => !audioToken?.args?.includes(c))
     .map((label) => ({
       label,
       insertText: label,

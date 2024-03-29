@@ -2,18 +2,20 @@ import { Manager } from "../../../core/classes/Manager";
 import { AudioEvent } from "../../../core/types/SequenceEvent";
 import { Channel } from "../specs/Channel";
 import { Synth } from "../specs/Synth";
-import { AudioData } from "../types/AudioData";
-import { AudioUpdate } from "../types/AudioUpdate";
+import { AudioMixerUpdate } from "../types/AudioMixerUpdate";
+import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import { ChannelState } from "../types/ChannelState";
+import { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
 import { parseTones } from "../utils/parseTones";
+import { LoadAudioMixerMessage } from "./messages/LoadAudioMixerMessage";
 import {
-  AudioLoadMessage,
-  AudioLoadMessageMap,
-} from "./messages/AudioLoadMessage";
+  LoadAudioPlayerMessage,
+  LoadAudioPlayerMessageMap,
+} from "./messages/LoadAudioPlayerMessage";
 import {
-  AudioUpdateMessage,
-  AudioUpdateMessageMap,
-} from "./messages/AudioUpdateMessage";
+  UpdateAudioPlayersMessage,
+  UpdateAudioPlayersMessageMap,
+} from "./messages/UpdateAudioPlayersMessage";
 
 export interface AudioConfig {}
 
@@ -21,27 +23,35 @@ export interface AudioState {
   channels?: Record<string, ChannelState>;
 }
 
-export type AudioMessageMap = AudioLoadMessageMap & AudioUpdateMessageMap;
+export type AudioMessageMap = LoadAudioPlayerMessageMap &
+  UpdateAudioPlayersMessageMap;
 
 export class AudioManager extends Manager<AudioState, AudioMessageMap> {
-  protected _onReady: Map<string, undefined | (() => void)[]> = new Map();
+  protected _channelsPlaying: Record<
+    string,
+    Record<string, LoadAudioPlayerParams>
+  > = {};
 
-  protected _ready = new Set<string>();
+  protected _playerUpdates: AudioPlayerUpdate[] = [];
 
-  protected _channelsPlaying: Record<string, Record<string, AudioData>> = {};
-
-  protected _updates: AudioUpdate[] = [];
+  protected _mixerUpdates: AudioMixerUpdate[] = [];
 
   override async onRestore() {
-    this._updates.length = 0;
+    this._playerUpdates.length = 0;
+    this._mixerUpdates.length = 0;
+    Object.entries(this._context?.["mixer"] || {}).forEach(([key, mixer]) => {
+      if (typeof mixer === "object") {
+        this.emit(LoadAudioMixerMessage.type.request({ key, ...mixer }));
+      }
+    });
     if (this._state.channels) {
-      const audioToLoad = new Set<AudioData>();
-      const updates: AudioUpdate[] = [];
+      const audioToLoad = new Set<LoadAudioPlayerParams>();
+      const updates: AudioPlayerUpdate[] = [];
       Object.keys(this._state.channels).forEach((channel) => {
         const channelState = this._state.channels?.[channel];
         if (channelState?.looping) {
-          Object.entries(channelState.looping).forEach(([id, update]) => {
-            const dataArray = this.getAudioData(id);
+          Object.entries(channelState.looping).forEach(([key, update]) => {
+            const dataArray = this.getAudioData(channel, key);
             if (dataArray) {
               dataArray.forEach((d) => {
                 audioToLoad.add(d);
@@ -67,53 +77,40 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
   }
 
   override onUpdate() {
-    if (this._updates.length > 0) {
+    if (this._playerUpdates.length > 0) {
       // Flush updates that should be handled this frame
-      this.emit(AudioUpdateMessage.type.request([...this._updates]));
-      this._updates.length = 0;
+      this.emit(
+        UpdateAudioPlayersMessage.type.request({
+          updates: [...this._playerUpdates],
+        })
+      );
+      this._playerUpdates.length = 0;
     }
     return true;
   }
 
-  update(...updates: AudioUpdate[]) {
-    this._updates.push(
-      ...updates.map((u) => ({ ...u, level: this.getChannelLevel(u.channel) }))
-    );
+  getMixer(channel: string | undefined) {
+    return this._context?.["channel"]?.[channel || "default"]?.mixer || channel;
   }
 
-  protected _loadAudio(data: AudioData, callback?: () => void) {
-    if (this._ready.has(data.id)) {
-      callback?.();
-      return;
-    }
-    if (callback) {
-      if (!this._onReady.get(data.id)) {
-        this._onReady.set(data.id, []);
-      }
-      const listeners = this._onReady.get(data.id);
-      listeners?.push(callback);
-    }
-    if (!this._context.system?.simulating) {
-      this.emit(AudioLoadMessage.type.request(data)).then((msg) => {
-        const audioId = msg.result;
-        if (audioId) {
-          this._ready.add(audioId);
-          const onReadyCallbacks = this._onReady.get(audioId);
-          if (onReadyCallbacks) {
-            onReadyCallbacks.forEach((callback) => callback?.());
-          }
-        }
+  update(...updates: AudioPlayerUpdate[]) {
+    updates.forEach((u) => {
+      this._playerUpdates.push({
+        ...u,
+        mixer: this.getMixer(u.channel),
       });
-    }
-  }
-
-  async loadAudio(data: AudioData): Promise<void> {
-    await new Promise<void>((resolve) => {
-      this._loadAudio(data, resolve);
     });
   }
 
-  async loadAllAudio(dataArray: AudioData[]): Promise<void> {
+  async loadAudio(data: LoadAudioPlayerParams): Promise<void> {
+    await new Promise<void>((resolve) => {
+      this.emit(LoadAudioPlayerMessage.type.request(data)).then(() => {
+        resolve();
+      });
+    });
+  }
+
+  async loadAllAudio(dataArray: LoadAudioPlayerParams[]): Promise<void> {
     await Promise.all(dataArray.map((d) => this.loadAudio(d)));
   }
 
@@ -144,15 +141,21 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
     );
   }
 
-  protected getData(asset: unknown, suffix: string): AudioData | null {
+  protected getData(
+    channel: string,
+    asset: unknown,
+    suffix: string
+  ): LoadAudioPlayerParams | null {
     if (!asset) {
       return null;
     }
     if (typeof asset !== "object") {
       return null;
     }
-    const d: AudioData = {
-      id: "",
+    const d: LoadAudioPlayerParams = {
+      channel,
+      mixer: this.getMixer(channel),
+      key: "",
       type: "",
       name: "",
       volume: 1,
@@ -161,7 +164,7 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
       d.type = asset.$type;
     }
     if ("$name" in asset && typeof asset.$name === "string") {
-      d.id = asset.$name + suffix;
+      d.key = asset.$name + suffix;
       d.name = asset.$name;
     }
     if ("src" in asset && typeof asset.src === "string") {
@@ -177,14 +180,17 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
     if ("shape" in asset) {
       d.synth = asset as Synth;
     }
-    d.tones = this.parseTones(d.id);
+    d.tones = this.parseTones(d.key);
     return d;
   }
 
-  protected getAudioData(id: string): AudioData[] {
-    const indexOfFirstDash = id.indexOf("-");
-    const name = indexOfFirstDash >= 0 ? id.slice(0, indexOfFirstDash) : id;
-    const suffix = indexOfFirstDash >= 0 ? id.slice(indexOfFirstDash) : "";
+  protected getAudioData(
+    channel: string,
+    key: string
+  ): LoadAudioPlayerParams[] {
+    const indexOfFirstDash = key.indexOf("-");
+    const name = indexOfFirstDash >= 0 ? key.slice(0, indexOfFirstDash) : key;
+    const suffix = indexOfFirstDash >= 0 ? key.slice(indexOfFirstDash) : "";
     if (!name) {
       return [];
     }
@@ -200,9 +206,9 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
       return [];
     }
     if (Array.isArray(compiled)) {
-      const dataArray: AudioData[] = [];
+      const dataArray: LoadAudioPlayerParams[] = [];
       compiled.forEach((asset) => {
-        const d = this.getData(asset, suffix);
+        const d = this.getData(channel, asset, suffix);
         if (d) {
           dataArray.push(d);
         }
@@ -210,9 +216,9 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
       return dataArray;
     }
     if ("assets" in compiled && Array.isArray(compiled.assets)) {
-      const dataArray: AudioData[] = [];
+      const dataArray: LoadAudioPlayerParams[] = [];
       compiled.assets.forEach((asset: unknown) => {
-        const d = this.getData(asset, suffix);
+        const d = this.getData(channel, asset, suffix);
         if (d) {
           if (
             "cues" in compiled &&
@@ -229,20 +235,23 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
       });
       return dataArray;
     }
-    const d = this.getData(compiled, suffix);
+    const d = this.getData(channel, compiled, suffix);
     if (d) {
       return [d];
     }
     return [];
   }
 
-  protected getAllAudioData(ids: string[]): AudioData[] {
-    return ids.flatMap((n) => this.getAudioData(n));
+  protected getAllAudioData(
+    channel: string,
+    keys: string[]
+  ): LoadAudioPlayerParams[] {
+    return keys.flatMap((n) => this.getAudioData(channel, n));
   }
 
-  protected parseTones(id: string) {
-    const indexOfFirstDash = id.indexOf("-");
-    const suffix = indexOfFirstDash >= 0 ? id.slice(indexOfFirstDash + 1) : "";
+  protected parseTones(key: string) {
+    const indexOfFirstDash = key.indexOf("-");
+    const suffix = indexOfFirstDash >= 0 ? key.slice(indexOfFirstDash + 1) : "";
     if (suffix) {
       return parseTones(suffix, "-");
     }
@@ -252,16 +261,16 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
   protected process(
     channel: string,
     event: AudioEvent,
-    data: AudioData
-  ): AudioUpdate {
-    const id = data?.id;
+    data: LoadAudioPlayerParams
+  ): AudioPlayerUpdate {
+    const key = data?.key;
     const name = data?.name;
     const cues = data?.cues && data.cues?.length > 0 ? data.cues : undefined;
     const syncedTo = data?.syncedTo;
     return {
       ...event,
       channel,
-      id,
+      key,
       name,
       syncedTo,
       cues,
@@ -270,35 +279,35 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
 
   protected updatePlaying(
     channel: string,
-    update: AudioUpdate,
-    data: AudioData
+    update: AudioPlayerUpdate,
+    data: LoadAudioPlayerParams
   ) {
     if (update.control === "stop") {
-      delete this._channelsPlaying[channel]?.[data.id];
+      delete this._channelsPlaying[channel]?.[data.key];
     } else {
       this._channelsPlaying[channel] ??= {};
       const playing = this._channelsPlaying[channel]!;
-      playing[data.id] ??= data;
+      playing[data.key] ??= data;
     }
   }
 
-  protected saveState(channel: string, update: AudioUpdate) {
-    const id = update.id;
+  protected saveState(channel: string, update: AudioPlayerUpdate) {
+    const key = update.key;
     this._state.channels ??= {};
     this._state.channels[channel] ??= {};
-    if (id) {
+    if (key) {
       // We are targeting an audio player
       if (update.control === "stop") {
-        delete this._state?.channels?.[channel]?.looping?.[id];
+        delete this._state?.channels?.[channel]?.looping?.[key];
       } else {
         this._state.channels[channel]!.looping ??= {};
-        this._state.channels[channel]!.looping![id] ??= {
+        this._state.channels[channel]!.looping![key] ??= {
           control: update.control,
           channel,
-          id: update.id,
+          key: update.key,
           name: update.name,
         };
-        const restoreState = this._state.channels[channel]!.looping![id]!;
+        const restoreState = this._state.channels[channel]!.looping![key]!;
         if (update.control === "play") {
           restoreState.control = update.control;
         }
@@ -367,11 +376,11 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
 
   queue(channel: string, sequence: AudioEvent[], autoTrigger = false): number {
     const channelDef: Channel = this._context["channel"]?.[channel];
-    const audioToLoad = new Set<AudioData>();
-    const updates: AudioUpdate[] = [];
+    const audioToLoad = new Set<LoadAudioPlayerParams>();
+    const updates: AudioPlayerUpdate[] = [];
     sequence.forEach((event) => {
       if (event.assets && event.assets.length > 0) {
-        this.getAllAudioData(event.assets).forEach((d) => {
+        this.getAllAudioData(channel, event.assets).forEach((d) => {
           d.loop ??= channelDef?.loop;
           audioToLoad.add(d);
           const update = this.process(channel, event, d);

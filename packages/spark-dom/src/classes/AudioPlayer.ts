@@ -12,7 +12,7 @@ interface AudioNode {
   pausedAt?: number;
 }
 
-export class AudioPlayer {
+export default class AudioPlayer {
   protected _audioBuffer: AudioBuffer;
   public get audioBuffer(): AudioBuffer | undefined {
     return this._audioBuffer;
@@ -45,7 +45,7 @@ export class AudioPlayer {
     return this._audioBuffer?.duration ?? 0;
   }
 
-  protected _destination?: AudioNode | AudioParam;
+  protected _destination?: GainNode | AudioNode | AudioParam;
 
   protected _loop = false;
   public get loop() {
@@ -79,7 +79,7 @@ export class AudioPlayer {
     audioBuffer: AudioBuffer,
     audioContext: AudioContext,
     options?: {
-      destination?: AudioNode | AudioParam;
+      destination?: GainNode | AudioNode | AudioParam;
       cues?: number[];
       loop?: boolean;
       volume?: number;
@@ -120,6 +120,10 @@ export class AudioPlayer {
 
   secondsToApproximateTimeConstant(sec: number = 0) {
     return (sec * 2) / 10;
+  }
+
+  dispose() {
+    this._nodes.forEach((node) => this._disconnect(node));
   }
 
   protected _disconnect(node: AudioNode) {
@@ -202,7 +206,7 @@ export class AudioPlayer {
   protected async _stopAsync(
     node: AudioNode,
     when = 0,
-    fadeDuration = 0.05
+    fadeDuration = DEFAULT_FADE_DURATION
   ): Promise<number> {
     const stoppedAt = await this._fadeAsync(node, when, 0, fadeDuration);
     // Disconnect node after finished fading out so it can be garbage collected
@@ -220,6 +224,11 @@ export class AudioPlayer {
     this._gain = gain ?? 1;
     const startGain = fadeDuration > 0 ? 0 : this._gain;
     const endGain = this._gain;
+    const loopingNode = this._nodes.find((node) => node.sourceNode.loop);
+    if (loopingNode && this._loop) {
+      await this._fadeAsync(loopingNode, when, endGain, fadeDuration);
+      return loopingNode;
+    }
     const node = this._play(when, offset, duration, startGain);
     node.startedAt = when;
     node.pausedAt = 0;
@@ -227,7 +236,10 @@ export class AudioPlayer {
     return node;
   }
 
-  async stop(when = 0, fadeDuration = 0.05): Promise<number[]> {
+  async stop(
+    when = 0,
+    fadeDuration = DEFAULT_FADE_DURATION
+  ): Promise<number[]> {
     return Promise.all(
       this._nodes.map((node) => this._stopAsync(node, when, fadeDuration))
     );
@@ -235,7 +247,7 @@ export class AudioPlayer {
 
   async fade(
     when: number,
-    fadeDuration?: number,
+    fadeDuration = DEFAULT_FADE_DURATION,
     gain?: number
   ): Promise<number[]> {
     if (gain != null) {

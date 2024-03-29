@@ -14,7 +14,7 @@ import {
   ViewPlugin,
   ViewUpdate,
 } from "@codemirror/view";
-import { AudioPlayer } from "../../../spark-dom/src/classes/AudioPlayer";
+import AudioPlayer from "../../../spark-dom/src/classes/AudioPlayer";
 import { Audio, type AudioGroup, type Synth } from "../../../spark-engine/src";
 import { clone } from "../../../spark-engine/src/game/core/utils/clone";
 import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";

@@ -1,11 +1,11 @@
 import { AudioEvent } from "../../../core/types/SequenceEvent";
 
-export interface AudioUpdate extends AudioEvent {
+export interface AudioPlayerUpdate extends AudioEvent {
   control: string;
-  channel: string;
-  id: string;
+  channel?: string;
+  mixer?: string;
+  key: string;
   name?: string;
   syncedTo?: string;
   cues?: number[];
-  level?: number;
 }

@@ -1,8 +1,10 @@
 import { Synth } from "../specs/Synth";
 import { Tone } from "./Tone";
 
-export interface AudioData {
-  id: string;
+export interface LoadAudioPlayerParams {
+  channel: string;
+  mixer: string;
+  key: string;
   type: string;
   name: string;
   synth?: Synth;

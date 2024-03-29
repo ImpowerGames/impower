@@ -1,37 +1,48 @@
-import { AudioPlayer } from "../../../../spark-dom/src/classes/AudioPlayer";
+import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
+import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
 import { RequestMessage } from "../../../../spark-engine/src/game/core";
 import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
-import { AudioLoadMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioLoadMessage";
-import { AudioUpdateMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/AudioUpdateMessage";
-import { AudioData } from "../../../../spark-engine/src/game/modules/audio/types/AudioData";
-import { AudioUpdate } from "../../../../spark-engine/src/game/modules/audio/types/AudioUpdate";
+import { LoadAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioMixerMessage";
+import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
+import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";
+import { LoadAudioMixerParams } from "../../../../spark-engine/src/game/modules/audio/types/LoadAudioMixerParams";
+import { LoadAudioPlayerParams } from "../../../../spark-engine/src/game/modules/audio/types/LoadAudioPlayerParams";
+import { UpdateAudioPlayersParams } from "../../../../spark-engine/src/game/modules/audio/types/UpdateAudioPlayersParams";
 import { Disposable } from "../Disposable";
 import Scene from "../Scene";
 
 export default class AudioScene extends Scene {
   protected _audioContext: AudioContext = new AudioContext();
 
-  protected _audioPlayers = new Map<string, AudioPlayer>();
+  protected _audioBuffers = new Map<string, AudioBuffer>();
+
+  protected _audioMixers = new Map<string, AudioMixer>();
+
+  protected _audioChannels = new Map<string, Map<string, AudioPlayer>>();
 
   override onDispose(): Disposable[] {
-    this._audioPlayers.forEach((a) => {
-      a.stop(0);
+    this._audioMixers.clear();
+    this._audioBuffers.clear();
+    this._audioChannels.forEach((c) => {
+      c.forEach((p) => {
+        p.dispose();
+      });
     });
-    this._audioPlayers.clear();
+    this._audioChannels.clear();
     return super.onDispose();
   }
 
-  async getAudioBuffer(data: AudioData): Promise<AudioBuffer> {
-    if (data.src) {
-      const response = await fetch(data.src);
+  async loadAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
+    if (params.src) {
+      const response = await fetch(params.src);
       const buffer = await response.arrayBuffer();
       const audioBuffer = await this._audioContext.decodeAudioData(buffer);
       return audioBuffer;
     }
-    if (data.synth && data.tones) {
+    if (params.synth && params.tones) {
       const synthBuffer = new SynthBuffer(
-        data.synth,
-        data.tones,
+        params.synth,
+        params.tones,
         this._audioContext.sampleRate
       );
       const audioBuffer = this._audioContext.createBuffer(
@@ -45,27 +56,69 @@ export default class AudioScene extends Scene {
     return this._audioContext.createBuffer(1, 0, this._audioContext.sampleRate);
   }
 
-  async onAudioLoad(data: AudioData) {
-    if (this._audioPlayers.get(data.id)) {
-      return this._audioPlayers.get(data.id)!;
+  async getAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {
+    const existingAudioBuffer = this._audioBuffers.get(params.key);
+    if (existingAudioBuffer) {
+      return existingAudioBuffer;
     }
-    const buffer = await this.getAudioBuffer(data);
-    if (this._audioPlayers.get(data.id)) {
-      return this._audioPlayers.get(data.id)!;
+    const audioBuffer = await this.loadAudioBuffer(params);
+    this._audioBuffers.set(params.key, audioBuffer);
+    return audioBuffer;
+  }
+
+  getAudioMixer(mixer = "default", volume?: number): AudioMixer {
+    const existingAudioMixer = this._audioMixers.get(mixer);
+    if (existingAudioMixer) {
+      return existingAudioMixer;
     }
-    const audioPlayer = new AudioPlayer(buffer, this._audioContext, {
-      volume: data.volume,
-      cues: data.cues,
-      loop: data.loop,
+    const audioMixer = new AudioMixer(this._audioContext, volume);
+    this._audioMixers.set(mixer, audioMixer);
+    return audioMixer;
+  }
+
+  getAudioChannel(channel = "default"): Map<string, AudioPlayer> {
+    const existingAudioChannel = this._audioChannels.get(channel);
+    if (existingAudioChannel) {
+      return existingAudioChannel;
+    }
+    const audioChannel = new Map();
+    this._audioChannels.set(channel, audioChannel);
+    return audioChannel;
+  }
+
+  async getAudioPlayer(params: LoadAudioPlayerParams): Promise<AudioPlayer> {
+    const audioChannel = this.getAudioChannel(params.channel);
+    if (audioChannel.get(params.key)) {
+      return audioChannel.get(params.key)!;
+    }
+    const audioBuffer = await this.getAudioBuffer(params);
+    if (audioChannel.get(params.key)) {
+      return audioChannel.get(params.key)!;
+    }
+    const audioMixer = this.getAudioMixer(params.mixer);
+    const audioPlayer = new AudioPlayer(audioBuffer, this._audioContext, {
+      volume: params.volume,
+      cues: params.cues,
+      loop: params.loop,
+      destination: audioMixer?.volumeNode,
     });
-    this._audioPlayers.set(data.id, audioPlayer);
+    audioChannel.set(params.key, audioPlayer);
     return audioPlayer;
   }
 
-  onAudioUpdate(updates: AudioUpdate[]) {
+  async onLoadAudioMixer(params: LoadAudioMixerParams) {
+    return this.getAudioMixer(params.key, params.volume);
+  }
+
+  async onLoadAudioPlayer(params: LoadAudioPlayerParams) {
+    return this.getAudioPlayer(params);
+  }
+
+  async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
     const now = this._audioContext.currentTime;
-    updates.forEach((update) => {
-      const audioPlayer = this._audioPlayers.get(update.id);
+    params.updates.forEach((update) => {
+      const audioChannel = this.getAudioChannel(update.channel);
+      const audioPlayer = audioChannel.get(update.key);
       if (audioPlayer) {
         const updateTime = now + (update.after ?? 0);
         const when = update.now
@@ -90,33 +143,43 @@ export default class AudioScene extends Scene {
 
   override onStep(deltaMS: number): void {
     const scheduledTime = this._audioContext.currentTime;
-    this._audioPlayers.forEach((audioPlayer) => {
-      audioPlayer.step(scheduledTime, deltaMS);
+    this._audioChannels.forEach((c) => {
+      c.forEach((p) => {
+        p.step(scheduledTime, deltaMS);
+      });
     });
   }
 
   override onPause(): void {
     const scheduledTime = this._audioContext.currentTime;
-    this._audioPlayers.forEach((audioPlayer) => {
-      audioPlayer.pause(scheduledTime);
+    this._audioChannels.forEach((c) => {
+      c.forEach((p) => {
+        p.pause(scheduledTime);
+      });
     });
   }
 
   override onUnpause(): void {
     const scheduledTime = this._audioContext.currentTime;
-    this._audioPlayers.forEach((audioPlayer) => {
-      audioPlayer.unpause(scheduledTime);
+    this._audioChannels.forEach((c) => {
+      c.forEach((p) => {
+        p.unpause(scheduledTime);
+      });
     });
   }
 
   override async onReceiveRequest(msg: RequestMessage) {
-    if (AudioLoadMessage.type.isRequest(msg)) {
-      await this.onAudioLoad(msg.params);
-      return AudioLoadMessage.type.result(msg.params.id);
+    if (LoadAudioMixerMessage.type.isRequest(msg)) {
+      await this.onLoadAudioMixer(msg.params);
+      return LoadAudioMixerMessage.type.result(msg.params);
     }
-    if (AudioUpdateMessage.type.isRequest(msg)) {
-      await this.onAudioUpdate(msg.params);
-      return AudioUpdateMessage.type.result(msg.params.map((u) => u.id));
+    if (LoadAudioPlayerMessage.type.isRequest(msg)) {
+      await this.onLoadAudioPlayer(msg.params);
+      return LoadAudioPlayerMessage.type.result(msg.params);
+    }
+    if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
+      await this.onUpdateAudioPlayers(msg.params);
+      return UpdateAudioPlayersMessage.type.result(msg.params);
     }
     return undefined;
   }
