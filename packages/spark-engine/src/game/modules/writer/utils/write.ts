@@ -15,6 +15,8 @@ const SINGLE_MARKERS = ["|", "*", "_", "^"];
 const DOUBLE_MARKERS = ["~~", "::"];
 const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
 const SECONDS_REGEX = /((?:\d*[.])?\d+)s/;
+const CHAR_REGEX =
+  /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 
 const isWhitespaceOrEmpty = (part: string) => {
   if (!part) {
@@ -377,11 +379,9 @@ export const write = (
     if (p.tag === "style") {
       if (isNumberValue(p.control)) {
         speedModifier = getNumberValue(p.control, 1);
-      }
-      if (p.control === "speed" || p.control === "s") {
+      } else if (p.control === "speed" || p.control === "s") {
         speedModifier = getNumberValue(p.args?.[0], 1);
-      }
-      if (p.control === "wait" || p.control === "w") {
+      } else if (p.control === "wait" || p.control === "w") {
         const waitModifier = getNumberValue(p.args?.[0], 0);
         phrases.push({
           ...p,
@@ -405,231 +405,236 @@ export const write = (
         prevTarget = target;
         startNewPhrase();
       }
-      const chars = text.split("");
-      for (let i = 0; i < chars.length; ) {
-        const char = chars[i] || "";
-        const nextChar = chars[i + 1] || nextContent?.text?.[0] || "";
-        const lastMark = marks[marks.length - 1]?.[0];
-        if (!escaped) {
-          if (char === "\\") {
-            // escape char
-            i += 1;
-            escaped = true;
-            continue;
-          }
-          if (
-            SINGLE_MARKERS.includes(char) ||
-            DOUBLE_MARKERS.includes(char + nextChar)
-          ) {
-            let mark = "";
-            let m = i;
-            while (chars[m] === char) {
-              mark += chars[m];
-              m += 1;
+      const chars = text.match(CHAR_REGEX);
+      if (chars) {
+        for (let i = 0; i < chars.length; ) {
+          const char = chars[i] || "";
+          const nextChar = chars[i + 1] || nextContent?.text?.[0] || "";
+          const lastMark = marks[marks.length - 1]?.[0];
+          if (!escaped) {
+            if (char === "\\") {
+              // escape char
+              i += 1;
+              escaped = true;
+              continue;
             }
-            if (lastMark === mark) {
-              marks.pop();
-            } else {
-              marks.push([mark, textChunks.length - 1]);
-            }
-            i += mark.length;
-            continue;
-          }
-        }
-        escaped = false;
-        const markers = marks.map(([mark]) => mark);
-        const activeCenteredMark = markers.find((m) => m.startsWith("|"));
-        const activeBoldItalicMark = markers.find((m) => m.startsWith("***"));
-        const activeUnderlineMark = markers.find((m) => m.startsWith("_"));
-        const activePitchUpMark = markers.find((m) => m.startsWith("^"));
-        const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
-        const activeTremblingMark = markers.find((m) => m.startsWith("::"));
-        const isCentered = Boolean(activeCenteredMark);
-        const hasBoldItalicMark = Boolean(activeBoldItalicMark);
-        const isUnderlined = Boolean(activeUnderlineMark);
-        const hasBoldMark = markers.includes("**");
-        const hasItalicMark = markers.includes("*");
-        const isItalicized = hasBoldItalicMark || hasItalicMark;
-        const isBolded = hasBoldItalicMark || hasBoldMark;
-        const voiced = Boolean(voicedMatcher?.test(char));
-
-        if (isWhitespace(char)) {
-          word = "";
-          spaceLength += 1;
-          consecutiveLettersLength = 0;
-        } else {
-          word += char;
-          spaceLength = 0;
-          if (voiced) {
-            consecutiveLettersLength += 1;
-          } else {
-            consecutiveLettersLength = 0;
-          }
-        }
-        if (isDash(char)) {
-          dashLength += 1;
-        } else {
-          dashLength = 0;
-        }
-        const isYelled =
-          Boolean(yelledMatcher?.test(word)) &&
-          (Boolean(yelledMatcher?.test(nextChar)) || word.length > 1);
-        const tilde = char === "~";
-        const isEmDashBoundary = dashLength > 1;
-        const emDash =
-          isEmDashBoundary ||
-          (isDash(char) && (isWhitespaceOrEmpty(nextChar) || isDash(nextChar)));
-        const isPhraseBoundary = spaceLength > 1;
-
-        if (isPhraseBoundary) {
-          phrasePauseLength += 1;
-          phraseUnpauseLength = 0;
-        } else {
-          phrasePauseLength = 0;
-          phraseUnpauseLength += 1;
-        }
-        // Determine beep pitch
-        const yelled = isYelled ? 1 : 0;
-        // centered level = number of `|`
-        const centered =
-          isCentered && activeCenteredMark
-            ? activeCenteredMark.length
-            : isCentered
-            ? 1
-            : 0;
-        // italicized level = number of `*`
-        const italicized = isItalicized ? 1 : 0;
-        // bolded level = number of `*`
-        const bolded =
-          isBolded && activeBoldItalicMark
-            ? activeBoldItalicMark.length
-            : isBolded
-            ? 2
-            : 0;
-        // underlined level = number of `_`
-        const underlined =
-          isUnderlined && activeUnderlineMark
-            ? activeUnderlineMark.length
-            : isUnderlined
-            ? 1
-            : 0;
-        // floating level = number of `~`
-        const floating = activeFloatingMark ? activeFloatingMark.length - 1 : 0;
-        // trembling level = number of `=`
-        const trembling = activeTremblingMark
-          ? activeTremblingMark.length - 1
-          : 0;
-        // stress level = number of `^`
-        const pitch = activePitchUpMark ? activePitchUpMark.length : 0;
-
-        // Determine beep timing
-        const charIndex = phraseUnpauseLength - 1;
-        const voicedSyllable = charIndex % syllableLength === 0;
-        const speedFloating = floating ? floating : 1;
-        const speedTrembling = trembling ? trembling : 1;
-        const speed = (1 * speedModifier) / speedFloating / speedTrembling;
-        const isPhrasePause = isPhraseBoundary;
-        const isEmDashPause = currChunk && currChunk.emDash && !emDash;
-        const isStressPause: boolean = Boolean(
-          character &&
-            spaceLength === 1 &&
-            currChunk &&
-            ((currChunk.bolded && !isBolded) ||
-              (currChunk.italicized && !isItalicized) ||
-              (currChunk.underlined && !isUnderlined) ||
-              (currChunk.tilde && !tilde))
-        );
-        const duration: number =
-          speed === 0
-            ? 0
-            : (isPhrasePause
-                ? letterPause * phrasePause
-                : isEmDashPause
-                ? letterPause * emDashPause
-                : isStressPause
-                ? letterPause * stressPause
-                : letterPause) / speed;
-
-        if (phraseUnpauseLength === 1) {
-          // start voiced phrase
-          currChunk = {
-            target: p.target,
-            instance: p.instance,
-            button: p.button,
-            text: char,
-            args: p.args,
-            duration,
-            speed,
-            voicedSyllable,
-            voiced,
-            yelled,
-            centered,
-            bolded,
-            italicized,
-            underlined,
-            floating,
-            trembling,
-            emDash,
-            tilde,
-            pitch,
-          };
-          textChunks.push(currChunk);
-          phrases.push({
-            ...p,
-            text: char,
-            chunks: [currChunk],
-          });
-        } else {
-          // continue voiced phrase
-          const currentPhrase = phrases.at(-1);
-          if (currentPhrase) {
-            currentPhrase.text ??= "";
-            currentPhrase.text += char;
             if (
-              currChunk &&
-              !currChunk.duration &&
-              bolded === currChunk.bolded &&
-              italicized === currChunk.italicized &&
-              underlined === currChunk.underlined &&
-              floating === currChunk.floating &&
-              trembling === currChunk.trembling &&
-              speed === currChunk.speed
+              SINGLE_MARKERS.includes(char) ||
+              DOUBLE_MARKERS.includes(char + nextChar)
             ) {
-              // No need to create new element, simply append char to previous chunk
-              currChunk.text += char;
-            } else {
-              // Create new element and chunk
-              currChunk = {
-                target: p.target,
-                instance: p.instance,
-                button: p.button,
-                text: char,
-                args: p.args,
-                duration,
-                speed,
-                voicedSyllable,
-                voiced,
-                yelled,
-                centered,
-                bolded,
-                italicized,
-                underlined,
-                floating,
-                trembling,
-                emDash,
-                tilde,
-                pitch,
-              };
-              textChunks.push(currChunk);
-              currentPhrase.chunks ??= [];
-              currentPhrase.chunks.push(currChunk);
+              let mark = "";
+              let m = i;
+              while (chars[m] === char) {
+                mark += chars[m];
+                m += 1;
+              }
+              if (lastMark === mark) {
+                marks.pop();
+              } else {
+                marks.push([mark, textChunks.length - 1]);
+              }
+              i += mark.length;
+              continue;
             }
           }
+          escaped = false;
+          const markers = marks.map(([mark]) => mark);
+          const activeCenteredMark = markers.find((m) => m.startsWith("|"));
+          const activeBoldItalicMark = markers.find((m) => m.startsWith("***"));
+          const activeUnderlineMark = markers.find((m) => m.startsWith("_"));
+          const activePitchUpMark = markers.find((m) => m.startsWith("^"));
+          const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
+          const activeTremblingMark = markers.find((m) => m.startsWith("::"));
+          const isCentered = Boolean(activeCenteredMark);
+          const hasBoldItalicMark = Boolean(activeBoldItalicMark);
+          const isUnderlined = Boolean(activeUnderlineMark);
+          const hasBoldMark = markers.includes("**");
+          const hasItalicMark = markers.includes("*");
+          const isItalicized = hasBoldItalicMark || hasItalicMark;
+          const isBolded = hasBoldItalicMark || hasBoldMark;
+          const voiced = Boolean(voicedMatcher?.test(char));
+
+          if (isWhitespace(char)) {
+            word = "";
+            spaceLength += 1;
+            consecutiveLettersLength = 0;
+          } else {
+            word += char;
+            spaceLength = 0;
+            if (voiced) {
+              consecutiveLettersLength += 1;
+            } else {
+              consecutiveLettersLength = 0;
+            }
+          }
+          if (isDash(char)) {
+            dashLength += 1;
+          } else {
+            dashLength = 0;
+          }
+          const isYelled =
+            Boolean(yelledMatcher?.test(word)) &&
+            (Boolean(yelledMatcher?.test(nextChar)) || word.length > 1);
+          const tilde = char === "~";
+          const isEmDashBoundary = dashLength > 1;
+          const emDash =
+            isEmDashBoundary ||
+            (isDash(char) &&
+              (isWhitespaceOrEmpty(nextChar) || isDash(nextChar)));
+          const isPhraseBoundary = spaceLength > 1;
+
+          if (isPhraseBoundary) {
+            phrasePauseLength += 1;
+            phraseUnpauseLength = 0;
+          } else {
+            phrasePauseLength = 0;
+            phraseUnpauseLength += 1;
+          }
+          // Determine beep pitch
+          const yelled = isYelled ? 1 : 0;
+          // centered level = number of `|`
+          const centered =
+            isCentered && activeCenteredMark
+              ? activeCenteredMark.length
+              : isCentered
+              ? 1
+              : 0;
+          // italicized level = number of `*`
+          const italicized = isItalicized ? 1 : 0;
+          // bolded level = number of `*`
+          const bolded =
+            isBolded && activeBoldItalicMark
+              ? activeBoldItalicMark.length
+              : isBolded
+              ? 2
+              : 0;
+          // underlined level = number of `_`
+          const underlined =
+            isUnderlined && activeUnderlineMark
+              ? activeUnderlineMark.length
+              : isUnderlined
+              ? 1
+              : 0;
+          // floating level = number of `~`
+          const floating = activeFloatingMark
+            ? activeFloatingMark.length - 1
+            : 0;
+          // trembling level = number of `=`
+          const trembling = activeTremblingMark
+            ? activeTremblingMark.length - 1
+            : 0;
+          // stress level = number of `^`
+          const pitch = activePitchUpMark ? activePitchUpMark.length : 0;
+
+          // Determine beep timing
+          const charIndex = phraseUnpauseLength - 1;
+          const voicedSyllable = charIndex % syllableLength === 0;
+          const speedFloating = floating ? floating : 1;
+          const speedTrembling = trembling ? trembling : 1;
+          const speed = (1 * speedModifier) / speedFloating / speedTrembling;
+          const isPhrasePause = isPhraseBoundary;
+          const isEmDashPause = currChunk && currChunk.emDash && !emDash;
+          const isStressPause: boolean = Boolean(
+            character &&
+              spaceLength === 1 &&
+              currChunk &&
+              ((currChunk.bolded && !isBolded) ||
+                (currChunk.italicized && !isItalicized) ||
+                (currChunk.underlined && !isUnderlined) ||
+                (currChunk.tilde && !tilde))
+          );
+          const duration: number =
+            speed === 0
+              ? 0
+              : (isPhrasePause
+                  ? letterPause * phrasePause
+                  : isEmDashPause
+                  ? letterPause * emDashPause
+                  : isStressPause
+                  ? letterPause * stressPause
+                  : letterPause) / speed;
+
+          if (phraseUnpauseLength === 1) {
+            // start voiced phrase
+            currChunk = {
+              target: p.target,
+              instance: p.instance,
+              button: p.button,
+              text: char,
+              args: p.args,
+              duration,
+              speed,
+              voicedSyllable,
+              voiced,
+              yelled,
+              centered,
+              bolded,
+              italicized,
+              underlined,
+              floating,
+              trembling,
+              emDash,
+              tilde,
+              pitch,
+            };
+            textChunks.push(currChunk);
+            phrases.push({
+              ...p,
+              text: char,
+              chunks: [currChunk],
+            });
+          } else {
+            // continue voiced phrase
+            const currentPhrase = phrases.at(-1);
+            if (currentPhrase) {
+              currentPhrase.text ??= "";
+              currentPhrase.text += char;
+              if (
+                currChunk &&
+                !currChunk.duration &&
+                bolded === currChunk.bolded &&
+                italicized === currChunk.italicized &&
+                underlined === currChunk.underlined &&
+                floating === currChunk.floating &&
+                trembling === currChunk.trembling &&
+                speed === currChunk.speed
+              ) {
+                // No need to create new element, simply append char to previous chunk
+                currChunk.text += char;
+              } else {
+                // Create new element and chunk
+                currChunk = {
+                  target: p.target,
+                  instance: p.instance,
+                  button: p.button,
+                  text: char,
+                  args: p.args,
+                  duration,
+                  speed,
+                  voicedSyllable,
+                  voiced,
+                  yelled,
+                  centered,
+                  bolded,
+                  italicized,
+                  underlined,
+                  floating,
+                  trembling,
+                  emDash,
+                  tilde,
+                  pitch,
+                };
+                textChunks.push(currChunk);
+                currentPhrase.chunks ??= [];
+                currentPhrase.chunks.push(currChunk);
+              }
+            }
+          }
+          if (containsNewline(char)) {
+            invalidateOpenMarks(marks, textChunks);
+          }
+          i += 1;
         }
-        if (containsNewline(char)) {
-          invalidateOpenMarks(marks, textChunks);
-        }
-        i += 1;
       }
     }
   });
