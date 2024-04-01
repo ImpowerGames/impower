@@ -747,10 +747,7 @@ export const write = (
           // Floating animation
           if (c.floating) {
             event.with = "floating";
-            event.style ??= {};
-            event.style["animation_delay"] = `${
-              floatingIndex * animationOffset * -1
-            }s`;
+            event.withAfter = floatingIndex * animationOffset * -1;
           }
           if (c.floating) {
             floatingIndex += 1;
@@ -760,10 +757,7 @@ export const write = (
           // Trembling animation
           if (c.trembling) {
             event.with = "trembling";
-            event.style ??= {};
-            event.style["animation_delay"] = `${
-              tremblingIndex * animationOffset * -1
-            }s`;
+            event.withAfter = tremblingIndex * animationOffset * -1;
           }
           if (c.trembling) {
             tremblingIndex += 1;
@@ -833,7 +827,7 @@ export const write = (
           }
           result.image ??= {};
           const key = getInstanceName(target, event.instance);
-          if (key && !c.instance) {
+          if (key && !c.instance && event.control === "show") {
             const prevEvent = result.image[key]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;

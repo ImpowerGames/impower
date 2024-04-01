@@ -573,25 +573,27 @@ export class UIManager extends Manager<UIState> {
         : event.control === "hide"
         ? hideAnimationName
         : undefined;
+    const controlAfter = instant ? 0 : event.after;
+    const controlOver = instant ? 0 : event.over;
     if (controlAnimationName) {
       animations.push({
         name: controlAnimationName,
-        after: !event.with ? event.after : undefined,
-        over: !event.with ? event.over : undefined,
+        after: controlAfter,
+        over: controlOver,
       });
     }
     if (event.exit) {
       animations.push({
         name: hideAnimationName,
-        after: event.exit,
-        over: !event.with ? event.over : undefined,
+        after: controlAfter,
+        over: controlOver,
       });
     }
     if (event.with) {
       animations.push({
         name: event.with,
-        after: event.after,
-        over: event.over,
+        after: event.withAfter ?? controlAfter,
+        over: event.withOver ?? controlOver,
       });
     }
     animations.forEach(({ name, after, over }) => {
@@ -599,13 +601,12 @@ export class UIManager extends Manager<UIState> {
         const delay = `${after ?? 0}s`;
         const duration = over != null ? `${over}s` : null;
         const animationName = name;
-        const animationDelay = instant
-          ? "0s"
-          : delay ??
-            this._context["animation"]?.[animationName]?.["style"]?.[
-              "animation_delay"
-            ] ??
-            "0s";
+        const animationDelay =
+          delay ??
+          this._context["animation"]?.[animationName]?.["style"]?.[
+            "animation_delay"
+          ] ??
+          "0s";
         const animationDuration =
           duration ??
           this._context["animation"]?.[animationName]?.["style"]?.[

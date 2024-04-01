@@ -4,8 +4,10 @@ export interface ISequenceEvent {
   after?: number;
   over?: number;
   exit?: number;
-  with?: string;
   to?: number;
+  with?: string;
+  withAfter?: number;
+  withOver?: number;
 }
 
 export interface ButtonEvent extends ISequenceEvent {
