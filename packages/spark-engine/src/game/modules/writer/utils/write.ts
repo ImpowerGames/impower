@@ -401,7 +401,7 @@ export const write = (
       });
       startNewPhrase();
     }
-    if (p.tag === "style") {
+    if (p.tag === "command") {
       if (isNumberValue(p.control)) {
         speedModifier = getNumberValue(p.control, 1);
       } else if (p.control === "speed" || p.control === "s") {
