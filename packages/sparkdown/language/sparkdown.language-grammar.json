@@ -2336,7 +2336,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AssetTagCommand"
+              "include": "#AssetTagContent"
             }
           ]
         },
@@ -2372,7 +2372,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetTagCommand"
+              "include": "#AssetTagContent"
             }
           ]
         },
@@ -2401,7 +2401,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#AssetTagCommand"
+              "include": "#AssetTagContent"
             }
           ]
         },
@@ -2437,7 +2437,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetTagCommand"
+              "include": "#AssetTagContent"
             }
           ]
         },
@@ -2447,7 +2447,7 @@
         }
       }
     },
-    "StyleTag": {
+    "CommandTag": {
       "tag": "macroName",
       "name": "meta.audio.sd",
       "match": "^([ ]*)([<])((?:\\\\.|[^>])*?)([>])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
@@ -2466,7 +2466,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#StyleTagCommand"
+              "include": "#CommandTagContent"
             }
           ]
         },
@@ -2490,7 +2490,7 @@
         }
       }
     },
-    "InlineStyleTag": {
+    "InlineCommandTag": {
       "tag": "macroName",
       "name": "meta.audio.sd",
       "match": "([<])((?:\\\\.|[^>])*?)([>])",
@@ -2502,7 +2502,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#StyleTagCommand"
+              "include": "#CommandTagContent"
             }
           ]
         },
@@ -2512,7 +2512,7 @@
         }
       }
     },
-    "AssetTagCommand": {
+    "AssetTagContent": {
       "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\\b))?($|[ ]*\\S*?)($|[ ]*\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
       "captures": {
         "1": {
@@ -2659,7 +2659,7 @@
         }
       }
     },
-    "StyleTagCommand": {
+    "CommandTagContent": {
       "match": "([ ]*)([^ :]+)([ ]*)(?:([:])([ ]*)(.*))?",
       "captures": {
         "1": {
@@ -2672,7 +2672,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#StyleTagControl"
+              "include": "#CommandTagControl"
             }
           ]
         },
@@ -2686,7 +2686,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#StyleTagColon"
+              "include": "#CommandTagColon"
             }
           ]
         },
@@ -2700,13 +2700,13 @@
         "6": {
           "patterns": [
             {
-              "include": "#StyleTagArguments"
+              "include": "#CommandTagArguments"
             }
           ]
         }
       }
     },
-    "StyleTagControl": {
+    "CommandTagControl": {
       "match": "(.+)",
       "captures": {
         "1": {
@@ -2715,35 +2715,35 @@
               "include": "#NumericLiteral"
             },
             {
-              "include": "#StyleTagControlKeyword"
+              "include": "#CommandTagControlKeyword"
             }
           ]
         }
       }
     },
-    "StyleTagControlKeyword": {
+    "CommandTagControlKeyword": {
       "tag": "keyword",
       "name": "keyword.style.control.keyword.sd",
       "match": "(.+)"
     },
-    "StyleTagColon": {
+    "CommandTagColon": {
       "tag": "separator",
       "name": "meta.template.expression.colon.sd",
       "match": "([:])"
     },
-    "StyleTagArguments": {
+    "CommandTagArguments": {
       "match": "(.+)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#StyleTagArgument"
+              "include": "#CommandTagArgument"
             }
           ]
         }
       }
     },
-    "StyleTagArgument": {
+    "CommandTagArgument": {
       "tag": "meta",
       "name": "meta.argument.sd",
       "begin": "(?=.+$)",
@@ -2935,7 +2935,7 @@
           "include": "#AudioTag"
         },
         {
-          "include": "#StyleTag"
+          "include": "#CommandTag"
         },
         {
           "include": "#DialogueLineParenthetical"
@@ -3086,7 +3086,7 @@
           "include": "#AudioTag"
         },
         {
-          "include": "#StyleTag"
+          "include": "#CommandTag"
         },
         {
           "include": "#BoxLineContinue"
@@ -3165,7 +3165,7 @@
           "include": "#InlineAudioTag"
         },
         {
-          "include": "#InlineStyleTag"
+          "include": "#InlineCommandTag"
         },
         {
           "include": "#DisplayString"

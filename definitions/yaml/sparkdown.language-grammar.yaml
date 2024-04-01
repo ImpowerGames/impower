@@ -1252,7 +1252,7 @@ repository:
         name: keyword.operator.expression.begin.image.sd
       3:
         patterns:
-          - { include: "#AssetTagCommand" }
+          - { include: "#AssetTagContent" }
       4:
         tag: keyword
         name: keyword.operator.expression.end.image.sd
@@ -1273,7 +1273,7 @@ repository:
         name: keyword.operator.expression.begin.image.sd
       2:
         patterns:
-          - { include: "#AssetTagCommand" }
+          - { include: "#AssetTagContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.image.sd
@@ -1291,7 +1291,7 @@ repository:
         name: keyword.operator.expression.begin.audio.sd
       3:
         patterns:
-          - { include: "#AssetTagCommand" }
+          - { include: "#AssetTagContent" }
       4:
         tag: keyword
         name: keyword.operator.expression.end.audio.sd
@@ -1312,12 +1312,12 @@ repository:
         name: keyword.operator.expression.begin.audio.sd
       2:
         patterns:
-          - { include: "#AssetTagCommand" }
+          - { include: "#AssetTagContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.audio.sd
 
-  StyleTag:
+  CommandTag:
     tag: macroName
     name: meta.audio.sd
     match: ^([ ]*)([<])((?:\\.|[^>])*?)([>])($|[ ]*$)((?:\r\n|\r|\n)?)
@@ -1330,7 +1330,7 @@ repository:
         name: keyword.operator.expression.begin.tag.sd
       3:
         patterns:
-          - { include: "#StyleTagCommand" }
+          - { include: "#CommandTagContent" }
       4:
         tag: keyword
         name: keyword.operator.expression.end.tag.sd
@@ -1341,7 +1341,7 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  InlineStyleTag:
+  InlineCommandTag:
     tag: macroName
     name: meta.audio.sd
     match: ([<])((?:\\.|[^>])*?)([>])
@@ -1351,12 +1351,12 @@ repository:
         name: keyword.operator.expression.begin.tag.sd
       2:
         patterns:
-          - { include: "#StyleTagCommand" }
+          - { include: "#CommandTagContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.tag.sd
 
-  AssetTagCommand:
+  AssetTagContent:
     match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\b))?($|[ ]*\S*?)($|[ ]*\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
     captures:
       1:
@@ -1451,7 +1451,7 @@ repository:
         tag: number
         name: constant.numeric.time.unit.sd
 
-  StyleTagCommand:
+  CommandTagContent:
     match: ([ ]*)([^ :]+)([ ]*)(?:([:])([ ]*)(.*))?
     captures:
       1:
@@ -1459,46 +1459,46 @@ repository:
           - { include: "#Whitespace" }
       2:
         patterns:
-          - { include: "#StyleTagControl" }
+          - { include: "#CommandTagControl" }
       3:
         patterns:
           - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#StyleTagColon" }
+          - { include: "#CommandTagColon" }
       5:
         patterns:
           - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#StyleTagArguments" }
+          - { include: "#CommandTagArguments" }
 
-  StyleTagControl:
+  CommandTagControl:
     match: (.+)
     captures:
       1:
         patterns:
           - { include: "#NumericLiteral" }
-          - { include: "#StyleTagControlKeyword" }
+          - { include: "#CommandTagControlKeyword" }
 
-  StyleTagControlKeyword:
+  CommandTagControlKeyword:
     tag: keyword
     name: keyword.style.control.keyword.sd
     match: (.+)
 
-  StyleTagColon:
+  CommandTagColon:
     tag: separator
     name: meta.template.expression.colon.sd
     match: ([:])
 
-  StyleTagArguments:
+  CommandTagArguments:
     match: (.+)
     captures:
       1:
         patterns:
-          - { include: "#StyleTagArgument" }
+          - { include: "#CommandTagArgument" }
 
-  StyleTagArgument:
+  CommandTagArgument:
     tag: meta
     name: meta.argument.sd
     begin: (?=.+$)
@@ -1609,7 +1609,7 @@ repository:
       - { include: "#Comment" }
       - { include: "#ImageTag" }
       - { include: "#AudioTag" }
-      - { include: "#StyleTag" }
+      - { include: "#CommandTag" }
       - { include: "#DialogueLineParenthetical" }
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
@@ -1692,7 +1692,7 @@ repository:
       - { include: "#Comment" }
       - { include: "#ImageTag" }
       - { include: "#AudioTag" }
-      - { include: "#StyleTag" }
+      - { include: "#CommandTag" }
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
     end: (?=^[ ]?(?=$|[/][/]))|(\r\n|\r|\n)
@@ -1738,7 +1738,7 @@ repository:
     patterns:
       - { include: "#InlineImageTag" }
       - { include: "#InlineAudioTag" }
-      - { include: "#InlineStyleTag" }
+      - { include: "#InlineCommandTag" }
       - { include: "#DisplayString" }
 
   # Markdown (inline subset)

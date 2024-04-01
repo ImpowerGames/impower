@@ -214,7 +214,7 @@ export interface SparkAudioToken extends ISparkToken<"audio"> {
   };
 }
 
-export interface SparkStyleToken extends ISparkToken<"style"> {
+export interface SparkCommandToken extends ISparkToken<"command"> {
   control: string;
   args: string[];
 
@@ -368,9 +368,9 @@ export interface SparkOtherToken
     | "asset_tag_names"
     | "asset_tag_arguments"
     | "asset_tag_argument"
-    | "style_tag_control"
-    | "style_tag_arguments"
-    | "style_tag_argument"
+    | "command_tag_control"
+    | "command_tag_arguments"
+    | "command_tag_argument"
     | "choice_operator"
     | "string"
     | "color"
@@ -424,7 +424,7 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   choice: SparkChoiceToken;
   image: SparkImageToken;
   audio: SparkAudioToken;
-  style: SparkStyleToken;
+  command: SparkCommandToken;
   transition: SparkTransitionToken;
   scene: SparkSceneToken;
   action: SparkActionToken;

@@ -854,6 +854,10 @@ export const write = (
             if (overValue) {
               event.over = overValue;
             }
+            const toValue = getArgumentNumberValue(c.args, "to");
+            if (toValue != null) {
+              event.to = toValue;
+            }
           }
           result.image ??= {};
           const key = getInstanceName(target, event.instance);
@@ -888,15 +892,15 @@ export const write = (
             }
             const unmuteValue = c.args.includes("unmute");
             if (unmuteValue) {
-              event.gain = 1;
+              event.to = 1;
             }
             const toValue = getArgumentNumberValue(c.args, "to");
             if (toValue != null) {
-              event.gain = toValue;
+              event.to = toValue;
             }
             const muteValue = c.args.includes("mute");
             if (muteValue) {
-              event.gain = 0;
+              event.to = 0;
             }
             const loopValue = c.args.includes("loop");
             if (loopValue) {

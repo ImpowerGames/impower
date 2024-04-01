@@ -4,6 +4,7 @@ export interface ISequenceEvent {
   over?: number;
   exit?: number;
   with?: string;
+  to?: number;
 }
 
 export interface ButtonEvent extends ISequenceEvent {
@@ -37,7 +38,6 @@ export interface ImageEvent extends ISequenceEvent {
 export interface AudioEvent extends ISequenceEvent {
   control: string;
   assets?: string[];
-  gain?: number;
   now?: boolean;
   loop?: boolean;
 }

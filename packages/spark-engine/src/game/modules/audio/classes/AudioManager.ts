@@ -317,8 +317,8 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
         if (update.over != null) {
           restoreState.over = update.over;
         }
-        if (update.gain != null) {
-          restoreState.gain = update.gain;
+        if (update.to != null) {
+          restoreState.to = update.to;
         }
         if (update.loop != null) {
           restoreState.loop = update.loop;
@@ -337,7 +337,7 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
       } else if (update.control === "play") {
         // `play` cannot be used on channel
       } else if (update.control === "fade") {
-        if (update.gain != null) {
+        if (update.to != null) {
           Object.values(this._state.channels[channel]!.looping || {}).forEach(
             (restoreState) => {
               if (update.control === "play") {
@@ -349,8 +349,8 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
               if (update.over != null) {
                 restoreState.over = update.over;
               }
-              if (update.gain != null) {
-                restoreState.gain = update.gain;
+              if (update.to != null) {
+                restoreState.to = update.to;
               }
               if (update.loop != null) {
                 restoreState.loop = update.loop;
@@ -448,7 +448,7 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
       [
         {
           control: "fade",
-          gain: to,
+          to: to,
           after,
           over,
           now,

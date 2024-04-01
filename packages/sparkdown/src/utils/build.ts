@@ -1921,7 +1921,7 @@ const build = (
             parent.content.push(tok);
           }
           addToken(tok);
-        } else if (tok.tag === "style") {
+        } else if (tok.tag === "command") {
           const parent = lookup("dialogue_box", "action_box");
           if (parent) {
             parent.content ??= [];
@@ -2111,8 +2111,8 @@ const build = (
               parent.args.push(arg);
             }
           }
-        } else if (tok.tag === "style_tag_control") {
-          const parent = lookup("style");
+        } else if (tok.tag === "command_tag_control") {
+          const parent = lookup("command");
           if (parent) {
             parent.control = text;
             parent.ranges ??= {};
@@ -2122,8 +2122,8 @@ const build = (
               to: tok.to,
             };
           }
-        } else if (tok.tag === "style_tag_argument") {
-          const parent = lookup("style");
+        } else if (tok.tag === "command_tag_argument") {
+          const parent = lookup("command");
           if (parent) {
             parent.args ??= [];
             parent.args.push(text);

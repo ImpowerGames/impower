@@ -859,6 +859,8 @@ export class UIManager extends Manager<UIState> {
         const enterAt = sequence?.[0]?.after ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
+            // Turn on the wrapper so it can take up space,
+            // but don't make it truly visible until the first text event happens
             const style: Record<string, string | null> = { display: null };
             if (enterAt > 0) {
               style["opacity"] = instant ? "1" : "0";
@@ -868,6 +870,7 @@ export class UIManager extends Manager<UIState> {
               inElements.push(targetEl);
             }
             $.updateElement(targetEl, { style });
+            // Enqueue text events
             if (sequence) {
               let blockWrapper:
                 | { element: Element; style: Record<string, string | null> }
@@ -1046,21 +1049,26 @@ export class UIManager extends Manager<UIState> {
           Element,
           Record<string, string | null>
         >();
-        const enterAt = sequence?.[0]?.after ?? 0;
+        const firstEvent = sequence?.[0];
+        const wrapperEnterAt = firstEvent?.after ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
+            // Turn on the wrapper so it can take up space,
+            // but don't make it truly visible until the first image event happens
             const style: Record<string, string | null> = { display: null };
-            if (enterAt > 0) {
+            if (wrapperEnterAt > 0) {
               style["opacity"] = instant ? "1" : "0";
               style["transition"] = instant
                 ? "none"
-                : `opacity 0s linear ${enterAt}s`;
+                : `opacity 0s linear ${wrapperEnterAt}s`;
               inElements.push(targetEl);
             }
             $.updateElement(targetEl, { style });
+            // Enqueue image events
             if (sequence) {
               sequence.forEach((e) => {
                 if (e.assets && e.assets.length > 0) {
+                  // We are affecting the image
                   const contentEl = $.getOrCreateContentElement(
                     targetEl,
                     "image"
@@ -1088,6 +1096,7 @@ export class UIManager extends Manager<UIState> {
                     }
                   }
                 } else {
+                  // We are affecting the image wrapper
                   if (e.with) {
                     if (!animatedElements.has(targetEl)) {
                       animatedElements.set(targetEl, {});

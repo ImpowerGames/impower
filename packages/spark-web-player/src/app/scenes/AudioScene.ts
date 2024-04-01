@@ -129,10 +129,10 @@ export default class AudioScene extends Scene {
           audioPlayer.loop = update.loop;
         }
         if (update.control === "fade") {
-          audioPlayer.fade(when, over, update.gain);
+          audioPlayer.fade(when, over, update.to);
         }
         if (update.control === "play") {
-          audioPlayer.start(when, over, undefined, undefined, update.gain);
+          audioPlayer.start(when, over, undefined, undefined, update.to);
         }
         if (update.control === "stop") {
           audioPlayer.stop(when, over);
