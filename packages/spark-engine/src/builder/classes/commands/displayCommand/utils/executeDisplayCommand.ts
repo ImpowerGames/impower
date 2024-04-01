@@ -53,10 +53,17 @@ export const executeDisplayCommand = (
     return {};
   }
 
-  // Stop stale sounds
+  const instant = options?.instant;
+  const previewing = options?.preview;
+  const debugging = context.system.debugging;
+
+  if (!instant) {
+    // Stop stale sound and voice on new dialogue line
+    game.module.audio.stopChannel("sound");
+    game.module.audio.stopChannel("voice");
+  }
+  // Stop writer sound on instant reveal and new dialogue line
   game.module.audio.stopChannel("writer");
-  game.module.audio.stopChannel("sound");
-  game.module.audio.stopChannel("voice");
 
   const clearUI = () => {
     const styleMap = context?.["style"];
@@ -83,10 +90,6 @@ export const executeDisplayCommand = (
     game.module.ui.image.stopAnimations(uiName, preservedAnimationLayers);
   };
   clearUI();
-
-  const instant = options?.instant;
-  const previewing = options?.preview;
-  const debugging = context.system.debugging;
 
   const sequence = game.module.writer.write(displayed, {
     character: characterKey,
@@ -135,9 +138,11 @@ export const executeDisplayCommand = (
       game.module.ui.image.write(uiName, target, events, instant)
   );
   // Process audio
-  const audioTriggerIds = Object.entries(sequence.audio).map(
-    ([channel, events]) => game.module.audio.queue(channel, events, instant)
-  );
+  const audioTriggerIds = instant
+    ? []
+    : Object.entries(sequence.audio).map(([channel, events]) =>
+        game.module.audio.queue(channel, events, instant)
+      );
 
   const handleFinished = (): void => {
     const indicatorStyle: Record<string, string | null> = {};
