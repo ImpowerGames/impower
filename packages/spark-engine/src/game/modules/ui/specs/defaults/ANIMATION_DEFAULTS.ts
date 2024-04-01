@@ -1,5 +1,38 @@
 export const ANIMATION_DEFAULTS = {
   default: {},
+  show: {
+    from: {
+      opacity: "0",
+    },
+    to: {
+      opacity: "1",
+    },
+    style: {
+      animation_timing_function: "linear",
+      animation_fill_mode: "both",
+    },
+  },
+  hide: {
+    to: {
+      opacity: "0",
+    },
+    style: {
+      animation_timing_function: "linear",
+      animation_fill_mode: "both",
+    },
+  },
+  write: {
+    from: {
+      opacity: "0",
+    },
+    to: {
+      opacity: "1",
+    },
+    style: {
+      animation_timing_function: "linear",
+      animation_fill_mode: "forwards",
+    },
+  },
   spin: {
     to: {
       transform: "rotate(360deg)",
@@ -95,37 +128,37 @@ export const ANIMATION_DEFAULTS = {
   },
   shake: {
     "0%": {
-      transform: "translate(2px, 1px)",
+      transform: "translate(0.4vh, 0.2vh)",
     },
     "10%": {
-      transform: "translate(-1px, -2px)",
+      transform: "translate(-0.2vh, -0.4vh)",
     },
     "20%": {
-      transform: "translate(-3px, 0px)",
+      transform: "translate(-0.6vh, 0vh)",
     },
     "30%": {
-      transform: "translate(0px, 2px)",
+      transform: "translate(0vh, 0.4vh)",
     },
     "40%": {
-      transform: "translate(1px, -1px)",
+      transform: "translate(0.2vh, -0.2vh)",
     },
     "50%": {
-      transform: "translate(-1px, 2px)",
+      transform: "translate(-0.2vh, 0.4vh)",
     },
     "60%": {
-      transform: "translate(-3px, 1px)",
+      transform: "translate(-0.6vh, 0.2vh)",
     },
     "70%": {
-      transform: "translate(2px, 1px)",
+      transform: "translate(0.4vh, 0.2vh)",
     },
     "80%": {
-      transform: "translate(-1px, -1px)",
+      transform: "translate(-0.2vh, -0.2vh)",
     },
     "90%": {
-      transform: "translate(2px, 2px)",
+      transform: "translate(0.4vh, 0.4vh)",
     },
     "100%": {
-      transform: "translate(1px, -2px)",
+      transform: "translate(0.2vh, -0.4vh)",
     },
     style: {
       animation_duration: "300ms",
@@ -134,104 +167,121 @@ export const ANIMATION_DEFAULTS = {
   },
   shaking: {
     "0%": {
-      transform: "translate(2px, 1px)",
+      transform: "translate(0.4vh, 0.2vh)",
     },
     "10%": {
-      transform: "translate(-1px, -2px)",
+      transform: "translate(-0.2vh, -0.4vh)",
     },
     "20%": {
-      transform: "translate(-3px, 0px)",
+      transform: "translate(-0.6vh, 0vh)",
     },
     "30%": {
-      transform: "translate(0px, 2px)",
+      transform: "translate(0vh, 0.4vh)",
     },
     "40%": {
-      transform: "translate(1px, -1px)",
+      transform: "translate(0.2vh, -0.2vh)",
     },
     "50%": {
-      transform: "translate(-1px, 2px)",
+      transform: "translate(-0.2vh, 0.4vh)",
     },
     "60%": {
-      transform: "translate(-3px, 1px)",
+      transform: "translate(-0.6vh, 0.2vh)",
     },
     "70%": {
-      transform: "translate(2px, 1px)",
+      transform: "translate(0.4vh, 0.2vh)",
     },
     "80%": {
-      transform: "translate(-1px, -1px)",
+      transform: "translate(-0.2vh, -0.2vh)",
     },
     "90%": {
-      transform: "translate(2px, 2px)",
+      transform: "translate(0.4vh, 0.4vh)",
     },
     "100%": {
-      transform: "translate(1px, -2px)",
+      transform: "translate(0.2vh, -0.4vh)",
     },
     style: {
       animation_duration: "300ms",
       animation_timing_function: "ease-in-out",
       animation_iteration_count: "infinite",
+    },
+  },
+  shiver: {
+    "0%": {
+      transform: "translate(0.2vh, 0.1vh)",
+    },
+    "10%": {
+      transform: "translate(-0.1vh, -0.2vh)",
+    },
+    "20%": {
+      transform: "translate(-0.3vh, 0vh)",
+    },
+    "30%": {
+      transform: "translate(0vh, 0.2vh)",
+    },
+    "40%": {
+      transform: "translate(0.1vh, -0.1vh)",
+    },
+    "50%": {
+      transform: "translate(-0.1vh, 0.2vh)",
+    },
+    "60%": {
+      transform: "translate(-0.3vh, 0.1vh)",
+    },
+    "70%": {
+      transform: "translate(0.2vh, 0.1vh)",
+    },
+    "80%": {
+      transform: "translate(-0.1vh, -0.1vh)",
+    },
+    "90%": {
+      transform: "translate(0.2vh, 0.2vh)",
+    },
+    "100%": {
+      transform: "translate(0.1vh, -0.2vh)",
+    },
+    style: {
+      animation_duration: "300ms",
+      animation_timing_function: "ease-in-out",
     },
   },
   shivering: {
     "0%": {
-      transform: "translate(1px, 0.5px)",
+      transform: "translate(0.2vh, 0.1vh)",
     },
     "10%": {
-      transform: "translate(-0.5px, -1px)",
+      transform: "translate(-0.1vh, -0.2vh)",
     },
     "20%": {
-      transform: "translate(-1.5px, 0px)",
+      transform: "translate(-0.3vh, 0vh)",
     },
     "30%": {
-      transform: "translate(0px, 1px)",
+      transform: "translate(0vh, 0.2vh)",
     },
     "40%": {
-      transform: "translate(0.5px, -0.5px)",
+      transform: "translate(0.1vh, -0.1vh)",
     },
     "50%": {
-      transform: "translate(-0,5px, 1px)",
+      transform: "translate(-0.1vh, 0.2vh)",
     },
     "60%": {
-      transform: "translate(-1.5px, 0.5px)",
+      transform: "translate(-0.3vh, 0.1vh)",
     },
     "70%": {
-      transform: "translate(1px, 0.5px)",
+      transform: "translate(0.2vh, 0.1vh)",
     },
     "80%": {
-      transform: "translate(-0.5px, -0.5px)",
+      transform: "translate(-0.1vh, -0.1vh)",
     },
     "90%": {
-      transform: "translate(1px, 1px)",
+      transform: "translate(0.2vh, 0.2vh)",
     },
     "100%": {
-      transform: "translate(0.5px, -1px)",
+      transform: "translate(0.1vh, -0.2vh)",
     },
     style: {
       animation_duration: "300ms",
       animation_timing_function: "ease-in-out",
       animation_iteration_count: "infinite",
-    },
-  },
-  fadein: {
-    from: {
-      opacity: "0",
-    },
-    to: {
-      opacity: "1",
-    },
-    style: {
-      animation_fill_mode: "both",
-    },
-  },
-  fadeout: {
-    from: {
-      opacity: "1",
-    },
-    to: {
-      opacity: "0",
-    },
-    style: {
-      animation_fill_mode: "both",
     },
   },
 };

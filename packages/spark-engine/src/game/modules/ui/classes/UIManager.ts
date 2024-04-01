@@ -556,128 +556,84 @@ export class UIManager extends Manager<UIState> {
     return names;
   }
 
-  combineAnimationStyle(
+  appendAnimationStyle(
     event: TextEvent | ImageEvent,
     instant: boolean,
     style: Record<string, string | null>
   ): void {
+    const writeAnimationName = "write";
+    const showAnimationName = "show";
+    const hideAnimationName = "hide";
+    const animations: { name: string; after?: number; over?: number }[] = [];
+    const controlAnimationName =
+      event.control === "write"
+        ? writeAnimationName
+        : event.control === "show"
+        ? showAnimationName
+        : event.control === "hide"
+        ? hideAnimationName
+        : undefined;
+    if (controlAnimationName) {
+      animations.push({
+        name: controlAnimationName,
+        after: !event.with ? event.after : undefined,
+        over: !event.with ? event.over : undefined,
+      });
+    }
+    if (event.exit) {
+      animations.push({
+        name: hideAnimationName,
+        after: event.exit,
+        over: !event.with ? event.over : undefined,
+      });
+    }
     if (event.with) {
-      const name = event.with;
-      const delay = `${event.after ?? 0}s`;
-      const duration = event.over != null ? `${event.over}s` : null;
-      const animationName = name;
-      const animationDelay =
-        delay ??
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_delay"
-        ];
-      const animationDuration =
-        duration ??
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_duration"
-        ];
-      const animationIterationCount =
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_iteration_count"
-        ];
-      const animationTimingFunction =
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_timing_function"
-        ];
-      const animationFillMode =
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_fill_mode"
-        ];
-      if (style["animation_name"]) {
-        style["animation_name"] += ", ";
-      } else {
-        style["animation_name"] = "";
-      }
-      style["animation_name"] += animationName;
-      if (animationIterationCount) {
-        if (style["animation_iteration_count"]) {
-          style["animation_iteration_count"] += ", ";
-        } else {
-          style["animation_iteration_count"] = "";
-        }
-        style["animation_iteration_count"] += animationIterationCount;
-      }
-      if (animationTimingFunction) {
-        if (style["animation_timing_function"]) {
-          style["animation_timing_function"] += ", ";
-        } else {
-          style["animation_timing_function"] = "";
-        }
-        style["animation_timing_function"] += animationTimingFunction;
-      }
-      if (animationDuration) {
-        if (style["animation_duration"]) {
-          style["animation_duration"] += ", ";
-        } else {
-          style["animation_duration"] = "";
-        }
-        style["animation_duration"] += animationDuration;
-      }
-      if (animationFillMode) {
-        if (style["animation_fill_mode"]) {
-          style["animation_fill_mode"] += ", ";
-        } else {
-          style["animation_fill_mode"] = "";
-        }
-        style["animation_fill_mode"] += animationFillMode;
-      }
-      if (!instant) {
-        if (style["animation_delay"]) {
-          style["animation_delay"] += ", ";
-        } else {
-          style["animation_delay"] = "";
-        }
-        style["animation_delay"] += animationDelay;
-      }
+      animations.push({
+        name: event.with,
+        after: event.after,
+        over: event.over,
+      });
     }
-  }
-
-  getAnimationStyle(
-    event: TextEvent | ImageEvent,
-    instant: boolean
-  ): Record<string, string | null> {
-    const style: Record<string, string | null> = {};
-    this.combineAnimationStyle(event, instant, style);
-    return style;
-  }
-
-  getTransitionStyle(
-    event: TextEvent | ImageEvent,
-    start: number | undefined,
-    end: number | undefined,
-    instant: boolean
-  ): Record<string, string | null> {
-    const style: Record<string, string | null> = {};
-    style["will_change"] = "opacity";
-    if (instant) {
-      style["opacity"] = `${end}`;
-      style["transition_property"] = "none";
-      if (event.exit) {
-        style["filter"] = `opacity(${start})`;
+    animations.forEach(({ name, after, over }) => {
+      if (name) {
+        const delay = `${after ?? 0}s`;
+        const duration = over != null ? `${over}s` : null;
+        const animationName = name;
+        const animationDelay = instant
+          ? "0s"
+          : delay ??
+            this._context["animation"]?.[animationName]?.["style"]?.[
+              "animation_delay"
+            ] ??
+            "0s";
+        const animationDuration =
+          duration ??
+          this._context["animation"]?.[animationName]?.["style"]?.[
+            "animation_duration"
+          ] ??
+          "0s";
+        const animationIterationCount =
+          this._context["animation"]?.[animationName]?.["style"]?.[
+            "animation_iteration_count"
+          ] ?? "1";
+        const animationTimingFunction =
+          this._context["animation"]?.[animationName]?.["style"]?.[
+            "animation_timing_function"
+          ] ?? "ease";
+        const animationFillMode =
+          this._context["animation"]?.[animationName]?.["style"]?.[
+            "animation_fill_mode"
+          ] ?? "none";
+        if (style["animation"]) {
+          style["animation"] += ", ";
+        } else {
+          style["animation"] = "";
+        }
+        style[
+          "animation"
+        ] += `${animationName} ${animationDuration} ${animationDelay} ${animationTimingFunction} ${animationIterationCount} ${animationFillMode}`;
       }
-    } else {
-      style["opacity"] = event.after && event.after > 0 ? `${start}` : `${end}`;
-      style["transition_property"] = "opacity";
-      style["transition_delay"] = `${event.after ?? 0}s`;
-      style["transition_timing_function"] = `linear`;
-      if (event.over) {
-        style["transition_duration"] = `${event.over ?? 0}s`;
-      }
-      if (event.exit) {
-        style["position"] = "absolute";
-        style["inset"] = "0";
-        style["will_change"] += `, filter`;
-        style["filter"] = `opacity(${end})`;
-        style["transition_property"] += `, filter`;
-        style["transition_delay"] += `, ${event.exit ?? 0}s`;
-      }
-    }
-    return style;
+    });
   }
 
   protected setEventListener<T extends keyof EventMap>(
@@ -866,8 +822,11 @@ export class UIManager extends Manager<UIState> {
         sequence: TextEvent[] | null,
         instant: boolean
       ): () => void {
-        const inElements: Element[] = [];
-        const outElements: Element[] = [];
+        const transitionElements: Element[] = [];
+        const animatedElements = new Map<
+          Element,
+          Record<string, string | null>
+        >();
         const enterAt = sequence?.[0]?.after ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
@@ -879,7 +838,7 @@ export class UIManager extends Manager<UIState> {
               style["transition"] = instant
                 ? "none"
                 : `opacity 0s linear ${enterAt}s`;
-              inElements.push(targetEl);
+              transitionElements.push(targetEl);
             }
             $.updateElement(targetEl, { style });
             // Enqueue text events
@@ -910,24 +869,17 @@ export class UIManager extends Manager<UIState> {
                 }
                 const parentEl = blockWrapper?.element || contentEl;
                 const text = e.text;
-                const style = { ...(e.style || {}) };
-                const transitionStyle = $.getTransitionStyle(e, 0, 1, instant);
-                const animationStyle = $.getAnimationStyle(e, instant);
-                const childEl = $.createElement(parentEl, {
+                const style = { ...(e.style || {}), opacity: "0" };
+                const spanEl = $.createElement(parentEl, {
                   type: "span",
                   content: { text },
-                  style: {
-                    ...style,
-                    ...transitionStyle,
-                    ...animationStyle,
-                  },
+                  style,
                 });
-                if (childEl) {
-                  inElements.push(childEl);
-                  if (e.exit) {
-                    outElements.push(childEl);
-                  }
+                if (!animatedElements.has(spanEl)) {
+                  animatedElements.set(spanEl, {});
                 }
+                const animatedStyle = animatedElements.get(spanEl)!;
+                $.appendAnimationStyle(e, instant, animatedStyle);
               });
             } else {
               const contentEl = $.getContentElement(targetEl, "text");
@@ -938,29 +890,40 @@ export class UIManager extends Manager<UIState> {
             }
           }
         });
-        return () => {
+        if (instant) {
           // Transition in elements
-          inElements.forEach((el) => {
+          transitionElements.forEach((el) => {
             $.updateElement(el, { style: { opacity: "1" } });
           });
-          // Transition out elements
-          outElements.forEach((el) => {
-            $.updateElement(el, { style: { filter: "opacity(0)" } });
+          // Animate elements
+          animatedElements.forEach((style, element) => {
+            $.updateElement(element, { style });
+          });
+          return NOP;
+        }
+        return () => {
+          // Transition in elements
+          transitionElements.forEach((el) => {
+            $.updateElement(el, { style: { opacity: "1" } });
+          });
+          // Animate elements
+          animatedElements.forEach((style, element) => {
+            $.updateElement(element, { style });
           });
         };
       }
 
-      clear(uiName: string, target: string): void {
+      clearContent(uiName: string, target: string): void {
         this.saveState(uiName, target, null);
         if ($._context?.system?.previewing || !$._context?.system?.simulating) {
           this.applyChanges(uiName, target, null, true);
         }
       }
 
-      clearAll(uiName: string, ignore?: string[]): void {
+      clearAllContent(uiName: string, ignore?: string[]): void {
         this.getTargets(uiName).forEach((target) => {
           if (!ignore || !ignore.includes(target)) {
-            this.clear(uiName, target);
+            this.clearContent(uiName, target);
           }
         });
       }
@@ -983,7 +946,7 @@ export class UIManager extends Manager<UIState> {
       }
 
       set(uiName: string, target: string, text: string): void {
-        this.clear(uiName, target);
+        this.clearContent(uiName, target);
         this.write(uiName, target, [{ text }], true);
       }
 
@@ -1055,8 +1018,7 @@ export class UIManager extends Manager<UIState> {
         sequence: ImageEvent[] | null,
         instant: boolean
       ): () => void {
-        const inElements: Element[] = [];
-        const outElements: Element[] = [];
+        const transitionElements: Element[] = [];
         const animatedElements = new Map<
           Element,
           Record<string, string | null>
@@ -1073,77 +1035,40 @@ export class UIManager extends Manager<UIState> {
               style["transition"] = instant
                 ? "none"
                 : `opacity 0s linear ${wrapperEnterAt}s`;
-              inElements.push(targetEl);
+              transitionElements.push(targetEl);
             }
             $.updateElement(targetEl, { style });
             // Enqueue image events
             if (sequence) {
               sequence.forEach((e) => {
-                const start =
-                  e.control === "show"
-                    ? 0
-                    : e.control === "hide"
-                    ? 1
-                    : undefined;
-                const end =
-                  e.to ??
-                  (e.control === "show"
-                    ? 1
-                    : e.control === "hide"
-                    ? 0
-                    : undefined);
                 if (e.assets && e.assets.length > 0) {
                   // We are affecting the image
                   const contentEl = $.getOrCreateContentElement(
                     targetEl,
                     "image"
                   );
-                  const style: Record<string, string | null> = {};
+                  const style: Record<string, string | null> = { opacity: "0" };
                   const combinedBackgroundImage = $.getImageAssetNames(e.assets)
                     .map((n) => $.getImageVar(n))
                     .reverse()
                     .join(", ");
                   style["background_image"] = combinedBackgroundImage;
-                  const transitionStyle = $.getTransitionStyle(
-                    e,
-                    start,
-                    end,
-                    instant
-                  );
-                  const animationStyle = $.getAnimationStyle(e, instant);
-                  const childEl = $.createElement(contentEl, {
+                  const spanEl = $.createElement(contentEl, {
                     type: "span",
-                    style: {
-                      ...style,
-                      ...transitionStyle,
-                      ...animationStyle,
-                    },
+                    style,
                   });
-                  if (childEl) {
-                    inElements.push(childEl);
-                    if (e.exit) {
-                      outElements.push(childEl);
-                    }
+                  if (!animatedElements.has(spanEl)) {
+                    animatedElements.set(spanEl, {});
                   }
+                  const animatedStyle = animatedElements.get(spanEl)!;
+                  $.appendAnimationStyle(e, instant, animatedStyle);
                 } else {
                   // We are affecting the image wrapper
                   if (!animatedElements.has(targetEl)) {
                     animatedElements.set(targetEl, {});
                   }
-                  const animatedStyle = animatedElements.get(targetEl);
-                  if (animatedStyle) {
-                    if (!e.with) {
-                      if (e.control === "show") {
-                        e.with = "fadein";
-                      }
-                      if (e.control === "hide") {
-                        e.with = "fadeout";
-                      }
-                    }
-                    if (e.with) {
-                      $.combineAnimationStyle(e, instant, animatedStyle);
-                    }
-                  }
+                  const animatedStyle = animatedElements.get(targetEl)!;
+                  $.appendAnimationStyle(e, instant, animatedStyle);
                 }
               });
             } else {
@@ -1156,6 +1081,10 @@ export class UIManager extends Manager<UIState> {
           }
         });
         if (instant) {
+          // Transition in elements
+          transitionElements.forEach((el) => {
+            $.updateElement(el, { style: { opacity: "1" } });
+          });
           // Animate elements
           animatedElements.forEach((style, element) => {
             $.updateElement(element, { style });
@@ -1163,37 +1092,33 @@ export class UIManager extends Manager<UIState> {
           return NOP;
         }
         return () => {
+          // Transition in elements
+          transitionElements.forEach((el) => {
+            $.updateElement(el, { style: { opacity: "1" } });
+          });
           // Animate elements
           animatedElements.forEach((style, element) => {
             $.updateElement(element, { style });
           });
-          // Transition in elements
-          inElements.forEach((el) => {
-            $.updateElement(el, { style: { opacity: "1" } });
-          });
-          // Transition out elements
-          outElements.forEach((el) => {
-            $.updateElement(el, { style: { filter: "opacity(0)" } });
-          });
         };
       }
 
-      clear(uiName: string, target: string): void {
+      clearContent(uiName: string, target: string): void {
         this.saveState(uiName, target, null);
         if ($._context?.system?.previewing || !$._context?.system?.simulating) {
           this.applyChanges(uiName, target, null, true);
         }
       }
 
-      clearAll(uiName: string, ignore?: string[]): void {
+      clearAllContent(uiName: string, ignore?: string[]): void {
         this.getTargets(uiName).forEach((target) => {
           if (!ignore || !ignore.includes(target)) {
-            this.clear(uiName, target);
+            this.clearContent(uiName, target);
           }
         });
       }
 
-      stopAnimations(uiName: string, ignore?: string[]): void {
+      clearAnimations(uiName: string, ignore?: string[]): void {
         this.getTargets(uiName).forEach((target) => {
           if (!ignore || !ignore.includes(target)) {
             $.findElements(uiName, target).forEach((targetEl) => {
@@ -1202,6 +1127,7 @@ export class UIManager extends Manager<UIState> {
                   animation_name: null,
                   animation_iteration_count: null,
                   animation_timing_function: null,
+                  animation_fill_mode: null,
                   animation_duration: null,
                   animation_delay: null,
                 },
@@ -1229,7 +1155,7 @@ export class UIManager extends Manager<UIState> {
       }
 
       set(uiName: string, target: string, image: string[]): void {
-        this.clear(uiName, target);
+        this.clearContent(uiName, target);
         this.write(uiName, target, [{ control: "show", assets: image }], true);
       }
 
@@ -1343,7 +1269,7 @@ export class UIManager extends Manager<UIState> {
         }
       }
 
-      applyChanges(
+      protected applyChanges(
         uiName: string,
         target: string,
         attributes: Record<string, string | null> | null

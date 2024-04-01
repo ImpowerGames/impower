@@ -71,23 +71,26 @@ export const executeDisplayCommand = (
       ? Object.keys(styleMap).filter(
           (layer) => styleMap?.[layer]?.preserve_text
         )
-      : undefined;
+      : [];
     const preservedImageLayers = styleMap
       ? Object.keys(styleMap).filter(
           (layer) => styleMap?.[layer]?.preserve_image
         )
-      : undefined;
+      : [];
     const preservedAnimationLayers = styleMap
       ? Object.keys(styleMap).filter(
           (layer) => styleMap?.[layer]?.preserve_animation
         )
-      : undefined;
+      : [];
     // Clear stale text
-    game.module.ui.text.clearAll(uiName, preservedTextLayers);
+    game.module.ui.text.clearAllContent(uiName, preservedTextLayers);
     // Clear stale images
-    game.module.ui.image.clearAll(uiName, preservedImageLayers);
+    game.module.ui.image.clearAllContent(uiName, preservedImageLayers);
     // Clear stale animations
-    game.module.ui.image.stopAnimations(uiName, preservedAnimationLayers);
+    game.module.ui.image.clearAnimations(uiName, [
+      ...preservedImageLayers,
+      ...preservedAnimationLayers,
+    ]);
   };
   clearUI();
 

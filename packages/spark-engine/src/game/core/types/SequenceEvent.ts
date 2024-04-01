@@ -1,5 +1,6 @@
 export interface ISequenceEvent {
   instance?: number;
+  control?: string;
   after?: number;
   over?: number;
   exit?: number;
@@ -16,6 +17,7 @@ export interface TextEvent extends ISequenceEvent {
   text: string;
   style?: {
     position?: string;
+    inset?: string;
     text_decoration?: string;
     font_style?: string;
     font_weight?: string;
@@ -31,12 +33,14 @@ export interface TextEvent extends ISequenceEvent {
 }
 
 export interface ImageEvent extends ISequenceEvent {
-  control: string;
   assets?: string[];
+  style?: {
+    position?: string;
+    inset?: string;
+  };
 }
 
 export interface AudioEvent extends ISequenceEvent {
-  control: string;
   assets?: string[];
   now?: boolean;
   loop?: boolean;

@@ -717,7 +717,7 @@ export const write = (
           result.button[target]!.push(event);
         }
         if (c.text != null) {
-          const event: TextEvent = { text: c.text };
+          const event: TextEvent = { control: "write", text: c.text };
           if (time) {
             event.after = time;
           }
@@ -791,6 +791,9 @@ export const write = (
             const prevEvent = result.text[key]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;
+              prevEvent.style ??= {};
+              prevEvent.style["position"] = "absolute";
+              prevEvent.style["inset"] = "0";
             }
           }
           result.text[key] ??= [];
@@ -834,6 +837,9 @@ export const write = (
             const prevEvent = result.image[key]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;
+              prevEvent.style ??= {};
+              prevEvent.style["position"] = "absolute";
+              prevEvent.style["inset"] = "0";
             }
           }
           result.image[key] ??= [];
