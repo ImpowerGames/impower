@@ -1,6 +1,4 @@
-import { Asset } from "../../../core/specs/Asset";
-
 export interface AudioGroup {
-  assets: Asset[];
+  assets: { type: string; src: string; volume: number }[];
   cues: number[];
 }

@@ -190,6 +190,7 @@ const playAudioVariable = async (
       : new Float32Array(0);
     const player = new AudioPlayer(buffer, audioContext, {
       cues: audio.cues,
+      volume: audio.volume,
     });
     return [player];
   };
@@ -217,6 +218,7 @@ const playAudioGroupVariable = async (
           : new Float32Array(0);
         const player = new AudioPlayer(buffer, audioContext, {
           cues: audioGroup.cues,
+          volume: a.volume,
         });
         return player;
       })
@@ -242,7 +244,9 @@ const playSynthVariable = async (
       audioContext.sampleRate
     );
     audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
-    return [new AudioPlayer(audioBuffer, audioContext)];
+    return [
+      new AudioPlayer(audioBuffer, audioContext, { volume: synth.volume }),
+    ];
   };
   playAudio(
     context,
@@ -298,7 +302,9 @@ const updateSynthWaveform = (
         audioContext.sampleRate
       );
       audioBuffer.copyToChannel(buffer, 0);
-      new AudioPlayer(audioBuffer, audioContext).start();
+      new AudioPlayer(audioBuffer, audioContext, {
+        volume: synth.volume,
+      }).start();
     }
   );
 };
