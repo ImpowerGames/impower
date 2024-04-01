@@ -314,9 +314,6 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
         if (update.after != null) {
           restoreState.after = update.after;
         }
-        if (update.with != null) {
-          restoreState.with = update.with;
-        }
         if (update.over != null) {
           restoreState.over = update.over;
         }
@@ -348,9 +345,6 @@ export class AudioManager extends Manager<AudioState, AudioMessageMap> {
               }
               if (update.after != null) {
                 restoreState.after = update.after;
-              }
-              if (update.with != null) {
-                restoreState.with = update.with;
               }
               if (update.over != null) {
                 restoreState.over = update.over;

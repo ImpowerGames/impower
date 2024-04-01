@@ -1,6 +1,8 @@
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
+const ALPHA_REGEX = /^[a-zA-Z]/;
+
 export const getStyleContent = (properties: Record<string, any>): string => {
   const target = properties[".target"] as string;
   const groupMap: Record<string, Record<string, unknown>> = {};
@@ -44,14 +46,15 @@ export const getStyleContent = (properties: Record<string, any>): string => {
       .trim();
     const fieldsContent = `{\n  ${content}\n}`;
     const cssPropertyName = getCSSPropertyName(groupName);
+    const targetSelector = target.match(ALPHA_REGEX) ? `.${target}` : target;
     if (cssPropertyName.startsWith(":")) {
-      textContent += `.${target}${cssPropertyName} ${fieldsContent}\n`;
+      textContent += `${targetSelector}${cssPropertyName} ${fieldsContent}\n`;
     } else if (groupName.startsWith("*")) {
-      textContent += `.${target} ${groupName} ${fieldsContent}\n`;
+      textContent += `${targetSelector} ${groupName} ${fieldsContent}\n`;
     } else if (groupName) {
-      textContent += `.${groupName} .${target} ${fieldsContent}\n`;
+      textContent += `.${groupName} ${targetSelector} ${fieldsContent}\n`;
     } else {
-      textContent += `.${target} ${fieldsContent}\n`;
+      textContent += `${targetSelector} ${fieldsContent}\n`;
     }
   });
   textContent = textContent.trim();

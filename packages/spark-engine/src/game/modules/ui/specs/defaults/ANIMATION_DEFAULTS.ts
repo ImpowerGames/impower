@@ -36,6 +36,11 @@ export const ANIMATION_DEFAULTS = {
     "100%": {
       top: "0",
     },
+    style: {
+      animation_duration: "750ms",
+      animation_timing_function: "ease-in-out",
+      animation_iteration_count: "infinite",
+    },
   },
   trembling: {
     "0%": {
@@ -81,6 +86,106 @@ export const ANIMATION_DEFAULTS = {
     "100%": {
       left: "calc(1em / 60)",
       top: "calc(-2em / 60)",
+    },
+    style: {
+      animation_duration: "300ms",
+      animation_timing_function: "ease-in-out",
+      animation_iteration_count: "infinite",
+    },
+  },
+  shake: {
+    "0%": {
+      transform: "translate(2px, 1px)",
+    },
+    "10%": {
+      transform: "translate(-1px, -2px)",
+    },
+    "20%": {
+      transform: "translate(-3px, 0px)",
+    },
+    "30%": {
+      transform: "translate(0px, 2px)",
+    },
+    "40%": {
+      transform: "translate(1px, -1px)",
+    },
+    "50%": {
+      transform: "translate(-1px, 2px)",
+    },
+    "60%": {
+      transform: "translate(-3px, 1px)",
+    },
+    "70%": {
+      transform: "translate(2px, 1px)",
+    },
+    "80%": {
+      transform: "translate(-1px, -1px)",
+    },
+    "90%": {
+      transform: "translate(2px, 2px)",
+    },
+    "100%": {
+      transform: "translate(1px, -2px)",
+    },
+    style: {
+      animation_duration: "300ms",
+      animation_timing_function: "ease-in-out",
+    },
+  },
+  shaking: {
+    "0%": {
+      transform: "translate(2px, 1px)",
+    },
+    "10%": {
+      transform: "translate(-1px, -2px)",
+    },
+    "20%": {
+      transform: "translate(-3px, 0px)",
+    },
+    "30%": {
+      transform: "translate(0px, 2px)",
+    },
+    "40%": {
+      transform: "translate(1px, -1px)",
+    },
+    "50%": {
+      transform: "translate(-1px, 2px)",
+    },
+    "60%": {
+      transform: "translate(-3px, 1px)",
+    },
+    "70%": {
+      transform: "translate(2px, 1px)",
+    },
+    "80%": {
+      transform: "translate(-1px, -1px)",
+    },
+    "90%": {
+      transform: "translate(2px, 2px)",
+    },
+    "100%": {
+      transform: "translate(1px, -2px)",
+    },
+    style: {
+      animation_duration: "300ms",
+      animation_timing_function: "ease-in-out",
+      animation_iteration_count: "infinite",
+    },
+  },
+  fadein: {
+    from: {
+      opacity: "0",
+    },
+    to: {
+      opacity: "1",
+    },
+  },
+  fadeout: {
+    from: {
+      opacity: "1",
+    },
+    to: {
+      opacity: "0",
     },
   },
 };

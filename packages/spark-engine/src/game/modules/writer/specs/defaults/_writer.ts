@@ -15,7 +15,5 @@ export const _writer: Create<Writer> = (obj) => ({
   yelled: /^(\p{Lu}[^\p{Ll}\r\n]*)$/u.toString(),
   punctuated: /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u.toString(),
   skipped: "",
-  floating_animation: "floating 750ms ease-in-out infinite",
-  trembling_animation: "trembling 300ms ease-in-out infinite",
   ...(obj || {}),
 });

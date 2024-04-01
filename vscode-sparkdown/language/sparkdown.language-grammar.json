@@ -694,6 +694,9 @@
           "include": "#DefineFunction"
         },
         {
+          "include": "#DefineSpec"
+        },
+        {
           "include": "#DefineScalar"
         },
         {
@@ -799,6 +802,88 @@
         }
       ],
       "end": "(?=^(?!\\1(?:[ ]{2,})))"
+    },
+    "DefineSpec": {
+      "tag": "meta",
+      "name": "meta.definition.type.sd",
+      "begin": "^([ ]*)(define)($|[ ]+)([^:]*?)([ ]*)($|[=][>])($|[ ]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.object.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#TargetAccessPath"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#DeclarationAssignOperator"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#SpecText"
+        }
+      ],
+      "end": "([;])|(?=$)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#PunctuationSemicolon"
+            }
+          ]
+        }
+      }
+    },
+    "SpecText": {
+      "tag": "string",
+      "name": "string.spec.sd",
+      "match": "(.+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
     },
     "DefineScalar": {
       "tag": "meta",
@@ -2089,6 +2174,9 @@
       "emit": true,
       "patterns": [
         {
+          "include": "#ArrowOperator"
+        },
+        {
           "include": "#AssignOperator"
         }
       ]
@@ -2425,7 +2513,7 @@
       }
     },
     "AssetTagCommand": {
-      "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\\b))?($|[ ]*\\S*)(.*)",
+      "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\\b))?($|[ ]*\\S*?)($|[ ]*\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -2636,7 +2724,7 @@
     "StyleTagControlKeyword": {
       "tag": "keyword",
       "name": "keyword.style.control.keyword.sd",
-      "match": "(speed|wait|s|w)"
+      "match": "(.+)"
     },
     "StyleTagColon": {
       "tag": "separator",
@@ -2675,15 +2763,18 @@
     "Transition": {
       "tag": "labelName",
       "name": "keyword.control.transition.sd",
-      "match": "^(?:([%])($|[ ]+)($|.+?)|((?:[^\\p{Ll}\\s]+\\b[ ]+)*(?:(?:[^\\p{Ll}\\s]+\\b[ ]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ ]*$)",
+      "match": "^(?:([%])($|.+?)|((?:[^\\p{Ll}\\s]+\\b[ ]+)*(?:(?:[^\\p{Ll}\\s]+\\b[ ]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ ]*$)",
       "captures": {
         "1": {
           "tag": "punctuation",
           "name": "punctuation.transition.mark.sd"
         },
         "2": {
-          "tag": "punctuation",
-          "name": "punctuation.transition.mark.sd"
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -2693,13 +2784,6 @@
           ]
         },
         "4": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        },
-        "5": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -2711,15 +2795,18 @@
     "Scene": {
       "tag": "regexp",
       "name": "string.regexp.scene.sd",
-      "match": "^(?:([$])($|[ ]+)($|.+?)|((?:INT[.]?[\\/]EXT[.]|INT[.]|EXT[.]|CLOSEUP[ ]*[-])(?:$|[ ]+)(?:$|.+?)))($|[ ]*$)",
+      "match": "^(?:([$])($|.+?)|((?:INT[.]?[\\/]EXT[.]|INT[.]|EXT[.]|CLOSEUP[ ]*[-])(?:$|[ ]+)(?:$|.+?)))($|[ ]*$)",
       "captures": {
         "1": {
           "tag": "punctuation",
           "name": "punctuation.scene.mark.sd"
         },
         "2": {
-          "tag": "punctuation",
-          "name": "punctuation.scene.mark.sd"
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -2729,13 +2816,6 @@
           ]
         },
         "4": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        },
-        "5": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -2749,15 +2829,18 @@
     },
     "Dialogue": {
       "name": "entity.dialogue.sd",
-      "begin": "^(?:([@])($|[ ]+)(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]*[\\p{Lu}?])|([*])($|[ ]+))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\\^)?($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
+      "begin": "^(?:([@])(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]*[\\p{Lu}?]))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\\^)?($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
           "name": "keyword.dialogue.mark.sd"
         },
         "2": {
-          "tag": "keyword",
-          "name": "keyword.dialogue.mark.sd"
+          "patterns": [
+            {
+              "include": "#DialogueCharacterName"
+            }
+          ]
         },
         "3": {
           "patterns": [
@@ -2769,54 +2852,39 @@
         "4": {
           "patterns": [
             {
-              "include": "#DialogueCharacterName"
-            }
-          ]
-        },
-        "5": {
-          "tag": "keyword",
-          "name": "keyword.dialogue.mark.sd"
-        },
-        "6": {
-          "tag": "keyword",
-          "name": "keyword.dialogue.mark.sd"
-        },
-        "7": {
-          "patterns": [
-            {
               "include": "#Whitespace"
             }
           ]
         },
-        "8": {
+        "5": {
           "patterns": [
             {
               "include": "#DialogueCharacterParenthetical"
             }
           ]
         },
-        "9": {
+        "6": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
         },
-        "10": {
+        "7": {
           "patterns": [
             {
               "include": "#DialogueCharacterSimultaneous"
             }
           ]
         },
-        "11": {
+        "8": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
         },
-        "12": {
+        "9": {
           "patterns": [
             {
               "include": "#Newline"
@@ -2966,18 +3034,11 @@
     "ExplicitAction": {
       "tag": "content",
       "name": "entity.paragraph.text.action.explicit.sd",
-      "begin": "^([!])($|[ ]+)(?=.+$)",
+      "begin": "^([!])(?=.+$)",
       "beginCaptures": {
         "1": {
           "tag": "punctuation",
           "name": "keyword.operator.expression.action.explicit.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
         }
       },
       "patterns": [
@@ -3967,6 +4028,11 @@
       "tag": "punctuation",
       "name": "punctuation.separator.colon.sd",
       "match": "([:])"
+    },
+    "ArrowOperator": {
+      "tag": "punctuation",
+      "name": "punctuation.separator.colon.sd",
+      "match": "([=][>])"
     },
     "Literal": {
       "emit": true,

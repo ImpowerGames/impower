@@ -255,6 +255,31 @@ const invalidateOpenMarks = (
   }
 };
 
+const getAnimationStyle = (animationName: string, context: GameContext) => {
+  const style: Record<string, string | null> = {};
+  style["animation_name"] = animationName;
+  const animationTimingFunction =
+    context["animation"]?.[animationName]?.["style"]?.[
+      "animation_timing_function"
+    ];
+  if (animationTimingFunction) {
+    style["animation_timing_function"] = animationTimingFunction;
+  }
+  const animationDuration =
+    context["animation"]?.[animationName]?.["style"]?.["animation_duration"];
+  if (animationDuration) {
+    style["animation_duration"] = animationDuration;
+  }
+  const animationIterationCount =
+    context["animation"]?.[animationName]?.["style"]?.[
+      "animation_iteration_count"
+    ];
+  if (animationIterationCount) {
+    style["animation_iteration_count"] = animationIterationCount;
+  }
+  return style;
+};
+
 export interface WriteOptions {
   character?: string;
   instant?: boolean;
@@ -704,8 +729,6 @@ export const write = (
     const fadeDuration = writer?.fade_duration ?? 0;
     const letterPause = writer?.letter_pause ?? 0;
     const animationOffset = writer?.animation_offset ?? 0;
-    const floatingAnimation = writer?.floating_animation;
-    const tremblingAnimation = writer?.trembling_animation;
     if (phrase.chunks) {
       phrase.chunks.forEach((c) => {
         if (c.button != null) {
@@ -747,10 +770,12 @@ export const write = (
           }
 
           // Floating animation
-          if (c.floating && floatingAnimation) {
+          if (c.floating) {
             event.style ??= {};
-            event.style["position"] = "relative";
-            event.style["animation"] = floatingAnimation;
+            event.style = {
+              ...event.style,
+              ...getAnimationStyle("floating", context),
+            };
             event.style["animation_delay"] = `${
               floatingIndex * animationOffset * -1
             }s`;
@@ -761,10 +786,12 @@ export const write = (
             floatingIndex = 0;
           }
           // Trembling animation
-          if (c.trembling && tremblingAnimation) {
+          if (c.trembling) {
             event.style ??= {};
-            event.style["position"] = "relative";
-            event.style["animation"] = tremblingAnimation;
+            event.style = {
+              ...event.style,
+              ...getAnimationStyle("trembling", context),
+            };
             event.style["animation_delay"] = `${
               tremblingIndex * animationOffset * -1
             }s`;
@@ -851,10 +878,6 @@ export const write = (
             event.after = time;
           }
           if (c.args) {
-            const withValue = getArgumentStringValue(c.args, "with");
-            if (withValue) {
-              event.with = withValue;
-            }
             const afterValue = getArgumentTimeValue(c.args, "after");
             if (afterValue) {
               event.after = (event.after ?? 0) + afterValue;

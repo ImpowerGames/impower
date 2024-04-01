@@ -560,10 +560,12 @@ const build = (
     const names = new Set<string>();
     Object.entries(program?.context?.["ui"] || {}).forEach(([, v]) => {
       traverse(v, (fieldPath) => {
-        const element = fieldPath.split(".").at(-2);
-        if (element) {
-          names.add(element);
-        }
+        const elements = fieldPath.split(".");
+        elements.forEach((element) => {
+          if (!element.startsWith("$")) {
+            names.add(element);
+          }
+        });
       });
     });
     return names;

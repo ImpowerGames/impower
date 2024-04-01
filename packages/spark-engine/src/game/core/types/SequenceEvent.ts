@@ -1,9 +1,9 @@
 export interface ISequenceEvent {
   instance?: number;
-  with?: string;
   after?: number;
   over?: number;
   exit?: number;
+  with?: string;
 }
 
 export interface ButtonEvent extends ISequenceEvent {
@@ -21,7 +21,10 @@ export interface TextEvent extends ISequenceEvent {
     text_align?: string;
     white_space?: string;
     background_color?: string;
-    animation?: string;
+    animation_name?: string;
+    animation_timing_function?: string;
+    animation_iteration_count?: string;
+    animation_duration?: string;
     animation_delay?: string;
   };
 }

@@ -392,6 +392,7 @@ repository:
     emit: true
     patterns:
       - { include: "#DefineFunction" }
+      - { include: "#DefineSpec" }
       - { include: "#DefineScalar" }
       - { include: "#DefineObject" }
       - { include: "#DefineInvalid" }
@@ -440,6 +441,49 @@ repository:
       - { include: "#Logic" }
       - { include: "#Expression" }
     end: (?=^(?!\1(?:[ ]{2,})))
+
+  DefineSpec:
+    tag: meta
+    name: meta.definition.type.sd
+    begin: ^([ ]*)(define)($|[ ]+)([^:]*?)([ ]*)($|[=][>])($|[ ]*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: controlKeyword
+        name: keyword.control.definition.object.sd
+      3:
+        patterns:
+          - { include: "#Whitespace" }
+      4:
+        patterns:
+          - { include: "#TargetAccessPath" }
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        patterns:
+          - { include: "#DeclarationAssignOperator" }
+      7:
+        patterns:
+          - { include: "#Whitespace" }
+    patterns:
+      - { include: "#SpecText" }
+    end: ([;])|(?=$)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#PunctuationSemicolon" }
+
+  SpecText:
+    tag: string
+    name: string.spec.sd
+    match: (.+$)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
 
   DefineScalar:
     tag: meta
@@ -1116,6 +1160,7 @@ repository:
   DeclarationAssignOperator:
     emit: true
     patterns:
+      - { include: "#ArrowOperator" }
       - { include: "#AssignOperator" }
 
   Jump:
@@ -1312,7 +1357,7 @@ repository:
         name: keyword.operator.expression.end.tag.sd
 
   AssetTagCommand:
-    match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\b))?($|[ ]*\S*)(.*)
+    match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\b))?($|[ ]*\S*?)($|[ ]*\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
     captures:
       1:
         patterns:
@@ -1439,7 +1484,7 @@ repository:
   StyleTagControlKeyword:
     tag: keyword
     name: keyword.style.control.keyword.sd
-    match: (speed|wait|s|w)
+    match: (.+)
 
   StyleTagColon:
     tag: separator
@@ -1468,42 +1513,36 @@ repository:
   Transition:
     tag: labelName
     name: keyword.control.transition.sd
-    match: ^(?:([%])($|[ ]+)($|.+?)|((?:[^\p{Ll}\s]+\b[ ]+)*(?:(?:[^\p{Ll}\s]+\b[ ]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ ]*$)
+    match: ^(?:([%])($|.+?)|((?:[^\p{Ll}\s]+\b[ ]+)*(?:(?:[^\p{Ll}\s]+\b[ ]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ ]*$)
     captures:
       1:
         tag: punctuation
         name: punctuation.transition.mark.sd
       2:
-        tag: punctuation
-        name: punctuation.transition.mark.sd
+        patterns:
+          - { include: "#DisplayText" }
       3:
         patterns:
           - { include: "#DisplayText" }
       4:
-        patterns:
-          - { include: "#DisplayText" }
-      5:
         patterns:
           - { include: "#Whitespace" }
 
   Scene:
     tag: regexp
     name: string.regexp.scene.sd
-    match: ^(?:([$])($|[ ]+)($|.+?)|((?:INT[.]?[\/]EXT[.]|INT[.]|EXT[.]|CLOSEUP[ ]*[-])(?:$|[ ]+)(?:$|.+?)))($|[ ]*$)
+    match: ^(?:([$])($|.+?)|((?:INT[.]?[\/]EXT[.]|INT[.]|EXT[.]|CLOSEUP[ ]*[-])(?:$|[ ]+)(?:$|.+?)))($|[ ]*$)
     captures:
       1:
         tag: punctuation
         name: punctuation.scene.mark.sd
       2:
-        tag: punctuation
-        name: punctuation.scene.mark.sd
+        patterns:
+          - { include: "#DisplayText" }
       3:
         patterns:
           - { include: "#DisplayText" }
       4:
-        patterns:
-          - { include: "#DisplayText" }
-      5:
         patterns:
           - { include: "#Whitespace" }
 
@@ -1512,36 +1551,33 @@ repository:
 
   Dialogue:
     name: entity.dialogue.sd
-    begin: ^(?:([@])($|[ ]+)(.+?)|([\p{Lu}][^\p{Ll}\r\n^%()]*[\p{Lu}?]))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\^)?($|[ ]*$)((?:\r\n|\r|\n)?)
+    begin: ^(?:([@])(.+?)|([\p{Lu}][^\p{Ll}\r\n^%()]*[\p{Lu}?]))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\^)?($|[ ]*$)((?:\r\n|\r|\n)?)
     beginCaptures:
       1:
         tag: keyword
         name: keyword.dialogue.mark.sd
       2:
-        tag: keyword
-        name: keyword.dialogue.mark.sd
+        patterns:
+          - { include: "#DialogueCharacterName" }
       3:
         patterns:
           - { include: "#DialogueCharacterName" }
       4:
         patterns:
-          - { include: "#DialogueCharacterName" }
+          - { include: "#Whitespace" }
       5:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#DialogueCharacterParenthetical" }
       6:
         patterns:
-          - { include: "#DialogueCharacterParenthetical" }
+          - { include: "#Whitespace" }
       7:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#DialogueCharacterSimultaneous" }
       8:
         patterns:
-          - { include: "#DialogueCharacterSimultaneous" }
-      9:
-        patterns:
           - { include: "#Whitespace" }
-      10:
+      9:
         patterns:
           - { include: "#Newline" }
     patterns:
@@ -1627,14 +1663,11 @@ repository:
   ExplicitAction:
     tag: content
     name: entity.paragraph.text.action.explicit.sd
-    begin: ^([!])($|[ ]+)(?=.+$)
+    begin: ^([!])(?=.+$)
     beginCaptures:
       1:
         tag: punctuation
         name: keyword.operator.expression.action.explicit.sd
-      2:
-        patterns:
-          - { include: "#Whitespace" }
     patterns:
       - { include: "#Checkpoint" }
       - { include: "#Choice" }
@@ -2260,6 +2293,11 @@ repository:
     tag: punctuation
     name: punctuation.separator.colon.sd
     match: ([:])
+
+  ArrowOperator:
+    tag: punctuation
+    name: punctuation.separator.colon.sd
+    match: ([=][>])
 
   Literal:
     emit: true

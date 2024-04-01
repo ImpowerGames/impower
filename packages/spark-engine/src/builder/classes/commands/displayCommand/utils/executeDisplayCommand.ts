@@ -58,21 +58,29 @@ export const executeDisplayCommand = (
   game.module.audio.stopChannel("sound");
   game.module.audio.stopChannel("voice");
 
-  const styleMap = context?.["style"];
-
-  // Clear stale text
-  const preservedTextLayers = styleMap
-    ? Object.keys(styleMap).filter((layer) => styleMap?.[layer]?.preserve_text)
-    : undefined;
-
-  // Clear stale images
-  const preservedImageLayers = styleMap
-    ? Object.keys(styleMap).filter((layer) => styleMap?.[layer]?.preserve_image)
-    : undefined;
-
   const clearUI = () => {
+    const styleMap = context?.["style"];
+    const preservedTextLayers = styleMap
+      ? Object.keys(styleMap).filter(
+          (layer) => styleMap?.[layer]?.preserve_text
+        )
+      : undefined;
+    const preservedImageLayers = styleMap
+      ? Object.keys(styleMap).filter(
+          (layer) => styleMap?.[layer]?.preserve_image
+        )
+      : undefined;
+    const preservedAnimationLayers = styleMap
+      ? Object.keys(styleMap).filter(
+          (layer) => styleMap?.[layer]?.preserve_animation
+        )
+      : undefined;
+    // Clear stale text
     game.module.ui.text.clearAll(uiName, preservedTextLayers);
+    // Clear stale images
     game.module.ui.image.clearAll(uiName, preservedImageLayers);
+    // Clear stale animations
+    game.module.ui.image.stopAnimations(uiName, preservedAnimationLayers);
   };
   clearUI();
 
@@ -99,7 +107,7 @@ export const executeDisplayCommand = (
   game.module.ui.style.update(uiName, "indicator", indicatorStyle);
 
   // Process buttons
-  const buttonTransitionIds = Object.entries(sequence.button).flatMap(
+  const buttonTriggerIds = Object.entries(sequence.button).flatMap(
     ([target, events]) =>
       events.map((e) => {
         const id = game.module.ui.instance.get(uiName, target, e.instance);
@@ -118,17 +126,16 @@ export const executeDisplayCommand = (
       })
   );
   // Process text
-  const textTransitionIds = Object.entries(sequence.text).map(
-    ([target, events]) =>
-      game.module.ui.text.write(uiName, target, events, instant)
+  const textTriggerIds = Object.entries(sequence.text).map(([target, events]) =>
+    game.module.ui.text.write(uiName, target, events, instant)
   );
   // Process images
-  const imageTransitionIds = Object.entries(sequence.image).map(
+  const imageTriggerIds = Object.entries(sequence.image).map(
     ([target, events]) =>
       game.module.ui.image.write(uiName, target, events, instant)
   );
   // Process audio
-  const audioTransitionIds = Object.entries(sequence.audio).map(
+  const audioTriggerIds = Object.entries(sequence.audio).map(
     ([channel, events]) => game.module.audio.queue(channel, events, instant)
   );
 
@@ -158,15 +165,15 @@ export const executeDisplayCommand = (
   const handleTick = (deltaMS: number): void => {
     if (!ready) {
       if (
-        audioTransitionIds.every((n) => game.module.audio.isReady(n)) &&
-        buttonTransitionIds.every((n) => game.module.ui.isReady(n)) &&
-        textTransitionIds.every((n) => game.module.ui.isReady(n)) &&
-        imageTransitionIds.every((n) => game.module.ui.isReady(n))
+        audioTriggerIds.every((n) => game.module.audio.isReady(n)) &&
+        buttonTriggerIds.every((n) => game.module.ui.isReady(n)) &&
+        textTriggerIds.every((n) => game.module.ui.isReady(n)) &&
+        imageTriggerIds.every((n) => game.module.ui.isReady(n))
       ) {
         ready = true;
-        game.module.audio.triggerAll(audioTransitionIds);
-        game.module.ui.triggerAll(textTransitionIds);
-        game.module.ui.triggerAll(imageTransitionIds);
+        game.module.audio.triggerAll(audioTriggerIds);
+        game.module.ui.triggerAll(textTriggerIds);
+        game.module.ui.triggerAll(imageTriggerIds);
       }
     }
     if (ready && !finished) {

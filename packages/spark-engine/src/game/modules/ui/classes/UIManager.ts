@@ -514,10 +514,17 @@ export class UIManager extends Manager<UIState> {
     return found;
   }
 
-  protected getOrCreateContentElement(
+  protected getContentElement(
     element: Element,
     tag: "image" | "text"
   ): Element | undefined {
+    return element.findChild(tag);
+  }
+
+  protected getOrCreateContentElement(
+    element: Element,
+    tag: "image" | "text"
+  ): Element {
     const contentChild = element.findChild(tag);
     if (contentChild) {
       return contentChild;
@@ -547,6 +554,86 @@ export class UIManager extends Manager<UIState> {
       }
     });
     return names;
+  }
+
+  combineAnimationStyle(
+    event: TextEvent | ImageEvent,
+    instant: boolean,
+    style: Record<string, string | null>
+  ): void {
+    if (event.with) {
+      const name = event.with;
+      const delay = `${event.after ?? 0}s`;
+      const duration = event.over != null ? `${event.over}s` : null;
+      const animationName = name;
+      const animationDelay =
+        delay ??
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_delay"
+        ];
+      const animationDuration =
+        duration ??
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_duration"
+        ];
+      const animationIterationCount =
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_iteration_count"
+        ];
+      const animationTimingFunction =
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_timing_function"
+        ];
+      if (animationIterationCount === "infinite" || !instant) {
+        if (style["animation_name"]) {
+          style["animation_name"] += ", ";
+        } else {
+          style["animation_name"] = "";
+        }
+        style["animation_name"] += animationName;
+        if (animationIterationCount) {
+          if (style["animation_iteration_count"]) {
+            style["animation_iteration_count"] += ", ";
+          } else {
+            style["animation_iteration_count"] = "";
+          }
+          style["animation_iteration_count"] += animationIterationCount;
+        }
+        if (animationTimingFunction) {
+          if (style["animation_timing_function"]) {
+            style["animation_timing_function"] += ", ";
+          } else {
+            style["animation_timing_function"] = "";
+          }
+          style["animation_timing_function"] += animationTimingFunction;
+        }
+        if (animationDuration) {
+          if (style["animation_duration"]) {
+            style["animation_duration"] += ", ";
+          } else {
+            style["animation_duration"] = "";
+          }
+          style["animation_duration"] += animationDuration;
+        }
+        if (!instant) {
+          if (style["animation_delay"]) {
+            style["animation_delay"] += ", ";
+          } else {
+            style["animation_delay"] = "";
+          }
+          style["animation_delay"] += animationDelay;
+        }
+      }
+    }
+  }
+
+  getAnimationStyle(
+    event: TextEvent | ImageEvent,
+    instant: boolean
+  ): Record<string, string | null> {
+    const style: Record<string, string | null> = {};
+    this.combineAnimationStyle(event, instant, style);
+    return style;
   }
 
   getTransitionStyle(
@@ -733,11 +820,15 @@ export class UIManager extends Manager<UIState> {
               if (
                 prev &&
                 JSON.stringify(prev.style || {}) ===
-                  JSON.stringify(e.style || {})
+                  JSON.stringify(e.style || {}) &&
+                prev.with === e.with
               ) {
                 prev.text = (prev.text ?? "") + e.text;
               } else {
                 const s: TextState = { text: e.text };
+                if (e.with) {
+                  s.with = e.with;
+                }
                 if (e.style) {
                   s.style = e.style;
                 }
@@ -777,49 +868,55 @@ export class UIManager extends Manager<UIState> {
               inElements.push(targetEl);
             }
             $.updateElement(targetEl, { style });
-            const contentEl = $.getOrCreateContentElement(targetEl, "text");
-            if (contentEl) {
-              if (sequence) {
-                let blockWrapper:
-                  | { element: Element; style: Record<string, string | null> }
-                  | undefined = undefined;
-                sequence.forEach((e) => {
-                  const textAlign = e.style?.["text_align"];
-                  if (textAlign) {
-                    // text_align must be applied to a parent element
-                    if (blockWrapper?.style["text_align"] !== textAlign) {
-                      // Group consecutive spans that have the same text alignment under the same block wrapper
-                      const wrapperStyle: Record<string, string | null> = {};
-                      wrapperStyle["display"] = "block";
-                      wrapperStyle["text_align"] = textAlign;
-                      blockWrapper = {
-                        element: $.createElement(contentEl, {
-                          type: "div",
-                          style: wrapperStyle,
-                        }),
+            if (sequence) {
+              let blockWrapper:
+                | { element: Element; style: Record<string, string | null> }
+                | undefined = undefined;
+              sequence.forEach((e) => {
+                const contentEl = $.getOrCreateContentElement(targetEl, "text");
+                const textAlign = e.style?.["text_align"];
+                if (textAlign) {
+                  // text_align must be applied to a parent element
+                  if (blockWrapper?.style["text_align"] !== textAlign) {
+                    // Group consecutive spans that have the same text alignment under the same block wrapper
+                    const wrapperStyle: Record<string, string | null> = {};
+                    wrapperStyle["display"] = "block";
+                    wrapperStyle["text_align"] = textAlign;
+                    blockWrapper = {
+                      element: $.createElement(contentEl, {
+                        type: "div",
                         style: wrapperStyle,
-                      };
-                    }
-                  } else {
-                    blockWrapper = undefined;
+                      }),
+                      style: wrapperStyle,
+                    };
                   }
-                  const parentEl = blockWrapper?.element || contentEl;
-                  const text = e.text;
-                  const style = { ...(e.style || {}) };
-                  const transitionStyle = $.getTransitionStyle(e, instant);
-                  const childEl = $.createElement(parentEl, {
-                    type: "span",
-                    content: { text },
-                    style: { ...style, ...transitionStyle },
-                  });
-                  if (childEl) {
-                    inElements.push(childEl);
-                    if (e.exit) {
-                      outElements.push(childEl);
-                    }
-                  }
+                } else {
+                  blockWrapper = undefined;
+                }
+                const parentEl = blockWrapper?.element || contentEl;
+                const text = e.text;
+                const style = { ...(e.style || {}) };
+                const transitionStyle = $.getTransitionStyle(e, instant);
+                const animationStyle = $.getAnimationStyle(e, instant);
+                const childEl = $.createElement(parentEl, {
+                  type: "span",
+                  content: { text },
+                  style: {
+                    ...style,
+                    ...transitionStyle,
+                    ...animationStyle,
+                  },
                 });
-              } else {
+                if (childEl) {
+                  inElements.push(childEl);
+                  if (e.exit) {
+                    outElements.push(childEl);
+                  }
+                }
+              });
+            } else {
+              const contentEl = $.getContentElement(targetEl, "text");
+              if (contentEl) {
                 $.clearElement(contentEl);
                 $.updateElement(targetEl, { style: { display: "none" } });
               }
@@ -914,8 +1011,13 @@ export class UIManager extends Manager<UIState> {
               const prev = state.at(-1);
               if (prev) {
                 prev.assets = e.assets;
+                prev.with = e.with;
               } else {
-                const s: ImageState = { control: e.control, assets: e.assets };
+                const s: ImageState = {
+                  control: e.control,
+                  assets: e.assets,
+                  with: e.with,
+                };
                 state.push(s);
               }
             }
@@ -940,40 +1042,43 @@ export class UIManager extends Manager<UIState> {
       ): () => void {
         const inElements: Element[] = [];
         const outElements: Element[] = [];
+        const animatedElements = new Map<
+          Element,
+          Record<string, string | null>
+        >();
         const enterAt = sequence?.[0]?.after ?? 0;
         $.findElements(uiName, target).forEach((targetEl) => {
           if (targetEl) {
-            const contentEl = $.getOrCreateContentElement(targetEl, "image");
-            if (contentEl) {
-              const style: Record<string, string | null> = { display: null };
-              if (enterAt > 0) {
-                style["opacity"] = instant ? "1" : "0";
-                style["transition"] = instant
-                  ? "none"
-                  : `opacity 0s linear ${enterAt}s`;
-                inElements.push(targetEl);
-              }
-              $.updateElement(targetEl, { style });
-              if (sequence) {
-                sequence.forEach((e) => {
-                  const parentEl = contentEl;
+            const style: Record<string, string | null> = { display: null };
+            if (enterAt > 0) {
+              style["opacity"] = instant ? "1" : "0";
+              style["transition"] = instant
+                ? "none"
+                : `opacity 0s linear ${enterAt}s`;
+              inElements.push(targetEl);
+            }
+            $.updateElement(targetEl, { style });
+            if (sequence) {
+              sequence.forEach((e) => {
+                if (e.assets && e.assets.length > 0) {
+                  const contentEl = $.getOrCreateContentElement(
+                    targetEl,
+                    "image"
+                  );
                   const style: Record<string, string | null> = {};
-                  // TODO: Support e.control === "hide"
-                  if (e.assets) {
-                    const combinedBackgroundImage = $.getImageAssetNames(
-                      e.assets
-                    )
-                      .map((n) => $.getImageVar(n))
-                      .reverse()
-                      .join(", ");
-                    style["background_image"] = combinedBackgroundImage;
-                  }
+                  const combinedBackgroundImage = $.getImageAssetNames(e.assets)
+                    .map((n) => $.getImageVar(n))
+                    .reverse()
+                    .join(", ");
+                  style["background_image"] = combinedBackgroundImage;
                   const transitionStyle = $.getTransitionStyle(e, instant);
-                  const childEl = $.createElement(parentEl, {
+                  const animationStyle = $.getAnimationStyle(e, instant);
+                  const childEl = $.createElement(contentEl, {
                     type: "span",
                     style: {
                       ...style,
                       ...transitionStyle,
+                      ...animationStyle,
                     },
                   });
                   if (childEl) {
@@ -982,8 +1087,21 @@ export class UIManager extends Manager<UIState> {
                       outElements.push(childEl);
                     }
                   }
-                });
-              } else {
+                } else {
+                  if (e.with) {
+                    if (!animatedElements.has(targetEl)) {
+                      animatedElements.set(targetEl, {});
+                    }
+                    const animatedStyle = animatedElements.get(targetEl);
+                    if (animatedStyle) {
+                      $.combineAnimationStyle(e, instant, animatedStyle);
+                    }
+                  }
+                }
+              });
+            } else {
+              const contentEl = $.getContentElement(targetEl, "image");
+              if (contentEl) {
                 $.clearElement(contentEl);
                 $.updateElement(targetEl, { style: { display: "none" } });
               }
@@ -991,9 +1109,18 @@ export class UIManager extends Manager<UIState> {
           }
         });
         if (instant) {
-          return NOP;
+          return () => {
+            // Animate elements
+            animatedElements.forEach((style, element) => {
+              $.updateElement(element, { style });
+            });
+          };
         }
         return () => {
+          // Animate elements
+          animatedElements.forEach((style, element) => {
+            $.updateElement(element, { style });
+          });
           // Transition in elements
           inElements.forEach((el) => {
             $.updateElement(el, { style: { opacity: "1" } });
@@ -1016,6 +1143,24 @@ export class UIManager extends Manager<UIState> {
         this.getTargets(uiName).forEach((target) => {
           if (!ignore || !ignore.includes(target)) {
             this.clear(uiName, target);
+          }
+        });
+      }
+
+      stopAnimations(uiName: string, ignore?: string[]): void {
+        this.getTargets(uiName).forEach((target) => {
+          if (!ignore || !ignore.includes(target)) {
+            $.findElements(uiName, target).forEach((targetEl) => {
+              $.updateElement(targetEl, {
+                style: {
+                  animation_name: null,
+                  animation_iteration_count: null,
+                  animation_timing_function: null,
+                  animation_duration: null,
+                  animation_delay: null,
+                },
+              });
+            });
           }
         });
       }
