@@ -255,31 +255,6 @@ const invalidateOpenMarks = (
   }
 };
 
-const getAnimationStyle = (animationName: string, context: GameContext) => {
-  const style: Record<string, string | null> = {};
-  style["animation_name"] = animationName;
-  const animationTimingFunction =
-    context["animation"]?.[animationName]?.["style"]?.[
-      "animation_timing_function"
-    ];
-  if (animationTimingFunction) {
-    style["animation_timing_function"] = animationTimingFunction;
-  }
-  const animationDuration =
-    context["animation"]?.[animationName]?.["style"]?.["animation_duration"];
-  if (animationDuration) {
-    style["animation_duration"] = animationDuration;
-  }
-  const animationIterationCount =
-    context["animation"]?.[animationName]?.["style"]?.[
-      "animation_iteration_count"
-    ];
-  if (animationIterationCount) {
-    style["animation_iteration_count"] = animationIterationCount;
-  }
-  return style;
-};
-
 export interface WriteOptions {
   character?: string;
   instant?: boolean;
@@ -771,11 +746,8 @@ export const write = (
 
           // Floating animation
           if (c.floating) {
+            event.with = "floating";
             event.style ??= {};
-            event.style = {
-              ...event.style,
-              ...getAnimationStyle("floating", context),
-            };
             event.style["animation_delay"] = `${
               floatingIndex * animationOffset * -1
             }s`;
@@ -787,11 +759,8 @@ export const write = (
           }
           // Trembling animation
           if (c.trembling) {
+            event.with = "trembling";
             event.style ??= {};
-            event.style = {
-              ...event.style,
-              ...getAnimationStyle("trembling", context),
-            };
             event.style["animation_delay"] = `${
               tremblingIndex * animationOffset * -1
             }s`;

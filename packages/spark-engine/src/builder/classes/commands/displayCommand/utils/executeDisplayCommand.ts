@@ -58,11 +58,11 @@ export const executeDisplayCommand = (
   const debugging = context.system.debugging;
 
   if (!instant) {
-    // Stop stale sound and voice on new dialogue line
+    // Stop stale sound and voice audio on new dialogue line
     game.module.audio.stopChannel("sound");
     game.module.audio.stopChannel("voice");
   }
-  // Stop writer sound on instant reveal and new dialogue line
+  // Stop writer audio on instant reveal and new dialogue line
   game.module.audio.stopChannel("writer");
 
   const clearUI = () => {

@@ -172,12 +172,55 @@ export const ANIMATION_DEFAULTS = {
       animation_iteration_count: "infinite",
     },
   },
+  shivering: {
+    "0%": {
+      transform: "translate(1px, 0.5px)",
+    },
+    "10%": {
+      transform: "translate(-0.5px, -1px)",
+    },
+    "20%": {
+      transform: "translate(-1.5px, 0px)",
+    },
+    "30%": {
+      transform: "translate(0px, 1px)",
+    },
+    "40%": {
+      transform: "translate(0.5px, -0.5px)",
+    },
+    "50%": {
+      transform: "translate(-0,5px, 1px)",
+    },
+    "60%": {
+      transform: "translate(-1.5px, 0.5px)",
+    },
+    "70%": {
+      transform: "translate(1px, 0.5px)",
+    },
+    "80%": {
+      transform: "translate(-0.5px, -0.5px)",
+    },
+    "90%": {
+      transform: "translate(1px, 1px)",
+    },
+    "100%": {
+      transform: "translate(0.5px, -1px)",
+    },
+    style: {
+      animation_duration: "300ms",
+      animation_timing_function: "ease-in-out",
+      animation_iteration_count: "infinite",
+    },
+  },
   fadein: {
     from: {
       opacity: "0",
     },
     to: {
       opacity: "1",
+    },
+    style: {
+      animation_fill_mode: "both",
     },
   },
   fadeout: {
@@ -186,6 +229,9 @@ export const ANIMATION_DEFAULTS = {
     },
     to: {
       opacity: "0",
+    },
+    style: {
+      animation_fill_mode: "both",
     },
   },
 };

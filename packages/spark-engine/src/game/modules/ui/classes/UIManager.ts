@@ -584,45 +584,55 @@ export class UIManager extends Manager<UIState> {
         this._context["animation"]?.[animationName]?.["style"]?.[
           "animation_timing_function"
         ];
-      if (animationIterationCount === "infinite" || !instant) {
-        if (style["animation_name"]) {
-          style["animation_name"] += ", ";
+      const animationFillMode =
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_fill_mode"
+        ];
+      if (style["animation_name"]) {
+        style["animation_name"] += ", ";
+      } else {
+        style["animation_name"] = "";
+      }
+      style["animation_name"] += animationName;
+      if (animationIterationCount) {
+        if (style["animation_iteration_count"]) {
+          style["animation_iteration_count"] += ", ";
         } else {
-          style["animation_name"] = "";
+          style["animation_iteration_count"] = "";
         }
-        style["animation_name"] += animationName;
-        if (animationIterationCount) {
-          if (style["animation_iteration_count"]) {
-            style["animation_iteration_count"] += ", ";
-          } else {
-            style["animation_iteration_count"] = "";
-          }
-          style["animation_iteration_count"] += animationIterationCount;
+        style["animation_iteration_count"] += animationIterationCount;
+      }
+      if (animationTimingFunction) {
+        if (style["animation_timing_function"]) {
+          style["animation_timing_function"] += ", ";
+        } else {
+          style["animation_timing_function"] = "";
         }
-        if (animationTimingFunction) {
-          if (style["animation_timing_function"]) {
-            style["animation_timing_function"] += ", ";
-          } else {
-            style["animation_timing_function"] = "";
-          }
-          style["animation_timing_function"] += animationTimingFunction;
+        style["animation_timing_function"] += animationTimingFunction;
+      }
+      if (animationDuration) {
+        if (style["animation_duration"]) {
+          style["animation_duration"] += ", ";
+        } else {
+          style["animation_duration"] = "";
         }
-        if (animationDuration) {
-          if (style["animation_duration"]) {
-            style["animation_duration"] += ", ";
-          } else {
-            style["animation_duration"] = "";
-          }
-          style["animation_duration"] += animationDuration;
+        style["animation_duration"] += animationDuration;
+      }
+      if (animationFillMode) {
+        if (style["animation_fill_mode"]) {
+          style["animation_fill_mode"] += ", ";
+        } else {
+          style["animation_fill_mode"] = "";
         }
-        if (!instant) {
-          if (style["animation_delay"]) {
-            style["animation_delay"] += ", ";
-          } else {
-            style["animation_delay"] = "";
-          }
-          style["animation_delay"] += animationDelay;
+        style["animation_fill_mode"] += animationFillMode;
+      }
+      if (!instant) {
+        if (style["animation_delay"]) {
+          style["animation_delay"] += ", ";
+        } else {
+          style["animation_delay"] = "";
         }
+        style["animation_delay"] += animationDelay;
       }
     }
   }
@@ -638,18 +648,20 @@ export class UIManager extends Manager<UIState> {
 
   getTransitionStyle(
     event: TextEvent | ImageEvent,
+    start: number | undefined,
+    end: number | undefined,
     instant: boolean
   ): Record<string, string | null> {
     const style: Record<string, string | null> = {};
     style["will_change"] = "opacity";
     if (instant) {
-      style["opacity"] = "1";
+      style["opacity"] = `${end}`;
       style["transition_property"] = "none";
       if (event.exit) {
-        style["filter"] = "opacity(0)";
+        style["filter"] = `opacity(${start})`;
       }
     } else {
-      style["opacity"] = event.after && event.after > 0 ? "0" : "1";
+      style["opacity"] = event.after && event.after > 0 ? `${start}` : `${end}`;
       style["transition_property"] = "opacity";
       style["transition_delay"] = `${event.after ?? 0}s`;
       style["transition_timing_function"] = `linear`;
@@ -660,7 +672,7 @@ export class UIManager extends Manager<UIState> {
         style["position"] = "absolute";
         style["inset"] = "0";
         style["will_change"] += `, filter`;
-        style["filter"] = "opacity(1)";
+        style["filter"] = `opacity(${end})`;
         style["transition_property"] += `, filter`;
         style["transition_delay"] += `, ${event.exit ?? 0}s`;
       }
@@ -899,7 +911,7 @@ export class UIManager extends Manager<UIState> {
                 const parentEl = blockWrapper?.element || contentEl;
                 const text = e.text;
                 const style = { ...(e.style || {}) };
-                const transitionStyle = $.getTransitionStyle(e, instant);
+                const transitionStyle = $.getTransitionStyle(e, 0, 1, instant);
                 const animationStyle = $.getAnimationStyle(e, instant);
                 const childEl = $.createElement(parentEl, {
                   type: "span",
@@ -1067,6 +1079,19 @@ export class UIManager extends Manager<UIState> {
             // Enqueue image events
             if (sequence) {
               sequence.forEach((e) => {
+                const start =
+                  e.control === "show"
+                    ? 0
+                    : e.control === "hide"
+                    ? 1
+                    : undefined;
+                const end =
+                  e.to ??
+                  (e.control === "show"
+                    ? 1
+                    : e.control === "hide"
+                    ? 0
+                    : undefined);
                 if (e.assets && e.assets.length > 0) {
                   // We are affecting the image
                   const contentEl = $.getOrCreateContentElement(
@@ -1079,7 +1104,12 @@ export class UIManager extends Manager<UIState> {
                     .reverse()
                     .join(", ");
                   style["background_image"] = combinedBackgroundImage;
-                  const transitionStyle = $.getTransitionStyle(e, instant);
+                  const transitionStyle = $.getTransitionStyle(
+                    e,
+                    start,
+                    end,
+                    instant
+                  );
                   const animationStyle = $.getAnimationStyle(e, instant);
                   const childEl = $.createElement(contentEl, {
                     type: "span",
@@ -1097,12 +1127,20 @@ export class UIManager extends Manager<UIState> {
                   }
                 } else {
                   // We are affecting the image wrapper
-                  if (e.with) {
-                    if (!animatedElements.has(targetEl)) {
-                      animatedElements.set(targetEl, {});
+                  if (!animatedElements.has(targetEl)) {
+                    animatedElements.set(targetEl, {});
+                  }
+                  const animatedStyle = animatedElements.get(targetEl);
+                  if (animatedStyle) {
+                    if (!e.with) {
+                      if (e.control === "show") {
+                        e.with = "fadein";
+                      }
+                      if (e.control === "hide") {
+                        e.with = "fadeout";
+                      }
                     }
-                    const animatedStyle = animatedElements.get(targetEl);
-                    if (animatedStyle) {
+                    if (e.with) {
                       $.combineAnimationStyle(e, instant, animatedStyle);
                     }
                   }
@@ -1118,12 +1156,11 @@ export class UIManager extends Manager<UIState> {
           }
         });
         if (instant) {
-          return () => {
-            // Animate elements
-            animatedElements.forEach((style, element) => {
-              $.updateElement(element, { style });
-            });
-          };
+          // Animate elements
+          animatedElements.forEach((style, element) => {
+            $.updateElement(element, { style });
+          });
+          return NOP;
         }
         return () => {
           // Animate elements
