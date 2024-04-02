@@ -28,6 +28,9 @@ const CLACK_SYNTH = _synth({
     rate: 100,
     levels: [0.05, 0.15, 0.1, 0.01, 0, 0.05, 0],
   },
+  reverb: {
+    on: true,
+  },
 });
 
 export const SYNTH_DEFAULTS = {
