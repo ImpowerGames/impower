@@ -593,8 +593,8 @@ export class UIManager extends Manager<UIState> {
     if (event.with) {
       animations.push({
         name: event.with,
-        after: event.withAfter ?? controlAfter,
-        over: event.withOver ?? controlOver,
+        after: event.withAfter,
+        over: event.withOver,
       });
     }
     animations.forEach(({ name, after, over }) => {
