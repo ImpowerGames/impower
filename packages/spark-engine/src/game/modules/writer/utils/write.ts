@@ -38,19 +38,6 @@ const isWhitespace = (part: string) => {
   return true;
 };
 
-const containsNewline = (part: string | undefined) => {
-  if (!part) {
-    return false;
-  }
-  for (let i = 0; i < part.length; i += 1) {
-    const c = part[i]!;
-    if (c === "\n" || c === "\r") {
-      return true;
-    }
-  }
-  return false;
-};
-
 const isDash = (part: string) => {
   if (!part) {
     return false;
@@ -204,55 +191,6 @@ const getMinSynthDuration = (synth: {
         (synthEnvelope.sustain ?? 0) +
         (synthEnvelope.release ?? 0)
     : 0;
-};
-
-const getNextLineIndex = (index: number, textChunks: Chunk[]) => {
-  for (let i = index; i < textChunks.length; i += 1) {
-    if (containsNewline(textChunks[i]?.text)) {
-      return i;
-    }
-  }
-  return undefined;
-};
-
-const invalidateOpenMarks = (
-  marks: [string, number][],
-  textChunks: Chunk[]
-) => {
-  // Invalidate any leftover open markers
-  if (marks.length > 0) {
-    while (marks.length > 0) {
-      const [lastMark, lastMarkIndex] = marks[marks.length - 1]! || [];
-      const prevTextChunk = textChunks[lastMarkIndex - 1];
-      const isLineStart =
-        !prevTextChunk || !containsNewline(prevTextChunk?.text);
-      const nextLineIndex = getNextLineIndex(lastMarkIndex, textChunks);
-      const invalid = textChunks
-        .slice(lastMarkIndex, nextLineIndex)
-        .map((x) => x);
-      invalid.forEach((c) => {
-        if (lastMark.startsWith("|")) {
-          c.centered = 0;
-        } else if (lastMark.startsWith("***")) {
-          c.bolded = 0;
-          c.italicized = 0;
-        } else if (lastMark.startsWith("**")) {
-          c.bolded = 0;
-        } else if (lastMark.startsWith("*")) {
-          c.italicized = 0;
-        } else if (lastMark.startsWith("_")) {
-          c.underlined = 0;
-        } else if (!isLineStart && lastMark.startsWith("^")) {
-          c.pitch = 0;
-        } else if (!isLineStart && lastMark.startsWith("~")) {
-          c.floating = 0;
-        } else if (!isLineStart && lastMark.startsWith(":")) {
-          c.trembling = 0;
-        }
-      });
-      marks.pop();
-    }
-  }
 };
 
 export interface WriteOptions {
@@ -630,16 +568,11 @@ export const write = (
               }
             }
           }
-          if (containsNewline(char)) {
-            invalidateOpenMarks(marks, textChunks);
-          }
           i += 1;
         }
       }
     }
   });
-
-  invalidateOpenMarks(marks, textChunks);
 
   phrases.forEach((phrase) => {
     const target = phrase.target || "";
