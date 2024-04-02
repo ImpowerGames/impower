@@ -91,16 +91,6 @@ const getValueName = (
   return "default";
 };
 
-const getInstanceName = (
-  target: string,
-  instanceNumber: number | undefined
-): string => {
-  if (instanceNumber != null) {
-    return `${target} ${instanceNumber}`;
-  }
-  return target;
-};
-
 const getArgumentTimeValue = (
   args: string[],
   name: string
@@ -268,7 +258,6 @@ export const write = (
     if (p.button) {
       const chunk: Chunk = {
         target: p.target,
-        instance: p.instance,
         button: p.button,
         duration: 0,
         speed: 0,
@@ -282,7 +271,6 @@ export const write = (
     if (p.tag === "image") {
       const chunk: Chunk = {
         tag: p.tag,
-        instance: p.instance,
         control: p.control,
         target: p.target,
         assets: p.assets,
@@ -304,7 +292,6 @@ export const write = (
             tag: p.tag,
             control: p.control,
             target: p.target,
-            instance: p.instance,
             assets: p.assets,
             args: p.args,
             duration: 0,
@@ -496,7 +483,6 @@ export const write = (
             // start voiced phrase
             currChunk = {
               target: p.target,
-              instance: p.instance,
               button: p.button,
               text: char,
               args: p.args,
@@ -543,7 +529,6 @@ export const write = (
                 // Create new element and chunk
                 currChunk = {
                   target: p.target,
-                  instance: p.instance,
                   button: p.button,
                   text: char,
                   args: p.args,
@@ -642,7 +627,6 @@ export const write = (
         if (c.button != null) {
           const event: ButtonEvent = {
             button: c.button,
-            instance: c.instance ?? 0,
             after: time,
           };
           result.button ??= {};
@@ -656,9 +640,6 @@ export const write = (
           }
           if (fadeDuration) {
             event.over = fadeDuration;
-          }
-          if (c.instance) {
-            event.instance = c.instance;
           }
           if (c.underlined) {
             event.style ??= {};
@@ -713,9 +694,8 @@ export const write = (
             }
           }
           result.text ??= {};
-          const key = getInstanceName(target, event.instance);
-          if (key && !c.instance && letterPause === 0) {
-            const prevEvent = result.text[key]?.at(-1);
+          if (target && letterPause === 0) {
+            const prevEvent = result.text[target]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;
               prevEvent.style ??= {};
@@ -723,17 +703,14 @@ export const write = (
               prevEvent.style["inset"] = "0";
             }
           }
-          result.text[key] ??= [];
-          result.text[key]!.push(event);
+          result.text[target] ??= [];
+          result.text[target]!.push(event);
         }
         if (c.tag === "image") {
           const event: ImageEvent = {
             control: c.control || "show",
             assets: c.assets,
           };
-          if (c.instance) {
-            event.instance = c.instance;
-          }
           if (time) {
             event.after = time;
           }
@@ -759,9 +736,8 @@ export const write = (
             }
           }
           result.image ??= {};
-          const key = getInstanceName(target, event.instance);
-          if (key && !c.instance && event.control === "show") {
-            const prevEvent = result.image[key]?.at(-1);
+          if (target && event.control === "show") {
+            const prevEvent = result.image[target]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;
               prevEvent.style ??= {};
@@ -769,17 +745,14 @@ export const write = (
               prevEvent.style["inset"] = "0";
             }
           }
-          result.image[key] ??= [];
-          result.image[key]!.push(event);
+          result.image[target] ??= [];
+          result.image[target]!.push(event);
         }
         if (c.tag === "audio") {
           const event: AudioEvent = {
             control: c.control || "play",
             assets: c.assets,
           };
-          if (c.instance) {
-            event.instance = c.instance;
-          }
           if (time) {
             event.after = time;
           }

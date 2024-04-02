@@ -17,8 +17,6 @@ export const executeDisplayCommand = (
   const content = data?.params?.content;
   const autoAdvance = data?.params?.autoAdvance;
 
-  const uiName = "stage";
-
   const context = game.context;
 
   let targetsCharacterName = false;
@@ -66,31 +64,12 @@ export const executeDisplayCommand = (
   game.module.audio.stopChannel("writer");
 
   const clearUI = () => {
-    const styleMap = context?.["style"];
-    const preservedTextLayers = styleMap
-      ? Object.keys(styleMap).filter(
-          (layer) => styleMap?.[layer]?.preserve_text
-        )
-      : [];
-    const preservedImageLayers = styleMap
-      ? Object.keys(styleMap).filter(
-          (layer) => styleMap?.[layer]?.preserve_image
-        )
-      : [];
-    const preservedAnimationLayers = styleMap
-      ? Object.keys(styleMap).filter(
-          (layer) => styleMap?.[layer]?.preserve_animation
-        )
-      : [];
     // Clear stale text
-    game.module.ui.text.clearAllContent(uiName, preservedTextLayers);
+    game.module.ui.text.clearAllContent();
     // Clear stale images
-    game.module.ui.image.clearAllContent(uiName, preservedImageLayers);
+    game.module.ui.image.clearAllContent();
     // Clear stale animations
-    game.module.ui.image.clearAnimations(uiName, [
-      ...preservedImageLayers,
-      ...preservedAnimationLayers,
-    ]);
+    game.module.ui.image.clearAnimations();
   };
   clearUI();
 
@@ -110,35 +89,26 @@ export const executeDisplayCommand = (
     indicatorStyle["animation-play-state"] = "paused";
     indicatorStyle["display"] = null;
   }
-  game.module.ui.style.update(uiName, "indicator", indicatorStyle);
+  game.module.ui.style.update("indicator", indicatorStyle);
 
   // Process buttons
-  const buttonTriggerIds = Object.entries(sequence.button).flatMap(
-    ([target, events]) =>
-      events.map((e) => {
-        const id = game.module.ui.instance.get(uiName, target, e.instance);
-        const handleClick = (): void => {
-          clearUI();
-          game.module.ui.unobserve("click", uiName, target);
-          onClickButton?.(e);
-        };
-        game.module.ui.observe(
-          "click",
-          uiName,
-          target + " " + e.instance,
-          handleClick
-        );
-        return id;
-      })
+  Object.entries(sequence.button).flatMap(([target, events]) =>
+    events.forEach((e) => {
+      const handleClick = (): void => {
+        clearUI();
+        game.module.ui.unobserve("click", target);
+        onClickButton?.(e);
+      };
+      game.module.ui.observe("click", target, handleClick);
+    })
   );
   // Process text
   const textTriggerIds = Object.entries(sequence.text).map(([target, events]) =>
-    game.module.ui.text.write(uiName, target, events, instant)
+    game.module.ui.text.write(target, events, instant)
   );
   // Process images
   const imageTriggerIds = Object.entries(sequence.image).map(
-    ([target, events]) =>
-      game.module.ui.image.write(uiName, target, events, instant)
+    ([target, events]) => game.module.ui.image.write(target, events, instant)
   );
   // Process audio
   const audioTriggerIds = instant
@@ -152,18 +122,18 @@ export const executeDisplayCommand = (
     indicatorStyle["transition"] = null;
     indicatorStyle["opacity"] = "1";
     indicatorStyle["animation-play-state"] = previewing ? "paused" : "running";
-    game.module.ui.style.update(uiName, "indicator", indicatorStyle);
+    game.module.ui.style.update("indicator", indicatorStyle);
     onFinished?.();
   };
 
-  game.module.ui.showUI(uiName);
+  game.module.ui.showUI("stage");
 
   if (instant) {
     handleFinished();
     const indicatorStyle: Record<string, string | null> = {};
     indicatorStyle["transition"] = "none";
     indicatorStyle["opacity"] = "1";
-    game.module.ui.style.update(uiName, "indicator", indicatorStyle);
+    game.module.ui.style.update("indicator", indicatorStyle);
   }
 
   let elapsedMS = 0;
@@ -174,7 +144,6 @@ export const executeDisplayCommand = (
     if (!ready) {
       if (
         audioTriggerIds.every((n) => game.module.audio.isReady(n)) &&
-        buttonTriggerIds.every((n) => game.module.ui.isReady(n)) &&
         textTriggerIds.every((n) => game.module.ui.isReady(n)) &&
         imageTriggerIds.every((n) => game.module.ui.isReady(n))
       ) {

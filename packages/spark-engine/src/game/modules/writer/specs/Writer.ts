@@ -14,4 +14,6 @@ export interface Writer {
   yelled: string;
   /** Phrases where each char is punctuated with the writer's synth sound */
   punctuated: string;
+  preserve_text: boolean;
+  preserve_image: boolean;
 }

@@ -234,7 +234,6 @@ export interface DisplayContent {
   tag: string;
   control?: string;
   target?: string;
-  instance?: number;
   button?: string;
   prerequisite?: string;
   text?: string;

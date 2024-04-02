@@ -2,7 +2,6 @@ export interface Chunk {
   tag?: string;
   control?: string;
   target?: string;
-  instance?: number;
   button?: string;
   text?: string;
   assets?: string[];

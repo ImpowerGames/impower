@@ -7,8 +7,8 @@ export class ClearCommandRunner<G extends Game> extends CommandRunner<
   ClearCommandData
 > {
   override onExecute(data: ClearCommandData) {
-    this.game.module.ui.text.clearAllContent("stage");
-    this.game.module.ui.image.clearAllContent("stage");
+    this.game.module.ui.text.clearAllContent();
+    this.game.module.ui.image.clearAllContent();
     return super.onExecute(data);
   }
 }

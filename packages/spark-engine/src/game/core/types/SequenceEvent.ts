@@ -1,5 +1,4 @@
 export interface ISequenceEvent {
-  instance?: number;
   control?: string;
   after?: number;
   over?: number;
@@ -11,7 +10,6 @@ export interface ISequenceEvent {
 }
 
 export interface ButtonEvent extends ISequenceEvent {
-  instance: number;
   button: string;
 }
 

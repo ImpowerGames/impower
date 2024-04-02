@@ -2437,31 +2437,18 @@ const build = (
           const lastBox = search("action_box", "dialogue_box");
           if (lastBox) {
             const text = tok.content?.map((c) => c.text || "")?.join("") || "";
-            const choices = lastBox.content?.filter(
-              (c) => c.target === "choice" && c.button
-            );
-            const choiceInstance = (choices?.length ?? 0) + 1;
+            const choices = lastBox.content?.filter((c) => c.tag === "choice");
+            const choiceInstance = choices?.length ?? 0;
             lastBox.content ??= [];
-            lastBox.content.push({
-              tag: "choice",
-              line: tok.ranges?.operator?.line ?? tok.line,
-              from: tok.ranges?.operator?.from ?? tok.from,
-              to: tok.ranges?.operator?.to ?? tok.to,
-              indent: tok.indent,
-              target: "choice",
-              instance: choiceInstance,
-              button: tok.section,
-              id: tok.id,
-            });
             lastBox.content.push({
               tag: "choice",
               line: tok.ranges?.text?.line ?? tok.line,
               from: tok.ranges?.text?.from ?? tok.from,
               to: tok.ranges?.text?.to ?? tok.to,
               indent: tok.indent,
-              target: "choice",
-              instance: choiceInstance,
+              target: `choice#${choiceInstance}`,
               text,
+              button: tok.section,
               id: tok.id,
             });
           }

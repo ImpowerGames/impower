@@ -48,11 +48,10 @@ export interface UIConfig {
 }
 
 export interface UIState {
-  instance?: Record<string, Record<string, number>>;
-  text?: Record<string, Record<string, TextState[]>>;
-  image?: Record<string, Record<string, ImageState[]>>;
-  style?: Record<string, Record<string, Record<string, string | null>>>;
-  attributes?: Record<string, Record<string, Record<string, string | null>>>;
+  text?: Record<string, TextState[]>;
+  image?: Record<string, ImageState[]>;
+  style?: Record<string, Record<string, string | null>>;
+  attributes?: Record<string, Record<string, string | null>>;
 }
 
 export class UIManager extends Manager<UIState> {
@@ -84,39 +83,24 @@ export class UIManager extends Manager<UIState> {
   }
 
   override async onRestore() {
-    if (this._state.instance) {
-      Object.entries(this._state.instance).forEach(([uiName, targets]) => {
-        Object.entries(targets).forEach(([target]) => {
-          this.instance.restore(uiName, target);
-        });
-      });
-    }
     if (this._state.text) {
-      Object.entries(this._state.text).forEach(([uiName, targets]) => {
-        Object.entries(targets).forEach(([target]) => {
-          this.text.restore(uiName, target);
-        });
+      Object.entries(this._state.text).forEach(([target]) => {
+        this.text.restore(target);
       });
     }
     if (this._state.image) {
-      Object.entries(this._state.image).forEach(([uiName, targets]) => {
-        Object.entries(targets).forEach(([target]) => {
-          this.image.restore(uiName, target);
-        });
+      Object.entries(this._state.image).forEach(([target]) => {
+        this.image.restore(target);
       });
     }
     if (this._state.style) {
-      Object.entries(this._state.style).forEach(([uiName, targets]) => {
-        Object.entries(targets).forEach(([target]) => {
-          this.style.restore(uiName, target);
-        });
+      Object.entries(this._state.style).forEach(([target]) => {
+        this.style.restore(target);
       });
     }
     if (this._state.attributes) {
-      Object.entries(this._state.attributes).forEach(([uiName, targets]) => {
-        Object.entries(targets).forEach(([target]) => {
-          this.attributes.restore(uiName, target);
-        });
+      Object.entries(this._state.attributes).forEach(([target]) => {
+        this.attributes.restore(target);
       });
     }
   }
@@ -484,14 +468,22 @@ export class UIManager extends Manager<UIState> {
     });
   }
 
-  protected findElements(uiName: string, target: string): Element[] {
-    if (!uiName && this._root) {
-      return [this._root];
-    }
+  protected findElements(target: string): Element[] {
+    const [name, instance] = target.split("#");
     const found: Element[] = [];
-    const uiElement = this.getUIElement(uiName);
-    if (uiElement) {
-      this.searchForAll(uiElement, target, found);
+    if (this._root && name) {
+      const elements = this.searchForAll(this._root, name, found);
+      if (instance) {
+        const instanceIndex = Number(instance);
+        if (Number.isInteger(instanceIndex) && instanceIndex >= 0) {
+          const element = elements.at(instanceIndex);
+          if (element) {
+            return [element];
+          }
+        }
+        return [];
+      }
+      return elements;
     }
     return found;
   }
@@ -532,8 +524,8 @@ export class UIManager extends Manager<UIState> {
     return this.createElement(element, { name: tag, type: "div" });
   }
 
-  findIds(uiName: string, target: string): string[] {
-    return this.findElements(uiName, target).map((c) => c.id);
+  findIds(target: string): string[] {
+    return this.findElements(target).map((c) => c.id);
   }
 
   getImageAssetNames(assetNames: string[]) {
@@ -640,13 +632,12 @@ export class UIManager extends Manager<UIState> {
 
   protected setEventListener<T extends keyof EventMap>(
     event: T,
-    uiName: string,
     target: string,
     callback: ((event: EventMap[T]) => any) | null,
     stopPropagation = true,
     once = false
   ): boolean {
-    const targetEls = this.findElements(uiName, target);
+    const targetEls = this.findElements(target);
     targetEls.forEach((targetEl) => {
       const style = { pointer_events: "auto" };
       this.updateElement(targetEl, { style });
@@ -682,7 +673,6 @@ export class UIManager extends Manager<UIState> {
 
   observe<T extends keyof EventMap>(
     event: T,
-    uiName: string,
     target: string,
     callback: (event: EventMap[T]) => any,
     stopPropagation = true,
@@ -690,7 +680,6 @@ export class UIManager extends Manager<UIState> {
   ): boolean {
     return this.setEventListener(
       event,
-      uiName,
       target,
       callback,
       stopPropagation,
@@ -698,91 +687,16 @@ export class UIManager extends Manager<UIState> {
     );
   }
 
-  unobserve<T extends keyof EventMap>(
-    event: T,
-    uiName: string,
-    target: string
-  ): boolean {
-    return this.setEventListener(event, uiName, target, null);
+  unobserve<T extends keyof EventMap>(event: T, target: string): boolean {
+    return this.setEventListener(event, target, null);
   }
-
-  Instance = (($) => {
-    class Instance {
-      protected saveState(
-        uiName: string,
-        target: string,
-        instanceNumber: number
-      ) {
-        $._state.instance ??= {};
-        $._state.instance[uiName] ??= {};
-        $._state.instance[uiName]![target] ??= 0;
-        const validInstanceNumber = Math.max(1, instanceNumber);
-        const instanceCount = $._state.instance[uiName]![target] ?? 0;
-        if (validInstanceNumber > instanceCount) {
-          $._state.instance[uiName]![target] = validInstanceNumber;
-        }
-      }
-
-      protected applyChanges(
-        uiName: string,
-        target: string,
-        instanceNumber: number
-      ): void {
-        const targetEls = $.findElements(uiName, target);
-        const existingEl = targetEls[instanceNumber];
-        if (existingEl) {
-          return;
-        }
-        const firstEl = targetEls.at(0);
-        if (firstEl) {
-          const parentEl = firstEl.parent;
-          if (parentEl) {
-            for (let i = 0; i < instanceNumber + 1; i += 1) {
-              const el =
-                targetEls?.[i] || $.duplicateElement(parentEl?.children?.[0]);
-              if (el) {
-                if (instanceNumber === i) {
-                  return;
-                }
-              }
-            }
-          }
-        }
-        return undefined;
-      }
-
-      restore(uiName: string, target: string): void {
-        const state = $._state.instance?.[uiName]?.[target];
-        if (state) {
-          this.get(uiName, target, state);
-        }
-      }
-
-      get(uiName: string, target: string, instanceNumber: number): number {
-        this.saveState(uiName, target, instanceNumber);
-        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
-          this.applyChanges(uiName, target, instanceNumber);
-        }
-        const id = $.nextTriggerId();
-        // TODO: await for scene to process changes
-        $.enableTrigger(id, NOP);
-        return id;
-      }
-    }
-    return Instance;
-  })(this);
 
   Text = (($) => {
     class Text {
-      protected saveState(
-        uiName: string,
-        target: string,
-        sequence: TextEvent[] | null
-      ) {
+      protected saveState(target: string, sequence: TextEvent[] | null) {
         $._state.text ??= {};
-        $._state.text[uiName] ??= {};
-        $._state.text[uiName]![target] ??= [];
-        const state = $._state.text[uiName]![target]!;
+        $._state.text[target] ??= [];
+        const state = $._state.text[target]!;
         if (sequence) {
           sequence.forEach((e) => {
             if (!e.exit) {
@@ -811,15 +725,14 @@ export class UIManager extends Manager<UIState> {
         }
       }
 
-      restore(uiName: string, target: string) {
-        const state = $._state.text?.[uiName]?.[target];
+      restore(target: string) {
+        const state = $._state.text?.[target];
         if (state) {
-          this.applyChanges(uiName, target, state, true);
+          this.applyChanges(target, state, true);
         }
       }
 
       protected applyChanges(
-        uiName: string,
         target: string,
         sequence: TextEvent[] | null,
         instant: boolean
@@ -830,7 +743,7 @@ export class UIManager extends Manager<UIState> {
           Record<string, string | null>
         >();
         const enterAt = sequence?.[0]?.after ?? 0;
-        $.findElements(uiName, target).forEach((targetEl) => {
+        $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
             // Turn on the wrapper so it can take up space,
             // but don't make it truly visible until the first text event happens
@@ -921,31 +834,26 @@ export class UIManager extends Manager<UIState> {
         };
       }
 
-      clearContent(uiName: string, target: string): void {
-        this.saveState(uiName, target, null);
+      clearContent(target: string): void {
+        this.saveState(target, null);
         if ($._context?.system?.previewing || !$._context?.system?.simulating) {
-          this.applyChanges(uiName, target, null, true);
+          this.applyChanges(target, null, true);
         }
       }
 
-      clearAllContent(uiName: string, ignore?: string[]): void {
-        this.getTargets(uiName).forEach((target) => {
-          if (!ignore || !ignore.includes(target)) {
-            this.clearContent(uiName, target);
+      clearAllContent(): void {
+        this.getTargets().forEach((target) => {
+          if (!$._context?.["writer"]?.[target]?.preserve_text) {
+            this.clearContent(target);
           }
         });
       }
 
-      write(
-        uiName: string,
-        target: string,
-        sequence: TextEvent[],
-        instant = false
-      ): number {
-        this.saveState(uiName, target, sequence);
+      write(target: string, sequence: TextEvent[], instant = false): number {
+        this.saveState(target, sequence);
         const transition =
           $._context?.system?.previewing || !$._context?.system?.simulating
-            ? this.applyChanges(uiName, target, sequence, instant)
+            ? this.applyChanges(target, sequence, instant)
             : NOP;
         const id = $.nextTriggerId();
         // TODO: await for scene to process changes
@@ -953,19 +861,19 @@ export class UIManager extends Manager<UIState> {
         return id;
       }
 
-      set(uiName: string, target: string, text: string): void {
-        this.clearContent(uiName, target);
-        this.write(uiName, target, [{ text }], true);
+      set(target: string, text: string): void {
+        this.clearContent(target);
+        this.write(target, [{ text }], true);
       }
 
-      getTargets(uiName: string): string[] {
+      getTargets(): string[] {
         const targets = new Set<string>();
-        if ($._state.text?.[uiName]) {
-          Object.entries($._state.text[uiName]!).forEach(([target]) => {
+        if ($._state.text) {
+          Object.entries($._state.text).forEach(([target]) => {
             targets.add(target);
           });
         }
-        $.findElements(uiName, "text").forEach((textEl) => {
+        $.findElements("text").forEach((textEl) => {
           const parent = textEl.parent;
           if (parent) {
             const mainTag = parent.name;
@@ -982,15 +890,10 @@ export class UIManager extends Manager<UIState> {
 
   Image = (($) => {
     class Image {
-      protected saveState(
-        uiName: string,
-        target: string,
-        sequence: ImageEvent[] | null
-      ) {
+      protected saveState(target: string, sequence: ImageEvent[] | null) {
         $._state.image ??= {};
-        $._state.image[uiName] ??= {};
-        $._state.image[uiName]![target] ??= [];
-        const state = $._state.image[uiName]![target]!;
+        $._state.image[target] ??= [];
+        const state = $._state.image[target]!;
         if (sequence) {
           sequence.forEach((e) => {
             if (!e.exit) {
@@ -1013,15 +916,14 @@ export class UIManager extends Manager<UIState> {
         }
       }
 
-      restore(uiName: string, target: string) {
-        const state = $._state.image?.[uiName]?.[target];
+      restore(target: string) {
+        const state = $._state.image?.[target];
         if (state) {
-          this.applyChanges(uiName, target, state, true);
+          this.applyChanges(target, state, true);
         }
       }
 
       protected applyChanges(
-        uiName: string,
         target: string,
         sequence: ImageEvent[] | null,
         instant: boolean
@@ -1033,7 +935,7 @@ export class UIManager extends Manager<UIState> {
         >();
         const firstEvent = sequence?.[0];
         const wrapperEnterAt = firstEvent?.after ?? 0;
-        $.findElements(uiName, target).forEach((targetEl) => {
+        $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
             // Turn on the wrapper so it can take up space,
             // but don't make it truly visible until the first image event happens
@@ -1117,25 +1019,25 @@ export class UIManager extends Manager<UIState> {
         };
       }
 
-      clearContent(uiName: string, target: string): void {
-        this.saveState(uiName, target, null);
+      clearContent(target: string): void {
+        this.saveState(target, null);
         if ($._context?.system?.previewing || !$._context?.system?.simulating) {
-          this.applyChanges(uiName, target, null, true);
+          this.applyChanges(target, null, true);
         }
       }
 
-      clearAllContent(uiName: string, ignore?: string[]): void {
-        this.getTargets(uiName).forEach((target) => {
-          if (!ignore || !ignore.includes(target)) {
-            this.clearContent(uiName, target);
+      clearAllContent(): void {
+        this.getTargets().forEach((target) => {
+          if (!$._context?.["writer"]?.[target]?.preserve_image) {
+            this.clearContent(target);
           }
         });
       }
 
-      clearAnimations(uiName: string, ignore?: string[]): void {
-        this.getTargets(uiName).forEach((target) => {
-          if (!ignore || !ignore.includes(target)) {
-            $.findElements(uiName, target).forEach((targetEl) => {
+      clearAnimations(): void {
+        this.getTargets().forEach((target) => {
+          if (!$._context?.["writer"]?.[target]?.preserve_image) {
+            $.findElements(target).forEach((targetEl) => {
               $.updateElement(targetEl, {
                 style: {
                   animation_name: null,
@@ -1151,16 +1053,11 @@ export class UIManager extends Manager<UIState> {
         });
       }
 
-      write(
-        uiName: string,
-        target: string,
-        sequence: ImageEvent[],
-        instant = false
-      ): number {
-        this.saveState(uiName, target, sequence);
+      write(target: string, sequence: ImageEvent[], instant = false): number {
+        this.saveState(target, sequence);
         const transition =
           $._context?.system?.previewing || !$._context?.system?.simulating
-            ? this.applyChanges(uiName, target, sequence, instant)
+            ? this.applyChanges(target, sequence, instant)
             : NOP;
         const id = $.nextTriggerId();
         // TODO: await for scene to process changes
@@ -1168,19 +1065,19 @@ export class UIManager extends Manager<UIState> {
         return id;
       }
 
-      set(uiName: string, target: string, image: string[]): void {
-        this.clearContent(uiName, target);
-        this.write(uiName, target, [{ control: "show", assets: image }], true);
+      set(target: string, image: string[]): void {
+        this.clearContent(target);
+        this.write(target, [{ control: "show", assets: image }], true);
       }
 
-      getTargets(uiName: string): string[] {
+      getTargets(): string[] {
         const targets = new Set<string>();
-        if ($._state.image?.[uiName]) {
-          Object.entries($._state.image[uiName]!).forEach(([target]) => {
+        if ($._state.image) {
+          Object.entries($._state.image).forEach(([target]) => {
             targets.add(target);
           });
         }
-        $.findElements(uiName, "image").forEach((imageEl) => {
+        $.findElements("image").forEach((imageEl) => {
           const parent = imageEl.parent;
           if (parent) {
             const mainTag = parent.name;
@@ -1198,14 +1095,12 @@ export class UIManager extends Manager<UIState> {
   Style = (($) => {
     class Style {
       protected saveState(
-        uiName: string,
         target: string,
         style: Record<string, string | null> | null
       ) {
         $._state.style ??= {};
-        $._state.style[uiName] ??= {};
-        $._state.style[uiName]![target] ??= {};
-        const state = $._state.style[uiName]![target]!;
+        $._state.style[target] ??= {};
+        const state = $._state.style[target]!;
         if (style) {
           Object.entries(style).forEach(([k, v]) => {
             if (v) {
@@ -1215,23 +1110,22 @@ export class UIManager extends Manager<UIState> {
             }
           });
         } else {
-          $._state.style[uiName]![target] = {};
+          $._state.style[target] = {};
         }
       }
 
-      restore(uiName: string, target: string) {
-        const state = $._state.style?.[uiName]?.[target];
+      restore(target: string) {
+        const state = $._state.style?.[target];
         if (state) {
-          this.applyChanges(uiName, target, state);
+          this.applyChanges(target, state);
         }
       }
 
       protected applyChanges(
-        uiName: string,
         target: string,
         style: Record<string, string | null> | null
       ): void {
-        $.findElements(uiName, target).forEach((targetEl) => {
+        $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
             $.updateElement(targetEl, { style });
           }
@@ -1239,13 +1133,12 @@ export class UIManager extends Manager<UIState> {
       }
 
       update(
-        uiName: string,
         target: string,
         style: Record<string, string | null> | null
       ): void {
-        this.saveState(uiName, target, style);
+        this.saveState(target, style);
         if ($._context?.system?.previewing || !$._context?.system?.simulating) {
-          this.applyChanges(uiName, target, style);
+          this.applyChanges(target, style);
         }
       }
     }
@@ -1255,14 +1148,12 @@ export class UIManager extends Manager<UIState> {
   Attributes = (($) => {
     class Attributes {
       protected saveState(
-        uiName: string,
         target: string,
         attributes: Record<string, string | null> | null
       ) {
         $._state.attributes ??= {};
-        $._state.attributes[uiName] ??= {};
-        $._state.attributes[uiName]![target] ??= {};
-        const state = $._state.attributes[uiName]![target]!;
+        $._state.attributes[target] ??= {};
+        const state = $._state.attributes[target]!;
         if (attributes) {
           Object.entries(attributes).forEach(([k, v]) => {
             if (v) {
@@ -1272,23 +1163,22 @@ export class UIManager extends Manager<UIState> {
             }
           });
         } else {
-          $._state.attributes[uiName]![target] = {};
+          $._state.attributes[target] = {};
         }
       }
 
-      restore(uiName: string, target: string) {
-        const state = $._state.attributes?.[uiName]?.[target];
+      restore(target: string) {
+        const state = $._state.attributes?.[target];
         if (state) {
-          this.applyChanges(uiName, target, state);
+          this.applyChanges(target, state);
         }
       }
 
       protected applyChanges(
-        uiName: string,
         target: string,
         attributes: Record<string, string | null> | null
       ): void {
-        $.findElements(uiName, target).forEach((targetEl) => {
+        $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
             $.updateElement(targetEl, { attributes });
           }
@@ -1296,20 +1186,17 @@ export class UIManager extends Manager<UIState> {
       }
 
       update(
-        uiName: string,
         target: string,
         attributes: Record<string, string | null> | null
       ): void {
-        this.saveState(uiName, target, attributes);
+        this.saveState(target, attributes);
         if ($._context?.system?.previewing || !$._context?.system?.simulating) {
-          this.applyChanges(uiName, target, attributes);
+          this.applyChanges(target, attributes);
         }
       }
     }
     return Attributes;
   })(this);
-
-  instance = new this.Instance();
 
   text = new this.Text();
 
