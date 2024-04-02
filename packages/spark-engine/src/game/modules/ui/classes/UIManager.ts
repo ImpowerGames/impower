@@ -575,6 +575,7 @@ export class UIManager extends Manager<UIState> {
         : undefined;
     const controlAfter = instant ? 0 : event.after;
     const controlOver = instant ? 0 : event.over;
+    const exitAfter = instant ? 0 : event.exit;
     if (controlAnimationName) {
       animations.push({
         name: controlAnimationName,
@@ -585,7 +586,7 @@ export class UIManager extends Manager<UIState> {
     if (event.exit) {
       animations.push({
         name: hideAnimationName,
-        after: event.exit,
+        after: exitAfter,
         over: controlOver,
       });
     }
