@@ -282,6 +282,9 @@ export const SYNTH_RANDOMIZATIONS: Record<
       rate: [100],
       levels: [[0.2, 1, 0.1, 0.05, 0.01, 1, 0]],
     },
+    reverb: {
+      on: [true],
+    },
   },
   random: {
     shape: [
