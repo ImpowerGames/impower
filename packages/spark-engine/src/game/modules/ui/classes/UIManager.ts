@@ -585,7 +585,7 @@ export class UIManager extends Manager<UIState> {
     if (event.exit) {
       animations.push({
         name: hideAnimationName,
-        after: controlAfter,
+        after: event.exit,
         over: controlOver,
       });
     }
@@ -870,7 +870,13 @@ export class UIManager extends Manager<UIState> {
                 }
                 const parentEl = blockWrapper?.element || contentEl;
                 const text = e.text;
-                const style = { ...(e.style || {}), opacity: "0" };
+                // If text will be revealed after a delay, it should start hidden (opacity 0).
+                const willRevealAfterDelay =
+                  (e.control === "write" || e.control === "show") &&
+                  e.after != null &&
+                  e.after > 0;
+                const opacity = willRevealAfterDelay ? "0" : "1";
+                const style = { ...(e.style || {}), opacity };
                 const spanEl = $.createElement(parentEl, {
                   type: "span",
                   content: { text },
@@ -1048,7 +1054,13 @@ export class UIManager extends Manager<UIState> {
                     targetEl,
                     "image"
                   );
-                  const style: Record<string, string | null> = { opacity: "0" };
+                  // If image will be revealed after a delay, it should start hidden (opacity 0).
+                  const willRevealAfterDelay =
+                    (e.control === "write" || e.control === "show") &&
+                    e.after != null &&
+                    e.after > 0;
+                  const opacity = willRevealAfterDelay ? "0" : "1";
+                  const style: Record<string, string | null> = { opacity };
                   const combinedBackgroundImage = $.getImageAssetNames(e.assets)
                     .map((n) => $.getImageVar(n))
                     .reverse()
