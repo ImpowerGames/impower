@@ -14,7 +14,9 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   protected _wasPressed = false;
 
-  protected _wasTyped = false;
+  protected _startedExecution = false;
+
+  protected _finishedExecution = false;
 
   protected _timeTypedMS = -1;
 
@@ -36,7 +38,8 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   override onExecute(data: DisplayCommandData) {
     this._wasPressed = false;
-    this._wasTyped = false;
+    this._startedExecution = false;
+    this._finishedExecution = false;
     this._timeTypedMS = -1;
     this._elapsedMS = 0;
     this._chosenBlockId = undefined;
@@ -45,7 +48,10 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       data,
       {},
       () => {
-        this._wasTyped = true;
+        this._startedExecution = true;
+      },
+      () => {
+        this._finishedExecution = true;
       },
       (c) => {
         const choiceId = data.id + "." + c.instance || "";
@@ -96,40 +102,31 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     if (!blockState) {
       return false;
     }
-    if (this._wasTyped && this._timeTypedMS < 0) {
+    if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
     }
     const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
     if (
       !waitingForChoice &&
       autoAdvance &&
-      this._wasTyped &&
+      this._finishedExecution &&
       timeMSSinceTyped / 1000 >= this._autoDelay
     ) {
       return true;
     }
     if (this._wasPressed) {
       this._wasPressed = false;
-      if (this._wasTyped) {
-        this._wasTyped = false;
+      if (this._finishedExecution) {
+        this._finishedExecution = false;
         if (!waitingForChoice) {
           return true;
         }
       }
-      let msAfterStopped = 0;
-      this._onTick = (deltaMS: number) => {
-        // Wait until typing sound has had enough time to fade out
-        // So that it doesn't crackle when cut short
-        msAfterStopped += deltaMS;
-        const elapsed = msAfterStopped / 1000;
-        if (elapsed > 0.03) {
-          this._wasTyped = true;
-        }
-      };
-      if (!waitingForChoice) {
+      if (this._startedExecution && !waitingForChoice) {
         executeDisplayCommand(this.game, data, {
           instant: true,
         });
+        this._finishedExecution = true;
       }
     }
     if (waitingForChoice && this._chosenBlockId != null) {

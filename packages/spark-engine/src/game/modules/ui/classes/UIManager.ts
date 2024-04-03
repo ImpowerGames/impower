@@ -801,11 +801,7 @@ export class UIManager extends Manager<UIState> {
                 }
                 const parentEl = blockWrapper?.element || contentEl;
                 const text = e.text;
-                // If text will be revealed after a delay, it should start hidden (opacity 0).
-                const willRevealAfterDelay =
-                  e.control === "show" && e.after != null && e.after > 0;
-                const opacity = willRevealAfterDelay ? "0" : "1";
-                const style = { ...(e.style || {}), opacity };
+                const style = { ...(e.style || {}), opacity: "0" };
                 const spanEl = $.createElement(parentEl, {
                   type: "span",
                   content: { text },
@@ -948,11 +944,10 @@ export class UIManager extends Manager<UIState> {
                     targetEl,
                     "image"
                   );
-                  // If image will be revealed after a delay, it should start hidden (opacity 0).
-                  const willRevealAfterDelay =
-                    e.control === "show" && e.after != null && e.after > 0;
-                  const opacity = willRevealAfterDelay ? "0" : "1";
-                  const style: Record<string, string | null> = { opacity };
+                  const style: Record<string, string | null> = {
+                    ...(e.style || {}),
+                    opacity: "0",
+                  };
                   const combinedBackgroundImage = $.getImageAssetNames(e.assets)
                     .map((n) => $.getImageVar(n))
                     .reverse()

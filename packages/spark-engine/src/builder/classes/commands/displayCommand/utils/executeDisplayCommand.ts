@@ -6,6 +6,7 @@ export const executeDisplayCommand = (
   game: Game,
   data: DisplayCommandData,
   options?: { instant?: boolean; preview?: boolean },
+  onStarted?: () => void,
   onFinished?: () => void,
   onClickButton?: (content: DisplayContentItem) => void
 ): {
@@ -155,6 +156,7 @@ export const executeDisplayCommand = (
         ready = true;
         game.module.audio.triggerAll(audioTriggerIds);
         updateUI();
+        onStarted?.();
       }
     }
     if (ready && !finished) {
