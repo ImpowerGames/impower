@@ -841,9 +841,9 @@ export class UIManager extends Manager<UIState> {
         }
       }
 
-      clearAllContent(): void {
+      clearStaleContent(): void {
         this.getTargets().forEach((target) => {
-          if (!$._context?.["writer"]?.[target]?.preserve_text) {
+          if (!$._context?.["style"]?.[target]?.preserve_text) {
             this.clearContent(target);
           }
         });
@@ -999,17 +999,17 @@ export class UIManager extends Manager<UIState> {
         }
       }
 
-      clearAllContent(): void {
+      clearStaleContent(): void {
         this.getTargets().forEach((target) => {
-          if (!$._context?.["writer"]?.[target]?.preserve_image) {
+          if (!$._context?.["style"]?.[target]?.preserve_image) {
             this.clearContent(target);
           }
         });
       }
 
-      clearAnimations(): void {
+      clearStaleAnimations(): void {
         this.getTargets().forEach((target) => {
-          if (!$._context?.["writer"]?.[target]?.preserve_image) {
+          if (!$._context?.["style"]?.[target]?.preserve_image) {
             $.findElements(target).forEach((targetEl) => {
               $.updateElement(targetEl, {
                 style: {

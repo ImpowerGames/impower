@@ -66,11 +66,11 @@ export const executeDisplayCommand = (
 
   const clearUI = () => {
     // Clear stale text
-    game.module.ui.text.clearAllContent();
+    game.module.ui.text.clearStaleContent();
     // Clear stale images
-    game.module.ui.image.clearAllContent();
+    game.module.ui.image.clearStaleContent();
     // Clear stale animations
-    game.module.ui.image.clearAnimations();
+    game.module.ui.image.clearStaleAnimations();
   };
 
   // Sequence events

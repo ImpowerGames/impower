@@ -17,7 +17,4 @@ export const WRITER_DEFAULTS = {
   }),
   character_name: _writer(),
   character_parenthetical: _writer(),
-  backdrop: _writer({
-    preserve_image: true,
-  }),
 };
