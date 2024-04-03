@@ -1,5 +1,5 @@
+import { Audio } from "../../types/Audio";
 import { Create } from "../../types/Create";
-import { Audio } from "../Audio";
 
 export const _audio: Create<Audio> = (obj) => ({
   type: "audio",

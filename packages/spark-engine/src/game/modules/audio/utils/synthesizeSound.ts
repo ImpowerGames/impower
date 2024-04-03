@@ -9,8 +9,8 @@ import { lerp } from "../../../core/utils/lerp";
 import { randomizer } from "../../../core/utils/randomizer";
 import { unlerp } from "../../../core/utils/unlerp";
 import { OSCILLATORS, OscillatorState } from "../constants/OSCILLATORS";
-import { Synth } from "../specs/Synth";
 import { OscillatorType } from "../types/OscillatorType";
+import { Synth } from "../types/Synth";
 import { convertSemitonesToFrequencyFactor } from "./convertSemitonesToFrequencyFactor";
 
 const FREEVERB_COMB_A_SIZES = [1557, 1617, 1491, 1422];

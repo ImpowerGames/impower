@@ -1,4 +1,4 @@
-import { _mixer } from "./_mixer";
+import { _mixer } from "../_mixer";
 
 export const MIXER_DEFAULTS = {
   default: _mixer({ $type: "mixer", $name: "default" }),

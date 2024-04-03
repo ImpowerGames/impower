@@ -1,5 +1,5 @@
 import { Create } from "../../types/Create";
-import { Ease } from "../Ease";
+import { Ease } from "../../types/Ease";
 
 export const _ease: Create<Ease> = () => ({
   x1: 0.2,

@@ -1,5 +1,5 @@
-import { Shadow } from "../Shadow";
-import { _shadow } from "./_shadow";
+import { Shadow } from "../../types/Shadow";
+import { _shadow } from "../_shadow";
 
 export const SHADOW_DEFAULTS: Record<string, Shadow> = {
   default: _shadow(),

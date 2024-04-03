@@ -1,5 +1,5 @@
 import { Matcher } from "../classes/Matcher";
-import { Prosody } from "../specs/Prosody";
+import { Prosody } from "../types/Prosody";
 
 export const getStressMatch = (
   phrase: string,

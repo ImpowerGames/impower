@@ -1,4 +1,4 @@
-import { Font } from "../Font";
+import { Font } from "../../types/Font";
 import { _font } from "./_font";
 
 export const FONT_DEFAULTS: Record<string, Font> = {

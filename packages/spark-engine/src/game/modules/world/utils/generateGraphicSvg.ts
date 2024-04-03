@@ -1,4 +1,4 @@
-import { Graphic } from "../specs/Graphic";
+import { Graphic } from "../types/Graphic";
 
 export const generateGraphicSvg = (graphic: Graphic): string => {
   const tiling = graphic?.tiling;

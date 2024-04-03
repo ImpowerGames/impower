@@ -1,11 +1,11 @@
 import { Manager } from "../../../core/classes/Manager";
 import { AudioEvent } from "../../../core/types/SequenceEvent";
-import { Channel } from "../specs/Channel";
-import { Synth } from "../specs/Synth";
 import { AudioMixerUpdate } from "../types/AudioMixerUpdate";
 import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
+import { Channel } from "../types/Channel";
 import { ChannelState } from "../types/ChannelState";
 import { LoadAudioPlayerParams } from "../types/LoadAudioPlayerParams";
+import { Synth } from "../types/Synth";
 import { parseTones } from "../utils/parseTones";
 import { LoadAudioMixerMessage } from "./messages/LoadAudioMixerMessage";
 import {

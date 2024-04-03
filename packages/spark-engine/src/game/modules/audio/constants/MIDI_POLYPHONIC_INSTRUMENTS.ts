@@ -1,6 +1,6 @@
 import { clone } from "../../../core/utils/clone";
-import { SynthConfig } from "../specs/Synth";
-import { _synth } from "../specs/defaults/_synth";
+import { _synth } from "../specs/_synth";
+import { SynthConfig } from "../types/Synth";
 
 export const DEFAULT_POLYPHONIC_INSTRUMENT: SynthConfig = {
   shape: "triangle",

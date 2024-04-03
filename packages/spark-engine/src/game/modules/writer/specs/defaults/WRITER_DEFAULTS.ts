@@ -1,4 +1,4 @@
-import { _writer } from "./_writer";
+import { _writer } from "../_writer";
 
 export const WRITER_DEFAULTS = {
   default: _writer(),

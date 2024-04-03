@@ -1,5 +1,5 @@
+import { Ease } from "../../types/Ease";
 import { EaseType } from "../../types/EaseType";
-import { Ease } from "../Ease";
 import { _ease } from "./_ease";
 
 export const EASE_DEFAULTS: Record<"" | EaseType, Ease> = {

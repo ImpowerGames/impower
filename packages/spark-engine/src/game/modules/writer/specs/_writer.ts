@@ -1,5 +1,5 @@
-import { Create } from "../../../../core/types/Create";
-import { Writer } from "../Writer";
+import { Create } from "../../../core/types/Create";
+import { Writer } from "../types/Writer";
 
 export const _writer: Create<Writer> = (obj) => ({
   target: "",

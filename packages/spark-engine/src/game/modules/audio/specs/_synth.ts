@@ -1,6 +1,6 @@
-import { Create } from "../../../../core/types/Create";
-import { A } from "../../constants/A";
-import { Synth } from "../Synth";
+import { Create } from "../../../core/types/Create";
+import { A } from "../constants/A";
+import { Synth } from "../types/Synth";
 
 export const _synth: Create<Synth> = (obj) => ({
   shape: "triangle",

@@ -1,4 +1,4 @@
-import { _synth } from "./_synth";
+import { _synth } from "../_synth";
 
 const BEEP_SYNTH = _synth({
   shape: "triangle",

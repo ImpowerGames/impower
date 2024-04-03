@@ -1,4 +1,4 @@
-import { _channel } from "./_channel";
+import { _channel } from "../_channel";
 
 export const CHANNEL_DEFAULTS = {
   default: _channel({ mixer: "default" }),

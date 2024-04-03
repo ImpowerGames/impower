@@ -1,5 +1,5 @@
-import { Create } from "../../../../core/types/Create";
-import { Prosody } from "../Prosody";
+import { Create } from "../../../core/types/Create";
+import { Prosody } from "../types/Prosody";
 
 export const _prosody: Create<Prosody> = (obj) => ({
   /** Yes(~?) */

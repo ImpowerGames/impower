@@ -1,5 +1,5 @@
-import { Create } from "../../../../core/types/Create";
-import { Character } from "../Character";
+import { Create } from "../../../core/types/Create";
+import { Character } from "../types/Character";
 import { _inflection } from "./_inflection";
 import { _prosody } from "./_prosody";
 

@@ -1,4 +1,4 @@
-import { Graphic } from "../specs/Graphic";
+import { Graphic } from "../types/Graphic";
 import { generateGraphicSvg } from "./generateGraphicSvg";
 
 export const generateGraphicSvgUrl = (graphic: Graphic): string => {

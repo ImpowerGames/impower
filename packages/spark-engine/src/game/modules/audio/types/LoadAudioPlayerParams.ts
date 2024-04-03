@@ -1,4 +1,4 @@
-import { Synth } from "../specs/Synth";
+import { Synth } from "./Synth";
 import { Tone } from "./Tone";
 
 export interface LoadAudioPlayerParams {

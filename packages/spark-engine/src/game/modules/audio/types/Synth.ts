@@ -1,5 +1,5 @@
 import { RecursivePartial } from "../../../core/types/RecursivePartial";
-import { OscillatorType } from "../types/OscillatorType";
+import { OscillatorType } from "./OscillatorType";
 
 export interface Modulator {
   on: boolean;

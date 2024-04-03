@@ -1,4 +1,4 @@
-import { Inflection } from "../Inflection";
+import { Inflection } from "../types/Inflection";
 
 export const _inflection = (obj?: Partial<Inflection>): Inflection => ({
   /**

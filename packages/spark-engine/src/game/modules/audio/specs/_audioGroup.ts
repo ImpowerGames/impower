@@ -1,4 +1,4 @@
-import { AudioGroup } from "../AudioGroup";
+import { AudioGroup } from "../types/AudioGroup";
 
 export const _audioGroup = (): AudioGroup => ({
   assets: [],

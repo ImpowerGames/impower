@@ -1,4 +1,4 @@
-import { Synth } from "../specs/Synth";
+import { Synth } from "../types/Synth";
 import { Tone } from "../types/Tone";
 import { convertPitchNoteToHertz } from "./convertPitchNoteToHertz";
 import { synthesizeSound } from "./synthesizeSound";

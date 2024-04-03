@@ -1,4 +1,4 @@
-import { Graphic } from "../specs/Graphic";
+import { Graphic } from "./Graphic";
 import { Transform } from "./Transform";
 
 export interface Entity {

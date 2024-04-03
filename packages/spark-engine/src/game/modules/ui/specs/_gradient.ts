@@ -1,5 +1,5 @@
-import { Create } from "../../../../core/types/Create";
-import { Gradient } from "../Gradient";
+import { Create } from "../../../core/types/Create";
+import { Gradient } from "../types/Gradient";
 
 export const _gradient: Create<Gradient> = () => ({
   type: "linear",

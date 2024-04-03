@@ -1,5 +1,5 @@
-import { Create } from "../../../../core/types/Create";
-import { Channel } from "../Channel";
+import { Create } from "../../../core/types/Create";
+import { Channel } from "../types/Channel";
 
 export const _channel: Create<Channel> = (obj) => ({
   loop: false,

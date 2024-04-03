@@ -7,7 +7,7 @@ export const ANIMATION_DEFAULTS = {
     to: {
       opacity: "1",
     },
-    style: {
+    timing: {
       animation_timing_function: "linear",
       animation_fill_mode: "both",
     },
@@ -19,7 +19,7 @@ export const ANIMATION_DEFAULTS = {
     to: {
       opacity: "0",
     },
-    style: {
+    timing: {
       animation_timing_function: "linear",
       animation_fill_mode: "both",
     },
@@ -28,7 +28,7 @@ export const ANIMATION_DEFAULTS = {
     to: {
       opacity: "1",
     },
-    style: {
+    timing: {
       animation_timing_function: "linear",
       animation_fill_mode: "both",
     },
@@ -69,7 +69,7 @@ export const ANIMATION_DEFAULTS = {
     "100%": {
       top: "0",
     },
-    style: {
+    timing: {
       animation_duration: "750ms",
       animation_timing_function: "ease-in-out",
       animation_iteration_count: "infinite",
@@ -120,7 +120,7 @@ export const ANIMATION_DEFAULTS = {
       left: "calc(1em / 60)",
       top: "calc(-2em / 60)",
     },
-    style: {
+    timing: {
       animation_duration: "300ms",
       animation_timing_function: "ease-in-out",
       animation_iteration_count: "infinite",
@@ -160,7 +160,7 @@ export const ANIMATION_DEFAULTS = {
     "100%": {
       transform: "translate(0.2vh, -0.4vh)",
     },
-    style: {
+    timing: {
       animation_duration: "300ms",
       animation_timing_function: "ease-in-out",
     },
@@ -199,7 +199,7 @@ export const ANIMATION_DEFAULTS = {
     "100%": {
       transform: "translate(0.2vh, -0.4vh)",
     },
-    style: {
+    timing: {
       animation_duration: "300ms",
       animation_timing_function: "ease-in-out",
       animation_iteration_count: "infinite",
@@ -239,7 +239,7 @@ export const ANIMATION_DEFAULTS = {
     "100%": {
       transform: "translate(0.1vh, -0.2vh)",
     },
-    style: {
+    timing: {
       animation_duration: "300ms",
       animation_timing_function: "ease-in-out",
     },
@@ -278,7 +278,7 @@ export const ANIMATION_DEFAULTS = {
     "100%": {
       transform: "translate(0.1vh, -0.2vh)",
     },
-    style: {
+    timing: {
       animation_duration: "300ms",
       animation_timing_function: "ease-in-out",
       animation_iteration_count: "infinite",

@@ -1,5 +1,5 @@
-import { Create } from "../../../../core/types/Create";
-import { Graphic } from "../Graphic";
+import { Create } from "../../../core/types/Create";
+import { Graphic } from "../types/Graphic";
 
 export const _graphic: Create<Graphic> = (obj) => ({
   width: 32,

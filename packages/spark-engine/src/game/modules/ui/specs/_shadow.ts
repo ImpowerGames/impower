@@ -1,5 +1,5 @@
-import { Create } from "../../../../core/types/Create";
-import { Shadow } from "../Shadow";
+import { Create } from "../../../core/types/Create";
+import { Shadow } from "../types/Shadow";
 
 export const _shadow: Create<Shadow> = () => ({
   layers: [
