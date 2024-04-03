@@ -1,6 +1,9 @@
 export const ANIMATION_DEFAULTS = {
   default: {},
   show: {
+    from: {
+      opacity: "0",
+    },
     to: {
       opacity: "1",
     },

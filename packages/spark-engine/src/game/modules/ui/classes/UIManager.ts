@@ -598,23 +598,15 @@ export class UIManager extends Manager<UIState> {
   queueAnimationEvent(
     event: TextEvent | ImageEvent,
     instant: boolean,
-    childStyle?: Record<string, string | null>,
-    parentStyle?: Record<string, string | null>
+    style: Record<string, string | null>
   ): void {
     const showAnimationName = "show";
     const hideAnimationName = "hide";
     const controlAfter = instant ? 0 : event.after;
     const controlOver = instant ? 0 : event.over;
     const exitAfter = instant ? 0 : event.exit;
-    if (parentStyle) {
-      parentStyle["display"] = null;
-      if (event.control === "show") {
-        parentStyle["opacity"] = "0";
-        this.appendAnimation(parentStyle, showAnimationName, controlAfter);
-      }
-    }
-    if (childStyle) {
-      childStyle["display"] = null;
+    if (style) {
+      style["display"] = null;
       const childAnimations: { name: string; after?: number; over?: number }[] =
         [];
       const controlAnimationName =
@@ -640,13 +632,25 @@ export class UIManager extends Manager<UIState> {
       if (event.with) {
         childAnimations.push({
           name: event.with,
-          after: event.withAfter,
+          after: event.withAfter ?? controlAfter,
           over: event.withOver,
         });
       }
       childAnimations.forEach(({ name, after, over }) => {
-        this.appendAnimation(childStyle, name, after, over);
+        this.appendAnimation(style, name, after, over);
       });
+    }
+  }
+
+  queueTransitionInEvent(
+    event: TextEvent | ImageEvent,
+    instant: boolean,
+    style: Record<string, string | null>
+  ): void {
+    const controlAfter = instant ? 0 : event.after;
+    if (style) {
+      style["transition_delay"] = `${controlAfter}s`;
+      style["opacity"] = "1";
     }
   }
 
@@ -767,6 +771,8 @@ export class UIManager extends Manager<UIState> {
               animatedElements.set(targetEl, {});
             }
             const targetStyle = animatedElements.get(targetEl)!;
+            targetStyle["display"] = null;
+            let targetShown = false;
             // Enqueue text events
             if (sequence) {
               let blockWrapper:
@@ -809,13 +815,19 @@ export class UIManager extends Manager<UIState> {
                   animatedElements.set(spanEl, {});
                 }
                 const spanStyle = animatedElements.get(spanEl)!;
-                $.queueAnimationEvent(e, instant, spanStyle, targetStyle);
+                $.queueAnimationEvent(e, instant, spanStyle);
+                if (e.control === "show" && !targetShown) {
+                  $.queueTransitionInEvent(e, instant, targetStyle);
+                  targetShown = true;
+                }
               });
             } else {
               const contentEl = $.getContentElement(targetEl, "text");
               if (contentEl) {
                 $.clearElement(contentEl);
-                $.updateElement(targetEl, { style: { display: "none" } });
+                $.updateElement(targetEl, {
+                  style: { display: "none", opacity: "0" },
+                });
               }
             }
           }
@@ -925,6 +937,8 @@ export class UIManager extends Manager<UIState> {
               animatedElements.set(targetEl, {});
             }
             const targetStyle = animatedElements.get(targetEl)!;
+            targetStyle["display"] = null;
+            let targetShown = false;
             // Enqueue image events
             if (sequence) {
               sequence.forEach((e) => {
@@ -952,7 +966,11 @@ export class UIManager extends Manager<UIState> {
                     animatedElements.set(spanEl, {});
                   }
                   const spanStyle = animatedElements.get(spanEl)!;
-                  $.queueAnimationEvent(e, instant, spanStyle, targetStyle);
+                  $.queueAnimationEvent(e, instant, spanStyle);
+                  if (e.control === "show" && !targetShown) {
+                    $.queueTransitionInEvent(e, instant, targetStyle);
+                    targetShown = true;
+                  }
                 } else {
                   // We are affecting the image wrapper
                   if (!animatedElements.has(targetEl)) {
@@ -966,7 +984,9 @@ export class UIManager extends Manager<UIState> {
               const contentEl = $.getContentElement(targetEl, "image");
               if (contentEl) {
                 $.clearElement(contentEl);
-                $.updateElement(targetEl, { style: { display: "none" } });
+                $.updateElement(targetEl, {
+                  style: { display: "none", opacity: "0" },
+                });
               }
             }
           }
