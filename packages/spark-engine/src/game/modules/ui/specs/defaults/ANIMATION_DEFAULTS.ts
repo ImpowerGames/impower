@@ -1,9 +1,6 @@
 export const ANIMATION_DEFAULTS = {
   default: {},
   show: {
-    from: {
-      opacity: "0",
-    },
     to: {
       opacity: "1",
     },
@@ -13,6 +10,9 @@ export const ANIMATION_DEFAULTS = {
     },
   },
   hide: {
+    from: {
+      opacity: "1",
+    },
     to: {
       opacity: "0",
     },
@@ -22,15 +22,12 @@ export const ANIMATION_DEFAULTS = {
     },
   },
   write: {
-    from: {
-      opacity: "0",
-    },
     to: {
       opacity: "1",
     },
     style: {
       animation_timing_function: "linear",
-      animation_fill_mode: "forwards",
+      animation_fill_mode: "both",
     },
   },
   spin: {

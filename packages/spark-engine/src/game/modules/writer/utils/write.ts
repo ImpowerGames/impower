@@ -634,7 +634,7 @@ export const write = (
           result.button[target]!.push(event);
         }
         if (c.text != null) {
-          const event: TextEvent = { control: "write", text: c.text };
+          const event: TextEvent = { control: "show", text: c.text };
           if (time) {
             event.after = time;
           }

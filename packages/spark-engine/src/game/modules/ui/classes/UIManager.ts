@@ -39,8 +39,6 @@ const isAsset = (obj: unknown): obj is { type: string; src: string } => {
 const isAssetLeaf = (_: string, v: unknown) =>
   isAsset(v) || (Array.isArray(v) && v.every((x) => isAsset(x)));
 
-const NOP = () => null;
-
 export interface UIConfig {
   ignore?: string[];
   style_element_name?: string;
@@ -548,86 +546,108 @@ export class UIManager extends Manager<UIState> {
     return names;
   }
 
-  appendAnimationStyle(
+  appendAnimation(
+    style: Record<string, string | null>,
+    name: string,
+    after?: number,
+    over?: number
+  ) {
+    if (name) {
+      const delay = `${after ?? 0}s`;
+      const duration = over != null ? `${over}s` : null;
+      const animationName = name;
+      const animationDelay =
+        delay ??
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_delay"
+        ] ??
+        "0s";
+      const animationDuration =
+        duration ??
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_duration"
+        ] ??
+        "0s";
+      const animationIterationCount =
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_iteration_count"
+        ] ?? "1";
+      const animationTimingFunction =
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_timing_function"
+        ] ?? "ease";
+      const animationFillMode =
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_fill_mode"
+        ] ?? "none";
+      const animationDirection =
+        this._context["animation"]?.[animationName]?.["style"]?.[
+          "animation_direction"
+        ] ?? "normal";
+      if (style["animation"]) {
+        style["animation"] += ", ";
+      } else {
+        style["animation"] = "";
+      }
+      style[
+        "animation"
+      ] += `${animationName} ${animationDuration} ${animationDelay} ${animationTimingFunction} ${animationIterationCount} ${animationFillMode} ${animationDirection}`;
+    }
+  }
+
+  queueAnimationEvent(
     event: TextEvent | ImageEvent,
     instant: boolean,
-    style: Record<string, string | null>
+    childStyle?: Record<string, string | null>,
+    parentStyle?: Record<string, string | null>
   ): void {
-    const writeAnimationName = "write";
     const showAnimationName = "show";
     const hideAnimationName = "hide";
-    const animations: { name: string; after?: number; over?: number }[] = [];
-    const controlAnimationName =
-      event.control === "write"
-        ? writeAnimationName
-        : event.control === "show"
-        ? showAnimationName
-        : event.control === "hide"
-        ? hideAnimationName
-        : undefined;
     const controlAfter = instant ? 0 : event.after;
     const controlOver = instant ? 0 : event.over;
     const exitAfter = instant ? 0 : event.exit;
-    if (controlAnimationName) {
-      animations.push({
-        name: controlAnimationName,
-        after: controlAfter,
-        over: controlOver,
-      });
-    }
-    if (event.exit) {
-      animations.push({
-        name: hideAnimationName,
-        after: exitAfter,
-        over: controlOver,
-      });
-    }
-    if (event.with) {
-      animations.push({
-        name: event.with,
-        after: event.withAfter,
-        over: event.withOver,
-      });
-    }
-    animations.forEach(({ name, after, over }) => {
-      if (name) {
-        const delay = `${after ?? 0}s`;
-        const duration = over != null ? `${over}s` : null;
-        const animationName = name;
-        const animationDelay =
-          delay ??
-          this._context["animation"]?.[animationName]?.["style"]?.[
-            "animation_delay"
-          ] ??
-          "0s";
-        const animationDuration =
-          duration ??
-          this._context["animation"]?.[animationName]?.["style"]?.[
-            "animation_duration"
-          ] ??
-          "0s";
-        const animationIterationCount =
-          this._context["animation"]?.[animationName]?.["style"]?.[
-            "animation_iteration_count"
-          ] ?? "1";
-        const animationTimingFunction =
-          this._context["animation"]?.[animationName]?.["style"]?.[
-            "animation_timing_function"
-          ] ?? "ease";
-        const animationFillMode =
-          this._context["animation"]?.[animationName]?.["style"]?.[
-            "animation_fill_mode"
-          ] ?? "none";
-        if (style["animation"]) {
-          style["animation"] += ", ";
-        } else {
-          style["animation"] = "";
-        }
-        style[
-          "animation"
-        ] += `${animationName} ${animationDuration} ${animationDelay} ${animationTimingFunction} ${animationIterationCount} ${animationFillMode}`;
+    if (parentStyle) {
+      parentStyle["display"] = null;
+      if (event.control === "show") {
+        parentStyle["opacity"] = "0";
+        this.appendAnimation(parentStyle, showAnimationName, controlAfter);
       }
-    });
+    }
+    if (childStyle) {
+      childStyle["display"] = null;
+      const childAnimations: { name: string; after?: number; over?: number }[] =
+        [];
+      const controlAnimationName =
+        event.control === "show"
+          ? showAnimationName
+          : event.control === "hide"
+          ? hideAnimationName
+          : undefined;
+      if (controlAnimationName) {
+        childAnimations.push({
+          name: controlAnimationName,
+          after: controlAfter,
+          over: controlOver,
+        });
+      }
+      if (event.exit) {
+        childAnimations.push({
+          name: hideAnimationName,
+          after: exitAfter,
+          over: controlOver,
+        });
+      }
+      if (event.with) {
+        childAnimations.push({
+          name: event.with,
+          after: event.withAfter,
+          over: event.withOver,
+        });
+      }
+      childAnimations.forEach(({ name, after, over }) => {
+        this.appendAnimation(childStyle, name, after, over);
+      });
+    }
   }
 
   protected setEventListener<T extends keyof EventMap>(
@@ -736,26 +756,17 @@ export class UIManager extends Manager<UIState> {
         target: string,
         sequence: TextEvent[] | null,
         instant: boolean
-      ): () => void {
-        const transitionElements: Element[] = [];
+      ): void {
         const animatedElements = new Map<
           Element,
           Record<string, string | null>
         >();
-        const enterAt = sequence?.[0]?.after ?? 0;
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
-            // Turn on the wrapper so it can take up space,
-            // but don't make it truly visible until the first text event happens
-            const style: Record<string, string | null> = { display: null };
-            if (enterAt > 0) {
-              style["opacity"] = instant ? "1" : "0";
-              style["transition"] = instant
-                ? "none"
-                : `opacity 0s linear ${enterAt}s`;
-              transitionElements.push(targetEl);
+            if (!animatedElements.has(targetEl)) {
+              animatedElements.set(targetEl, {});
             }
-            $.updateElement(targetEl, { style });
+            const targetStyle = animatedElements.get(targetEl)!;
             // Enqueue text events
             if (sequence) {
               let blockWrapper:
@@ -786,9 +797,7 @@ export class UIManager extends Manager<UIState> {
                 const text = e.text;
                 // If text will be revealed after a delay, it should start hidden (opacity 0).
                 const willRevealAfterDelay =
-                  (e.control === "write" || e.control === "show") &&
-                  e.after != null &&
-                  e.after > 0;
+                  e.control === "show" && e.after != null && e.after > 0;
                 const opacity = willRevealAfterDelay ? "0" : "1";
                 const style = { ...(e.style || {}), opacity };
                 const spanEl = $.createElement(parentEl, {
@@ -799,8 +808,8 @@ export class UIManager extends Manager<UIState> {
                 if (!animatedElements.has(spanEl)) {
                   animatedElements.set(spanEl, {});
                 }
-                const animatedStyle = animatedElements.get(spanEl)!;
-                $.appendAnimationStyle(e, instant, animatedStyle);
+                const spanStyle = animatedElements.get(spanEl)!;
+                $.queueAnimationEvent(e, instant, spanStyle, targetStyle);
               });
             } else {
               const contentEl = $.getContentElement(targetEl, "text");
@@ -811,27 +820,10 @@ export class UIManager extends Manager<UIState> {
             }
           }
         });
-        if (instant) {
-          // Transition in elements
-          transitionElements.forEach((el) => {
-            $.updateElement(el, { style: { opacity: "1" } });
-          });
-          // Animate elements
-          animatedElements.forEach((style, element) => {
-            $.updateElement(element, { style });
-          });
-          return NOP;
-        }
-        return () => {
-          // Transition in elements
-          transitionElements.forEach((el) => {
-            $.updateElement(el, { style: { opacity: "1" } });
-          });
-          // Animate elements
-          animatedElements.forEach((style, element) => {
-            $.updateElement(element, { style });
-          });
-        };
+        // Animate elements
+        animatedElements.forEach((style, element) => {
+          $.updateElement(element, { style });
+        });
       }
 
       clearContent(target: string): void {
@@ -849,16 +841,11 @@ export class UIManager extends Manager<UIState> {
         });
       }
 
-      write(target: string, sequence: TextEvent[], instant = false): number {
+      write(target: string, sequence: TextEvent[], instant = false): void {
         this.saveState(target, sequence);
-        const transition =
-          $._context?.system?.previewing || !$._context?.system?.simulating
-            ? this.applyChanges(target, sequence, instant)
-            : NOP;
-        const id = $.nextTriggerId();
-        // TODO: await for scene to process changes
-        $.enableTrigger(id, transition);
-        return id;
+        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
+          this.applyChanges(target, sequence, instant);
+        }
       }
 
       set(target: string, text: string): void {
@@ -927,27 +914,17 @@ export class UIManager extends Manager<UIState> {
         target: string,
         sequence: ImageEvent[] | null,
         instant: boolean
-      ): () => void {
-        const transitionElements: Element[] = [];
+      ): void {
         const animatedElements = new Map<
           Element,
           Record<string, string | null>
         >();
-        const firstEvent = sequence?.[0];
-        const wrapperEnterAt = firstEvent?.after ?? 0;
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
-            // Turn on the wrapper so it can take up space,
-            // but don't make it truly visible until the first image event happens
-            const style: Record<string, string | null> = { display: null };
-            if (wrapperEnterAt > 0) {
-              style["opacity"] = instant ? "1" : "0";
-              style["transition"] = instant
-                ? "none"
-                : `opacity 0s linear ${wrapperEnterAt}s`;
-              transitionElements.push(targetEl);
+            if (!animatedElements.has(targetEl)) {
+              animatedElements.set(targetEl, {});
             }
-            $.updateElement(targetEl, { style });
+            const targetStyle = animatedElements.get(targetEl)!;
             // Enqueue image events
             if (sequence) {
               sequence.forEach((e) => {
@@ -959,9 +936,7 @@ export class UIManager extends Manager<UIState> {
                   );
                   // If image will be revealed after a delay, it should start hidden (opacity 0).
                   const willRevealAfterDelay =
-                    (e.control === "write" || e.control === "show") &&
-                    e.after != null &&
-                    e.after > 0;
+                    e.control === "show" && e.after != null && e.after > 0;
                   const opacity = willRevealAfterDelay ? "0" : "1";
                   const style: Record<string, string | null> = { opacity };
                   const combinedBackgroundImage = $.getImageAssetNames(e.assets)
@@ -976,15 +951,15 @@ export class UIManager extends Manager<UIState> {
                   if (!animatedElements.has(spanEl)) {
                     animatedElements.set(spanEl, {});
                   }
-                  const animatedStyle = animatedElements.get(spanEl)!;
-                  $.appendAnimationStyle(e, instant, animatedStyle);
+                  const spanStyle = animatedElements.get(spanEl)!;
+                  $.queueAnimationEvent(e, instant, spanStyle, targetStyle);
                 } else {
                   // We are affecting the image wrapper
                   if (!animatedElements.has(targetEl)) {
                     animatedElements.set(targetEl, {});
                   }
-                  const animatedStyle = animatedElements.get(targetEl)!;
-                  $.appendAnimationStyle(e, instant, animatedStyle);
+                  const targetStyle = animatedElements.get(targetEl)!;
+                  $.queueAnimationEvent(e, instant, targetStyle);
                 }
               });
             } else {
@@ -996,27 +971,10 @@ export class UIManager extends Manager<UIState> {
             }
           }
         });
-        if (instant) {
-          // Transition in elements
-          transitionElements.forEach((el) => {
-            $.updateElement(el, { style: { opacity: "1" } });
-          });
-          // Animate elements
-          animatedElements.forEach((style, element) => {
-            $.updateElement(element, { style });
-          });
-          return NOP;
-        }
-        return () => {
-          // Transition in elements
-          transitionElements.forEach((el) => {
-            $.updateElement(el, { style: { opacity: "1" } });
-          });
-          // Animate elements
-          animatedElements.forEach((style, element) => {
-            $.updateElement(element, { style });
-          });
-        };
+        // Animate elements
+        animatedElements.forEach((style, element) => {
+          $.updateElement(element, { style });
+        });
       }
 
       clearContent(target: string): void {
@@ -1046,6 +1004,7 @@ export class UIManager extends Manager<UIState> {
                   animation_fill_mode: null,
                   animation_duration: null,
                   animation_delay: null,
+                  animation_direction: null,
                 },
               });
             });
@@ -1053,16 +1012,11 @@ export class UIManager extends Manager<UIState> {
         });
       }
 
-      write(target: string, sequence: ImageEvent[], instant = false): number {
+      write(target: string, sequence: ImageEvent[], instant = false): void {
         this.saveState(target, sequence);
-        const transition =
-          $._context?.system?.previewing || !$._context?.system?.simulating
-            ? this.applyChanges(target, sequence, instant)
-            : NOP;
-        const id = $.nextTriggerId();
-        // TODO: await for scene to process changes
-        $.enableTrigger(id, transition);
-        return id;
+        if ($._context?.system?.previewing || !$._context?.system?.simulating) {
+          this.applyChanges(target, sequence, instant);
+        }
       }
 
       set(target: string, image: string[]): void {

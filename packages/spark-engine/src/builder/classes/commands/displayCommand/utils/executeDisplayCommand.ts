@@ -47,7 +47,7 @@ export const executeDisplayCommand = (
   });
 
   if (displayed.length === 0) {
-    // No content to display
+    // No events to process
     return {};
   }
 
@@ -71,45 +71,53 @@ export const executeDisplayCommand = (
     // Clear stale animations
     game.module.ui.image.clearAnimations();
   };
-  clearUI();
 
+  // Sequence events
   const sequence = game.module.writer.write(displayed, {
     character: characterKey,
     instant,
     debug: debugging,
   });
 
-  // Display indicator
-  const indicatorStyle: Record<string, string | null> = {};
-  if (autoAdvance) {
-    indicatorStyle["display"] = "none";
-  } else {
-    indicatorStyle["transition"] = "none";
-    indicatorStyle["opacity"] = instant ? "1" : "0";
-    indicatorStyle["animation-play-state"] = "paused";
-    indicatorStyle["display"] = null;
-  }
-  game.module.ui.style.update("indicator", indicatorStyle);
+  const updateUI = () => {
+    // Clear stale content
+    clearUI();
 
-  // Process buttons
-  Object.entries(sequence.button).flatMap(([target, events]) =>
-    events.forEach((e) => {
-      const handleClick = (): void => {
-        clearUI();
-        game.module.ui.unobserve("click", target);
-        onClickButton?.(e);
-      };
-      game.module.ui.observe("click", target, handleClick);
-    })
-  );
-  // Process text
-  const textTriggerIds = Object.entries(sequence.text).map(([target, events]) =>
-    game.module.ui.text.write(target, events, instant)
-  );
-  // Process images
-  const imageTriggerIds = Object.entries(sequence.image).map(
-    ([target, events]) => game.module.ui.image.write(target, events, instant)
-  );
+    // Display click indicator
+    const indicatorStyle: Record<string, string | null> = {};
+    if (autoAdvance) {
+      indicatorStyle["display"] = "none";
+    } else {
+      indicatorStyle["transition"] = "none";
+      indicatorStyle["opacity"] = instant ? "1" : "0";
+      indicatorStyle["animation-play-state"] = "paused";
+      indicatorStyle["display"] = null;
+    }
+    game.module.ui.style.update("indicator", indicatorStyle);
+
+    // Process button events
+    Object.entries(sequence.button).flatMap(([target, events]) =>
+      events.forEach((e) => {
+        const handleClick = (): void => {
+          clearUI();
+          game.module.ui.unobserve("click", target);
+          onClickButton?.(e);
+        };
+        game.module.ui.observe("click", target, handleClick);
+      })
+    );
+
+    // Process text events
+    Object.entries(sequence.text).map(([target, events]) =>
+      game.module.ui.text.write(target, events, instant)
+    );
+
+    // Process images events
+    Object.entries(sequence.image).map(([target, events]) =>
+      game.module.ui.image.write(target, events, instant)
+    );
+  };
+
   // Process audio
   const audioTriggerIds = instant
     ? []
@@ -134,6 +142,7 @@ export const executeDisplayCommand = (
     indicatorStyle["transition"] = "none";
     indicatorStyle["opacity"] = "1";
     game.module.ui.style.update("indicator", indicatorStyle);
+    updateUI();
   }
 
   let elapsedMS = 0;
@@ -142,15 +151,10 @@ export const executeDisplayCommand = (
   const totalDurationMS = (sequence.end ?? 0) * 1000;
   const handleTick = (deltaMS: number): void => {
     if (!ready) {
-      if (
-        audioTriggerIds.every((n) => game.module.audio.isReady(n)) &&
-        textTriggerIds.every((n) => game.module.ui.isReady(n)) &&
-        imageTriggerIds.every((n) => game.module.ui.isReady(n))
-      ) {
+      if (audioTriggerIds.every((n) => game.module.audio.isReady(n))) {
         ready = true;
         game.module.audio.triggerAll(audioTriggerIds);
-        game.module.ui.triggerAll(textTriggerIds);
-        game.module.ui.triggerAll(imageTriggerIds);
+        updateUI();
       }
     }
     if (ready && !finished) {
