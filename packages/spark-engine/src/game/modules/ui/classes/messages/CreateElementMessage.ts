@@ -5,10 +5,9 @@ export type CreateElementMethod = typeof CreateElementMessage.method;
 
 export interface CreateElementParams {
   parent: string | null;
-  id: string;
+  element: string;
   type: string;
   name: string;
-  index: number;
   content?: ElementContent;
   style?: Record<string, string | null> | null;
   attributes?: Record<string, string | null> | null;

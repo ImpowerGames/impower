@@ -1,287 +1,336 @@
-export const ANIMATION_DEFAULTS = {
-  default: {},
-  show: {
-    from: {
-      opacity: "0",
-    },
-    to: {
-      opacity: "1",
-    },
+import { Animation } from "../../types/Animation";
+
+export const ANIMATION_DEFAULTS: Record<string, Animation> = {
+  default: {
+    keyframes: [],
     timing: {
-      animation_timing_function: "linear",
-      animation_fill_mode: "both",
+      delay: 0,
+      duration: 0,
+      easing: "ease",
+      iterations: 1,
+      direction: "normal",
+      fill: "none",
+    },
+  },
+  show: {
+    keyframes: [{ opacity: "1" }],
+    timing: {
+      easing: "linear",
+      fill: "forwards",
     },
   },
   hide: {
-    from: {
-      opacity: "1",
-    },
-    to: {
-      opacity: "0",
-    },
+    keyframes: [{ opacity: "0" }],
     timing: {
-      animation_timing_function: "linear",
-      animation_fill_mode: "both",
-    },
-  },
-  write: {
-    to: {
-      opacity: "1",
-    },
-    timing: {
-      animation_timing_function: "linear",
-      animation_fill_mode: "both",
+      easing: "linear",
+      fill: "forwards",
     },
   },
   spin: {
-    to: {
-      transform: "rotate(360deg)",
+    keyframes: [{ transform: "rotate(360deg)" }],
+    timing: {
+      easing: "linear",
+      iterations: "infinite",
     },
   },
   ping: {
-    "75%, 100%": {
-      transform: "scale(2)",
-      opacity: "0",
-    },
+    keyframes: [
+      {
+        offset: 0.75,
+        transform: "scale(2)",
+        opacity: "0",
+      },
+      {
+        offset: 1.0,
+        transform: "scale(2)",
+        opacity: "0",
+      },
+    ],
+    timing: {},
   },
   pulse: {
-    "50%": {
-      opacity: ".5",
-    },
+    keyframes: [
+      {
+        offset: 0.5,
+        opacity: "0.5",
+      },
+    ],
+    timing: {},
   },
   bounce: {
-    "0%, 100%": {
-      transform: "translateY(-50%)",
-      animation_timing_function: "cubic-bezier(0.8,0,1,1)",
-    },
-    "50%": {
-      transform: "none",
-      animation_timing_function: "cubic-bezier(0,0,0.2,1)",
-    },
+    keyframes: [
+      {
+        transform: "translateY(-50%)",
+        easing: "cubic-bezier(0.8,0,1,1)",
+      },
+      {
+        transform: "none",
+        easing: "cubic-bezier(0,0,0.2,1)",
+      },
+      {
+        transform: "translateY(-50%)",
+        easing: "cubic-bezier(0.8,0,1,1)",
+      },
+    ],
+    timing: {},
   },
   floating: {
-    "0%": {
-      top: "0",
-    },
-    "50%": {
-      top: "calc(1em / -4)",
-    },
-    "100%": {
-      top: "0",
-    },
+    keyframes: [
+      {
+        top: "0",
+      },
+      {
+        top: "calc(1em / -4)",
+      },
+      {
+        top: "0",
+      },
+    ],
     timing: {
-      animation_duration: "750ms",
-      animation_timing_function: "ease-in-out",
-      animation_iteration_count: "infinite",
+      duration: "750ms",
+      easing: "ease-in-out",
+      iterations: "infinite",
     },
   },
   trembling: {
-    "0%": {
-      left: "calc(1em / 60)",
-      top: "calc(1em / 60)",
-    },
-    "10%": {
-      left: "calc(-1em / 60)",
-      top: "calc(-2em / 60)",
-    },
-    "20%": {
-      left: "calc(-2em / 60)",
-      top: "calc(0em / 60)",
-    },
-    "30%": {
-      left: "calc(2em / 60)",
-      top: "calc(2em / 60)",
-    },
-    "40%": {
-      left: "calc(1em / 60)",
-      top: "calc(-1em / 60)",
-    },
-    "50%": {
-      left: "calc(-1em / 60)",
-      top: "calc(2em / 60)",
-    },
-    "60%": {
-      left: "calc(-2em / 60)",
-      top: "calc(1em / 60)",
-    },
-    "70%": {
-      left: "calc(2em / 60)",
-      top: "calc(1em / 60)",
-    },
-    "80%": {
-      left: "calc(-1em / 60)",
-      top: "calc(-1em / 60)",
-    },
-    "90%": {
-      left: "calc(1em / 60)",
-      top: "calc(2em / 60)",
-    },
-    "100%": {
-      left: "calc(1em / 60)",
-      top: "calc(-2em / 60)",
-    },
+    keyframes: [
+      {
+        left: "calc(1em / 60)",
+        top: "calc(1em / 60)",
+      },
+      {
+        left: "calc(-1em / 60)",
+        top: "calc(-2em / 60)",
+      },
+      {
+        left: "calc(-2em / 60)",
+        top: "calc(0em / 60)",
+      },
+      {
+        left: "calc(2em / 60)",
+        top: "calc(2em / 60)",
+      },
+      {
+        left: "calc(1em / 60)",
+        top: "calc(-1em / 60)",
+      },
+      {
+        left: "calc(-1em / 60)",
+        top: "calc(2em / 60)",
+      },
+      {
+        left: "calc(-2em / 60)",
+        top: "calc(1em / 60)",
+      },
+      {
+        left: "calc(2em / 60)",
+        top: "calc(1em / 60)",
+      },
+      {
+        left: "calc(-1em / 60)",
+        top: "calc(-1em / 60)",
+      },
+      {
+        left: "calc(1em / 60)",
+        top: "calc(2em / 60)",
+      },
+      {
+        left: "calc(1em / 60)",
+        top: "calc(-2em / 60)",
+      },
+    ],
     timing: {
-      animation_duration: "300ms",
-      animation_timing_function: "ease-in-out",
-      animation_iteration_count: "infinite",
+      duration: "300ms",
+      easing: "ease-in-out",
+      iterations: "infinite",
     },
   },
   shake: {
-    "0%": {
-      transform: "translate(0.4vh, 0.2vh)",
-    },
-    "10%": {
-      transform: "translate(-0.2vh, -0.4vh)",
-    },
-    "20%": {
-      transform: "translate(-0.6vh, 0vh)",
-    },
-    "30%": {
-      transform: "translate(0vh, 0.4vh)",
-    },
-    "40%": {
-      transform: "translate(0.2vh, -0.2vh)",
-    },
-    "50%": {
-      transform: "translate(-0.2vh, 0.4vh)",
-    },
-    "60%": {
-      transform: "translate(-0.6vh, 0.2vh)",
-    },
-    "70%": {
-      transform: "translate(0.4vh, 0.2vh)",
-    },
-    "80%": {
-      transform: "translate(-0.2vh, -0.2vh)",
-    },
-    "90%": {
-      transform: "translate(0.4vh, 0.4vh)",
-    },
-    "100%": {
-      transform: "translate(0.2vh, -0.4vh)",
-    },
+    keyframes: [
+      {
+        transform: "translate(0.4vh, 0.2vh)",
+      },
+      {
+        transform: "translate(-0.2vh, -0.4vh)",
+      },
+      {
+        transform: "translate(-0.6vh, 0vh)",
+      },
+      {
+        transform: "translate(0vh, 0.4vh)",
+      },
+      {
+        transform: "translate(0.2vh, -0.2vh)",
+      },
+      {
+        transform: "translate(-0.2vh, 0.4vh)",
+      },
+      {
+        transform: "translate(-0.6vh, 0.2vh)",
+      },
+      {
+        transform: "translate(0.4vh, 0.2vh)",
+      },
+      {
+        transform: "translate(-0.2vh, -0.2vh)",
+      },
+      {
+        transform: "translate(0.4vh, 0.4vh)",
+      },
+      {
+        transform: "translate(0.2vh, -0.4vh)",
+      },
+    ],
     timing: {
-      animation_duration: "300ms",
-      animation_timing_function: "ease-in-out",
+      duration: "300ms",
+      easing: "ease-in-out",
     },
   },
   shaking: {
-    "0%": {
-      transform: "translate(0.4vh, 0.2vh)",
-    },
-    "10%": {
-      transform: "translate(-0.2vh, -0.4vh)",
-    },
-    "20%": {
-      transform: "translate(-0.6vh, 0vh)",
-    },
-    "30%": {
-      transform: "translate(0vh, 0.4vh)",
-    },
-    "40%": {
-      transform: "translate(0.2vh, -0.2vh)",
-    },
-    "50%": {
-      transform: "translate(-0.2vh, 0.4vh)",
-    },
-    "60%": {
-      transform: "translate(-0.6vh, 0.2vh)",
-    },
-    "70%": {
-      transform: "translate(0.4vh, 0.2vh)",
-    },
-    "80%": {
-      transform: "translate(-0.2vh, -0.2vh)",
-    },
-    "90%": {
-      transform: "translate(0.4vh, 0.4vh)",
-    },
-    "100%": {
-      transform: "translate(0.2vh, -0.4vh)",
-    },
+    keyframes: [
+      {
+        offset: 0.0,
+        transform: "translate(0.4vh, 0.2vh)",
+      },
+      {
+        offset: 0.1,
+        transform: "translate(-0.2vh, -0.4vh)",
+      },
+      {
+        offset: 0.2,
+        transform: "translate(-0.6vh, 0vh)",
+      },
+      {
+        offset: 0.3,
+        transform: "translate(0vh, 0.4vh)",
+      },
+      {
+        offset: 0.4,
+        transform: "translate(0.2vh, -0.2vh)",
+      },
+      {
+        offset: 0.5,
+        transform: "translate(-0.2vh, 0.4vh)",
+      },
+      {
+        offset: 0.6,
+        transform: "translate(-0.6vh, 0.2vh)",
+      },
+      {
+        offset: 0.7,
+        transform: "translate(0.4vh, 0.2vh)",
+      },
+      {
+        offset: 0.8,
+        transform: "translate(-0.2vh, -0.2vh)",
+      },
+      {
+        offset: 0.9,
+        transform: "translate(0.4vh, 0.4vh)",
+      },
+      {
+        offset: 1.0,
+        transform: "translate(0.2vh, -0.4vh)",
+      },
+    ],
     timing: {
-      animation_duration: "300ms",
-      animation_timing_function: "ease-in-out",
-      animation_iteration_count: "infinite",
+      duration: "300ms",
+      easing: "ease-in-out",
+      iterations: "infinite",
     },
   },
   shiver: {
-    "0%": {
-      transform: "translate(0.2vh, 0.1vh)",
-    },
-    "10%": {
-      transform: "translate(-0.1vh, -0.2vh)",
-    },
-    "20%": {
-      transform: "translate(-0.3vh, 0vh)",
-    },
-    "30%": {
-      transform: "translate(0vh, 0.2vh)",
-    },
-    "40%": {
-      transform: "translate(0.1vh, -0.1vh)",
-    },
-    "50%": {
-      transform: "translate(-0.1vh, 0.2vh)",
-    },
-    "60%": {
-      transform: "translate(-0.3vh, 0.1vh)",
-    },
-    "70%": {
-      transform: "translate(0.2vh, 0.1vh)",
-    },
-    "80%": {
-      transform: "translate(-0.1vh, -0.1vh)",
-    },
-    "90%": {
-      transform: "translate(0.2vh, 0.2vh)",
-    },
-    "100%": {
-      transform: "translate(0.1vh, -0.2vh)",
-    },
+    keyframes: [
+      {
+        offset: 0.0,
+        transform: "translate(0.2vh, 0.1vh)",
+      },
+      {
+        offset: 0.1,
+        transform: "translate(-0.1vh, -0.2vh)",
+      },
+      {
+        offset: 0.2,
+        transform: "translate(-0.3vh, 0vh)",
+      },
+      {
+        offset: 0.3,
+        transform: "translate(0vh, 0.2vh)",
+      },
+      {
+        offset: 0.4,
+        transform: "translate(0.1vh, -0.1vh)",
+      },
+      {
+        offset: 0.5,
+        transform: "translate(-0.1vh, 0.2vh)",
+      },
+      {
+        offset: 0.6,
+        transform: "translate(-0.3vh, 0.1vh)",
+      },
+      {
+        offset: 0.7,
+        transform: "translate(0.2vh, 0.1vh)",
+      },
+      {
+        offset: 0.8,
+        transform: "translate(-0.1vh, -0.1vh)",
+      },
+      {
+        offset: 0.9,
+        transform: "translate(0.2vh, 0.2vh)",
+      },
+      {
+        offset: 1.0,
+        transform: "translate(0.1vh, -0.2vh)",
+      },
+    ],
     timing: {
-      animation_duration: "300ms",
-      animation_timing_function: "ease-in-out",
+      duration: "300ms",
+      easing: "ease-in-out",
     },
   },
   shivering: {
-    "0%": {
-      transform: "translate(0.2vh, 0.1vh)",
-    },
-    "10%": {
-      transform: "translate(-0.1vh, -0.2vh)",
-    },
-    "20%": {
-      transform: "translate(-0.3vh, 0vh)",
-    },
-    "30%": {
-      transform: "translate(0vh, 0.2vh)",
-    },
-    "40%": {
-      transform: "translate(0.1vh, -0.1vh)",
-    },
-    "50%": {
-      transform: "translate(-0.1vh, 0.2vh)",
-    },
-    "60%": {
-      transform: "translate(-0.3vh, 0.1vh)",
-    },
-    "70%": {
-      transform: "translate(0.2vh, 0.1vh)",
-    },
-    "80%": {
-      transform: "translate(-0.1vh, -0.1vh)",
-    },
-    "90%": {
-      transform: "translate(0.2vh, 0.2vh)",
-    },
-    "100%": {
-      transform: "translate(0.1vh, -0.2vh)",
-    },
+    keyframes: [
+      {
+        transform: "translate(0.2vh, 0.1vh)",
+      },
+      {
+        transform: "translate(-0.1vh, -0.2vh)",
+      },
+      {
+        transform: "translate(-0.3vh, 0vh)",
+      },
+      {
+        transform: "translate(0vh, 0.2vh)",
+      },
+      {
+        transform: "translate(0.1vh, -0.1vh)",
+      },
+      {
+        transform: "translate(-0.1vh, 0.2vh)",
+      },
+      {
+        transform: "translate(-0.3vh, 0.1vh)",
+      },
+      {
+        transform: "translate(0.2vh, 0.1vh)",
+      },
+      {
+        transform: "translate(-0.1vh, -0.1vh)",
+      },
+      {
+        transform: "translate(0.2vh, 0.2vh)",
+      },
+      {
+        transform: "translate(0.1vh, -0.2vh)",
+      },
+    ],
     timing: {
-      animation_duration: "300ms",
-      animation_timing_function: "ease-in-out",
-      animation_iteration_count: "infinite",
+      duration: "300ms",
+      easing: "ease-in-out",
+      iterations: "infinite",
     },
   },
 };

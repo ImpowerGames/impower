@@ -298,7 +298,7 @@ const build = (
         const propertyPath = field.path + propAccess;
         const isArrayItem =
           Array.isArray(getProperty(objCompiled, field.path)) ||
-          !Number.isNaN(Number(field.key));
+          Number.isInteger(Number(field.key));
         if (isArrayItem && !arrays[field.path]) {
           // This is the first index of the new array
           // Clear any inherited array so that the child can override the entire array (not just the item at this index)
@@ -366,7 +366,7 @@ const build = (
     const firstField = variable.fields?.[0];
     const isArray =
       variable.type === "array" ||
-      (!firstField?.path && !Number.isNaN(Number(firstField?.key)));
+      (!firstField?.path && Number.isInteger(Number(firstField?.key)));
     const objValue = isArray ? [] : {};
     const objCompiled = isArray ? [] : {};
     _construct(variable, objValue, objCompiled);

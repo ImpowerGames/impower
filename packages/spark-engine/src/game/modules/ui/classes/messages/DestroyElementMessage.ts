@@ -3,7 +3,7 @@ import { MessageProtocolRequestType } from "../../../../core/classes/MessageProt
 export type DestroyElementMethod = typeof DestroyElementMessage.method;
 
 export interface DestroyElementParams {
-  id: string;
+  element: string;
 }
 
 export class DestroyElementMessage {

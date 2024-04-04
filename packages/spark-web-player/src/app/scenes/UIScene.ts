@@ -1,7 +1,8 @@
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
+import { getMilliseconds } from "../../../../spark-dom/src/utils/getMilliseconds";
 import { RequestMessage } from "../../../../spark-engine/src/game/core";
 import { EventMessage } from "../../../../spark-engine/src/game/core/classes/messages/EventMessage";
-import { CloneElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CloneElementMessage";
+import { AnimateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/AnimateElementMessage";
 import { CreateElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/CreateElementMessage";
 import { DestroyElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/DestroyElementMessage";
 import { ObserveElementMessage } from "../../../../spark-engine/src/game/modules/ui/classes/messages/ObserveElementMessage";
@@ -51,8 +52,8 @@ export default class UIScene extends Scene {
     if (CreateElementMessage.type.isRequest(msg)) {
       const params = msg.params;
       const el = document.createElement(params.type);
-      if (params.id) {
-        el.id = params.id;
+      if (params.element) {
+        el.id = params.element;
       }
       if (params.name) {
         el.className = params.name;
@@ -86,29 +87,19 @@ export default class UIScene extends Scene {
           this._overlayRoots.push(appendedEl);
         }
       }
-      return CreateElementMessage.type.result(params.id);
-    }
-    if (CloneElementMessage.type.isRequest(msg)) {
-      const params = msg.params;
-      const el = this.getElement(params.targetId);
-      if (el) {
-        const clonedEl = el.cloneNode(true) as HTMLElement;
-        clonedEl.id = params.newId;
-        el.parentElement?.appendChild(clonedEl);
-      }
-      return CloneElementMessage.type.result(params.newId);
+      return CreateElementMessage.type.result(params.element);
     }
     if (DestroyElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const element = this.getElement(params.id);
+      const element = this.getElement(params.element);
       if (element) {
         element.remove();
       }
-      return DestroyElementMessage.type.result(params.id);
+      return DestroyElementMessage.type.result(params.element);
     }
     if (UpdateElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const element = this.getElement(params.id);
+      const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
           element.textContent = getElementContent(params.content);
@@ -151,24 +142,132 @@ export default class UIScene extends Scene {
           }
         }
       }
-      return UpdateElementMessage.type.result(params.id);
+      return UpdateElementMessage.type.result(params.element);
+    }
+    if (AnimateElementMessage.type.isRequest(msg)) {
+      const params = msg.params;
+      const element = this.getElement(params.element);
+      const animations = params.animations;
+      const elementAnimations: Animation[] = [];
+      if (element) {
+        // Convert engine animations to dom animations
+        animations.forEach((animation) => {
+          const convertedKeyframes: Keyframe[] = [];
+          animation.keyframes.forEach((keyframe) => {
+            if (keyframe) {
+              const convertedKeyframe: Keyframe = {};
+              Object.entries(keyframe).forEach(([prop, value]) => {
+                if (prop === "iterations" && value === "infinite") {
+                  convertedKeyframe["iterations"] = Infinity;
+                } else if (prop === "delay") {
+                  if (typeof value === "number") {
+                    // convert seconds to milliseconds
+                    convertedKeyframe["delay"] = value * 1000;
+                  } else if (typeof value === "string") {
+                    // convert string time value to milliseconds
+                    const ms = getMilliseconds(value);
+                    if (ms != null) {
+                      convertedKeyframe["delay"] = ms;
+                    }
+                  }
+                } else if (prop === "duration") {
+                  if (typeof value === "number") {
+                    // convert seconds to milliseconds
+                    convertedKeyframe["duration"] = value * 1000;
+                  } else if (typeof value === "string") {
+                    // convert string time value to milliseconds
+                    const ms = getMilliseconds(value);
+                    if (ms != null) {
+                      convertedKeyframe["duration"] = ms;
+                    }
+                  }
+                } else {
+                  const camelCasedPropName = prop
+                    .toLowerCase()
+                    .replace(/([-_][a-z])/g, (group) =>
+                      group.toUpperCase().replace("-", "").replace("_", "")
+                    );
+                  convertedKeyframe[camelCasedPropName] = value;
+                }
+                convertedKeyframes.push(convertedKeyframe);
+              });
+            }
+          });
+          const convertedTiming: EffectTiming = {};
+          if (animation.timing.delay != null) {
+            if (typeof animation.timing.delay === "number") {
+              // convert seconds to milliseconds
+              convertedTiming.delay = animation.timing.delay * 1000;
+            } else if (typeof animation.timing.delay === "string") {
+              // convert string time value to milliseconds
+              const ms = getMilliseconds(animation.timing.delay);
+              if (ms != null) {
+                convertedTiming.delay = ms;
+              }
+            } else {
+              convertedTiming.delay = animation.timing.delay;
+            }
+          }
+          if (animation.timing.duration != null) {
+            if (typeof animation.timing.duration === "number") {
+              // convert seconds to milliseconds
+              convertedTiming.duration = animation.timing.duration * 1000;
+            } else if (typeof animation.timing.duration === "string") {
+              // convert string time value to milliseconds
+              const ms = getMilliseconds(animation.timing.duration);
+              if (ms != null) {
+                convertedTiming.duration = ms;
+              }
+            } else {
+              convertedTiming.duration = animation.timing.duration;
+            }
+          }
+          if (animation.timing.iterations != null) {
+            if (animation.timing.iterations === "infinite") {
+              // convert seconds to milliseconds
+              convertedTiming.iterations = Infinity;
+            } else {
+              convertedTiming.iterations = animation.timing.iterations;
+            }
+          }
+          if (animation.timing.direction) {
+            convertedTiming.direction = animation.timing.direction;
+          }
+          if (animation.timing.easing) {
+            convertedTiming.easing = animation.timing.easing;
+          }
+          if (animation.timing.fill) {
+            convertedTiming.fill = animation.timing.fill;
+          }
+          elementAnimations.push(
+            new Animation(
+              new KeyframeEffect(element, convertedKeyframes, convertedTiming)
+            )
+          );
+        });
+        // Play dom animations
+        elementAnimations.forEach((elementAnimation) => {
+          elementAnimation.play();
+        });
+      }
+      return AnimateElementMessage.type.result(params.element);
     }
     if (ObserveElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const el = this.getElement(params.id);
+      const el = this.getElement(params.element);
       if (el) {
         const listener = (event: Event) => {
           this.emit(EventMessage.type.notification(getEventData(event)));
         };
-        this._listeners[params.id] = listener;
+        this._listeners[params.element] = listener;
         el.addEventListener(params.event, listener);
       }
     }
     if (UnobserveElementMessage.type.isRequest(msg)) {
       const params = msg.params;
-      const el = this.getElement(params.id);
+      const el = this.getElement(params.element);
       if (el) {
-        const listener = this._listeners[params.id];
+        const listener = this._listeners[params.element];
         if (listener) {
           el.removeEventListener(params.event, listener);
         }

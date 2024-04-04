@@ -8,11 +8,12 @@ import { NotificationMessage } from "../../../core/types/NotificationMessage";
 import { ImageEvent, TextEvent } from "../../../core/types/SequenceEvent";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { Element } from "../classes/Element";
+import { Animation } from "../types/Animation";
 import { ElementContent } from "../types/ElementContent";
 import { ElementState } from "../types/ElementState";
 import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
-import { CloneElementMessage } from "./messages/CloneElementMessage";
+import { AnimateElementMessage } from "./messages/AnimateElementMessage";
 import { CreateElementMessage } from "./messages/CreateElementMessage";
 import { DestroyElementMessage } from "./messages/DestroyElementMessage";
 import { ObserveElementMessage } from "./messages/ObserveElementMessage";
@@ -133,7 +134,6 @@ export class UIManager extends Manager<UIState> {
     state?: ElementState
   ): Element {
     const id = this.generateId();
-    const index = parent?.children?.length ?? 0;
     const name = state?.name || "";
     const type = state?.type || "div";
     const content = state?.content;
@@ -147,10 +147,9 @@ export class UIManager extends Manager<UIState> {
     this.emit(
       CreateElementMessage.type.request({
         parent: parent?.id ?? null,
-        id,
+        element: id,
         type,
         name,
-        index,
         content,
         style,
         attributes,
@@ -167,7 +166,7 @@ export class UIManager extends Manager<UIState> {
     element.remove();
     this.emit(
       DestroyElementMessage.type.request({
-        id: element.id,
+        element: element.id,
       })
     );
   }
@@ -185,7 +184,7 @@ export class UIManager extends Manager<UIState> {
     const attributes = state?.attributes;
     this.emit(
       UpdateElementMessage.type.request({
-        id: element.id,
+        element: element.id,
         content,
         style,
         attributes,
@@ -193,34 +192,13 @@ export class UIManager extends Manager<UIState> {
     );
   }
 
-  protected _duplicateElement(element: Element): Element | undefined {
-    const id = this.generateId();
-    const type = element.type;
-    const name = element.name;
-    const el = new Element(element.parent, id, type, name);
-    element.children.forEach((child) => {
-      this._duplicateElement(child);
-    });
-    return el;
-  }
-
-  protected duplicateElement(
-    element: Element | undefined
-  ): Element | undefined {
-    if (!element) {
-      return undefined;
-    }
-    const clonedEl = this._duplicateElement(element);
-    if (clonedEl) {
-      this.emit(
-        CloneElementMessage.type.request({
-          targetId: element.id,
-          newId: clonedEl.id,
-        })
-      );
-      return clonedEl;
-    }
-    return undefined;
+  protected animateElement(element: Element, animations: Animation[]): void {
+    this.emit(
+      AnimateElementMessage.type.request({
+        element: element.id,
+        animations,
+      })
+    );
   }
 
   protected conceal() {
@@ -390,11 +368,8 @@ export class UIManager extends Manager<UIState> {
         import: properties,
       });
     }
-    // Process Style and Animation
-    const validStructNames = [
-      ...Object.keys(this._context?.["animation"] || {}),
-      ...Object.keys(this._context?.["style"] || {}),
-    ];
+    // Process Styles
+    const validStructNames = [...Object.keys(this._context?.["style"] || {})];
     validStructNames.forEach((structName) => {
       if (structName) {
         const styleStructObj = this._context?.["style"]?.[structName];
@@ -403,14 +378,6 @@ export class UIManager extends Manager<UIState> {
           properties[".target"] ??= structName;
           this.constructStyleElement(structName, {
             style: properties,
-          });
-        }
-        const animationStructObj = this._context?.["animation"]?.[structName];
-        if (animationStructObj) {
-          const properties = getAllProperties(animationStructObj);
-          properties[".target"] ??= structName;
-          this.constructStyleElement(structName, {
-            animation: properties,
           });
         }
       }
@@ -546,68 +513,18 @@ export class UIManager extends Manager<UIState> {
     return names;
   }
 
-  appendAnimation(
-    style: Record<string, string | null>,
-    name: string,
-    after?: number,
-    over?: number
-  ) {
-    if (name) {
-      const delay = `${after ?? 0}s`;
-      const duration = over != null ? `${over}s` : null;
-      const animationName = name;
-      const animationDelay =
-        delay ??
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_delay"
-        ] ??
-        "0s";
-      const animationDuration =
-        duration ??
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_duration"
-        ] ??
-        "0s";
-      const animationIterationCount =
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_iteration_count"
-        ] ?? "1";
-      const animationTimingFunction =
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_timing_function"
-        ] ?? "ease";
-      const animationFillMode =
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_fill_mode"
-        ] ?? "none";
-      const animationDirection =
-        this._context["animation"]?.[animationName]?.["style"]?.[
-          "animation_direction"
-        ] ?? "normal";
-      if (style["animation"]) {
-        style["animation"] += ", ";
-      } else {
-        style["animation"] = "";
-      }
-      style[
-        "animation"
-      ] += `${animationName} ${animationDuration} ${animationDelay} ${animationTimingFunction} ${animationIterationCount} ${animationFillMode} ${animationDirection}`;
-    }
-  }
-
   queueAnimationEvent(
     event: TextEvent | ImageEvent,
     instant: boolean,
-    style: Record<string, string | null>
+    animations: Animation[]
   ): void {
     const showAnimationName = "show";
     const hideAnimationName = "hide";
     const controlAfter = instant ? 0 : event.after;
     const controlOver = instant ? 0 : event.over;
     const exitAfter = instant ? 0 : event.exit;
-    if (style) {
-      style["display"] = null;
-      const childAnimations: { name: string; after?: number; over?: number }[] =
+    if (animations) {
+      const animationEvents: { name: string; after?: number; over?: number }[] =
         [];
       const controlAnimationName =
         event.control === "show"
@@ -616,28 +533,43 @@ export class UIManager extends Manager<UIState> {
           ? hideAnimationName
           : undefined;
       if (controlAnimationName) {
-        childAnimations.push({
+        animationEvents.push({
           name: controlAnimationName,
           after: controlAfter,
           over: controlOver,
         });
       }
       if (event.exit) {
-        childAnimations.push({
+        animationEvents.push({
           name: hideAnimationName,
           after: exitAfter,
           over: controlOver,
         });
       }
       if (event.with) {
-        childAnimations.push({
+        animationEvents.push({
           name: event.with,
           after: event.withAfter ?? controlAfter,
           over: event.withOver,
         });
       }
-      childAnimations.forEach(({ name, after, over }) => {
-        this.appendAnimation(style, name, after, over);
+      animationEvents.forEach(({ name, after, over }) => {
+        const delayOverride = `${after ?? 0}s`;
+        const durationOverride = over != null ? `${over}s` : null;
+        const animationName = name;
+        const animation = this._context["animation"]?.[
+          animationName
+        ] as Animation;
+        const delay = delayOverride ?? animation.timing.delay ?? "0s";
+        const duration = durationOverride ?? animation.timing.duration ?? "0s";
+        const iterations = animation.timing.iterations ?? 1;
+        const easing = animation.timing.easing ?? "ease";
+        const fill = animation.timing.fill ?? "none";
+        const direction = animation.timing.direction ?? "normal";
+        animations.push({
+          keyframes: animation.keyframes,
+          timing: { delay, duration, iterations, easing, fill, direction },
+        });
       });
     }
   }
@@ -667,14 +599,14 @@ export class UIManager extends Manager<UIState> {
       this.updateElement(targetEl, { style });
       this.emit(
         UpdateElementMessage.type.request({
-          id: targetEl.id,
+          element: targetEl.id,
           style,
         })
       );
       if (callback) {
         this.emit(
           ObserveElementMessage.type.request({
-            id: targetEl.id,
+            element: targetEl.id,
             event,
             stopPropagation,
             once,
@@ -686,7 +618,7 @@ export class UIManager extends Manager<UIState> {
         delete this._events[event]?.[targetEl.id];
         this.emit(
           UnobserveElementMessage.type.request({
-            id: targetEl.id,
+            element: targetEl.id,
             event,
           })
         );
@@ -761,16 +693,14 @@ export class UIManager extends Manager<UIState> {
         sequence: TextEvent[] | null,
         instant: boolean
       ): void {
-        const animatedElements = new Map<
-          Element,
-          Record<string, string | null>
-        >();
+        const elementStyles = new Map<Element, Record<string, string | null>>();
+        const elementAnimations = new Map<Element, Animation[]>();
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
-            if (!animatedElements.has(targetEl)) {
-              animatedElements.set(targetEl, {});
+            if (!elementStyles.has(targetEl)) {
+              elementStyles.set(targetEl, {});
             }
-            const targetStyle = animatedElements.get(targetEl)!;
+            const targetStyle = elementStyles.get(targetEl)!;
             targetStyle["display"] = null;
             let targetShown = false;
             // Enqueue text events
@@ -801,17 +731,21 @@ export class UIManager extends Manager<UIState> {
                 }
                 const parentEl = blockWrapper?.element || contentEl;
                 const text = e.text;
-                const style = { ...(e.style || {}), opacity: "0" };
+                const style = {
+                  ...(e.style || {}),
+                  display: null,
+                  opacity: "0",
+                };
                 const spanEl = $.createElement(parentEl, {
                   type: "span",
                   content: { text },
                   style,
                 });
-                if (!animatedElements.has(spanEl)) {
-                  animatedElements.set(spanEl, {});
+                if (!elementAnimations.has(spanEl)) {
+                  elementAnimations.set(spanEl, []);
                 }
-                const spanStyle = animatedElements.get(spanEl)!;
-                $.queueAnimationEvent(e, instant, spanStyle);
+                const spanAnimations = elementAnimations.get(spanEl)!;
+                $.queueAnimationEvent(e, instant, spanAnimations);
                 if (e.control === "show" && !targetShown) {
                   $.queueTransitionInEvent(e, instant, targetStyle);
                   targetShown = true;
@@ -828,9 +762,13 @@ export class UIManager extends Manager<UIState> {
             }
           }
         });
-        // Animate elements
-        animatedElements.forEach((style, element) => {
+        // Update element styles
+        elementStyles.forEach((style, element) => {
           $.updateElement(element, { style });
+        });
+        // Animate elements
+        elementAnimations.forEach((animations, element) => {
+          $.animateElement(element, animations);
         });
       }
 
@@ -923,16 +861,14 @@ export class UIManager extends Manager<UIState> {
         sequence: ImageEvent[] | null,
         instant: boolean
       ): void {
-        const animatedElements = new Map<
-          Element,
-          Record<string, string | null>
-        >();
+        const elementStyles = new Map<Element, Record<string, string | null>>();
+        const elementAnimations = new Map<Element, Animation[]>();
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
-            if (!animatedElements.has(targetEl)) {
-              animatedElements.set(targetEl, {});
+            if (!elementStyles.has(targetEl)) {
+              elementStyles.set(targetEl, {});
             }
-            const targetStyle = animatedElements.get(targetEl)!;
+            const targetStyle = elementStyles.get(targetEl)!;
             targetStyle["display"] = null;
             let targetShown = false;
             // Enqueue image events
@@ -946,6 +882,7 @@ export class UIManager extends Manager<UIState> {
                   );
                   const style: Record<string, string | null> = {
                     ...(e.style || {}),
+                    display: null,
                     opacity: "0",
                   };
                   const combinedBackgroundImage = $.getImageAssetNames(e.assets)
@@ -957,22 +894,22 @@ export class UIManager extends Manager<UIState> {
                     type: "span",
                     style,
                   });
-                  if (!animatedElements.has(spanEl)) {
-                    animatedElements.set(spanEl, {});
+                  if (!elementAnimations.has(spanEl)) {
+                    elementAnimations.set(spanEl, []);
                   }
-                  const spanStyle = animatedElements.get(spanEl)!;
-                  $.queueAnimationEvent(e, instant, spanStyle);
+                  const spanAnimations = elementAnimations.get(spanEl)!;
+                  $.queueAnimationEvent(e, instant, spanAnimations);
                   if (e.control === "show" && !targetShown) {
                     $.queueTransitionInEvent(e, instant, targetStyle);
                     targetShown = true;
                   }
                 } else {
                   // We are affecting the image wrapper
-                  if (!animatedElements.has(targetEl)) {
-                    animatedElements.set(targetEl, {});
+                  if (!elementAnimations.has(targetEl)) {
+                    elementAnimations.set(targetEl, []);
                   }
-                  const targetStyle = animatedElements.get(targetEl)!;
-                  $.queueAnimationEvent(e, instant, targetStyle);
+                  const targetAnimations = elementAnimations.get(targetEl)!;
+                  $.queueAnimationEvent(e, instant, targetAnimations);
                 }
               });
             } else {
@@ -986,9 +923,13 @@ export class UIManager extends Manager<UIState> {
             }
           }
         });
-        // Animate elements
-        animatedElements.forEach((style, element) => {
+        // Update element styles
+        elementStyles.forEach((style, element) => {
           $.updateElement(element, { style });
+        });
+        // Animate elements
+        elementAnimations.forEach((animations, element) => {
+          $.animateElement(element, animations);
         });
       }
 
@@ -1003,26 +944,6 @@ export class UIManager extends Manager<UIState> {
         this.getTargets().forEach((target) => {
           if (!$._context?.["style"]?.[target]?.preserve_image) {
             this.clearContent(target);
-          }
-        });
-      }
-
-      clearStaleAnimations(): void {
-        this.getTargets().forEach((target) => {
-          if (!$._context?.["style"]?.[target]?.preserve_image) {
-            $.findElements(target).forEach((targetEl) => {
-              $.updateElement(targetEl, {
-                style: {
-                  animation_name: null,
-                  animation_iteration_count: null,
-                  animation_timing_function: null,
-                  animation_fill_mode: null,
-                  animation_duration: null,
-                  animation_delay: null,
-                  animation_direction: null,
-                },
-              });
-            });
           }
         });
       }

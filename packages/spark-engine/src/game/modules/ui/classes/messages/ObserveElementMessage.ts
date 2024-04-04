@@ -3,7 +3,7 @@ import { MessageProtocolRequestType } from "../../../../core/classes/MessageProt
 export type ObserveElementMethod = typeof ObserveElementMessage.method;
 
 export interface ObserveElementParams {
-  id: string;
+  element: string;
   event: string;
   stopPropagation: boolean;
   once: boolean;

@@ -23,18 +23,11 @@ export class Element {
   get name() {
     return this._name;
   }
-
-  protected _index: number;
-  get index() {
-    return this._index;
-  }
-
   constructor(parent: Element | null, id: string, type: string, name: string) {
     this._parent = parent;
     this._id = id;
     this._type = type;
     this._name = name;
-    this._index = parent?.children.length ?? 0;
     parent?.appendChild(this);
   }
 
@@ -47,17 +40,12 @@ export class Element {
   }
 
   findChild(selector: string): Element | undefined {
-    return this._children.find(
-      (child) =>
-        selector === child.name || selector === child.name + " " + child.index
-    );
+    return this._children.find((child) => selector === child.name);
   }
 
   findChildren(...selectors: string[]): Element[] {
     return this._children.filter((child) =>
-      selectors.some(
-        (name) => name === child.name || name === child.name + " " + child.index
-      )
+      selectors.some((name) => name === child.name)
     );
   }
 

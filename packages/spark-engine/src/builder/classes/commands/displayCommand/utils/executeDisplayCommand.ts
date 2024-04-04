@@ -69,8 +69,6 @@ export const executeDisplayCommand = (
     game.module.ui.text.clearStaleContent();
     // Clear stale images
     game.module.ui.image.clearStaleContent();
-    // Clear stale animations
-    game.module.ui.image.clearStaleAnimations();
   };
 
   // Sequence events

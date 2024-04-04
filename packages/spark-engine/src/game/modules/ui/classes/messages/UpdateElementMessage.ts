@@ -4,7 +4,7 @@ import { ElementContent } from "../../types/ElementContent";
 export type UpdateElementMethod = typeof UpdateElementMessage.method;
 
 export interface UpdateElementParams {
-  id: string;
+  element: string;
   content?: ElementContent;
   style?: Record<string, string | null> | null;
   attributes?: Record<string, string | null> | null;
