@@ -48,7 +48,7 @@ export interface UIConfig {
 
 export interface UIState {
   text?: Record<string, TextState[]>;
-  image?: Record<string, ImageState[]>;
+  image?: Record<string, { layer?: ImageState; content?: ImageState }>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
 }
@@ -810,39 +810,54 @@ export class UIManager extends Manager<UIState> {
     class Image {
       protected saveState(target: string, sequence: ImageEvent[] | null) {
         $._state.image ??= {};
-        $._state.image[target] ??= [];
+        $._state.image[target] ??= {};
         const state = $._state.image[target]!;
         if (sequence) {
           sequence.forEach((e) => {
             if ((e.control === "show" || e.control === "hide") && !e.exit) {
-              const prev = state.at(-1);
-              if (
-                prev &&
-                JSON.stringify(prev?.assets || []) ===
-                  JSON.stringify(e.assets || [])
-              ) {
-                prev.control = e.control;
-                prev.with = e.with;
-              } else {
-                const s: ImageState = {
-                  control: e.control,
-                  assets: e.assets,
-                  with: e.with,
-                  over: 0,
-                };
-                state.push(s);
+              const hasContent = e.assets && e.assets.length > 0;
+              if (hasContent) {
+                if (state.content) {
+                  state.content.control = e.control;
+                  state.content.with = e.with;
+                } else {
+                  state.content = {
+                    control: e.control,
+                    assets: e.assets,
+                    with: e.with,
+                    over: 0,
+                  };
+                }
+              }
+              if (!hasContent || e.control === "show") {
+                if (state.layer) {
+                  state.layer.control = e.control;
+                  state.layer.with = e.with;
+                } else {
+                  state.layer = {
+                    control: e.control,
+                    with: e.with,
+                    over: 0,
+                  };
+                }
               }
             }
           });
         } else {
-          state.length = 0;
+          delete state.layer;
+          delete state.content;
         }
       }
 
       restore(target: string) {
         const state = $._state.image?.[target];
         if (state) {
-          this.applyChanges(target, state, true);
+          if (state.content) {
+            this.applyChanges(target, [state.content], true);
+          }
+          if (state.layer) {
+            this.applyChanges(target, [state.layer], true);
+          }
         }
       }
 
