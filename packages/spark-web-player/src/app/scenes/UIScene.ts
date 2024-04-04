@@ -153,7 +153,6 @@ export default class UIScene extends Scene {
         animation: Animation;
         persist: boolean;
       }[] = [];
-      console.log("animate", element?.className, element?.id, animations);
       if (element) {
         // Convert engine animations to dom animations
         animations.forEach((animation) => {
@@ -255,19 +254,21 @@ export default class UIScene extends Scene {
             persist,
           });
         });
-        // Play dom animations
-        effects.forEach((effect) => {
-          effect.animation.play();
-          effect.animation.finished.then(() => {
-            const isDisplayed =
-              (effect.element as HTMLElement).offsetParent != null;
-            if (isDisplayed) {
-              effect.animation.commitStyles();
-              effect.animation.cancel();
-            }
-          });
-        });
       }
+      // Play dom animations
+      await Promise.allSettled(
+        effects.map(async (effect) => {
+          effect.animation.play();
+          await effect.animation.finished;
+          const isDisplayed =
+            (effect.element as HTMLElement).offsetParent != null;
+          if (isDisplayed) {
+            effect.animation.commitStyles();
+            effect.animation.cancel();
+          }
+        })
+      );
+      // Send response when all animations are complete
       return AnimateElementMessage.type.result(params.element);
     }
     if (ObserveElementMessage.type.isRequest(msg)) {
