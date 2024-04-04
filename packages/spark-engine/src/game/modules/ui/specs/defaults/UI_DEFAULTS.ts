@@ -8,52 +8,55 @@ export const UI_DEFAULTS = {
     },
   },
   stage: {
-    backdrop: {
-      image: {},
+    background: {
+      backdrop: {
+        image: {},
+      },
+      portrait: {
+        image: {},
+      },
+      top: {},
+      middle: {
+        choices: {
+          choice: {
+            text: {},
+          },
+        },
+      },
+      textbox: {
+        box_background: {},
+      },
     },
-    portrait: {
-      image: {},
-    },
-    top: {},
-    middle: {
-      choices: {
-        choice: {
+    textbox: {
+      content: {
+        dialogue_group: {
+          character_name: {
+            text: {},
+          },
+          character_parenthetical: {
+            text: {},
+          },
+          dialogue_content: {
+            parenthetical: {
+              text: {},
+            },
+            dialogue: {
+              text: {},
+            },
+          },
+        },
+        action: {
+          text: {},
+        },
+        transition: {
+          text: {},
+        },
+        scene: {
           text: {},
         },
       },
-    },
-    bottom: {
-      box: {
-        content: {
-          dialogue_group: {
-            character_name: {
-              text: {},
-            },
-            character_parenthetical: {
-              text: {},
-            },
-            dialogue_content: {
-              parenthetical: {
-                text: {},
-              },
-              dialogue: {
-                text: {},
-              },
-            },
-          },
-          action: {
-            text: {},
-          },
-          transition: {
-            text: {},
-          },
-          scene: {
-            text: {},
-          },
-        },
-        indicator: {
-          text: "▼",
-        },
+      indicator: {
+        text: "▼",
       },
     },
   },

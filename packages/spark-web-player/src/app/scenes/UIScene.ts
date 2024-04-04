@@ -148,7 +148,12 @@ export default class UIScene extends Scene {
       const params = msg.params;
       const element = this.getElement(params.element);
       const animations = params.animations;
-      const elementAnimations: Animation[] = [];
+      const effects: {
+        element: Element;
+        animation: Animation;
+        persist: boolean;
+      }[] = [];
+      console.log("animate", element?.className, element?.id, animations);
       if (element) {
         // Convert engine animations to dom animations
         animations.forEach((animation) => {
@@ -239,15 +244,28 @@ export default class UIScene extends Scene {
           if (animation.timing.fill) {
             convertedTiming.fill = animation.timing.fill;
           }
-          elementAnimations.push(
-            new Animation(
+          const persist =
+            convertedTiming.fill === "forwards" ||
+            convertedTiming.fill === "both";
+          effects.push({
+            element,
+            animation: new Animation(
               new KeyframeEffect(element, convertedKeyframes, convertedTiming)
-            )
-          );
+            ),
+            persist,
+          });
         });
         // Play dom animations
-        elementAnimations.forEach((elementAnimation) => {
-          elementAnimation.play();
+        effects.forEach((effect) => {
+          effect.animation.play();
+          effect.animation.finished.then(() => {
+            const isDisplayed =
+              (effect.element as HTMLElement).offsetParent != null;
+            if (isDisplayed) {
+              effect.animation.commitStyles();
+              effect.animation.cancel();
+            }
+          });
         });
       }
       return AnimateElementMessage.type.result(params.element);

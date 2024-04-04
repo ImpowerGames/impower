@@ -574,18 +574,6 @@ export class UIManager extends Manager<UIState> {
     }
   }
 
-  queueTransitionInEvent(
-    event: TextEvent | ImageEvent,
-    instant: boolean,
-    style: Record<string, string | null>
-  ): void {
-    const controlAfter = instant ? 0 : event.after;
-    if (style) {
-      style["transition_delay"] = `${controlAfter}s`;
-      style["opacity"] = "1";
-    }
-  }
-
   protected setEventListener<T extends keyof EventMap>(
     event: T,
     target: string,
@@ -693,15 +681,12 @@ export class UIManager extends Manager<UIState> {
         sequence: TextEvent[] | null,
         instant: boolean
       ): void {
-        const elementStyles = new Map<Element, Record<string, string | null>>();
         const elementAnimations = new Map<Element, Animation[]>();
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
-            if (!elementStyles.has(targetEl)) {
-              elementStyles.set(targetEl, {});
-            }
-            const targetStyle = elementStyles.get(targetEl)!;
-            targetStyle["display"] = null;
+            $.updateElement(targetEl, {
+              style: { display: null },
+            });
             let targetShown = false;
             // Enqueue text events
             if (sequence) {
@@ -747,7 +732,11 @@ export class UIManager extends Manager<UIState> {
                 const spanAnimations = elementAnimations.get(spanEl)!;
                 $.queueAnimationEvent(e, instant, spanAnimations);
                 if (e.control === "show" && !targetShown) {
-                  $.queueTransitionInEvent(e, instant, targetStyle);
+                  if (!elementAnimations.has(targetEl)) {
+                    elementAnimations.set(targetEl, []);
+                  }
+                  const targetAnimations = elementAnimations.get(targetEl)!;
+                  $.queueAnimationEvent(e, instant, targetAnimations);
                   targetShown = true;
                 }
               });
@@ -761,10 +750,6 @@ export class UIManager extends Manager<UIState> {
               }
             }
           }
-        });
-        // Update element styles
-        elementStyles.forEach((style, element) => {
-          $.updateElement(element, { style });
         });
         // Animate elements
         elementAnimations.forEach((animations, element) => {
@@ -839,6 +824,7 @@ export class UIManager extends Manager<UIState> {
                   control: e.control,
                   assets: e.assets,
                   with: e.with,
+                  over: 0,
                 };
                 state.push(s);
               }
@@ -861,15 +847,12 @@ export class UIManager extends Manager<UIState> {
         sequence: ImageEvent[] | null,
         instant: boolean
       ): void {
-        const elementStyles = new Map<Element, Record<string, string | null>>();
         const elementAnimations = new Map<Element, Animation[]>();
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
-            if (!elementStyles.has(targetEl)) {
-              elementStyles.set(targetEl, {});
-            }
-            const targetStyle = elementStyles.get(targetEl)!;
-            targetStyle["display"] = null;
+            $.updateElement(targetEl, {
+              style: { display: null },
+            });
             let targetShown = false;
             // Enqueue image events
             if (sequence) {
@@ -900,7 +883,11 @@ export class UIManager extends Manager<UIState> {
                   const spanAnimations = elementAnimations.get(spanEl)!;
                   $.queueAnimationEvent(e, instant, spanAnimations);
                   if (e.control === "show" && !targetShown) {
-                    $.queueTransitionInEvent(e, instant, targetStyle);
+                    if (!elementAnimations.has(targetEl)) {
+                      elementAnimations.set(targetEl, []);
+                    }
+                    const targetAnimations = elementAnimations.get(targetEl)!;
+                    $.queueAnimationEvent(e, instant, targetAnimations);
                     targetShown = true;
                   }
                 } else {
@@ -922,10 +909,6 @@ export class UIManager extends Manager<UIState> {
               }
             }
           }
-        });
-        // Update element styles
-        elementStyles.forEach((style, element) => {
-          $.updateElement(element, { style });
         });
         // Animate elements
         elementAnimations.forEach((animations, element) => {
