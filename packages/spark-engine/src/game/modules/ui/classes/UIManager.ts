@@ -814,10 +814,14 @@ export class UIManager extends Manager<UIState> {
         const state = $._state.image[target]!;
         if (sequence) {
           sequence.forEach((e) => {
-            if (!e.exit) {
+            if ((e.control === "show" || e.control === "hide") && !e.exit) {
               const prev = state.at(-1);
-              if (prev) {
-                prev.assets = e.assets;
+              if (
+                prev &&
+                JSON.stringify(prev?.assets || []) ===
+                  JSON.stringify(e.assets || [])
+              ) {
+                prev.control = e.control;
                 prev.with = e.with;
               } else {
                 const s: ImageState = {

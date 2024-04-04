@@ -135,13 +135,10 @@ export const executeDisplayCommand = (
 
   game.module.ui.showUI("stage");
 
-  if (instant) {
-    handleFinished();
-    const indicatorStyle: Record<string, string | null> = {};
-    indicatorStyle["transition"] = "none";
-    indicatorStyle["opacity"] = "1";
-    game.module.ui.style.update("indicator", indicatorStyle);
+  if (instant || game.context.system.simulating) {
     updateUI();
+    handleFinished();
+    return { displayed };
   }
 
   let elapsedMS = 0;
