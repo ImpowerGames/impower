@@ -18,8 +18,35 @@ export const UI_DEFAULTS = {
       top: {},
       middle: {
         choices: {
-          choice: {
-            text: {},
+          choice_0: {
+            choice: {
+              text: {},
+            },
+          },
+          choice_1: {
+            choice: {
+              text: {},
+            },
+          },
+          choice_2: {
+            choice: {
+              text: {},
+            },
+          },
+          choice_3: {
+            choice: {
+              text: {},
+            },
+          },
+          choice_4: {
+            choice: {
+              text: {},
+            },
+          },
+          choice_5: {
+            choice: {
+              text: {},
+            },
           },
         },
       },
