@@ -8,8 +8,6 @@ const EDITOR_THEME: {
     boxSizing: "border-box",
   },
   "&": {
-    opacity: 0,
-    transition: "opacity 0.25s",
     fontFamily: "Courier Prime Sans",
     color: EDITOR_COLORS.foreground,
     flex: 1,
