@@ -739,7 +739,11 @@ export class UIManager extends Manager<UIState> {
                     elementAnimations.set(targetEl, []);
                   }
                   const targetAnimations = elementAnimations.get(targetEl)!;
-                  $.queueAnimationEvent(e, instant, targetAnimations);
+                  $.queueAnimationEvent(
+                    { control: "show", after: e.after },
+                    instant,
+                    targetAnimations
+                  );
                   targetShown = true;
                 }
               });
@@ -909,7 +913,11 @@ export class UIManager extends Manager<UIState> {
                       elementAnimations.set(targetEl, []);
                     }
                     const targetAnimations = elementAnimations.get(targetEl)!;
-                    $.queueAnimationEvent(e, instant, targetAnimations);
+                    $.queueAnimationEvent(
+                      { control: "show", after: e.after },
+                      instant,
+                      targetAnimations
+                    );
                     targetShown = true;
                   }
                 } else {

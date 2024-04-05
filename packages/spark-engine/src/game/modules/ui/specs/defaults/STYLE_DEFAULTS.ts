@@ -58,6 +58,7 @@ export const STYLE_DEFAULTS = {
   screen: {
     position: "absolute",
     inset: 0,
+    pointer_events: "none",
   },
   background: {
     position: "absolute",
