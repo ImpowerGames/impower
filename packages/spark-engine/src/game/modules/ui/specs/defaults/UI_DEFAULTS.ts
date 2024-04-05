@@ -15,7 +15,6 @@ export const UI_DEFAULTS = {
       portrait: {
         image: {},
       },
-      top: {},
       middle: {
         choices: {
           choice_0: {
