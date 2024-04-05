@@ -55,12 +55,13 @@ export const STYLE_DEFAULTS = {
     transform: "scaleX(var(--loading_progress))",
     transform_origin: "left",
   },
+  screen: {
+    position: "absolute",
+    inset: 0,
+  },
   background: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    inset: 0,
     display: "flex",
     flex_direction: "column",
   },
@@ -110,6 +111,7 @@ export const STYLE_DEFAULTS = {
     width: "90%",
     max_width: 800,
     text_align: "center",
+    opacity: "0",
   },
   bottom: {
     position: "relative",

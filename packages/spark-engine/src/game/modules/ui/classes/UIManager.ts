@@ -560,16 +560,19 @@ export class UIManager extends Manager<UIState> {
         const animation = this._context["animation"]?.[
           animationName
         ] as Animation;
-        const delay = delayOverride ?? animation.timing.delay ?? "0s";
-        const duration = durationOverride ?? animation.timing.duration ?? "0s";
-        const iterations = animation.timing.iterations ?? 1;
-        const easing = animation.timing.easing ?? "ease";
-        const fill = animation.timing.fill ?? "none";
-        const direction = animation.timing.direction ?? "normal";
-        animations.push({
-          keyframes: animation.keyframes,
-          timing: { delay, duration, iterations, easing, fill, direction },
-        });
+        if (animation) {
+          const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
+          const duration =
+            durationOverride ?? animation?.timing?.duration ?? "0s";
+          const iterations = animation?.timing?.iterations ?? 1;
+          const easing = animation?.timing?.easing ?? "ease";
+          const fill = animation?.timing?.fill ?? "none";
+          const direction = animation?.timing?.direction ?? "normal";
+          animations.push({
+            keyframes: animation?.keyframes,
+            timing: { delay, duration, iterations, easing, fill, direction },
+          });
+        }
       });
     }
   }
@@ -814,7 +817,7 @@ export class UIManager extends Manager<UIState> {
         const state = $._state.image[target]!;
         if (sequence) {
           sequence.forEach((e) => {
-            if ((e.control === "show" || e.control === "hide") && !e.exit) {
+            if (!e.exit) {
               const hasContent = e.assets && e.assets.length > 0;
               if (hasContent) {
                 if (state.content) {

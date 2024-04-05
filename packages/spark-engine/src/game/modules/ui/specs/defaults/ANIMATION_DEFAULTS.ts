@@ -333,4 +333,118 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       iterations: "infinite",
     },
   },
+  flash: {
+    keyframes: [
+      {
+        background_color: "#999999",
+        opacity: "0",
+      },
+      {
+        background_color: "#999999",
+        opacity: "1",
+      },
+      {
+        background_color: "#999999",
+        opacity: "0",
+      },
+    ],
+    timing: {
+      duration: "120ms",
+      easing: "linear",
+    },
+  },
+  fadeout: {
+    keyframes: [
+      {
+        background_color: "black",
+        opacity: "0",
+      },
+    ],
+    timing: {
+      duration: "0.5s",
+      easing: "linear",
+      fill: "forwards",
+    },
+  },
+  fadein: {
+    keyframes: [
+      {
+        background_color: "black",
+        opacity: "1",
+      },
+    ],
+    timing: {
+      duration: "0.5s",
+      easing: "linear",
+      fill: "forwards",
+    },
+  },
+  blackout: {
+    keyframes: [
+      {
+        background_color: "black",
+        opacity: "0",
+      },
+      {
+        background_color: "black",
+        opacity: "1",
+      },
+    ],
+    timing: {
+      duration: "1s",
+      easing: "linear",
+      fill: "forwards",
+    },
+  },
+  blackin: {
+    keyframes: [
+      {
+        background_color: "black",
+        opacity: "1",
+      },
+      {
+        background_color: "black",
+        opacity: "0",
+      },
+    ],
+    timing: {
+      duration: "1s",
+      easing: "linear",
+      fill: "forwards",
+    },
+  },
+  whiteout: {
+    keyframes: [
+      {
+        background_color: "white",
+        opacity: "0",
+      },
+      {
+        background_color: "white",
+        opacity: "1",
+      },
+    ],
+    timing: {
+      duration: "1s",
+      easing: "linear",
+      fill: "forwards",
+    },
+  },
+  whitein: {
+    keyframes: [
+      {
+        background_color: "white",
+        opacity: "1",
+      },
+      {
+        background_color: "white",
+        opacity: "0",
+      },
+    ],
+    timing: {
+      duration: "1s",
+      easing: "linear",
+      fill: "forwards",
+    },
+  },
 };

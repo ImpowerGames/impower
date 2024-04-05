@@ -59,5 +59,6 @@ export const UI_DEFAULTS = {
         text: "▼",
       },
     },
+    screen: {},
   },
 };
