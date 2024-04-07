@@ -166,6 +166,7 @@ const createEditorView = (
     extensions: [
       ...restoredExtensions,
       EditorView.theme(EDITOR_THEME, { dark: true }),
+      EditorView.contentAttributes.of({ autocomplete: "off" }),
       EDITOR_EXTENSIONS,
       readOnly.of(EditorState.readOnly.of(false)),
       editable.of(EditorView.editable.of(true)),
