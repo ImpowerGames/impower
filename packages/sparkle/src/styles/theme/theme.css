@@ -72,6 +72,7 @@
     Helvetica, Arial, system-ui, sans-serif, "Apple Color Emoji",
     "Segoe UI Emoji", "Segoe UI Symbol";
   --s-font-serif: Georgia, "Times New Roman", serif;
+  --s-font-icon: "icon";
 
   /* Type Scales */
   --s-text-2xs-font-size: 0.6875rem;
@@ -280,6 +281,9 @@
   --s-toggle-size-sm: 0.875rem; /* 14px */
   --s-toggle-size-md: 1.125rem; /* 18px */
   --s-toggle-size-lg: 1.375rem; /* 22px */
+
+  /* Icon size */
+  --s-icon-size: 1.5rem /* 24px */;
 }
 
 .s-scroll-lock {

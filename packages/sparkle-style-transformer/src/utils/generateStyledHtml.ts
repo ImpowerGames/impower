@@ -32,13 +32,11 @@ const inferTransformer = (
   name: string,
   config: {
     patterns?: Record<string, Graphic>;
-    icons?: Record<string, Graphic>;
   }
 ): ((v: string) => string) | undefined => {
   const patterns = config?.patterns || {};
-  const icons = config?.icons || {};
   if (name === "icon" || name.endsWith("-icon")) {
-    const getIcon = (v: string) => getCssIcon(v, icons);
+    const getIcon = (v: string) => getCssIcon(v);
     return getIcon;
   }
   if (name === "pattern" || name.endsWith("-pattern")) {

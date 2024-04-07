@@ -4,7 +4,7 @@
 :host {
   --child-justify: center;
   --child-align: center;
-  --size: calc(1em * var(--s-scale-icon));
+  --size: var(--s-icon-size);
 }
 
 :host > .root {
@@ -15,14 +15,10 @@
   height: var(--size);
   min-width: var(--size);
   min-height: var(--size);
-  -webkit-mask-image: var(--icon, none);
-  mask-image: var(--icon, none);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: cover;
-  mask-size: cover;
-  background-color: currentColor;
+  font-size: var(--size);
   will-change: transform;
+  color: (--color);
+}
+:host > .root:before {
+  content: var(--icon);
 }

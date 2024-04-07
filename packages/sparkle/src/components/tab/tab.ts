@@ -2,7 +2,6 @@ import getCssColor from "../../../../sparkle-style-transformer/src/utils/getCssC
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
@@ -17,8 +16,8 @@ import spec from "./_tab";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
-  icon: (v: string) => getCssIcon(v, STYLES.icons),
-  "active-icon": (v: string) => getCssIcon(v, STYLES.icons),
+  icon: (v: string) => getCssIcon(v),
+  "active-icon": (v: string) => getCssIcon(v),
   "icon-size": getCssSize,
   "hover-color": getCssColor,
 };

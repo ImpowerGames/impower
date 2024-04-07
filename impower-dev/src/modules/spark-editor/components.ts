@@ -1,5 +1,4 @@
 import transformer from "../../../../packages/sparkle-style-transformer/src/index";
-import sparkleIconsCSS from "../../../../packages/sparkle/src/styles/icons/icons.css";
 import sparklePatternsCSS from "../../../../packages/sparkle/src/styles/patterns/patterns.css";
 import { ComponentSpec } from "../../../../packages/spec-component/src/spec";
 import baseNormalize from "../../../../packages/spec-component/src/styles/normalize/normalize.css";
@@ -44,15 +43,10 @@ import ShareGame from "./components/share-game/_share-game";
 import ShareProject from "./components/share-project/_share-project";
 import Share from "./components/share/_share";
 import Main from "./main/_spark-editor";
-import {
-  default as icons,
-  default as iconsCSS,
-} from "./styles/icons/icons.css";
 import normalize from "./styles/normalize/normalize.css";
 import theme from "./styles/theme/theme.css";
 
 const config = {
-  icons: [sparkleIconsCSS, iconsCSS],
   patterns: [sparklePatternsCSS],
 };
 
@@ -81,7 +75,6 @@ const components = [
   { tag: "", css: baseNormalize },
   { tag: "", css: normalize },
   { tag: "", css: theme },
-  { tag: "", css: icons },
   style(InteractionBlocker),
   style(OptionButton),
   style(FileOptionsButton),

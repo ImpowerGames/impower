@@ -34,10 +34,6 @@ import animations from "./styles/animations/animations.css";
 import dark from "./styles/dark/dark.css";
 import easings from "./styles/easings/easings.css";
 import gradients from "./styles/gradients/gradients.css";
-import {
-  default as icons,
-  default as iconsCSS,
-} from "./styles/icons/icons.css";
 import keyframes from "./styles/keyframes/keyframes.css";
 import light from "./styles/light/light.css";
 import masks from "./styles/masks/masks.css";
@@ -51,7 +47,6 @@ import theme from "./styles/theme/theme.css";
 
 const config = {
   patterns: [patternsCSS],
-  icons: [iconsCSS],
 };
 
 const style = <
@@ -82,7 +77,6 @@ const components = [
   { tag: "", css: keyframes },
   { tag: "", css: animations },
   { tag: "", css: gradients },
-  { tag: "", css: icons },
   { tag: "", css: patterns },
   { tag: "", css: masks },
   { tag: "", css: dark },

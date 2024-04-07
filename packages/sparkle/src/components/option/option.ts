@@ -1,7 +1,6 @@
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssMask from "../../../../sparkle-style-transformer/src/utils/getCssMask";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
@@ -19,10 +18,11 @@ const CHANGED_EVENT = "changed";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
-  icon: (v: string) => getCssIcon(v, STYLES.icons),
-  "active-icon": (v: string) => getCssIcon(v, STYLES.icons),
+  icon: (v: string) => getCssIcon(v),
+  "active-icon": (v: string) => getCssIcon(v),
   spacing: getCssSize,
   size: getCssSize,
+  "icon-size": getCssSize,
 };
 
 const DEFAULT_ATTRIBUTES = {
@@ -175,6 +175,16 @@ export default class Option
   }
   set size(value) {
     this.setStringAttribute(Option.attrs.size, value);
+  }
+
+  /**
+   * The size of the icon.
+   */
+  get iconSize(): SizeName | string | null {
+    return this.getStringAttribute(Option.attrs.iconSize);
+  }
+  set iconSize(value) {
+    this.setStringAttribute(Option.attrs.iconSize, value);
   }
 
   /**

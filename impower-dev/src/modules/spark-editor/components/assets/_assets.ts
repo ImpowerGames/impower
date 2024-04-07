@@ -24,8 +24,8 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              active-icon="photo white"
-              icon="photo #5b799a"
+              active-icon="photo"
+              icon="photo"
               value="files"
               ${panel === "files" ? "active" : ""}
             >
@@ -36,8 +36,8 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              active-icon="sliders white"
-              icon="sliders #5b799a"
+              active-icon="sliders"
+              icon="sliders"
               value="specs"
               ${panel === "specs" ? "active" : ""}
             >

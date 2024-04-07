@@ -28,14 +28,14 @@ export default spec({
           height="48"
           color="fg-50"
           variant="icon"
-          icon="dots-vertical #ffffff80"
+          icon="dots-vertical"
         ></s-button>
         <slot slot="options">
           <s-option
             key="debug"
             type="toggle"
-            icon="bug-off #ffffff80"
-            active-icon="check white"
+            icon="bug-off"
+            active-icon="check"
             ${debugging ? "active" : ""}
             >Debugging</s-option
           >
@@ -49,7 +49,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-skip-back-fill white"
+        icon="player-skip-backward-fill"
       ></s-button>
       <s-button
         id="fastBackwardButton"
@@ -57,7 +57,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-track-prev-fill white"
+        icon="player-track-previous-fill"
       ></s-button>
       <s-button
         id="pauseToggleButton"
@@ -66,7 +66,7 @@ export default spec({
         color="fg"
         variant="icon"
         text-size="20"
-        icon="${paused ? `player-play-fill white` : `player-pause-fill white`}"
+        icon="${paused ? `player-play-fill` : `player-pause-fill`}"
       ></s-button>
       <s-button
         id="fastForwardButton"
@@ -74,7 +74,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-track-next-fill white"
+        icon="player-track-next-fill"
       ></s-button>
       <s-button
         id="stepForwardButton"
@@ -82,7 +82,7 @@ export default spec({
         height="48"
         color="fg"
         variant="icon"
-        icon="player-skip-forward-fill white"
+        icon="player-skip-forward-fill"
       ></s-button>
     `;
     const loadingToolbar = () => html`
@@ -152,8 +152,8 @@ export default spec({
         color="primary-70"
       >
         <s-icon
-          icon="${running ? `player-stop #3abff8` : `player-play #3abff8`}"
-          size="20"
+          icon="${running ? `player-stop` : `player-play`}"
+          size="20px"
           m-b="1"
         ></s-icon>
         ${running ? `STOP` : `PLAY`}

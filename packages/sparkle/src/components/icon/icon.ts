@@ -1,6 +1,5 @@
 import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
-import STYLES from "../../../../spec-component/src/caches/STYLE_CACHE";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../../spec-component/src/utils/getAttributeNameMap";
@@ -15,7 +14,7 @@ import spec from "./_icon";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
-  icon: (v: string) => getCssIcon(v, STYLES.icons),
+  icon: (v: string) => getCssIcon(v),
   size: getCssSize,
 };
 

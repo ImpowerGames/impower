@@ -24,8 +24,8 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="star #5b799a"
-              active-icon="star white"
+              icon="star"
+              active-icon="star"
               value="main"
               ${panel === "main" ? "active" : ""}
             >
@@ -36,8 +36,8 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="file-text #5b799a"
-              active-icon="file-text white"
+              icon="file-text"
+              active-icon="file-text"
               value="scripts"
               ${panel === "scripts" ? "active" : ""}
             >

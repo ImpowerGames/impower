@@ -24,8 +24,8 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="pacman #5b799a"
-              active-icon="pacman white"
+              icon="pacman"
+              active-icon="pacman"
               value="game"
               ${panel === "game" ? "active" : ""}
             >
@@ -36,8 +36,8 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="album #5b799a"
-              active-icon="album white"
+              icon="album"
+              active-icon="album"
               value="project"
               ${panel === "project" ? "active" : ""}
             >

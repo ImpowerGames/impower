@@ -20,7 +20,7 @@ export default spec({
     const syncButton = () => html`
       <s-button
         id="syncButton"
-        icon="refresh white"
+        icon="refresh"
         variant="icon"
         width="56"
         height="56"

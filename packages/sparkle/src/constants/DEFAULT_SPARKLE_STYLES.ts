@@ -2,7 +2,6 @@ import animations from "../styles/animations/animations.css";
 import dark from "../styles/dark/dark.css";
 import easings from "../styles/easings/easings.css";
 import gradients from "../styles/gradients/gradients.css";
-import icons from "../styles/icons/icons.css";
 import keyframes from "../styles/keyframes/keyframes.css";
 import light from "../styles/light/light.css";
 import masks from "../styles/masks/masks.css";
@@ -14,7 +13,6 @@ const DEFAULT_SPARKLE_STYLES = {
   theme,
   light,
   dark,
-  icons,
   shadows,
   gradients,
   masks,

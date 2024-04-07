@@ -22,8 +22,8 @@
   --hover-color: var(--s-color-neutral-90);
   --padding-tb: 16px;
   --padding-lr: 20px;
-  --icon-size: 20px;
   --hover-opacity: var(--s-opacity-hover);
+  --icon-size: var(--s-icon-size);
 }
 
 :host(:not([child-layout="row"])) {
@@ -32,6 +32,7 @@
 
 :host([child-layout="row"]) {
   --child-gap: 8px;
+  --icon-size: calc(0.75 * var(--s-icon-size));
 }
 
 :host > .root {
@@ -111,20 +112,16 @@
   display: none;
 }
 :host([icon]) > .root > .icon {
-  --size: calc(1em * var(--s-scale-icon));
-
   position: relative;
   display: flex;
-  width: var(--size);
-  height: var(--size);
-  min-width: var(--size);
-  min-height: var(--size);
+  width: var(--icon-size);
+  height: var(--icon-size);
+  min-width: var(--icon-size);
+  min-height: var(--icon-size);
+  font-size: var(--icon-size);
   justify-content: center;
   align-items: center;
   will-change: transform;
-}
-:host(:not([child-layout="row"])[icon]) > .root > .icon {
-  font-size: var(--icon-size);
 }
 
 :host([icon]) > .root > .icon > .inactive-icon {
@@ -135,18 +132,12 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  -webkit-mask-image: var(--icon, none);
-  mask-image: var(--icon, none);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: cover;
-  mask-size: cover;
-  background-color: var(--text-color);
-  color: var(--text-color);
   will-change: transform, opacity;
   transition-property: none;
+  color: var(--text-color);
+}
+:host([icon]) > .root > .icon > .inactive-icon:before {
+  content: var(--icon);
 }
 :host([icon]:not([active])) > .root > .icon > .inactive-icon {
   display: flex;
@@ -163,18 +154,15 @@
   align-items: center;
   width: 100%;
   height: 100%;
-  -webkit-mask-image: var(--active-icon, var(--icon), none);
-  mask-image: var(--active-icon, var(--icon), none);
-  -webkit-mask-repeat: no-repeat;
-  mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  mask-position: center;
-  -webkit-mask-size: cover;
-  mask-size: cover;
-  background-color: var(--color);
-  color: var(--color);
   will-change: transform, opacity;
   transition-property: none;
+  color: var(--color);
+}
+:host([icon]) > .root > .icon > .active-icon:before {
+  content: var(--icon);
+}
+:host([active-icon]) > .root > .icon > .active-icon:before {
+  content: var(--active-icon);
 }
 :host([icon]:not([active])) > .root > .icon > .active-icon {
   display: none;
