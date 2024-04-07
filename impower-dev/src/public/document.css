@@ -61,7 +61,7 @@
 
 @font-face {
   font-family: "icon";
-  src: url("/public/fonts/impower-icons.woff") format("woff");
+  src: url("fonts/impower-icons.woff?3ce39w") format("woff");
   font-weight: normal;
   font-style: normal;
   font-display: block;
