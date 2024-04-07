@@ -146,7 +146,7 @@ export default spec({
         id="runToggleButton"
         variant="text"
         width="48"
-        height="44"
+        height="48"
         text-size="2xs"
         child-layout="column"
         color="primary-70"
