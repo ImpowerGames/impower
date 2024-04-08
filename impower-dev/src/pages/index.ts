@@ -13,6 +13,8 @@ const load = async () => {
   Object.entries(extractAllSVGs("--s-icon-", icons)).forEach(([name, svg]) => {
     graphics[name] = svg;
   });
+  console.log("icons", icons);
+  console.log("graphics", graphics);
   await Promise.allSettled([
     Sparkle.init({ graphics }),
     SparkWebPlayer.init({ graphics }),
