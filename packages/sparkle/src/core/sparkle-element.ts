@@ -2,7 +2,6 @@ import STYLE_ALIASES from "../../../sparkle-style-transformer/src/constants/STYL
 import STYLE_TRANSFORMERS from "../../../sparkle-style-transformer/src/constants/STYLE_TRANSFORMERS";
 import getCssPattern from "../../../sparkle-style-transformer/src/utils/getCssPattern";
 import getCssTextStroke from "../../../sparkle-style-transformer/src/utils/getCssTextStroke";
-import STYLES from "../../../spec-component/src/caches/STYLE_CACHE";
 import { Component } from "../../../spec-component/src/component";
 import { Properties } from "../../../spec-component/src/types/Properties";
 import getAttributeNameMap from "../../../spec-component/src/utils/getAttributeNameMap";
@@ -32,7 +31,7 @@ export const DEFAULT_SPARKLE_ATTRIBUTES = {
 
 export const DEFAULT_SPARKLE_TRANSFORMERS = {
   ...STYLE_TRANSFORMERS,
-  "background-pattern": (v: string) => getCssPattern(v, STYLES.patterns),
+  "background-pattern": (v: string) => getCssPattern(v),
 };
 
 const DEFAULT_SPARKLE_ALIAS_ATTRIBUTES = getAttributeNameMap(

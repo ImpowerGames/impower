@@ -1,11 +1,14 @@
 import { MessageConnection } from "../../../../spark-editor-protocol/src/types";
-import { defineAll } from "../../../../spec-component/src/component";
+import {
+  defineAll,
+  DefineOptions,
+} from "../../../../spec-component/src/component";
 import { FileSystemReader } from "../../cm-language-client/types/FileSystemReader";
 import Main from "./main/sparkdown-script-editor";
 
 export const DEFAULT_CONSTRUCTORS = [Main] as const;
 
-interface InitOptions {
+interface InitOptions extends DefineOptions {
   constructors?: typeof DEFAULT_CONSTRUCTORS;
   languageServerConnection: MessageConnection;
   fileSystemReader: FileSystemReader;
@@ -18,6 +21,6 @@ export default abstract class SparkdownScriptEditor {
       c.languageServerConnection = options.languageServerConnection;
       c.fileSystemReader = options.fileSystemReader;
     });
-    return defineAll(constructors);
+    return defineAll(constructors, options);
   }
 }

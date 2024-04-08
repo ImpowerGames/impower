@@ -19,7 +19,7 @@ const getAttribute = (str: string, name: string): string | undefined => {
 
 const parseGraphic = (value: string): Graphic => {
   const v = normalizeQuotes(value).trim();
-  const svgString = v.slice(v.indexOf("<svg "), v.indexOf("</svg>") + 1);
+  const svgString = v.slice(v.indexOf("<svg "), v.lastIndexOf("</svg>") + 1);
   const graphic: Graphic = {};
   svgString.split("<path ").forEach((token) => {
     if (token.startsWith("<svg ")) {

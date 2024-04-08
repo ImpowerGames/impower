@@ -1,24 +1,10 @@
-import { Graphic } from "../types/Graphic";
-
 export default class StyleCache {
   protected _styleSheets: Record<string, CSSStyleSheet> = {};
 
   protected _styleElements: Record<string, HTMLStyleElement> = {};
 
-  protected _icons: Record<string, Graphic> = {};
-
-  protected _patterns: Record<string, Graphic> = {};
-
   get styles() {
     return this._styleSheets;
-  }
-
-  get icons() {
-    return this._icons;
-  }
-
-  get patterns() {
-    return this._patterns;
   }
 
   clearStyles() {
@@ -63,13 +49,5 @@ export default class StyleCache {
         this.getStyleElement(el, css);
       }
     }
-  }
-
-  adoptIcons(shapes: Record<string, Graphic>) {
-    this._icons = { ...this._icons, ...shapes };
-  }
-
-  adoptPatterns(shapes: Record<string, Graphic>) {
-    this._patterns = { ...this._patterns, ...shapes };
   }
 }

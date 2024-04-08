@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import glob from "tiny-glob";
 import { ComponentSpec } from "./src/build/ComponentSpec";
+import extractAllSVGs from "./src/build/extractAllSVGs";
 import getScopedCSS from "./src/build/getScopedCSS";
 import renderPage from "./src/build/renderPage";
 
@@ -37,6 +38,10 @@ const publicInDir = `${indir}/public`;
 const publicOutDir = `${outdir}/public`;
 
 const pagesInDir = `${indir}/pages`;
+
+const graphicCSSPaths = [
+  `${indir}/modules/spark-editor/styles/icons/icons.css`,
+];
 
 const localDependencies = `node_modules/@impower`;
 
@@ -246,6 +251,19 @@ const expandPageComponents = async () => {
         `<script>new EventSource('/livereload').onmessage = () => location.reload()</script>\n</html>`
       );
     }
+    const graphicCSSArray = await Promise.all(
+      graphicCSSPaths.map((path) =>
+        fs.promises.readFile(path, "utf-8").catch(() => "")
+      )
+    );
+    const injectedGraphics: Record<string, string> = {};
+    graphicCSSArray.forEach((css) => {
+      Object.entries(extractAllSVGs("--s-icon-", css)).forEach(
+        ([name, svg]) => {
+          injectedGraphics[name] = svg;
+        }
+      );
+    });
     const globalCssInPath = `${publicInDir}/global.css`;
     const globalCssOutPath = `${publicOutDir}/global.css`;
     let globalCSS = await fs.promises
@@ -265,6 +283,10 @@ const expandPageComponents = async () => {
           if (Array.isArray(componentBundle)) {
             componentBundle.forEach((spec: ComponentSpec) => {
               if (spec.tag) {
+                spec.graphics = {
+                  ...(spec.graphics || {}),
+                  ...(injectedGraphics || {}),
+                };
                 components[spec.tag] = spec;
               }
               if (spec.css) {

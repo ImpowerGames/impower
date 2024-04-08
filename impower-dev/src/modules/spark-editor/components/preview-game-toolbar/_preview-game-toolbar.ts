@@ -152,8 +152,8 @@ export default spec({
         color="primary-70"
       >
         <s-icon
-          icon="${running ? `player-stop` : `player-play`}"
-          size="20px"
+          name="${running ? `player-stop` : `player-play`}"
+          icon-size="20"
           m-b="1"
         ></s-icon>
         ${running ? `STOP` : `PLAY`}

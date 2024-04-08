@@ -1,9 +1,12 @@
-import { defineAll } from "../../../../spec-component/src/component";
+import {
+  defineAll,
+  DefineOptions,
+} from "../../../../spec-component/src/component";
 import Main from "./main/sparkdown-screenplay-preview";
 
 export const DEFAULT_CONSTRUCTORS = [Main] as const;
 
-interface InitOptions {
+interface InitOptions extends DefineOptions {
   constructors?: typeof DEFAULT_CONSTRUCTORS;
 }
 
@@ -12,6 +15,6 @@ export default abstract class SparkScreenplayPreview {
     options?: InitOptions
   ): Promise<CustomElementConstructor[]> {
     const constructors = options?.constructors ?? DEFAULT_CONSTRUCTORS;
-    return defineAll(constructors);
+    return defineAll(constructors, options);
   }
 }

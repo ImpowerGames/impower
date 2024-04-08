@@ -39,6 +39,7 @@ export default class Viewport
 
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,

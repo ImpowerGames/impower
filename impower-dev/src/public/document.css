@@ -59,14 +59,6 @@
   src: url("/public/fonts/courier-prime-bold-italic.ttf") format("truetype");
 }
 
-@font-face {
-  font-family: "icon";
-  src: url("fonts/impower-icons.woff?3ce39w") format("woff");
-  font-weight: normal;
-  font-style: normal;
-  font-display: block;
-}
-
 :root {
   color-scheme: dark;
   --screenplay-preview-texture: url("/public/noisetexture.png");

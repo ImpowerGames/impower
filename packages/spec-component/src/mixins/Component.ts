@@ -13,10 +13,11 @@ const Component = <
   State extends Record<string, unknown>,
   Stores extends Record<string, IStore>,
   Context extends Record<string, unknown>,
+  Graphics extends Record<string, string>,
   Selectors extends Record<string, null | string | string[]>,
   T extends CustomElementConstructor
 >(
-  spec: ComponentSpec<Props, State, Stores, Context, Selectors>,
+  spec: ComponentSpec<Props, State, Stores, Context, Graphics, Selectors>,
   Base: T = HTMLElement as T
 ) => {
   const propToAttrMap = {} as Record<keyof Props, string>;
@@ -31,6 +32,7 @@ const Component = <
     #initialized = false;
 
     #html = spec.html({
+      graphics: spec.graphics,
       stores: spec.stores,
       context: spec.context(spec.stores),
       state: spec.state,
@@ -47,6 +49,11 @@ const Component = <
     #shadowDOM = spec.shadowDOM;
     get shadowDOM() {
       return this.#shadowDOM;
+    }
+
+    #graphics = spec.graphics;
+    get graphics() {
+      return this.#graphics;
     }
 
     #stores = spec.stores;
@@ -125,6 +132,7 @@ const Component = <
      */
     get html() {
       return spec.html({
+        graphics: this.graphics,
         stores: this.stores,
         context: this.context,
         state: this.state,

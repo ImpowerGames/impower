@@ -56,6 +56,7 @@ export default class Popup
 
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,
@@ -418,7 +419,7 @@ export default class Popup
     this.updateRootCssVariable("--auto-size-available-height", null);
   }
 
-  update = () => {
+  override update = () => {
     this.reposition();
   };
 

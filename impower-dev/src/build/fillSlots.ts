@@ -68,11 +68,13 @@ const fillSlots = (node: Element, template: Element) => {
       }
 
       if (!hasSlotName) {
-        slot.childNodes.length = 0;
         const children = node.childNodes.filter(
           (n) => !inserts.includes(n as Element)
         );
-        slot.childNodes.push(...children);
+        if (children.length > 0) {
+          slot.childNodes.length = 0;
+          slot.childNodes.push(...children);
+        }
       }
     }
   }

@@ -22,7 +22,6 @@
   --shadow: none;
   --color: var(--s-color-neutral-100);
   --active-color: var(--s-color-neutral-100);
-  --icon-size: var(--s-icon-size);
 }
 
 :host([value]) {
@@ -137,11 +136,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(--icon-size);
-  height: var(--icon-size);
-  min-width: var(--icon-size);
-  min-height: var(--icon-size);
-  font-size: var(--icon-size);
+  width: var(--icon-size, var(--s-icon-size));
+  height: var(--icon-size, var(--s-icon-size));
+  min-width: var(--icon-size, var(--s-icon-size));
+  min-height: var(--icon-size, var(--s-icon-size));
+  font-size: var(--icon-size, var(--s-icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform;
@@ -158,9 +157,6 @@
   will-change: transform, opacity;
   transition-property: none;
   color: var(--color);
-}
-:host([icon]) > .root > .icon > .inactive-icon:before {
-  content: var(--icon);
 }
 :host([icon]:not([active])) > .root > .icon > .inactive-icon {
   display: flex;
@@ -180,12 +176,6 @@
   will-change: transform, opacity;
   transition-property: none;
   color: var(--active-color);
-}
-:host([icon]) > .root > .icon > .active-icon:before {
-  content: var(--icon);
-}
-:host([active-icon]) > .root > .icon > .active-icon:before {
-  content: var(--active-icon);
 }
 :host([icon]:not([active])) > .root > .icon > .active-icon {
   display: none;

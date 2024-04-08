@@ -10,7 +10,6 @@ import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
-import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import spec from "./_tab";
 
@@ -44,8 +43,17 @@ export default class Tab
     return spec.tag;
   }
 
+  override get props() {
+    return {
+      ...super.props,
+      icon: this.icon,
+      activeIcon: this.activeIcon,
+    };
+  }
+
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,
@@ -96,7 +104,7 @@ export default class Tab
   /**
    * The name of the icon to display.
    */
-  get icon(): IconName | string | null {
+  get icon(): string | null {
     return this.getStringAttribute(Tab.attrs.icon);
   }
   set icon(value) {
@@ -106,7 +114,7 @@ export default class Tab
   /**
    * The name of the icon to display when this tab is active.
    */
-  get activeIcon(): IconName | string | null {
+  get activeIcon(): string | null {
     return this.getStringAttribute(Tab.attrs.activeIcon);
   }
   set activeIcon(value) {

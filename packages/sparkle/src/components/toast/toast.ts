@@ -32,6 +32,7 @@ export default class Toast
 
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,

@@ -4,21 +4,17 @@
 :host {
   --child-justify: center;
   --child-align: center;
-  --size: var(--s-icon-size);
 }
 
 :host > .root {
   display: flex;
   justify-content: var(--child-justify);
   align-items: var(--child-align);
-  width: var(--size);
-  height: var(--size);
-  min-width: var(--size);
-  min-height: var(--size);
-  font-size: var(--size);
+  width: var(--icon-size, var(--s-icon-size));
+  height: var(--icon-size, var(--s-icon-size));
+  min-width: var(--icon-size, var(--s-icon-size));
+  min-height: var(--icon-size, var(--s-icon-size));
+  font-size: var(--icon-size, var(--s-icon-size));
   will-change: transform;
   color: (--color);
-}
-:host > .root:before {
-  content: var(--icon);
 }

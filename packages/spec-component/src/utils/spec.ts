@@ -7,18 +7,21 @@ const spec = <
   State extends Record<string, unknown>,
   Stores extends Record<string, IStore>,
   Context extends Record<string, unknown>,
+  Graphics extends Record<string, string>,
   Selectors extends Record<string, null | string | string[]>
 >(
-  spec: ComponentConfig<Props, State, Stores, Context, Selectors>
-): ComponentSpec<Props, State, Stores, Context, Selectors> => {
+  spec: ComponentConfig<Props, State, Stores, Context, Graphics, Selectors>
+): ComponentSpec<Props, State, Stores, Context, Graphics, Selectors> => {
   return {
     tag: spec.tag,
-    stores: spec.stores ?? ({} as Stores),
+    graphics: spec.graphics ?? ({} as Graphics),
     context: spec.context ?? (() => ({} as Context)),
+    stores: spec.stores ?? ({} as Stores),
     state: spec.state ?? ({} as State),
     props: spec.props ?? ({} as Props),
     css: typeof spec.css === "string" ? [spec.css] : spec.css || [],
     html: (args: {
+      graphics: Graphics;
       stores: Stores;
       context: Context;
       state: State;

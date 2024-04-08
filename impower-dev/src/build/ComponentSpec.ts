@@ -6,6 +6,7 @@ export interface ComponentSpec<
     { current: any }
   >,
   Context extends Record<string, unknown> = Record<string, unknown>,
+  Graphics extends Record<string, string> = Record<string, string>,
   Selectors extends Record<string, null | string | string[]> = Record<
     string,
     null | string | string[]
@@ -13,11 +14,13 @@ export interface ComponentSpec<
 > {
   tag: `${string}-${string}`;
   stores: Stores;
+  graphics: Graphics;
   context: (stores: Stores) => Context;
   state: State;
   props: Props;
   css: string[];
   html?: (args: {
+    graphics: Graphics;
     stores: Stores;
     context: Context;
     state: State;

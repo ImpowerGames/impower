@@ -1,4 +1,3 @@
-import getCssIcon from "../../../../sparkle-style-transformer/src/utils/getCssIcon";
 import getCssSize from "../../../../sparkle-style-transformer/src/utils/getCssSize";
 import { RefMap } from "../../../../spec-component/src/component";
 import { Properties } from "../../../../spec-component/src/types/Properties";
@@ -8,19 +7,21 @@ import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
-import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import spec from "./_icon";
 
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
-  icon: (v: string) => getCssIcon(v),
-  size: getCssSize,
+  "icon-size": getCssSize,
 };
 
 const DEFAULT_ATTRIBUTES = {
   ...DEFAULT_SPARKLE_ATTRIBUTES,
-  ...getAttributeNameMap(["icon", "size", ...getKeys(DEFAULT_TRANSFORMERS)]),
+  ...getAttributeNameMap([
+    "name",
+    "icon-size",
+    ...getKeys(DEFAULT_TRANSFORMERS),
+  ]),
 };
 
 /**
@@ -34,8 +35,16 @@ export default class Icon
     return spec.tag;
   }
 
+  override get props() {
+    return {
+      ...super.props,
+      name: this.name,
+    };
+  }
+
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,
@@ -64,23 +73,23 @@ export default class Icon
   }
 
   /**
-   * The name of the icon to display.
+   * The name of the svg to display.
    */
-  get icon(): IconName | string | null {
-    return this.getStringAttribute(Icon.attrs.icon);
+  get name(): string | null {
+    return this.getStringAttribute(Icon.attrs.name);
   }
-  set icon(value) {
-    this.setStringAttribute(Icon.attrs.icon, value);
+  set name(value) {
+    this.setStringAttribute(Icon.attrs.name, value);
   }
 
   /**
    * Sets the size of an icon.
    */
-  get size(): SizeName | string | null {
-    return this.getStringAttribute(Icon.attrs.size);
+  get iconSize(): SizeName | string | null {
+    return this.getStringAttribute(Icon.attrs.iconSize);
   }
-  set size(value) {
-    this.setStringAttribute(Icon.attrs.size, value);
+  set iconSize(value) {
+    this.setStringAttribute(Icon.attrs.iconSize, value);
   }
 
   override onAttributeChanged(name: string, newValue: string) {

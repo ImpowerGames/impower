@@ -378,13 +378,13 @@
   flex-shrink: var(--shrink, 1) !important;
 }
 
-[fill] > .root {
+[fill] > .root path {
   fill: var(--fill, currentColor) !important;
 }
-[stroke] > .root {
+[stroke] > .root path {
   stroke: var(--stroke, currentColor) !important;
 }
-[stroke-width] > .root {
+[stroke-width] > .root path {
   stroke-width: var(--stroke-width, 1) !important;
 }
 

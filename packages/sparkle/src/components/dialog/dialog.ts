@@ -7,7 +7,6 @@ import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
-import { IconName } from "../../types/iconName";
 import { animationsComplete } from "../../utils/animationsComplete";
 import spec from "./_dialog";
 
@@ -48,6 +47,7 @@ export default class Dialog
 
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,
@@ -60,7 +60,7 @@ export default class Dialog
   }
 
   override get selectors() {
-    return { ...super.selectors, ...spec.selectors };
+    return { ...super.selectors, ...spec.selectors } as typeof spec.selectors;
   }
 
   override get ref() {
@@ -109,7 +109,7 @@ export default class Dialog
   /**
    * The name of the icon to display.
    */
-  get icon(): IconName | string | null {
+  get icon(): string | null {
     return this.getStringAttribute(Dialog.attrs.icon);
   }
   set icon(value) {

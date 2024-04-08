@@ -24,6 +24,7 @@ export default class Transition
 
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,

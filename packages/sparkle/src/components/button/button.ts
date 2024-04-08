@@ -10,7 +10,6 @@ import SparkleElement, {
   DEFAULT_SPARKLE_ATTRIBUTES,
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
-import { IconName } from "../../types/iconName";
 import { SizeName } from "../../types/sizeName";
 import spec from "./_button";
 
@@ -20,7 +19,6 @@ const CHANGED_EVENT = "changed";
 const DEFAULT_TRANSFORMERS = {
   ...DEFAULT_SPARKLE_TRANSFORMERS,
   icon: (v: string) => getCssIcon(v),
-  "pressed-icon": (v: string) => getCssIcon(v),
   "active-icon": (v: string) => getCssIcon(v),
   "active-color": getCssColor,
   spacing: getCssSize,
@@ -66,11 +64,14 @@ export default class Button
       href: this.href,
       accept: this.accept,
       multiple: this.multiple,
+      icon: this.icon,
+      activeIcon: this.activeIcon,
     };
   }
 
   override get html() {
     return spec.html({
+      graphics: this.graphics,
       stores: this.stores,
       context: this.context,
       state: this.state,
@@ -203,7 +204,7 @@ export default class Button
   /**
    * The name of the icon to display.
    */
-  get icon(): IconName | string | null {
+  get icon(): string | null {
     return this.getStringAttribute(Button.attrs.icon);
   }
   set icon(value) {
@@ -211,19 +212,9 @@ export default class Button
   }
 
   /**
-   * The name of the icon to display when the button is pressed.
-   */
-  get pressedIcon(): IconName | string | null {
-    return this.getStringAttribute(Button.attrs.pressedIcon);
-  }
-  set pressedIcon(value) {
-    this.setStringAttribute(Button.attrs.pressedIcon, value);
-  }
-
-  /**
    * The name of the icon to display when the button is toggled.
    */
-  get activeIcon(): IconName | string | null {
+  get activeIcon(): string | null {
     return this.getStringAttribute(Button.attrs.activeIcon);
   }
   set activeIcon(value) {
@@ -233,7 +224,7 @@ export default class Button
   /**
    * The color when the button is toggled.
    */
-  get activeColor(): IconName | string | null {
+  get activeColor(): string | null {
     return this.getStringAttribute(Button.attrs.activeColor);
   }
   set activeColor(value) {

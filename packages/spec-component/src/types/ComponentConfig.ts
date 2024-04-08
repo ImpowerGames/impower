@@ -5,16 +5,19 @@ export interface ComponentConfig<
   State extends Record<string, unknown>,
   Stores extends Record<string, IStore>,
   Context extends Record<string, unknown>,
+  Graphics extends Record<string, string>,
   Selectors extends Record<string, null | string | string[]>
 > {
   tag: `${string}-${string}`;
   stores?: Stores;
+  graphics?: Graphics;
   context?: (stores: Stores) => Context;
   state?: State;
   props?: Props;
   css?: string[] | string;
   html?:
     | ((args: {
+        graphics: Graphics;
         stores: Stores;
         context: Context;
         state: State;

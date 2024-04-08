@@ -23,7 +23,6 @@
   --corner: 4px;
   --background-color: var(--color);
   --ease: ease-out;
-  --icon-size: var(--s-icon-size);
 }
 
 :host([size="xs"]) > .root {
@@ -300,11 +299,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(--icon-size);
-  height: var(--icon-size);
-  min-width: var(--icon-size);
-  min-height: var(--icon-size);
-  font-size: var(--icon-size);
+  width: var(--icon-size, var(--s-icon-size));
+  height: var(--icon-size, var(--s-icon-size));
+  min-width: var(--icon-size, var(--s-icon-size));
+  min-height: var(--icon-size, var(--s-icon-size));
+  font-size: var(--icon-size, var(--s-icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform;
@@ -329,12 +328,6 @@
   transition-property: none;
   color: var(--text-color);
 }
-:host([icon]) > .root > .icon > .inactive-icon:before {
-  content: var(--icon);
-}
-:host([pressed-icon]) > .root.pressed > .icon > .inactive-icon:before {
-  content: var(--pressed-icon);
-}
 :host([icon]:not([active])) > .root > .icon > .inactive-icon {
   display: flex;
 }
@@ -353,15 +346,6 @@
   will-change: transform, opacity;
   transition-property: none;
   color: var(--active-color, var(--text-color, transparent));
-}
-:host([icon]) > .root > .icon > .active-icon:before {
-  content: var(--icon);
-}
-:host([active-icon]) > .root > .icon > .active-icon:before {
-  content: var(--active-icon);
-}
-:host([pressed-icon]) > .root.pressed > .icon > .active-icon:before {
-  content: var(--pressed-icon);
 }
 :host([icon]:not([active])) > .root > .icon > .active-icon {
   display: none;

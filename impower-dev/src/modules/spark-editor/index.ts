@@ -1,4 +1,5 @@
 import {
+  DefineOptions,
   adoptAll,
   defineAll,
 } from "../../../../packages/spec-component/src/component";
@@ -43,6 +44,7 @@ import ShareGame from "./components/share-game/share-game";
 import ShareProject from "./components/share-project/share-project";
 import Share from "./components/share/share";
 import Main from "./main/spark-editor";
+import icons from "./styles/icons/icons.css";
 import theme from "./styles/theme/theme.css";
 
 export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
@@ -92,9 +94,10 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
 
 export const DEFAULT_SPARK_EDITOR_STYLES = {
   theme,
+  icons,
 } as const;
 
-interface InitOptions {
+interface InitOptions extends DefineOptions {
   styles?: typeof DEFAULT_SPARK_EDITOR_STYLES;
   constructors?: typeof DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
 }
@@ -107,6 +110,6 @@ export default abstract class SparkEditor {
     const constructors =
       options?.constructors ?? DEFAULT_SPARK_EDITOR_CONSTRUCTORS;
     adoptAll(styles);
-    return defineAll(constructors);
+    return defineAll(constructors, options);
   }
 }

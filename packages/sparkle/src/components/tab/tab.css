@@ -23,7 +23,6 @@
   --padding-tb: 16px;
   --padding-lr: 20px;
   --hover-opacity: var(--s-opacity-hover);
-  --icon-size: var(--s-icon-size);
 }
 
 :host(:not([child-layout="row"])) {
@@ -114,11 +113,11 @@
 :host([icon]) > .root > .icon {
   position: relative;
   display: flex;
-  width: var(--icon-size);
-  height: var(--icon-size);
-  min-width: var(--icon-size);
-  min-height: var(--icon-size);
-  font-size: var(--icon-size);
+  width: var(--icon-size, var(--s-icon-size));
+  height: var(--icon-size, var(--s-icon-size));
+  min-width: var(--icon-size, var(--s-icon-size));
+  min-height: var(--icon-size, var(--s-icon-size));
+  font-size: var(--icon-size, var(--s-icon-size));
   justify-content: center;
   align-items: center;
   will-change: transform;
@@ -135,9 +134,6 @@
   will-change: transform, opacity;
   transition-property: none;
   color: var(--text-color);
-}
-:host([icon]) > .root > .icon > .inactive-icon:before {
-  content: var(--icon);
 }
 :host([icon]:not([active])) > .root > .icon > .inactive-icon {
   display: flex;
@@ -157,12 +153,6 @@
   will-change: transform, opacity;
   transition-property: none;
   color: var(--color);
-}
-:host([icon]) > .root > .icon > .active-icon:before {
-  content: var(--icon);
-}
-:host([active-icon]) > .root > .icon > .active-icon:before {
-  content: var(--active-icon);
 }
 :host([icon]:not([active])) > .root > .icon > .active-icon {
   display: none;
