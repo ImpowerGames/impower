@@ -16,5 +16,4 @@
   min-height: var(--icon-size, var(--s-icon-size));
   font-size: var(--icon-size, var(--s-icon-size));
   will-change: transform;
-  color: (--color);
 }
