@@ -14,7 +14,6 @@ const load = async () => {
   Object.entries(svgs).forEach(([name, svg]) => {
     graphics[name] = svg;
   });
-  console.warn("svgs", svgs);
   await Promise.allSettled([
     Sparkle.init({ graphics }),
     SparkWebPlayer.init({ graphics }),
