@@ -3008,7 +3008,7 @@
       }
     },
     "BoxLineContinue": {
-      "match": "(.*[ ]$(?:\\r\\n|\\r|\\n)?)",
+      "match": "(.*[ ]{2,}$(?:\\r\\n|\\r|\\n)?)",
       "captures": {
         "1": {
           "patterns": [
