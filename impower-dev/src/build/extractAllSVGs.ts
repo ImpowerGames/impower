@@ -1,6 +1,6 @@
 import extractSVG from "./extractSVG.js";
 
-const VARIABLE_REGEX = /(--(?:.|\n)+[)][;])/g;
+const VARIABLE_REGEX = /(--(?:.|\n)+?[)][;])/g;
 
 const extractAllSVGs = (
   prefix: string,

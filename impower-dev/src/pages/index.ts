@@ -10,11 +10,11 @@ import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 const load = async () => {
   const languageServerConnection = await Workspace.lsp.getConnection();
   const graphics: Record<string, string> = {};
-  Object.entries(extractAllSVGs("--s-icon-", icons)).forEach(([name, svg]) => {
+  const svgs = extractAllSVGs("--s-icon-", icons);
+  Object.entries(svgs).forEach(([name, svg]) => {
     graphics[name] = svg;
   });
-  console.warn("icons", icons);
-  console.warn("graphics", graphics);
+  console.warn("svgs", svgs);
   await Promise.allSettled([
     Sparkle.init({ graphics }),
     SparkWebPlayer.init({ graphics }),
