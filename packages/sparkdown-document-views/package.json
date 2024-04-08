@@ -3,7 +3,11 @@
   "displayName": "Sparkdown Document Views",
   "description": "Web components for viewing and editing sparkdown documents. Includes a text editor and screenplay previewer.",
   "version": "0.0.1",
+  "scripts": {
+    "postinstall": "patch-package"
+  },
   "dependencies": {
+    "patch-package": "^8.0.0",
     "@codemirror/autocomplete": "^6.15.0",
     "@codemirror/collab": "^6.1.1",
     "@codemirror/commands": "^6.3.3",
