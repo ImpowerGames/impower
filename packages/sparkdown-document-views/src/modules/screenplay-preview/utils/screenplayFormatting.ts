@@ -100,7 +100,7 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Repeat",
   "ImageTag",
   "AudioTag",
-  "StyleTag",
+  "TextTag",
   "Jump",
   "Unknown",
 ];

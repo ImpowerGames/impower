@@ -63,7 +63,7 @@ const getImageCompletions = (
   program: SparkProgram,
   line: number
 ): CompletionItem[] | null => {
-  const imageToken = getLineToken(program, line, "image");
+  const imageToken = getLineToken(program, line, "image_tag");
   const completions: Map<string, CompletionItem> = new Map();
   Object.entries(program?.context?.["image_group"] || {}).forEach(([, v]) => {
     const name = v.$name;
@@ -179,7 +179,7 @@ const getAudioCompletions = (
   program: SparkProgram,
   line: number
 ): CompletionItem[] | null => {
-  const audioToken = getLineToken(program, line, "audio");
+  const audioToken = getLineToken(program, line, "audio_tag");
   const completions: Map<string, CompletionItem> = new Map();
   Object.values(program?.context?.["audio"] || {}).forEach((v) => {
     if (v.name !== "default") {
@@ -237,7 +237,7 @@ const getImageArgumentCompletions = (
   program: SparkProgram,
   line: number
 ): CompletionItem[] | null => {
-  const imageToken = getLineToken(program, line, "audio");
+  const imageToken = getLineToken(program, line, "audio_tag");
   const completions = ["after", "over", "with"];
   return completions
     .filter((c) => !imageToken?.args?.includes(c))
@@ -252,7 +252,7 @@ const getAudioArgumentCompletions = (
   program: SparkProgram,
   line: number
 ): CompletionItem[] | null => {
-  const audioToken = getLineToken(program, line, "audio");
+  const audioToken = getLineToken(program, line, "audio_tag");
   const completions: string[] = [];
   // TODO: only include completions if prior argument is not a keyword that takes an argument
   if (audioToken?.control === "fade") {
@@ -471,7 +471,7 @@ const getCompletions = (
   // console.log(triggerCharacter, lineMetadata, JSON.stringify(beforeText));
 
   if (scopes) {
-    if (scopes.includes("image")) {
+    if (scopes.includes("image_tag")) {
       if (scopes.includes("asset_tag_arguments")) {
         return getImageArgumentCompletions(program, line);
       } else if (scopes.includes("asset_tag_target_separator")) {
@@ -482,7 +482,7 @@ const getCompletions = (
         return getImageCompletions(program, line);
       }
     }
-    if (scopes.includes("audio")) {
+    if (scopes.includes("audio_tag")) {
       if (scopes.includes("asset_tag_arguments")) {
         return getAudioArgumentCompletions(program, line);
       } else if (scopes.includes("asset_tag_target_separator")) {

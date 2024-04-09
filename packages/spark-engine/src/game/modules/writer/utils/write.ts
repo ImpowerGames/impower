@@ -268,7 +268,7 @@ export const write = (
       });
       startNewPhrase();
     }
-    if (p.tag === "image") {
+    if (p.tag === "image_tag") {
       const chunk: Chunk = {
         tag: p.tag,
         control: p.control,
@@ -284,7 +284,7 @@ export const write = (
       });
       startNewPhrase();
     }
-    if (p.tag === "audio") {
+    if (p.tag === "audio_tag") {
       phrases.push({
         ...p,
         chunks: [
@@ -301,7 +301,7 @@ export const write = (
       });
       startNewPhrase();
     }
-    if (p.tag === "command") {
+    if (p.tag === "text_tag") {
       if (isNumberValue(p.control)) {
         speedModifier = getNumberValue(p.control, 1);
       } else if (p.control === "speed" || p.control === "s") {
@@ -706,7 +706,7 @@ export const write = (
           result.text[target] ??= [];
           result.text[target]!.push(event);
         }
-        if (c.tag === "image") {
+        if (c.tag === "image_tag") {
           const event: ImageEvent = {
             control: c.control || "show",
             assets: c.assets,
@@ -748,7 +748,7 @@ export const write = (
           result.image[target] ??= [];
           result.image[target]!.push(event);
         }
-        if (c.tag === "audio") {
+        if (c.tag === "audio_tag") {
           const event: AudioEvent = {
             control: c.control || "play",
             assets: c.assets,

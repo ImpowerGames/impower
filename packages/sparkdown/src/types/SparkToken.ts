@@ -184,7 +184,7 @@ export interface SparkChoiceToken extends ISparkToken<"choice"> {
   };
 }
 
-export interface SparkImageToken extends ISparkToken<"image"> {
+export interface SparkImageTagToken extends ISparkToken<"image_tag"> {
   control: string;
   target: string;
   assets: string[];
@@ -199,7 +199,7 @@ export interface SparkImageToken extends ISparkToken<"image"> {
   };
 }
 
-export interface SparkAudioToken extends ISparkToken<"audio"> {
+export interface SparkAudioTagToken extends ISparkToken<"audio_tag"> {
   control: string;
   target: string;
   assets: string[];
@@ -214,7 +214,7 @@ export interface SparkAudioToken extends ISparkToken<"audio"> {
   };
 }
 
-export interface SparkCommandToken extends ISparkToken<"command"> {
+export interface SparkTextTagToken extends ISparkToken<"text_tag"> {
   control: string;
   args: string[];
 
@@ -222,6 +222,15 @@ export interface SparkCommandToken extends ISparkToken<"command"> {
     checkpoint?: SparkRange;
     control?: SparkRange;
     args?: SparkRange;
+  };
+}
+
+export interface SparkCommandTagToken extends ISparkToken<"command_tag"> {
+  control: string;
+
+  ranges?: {
+    checkpoint?: SparkRange;
+    control?: SparkRange;
   };
 }
 
@@ -241,6 +250,8 @@ export interface DisplayContent {
   args?: string[];
   id: string;
 }
+
+export interface SparkSpecToken extends ISparkDisplayToken<"spec"> {}
 
 export interface SparkDisplayTextToken extends ISparkToken<"display_text"> {
   prerequisite: string;
@@ -280,9 +291,6 @@ export interface ISparkDisplayToken<T extends string> extends ISparkToken<T> {
   };
 }
 
-export interface ISparkBoxToken<T extends string>
-  extends ISparkDisplayToken<T> {}
-
 export interface SparkTransitionToken
   extends ISparkDisplayToken<"transition"> {}
 
@@ -290,11 +298,11 @@ export interface SparkSceneToken extends ISparkDisplayToken<"scene"> {
   index: number;
 }
 
-export interface SparkActionToken extends ISparkBoxToken<"action"> {
+export interface SparkActionToken extends ISparkToken<"action"> {
   content?: SparkActionBoxToken[];
 }
 
-export interface SparkActionBoxToken extends ISparkBoxToken<"action_box"> {
+export interface SparkActionBoxToken extends ISparkDisplayToken<"action_box"> {
   speechDuration: number;
 }
 
@@ -308,7 +316,8 @@ export interface SparkDialogueToken extends ISparkToken<"dialogue"> {
   content?: SparkDialogueBoxToken[];
 }
 
-export interface SparkDialogueBoxToken extends ISparkBoxToken<"dialogue_box"> {
+export interface SparkDialogueBoxToken
+  extends ISparkDisplayToken<"dialogue_box"> {
   characterKey: string;
   characterName?: SparkDialogueCharacterNameToken;
   characterParenthetical?: SparkDialogueCharacterParentheticalToken;
@@ -367,9 +376,10 @@ export interface SparkOtherToken
     | "asset_tag_names"
     | "asset_tag_arguments"
     | "asset_tag_argument"
+    | "text_tag_control"
+    | "text_tag_arguments"
+    | "text_tag_argument"
     | "command_tag_control"
-    | "command_tag_arguments"
-    | "command_tag_argument"
     | "choice_operator"
     | "string"
     | "color"
@@ -421,9 +431,11 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   return: SparkReturnToken;
   jump: SparkJumpToken;
   choice: SparkChoiceToken;
-  image: SparkImageToken;
-  audio: SparkAudioToken;
-  command: SparkCommandToken;
+  image_tag: SparkImageTagToken;
+  audio_tag: SparkAudioTagToken;
+  text_tag: SparkTextTagToken;
+  command_tag: SparkCommandTagToken;
+  spec: SparkSpecToken;
   transition: SparkTransitionToken;
   scene: SparkSceneToken;
   action: SparkActionToken;

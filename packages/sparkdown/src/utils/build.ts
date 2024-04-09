@@ -193,7 +193,10 @@ const build = (
     if (tok.type === "type") {
       program.context[tok.name] ??= {};
       program.context[tok.name]!["default"] = tok.compiled;
-    } else if (typeof tok.compiled === "object") {
+    } else if (
+      typeof tok.compiled === "object" &&
+      (!Array.isArray(tok.compiled) || tok.type !== "object")
+    ) {
       program.context[tok.type] ??= {};
       program.context[tok.type]![tok.name] = tok.compiled;
       if (!Array.isArray(tok.compiled)) {
@@ -1078,7 +1081,7 @@ const build = (
     Object.entries(program.builtins).forEach(([type, objectsOfType]) => {
       // Define type
       const compiled = objectsOfType["default"] ?? {};
-      if (typeof compiled === "object") {
+      if (typeof compiled === "object" && !Array.isArray(compiled)) {
         compiled["$type"] = type;
       }
       const compiledType = typeof compiled;
@@ -1103,10 +1106,10 @@ const build = (
       const objectsOfTypeEntries = Object.entries(objectsOfType);
       if (objectsOfTypeEntries.length > 0) {
         objectsOfTypeEntries.forEach(([name, compiled]) => {
-          if (name) {
+          if (name && name !== "default") {
             const variableName = name;
             const variableType = type;
-            if (typeof compiled === "object") {
+            if (typeof compiled === "object" && !Array.isArray(compiled)) {
               compiled["$type"] = type;
               compiled["$name"] = name;
             }
@@ -1863,6 +1866,7 @@ const build = (
         } else if (tok.tag === "text") {
           const parent = lookup(
             "choice",
+            "spec",
             "action_box",
             "dialogue_box",
             "transition",
@@ -1907,29 +1911,22 @@ const build = (
             };
             parent.ranges!.text.to = tok.to;
           }
-        } else if (tok.tag === "image") {
-          const parent = lookup("dialogue_box", "action_box");
+        } else if (tok.tag === "image_tag") {
+          const parent = lookup("spec", "dialogue_box", "action_box");
           if (parent) {
             parent.content ??= [];
             parent.content.push(tok);
           }
           addToken(tok);
-        } else if (tok.tag === "audio") {
-          const parent = lookup("dialogue_box", "action_box");
-          if (parent) {
-            parent.content ??= [];
-            parent.content.push(tok);
-          }
-          addToken(tok);
-        } else if (tok.tag === "command") {
-          const parent = lookup("dialogue_box", "action_box");
+        } else if (tok.tag === "audio_tag") {
+          const parent = lookup("spec", "dialogue_box", "action_box");
           if (parent) {
             parent.content ??= [];
             parent.content.push(tok);
           }
           addToken(tok);
         } else if (tok.tag === "asset_tag_control") {
-          const parent = lookup("image", "audio");
+          const parent = lookup("image_tag", "audio_tag");
           if (parent) {
             parent.control = text;
             parent.ranges ??= {};
@@ -1940,7 +1937,7 @@ const build = (
             };
           }
         } else if (tok.tag === "asset_tag_target") {
-          const parent = lookup("image", "audio");
+          const parent = lookup("image_tag", "audio_tag");
           if (parent) {
             parent.target = text;
             parent.ranges ??= {};
@@ -1952,7 +1949,7 @@ const build = (
             validateAssetTarget(tok, parent.tag, text, parent.ranges.target);
           }
         } else if (tok.tag === "asset_tag_names") {
-          const parent = lookup("image", "audio");
+          const parent = lookup("image_tag", "audio_tag");
           if (parent) {
             const assetGroups: {
               name: string;
@@ -1981,7 +1978,9 @@ const build = (
                   if (prevOperator === "~") {
                     // name is filter
                     const filterType =
-                      parent.tag === "audio" ? "audio_filter" : "image_filter";
+                      parent.tag === "audio_tag"
+                        ? "audio_filter"
+                        : "image_filter";
                     const filter = program.context?.[filterType]?.[name];
                     const asset = assetGroups.at(-1);
                     if (asset) {
@@ -2033,7 +2032,7 @@ const build = (
             }[] = assetGroups.map((a) => {
               if (a.filters.length > 0) {
                 const type = parent.tag;
-                if (parent.tag === "image") {
+                if (parent.tag === "image_tag") {
                   const asset = program.context?.["image"]?.[a.name];
                   if (asset && asset.ext === "svg" && asset.text) {
                     const includes = a.filters
@@ -2093,7 +2092,7 @@ const build = (
             };
           }
         } else if (tok.tag === "asset_tag_arguments") {
-          const parent = lookup("image", "audio");
+          const parent = lookup("image_tag", "audio_tag");
           if (parent) {
             parent.ranges ??= {};
             parent.ranges.args = {
@@ -2103,7 +2102,7 @@ const build = (
             };
           }
         } else if (tok.tag === "asset_tag_argument") {
-          const parent = lookup("image", "audio");
+          const parent = lookup("image_tag", "audio_tag");
           if (parent) {
             const arg = text.trim();
             if (arg) {
@@ -2111,8 +2110,15 @@ const build = (
               parent.args.push(arg);
             }
           }
-        } else if (tok.tag === "command_tag_control") {
-          const parent = lookup("command");
+        } else if (tok.tag === "text_tag") {
+          const parent = lookup("spec", "dialogue_box", "action_box");
+          if (parent) {
+            parent.content ??= [];
+            parent.content.push(tok);
+          }
+          addToken(tok);
+        } else if (tok.tag === "text_tag_control") {
+          const parent = lookup("text_tag");
           if (parent) {
             parent.control = text;
             parent.ranges ??= {};
@@ -2122,8 +2128,8 @@ const build = (
               to: tok.to,
             };
           }
-        } else if (tok.tag === "command_tag_argument") {
-          const parent = lookup("command");
+        } else if (tok.tag === "text_tag_argument") {
+          const parent = lookup("text_tag");
           if (parent) {
             parent.args ??= [];
             parent.args.push(text);
@@ -2134,6 +2140,32 @@ const build = (
               to: tok.to,
             };
             parent.ranges.args!.to = tok.to;
+          }
+        } else if (tok.tag === "command_tag") {
+          addToken(tok);
+        } else if (tok.tag === "command_tag_control") {
+          const command_tag = lookup("command_tag");
+          if (command_tag) {
+            command_tag.control = text;
+            command_tag.ranges ??= {};
+            command_tag.ranges.control = {
+              line: tok.line,
+              from: tok.from,
+              to: tok.to,
+            };
+            const compiledValue = compileAndValidateExpression(
+              command_tag,
+              command_tag.control,
+              command_tag?.ranges?.control,
+              program.context
+            );
+            const parent = lookup("spec", "dialogue_box", "action_box");
+            if (parent) {
+              parent.content ??= [];
+              if (compiledValue && Array.isArray(compiledValue)) {
+                parent.content.push(...compiledValue);
+              }
+            }
           }
         } else if (tok.tag === "choice_operator") {
           const parent = lookup("choice");
@@ -2252,6 +2284,12 @@ const build = (
             program.metadata.lines[tok.line] ??= {};
             program.metadata.lines[tok.line]!.struct = parent.name;
           }
+        } else if (tok.tag === "spec") {
+          const parent = lookup("define");
+          if (parent) {
+            parent.compiled = tok.content;
+            parent.value = JSON.stringify(tok.content);
+          }
         } else if (tok.tag === "define") {
           const scopedParent = lookup(
             "if",
@@ -2290,38 +2328,40 @@ const build = (
                 type,
                 name,
               };
-              if (variable.fields) {
-                validateFields(variable);
-                const [objectLiteral, objCompiled] = construct(variable);
-                variable.value = objectLiteral;
-                variable.compiled = objCompiled;
-              } else if (!variable.value) {
-                const [objectLiteral, objCompiled] = construct(variable);
-                variable.value = objectLiteral;
-                variable.compiled = objCompiled;
-              } else {
-                variable.compiled = compileAndValidateExpression(
-                  variable,
-                  variable.value,
-                  variable.ranges?.value,
-                  program.context
-                );
-                const valueNamespaceMatch =
-                  variable.value?.match(NAMESPACE_REGEX);
-                const valueType = valueNamespaceMatch?.[1] || "";
-                const assignedType = valueType || typeof variable.compiled;
-                if (
-                  variable.type &&
-                  assignedType !== "undefined" &&
-                  variable.type !== assignedType
-                ) {
-                  reportTypeMismatch(
+              if (variable.compiled === undefined) {
+                if (variable.fields) {
+                  validateFields(variable);
+                  const [objectLiteral, objCompiled] = construct(variable);
+                  variable.value = objectLiteral;
+                  variable.compiled = objCompiled;
+                } else if (!variable.value) {
+                  const [objectLiteral, objCompiled] = construct(variable);
+                  variable.value = objectLiteral;
+                  variable.compiled = objCompiled;
+                } else {
+                  variable.compiled = compileAndValidateExpression(
                     variable,
-                    assignedType,
-                    variable.type,
-                    variable?.ranges?.name
+                    variable.value,
+                    variable.ranges?.value,
+                    program.context
                   );
-                  variable.compiled = undefined;
+                  const valueNamespaceMatch =
+                    variable.value?.match(NAMESPACE_REGEX);
+                  const valueType = valueNamespaceMatch?.[1] || "";
+                  const assignedType = valueType || typeof variable.compiled;
+                  if (
+                    variable.type &&
+                    assignedType !== "undefined" &&
+                    variable.type !== assignedType
+                  ) {
+                    reportTypeMismatch(
+                      variable,
+                      assignedType,
+                      variable.type,
+                      variable?.ranges?.name
+                    );
+                    variable.compiled = undefined;
+                  }
                 }
               }
               tok.value = variable.value;
@@ -2337,7 +2377,8 @@ const build = (
                 ) {
                   if (!variable.type) {
                     variable.type =
-                      typeof variable.compiled === "object"
+                      typeof variable.compiled === "object" &&
+                      !Array.isArray(variable.compiled)
                         ? "type"
                         : typeof variable.compiled;
                   }
@@ -2425,11 +2466,11 @@ const build = (
             tok?.ranges?.name,
             program.context
           );
-        } else if (tok.tag === "image") {
+        } else if (tok.tag === "image_tag") {
           if (!tok.target) {
             tok.target = "portrait";
           }
-        } else if (tok.tag === "audio") {
+        } else if (tok.tag === "audio_tag") {
           if (!tok.target) {
             tok.target = "sound";
           }
