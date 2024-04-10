@@ -81,12 +81,10 @@ export const styleText = (
       const isBolded = Boolean(activeBoldItalicMark) || Boolean(activeBoldMark);
 
       const chunk: FormattedText = { text: char };
-      if (isBolded && isItalicized) {
+      if (isBolded) {
         chunk.bold = true;
-        chunk.italic = true;
-      } else if (isBolded) {
-        chunk.bold = true;
-      } else if (isItalicized) {
+      }
+      if (isItalicized) {
         chunk.italic = true;
       }
       if (isUnderlined) {
