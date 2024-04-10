@@ -8,13 +8,13 @@ const EDITOR_THEME: {
     boxSizing: "border-box",
   },
   "&": {
-    fontFamily: "Courier Prime Sans",
     color: EDITOR_COLORS.foreground,
     flex: 1,
-    fontSize: "1rem",
   },
   "& .cm-scroller": {
     fontFamily: "Courier Prime Sans",
+    fontSize: "1rem",
+    lineHeight: "1.333",
     position: "relative",
     overflow: "visible",
     "&:before": {

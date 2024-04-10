@@ -7,7 +7,6 @@ const PREVIEW_THEME: {
     boxSizing: "border-box",
   },
   "&": {
-    fontFamily: "Courier Prime",
     flex: 1,
     backgroundSize: "auto",
     backgroundRepeat: "repeat",
@@ -16,6 +15,7 @@ const PREVIEW_THEME: {
   "& .cm-scroller": {
     fontFamily: "Courier Prime",
     fontSize: "1rem",
+    lineHeight: "1.333",
     overflow: "visible",
     position: "relative",
     "&:before": {
