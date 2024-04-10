@@ -11,7 +11,7 @@ export interface ComponentConfig<
   tag: `${string}-${string}`;
   stores?: Stores;
   graphics?: Graphics;
-  context?: (stores: Stores) => Context;
+  reducer?: (stores: Stores) => Context;
   state?: State;
   props?: Props;
   css?: string[] | string;

@@ -34,7 +34,7 @@ const Component = <
     #html = spec.html({
       graphics: spec.graphics,
       stores: spec.stores,
-      context: spec.context(spec.stores),
+      context: spec.reducer(spec.stores),
       state: spec.state,
       props: spec.props,
     });
@@ -287,7 +287,7 @@ const Component = <
     onInit() {}
 
     reduce(stores: Stores) {
-      return spec.context(stores);
+      return spec.reducer(stores);
     }
 
     #handleStoreUpdate = (e: Event): void => {

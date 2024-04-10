@@ -5,7 +5,7 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-header-title-button",
   stores: { workspace },
-  context: ({ workspace }) =>
+  reducer: ({ workspace }) =>
     ({
       name: workspace?.current?.project?.name || "",
       syncState: workspace?.current?.project?.syncState || "",

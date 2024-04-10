@@ -6,7 +6,7 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-header-sync-toolbar",
   stores: { workspace },
-  context: ({ workspace }) =>
+  reducer: ({ workspace }) =>
     ({
       id: workspace?.current?.project?.id || "",
       syncState: workspace?.current?.project?.syncState || "",

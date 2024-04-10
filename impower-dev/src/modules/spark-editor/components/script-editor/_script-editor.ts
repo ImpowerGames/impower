@@ -9,7 +9,7 @@ export default spec({
   props: {
     filename: "",
   },
-  context: ({ workspace }) =>
+  reducer: ({ workspace }) =>
     ({
       textPulledAt: workspace?.current?.project?.textPulledAt || "",
     } as const),

@@ -15,7 +15,7 @@ const spec = <
   return {
     tag: spec.tag,
     graphics: spec.graphics ?? ({} as Graphics),
-    context: spec.context ?? (() => ({} as Context)),
+    reducer: spec.reducer ?? (() => ({} as Context)),
     stores: spec.stores ?? ({} as Stores),
     state: spec.state ?? ({} as State),
     props: spec.props ?? ({} as Props),

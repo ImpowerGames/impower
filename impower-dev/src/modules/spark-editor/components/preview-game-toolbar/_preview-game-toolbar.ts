@@ -5,7 +5,7 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-preview-game-toolbar",
   stores: { workspace },
-  context: ({ workspace }) =>
+  reducer: ({ workspace }) =>
     ({
       running: workspace?.current?.preview?.modes?.game?.running || false,
       paused: workspace?.current?.preview?.modes?.game?.paused || false,

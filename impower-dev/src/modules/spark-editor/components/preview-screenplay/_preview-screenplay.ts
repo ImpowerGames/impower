@@ -6,7 +6,7 @@ import html from "./preview-screenplay.html";
 export default spec({
   tag: "se-preview-screenplay",
   stores: { workspace },
-  context: ({ workspace }) =>
+  reducer: ({ workspace }) =>
     ({
       textPulledAt: workspace?.current?.project?.textPulledAt || "",
     } as const),
