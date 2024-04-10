@@ -330,13 +330,13 @@ export const write = (
               let control = "";
               let arg = "";
               i += 1;
-              while (chars[i] !== ">" && chars[i] !== ":") {
+              while (chars[i] && chars[i] !== ">" && chars[i] !== ":") {
                 control += chars[i];
                 i += 1;
               }
               if (chars[i] === ":") {
                 i += 1;
-                while (chars[i] !== ">") {
+                while (chars[i] && chars[i] !== ">") {
                   arg += chars[i];
                   i += 1;
                 }
@@ -371,7 +371,7 @@ export const write = (
             ) {
               let mark = "";
               let m = i;
-              while (chars[m] === char) {
+              while (chars[m] && chars[m] === char) {
                 mark += chars[m];
                 m += 1;
               }
