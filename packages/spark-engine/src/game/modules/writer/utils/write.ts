@@ -96,23 +96,12 @@ const getValueName = (
   return "default";
 };
 
-const getArgumentTimeValue = (
-  args: string[],
-  name: string
-): number | undefined => {
-  const argIndex = args.indexOf(name);
-  if (argIndex < 0) {
-    return undefined;
-  }
-  const val = args[argIndex + 1];
-  if (val == null) {
-    return undefined;
-  }
-  const numValue = Number(val);
+const getSeconds = (value: string): number | undefined => {
+  const numValue = Number(value);
   if (!Number.isNaN(numValue)) {
     return numValue;
   }
-  const msMatch = val.match(MILLISECONDS_REGEX);
+  const msMatch = value.match(MILLISECONDS_REGEX);
   if (msMatch) {
     const msVal = msMatch[1];
     const msNumValue = Number(msVal);
@@ -120,7 +109,7 @@ const getArgumentTimeValue = (
       return msNumValue / 1000;
     }
   }
-  const sMatch = val.match(SECONDS_REGEX);
+  const sMatch = value.match(SECONDS_REGEX);
   if (sMatch) {
     const sVal = sMatch[1];
     const sNumValue = Number(sVal);
@@ -129,6 +118,29 @@ const getArgumentTimeValue = (
     }
   }
   return undefined;
+};
+
+const getArgumentTimeValue = (
+  args: string[],
+  name: string,
+  context: GameContext
+): number | undefined => {
+  const argIndex = args.indexOf(name);
+  if (argIndex < 0) {
+    return undefined;
+  }
+  const arg = args[argIndex + 1];
+  if (arg == null) {
+    return undefined;
+  }
+  const result = context.system.evaluate(arg);
+  if (typeof result === "number") {
+    return result;
+  }
+  if (typeof result === "string") {
+    return getSeconds(result);
+  }
+  return getSeconds(arg);
 };
 
 const getNumberValue = <T>(
@@ -167,13 +179,20 @@ const getArgumentNumberValue = (
 
 const getArgumentStringValue = (
   args: string[],
-  name: string
+  name: string,
+  context: GameContext
 ): string | undefined => {
   const argIndex = args.indexOf(name);
   if (argIndex < 0) {
     return undefined;
   }
   const arg = args[argIndex + 1];
+  if (arg) {
+    const result = context.system.evaluate(arg);
+    if (typeof result === "string") {
+      return result;
+    }
+  }
   return arg;
 };
 
@@ -769,15 +788,15 @@ export const write = (
             event.over = fadeDuration;
           }
           if (c.args) {
-            const withValue = getArgumentStringValue(c.args, "with");
+            const withValue = getArgumentStringValue(c.args, "with", context);
             if (withValue) {
               event.with = withValue;
             }
-            const afterValue = getArgumentTimeValue(c.args, "after");
+            const afterValue = getArgumentTimeValue(c.args, "after", context);
             if (afterValue) {
               event.after = (event.after ?? 0) + afterValue;
             }
-            const overValue = getArgumentTimeValue(c.args, "over");
+            const overValue = getArgumentTimeValue(c.args, "over", context);
             if (overValue) {
               event.over = overValue;
             }
@@ -808,11 +827,11 @@ export const write = (
             event.after = time;
           }
           if (c.args) {
-            const afterValue = getArgumentTimeValue(c.args, "after");
+            const afterValue = getArgumentTimeValue(c.args, "after", context);
             if (afterValue) {
               event.after = (event.after ?? 0) + afterValue;
             }
-            const overValue = getArgumentTimeValue(c.args, "over");
+            const overValue = getArgumentTimeValue(c.args, "over", context);
             if (overValue) {
               event.over = overValue;
             }
