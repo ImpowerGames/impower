@@ -15,7 +15,6 @@ const PREVIEW_THEME: {
   "& .cm-scroller": {
     fontFamily: "Courier Prime",
     fontSize: "1rem",
-    lineHeight: "1.333",
     overflow: "visible",
     position: "relative",
     "&:before": {

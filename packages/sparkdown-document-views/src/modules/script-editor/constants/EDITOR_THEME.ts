@@ -14,7 +14,6 @@ const EDITOR_THEME: {
   "& .cm-scroller": {
     fontFamily: "Courier Prime Sans",
     fontSize: "1rem",
-    lineHeight: "1.333",
     position: "relative",
     overflow: "visible",
     "&:before": {
