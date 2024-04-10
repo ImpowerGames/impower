@@ -44,6 +44,7 @@ import setProperty from "./setProperty";
 import traverse from "./traverse";
 
 const COMBINE_OPERATOR_REGEX = /([~+-]+)/;
+const NEWLINE_REGEX = /(\r\n|\r|\n)/;
 
 const DOUBLE_ESCAPE = /\\\\/g;
 const UNESCAPED_DOUBLE_QUOTE = /(?<!\\)["]/g;
@@ -1842,26 +1843,10 @@ const build = (
             parent.content ??= [];
             parent.content.push(tok);
           }
-        } else if (tok.tag === "display_text_prerequisite_value") {
-          const parent = lookup("display_text");
-          if (parent) {
-            parent.prerequisite = text;
-          }
         } else if (tok.tag === "target_name") {
           const parent = lookup("display_text");
           if (parent) {
             parent.target = text;
-          }
-        } else if (tok.tag === "display_text_content") {
-          formatAndValidate(
-            tok,
-            text,
-            { line: tok.line, from: tok.from, to: tok.to },
-            program.context
-          );
-          const parent = lookup("display_text");
-          if (parent) {
-            parent.text = text;
           }
         } else if (tok.tag === "text") {
           const parent = lookup(
@@ -1872,12 +1857,16 @@ const build = (
             "transition",
             "scene"
           );
+          formatAndValidate(
+            tok,
+            text,
+            { line: tok.line, from: tok.from, to: tok.to },
+            program.context
+          );
           tok.text = text;
           const display_text = lookup("display_text");
           if (display_text) {
-            if (display_text.prerequisite) {
-              tok.prerequisite = display_text.prerequisite;
-            }
+            display_text.text = text;
             if (display_text.target) {
               tok.target = display_text.target;
             } else {
@@ -1896,8 +1885,8 @@ const build = (
               lastContent &&
               lastContent.tag === "text" &&
               lastContent.target === tok.target &&
-              !lastContent.text?.endsWith("\n") &&
-              !lastContent.text?.endsWith("\r")
+              !NEWLINE_REGEX.test(tok.text) &&
+              !NEWLINE_REGEX.test(lastContent.text || "")
             ) {
               lastContent.text += tok.text;
             } else {
@@ -2109,37 +2098,6 @@ const build = (
               parent.args ??= [];
               parent.args.push(arg);
             }
-          }
-        } else if (tok.tag === "text_tag") {
-          const parent = lookup("spec", "dialogue_box", "action_box");
-          if (parent) {
-            parent.content ??= [];
-            parent.content.push(tok);
-          }
-          addToken(tok);
-        } else if (tok.tag === "text_tag_control") {
-          const parent = lookup("text_tag");
-          if (parent) {
-            parent.control = text;
-            parent.ranges ??= {};
-            parent.ranges.control = {
-              line: tok.line,
-              from: tok.from,
-              to: tok.to,
-            };
-          }
-        } else if (tok.tag === "text_tag_argument") {
-          const parent = lookup("text_tag");
-          if (parent) {
-            parent.args ??= [];
-            parent.args.push(text);
-            parent.ranges ??= {};
-            parent.ranges.args ??= {
-              line: tok.line,
-              from: tok.from,
-              to: tok.to,
-            };
-            parent.ranges.args!.to = tok.to;
           }
         } else if (tok.tag === "command_tag") {
           addToken(tok);

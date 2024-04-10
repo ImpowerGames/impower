@@ -1415,30 +1415,6 @@ repository:
   TextTag:
     tag: macroName
     name: meta.text.sd
-    match: ^([ ]*)([<])((?:\\.|[^>])*?)([>])($|[ ]*$)((?:\r\n|\r|\n)?)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: keyword
-        name: keyword.operator.expression.begin.tag.sd
-      3:
-        patterns:
-          - { include: "#TextTagContent" }
-      4:
-        tag: keyword
-        name: keyword.operator.expression.end.tag.sd
-      5:
-        patterns:
-          - { include: "#Whitespace" }
-      6:
-        patterns:
-          - { include: "#Newline" }
-
-  InlineTextTag:
-    tag: macroName
-    name: meta.text.sd
     match: ([<])((?:\\.|[^>])*?)([>])
     captures:
       1:
@@ -1657,7 +1633,6 @@ repository:
       - { include: "#Comment" }
       - { include: "#ImageTag" }
       - { include: "#AudioTag" }
-      - { include: "#TextTag" }
       - { include: "#CommandTag" }
       - { include: "#DialogueLineParenthetical" }
       - { include: "#BoxLineContinue" }
@@ -1741,7 +1716,6 @@ repository:
       - { include: "#Comment" }
       - { include: "#ImageTag" }
       - { include: "#AudioTag" }
-      - { include: "#TextTag" }
       - { include: "#CommandTag" }
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
@@ -1751,44 +1725,16 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  DisplayText:
-    name: entity.display.sd
-    match: (?:([!]?(?:\d+|[_a-zA-Z][_a-zA-Z0-9]*))?([?][:])([ ]*))?($|.+$(?:\r\n|\r|\n)?)
-    captures:
-      1:
-        patterns:
-          - { include: "#DisplayTextPrerequisiteValue" }
-      2:
-        patterns:
-          - { include: "#DisplayTextPrerequisiteOperator" }
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-      4:
-        patterns:
-          - { include: "#DisplayTextContent" }
-
   TargetName:
     tag: typeName
     name: entity.name.type.text.target.sd
     match: (.+)
 
-  DisplayTextPrerequisiteValue:
-    tag: variableName
-    name: variable.other.constant.sd
-    match: (.+)
-
-  DisplayTextPrerequisiteOperator:
-    tag: keyword
-    name: keyword.operator.expression.prerequisite.sd
-    match: (.+)
-
-  DisplayTextContent:
+  DisplayText:
     emit: true
     patterns:
       - { include: "#InlineImageTag" }
       - { include: "#InlineAudioTag" }
-      - { include: "#InlineTextTag" }
       - { include: "#InlineCommandTag" }
       - { include: "#DisplayString" }
 
@@ -1805,8 +1751,7 @@ repository:
       - { include: "#Escape" }
       - { include: "#InlineTemplateStringSubstitution" }
       - { include: "#Styling" }
-      - { include: "#EmphasisSurround" }
-      - { include: "#EmphasisStart" }
+      - { include: "#Emphasis" }
       - { include: "#Pause" }
       - { include: "#PlainText" }
 
@@ -1815,7 +1760,7 @@ repository:
       - { include: "#Escape" }
       - { include: "#InlineTemplateStringSubstitution" }
       - { include: "#Styling" }
-      - { include: "#EmphasisSurround" }
+      - { include: "#Emphasis" }
       - { include: "#Pause" }
       - { include: "#PlainText" }
 
@@ -1865,6 +1810,7 @@ repository:
 
   Styling:
     patterns:
+      - { include: "#TextTag" }
       - { include: "#Underline" }
       - { include: "#BoldItalic" }
       - { include: "#Bold" }
@@ -1881,7 +1827,7 @@ repository:
   BoldItalic:
     tag: strong
     name: markup.bold.sd
-    match: ([*][*]+)([*].+?[*])(\1)
+    match: ([*][*]+)([*].*?(?:[*]|$))(\1|$)
     captures:
       1:
         patterns:
@@ -1896,7 +1842,7 @@ repository:
   Bold:
     tag: strong
     name: markup.bold.sd
-    match: ([*][*](?![*]))(.+?)(\1)
+    match: ([*][*](?![*]))(.*?)(\1|$)
     captures:
       1:
         patterns:
@@ -1911,7 +1857,7 @@ repository:
   Italic:
     tag: emphasis
     name: markup.italic.sd
-    match: ([*](?![*]))(.+?)(\1)
+    match: ([*](?![*]))(.*?)(\1|$)
     captures:
       1:
         patterns:
@@ -1926,7 +1872,7 @@ repository:
   Underline:
     tag: link
     name: markup.underline.sd
-    match: ([_]+)(.+?)(\1)
+    match: ([_]+)(.*?)(\1|$)
     captures:
       1:
         patterns:
@@ -1941,7 +1887,7 @@ repository:
   Centered:
     tag: monospace
     name: markup.other.centered.sd
-    match: ([|]+)(.+?)(\1)
+    match: ([|]+)(.*?)(\1|$)
     captures:
       1:
         patterns:
@@ -1953,36 +1899,15 @@ repository:
         patterns:
           - { include: "#StylingMark" }
 
-  EmphasisStart:
+  Emphasis:
     patterns:
-      - { include: "#EmphasisCaretStart" }
-      - { include: "#EmphasisTildeStart" }
-      - { include: "#EmphasisEqualStart" }
-      - { include: "#EmphasisColonStart" }
+      - { include: "#EmphasisTilde" }
+      - { include: "#EmphasisColon" }
 
-  EmphasisSurround:
-    patterns:
-      - { include: "#EmphasisCaretSurround" }
-      - { include: "#EmphasisTildeSurround" }
-      - { include: "#EmphasisEqualSurround" }
-      - { include: "#EmphasisColonSurround" }
-
-  EmphasisCaretStart:
+  EmphasisTilde:
     tag: emphasis
     name: markup.emphasis.sd
-    match: ^([\^]+)([^\^]+)$
-    captures:
-      1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-      2:
-        patterns:
-          - { include: "#InnerText" }
-
-  EmphasisCaretSurround:
-    tag: emphasis
-    name: markup.emphasis.sd
-    match: ([\^]+)((?:(?!\1).*?)+)(\1)
+    match: ([~][~]+)((?:(?!\1).*?)+)(\1|$)
     captures:
       1:
         tag: bracket
@@ -1994,76 +1919,10 @@ repository:
         tag: bracket
         name: punctuation.definition.emphasis.sd
 
-  EmphasisTildeStart:
+  EmphasisColon:
     tag: emphasis
     name: markup.emphasis.sd
-    match: ^([~][~]+)([^~]+)$
-    captures:
-      1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-      2:
-        patterns:
-          - { include: "#InnerText" }
-
-  EmphasisTildeSurround:
-    tag: emphasis
-    name: markup.emphasis.sd
-    match: ([~][~]+)((?:(?!\1).*?)+)(\1)
-    captures:
-      1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-      2:
-        patterns:
-          - { include: "#InnerText" }
-      3:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-
-  EmphasisColonStart:
-    tag: emphasis
-    name: markup.emphasis.sd
-    match: ^([:][:]+)([^:]+)$
-    captures:
-      1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-      2:
-        patterns:
-          - { include: "#InnerText" }
-
-  EmphasisColonSurround:
-    tag: emphasis
-    name: markup.emphasis.sd
-    match: ([:][:]+)((?:(?!\1).*?)+)(\1)
-    captures:
-      1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-      2:
-        patterns:
-          - { include: "#InnerText" }
-      3:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-
-  EmphasisEqualStart:
-    tag: emphasis
-    name: markup.emphasis.sd
-    match: ^([=]+)([^=]+)$
-    captures:
-      1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
-      2:
-        patterns:
-          - { include: "#InnerText" }
-
-  EmphasisEqualSurround:
-    tag: emphasis
-    name: markup.emphasis.sd
-    match: ([=]+)((?:(?!\1).*?)+)(\1)
+    match: ([:][:]+)((?:(?!\1).*?)+)(\1|$)
     captures:
       1:
         tag: bracket

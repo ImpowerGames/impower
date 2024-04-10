@@ -11,18 +11,23 @@ import { Phrase } from "../types/Phrase";
 import { WriteResult } from "../types/WriteResult";
 import { stressPhrases } from "./stressPhrases";
 
-const SINGLE_MARKERS = ["|", "*", "_", "^"];
+const SINGLE_MARKERS = ["|", "*", "_"];
 const DOUBLE_MARKERS = ["~~", "::"];
-const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
-const SECONDS_REGEX = /((?:\d*[.])?\d+)s/;
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
+
+const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
+const SECONDS_REGEX = /((?:\d*[.])?\d+)s/;
 
 const isWhitespaceOrEmpty = (part: string) => {
   if (!part) {
     return true;
   }
   return isWhitespace(part);
+};
+
+const isNewline = (part: string) => {
+  return part === "\n" || part === "\r" || part === "\r\n";
 };
 
 const isWhitespace = (part: string) => {
@@ -126,14 +131,6 @@ const getArgumentTimeValue = (
   return undefined;
 };
 
-const isNumberValue = (arg: string | undefined): boolean => {
-  const numValue = Number(arg);
-  if (numValue == null || Number.isNaN(numValue)) {
-    return false;
-  }
-  return true;
-};
-
 const getNumberValue = (
   arg: string | undefined,
   defaultValue: number
@@ -223,9 +220,12 @@ export const write = (
     escaped = false;
   };
 
-  const marks: [string, number][] = [];
+  const marks: [string][] = [];
   const textChunks: Chunk[] = [];
   let speedModifier = 1;
+  let pitchModifier = 1;
+  const floatingIndexMap = new Map<[string], number>();
+  const tremblingIndexMap = new Map<[string], number>();
 
   content.forEach((p, contentIndex) => {
     const target = p.target || "";
@@ -301,25 +301,6 @@ export const write = (
       });
       startNewPhrase();
     }
-    if (p.tag === "text_tag") {
-      if (isNumberValue(p.control)) {
-        speedModifier = getNumberValue(p.control, 1);
-      } else if (p.control === "speed" || p.control === "s") {
-        speedModifier = getNumberValue(p.args?.[0], 1);
-      } else if (p.control === "wait" || p.control === "w") {
-        const waitModifier = getNumberValue(p.args?.[0], 0);
-        phrases.push({
-          ...p,
-          chunks: [
-            {
-              tag: p.tag,
-              duration: waitModifier,
-              speed: 1,
-            },
-          ],
-        });
-      }
-    }
     const text = p.text;
     if (text != null) {
       if (skippedMatcher && skippedMatcher.test(text)) {
@@ -330,17 +311,58 @@ export const write = (
         prevTarget = target;
         startNewPhrase();
       }
+      if (isNewline(text)) {
+        marks.length = 0;
+      }
       const chars = text.match(CHAR_REGEX);
       if (chars) {
         for (let i = 0; i < chars.length; ) {
           const char = chars[i] || "";
           const nextChar = chars[i + 1] || nextContent?.text?.[0] || "";
-          const lastMark = marks[marks.length - 1]?.[0];
           if (!escaped) {
             if (char === "\\") {
               // escape char
               i += 1;
               escaped = true;
+              continue;
+            }
+            if (char === "<") {
+              let control = "";
+              let arg = "";
+              i += 1;
+              while (chars[i] !== ">" && chars[i] !== ":") {
+                control += chars[i];
+                i += 1;
+              }
+              if (chars[i] === ":") {
+                i += 1;
+                while (chars[i] !== ">") {
+                  arg += chars[i];
+                  i += 1;
+                }
+              }
+              if (chars[i] === ">") {
+                i += 1;
+              }
+              if (control) {
+                if (control === "speed" || control === "s") {
+                  speedModifier = getNumberValue(arg, 1);
+                } else if (control === "pitch" || control === "p") {
+                  pitchModifier = getNumberValue(arg, 0);
+                } else if (control === "wait" || control === "w") {
+                  const waitModifier = getNumberValue(arg, 0);
+                  phrases.push({
+                    ...p,
+                    chunks: [
+                      {
+                        tag: p.tag,
+                        duration: waitModifier,
+                        speed: 1,
+                      },
+                    ],
+                  });
+                }
+              }
               continue;
             }
             if (
@@ -353,31 +375,68 @@ export const write = (
                 mark += chars[m];
                 m += 1;
               }
-              if (lastMark === mark) {
+              const lastMatchingMark = marks.findLast(([m]) => m === mark);
+              if (lastMatchingMark) {
+                if (marks.at(-1) !== lastMatchingMark) {
+                  marks.pop();
+                }
                 marks.pop();
               } else {
-                marks.push([mark, textChunks.length - 1]);
+                marks.push([mark]);
               }
               i += mark.length;
               continue;
             }
           }
           escaped = false;
-          const markers = marks.map(([mark]) => mark);
-          const activeCenteredMark = markers.find((m) => m.startsWith("|"));
-          const activeBoldItalicMark = markers.find((m) => m.startsWith("***"));
-          const activeUnderlineMark = markers.find((m) => m.startsWith("_"));
-          const activePitchUpMark = markers.find((m) => m.startsWith("^"));
-          const activeFloatingMark = markers.find((m) => m.startsWith("~~"));
-          const activeTremblingMark = markers.find((m) => m.startsWith("::"));
+          const activeCenteredMark = marks.findLast(([m]) => m.startsWith("|"));
+          const activeUnderlineMark = marks.findLast(([m]) =>
+            m.startsWith("_")
+          );
+          const activeBoldItalicMark = marks.findLast(([m]) =>
+            m.startsWith("***")
+          );
+          const activeBoldMark = marks.findLast(([m]) => m.startsWith("**"));
+          const activeItalicMark = marks.findLast(([m]) => m.startsWith("*"));
+          const activeFloatingMark = marks.findLast(([m]) =>
+            m.startsWith("~~")
+          );
+          const activeTremblingMark = marks.findLast(([m]) =>
+            m.startsWith("::")
+          );
           const isCentered = Boolean(activeCenteredMark);
-          const hasBoldItalicMark = Boolean(activeBoldItalicMark);
           const isUnderlined = Boolean(activeUnderlineMark);
-          const hasBoldMark = markers.includes("**");
-          const hasItalicMark = markers.includes("*");
-          const isItalicized = hasBoldItalicMark || hasItalicMark;
-          const isBolded = hasBoldItalicMark || hasBoldMark;
+          const isItalicized =
+            Boolean(activeBoldItalicMark) || Boolean(activeItalicMark);
+          const isBolded =
+            Boolean(activeBoldItalicMark) || Boolean(activeBoldMark);
           const voiced = Boolean(voicedMatcher?.test(char));
+
+          // Determine offset from floating mark
+          if (activeFloatingMark) {
+            const floatingIndex = floatingIndexMap.get(activeFloatingMark);
+            if (floatingIndex != null) {
+              floatingIndexMap.set(activeFloatingMark, floatingIndex + 1);
+            } else {
+              floatingIndexMap.set(activeFloatingMark, 0);
+            }
+          }
+          const floating = activeFloatingMark
+            ? floatingIndexMap.get(activeFloatingMark)
+            : 0;
+
+          // Determine offset from trembling mark
+          if (activeTremblingMark) {
+            const tremblingIndex = tremblingIndexMap.get(activeTremblingMark);
+            if (tremblingIndex != null) {
+              tremblingIndexMap.set(activeTremblingMark, tremblingIndex + 1);
+            } else {
+              tremblingIndexMap.set(activeTremblingMark, 0);
+            }
+          }
+          const trembling = activeTremblingMark
+            ? tremblingIndexMap.get(activeTremblingMark)
+            : 0;
 
           if (isWhitespace(char)) {
             word = "";
@@ -440,23 +499,18 @@ export const write = (
               : isUnderlined
               ? 1
               : 0;
-          // floating level = number of `~`
-          const floating = activeFloatingMark
-            ? activeFloatingMark.length - 1
-            : 0;
-          // trembling level = number of `=`
-          const trembling = activeTremblingMark
-            ? activeTremblingMark.length - 1
-            : 0;
-          // stress level = number of `^`
-          const pitch = activePitchUpMark ? activePitchUpMark.length : 0;
+          const pitch = pitchModifier;
 
           // Determine beep timing
           const charIndex = phraseUnpauseLength - 1;
           const voicedSyllable = charIndex % syllableLength === 0;
-          const speedFloating = floating ? floating : 1;
-          const speedTrembling = trembling ? trembling : 1;
-          const speed = (1 * speedModifier) / speedFloating / speedTrembling;
+          const speedFloating = activeFloatingMark
+            ? activeFloatingMark.length - 1
+            : 1;
+          const speedTrembling = activeTremblingMark
+            ? activeTremblingMark.length - 1
+            : 1;
+          const speed = speedModifier / speedFloating / speedTrembling;
           const isPhrasePause = isPhraseBoundary;
           const isEmDashPause = currChunk && currChunk.emDash && !emDash;
           const isStressPause: boolean = Boolean(
@@ -615,8 +669,6 @@ export const write = (
     { time?: number; speed?: number; bend?: number }[]
   > = {};
   phrases.forEach((phrase) => {
-    let floatingIndex = 0;
-    let tremblingIndex = 0;
     const target = phrase.target || "";
     const writer = getValue(context, "writer", target);
     const fadeDuration = writer?.fade_duration ?? 0;
@@ -661,22 +713,12 @@ export const write = (
           // Floating animation
           if (c.floating) {
             event.with = "floating";
-            event.withAfter = floatingIndex * animationOffset * -1;
-          }
-          if (c.floating) {
-            floatingIndex += 1;
-          } else {
-            floatingIndex = 0;
+            event.withAfter = c.floating * animationOffset * -1;
           }
           // Trembling animation
           if (c.trembling) {
             event.with = "trembling";
-            event.withAfter = tremblingIndex * animationOffset * -1;
-          }
-          if (c.trembling) {
-            tremblingIndex += 1;
-          } else {
-            tremblingIndex = 0;
+            event.withAfter = c.trembling * animationOffset * -1;
           }
           // Debug colorization
           if (debug) {

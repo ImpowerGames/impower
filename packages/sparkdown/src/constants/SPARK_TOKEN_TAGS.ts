@@ -77,11 +77,9 @@ const SPARK_TOKEN_TAGS: {
 
   ImageTag: "image_tag",
   AudioTag: "audio_tag",
-  TextTag: "text_tag",
   CommandTag: "command_tag",
   InlineImageTag: "image_tag",
   InlineAudioTag: "audio_tag",
-  InlineTextTag: "text_tag",
   InlineCommandTag: "command_tag",
   AssetTagControl: "asset_tag_control",
   AssetTagTarget: "asset_tag_target",
@@ -89,9 +87,6 @@ const SPARK_TOKEN_TAGS: {
   AssetTagNames: "asset_tag_names",
   AssetTagArguments: "asset_tag_arguments",
   AssetTagArgument: "asset_tag_argument",
-  TextTagControl: "text_tag_control",
-  TextTagArguments: "text_tag_arguments",
-  TextTagArgument: "text_tag_argument",
   CommandTagControl: "command_tag_control",
 
   ExplicitAction: "action",
@@ -105,9 +100,6 @@ const SPARK_TOKEN_TAGS: {
   DialogueLineParentheticalContent: "dialogue_line_parenthetical",
   Spec: "spec",
   DisplayText: "display_text",
-  DisplayTextPrerequisiteValue: "display_text_prerequisite_value",
-  DisplayTextPrerequisiteOperator: "display_text_prerequisite_operator",
-  DisplayTextContent: "display_text_content",
   DisplayString: "text",
   TargetName: "target_name",
 

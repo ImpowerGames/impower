@@ -214,17 +214,6 @@ export interface SparkAudioTagToken extends ISparkToken<"audio_tag"> {
   };
 }
 
-export interface SparkTextTagToken extends ISparkToken<"text_tag"> {
-  control: string;
-  args: string[];
-
-  ranges?: {
-    checkpoint?: SparkRange;
-    control?: SparkRange;
-    args?: SparkRange;
-  };
-}
-
 export interface SparkCommandTagToken extends ISparkToken<"command_tag"> {
   control: string;
 
@@ -254,7 +243,6 @@ export interface DisplayContent {
 export interface SparkSpecToken extends ISparkDisplayToken<"spec"> {}
 
 export interface SparkDisplayTextToken extends ISparkToken<"display_text"> {
-  prerequisite: string;
   text: string;
   target: string;
 }
@@ -363,10 +351,6 @@ export interface SparkOtherToken
     | "assign_operator"
     | "value_text"
     | "jump_to_section"
-    | "display_text_prerequisite_value"
-    | "display_text_prerequisite_operator"
-    | "targeted_display_text_content"
-    | "display_text_content"
     | "target_name"
     | "unknown"
     | "dialogue_character_simultaneous"
@@ -376,9 +360,6 @@ export interface SparkOtherToken
     | "asset_tag_names"
     | "asset_tag_arguments"
     | "asset_tag_argument"
-    | "text_tag_control"
-    | "text_tag_arguments"
-    | "text_tag_argument"
     | "command_tag_control"
     | "choice_operator"
     | "string"
@@ -433,7 +414,6 @@ export interface SparkTokenTagMap extends SparkOtherTokenTagMap {
   choice: SparkChoiceToken;
   image_tag: SparkImageTagToken;
   audio_tag: SparkAudioTagToken;
-  text_tag: SparkTextTagToken;
   command_tag: SparkCommandTagToken;
   spec: SparkSpecToken;
   transition: SparkTransitionToken;
