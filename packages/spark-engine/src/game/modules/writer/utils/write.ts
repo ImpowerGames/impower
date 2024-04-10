@@ -131,30 +131,38 @@ const getArgumentTimeValue = (
   return undefined;
 };
 
-const getNumberValue = (
+const getNumberValue = <T>(
   arg: string | undefined,
-  defaultValue: number
-): number => {
+  defaultValue: T,
+  context: GameContext
+): number | T => {
   const numValue = Number(arg);
-  if (numValue == null || Number.isNaN(numValue)) {
-    return defaultValue;
+  if (!Number.isNaN(numValue)) {
+    return numValue;
   }
-  return numValue;
+  if (typeof arg === "string") {
+    const result = context.system.evaluate(arg);
+    if (typeof result === "number") {
+      return result;
+    }
+  }
+  return defaultValue;
 };
 
 const getArgumentNumberValue = (
   args: string[],
-  name: string
+  name: string,
+  context: GameContext
 ): number | undefined => {
   const argIndex = args.indexOf(name);
   if (argIndex < 0) {
     return undefined;
   }
-  const numValue = Number(args[argIndex + 1]);
-  if (Number.isNaN(numValue)) {
-    return undefined;
+  const arg = args[argIndex + 1];
+  if (arg) {
+    return getNumberValue(arg, undefined, context);
   }
-  return numValue;
+  return undefined;
 };
 
 const getArgumentStringValue = (
@@ -165,7 +173,8 @@ const getArgumentStringValue = (
   if (argIndex < 0) {
     return undefined;
   }
-  return args[argIndex + 1];
+  const arg = args[argIndex + 1];
+  return arg;
 };
 
 const getMinSynthDuration = (synth: {
@@ -346,11 +355,11 @@ export const write = (
               }
               if (control) {
                 if (control === "speed" || control === "s") {
-                  speedModifier = getNumberValue(arg, 1);
+                  speedModifier = getNumberValue(arg, 1, context);
                 } else if (control === "pitch" || control === "p") {
-                  pitchModifier = getNumberValue(arg, 0);
+                  pitchModifier = getNumberValue(arg, 0, context);
                 } else if (control === "wait" || control === "w") {
-                  const waitModifier = getNumberValue(arg, 0);
+                  const waitModifier = getNumberValue(arg, 0, context);
                   phrases.push({
                     ...p,
                     chunks: [
@@ -772,7 +781,7 @@ export const write = (
             if (overValue) {
               event.over = overValue;
             }
-            const toValue = getArgumentNumberValue(c.args, "to");
+            const toValue = getArgumentNumberValue(c.args, "to", context);
             if (toValue != null) {
               event.to = toValue;
             }
@@ -811,7 +820,7 @@ export const write = (
             if (unmuteValue) {
               event.to = 1;
             }
-            const toValue = getArgumentNumberValue(c.args, "to");
+            const toValue = getArgumentNumberValue(c.args, "to", context);
             if (toValue != null) {
               event.to = toValue;
             }

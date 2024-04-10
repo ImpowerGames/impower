@@ -7,6 +7,7 @@ export interface GameContext extends Record<string, any> {
     previewing?: boolean;
     debugging?: boolean;
     stored?: string[];
+    evaluate: (expression: string) => unknown;
     uuid: () => string;
     restore: () => Promise<void>;
     checkpoint: (id: string) => void;

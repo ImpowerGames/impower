@@ -79,15 +79,6 @@ export class Game<CustomModules extends { [name: string]: Manager } = {}> {
     }
   ) {
     this._context = resolve(clone({ ...(context || {}) })) as GameContext;
-    this._context.system ??= {} as any;
-    this._context.system.initialized = false;
-    this._context.system.transitions ??= true;
-    this._context.system.checkpoint ??= (id: string) => this.checkpoint(id);
-    this._context.system.restore ??= () => this.restore();
-    (this._context.system.supports ??= (module: string) =>
-      this.supports(module)),
-      (this._context.system.uuid ??= () => uuid());
-    this._stored = this._context.system?.stored || [];
     this._connection = new Connection({
       onReceive: (msg) => this.onReceive(msg),
     });
@@ -105,6 +96,17 @@ export class Game<CustomModules extends { [name: string]: Manager } = {}> {
       });
     }
     this._moduleNames = Object.keys(this._managers);
+    this._context.system ??= {} as any;
+    this._context.system.initialized = false;
+    this._context.system.transitions ??= true;
+    this._context.system.checkpoint ??= (id: string) => this.checkpoint(id);
+    this._context.system.restore ??= () => this.restore();
+    (this._context.system.supports ??= (module: string) =>
+      this.supports(module)),
+      (this._context.system.uuid ??= () => uuid());
+    this._stored = this._context.system?.stored || [];
+    this._context.system.evaluate ??= (expression: string) =>
+      this.module.logic.evaluate(expression);
   }
 
   supports(name: string): boolean {
