@@ -26,12 +26,13 @@
 }
 
 :host(:not([child-layout="row"])) {
-  --child-gap: 4px;
+  --child-gap: 2px;
+  --icon-size: calc(1.5 * var(--text-size));
 }
 
 :host([child-layout="row"]) {
   --child-gap: 8px;
-  --icon-size: calc(0.75 * var(--s-icon-size));
+  --icon-size: calc(1.15 * var(--text-size));
 }
 
 :host > .root {

@@ -1,14 +1,14 @@
 <s-box position="fixed-top" height="header-nav" child-justify="center" z="2" bg-color="primary-bg">
-  <s-box p="0 8 0 0" child-layout="row" child-align="center">
+  <s-box child-layout="row" child-align="center">
     <se-header-menu-button></se-header-menu-button>
     <s-box grow>
       <se-header-title-button></se-header-title-button>
       <se-header-title-caption></se-header-title-caption>
     </s-box>
     <se-header-sync-toolbar id="syncToolbar"></se-header-sync-toolbar>
-    <s-hidden id="mobileToolbar" initial="hide" hide-above="lg">
-      <s-button id="doneButton" icon="check" variant="icon" width="56" height="56" text-size="20" hidden></s-button>
+    <s-hidden id="mobileToolbar" initial="hide" hide-above="lg" child-layout="row" child-align="center">
       <se-preview-toggle-button id="previewButton"></se-preview-toggle-button>
+      <se-edit-toggle-button id="previewButton"></se-edit-toggle-button>
     </s-hidden>
   </s-box>
   <s-divider position="absolute" i-b="0" bg-color="fg-06"></s-divider>

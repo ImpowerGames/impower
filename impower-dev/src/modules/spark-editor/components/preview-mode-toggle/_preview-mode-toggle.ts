@@ -12,7 +12,6 @@ export default spec({
         type="toggle"
         width="48"
         height="48"
-        text-size="18"
         class="more"
         color="fg-50"
         variant="icon"

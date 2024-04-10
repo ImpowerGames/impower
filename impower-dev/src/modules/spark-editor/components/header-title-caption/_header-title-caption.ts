@@ -60,6 +60,7 @@ export default spec({
         child-align="center"
         text-size="sm"
         text-weight="500"
+        m-t="-2px"
         m-b="2px"
         text-color="${captionColor}"
       >

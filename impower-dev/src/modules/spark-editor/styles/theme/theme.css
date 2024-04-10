@@ -10,9 +10,9 @@ html {
 
 :root,
 .se-theme {
-  --s-size-header-nav: 64px;
-  --s-size-footer-nav: 68px;
-  --s-size-panel-nav: 56px;
+  --s-size-header-nav: 56px;
+  --s-size-footer-nav: 60px;
+  --s-size-panel-nav: 48px;
 
   --s-color-tab-active: hsl(0, 0%, 95%);
   --s-color-tab-inactive: hsl(211 26% 48%);

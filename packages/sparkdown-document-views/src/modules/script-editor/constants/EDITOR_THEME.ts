@@ -51,7 +51,6 @@ const EDITOR_THEME: {
     backgroundColor: "transparent",
   },
   "& .cm-gutters": {
-    minWidth: "48px",
     backgroundColor: "transparent",
     color: EDITOR_COLORS.lineNumber,
     border: "none",
@@ -60,8 +59,8 @@ const EDITOR_THEME: {
   "& .cm-gutterElement *": {
     userSelect: "none",
   },
-  "& .cm-gutter.cm-lineNumbers": {
-    minWidth: "32px",
+  "& .cm-lineNumbers .cm-gutterElement": {
+    padding: "0 2px",
   },
   "& .cm-gutter-lint": {
     width: "1em",
@@ -69,9 +68,6 @@ const EDITOR_THEME: {
   "& .cm-foldGutter .cm-gutterElement span": {
     width: "1em",
     display: "inline-block",
-  },
-  "& .cm-lineNumbers .cm-gutterElement": {
-    padding: "0 2px",
   },
   "& .cm-activeLine": {
     backgroundColor: "#FFFFFF0F",

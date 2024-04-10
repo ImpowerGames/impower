@@ -8,6 +8,7 @@ import AssetsSpecs from "./components/assets-specs/_assets-specs";
 import Assets from "./components/assets/_assets";
 import Demo from "./components/demo/_demo";
 import Details from "./components/details/_details";
+import EditToggleButton from "./components/edit-toggle-button/_edit-toggle-button";
 import FileAddButton from "./components/file-add-button/_file-add-button";
 import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
 import FileItem from "./components/file-item/_file-item";
@@ -102,6 +103,7 @@ const components = [
   style(ShareGame),
   style(ShareProject),
   style(MainPanel),
+  style(EditToggleButton),
   style(PreviewToggleButton),
   style(PreviewOptionsDropdown),
   style(Preview),

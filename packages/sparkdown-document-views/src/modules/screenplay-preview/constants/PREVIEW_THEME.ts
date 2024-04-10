@@ -7,8 +7,6 @@ const PREVIEW_THEME: {
     boxSizing: "border-box",
   },
   "&": {
-    opacity: 0,
-    transition: "opacity 0.25s",
     fontFamily: "Courier Prime",
     flex: 1,
     backgroundSize: "auto",

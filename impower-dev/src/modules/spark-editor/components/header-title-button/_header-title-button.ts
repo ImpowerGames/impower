@@ -47,7 +47,7 @@ export default spec({
       ></s-input>
     `;
     const nameSkeleton = () => html`
-      <s-skeleton id="name-skeleton">Untitled Project</s-skeleton>
+      <s-skeleton id="name-skeleton">Untitled Game</s-skeleton>
     `;
     return html`
       <s-box child-layout="row" child-align="center">

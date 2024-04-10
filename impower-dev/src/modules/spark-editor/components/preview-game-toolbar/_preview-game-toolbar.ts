@@ -15,7 +15,12 @@ export default spec({
   html: ({ context }) => {
     const { running, paused, debugging, loading } = context;
     const titleEl = () =>
-      html`<s-box child-justify="center" text-align="center" grow inert
+      html`<s-box
+        text-size="md"
+        child-justify="center"
+        text-align="center"
+        grow
+        inert
         >Game Preview</s-box
       >`;
     const modeButton = () => html`
@@ -152,9 +157,8 @@ export default spec({
         color="primary-70"
       >
         <s-icon
+          icon-size="1.125rem"
           name="${running ? `player-stop` : `player-play`}"
-          icon-size="20"
-          m-b="1"
         ></s-icon>
         ${running ? `STOP` : `PLAY`}
       </s-button>
@@ -173,7 +177,7 @@ export default spec({
         grow
       >
         <s-box
-          text-size="lg"
+          text-size="md"
           child-layout="row"
           child-justify="center"
           child-align="center"

@@ -9,6 +9,7 @@ import AssetsSpecs from "./components/assets-specs/assets-specs";
 import Assets from "./components/assets/assets";
 import Demo from "./components/demo/demo";
 import Details from "./components/details/details";
+import EditToggleButton from "./components/edit-toggle-button/edit-toggle-button";
 import FileAddButton from "./components/file-add-button/file-add-button";
 import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
 import FileItem from "./components/file-item/file-item";
@@ -78,6 +79,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   PreviewScreenplay,
   PreviewOptionsDropdown,
   PreviewToggleButton,
+  EditToggleButton,
   Preview,
   PreviewPanel,
   Notifications,

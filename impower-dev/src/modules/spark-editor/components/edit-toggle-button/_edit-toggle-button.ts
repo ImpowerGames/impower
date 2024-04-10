@@ -1,15 +1,14 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
-import sharedCSS from "../../styles/shared";
+import css from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
-import css from "./file-upload-button.css";
-import html from "./file-upload-button.html";
+import html from "./edit-toggle-button.html";
 
 export default spec({
-  tag: "se-file-upload-button",
+  tag: "se-edit-toggle-button",
   stores: { workspace },
   html,
+  css,
   selectors: {
-    button: "",
+    button: "s-button",
   } as const,
-  css: [...sharedCSS, css],
 });

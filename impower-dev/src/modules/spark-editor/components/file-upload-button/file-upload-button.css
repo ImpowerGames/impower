@@ -1,0 +1,16 @@
+:host {
+  display: contents;
+}
+
+:host > .root {
+  position: sticky;
+  left: 0;
+  right: 0;
+  bottom: var(--s-size-footer-nav);
+}
+
+@media (min-width: 960px) {
+  :host > .root {
+    bottom: 0;
+  }
+}
