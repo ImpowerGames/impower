@@ -505,10 +505,10 @@ export const write = (
           const charIndex = phraseUnpauseLength - 1;
           const voicedSyllable = charIndex % syllableLength === 0;
           const speedFloating = activeFloatingMark
-            ? activeFloatingMark.length - 1
+            ? activeFloatingMark[0].length - 1
             : 1;
           const speedTrembling = activeTremblingMark
-            ? activeTremblingMark.length - 1
+            ? activeTremblingMark[0].length - 1
             : 1;
           const speed = speedModifier / speedFloating / speedTrembling;
           const isPhrasePause = isPhraseBoundary;
