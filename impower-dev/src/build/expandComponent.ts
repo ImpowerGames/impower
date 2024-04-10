@@ -45,7 +45,7 @@ const expandComponent = (
   if (component) {
     const graphics = component.graphics;
     const stores = component.stores;
-    const context = component.context(stores);
+    const context = component.reducer(stores);
     const state = component.state;
     const defaultProps = component.props;
     const html = component.html;
