@@ -24,8 +24,8 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              active-icon="photo"
-              icon="photo"
+              active-icon="files"
+              icon="files"
               value="files"
               ${panel === "files" ? "active" : ""}
             >

@@ -1,22 +1,26 @@
 <s-box>
   <s-list p="16 0" grow>
-    <se-option-button>
+    <se-option-button id="pdfButton">
+      <s-box id="pdfProgressBar" position="absolute" i="0" width="100%" bg-color="primary-70" opacity="0.15"
+        pivot="left" grow></s-box>
       <s-box child-layout="row" child-align="center" child-gap="16">
-        <s-icon name="download"></s-icon>
-        <s-box>Import Project</s-box>
+        <s-icon name="file-type-pdf"></s-icon>
+        <s-box>Screenplay PDF</s-box>
       </s-box>
       <s-box opacity="0.5" child-layout="row" child-align="center">
-        .s.zip
+        .pdf
         <s-button class="more" color="fg-50" variant="icon" icon="gear" m-l="16" m-r="-24"></s-button>
       </s-box>
     </se-option-button>
-    <se-option-button>
+    <se-option-button id="htmlButton">
+      <s-box id="htmlProgressBar" position="absolute" i="0" width="100%" bg-color="primary-70" opacity="0.15"
+        pivot="left" grow></s-box>
       <s-box child-layout="row" child-align="center" child-gap="16">
-        <s-icon name="upload"></s-icon>
-        <s-box>Export Project</s-box>
+        <s-icon name="file-type-html"></s-icon>
+        <s-box>Screenplay HTML</s-box>
       </s-box>
       <s-box opacity="0.5" child-layout="row" child-align="center">
-        .s.zip
+        .html
         <s-button class="more" color="fg-50" variant="icon" icon="gear" m-l="16" m-r="-24"></s-button>
       </s-box>
     </se-option-button>

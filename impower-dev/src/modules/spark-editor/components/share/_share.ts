@@ -36,8 +36,20 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="album"
-              active-icon="album"
+              icon="binder"
+              active-icon="binder"
+              value="screenplay"
+              ${panel === "screenplay" ? "active" : ""}
+            >
+              Screenplay
+            </s-tab>
+            <s-tab
+              color="tab-active"
+              text-color="tab-inactive"
+              p="20"
+              child-layout="row"
+              icon="package"
+              active-icon="package"
               value="project"
               ${panel === "project" ? "active" : ""}
             >
@@ -47,6 +59,9 @@ export default spec({
         </s-box>
         <template value="game">
           <se-share-game></se-share-game>
+        </template>
+        <template value="screenplay">
+          <se-share-screenplay></se-share-screenplay>
         </template>
         <template value="project">
           <se-share-project></se-share-project>

@@ -6,6 +6,7 @@ export type PanelType =
   | "files"
   | "specs"
   | "game"
+  | "screenplay"
   | "project";
 
 export type PaneType = "logic" | "assets" | "share";

@@ -43,6 +43,7 @@ import Preview from "./components/preview/preview";
 import ScriptEditor from "./components/script-editor/script-editor";
 import ShareGame from "./components/share-game/share-game";
 import ShareProject from "./components/share-project/share-project";
+import ShareScreenplay from "./components/share-screenplay/share-screenplay";
 import Share from "./components/share/share";
 import Main from "./main/spark-editor";
 import icons from "./styles/icons/icons.css";
@@ -70,6 +71,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   Details,
   Share,
   ShareGame,
+  ShareScreenplay,
   ShareProject,
   Demo,
   MainPanel,
