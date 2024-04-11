@@ -43,18 +43,6 @@ export default spec({
             >
               Screenplay
             </s-tab>
-            <s-tab
-              color="tab-active"
-              text-color="tab-inactive"
-              p="20"
-              child-layout="row"
-              icon="package"
-              active-icon="package"
-              value="project"
-              ${panel === "project" ? "active" : ""}
-            >
-              Project
-            </s-tab>
           </s-tabs>
         </s-box>
         <template value="game">
@@ -62,9 +50,6 @@ export default spec({
         </template>
         <template value="screenplay">
           <se-share-screenplay></se-share-screenplay>
-        </template>
-        <template value="project">
-          <se-share-project></se-share-project>
         </template>
       </s-router>
     `;

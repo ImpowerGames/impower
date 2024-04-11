@@ -42,7 +42,6 @@ import PreviewToggleButton from "./components/preview-toggle-button/preview-togg
 import Preview from "./components/preview/preview";
 import ScriptEditor from "./components/script-editor/script-editor";
 import ShareGame from "./components/share-game/share-game";
-import ShareProject from "./components/share-project/share-project";
 import ShareScreenplay from "./components/share-screenplay/share-screenplay";
 import Share from "./components/share/share";
 import Main from "./main/spark-editor";
@@ -72,7 +71,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   Share,
   ShareGame,
   ShareScreenplay,
-  ShareProject,
   Demo,
   MainPanel,
   PreviewGameToolbar,

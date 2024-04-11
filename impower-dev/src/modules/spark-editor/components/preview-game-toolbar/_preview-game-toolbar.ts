@@ -33,7 +33,7 @@ export default spec({
           height="48"
           color="fg-50"
           variant="icon"
-          icon="dots-vertical"
+          icon="gear"
         ></s-button>
         <slot slot="options">
           <s-option

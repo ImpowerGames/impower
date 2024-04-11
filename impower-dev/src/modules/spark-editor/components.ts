@@ -41,7 +41,6 @@ import PreviewToggleButton from "./components/preview-toggle-button/_preview-tog
 import Preview from "./components/preview/_preview";
 import ScriptEditor from "./components/script-editor/_script-editor";
 import ShareGame from "./components/share-game/_share-game";
-import ShareProject from "./components/share-project/_share-project";
 import ShareScreenplay from "./components/share-screenplay/_share-screenplay";
 import Share from "./components/share/_share";
 import Main from "./main/_spark-editor";
@@ -103,7 +102,6 @@ const components = [
   style(Share),
   style(ShareGame),
   style(ShareScreenplay),
-  style(ShareProject),
   style(MainPanel),
   style(EditToggleButton),
   style(PreviewToggleButton),
