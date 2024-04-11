@@ -13,7 +13,6 @@ const EDITOR_COLORS = {
   invalid: "#F44747",
   constant: "#FFFF00",
   trigger: "#FF81FF",
-  operator: "#D0D0D0",
 
   comment: "#6A9955",
   chunkNameDefinition: "#7C7CA6",
