@@ -44,6 +44,8 @@ export default class Tabs
   extends SparkleElement
   implements Properties<typeof DEFAULT_ATTRIBUTES>
 {
+  protected _indicatorInitialized = false;
+
   static override get tag() {
     return spec.tag;
   }
@@ -184,6 +186,10 @@ export default class Tabs
     this.active = newValue;
 
     if (oldTab === tab) {
+      if (!this._indicatorInitialized) {
+        this._indicatorInitialized = true;
+        await this.updateIndicator(newValue, tab, oldTab, true);
+      }
       return;
     }
 
@@ -236,7 +242,8 @@ export default class Tabs
   async updateIndicator(
     newValue: string | null,
     tab: Tab,
-    oldTab?: Tab
+    oldTab?: Tab,
+    instantly?: boolean
   ): Promise<void> {
     const indicator = this.ref.indicator;
     const navEl = this.ref.nav;
@@ -268,16 +275,20 @@ export default class Tabs
 
     indicator.hidden = false;
 
-    await nextAnimationFrame();
-    if (this.interrupted(newValue)) {
-      return;
+    if (!instantly) {
+      await nextAnimationFrame();
+      if (this.interrupted(newValue)) {
+        return;
+      }
     }
 
     indicator.style.setProperty("transform", transform);
 
-    await animationsComplete(indicator);
-    if (this.interrupted(newValue)) {
-      return;
+    if (!instantly) {
+      await animationsComplete(indicator);
+      if (this.interrupted(newValue)) {
+        return;
+      }
     }
 
     indicator.hidden = true;
