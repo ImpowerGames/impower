@@ -56,38 +56,39 @@ export const stressPhrases = (
         let inflectionIndex = inflection.length - 1;
         for (let i = chunks.length - 1; i >= 0; i -= 1) {
           const chunk = chunks[i]!;
-          // Automatically infer appropriate pitch from inflection type and stress formatting
-          const inflectionLevel = inflection[inflectionIndex]!;
-          chunk.pitch =
-            (chunk.pitch ?? 0) + lineLevel + phraseLevel + inflectionLevel;
-          const underlineStressLevel = getFormattingStress(
-            chunks,
-            i,
-            "underlined"
-          );
-          if (underlineStressLevel) {
-            chunk.pitch += underlineStressLevel;
+          if (chunk.pitch == null) {
+            // Automatically infer appropriate pitch from inflection type and stress formatting
+            const inflectionLevel = inflection[inflectionIndex]!;
+            chunk.pitch = lineLevel + phraseLevel + inflectionLevel;
+            const underlineStressLevel = getFormattingStress(
+              chunks,
+              i,
+              "underlined"
+            );
+            if (underlineStressLevel) {
+              chunk.pitch += underlineStressLevel;
+            }
+            const boldStressLevel = getFormattingStress(chunks, i, "bolded");
+            if (boldStressLevel) {
+              chunk.pitch += boldStressLevel;
+            }
+            const italicStressLevel = getFormattingStress(
+              chunks,
+              i,
+              "italicized"
+            );
+            if (italicStressLevel) {
+              chunk.pitch += italicStressLevel;
+            }
+            const yelledStressLevel = getFormattingStress(chunks, i, "yelled");
+            if (yelledStressLevel) {
+              chunk.pitch += yelledStressLevel;
+            }
+            if (chunk.voicedSyllable) {
+              inflectionIndex = Math.max(0, inflectionIndex - 1);
+            }
+            chunk.pitch *= stressLevelIncrement;
           }
-          const boldStressLevel = getFormattingStress(chunks, i, "bolded");
-          if (boldStressLevel) {
-            chunk.pitch += boldStressLevel;
-          }
-          const italicStressLevel = getFormattingStress(
-            chunks,
-            i,
-            "italicized"
-          );
-          if (italicStressLevel) {
-            chunk.pitch += italicStressLevel;
-          }
-          const yelledStressLevel = getFormattingStress(chunks, i, "yelled");
-          if (yelledStressLevel) {
-            chunk.pitch += yelledStressLevel;
-          }
-          if (chunk.voicedSyllable) {
-            inflectionIndex = Math.max(0, inflectionIndex - 1);
-          }
-          chunk.pitch *= stressLevelIncrement;
         }
 
         if (phrase.text.endsWith("\n")) {
