@@ -11,14 +11,11 @@ export default class FileList extends Component(spec) {
 
   protected _dragging = false;
 
-  override onAttributeChanged(name: string) {
-    if (name === FileList.attrs.include || name === FileList.attrs.exclude) {
-      this.loadEntries();
-    }
+  override onInit() {
+    this.loadEntries();
   }
 
   override onConnected() {
-    this.loadEntries();
     window.addEventListener(
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
@@ -141,6 +138,29 @@ export default class FileList extends Component(spec) {
   }
 
   async loadEntries() {
+    this._uris = await this.loadFiles();
+    const outletEl = this.ref.outlet;
+    if (outletEl) {
+      const items = this.createItems(this._uris);
+      outletEl.replaceChildren(...items);
+    }
+    this.updateState();
+  }
+
+  createItems(uris: string[]) {
+    const items: HTMLElement[] = [];
+    uris.forEach((uri) => {
+      const filename = Workspace.fs.getFilename(uri);
+      const displayName = Workspace.fs.getDisplayName(uri);
+      const fileItem = document.createElement("se-file-item");
+      fileItem.setAttribute("filename", filename);
+      fileItem.textContent = displayName;
+      items.push(fileItem);
+    });
+    return items;
+  }
+
+  async loadFiles() {
     const store = this.stores.workspace.current;
     const projectId = store?.project?.id;
     if (projectId) {
@@ -150,23 +170,11 @@ export default class FileList extends Component(spec) {
       const excludeRegex = exclude ? globToRegex(exclude) : undefined;
       const files = await Workspace.fs.getFiles(projectId);
       const allUris = Object.keys(files);
-      this._uris = allUris.filter(
+      return allUris.filter(
         (uri) => includeRegex.test(uri) && !excludeRegex?.test(uri)
       );
-      const outletEl = this.ref.outlet;
-      outletEl?.replaceChildren();
-      if (outletEl) {
-        this._uris.forEach((uri) => {
-          const filename = Workspace.fs.getFilename(uri);
-          const displayName = Workspace.fs.getDisplayName(uri);
-          const fileItem = document.createElement("se-file-item");
-          fileItem.setAttribute("filename", filename);
-          fileItem.textContent = displayName;
-          outletEl.appendChild(fileItem);
-        });
-      }
-      this.updateState();
     }
+    return [];
   }
 
   getState() {
