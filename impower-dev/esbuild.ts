@@ -106,11 +106,7 @@ const getRelativePath = (p: string) =>
   p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
 
 const clean = async () => {
-  await Promise.all(
-    [apiOutDir, componentsOutDir, publicOutDir].map((d) =>
-      fs.promises.rm(d, { recursive: true, force: true })
-    )
-  );
+  await fs.promises.rm(outdir, { recursive: true, force: true });
 };
 
 const copyPublic = async () => {
@@ -322,10 +318,10 @@ const expandPageComponents = async () => {
         const cssFilePath = `${basePath}/${fileName}.css`;
         const jsFilePath = `${basePath}/${fileName}.js`;
         const cssPath = fs.existsSync(cssFilePath)
-          ? cssFilePath.replace(outdir, "")
+          ? cssFilePath.replace(publicOutDir, "")
           : "";
         const mjsPath = fs.existsSync(jsFilePath)
-          ? jsFilePath.replace(outdir, "")
+          ? jsFilePath.replace(publicOutDir, "")
           : "";
         let html = await fs.promises.readFile(src, "utf-8").catch(() => "");
         const page = { html, cssPath, mjsPath };

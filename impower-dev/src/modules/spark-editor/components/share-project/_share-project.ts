@@ -1,15 +1,11 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
-import html from "./header-navigation.html";
+import html from "./share-project.html";
 
 export default spec({
-  tag: "se-header-navigation",
+  tag: "se-share-project",
   stores: { workspace },
   html,
-  selectors: {
-    doneButton: "",
-    previewButton: "",
-  } as const,
   css,
 });

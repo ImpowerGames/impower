@@ -48,7 +48,7 @@ const cmp = (a: any, b: any) => {
 };
 
 export default class WorkspaceFileSystem {
-  protected _fileSystemWorker = new Worker("/public/opfs-workspace.js");
+  protected _fileSystemWorker = new Worker("/opfs-workspace.js");
 
   protected _initialFilesRef = new SingletonPromise(
     this.loadInitialFiles.bind(this)

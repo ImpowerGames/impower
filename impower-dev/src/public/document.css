@@ -2,14 +2,14 @@
   font-family: "Courier Prime Sans";
   font-weight: 400;
   font-display: block;
-  src: url("/public/fonts/courier-prime-sans.ttf") format("truetype");
+  src: url("/fonts/courier-prime-sans.ttf") format("truetype");
 }
 
 @font-face {
   font-family: "Courier Prime Sans";
   font-weight: 700;
   font-display: block;
-  src: url("/public/fonts/courier-prime-sans-bold.ttf") format("truetype");
+  src: url("/fonts/courier-prime-sans-bold.ttf") format("truetype");
 }
 
 @font-face {
@@ -17,7 +17,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: block;
-  src: url("/public/fonts/courier-prime-sans-italic.ttf") format("truetype");
+  src: url("/fonts/courier-prime-sans-italic.ttf") format("truetype");
 }
 
 @font-face {
@@ -25,22 +25,21 @@
   font-style: italic;
   font-weight: 700;
   font-display: block;
-  src: url("/public/fonts/courier-prime-sans-bold-italic.ttf")
-    format("truetype");
+  src: url("/fonts/courier-prime-sans-bold-italic.ttf") format("truetype");
 }
 
 @font-face {
   font-family: "Courier Prime";
   font-weight: 400;
   font-display: block;
-  src: url("/public/fonts/courier-prime.ttf") format("truetype");
+  src: url("/fonts/courier-prime.ttf") format("truetype");
 }
 
 @font-face {
   font-family: "Courier Prime";
   font-weight: 700;
   font-display: block;
-  src: url("/public/fonts/courier-prime-bold.ttf") format("truetype");
+  src: url("/fonts/courier-prime-bold.ttf") format("truetype");
 }
 
 @font-face {
@@ -48,7 +47,7 @@
   font-style: italic;
   font-weight: 400;
   font-display: block;
-  src: url("/public/fonts/courier-prime-italic.ttf") format("truetype");
+  src: url("/fonts/courier-prime-italic.ttf") format("truetype");
 }
 
 @font-face {
@@ -56,12 +55,12 @@
   font-style: italic;
   font-weight: 700;
   font-display: block;
-  src: url("/public/fonts/courier-prime-bold-italic.ttf") format("truetype");
+  src: url("/fonts/courier-prime-bold-italic.ttf") format("truetype");
 }
 
 :root {
   color-scheme: dark;
-  --screenplay-preview-texture: url("/public/noisetexture.png");
+  --screenplay-preview-texture: url("/noisetexture.png");
 }
 
 html {

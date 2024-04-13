@@ -11,12 +11,11 @@ const router: FastifyPluginCallback = async (app, opts, next) => {
   app.get("/*", async (request, reply) => {
     try {
       const { url } = request;
-      const parts = url.split("/");
-      const target = parts[parts.length - 1] || "";
-      if (target.includes(".")) {
-        reply.sendFile(join(publicFolder, url));
+      if (url.includes(".")) {
+        const target = url.startsWith("/") ? url.slice(1) : url;
+        reply.sendFile(target);
       } else {
-        const route = target === "" ? "index" : `${url}/${target}`;
+        const route = url === "/" ? "index" : url;
         const htmlFilePath = join(publicFolder, `${route}.html`);
         const html = await readFile(htmlFilePath, "utf-8").catch((err) => {
           request.log.error(err);
@@ -32,6 +31,7 @@ const router: FastifyPluginCallback = async (app, opts, next) => {
       request.log.error(err);
       reply.callNotFound();
     }
+    return reply;
   });
   next();
 };

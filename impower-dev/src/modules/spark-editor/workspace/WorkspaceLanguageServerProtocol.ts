@@ -117,7 +117,7 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
 };
 
 export default class WorkspaceLanguageServerProtocol {
-  protected _worker = new Worker("/public/sparkdown-language-server.js");
+  protected _worker = new Worker("/sparkdown-language-server.js");
 
   protected _name = "Sparkdown Language Server";
   get name() {

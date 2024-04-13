@@ -11,9 +11,7 @@ import combineFrontMatter from "../../../../../packages/sparkdown/src/utils/comb
 import combineTokens from "../../../../../packages/sparkdown/src/utils/combineTokens";
 
 export default class WorkspacePrint {
-  protected _screenplayPdfWorker = new Worker(
-    "/public/sparkdown-screenplay-pdf.js"
-  );
+  protected _screenplayPdfWorker = new Worker("/sparkdown-screenplay-pdf.js");
 
   protected _messageQueue: Record<
     string,
@@ -42,22 +40,21 @@ export default class WorkspacePrint {
   }
 
   protected async getFonts() {
-    const normalResp = await fetch("/public/fonts/courier-prime.ttf", {
+    const normalResp = await fetch("/fonts/courier-prime.ttf", {
       cache: "force-cache",
     });
     const normal = await normalResp.arrayBuffer();
-    const boldResp = await fetch("/public/fonts/courier-prime-bold.ttf", {
+    const boldResp = await fetch("/fonts/courier-prime-bold.ttf", {
       cache: "force-cache",
     });
     const bold = await boldResp.arrayBuffer();
-    const italicResp = await fetch("/public/fonts/courier-prime-italic.ttf", {
+    const italicResp = await fetch("/fonts/courier-prime-italic.ttf", {
       cache: "force-cache",
     });
     const italic = await italicResp.arrayBuffer();
-    const boldItalicResp = await fetch(
-      "/public/fonts/courier-prime-bold-italic.ttf",
-      { cache: "force-cache" }
-    );
+    const boldItalicResp = await fetch("/fonts/courier-prime-bold-italic.ttf", {
+      cache: "force-cache",
+    });
     const bolditalic = await boldItalicResp.arrayBuffer();
     return {
       normal,

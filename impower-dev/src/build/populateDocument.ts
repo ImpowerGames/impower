@@ -1,27 +1,5 @@
 import indent from "./indent.js";
 
-const DEFAULT_DOCUMENT = `
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Impower</title>
-  <link rel="icon" href="/public/favicon.svg">
-  <link rel="stylesheet" type="text/css" href="/public/document.css">
-  <link rel="stylesheet" type="text/css" href="/public/global.css">
-  <style></style>
-</head>
-
-<body>
-  <main></main>
-</body>
-
-<script></script>
-
-</html>`.trim();
-
 const populateDocument = (
   documentHtml: string,
   page?: {
@@ -34,7 +12,7 @@ const populateDocument = (
     mjsPath?: string;
   }
 ) => {
-  let result = documentHtml || DEFAULT_DOCUMENT;
+  let result = documentHtml || "";
   const css = page?.css ? indent(page?.css.trim(), 4) : "";
   const html = page?.html ? indent(page?.html.trim(), 4) : "";
   const js = page?.js ? page?.js.trim() : "";
