@@ -192,13 +192,13 @@ repository:
     name: keyword.other.front-matter.field.sd
     match: (.+)
 
-  ChunkSplitter:
-    match: ^((?:[=]{3,})(?:$|[ ]*)(?:$|[^=]*?)(?:$|[ ]*)(?:$|[=].*)(?:$|[ ]*$))
+  FileSplitter:
+    match: ^((?:[=]{3,})(?:[ ]*)(?:[^=\s]+)(?:$|[ ]*)(?:$|[=].*)(?:$|[ ]*$))
 
   Chunk:
     tag: definition(annotation)
     name: keyword.control.chunk.sd
-    match: ^([=]{3,})($|[ ]*)($|[^=]*?)($|[ ]*)($|[=].*)($|[ ]*$)
+    match: ^([=]{3,})($|[ ]*)($|[^=\s]*?)($|[ ]*)($|[=].*)($|[ ]*$)
     captures:
       1:
         tag: keyword

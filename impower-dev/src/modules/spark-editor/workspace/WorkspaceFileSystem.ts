@@ -33,9 +33,10 @@ import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 
-const CHUNK_KEYWORD = "@";
-const CHUNK_SPLITTER_REGEX = new RegExp(
-  GRAMMAR.repository.ChunkSplitter.match,
+const FILE_SEPARATOR_PREFIX = "=== ";
+const FILE_SEPARATOR_SUFFIX = " ===";
+const FILE_SPLITTER_REGEX = new RegExp(
+  GRAMMAR.repository.FileSplitter.match,
   "umg"
 );
 const CHUNK_REGEX = new RegExp(GRAMMAR.repository.Chunk.match);
@@ -240,7 +241,7 @@ export default class WorkspaceFileSystem {
       .forEach((file) => {
         if (file.uri !== mainScriptUri) {
           if (file.text != null && file.name) {
-            content += `\n\n${CHUNK_KEYWORD} ${file.name}.${file.ext}`;
+            content += `\n\n${FILE_SEPARATOR_PREFIX}${file.name}.${file.ext}${FILE_SEPARATOR_SUFFIX}`;
             content += `\n\n${file.text}`;
           }
         }
@@ -313,7 +314,7 @@ export default class WorkspaceFileSystem {
   ): Record<string, string> {
     const chunks: Record<string, string> = {};
     let filename = "";
-    text.split(CHUNK_SPLITTER_REGEX).forEach((content, index) => {
+    text.split(FILE_SPLITTER_REGEX).forEach((content, index) => {
       const isEvenIndex = index % 2 === 0;
       if (isEvenIndex) {
         const uri = filename
