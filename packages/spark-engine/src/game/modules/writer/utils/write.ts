@@ -251,7 +251,7 @@ export const write = (
   const marks: [string][] = [];
   const textChunks: Chunk[] = [];
   let speedModifier = 1;
-  let pitchModifier = 1;
+  let pitchModifier: number | undefined = undefined;
   const floatingIndexMap = new Map<[string], number>();
   const tremblingIndexMap = new Map<[string], number>();
 
