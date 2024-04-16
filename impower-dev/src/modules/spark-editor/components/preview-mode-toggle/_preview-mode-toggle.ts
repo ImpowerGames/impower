@@ -9,14 +9,15 @@ export default spec({
     const mode = stores?.workspace?.current?.preview?.mode || "game";
     return html`
       <s-button
+        aria-label="${mode === "game" ? "Preview Screenplay" : "Preview Game"}"
+        variant="icon"
+        icon="${mode === "game" ? "license" : "gamepad"}"
+        active-icon="${mode === "game" ? "gamepad" : "license"}"
         type="toggle"
         width="48"
         height="48"
         class="more"
         color="fg-50"
-        variant="icon"
-        icon="${mode === "game" ? "license" : "gamepad"}"
-        active-icon="${mode === "game" ? "gamepad" : "license"}"
         value="${mode === "game" ? "screenplay" : "game"}"
       ></s-button>
     `;

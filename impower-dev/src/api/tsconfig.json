@@ -2,7 +2,7 @@
   "compilerOptions": {
     "module": "commonjs",
     "target": "es2020",
-    "lib": ["esnext", "dom"],
+    "lib": ["esnext"],
     "outDir": "dist",
     "declaration": true,
     "skipLibCheck": true,
@@ -23,6 +23,5 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "allowJs": true
-  },
-  "include": ["src", "esbuild.ts", "../packages/sparkdown-screenplay-pdf/src/shims", "../packages/sparkdown-screenplay-pdf/src/shims.js"]
+  }
 }

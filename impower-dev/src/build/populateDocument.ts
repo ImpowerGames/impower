@@ -44,13 +44,13 @@ const populateDocument = (
   if (jsPath) {
     result = result.replace(
       "<script></script>",
-      `<script src="${jsPath}"></script>`
+      `<script src="${jsPath}" defer></script>`
     );
   }
   if (mjsPath) {
     result = result.replace(
       "<script></script>",
-      `<script type="module" src="${mjsPath}"></script>`
+      `<script type="module" src="${mjsPath}" defer></script>`
     );
   }
   return result;

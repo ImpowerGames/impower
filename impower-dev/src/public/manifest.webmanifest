@@ -1,7 +1,7 @@
 {
   "short_name": "Spark",
   "name": "Spark Engine",
-  "description": "Build games with Sparkdown: an intuitive, easy-to-use plain text markup language.",
+  "description": "An intuitive, text-based editor for creating simple HTML5 games.",
   "icons": [
     {
       "src": "favicon.ico",

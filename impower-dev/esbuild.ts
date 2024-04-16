@@ -31,6 +31,8 @@ const outdir = "out";
 const apiInDir = `${indir}/api`;
 const apiOutDir = `${outdir}/api`;
 
+const workerPaths = [`${indir}/workers/sw.ts`];
+
 const componentsInDir = `${indir}/components`;
 const componentsOutDir = `${outdir}/components`;
 
@@ -103,7 +105,7 @@ const envPlugin = (): Plugin => {
 };
 
 const getRelativePath = (p: string) =>
-  p.replace(process.cwd() + "\\", "").replaceAll("\\", "/");
+  p.replace(process.cwd() + "\\", "").replace(/\\/g, "/");
 
 const clean = async () => {
   await fs.promises.rm(outdir, { recursive: true, force: true });
@@ -175,6 +177,7 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
+  const js = `const version = ${Date.now()}`;
   await build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
@@ -193,6 +196,7 @@ const buildPages = async () => {
       ".woff2": "binary",
     },
     plugins: [envPlugin()],
+    banner: { js },
   });
 };
 
@@ -274,7 +278,7 @@ const expandPageComponents = async () => {
           console.log(SRC_COLOR, `  ${getRelativePath(bundlePath)}`);
           console.log(OUT_COLOR, `    ⤷ ${getRelativePath(globalCssOutPath)}`);
           const componentBundle = (
-            await import(`./${bundlePath.replaceAll("\\", "/")}`)
+            await import(`./${bundlePath.replace(/\\/g, "/")}`)
           ).default;
           if (Array.isArray(componentBundle)) {
             componentBundle.forEach((spec: ComponentSpec) => {
@@ -358,8 +362,53 @@ const createPackageJson = async () => {
 };
 
 const buildWorkers = async () => {
-  return new Promise((resolve) => {
+  // Build worker files
+  console.log("");
+  console.log(STEP_COLOR, "Building Workers...");
+  workerPaths.forEach((p) => {
+    console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
+    console.log(
+      OUT_COLOR,
+      `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
+    );
+  });
+  await new Promise((resolve) => {
     exec("npm run build-workers", resolve);
+  });
+  console.log("");
+  console.log(STEP_COLOR, "Caching Resources...");
+  console.log(SRC_COLOR, `  ${getRelativePath(publicOutDir)}`);
+  const publicFilePaths = await glob(
+    `${publicOutDir}/**/*.{css,html,js,mjs,icon,svg,png,ttf,woff,woff2}`
+  );
+  const SW_VERSION = Date.now();
+  const SW_RESOURCES: string[] = ["/"];
+  SW_RESOURCES.push(
+    ...publicFilePaths.map((p) =>
+      p.replace(/\\/g, "/").replace(publicOutDir, "")
+    )
+  );
+  SW_RESOURCES.forEach((p) => {
+    console.log(OUT_COLOR, `    ⤷ ${p}`);
+  });
+  await build({
+    entryPoints: workerPaths,
+    outdir: publicOutDir,
+    bundle: true,
+    minify: PRODUCTION,
+    sourcemap: !PRODUCTION,
+    external: ["commonjs"],
+    banner: {
+      js: `
+var process = { 
+  env: {
+    SW_VERSION: '${SW_VERSION}',
+    SW_CACHE_NAME: 'cache-${SW_VERSION}',
+    SW_RESOURCES: '${JSON.stringify(SW_RESOURCES)}',
+  } 
+};
+      `.trim(),
+    },
   });
 };
 
