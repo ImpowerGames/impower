@@ -40,7 +40,6 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
-    console.log("NAVIGATE", event.request.url);
     // when seeking an HTML page
     event.respondWith(
       (async () => {
@@ -55,7 +54,6 @@ self.addEventListener("fetch", (event) => {
       })()
     );
   } else if (RESOURCE_URL_REGEX.test(event.request.url)) {
-    console.log("LOAD", event.request.url);
     // Seeking resource
     event.respondWith(
       (async () => {
