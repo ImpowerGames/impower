@@ -49,6 +49,7 @@ const localDependencies = `node_modules/@impower`;
 
 const watchDirs = [
   `${indir}/modules`,
+  `${indir}/workers`,
   "../packages/spark-engine",
   "../packages/sparkdown",
   "../packages/spark-dom",
@@ -169,7 +170,9 @@ const buildPages = async () => {
   // Build js files
   console.log("");
   console.log(STEP_COLOR, "Building Pages...");
-  const entryPoints = await glob(`${pagesInDir}/**/*.{js,mjs,ts}`);
+  const entryPoints = (await glob(`${pagesInDir}/**/*.{js,mjs,ts}`)).filter(
+    (p) => !p.endsWith(".d.ts")
+  );
   entryPoints.forEach((p) => {
     console.log(SRC_COLOR, `  ${getRelativePath(p)}`);
     console.log(
@@ -379,14 +382,14 @@ const buildWorkers = async () => {
   console.log(STEP_COLOR, "Caching Resources...");
   console.log(SRC_COLOR, `  ${getRelativePath(publicOutDir)}`);
   const publicFilePaths = await glob(
-    `${publicOutDir}/**/*.{css,html,js,mjs,icon,svg,png,ttf,woff,woff2}`
+    `${publicOutDir}/**/*.{css,html,js,mjs,ico,svg,png,ttf,woff,woff2}`
   );
   const SW_VERSION = Date.now();
   const SW_RESOURCES: string[] = ["/"];
   SW_RESOURCES.push(
-    ...publicFilePaths.map((p) =>
-      p.replace(/\\/g, "/").replace(publicOutDir, "")
-    )
+    ...publicFilePaths
+      .map((p) => p.replace(/\\/g, "/").replace(publicOutDir, ""))
+      .filter((p) => !p.endsWith(".webmanifest"))
   );
   SW_RESOURCES.forEach((p) => {
     console.log(OUT_COLOR, `    ⤷ ${p}`);
@@ -400,14 +403,14 @@ const buildWorkers = async () => {
     external: ["commonjs"],
     banner: {
       js: `
-var process = { 
-  env: {
-    SW_VERSION: '${SW_VERSION}',
-    SW_CACHE_NAME: 'cache-${SW_VERSION}',
-    SW_RESOURCES: '${JSON.stringify(SW_RESOURCES)}',
-  } 
-};
-      `.trim(),
+  var process = {
+    env: {
+      SW_VERSION: '${SW_VERSION}',
+      SW_CACHE_NAME: 'cache-${SW_VERSION}',
+      SW_RESOURCES: '${JSON.stringify(SW_RESOURCES)}',
+    }
+  };
+        `.trim(),
     },
   });
 };

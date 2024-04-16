@@ -8,6 +8,8 @@ const SW_RESOURCES: string[] = JSON.parse(
   process?.env?.["SW_RESOURCES"] || "[]"
 );
 
+const RESOURCE_URL_REGEX = /.*(?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
+
 self.addEventListener("install", (e) => {
   const event = e as ExtendableEvent;
   event.waitUntil(
@@ -37,26 +39,36 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // when seeking an HTML page
   if (event.request.mode === "navigate") {
-    // Return to the index.html page
-    const response = caches.match("/");
-    if (response) {
-      event.respondWith(response as Promise<Response>);
-    }
-    return;
+    console.log("NAVIGATE", event.request.url);
+    // when seeking an HTML page
+    event.respondWith(
+      (async () => {
+        const response = await caches.match("/");
+        if (response) {
+          // Return the cached page if it's available.
+          return response;
+        } else {
+          // Fallback to latest
+          return fetch(event.request.url);
+        }
+      })()
+    );
+  } else if (RESOURCE_URL_REGEX.test(event.request.url)) {
+    console.log("LOAD", event.request.url);
+    // Seeking resource
+    event.respondWith(
+      (async () => {
+        const cache = await caches.open(SW_CACHE_NAME);
+        const cachedResponse = await cache.match(event.request.url);
+        if (cachedResponse) {
+          // Return the cached resource if it's available.
+          return cachedResponse;
+        } else {
+          // Fallback to latest
+          return fetch(event.request.url);
+        }
+      })()
+    );
   }
-  // For every other request type
-  event.respondWith(
-    (async () => {
-      const cache = await caches.open(SW_CACHE_NAME);
-      const cachedResponse = await cache.match(event.request.url);
-      if (cachedResponse) {
-        // Return the cached response if it's available.
-        return cachedResponse;
-      }
-      // Respond with a HTTP 404 response status.
-      return new Response(null, { status: 404 });
-    })()
-  );
 });
