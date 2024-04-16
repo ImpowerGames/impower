@@ -8,7 +8,8 @@ const SW_RESOURCES: string[] = JSON.parse(
   process?.env?.["SW_RESOURCES"] || "[]"
 );
 
-const RESOURCE_URL_REGEX = /.*(?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
+const RESOURCE_URL_REGEX =
+  /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
 
 self.addEventListener("install", (e) => {
   const event = e as ExtendableEvent;
