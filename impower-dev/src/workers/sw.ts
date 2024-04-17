@@ -55,8 +55,8 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-self.addEventListener("fetch", (event) => {
-  if (process?.env?.["NODE_ENV"] === "production") {
+if (process?.env?.["NODE_ENV"] === "production") {
+  self.addEventListener("fetch", (event) => {
     if (event.request.mode === "navigate") {
       // Fetching a page route
       event.respondWith(cacheThenNetwork("/"));
@@ -64,8 +64,5 @@ self.addEventListener("fetch", (event) => {
       // Fetching a resource
       event.respondWith(cacheThenNetwork(event.request.url));
     }
-  } else {
-    // Always fetch from network in development environment
-    event.respondWith(networkOnly(event.request.url));
-  }
-});
+  });
+}
