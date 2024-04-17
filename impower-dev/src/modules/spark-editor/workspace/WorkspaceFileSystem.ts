@@ -224,7 +224,39 @@ export default class WorkspaceFileSystem {
     });
   }
 
-  async readProjectTextContent(projectId: string) {
+  async readProjectZip(projectId: string): Promise<ArrayBuffer> {
+    const allFiles = await this.getFiles(projectId);
+    const files = Object.values(allFiles)
+      .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
+      .filter((file) => file.name)
+      .map(({ uri }) => ({ uri }));
+    return this.zipFiles({ files });
+  }
+
+  async writeProjectZip(projectId: string, content: ArrayBuffer) {
+    const existingFiles = await this.getFiles(projectId);
+    const unzipped = await this.unzipFiles({ data: content });
+    const zipFilesToWrite = unzipped.map(({ filename, data }) => ({
+      uri: this.getFileUri(projectId, filename),
+      data,
+    }));
+    const zipFilesToDelete = Object.entries(existingFiles)
+      .filter(
+        ([uri, fileData]) =>
+          fileData.name && !zipFilesToWrite.some((file) => file.uri === uri)
+      )
+      .map(([uri]) => ({ uri }));
+    await Promise.all([
+      this.createFiles({
+        files: zipFilesToWrite,
+      }),
+      this.deleteFiles({
+        files: zipFilesToDelete,
+      }),
+    ]);
+  }
+
+  async readProjectScriptBundle(projectId: string) {
     return this.bundleProjectText(projectId);
   }
 
@@ -249,7 +281,7 @@ export default class WorkspaceFileSystem {
     return content.trim();
   }
 
-  async readProjectZipContent(projectId: string): Promise<ArrayBuffer> {
+  async readProjectAssetBundle(projectId: string): Promise<ArrayBuffer> {
     const allFiles = await this.getFiles(projectId);
     const files = Object.values(allFiles)
       .sort((a, b) => cmp(a.ext, b.ext) || cmp(a.name, b.name))
@@ -258,7 +290,7 @@ export default class WorkspaceFileSystem {
     return this.zipFiles({ files });
   }
 
-  async writeProjectTextContent(projectId: string, content: string) {
+  async writeProjectScriptBundle(projectId: string, content: string) {
     const existingFiles = await this.getFiles(projectId);
     const remoteFiles = this.splitProjectTextContent(projectId, content);
     const textFilesToWrite = Object.entries(remoteFiles).map(([uri, text]) => ({
@@ -283,7 +315,7 @@ export default class WorkspaceFileSystem {
     ]);
   }
 
-  async writeProjectZipContent(projectId: string, content: ArrayBuffer) {
+  async writeProjectAssetBundle(projectId: string, content: ArrayBuffer) {
     const existingFiles = await this.getFiles(projectId);
     const unzipped = await this.unzipFiles({ data: content });
     const zipFilesToWrite = unzipped.map(({ filename, data }) => ({

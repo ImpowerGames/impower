@@ -184,7 +184,7 @@ export default class GoogleDriveSyncProvider {
       .setTitle("Save to folder");
   }
 
-  async pickProjectFile(accessToken: string) {
+  async pickRemoteProjectFile(accessToken: string) {
     const pickerBuilder = await this._importPickerBuilderRef.get();
     const importPicker = pickerBuilder.setOAuthToken(accessToken).build();
     const result = await new Promise<string | null>((resolve, reject) => {
@@ -210,7 +210,7 @@ export default class GoogleDriveSyncProvider {
     return result;
   }
 
-  async pickProjectFolder(accessToken: string) {
+  async pickRemoteProjectFolder(accessToken: string) {
     const pickerBuilder = await this._exportPickerBuilderRef.get();
     const exportPicker = pickerBuilder.setOAuthToken(accessToken).build();
     const result = await new Promise<string | null>((resolve, reject) => {

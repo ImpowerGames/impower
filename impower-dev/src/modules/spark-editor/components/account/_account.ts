@@ -8,6 +8,7 @@ export default spec({
   stores: { workspace },
   html,
   selectors: {
+    local: "",
     authenticated: "",
     unauthenticated: "",
     accountName: "",
@@ -15,6 +16,8 @@ export default spec({
     signinButton: "",
     signoutButton: "",
     uploadButton: "",
+    loadProjectButton: "",
+    saveProjectButton: "",
     importProjectButton: "",
     exportProjectButton: "",
   } as const,

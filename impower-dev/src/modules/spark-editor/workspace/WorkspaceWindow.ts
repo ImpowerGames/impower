@@ -550,7 +550,7 @@ export default class WorkspaceWindow {
     return false;
   }
 
-  startedPickingProjectResource() {
+  startedPickingRemoteProjectResource() {
     this.update({
       ...this.store,
       project: {
@@ -560,7 +560,7 @@ export default class WorkspaceWindow {
     });
   }
 
-  finishedPickingProjectResource() {
+  finishedPickingRemoteProjectResource() {
     this.update({
       ...this.store,
       project: {
@@ -919,10 +919,10 @@ export default class WorkspaceWindow {
             (r) => r.mimeType === "application/zip"
           );
           if (projectTextRevision) {
-            await this.pullRemoteTextChanges(id, projectTextRevision);
+            await this.pullRemoteScriptBundleChanges(id, projectTextRevision);
           }
           if (projectZipRevision) {
-            await this.pullRemoteZipChanges(id, projectZipRevision);
+            await this.pullRemoteAssetBundleChanges(id, projectZipRevision);
           }
           const name =
             (await Workspace.fs.readProjectMetadata(id, "name")) ||
@@ -1025,7 +1025,7 @@ export default class WorkspaceWindow {
       return "unsynced";
     }
     if (remoteTextChanged && !localTextChanged) {
-      await this.pullRemoteTextChanges(fileId, projectTextRevision);
+      await this.pullRemoteScriptBundleChanges(fileId, projectTextRevision);
       return "synced";
     }
     if (remoteTextChanged && localTextChanged) {
@@ -1038,7 +1038,7 @@ export default class WorkspaceWindow {
     const projectName =
       (await Workspace.fs.readProjectMetadata(fileId, "name")) ||
       WorkspaceConstants.DEFAULT_PROJECT_NAME;
-    const content = await Workspace.fs.readProjectTextContent(fileId);
+    const content = await Workspace.fs.readProjectScriptBundle(fileId);
     const filename = Workspace.sync.google.getProjectFilename(projectName);
     const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
       fileId,
@@ -1057,14 +1057,14 @@ export default class WorkspaceWindow {
     return remoteProjectFile;
   }
 
-  async pullRemoteTextChanges(
+  async pullRemoteScriptBundleChanges(
     fileId: string,
     revision: RemoteStorage.Revision
   ) {
     const remoteProjectTextContent =
       await Workspace.sync.google.getFileRevision(fileId, revision.id!, "text");
     const remoteProjectName = revision.originalFilename!.split(".")[0]!;
-    await Workspace.fs.writeProjectTextContent(
+    await Workspace.fs.writeProjectScriptBundle(
       fileId,
       remoteProjectTextContent || ""
     );
@@ -1107,7 +1107,7 @@ export default class WorkspaceWindow {
       return "unsynced";
     }
     if (remoteZipChanged && !localZipChanged) {
-      await this.pullRemoteZipChanges(fileId, projectZipRevision);
+      await this.pullRemoteAssetBundleChanges(fileId, projectZipRevision);
       return "synced";
     }
     if (remoteZipChanged && localZipChanged) {
@@ -1120,7 +1120,7 @@ export default class WorkspaceWindow {
     const projectName =
       (await Workspace.fs.readProjectMetadata(fileId, "name")) ||
       WorkspaceConstants.DEFAULT_PROJECT_NAME;
-    const content = await Workspace.fs.readProjectZipContent(fileId);
+    const content = await Workspace.fs.readProjectAssetBundle(fileId);
     const filename = Workspace.sync.google.getProjectFilename(projectName);
     const remoteProjectFile = await Workspace.sync.google.updateProjectFile(
       fileId,
@@ -1140,7 +1140,7 @@ export default class WorkspaceWindow {
     return remoteProjectFile;
   }
 
-  protected async pullRemoteZipChanges(
+  protected async pullRemoteAssetBundleChanges(
     fileId: string,
     revision: RemoteStorage.Revision
   ) {
@@ -1150,7 +1150,7 @@ export default class WorkspaceWindow {
       "arraybuffer"
     );
     const remoteProjectName = revision.originalFilename!.split(".")[0]!;
-    await Workspace.fs.writeProjectZipContent(fileId, remoteProjectZipContent);
+    await Workspace.fs.writeProjectAssetBundle(fileId, remoteProjectZipContent);
     await Promise.all([
       Workspace.fs.writeProjectMetadata(fileId, "name", remoteProjectName),
       Workspace.fs.writeProjectMetadata(fileId, "zipRevisionId", revision.id!),
@@ -1165,7 +1165,80 @@ export default class WorkspaceWindow {
     });
   }
 
-  async exportProject(folderId: string) {
+  async exportLocalProject() {
+    try {
+      const projectId = this.store.project.id;
+      if (projectId) {
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "exporting",
+          },
+        });
+        const projectZip = await Workspace.fs.readProjectZip(projectId);
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "cached",
+          },
+        });
+        return projectZip;
+      }
+    } catch (err: any) {
+      console.error(err);
+      this.update({
+        ...this.store,
+        project: {
+          ...this.store.project,
+          syncState: "export_error",
+        },
+      });
+    }
+    return undefined;
+  }
+
+  async importLocalProject(fileName: string, fileBuffer: ArrayBuffer) {
+    try {
+      const projectId = this.store.project.id;
+      if (projectId) {
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "importing",
+          },
+        });
+        const extIndex = fileName.indexOf(".");
+        const name = extIndex >= 0 ? fileName.slice(0, extIndex) : fileName;
+        await Promise.all([
+          Workspace.fs.writeProjectZip(projectId, fileBuffer),
+          Workspace.fs.writeProjectMetadata(projectId, "name", name),
+        ]);
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "cached",
+          },
+        });
+        this.loadNewProject(projectId);
+      }
+    } catch (err: any) {
+      console.error(err);
+      this.update({
+        ...this.store,
+        project: {
+          ...this.store.project,
+          syncState: "import_error",
+        },
+      });
+    }
+    return undefined;
+  }
+
+  async saveRemoteProject(folderId: string) {
     try {
       const projectId = this.store.project.id;
       if (projectId) {
@@ -1179,10 +1252,10 @@ export default class WorkspaceWindow {
         const projectName =
           (await Workspace.fs.readProjectMetadata(projectId, "name")) ||
           WorkspaceConstants.DEFAULT_PROJECT_NAME;
-        const projectTextContent = await Workspace.fs.readProjectTextContent(
+        const projectTextContent = await Workspace.fs.readProjectScriptBundle(
           projectId
         );
-        const projectZipContent = await Workspace.fs.readProjectZipContent(
+        const projectZipContent = await Workspace.fs.readProjectAssetBundle(
           projectId
         );
         const filename = Workspace.sync.google.getProjectFilename(projectName);
@@ -1276,13 +1349,15 @@ export default class WorkspaceWindow {
         "zipSynced",
         String(false)
       );
-      this.update({
-        ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "unsynced",
-        },
-      });
+      if (projectId !== "local") {
+        this.update({
+          ...this.store,
+          project: {
+            ...this.store.project,
+            syncState: "unsynced",
+          },
+        });
+      }
     }
   }
 }

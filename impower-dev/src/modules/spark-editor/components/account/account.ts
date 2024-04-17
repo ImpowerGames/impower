@@ -1,4 +1,5 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
+import { downloadFile } from "../../utils/downloadFile";
 import { Workspace } from "../../workspace/Workspace";
 import { WorkspaceConstants } from "../../workspace/WorkspaceConstants";
 import { AccountInfo } from "../../workspace/types/AccountInfo";
@@ -8,30 +9,46 @@ export default class Account extends Component(spec) {
   override onConnected() {
     this.load();
     Workspace.sync.google.addEventListener("revoke", this.handleRevoke);
-    this.ref.signinButton.addEventListener("click", this.handleSignIn);
-    this.ref.signoutButton.addEventListener("click", this.handleSignOut);
     this.ref.importProjectButton.addEventListener(
-      "click",
-      this.handleImportProjectFile
+      "change",
+      this.handleImportLocalProject
     );
     this.ref.exportProjectButton.addEventListener(
       "click",
-      this.handleExportProjectFile
+      this.handleExportLocalProject
     );
+    this.ref.loadProjectButton.addEventListener(
+      "click",
+      this.handleLoadRemoteProject
+    );
+    this.ref.saveProjectButton.addEventListener(
+      "click",
+      this.handleSaveRemoteProject
+    );
+    this.ref.signinButton.addEventListener("click", this.handleSignIn);
+    this.ref.signoutButton.addEventListener("click", this.handleSignOut);
   }
 
   override onDisconnected() {
     Workspace.sync.google.removeEventListener("revoke", this.handleRevoke);
-    this.ref.signinButton.removeEventListener("click", this.handleSignIn);
-    this.ref.signoutButton.removeEventListener("click", this.handleSignOut);
     this.ref.importProjectButton.removeEventListener(
-      "click",
-      this.handleImportProjectFile
+      "change",
+      this.handleImportLocalProject
     );
     this.ref.exportProjectButton.removeEventListener(
       "click",
-      this.handleExportProjectFile
+      this.handleExportLocalProject
     );
+    this.ref.loadProjectButton.removeEventListener(
+      "click",
+      this.handleLoadRemoteProject
+    );
+    this.ref.saveProjectButton.removeEventListener(
+      "click",
+      this.handleSaveRemoteProject
+    );
+    this.ref.signinButton.removeEventListener("click", this.handleSignIn);
+    this.ref.signoutButton.removeEventListener("click", this.handleSignOut);
   }
 
   async load() {
@@ -51,6 +68,7 @@ export default class Account extends Component(spec) {
 
   handleSignIn = async () => {
     try {
+      console.log(process.env);
       const provider = Workspace.sync.google;
       const accountInfo = await provider.signIn();
       this.loadAccountUI(accountInfo);
@@ -72,26 +90,49 @@ export default class Account extends Component(spec) {
     }
   };
 
-  handleImportProjectFile = async () => {
+  handleImportLocalProject = async (e: Event) => {
+    const event = e as Event & {
+      target: HTMLInputElement & EventTarget;
+    };
+    const fileList = event.target.files;
+    if (fileList) {
+      const file = Array.from(fileList)[0];
+      if (file) {
+        const fileName = file.name;
+        const fileBuffer = await file.arrayBuffer();
+        await Workspace.window.importLocalProject(fileName, fileBuffer);
+      }
+    }
+  };
+
+  handleExportLocalProject = async () => {
+    const zip = await Workspace.window.exportLocalProject();
+    if (zip) {
+      const name = Workspace.window.store.project.name;
+      downloadFile(`${name}.zip`, "application/x-zip", zip);
+    }
+  };
+
+  handleLoadRemoteProject = async () => {
     try {
       const syncProvider = Workspace.sync.google;
       const access = await syncProvider.getAccess();
       const token = access.token;
       if (token) {
-        Workspace.window.startedPickingProjectResource();
-        const fileId = await syncProvider.pickProjectFile(token);
+        Workspace.window.startedPickingRemoteProjectResource();
+        const fileId = await syncProvider.pickRemoteProjectFile(token);
         if (fileId) {
           Workspace.window.unloadProject();
           Workspace.window.loadNewProject(fileId);
         }
-        Workspace.window.finishedPickingProjectResource();
+        Workspace.window.finishedPickingRemoteProjectResource();
       }
     } catch (err: any) {
       console.error(err);
     }
   };
 
-  handleExportProjectFile = async () => {
+  handleSaveRemoteProject = async () => {
     try {
       const store = this.stores.workspace.current;
       const projectId = store?.project?.id;
@@ -100,12 +141,12 @@ export default class Account extends Component(spec) {
         const access = await syncProvider.getAccess();
         const token = access.token;
         if (token) {
-          Workspace.window.startedPickingProjectResource();
-          const folderId = await syncProvider.pickProjectFolder(token);
+          Workspace.window.startedPickingRemoteProjectResource();
+          const folderId = await syncProvider.pickRemoteProjectFolder(token);
           if (folderId) {
-            await Workspace.window.exportProject(folderId);
+            await Workspace.window.saveRemoteProject(folderId);
           }
-          Workspace.window.finishedPickingProjectResource();
+          Workspace.window.finishedPickingRemoteProjectResource();
         }
       }
     } catch (err: any) {
@@ -138,8 +179,9 @@ export default class Account extends Component(spec) {
     } else {
       this.ref.accountEmail.hidden = true;
     }
-    this.ref.authenticated.hidden = false;
+    this.ref.local.hidden = true;
     this.ref.unauthenticated.hidden = true;
+    this.ref.authenticated.hidden = false;
     if (accountInfo.offline) {
       this.ref.importProjectButton.setAttribute("disabled", "");
       this.ref.exportProjectButton.setAttribute("disabled", "");
@@ -151,6 +193,7 @@ export default class Account extends Component(spec) {
 
   loadUnauthenticatedUI(label: string = "Sync With Google Drive") {
     this.ref.signinButton.textContent = label;
+    this.ref.local.hidden = false;
     this.ref.unauthenticated.hidden = false;
     this.ref.authenticated.hidden = true;
   }
