@@ -8,6 +8,8 @@ const SW_RESOURCES: string[] = JSON.parse(
   process?.env?.["SW_RESOURCES"] || "[]"
 );
 
+const GREEN = "\x1b[32m%s\x1b[0m";
+
 const RESOURCE_URL_REGEX =
   /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
 
@@ -51,8 +53,9 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-if (process?.env?.["NODE_ENV"] === "production") {
-  self.addEventListener("fetch", (event) => {
+self.addEventListener("fetch", (event) => {
+  console.log(GREEN, "FETCH", event.request.mode, event.request.url);
+  if (process?.env?.["NODE_ENV"] === "production") {
     if (event.request.mode === "navigate") {
       // Fetching a page route
       event.respondWith(cacheThenNetwork("/"));
@@ -60,5 +63,5 @@ if (process?.env?.["NODE_ENV"] === "production") {
       // Fetching a resource
       event.respondWith(cacheThenNetwork(event.request.url));
     }
-  });
-}
+  }
+});
