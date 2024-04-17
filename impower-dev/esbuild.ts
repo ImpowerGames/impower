@@ -180,7 +180,6 @@ const buildPages = async () => {
       `    ⤷ ${getRelativePath(p).replace(indir, outdir)}`
     );
   });
-  const js = `const version = ${Date.now()}`;
   await build({
     entryPoints: entryPoints,
     outdir: publicOutDir,
@@ -199,7 +198,6 @@ const buildPages = async () => {
       ".woff2": "binary",
     },
     plugins: [envPlugin()],
-    banner: { js },
   });
 };
 
