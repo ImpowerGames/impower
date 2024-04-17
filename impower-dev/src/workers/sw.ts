@@ -11,6 +11,18 @@ const SW_RESOURCES: string[] = JSON.parse(
 const RESOURCE_URL_REGEX =
   /.*[.](?:css|html|js|mjs|ico|svg|png|ttf|woff|woff2)$/;
 
+const cacheThenNetwork = async (url: string) => {
+  const cache = await caches.open(SW_CACHE_NAME);
+  const cachedResponse = await cache.match(url);
+  if (cachedResponse) {
+    // Fetch from cache if exists.
+    return cachedResponse;
+  } else {
+    // Fallback to network
+    return fetch(url);
+  }
+};
+
 self.addEventListener("install", (e) => {
   const event = e as ExtendableEvent;
   event.waitUntil(
@@ -42,32 +54,9 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.mode === "navigate") {
     // when seeking an HTML page
-    event.respondWith(
-      (async () => {
-        const response = await caches.match("/");
-        if (response) {
-          // Return the cached page if it's available.
-          return response;
-        } else {
-          // Fallback to latest
-          return fetch(event.request.url);
-        }
-      })()
-    );
+    event.respondWith(cacheThenNetwork("/"));
   } else if (RESOURCE_URL_REGEX.test(event.request.url)) {
     // Seeking resource
-    event.respondWith(
-      (async () => {
-        const cache = await caches.open(SW_CACHE_NAME);
-        const cachedResponse = await cache.match(event.request.url);
-        if (cachedResponse) {
-          // Return the cached resource if it's available.
-          return cachedResponse;
-        } else {
-          // Fallback to latest
-          return fetch(event.request.url);
-        }
-      })()
-    );
+    event.respondWith(cacheThenNetwork(event.request.url));
   }
 });
