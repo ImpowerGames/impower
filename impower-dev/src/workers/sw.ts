@@ -23,10 +23,6 @@ const cacheThenNetwork = async (url: string) => {
   }
 };
 
-const networkOnly = async (url: string) => {
-  return fetch(url);
-};
-
 self.addEventListener("install", (e) => {
   const event = e as ExtendableEvent;
   event.waitUntil(
