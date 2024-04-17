@@ -976,6 +976,7 @@ export default class WorkspaceWindow {
         });
         await this.pushLocalTextChanges(id);
         await this.pushLocalZipChanges(id);
+        await this.pushLocalTextChanges(id);
         const name =
           (await Workspace.fs.readProjectMetadata(id, "name")) ||
           WorkspaceConstants.DEFAULT_PROJECT_NAME;
@@ -1100,6 +1101,7 @@ export default class WorkspaceWindow {
     if (!remoteZipChanged && localZipChanged) {
       if (pushLocalChanges) {
         await this.pushLocalZipChanges(fileId);
+        await this.pushLocalTextChanges(fileId);
         return "synced";
       }
       return "unsynced";
