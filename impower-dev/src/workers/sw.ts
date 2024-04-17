@@ -23,6 +23,10 @@ const cacheThenNetwork = async (url: string) => {
   }
 };
 
+const networkOnly = async (url: string) => {
+  return fetch(url);
+};
+
 self.addEventListener("install", (e) => {
   const event = e as ExtendableEvent;
   event.waitUntil(
@@ -52,11 +56,16 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode === "navigate") {
-    // when seeking an HTML page
-    event.respondWith(cacheThenNetwork("/"));
-  } else if (RESOURCE_URL_REGEX.test(event.request.url)) {
-    // Seeking resource
-    event.respondWith(cacheThenNetwork(event.request.url));
+  if (process?.env?.["NODE_ENV"] === "production") {
+    if (event.request.mode === "navigate") {
+      // Fetching a page route
+      event.respondWith(cacheThenNetwork("/"));
+    } else if (RESOURCE_URL_REGEX.test(event.request.url)) {
+      // Fetching a resource
+      event.respondWith(cacheThenNetwork(event.request.url));
+    }
+  } else {
+    // Always fetch from network in development environment
+    event.respondWith(networkOnly(event.request.url));
   }
 });

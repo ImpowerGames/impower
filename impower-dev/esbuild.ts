@@ -405,6 +405,7 @@ const buildWorkers = async () => {
       js: `
   var process = {
     env: {
+      NODE_ENV: '${PRODUCTION ? "production" : "development"}',
       SW_VERSION: '${SW_VERSION}',
       SW_CACHE_NAME: 'cache-${SW_VERSION}',
       SW_RESOURCES: '${JSON.stringify(SW_RESOURCES)}',
