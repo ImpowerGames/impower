@@ -143,6 +143,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
   opts,
   next
 ) => {
+  // SIGN-IN
   app.post<{
     Body: {
       code: string;
@@ -166,11 +167,15 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       return account;
     });
   });
+
+  // SIGN-OUT
   app.post("/api/auth/signout", async (request, reply) => {
     return secure(request, reply, async () => {
       deleteSessionCookie(request);
     });
   });
+
+  // GET ACCOUNT
   app.get("/api/auth/account", async (request, reply) => {
     return secure(request, reply, async () => {
       const sessionCookieData = getSessionCookieData(request);
@@ -205,6 +210,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       }
     });
   });
+
+  // GET ACCESS
   app.get("/api/auth/access", async (request, reply) => {
     return authenticated(request, reply, async (auth) => {
       const res = await auth.refreshAccessToken();
@@ -215,6 +222,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       return { token, expires, scope, consented };
     });
   });
+
+  // UPLOAD NEW FILE
   app.post<{
     Params: {
       folderId: string;
@@ -245,6 +254,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       return res.data;
     });
   });
+
+  // UPDATE EXISTING FILE
   app.put<{
     Params: {
       fileId: string;
@@ -307,6 +318,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       return res.data;
     });
   });
+
+  // GET ALL REVISIONS
   app.get<{
     Params: {
       fileId: string;
@@ -322,6 +335,8 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       return res.data.revisions;
     });
   });
+
+  // GET SPECIFIC REVISION
   app.get<{
     Params: {
       fileId: string;
@@ -354,6 +369,7 @@ const googleDriveSyncProvider: FastifyPluginCallback = async (
       });
     }
   );
+
   next();
 };
 
