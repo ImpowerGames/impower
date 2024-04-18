@@ -11,6 +11,7 @@ import Demo from "./components/demo/demo";
 import Details from "./components/details/details";
 import EditToggleButton from "./components/edit-toggle-button/edit-toggle-button";
 import FileAddButton from "./components/file-add-button/file-add-button";
+import FileDropzone from "./components/file-dropzone/file-dropzone";
 import FileEditorNavigation from "./components/file-editor-navigation/file-editor-navigation";
 import FileItem from "./components/file-item/file-item";
 import FileListBorder from "./components/file-list-border/file-list-border";
@@ -58,6 +59,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   FileItem,
   FileListBorder,
   FileList,
+  FileDropzone,
   ScriptEditor,
   Assets,
   AssetsFiles,

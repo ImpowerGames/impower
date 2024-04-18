@@ -1,15 +1,11 @@
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { Component } from "../../../../../../packages/spec-component/src/component";
-import getValidFileName from "../../utils/getValidFileName";
 import globToRegex from "../../utils/globToRegex";
-import { verifyFileType } from "../../utils/verifyFileType";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_file-list";
 
 export default class FileList extends Component(spec) {
   protected _uris?: string[];
-
-  protected _dragging = false;
 
   override onInit() {
     this.loadEntries();
@@ -20,12 +16,6 @@ export default class FileList extends Component(spec) {
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
     );
-    this.root.addEventListener("pointerenter", this.handlePointerEnter);
-    this.root.addEventListener("pointermove", this.handlePointerMove);
-    this.root.addEventListener("pointerup", this.handlePointerUp);
-    this.root.addEventListener("dragenter", this.handleDragEnter);
-    this.root.addEventListener("dragover", this.handleDragOver);
-    this.root.addEventListener("drop", this.handleDrop);
   }
 
   override onDisconnected() {
@@ -33,12 +23,6 @@ export default class FileList extends Component(spec) {
       DidChangeWatchedFilesMessage.method,
       this.handleDidChangeWatchedFiles
     );
-    this.root.removeEventListener("pointerenter", this.handlePointerEnter);
-    this.root.removeEventListener("pointermove", this.handlePointerMove);
-    this.root.removeEventListener("pointerup", this.handlePointerUp);
-    this.root.removeEventListener("dragenter", this.handleDragEnter);
-    this.root.removeEventListener("dragover", this.handleDragOver);
-    this.root.removeEventListener("drop", this.handleDrop);
   }
 
   protected handleDidChangeWatchedFiles = (e: Event) => {
@@ -60,82 +44,6 @@ export default class FileList extends Component(spec) {
       }
     }
   };
-
-  handlePointerEnter = async (e: PointerEvent) => {
-    if (this._dragging) {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    }
-  };
-
-  handlePointerMove = async (e: PointerEvent) => {
-    if (this._dragging) {
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    }
-  };
-
-  handlePointerUp = async (e: PointerEvent) => {
-    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    if (this._dragging) {
-      this._dragging = false;
-      this.updateState();
-    }
-  };
-
-  handleDragEnter = async (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!this._dragging) {
-      this._dragging = true;
-      this.updateState();
-    }
-  };
-
-  handleDragOver = async (e: Event) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!this._dragging) {
-      this._dragging = true;
-      this.updateState();
-    }
-  };
-
-  handleDrop = async (e: Event) => {
-    const event = e as DragEvent;
-    const accept = this.accept;
-    const validFiles = Array.from(event.dataTransfer?.files || []).filter(
-      (file) => verifyFileType(file.type, accept ?? "")
-    );
-    if (this._dragging && validFiles.length > 0) {
-      event.preventDefault();
-      event.stopPropagation();
-      this.upload(validFiles);
-    }
-    this._dragging = false;
-    this.updateState();
-  };
-
-  async upload(fileArray: File[]) {
-    const store = this.stores.workspace.current;
-    const projectId = store?.project?.id;
-    if (projectId) {
-      if (fileArray) {
-        const files = await Promise.all(
-          fileArray.map(async (file) => {
-            const validFileName = getValidFileName(file.name);
-            const data = await file.arrayBuffer();
-            return {
-              uri: Workspace.fs.getFileUri(projectId, validFileName),
-              data,
-            };
-          })
-        );
-        await Workspace.fs.createFiles({
-          files,
-        });
-        await Workspace.window.requireZipSync();
-      }
-    }
-  }
 
   async loadEntries() {
     this._uris = await this.loadFiles();
@@ -178,9 +86,6 @@ export default class FileList extends Component(spec) {
   }
 
   getState() {
-    if (this._dragging && this.accept) {
-      return "dragover";
-    }
     if (this._uris && this._uris.length > 0) {
       return "list";
     }
@@ -193,9 +98,8 @@ export default class FileList extends Component(spec) {
   updateState() {
     const state = this.getState();
     const emptyEl = this.ref.empty;
-    const dragoverEl = this.ref.dragover;
     const outletEl = this.ref.outlet;
-    const els = { empty: emptyEl, dragover: dragoverEl, list: outletEl };
+    const els = { empty: emptyEl, list: outletEl };
     Object.entries(els).forEach(([k, v]) => {
       if (v) {
         v.hidden = k !== state;

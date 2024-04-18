@@ -12,9 +12,6 @@ export default class SparkEditor extends Component(spec) {
   }
 
   override onConnected() {
-    window.addEventListener("dragenter", this.handleDragEnter);
-    window.addEventListener("dragover", this.handleDragOver);
-    window.addEventListener("drop", this.handleDrop);
     window.addEventListener(
       DidExpandPreviewPaneMessage.method,
       this.handleDidExpandPreviewPane
@@ -26,9 +23,6 @@ export default class SparkEditor extends Component(spec) {
   }
 
   override onDisconnected() {
-    window.removeEventListener("dragenter", this.handleDragEnter);
-    window.removeEventListener("dragover", this.handleDragOver);
-    window.removeEventListener("drop", this.handleDrop);
     window.removeEventListener(
       DidExpandPreviewPaneMessage.method,
       this.handleDidExpandPreviewPane
@@ -38,18 +32,6 @@ export default class SparkEditor extends Component(spec) {
       this.handleDidCollapsePreviewPane
     );
   }
-
-  handleDragEnter = async (e: Event) => {
-    e.preventDefault();
-  };
-
-  handleDragOver = async (e: Event) => {
-    e.preventDefault();
-  };
-
-  handleDrop = async (e: Event) => {
-    e.preventDefault();
-  };
 
   handleDidExpandPreviewPane = async (e: Event) => {
     this.ref.splitPane.setAttribute("reveal", "");

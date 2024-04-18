@@ -240,8 +240,8 @@ export default class WorkspaceWindow {
   }
 
   getPanelType(filenameOrUri: string) {
-    const [, ext] = filenameOrUri.split(".");
-    if (filenameOrUri === "main.script") {
+    const [name, ext] = filenameOrUri.split(".");
+    if (name === "main") {
       return "main";
     }
     if (ext === "script") {

@@ -15,9 +15,3 @@
   inset: 0;
   flex: 1;
 }
-
-:host > .root > .dragover {
-  position: absolute;
-  inset: 0;
-  flex: 1;
-}

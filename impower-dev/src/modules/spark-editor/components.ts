@@ -10,6 +10,7 @@ import Demo from "./components/demo/_demo";
 import Details from "./components/details/_details";
 import EditToggleButton from "./components/edit-toggle-button/_edit-toggle-button";
 import FileAddButton from "./components/file-add-button/_file-add-button";
+import FileDropzone from "./components/file-dropzone/_file-dropzone";
 import FileEditorNavigation from "./components/file-editor-navigation/_file-editor-navigation";
 import FileItem from "./components/file-item/_file-item";
 import FileListBorder from "./components/file-list-border/_file-list-border";
@@ -86,6 +87,7 @@ const components = [
   style(FileItem),
   style(FileListBorder),
   style(FileList),
+  style(FileDropzone),
   style(ScriptEditor),
   style(PreviewGameToolbar),
   style(PreviewGame),
