@@ -6,18 +6,16 @@ import augmentCSS from "../utils/augmentCSS";
 import convertCamelToKebabCase from "../utils/convertCamelToKebabCase";
 import emit from "../utils/emit";
 import getPropValue from "../utils/getPropValue";
-import reactive from "../utils/reactive";
 
 const Component = <
   Props extends Record<string, unknown>,
-  State extends Record<string, unknown>,
   Stores extends Record<string, IStore>,
   Context extends Record<string, unknown>,
   Graphics extends Record<string, string>,
   Selectors extends Record<string, null | string | string[]>,
   T extends CustomElementConstructor
 >(
-  spec: ComponentSpec<Props, State, Stores, Context, Graphics, Selectors>,
+  spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>,
   Base: T = HTMLElement as T
 ) => {
   const propToAttrMap = {} as Record<keyof Props, string>;
@@ -35,16 +33,10 @@ const Component = <
       graphics: spec.graphics,
       stores: spec.stores,
       context: spec.reducer(spec.stores),
-      state: spec.state,
       props: spec.props,
     });
 
     #renderFrameHandle = 0;
-
-    #updateStateEvent = spec.updateStateEvent;
-    get updateStateEvent() {
-      return this.#updateStateEvent;
-    }
 
     #shadowDOM = spec.shadowDOM;
     get shadowDOM() {
@@ -74,13 +66,6 @@ const Component = <
     #context = this.reduce(this.#stores);
     get context() {
       return this.#context;
-    }
-
-    #state = reactive(spec.state, (detail) =>
-      emit(this.#updateStateEvent, detail, this)
-    );
-    get state() {
-      return this.#state;
     }
 
     #props: Props = Object.keys(CustomElement.attrs).reduce((obj, key) => {
@@ -135,7 +120,6 @@ const Component = <
         graphics: this.graphics,
         stores: this.stores,
         context: this.context,
-        state: this.state,
         props: this.props,
       });
     }
@@ -242,9 +226,6 @@ const Component = <
           store.target.addEventListener(store.event, this.#handleStoreUpdate);
         });
       }
-      if (this.state) {
-        this.addEventListener(this.updateStateEvent, this.#handleStateUpdate);
-      }
       this.onConnected();
     }
 
@@ -265,12 +246,6 @@ const Component = <
             this.#handleStoreUpdate
           );
         });
-      }
-      if (this.state) {
-        this.removeEventListener(
-          this.updateStateEvent,
-          this.#handleStateUpdate
-        );
       }
       this.onDisconnected();
     }
@@ -326,29 +301,6 @@ const Component = <
       oldContext: Context,
       newContext: Context
     ): boolean {
-      return true;
-    }
-
-    #handleStateUpdate = (e: Event): void => {
-      if (e.target === this) {
-        if (e instanceof CustomEvent) {
-          this.onStateChanged();
-          if (this.shouldStateTriggerUpdate()) {
-            this.update();
-          }
-        }
-      }
-    };
-
-    /**
-     * Invoked when the component's state has been updated.
-     */
-    onStateChanged(): void {}
-
-    /**
-     * @returns true if the change should trigger a re-render, or false otherwise. Defaults to true.
-     */
-    shouldStateTriggerUpdate(): boolean {
       return true;
     }
 

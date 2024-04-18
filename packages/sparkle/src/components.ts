@@ -51,7 +51,6 @@ const config = {
 
 const style = <
   Props extends Record<string, unknown> = Record<string, unknown>,
-  State extends Record<string, unknown> = Record<string, unknown>,
   Stores extends Record<string, any> = Record<string, any>,
   Context extends Record<string, unknown> = Record<string, unknown>,
   Graphics extends Record<string, string> = Record<string, string>,
@@ -60,8 +59,8 @@ const style = <
     null | string | string[]
   >
 >(
-  spec: ComponentSpec<Props, State, Stores, Context, Graphics, Selectors>
-): ComponentSpec<Props, State, Stores, Context, Graphics, Selectors> => {
+  spec: ComponentSpec<Props, Stores, Context, Graphics, Selectors>
+): ComponentSpec<Props, Stores, Context, Graphics, Selectors> => {
   return {
     ...spec,
     html: (args) => {

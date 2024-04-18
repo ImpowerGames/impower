@@ -1,6 +1,5 @@
 export interface ComponentSpec<
   Props extends Record<string, unknown> = Record<string, unknown>,
-  State extends Record<string, unknown> = Record<string, unknown>,
   Stores extends Record<string, { current: any }> = Record<
     string,
     { current: any }
@@ -16,17 +15,14 @@ export interface ComponentSpec<
   stores: Stores;
   graphics: Graphics;
   reducer: (stores: Stores) => Context;
-  state: State;
   props: Props;
   css: string[];
   html?: (args: {
     graphics: Graphics;
     stores: Stores;
     context: Context;
-    state: State;
     props: Props;
   }) => string;
   selectors: Selectors;
   shadowDOM: boolean;
-  updateStateEvent: string;
 }
