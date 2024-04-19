@@ -1,3 +1,7 @@
+[display] > .root {
+  display: var(--display, "block") !important;
+}
+
 [position] > .root {
   position: var(--position, absolute) !important;
 }

@@ -1,4 +1,6 @@
 const STYLE_PROPS = {
+  display: null as string | null,
+
   position: null as string | null,
 
   aspect: null as string | null,

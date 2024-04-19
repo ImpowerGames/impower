@@ -49,6 +49,8 @@ import getCssZ from "../utils/getCssZ.js";
 const get = (v: string) => v;
 
 const STYLE_TRANSFORMERS = {
+  display: get,
+
   position: getCssPosition,
 
   aspect: getCssRatio,
