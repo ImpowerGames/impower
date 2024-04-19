@@ -3,8 +3,6 @@
   border-radius: inherit;
   -webkit-mask: inherit;
   mask: inherit;
-}
-:host {
   --hover-opacity: var(--s-opacity-hover);
   --press-opacity: var(--s-opacity-press);
   --ripple-duration: 150ms;
@@ -13,11 +11,8 @@
   --min-color-stop-length: 75%;
 }
 
-:host([animation="none"]) > .root::after {
-  visibility: hidden;
-}
-
 :host > .root {
+  display: flex;
   pointer-events: auto;
   border-radius: inherit;
   position: absolute;
@@ -31,7 +26,9 @@
 
 :host > .root::before,
 :host > .root::after {
+  display: block;
   position: absolute;
+  inset: 0;
   opacity: 0;
   pointer-events: none;
   content: "";
@@ -41,16 +38,10 @@
 }
 
 :host > .root::before {
-  inset: 0;
   background-color: currentColor;
   transition-property: opacity, background-color;
   transition-timing-function: linear;
   transition-duration: var(--hover-duration);
-}
-@media (hover: hover) and (pointer: fine) {
-  :host > .root:hover::before {
-    opacity: var(--hover-opacity);
-  }
 }
 
 :host > .root::after {
@@ -64,8 +55,19 @@
   transition-timing-function: linear;
   transform-origin: center center;
 }
+
 :host > .root.pressed::after {
   opacity: var(--press-opacity);
   transition-property: opacity;
   transition-duration: var(--press-duration);
+}
+
+:host([animation="none"]) > .root::after {
+  visibility: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  :host > .root:hover::before {
+    opacity: var(--hover-opacity);
+  }
 }
