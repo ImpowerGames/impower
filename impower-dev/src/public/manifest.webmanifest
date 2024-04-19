@@ -1,7 +1,7 @@
 {
   "short_name": "Spark",
   "name": "Spark Engine",
-  "description": "An intuitive, text-based editor for creating simple HTML5 games.",
+  "description": "An intuitive, text-based editor for creating interactive story games.",
   "icons": [
     {
       "src": "favicon.ico",
