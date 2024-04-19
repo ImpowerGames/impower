@@ -1,10 +1,10 @@
 import { spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
-import html from "./script-editor.html";
+import html from "./logic-script-editor.html";
 
 export default spec({
-  tag: "se-script-editor",
+  tag: "se-logic-script-editor",
   stores: { workspace },
   props: {
     filename: "",

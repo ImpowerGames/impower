@@ -13,7 +13,7 @@ export default spec({
     return html`
       <se-file-editor-navigation>${displayName}</se-file-editor-navigation>
       <s-box position="relative" grow>
-        <se-script-editor filename="${filename}"></se-script-editor>
+        <se-logic-script-editor filename="${filename}"></se-logic-script-editor>
       </s-box>
     `;
   },

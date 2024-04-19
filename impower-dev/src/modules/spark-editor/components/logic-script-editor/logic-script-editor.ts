@@ -4,11 +4,11 @@ import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/p
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { debounce } from "../../utils/debounce";
 import { Workspace } from "../../workspace/Workspace";
-import spec from "./_script-editor";
+import spec from "./_logic-script-editor";
 
 const AUTOSAVE_DELAY = 200;
 
-export default class ScriptEditor extends Component(spec) {
+export default class LogicScriptEditor extends Component(spec) {
   protected _uri?: string;
 
   protected _version?: number;

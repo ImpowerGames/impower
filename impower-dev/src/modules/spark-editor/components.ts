@@ -25,6 +25,7 @@ import HeaderTitleButton from "./components/header-title-button/_header-title-bu
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/_interaction-blocker";
 import LogicList from "./components/logic-list/_logic-list";
+import LogicScriptEditor from "./components/logic-script-editor/_logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
 import Logic from "./components/logic/_logic";
@@ -39,7 +40,6 @@ import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_p
 import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/_preview-toggle-button";
 import Preview from "./components/preview/_preview";
-import ScriptEditor from "./components/script-editor/_script-editor";
 import ShareGame from "./components/share-game/_share-game";
 import ShareScreenplay from "./components/share-screenplay/_share-screenplay";
 import Share from "./components/share/_share";
@@ -86,7 +86,7 @@ const components = [
   style(FileListBorder),
   style(FileList),
   style(FileDropzone),
-  style(ScriptEditor),
+  style(LogicScriptEditor),
   style(PreviewGameToolbar),
   style(PreviewGame),
   style(PreviewScreenplayToolbar),

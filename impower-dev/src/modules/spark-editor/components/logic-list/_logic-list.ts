@@ -45,9 +45,11 @@ export default spec({
             </s-tab>
           </s-tabs>
         </s-box>
-        <se-script-editor filename="main.script"></se-script-editor>
+        <se-logic-script-editor filename="main.script"></se-logic-script-editor>
         <template value="main">
-          <se-script-editor filename="main.script"></se-script-editor>
+          <se-logic-script-editor
+            filename="main.script"
+          ></se-logic-script-editor>
         </template>
         <template value="scripts">
           <se-logic-scripts-list></se-logic-scripts-list>

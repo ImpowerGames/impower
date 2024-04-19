@@ -26,6 +26,7 @@ import HeaderTitleButton from "./components/header-title-button/header-title-but
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/interaction-blocker";
 import LogicList from "./components/logic-list/logic-list";
+import LogicScriptEditor from "./components/logic-script-editor/logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import Logic from "./components/logic/logic";
@@ -40,7 +41,6 @@ import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/pr
 import PreviewScreenplay from "./components/preview-screenplay/preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
 import Preview from "./components/preview/preview";
-import ScriptEditor from "./components/script-editor/script-editor";
 import ShareGame from "./components/share-game/share-game";
 import ShareScreenplay from "./components/share-screenplay/share-screenplay";
 import Share from "./components/share/share";
@@ -59,7 +59,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   FileListBorder,
   FileList,
   FileDropzone,
-  ScriptEditor,
+  LogicScriptEditor,
   Assets,
   AssetsFiles,
   AssetsSpecs,
