@@ -337,7 +337,6 @@ export default class Dialog
   protected async animateOpen(modal: boolean): Promise<void> {
     this.root.hidden = false;
     this.root.inert = false;
-    this.setAttribute("loaded", "");
     if (modal) {
       this.ref.dialog.showModal();
     } else {
@@ -356,6 +355,8 @@ export default class Dialog
         this.root.querySelector("button")?.focus();
       }
     }
+
+    this.setAttribute("loaded", "");
 
     this.emit(OPENING_EVENT);
 
