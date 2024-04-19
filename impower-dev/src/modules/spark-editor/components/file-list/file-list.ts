@@ -50,20 +50,19 @@ export default class FileList extends Component(spec) {
     const outletEl = this.ref.outlet;
     if (outletEl) {
       const items = this.createItems(this._uris);
-      outletEl.replaceChildren(...items);
+      outletEl.innerHTML = items.join("\n");
     }
     this.updateState();
   }
 
   createItems(uris: string[]) {
-    const items: HTMLElement[] = [];
+    const items: string[] = [];
     uris.forEach((uri) => {
       const filename = Workspace.fs.getFilename(uri);
-      const displayName = Workspace.fs.getDisplayName(uri);
-      const fileItem = document.createElement("se-file-item");
-      fileItem.setAttribute("filename", filename);
-      fileItem.textContent = displayName;
-      items.push(fileItem);
+      const [name, ext] = filename.split(".");
+      items.push(
+        `<se-file-item filename="${filename}" name="${name}" ext="${ext}"></se-file-item>`
+      );
     });
     return items;
   }
