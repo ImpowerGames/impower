@@ -20,7 +20,7 @@ const CLACK_SYNTH = _synth({
     decay: 0.003,
     sustain: 0.04,
     release: 0.01,
-    level: 0.14,
+    level: 0.3,
   },
   pitch: { frequency: 4790 },
   arpeggio: {
