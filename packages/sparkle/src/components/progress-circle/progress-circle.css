@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --value: 0;
   --size: 1em;
   --background-color: var(--s-color-neutral-30);
@@ -19,12 +17,12 @@
 }
 
 :host > .root {
+  display: flex;
   position: var(--position);
   min-width: var(--size);
   min-height: var(--size);
   width: var(--size);
   height: var(--size);
-  display: flex;
   justify-content: center;
   align-items: center;
   background-color: transparent;

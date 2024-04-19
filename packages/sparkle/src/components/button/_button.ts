@@ -9,11 +9,14 @@ export default spec({
     href: null as string | null,
     accept: null as string | null,
     multiple: null as string | null,
+    ripple: null as string | null,
     icon: null as string | null,
     activeIcon: null as string | null,
+    variant: null as string | null,
   },
   html: ({ props }) => {
-    const { type, href, accept, multiple, icon, activeIcon } = props;
+    const { type, href, accept, multiple, icon, activeIcon, variant, ripple } =
+      props;
     const isLink = type === "a" || type === "link" || href;
     const isLabel = type === "label" || type === "file";
     const isDiv = type === "div" || type === "container";
@@ -21,13 +24,14 @@ export default spec({
     const tag = isLink ? "a" : isLabel ? "label" : isDiv ? "div" : "button";
     const iconName = icon;
     const activeIconName = activeIcon || icon;
+    const rippleAttr = ripple ? () => html`animation="${ripple}"` : "";
     const normalIconComponent = () =>
       iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
     const activeIconComponent = () =>
       activeIconName ? html`<s-icon name="${activeIconName}"></s-icon>` : "";
     const iconComponent = () =>
       iconName || activeIconName
-        ? html` <div class="icon" part="icon">
+        ? html`<div class="icon" part="icon">
             <div class="inactive-icon" part="inactive-icon">
               ${normalIconComponent}
             </div>
@@ -36,18 +40,11 @@ export default spec({
             </div>
           </div>`
         : "";
-    return html`
-    <${tag} class="root" part="root" ${isToggle ? `role="checkbox"` : ""}>
-    <div class="ripple" part="ripple">
-      <s-ripple id="ripple"></s-ripple>
-    </div>
-    ${iconComponent}
-    <div class="label" part="label">
-      <slot></slot>
-    </div>
-    ${
+    const labelComponent = () =>
+      variant === "icon" ? "" : html`<slot class="label" part="label"></slot>`;
+    const inputComponent = () =>
       type === "file"
-        ? () => html`
+        ? html`
             <input
               id="input"
               type="${type}"
@@ -55,8 +52,13 @@ export default spec({
               ${multiple != null ? `multiple` : ""}
             />
           `
-        : ""
-    }
+        : "";
+    return html`
+    <${tag} class="root" part="root" ${isToggle ? `role="checkbox"` : ""}>
+    <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
+    ${iconComponent}
+    ${labelComponent}
+    ${inputComponent}
   </${tag}>
     `;
   },

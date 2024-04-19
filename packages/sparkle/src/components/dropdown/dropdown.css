@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --position: absolute;
   --overflow-x: clip;
   --overflow-y: clip;

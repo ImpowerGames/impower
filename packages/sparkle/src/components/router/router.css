@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --exit: var(--s-animation-exit-zoom);
   --enter: var(--s-animation-enter-zoom);
   --position: relative;
@@ -10,8 +8,8 @@
 }
 
 :host > .root {
-  position: relative;
   display: flex;
+  position: relative;
   flex: 1 1 100%;
 }
 :host > .root[status] {

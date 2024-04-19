@@ -20,6 +20,7 @@ export default spec({
     readonly: false,
     required: false,
     value: null as string | null,
+    ripple: null as string | null,
   },
   html: ({ props }) => {
     const {
@@ -38,6 +39,7 @@ export default spec({
       readonly,
       required,
       value,
+      ripple,
     } = props;
     const typeAttr = type ? () => html`type="${type}"` : "";
     const nameAttr = name ? () => html`name="${name}"` : "";
@@ -63,16 +65,11 @@ export default spec({
     const requiredAttr = required ? () => html`required` : "";
     const valueAttr = value ? () => html`value="${value}"` : "";
     const labelAttr = label ? () => html`aria-label="${label}"` : "";
+    const rippleAttr = ripple ? () => html`animation="${ripple}"` : "";
     return html`
       <label class="root" part="root" ${labelAttr}>
-        <div class="ripple" part="ripple">
-          <slot name="ripple">
-            <s-ripple id="ripple" animation="none"></s-ripple>
-          </slot>
-        </div>
-        <span class="prefix" part="prefix">
-          <slot name="prefix"></slot>
-        </span>
+        <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
+        <slot name="prefix" class="prefix" part="prefix"></slot>
         <input
           class="input"
           part="input"
@@ -92,9 +89,7 @@ export default spec({
           ${placeholderAttr}
           ${valueAttr}
         />
-        <span class="suffix" part="suffix">
-          <slot name="suffix"></slot>
-        </span>
+        <slot name="suffix" class="suffix" part="suffix"></slot>
       </label>
     `;
   },

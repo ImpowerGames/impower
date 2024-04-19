@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --exit: var(--s-animation-close);
   --enter: var(--s-animation-open);
   --ease: ease-out;
@@ -9,8 +7,8 @@
 }
 
 :host > .root {
-  position: relative;
   display: flex;
+  position: relative;
   flex: 1;
 }
 :host > .root[status] {

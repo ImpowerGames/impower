@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --background-color: var(--s-color-surface);
   --child-layout: column;
   --child-align: stretch;
@@ -27,9 +25,9 @@
 }
 
 :host > .root {
+  display: flex;
   contain: "layout";
   pointer-events: auto;
-  display: flex;
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
   position: fixed;

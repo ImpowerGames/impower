@@ -9,8 +9,8 @@
 }
 
 :host > .root {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
   opacity: 0;
   transition: opacity 0.25s;

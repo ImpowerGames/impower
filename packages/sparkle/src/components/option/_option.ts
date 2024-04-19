@@ -7,11 +7,12 @@ export default spec({
   props: {
     type: null as string | null,
     href: null as string | null,
+    ripple: null as string | null,
     icon: null as string | null,
     activeIcon: null as string | null,
   },
   html: ({ props }) => {
-    const { type, href, icon, activeIcon } = props;
+    const { type, href, icon, activeIcon, ripple } = props;
     const isLink = type === "a" || type === "link" || href;
     const isLabel = type === "label" || type === "file";
     const isDiv = type === "div" || type === "container";
@@ -20,6 +21,7 @@ export default spec({
     const roleAttr = isToggle ? () => html`role="checkbox"` : "";
     const iconName = icon;
     const activeIconName = activeIcon || icon;
+    const rippleAttr = ripple ? () => html`animation="${ripple}"` : "";
     const iconComponent = () =>
       iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
     const activeIconComponent = () =>
@@ -27,18 +29,12 @@ export default spec({
     return html`
     <${tag} class="root" part="root" ${roleAttr}>
     <slot name="before"></slot>
-    <div class="ripple" part="ripple">
-      <slot name="ripple">
-        <s-ripple></s-ripple>
-      </slot>
-    </div>
+    <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
     <div class="icon" part="icon">
       <div class="inactive-icon" part="inactive-icon">${iconComponent}</div>
       <div class="active-icon" part="active-icon">${activeIconComponent}</div>
     </div>
-    <div class="label" part="label">
-      <slot></slot>
-    </div>
+    <slot class="label" part="label"></slot>
     <slot name="after"></slot>
   </${tag}>
     `;

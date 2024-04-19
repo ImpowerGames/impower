@@ -1,11 +1,9 @@
 <dialog class="root" part="root" inert>
   <form class="form" part="form" method="dialog">
     <header class="header" part="header">
-      <div class="icon" part="icon">
-        <slot name="icon">
-          <s-icon></s-icon>
-        </slot>
-      </div>
+      <slot name="icon" class="icon" part="icon">
+        <s-icon></s-icon>
+      </slot>
       <h3 class="label" part="label">
         <slot name="label"></slot>
       </h3>

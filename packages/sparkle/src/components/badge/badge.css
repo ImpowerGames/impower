@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --overflow-x: clip;
   --selectable: none;
   --color: var(--s-color-primary-60);

@@ -1,7 +1,5 @@
 <div class="root" part="root" role="alert">
-  <div class="message" part="message">
-    <slot></slot>
-  </div>
+  <slot class="message" part="message"></slot>
   <div class="close" part="close">
     <s-button class="button" part="button" variant="text" size="sm" m-tb="-5">
       <slot name="action">OK</slot>

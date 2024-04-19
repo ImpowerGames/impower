@@ -5,13 +5,15 @@ import css from "./tab.css";
 export default spec({
   tag: "s-tab",
   props: {
+    ripple: null as string | null,
     icon: null as string | null,
     activeIcon: null as string | null,
   },
   html: ({ props }) => {
-    const { icon, activeIcon } = props;
+    const { icon, activeIcon, ripple } = props;
     const iconName = icon;
     const activeIconName = activeIcon || icon;
+    const rippleAttr = ripple ? () => html`animation="${ripple}"` : "";
     const iconComponent = () =>
       iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
     const activeIconComponent = () =>
@@ -24,18 +26,12 @@ export default spec({
       tabindex="-1"
       aria-selected="false"
     >
-      <div class="ripple" part="ripple">
-        <slot name="ripple">
-          <s-ripple animation="none"></s-ripple>
-        </slot>
-      </div>
+      <s-ripple class="ripple" part="ripple" ${rippleAttr}></s-ripple>
       <div class="icon" part="icon">
         <div class="inactive-icon" part="inactive-icon">${iconComponent}</div>
         <div class="active-icon" part="active-icon">${activeIconComponent}</div>
       </div>
-      <div class="label" part="label">
-        <slot></slot>
-      </div>
+      <slot class="label" part="label"></slot>
     </button>`;
   },
   selectors: {

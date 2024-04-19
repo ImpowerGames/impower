@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --icon-size: var(--s-text-lg-font-size);
   --interactable: auto;
   --position: relative;
@@ -28,9 +26,9 @@
 }
 
 :host > .root {
+  display: flex;
   pointer-events: var(--interactable);
   position: var(--position);
-  display: flex;
   flex-direction: var(--child-layout);
   align-items: var(--child-align);
   filter: var(--shadow);

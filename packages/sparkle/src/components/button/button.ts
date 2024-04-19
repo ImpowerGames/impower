@@ -42,6 +42,7 @@ const DEFAULT_ATTRIBUTES = {
     "label",
     "value",
     "active",
+    "ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -64,8 +65,10 @@ export default class Button
       href: this.href,
       accept: this.accept,
       multiple: this.multiple,
+      variant: this.variant,
       icon: this.icon,
       activeIcon: this.activeIcon,
+      ripple: this.ripple,
     };
   }
 
@@ -198,6 +201,16 @@ export default class Button
   }
   set variant(value) {
     this.setStringAttribute(Button.attrs.variant, value);
+  }
+
+  /**
+   * The ripple animation.
+   */
+  get ripple(): string | null {
+    return this.getStringAttribute(Button.attrs.ripple);
+  }
+  set ripple(value) {
+    this.setStringAttribute(Button.attrs.ripple, value);
   }
 
   /**

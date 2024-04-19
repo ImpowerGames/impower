@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --overflow-x: visible;
   --overflow-y: visible;
   --child-layout: row;
@@ -55,9 +53,9 @@
 }
 
 :host > .root {
+  display: flex;
   cursor: pointer;
   text-decoration: none;
-  display: flex;
   overflow-x: var(--overflow-x);
   overflow-y: var(--overflow-y);
   flex-direction: var(--child-layout);

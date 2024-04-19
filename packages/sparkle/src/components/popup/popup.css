@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --arrow-color: var(--s-color-neutral-1000);
   --arrow-size: 6px;
 
@@ -16,9 +14,6 @@
 
 :host > .root {
   display: flex;
-}
-
-:host > .root {
   position: absolute;
   isolation: isolate;
   max-width: var(--auto-size-available-width, none);

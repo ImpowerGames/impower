@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --position: absolute;
   --width-max: 20rem;
   --hide-delay: 0ms;

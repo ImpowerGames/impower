@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --child-layout: column;
   --text-font: var(--s-input-font-family);
   --text-weight: var(--s-input-font-weight);
@@ -34,9 +32,6 @@
   transition: var(--s-transition-fast) color, var(--s-transition-fast) border,
     var(--s-transition-fast) box-shadow,
     var(--s-transition-fast) background-color;
-}
-
-:host > .root {
   border: none;
   background-color: var(--background-color);
   color: var(--color);

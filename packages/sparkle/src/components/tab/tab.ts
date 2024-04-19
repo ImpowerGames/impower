@@ -28,6 +28,7 @@ const DEFAULT_ATTRIBUTES = {
     "value",
     "disabled",
     "status",
+    "ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -46,6 +47,7 @@ export default class Tab
   override get props() {
     return {
       ...super.props,
+      ripple: this.ripple,
       icon: this.icon,
       activeIcon: this.activeIcon,
     };
@@ -98,6 +100,16 @@ export default class Tab
   }
   set value(value) {
     this.setStringAttribute(Tab.attrs.value, value);
+  }
+
+  /**
+   * The ripple animation.
+   */
+  get ripple(): string | null {
+    return this.getStringAttribute(Tab.attrs.ripple);
+  }
+  set ripple(value) {
+    this.setStringAttribute(Tab.attrs.ripple, value);
   }
 
   /**

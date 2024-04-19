@@ -36,6 +36,7 @@ const DEFAULT_ATTRIBUTES = {
     "disabled",
     "label",
     "action",
+    "ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -56,6 +57,7 @@ export default class Option
       ...super.props,
       type: this.type,
       href: this.href,
+      ripple: this.ripple,
       icon: this.icon,
       activeIcon: this.activeIcon,
     };
@@ -148,6 +150,16 @@ export default class Option
   }
 
   /**
+   * The ripple animation.
+   */
+  get ripple(): string | null {
+    return this.getStringAttribute(Option.attrs.ripple);
+  }
+  set ripple(value) {
+    this.setStringAttribute(Option.attrs.ripple, value);
+  }
+
+  /**
    * The name of the icon to display.
    */
   get icon(): string | null {
@@ -166,6 +178,7 @@ export default class Option
   set activeIcon(value) {
     this.setStringAttribute(Option.attrs.activeIcon, value);
   }
+
   /**
    * The size of the option.
    *

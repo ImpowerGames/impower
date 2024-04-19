@@ -1,15 +1,10 @@
 :host {
   display: contents;
-}
-:host {
   --duration: 150ms;
 }
 
 :host > .root {
   display: flex;
-}
-
-:host > .root {
   position: relative;
   transition-property: opacity;
 }

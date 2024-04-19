@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --position: relative;
   --overflow-x: clip;
   --overflow-y: clip;
@@ -18,6 +16,7 @@
 }
 
 :host > .root {
+  display: flex;
   position: var(--position);
   overflow-x: var(--overflow-x);
   overflow-y: var(--overflow-y);

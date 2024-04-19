@@ -10,9 +10,11 @@ export default spec({
   html: ({ props }) => {
     const { initial } = props;
     return html`
-      <div class="root" part="root" ${initial === "hide" ? "hidden" : ""}>
-        <slot></slot>
-      </div>
+      <slot
+        class="root"
+        part="root"
+        ${initial === "hide" ? "hidden" : ""}
+      ></slot>
     `;
   },
   css: [...sharedCSS, css],

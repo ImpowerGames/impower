@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --overflow-y: visible;
   --child-layout: column-reverse;
   --position: absolute;

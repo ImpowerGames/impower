@@ -1,8 +1,5 @@
 :host {
   display: contents;
-}
-
-:host {
   --interactable: auto;
   --selectable: none;
   --child-layout: column;
@@ -36,10 +33,10 @@
 }
 
 :host > .root {
+  display: flex;
   cursor: pointer;
   pointer-events: var(--interactable);
   user-select: var(--selectable);
-  display: flex;
   flex-basis: 0;
   flex-direction: var(--child-layout);
   align-items: var(--child-align);

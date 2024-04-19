@@ -39,6 +39,7 @@ const DEFAULT_ATTRIBUTES = {
     "no-spin-buttons",
     "input-mode",
     "enter-key-hint",
+    "ripple",
     ...getKeys(DEFAULT_TRANSFORMERS),
   ]),
 };
@@ -71,6 +72,7 @@ export default class Input
       readonly: this.readonly,
       required: this.required,
       value: this.value,
+      ripple: this.ripple,
     };
   }
 
@@ -267,6 +269,16 @@ export default class Input
   }
   set placeholderColor(value) {
     this.setStringAttribute(Input.attrs.placeholderColor, value);
+  }
+
+  /**
+   * The ripple animation.
+   */
+  get ripple(): string | null {
+    return this.getStringAttribute(Input.attrs.ripple);
+  }
+  set ripple(value) {
+    this.setStringAttribute(Input.attrs.ripple, value);
   }
 
   override onAttributeChanged(name: string, newValue: string) {

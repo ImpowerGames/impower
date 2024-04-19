@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --background-color: var(--s-color-divider);
   --size: 1px;
   --width: 100%;
@@ -9,6 +7,7 @@
 }
 
 :host > .root {
+  display: flex;
   background-color: var(--background-color);
   opacity: var(--opacity);
 }

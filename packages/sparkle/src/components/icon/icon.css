@@ -1,7 +1,5 @@
 :host {
   display: contents;
-}
-:host {
   --child-justify: center;
   --child-align: center;
 }
