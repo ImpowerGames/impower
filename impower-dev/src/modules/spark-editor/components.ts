@@ -7,7 +7,6 @@ import AssetsFiles from "./components/assets-files/_assets-files";
 import AssetsSpecs from "./components/assets-specs/_assets-specs";
 import Assets from "./components/assets/_assets";
 import Demo from "./components/demo/_demo";
-import Details from "./components/details/_details";
 import EditToggleButton from "./components/edit-toggle-button/_edit-toggle-button";
 import FileAddButton from "./components/file-add-button/_file-add-button";
 import FileDropzone from "./components/file-dropzone/_file-dropzone";
@@ -99,7 +98,6 @@ const components = [
   style(LogicScriptsList),
   style(LogicList),
   style(Logic),
-  style(Details),
   style(Share),
   style(ShareGame),
   style(ShareScreenplay),

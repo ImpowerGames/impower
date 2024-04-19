@@ -8,7 +8,6 @@ import AssetsFiles from "./components/assets-files/assets-files";
 import AssetsSpecs from "./components/assets-specs/assets-specs";
 import Assets from "./components/assets/assets";
 import Demo from "./components/demo/demo";
-import Details from "./components/details/details";
 import EditToggleButton from "./components/edit-toggle-button/edit-toggle-button";
 import FileAddButton from "./components/file-add-button/file-add-button";
 import FileDropzone from "./components/file-dropzone/file-dropzone";
@@ -69,7 +68,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   LogicList,
   Logic,
   Audio,
-  Details,
   Share,
   ShareGame,
   ShareScreenplay,
