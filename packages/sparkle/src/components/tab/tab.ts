@@ -56,7 +56,6 @@ export default class Tab
       graphics: this.graphics,
       stores: this.stores,
       context: this.context,
-      state: this.state,
       props: this.props,
     });
   }
