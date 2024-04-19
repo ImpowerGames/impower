@@ -210,34 +210,6 @@
   border-radius: var(--corner);
 }
 
-/* Loading */
-
-:host([loading]) > .root {
-  position: relative;
-  cursor: default;
-}
-
-:host > .root > .spinner {
-  display: none;
-  position: absolute;
-  inset: 0;
-  align-items: center;
-  justify-content: center;
-}
-:host([loading]) > .root > .spinner {
-  display: flex;
-}
-
-:host > .root > .spinner > slot > * {
-  --position: absolute;
-  --track-width: 2px;
-  --indicator-width: 2px;
-}
-:host > .root > .spinner > slot > *,
-:host([variant="filled"]) > .root > .spinner > slot > * {
-  --indicator-width: 4px;
-}
-
 :host > .root > .label {
   display: flex;
   visibility: visible;

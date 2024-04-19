@@ -21,29 +21,29 @@ export default spec({
     const tag = isLink ? "a" : isLabel ? "label" : isDiv ? "div" : "button";
     const iconName = icon;
     const activeIconName = activeIcon || icon;
-    const iconComponent = () =>
+    const normalIconComponent = () =>
       iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
     const activeIconComponent = () =>
       activeIconName ? html`<s-icon name="${activeIconName}"></s-icon>` : "";
+    const iconComponent = () =>
+      iconName || activeIconName
+        ? html` <div class="icon" part="icon">
+            <div class="inactive-icon" part="inactive-icon">
+              ${normalIconComponent}
+            </div>
+            <div class="active-icon" part="active-icon">
+              ${activeIconComponent}
+            </div>
+          </div>`
+        : "";
     return html`
     <${tag} class="root" part="root" ${isToggle ? `role="checkbox"` : ""}>
-    <slot name="before"></slot>
     <div class="ripple" part="ripple">
-      <slot name="ripple">
-        <s-ripple id="ripple"></s-ripple>
-      </slot>
+      <s-ripple id="ripple"></s-ripple>
     </div>
-    <div class="icon" part="icon">
-      <div class="inactive-icon" part="inactive-icon">${iconComponent}</div>
-      <div class="active-icon" part="active-icon">${activeIconComponent}</div>
-    </div>
+    ${iconComponent}
     <div class="label" part="label">
       <slot></slot>
-    </div>
-    <div class="spinner" part="spinner" aria-busy="true" aria-live="polite">
-      <slot name="spinner">
-        <s-progress-circle></s-progress-circle>
-      </slot>
     </div>
     ${
       type === "file"
@@ -57,7 +57,6 @@ export default spec({
           `
         : ""
     }
-    <slot name="after"></slot>
   </${tag}>
     `;
   },
