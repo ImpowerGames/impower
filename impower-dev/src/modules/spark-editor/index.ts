@@ -5,7 +5,7 @@ import {
 } from "../../../../packages/spec-component/src/component";
 import Account from "./components/account/account";
 import AssetsFiles from "./components/assets-files/assets-files";
-import AssetsSpecs from "./components/assets-specs/assets-specs";
+import AssetsUrls from "./components/assets-urls/assets-urls";
 import Assets from "./components/assets/assets";
 import Demo from "./components/demo/demo";
 import EditToggleButton from "./components/edit-toggle-button/edit-toggle-button";
@@ -62,7 +62,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   LogicScriptEditor,
   Assets,
   AssetsFiles,
-  AssetsSpecs,
+  AssetsUrls,
   LogicScriptsEditor,
   LogicScriptsList,
   LogicList,

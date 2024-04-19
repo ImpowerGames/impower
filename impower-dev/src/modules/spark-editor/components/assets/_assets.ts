@@ -36,20 +36,20 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              active-icon="sliders"
-              icon="sliders"
-              value="specs"
-              ${panel === "specs" ? "active" : ""}
+              active-icon="link"
+              icon="link"
+              value="urls"
+              ${panel === "urls" ? "active" : ""}
             >
-              Specs
+              URLs
             </s-tab>
           </s-tabs>
         </s-box>
         <template value="files">
           <se-assets-files></se-assets-files>
         </template>
-        <template value="specs">
-          <se-assets-specs></se-assets-specs>
+        <template value="urls">
+          <se-assets-urls></se-assets-urls>
         </template>
       </s-router>
     `;

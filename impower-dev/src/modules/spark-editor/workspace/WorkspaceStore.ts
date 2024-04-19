@@ -28,7 +28,7 @@ class WorkspaceStore extends Store({
         files: {
           activeEditor: {},
         },
-        specs: {
+        urls: {
           activeEditor: {},
         },
       },
@@ -39,7 +39,7 @@ class WorkspaceStore extends Store({
         game: {
           activeEditor: {},
         },
-        project: {
+        screenplay: {
           activeEditor: {},
         },
       },

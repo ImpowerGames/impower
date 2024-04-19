@@ -4,7 +4,7 @@ import { ComponentSpec } from "../../../../packages/spec-component/src/spec";
 import baseNormalize from "../../../../packages/spec-component/src/styles/normalize/normalize.css";
 import Account from "./components/account/_account";
 import AssetsFiles from "./components/assets-files/_assets-files";
-import AssetsSpecs from "./components/assets-specs/_assets-specs";
+import AssetsUrls from "./components/assets-urls/_assets-urls";
 import Assets from "./components/assets/_assets";
 import Demo from "./components/demo/_demo";
 import EditToggleButton from "./components/edit-toggle-button/_edit-toggle-button";
@@ -93,7 +93,7 @@ const components = [
   style(PreviewScreenplay),
   style(Assets),
   style(AssetsFiles),
-  style(AssetsSpecs),
+  style(AssetsUrls),
   style(LogicScriptsEditor),
   style(LogicScriptsList),
   style(LogicList),

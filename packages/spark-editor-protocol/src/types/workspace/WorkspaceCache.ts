@@ -4,7 +4,7 @@ export type PanelType =
   | "main"
   | "scripts"
   | "files"
-  | "specs"
+  | "urls"
   | "game"
   | "screenplay"
   | "project";
