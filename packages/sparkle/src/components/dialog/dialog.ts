@@ -358,6 +358,7 @@ export default class Dialog
     }
 
     await nextAnimationFrame();
+    await nextAnimationFrame();
 
     this.setAttribute("loaded", "");
 
