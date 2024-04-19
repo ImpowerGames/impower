@@ -26,7 +26,6 @@ export default spec({
         color="fg"
         p="0 4"
         m="0 -4"
-        ripple="none"
       >
         ${name}
       </s-button>
@@ -45,7 +44,6 @@ export default spec({
         label="${label}"
         size="sm"
         width="100%"
-        ripple="none"
       ></s-input>
     `;
     const nameSkeleton = () => html`

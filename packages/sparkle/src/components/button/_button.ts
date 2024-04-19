@@ -9,8 +9,8 @@ export default spec({
     href: null as string | null,
     accept: null as string | null,
     multiple: null as string | null,
-    ripple: null as string | null,
     icon: null as string | null,
+    ripple: false,
     activeIcon: null as string | null,
     variant: null as string | null,
   },
@@ -24,7 +24,7 @@ export default spec({
     const tag = isLink ? "a" : isLabel ? "label" : isDiv ? "div" : "button";
     const iconName = icon;
     const activeIconName = activeIcon || icon;
-    const rippleAttr = ripple ? () => html`animation="${ripple}"` : "";
+    const rippleAttr = ripple ? "" : () => html`animation="none"`;
     const normalIconComponent = () =>
       iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
     const activeIconComponent = () =>

@@ -7,7 +7,7 @@ export default spec({
   props: {
     type: null as string | null,
     href: null as string | null,
-    ripple: null as string | null,
+    ripple: false,
     icon: null as string | null,
     activeIcon: null as string | null,
   },
@@ -21,7 +21,7 @@ export default spec({
     const roleAttr = isToggle ? () => html`role="checkbox"` : "";
     const iconName = icon;
     const activeIconName = activeIcon || icon;
-    const rippleAttr = ripple ? () => html`animation="${ripple}"` : "";
+    const rippleAttr = ripple ? "" : () => html`animation="none"`;
     const iconComponent = () =>
       iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
     const activeIconComponent = () =>

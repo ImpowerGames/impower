@@ -150,13 +150,13 @@ export default class Option
   }
 
   /**
-   * The ripple animation.
+   * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): string | null {
-    return this.getStringAttribute(Option.attrs.ripple);
+  get ripple(): boolean {
+    return this.getBooleanAttribute(Option.attrs.ripple);
   }
   set ripple(value) {
-    this.setStringAttribute(Option.attrs.ripple, value);
+    this.setBooleanAttribute(Option.attrs.ripple, value);
   }
 
   /**

@@ -8,6 +8,7 @@ import SparkleElement, {
   DEFAULT_SPARKLE_TRANSFORMERS,
 } from "../../core/sparkle-element";
 import { animationsComplete } from "../../utils/animationsComplete";
+import { nextAnimationFrame } from "../../utils/nextAnimationFrame";
 import spec from "./_dialog";
 
 const CLOSING_EVENT = "closing";
@@ -355,6 +356,8 @@ export default class Dialog
         this.root.querySelector("button")?.focus();
       }
     }
+
+    await nextAnimationFrame();
 
     this.setAttribute("loaded", "");
 

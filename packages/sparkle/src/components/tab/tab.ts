@@ -103,13 +103,13 @@ export default class Tab
   }
 
   /**
-   * The ripple animation.
+   * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): string | null {
-    return this.getStringAttribute(Tab.attrs.ripple);
+  get ripple(): boolean {
+    return this.getBooleanAttribute(Tab.attrs.ripple);
   }
   set ripple(value) {
-    this.setStringAttribute(Tab.attrs.ripple, value);
+    this.setBooleanAttribute(Tab.attrs.ripple, value);
   }
 
   /**

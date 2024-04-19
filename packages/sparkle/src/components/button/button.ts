@@ -204,13 +204,13 @@ export default class Button
   }
 
   /**
-   * The ripple animation.
+   * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): string | null {
-    return this.getStringAttribute(Button.attrs.ripple);
+  get ripple(): boolean {
+    return this.getBooleanAttribute(Button.attrs.ripple);
   }
   set ripple(value) {
-    this.setStringAttribute(Button.attrs.ripple, value);
+    this.setBooleanAttribute(Button.attrs.ripple, value);
   }
 
   /**

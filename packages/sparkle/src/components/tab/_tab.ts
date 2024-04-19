@@ -5,7 +5,7 @@ import css from "./tab.css";
 export default spec({
   tag: "s-tab",
   props: {
-    ripple: null as string | null,
+    ripple: false,
     icon: null as string | null,
     activeIcon: null as string | null,
   },
@@ -13,7 +13,7 @@ export default spec({
     const { icon, activeIcon, ripple } = props;
     const iconName = icon;
     const activeIconName = activeIcon || icon;
-    const rippleAttr = ripple ? () => html`animation="${ripple}"` : "";
+    const rippleAttr = ripple ? "" : () => html`animation="none"`;
     const iconComponent = () =>
       iconName ? html`<s-icon name="${iconName}"></s-icon>` : "";
     const activeIconComponent = () =>

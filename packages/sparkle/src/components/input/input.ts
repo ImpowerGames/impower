@@ -272,13 +272,13 @@ export default class Input
   }
 
   /**
-   * The ripple animation.
+   * Determines whether or not background should ripple when pressed.
    */
-  get ripple(): string | null {
-    return this.getStringAttribute(Input.attrs.ripple);
+  get ripple(): boolean {
+    return this.getBooleanAttribute(Input.attrs.ripple);
   }
   set ripple(value) {
-    this.setStringAttribute(Input.attrs.ripple, value);
+    this.setBooleanAttribute(Input.attrs.ripple, value);
   }
 
   override onAttributeChanged(name: string, newValue: string) {
