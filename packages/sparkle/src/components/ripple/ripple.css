@@ -26,7 +26,7 @@
 
 :host > .root::before,
 :host > .root::after {
-  display: block;
+  display: inline-block;
   position: absolute;
   inset: 0;
   opacity: 0;
