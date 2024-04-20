@@ -1,3 +1,4 @@
+import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import globToRegex from "../../utils/globToRegex";
@@ -38,7 +39,14 @@ export default class FileList extends Component(spec) {
         const isRelevantChange = changes.some(
           (file) => includeRegex.test(file.uri) && !excludeRegex?.test(file.uri)
         );
-        if (isRelevantChange) {
+        const didCreate = changes.some(
+          (file) => file.type === FileChangeType.Created
+        );
+        const didDelete = changes.some(
+          (file) => file.type === FileChangeType.Deleted
+        );
+        const onlyRenamed = didCreate && didDelete;
+        if (isRelevantChange && !onlyRenamed) {
           this.loadEntries();
         }
       }
@@ -59,10 +67,7 @@ export default class FileList extends Component(spec) {
     const items: string[] = [];
     uris.forEach((uri) => {
       const filename = Workspace.fs.getFilename(uri);
-      const [name, ext] = filename.split(".");
-      items.push(
-        `<se-file-item filename="${filename}" name="${name}" ext="${ext}"></se-file-item>`
-      );
+      items.push(`<se-file-item filename="${filename}"></se-file-item>`);
     });
     return items;
   }

@@ -5,9 +5,27 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-file-item",
   stores: { workspace },
-  props: { filename: "", name: "", ext: "" },
+  props: { filename: "", renaming: false },
   html: ({ props }) => {
-    const { name, ext } = props;
+    const { filename, renaming } = props;
+    const [name, ext] = filename.split(".");
+    const nameComponent = () => (name ? html`<span>${name}</span>` : "");
+    const extComponent = () =>
+      ext ? html`<span style="opacity:0.3">.${ext}</span>` : "";
+    const nameLabelComponent = () => html`${nameComponent}${extComponent}`;
+    const nameInputComponent = () => html`<s-input
+      display="inline-block"
+      id="nameInput"
+      child-justify="start"
+      p="0 4"
+      m="0 -4"
+      placeholder-color="fab-bg"
+      color="fg"
+      value="${filename}"
+      label="${filename}"
+      size="sm"
+      width="100%"
+    ></s-input>`;
     return html`
       <s-button
         id="button"
@@ -22,7 +40,6 @@ export default spec({
         color="fg-80"
         text-weight="normal"
         position="relative"
-        value="logic-editor"
       >
         <s-box
           position="absolute"
@@ -37,8 +54,13 @@ export default spec({
             child-align="center"
             grow
           >
-            <s-box p="0 0 0 32" position="absolute" text-overflow="ellipsis">
-              <span>${name}</span><span style="opacity:0.3">.${ext}</span>
+            <s-box
+              p="0 0 0 32"
+              position="absolute"
+              width="100%"
+              text-overflow="ellipsis"
+            >
+              ${renaming ? nameInputComponent : nameLabelComponent}
             </s-box>
           </s-box>
           <se-file-options-button></se-file-options-button>
@@ -48,6 +70,7 @@ export default spec({
   },
   selectors: {
     button: "",
+    nameInput: null,
   } as const,
   css,
 });

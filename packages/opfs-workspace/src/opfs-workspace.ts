@@ -6,15 +6,17 @@ import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/sr
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage.js";
 import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage.js";
 import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
 import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage.js";
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
 import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
+import { WillRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage.js";
 import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage.js";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage.js";
-import { FileData } from "@impower/spark-editor-protocol/src/types";
+import { FileData, FileEvent } from "@impower/spark-editor-protocol/src/types";
 import { Zippable, unzipSync, zipSync } from "fflate";
 import GameParser from "../../spark-engine/src/parser/classes/GameParser";
 import STRUCT_DEFAULTS from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
@@ -298,6 +300,44 @@ onmessage = async (e) => {
       postMessage(response);
     }
   }
+  if (WillRenameFilesMessage.type.isRequest(message)) {
+    try {
+      const { files } = message.params;
+      const renamedFiles = await renameFiles(files);
+      postMessage(
+        WillRenameFilesMessage.type.response(
+          message.id,
+          renamedFiles.map((f) => f.data)
+        )
+      );
+      postMessage(DidRenameFilesMessage.type.notification({ files }));
+      postMessage(
+        DidChangeWatchedFilesMessage.type.notification({
+          changes: [
+            ...files.map(
+              (file): FileEvent => ({
+                uri: file.oldUri,
+                type: FileChangeType.Deleted,
+              })
+            ),
+            ...files.map(
+              (file): FileEvent => ({
+                uri: file.newUri,
+                type: FileChangeType.Created,
+              })
+            ),
+          ],
+        })
+      );
+    } catch (err: any) {
+      console.error(err, err.stack);
+      const response = WillRenameFilesMessage.type.error(message.id, {
+        code: ErrorCodes.InternalError,
+        message: err.message,
+      });
+      postMessage(response);
+    }
+  }
 };
 
 const loadConfiguration = (settings: any) => {
@@ -501,6 +541,18 @@ const deleteFiles = async (files: { uri: string }[]) => {
       return existingFile;
     })
   );
+};
+
+const renameFiles = async (files: { oldUri: string; newUri: string }[]) => {
+  const oldFileData = await Promise.all(files.map((f) => readFile(f.oldUri)));
+  await deleteFiles(files.map((f) => ({ uri: f.oldUri })));
+  const result = await createFiles(
+    oldFileData.map((data, index) => ({
+      uri: files[index]!.newUri,
+      data,
+    }))
+  );
+  return result;
 };
 
 const getType = (uri: string) => {

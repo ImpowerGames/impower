@@ -85,7 +85,7 @@ export default class LogicScriptEditor extends Component(spec) {
           text: this._text,
         },
       });
-      await Workspace.window.requireTextSync();
+      await Workspace.window.recordScriptChange();
     }
   }
 

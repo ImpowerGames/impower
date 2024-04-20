@@ -70,7 +70,7 @@ export default class FileDropzone extends Component(spec) {
           await Workspace.fs.createFiles({
             files,
           });
-          await Workspace.window.requireZipSync();
+          await Workspace.window.recordAssetChange();
         }
       }
     }

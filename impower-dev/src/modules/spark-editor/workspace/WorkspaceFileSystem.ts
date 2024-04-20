@@ -10,7 +10,11 @@ import {
   ReadDirectoryFilesMessage,
   ReadDirectoryFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
-import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage";
+import {
+  ReadFileMessage,
+  ReadFileParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
+import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage.js";
 import {
   WillCreateFilesMessage,
   WillCreateFilesParams,
@@ -19,6 +23,10 @@ import {
   WillDeleteFilesMessage,
   WillDeleteFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
+import {
+  WillRenameFilesMessage,
+  WillRenameFilesParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage.js";
 import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
@@ -373,6 +381,11 @@ export default class WorkspaceFileSystem {
     return result;
   }
 
+  async readFile(params: ReadFileParams) {
+    const result = await this.sendRequest(ReadFileMessage.type, params);
+    return result;
+  }
+
   async createFiles(params: WillCreateFilesParams) {
     const result = await this.sendRequest(
       WillCreateFilesMessage.type,
@@ -394,6 +407,22 @@ export default class WorkspaceFileSystem {
         delete this._files[file.uri];
         delete this._assetCache[file.uri];
       }
+    });
+    return result;
+  }
+
+  async renameFiles(params: WillRenameFilesParams) {
+    const result = await this.sendRequest(WillRenameFilesMessage.type, params);
+    params.files.forEach((file) => {
+      if (this._files) {
+        delete this._files[file.oldUri];
+        delete this._assetCache[file.oldUri];
+      }
+    });
+    result.forEach((file) => {
+      this._files ??= {};
+      this._files[file.uri] = file;
+      this.preloadFile(file);
     });
     return result;
   }

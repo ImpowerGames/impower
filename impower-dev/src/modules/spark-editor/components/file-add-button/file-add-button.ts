@@ -30,7 +30,7 @@ export default class FileAddButton extends Component(spec) {
             },
           ],
         });
-        await Workspace.window.requireTextSync();
+        await Workspace.window.recordScriptChange();
       }
     }
   };

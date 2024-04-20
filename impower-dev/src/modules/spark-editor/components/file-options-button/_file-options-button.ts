@@ -9,6 +9,7 @@ export default spec({
   html,
   selectors: {
     deleteOption: "",
+    renameOption: "",
   } as const,
   css,
 });

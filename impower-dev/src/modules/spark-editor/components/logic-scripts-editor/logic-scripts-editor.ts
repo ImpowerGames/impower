@@ -32,7 +32,7 @@ export default class LogicScriptsEditor extends Component(spec) {
               await Workspace.fs.deleteFiles({
                 files: [{ uri }],
               });
-              await Workspace.window.requireTextSync();
+              await Workspace.window.recordScriptChange();
             }
             Workspace.window.closedFileEditor(filename);
           }

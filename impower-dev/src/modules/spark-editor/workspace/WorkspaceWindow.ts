@@ -543,7 +543,7 @@ export default class WorkspaceWindow {
             name,
           },
         });
-        await this.requireTextSync();
+        await this.recordScriptChange();
       }
       return changedName;
     }
@@ -1321,7 +1321,7 @@ export default class WorkspaceWindow {
     }
   }
 
-  async requireTextSync() {
+  async recordScriptChange() {
     const projectId = this.store.project.id;
     if (projectId) {
       await Workspace.fs.writeProjectMetadata(
@@ -1341,7 +1341,7 @@ export default class WorkspaceWindow {
     }
   }
 
-  async requireZipSync() {
+  async recordAssetChange() {
     const projectId = this.store.project.id;
     if (projectId) {
       await Workspace.fs.writeProjectMetadata(
