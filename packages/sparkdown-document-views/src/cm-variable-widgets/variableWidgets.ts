@@ -212,13 +212,13 @@ const playAudioGroupVariable = async (
   const getPlayers = () =>
     Promise.all<AudioPlayer>(
       audioGroup?.assets?.map(async (a) => {
-        const url = await fileSystemReader.url(a.src);
+        const url = await fileSystemReader.url(a?.src);
         const buffer = url
           ? await getAudioBuffer(url, audioContext)
-          : new Float32Array(0);
+          : new AudioBuffer({ length: 1, sampleRate: audioContext.sampleRate });
         const player = new AudioPlayer(buffer, audioContext, {
           cues: audioGroup.cues,
-          volume: a.volume,
+          volume: a?.volume ?? 1,
         });
         return player;
       })
