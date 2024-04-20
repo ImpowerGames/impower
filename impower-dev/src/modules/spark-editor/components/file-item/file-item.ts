@@ -14,7 +14,10 @@ export default class FileItem extends Component(spec) {
     nameInput?.addEventListener("keydown", this.handleKeyDownNameInput);
     if (nameInput) {
       nameInput.focus();
-      nameInput.select();
+      const filename = this.filename;
+      const [name] = filename.split(".");
+      const selectionLength = name != null ? name.length : filename.length;
+      nameInput.ref.input.setSelectionRange(0, selectionLength);
     }
   }
 
