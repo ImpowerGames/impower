@@ -1,14 +1,23 @@
-import type { SynthBuffer } from "../../../../spark-engine/src";
+import type { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
 
 export const getAudioBuffer = async (
-  sound: Float32Array | SynthBuffer | string,
+  sound: Float32Array | SynthBuffer | string | undefined,
   audioContext: AudioContext
-): Promise<AudioBuffer | Float32Array | SynthBuffer> => {
+): Promise<AudioBuffer> => {
   if (typeof sound === "string") {
     const response = await fetch(sound);
     const buffer = await response.arrayBuffer();
     const decoded = await audioContext.decodeAudioData(buffer);
     return decoded;
   }
-  return sound;
+  if (sound && "soundBuffer" in sound) {
+    const audioBuffer = audioContext.createBuffer(
+      1,
+      sound.soundBuffer.length,
+      audioContext.sampleRate
+    );
+    audioBuffer.copyToChannel(sound.soundBuffer, 0);
+    return audioBuffer;
+  }
+  return audioContext.createBuffer(1, 0, audioContext.sampleRate);
 };

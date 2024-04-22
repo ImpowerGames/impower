@@ -184,13 +184,11 @@ const playAudioVariable = async (
   context.audioContext ??= new AudioContext();
   const audioContext = context.audioContext;
   const getPlayers = async () => {
-    const url = await fileSystemReader.url(audio.src);
-    const buffer = url
-      ? await getAudioBuffer(url, audioContext)
-      : new Float32Array(0);
+    const url = await fileSystemReader.url(audio?.src);
+    const buffer = await getAudioBuffer(url, audioContext);
     const player = new AudioPlayer(buffer, audioContext, {
       cues: audio.cues,
-      volume: audio.volume,
+      volume: audio?.volume ?? 1,
     });
     return [player];
   };
@@ -213,9 +211,7 @@ const playAudioGroupVariable = async (
     Promise.all<AudioPlayer>(
       audioGroup?.assets?.map(async (a) => {
         const url = await fileSystemReader.url(a?.src);
-        const buffer = url
-          ? await getAudioBuffer(url, audioContext)
-          : new AudioBuffer({ length: 1, sampleRate: audioContext.sampleRate });
+        const buffer = await getAudioBuffer(url, audioContext);
         const player = new AudioPlayer(buffer, audioContext, {
           cues: audioGroup.cues,
           volume: a?.volume ?? 1,
