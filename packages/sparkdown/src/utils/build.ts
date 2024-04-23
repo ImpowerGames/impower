@@ -2038,7 +2038,7 @@ const build = (
                     ].join("~");
                     declareImplicitVariable(
                       tok,
-                      type,
+                      "image",
                       filteredAssetName,
                       "default",
                       {
