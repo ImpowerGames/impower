@@ -179,7 +179,6 @@ export default class Account extends Component(spec) {
     } else {
       this.ref.accountEmail.hidden = true;
     }
-    // this.ref.local.hidden = true;
     this.ref.unauthenticated.hidden = true;
     this.ref.authenticated.hidden = false;
     if (accountInfo.offline) {
@@ -193,7 +192,6 @@ export default class Account extends Component(spec) {
 
   loadUnauthenticatedUI(label: string = "Sync With Google Drive") {
     this.ref.signinButton.textContent = label;
-    // this.ref.local.hidden = false;
     this.ref.unauthenticated.hidden = false;
     this.ref.authenticated.hidden = true;
   }
