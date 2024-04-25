@@ -1,10 +1,12 @@
 import { Create } from "../../../core/types/Create";
 import { Gradient } from "../types/Gradient";
 
-export const _gradient: Create<Gradient> = () => ({
+export const _gradient: Create<Gradient> = (obj) => ({
+  $type: "gradient",
   type: "linear",
   angle: 180,
-  stops: [
+  ...obj,
+  stops: obj.stops ?? [
     {
       color: "white",
       opacity: 1,

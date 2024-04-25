@@ -1,13 +1,17 @@
+import { _ui } from "../_ui";
+
 export const UI_DEFAULTS = {
-  default: {},
-  image: { image: {} },
-  text: { text: {} },
-  loading: {
+  default: _ui({ $name: "default" }),
+  image: _ui({ $name: "image", image: {} }),
+  text: _ui({ $name: "text", text: {} }),
+  loading: _ui({
+    $name: "loading",
     loading_bar: {
       loading_fill: {},
     },
-  },
-  stage: {
+  }),
+  stage: _ui({
+    $name: "stage",
     background: {
       backdrop: {
         image: {},
@@ -86,5 +90,5 @@ export const UI_DEFAULTS = {
       },
     },
     screen: {},
-  },
+  }),
 };

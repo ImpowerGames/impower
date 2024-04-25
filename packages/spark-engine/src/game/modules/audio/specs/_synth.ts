@@ -3,6 +3,7 @@ import { A } from "../constants/A";
 import { Synth } from "../types/Synth";
 
 export const _synth: Create<Synth> = (obj) => ({
+  $type: "synth",
   shape: "triangle",
   volume: 0.5,
   ...(obj || {}),

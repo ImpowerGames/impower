@@ -1,6 +1,5 @@
-import { Asset } from "../../types/Asset";
-import { _asset } from "./_asset";
+import { _image } from "./_image";
 
-export const IMAGE_DEFAULTS: Record<string, Asset> = {
-  default: _asset({ type: "image" }),
+export const IMAGE_DEFAULTS = {
+  default: _image({ $name: "default" }),
 };

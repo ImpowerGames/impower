@@ -4,9 +4,10 @@ import { _inflection } from "./_inflection";
 import { _prosody } from "./_prosody";
 
 export const _character: Create<Character> = (obj) => ({
+  $type: "character",
   name: "",
   color: "",
-  ...(obj || {}),
+  ...obj,
   inflection: _inflection(obj?.inflection),
   prosody: _prosody(obj?.prosody),
 });

@@ -2,6 +2,7 @@ import { Create } from "../../../core/types/Create";
 import { Writer } from "../types/Writer";
 
 export const _writer: Create<Writer> = (obj) => ({
+  $type: "writer",
   target: "",
   fade_duration: 0,
   letter_pause: 0,
@@ -15,5 +16,5 @@ export const _writer: Create<Writer> = (obj) => ({
   yelled: /^(\p{Lu}[^\p{Ll}\r\n]*)$/u.toString(),
   punctuated: /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u.toString(),
   skipped: "",
-  ...(obj || {}),
+  ...obj,
 });

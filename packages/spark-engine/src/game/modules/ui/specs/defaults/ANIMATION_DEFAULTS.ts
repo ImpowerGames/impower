@@ -1,7 +1,8 @@
-import { Animation } from "../../types/Animation";
+import { _animation } from "../_animation";
 
-export const ANIMATION_DEFAULTS: Record<string, Animation> = {
-  default: {
+export const ANIMATION_DEFAULTS = {
+  default: _animation({
+    $name: "default",
     keyframes: [],
     timing: {
       delay: 0,
@@ -11,29 +12,33 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       direction: "normal",
       fill: "none",
     },
-  },
-  show: {
+  }),
+  show: _animation({
+    $name: "show",
     keyframes: [{ opacity: "1" }],
     timing: {
       easing: "linear",
       fill: "forwards",
     },
-  },
-  hide: {
+  }),
+  hide: _animation({
+    $name: "hide",
     keyframes: [{ opacity: "0" }],
     timing: {
       easing: "linear",
       fill: "forwards",
     },
-  },
-  spin: {
+  }),
+  spin: _animation({
+    $name: "spin",
     keyframes: [{ transform: "rotate(360deg)" }],
     timing: {
       easing: "linear",
       iterations: "infinite",
     },
-  },
-  ping: {
+  }),
+  ping: _animation({
+    $name: "ping",
     keyframes: [
       {
         offset: 0.75,
@@ -47,8 +52,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       },
     ],
     timing: {},
-  },
-  pulse: {
+  }),
+  pulse: _animation({
+    $name: "pulse",
     keyframes: [
       {
         offset: 0.5,
@@ -56,8 +62,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       },
     ],
     timing: {},
-  },
-  bounce: {
+  }),
+  bounce: _animation({
+    $name: "bounce",
     keyframes: [
       {
         transform: "translateY(-50%)",
@@ -73,8 +80,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       },
     ],
     timing: {},
-  },
-  floating: {
+  }),
+  floating: _animation({
+    $name: "floating",
     keyframes: [
       {
         top: "0",
@@ -91,8 +99,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "ease-in-out",
       iterations: "infinite",
     },
-  },
-  trembling: {
+  }),
+  trembling: _animation({
+    $name: "trembling",
     keyframes: [
       {
         left: "calc(1em / 60)",
@@ -144,8 +153,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "ease-in-out",
       iterations: "infinite",
     },
-  },
-  shake: {
+  }),
+  shake: _animation({
+    $name: "shake",
     keyframes: [
       {
         transform: "translate(0.4vh, 0.2vh)",
@@ -185,8 +195,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       duration: "300ms",
       easing: "ease-in-out",
     },
-  },
-  shaking: {
+  }),
+  shaking: _animation({
+    $name: "shaking",
     keyframes: [
       {
         offset: 0.0,
@@ -238,8 +249,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "ease-in-out",
       iterations: "infinite",
     },
-  },
-  shiver: {
+  }),
+  shiver: _animation({
+    $name: "shiver",
     keyframes: [
       {
         offset: 0.0,
@@ -290,8 +302,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       duration: "300ms",
       easing: "ease-in-out",
     },
-  },
-  shivering: {
+  }),
+  shivering: _animation({
+    $name: "shivering",
     keyframes: [
       {
         transform: "translate(0.2vh, 0.1vh)",
@@ -332,8 +345,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "ease-in-out",
       iterations: "infinite",
     },
-  },
-  flash: {
+  }),
+  flash: _animation({
+    $name: "flash",
     keyframes: [
       {
         background_color: "#999999",
@@ -352,8 +366,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       duration: "120ms",
       easing: "linear",
     },
-  },
-  fadeout: {
+  }),
+  fadeout: _animation({
+    $name: "fadeout",
     keyframes: [
       {
         background_color: "black",
@@ -365,8 +380,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "linear",
       fill: "forwards",
     },
-  },
-  fadein: {
+  }),
+  fadein: _animation({
+    $name: "fadein",
     keyframes: [
       {
         background_color: "black",
@@ -378,8 +394,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "linear",
       fill: "forwards",
     },
-  },
-  blackout: {
+  }),
+  blackout: _animation({
+    $name: "blackout",
     keyframes: [
       {
         background_color: "black",
@@ -395,8 +412,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "linear",
       fill: "forwards",
     },
-  },
-  blackin: {
+  }),
+  blackin: _animation({
+    $name: "blackin",
     keyframes: [
       {
         background_color: "black",
@@ -412,8 +430,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "linear",
       fill: "forwards",
     },
-  },
-  whiteout: {
+  }),
+  whiteout: _animation({
+    $name: "whiteout",
     keyframes: [
       {
         background_color: "white",
@@ -429,8 +448,9 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "linear",
       fill: "forwards",
     },
-  },
-  whitein: {
+  }),
+  whitein: _animation({
+    $name: "whitein",
     keyframes: [
       {
         background_color: "white",
@@ -446,5 +466,5 @@ export const ANIMATION_DEFAULTS: Record<string, Animation> = {
       easing: "linear",
       fill: "forwards",
     },
-  },
+  }),
 };

@@ -2,9 +2,10 @@ import { Create } from "../../../core/types/Create";
 import { Graphic } from "../types/Graphic";
 
 export const _graphic: Create<Graphic> = (obj) => ({
+  $type: "graphic",
   width: 32,
   height: 32,
-  ...(obj || {}),
+  ...obj,
   tiling: {
     on: false,
     zoom: 1,

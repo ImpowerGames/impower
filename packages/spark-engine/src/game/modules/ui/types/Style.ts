@@ -513,4 +513,4 @@ export interface SparkStyleProperties {
   animate: "" | "spin" | "ping" | "bounce" | "blink" | "sheen" | string;
 }
 
-export interface Style extends SparkStyleProperties, Record<string, any> {}
+export interface Style extends Record<string, any> {}

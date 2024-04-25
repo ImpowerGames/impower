@@ -1,9 +1,9 @@
-import { Shadow } from "../../types/Shadow";
 import { _shadow } from "../_shadow";
 
-export const SHADOW_DEFAULTS: Record<string, Shadow> = {
-  default: _shadow(),
-  xs: {
+export const SHADOW_DEFAULTS = {
+  default: _shadow({ $name: "default" }),
+  xs: _shadow({
+    $name: "xs",
     layers: [
       {
         x: 0,
@@ -22,8 +22,9 @@ export const SHADOW_DEFAULTS: Record<string, Shadow> = {
         opacity: 0.15,
       },
     ],
-  },
-  sm: {
+  }),
+  sm: _shadow({
+    $name: "sm",
     layers: [
       {
         x: 0,
@@ -42,8 +43,9 @@ export const SHADOW_DEFAULTS: Record<string, Shadow> = {
         opacity: 0.15,
       },
     ],
-  },
-  md: {
+  }),
+  md: _shadow({
+    $name: "md",
     layers: [
       {
         x: 0,
@@ -62,8 +64,9 @@ export const SHADOW_DEFAULTS: Record<string, Shadow> = {
         opacity: 0.15,
       },
     ],
-  },
-  lg: {
+  }),
+  lg: _shadow({
+    $name: "lg",
     layers: [
       {
         x: 0,
@@ -82,8 +85,9 @@ export const SHADOW_DEFAULTS: Record<string, Shadow> = {
         opacity: 0.15,
       },
     ],
-  },
-  xl: {
+  }),
+  xl: _shadow({
+    $name: "xl",
     layers: [
       {
         x: 0,
@@ -102,5 +106,5 @@ export const SHADOW_DEFAULTS: Record<string, Shadow> = {
         opacity: 0.15,
       },
     ],
-  },
+  }),
 };

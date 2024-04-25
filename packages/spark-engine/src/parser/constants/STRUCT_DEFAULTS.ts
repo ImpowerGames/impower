@@ -9,7 +9,6 @@ import { SYNTH_DEFAULTS } from "../../game/modules/audio/specs/defaults/SYNTH_DE
 import { ANIMATION_DEFAULTS } from "../../game/modules/ui/specs/defaults/ANIMATION_DEFAULTS";
 import { GRADIENT_DEFAULTS } from "../../game/modules/ui/specs/defaults/GRADIENT_DEFAULTS";
 import { IMAGE_FILTER_DEFAULTS } from "../../game/modules/ui/specs/defaults/IMAGE_FILTER_DEFAULTS";
-import { IMAGE_GROUP_DEFAULTS } from "../../game/modules/ui/specs/defaults/IMAGE_GROUP_DEFAULTS";
 import { SHADOW_DEFAULTS } from "../../game/modules/ui/specs/defaults/SHADOW_DEFAULTS";
 import { STYLE_DEFAULTS } from "../../game/modules/ui/specs/defaults/STYLE_DEFAULTS";
 import { UI_DEFAULTS } from "../../game/modules/ui/specs/defaults/UI_DEFAULTS";
@@ -17,9 +16,10 @@ import { GRAPHIC_DEFAULTS } from "../../game/modules/world/specs/defaults/GRAPHI
 import { CHARACTER_DEFAULTS } from "../../game/modules/writer/specs/defaults/CHARACTER_DEFAULTS";
 import { WRITER_DEFAULTS } from "../../game/modules/writer/specs/defaults/WRITER_DEFAULTS";
 
-const STRUCT_DEFAULTS: { [type: string]: { [name: string]: any } } = {
+const STRUCT_DEFAULTS: {
+  [type: string]: { [name: string]: { $type: string; $name: string } | [] };
+} = {
   image: IMAGE_DEFAULTS,
-  image_group: IMAGE_GROUP_DEFAULTS,
   image_filter: IMAGE_FILTER_DEFAULTS,
 
   audio: AUDIO_DEFAULTS,

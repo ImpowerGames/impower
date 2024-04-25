@@ -1,7 +1,10 @@
+import { _style } from "../_style";
+
 const STYLE_PROPS = {};
 
 export const STYLE_DEFAULTS = {
-  default: {
+  default: _style({
+    $name: "default",
     ...STYLE_PROPS,
     xs: STYLE_PROPS,
     sm: STYLE_PROPS,
@@ -13,24 +16,28 @@ export const STYLE_DEFAULTS = {
     focused: STYLE_PROPS,
     checked: STYLE_PROPS,
     disabled: STYLE_PROPS,
-  },
-  all: {
+  }),
+  all: _style({
+    $name: "all",
     target: "*, *::before, *::after",
     box_sizing: "border-box",
-  },
-  is_hidden: {
+  }),
+  is_hidden: _style({
+    $name: "is_hidden",
     target: "[hidden]",
     display: "none",
-  },
-  text: {
+  }),
+  text: _style({
+    $name: "text",
     pointer_events: "auto",
     position: "relative",
     white_space: "pre-line",
     "*": {
       position: "relative",
     },
-  },
-  image: {
+  }),
+  image: _style({
+    $name: "image",
     position: "absolute",
     pointer_events: "auto",
     inset: 0,
@@ -41,39 +48,45 @@ export const STYLE_DEFAULTS = {
       background_repeat: "no-repeat",
       background_size: "auto 100%",
     },
-  },
-  loading_bar: {
+  }),
+  loading_bar: _style({
+    $name: "loading_bar",
     z_index: 1000,
     position: "relative",
     width: "100%",
     height: 4,
-  },
-  loading_fill: {
+  }),
+  loading_fill: _style({
+    $name: "loading_fill",
     width: "100%",
     height: "100%",
     background_color: "cyan50",
     transform: "scaleX(var(--loading_progress))",
     transform_origin: "left",
-  },
-  screen: {
+  }),
+  screen: _style({
+    $name: "screen",
     position: "absolute",
     inset: 0,
     pointer_events: "none",
-  },
-  background: {
+  }),
+  background: _style({
+    $name: "background",
     position: "absolute",
     inset: 0,
     display: "flex",
     flex_direction: "column",
-  },
-  backdrop: {
+  }),
+  backdrop: _style({
+    $name: "backdrop",
     preserve_image: true,
     position: "absolute",
     inset: 0,
     background_position: "center",
     background_size: "cover",
-  },
-  portrait: {
+  }),
+  portrait: _style({
+    $name: "portrait",
     position: "absolute",
     top: "10%",
     right: 0,
@@ -83,8 +96,9 @@ export const STYLE_DEFAULTS = {
     flex_direction: "column",
     background_size: "auto 100%",
     background_position: "center",
-  },
-  middle: {
+  }),
+  middle: _style({
+    $name: "middle",
     position: "relative",
     flex: 1,
     display: "flex",
@@ -95,16 +109,18 @@ export const STYLE_DEFAULTS = {
     md: {
       font_size: "1.125rem",
     },
-  },
-  choices: {
+  }),
+  choices: _style({
+    $name: "choices",
     display: "flex",
     flex_direction: "column",
     align_items: "center",
     justify_content: "center",
     width: "100%",
     padding: 8,
-  },
-  choice: {
+  }),
+  choice: _style({
+    $name: "choice",
     background_color: "white",
     color: "black",
     padding: 8,
@@ -113,16 +129,18 @@ export const STYLE_DEFAULTS = {
     max_width: 800,
     text_align: "center",
     opacity: "0",
-  },
-  bottom: {
+  }),
+  bottom: _style({
+    $name: "bottom",
     position: "relative",
     display: "flex",
     flex_direction: "column",
     align_content: "center",
     max_height: 224,
     height: "100%",
-  },
-  textbox: {
+  }),
+  textbox: _style({
+    $name: "textbox",
     position: "absolute",
     bottom: 0,
     left: 0,
@@ -138,52 +156,61 @@ export const STYLE_DEFAULTS = {
     flex: 1,
     padding: 16,
     md: { padding_left: 32, padding_right: 32, font_size: "1.125rem" },
-  },
-  box_background: {
+  }),
+  box_background: _style({
+    $name: "box_background",
     position: "absolute",
     inset: 0,
     background_color: "white",
-  },
-  content: {
+  }),
+  content: _style({
+    $name: "content",
     position: "relative",
     flex: 1,
     display: "flex",
     flex_direction: "column",
     font_size: "1rem",
-  },
-  dialogue_group: {
+  }),
+  dialogue_group: _style({
+    $name: "dialogue_group",
     display: "flex",
     flex_direction: "column",
-  },
-  character_name: {
+  }),
+  character_name: _style({
+    $name: "character_name",
     display: "block",
     text_align: "center",
     line_height: 1,
     font_size: "1.5rem",
     md: { font_size: "1.75rem" },
-  },
-  character_parenthetical: {
+  }),
+  character_parenthetical: _style({
+    $name: "character_parenthetical",
     display: "block",
     text_align: "center",
     line_height: 1,
     font_size: "1.5rem",
     md: { font_size: "1.75rem" },
-  },
-  dialogue_content: {
+  }),
+  dialogue_content: _style({
+    $name: "dialogue_content",
     width: "80%",
     margin: "0 auto",
     md: { width: "68%" },
-  },
-  parenthetical: {
+  }),
+  parenthetical: _style({
+    $name: "parenthetical",
     display: "block",
     text_align: "center",
     position: "relative",
     min_height: "0.5em",
-  },
-  dialogue: {
+  }),
+  dialogue: _style({
+    $name: "dialogue",
     flex: 1,
-  },
-  action: {
+  }),
+  action: _style({
+    $name: "action",
     position: "absolute",
     inset: 0,
     display: "flex",
@@ -191,8 +218,9 @@ export const STYLE_DEFAULTS = {
     justify_content: "center",
     align_self: "center",
     text_align: "center",
-  },
-  transition: {
+  }),
+  transition: _style({
+    $name: "transition",
     position: "absolute",
     inset: 0,
     display: "flex",
@@ -201,8 +229,9 @@ export const STYLE_DEFAULTS = {
     align_self: "flex-end",
     text_align: "right",
     width: "100%",
-  },
-  scene: {
+  }),
+  scene: _style({
+    $name: "scene",
     position: "absolute",
     inset: 0,
     display: "flex",
@@ -211,8 +240,9 @@ export const STYLE_DEFAULTS = {
     align_self: "center",
     text_align: "center",
     font_weight: "bold",
-  },
-  indicator: {
+  }),
+  indicator: _style({
+    $name: "indicator",
     width: 16,
     height: 16,
     position: "absolute",
@@ -221,5 +251,5 @@ export const STYLE_DEFAULTS = {
     transition: `opacity 0.25s linear`,
     animation: "0.5s infinite bounce",
     animation_play_state: "paused",
-  },
+  }),
 };

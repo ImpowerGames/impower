@@ -1,6 +1,5 @@
-import { AudioGroup } from "../../types/AudioGroup";
 import { _audioGroup } from "../_audioGroup";
 
-export const AUDIO_GROUP_DEFAULTS: Record<string, AudioGroup> = {
-  default: _audioGroup(),
+export const AUDIO_GROUP_DEFAULTS = {
+  default: _audioGroup({ $name: "default" }),
 };

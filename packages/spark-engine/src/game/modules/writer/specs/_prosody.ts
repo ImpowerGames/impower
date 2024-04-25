@@ -1,7 +1,6 @@
-import { Create } from "../../../core/types/Create";
 import { Prosody } from "../types/Prosody";
 
-export const _prosody: Create<Prosody> = (obj) => ({
+export const _prosody = (obj?: Partial<Prosody>): Prosody => ({
   /** Yes(~?) */
   lilt_question: /(?:^|\b)[~]+([!?]*[?][!?]*)[ "']*$/.toString(),
   /** Yes(~!) */

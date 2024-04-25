@@ -1,8 +1,10 @@
 import { Create } from "../../../core/types/Create";
 import { Shadow } from "../types/Shadow";
 
-export const _shadow: Create<Shadow> = () => ({
-  layers: [
+export const _shadow: Create<Shadow> = (obj) => ({
+  $type: "shadow",
+  ...obj,
+  layers: obj.layers ?? [
     {
       x: 0,
       y: 1,
