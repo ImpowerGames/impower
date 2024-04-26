@@ -2020,7 +2020,6 @@ const build = (
               range: SparkRange;
             }[] = assetGroups.map((a) => {
               if (a.filters.length > 0) {
-                const type = parent.tag;
                 if (parent.tag === "image_tag") {
                   const asset = program.context?.["image"]?.[a.name];
                   if (asset && asset.ext === "svg" && asset.text) {
@@ -2178,38 +2177,42 @@ const build = (
 
       if (tok && tok.tag === tag) {
         if (tok.tag === "import") {
-          // Compile value
-          tok.value = tok.value.startsWith("[") ? tok.value : `[${tok.value}]`;
-          const compiledValue = compileAndValidateExpression(
-            tok,
-            tok.value,
-            tok?.ranges?.value,
-            program.context
-          );
-          tok.compiled = compiledValue;
-
-          validateTypeExists(tok, tok.type, tok.ranges?.type);
-          tok.type ??= "url";
-
-          const url =
-            typeof compiledValue === "object" && Array.isArray(compiledValue)
-              ? compiledValue[0]
-              : typeof compiledValue === "string"
-              ? compiledValue
-              : undefined;
-
-          if (typeof url !== "string" || !url.startsWith("https://")) {
-            diagnostic(
-              program,
+          if (tok.value) {
+            // Compile value
+            tok.value = tok.value.startsWith("[")
+              ? tok.value
+              : `[${tok.value}]`;
+            const compiledValue = compileAndValidateExpression(
               tok,
-              `Invalid url`,
-              undefined,
-              tok?.ranges?.value?.from,
-              tok?.ranges?.value?.to
+              tok.value,
+              tok?.ranges?.value,
+              program.context
             );
-          }
-          if (validateDeclaration(tok)) {
-            declareVariable(tok);
+            tok.compiled = compiledValue;
+
+            validateTypeExists(tok, tok.type, tok.ranges?.type);
+            tok.type ??= "url";
+
+            const url =
+              typeof compiledValue === "object" && Array.isArray(compiledValue)
+                ? compiledValue[0]
+                : typeof compiledValue === "string"
+                ? compiledValue
+                : undefined;
+
+            if (typeof url !== "string" || !url.startsWith("https://")) {
+              diagnostic(
+                program,
+                tok,
+                `Invalid url`,
+                undefined,
+                tok?.ranges?.value?.from,
+                tok?.ranges?.value?.to
+              );
+            }
+            if (validateDeclaration(tok)) {
+              declareVariable(tok);
+            }
           }
         } else if (tok.tag === "struct_map_property") {
           if (!tok.entriesLength) {
