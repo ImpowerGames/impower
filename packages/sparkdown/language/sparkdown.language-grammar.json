@@ -519,7 +519,7 @@
           ]
         },
         "2": {
-          "tag": "keyword",
+          "tag": "controlKeyword",
           "name": "keyword.control.import.sd"
         },
         "3": {
@@ -538,7 +538,7 @@
           "include": "#Newline"
         },
         {
-          "include": "#Unknown"
+          "include": "#ValueText"
         }
       ],
       "end": "($)"
@@ -590,7 +590,7 @@
       "match": "($|from)($|[ ]+)($|.*$)",
       "captures": {
         "1": {
-          "tag": "keyword",
+          "tag": "controlKeyword",
           "name": "keyword.control.from.sd"
         },
         "2": {

@@ -294,7 +294,7 @@ repository:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: keyword
+        tag: controlKeyword
         name: keyword.control.import.sd
       3:
         patterns:
@@ -302,7 +302,7 @@ repository:
     patterns:
       - { include: "#ImportDeclaration" }
       - { include: "#Newline" }
-      - { include: "#Unknown" }
+      - { include: "#ValueText" }
     end: ($)
 
   ImportDeclaration:
@@ -329,7 +329,7 @@ repository:
     match: ($|from)($|[ ]+)($|.*$)
     captures:
       1:
-        tag: keyword
+        tag: controlKeyword
         name: keyword.control.from.sd
       2:
         patterns:
