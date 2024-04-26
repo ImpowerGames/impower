@@ -223,10 +223,7 @@ export interface SparkCommandTagToken extends ISparkToken<"command_tag"> {
   };
 }
 
-export interface DisplayContent {
-  line: number;
-  from: number;
-  to: number;
+export interface DisplayContent extends SparkRange {
   indent: number;
 
   tag: string;

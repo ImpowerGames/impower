@@ -1,9 +1,6 @@
 import { SparkRange } from "./SparkRange";
 
 export interface SparkParserContext extends SparkRange {
-  line: number;
-  from: number;
-  to: number;
   scopes: { type: string; data: Record<string, unknown> }[];
   text: string;
   declarations: {

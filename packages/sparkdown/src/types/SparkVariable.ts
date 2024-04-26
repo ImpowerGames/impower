@@ -3,9 +3,6 @@ import { SparkRange } from "./SparkRange";
 
 export interface SparkVariable extends SparkRange {
   tag: string;
-  line: number;
-  from: number;
-  to: number;
   indent: number;
   type: string;
   name: string;

@@ -2,9 +2,6 @@ import { SparkRange } from "./SparkRange";
 
 export interface SparkField extends SparkRange {
   tag: string;
-  line: number;
-  from: number;
-  to: number;
   indent: number;
   path: string;
   key: string;

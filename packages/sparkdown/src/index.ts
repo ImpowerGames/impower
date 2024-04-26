@@ -42,7 +42,6 @@ export * from "./utils/calculateIndent";
 export * from "./utils/calculateSpeechDuration";
 export * from "./utils/combineFrontMatter";
 export * from "./utils/combineTokens";
-export * from "./utils/createSparkSection";
 export * from "./utils/createSparkToken";
 export * from "./utils/encodeSVG";
 export * from "./utils/filterSVG";

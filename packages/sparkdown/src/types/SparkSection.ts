@@ -3,9 +3,6 @@ import { SparkToken } from "./SparkToken";
 
 export interface SparkSection extends SparkRange {
   tag: string;
-  line: number;
-  from: number;
-  to: number;
   indent: number;
   level: number;
   path: string[];
