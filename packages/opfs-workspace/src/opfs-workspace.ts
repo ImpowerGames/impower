@@ -513,18 +513,20 @@ const updateFileCache = (
   version?: number
 ) => {
   const existingFile = State.files[uri];
-  let src = existingFile?.src;
+  let src = existingFile?.src || "";
   const name = getName(uri);
   const ext = getFileExtension(uri);
   const type = getType(uri);
-  if (!src || overwrite) {
-    if (src) {
-      URL.revokeObjectURL(src);
+  if (name) {
+    if (!src || overwrite) {
+      if (src) {
+        URL.revokeObjectURL(src);
+      }
+      src = URL.createObjectURL(
+        new Blob([buffer], { type: getMimeType(type, ext) })
+      );
+      postMessage(DidChangeFileUrlMessage.type.notification({ uri, src }));
     }
-    src = URL.createObjectURL(
-      new Blob([buffer], { type: getMimeType(type, ext) })
-    );
-    postMessage(DidChangeFileUrlMessage.type.notification({ uri, src }));
   }
   const text =
     type === "script" || type === "text" || ext === "svg"
