@@ -3,6 +3,10 @@ import {
   ParseTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocumentMessage.js";
 import {
+  DidChangeFileUrlMessage,
+  DidChangeFileUrlParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage.js";
+import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
@@ -107,7 +111,9 @@ export default class SparkdownTextDocuments<
     return this._onDidParse.event;
   }
 
-  protected readonly _files: Record<
+  protected _urls: Record<string, string> = {};
+
+  protected _files: Record<
     string,
     {
       uri: string;
@@ -120,6 +126,9 @@ export default class SparkdownTextDocuments<
   > = {};
 
   protected readonly _syncedPrograms = new Map<string, SparkProgram>();
+  get programs(): Record<string, SparkProgram> {
+    return Object.fromEntries(this._syncedPrograms);
+  }
 
   protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
 
@@ -152,6 +161,54 @@ export default class SparkdownTextDocuments<
     }
   }
 
+  loadFiles(
+    files: Record<
+      string,
+      {
+        uri: string;
+        name: string;
+        src: string;
+        ext: string;
+        type: string;
+        text?: string;
+      }
+    >
+  ) {
+    if (files) {
+      this._files = files;
+      Object.entries(files).forEach(([uri, file]) => {
+        const text = file.text;
+        if (file.type === "script" && text) {
+          const variables = this.getVariables(this._files);
+          const tree = this._parser.compile(text);
+          const program = this._parser.build(text, tree, {
+            augmentations: { builtins: STRUCT_DEFAULTS, variables },
+          });
+          const version = 0;
+          program.version = version;
+          if (!this.__syncedDocuments.get(uri)) {
+            const language = "sparkdown";
+            const document = this.__configuration.create(
+              uri,
+              language,
+              version,
+              text
+            );
+            this.__syncedDocuments.set(uri, document);
+          }
+          const syncedDocument = this.__syncedDocuments.get(uri);
+          this._syncedPrograms.set(uri, program);
+          this._onDidParse.fire(
+            Object.freeze({
+              document: syncedDocument as T,
+              program,
+            })
+          );
+        }
+      });
+    }
+  }
+
   getDirectoryUri(uri: string): string {
     return uri.split("/").slice(0, -1).join("/");
   }
@@ -181,6 +238,47 @@ export default class SparkdownTextDocuments<
     this.parse(uri);
   }, PARSE_THROTTLE_DELAY);
 
+  getVariables(
+    files: Record<
+      string,
+      {
+        uri: string;
+        name: string;
+        src: string;
+        ext: string;
+        type: string;
+        text?: string;
+      }
+    >
+  ) {
+    const variables: Record<string, SparkVariable> = {};
+    Object.values(files || {}).forEach((file) => {
+      if (file.name) {
+        const obj = {
+          uri: file.uri,
+          name: file.name,
+          src: file.src,
+          ext: file.ext,
+          type: file.type,
+          text: file.text,
+        };
+        variables[file.type + "." + file.name] ??= {
+          tag: "asset",
+          line: -1,
+          from: -1,
+          to: -1,
+          indent: 0,
+          type: file.type,
+          name: file.name,
+          id: file.type + "." + file.name,
+          compiled: obj,
+          implicit: true,
+        };
+      }
+    });
+    return variables;
+  }
+
   parse(uri: string, force = false) {
     const syncedDocument = this.__syncedDocuments.get(uri);
     if (syncedDocument) {
@@ -188,41 +286,18 @@ export default class SparkdownTextDocuments<
       if (!force && syncedDocument.version === syncedProgram?.version) {
         return syncedProgram;
       }
-      const files = Object.values(this._files);
-      const variables: Record<string, SparkVariable> = {};
-      files.forEach((file) => {
-        if (file.name) {
-          const obj = {
-            uri: file.uri,
-            name: file.name,
-            src: file.src,
-            ext: file.ext,
-            type: file.type,
-            text: file.text,
-          };
-          variables[file.type + "." + file.name] ??= {
-            tag: "asset",
-            line: -1,
-            from: -1,
-            to: -1,
-            indent: 0,
-            type: file.type,
-            name: file.name,
-            id: file.type + "." + file.name,
-            compiled: obj,
-            implicit: true,
-          };
-        }
-      });
-      const newSyncedProgram = this._parser.parse(syncedDocument.getText(), {
+      const variables = this.getVariables(this._files);
+      const script = syncedDocument.getText();
+      const tree = this._parser.compile(script);
+      const program = this._parser.build(script, tree, {
         augmentations: { builtins: STRUCT_DEFAULTS, variables },
       });
-      newSyncedProgram.version = syncedDocument.version;
-      this._syncedPrograms.set(uri, newSyncedProgram);
+      program.version = syncedDocument.version;
+      this._syncedPrograms.set(uri, program);
       this._onDidParse.fire(
         Object.freeze({
           document: syncedDocument,
-          program: newSyncedProgram,
+          program,
         })
       );
     }
@@ -248,17 +323,20 @@ export default class SparkdownTextDocuments<
     const name = this.getFileName(fileUri);
     const type = this.getFileType(fileUri);
     const ext = this.getFileExtension(fileUri);
+    const src = this._urls[fileUri] || fileUri;
     this._files[fileUri] = {
       uri: fileUri,
       name,
       type,
       ext,
-      src: fileUri,
+      src,
     };
   }
 
   onDeletedFile(fileUri: string) {
     delete this._files[fileUri];
+    this._syncedPrograms.delete(fileUri);
+    this.__syncedDocuments.delete(fileUri);
   }
 
   public override listen(connection: Connection): Disposable {
@@ -293,6 +371,20 @@ export default class SparkdownTextDocuments<
     );
     disposables.push(
       connection.onNotification(
+        DidChangeFileUrlMessage.method,
+        (params: DidChangeFileUrlParams) => {
+          const uri = params.uri;
+          const src = params.src;
+          this._urls[uri] = src;
+          const existingFile = this._files[uri];
+          if (existingFile) {
+            existingFile.src = src;
+          }
+        }
+      )
+    );
+    disposables.push(
+      connection.onNotification(
         DidWatchFilesMessage.method,
         (params: DidWatchFilesParams) => {
           const files = params.files;
@@ -302,13 +394,14 @@ export default class SparkdownTextDocuments<
             const name = this.getFileName(fileUri);
             const type = this.getFileType(fileUri);
             const ext = this.getFileExtension(fileUri);
+            const src = this._urls[fileUri] || fileUri;
             this._files[fileUri] = {
               uri: fileUri,
               name,
               type,
               ext,
               text,
-              src: fileUri,
+              src,
             };
           });
           this._syncedPrograms.forEach((_, uri) => {
@@ -432,6 +525,10 @@ export default class SparkdownTextDocuments<
                 this.onDeletedFile(change.uri);
                 break;
             }
+          });
+          // Reparse all programs so that asset srcs are up-to-date.
+          this._syncedPrograms.forEach((_, uri) => {
+            this.parse(uri, true);
           });
         }
       )

@@ -22,20 +22,7 @@ export default class SparkParser {
 
   parse(script: string, config?: SparkParserConfig): SparkProgram {
     const tree = this.compile(script);
-    let parseConfig = config
-      ? {
-          ...this.config,
-          ...config,
-        }
-      : this.config;
-    const program = build(
-      script,
-      tree,
-      this.grammar.nodeNames as SparkdownNodeName[],
-      parseConfig
-    );
-    // console.log(program);
-    return program;
+    return this.build(script, tree, config);
   }
 
   compile(script: string): Tree {
@@ -53,7 +40,24 @@ export default class SparkParser {
       buffer,
       reused,
     });
-    // console.log(printTree(tree, paddedScript, this.grammar.nodeNames));
+    // console.warn(printTree(tree, paddedScript, this.grammar.nodeNames));
     return tree;
+  }
+
+  build(script: string, tree: Tree, config?: SparkParserConfig): SparkProgram {
+    let parseConfig = config
+      ? {
+          ...this.config,
+          ...config,
+        }
+      : this.config;
+    const program = build(
+      script,
+      tree,
+      this.grammar.nodeNames as SparkdownNodeName[],
+      parseConfig
+    );
+    // console.warn(program);
+    return program;
   }
 }

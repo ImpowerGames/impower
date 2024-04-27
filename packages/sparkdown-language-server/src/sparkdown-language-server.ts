@@ -63,7 +63,12 @@ try {
     if (settings) {
       documents.loadConfiguration(settings);
     }
-    return { capabilities };
+    const files = params?.initializationOptions?.["files"];
+    if (files) {
+      documents.loadFiles(files);
+    }
+    const programs = documents.programs;
+    return { capabilities, programs };
   });
 
   connection.onInitialized(async () => {

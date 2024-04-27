@@ -290,19 +290,28 @@ const createEditorView = (
     parent,
     dispatch: (tr) => syncDispatch(tr, view, onEdit),
   });
-  const disposable = serverConnection.onNotification(
-    DidParseTextDocumentMessage.type,
-    (params) => {
-      const program = params.program;
-      const version = params.textDocument.version;
-      programContext.program = program;
-      if (version === getDocumentVersion(view.state)) {
-        view.dispatch(
-          updateVariableWidgets({ variables: program.variables || {} })
-        );
+  const onParse = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidParseTextDocumentMessage.type.isNotification(message)) {
+        const params = message.params;
+        const program = params.program;
+        const version = params.textDocument.version;
+        programContext.program = program;
+        if (version === getDocumentVersion(view.state)) {
+          view.dispatch(
+            updateVariableWidgets({ variables: program.variables || {} })
+          );
+        }
       }
     }
-  );
+  };
+  window.addEventListener(DidParseTextDocumentMessage.method, onParse);
+  const disposable = {
+    dispose: () => {
+      window.removeEventListener(DidParseTextDocumentMessage.method, onParse);
+    },
+  };
   return [view, disposable];
 };
 

@@ -1,6 +1,6 @@
 import { MessageProtocolRequestType } from "@impower/spark-editor-protocol/src/protocols/MessageProtocolRequestType";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
+import { DidChangeFileUrlMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage.js";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
@@ -34,7 +34,6 @@ import {
   ProjectMetadataField,
 } from "@impower/spark-editor-protocol/src/types";
 import GRAMMAR from "../../../../../packages/sparkdown/language/sparkdown.language-grammar.json";
-import { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import SingletonPromise from "./SingletonPromise";
 import { Workspace } from "./Workspace";
 import { WorkspaceConstants } from "./WorkspaceConstants";
@@ -86,7 +85,6 @@ export default class WorkspaceFileSystem {
   }
 
   protected async loadInitialFiles(projectId: string) {
-    const connection = await Workspace.lsp.getConnection();
     const directoryUri = this.getDirectoryUri(projectId);
     const files = await this.readDirectoryFiles({
       directory: { uri: directoryUri },
@@ -102,11 +100,9 @@ export default class WorkspaceFileSystem {
       result[file.uri] = file;
       this.preloadFile(file);
     });
+    await Workspace.ls.start(this._files);
+    const connection = await Workspace.ls.getConnection();
     connection.sendNotification(DidWatchFilesMessage.type, didWatchFilesParams);
-    this.emit(
-      DidWatchFilesMessage.method,
-      DidWatchFilesMessage.type.notification(didWatchFilesParams)
-    );
     return result;
   }
 
@@ -140,14 +136,17 @@ export default class WorkspaceFileSystem {
         ConfigurationMessage.type.response(message.id, result)
       );
     } else if (
-      DidParseTextDocumentMessage.type.isNotification(message) ||
       DidWriteFileMessage.type.isNotification(message) ||
       DidCreateFilesMessage.type.isNotification(message) ||
       DidDeleteFilesMessage.type.isNotification(message)
     ) {
       this.emit(message.method, message);
+    } else if (DidChangeFileUrlMessage.type.isNotification(message)) {
+      const connection = await Workspace.ls.getConnection();
+      connection.sendNotification(message.method, message.params);
+      this.emit(message.method, message);
     } else if (DidChangeWatchedFilesMessage.type.isNotification(message)) {
-      const connection = await Workspace.lsp.getConnection();
+      const connection = await Workspace.ls.getConnection();
       connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (message.error) {
@@ -447,14 +446,6 @@ export default class WorkspaceFileSystem {
     this._files ??= {};
     this._files[result.uri] = result;
     return result;
-  }
-
-  async getPrograms(projectId: string) {
-    const files = await this.getFiles(projectId);
-    const programs = Object.values(files).filter(
-      (f): f is FileData & { program: SparkProgram } => Boolean(f.program)
-    );
-    return programs;
   }
 
   async preloadFile(file: FileData) {

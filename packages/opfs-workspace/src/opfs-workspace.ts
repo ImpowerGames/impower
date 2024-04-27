@@ -1,8 +1,8 @@
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
-import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage.js";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage.js";
+import { DidChangeFileUrlMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage.js";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
@@ -18,9 +18,6 @@ import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protoco
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage.js";
 import { FileData, FileEvent } from "@impower/spark-editor-protocol/src/types";
 import { Zippable, unzipSync, zipSync } from "fflate";
-import GameParser from "../../spark-engine/src/parser/classes/GameParser";
-import STRUCT_DEFAULTS from "../../spark-engine/src/parser/constants/STRUCT_DEFAULTS";
-import { SparkVariable } from "../../sparkdown/src";
 import debounce from "./utils/debounce";
 import { getAllFilesRecursive } from "./utils/getAllFilesRecursive";
 import { getDirectoryHandleFromPath } from "./utils/getDirectoryHandleFromPath";
@@ -44,42 +41,6 @@ const globToRegex = (glob: string) => {
       .replace(/[{](.*)[}]/g, (_match, $1) => `(${$1.replace(/[,]/g, "|")})`),
     "i"
   );
-};
-
-const parse = (file: FileData, files: FileData[]) => {
-  if (file.type === "script" && file.text != null && file.name) {
-    const variables: Record<string, SparkVariable> = {};
-    files.forEach((file) => {
-      if (file.name) {
-        const obj = {
-          uri: file.uri,
-          name: file.name,
-          src: file.src,
-          ext: file.ext,
-          type: file.type,
-          text: file.text,
-        };
-        const id = file.type + "." + file.name;
-        variables[id] ??= {
-          tag: "asset",
-          line: -1,
-          from: -1,
-          to: -1,
-          indent: 0,
-          type: file.type,
-          name: file.name,
-          id,
-          compiled: obj,
-          implicit: true,
-        };
-      }
-    });
-    const program = GameParser.parse(file.text, {
-      augmentations: { builtins: STRUCT_DEFAULTS, variables },
-    });
-    return program;
-  }
-  return undefined;
 };
 
 class State {
@@ -119,18 +80,6 @@ onmessage = async (e) => {
     try {
       const { directory } = message.params;
       const files = await readDirectoryFiles(directory.uri);
-      files.forEach((file) => {
-        const program = parse(file, files);
-        if (program != null) {
-          file.program = program;
-          postMessage(
-            DidParseTextDocumentMessage.type.notification({
-              textDocument: { uri: file.uri, version: file.version },
-              program,
-            })
-          );
-        }
-      });
       postMessage(ReadDirectoryFilesMessage.type.response(message.id, files));
     } catch (err: any) {
       console.error(err, err.stack);
@@ -195,19 +144,6 @@ onmessage = async (e) => {
       const { uri, version, data } = file;
       const buffer = new DataView(data);
       const fileData = await writeFile(uri, version, buffer);
-      if (fileData.text != null) {
-        const files = Object.values(State.files);
-        const program = parse(fileData, files);
-        if (program) {
-          fileData.program = program;
-          postMessage(
-            DidParseTextDocumentMessage.type.notification({
-              textDocument: { uri, version: file.version },
-              program,
-            })
-          );
-        }
-      }
       postMessage(WillWriteFileMessage.type.response(message.id, fileData));
       postMessage(DidWriteFileMessage.type.notification({ file: fileData }));
       postMessage(
@@ -588,12 +524,12 @@ const updateFileCache = (
     src = URL.createObjectURL(
       new Blob([buffer], { type: getMimeType(type, ext) })
     );
+    postMessage(DidChangeFileUrlMessage.type.notification({ uri, src }));
   }
   const text =
     type === "script" || type === "text" || ext === "svg"
       ? new TextDecoder("utf-8").decode(buffer)
       : undefined;
-  const program = existingFile?.program;
   const file = {
     uri,
     name,
@@ -602,7 +538,6 @@ const updateFileCache = (
     src,
     version: version ?? existingFile?.version ?? 0,
     text,
-    program,
   };
   State.files[uri] = file;
   return file;

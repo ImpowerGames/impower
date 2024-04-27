@@ -1,5 +1,3 @@
-import type { SparkProgram } from "../../../../sparkdown/src/types/SparkProgram";
-
 /**
  * A workspace directory or file inside a client.
  */
@@ -11,5 +9,4 @@ export interface FileData {
   type: string;
   version: number;
   text?: string;
-  program?: SparkProgram;
 }

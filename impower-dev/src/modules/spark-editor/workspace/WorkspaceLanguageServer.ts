@@ -1,6 +1,7 @@
 import { DiagnosticTag } from "@impower/spark-editor-protocol/src/enums/DiagnosticTag";
 import { InitializeMessage } from "@impower/spark-editor-protocol/src/protocols/InitializeMessage";
 import { InitializedMessage } from "@impower/spark-editor-protocol/src/protocols/InitializedMessage";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage";
 import {
   ClientCapabilities,
@@ -10,6 +11,7 @@ import {
   ServerCapabilities,
 } from "@impower/spark-editor-protocol/src/types";
 import { createBrowserMessageConnection } from "@impower/spark-editor-protocol/src/utils/createBrowserMessageConnection";
+import type { SparkProgram } from "../../../../../packages/sparkdown/src/types/SparkProgram";
 import ConsoleLogger from "./ConsoleLogger";
 import { Workspace } from "./Workspace";
 
@@ -116,7 +118,7 @@ const CLIENT_CAPABILITIES: ClientCapabilities = {
   },
 };
 
-export default class WorkspaceLanguageServerProtocol {
+export default class WorkspaceLanguageServer {
   protected _worker = new Worker("/sparkdown-language-server.js");
 
   protected _name = "Sparkdown Language Server";
@@ -133,10 +135,11 @@ export default class WorkspaceLanguageServerProtocol {
 
   protected _serverCapabilities?: ServerCapabilities;
 
-  protected _starting?: Promise<InitializeResult>;
-  get starting() {
-    return this._starting;
-  }
+  protected _programs?: Record<string, SparkProgram>;
+
+  protected _initializeResult?: InitializeResult;
+
+  protected _onInitialized: ((result: InitializeResult) => void)[] = [];
 
   constructor() {
     this._connection = createBrowserMessageConnection(
@@ -155,40 +158,88 @@ export default class WorkspaceLanguageServerProtocol {
         return result;
       }
     );
+    this._connection.onNotification(
+      DidParseTextDocumentMessage.type,
+      (params) => {
+        this._programs ??= {};
+        this._programs[params.textDocument.uri] = params.program;
+        this.emit(
+          DidParseTextDocumentMessage.method,
+          DidParseTextDocumentMessage.type.notification(params)
+        );
+      }
+    );
     this._connection.onClose(() => {
       this.stop();
     });
     this._connection.listen();
-    this._starting = this.start();
   }
 
-  async start(): Promise<InitializeResult> {
+  async start(
+    files: Record<
+      string,
+      {
+        uri: string;
+        name: string;
+        src: string;
+        ext: string;
+        type: string;
+        text?: string;
+      }
+    >
+  ): Promise<InitializeResult> {
     const result = await this._connection.sendRequest<InitializeResult>(
       InitializeMessage.method,
       {
         capabilities: CLIENT_CAPABILITIES,
-        initializationOptions: { settings: Workspace.configuration.settings },
+        initializationOptions: {
+          settings: Workspace.configuration.settings,
+          files,
+        },
       }
     );
     this._serverCapabilities = result.capabilities;
+    this._programs = result?.["programs"] || {};
     this._connection.sendNotification(InitializedMessage.method, {});
+    this._onInitialized.forEach((callback) => {
+      callback?.(result);
+    });
+    this._onInitialized = [];
+    this._initializeResult = result;
     return result;
   }
 
+  async initialization() {
+    if (!this._initializeResult) {
+      await new Promise<InitializeResult>((resolve) => {
+        this._onInitialized.push(resolve);
+      });
+    }
+    return this._initializeResult;
+  }
+
+  async getConnection(): Promise<MessageConnection> {
+    await this.initialization();
+    if (!this._connection) {
+      throw new Error("Language server not initialized.");
+    }
+    return this._connection;
+  }
+
   async getServerCapabilities(): Promise<ServerCapabilities> {
-    await this.starting;
+    await this.initialization();
     if (!this._serverCapabilities) {
       throw new Error("Language server not initialized.");
     }
     return this._serverCapabilities;
   }
 
-  async getConnection(): Promise<MessageConnection> {
-    await this.starting;
-    if (!this._connection) {
+  async getPrograms() {
+    await this.initialization();
+    if (!this._programs) {
       throw new Error("Language server not initialized.");
     }
-    return this._connection;
+    return this._programs;
   }
 
   stop() {

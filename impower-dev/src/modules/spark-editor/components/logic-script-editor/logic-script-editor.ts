@@ -114,7 +114,7 @@ export default class LogicScriptEditor extends Component(spec) {
         const text = file?.text || "";
         const version = file?.version || 0;
         const languageServerCapabilities =
-          await Workspace.lsp.getServerCapabilities();
+          await Workspace.ls.getServerCapabilities();
         this._uri = uri;
         this._version = version;
         this.emit(

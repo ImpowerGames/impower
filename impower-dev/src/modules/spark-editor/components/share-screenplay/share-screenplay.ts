@@ -53,9 +53,7 @@ export default class ShareScreenplay extends Component(spec) {
     const projectId = store.project.id;
     const projectName = store.project.name;
     if (projectId && projectName) {
-      const programs = (await Workspace.fs.getPrograms(projectId)).map(
-        (x) => x.program
-      );
+      const programs = Object.values((await Workspace.ls.getPrograms()) || {});
       const pdf = await Workspace.print.exportPDF(programs, (value) => {
         const scaleX = (value?.percentage ?? 0) / 100;
         this.pdfProgressBarEl.style.transform = `scaleX(${scaleX})`;
@@ -75,9 +73,7 @@ export default class ShareScreenplay extends Component(spec) {
     const projectId = store.project.id;
     const projectName = store.project.name;
     if (projectId && projectName) {
-      const programs = (await Workspace.fs.getPrograms(projectId)).map(
-        (x) => x.program
-      );
+      const programs = Object.values((await Workspace.ls.getPrograms()) || {});
       const html = await Workspace.print.exportHTML(programs, (value) => {
         const scaleX = (value?.percentage ?? 0) / 100;
         this.pdfProgressBarEl.style.transform = `scaleX(${scaleX})`;

@@ -54,7 +54,7 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  // console.log(GREEN, "FETCH", event.request.mode, event.request.url);
+  //console.log(GREEN, "FETCH", event.request.mode, event.request.url);
   if (process?.env?.["NODE_ENV"] === "production") {
     if (event.request.mode === "navigate") {
       // Fetching a page route

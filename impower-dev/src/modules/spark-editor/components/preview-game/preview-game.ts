@@ -3,7 +3,7 @@ import { ConfigureGameMessage } from "@impower/spark-editor-protocol/src/protoco
 import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/LoadGameMessage";
 import { WillExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 import getNextPreviewCommandToken from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommandToken";
 import getPreviousPreviewCommandToken from "../../../../../../packages/spark-engine/src/builder/utils/getPreviousPreviewCommandToken";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
@@ -14,7 +14,7 @@ import spec from "./_preview-game";
 export default class GamePreview extends Component(spec) {
   _uri = "";
 
-  _programs: { uri: string; name: string; program: SparkProgram }[] = [];
+  _programs: { uri: string; program: SparkProgram }[] = [];
 
   _startFromLine = 0;
 
@@ -22,8 +22,8 @@ export default class GamePreview extends Component(spec) {
     this.configureGame();
     this.loadPreview();
     window.addEventListener(
-      DidChangeWatchedFilesMessage.method,
-      this.handleDidChangeWatchedFiles
+      DidParseTextDocumentMessage.method,
+      this.handleDidParseTextDocument
     );
     window.addEventListener(
       SelectedEditorMessage.method,
@@ -39,8 +39,8 @@ export default class GamePreview extends Component(spec) {
 
   override onDisconnected() {
     window.removeEventListener(
-      DidChangeWatchedFilesMessage.method,
-      this.handleDidChangeWatchedFiles
+      DidParseTextDocumentMessage.method,
+      this.handleDidParseTextDocument
     );
     window.removeEventListener(
       SelectedEditorMessage.method,
@@ -53,7 +53,7 @@ export default class GamePreview extends Component(spec) {
     window.removeEventListener("keydown", this.handleKeyDown);
   }
 
-  handleDidChangeWatchedFiles = async (e: Event) => {
+  handleDidParseTextDocument = async (e: Event) => {
     if (e instanceof CustomEvent) {
       await this.configureGame();
       await this.loadGame();
@@ -115,9 +115,11 @@ export default class GamePreview extends Component(spec) {
   async configureGame() {
     const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
-      const { projectId, uri, selectedRange } = editor;
+      const { uri, selectedRange } = editor;
       const startLine = selectedRange?.start?.line ?? 0;
-      this._programs = await Workspace.fs.getPrograms(projectId);
+      this._programs = Object.entries(
+        (await Workspace.ls.getPrograms()) || {}
+      ).map(([uri, program]) => ({ uri, program }));
       this._startFromLine = startLine;
       this._uri = uri;
       const waypoints: { uri: string; line: number }[] = [];
@@ -156,7 +158,9 @@ export default class GamePreview extends Component(spec) {
       if (editor) {
         const { uri, selectedRange } = editor;
         if (uri) {
-          this._programs = await Workspace.fs.getPrograms(projectId);
+          this._programs = Object.entries(
+            (await Workspace.ls.getPrograms()) || {}
+          ).map(([uri, program]) => ({ uri, program }));
           this._startFromLine = selectedRange?.start?.line ?? 0;
           this._uri = uri;
           if (this._programs.some((p) => p.uri === uri)) {

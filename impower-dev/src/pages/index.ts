@@ -8,7 +8,7 @@ import icons from "../modules/spark-editor/styles/icons/icons.css";
 import { Workspace } from "../modules/spark-editor/workspace/Workspace";
 
 const load = async () => {
-  const languageServerConnection = await Workspace.lsp.getConnection();
+  const languageServerConnection = await Workspace.ls.getConnection();
   const graphics: Record<string, string> = {};
   const svgs = extractAllSVGs("--s-icon-", icons);
   Object.entries(svgs).forEach(([name, svg]) => {
