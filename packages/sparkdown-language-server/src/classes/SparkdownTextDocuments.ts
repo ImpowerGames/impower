@@ -39,6 +39,7 @@ import {
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
+import debounce from "../utils/debounce";
 import getDocumentDiagnostics from "../utils/getDocumentDiagnostics";
 import throttle from "../utils/throttle";
 import { EditorSparkParser } from "./EditorSparkParser";
@@ -234,6 +235,12 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
+  debouncedParseAll = debounce(() => {
+    this._syncedPrograms.forEach((_, uri) => {
+      this.parse(uri, true);
+    });
+  }, PARSE_THROTTLE_DELAY);
+
   throttledParse = throttle((uri: string) => {
     this.parse(uri);
   }, PARSE_THROTTLE_DELAY);
@@ -380,6 +387,11 @@ export default class SparkdownTextDocuments<
           if (existingFile) {
             existingFile.src = src;
           }
+          const type = this.getFileType(uri);
+          if (type !== "script") {
+            // When asset url changes, reparse all programs so that asset srcs are up-to-date.
+            this.debouncedParseAll();
+          }
         }
       )
     );
@@ -404,9 +416,7 @@ export default class SparkdownTextDocuments<
               src,
             };
           });
-          this._syncedPrograms.forEach((_, uri) => {
-            this.parse(uri, true);
-          });
+          this.debouncedParseAll();
         }
       )
     );
@@ -525,10 +535,6 @@ export default class SparkdownTextDocuments<
                 this.onDeletedFile(change.uri);
                 break;
             }
-          });
-          // Reparse all programs so that asset srcs are up-to-date.
-          this._syncedPrograms.forEach((_, uri) => {
-            this.parse(uri, true);
           });
         }
       )
