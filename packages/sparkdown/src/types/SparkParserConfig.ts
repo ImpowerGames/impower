@@ -1,25 +1,34 @@
-import { CompilerDiagnostic } from "./CompilerDiagnostic";
-import { SparkParserContext } from "./SparkParserContext";
-import { SparkProgram } from "./SparkProgram";
-import { SparkTokenTag } from "./SparkTokenTag";
-
-interface SparkAugmentations extends Partial<SparkProgram> {}
+import type { CompilerDiagnostic } from "./CompilerDiagnostic";
+import type { SparkParserContext } from "./SparkParserContext";
 
 export interface SparkParserConfig {
-  augmentations?: SparkAugmentations;
-  skipTokens?: SparkTokenTag[];
-  compiler?: (
-    expr: string,
-    context?: Record<string, unknown>
-  ) => [unknown, CompilerDiagnostic[], CompilerDiagnostic[]];
-  formatter?: (
-    str: string,
-    context?: Record<string, unknown>
-  ) => [string, CompilerDiagnostic[], CompilerDiagnostic[]];
-  extensions?: ((context: SparkParserContext) =>
+  builtins?: {
+    [type: string]: {
+      [name: string]: any;
+    };
+  };
+  files?: {
+    [type: string]: {
+      [name: string]: {
+        ext: string;
+        src: string;
+        text?: string;
+      };
+    };
+  };
+  main?: string;
+  extensions?: ((ctx: SparkParserContext) =>
     | {
         type: string;
         content?: string;
       }
     | undefined)[];
+  compiler?: (
+    expr: string,
+    context?: Record<string, unknown>
+  ) => [unknown, CompilerDiagnostic[], CompilerDiagnostic[]];
+  formatter?: (
+    expr: string,
+    context?: Record<string, unknown>
+  ) => [string, CompilerDiagnostic[], CompilerDiagnostic[]];
 }

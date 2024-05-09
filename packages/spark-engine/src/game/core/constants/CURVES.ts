@@ -1,4 +1,4 @@
-import { CurveType } from "../types/CurveType";
+import { CurveType } from "../../modules/ui/types/CurveType";
 
 export const CURVES: CurveType[] = [
   "linear",

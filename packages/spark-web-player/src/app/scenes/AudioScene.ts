@@ -1,7 +1,7 @@
 import AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import AudioPlayer from "../../../../spark-dom/src/classes/AudioPlayer";
 import { RequestMessage } from "../../../../spark-engine/src/game/core";
-import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
+import { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 import { LoadAudioMixerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioMixerMessage";
 import { LoadAudioPlayerMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/LoadAudioPlayerMessage";
 import { UpdateAudioPlayersMessage } from "../../../../spark-engine/src/game/modules/audio/classes/messages/UpdateAudioPlayersMessage";

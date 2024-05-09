@@ -1,14 +1,10 @@
-import { GameConfig, GameModules } from "../../game/core/classes/Game";
+import { GameModules } from "../../game/core/classes/Game";
 
-export interface GameBuilderOptions<
-  C extends GameConfig = GameConfig,
-  M extends GameModules = GameModules
-> {
+export interface GameBuilderOptions<M extends GameModules = GameModules> {
   simulation?: {
-    waypoints?: { program: number; line: number }[];
-    startpoint?: { program: number; line: number };
+    waypoints?: { file?: string; line: number }[];
+    startpoint?: { file?: string; line: number };
   };
-  config?: C;
   modules?: M;
   preview?: boolean;
 }

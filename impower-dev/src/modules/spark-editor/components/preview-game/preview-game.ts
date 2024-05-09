@@ -4,17 +4,17 @@ import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/ga
 import { WillExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
-import getNextPreviewCommandToken from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommandToken";
-import getPreviousPreviewCommandToken from "../../../../../../packages/spark-engine/src/builder/utils/getPreviousPreviewCommandToken";
+import getNextPreviewCommandTokenAtLine from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommandTokenAtLine";
+import getPreviousPreviewCommandTokenAtLine from "../../../../../../packages/spark-engine/src/builder/utils/getPreviousPreviewCommandTokenAtLine";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
 import spec from "./_preview-game";
 
 export default class GamePreview extends Component(spec) {
-  _uri = "";
+  _program?: SparkProgram;
 
-  _programs: { uri: string; program: SparkProgram }[] = [];
+  _startFromFile = "";
 
   _startFromLine = 0;
 
@@ -66,7 +66,7 @@ export default class GamePreview extends Component(spec) {
       const message = e.detail;
       if (SelectedEditorMessage.type.isNotification(message)) {
         const { textDocument, selectedRange, docChanged } = message.params;
-        if (textDocument.uri === this._uri && !docChanged) {
+        if (textDocument.uri === this._startFromFile && !docChanged) {
           const newEntryLine = selectedRange?.start?.line ?? 0;
           if (newEntryLine !== this._startFromLine) {
             await this.configureGame();
@@ -106,7 +106,7 @@ export default class GamePreview extends Component(spec) {
     const editor = Workspace.window.getActiveEditorForPane("logic");
     if (!running && editor) {
       const { uri } = editor;
-      if (uri && uri !== this._uri) {
+      if (uri && uri !== this._startFromFile) {
         this.configureGame();
       }
     }
@@ -117,11 +117,9 @@ export default class GamePreview extends Component(spec) {
     if (editor) {
       const { uri, selectedRange } = editor;
       const startLine = selectedRange?.start?.line ?? 0;
-      this._programs = Object.entries(
-        (await Workspace.ls.getPrograms()) || {}
-      ).map(([uri, program]) => ({ uri, program }));
+      this._program = await Workspace.ls.getProgram();
+      this._startFromFile = uri;
       this._startFromLine = startLine;
-      this._uri = uri;
       const waypoints: { uri: string; line: number }[] = [];
       if (Workspace.window.store.project.breakpointRanges) {
         Object.entries(Workspace.window.store.project.breakpointRanges).forEach(
@@ -136,17 +134,15 @@ export default class GamePreview extends Component(spec) {
         uri,
         line: startLine,
       };
-      if (this._programs.some((p) => p.uri === uri)) {
-        this.emit(
-          ConfigureGameMessage.method,
-          ConfigureGameMessage.type.request({
-            settings: {
-              waypoints,
-              startpoint,
-            },
-          })
-        );
-      }
+      this.emit(
+        ConfigureGameMessage.method,
+        ConfigureGameMessage.type.request({
+          settings: {
+            waypoints,
+            startpoint,
+          },
+        })
+      );
     }
   }
 
@@ -158,19 +154,15 @@ export default class GamePreview extends Component(spec) {
       if (editor) {
         const { uri, selectedRange } = editor;
         if (uri) {
-          this._programs = Object.entries(
-            (await Workspace.ls.getPrograms()) || {}
-          ).map(([uri, program]) => ({ uri, program }));
+          this._program = await Workspace.ls.getProgram();
+          this._startFromFile = uri;
           this._startFromLine = selectedRange?.start?.line ?? 0;
-          this._uri = uri;
-          if (this._programs.some((p) => p.uri === uri)) {
-            this.emit(
-              LoadGameMessage.method,
-              LoadGameMessage.type.request({
-                programs: this._programs,
-              })
-            );
-          }
+          this.emit(
+            LoadGameMessage.method,
+            LoadGameMessage.type.request({
+              program: this._program,
+            })
+          );
         }
       }
     }
@@ -186,11 +178,7 @@ export default class GamePreview extends Component(spec) {
         const { uri, visibleRange, selectedRange } = editor;
         const files = await Workspace.fs.getFiles(projectId);
         const file = files[uri];
-        if (
-          file &&
-          file.text != null &&
-          this._programs.some((p) => p.uri === uri)
-        ) {
+        if (file && file.text != null) {
           this.emit(
             LoadPreviewMessage.method,
             LoadPreviewMessage.type.request({
@@ -214,11 +202,10 @@ export default class GamePreview extends Component(spec) {
     const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
-      const cached = this._programs.find((p) => p.uri === uri);
-      const program = cached?.program;
+      const program = this._program;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
-        const previewCommandToken = getPreviousPreviewCommandToken(
+        const previewCommandToken = getPreviousPreviewCommandTokenAtLine(
           program,
           currLine
         );
@@ -243,11 +230,10 @@ export default class GamePreview extends Component(spec) {
     const editor = Workspace.window.getActiveEditorForPane("logic");
     if (editor) {
       const { uri, selectedRange } = editor;
-      const cached = this._programs.find((p) => p.uri === uri);
-      const program = cached?.program;
+      const program = this._program;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
-        const previewCommandToken = getNextPreviewCommandToken(
+        const previewCommandToken = getNextPreviewCommandTokenAtLine(
           program,
           currLine
         );

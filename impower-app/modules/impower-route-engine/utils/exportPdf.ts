@@ -32,7 +32,6 @@ export const exportPdf = async (
   const result = EngineSparkParser.instance.parse(script, {
     augmentations,
     removeBlockComments: true,
-    skipTokens: ["condition"],
   });
   const pdfData = generateSparkPdfData(result, SPARK_SCREENPLAY_CONFIG, {
     normal: decodeBase64(normal),

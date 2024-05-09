@@ -59,6 +59,10 @@ try {
         },
       },
     };
+    const workspaceFolders = params?.workspaceFolders;
+    if (workspaceFolders) {
+      documents.loadWorkspace(workspaceFolders);
+    }
     const settings = params?.initializationOptions?.["settings"];
     if (settings) {
       documents.loadConfiguration(settings);
@@ -67,8 +71,8 @@ try {
     if (files) {
       documents.loadFiles(files);
     }
-    const programs = documents.programs;
-    return { capabilities, programs };
+    const program = documents.program;
+    return { capabilities, program };
   });
 
   connection.onInitialized(async () => {
@@ -96,7 +100,7 @@ try {
   connection.onFoldingRanges((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program(uri);
+    const program = documents.program;
     return getFoldingRanges(document, program);
   });
 
@@ -104,7 +108,7 @@ try {
   connection.onDocumentColor((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program(uri);
+    const program = documents.program;
     return getDocumentColors(document, program);
   });
   connection.onColorPresentation((params) => {
@@ -115,7 +119,7 @@ try {
   connection.onDocumentSymbol((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.program(uri);
+    const program = documents.program;
     return getDocumentSymbols(document, program);
   });
 
@@ -123,7 +127,7 @@ try {
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.parse(uri);
+    const program = documents.parse();
     return getHover(document, program, params.position);
   });
 
@@ -131,7 +135,7 @@ try {
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.parse(uri);
+    const program = documents.parse();
     const result = getCompletions(
       document,
       program,

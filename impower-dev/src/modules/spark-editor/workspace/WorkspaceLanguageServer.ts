@@ -135,7 +135,7 @@ export default class WorkspaceLanguageServer {
 
   protected _serverCapabilities?: ServerCapabilities;
 
-  protected _programs?: Record<string, SparkProgram>;
+  protected _program?: SparkProgram;
 
   protected _initializeResult?: InitializeResult;
 
@@ -161,8 +161,7 @@ export default class WorkspaceLanguageServer {
     this._connection.onNotification(
       DidParseTextDocumentMessage.type,
       (params) => {
-        this._programs ??= {};
-        this._programs[params.textDocument.uri] = params.program;
+        this._program = params.program;
         this.emit(
           DidParseTextDocumentMessage.method,
           DidParseTextDocumentMessage.type.notification(params)
@@ -176,6 +175,7 @@ export default class WorkspaceLanguageServer {
   }
 
   async start(
+    projectPath: string,
     files: Record<
       string,
       {
@@ -196,10 +196,16 @@ export default class WorkspaceLanguageServer {
           settings: Workspace.configuration.settings,
           files,
         },
+        workspaceFolders: [
+          {
+            uri: projectPath,
+            name: "Project",
+          },
+        ],
       }
     );
     this._serverCapabilities = result.capabilities;
-    this._programs = result?.["programs"] || {};
+    this._program = result?.["program"] || {};
     this._connection.sendNotification(InitializedMessage.method, {});
     this._onInitialized.forEach((callback) => {
       callback?.(result);
@@ -234,12 +240,12 @@ export default class WorkspaceLanguageServer {
     return this._serverCapabilities;
   }
 
-  async getPrograms() {
+  async getProgram() {
     await this.initialization();
-    if (!this._programs) {
+    if (!this._program) {
       throw new Error("Language server not initialized.");
     }
-    return this._programs;
+    return this._program;
   }
 
   stop() {

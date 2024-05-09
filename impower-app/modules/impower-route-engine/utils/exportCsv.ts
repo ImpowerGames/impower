@@ -9,7 +9,6 @@ export const exportCsv = async (
   const { stringify } = await import("csv-stringify");
   const result = EngineSparkParser.instance.parse(script, {
     removeBlockComments: true,
-    skipTokens: ["condition"],
   });
   const strings = generateSparkCsvData(result);
   const csv = await new Promise<string>((resolve) => {

@@ -1,4 +1,4 @@
-import { EaseType } from "../types/EaseType";
+import { EaseType } from "../../modules/ui/types/EaseType";
 
 const pow = Math.pow;
 const sqrt = Math.sqrt;
@@ -12,58 +12,58 @@ const c3 = c1 + 1;
 export const EASE: Record<EaseType, (x: number) => number> = {
   none: (_x: number): number => 1,
   linear: (x: number): number => x,
-  quadIn: (x: number): number => {
+  quad_in: (x: number): number => {
     return x * x;
   },
-  quadOut: (x: number): number => {
+  quad_out: (x: number): number => {
     return 1 - (1 - x) * (1 - x);
   },
-  quadInOut: (x: number): number => {
+  quad_in_out: (x: number): number => {
     return x < 0.5 ? 2 * x * x : 1 - pow(-2 * x + 2, 2) / 2;
   },
-  cubicIn: (x: number): number => {
+  cubic_in: (x: number): number => {
     return pow(x, 3);
   },
-  cubicOut: (x: number): number => {
+  cubic_out: (x: number): number => {
     return 1 - pow(1 - x, 3);
   },
-  cubicInOut: (x: number): number => {
+  cubic_in_out: (x: number): number => {
     return x < 0.5 ? 4 * x * x * x : 1 - pow(-2 * x + 2, 3) / 2;
   },
-  quartIn: (x: number): number => {
+  quart_in: (x: number): number => {
     return pow(x, 4);
   },
-  quartOut: (x: number): number => {
+  quart_out: (x: number): number => {
     return 1 - pow(1 - x, 4);
   },
-  quartInOut: (x: number): number => {
+  quart_in_out: (x: number): number => {
     return x < 0.5 ? 8 * x * x * x * x : 1 - pow(-2 * x + 2, 4) / 2;
   },
-  quintIn: (x: number): number => {
+  quint_in: (x: number): number => {
     return pow(x, 5);
   },
-  quintOut: (x: number): number => {
+  quint_out: (x: number): number => {
     return 1 - pow(1 - x, 5);
   },
-  quintInOut: (x: number): number => {
+  quint_in_out: (x: number): number => {
     return x < 0.5 ? 16 * x * x * x * x * x : 1 - pow(-2 * x + 2, 5) / 2;
   },
-  sineIn: (x: number): number => {
+  sine_in: (x: number): number => {
     return 1 - cos((x * PI) / 2);
   },
-  sineOut: (x: number): number => {
+  sine_out: (x: number): number => {
     return sin((x * PI) / 2);
   },
-  sineInOut: (x: number): number => {
+  sine_in_out: (x: number): number => {
     return -(cos(PI * x) - 1) / 2;
   },
-  expoIn: (x: number): number => {
+  expo_in: (x: number): number => {
     return x === 0 ? 0 : pow(2, 10 * x - 10);
   },
-  expoOut: (x: number): number => {
+  expo_out: (x: number): number => {
     return x === 1 ? 1 : 1 - pow(2, -10 * x);
   },
-  expoInOut: (x: number): number => {
+  expo_in_out: (x: number): number => {
     return x === 0
       ? 0
       : x === 1
@@ -72,24 +72,24 @@ export const EASE: Record<EaseType, (x: number) => number> = {
       ? pow(2, 20 * x - 10) / 2
       : (2 - pow(2, -20 * x + 10)) / 2;
   },
-  circIn: (x: number): number => {
+  circ_in: (x: number): number => {
     return 1 - sqrt(1 - pow(x, 2));
   },
-  circOut: (x: number): number => {
+  circ_out: (x: number): number => {
     return sqrt(1 - pow(x - 1, 2));
   },
-  circInOut: (x: number): number => {
+  circ_in_out: (x: number): number => {
     return x < 0.5
       ? (1 - sqrt(1 - pow(2 * x, 2))) / 2
       : (sqrt(1 - pow(-2 * x + 2, 2)) + 1) / 2;
   },
-  backIn: (x: number): number => {
+  back_in: (x: number): number => {
     return c3 * x * x * x - c1 * x * x;
   },
-  backOut: (x: number): number => {
+  back_out: (x: number): number => {
     return 1 + c3 * pow(x - 1, 3) + c1 * pow(x - 1, 2);
   },
-  backInOut: (x: number): number => {
+  back_in_out: (x: number): number => {
     return x < 0.5
       ? (pow(2 * x, 2) * ((c2 + 1) * 2 * x - c2)) / 2
       : (pow(2 * x - 2, 2) * ((c2 + 1) * (x * 2 - 2) + c2) + 2) / 2;

@@ -1,5 +1,5 @@
+import { CurveType } from "../../modules/ui/types/CurveType";
 import { CURVES } from "../constants/CURVES";
-import { CurveType } from "../types/CurveType";
 
 export const isCurve = (obj: unknown): obj is CurveType => {
   if (typeof obj !== "string") {

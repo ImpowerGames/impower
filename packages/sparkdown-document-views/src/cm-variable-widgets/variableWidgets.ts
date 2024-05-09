@@ -17,13 +17,11 @@ import {
 import AudioPlayer from "../../../spark-dom/src/classes/AudioPlayer";
 import { Audio, type AudioGroup, type Synth } from "../../../spark-engine/src";
 import { clone } from "../../../spark-engine/src/game/core/utils/clone";
-import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
-import { SYNTH_DEFAULTS } from "../../../spark-engine/src/game/modules/audio/specs/defaults/SYNTH_DEFAULTS";
-import {
-  SYNTH_RANDOMIZATIONS,
-  SYNTH_VALIDATION,
-  randomize,
-} from "../../../spark-engine/src/inspector";
+import { randomizeProperties } from "../../../spark-engine/src/game/core/utils/randomizeProperties";
+import { audioBuiltins } from "../../../spark-engine/src/game/modules/audio/audioBuiltins";
+import { SynthBuffer } from "../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
+import { SYNTH_RANDOMIZATIONS } from "../../../spark-engine/src/game/modules/audio/constants/SYNTH_RANDOMIZATIONS";
+import { SYNTH_VALIDATION } from "../../../spark-engine/src/game/modules/audio/constants/SYNTH_VALIDATION";
 import { SparkProgram, SparkVariable } from "../../../sparkdown/src/index";
 import structStringify from "../../../sparkdown/src/utils/structStringify";
 import { FileSystemReader } from "../cm-language-client/types/FileSystemReader";
@@ -410,7 +408,7 @@ const variableWidgetsConfig = Facet.define<
     return combineConfig(configs, {
       fileSystemReader: {
         scheme: "",
-        url: (uri: string) => {
+        url: (uri: string | undefined) => {
           return uri;
         },
       },
@@ -453,7 +451,8 @@ const getSynthVariableWidgets = (
   const config = state.facet(variableWidgetsConfig);
   const context = VARIABLE_WIDGET_CONTEXT;
   const widgetRanges: Range<Decoration>[] = [];
-  const defaultObj = SYNTH_DEFAULTS["default"];
+  const audioObjects = audioBuiltins();
+  const defaultObj = audioObjects.synth["default"];
   const validation = SYNTH_VALIDATION;
   const options: StructPresetOption[] = Object.entries({
     default: null,
@@ -470,31 +469,33 @@ const getSynthVariableWidgets = (
         if (randomization) {
           const cullProp =
             label?.toLowerCase() !== "default" ? "on" : undefined;
-          randomize(preset, validation, randomization, cullProp);
+          randomizeProperties(preset, validation, randomization, cullProp);
         }
         const structWidgetPos = view.posAtDOM(dom);
         const changes = getStructValueChanges(view, structWidgetPos, preset);
         if (changes) {
           const randomizedObj = clone(defaultObj, preset);
-          const button = getPlayButton(dom, variableId);
-          if (button) {
-            playSynthVariable(
-              randomizedObj,
-              context,
-              variableId,
-              button,
-              false
-            );
-          }
-          const previewEl = getPreviewElement(e.target, variableId);
-          if (previewEl) {
-            updateSynthWaveform(
-              previewEl,
-              randomizedObj,
-              context,
-              variableId,
-              config
-            );
+          if (randomizedObj) {
+            const button = getPlayButton(dom, variableId);
+            if (button) {
+              playSynthVariable(
+                randomizedObj,
+                context,
+                variableId,
+                button,
+                false
+              );
+            }
+            const previewEl = getPreviewElement(e.target, variableId);
+            if (previewEl) {
+              updateSynthWaveform(
+                previewEl,
+                randomizedObj,
+                context,
+                variableId,
+                config
+              );
+            }
           }
           view.dispatch({ changes });
         } else {

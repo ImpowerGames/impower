@@ -2,7 +2,6 @@ import {
   DidParseTextDocumentMessage,
   DidParseTextDocumentParams,
 } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
-import { ParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocumentMessage";
 import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage";
 import * as vscode from "vscode";
 import { SparkProgramManager } from "../providers/SparkProgramManager";
@@ -32,13 +31,6 @@ export const activateLanguageClient = async (
   );
   await client.start();
   context.subscriptions.push({ dispose: () => client.stop() });
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((editor) => {
-      client.sendRequest(ParseTextDocumentMessage.method, {
-        textDocument: { uri: editor?.document.uri.toString() },
-      });
-    })
-  );
   const fileUris = await vscode.workspace.findFiles(filePattern);
   const files = await Promise.all(
     fileUris.map(async (fileUri) => {

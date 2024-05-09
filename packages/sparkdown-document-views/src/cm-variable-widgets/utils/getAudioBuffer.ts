@@ -1,4 +1,4 @@
-import type { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/SynthBuffer";
+import type { SynthBuffer } from "../../../../spark-engine/src/game/modules/audio/classes/helpers/SynthBuffer";
 
 export const getAudioBuffer = async (
   sound: Float32Array | SynthBuffer | string | undefined,

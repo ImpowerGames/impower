@@ -2,21 +2,21 @@ import type {
   SparkDisplayToken,
   SparkToken,
 } from "../../../../sparkdown/src/types/SparkToken";
+import type { BranchCommandData } from "../../game/modules/logic/classes/commands/branchCommand/BranchCommandData";
+import type { ClearCommandData } from "../../game/modules/logic/classes/commands/clearCommand/ClearCommandData";
+import type { EvaluateCommandData } from "../../game/modules/logic/classes/commands/evaluateCommand/EvaluateCommandData";
+import type { JumpCommandData } from "../../game/modules/logic/classes/commands/jumpCommand/JumpCommandData";
+import type { ReturnCommandData } from "../../game/modules/logic/classes/commands/returnCommand/ReturnCommandData";
 import type { CommandData } from "../../game/modules/logic/types/CommandData";
-import type { BranchCommandData } from "../classes/commands/branchCommand/BranchCommandData";
-import { ClearCommandData } from "../classes/commands/clearCommand/ClearCommandData";
-import type { DisplayCommandData } from "../classes/commands/displayCommand/DisplayCommandData";
-import type { EvaluateCommandData } from "../classes/commands/evaluateCommand/EvaluateCommandData";
-import type { JumpCommandData } from "../classes/commands/jumpCommand/JumpCommandData";
-import type { ReturnCommandData } from "../classes/commands/returnCommand/ReturnCommandData";
+import type { DisplayCommandData } from "../../game/modules/writer/classes/commands/displayCommand/DisplayCommandData";
 
 const getCommandId = (parent: string, index: number): string => {
   return `${parent}.${index}`;
 };
 
-const getSource = (token: SparkToken, file: number) => {
+const getSource = (token: SparkToken) => {
   return {
-    file,
+    file: token.file,
     line: token.line,
     from: token.from,
     to: token.to,
@@ -25,7 +25,6 @@ const getSource = (token: SparkToken, file: number) => {
 
 const generateDisplayCommand = (
   token: SparkDisplayToken,
-  file: number,
   parent: string,
   index: number
 ): DisplayCommandData => {
@@ -53,13 +52,12 @@ const generateDisplayCommand = (
       content: token.content || [],
       autoAdvance: token.autoAdvance ?? false,
     },
-    source: getSource(token, file),
+    source: getSource(token),
   };
 };
 
 const generateCommand = (
   token: SparkToken,
-  file: number,
   parent: string,
   index: number
 ): CommandData | null => {
@@ -86,7 +84,7 @@ const generateCommand = (
         params: {
           expression: `${token.name} ${token.operator} ${token.value}`,
         },
-        source: getSource(token, file),
+        source: getSource(token),
       };
       return newCommand;
     }
@@ -103,7 +101,7 @@ const generateCommand = (
       params: {
         expression: `delete ${token.name}`,
       },
-      source: getSource(token, file),
+      source: getSource(token),
     };
     return newCommand;
   }
@@ -125,7 +123,7 @@ const generateCommand = (
         condition: token.condition as string,
         check: (token.tag || "") as "if" | "elseif" | "else" | "end",
       },
-      source: getSource(token, file),
+      source: getSource(token),
     };
     return newCommand;
   }
@@ -142,7 +140,7 @@ const generateCommand = (
         value: token.section as string,
         returnWhenFinished: false,
       },
-      source: getSource(token, file),
+      source: getSource(token),
     };
     return newCommand;
   }
@@ -158,7 +156,7 @@ const generateCommand = (
       params: {
         value: token.value as string,
       },
-      source: getSource(token, file),
+      source: getSource(token),
     };
     return newCommand;
   }
@@ -172,21 +170,21 @@ const generateCommand = (
       index,
       indent: token.indent,
       params: {},
-      source: getSource(token, file),
+      source: getSource(token),
     };
     return newCommand;
   }
   if (token.tag === "dialogue_box") {
-    return generateDisplayCommand(token, file, parent, index);
+    return generateDisplayCommand(token, parent, index);
   }
   if (token.tag === "action_box") {
-    return generateDisplayCommand(token, file, parent, index);
+    return generateDisplayCommand(token, parent, index);
   }
   if (token.tag === "transition") {
-    return generateDisplayCommand(token, file, parent, index);
+    return generateDisplayCommand(token, parent, index);
   }
   if (token.tag === "scene") {
-    return generateDisplayCommand(token, file, parent, index);
+    return generateDisplayCommand(token, parent, index);
   }
 
   return null;

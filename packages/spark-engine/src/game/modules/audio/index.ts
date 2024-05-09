@@ -1,4 +1,3 @@
-export * from "./classes/AudioManager";
 export * from "./types/AudioGroup";
 export * from "./types/Hertz";
 export * from "./types/Instrument";

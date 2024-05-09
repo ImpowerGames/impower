@@ -1,4 +1,4 @@
-import { Asset } from "../../../core/types/Asset";
+import { Asset } from "./Image";
 
 export interface ImageGroup {
   assets: Asset[];

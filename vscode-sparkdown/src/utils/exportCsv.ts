@@ -23,7 +23,7 @@ export const exportCsv = async (): Promise<void> => {
   SparkdownCommandTreeDataProvider.instance.notifyExportStarted("csv");
   const sparkdown = editor.document.getText();
   const result = ScreenplaySparkParser.instance.parse(sparkdown);
-  const strings = generateSparkCsvData(result);
+  const strings = generateSparkCsvData(result.tokens);
   await new Promise<void>((resolve) => {
     stringify(strings, {}, async (_err: Error | undefined, output: string) => {
       await writeFile(fsPath, output);

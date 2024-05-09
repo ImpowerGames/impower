@@ -1,8 +1,4 @@
 import {
-  ParseTextDocumentMessage,
-  ParseTextDocumentParams,
-} from "@impower/spark-editor-protocol/src/protocols/textDocument/ParseTextDocumentMessage.js";
-import {
   DidChangeFileUrlMessage,
   DidChangeFileUrlParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage.js";
@@ -10,9 +6,11 @@ import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import STRUCT_DEFAULTS from "@impower/spark-engine/src/parser/constants/STRUCT_DEFAULTS";
+import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import compile from "@impower/spark-evaluate/src/utils/compile";
+import format from "@impower/spark-evaluate/src/utils/format";
+import SparkParser from "@impower/sparkdown/src/classes/SparkParser";
 import { SparkProgram } from "@impower/sparkdown/src/types/SparkProgram";
-import { SparkVariable } from "@impower/sparkdown/src/types/SparkVariable";
 import {
   CancellationToken,
   Connection,
@@ -36,13 +34,13 @@ import {
   TextDocumentsConfiguration,
   TextEdit,
   WillSaveTextDocumentParams,
+  WorkspaceFolder,
 } from "vscode-languageserver";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { ConnectionState } from "vscode-languageserver/lib/common/textDocuments";
 import debounce from "../utils/debounce";
 import getDocumentDiagnostics from "../utils/getDocumentDiagnostics";
 import throttle from "../utils/throttle";
-import { EditorSparkParser } from "./EditorSparkParser";
 
 const PARSE_THROTTLE_DELAY = 100;
 
@@ -114,7 +112,7 @@ export default class SparkdownTextDocuments<
 
   protected _urls: Record<string, string> = {};
 
-  protected _files: Record<
+  protected _files = new Map<
     string,
     {
       uri: string;
@@ -124,16 +122,22 @@ export default class SparkdownTextDocuments<
       type: string;
       text?: string;
     }
-  > = {};
+  >();
 
-  protected readonly _syncedPrograms = new Map<string, SparkProgram>();
-  get programs(): Record<string, SparkProgram> {
-    return Object.fromEntries(this._syncedPrograms);
+  protected _parsedVersions = new Map<string, number>();
+
+  protected _program?: SparkProgram;
+  get program() {
+    return this._program;
   }
 
   protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
 
-  protected readonly _parser: EditorSparkParser;
+  protected readonly _game: Game = new Game();
+
+  protected readonly _parser: SparkParser;
+
+  protected _workspaceFolders?: WorkspaceFolder[];
 
   protected _scriptFilePattern?: RegExp;
 
@@ -144,7 +148,15 @@ export default class SparkdownTextDocuments<
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
     this._onDidParse = new Emitter<SparkProgramChangeEvent<T>>();
-    this._parser = new EditorSparkParser();
+    this._parser = new SparkParser({
+      builtins: this._game.builtins,
+      compiler: compile,
+      formatter: format,
+    });
+  }
+
+  loadWorkspace(workspaceFolders: WorkspaceFolder[]) {
+    this._workspaceFolders = workspaceFolders;
   }
 
   loadConfiguration(settings: any) {
@@ -176,19 +188,17 @@ export default class SparkdownTextDocuments<
     >
   ) {
     if (files) {
-      this._files = files;
-      Object.entries(files).forEach(([uri, file]) => {
+      const fileEntries = Object.entries(files);
+      fileEntries.forEach(([uri, file]) => {
+        this._files.set(uri, file);
+      });
+      this._parser.configure({ files: this.getFiles() });
+      fileEntries.forEach(([uri, file]) => {
         const text = file.text;
         if (file.type === "script" && text) {
-          const variables = this.getVariables(this._files);
-          const tree = this._parser.compile(text);
-          const program = this._parser.build(text, tree, {
-            augmentations: { builtins: STRUCT_DEFAULTS, variables },
-          });
-          const version = 0;
-          program.version = version;
           if (!this.__syncedDocuments.get(uri)) {
             const language = "sparkdown";
+            const version = 0;
             const document = this.__configuration.create(
               uri,
               language,
@@ -197,17 +207,14 @@ export default class SparkdownTextDocuments<
             );
             this.__syncedDocuments.set(uri, document);
           }
-          const syncedDocument = this.__syncedDocuments.get(uri);
-          this._syncedPrograms.set(uri, program);
-          this._onDidParse.fire(
-            Object.freeze({
-              document: syncedDocument as T,
-              program,
-            })
-          );
         }
       });
+      this.parse(true);
     }
+  }
+
+  resolve(filename: string) {
+    return this._workspaceFolders?.[0]?.uri + "/" + filename;
   }
 
   getDirectoryUri(uri: string): string {
@@ -235,95 +242,81 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
-  debouncedParseAll = debounce(() => {
-    this._syncedPrograms.forEach((_, uri) => {
-      this.parse(uri, true);
-    });
+  debouncedParse = debounce(() => {
+    this.parse(true);
   }, PARSE_THROTTLE_DELAY);
 
-  throttledParse = throttle((uri: string) => {
-    this.parse(uri);
+  throttledParse = throttle(() => {
+    this.parse();
   }, PARSE_THROTTLE_DELAY);
 
-  getVariables(
-    files: Record<
-      string,
-      {
+  getFiles(): {
+    [type: string]: {
+      [name: string]: {
         uri: string;
         name: string;
         src: string;
         ext: string;
         type: string;
         text?: string;
-      }
-    >
-  ) {
-    const variables: Record<string, SparkVariable> = {};
-    Object.values(files || {}).forEach((file) => {
-      if (file.name) {
-        const obj = {
-          uri: file.uri,
-          name: file.name,
-          src: file.src,
-          ext: file.ext,
-          type: file.type,
-          text: file.text,
+      };
+    };
+  } {
+    const files: {
+      [type: string]: {
+        [name: string]: {
+          uri: string;
+          name: string;
+          src: string;
+          ext: string;
+          type: string;
+          text?: string;
         };
-        variables[file.type + "." + file.name] ??= {
-          tag: "asset",
-          line: -1,
-          from: -1,
-          to: -1,
-          indent: 0,
-          type: file.type,
-          name: file.name,
-          id: file.type + "." + file.name,
-          compiled: obj,
-          implicit: true,
+      };
+    } = {};
+    this._files.forEach((file) => {
+      if (file.name) {
+        files[file.type] ??= {};
+        files[file.type]![file.name] = {
+          ...file,
         };
       }
     });
-    return variables;
+    return files;
   }
 
-  parse(uri: string, force = false) {
-    const syncedDocument = this.__syncedDocuments.get(uri);
-    if (syncedDocument) {
-      const syncedProgram = this._syncedPrograms.get(uri);
-      if (!force && syncedDocument.version === syncedProgram?.version) {
-        return syncedProgram;
+  parse(force = false) {
+    let docChanged = false;
+    const newParsedVersions = new Map<string, number>();
+    for (let [, d] of this.__syncedDocuments) {
+      const parsedVersion = this._parsedVersions.get(d.uri);
+      if (d.version !== parsedVersion) {
+        docChanged = true;
       }
-      const variables = this.getVariables(this._files);
-      const script = syncedDocument.getText();
-      const tree = this._parser.compile(script);
-      const program = this._parser.build(script, tree, {
-        augmentations: { builtins: STRUCT_DEFAULTS, variables },
-      });
-      program.version = syncedDocument.version;
-      this._syncedPrograms.set(uri, program);
-      this._onDidParse.fire(
-        Object.freeze({
-          document: syncedDocument,
-          program,
-        })
-      );
+      newParsedVersions.set(d.uri, d.version);
     }
-    return this._syncedPrograms.get(uri);
-  }
-
-  /**
-   * Returns the sparkdown program for the given URI.
-   * Returns undefined if the document is not managed by this instance.
-   *
-   * @param uri The text document's URI to retrieve.
-   * @return the text document's sparkdown program or `undefined`.
-   */
-  public program(uri: string): SparkProgram | undefined {
-    const existingProgram = this._syncedPrograms.get(uri);
-    if (existingProgram) {
-      return existingProgram;
+    for (let [uri] of this.__syncedDocuments) {
+      if (!this.__syncedDocuments.get(uri)) {
+        docChanged = true;
+        break;
+      }
     }
-    return this.parse(uri);
+    if (force || docChanged) {
+      const mainUri = this.resolve("main.script");
+      const mainDocument = this.__syncedDocuments.get(mainUri);
+      if (mainDocument) {
+        const mainScript = mainDocument.getText();
+        const program = this._parser.parse(mainScript);
+        this._parsedVersions = newParsedVersions;
+        this._onDidParse.fire(
+          Object.freeze({
+            document: mainDocument,
+            program,
+          })
+        );
+      }
+    }
+    return this._program;
   }
 
   onCreatedFile(fileUri: string) {
@@ -331,19 +324,20 @@ export default class SparkdownTextDocuments<
     const type = this.getFileType(fileUri);
     const ext = this.getFileExtension(fileUri);
     const src = this._urls[fileUri] || fileUri;
-    this._files[fileUri] = {
+    this._files.set(fileUri, {
       uri: fileUri,
       name,
       type,
       ext,
       src,
-    };
+    });
+    this._parser.configure({ files: this.getFiles() });
   }
 
   onDeletedFile(fileUri: string) {
-    delete this._files[fileUri];
-    this._syncedPrograms.delete(fileUri);
+    this._files.delete(fileUri);
     this.__syncedDocuments.delete(fileUri);
+    this._parser.configure({ files: this.getFiles() });
   }
 
   public override listen(connection: Connection): Disposable {
@@ -364,7 +358,7 @@ export default class SparkdownTextDocuments<
         (params: DocumentDiagnosticParams): DocumentDiagnosticReport => {
           const uri = params.textDocument.uri;
           const document = this.get(uri);
-          const program = this.program(uri);
+          const program = this.program;
           if (document && program) {
             return {
               kind: "full",
@@ -383,14 +377,14 @@ export default class SparkdownTextDocuments<
           const uri = params.uri;
           const src = params.src;
           this._urls[uri] = src;
-          const existingFile = this._files[uri];
+          const existingFile = this._files.get(uri);
           if (existingFile) {
             existingFile.src = src;
           }
           const type = this.getFileType(uri);
           if (type !== "script") {
             // When asset url changes, reparse all programs so that asset srcs are up-to-date.
-            this.debouncedParseAll();
+            this.debouncedParse();
           }
         }
       )
@@ -407,25 +401,16 @@ export default class SparkdownTextDocuments<
             const type = this.getFileType(fileUri);
             const ext = this.getFileExtension(fileUri);
             const src = this._urls[fileUri] || fileUri;
-            this._files[fileUri] = {
+            this._files.set(fileUri, {
               uri: fileUri,
               name,
               type,
               ext,
               text,
               src,
-            };
+            });
           });
-          this.debouncedParseAll();
-        }
-      )
-    );
-    disposables.push(
-      connection.onRequest(
-        ParseTextDocumentMessage.method,
-        (params: ParseTextDocumentParams) => {
-          const uri = params.textDocument.uri;
-          return this.parse(uri);
+          this.debouncedParse();
         }
       )
     );
@@ -441,7 +426,7 @@ export default class SparkdownTextDocuments<
         this.__syncedDocuments.set(td.uri, document);
         const toFire = Object.freeze({ document });
         this.__onDidOpen.fire(toFire);
-        this.parse(td.uri);
+        this.parse();
       })
     );
     disposables.push(
@@ -470,7 +455,7 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              this.throttledParse(td.uri);
+              this.throttledParse();
             }
           }
         }

@@ -6,9 +6,12 @@ const getRelativeSectionName = <
   }
 >(
   currentSectionName: string,
-  sections: Record<string, T>,
+  sections: Record<string, T> | undefined,
   expression: "<<" | ">>" | "--" | "++" | "<<--" | string
 ): string => {
+  if (!sections) {
+    return "";
+  }
   if (expression === "<<") {
     // FIRST SIBLING
     const parentId = sections?.[currentSectionName]?.parent;

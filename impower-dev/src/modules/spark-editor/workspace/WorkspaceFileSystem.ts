@@ -74,14 +74,17 @@ export default class WorkspaceFileSystem {
   protected _files?: Record<string, FileData>;
 
   constructor() {
-    const projectId =
-      workspace.current.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
+    const projectId = this.getLoadedProjectId();
     this._loadedProjectId = projectId;
     this._initialFilesRef.get(projectId);
     this._fileSystemWorker.addEventListener(
       "message",
       this.handleWorkerMessage
     );
+  }
+
+  getLoadedProjectId() {
+    return workspace.current.project.id || WorkspaceConstants.LOCAL_PROJECT_ID;
   }
 
   protected async loadInitialFiles(projectId: string) {
@@ -100,7 +103,7 @@ export default class WorkspaceFileSystem {
       result[file.uri] = file;
       this.preloadFile(file);
     });
-    await Workspace.ls.start(this._files);
+    await Workspace.ls.start(this.getDirectoryUri(projectId), this._files);
     const connection = await Workspace.ls.getConnection();
     connection.sendNotification(DidWatchFilesMessage.type, didWatchFilesParams);
     return result;

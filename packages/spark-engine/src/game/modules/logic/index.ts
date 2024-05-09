@@ -1,4 +1,3 @@
-export * from "./classes/LogicManager";
 export * from "./types/BlockData";
 export * from "./types/BlockState";
 export * from "./types/CommandData";

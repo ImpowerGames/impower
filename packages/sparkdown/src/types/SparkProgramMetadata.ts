@@ -15,7 +15,6 @@ export interface SparkProgramMetadata {
   dialogueDuration?: number;
   actionDuration?: number;
 
-  parseTime?: number;
   parseDuration?: number;
   lineCount?: number;
 }

@@ -1,0 +1,41 @@
+import type { SparkSection } from "../../../../sparkdown/src/types/SparkSection";
+import type { BlockData } from "../../game/modules/logic/types/BlockData";
+import generateCommand from "./generateCommand";
+
+const generateBlockMap = (
+  sections: Record<string, SparkSection> | undefined,
+  result: Record<string, BlockData> = {}
+) => {
+  if (!sections) {
+    return result;
+  }
+  Object.entries(sections).forEach(([sectionId, s]) => {
+    const block: BlockData = result[sectionId] ?? {
+      source: {
+        file: s.file,
+        line: s.line,
+        from: s.from,
+        to: s.to,
+      },
+      name: s.name,
+      level: s.level,
+      parent: s.parent,
+      children: s.children || [],
+      commands: [],
+      path: s.path,
+    };
+    s.tokens?.forEach((token) => {
+      block.commands ??= [];
+      const commandIndex = block.commands.length;
+      const runtimeCommand = generateCommand(token, sectionId, commandIndex);
+      if (runtimeCommand) {
+        block.commands.push(runtimeCommand);
+      }
+    });
+    result[sectionId] = block;
+  });
+
+  return result;
+};
+
+export default generateBlockMap;

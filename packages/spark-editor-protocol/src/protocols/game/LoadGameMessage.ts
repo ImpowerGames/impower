@@ -4,7 +4,7 @@ import { MessageProtocolRequestType } from "../MessageProtocolRequestType";
 export type LoadGameMethod = typeof LoadGameMessage.method;
 
 export interface LoadGameParams {
-  programs: { uri: string; program: SparkProgram }[];
+  program: SparkProgram;
 }
 
 export class LoadGameMessage {

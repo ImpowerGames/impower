@@ -1,6 +1,6 @@
 const getCommandIndexAtLine = (
   line: number,
-  commands: { source: { line: number } }[] | undefined
+  commands: { source: { file?: string; line: number } }[] | undefined
 ): number => {
   if (!commands) {
     return -1;

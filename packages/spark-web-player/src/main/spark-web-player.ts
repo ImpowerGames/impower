@@ -25,9 +25,7 @@ export default class SparkWebPlayer extends Component(spec) {
 
   _debugging = false;
 
-  _programs: SparkProgram[] = [];
-
-  _programIndices: Record<string, number> = {};
+  _program?: SparkProgram;
 
   _options?: {
     waypoints?: { uri: string; line: number }[];
@@ -104,13 +102,7 @@ export default class SparkWebPlayer extends Component(spec) {
       const message = e.detail;
       if (LoadGameMessage.type.isRequest(message)) {
         const params = message.params;
-        const programs = params.programs;
-        this._programs = [];
-        this._programIndices = {};
-        programs.forEach((p, index) => {
-          this._programIndices![p.uri] = index;
-          this._programs!.push(p.program);
-        });
+        this._program = params.program;
         this.emit(
           LoadGameMessage.method,
           LoadGameMessage.type.response(message.id, null)
@@ -220,20 +212,8 @@ export default class SparkWebPlayer extends Component(spec) {
   buildGame(preview: boolean): void {
     if (this._options) {
       const options = this._options;
-      const waypoints = options.waypoints
-        ?.filter((waypoint) => this._programIndices[waypoint.uri] != null)
-        ?.map((waypoint) => ({
-          program: this._programIndices[waypoint.uri]!,
-          line: waypoint.line,
-        }));
-      const startpoint =
-        options.startpoint &&
-        this._programIndices[options.startpoint.uri] != null
-          ? {
-              program: this._programIndices[options.startpoint.uri]!,
-              line: options.startpoint.line,
-            }
-          : undefined;
+      const waypoints = options.waypoints;
+      const startpoint = options.startpoint;
       const simulation = {
         waypoints,
         startpoint,
@@ -241,7 +221,10 @@ export default class SparkWebPlayer extends Component(spec) {
       if (this._builder?.game) {
         this._builder.game.destroy();
       }
-      this._builder = new GameBuilder(this._programs, {
+      if (!this._program) {
+        return;
+      }
+      this._builder = new GameBuilder(this._program, {
         simulation,
         preview,
       });
@@ -250,9 +233,8 @@ export default class SparkWebPlayer extends Component(spec) {
         (msg) => {
           if (WillExecuteMessage.type.isNotification(msg)) {
             const source = msg.params.source;
-            const programs = Object.keys(this._programIndices);
             if (source) {
-              const uri = programs[source.file];
+              const uri = source.file;
               if (uri) {
                 this.emit(
                   WillExecuteGameCommandMessage.method,
@@ -280,9 +262,8 @@ export default class SparkWebPlayer extends Component(spec) {
         (msg) => {
           if (DidExecuteMessage.type.isNotification(msg)) {
             const source = msg.params.source;
-            const programs = Object.keys(this._programIndices);
             if (source) {
-              const uri = programs[source.file];
+              const uri = source.file;
               if (uri) {
                 this.emit(
                   DidExecuteGameCommandMessage.method,
@@ -321,7 +302,7 @@ export default class SparkWebPlayer extends Component(spec) {
   }
 
   updatePreview(line: number) {
-    if (!this._builder || this._builder.programs !== this._programs) {
+    if (!this._builder || this._builder.program !== this._program) {
       // If haven't built game yet, or programs have changed since last build, build game.
       this.buildGame(true);
     }

@@ -1,6 +1,5 @@
-import { Asset } from "./Asset";
-
-export interface Audio extends Asset {
+export interface Audio {
+  src: string;
   volume: number;
   cues: number[];
 }

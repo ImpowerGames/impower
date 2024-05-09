@@ -6,18 +6,17 @@ import { SparkToken } from "./SparkToken";
 import { SparkVariable } from "./SparkVariable";
 
 export interface SparkProgram {
-  builtins?: { [type: string]: { [name: string]: any } };
+  file?: string;
 
   frontMatter?: Record<string, string[]>;
-  chunks: Record<string, SparkChunk>;
-  sections: Record<string, SparkSection>;
+  chunks?: Record<string, SparkChunk>;
+  sections?: Record<string, SparkSection>;
   variables?: Record<string, SparkVariable>;
 
-  tokens: SparkToken[];
-  context: { [type: string]: { [name: string]: any } };
+  tokens?: SparkToken[];
+  context?: { [type: string]: { [name: string]: any } };
   stored?: string[];
 
-  metadata: SparkProgramMetadata;
+  metadata?: SparkProgramMetadata;
   diagnostics?: SparkDiagnostic[];
-  version?: number;
 }

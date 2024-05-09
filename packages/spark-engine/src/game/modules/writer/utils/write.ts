@@ -5,7 +5,7 @@ import {
   ImageEvent,
   TextEvent,
 } from "../../../core/types/SequenceEvent";
-import { Matcher } from "../classes/Matcher";
+import { Matcher } from "../classes/helpers/Matcher";
 import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
 import { WriteResult } from "../types/WriteResult";

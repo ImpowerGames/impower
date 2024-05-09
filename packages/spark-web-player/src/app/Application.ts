@@ -147,8 +147,22 @@ export default class Application {
 
     // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     game
-      .init((msg: Message, _t?: ArrayBuffer[]) => {
-        this.connection.receive(msg);
+      .init({
+        send: (msg: Message, _t?: ArrayBuffer[]) => {
+          this.connection.receive(msg);
+        },
+        resolve: (path: string) => {
+          // TODO: resolve import and load paths to url
+          return path;
+        },
+        fetch: async (url: string): Promise<string> => {
+          const response = await fetch(url);
+          const text = await response.text();
+          return text;
+          // TODO: Differentiate between script text response and asset blob response
+          // const buffer = await response.arrayBuffer();
+          // return buffer;
+        },
       })
       .then(() => {
         if (!game.context.system.previewing) {
@@ -168,7 +182,7 @@ export default class Application {
     const loadingUIName = "loading";
     const loadingProgressVariable = "--loading_progress";
     if (this.game.module.ui) {
-      this.game.module.ui.style.update(loadingUIName, "", {
+      this.game.module.ui.style.update(loadingUIName, {
         [loadingProgressVariable]: "0",
       });
     }

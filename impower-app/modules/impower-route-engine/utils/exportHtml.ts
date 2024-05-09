@@ -29,7 +29,6 @@ export const exportHtml = async (
   const result = EngineSparkParser.instance.parse(script, {
     augmentations,
     removeBlockComments: true,
-    skipTokens: ["condition"],
   });
   const html = generateSparkHtmlData(result, SPARK_SCREENPLAY_CONFIG, {
     normal: decodeBase64(normal),
