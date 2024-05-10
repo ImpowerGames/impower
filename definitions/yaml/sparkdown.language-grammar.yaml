@@ -37,6 +37,11 @@ patterns:
 
 repository:
   Comment:
+    patterns:
+      - { include: "#LineComment" }
+      - { include: "#BlockComment" }
+
+  LineComment:
     tag: lineComment
     name: comment.line.sd
     match: ([ ]*)([/][/])($|[ ]*)($|.*$)
@@ -54,8 +59,18 @@ repository:
         patterns:
           - { include: "#CommentContent" }
 
+  BlockComment:
+    tag: blockComment
+    name: comment.block.sd
+    begin: ([/][*])
+    beginCaptures:
+      1: { name: 'punctuation.definition.comment.mark' }
+    end: ([*][/])
+    endCaptures:
+      1: { name: 'punctuation.definition.comment.mark' }
+
   CommentContent:
-    tag: definition(lineComment)
+    tag: definition(comment)
     name: punctuation.definition.comment.content.sd
     match: (.+)
 
