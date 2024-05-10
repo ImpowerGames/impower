@@ -188,7 +188,7 @@ export default class UIScene extends Scene {
                 } else {
                   const camelCasedPropName = prop
                     .toLowerCase()
-                    .replace(/([-_][a-z])/g, (group) =>
+                    .replace(/([-_][\p{Ll}])/gu, (group) =>
                       group.toUpperCase().replace("-", "").replace("_", "")
                     );
                   convertedKeyframe[camelCasedPropName] = value;

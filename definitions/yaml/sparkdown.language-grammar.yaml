@@ -6,6 +6,15 @@ scopeName: text.source.sparkdown
 uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
+variables:
+  IDENTIFIER_START_CHAR:  '_\p{L}'
+  IDENTIFIER_END_CHAR: '0-9_\p{L}'
+  IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
+  BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
+  AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
+  STANDARD_FUNCTIONS: 'LIST_COUNT|LIST_MIN|LIST_MAX|LIST_ALL|LIST_INVERT|LIST_RANDOM|CHOICE_COUNT|TURNS_SINCE|LIST_RANGE|TURNS|POW|FLOOR|CEILING|INT|FLOAT'
+  WHITESPACE: '[^\S\n\r]'
+
 patterns:
   - { include: "#Comment" }
   - { include: "#Label" }
@@ -118,7 +127,7 @@ repository:
   FrontMatterField:
     tag: meta
     name: meta.front-matter.field.sd
-    begin: ^([_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*)($|[:])(.*$(?:\r\n|\r|\n)?)
+    begin: ^({{IDENTIFIER}})($|[ ]*)($|[:])(.*$(?:\r\n|\r|\n)?)
     beginCaptures:
       1:
         patterns:
@@ -137,7 +146,7 @@ repository:
       - { include: "#FrontMatterStringBlock" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: (?=^[_a-zA-Z][_a-zA-Z0-9]*[ ]*[:]|[-]{3,})
+    end: (?=^{{IDENTIFIER}}[ ]*[:]|[-]{3,})
 
   FrontMatterArrayItem:
     match: ^([ ]{2,})([-])($|[ ]+)(.*$(?:\r\n|\r|\n)?)
@@ -227,7 +236,7 @@ repository:
   Section:
     tag: definition(heading)
     name: keyword.control.section.sd
-    match: ^([#]+)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*$)
+    match: ^([#]+)($|[ ]+)($|{{IDENTIFIER}})($|[ ]*$)
     captures:
       1:
         patterns:
@@ -306,7 +315,7 @@ repository:
     end: ($)
 
   ImportDeclaration:
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*)($|.+$)
+    match: ({{IDENTIFIER}})($|[ ]+)($|{{IDENTIFIER}})($|[ ]*)($|.+$)
     captures:
       1:
         patterns:
@@ -400,7 +409,7 @@ repository:
   DefineFunction:
     tag: meta
     name: meta.definition.function.sd
-    begin: ^([ ]*)(define)($|[ ]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)(?=[(])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*))(?=[(])
+    begin: ^([ ]*)(define)($|[ ]+)(?:({{IDENTIFIER}})([ ]*)(?=[(])|($|{{IDENTIFIER}})($|[ ]+)($|{{IDENTIFIER}})([ ]*))(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -1025,7 +1034,7 @@ repository:
           - { include: "#PunctuationSemicolon" }
 
   FunctionAccessor:
-    begin: ([.]|[?][.](?!\s*[0-9]))?([_a-zA-Z][_a-zA-Z0-9]*)(?=[(])
+    begin: ([.]|[?][.](?!\s*[0-9]))?({{IDENTIFIER}})(?=[(])
     beginCaptures:
       1:
         patterns:
@@ -1124,10 +1133,10 @@ repository:
       - { include: "#Expression" }
 
   AccessPath:
-    begin: (?=[_a-zA-Z])
+    begin: (?=[{{IDENTIFIER_START_CHAR}}])
     patterns:
       - { include: "#AccessPart" }
-    end: (?=$|[^_a-zA-Z\[?!.])
+    end: (?=$|[^{{IDENTIFIER_START_CHAR}}?!.\[])
 
   AccessPart:
     emit: true
@@ -1318,7 +1327,7 @@ repository:
         name: keyword.operator.expression.end.audio.sd
 
   AssetTagContent:
-    match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\b))?($|[ ]*\S*?)($|[ ]*\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
+    match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)([ ]*)($|{{IDENTIFIER}}\b))?($|[ ]*\S*?)($|[ ]*\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
     captures:
       1:
         patterns:
@@ -1372,7 +1381,7 @@ repository:
   AssetTagName:
     tag: variableName
     name: variable.other.constant.asset.name.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)
+    match: ({{IDENTIFIER}})
 
   CombineOperator:
     tag: propertyName
@@ -2014,16 +2023,6 @@ repository:
   Operator:
     emit: true
     patterns:
-      - { include: "#AwaitOperator" }
-      - { include: "#YieldOperator" }
-      - { include: "#YieldIteratorOperator" }
-      - { include: "#DeleteOperator" }
-      - { include: "#InOperator" }
-      - { include: "#OfOperator" }
-      - { include: "#InstanceOfOperator" }
-      - { include: "#NewOperator" }
-      - { include: "#VoidOperator" }
-      - { include: "#AsOperator" }
       - { include: "#SpreadOperator" }
       - { include: "#AssignArithmeticOperator" }
       - { include: "#AssignBitwiseOperator" }
@@ -2039,73 +2038,6 @@ repository:
       - { include: "#ArithmeticOperator" }
       - { include: "#AssignMultiplyOperator" }
       - { include: "#AssignDivideOperator" }
-
-  AwaitOperator:
-    tag: controlKeyword
-    name: keyword.control.flow.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(await)(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
-
-  YieldOperator:
-    begin: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?=\s*\/[*]([^*]|([*][^\/]))*[*]\/\s*[*])
-    beginCaptures:
-      1:
-        tag: controlKeyword
-        name: keyword.control.flow.sd
-    end: ([*])
-    endCaptures:
-      1:
-        tag: controlKeyword
-        name: keyword.generator.asterisk.sd
-
-  YieldIteratorOperator:
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?:\s*([*]))?
-    captures:
-      1:
-        tag: controlKeyword
-        name: keyword.control.flow.sd
-      2:
-        tag: controlKeyword
-        name: keyword.generator.asterisk.sd
-
-  DeleteOperator:
-    tag: operatorKeyword
-    name: keyword.operator.expression.delete.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))delete(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
-
-  InOperator:
-    tag: operatorKeyword
-    name: keyword.operator.expression.in.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))in(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?!\()
-
-  OfOperator:
-    tag: operatorKeyword
-    name: keyword.operator.expression.of.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))of(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?!\()
-
-  InstanceOfOperator:
-    tag: operatorKeyword
-    name: keyword.operator.expression.instanceof.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))instanceof(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
-
-  NewOperator:
-    tag: operatorKeyword
-    name: keyword.operator.new.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))new(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
-
-  VoidOperator:
-    tag: operatorKeyword
-    name: keyword.operator.expression.void.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))void(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
-
-  AsOperator:
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(as)\s+(const)(?=\s*($|[;,:})\]]))
-    captures:
-      1:
-        tag: controlKeyword
-        name: keyword.control.as.sd
-      2:
-        tag: controlKeyword
-        name: storage.modifier.sd
 
   SpreadOperator:
     tag: derefOperator
@@ -2139,7 +2071,7 @@ repository:
 
   NegateOperator:
     tag: updateOperator
-    match: (?<=[_a-zA-Z0-9])([!])\s*(?:([/][=])|(?:([/])(?![/*])))
+    match: (?<=[{{IDENTIFIER_END_CHAR}}])([!])\s*(?:([/][=])|(?:([/])(?![/*])))
     captures:
       1:
         tag: logicOperator
@@ -2182,7 +2114,7 @@ repository:
     match: ([%]|[*]|[/]|[-]|[+])
 
   AssignMultiplyOperator:
-    begin: (?<=[_a-zA-Z0-9)\]])\s*(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
+    begin: (?<=[{{IDENTIFIER_END_CHAR}})\]])\s*(?=(\/[*]([^*]|([*][^\/]))*[*]\/\s*)+(?:(/=)|(?:(/)(?![/*]))))
     end: (?:(/=)|(?:(/)(?![*]([^*]|([*][^\/]))*[*][/])))
     endCaptures:
       1:
@@ -2193,7 +2125,7 @@ repository:
         name: keyword.operator.arithmetic.sd
 
   AssignDivideOperator:
-    match: (?<=[_a-zA-Z0-9)\]])([\s]*)([/][=]|([/])(?![/*]))
+    match: (?<=[{{IDENTIFIER_END_CHAR}})\]])([\s]*)([/][=]|([/])(?![/*]))
     captures:
       2:
         tag: arithmeticOperator
@@ -2266,22 +2198,22 @@ repository:
   BooleanTrue:
     tag: bool
     name: constant.language.boolean.true.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))true(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
+    match: "{{BEFORE_KEYWORD}}true{{AFTER_KEYWORD}}"
 
   BooleanFalse:
     tag: bool
     name: constant.language.boolean.false.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))false(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
+    match: "{{BEFORE_KEYWORD}}false{{AFTER_KEYWORD}}"
 
   NullLiteral:
     tag: "null"
     name: constant.language.null.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))null(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
+    match: "{{BEFORE_KEYWORD}}null{{AFTER_KEYWORD}}"
 
   UndefinedLiteral:
     tag: "null"
     name: constant.language.undefined.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))undefined(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
+    match: "{{BEFORE_KEYWORD}}undefined{{AFTER_KEYWORD}}"
 
   NumericConstantLiteral:
     patterns:
@@ -2291,12 +2223,12 @@ repository:
   NaN:
     tag: atom
     name: constant.language.nan.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))NaN(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
+    match: "{{BEFORE_KEYWORD}}NaN{{AFTER_KEYWORD}}"
 
   Infinity:
     tag: atom
     name: constant.language.infinity.sd
-    match: (?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))Infinity(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))
+    match: "{{BEFORE_KEYWORD}}Infinity{{AFTER_KEYWORD}}"
 
   ArrayLiteral:
     name: meta.array.literal.sd
@@ -2392,7 +2324,7 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   NamespaceAccessor:
-    match: ([a-zA-Z][_$0-9a-zA-Z]*)([.]|[?][.](?!\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)?(?![_a-zA-Z0-9])(?![(])
+    match: ({{IDENTIFIER}})([.]|[?][.])({{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns: 
@@ -2405,7 +2337,7 @@ repository:
           - { include: "#VariableName" }
 
   PropertyAccessor:
-    match: ([.]|[?][.](?!\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)(?![_a-zA-Z0-9])(?![(])
+    match: ([.]|[?][.])({{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns: 
@@ -2417,30 +2349,30 @@ repository:
   IllegalPropertyDeclaration:
     tag: invalid
     name: invalid.illegal.property-declaration.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)([:])(.*?)($|(?=[;}]))
+    match: ({{IDENTIFIER}})([ ]*)([:])(.*?)($|(?=[;}]))
 
   StructName:
     tag: variableName
     name: variable.other.constant.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)(?![(])
+    match: ({{IDENTIFIER}})(?![(])
 
   VariableName:
     tag: variableName
     name: variable.other.constant.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)(?![(])
+    match: ({{IDENTIFIER}})(?![(])
 
   PropertyName:
     tag: propertyName
     name: variable.other.property.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)(?![(])
+    match: ({{IDENTIFIER}})(?![(])
 
   TypeIdentifier:
     tag: typeName
     name: support.type.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)
+    match: ({{IDENTIFIER}})
 
   Identifier:
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)
+    match: ({{IDENTIFIER}})
 
   PunctuationAccessor:
     match: (?:([.])|([?][.](?!\s*[0-9])))
@@ -2500,7 +2432,7 @@ repository:
 
   TemplateStringConditionalSubstitution:
     brackets: true
-    begin: ([{])(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?
+    begin: ([{])(?:([ ]*)({{IDENTIFIER}})([ ]*)((?=[}])|[:]))?(?:([ ]*)({{IDENTIFIER}})([ ]*)((?=[}])|[:]))?
     beginCaptures:
       1:
         tag: keyword
@@ -2557,7 +2489,7 @@ repository:
 
   InlineTemplateStringConditionalSubstitution:
     brackets: true
-    begin: ([{])(?:([ ]*)([_a-zA-Z][._a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][._a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?
+    begin: ([{])(?:([ ]*)([{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}.]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}.]*)([ ]*)((?=[}])|[:]))?
     beginCaptures:
       1:
         tag: keyword
@@ -2605,7 +2537,7 @@ repository:
   FunctionName:
     tag: meta
     name: meta.function-name.sd
-    match: ([_a-zA-Z][_a-zA-Z0-9]*)
+    match: ({{IDENTIFIER}})
     captures:
       1:
         tag: function(variableName)

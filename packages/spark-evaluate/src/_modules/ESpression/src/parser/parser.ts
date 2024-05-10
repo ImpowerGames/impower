@@ -18,8 +18,8 @@ export class Parser {
     identPart?: ICharClass
   ) {
     this.config = {
-      identStart: identStart || { re: /[$_A-Za-z]/ },
-      identPart: identPart || { re: /[$_0-9A-Za-z]/ },
+      identStart: identStart || { re: /[_\p{L}]/u },
+      identPart: identPart || { re: /[_\p{L}0-9]/u },
       maxOpLen: 0,
       ops: {},
     };

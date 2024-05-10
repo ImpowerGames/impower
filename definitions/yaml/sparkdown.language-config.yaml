@@ -43,7 +43,7 @@ wordPattern:
   flags: u
 
 onEnterRules:
-  - beforeText: ^\s*(?:[-]|[_a-zA-Z][_a-zA-Z0-9]*[:]|(?:define|var|func)\b.*?[:])\s*$
+  - beforeText: ^\s*(?:[-]|[_\p{L}][_\p{L}0-9]*[:]|(?:define|var|func)\b.*?[:])\s*$
     action: { indent: "indent" }
   - beforeText: \{\s*$
     afterText: ^\s*\}.*$

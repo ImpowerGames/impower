@@ -403,7 +403,7 @@ const getAccessPathCompletions = (
   program: SparkProgram | undefined,
   beforeText: string
 ) => {
-  const match = beforeText.match(/([_a-zA-Z0-9.]+?)$/);
+  const match = beforeText.match(/([_\p{L}0-9.]+?)$/u);
   const path = match?.[1]?.trim();
   const parts = path?.split(".") || [];
   const parentPath =

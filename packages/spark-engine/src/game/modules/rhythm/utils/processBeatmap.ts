@@ -1,7 +1,7 @@
 import type { SparkParserContext } from "../../../../../sparkdown/src/types/SparkParserContext";
 import { parseBeatmap } from "./parseBeatmap";
 
-const NAME_REGEX = /[_a-zA-Z]+[_a-zA-Z0-9]*/;
+const NAME_REGEX = /[_\p{L}][_\p{L}0-9]*/u;
 
 const processBeatmap = (
   context: SparkParserContext

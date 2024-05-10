@@ -43,7 +43,7 @@ import {
   UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
 
-const INVALID_VAR_NAME_CHAR = /[^_a-zA-Z0-9]/g;
+const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]*/gu;
 const isAsset = (obj: unknown): obj is { type: string; src: string } => {
   const asset = obj as { type: string; src: string };
   return asset && Boolean(asset.type && asset.src);

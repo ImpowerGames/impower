@@ -107,7 +107,7 @@
   },
   "onEnterRules": [
     {
-      "beforeText": "^\\s*(?:[-]|[_a-zA-Z][_a-zA-Z0-9]*[:]|(?:define|var|func)\\b.*?[:])\\s*$",
+      "beforeText": "^\\s*(?:[-]|[_\\p{L}][0-9_\\p{L}]*[:]|(?:define|var|func)\\b.*?[:])\\s*$",
       "action": {
         "indent": "indent"
       }

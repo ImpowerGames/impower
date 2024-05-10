@@ -3,7 +3,7 @@ const PRIMITIVE_TYPE_REGEX = {
   boolean: /(true|false)/,
   number: /([\d]*[.][\d]*|[\d]+)/,
   variableAccess:
-    /^(?!true$|false$)([_a-zA-Z]+[_a-zA-Z0-9]*)((?:[.](?:$|[_a-zA-Z]+[_a-zA-Z0-9]*))*)$/,
+    /^(?!true$|false$)([_\p{L}][_\p{L}0-9]*)((?:[.](?:$|[_\p{L}][_\p{L}0-9]*))*)$/u,
 } as const;
 
 export default PRIMITIVE_TYPE_REGEX;

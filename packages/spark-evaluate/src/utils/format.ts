@@ -8,7 +8,7 @@ import get from "./get";
 const PIPE_SEPARATOR_REGEX = /((?<!\\)[|])/;
 const SUBSTITUTION_ELEMENT_REGEX = /((?<![$])[{](?:\\.|[^}])*?[}])/g;
 const SUBSTITUTION_ELEMENT_CAPTURES_REGEX =
-  /([{])(?:([ \t]*)([_a-zA-Z][._a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(?:([ \t]*)([_a-zA-Z][._a-zA-Z0-9]*)([ \t]*)((?=[}])|[:]))?(.*?)((?<!\\)[}])/;
+  /([{])(?:([ \t]*)([_\p{L}][._\p{L}0-9]*)([ \t]*)((?=[}])|[:]))?(?:([ \t]*)([_\p{L}][._\p{L}0-9]*)([ \t]*)((?=[}])|[:]))?(.*?)((?<!\\)[}])/u;
 
 const captureOffset = (captures: string[], captureIndex: number) => {
   return captures.slice(1, captureIndex).join("").length;

@@ -11,6 +11,15 @@
   "scopeName": "text.source.sparkdown",
   "uuid": "E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F",
   "flags": "mu",
+  "variables": {
+    "IDENTIFIER_START_CHAR": "_\\p{L}",
+    "IDENTIFIER_END_CHAR": "0-9_\\p{L}",
+    "IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*",
+    "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
+    "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
+    "STANDARD_FUNCTIONS": "LIST_COUNT|LIST_MIN|LIST_MAX|LIST_ALL|LIST_INVERT|LIST_RANDOM|CHOICE_COUNT|TURNS_SINCE|LIST_RANGE|TURNS|POW|FLOOR|CEILING|INT|FLOAT",
+    "WHITESPACE": "[^\\S\\n\\r]"
+  },
   "patterns": [
     {
       "include": "#Comment"
@@ -207,7 +216,7 @@
     "FrontMatterField": {
       "tag": "meta",
       "name": "meta.front-matter.field.sd",
-      "begin": "^([_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
+      "begin": "^([_\\p{L}][0-9_\\p{L}]*)($|[ ]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -249,7 +258,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^[_a-zA-Z][_a-zA-Z0-9]*[ ]*[:]|[-]{3,})"
+      "end": "(?=^[_\\p{L}][0-9_\\p{L}]*[ ]*[:]|[-]{3,})"
     },
     "FrontMatterArrayItem": {
       "match": "^([ ]{2,})([-])($|[ ]+)(.*$(?:\\r\\n|\\r|\\n)?)",
@@ -398,7 +407,7 @@
     "Section": {
       "tag": "definition(heading)",
       "name": "keyword.control.section.sd",
-      "match": "^([#]+)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*$)",
+      "match": "^([#]+)($|[ ]+)($|[_\\p{L}][0-9_\\p{L}]*)($|[ ]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -544,7 +553,7 @@
       "end": "($)"
     },
     "ImportDeclaration": {
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]*)($|.+$)",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)($|[ ]+)($|[_\\p{L}][0-9_\\p{L}]*)($|[ ]*)($|.+$)",
       "captures": {
         "1": {
           "patterns": [
@@ -710,7 +719,7 @@
     "DefineFunction": {
       "tag": "meta",
       "name": "meta.definition.function.sd",
-      "begin": "^([ ]*)(define)($|[ ]+)(?:([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)(?=[(])|($|[_a-zA-Z][_a-zA-Z0-9]*)($|[ ]+)($|[_a-zA-Z][_a-zA-Z0-9]*)([ ]*))(?=[(])",
+      "begin": "^([ ]*)(define)($|[ ]+)(?:([_\\p{L}][0-9_\\p{L}]*)([ ]*)(?=[(])|($|[_\\p{L}][0-9_\\p{L}]*)($|[ ]+)($|[_\\p{L}][0-9_\\p{L}]*)([ ]*))(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1909,7 +1918,7 @@
       }
     },
     "FunctionAccessor": {
-      "begin": "([.]|[?][.](?!\\s*[0-9]))?([_a-zA-Z][_a-zA-Z0-9]*)(?=[(])",
+      "begin": "([.]|[?][.](?!\\s*[0-9]))?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -2106,13 +2115,13 @@
       ]
     },
     "AccessPath": {
-      "begin": "(?=[_a-zA-Z])",
+      "begin": "(?=[_\\p{L}])",
       "patterns": [
         {
           "include": "#AccessPart"
         }
       ],
-      "end": "(?=$|[^_a-zA-Z\\[?!.])"
+      "end": "(?=$|[^_\\p{L}?!.\\[])"
     },
     "AccessPart": {
       "emit": true,
@@ -2448,7 +2457,7 @@
       }
     },
     "AssetTagContent": {
-      "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([ ]*)($|[_a-zA-Z][_a-zA-Z0-9]*\\b))?($|[ ]*\\S*?)($|[ ]*\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
+      "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([ ]*)($|[_\\p{L}][0-9_\\p{L}]*\\b))?($|[ ]*\\S*?)($|[ ]*\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
       "captures": {
         "1": {
           "patterns": [
@@ -2537,7 +2546,7 @@
     "AssetTagName": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.name.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "CombineOperator": {
       "tag": "propertyName",
@@ -3624,36 +3633,6 @@
       "emit": true,
       "patterns": [
         {
-          "include": "#AwaitOperator"
-        },
-        {
-          "include": "#YieldOperator"
-        },
-        {
-          "include": "#YieldIteratorOperator"
-        },
-        {
-          "include": "#DeleteOperator"
-        },
-        {
-          "include": "#InOperator"
-        },
-        {
-          "include": "#OfOperator"
-        },
-        {
-          "include": "#InstanceOfOperator"
-        },
-        {
-          "include": "#NewOperator"
-        },
-        {
-          "include": "#VoidOperator"
-        },
-        {
-          "include": "#AsOperator"
-        },
-        {
           "include": "#SpreadOperator"
         },
         {
@@ -3700,83 +3679,6 @@
         }
       ]
     },
-    "AwaitOperator": {
-      "tag": "controlKeyword",
-      "name": "keyword.control.flow.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(await)(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
-    },
-    "YieldOperator": {
-      "begin": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?=\\s*\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*[*])",
-      "beginCaptures": {
-        "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.flow.sd"
-        }
-      },
-      "end": "([*])",
-      "endCaptures": {
-        "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.generator.asterisk.sd"
-        }
-      }
-    },
-    "YieldIteratorOperator": {
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(yield)(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?:\\s*([*]))?",
-      "captures": {
-        "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.flow.sd"
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.generator.asterisk.sd"
-        }
-      }
-    },
-    "DeleteOperator": {
-      "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.delete.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))delete(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
-    },
-    "InOperator": {
-      "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.in.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))in(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
-    },
-    "OfOperator": {
-      "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.of.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))of(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))(?!\\()"
-    },
-    "InstanceOfOperator": {
-      "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.instanceof.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))instanceof(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
-    },
-    "NewOperator": {
-      "tag": "operatorKeyword",
-      "name": "keyword.operator.new.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))new(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
-    },
-    "VoidOperator": {
-      "tag": "operatorKeyword",
-      "name": "keyword.operator.expression.void.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))void(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
-    },
-    "AsOperator": {
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))(as)\\s+(const)(?=\\s*($|[;,:})\\]]))",
-      "captures": {
-        "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.as.sd"
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "storage.modifier.sd"
-        }
-      }
-    },
     "SpreadOperator": {
       "tag": "derefOperator",
       "name": "keyword.operator.spread.sd",
@@ -3809,7 +3711,7 @@
     },
     "NegateOperator": {
       "tag": "updateOperator",
-      "match": "(?<=[_a-zA-Z0-9])([!])\\s*(?:([/][=])|(?:([/])(?![/*])))",
+      "match": "(?<=[0-9_\\p{L}])([!])\\s*(?:([/][=])|(?:([/])(?![/*])))",
       "captures": {
         "1": {
           "tag": "logicOperator",
@@ -3856,7 +3758,7 @@
       "match": "([%]|[*]|[/]|[-]|[+])"
     },
     "AssignMultiplyOperator": {
-      "begin": "(?<=[_a-zA-Z0-9)\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
+      "begin": "(?<=[0-9_\\p{L})\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
       "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][/])))",
       "endCaptures": {
         "1": {
@@ -3870,7 +3772,7 @@
       }
     },
     "AssignDivideOperator": {
-      "match": "(?<=[_a-zA-Z0-9)\\]])([\\s]*)([/][=]|([/])(?![/*]))",
+      "match": "(?<=[0-9_\\p{L})\\]])([\\s]*)([/][=]|([/])(?![/*]))",
       "captures": {
         "2": {
           "tag": "arithmeticOperator",
@@ -3975,22 +3877,22 @@
     "BooleanTrue": {
       "tag": "bool",
       "name": "constant.language.boolean.true.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))true(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
+      "match": "(?<![0-9_\\p{L}])(?:(?<=\\.\\.\\.)|(?<!\\.))true(?![0-9_\\p{L}])(?:(?=\\.\\.\\.)|(?!\\.))"
     },
     "BooleanFalse": {
       "tag": "bool",
       "name": "constant.language.boolean.false.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))false(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
+      "match": "(?<![0-9_\\p{L}])(?:(?<=\\.\\.\\.)|(?<!\\.))false(?![0-9_\\p{L}])(?:(?=\\.\\.\\.)|(?!\\.))"
     },
     "NullLiteral": {
       "tag": "null",
       "name": "constant.language.null.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))null(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
+      "match": "(?<![0-9_\\p{L}])(?:(?<=\\.\\.\\.)|(?<!\\.))null(?![0-9_\\p{L}])(?:(?=\\.\\.\\.)|(?!\\.))"
     },
     "UndefinedLiteral": {
       "tag": "null",
       "name": "constant.language.undefined.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))undefined(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
+      "match": "(?<![0-9_\\p{L}])(?:(?<=\\.\\.\\.)|(?<!\\.))undefined(?![0-9_\\p{L}])(?:(?=\\.\\.\\.)|(?!\\.))"
     },
     "NumericConstantLiteral": {
       "patterns": [
@@ -4005,12 +3907,12 @@
     "NaN": {
       "tag": "atom",
       "name": "constant.language.nan.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))NaN(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
+      "match": "(?<![0-9_\\p{L}])(?:(?<=\\.\\.\\.)|(?<!\\.))NaN(?![0-9_\\p{L}])(?:(?=\\.\\.\\.)|(?!\\.))"
     },
     "Infinity": {
       "tag": "atom",
       "name": "constant.language.infinity.sd",
-      "match": "(?<![_a-zA-Z0-9])(?:(?<=[.][.][.])|(?<![.]))Infinity(?![_a-zA-Z0-9])(?:(?=[.][.][.])|(?![.]))"
+      "match": "(?<![0-9_\\p{L}])(?:(?<=\\.\\.\\.)|(?<!\\.))Infinity(?![0-9_\\p{L}])(?:(?=\\.\\.\\.)|(?!\\.))"
     },
     "ArrayLiteral": {
       "name": "meta.array.literal.sd",
@@ -4147,7 +4049,7 @@
       }
     },
     "NamespaceAccessor": {
-      "match": "([a-zA-Z][_$0-9a-zA-Z]*)([.]|[?][.](?!\\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)?(?![_a-zA-Z0-9])(?![(])",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)([.]|[?][.])([_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -4173,7 +4075,7 @@
       }
     },
     "PropertyAccessor": {
-      "match": "([.]|[?][.](?!\\s*[0-9]))([a-zA-Z][_$0-9a-zA-Z]*)(?![_a-zA-Z0-9])(?![(])",
+      "match": "([.]|[?][.])([_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -4194,30 +4096,30 @@
     "IllegalPropertyDeclaration": {
       "tag": "invalid",
       "name": "invalid.illegal.property-declaration.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)([:])(.*?)($|(?=[;}]))"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)([ ]*)([:])(.*?)($|(?=[;}]))"
     },
     "StructName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)(?![(])"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "VariableName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)(?![(])"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "PropertyName": {
       "tag": "propertyName",
       "name": "variable.other.property.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)(?![(])"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
     "TypeIdentifier": {
       "tag": "typeName",
       "name": "support.type.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "Identifier": {
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "PunctuationAccessor": {
       "match": "(?:([.])|([?][.](?!\\s*[0-9])))",
@@ -4305,7 +4207,7 @@
     },
     "TemplateStringConditionalSubstitution": {
       "brackets": true,
-      "begin": "([{])(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][_a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?",
+      "begin": "([{])(?:([ ]*)([_\\p{L}][0-9_\\p{L}]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_\\p{L}][0-9_\\p{L}]*)([ ]*)((?=[}])|[:]))?",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -4406,7 +4308,7 @@
     },
     "InlineTemplateStringConditionalSubstitution": {
       "brackets": true,
-      "begin": "([{])(?:([ ]*)([_a-zA-Z][._a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_a-zA-Z][._a-zA-Z0-9]*)([ ]*)((?=[}])|[:]))?",
+      "begin": "([{])(?:([ ]*)([_\\p{L}][0-9_\\p{L}.]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_\\p{L}][0-9_\\p{L}.]*)([ ]*)((?=[}])|[:]))?",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
@@ -4493,7 +4395,7 @@
     "FunctionName": {
       "tag": "meta",
       "name": "meta.function-name.sd",
-      "match": "([_a-zA-Z][_a-zA-Z0-9]*)",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)",
       "captures": {
         "1": {
           "tag": "function(variableName)",

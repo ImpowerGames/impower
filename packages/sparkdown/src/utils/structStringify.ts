@@ -1,4 +1,4 @@
-const VALID_FIELD_NAME_REGEX = /^[_$a-zA-Z][_$a-zA-Z0-9]*$/;
+const VALID_FIELD_NAME_REGEX = /^[_\p{L}][_\p{L}0-9]*$/u;
 
 const SCALAR_ASSIGN_OPERATOR = " = ";
 

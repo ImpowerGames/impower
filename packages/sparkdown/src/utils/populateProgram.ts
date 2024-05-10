@@ -49,7 +49,7 @@ const UNESCAPED_DOUBLE_QUOTE = /(?<!\\)["]/g;
 const ESCAPED_DOUBLE_QUOTE = /\\["]/g;
 
 const NAMESPACE_REGEX =
-  /^(?:([_a-zA-Z][_a-zA-Z0-9]*)[.])?([_a-zA-Z][_a-zA-Z0-9]*)$/;
+  /^(?:([_\p{L}][_\p{L}0-9]*)[.])?([_\p{L}][_\p{L}0-9]*)$/u;
 
 const SCENE_LOCATION_TIME_REGEX = new RegExp(
   `^${GRAMMAR_DEFINITION.repository.SceneLocationTime.match}$`,
@@ -68,7 +68,8 @@ const populateProgram = (
     str: string,
     context: Record<string, unknown> | undefined
   ) => [string, CompilerDiagnostic[], CompilerDiagnostic[]],
-  buildTree: (script: string) => Tree
+  buildTree: (script: string) => Tree,
+  readFile?: (path: string) => string
 ) => {
   const tree = buildTree(script);
 

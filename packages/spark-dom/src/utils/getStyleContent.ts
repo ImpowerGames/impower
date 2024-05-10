@@ -1,7 +1,7 @@
 import { getCSSPropertyKeyValue } from "./getCSSPropertyKeyValue";
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
-const ALPHA_REGEX = /^[a-zA-Z]/;
+const IDENTIFIER_REGEX = /^[_\p{L}][_\p{L}0-9]*$/u;
 
 export const getStyleContent = (properties: Record<string, any>): string => {
   const target = properties[".target"] as string;
@@ -46,7 +46,9 @@ export const getStyleContent = (properties: Record<string, any>): string => {
       .trim();
     const fieldsContent = `{\n  ${content}\n}`;
     const cssPropertyName = getCSSPropertyName(groupName);
-    const targetSelector = target.match(ALPHA_REGEX) ? `.${target}` : target;
+    const targetSelector = target.match(IDENTIFIER_REGEX)
+      ? `.${target}`
+      : target;
     if (cssPropertyName.startsWith(":")) {
       textContent += `${targetSelector}${cssPropertyName} ${fieldsContent}\n`;
     } else if (groupName.startsWith("*")) {
