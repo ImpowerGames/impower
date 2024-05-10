@@ -90,31 +90,23 @@
     "LineComment": {
       "tag": "lineComment",
       "name": "comment.line.sd",
-      "match": "([ ]*)([/][/])($|[ ]*)($|.*$)",
-      "captures": {
+      "begin": "([/][/])",
+      "beginCaptures": {
         "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
-          "tag": "definition(lineComment)",
-          "name": "punctuation.definition.comment.mark.sd"
-        },
-        "3": {
-          "tag": "definition(lineComment)",
-          "name": "punctuation.definition.comment.separator.sd"
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#CommentContent"
-            }
-          ]
+          "name": "punctuation.definition.comment.mark"
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#LineCommentContent"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "LineCommentContent": {
+      "tag": "definition(lineComment)",
+      "name": "punctuation.definition.comment.content.sd",
+      "match": "(.+)"
     },
     "BlockComment": {
       "tag": "blockComment",
@@ -125,6 +117,11 @@
           "name": "punctuation.definition.comment.mark"
         }
       },
+      "patterns": [
+        {
+          "include": "#BlockCommentContent"
+        }
+      ],
       "end": "([*][/])",
       "endCaptures": {
         "1": {
@@ -132,10 +129,10 @@
         }
       }
     },
-    "CommentContent": {
-      "tag": "definition(comment)",
+    "BlockCommentContent": {
+      "tag": "definition(lineComment)",
       "name": "punctuation.definition.comment.content.sd",
-      "match": "(.+)"
+      "match": "(.+)(?=[*][/])"
     },
     "IllegalExpression": {
       "tag": "invalid",

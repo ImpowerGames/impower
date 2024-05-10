@@ -44,20 +44,17 @@ repository:
   LineComment:
     tag: lineComment
     name: comment.line.sd
-    match: ([ ]*)([/][/])($|[ ]*)($|.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
-        tag: definition(lineComment)
-        name: punctuation.definition.comment.mark.sd
-      3:
-        tag: definition(lineComment)
-        name: punctuation.definition.comment.separator.sd
-      4:
-        patterns:
-          - { include: "#CommentContent" }
+    begin: ([/][/])
+    beginCaptures:
+      1: { name: 'punctuation.definition.comment.mark' }
+    patterns:
+      - { include: "#LineCommentContent" }
+    end: (?=$)
+
+  LineCommentContent:
+    tag: definition(lineComment)
+    name: punctuation.definition.comment.content.sd
+    match: (.+)
 
   BlockComment:
     tag: blockComment
@@ -65,14 +62,16 @@ repository:
     begin: ([/][*])
     beginCaptures:
       1: { name: 'punctuation.definition.comment.mark' }
+    patterns:
+      - { include: "#BlockCommentContent" }
     end: ([*][/])
     endCaptures:
       1: { name: 'punctuation.definition.comment.mark' }
 
-  CommentContent:
-    tag: definition(comment)
+  BlockCommentContent:
+    tag: definition(lineComment)
     name: punctuation.definition.comment.content.sd
-    match: (.+)
+    match: (.+)(?=[*][/])
 
   IllegalExpression:
     tag: invalid
