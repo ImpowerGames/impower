@@ -46,8 +46,8 @@ export default class SparkParser {
     }
   }
 
-  parse(script: string): SparkProgram {
-    return this.buildProgram(script);
+  parse(script: string, readFile?: (path: string) => string): SparkProgram {
+    return this.buildProgram(script, readFile);
   }
 
   buildTree(script: string): Tree {
@@ -69,7 +69,10 @@ export default class SparkParser {
     return tree;
   }
 
-  buildProgram(script: string): SparkProgram {
+  buildProgram(
+    script: string,
+    readFile?: (path: string) => string
+  ): SparkProgram {
     const parseStartTime = Date.now();
 
     const nodeNames = this._grammar.nodeNames as SparkdownNodeName[];
@@ -90,7 +93,15 @@ export default class SparkParser {
     }
 
     // recursively build and populate program
-    populateProgram(program, script, nodeNames, compiler, formatter, buildTree);
+    populateProgram(
+      program,
+      script,
+      nodeNames,
+      compiler,
+      formatter,
+      buildTree,
+      readFile
+    );
 
     const parseEndTime = Date.now();
     program.metadata ??= {};
