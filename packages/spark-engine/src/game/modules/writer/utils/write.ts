@@ -446,7 +446,7 @@ export const write = (
             if (floatingIndex != null) {
               floatingIndexMap.set(activeFloatingMark, floatingIndex + 1);
             } else {
-              floatingIndexMap.set(activeFloatingMark, 0);
+              floatingIndexMap.set(activeFloatingMark, 1);
             }
           }
           const floating = activeFloatingMark
@@ -459,7 +459,7 @@ export const write = (
             if (tremblingIndex != null) {
               tremblingIndexMap.set(activeTremblingMark, tremblingIndex + 1);
             } else {
-              tremblingIndexMap.set(activeTremblingMark, 0);
+              tremblingIndexMap.set(activeTremblingMark, 1);
             }
           }
           const trembling = activeTremblingMark
