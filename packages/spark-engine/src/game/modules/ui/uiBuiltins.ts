@@ -158,6 +158,8 @@ export const uiBuiltins = () => ({
     }),
     choice: _style({
       $name: "choice",
+      display: "flex",
+      flex: 1,
       background_color: "white",
       color: "black",
       padding: 8,
@@ -166,6 +168,30 @@ export const uiBuiltins = () => ({
       max_width: 800,
       text_align: "center",
       opacity: "0",
+    }),
+    choice_0: _style({
+      $name: "choice_0",
+      display: "flex",
+    }),
+    choice_1: _style({
+      $name: "choice_1",
+      display: "flex",
+    }),
+    choice_2: _style({
+      $name: "choice_2",
+      display: "flex",
+    }),
+    choice_3: _style({
+      $name: "choice_3",
+      display: "flex",
+    }),
+    choice_4: _style({
+      $name: "choice_4",
+      display: "flex",
+    }),
+    choice_5: _style({
+      $name: "choice_5",
+      display: "flex",
     }),
     bottom: _style({
       $name: "bottom",

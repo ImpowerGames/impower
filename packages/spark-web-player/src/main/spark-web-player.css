@@ -24,10 +24,6 @@ spark-web-player > .root > .wrapper {
   inset: 0;
 }
 
-#spark-game * {
-  pointer-events: auto;
-}
-
 #game-background {
   position: absolute;
   inset: 0;
