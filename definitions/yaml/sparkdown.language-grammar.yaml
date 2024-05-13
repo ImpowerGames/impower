@@ -21,7 +21,6 @@ variables:
 patterns:
   - { include: "#Newline" }
   - { include: "#Annotation" }
-  - { include: "#ExplicitAction" }
   - { include: "#FrontMatter" }
   - { include: "#Todo" }
   - { include: "#Include" }
@@ -1689,11 +1688,10 @@ repository:
           
   Display:
     patterns:
-      - { include: "#ExplicitAction" }
       - { include: "#Transition" }
       - { include: "#Scene" }
       - { include: "#Dialogue" }
-      - { include: "#ImplicitAction" }
+      - { include: "#Action" }
 
   DisplayText:
     emit: true
@@ -1877,23 +1875,7 @@ repository:
 
 ########## Action ##########
 
-  ExplicitAction:
-    tag: content
-    name: entity.paragraph.text.action.explicit.sd
-    begin: ^({{WHITESPACE}}*)([!])(?=.+$)
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: punctuation
-        name: keyword.operator.expression.action.explicit.sd
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#ActionBox" }
-    end: ^{{WHITESPACE}}?(?={{EOL}})
-
-  ImplicitAction:
+  Action:
     tag: content
     name: entity.paragraph.text.action.implicit.sd
     begin: ^(?!{{WHITESPACE}}*$)({{WHITESPACE}}*)(?=.+$)
@@ -2235,9 +2217,14 @@ repository:
       - { include: "#PlainText" }
 
   Escape:
-    tag: escape
-    name: constant.character.escape.sd
-    match: (\\.)
+    match: (\\)(.)
+    captures:
+      1:
+        tag: escape
+        name: constant.character.escape.sd
+      2:
+        tag: content
+        name: markup.raw.text.sd
 
   Newline:
     tag: content

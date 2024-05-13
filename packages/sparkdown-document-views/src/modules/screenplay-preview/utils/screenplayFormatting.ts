@@ -57,6 +57,8 @@ const getDualDialogueLineStyle = (type: string) => {
 const LANGUAGE_SUPPORT = new TextmateLanguageSupport("sparkdown", GRAMMAR);
 
 const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
+  { tag: tags.escape, display: "none" },
+
   { tag: tags.quote, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "bold" },
   {

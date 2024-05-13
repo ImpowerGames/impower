@@ -29,9 +29,6 @@
       "include": "#Annotation"
     },
     {
-      "include": "#ExplicitAction"
-    },
-    {
       "include": "#FrontMatter"
     },
     {
@@ -2895,9 +2892,6 @@
     "Display": {
       "patterns": [
         {
-          "include": "#ExplicitAction"
-        },
-        {
           "include": "#Transition"
         },
         {
@@ -2907,7 +2901,7 @@
           "include": "#Dialogue"
         },
         {
-          "include": "#ImplicitAction"
+          "include": "#Action"
         }
       ]
     },
@@ -3238,34 +3232,7 @@
         }
       }
     },
-    "ExplicitAction": {
-      "tag": "content",
-      "name": "entity.paragraph.text.action.explicit.sd",
-      "begin": "^([^\\S\\n\\r]*)([!])(?=.+$)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "punctuation",
-          "name": "keyword.operator.expression.action.explicit.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#ActionBox"
-        }
-      ],
-      "end": "^[^\\S\\n\\r]?(?=(?:$|[#].+$|[/][/].+$))"
-    },
-    "ImplicitAction": {
+    "Action": {
       "tag": "content",
       "name": "entity.paragraph.text.action.implicit.sd",
       "begin": "^(?![^\\S\\n\\r]*$)([^\\S\\n\\r]*)(?=.+$)",
@@ -3825,9 +3792,17 @@
       ]
     },
     "Escape": {
-      "tag": "escape",
-      "name": "constant.character.escape.sd",
-      "match": "(\\\\.)"
+      "match": "(\\\\)(.)",
+      "captures": {
+        "1": {
+          "tag": "escape",
+          "name": "constant.character.escape.sd"
+        },
+        "2": {
+          "tag": "content",
+          "name": "markup.raw.text.sd"
+        }
+      }
     },
     "Newline": {
       "tag": "content",

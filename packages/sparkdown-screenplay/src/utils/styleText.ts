@@ -25,6 +25,16 @@ export const styleText = (
           escaped = true;
           continue;
         }
+        if (char === ">" && nextChar === ">") {
+          // Chain
+          i += 2;
+          continue;
+        }
+        if (char === "<" && nextChar === ">") {
+          // Glue
+          i += 2;
+          continue;
+        }
         if (char === "<") {
           let control = "";
           let arg = "";
