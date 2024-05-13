@@ -1,5 +1,6 @@
 comments:
   lineComment: "//"
+  blockComment: ["/*", "*/"]
 
 brackets:
   - ["{", "}"]
@@ -44,56 +45,56 @@ wordPattern:
 
 onEnterRules:
   - beforeText: ^\s*(?:[-]|[_\p{L}][_\p{L}0-9]*[:]|(?:define|var|func)\b.*?[:])\s*$
-    action: { indent: "indent" }
+    action: 
+      indent: "indent"
   - beforeText: \{\s*$
     afterText: ^\s*\}.*$
-    action: { indent: "indentOutdent" }
+    action: 
+      indent: "indentOutdent"
   - beforeText: \{\s*$
     afterText: ^(?!\s*\})
-    action: { indent: "indent" }
+    action: 
+      indent: "indent"
   - beforeText: \[\s*$
     afterText: ^\s*\].*$
-    action: { indent: "indentOutdent" }
+    action: 
+      indent: "indentOutdent"
   - beforeText: \[\s*$
     afterText: ^(?!\s*\])
-    action: { indent: "indent" }
+    action: 
+      indent: "indent"
   - beforeText: \(\s*$
     afterText: ^\s*\).*$
-    action: { indent: "indentOutdent" }
+    action:
+      indent: "indentOutdent"
   - beforeText: \(\s*$
     afterText: ^(?!\s*\))
-    action: { indent: "indent" }
+    action: 
+      indent: "indent"
   - beforeText: ^\s*$
-    action: { 
-      indent: "none",
+    action: 
+      indent: "none"
       deleteText: "  "
-    }
   - beforeText: ^\s*[+]\s*$
-    action: { 
-      indent: "none",
-      deleteText: "+ " 
-    }
+    action: 
+      indent: "none"
+      deleteText: "+ "
   - beforeText: ^\s*[+](\s+|$)
-    action: { 
-      indent: "none",
+    action:
+      indent: "none"
       appendText: "+ "
-    }
   - beforeText: ^\s*[*]\s*$
-    action: { 
-      indent: "none",
+    action:
+      indent: "none"
       deleteText: "* "
-    }
   - beforeText: ^\s*[*](\s+|$)
-    action: { 
-      indent: "none",
-      appendText: "* " 
-    }
+    action:
+      indent: "none"
+      appendText: "* "
   - beforeText: ^\s*[-](\s+|$)
-    action: { 
-      indent: "none",
+    action:
+      indent: "none"
       appendText: "- " 
-    }
   - beforeText: ^\s*
-    action: { 
-      indent: "none",
-    }
+    action:
+      indent: "none"

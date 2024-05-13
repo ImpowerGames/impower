@@ -17,18 +17,16 @@
     "IDENTIFIER": "[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*",
     "BEFORE_KEYWORD": "(?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\\.\\.\\.)|(?<!\\.))",
     "AFTER_KEYWORD": "(?![{{IDENTIFIER_END_CHAR}}])(?:(?=\\.\\.\\.)|(?!\\.))",
-    "STANDARD_FUNCTIONS": "LIST_COUNT|LIST_MIN|LIST_MAX|LIST_ALL|LIST_INVERT|LIST_RANDOM|CHOICE_COUNT|TURNS_SINCE|LIST_RANGE|TURNS|POW|FLOOR|CEILING|INT|FLOAT",
-    "WHITESPACE": "[^\\S\\n\\r]"
+    "WHITESPACE": "[^\\S\\n\\r]",
+    "EOL": "(?:$|[#].+$|[/][/].+$)",
+    "EOK": "(?:$|{{WHITESPACE}}+|(?=[#]|[/][/]|[/][*]))"
   },
   "patterns": [
     {
-      "include": "#Comment"
-    },
-    {
-      "include": "#Label"
-    },
-    {
       "include": "#Newline"
+    },
+    {
+      "include": "#Annotation"
     },
     {
       "include": "#ExplicitAction"
@@ -37,46 +35,50 @@
       "include": "#FrontMatter"
     },
     {
-      "include": "#Chunk"
+      "include": "#Todo"
     },
     {
-      "include": "#Section"
+      "include": "#Include"
     },
     {
-      "include": "#Checkpoint"
+      "include": "#Declaration"
     },
     {
-      "include": "#Import"
+      "include": "#Knot"
     },
     {
-      "include": "#Define"
+      "include": "#Stitch"
     },
     {
-      "include": "#Store"
+      "include": "#Divert"
     },
     {
       "include": "#Logic"
     },
     {
-      "include": "#Jump"
-    },
-    {
-      "include": "#Transition"
-    },
-    {
-      "include": "#Scene"
-    },
-    {
-      "include": "#Dialogue"
-    },
-    {
-      "include": "#ImplicitAction"
+      "include": "#Display"
     },
     {
       "include": "#Unknown"
     }
   ],
   "repository": {
+    "FileSeparator": {
+      "match": "^([/]{4,})([^\\S\\n\\r]*)([^/\\s]+)([^\\S\\n\\r]*)([/]{4,})([^\\S\\n\\r]*)$"
+    },
+    "FileSplitter": {
+      "match": "^((?:[/]{4,})(?:[^\\S\\n\\r]*)(?:[^/\\s]+)(?:[^\\S\\n\\r]*)(?:[/]{4,})(?:[^\\S\\n\\r]*))$"
+    },
+    "Annotation": {
+      "patterns": [
+        {
+          "include": "#Comment"
+        },
+        {
+          "include": "#Tag"
+        }
+      ]
+    },
     "Comment": {
       "patterns": [
         {
@@ -90,9 +92,16 @@
     "LineComment": {
       "tag": "lineComment",
       "name": "comment.line.sd",
-      "begin": "([/][/])",
+      "begin": "([^\\S\\n\\r]*)([/][/])",
       "beginCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
           "name": "punctuation.definition.comment.mark"
         }
       },
@@ -106,14 +115,21 @@
     "LineCommentContent": {
       "tag": "definition(lineComment)",
       "name": "punctuation.definition.comment.content.sd",
-      "match": "(.+)"
+      "match": "(.+$)"
     },
     "BlockComment": {
       "tag": "blockComment",
       "name": "comment.block.sd",
-      "begin": "([/][*])",
+      "begin": "([^\\S\\n\\r]*)([/][*])",
       "beginCaptures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
           "name": "punctuation.definition.comment.mark"
         }
       },
@@ -132,74 +148,57 @@
     "BlockCommentContent": {
       "tag": "definition(lineComment)",
       "name": "punctuation.definition.comment.content.sd",
-      "match": "(.+)(?=[*][/])"
+      "match": "(.+?)(?=[*][/])"
     },
-    "IllegalExpression": {
-      "tag": "invalid",
-      "name": "invalid.illegal.illegal-expression.sd",
-      "match": "(.+)",
-      "captures": {
+    "Tag": {
+      "tag": "docComment",
+      "name": "comment.line.sd entity.tag.sd",
+      "begin": "([^\\S\\n\\r]*)([#])",
+      "beginCaptures": {
         "1": {
-          "tag": "content",
-          "name": "markup.raw.unknown.sd"
-        }
-      }
-    },
-    "IllegalChar": {
-      "tag": "invalid",
-      "name": "invalid.illegal.illegal-char.sd",
-      "match": "(.)",
-      "captures": {
-        "1": {
-          "tag": "content",
-          "name": "markup.raw.unknown.sd"
-        }
-      }
-    },
-    "Unknown": {
-      "tag": "invalid",
-      "name": "invalid.illegal.unknown-statement.sd",
-      "match": "(.+$)",
-      "captures": {
-        "1": {
-          "tag": "content",
-          "name": "markup.raw.unknown.sd"
-        }
-      }
-    },
-    "Label": {
-      "match": "^([:])($|[ ]+)(.*$)",
-      "captures": {
-        "1": {
-          "tag": "contentSeparator",
-          "name": "keyword.control.flow-break.sd"
-        },
-        "2": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
         },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Expression"
-            }
-          ]
+        "2": {
+          "tag": "definition(docComment)",
+          "name": "punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd"
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#TagContent"
+        }
+      ],
+      "end": "(?=$|[#])"
     },
-    "FrontMatter": {
-      "tag": "meta",
-      "name": "meta.front-matter.sd",
-      "begin": "^([-]{3,})($|[ ]*$)",
+    "TagContent": {
+      "tag": "definition(docComment)",
+      "name": "punctuation.definition.comment.content.sd",
+      "match": "(.+?)(?=$|[#])"
+    },
+    "Todo": {
+      "tag": "docComment",
+      "name": "comment.line.sd entity.todo.sd",
+      "begin": "([^\\S\\n\\r]*)(TODO|todo)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
-          "tag": "keyword",
-          "name": "keyword.other.front-matter.dashes.start.sd"
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
         },
         "2": {
+          "tag": "definition(docComment)",
+          "name": "constant.other entity.todo.begin.sd"
+        },
+        "3": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -209,352 +208,258 @@
       },
       "patterns": [
         {
-          "include": "#Comment"
+          "include": "#Annotation"
         },
         {
-          "include": "#FrontMatterField"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
+          "include": "#TodoContent"
         }
       ],
-      "end": "^([-]{3,})($|[ ]*$)?",
-      "endCaptures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.other.front-matter.dashes.end.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
+      "end": "(?=$)"
     },
-    "FrontMatterField": {
+    "TodoContent": {
+      "tag": "definition(docComment)",
+      "name": "punctuation.definition.comment.content.sd",
+      "match": "(.+$)"
+    },
+    "Include": {
       "tag": "meta",
-      "name": "meta.front-matter.field.sd",
-      "begin": "^([_\\p{L}][0-9_\\p{L}]*)($|[ ]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
+      "name": "meta.import.include.sd",
+      "begin": "^([^\\S\\n\\r]*)(INCLUDE|include)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#FrontMatterFieldKeyword"
+              "include": "#Indent"
             }
           ]
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
+          "tag": "controlKeyword",
+          "name": "keyword.control.import.include.sd"
         },
         "3": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
-        },
-        "4": {
           "patterns": [
             {
-              "include": "#FrontMatterStringInline"
+              "include": "#EOK"
             }
           ]
         }
       },
       "patterns": [
         {
-          "include": "#FrontMatterArrayItem"
+          "include": "#Annotation"
         },
         {
-          "include": "#FrontMatterStringBlock"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
+          "include": "#IncludeContent"
         }
       ],
-      "end": "(?=^[_\\p{L}][0-9_\\p{L}]*[ ]*[:]|[-]{3,})"
+      "end": "(?=$)"
     },
-    "FrontMatterArrayItem": {
-      "match": "^([ ]{2,})([-])($|[ ]+)(.*$(?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.array.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#FrontMatterString"
-            }
-          ]
-        }
-      }
-    },
-    "FrontMatterStringInline": {
-      "match": "($|[ ]*)(.*$(?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#FrontMatterString"
-            }
-          ]
-        }
-      }
-    },
-    "FrontMatterStringBlock": {
-      "match": "^($|[ ]*)(.*$(?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#FrontMatterString"
-            }
-          ]
-        }
-      }
-    },
-    "FrontMatterString": {
+    "IncludeContent": {
       "tag": "string",
-      "name": "string.front-matter.string.sd",
-      "begin": "(?=.*$)",
+      "name": "string.include.sd",
+      "match": "(.+$)"
+    },
+    "Declaration": {
       "patterns": [
         {
-          "include": "#InlineText"
+          "include": "#VarDeclaration"
+        },
+        {
+          "include": "#ListDeclaration"
+        },
+        {
+          "include": "#ConstDeclaration"
+        },
+        {
+          "include": "#ExternalDeclaration"
+        },
+        {
+          "include": "#DefineDeclaration"
         }
-      ],
-      "end": "($(?:\\r\\n|\\r|\\n)?)",
-      "endCaptures": {
+      ]
+    },
+    "VarDeclaration": {
+      "tag": "meta",
+      "name": "storage.type.var.sd",
+      "begin": "^([^\\S\\n\\r]*)(VAR|var)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#Newline"
+              "include": "#Indent"
             }
           ]
-        }
-      }
-    },
-    "FrontMatterFieldKeyword": {
-      "tag": "keyword",
-      "name": "keyword.other.front-matter.field.sd",
-      "match": "(.+)"
-    },
-    "FileSplitter": {
-      "match": "^((?:[=]{3,})(?:[ ]*)(?:[^=\\s]+)(?:$|[ ]*)(?:$|[=].*)(?:$|[ ]*$))"
-    },
-    "Chunk": {
-      "tag": "definition(annotation)",
-      "name": "keyword.control.chunk.sd",
-      "match": "^([=]{3,})($|[ ]*)($|[^=\\s]*?)($|[ ]*)($|[=].*)($|[ ]*$)",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.control.chunk.equal.sd"
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.var.sd"
         },
         "3": {
           "patterns": [
             {
-              "include": "#ChunkName"
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Assignment"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "ListDeclaration": {
+      "tag": "meta",
+      "name": "storage.type.list.sd",
+      "begin": "^([^\\S\\n\\r]*)(LIST|list)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.list.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Assignment"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "ConstDeclaration": {
+      "tag": "meta",
+      "name": "storage.type.const.sd",
+      "begin": "^([^\\S\\n\\r]*)(CONST|const)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.const.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Assignment"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "ExternalDeclaration": {
+      "tag": "meta",
+      "name": "storage.type.external.sd",
+      "begin": "^([^\\S\\n\\r]*)(EXTERNAL|external)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.external.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#ExternalFunctionDeclaration"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "DefineDeclaration": {
+      "tag": "meta",
+      "name": "meta.definition.type.sd",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE|define)($|[^\\S\\n\\r]+)([^:]*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*)($|(?!.+)$)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.object.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#TargetAccessPath"
             }
           ]
         },
         "5": {
-          "tag": "keyword",
-          "name": "keyword.control.chunk.equal.sd"
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
         },
         "6": {
           "patterns": [
             {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
-    },
-    "ChunkName": {
-      "tag": "special(annotation)",
-      "name": "keyword.control.chunk.sd",
-      "match": "(.+)"
-    },
-    "Section": {
-      "tag": "definition(heading)",
-      "name": "keyword.control.section.sd",
-      "match": "^([#]+)($|[ ]+)($|[_\\p{L}][0-9_\\p{L}]*)($|[ ]*$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#SectionLevel"
+              "include": "#DeclarationAssignOperator"
             }
           ]
         },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#SectionName"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
-    },
-    "SectionLevel": {
-      "tag": "keyword",
-      "name": "keyword.control.section.number-sign.sd",
-      "match": "(.+)"
-    },
-    "SectionName": {
-      "tag": "special(heading)",
-      "name": "keyword.control.section.sd",
-      "match": "(.+)"
-    },
-    "Checkpoint": {
-      "match": "^([=])($|[ ]+)(.*$)((?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "tag": "contentSeparator",
-          "name": "keyword.control.flow-break.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#CheckpointName"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "CheckpointName": {
-      "tag": "contentSeparator",
-      "name": "keyword.control.flow-break.sd",
-      "match": "(.+)"
-    },
-    "Logic": {
-      "patterns": [
-        {
-          "include": "#Break"
-        },
-        {
-          "include": "#Continue"
-        },
-        {
-          "include": "#Return"
-        },
-        {
-          "include": "#Delete"
-        },
-        {
-          "include": "#Branch"
-        },
-        {
-          "include": "#Repeat"
-        },
-        {
-          "include": "#Define"
-        },
-        {
-          "include": "#Call"
-        },
-        {
-          "include": "#Assign"
-        }
-      ]
-    },
-    "Import": {
-      "tag": "meta",
-      "name": "meta.import.sd",
-      "begin": "^([ ]*)(import)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.import.sd"
-        },
-        "3": {
+        "7": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -564,24 +469,24 @@
       },
       "patterns": [
         {
-          "include": "#ImportDeclaration"
+          "include": "#Annotation"
         },
         {
-          "include": "#Newline"
+          "include": "#StructField"
         },
         {
-          "include": "#ValueText"
+          "include": "#Unknown"
         }
       ],
-      "end": "($)"
+      "end": "(?=^[^\\S\\n\\r]?(?=(?:$|[#].+$|[/][/].+$)))|(?=^(?!\\1(?:[^\\S\\n\\r]{2,})))"
     },
-    "ImportDeclaration": {
-      "match": "([_\\p{L}][0-9_\\p{L}]*)($|[ ]+)($|[_\\p{L}][0-9_\\p{L}]*)($|[ ]*)($|.+$)",
-      "captures": {
+    "Assignment": {
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[#].+$|[/][/].+$)))",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#DeclarationType"
+              "include": "#VariableName"
             }
           ]
         },
@@ -595,35 +500,30 @@
         "3": {
           "patterns": [
             {
-              "include": "#DeclarationName"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#ImportAssignment"
-            },
-            {
-              "include": "#Unknown"
+              "include": "#AssignEqualOperator"
             }
           ]
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)"
     },
-    "ImportAssignment": {
-      "match": "($|from)($|[ ]+)($|.*$)",
-      "captures": {
+    "ExternalFunctionDeclaration": {
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
         "1": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.from.sd"
+          "patterns": [
+            {
+              "include": "#FunctionName"
+            }
+          ]
         },
         "2": {
           "patterns": [
@@ -631,20 +531,24 @@
               "include": "#Whitespace"
             }
           ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ValueText"
-            },
-            {
-              "include": "#Unknown"
-            }
-          ]
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FunctionParameters"
+        }
+      ],
+      "end": "(?=$)"
     },
-    "DefinitionParameters": {
+    "RefModifier": {
+      "tag": "modifier",
+      "name": "storage.modifier.ref.sd",
+      "match": "(ref)"
+    },
+    "FunctionParameters": {
       "brackets": true,
       "begin": "([(])",
       "beginCaptures": {
@@ -655,41 +559,8 @@
       },
       "patterns": [
         {
-          "include": "#Parameter"
+          "include": "#Annotation"
         },
-        {
-          "include": "#Newline"
-        }
-      ],
-      "end": "([)])([ ]*)([:]?)",
-      "endCaptures": {
-        "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.close.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
-        }
-      }
-    },
-    "CallParameters": {
-      "brackets": true,
-      "begin": "([(])",
-      "beginCaptures": {
-        "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.open.sd"
-        }
-      },
-      "patterns": [
         {
           "include": "#Parameter"
         }
@@ -708,6 +579,9 @@
       "begin": "(?=.+$)",
       "patterns": [
         {
+          "include": "#Annotation"
+        },
+        {
           "include": "#Expression"
         }
       ],
@@ -718,378 +592,6 @@
           "name": "meta.template.expression.comma.sd"
         }
       }
-    },
-    "Define": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#DefineFunction"
-        },
-        {
-          "include": "#DefineSpec"
-        },
-        {
-          "include": "#DefineScalar"
-        },
-        {
-          "include": "#DefineObject"
-        },
-        {
-          "include": "#DefineInvalid"
-        }
-      ]
-    },
-    "DefineFunction": {
-      "tag": "meta",
-      "name": "meta.definition.function.sd",
-      "begin": "^([ ]*)(define)($|[ ]+)(?:([_\\p{L}][0-9_\\p{L}]*)([ ]*)(?=[(])|($|[_\\p{L}][0-9_\\p{L}]*)($|[ ]+)($|[_\\p{L}][0-9_\\p{L}]*)([ ]*))(?=[(])",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.object.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#FunctionName"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#TypeIdentifier"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#FunctionName"
-            }
-          ]
-        },
-        "9": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "10": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "11": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#DefinitionParameters"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#Expression"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
-    },
-    "DefineSpec": {
-      "tag": "meta",
-      "name": "meta.definition.type.sd",
-      "begin": "^([ ]*)(define)([ ]+)([^:]*?)([ ]*)([=][>])($|[ ]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.object.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#TargetAccessPath"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Spec"
-        }
-      ],
-      "end": "([;])|(?=$)",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#PunctuationSemicolon"
-            }
-          ]
-        }
-      }
-    },
-    "Spec": {
-      "tag": "string",
-      "name": "string.spec.sd",
-      "match": "(.+$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        }
-      }
-    },
-    "DefineScalar": {
-      "tag": "meta",
-      "name": "meta.definition.type.sd",
-      "begin": "^([ ]*)(define)($|[ ]+)([^:]*?)([ ]*)($|[!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.object.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#TargetAccessPath"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#ValueText"
-        }
-      ],
-      "end": "([;])|(?=$)",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#PunctuationSemicolon"
-            }
-          ]
-        }
-      }
-    },
-    "DefineObject": {
-      "tag": "meta",
-      "name": "meta.definition.type.sd",
-      "begin": "^([ ]*)(define)($|[ ]+)([^:]*?)($|[ ]*)($|[:])($|[ ]*)($|(?!.+)$)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.object.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#TargetAccessPath"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#StructField"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^[ ]?(?=$|[/][/]))|(?=^(?!\\1(?:[ ]{2,})))"
-    },
-    "DefineInvalid": {
-      "tag": "meta",
-      "name": "meta.define.invalid.sd",
-      "begin": "^([ ]*)(define)($|[ ]+)($|.+$)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.definition.define.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Unknown"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
     },
     "StructField": {
       "emit": true,
@@ -1129,7 +631,7 @@
     "StructMapItem": {
       "tag": "meta",
       "name": "meta.definition.struct.item.map.sd",
-      "begin": "^([ ]*)([-])($|[ ]+$)",
+      "begin": "^([^\\S\\n\\r]*)([-])($|[^\\S\\n\\r]+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1152,7 +654,7 @@
       },
       "patterns": [
         {
-          "include": "#Comment"
+          "include": "#Annotation"
         },
         {
           "include": "#StructMapItem"
@@ -1173,12 +675,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
+      "end": "(?=^(?!\\1(?:[^\\S\\n\\r]{2,})))"
     },
     "StructScalarItem": {
       "tag": "meta",
       "name": "meta.definition.struct.item.scalar.sd",
-      "begin": "^([ ]*)([-])($|[ ]+)(?=.*\\S.*$)",
+      "begin": "^([^\\S\\n\\r]*)([-])($|[^\\S\\n\\r]+)(?=.*\\S.*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1201,6 +703,9 @@
       },
       "patterns": [
         {
+          "include": "#Annotation"
+        },
+        {
           "include": "#ValueText"
         }
       ],
@@ -1209,7 +714,7 @@
     "StructMapProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.map.sd",
-      "begin": "^([ ]*)([^\\s:]+)($|[ ]*)($|[:])($|[ ]*$)",
+      "begin": "^([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*|[0-9])($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1246,7 +751,7 @@
       },
       "patterns": [
         {
-          "include": "#Comment"
+          "include": "#Annotation"
         },
         {
           "include": "#StructMapItem"
@@ -1270,12 +775,12 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
+      "end": "(?=^(?!\\1(?:[^\\S\\n\\r]{2,})))"
     },
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([ ]*)([^\\s:]+)($|[ ]*)(?:($|[=])($|[ ]*)|($|[:])($|[ ]*)(?=.*\\S.*$))",
+      "begin": "^([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*)(?:($|[=])($|[^\\S\\n\\r]*)|($|[:])($|[^\\S\\n\\r]*)(?=.*\\S.*$))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1323,613 +828,34 @@
       },
       "patterns": [
         {
+          "include": "#Annotation"
+        },
+        {
           "include": "#ValueText"
         }
       ],
       "end": "(?=$)"
     },
-    "Break": {
-      "tag": "meta",
-      "name": "meta.break.sd",
-      "match": "^([ ]*)(break)($|[ ]+$|[ ]*[;])",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.flow.break.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
-    },
-    "Continue": {
-      "tag": "meta",
-      "name": "meta.continue.sd",
-      "match": "^([ ]*)(continue)($|[ ]+$|[ ]*[;])",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.flow.continue.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
-    },
-    "Return": {
-      "patterns": [
-        {
-          "include": "#ReturnVoid"
-        },
-        {
-          "include": "#ReturnValue"
-        }
-      ]
-    },
-    "ReturnVoid": {
-      "tag": "meta",
-      "name": "meta.return.sd",
-      "match": "^([ ]*)(return)($|[ ]+$|[ ]*[;])",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.flow.return.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
-    },
-    "ReturnValue": {
-      "tag": "meta",
-      "name": "meta.return.sd",
-      "begin": "^([ ]*)(return)($|[ ]+)",
+    "FunctionCall": {
+      "begin": "([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
             {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.control.flow.return.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
+              "include": "#FunctionName"
             }
           ]
         }
       },
       "patterns": [
         {
-          "include": "#ParentheticalExpression"
+          "include": "#Annotation"
         },
         {
-          "include": "#NonParentheticalExpression"
+          "include": "#FunctionParameters"
         }
       ],
-      "end": "([;])|(?=$)",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#PunctuationSemicolon"
-            }
-          ]
-        }
-      }
-    },
-    "ParentheticalExpression": {
-      "name": "meta.expression.parenthetical.sd",
-      "brackets": true,
-      "begin": "([(])",
-      "beginCaptures": {
-        "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.open.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Expression"
-        }
-      ],
-      "end": "([)])",
-      "endCaptures": {
-        "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.close.sd"
-        }
-      }
-    },
-    "NonParentheticalExpression": {
-      "name": "meta.expression.nonparenthetical.sd",
-      "match": "(.+$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Expression"
-            }
-          ]
-        }
-      }
-    },
-    "Delete": {
-      "tag": "meta",
-      "name": "meta.delete.sd",
-      "begin": "^([ ]*)(delete)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.delete.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#TargetAccessPath"
-        }
-      ],
-      "end": "($)"
-    },
-    "Branch": {
-      "patterns": [
-        {
-          "include": "#If"
-        },
-        {
-          "include": "#Elseif"
-        },
-        {
-          "include": "#Else"
-        }
-      ]
-    },
-    "If": {
-      "tag": "meta",
-      "name": "meta.branch.if.sd",
-      "begin": "^([ ]*)(if)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.branch.if.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#Jump"
-        },
-        {
-          "include": "#Condition"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,}|elseif|else)))"
-    },
-    "Elseif": {
-      "tag": "meta",
-      "name": "meta.branch.elseif.sd",
-      "begin": "^([ ]*)(elseif)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.branch.elseif.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#Jump"
-        },
-        {
-          "include": "#Condition"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
-    },
-    "Else": {
-      "tag": "meta",
-      "name": "meta.branch.else.sd",
-      "begin": "^([ ]*)(else)($|[ ]*)($|[:])",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.branch.else.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#Jump"
-        },
-        {
-          "include": "#Condition"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
-    },
-    "Repeat": {
-      "patterns": [
-        {
-          "include": "#While"
-        },
-        {
-          "include": "#Until"
-        },
-        {
-          "include": "#For"
-        }
-      ]
-    },
-    "While": {
-      "tag": "meta",
-      "name": "meta.repeat.while.sd",
-      "begin": "^([ ]*)(while)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.while.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#Jump"
-        },
-        {
-          "include": "#Condition"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
-    },
-    "Until": {
-      "tag": "meta",
-      "name": "meta.repeat.until.sd",
-      "begin": "^([ ]*)(until)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.while.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#Jump"
-        },
-        {
-          "include": "#Condition"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
-    },
-    "For": {
-      "tag": "meta",
-      "name": "meta.repeat.for.sd",
-      "begin": "^([ ]*)(for)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "controlKeyword",
-          "name": "keyword.control.repeat.while.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#Logic"
-        },
-        {
-          "include": "#Jump"
-        },
-        {
-          "include": "#Condition"
-        },
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Unknown"
-        }
-      ],
-      "end": "(?=^(?!\\1(?:[ ]{2,})))"
-    },
-    "Condition": {
-      "patterns": [
-        {
-          "include": "#ParentheticalCondition"
-        },
-        {
-          "include": "#NonParentheticalCondition"
-        }
-      ]
-    },
-    "ParentheticalCondition": {
-      "name": "meta.condition.parenthetical.sd",
-      "brackets": true,
-      "begin": "([(])",
-      "beginCaptures": {
-        "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.open.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Expression"
-        }
-      ],
-      "end": "([)])",
-      "endCaptures": {
-        "1": {
-          "tag": "paren",
-          "name": "meta.brace.round.close.sd"
-        }
-      }
-    },
-    "NonParentheticalCondition": {
-      "name": "meta.condition.nonparenthetical.sd",
-      "match": "(.+?)([:])($|[ ]*)($|.+)|(.+$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Expression"
-            }
-          ]
-        },
-        "2": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Unknown"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Expression"
-            }
-          ]
-        }
-      }
-    },
-    "Call": {
-      "tag": "meta",
-      "name": "meta.call.sd",
-      "begin": "^([ ]*)(do)($|[ ]+)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.call.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#AccessPath"
-        }
-      ],
-      "end": "([;])|(?=$)",
+      "end": "([;])|(?=$|[^(])",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -1941,7 +867,7 @@
       }
     },
     "FunctionAccessor": {
-      "begin": "([.]|[?][.](?!\\s*[0-9]))?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
+      "begin": "([.]|[?][.])?([_\\p{L}][0-9_\\p{L}]*)(?=[(])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1960,7 +886,10 @@
       },
       "patterns": [
         {
-          "include": "#CallParameters"
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FunctionParameters"
         }
       ],
       "end": "([;])|(?=$|[^(])",
@@ -1974,123 +903,13 @@
         }
       }
     },
-    "Store": {
-      "tag": "meta",
-      "name": "meta.assign.sd",
-      "begin": "^([ ]*)(store)($|[ ]+)(.*?)([ ]*)($|[!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.assign.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#TargetAccessPath"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
+    "ValueText": {
+      "emit": true,
       "patterns": [
         {
-          "include": "#ValueText"
+          "include": "#Expression"
         }
-      ],
-      "end": "($)"
-    },
-    "Assign": {
-      "tag": "meta",
-      "name": "meta.assign.sd",
-      "begin": "^([ ]*)(set)($|[ ]+)(.*?)([ ]*)($|[!?~^|&<>%\\/*+-]{0,2}[=])($|[ ]*)",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.assign.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#TargetAccessPath"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#ValueText"
-        }
-      ],
-      "end": "($)"
+      ]
     },
     "TargetAccessPath": {
       "emit": true,
@@ -2103,43 +922,12 @@
         }
       ]
     },
-    "AssignOperator": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#AssignArithmeticOperator"
-        },
-        {
-          "include": "#AssignBitwiseOperator"
-        },
-        {
-          "include": "#AssignEqualOperator"
-        },
-        {
-          "include": "#AssignMultiplyOperator"
-        },
-        {
-          "include": "#AssignDivideOperator"
-        },
-        {
-          "include": "#AssignColonOperator"
-        },
-        {
-          "include": "#IllegalExpression"
-        }
-      ]
-    },
-    "ValueText": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#Expression"
-        }
-      ]
-    },
     "AccessPath": {
       "begin": "(?=[_\\p{L}])",
       "patterns": [
+        {
+          "include": "#Annotation"
+        },
         {
           "include": "#AccessPart"
         }
@@ -2209,15 +997,82 @@
           "include": "#ArrowOperator"
         },
         {
-          "include": "#AssignOperator"
+          "include": "#AssignEqualOperator"
         }
       ]
     },
-    "Jump": {
-      "tag": "meta",
-      "name": "meta.jump.sd",
-      "match": "^([ ]*)((?=[-][>]).+$)",
+    "Label": {
+      "tag": "definition(heading)",
+      "name": "keyword.control.section.sd",
+      "match": "([(])([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([)])",
       "captures": {
+        "1": {
+          "tag": "paren",
+          "name": "meta.brace.round.open.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Identifier"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
+          "tag": "paren",
+          "name": "meta.brace.round.close.sd"
+        }
+      }
+    },
+    "Chain": {
+      "match": "([^\\S\\n\\r]*)([>][>])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.chain.sd"
+        }
+      }
+    },
+    "Glue": {
+      "match": "([^\\S\\n\\r]*)([<][>])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.glue.sd"
+        }
+      }
+    },
+    "Choice": {
+      "name": "entity.choice.sd",
+      "begin": "([^\\S\\n\\r]*)((?:[*](?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))+|(?:[+](?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))+)",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
@@ -2226,22 +1081,362 @@
           ]
         },
         "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.list.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Label"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#ChoiceText"
+        }
+      ],
+      "end": "((?:$|[#].+$|[/][/].+$))((?:\\r\\n|\\r|\\n)?)",
+      "endCaptures": {
+        "1": {
           "patterns": [
             {
-              "include": "#JumpTo"
+              "include": "#EOL"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Newline"
             }
           ]
         }
       }
     },
-    "JumpTo": {
-      "begin": "([-][>])($|[ ]+)",
-      "beginCaptures": {
+    "ChoiceText": {
+      "tag": "string",
+      "name": "string.choice.sd",
+      "match": "(.+?)(?=$|[-][>]|[<][>]|[#])",
+      "captures": {
         "1": {
-          "tag": "function(variableName)",
-          "name": "entity.name.function.jump.sd"
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#SuppressedText"
+            },
+            {
+              "include": "#UnsuppressedText"
+            }
+          ]
+        }
+      }
+    },
+    "UnsuppressedText": {
+      "match": "(.+?)(?=\\[.*?\\]|(?:$|[#].+$|[/][/].+$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "SuppressedText": {
+      "match": "(\\[)(.*?)(\\])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.begin.choice.suppression.sd"
         },
         "2": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "punctuation.definition.template-expression.end.choice.suppression.sd"
+        }
+      }
+    },
+    "Logic": {
+      "begin": "([^\\S\\n\\r]*)(~)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.logic.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Whitespace"
+        },
+        {
+          "include": "#ReturnStatement"
+        },
+        {
+          "include": "#TempDeclaration"
+        },
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "ReturnStatement": {
+      "begin": "([^\\S\\n\\r]*)(return)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.flow.return.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "TempDeclaration": {
+      "begin": "([^\\S\\n\\r]*)(temp)((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.temp.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "Gather": {
+      "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))+)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.other.gather.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Choice"
+        },
+        {
+          "include": "#Label"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Todo"
+        },
+        {
+          "include": "#Logic"
+        },
+        {
+          "include": "#Tag"
+        },
+        {
+          "include": "#DisplayText"
+        }
+      ],
+      "end": "((?:$|[#].+$|[/][/].+$))((?:\\r\\n|\\r|\\n)?)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#EOL"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "Knot": {
+      "begin": "^([^\\S\\n\\r]*)([=]{2,})((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "definition(heading)",
+          "name": "keyword.control.section.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FunctionDeclaration"
+        },
+        {
+          "include": "#KnotStitchDeclaration"
+        }
+      ],
+      "end": "([=]{2,})|(?=$)",
+      "endCaptures": {
+        "1": {
+          "tag": "definition(heading)",
+          "name": "keyword.control.section.sd"
+        }
+      }
+    },
+    "Stitch": {
+      "begin": "^([^\\S\\n\\r]*)([=])((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "definition(heading)",
+          "name": "keyword.control.section.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EOK"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#KnotStitchDeclaration"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "KnotStitchDeclaration": {
+      "begin": "([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "definition(heading)",
+          "name": "keyword.control.section.sd"
+        },
+        "3": {
           "patterns": [
             {
               "include": "#Whitespace"
@@ -2251,573 +1446,180 @@
       },
       "patterns": [
         {
-          "include": "#JumpToSection"
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FunctionParameters"
         }
       ],
-      "end": "($|[ ]*$)",
-      "endCaptures": {
+      "end": "(?=$|[=]|[/][/])"
+    },
+    "FunctionDeclaration": {
+      "begin": "([^\\S\\n\\r]*)(function)([^\\S\\n\\r]*)([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
+        },
+        "2": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.definition.function.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "tag": "function(variableName)",
+          "name": "entity.name.function.sd"
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FunctionParameters"
+        }
+      ],
+      "end": "(?=$|[=])"
     },
-    "JumpToSection": {
+    "Divert": {
+      "begin": "([^\\S\\n\\r]*)(->|<-)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DivertArrow"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Whitespace"
+        },
+        {
+          "include": "#End"
+        },
+        {
+          "include": "#Done"
+        },
+        {
+          "include": "#FunctionCall"
+        },
+        {
+          "include": "#DivertPath"
+        },
+        {
+          "include": "#TunnelArrow"
+        }
+      ],
+      "end": "(?=$|[}]|[)]|[|]|[-]|[#])"
+    },
+    "DivertArrow": {
+      "tag": "function(variableName)",
+      "name": "entity.name.function.divert.sd",
+      "match": "(->|<-)"
+    },
+    "End": {
+      "tag": "keyword",
+      "name": "constant.language.end.sd",
+      "match": "(END)"
+    },
+    "Done": {
+      "tag": "keyword",
+      "name": "constant.language.done.sd",
+      "match": "(DONE)"
+    },
+    "DivertPath": {
       "tag": "heading",
-      "name": "keyword.control.jump.name.sd",
-      "match": "(.+)$",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#PlainText"
-            },
-            {
-              "include": "#InlineTemplateStringConditionalSubstitution"
-            }
-          ]
-        }
-      }
+      "name": "keyword.control.divert.path.sd",
+      "match": "([.0-9_\\p{L}]+)"
     },
-    "Choice": {
-      "name": "entity.choice.sd",
-      "match": "^([+-])($|[ ]+)($|.*?)($|[ ]+)($|[-][>].*$)((?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ChoiceOperator"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ChoiceContent"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#JumpTo"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
+    "TunnelArrow": {
+      "tag": "function(variableName)",
+      "name": "entity.name.function.divert.sd",
+      "match": "(->(?:->)?|<-)"
     },
-    "ChoiceOperator": {
-      "tag": "keyword",
-      "name": "keyword.operator.expression.list.sd",
-      "match": "(.+)"
-    },
-    "ChoiceContent": {
-      "tag": "string",
-      "name": "string.choice.sd",
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        }
-      }
-    },
-    "ImageTag": {
-      "tag": "macroName",
-      "name": "meta.image.sd",
-      "match": "^([ ]*)(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.image.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#AssetTagContent"
-            }
-          ]
-        },
-        "4": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.image.sd"
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "InlineImageTag": {
-      "tag": "macroName",
-      "name": "meta.image.sd",
-      "match": "(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])",
-      "captures": {
+    "ConditionalBlock": {
+      "brackets": true,
+      "begin": "([{])",
+      "beginCaptures": {
         "1": {
           "tag": "keyword",
-          "name": "keyword.operator.expression.begin.image.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#AssetTagContent"
-            }
-          ]
-        },
-        "3": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.image.sd"
+          "name": "punctuation.definition.template-expression.begin.sd"
         }
-      }
-    },
-    "AudioTag": {
-      "tag": "macroName",
-      "name": "meta.audio.sd",
-      "match": "^([ ]*)([(][(])((?:\\\\.|[^)])*?)([)][)])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.audio.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#AssetTagContent"
-            }
-          ]
-        },
-        "4": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.audio.sd"
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "InlineAudioTag": {
-      "tag": "macroName",
-      "name": "meta.audio.sd",
-      "match": "([(][(])((?:\\\\.|[^)])*?)([)][)])",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.audio.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#AssetTagContent"
-            }
-          ]
-        },
-        "3": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.audio.sd"
-        }
-      }
-    },
-    "AssetTagContent": {
-      "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([ ]*)($|[_\\p{L}][0-9_\\p{L}]*\\b))?($|[ ]*\\S*?)($|[ ]*\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#AssetTagControl"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#AssetTagTargetSeparator"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#AssetTagTarget"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#AssetTagNames"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#AssetTagArguments"
-            }
-          ]
-        }
-      }
-    },
-    "AssetTagKeyword": {
-      "tag": "keyword",
-      "name": "keyword.asset.arguments.keyword.sd",
-      "match": "(\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b)"
-    },
-    "AssetTagControl": {
-      "tag": "controlKeyword",
-      "name": "keyword.control.asset.control.sd",
-      "match": "(.+)"
-    },
-    "AssetTagTargetSeparator": {
-      "tag": "typeName",
-      "name": "entity.name.type.asset.target.separator.sd",
-      "match": "([ ]+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        }
-      }
-    },
-    "AssetTagTarget": {
-      "tag": "typeName",
-      "name": "entity.name.type.asset.target.sd",
-      "match": "(.+)"
-    },
-    "AssetTagNames": {
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            },
-            {
-              "include": "#AssetTagName"
-            },
-            {
-              "include": "#CombineOperator"
-            }
-          ]
-        }
-      }
-    },
-    "AssetTagName": {
-      "tag": "variableName",
-      "name": "variable.other.constant.asset.name.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)"
-    },
-    "CombineOperator": {
-      "tag": "propertyName",
-      "name": "variable.other.property.combine.sd",
-      "match": "([~+-]+)"
-    },
-    "AssetTagArguments": {
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#AssetTagArgument"
-            }
-          ]
-        }
-      }
-    },
-    "AssetTagArgument": {
-      "tag": "meta",
-      "name": "meta.argument.sd",
-      "begin": "(?=.+$)",
+      },
       "patterns": [
         {
-          "include": "#AssetTagKeyword"
+          "include": "#Annotation"
         },
         {
-          "include": "#TimeValue"
+          "include": "#CloseBraceAhead"
         },
         {
-          "include": "#Expression"
+          "include": "#MultilineAlternative"
+        },
+        {
+          "include": "#MultilineBlock"
+        },
+        {
+          "include": "#ConditionalSubstitution"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Substitution"
+        },
+        {
+          "include": "#FirstAlternativeItem"
+        },
+        {
+          "include": "#AlternativeItem"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
         }
       ],
-      "end": "(?=$)|([ ])",
+      "end": "([}])",
       "endCaptures": {
         "1": {
-          "tag": "separator",
-          "name": "meta.template.expression.space.sd"
-        }
-      }
-    },
-    "TimeValue": {
-      "tag": "number",
-      "name": "constant.numeric.time.sd",
-      "match": "((?:\\d*[.])?\\d+)(ms|s)",
-      "captures": {
-        "1": {
-          "tag": "number",
-          "name": "constant.numeric.time.amount.sd"
-        },
-        "2": {
-          "tag": "number",
-          "name": "constant.numeric.time.unit.sd"
-        }
-      }
-    },
-    "TextTag": {
-      "tag": "macroName",
-      "name": "meta.text.sd",
-      "match": "([<])((?:\\\\.|[^>])*?)([>])",
-      "captures": {
-        "1": {
           "tag": "keyword",
-          "name": "keyword.operator.expression.begin.tag.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#TextTagContent"
-            }
-          ]
-        },
-        "3": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.tag.sd"
+          "name": "punctuation.definition.template-expression.end.sd"
         }
       }
     },
-    "TextTagContent": {
-      "match": "([ ]*)([^ :]+)([ ]*)(?:([:])([ ]*)(.*))?",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#TextTagControl"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#TextTagColon"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#TextTagArguments"
-            }
-          ]
-        }
-      }
-    },
-    "TextTagControl": {
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#NumericLiteral"
-            },
-            {
-              "include": "#TextTagControlKeyword"
-            }
-          ]
-        }
-      }
-    },
-    "TextTagControlKeyword": {
-      "tag": "keyword",
-      "name": "keyword.style.control.keyword.sd",
-      "match": "(.+)"
-    },
-    "TextTagColon": {
-      "tag": "separator",
-      "name": "meta.template.expression.colon.sd",
-      "match": "([:])"
-    },
-    "TextTagArguments": {
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#TextTagArgument"
-            }
-          ]
-        }
-      }
-    },
-    "TextTagArgument": {
-      "tag": "meta",
-      "name": "meta.argument.sd",
-      "begin": "(?=.+$)",
-      "patterns": [
-        {
-          "include": "#Expression"
-        }
-      ],
-      "end": "(?=$)|([,])",
-      "endCaptures": {
-        "1": {
-          "tag": "separator",
-          "name": "meta.template.expression.comma.sd"
-        }
-      }
-    },
-    "CommandTag": {
-      "tag": "macroName",
-      "name": "meta.command.sd",
-      "match": "^([ ]*)([{][{])((?:\\\\.|[^}])*?)([}][}])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.tag.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#CommandTagControl"
-            }
-          ]
-        },
-        "4": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.tag.sd"
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "InlineCommandTag": {
-      "tag": "macroName",
-      "name": "meta.command.sd",
-      "match": "([{][{])((?:\\\\.|[^}])*?)([}][}])",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.tag.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#CommandTagControl"
-            }
-          ]
-        },
-        "3": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.tag.sd"
-        }
-      }
-    },
-    "CommandTagControl": {
-      "tag": "controlKeyword",
-      "name": "keyword.control.asset.control.sd",
-      "match": "(.+)",
+    "Substitution": {
+      "name": "keyword.control.sd",
+      "match": "(?<=[{])([^{}:|]+)(?=[}])",
       "captures": {
         "1": {
           "patterns": [
@@ -2828,94 +1630,102 @@
         }
       }
     },
-    "Transition": {
-      "tag": "labelName",
-      "name": "keyword.control.transition.sd",
-      "match": "^(?:([%])($|.+?)|((?:[^\\p{Ll}\\s]+\\b[ ]+)*(?:(?:[^\\p{Ll}\\s]+\\b[ ]+)+TO[:]|TO BLACK[:.]|FADE OUT[:.]|FADE IN[:.])))($|[ ]*$)",
-      "captures": {
+    "FirstAlternativeItem": {
+      "begin": "(?<=[{])([^\\S\\n\\r]*)([&!~])",
+      "beginCaptures": {
         "1": {
-          "tag": "punctuation",
-          "name": "punctuation.transition.mark.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        },
-        "4": {
           "patterns": [
             {
               "include": "#Whitespace"
             }
           ]
-        }
-      }
-    },
-    "Scene": {
-      "tag": "regexp",
-      "name": "string.regexp.scene.sd",
-      "match": "^(?:([$])($|.+?)|((?:INT[.]?[\\/]EXT[.]|INT[.]|EXT[.]|CLOSEUP[ ]*[-])(?:$|[ ]+)(?:$|.+?)))($|[ ]*$)",
-      "captures": {
-        "1": {
-          "tag": "punctuation",
-          "name": "punctuation.scene.mark.sd"
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
+          "tag": "controlKeyword",
+          "name": "keyword.control.alternative.type.sd"
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#PipeAhead"
+        },
+        {
+          "include": "#Literal"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Tag"
+        },
+        {
+          "include": "#ConditionalSubstitution"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
+        }
+      ],
+      "end": "(?=[|])"
     },
-    "SceneLocationTime": {
-      "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][ ]*(.*?)[ ]+[-][ ]+(.*?)[ ]*$"
-    },
-    "Dialogue": {
-      "name": "entity.dialogue.sd",
-      "begin": "^(?:([@])(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]*[\\p{Lu}?]))($|[ ]*)([(][^)]*(?:$|[)]))?($|[ ]*)(\\^)?($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
+    "AlternativeItem": {
+      "begin": "([|])",
       "beginCaptures": {
         "1": {
           "tag": "keyword",
-          "name": "keyword.dialogue.mark.sd"
+          "name": "keyword.other.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#CloseBraceAhead"
+        },
+        {
+          "include": "#PipeAhead"
+        },
+        {
+          "include": "#Literal"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
+        }
+      ],
+      "end": "(?=[}]|[|])"
+    },
+    "ConditionalSubstitution": {
+      "begin": "((?:[^{}|]|[|](?=[|]))+)([^\\S\\n\\r]*)([:])([^\\S\\n\\r]*)(?!(?:$|[#].+$|[/][/].+$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Expression"
+            }
+          ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#DialogueCharacterName"
+              "include": "#Whitespace"
             }
           ]
         },
         "3": {
-          "patterns": [
-            {
-              "include": "#DialogueCharacterName"
-            }
-          ]
+          "tag": "keyword",
+          "name": "keyword.colon.sd"
         },
         "4": {
           "patterns": [
@@ -2923,11 +1733,190 @@
               "include": "#Whitespace"
             }
           ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#CloseBraceAhead"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#InlineElseClause"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
+        }
+      ],
+      "end": "(?=[}])"
+    },
+    "InlineElseClause": {
+      "begin": "([|])",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#CloseBraceAhead"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
+        }
+      ],
+      "end": "(?=[}])"
+    },
+    "MultilineBlock": {
+      "begin": "([^{}:]+)([^\\S\\n\\r]*)([:])(?=(?:$|[#].+$|[/][/].+$))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#SequenceKeyword"
+            },
+            {
+              "include": "#Expression"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "tag": "punctuation",
+          "name": "punctuation.separator.colon.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#CloseBraceAhead"
+        },
+        {
+          "include": "#CaseClause"
+        },
+        {
+          "include": "#AlternativeClause"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Logic"
+        },
+        {
+          "include": "#Choice"
+        },
+        {
+          "include": "#Todo"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
+        }
+      ],
+      "end": "(?=[}])"
+    },
+    "MultilineAlternative": {
+      "begin": "(?<=[{])([^\\S\\n\\r]*)$",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#CloseBraceAhead"
+        },
+        {
+          "include": "#CaseClause"
+        },
+        {
+          "include": "#AlternativeClause"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Logic"
+        },
+        {
+          "include": "#Choice"
+        },
+        {
+          "include": "#Todo"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
+        }
+      ],
+      "end": "(?=[}])"
+    },
+    "CaseClause": {
+      "begin": "^([^\\S\\n\\r]*)([-](?![>]))([^\\S\\n\\r])?(?:(else)|([^|{}:]+))([^\\S\\n\\r]*)([:])",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.switch.clause.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "tag": "controlKeyword",
+          "name": "keyword.control.sd"
         },
         "5": {
           "patterns": [
             {
-              "include": "#DialogueCharacterParenthetical"
+              "include": "#Expression"
             }
           ]
         },
@@ -2939,98 +1928,41 @@
           ]
         },
         "7": {
-          "patterns": [
-            {
-              "include": "#DialogueCharacterSimultaneous"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "9": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
+          "tag": "punctuation",
+          "name": "punctuation.separator.colon.sd"
         }
       },
       "patterns": [
         {
-          "include": "#Checkpoint"
+          "include": "#Annotation"
+        },
+        {
+          "include": "#CloseBraceAhead"
+        },
+        {
+          "include": "#DashAhead"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Logic"
         },
         {
           "include": "#Choice"
         },
         {
-          "include": "#DialogueBox"
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
         }
       ],
-      "end": "^[ ]?(?=$|[/][/])"
+      "end": "(?=^|[}]|[-])"
     },
-    "DialogueCharacterName": {
-      "tag": "typeName",
-      "name": "entity.name.type.dialogue.character.name.sd",
-      "match": "(.+$)"
-    },
-    "DialogueCharacterParenthetical": {
-      "tag": "escape",
-      "name": "constant.character.escape.dialogue.character.parenthetical.sd",
-      "match": "(.+$)"
-    },
-    "DialogueCharacterSimultaneous": {
-      "tag": "escape",
-      "name": "constant.character.escape.dialogue.character.simultaneous.sd",
-      "match": "(.+$)"
-    },
-    "DialogueBox": {
-      "tag": "string",
-      "name": "string.dialogue.line.sd",
-      "begin": "^(?=.+$)",
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#ImageTag"
-        },
-        {
-          "include": "#AudioTag"
-        },
-        {
-          "include": "#CommandTag"
-        },
-        {
-          "include": "#DialogueLineParenthetical"
-        },
-        {
-          "include": "#BoxLineContinue"
-        },
-        {
-          "include": "#BoxLineComplete"
-        }
-      ],
-      "end": "(?=^[ ]?(?=$|[/][/]))|(\\r\\n|\\r|\\n)",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "DialogueLineParenthetical": {
-      "tag": "tagName",
-      "name": "constant.character.escape.sd",
-      "match": "^([ ]*)([(][^()]*[)])($|[ ]*$)((?:\\r\\n|\\r|\\n)?)",
-      "captures": {
+    "AlternativeClause": {
+      "begin": "^([^\\S\\n\\r]*)([-](?!>))",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
@@ -3039,503 +1971,72 @@
           ]
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#DialogueLineParentheticalContent"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "DialogueLineParentheticalContent": {
-      "tag": "escape",
-      "name": "constant.character.escape.sd",
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#InlineText"
-            }
-          ]
-        }
-      }
-    },
-    "BoxLineContinue": {
-      "match": "(.*[ ]{2,}$(?:\\r\\n|\\r|\\n)?)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        }
-      }
-    },
-    "BoxLineComplete": {
-      "match": "(.*$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        }
-      }
-    },
-    "ExplicitAction": {
-      "tag": "content",
-      "name": "entity.paragraph.text.action.explicit.sd",
-      "begin": "^([!])(?=.+$)",
-      "beginCaptures": {
-        "1": {
-          "tag": "punctuation",
-          "name": "keyword.operator.expression.action.explicit.sd"
+          "tag": "keyword",
+          "name": "keyword.sequence.clause.sd"
         }
       },
       "patterns": [
         {
-          "include": "#Checkpoint"
+          "include": "#Annotation"
+        },
+        {
+          "include": "#CloseBraceAhead"
+        },
+        {
+          "include": "#DashAhead"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Logic"
         },
         {
           "include": "#Choice"
         },
         {
-          "include": "#ActionBox"
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#ConditionalText"
         }
       ],
-      "end": "^[ ]?(?=$|[/][/])"
+      "end": "(?=^|[}]|[-])"
     },
-    "ImplicitAction": {
-      "tag": "content",
-      "name": "entity.paragraph.text.action.implicit.sd",
-      "begin": "^(?=.+$)",
+    "SequenceKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.sequence.sd",
+      "match": "\\b(stopping|shuffle|cycle|once)\\b"
+    },
+    "ConditionalText": {
       "patterns": [
         {
-          "include": "#Checkpoint"
-        },
-        {
-          "include": "#Choice"
-        },
-        {
-          "include": "#ActionBox"
-        }
-      ],
-      "end": "^[ ]?(?=$|[/][/])"
-    },
-    "ActionBox": {
-      "tag": "content",
-      "name": "markup.raw.action.line.sd",
-      "begin": "(?=.+$)",
-      "patterns": [
-        {
-          "include": "#Comment"
-        },
-        {
-          "include": "#ImageTag"
-        },
-        {
-          "include": "#AudioTag"
-        },
-        {
-          "include": "#CommandTag"
-        },
-        {
-          "include": "#BoxLineContinue"
-        },
-        {
-          "include": "#BoxLineComplete"
-        }
-      ],
-      "end": "(?=^[ ]?(?=$|[/][/]))|(\\r\\n|\\r|\\n)",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "TargetName": {
-      "tag": "typeName",
-      "name": "entity.name.type.text.target.sd",
-      "match": "(.+)"
-    },
-    "DisplayText": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#InlineImageTag"
-        },
-        {
-          "include": "#InlineAudioTag"
-        },
-        {
-          "include": "#InlineCommandTag"
-        },
-        {
-          "include": "#DisplayString"
+          "include": "#DisplayText"
         }
       ]
     },
-    "DisplayString": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#InlineText"
-        }
-      ]
+    "CloseBraceAhead": {
+      "match": "(?=[}])"
     },
-    "InlineText": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#Escape"
-        },
-        {
-          "include": "#InlineTemplateStringSubstitution"
-        },
-        {
-          "include": "#Styling"
-        },
-        {
-          "include": "#Emphasis"
-        },
-        {
-          "include": "#Pause"
-        },
-        {
-          "include": "#PlainText"
-        }
-      ]
+    "PipeAhead": {
+      "match": "(?=[|])"
     },
-    "InnerText": {
-      "patterns": [
-        {
-          "include": "#Escape"
-        },
-        {
-          "include": "#InlineTemplateStringSubstitution"
-        },
-        {
-          "include": "#Styling"
-        },
-        {
-          "include": "#Emphasis"
-        },
-        {
-          "include": "#Pause"
-        },
-        {
-          "include": "#PlainText"
-        }
-      ]
-    },
-    "PlainText": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#Newline"
-        },
-        {
-          "include": "#Space"
-        },
-        {
-          "include": "#Word"
-        },
-        {
-          "include": "#EmDash"
-        },
-        {
-          "include": "#Punctuation"
-        }
-      ]
-    },
-    "Word": {
-      "tag": "content",
-      "name": "markup.raw.text.sd",
-      "match": "([\\p{L}\\p{N}\\p{Mn}']+)"
-    },
-    "Space": {
-      "tag": "content",
-      "name": "markup.raw.space.sd",
-      "match": "([ ])"
-    },
-    "EmDash": {
-      "tag": "content",
-      "name": "markup.raw.punctuation.sd",
-      "match": "([-][-])"
-    },
-    "Newline": {
-      "tag": "content",
-      "name": "markup.raw.whitespace.newline.sd",
-      "match": "(\\r\\n|\\r|\\n)"
-    },
-    "Punctuation": {
-      "tag": "content",
-      "name": "markup.raw.punctuation.sd",
-      "match": "(.)"
-    },
-    "Pause": {
-      "tag": "special(content)",
-      "name": "markup.raw.whitespace.pause.sd",
-      "match": "(?=[ ][ ])[ ]+|[ ]+$"
-    },
-    "Escape": {
-      "tag": "escape",
-      "name": "constant.character.escape.sd",
-      "match": "\\\\[-`*_#+.!(){}\\[\\]\\\\>|]"
-    },
-    "Styling": {
-      "patterns": [
-        {
-          "include": "#TextTag"
-        },
-        {
-          "include": "#Underline"
-        },
-        {
-          "include": "#BoldItalic"
-        },
-        {
-          "include": "#Bold"
-        },
-        {
-          "include": "#Italic"
-        },
-        {
-          "include": "#Centered"
-        }
-      ]
-    },
-    "StylingMark": {
-      "match": "([*_|]+)",
-      "captures": {
-        "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.styling.sd"
-        }
-      }
-    },
-    "BoldItalic": {
-      "tag": "strong",
-      "name": "markup.bold.sd",
-      "match": "([*][*]+)([*].*?(?:[*]|$))(\\1|$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Italic"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        }
-      }
-    },
-    "Bold": {
-      "tag": "strong",
-      "name": "markup.bold.sd",
-      "match": "([*][*](?![*]))(.*?)(\\1|$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        }
-      }
-    },
-    "Italic": {
-      "tag": "emphasis",
-      "name": "markup.italic.sd",
-      "match": "([*](?![*]))(.*?)(\\1|$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        }
-      }
-    },
-    "Underline": {
-      "tag": "link",
-      "name": "markup.underline.sd",
-      "match": "([_]+)(.*?)(\\1|$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        }
-      }
-    },
-    "Centered": {
-      "tag": "monospace",
-      "name": "markup.other.centered.sd",
-      "match": "([|]+)(.*?)(\\1|$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#StylingMark"
-            }
-          ]
-        }
-      }
-    },
-    "Emphasis": {
-      "patterns": [
-        {
-          "include": "#EmphasisTilde"
-        },
-        {
-          "include": "#EmphasisColon"
-        }
-      ]
-    },
-    "EmphasisTilde": {
-      "tag": "emphasis",
-      "name": "markup.emphasis.sd",
-      "match": "([~][~]+)((?:(?!\\1).*?)+)(\\1|$)",
-      "captures": {
-        "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        }
-      }
-    },
-    "EmphasisColon": {
-      "tag": "emphasis",
-      "name": "markup.emphasis.sd",
-      "match": "([:][:]+)((?:(?!\\1).*?)+)(\\1|$)",
-      "captures": {
-        "1": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#InnerText"
-            }
-          ]
-        },
-        "3": {
-          "tag": "bracket",
-          "name": "punctuation.definition.emphasis.sd"
-        }
-      }
+    "DashAhead": {
+      "match": "(?=[-])"
     },
     "Expression": {
       "patterns": [
         {
-          "include": "#IllegalPropertyDeclaration"
+          "include": "#Annotation"
         },
         {
-          "include": "#String"
+          "include": "#RefModifier"
+        },
+        {
+          "include": "#FunctionCall"
+        },
+        {
+          "include": "#Divert"
         },
         {
           "include": "#Operator"
@@ -3569,88 +2070,32 @@
     "Indent": {
       "tag": "content",
       "name": "markup.raw.whitespace.indent.sd",
-      "match": "^([ ]+)"
+      "match": "^([^\\S\\n\\r]+)"
     },
     "Whitespace": {
       "tag": "content",
       "name": "markup.raw.whitespace.sd",
-      "match": "([ ]+)"
+      "match": "([^\\S\\n\\r]+)"
     },
-    "String": {
-      "emit": true,
+    "EOK": {
       "patterns": [
         {
-          "include": "#SingleQuoteString"
+          "include": "#Annotation"
         },
         {
-          "include": "#DoubleQuoteString"
-        },
-        {
-          "include": "#TemplateString"
+          "include": "#Whitespace"
         }
       ]
     },
-    "DoubleQuoteString": {
-      "tag": "string",
-      "name": "string.quoted.double.sd",
-      "begin": "([\"])",
-      "beginCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.begin.sd"
-        }
-      },
+    "EOL": {
       "patterns": [
         {
-          "include": "#Color"
+          "include": "#Annotation"
         },
         {
-          "include": "#DoubleQuoteStringContent"
+          "include": "#Whitespace"
         }
-      ],
-      "end": "([\"])|($)",
-      "endCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.end.sd"
-        }
-      }
-    },
-    "DoubleQuoteStringContent": {
-      "tag": "string",
-      "name": "string.quoted.double.content.sd",
-      "match": "((?:[^\"\\\\]|\\\\.)*)"
-    },
-    "SingleQuoteString": {
-      "tag": "string",
-      "name": "string.quoted.single.sd",
-      "begin": "(['])",
-      "beginCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.begin.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Color"
-        },
-        {
-          "include": "#SingleQuoteStringContent"
-        }
-      ],
-      "end": "(['])|($)",
-      "endCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.end.sd"
-        }
-      }
-    },
-    "SingleQuoteStringContent": {
-      "tag": "string",
-      "name": "string.quoted.double.content.sd",
-      "match": "((?:[^'\\\\]|\\\\.)*)"
+      ]
     },
     "Operator": {
       "emit": true,
@@ -3678,6 +2123,9 @@
         },
         {
           "include": "#LogicalOperator"
+        },
+        {
+          "include": "#WordOperator"
         },
         {
           "include": "#BitwiseOperator"
@@ -3782,6 +2230,11 @@
     },
     "AssignMultiplyOperator": {
       "begin": "(?<=[0-9_\\p{L})\\]])\\s*(?=(\\/[*]([^*]|([*][^\\/]))*[*]\\/\\s*)+(?:(/=)|(?:(/)(?![/*]))))",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        }
+      ],
       "end": "(?:(/=)|(?:(/)(?![*]([^*]|([*][^\\/]))*[*][/])))",
       "endCaptures": {
         "1": {
@@ -3813,9 +2266,17 @@
       "name": "punctuation.separator.colon.sd",
       "match": "([=][>])"
     },
+    "WordOperator": {
+      "tag": "keyword",
+      "name": "keyword.logical.word.sd",
+      "match": "\\b(not|and|or|has|hasnt|mod)\\b"
+    },
     "Literal": {
       "emit": true,
       "patterns": [
+        {
+          "include": "#StringLiteral"
+        },
         {
           "include": "#NumericLiteral"
         },
@@ -3832,6 +2293,85 @@
           "include": "#NumericConstantLiteral"
         }
       ]
+    },
+    "StringLiteral": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#SingleQuoteString"
+        },
+        {
+          "include": "#DoubleQuoteString"
+        }
+      ]
+    },
+    "DoubleQuoteString": {
+      "tag": "string",
+      "name": "string.quoted.double.sd",
+      "begin": "([\"])",
+      "beginCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.begin.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Color"
+        },
+        {
+          "include": "#DoubleQuoteStringContent"
+        }
+      ],
+      "end": "([\"])|($)",
+      "endCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.end.sd"
+        }
+      }
+    },
+    "DoubleQuoteStringContent": {
+      "tag": "string",
+      "name": "string.quoted.double.content.sd",
+      "match": "((?:[^\"\\\\]|\\\\.)*)"
+    },
+    "SingleQuoteString": {
+      "tag": "string",
+      "name": "string.quoted.single.sd",
+      "begin": "(['])",
+      "beginCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.begin.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Color"
+        },
+        {
+          "include": "#SingleQuoteStringContent"
+        }
+      ],
+      "end": "(['])|($)",
+      "endCaptures": {
+        "1": {
+          "tag": "string",
+          "name": "punctuation.definition.string.end.sd"
+        }
+      }
+    },
+    "SingleQuoteStringContent": {
+      "tag": "string",
+      "name": "string.quoted.double.content.sd",
+      "match": "((?:[^'\\\\]|\\\\.)*)"
     },
     "NumericLiteral": {
       "patterns": [
@@ -3949,6 +2489,9 @@
       },
       "patterns": [
         {
+          "include": "#Annotation"
+        },
+        {
           "include": "#ArrayItem"
         },
         {
@@ -3969,53 +2512,13 @@
       "begin": "(?=.+$)",
       "patterns": [
         {
+          "include": "#Annotation"
+        },
+        {
           "include": "#Expression"
         }
       ],
       "end": "(?=\\])|([,])",
-      "endCaptures": {
-        "1": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.comma.sd"
-        }
-      }
-    },
-    "ObjectLiteral": {
-      "name": "meta.object.literal.sd",
-      "brackets": true,
-      "begin": "(\\{)",
-      "beginCaptures": {
-        "1": {
-          "tag": "brace",
-          "name": "meta.brace.curly.open.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#ObjectProperty"
-        },
-        {
-          "include": "#Newline"
-        }
-      ],
-      "end": "(\\})",
-      "endCaptures": {
-        "1": {
-          "tag": "brace",
-          "name": "meta.brace.curly.close.sd"
-        }
-      }
-    },
-    "ObjectProperty": {
-      "tag": "meta",
-      "name": "meta.item.sd",
-      "begin": "(?=.+$)",
-      "patterns": [
-        {
-          "include": "#Expression"
-        }
-      ],
-      "end": "(?=\\})|([,])",
       "endCaptures": {
         "1": {
           "tag": "punctuation",
@@ -4056,6 +2559,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#Annotation"
+        },
         {
           "include": "#Expression"
         }
@@ -4119,12 +2625,17 @@
     "IllegalPropertyDeclaration": {
       "tag": "invalid",
       "name": "invalid.illegal.property-declaration.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)([ ]*)([:])(.*?)($|(?=[;}]))"
+      "match": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)([:])(.*?)($|(?=[;}]))"
     },
     "StructName": {
       "tag": "variableName",
       "name": "variable.other.constant.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
+    },
+    "TypeIdentifier": {
+      "tag": "typeName",
+      "name": "support.type.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "VariableName": {
       "tag": "variableName",
@@ -4136,16 +2647,16 @@
       "name": "variable.other.property.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)(?![(])"
     },
-    "TypeIdentifier": {
-      "tag": "typeName",
-      "name": "support.type.sd",
+    "FunctionName": {
+      "tag": "function(variableName)",
+      "name": "entity.name.function.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "Identifier": {
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
     },
     "PunctuationAccessor": {
-      "match": "(?:([.])|([?][.](?!\\s*[0-9])))",
+      "match": "(?:([.])|([?][.]))",
       "captures": {
         "1": {
           "tag": "punctuation",
@@ -4154,275 +2665,6 @@
         "2": {
           "tag": "punctuation",
           "name": "punctuation.accessor.optional.sd"
-        }
-      }
-    },
-    "TemplateString": {
-      "tag": "string",
-      "name": "string.template.ts",
-      "begin": "([`])",
-      "beginCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.template.begin.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#Color"
-        },
-        {
-          "include": "#StringCharacterEscape"
-        },
-        {
-          "include": "#TemplateStringSubstitution"
-        },
-        {
-          "include": "#TemplateStringContent"
-        }
-      ],
-      "end": "([`])",
-      "endCaptures": {
-        "1": {
-          "tag": "string",
-          "name": "punctuation.definition.string.template.end.sd"
-        }
-      }
-    },
-    "TemplateStringContent": {
-      "tag": "string",
-      "name": "string.quoted.template.content.sd",
-      "match": "(.)"
-    },
-    "TemplateStringSubstitution": {
-      "patterns": [
-        {
-          "include": "#TemplateStringExpressionSubstitution"
-        },
-        {
-          "include": "#TemplateStringConditionalSubstitution"
-        }
-      ]
-    },
-    "TemplateStringExpressionSubstitution": {
-      "brackets": true,
-      "name": "meta.template.expression.sd",
-      "contentName": "meta.embedded.line.sd",
-      "begin": "([$][{])",
-      "beginCaptures": {
-        "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.begin.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#TemplateStringExpression"
-        }
-      ],
-      "end": "([}])",
-      "endCaptures": {
-        "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.end.sd"
-        }
-      }
-    },
-    "TemplateStringConditionalSubstitution": {
-      "brackets": true,
-      "begin": "([{])(?:([ ]*)([_\\p{L}][0-9_\\p{L}]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_\\p{L}][0-9_\\p{L}]*)([ ]*)((?=[}])|[:]))?",
-      "beginCaptures": {
-        "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.begin.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#TemplateStringExpression"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "5": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#FunctionName"
-            },
-            {
-              "include": "#Unknown"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "9": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#TemplateStringConditionalDelimiter"
-        },
-        {
-          "include": "#TemplateStringContent"
-        }
-      ],
-      "end": "([}])",
-      "endCaptures": {
-        "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.end.sd"
-        }
-      }
-    },
-    "TemplateStringExpression": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#Expression"
-        }
-      ]
-    },
-    "TemplateStringConditionalDelimiter": {
-      "tag": "separator",
-      "name": "meta.template.expression.delimiter.sd",
-      "match": "([|])"
-    },
-    "InlineTemplateStringSubstitution": {
-      "patterns": [
-        {
-          "include": "#TemplateStringExpressionSubstitution"
-        },
-        {
-          "include": "#InlineTemplateStringConditionalSubstitution"
-        }
-      ]
-    },
-    "InlineTemplateStringConditionalSubstitution": {
-      "brackets": true,
-      "begin": "([{])(?:([ ]*)([_\\p{L}][0-9_\\p{L}.]*)([ ]*)((?=[}])|[:]))?(?:([ ]*)([_\\p{L}][0-9_\\p{L}.]*)([ ]*)((?=[}])|[:]))?",
-      "beginCaptures": {
-        "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.begin.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#AccessPath"
-            },
-            {
-              "include": "#Unknown"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "5": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#FunctionName"
-            },
-            {
-              "include": "#Unknown"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "9": {
-          "tag": "separator",
-          "name": "meta.template.expression.colon.sd"
-        }
-      },
-      "patterns": [
-        {
-          "include": "#TemplateStringConditionalDelimiter"
-        },
-        {
-          "include": "#InnerText"
-        }
-      ],
-      "end": "([}])",
-      "endCaptures": {
-        "1": {
-          "tag": "keyword",
-          "name": "punctuation.definition.template-expression.end.sd"
-        }
-      }
-    },
-    "StringCharacterEscape": {
-      "tag": "escape",
-      "name": "constant.character.escape.ts",
-      "match": "([\\\\])(x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|u\\{[0-9A-Fa-f]+\\}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.|$)"
-    },
-    "FunctionName": {
-      "tag": "meta",
-      "name": "meta.function-name.sd",
-      "match": "([_\\p{L}][0-9_\\p{L}]*)",
-      "captures": {
-        "1": {
-          "tag": "function(variableName)",
-          "name": "entity.name.function.sd"
         }
       }
     },
@@ -4457,6 +2699,1440 @@
       "name": "string.color.hsl.sd",
       "match": "(hsl)([(][\\d]+[\\s]+[\\d]+[%]?[\\s]+[\\d]+[%]?(?:[\\s]*[/][\\s]*[\\d.]+[%]?)?[)])",
       "color": true
+    },
+    "FrontMatter": {
+      "tag": "meta",
+      "name": "meta.front-matter.sd",
+      "begin": "^([-]{3,})($|[^\\S\\n\\r]*$)",
+      "beginCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.front-matter.dashes.start.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FrontMatterField"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "^([-]{3,})($|[^\\S\\n\\r]*$)?",
+      "endCaptures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.front-matter.dashes.end.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      }
+    },
+    "FrontMatterField": {
+      "tag": "meta",
+      "name": "meta.front-matter.field.sd",
+      "begin": "^([_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*)($|[:])(.*$(?:\\r\\n|\\r|\\n)?)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#FrontMatterFieldKeyword"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "tag": "punctuation",
+          "name": "punctuation.separator.colon.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#FrontMatterStringInline"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#FrontMatterArrayItem"
+        },
+        {
+          "include": "#FrontMatterStringBlock"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#Unknown"
+        }
+      ],
+      "end": "(?=^[_\\p{L}][0-9_\\p{L}]*[^\\S\\n\\r]*[:]|[-]{3,})"
+    },
+    "FrontMatterArrayItem": {
+      "match": "^([^\\S\\n\\r]{2,})([-])($|[^\\S\\n\\r]+)(.*$(?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.array.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#FrontMatterString"
+            }
+          ]
+        }
+      }
+    },
+    "FrontMatterStringInline": {
+      "match": "($|[^\\S\\n\\r]*)(.*$(?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#FrontMatterString"
+            }
+          ]
+        }
+      }
+    },
+    "FrontMatterStringBlock": {
+      "match": "^($|[^\\S\\n\\r]*)(.*$(?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#FrontMatterString"
+            }
+          ]
+        }
+      }
+    },
+    "FrontMatterString": {
+      "tag": "string",
+      "name": "string.front-matter.string.sd",
+      "begin": "(?=.*$)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#InlineText"
+        }
+      ],
+      "end": "($(?:\\r\\n|\\r|\\n)?)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "FrontMatterFieldKeyword": {
+      "tag": "keyword",
+      "name": "keyword.other.front-matter.field.sd",
+      "match": "(.+)"
+    },
+    "Display": {
+      "patterns": [
+        {
+          "include": "#ExplicitAction"
+        },
+        {
+          "include": "#Transition"
+        },
+        {
+          "include": "#Scene"
+        },
+        {
+          "include": "#Dialogue"
+        },
+        {
+          "include": "#ImplicitAction"
+        }
+      ]
+    },
+    "DisplayText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#Escape"
+        },
+        {
+          "include": "#InlineImageTag"
+        },
+        {
+          "include": "#InlineAudioTag"
+        },
+        {
+          "include": "#InlineCommandTag"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#DisplayString"
+        }
+      ]
+    },
+    "DisplayString": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#InlineText"
+        }
+      ]
+    },
+    "Transition": {
+      "tag": "labelName",
+      "name": "keyword.control.transition.sd",
+      "match": "^([^\\S\\n\\r]*)([%])($|.+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "punctuation",
+          "name": "punctuation.transition.mark.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "Scene": {
+      "tag": "regexp",
+      "name": "string.regexp.scene.sd",
+      "match": "^([^\\S\\n\\r]*)([$])($|.+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "punctuation",
+          "name": "punctuation.scene.mark.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "SceneLocationTime": {
+      "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
+    },
+    "Dialogue": {
+      "name": "entity.dialogue.sd",
+      "begin": "^([^\\S\\n\\r]*)(?:([@])(.+?)|([\\p{Lu}][^\\p{Ll}\\r\\n^%()]+[\\p{Lu}?]))($|[^\\S\\n\\r]*)([(][^)]*(?:$|[)]))?($|[^\\S\\n\\r]*)(\\^)?($|[^\\S\\n\\r]*$)((?:\\r\\n|\\r|\\n)?)(?=^\\s*\\S)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.dialogue.mark.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#DialogueCharacterName"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#DialogueCharacterName"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#DialogueCharacterParenthetical"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#DialogueCharacterSimultaneous"
+            }
+          ]
+        },
+        "9": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "10": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#DialogueBox"
+        }
+      ],
+      "end": "^[^\\S\\n\\r]?(?=(?:$|[#].+$|[/][/].+$))"
+    },
+    "DialogueCharacterName": {
+      "tag": "typeName",
+      "name": "entity.name.type.dialogue.character.name.sd",
+      "match": "(.+$)"
+    },
+    "DialogueCharacterParenthetical": {
+      "tag": "escape",
+      "name": "constant.character.escape.dialogue.character.parenthetical.sd",
+      "match": "(.+$)"
+    },
+    "DialogueCharacterSimultaneous": {
+      "tag": "escape",
+      "name": "constant.character.escape.dialogue.character.simultaneous.sd",
+      "match": "(.+$)"
+    },
+    "DialogueBox": {
+      "tag": "string",
+      "name": "string.dialogue.line.sd",
+      "begin": "^(?=.+$)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Choice"
+        },
+        {
+          "include": "#Gather"
+        },
+        {
+          "include": "#ImageTag"
+        },
+        {
+          "include": "#AudioTag"
+        },
+        {
+          "include": "#CommandTag"
+        },
+        {
+          "include": "#DialogueLineParenthetical"
+        },
+        {
+          "include": "#BoxLineContinue"
+        },
+        {
+          "include": "#BoxLineComplete"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]?(?=(?:$|[#].+$|[/][/].+$)))|(\\r\\n|\\r|\\n)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "DialogueLineParenthetical": {
+      "tag": "tagName",
+      "name": "constant.character.escape.sd",
+      "match": "^([^\\S\\n\\r]*)([(][^()]*[)])($|[^\\S\\n\\r]*$)((?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DialogueLineParentheticalContent"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "DialogueLineParentheticalContent": {
+      "tag": "escape",
+      "name": "constant.character.escape.sd",
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#InlineText"
+            }
+          ]
+        }
+      }
+    },
+    "BoxLineContinue": {
+      "match": "(?:(.*[>][>](?:$|[#].+$|[/][/].+$)(?:\\r\\n|\\r|\\n)?)|(.*[<][>](?:$|[#].+$|[/][/].+$))((?:\\r\\n|\\r|\\n)?))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "BoxLineComplete": {
+      "match": "(.*$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Annotation"
+            },
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "ExplicitAction": {
+      "tag": "content",
+      "name": "entity.paragraph.text.action.explicit.sd",
+      "begin": "^([^\\S\\n\\r]*)([!])(?=.+$)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "punctuation",
+          "name": "keyword.operator.expression.action.explicit.sd"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#ActionBox"
+        }
+      ],
+      "end": "^[^\\S\\n\\r]?(?=(?:$|[#].+$|[/][/].+$))"
+    },
+    "ImplicitAction": {
+      "tag": "content",
+      "name": "entity.paragraph.text.action.implicit.sd",
+      "begin": "^(?![^\\S\\n\\r]*$)([^\\S\\n\\r]*)(?=.+$)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#ActionBox"
+        }
+      ],
+      "end": "^[^\\S\\n\\r]?(?=(?:$|[#].+$|[/][/].+$))"
+    },
+    "ActionBox": {
+      "tag": "content",
+      "name": "markup.raw.action.line.sd",
+      "begin": "(?=.+$)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Choice"
+        },
+        {
+          "include": "#Gather"
+        },
+        {
+          "include": "#ImageTag"
+        },
+        {
+          "include": "#AudioTag"
+        },
+        {
+          "include": "#CommandTag"
+        },
+        {
+          "include": "#BoxLineContinue"
+        },
+        {
+          "include": "#BoxLineComplete"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]?(?=(?:$|[#].+$|[/][/].+$)))|(\\r\\n|\\r|\\n)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "ImageTag": {
+      "tag": "macroName",
+      "name": "meta.image.sd",
+      "match": "^([^\\S\\n\\r]*)(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])($|[^\\S\\n\\r]*$)((?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.image.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetTagContent"
+            }
+          ]
+        },
+        "4": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.image.sd"
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "InlineImageTag": {
+      "tag": "macroName",
+      "name": "meta.image.sd",
+      "match": "(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.image.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetTagContent"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.image.sd"
+        }
+      }
+    },
+    "AudioTag": {
+      "tag": "macroName",
+      "name": "meta.audio.sd",
+      "match": "^([^\\S\\n\\r]*)([(][(])((?:\\\\.|[^)])*?)([)][)])($|[^\\S\\n\\r]*$)((?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.audio.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetTagContent"
+            }
+          ]
+        },
+        "4": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.audio.sd"
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "InlineAudioTag": {
+      "tag": "macroName",
+      "name": "meta.audio.sd",
+      "match": "([(][(])((?:\\\\.|[^)])*?)([)][)])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.audio.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetTagContent"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.audio.sd"
+        }
+      }
+    },
+    "AssetTagContent": {
+      "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*\\b))?($|[^\\S\\n\\r]*\\S*?)($|[^\\S\\n\\r]*\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetTagControl"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AssetTagTargetSeparator"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#AssetTagTarget"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#AssetTagNames"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#AssetTagArguments"
+            }
+          ]
+        }
+      }
+    },
+    "AssetTagKeyword": {
+      "tag": "keyword",
+      "name": "keyword.asset.arguments.keyword.sd",
+      "match": "(\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b)"
+    },
+    "AssetTagControl": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.asset.control.sd",
+      "match": "(.+)"
+    },
+    "AssetTagTargetSeparator": {
+      "tag": "typeName",
+      "name": "entity.name.type.asset.target.separator.sd",
+      "match": "([^\\S\\n\\r]+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      }
+    },
+    "AssetTagTarget": {
+      "tag": "typeName",
+      "name": "entity.name.type.asset.target.sd",
+      "match": "(.+)"
+    },
+    "AssetTagNames": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            },
+            {
+              "include": "#AssetTagName"
+            },
+            {
+              "include": "#CombineOperator"
+            }
+          ]
+        }
+      }
+    },
+    "AssetTagName": {
+      "tag": "variableName",
+      "name": "variable.other.constant.asset.name.sd",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)"
+    },
+    "CombineOperator": {
+      "tag": "propertyName",
+      "name": "variable.other.property.combine.sd",
+      "match": "([~+-]+)"
+    },
+    "AssetTagArguments": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#AssetTagArgument"
+            }
+          ]
+        }
+      }
+    },
+    "AssetTagArgument": {
+      "tag": "meta",
+      "name": "meta.argument.sd",
+      "begin": "(?=.+$)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#AssetTagKeyword"
+        },
+        {
+          "include": "#TimeValue"
+        },
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)|([^\\S\\n\\r])",
+      "endCaptures": {
+        "1": {
+          "tag": "separator",
+          "name": "meta.template.expression.space.sd"
+        }
+      }
+    },
+    "TimeValue": {
+      "tag": "number",
+      "name": "constant.numeric.time.sd",
+      "match": "((?:\\d*[.])?\\d+)(ms|s)",
+      "captures": {
+        "1": {
+          "tag": "number",
+          "name": "constant.numeric.time.amount.sd"
+        },
+        "2": {
+          "tag": "number",
+          "name": "constant.numeric.time.unit.sd"
+        }
+      }
+    },
+    "TextTag": {
+      "tag": "macroName",
+      "name": "meta.text.sd",
+      "match": "([<])((?:\\\\.|[^>])*?)([>])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.tag.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#TextTagContent"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.tag.sd"
+        }
+      }
+    },
+    "TextTagContent": {
+      "match": "([^\\S\\n\\r]*)([^ :]+)([^\\S\\n\\r]*)(?:([:])([^\\S\\n\\r]*)(.*))?",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#TextTagControl"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#TextTagColon"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#TextTagArguments"
+            }
+          ]
+        }
+      }
+    },
+    "TextTagControl": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#NumericLiteral"
+            },
+            {
+              "include": "#TextTagControlKeyword"
+            }
+          ]
+        }
+      }
+    },
+    "TextTagControlKeyword": {
+      "tag": "keyword",
+      "name": "keyword.style.control.keyword.sd",
+      "match": "(.+)"
+    },
+    "TextTagColon": {
+      "tag": "separator",
+      "name": "meta.template.expression.colon.sd",
+      "match": "([:])"
+    },
+    "TextTagArguments": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#TextTagArgument"
+            }
+          ]
+        }
+      }
+    },
+    "TextTagArgument": {
+      "tag": "meta",
+      "name": "meta.argument.sd",
+      "begin": "(?=.+$)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Expression"
+        }
+      ],
+      "end": "(?=$)|([,])",
+      "endCaptures": {
+        "1": {
+          "tag": "separator",
+          "name": "meta.template.expression.comma.sd"
+        }
+      }
+    },
+    "CommandTag": {
+      "tag": "macroName",
+      "name": "meta.command.sd",
+      "match": "^([^\\S\\n\\r]*)([{][{])((?:\\\\.|[^}])*?)([}][}])($|[^\\S\\n\\r]*$)((?:\\r\\n|\\r|\\n)?)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.tag.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#CommandTagControl"
+            }
+          ]
+        },
+        "4": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.tag.sd"
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "InlineCommandTag": {
+      "tag": "macroName",
+      "name": "meta.command.sd",
+      "match": "([{][{])((?:\\\\.|[^}])*?)([}][}])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.begin.tag.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#CommandTagControl"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "keyword.operator.expression.end.tag.sd"
+        }
+      }
+    },
+    "CommandTagControl": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.asset.control.sd",
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Expression"
+            }
+          ]
+        }
+      }
+    },
+    "InlineText": {
+      "patterns": [
+        {
+          "include": "#Escape"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#Styling"
+        },
+        {
+          "include": "#Emphasis"
+        },
+        {
+          "include": "#PlainText"
+        }
+      ]
+    },
+    "Escape": {
+      "tag": "escape",
+      "name": "constant.character.escape.sd",
+      "match": "(\\\\.)"
+    },
+    "Newline": {
+      "tag": "content",
+      "name": "markup.raw.whitespace.newline.sd",
+      "match": "(\\r\\n|\\r|\\n)"
+    },
+    "Styling": {
+      "patterns": [
+        {
+          "include": "#Chain"
+        },
+        {
+          "include": "#Glue"
+        },
+        {
+          "include": "#TextTag"
+        },
+        {
+          "include": "#Underline"
+        },
+        {
+          "include": "#BoldItalic"
+        },
+        {
+          "include": "#Bold"
+        },
+        {
+          "include": "#Italic"
+        },
+        {
+          "include": "#Centered"
+        }
+      ]
+    },
+    "StylingMark": {
+      "match": "([*_|]+)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.styling.sd"
+        }
+      }
+    },
+    "BoldItalic": {
+      "tag": "strong",
+      "name": "markup.bold.sd",
+      "match": "([*][*]+)([*].*?(?:[*]|$))(\\1|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Italic"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "Bold": {
+      "tag": "strong",
+      "name": "markup.bold.sd",
+      "match": "([*][*](?![*]))(.*?)(\\1|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InlineText"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "Italic": {
+      "tag": "emphasis",
+      "name": "markup.italic.sd",
+      "match": "([*](?![*]))(.*?)(\\1|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InlineText"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "Underline": {
+      "tag": "link",
+      "name": "markup.underline.sd",
+      "match": "([_]+)(.*?)(\\1|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InlineText"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "Centered": {
+      "tag": "monospace",
+      "name": "markup.other.centered.sd",
+      "match": "([\\^]+)(.*?)(\\1|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InlineText"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        }
+      }
+    },
+    "Emphasis": {
+      "patterns": [
+        {
+          "include": "#EmphasisTilde"
+        },
+        {
+          "include": "#EmphasisColon"
+        }
+      ]
+    },
+    "EmphasisTilde": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "([~][~]+)((?:(?!\\1).*?)+)(\\1|$)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InlineText"
+            }
+          ]
+        },
+        "3": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        }
+      }
+    },
+    "EmphasisColon": {
+      "tag": "emphasis",
+      "name": "markup.emphasis.sd",
+      "match": "([:][:]+)((?:(?!\\1).*?)+)(\\1|$)",
+      "captures": {
+        "1": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#InlineText"
+            }
+          ]
+        },
+        "3": {
+          "tag": "bracket",
+          "name": "punctuation.definition.emphasis.sd"
+        }
+      }
+    },
+    "PlainText": {
+      "patterns": [
+        {
+          "include": "#Space"
+        },
+        {
+          "include": "#Word"
+        },
+        {
+          "include": "#EmDash"
+        },
+        {
+          "include": "#Punctuation"
+        }
+      ]
+    },
+    "Space": {
+      "tag": "content",
+      "name": "markup.raw.space.sd",
+      "match": "([ ])"
+    },
+    "Word": {
+      "tag": "content",
+      "name": "markup.raw.text.sd",
+      "match": "([\\p{L}\\p{N}\\p{Mn}']+)"
+    },
+    "EmDash": {
+      "tag": "content",
+      "name": "markup.raw.punctuation.sd",
+      "match": "([-][-])"
+    },
+    "Punctuation": {
+      "tag": "content",
+      "name": "markup.raw.punctuation.sd",
+      "match": "(.)"
+    },
+    "IllegalExpression": {
+      "tag": "invalid",
+      "name": "invalid.illegal.illegal-expression.sd",
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "tag": "content",
+          "name": "markup.raw.unknown.sd"
+        }
+      }
+    },
+    "IllegalChar": {
+      "tag": "invalid",
+      "name": "invalid.illegal.illegal-char.sd",
+      "match": "(.)",
+      "captures": {
+        "1": {
+          "tag": "content",
+          "name": "markup.raw.unknown.sd"
+        }
+      }
+    },
+    "Unknown": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "match": "(.+$)",
+      "captures": {
+        "1": {
+          "tag": "content",
+          "name": "markup.raw.unknown.sd"
+        }
+      }
     }
   }
 }

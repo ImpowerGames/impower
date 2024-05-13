@@ -1,7 +1,7 @@
 import { FormattedText } from "../types/FormattedText";
 import { TextOptions } from "../types/TextOptions";
 
-const SINGLE_MARKERS = ["|", "*", "_"];
+const SINGLE_MARKERS = ["^", "*", "_"];
 const DOUBLE_MARKERS = ["~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
@@ -69,7 +69,7 @@ export const styleText = (
         }
       }
       escaped = false;
-      const activeCenteredMark = marks.findLast(([m]) => m.startsWith("|"));
+      const activeCenteredMark = marks.findLast(([m]) => m.startsWith("^"));
       const activeUnderlineMark = marks.findLast(([m]) => m.startsWith("_"));
       const activeBoldItalicMark = marks.findLast(([m]) => m.startsWith("***"));
       const activeBoldMark = marks.findLast(([m]) => m.startsWith("**"));

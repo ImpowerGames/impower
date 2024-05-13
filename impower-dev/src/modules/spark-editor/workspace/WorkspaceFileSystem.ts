@@ -40,14 +40,14 @@ import { WorkspaceConstants } from "./WorkspaceConstants";
 import workspace from "./WorkspaceStore";
 import getTextBuffer from "./utils/getTextBuffer";
 
-const FILE_SEPARATOR_PREFIX = "=== ";
-const FILE_SEPARATOR_SUFFIX = " ===";
+const FILE_SEPARATOR_PREFIX = "//// ";
+const FILE_SEPARATOR_SUFFIX = " ////";
 const FILE_SPLITTER_REGEX = new RegExp(
   GRAMMAR.repository.FileSplitter.match,
   "umg"
 );
-const CHUNK_REGEX = new RegExp(GRAMMAR.repository.Chunk.match);
-const CHUNK_NAME_CAPTURE_INDEX = 3;
+const FILE_SEPARATOR_REGEX = new RegExp(GRAMMAR.repository.FileSeparator.match);
+const FILE_NAME_CAPTURE_INDEX = 3;
 
 const cmp = (a: any, b: any) => {
   if (a > b) return +1;
@@ -364,8 +364,8 @@ export default class WorkspaceFileSystem {
           : this.getFileUri(projectId, "main.script");
         chunks[uri] = content.trim();
       } else {
-        const match = content.trim().match(CHUNK_REGEX);
-        filename = match?.[CHUNK_NAME_CAPTURE_INDEX]?.trim() || "";
+        const match = content.trim().match(FILE_SEPARATOR_REGEX);
+        filename = match?.[FILE_NAME_CAPTURE_INDEX]?.trim() || "";
       }
     });
     return chunks;

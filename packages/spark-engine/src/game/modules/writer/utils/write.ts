@@ -11,7 +11,7 @@ import { Phrase } from "../types/Phrase";
 import { WriteResult } from "../types/WriteResult";
 import { stressPhrases } from "./stressPhrases";
 
-const SINGLE_MARKERS = ["|", "*", "_"];
+const SINGLE_MARKERS = ["^", "*", "_"];
 const DOUBLE_MARKERS = ["~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
@@ -354,6 +354,16 @@ export const write = (
               escaped = true;
               continue;
             }
+            if (char === ">" && nextChar === ">") {
+              // Chain
+              i += 2;
+              continue;
+            }
+            if (char === "<" && nextChar === ">") {
+              // Glue
+              i += 2;
+              continue;
+            }
             if (char === "<") {
               let control = "";
               let arg = "";
@@ -417,7 +427,7 @@ export const write = (
             }
           }
           escaped = false;
-          const activeCenteredMark = marks.findLast(([m]) => m.startsWith("|"));
+          const activeCenteredMark = marks.findLast(([m]) => m.startsWith("^"));
           const activeUnderlineMark = marks.findLast(([m]) =>
             m.startsWith("_")
           );

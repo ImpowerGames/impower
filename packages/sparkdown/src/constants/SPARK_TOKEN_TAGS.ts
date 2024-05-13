@@ -5,7 +5,8 @@ const SPARK_TOKEN_TAGS: {
   [t in SparkdownNodeName]?: SparkTokenTag;
 } = {
   Comment: "comment",
-  CommentContent: "comment_content",
+  LineCommentContent: "comment_content",
+  BlockCommentContent: "comment_content",
 
   FrontMatter_begin: "front_matter_start",
   FrontMatter_end: "front_matter_end",
@@ -101,6 +102,7 @@ const SPARK_TOKEN_TAGS: {
   Spec: "spec",
   DisplayText: "display_text",
   DisplayString: "text",
+  Escape: "text",
   TargetName: "target_name",
 
   Newline: "newline",
