@@ -1699,6 +1699,7 @@ repository:
       - { include: "#Escape" }
       - { include: "#InlineImageTag" }
       - { include: "#InlineAudioTag" }
+      - { include: "#InlineCommandTag" }
       - { include: "#ConditionalBlock" }
       - { include: "#DisplayString" }
 
@@ -1812,6 +1813,7 @@ repository:
       - { include: "#Gather" }
       - { include: "#ImageTag" }
       - { include: "#AudioTag" }
+      - { include: "#CommandTag" }
       - { include: "#DialogueLineParenthetical" }
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
@@ -1892,6 +1894,7 @@ repository:
       - { include: "#Gather" }
       - { include: "#ImageTag" }
       - { include: "#AudioTag" }
+      - { include: "#CommandTag" }
       - { include: "#BoxLineContinue" }
       - { include: "#BoxLineComplete" }
     end: (?=^{{WHITESPACE}}?(?={{EOL}}))|(\r\n|\r|\n)
@@ -2152,6 +2155,56 @@ repository:
       1:
         tag: separator
         name: meta.template.expression.comma.sd
+
+########## Command Tag ##########
+
+  CommandTag:
+    tag: macroName
+    name: meta.command.sd
+    match: ^({{WHITESPACE}}*)([{][{])((?:\\.|[^}])*?)([}][}])($|{{WHITESPACE}}*$)((?:\r\n|\r|\n)?)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: keyword
+        name: keyword.operator.expression.begin.tag.sd
+      3:
+        patterns:
+          - { include: "#CommandTagControl" }
+      4:
+        tag: keyword
+        name: keyword.operator.expression.end.tag.sd
+      5:
+        patterns:
+          - { include: "#Whitespace" }
+      6:
+        patterns:
+          - { include: "#Newline" }
+
+  InlineCommandTag:
+    tag: macroName
+    name: meta.command.sd
+    match: ([{][{])((?:\\.|[^}])*?)([}][}])
+    captures:
+      1:
+        tag: keyword
+        name: keyword.operator.expression.begin.tag.sd
+      2:
+        patterns:
+          - { include: "#CommandTagControl" }
+      3:
+        tag: keyword
+        name: keyword.operator.expression.end.tag.sd
+
+  CommandTagControl:
+    tag: controlKeyword
+    name: keyword.control.asset.control.sd
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#Expression" }
 
 ########## Text ##########
 
