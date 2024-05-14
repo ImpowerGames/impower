@@ -57,8 +57,6 @@ const getDualDialogueLineStyle = (type: string) => {
 const LANGUAGE_SUPPORT = new TextmateLanguageSupport("sparkdown", GRAMMAR);
 
 const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
-  { tag: tags.escape, display: "none" },
-
   { tag: tags.quote, fontStyle: "italic" },
   { tag: tags.strong, fontWeight: "bold" },
   {
@@ -70,10 +68,14 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
     tag: tags.strikethrough,
     textDecoration: "line-through",
   },
-  { tag: tags.punctuation, display: "none" },
   { tag: tags.regexp, fontWeight: "bold" },
   { tag: tags.labelName, display: "block", textAlign: "right" },
 
+  { tag: tags.definition(tags.escape), display: "none" },
+  { tag: tags.definition(tags.keyword), display: "none" },
+  { tag: tags.definition(tags.controlKeyword), display: "none" },
+  { tag: tags.definition(tags.typeName), display: "none" },
+  { tag: tags.punctuation, display: "none" },
   { tag: tags.comment, display: "none" },
   { tag: tags.blockComment, display: "none" },
   { tag: tags.docComment, display: "none" },
@@ -91,19 +93,11 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
 
 const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Comment",
-  "Chunk",
-  "Section",
-  "Import",
-  "Define",
-  "Store",
-  "Assign",
-  "Delete",
-  "If",
-  "Repeat",
+  "Logic",
+  "Declaration",
   "ImageTag",
   "AudioTag",
   "TextTag",
-  "Jump",
   "Unknown",
 ];
 
