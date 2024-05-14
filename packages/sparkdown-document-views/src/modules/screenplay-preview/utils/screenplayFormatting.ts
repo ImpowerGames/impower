@@ -389,9 +389,6 @@ const decorate = (state: EditorState) => {
         });
         return false;
       }
-      if (name === "Chunk") {
-        return false;
-      }
       if (HIDDEN_NODE_NAMES.includes(name)) {
         const nextLine = to < doc.length - 1 ? doc.lineAt(to) : null;
         const blockTo =
