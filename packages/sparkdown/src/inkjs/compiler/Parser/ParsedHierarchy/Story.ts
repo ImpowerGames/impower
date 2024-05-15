@@ -408,7 +408,17 @@ export class Story extends FlowBase {
     message = sb;
 
     if (this._errorHandler !== null) {
-      this._errorHandler(message, errorType);
+      const metadata = source?.debugMetadata
+        ? {
+            fileName: source.debugMetadata.fileName,
+            sourceName: source.debugMetadata.sourceName,
+            startLineNumber: source.debugMetadata.startLineNumber,
+            endLineNumber: source.debugMetadata.endLineNumber,
+            startCharacterNumber: source.debugMetadata.startCharacterNumber,
+            endCharacterNumber: source.debugMetadata.endCharacterNumber,
+          }
+        : null;
+      this._errorHandler(message, errorType, metadata);
     } else {
       throw new Error(message);
     }

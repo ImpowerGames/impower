@@ -247,12 +247,22 @@ export class InkParser extends StringParser {
       fullMessage += ` '${this._filename}'`;
     }
 
-    fullMessage += ` line ${lineIndex + 1}: ${message}`;
+    const lineNumber = lineIndex + 1;
+
+    fullMessage += ` line ${lineNumber}: ${message}`;
 
     if (this._externalErrorHandler !== null) {
       this._externalErrorHandler(
         fullMessage,
-        isWarning ? ErrorType.Warning : ErrorType.Error
+        isWarning ? ErrorType.Warning : ErrorType.Error,
+        {
+          fileName: this._filename,
+          sourceName: null,
+          startLineNumber: lineNumber,
+          startCharacterNumber: 0,
+          endLineNumber: lineNumber + 1,
+          endCharacterNumber: 0,
+        }
       );
     } else {
       throw new Error(fullMessage);

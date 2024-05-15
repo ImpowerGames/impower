@@ -7,6 +7,7 @@ import { Story as ParsedStory } from "./Parser/ParsedHierarchy/Story";
 import { DebugMetadata } from "../engine/DebugMetadata";
 import { StringValue } from "../engine/Value";
 import { asOrNull } from "../engine/TypeAssertion";
+import { SourceMetadata } from "../engine/Error";
 
 export { CompilerOptions } from "./CompilerOptions";
 export { InkParser } from "./Parser/InkParser";
@@ -134,7 +135,11 @@ export class Compiler {
     return null;
   };
 
-  public readonly OnError = (message: string, errorType: ErrorType) => {
+  public readonly OnError = (
+    message: string,
+    errorType: ErrorType,
+    metadata: SourceMetadata | null
+  ) => {
     switch (errorType) {
       case ErrorType.Author:
         this._authorMessages.push(message);
@@ -150,7 +155,7 @@ export class Compiler {
     }
 
     if (this.options.errorHandler !== null) {
-      this.options.errorHandler(message, errorType);
+      this.options.errorHandler(message, errorType, metadata);
     }
   };
 }
