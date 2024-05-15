@@ -400,16 +400,13 @@ export class InkParser extends StringParser {
 
   public readonly Choice = (): Choice | null => {
     let onceOnlyChoice: boolean = true;
-    let bullets = this.Interleave<string>(
-      this.OptionalExclude(this.Whitespace),
-      this.String("*")
-    );
+
+    this.Whitespace();
+
+    let bullets = this.OneOrMore(this.SpaceSeparated(this.String("*")));
 
     if (!bullets) {
-      bullets = this.Interleave<string>(
-        this.OptionalExclude(this.Whitespace),
-        this.String("+")
-      );
+      bullets = this.OneOrMore(this.SpaceSeparated(this.String("+")));
 
       if (bullets === null) {
         return null;
@@ -629,10 +626,9 @@ export class InkParser extends StringParser {
   public readonly ParseDashNotArrow = () => {
     const ruleId = this.BeginRule();
 
-    if (
-      this.ParseString("->") === null &&
-      this.ParseSingleCharacter() === "-"
-    ) {
+    const result = this.ParseObject(this.SpaceSeparated(this.String("-")));
+
+    if (result) {
       return this.SucceedRule(ruleId);
     }
 
@@ -1071,7 +1067,9 @@ export class InkParser extends StringParser {
 
   public readonly MixedTextAndLogic = (): ParsedObject[] | null => {
     // Check for disallowed "~" within this context
-    const disallowedTilde = this.ParseObject(this.Spaced(this.String("~")));
+    const disallowedTilde = this.ParseObject(
+      this.SpaceSeparated(this.String("~"))
+    );
     if (disallowedTilde !== null) {
       this.Error(
         "You shouldn't use a '~' here - tildas are for logic that's on its own line. To do inline logic, use { curly braces } instead"
@@ -2329,7 +2327,7 @@ export class InkParser extends StringParser {
   public readonly LogicLine = (): ParsedObject | null => {
     this.Whitespace();
 
-    if (this.ParseString("~") === null) {
+    if (this.ParseObject(this.SpaceSeparated(this.String("~"))) === null) {
       return null;
     }
 
@@ -3363,6 +3361,29 @@ export class InkParser extends StringParser {
       }
 
       this.Whitespace();
+
+      return result;
+    };
+
+  /**
+   * Requires rule to end with whitespace
+   */
+  public readonly SpaceSeparated =
+    (rule: ParseRule): ParseRule =>
+    () => {
+      this.Whitespace();
+
+      const result = this.ParseObject(rule);
+      if (result === null) {
+        return null;
+      }
+
+      // Must end with whitespace or newline
+      const separator = this.OneOf([this.Whitespace, this.Newline]);
+
+      if (separator === null) {
+        return null;
+      }
 
       return result;
     };
