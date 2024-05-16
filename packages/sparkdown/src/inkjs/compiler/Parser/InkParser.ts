@@ -161,7 +161,7 @@ export class InkParser extends StringParser {
     return allElements;
   };
 
-  public PreProcessInputString(str: string): string {
+  public override PreProcessInputString(str: string): string {
     const commentEliminator = new CommentEliminator(str);
     return commentEliminator.Process();
   }
@@ -180,7 +180,7 @@ export class InkParser extends StringParser {
     return md;
   };
 
-  public readonly RuleDidSucceed = (
+  public override readonly RuleDidSucceed = (
     result: ParseRuleReturn,
     stateAtStart: StringParserElement | null,
     stateAtEnd: StringParserElement
@@ -236,7 +236,7 @@ export class InkParser extends StringParser {
 
   public readonly OnStringParserError = (
     message: string,
-    index: number,
+    _index: number,
     source: SourceMetadata,
     isWarning: boolean = false
   ): void => {
@@ -2768,7 +2768,7 @@ export class InkParser extends StringParser {
       this.InnerExpression,
     ];
 
-    let wasTagActiveAtStartOfScope = this.tagActive;
+    // let wasTagActiveAtStartOfScope = this.tagActive;
 
     // Adapted from "OneOf" structuring rule except that in
     // order for the rule to succeed, it has to maximally
@@ -3126,7 +3126,7 @@ export class InkParser extends StringParser {
 
   public readonly StatementAtLevel = (level: StatementLevel): ParsedObject => {
     const rulesAtLevel: ParseRule[] =
-      this._statementRulesAtLevel[level as number];
+      this._statementRulesAtLevel[level as number]!;
     const statement = this.OneOf(rulesAtLevel) as ReturnType;
 
     // For some statements, allow them to parse, but create errors, since
@@ -3172,7 +3172,8 @@ export class InkParser extends StringParser {
       .split("f")
       .map(() => []);
 
-    for (const level of levels) {
+    for (const l of levels) {
+      const level = l as number;
       const rulesAtLevel: ParseRule[] = [];
       const breakingRules: ParseRule[] = [];
 
