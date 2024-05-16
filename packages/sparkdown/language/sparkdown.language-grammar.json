@@ -213,7 +213,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -271,7 +271,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -305,7 +305,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -339,7 +339,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -373,7 +373,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -1174,7 +1174,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -1231,7 +1231,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -1263,7 +1263,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -1295,7 +1295,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKey"
+              "include": "#EndOfKeyword"
             }
           ]
         }
@@ -1870,7 +1870,7 @@
       "end": "(?=[}])"
     },
     "CaseClause": {
-      "begin": "^([^\\S\\n\\r]*)([-](?![>]))([^\\S\\n\\r])?(?:(else)|([^|{}:]+))([^\\S\\n\\r]*)([:])",
+      "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))(?:(else)|([^|{}:]+))([^\\S\\n\\r]*)([:])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1886,7 +1886,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#EndOfKeyword"
             }
           ]
         },
@@ -1942,7 +1942,7 @@
       "end": "(?=^|[}]|[-])"
     },
     "AlternativeClause": {
-      "begin": "^([^\\S\\n\\r]*)([-](?!>))",
+      "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1954,6 +1954,13 @@
         "2": {
           "tag": "keyword",
           "name": "keyword.sequence.clause.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EndOfKeyword"
+            }
+          ]
         }
       },
       "patterns": [
@@ -2058,7 +2065,7 @@
       "name": "markup.raw.whitespace.sd",
       "match": "([^\\S\\n\\r]+)"
     },
-    "EndOfKey": {
+    "EndOfKeyword": {
       "patterns": [
         {
           "include": "#Annotation"

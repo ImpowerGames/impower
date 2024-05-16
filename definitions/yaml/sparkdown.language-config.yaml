@@ -75,26 +75,6 @@ onEnterRules:
     action: 
       indent: "none"
       deleteText: "  "
-  - beforeText: ^\s*[+]\s*$
-    action: 
-      indent: "none"
-      deleteText: "+ "
-  - beforeText: ^\s*[+](\s+|$)
-    action:
-      indent: "none"
-      appendText: "+ "
-  - beforeText: ^\s*[*]\s*$
-    action:
-      indent: "none"
-      deleteText: "* "
-  - beforeText: ^\s*[*](\s+|$)
-    action:
-      indent: "none"
-      appendText: "* "
-  - beforeText: ^\s*[-](\s+|$)
-    action:
-      indent: "none"
-      appendText: "- " 
   - beforeText: ^\s*
     action:
       indent: "none"
