@@ -7,17 +7,26 @@ While the inkjs engine remains untouched, the new compiler diverges from the sta
 
 Each of these changes are explained below...
 
-## 1. Whitespace is required after all choice, gather, and logic operators
+## 1. Whitespace is required after all choice, logic, gather, and clause operators
 
 The space following a choice, gather, and logic operator is no longer optional. 
 
-That means `*`, `+`, `-`, and `~` must be followed by at least one whitespace for the compiler to recognize the instruction. 
+That means `*`, `+`, `~`, and `-` must be followed by at least one whitespace for the compiler to recognize the instruction. 
 
 ```
 * [choice]
 + [choice]
-- (gather)
+
 ~ logic()
+
+- (gather)
+
+{ x:
+- 0: clause
+- 1: clause
+- 2: clause
+- else: clause
+}
 ```
 
 Space is also required between nesting operators:

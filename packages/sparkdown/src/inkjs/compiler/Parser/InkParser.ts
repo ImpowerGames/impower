@@ -403,10 +403,10 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    let bullets = this.OneOrMore(this.Keyword(this.String("*")));
+    let bullets = this.OneOrMore(this.KeywordString("*"));
 
     if (!bullets) {
-      bullets = this.OneOrMore(this.Keyword(this.String("+")));
+      bullets = this.OneOrMore(this.KeywordString("+"));
 
       if (bullets === null) {
         return null;
@@ -626,7 +626,7 @@ export class InkParser extends StringParser {
   public readonly ParseDashNotArrow = () => {
     const ruleId = this.BeginRule();
 
-    const result = this.ParseObject(this.Keyword(this.String("-")));
+    const result = this.ParseKeywordString("-");
 
     if (result) {
       return this.SucceedRule(ruleId);
@@ -906,11 +906,7 @@ export class InkParser extends StringParser {
     (): ConditionalSingleBranch | null => {
       this.Whitespace();
 
-      if (
-        // Make sure we're not accidentally parsing a divert
-        this.ParseString("->") !== null ||
-        this.ParseString("-") === null
-      ) {
+      if (this.ParseKeywordString("-") === null) {
         return null;
       }
 
@@ -1045,7 +1041,7 @@ export class InkParser extends StringParser {
     return this.OneOf([
       this.EmptyLine,
       this.EndOfFile,
-      this.Keyword(this.String("/@")),
+      this.KeywordString("/@"),
     ]);
   };
 
@@ -1054,7 +1050,7 @@ export class InkParser extends StringParser {
     // (Except for escaped whitespace)
     this.Parse(this.Whitespace);
 
-    if (this.Peek(this.Keyword(this.String("return")))) {
+    if (this.Peek(this.KeywordString("return"))) {
       this.Warning(
         "Do you need a '~' before 'return'? If not, perhaps use a glue: <> (since it's lowercase) or rewrite somehow?"
       );
@@ -2352,7 +2348,7 @@ export class InkParser extends StringParser {
   public readonly LogicLine = (): ParsedObject | null => {
     this.Whitespace();
 
-    if (this.ParseObject(this.Keyword(this.String("~"))) === null) {
+    if (this.ParseObject(this.KeywordString("~")) === null) {
       return null;
     }
 
@@ -3068,12 +3064,7 @@ export class InkParser extends StringParser {
   public readonly SingleMultilineSequenceElement = () => {
     this.Whitespace();
 
-    // Make sure we're not accidentally parsing a divert
-    if (this.ParseString("->") !== null) {
-      return null;
-    }
-
-    if (this.ParseString("-") === null) {
+    if (this.ParseKeywordString("-") === null) {
       return null;
     }
 
@@ -3415,25 +3406,31 @@ export class InkParser extends StringParser {
   /**
    * Requires rule to end with whitespace, newline, or end-of-file
    */
-  public readonly Keyword =
-    (rule: ParseRule): ParseRule =>
-    () => {
-      this.Whitespace();
+  public readonly KeywordString =
+    (keyword: string): ParseRule =>
+    () =>
+      this.ParseKeywordString(keyword);
 
-      const result = this.ParseObject(rule);
-      if (result === null) {
-        return null;
-      }
+  /**
+   * Requires string to end with whitespace, newline, or end-of-file
+   */
+  public readonly ParseKeywordString = (keyword: string): string | null => {
+    this.Whitespace();
 
-      // Must end with whitespace or newline
-      const terminator = this.KeywordTerminator();
+    const result = this.ParseString(keyword);
+    if (result === null) {
+      return null;
+    }
 
-      if (terminator === null) {
-        return null;
-      }
+    // Must end with whitespace or newline
+    const terminator = this.KeywordTerminator();
 
-      return result;
-    };
+    if (terminator === null) {
+      return null;
+    }
+
+    return result;
+  };
 
   /**
    * Whitespace, newline, or end-of-file
