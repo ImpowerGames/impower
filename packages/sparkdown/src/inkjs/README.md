@@ -9,7 +9,7 @@ Each of these changes are explained below...
 
 ## 1. Whitespace is required after all choice, logic, gather, and clause operators
 
-The space following a choice, gather, and logic operator is no longer optional. 
+The space following a choice, logic, gather, and clause operator is no longer optional. 
 
 That means `*`, `+`, `~`, and `-` must be followed by at least one whitespace for the compiler to recognize the instruction. 
 
