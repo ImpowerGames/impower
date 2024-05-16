@@ -355,10 +355,7 @@ const decorate = (state: EditorState) => {
         });
         return false;
       }
-      if (
-        (name === "BoxLineContinue" || name === "BoxLineComplete") &&
-        inDialogue
-      ) {
+      if (name === "DialogueLineText" && inDialogue) {
         const value = doc.sliceString(from, to).trimEnd();
         dialogueContent.push({
           type: "dialogue",

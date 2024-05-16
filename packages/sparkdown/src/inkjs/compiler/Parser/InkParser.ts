@@ -14,7 +14,7 @@ import { DebugMetadata } from "../../engine/DebugMetadata";
 import { Divert } from "./ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "./ParsedHierarchy/Divert/DivertTarget";
 import { Expression } from "./ParsedHierarchy/Expression/Expression";
-import { ErrorHandler } from "../../engine/Error";
+import { ErrorHandler, SourceMetadata } from "../../engine/Error";
 import { ExternalDeclaration } from "./ParsedHierarchy/Declaration/ExternalDeclaration";
 import { FlowDecl } from "./FlowDecl";
 import { FunctionCall } from "./ParsedHierarchy/FunctionCall";
@@ -84,7 +84,7 @@ export class InkParser extends StringParser {
   ) {
     super(str);
 
-    this._filename = filename;
+    this.filename = filename;
     this.RegisterExpressionOperators();
     this.GenerateStatementLevelRules();
 
@@ -102,9 +102,9 @@ export class InkParser extends StringParser {
       this._rootParser = this;
       this._openFilenames = [];
 
-      if (this._filename !== null) {
+      if (this.filename !== null) {
         const fullRootInkPath = this.fileHandler.ResolveInkFilename(
-          this._filename
+          this.filename
         );
         this._openFilenames.push(fullRootInkPath);
       }
@@ -175,7 +175,7 @@ export class InkParser extends StringParser {
     md.endLineNumber = stateAtEnd.lineIndex + 1;
     md.startCharacterNumber = (stateAtStart?.characterInLineIndex || 0) + 1;
     md.endCharacterNumber = stateAtEnd.characterInLineIndex + 1;
-    md.fileName = this._filename;
+    md.fileName = this.filename;
 
     return md;
   };
@@ -237,17 +237,17 @@ export class InkParser extends StringParser {
   public readonly OnStringParserError = (
     message: string,
     index: number,
-    lineIndex: number = 0,
+    source: SourceMetadata,
     isWarning: boolean = false
   ): void => {
     const warningType: string = isWarning ? "WARNING:" : "ERROR:";
     let fullMessage: string = warningType;
 
-    if (this._filename !== null) {
-      fullMessage += ` '${this._filename}'`;
+    if (this.filename !== null) {
+      fullMessage += ` '${this.filename}'`;
     }
 
-    const lineNumber = lineIndex + 1;
+    const lineNumber = source.startLineNumber;
 
     fullMessage += ` line ${lineNumber}: ${message}`;
 
@@ -256,7 +256,7 @@ export class InkParser extends StringParser {
         fullMessage,
         isWarning ? ErrorType.Warning : ErrorType.Error,
         {
-          fileName: this._filename,
+          fileName: this.filename,
           sourceName: null,
           startLineNumber: lineNumber,
           startCharacterNumber: 0,
@@ -403,10 +403,10 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    let bullets = this.OneOrMore(this.SpaceSeparated(this.String("*")));
+    let bullets = this.OneOrMore(this.Keyword(this.String("*")));
 
     if (!bullets) {
-      bullets = this.OneOrMore(this.SpaceSeparated(this.String("+")));
+      bullets = this.OneOrMore(this.Keyword(this.String("+")));
 
       if (bullets === null) {
         return null;
@@ -555,7 +555,7 @@ export class InkParser extends StringParser {
     if (conditions === null) {
       return null;
     } else if (conditions.length === 1) {
-      return conditions[0];
+      return conditions[0]!;
     }
 
     return new MultipleConditionExpression(conditions);
@@ -626,7 +626,7 @@ export class InkParser extends StringParser {
   public readonly ParseDashNotArrow = () => {
     const ruleId = this.BeginRule();
 
-    const result = this.ParseObject(this.SpaceSeparated(this.String("-")));
+    const result = this.ParseObject(this.Keyword(this.String("-")));
 
     if (result) {
       return this.SucceedRule(ruleId);
@@ -731,7 +731,7 @@ export class InkParser extends StringParser {
         }
       } else if (
         alternatives.length === 1 &&
-        alternatives[0].isElse &&
+        alternatives[0]?.isElse &&
         initialQueryExpression
       ) {
         // Empty true branch - didn't get parsed, but should insert one for semantic correctness,
@@ -748,7 +748,7 @@ export class InkParser extends StringParser {
       if (initialQueryExpression) {
         let earlierBranchesHaveOwnExpression: boolean = false;
         for (let ii = 0; ii < alternatives.length; ++ii) {
-          const branch = alternatives[ii];
+          const branch = alternatives[ii]!;
           const isLast: boolean = ii === alternatives.length - 1;
 
           // Matching equality with initial query expression
@@ -792,7 +792,7 @@ export class InkParser extends StringParser {
         // }
 
         for (let ii = 0; ii < alternatives.length; ++ii) {
-          const alt = alternatives[ii];
+          const alt = alternatives[ii]!;
           const isLast: boolean = ii === alternatives.length - 1;
 
           if (alt.ownExpression === null) {
@@ -801,7 +801,7 @@ export class InkParser extends StringParser {
             } else {
               if (alt.isElse) {
                 // Do we ALSO have a valid "else" at the end? Let's report the error there.
-                const finalClause = alternatives[alternatives.length - 1];
+                const finalClause = alternatives[alternatives.length - 1]!;
                 if (finalClause.isElse) {
                   this.ErrorWithParsedObject(
                     "Multiple 'else' cases. Can have a maximum of one, at the end.",
@@ -825,11 +825,11 @@ export class InkParser extends StringParser {
 
         if (
           alternatives.length === 1 &&
-          alternatives[0].ownExpression === null
+          alternatives[0]?.ownExpression === null
         ) {
           this.ErrorWithParsedObject(
             "Condition block with no conditions",
-            alternatives[0]
+            alternatives[0]!
           );
         }
       }
@@ -1018,7 +1018,54 @@ export class InkParser extends StringParser {
     }
   };
 
+  public readonly StartTextBlock = (): ParsedObject[] | null => {
+    const startOfBlock = this.Peek(this.String("@"));
+    if (startOfBlock === null) {
+      return null;
+    }
+
+    let result = this.Interleave<ParsedObject>(
+      this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
+      this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
+      this.EndTextBlock
+    );
+
+    const blockTerminator = this.Peek(this.String("/@"));
+
+    if (blockTerminator !== "/@") {
+      // If no explicit `/@`, automatically add `/@`
+      result.push(new Text("/@"));
+      result.push(new Text("\n"));
+    }
+
+    return result;
+  };
+
+  public readonly EndTextBlock = (): ParseRuleReturn => {
+    return this.OneOf([
+      this.EmptyLine,
+      this.EndOfFile,
+      this.Keyword(this.String("/@")),
+    ]);
+  };
+
   public readonly LineOfMixedTextAndLogic = (): ParsedObject[] | null => {
+    // Consume any whitespace at the start of the line
+    // (Except for escaped whitespace)
+    this.Parse(this.Whitespace);
+
+    if (this.Peek(this.Keyword(this.String("return")))) {
+      this.Warning(
+        "Do you need a '~' before 'return'? If not, perhaps use a glue: <> (since it's lowercase) or rewrite somehow?"
+      );
+    }
+
+    return this.LineOfMixedTextAndLogicNoWarnings();
+  };
+
+  public readonly LineOfMixedTextAndLogicNoWarnings = ():
+    | ParsedObject[]
+    | null => {
     // Consume any whitespace at the start of the line
     // (Except for escaped whitespace)
     this.Parse(this.Whitespace);
@@ -1028,18 +1075,6 @@ export class InkParser extends StringParser {
     ) as ParsedObject[];
 
     if (!result || !result.length) {
-      return null;
-    }
-
-    // Warn about accidentally writing "return" without "~"
-    const firstText = result[0] as Text;
-    if (firstText && firstText.text && firstText.text.startsWith("return")) {
-      this.Warning(
-        "Do you need a '~' before 'return'? If not, perhaps use a glue: <> (since it's lowercase) or rewrite somehow?"
-      );
-    }
-
-    if (result.length === 0) {
       return null;
     }
 
@@ -1066,16 +1101,6 @@ export class InkParser extends StringParser {
   };
 
   public readonly MixedTextAndLogic = (): ParsedObject[] | null => {
-    // Check for disallowed "~" within this context
-    const disallowedTilde = this.ParseObject(
-      this.SpaceSeparated(this.String("~"))
-    );
-    if (disallowedTilde !== null) {
-      this.Error(
-        "You shouldn't use a '~' here - tildas are for logic that's on its own line. To do inline logic, use { curly braces } instead"
-      );
-    }
-
     // Either, or both interleaved
     let results: ParsedObject[] = this.Interleave<ParsedObject>(
       this.Optional(this.ContentText),
@@ -1787,7 +1812,7 @@ export class InkParser extends StringParser {
       this.Exclude(this.Spaced(this.String(".")))
     );
 
-    if (path === null || Story.IsReservedKeyword(path[0].name)) {
+    if (path === null || Story.IsReservedKeyword(path[0]?.name)) {
       return null;
     }
 
@@ -2327,7 +2352,7 @@ export class InkParser extends StringParser {
   public readonly LogicLine = (): ParsedObject | null => {
     this.Whitespace();
 
-    if (this.ParseObject(this.SpaceSeparated(this.String("~"))) === null) {
+    if (this.ParseObject(this.Keyword(this.String("~"))) === null) {
       return null;
     }
 
@@ -3109,7 +3134,10 @@ export class InkParser extends StringParser {
     // the error message.
     if (level === StatementLevel.Top) {
       if (statement instanceof ReturnType) {
-        this.Error("should not have return statement outside of a knot");
+        this.ErrorWithParsedObject(
+          "should not have return statement outside of a knot",
+          statement
+        );
       }
     }
 
@@ -3122,7 +3150,7 @@ export class InkParser extends StringParser {
     this.Whitespace();
 
     const breakRules: ParseRule[] =
-      this._statementBreakRulesAtLevel[level as number];
+      this._statementBreakRulesAtLevel[level as number]!;
     const breakRuleResult = this.OneOf(breakRules);
     if (breakRuleResult === null) {
       return null;
@@ -3147,6 +3175,8 @@ export class InkParser extends StringParser {
     for (const level of levels) {
       const rulesAtLevel: ParseRule[] = [];
       const breakingRules: ParseRule[] = [];
+
+      rulesAtLevel.push(this.StartTextBlock);
 
       // Diverts can go anywhere
       rulesAtLevel.push(this.Line(this.MultiDivert));
@@ -3313,6 +3343,22 @@ export class InkParser extends StringParser {
     return ParseSuccess;
   };
 
+  public readonly EmptyLine = (): typeof ParseSuccess | null => {
+    const firstNewline = this.Newline();
+
+    if (firstNewline === null) {
+      return null;
+    }
+
+    const secondNewline = this.Newline();
+
+    if (secondNewline === null) {
+      return null;
+    }
+
+    return ParseSuccess;
+  };
+
   public readonly EndOfFile = (): typeof ParseSuccess | null => {
     this.Whitespace();
 
@@ -3366,9 +3412,9 @@ export class InkParser extends StringParser {
     };
 
   /**
-   * Requires rule to end with whitespace
+   * Requires rule to end with whitespace, newline, or end-of-file
    */
-  public readonly SpaceSeparated =
+  public readonly Keyword =
     (rule: ParseRule): ParseRule =>
     () => {
       this.Whitespace();
@@ -3379,14 +3425,32 @@ export class InkParser extends StringParser {
       }
 
       // Must end with whitespace or newline
-      const separator = this.OneOf([this.Whitespace, this.Newline]);
+      const terminator = this.KeywordTerminator();
 
-      if (separator === null) {
+      if (terminator === null) {
         return null;
       }
 
       return result;
     };
+
+  /**
+   * Whitespace, newline, or end-of-file
+   */
+  public readonly KeywordTerminator = (): ParseRuleReturn => {
+    // Must end with whitespace or newline
+    const terminator = this.OneOf([
+      this.Whitespace,
+      this.Newline,
+      this.EndOfFile,
+    ]);
+
+    if (terminator === null) {
+      return null;
+    }
+
+    return terminator;
+  };
 
   public readonly AnyWhitespace = (): typeof ParseSuccess | null => {
     let anyWhitespace: boolean = false;
@@ -3413,7 +3477,6 @@ export class InkParser extends StringParser {
       return result;
     };
 
-  private _filename: string | null = null;
   private _externalErrorHandler: ErrorHandler | null = null;
   private _fileHandler: IFileHandler | null = null;
 

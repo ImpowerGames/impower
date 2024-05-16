@@ -29,34 +29,10 @@
       "include": "#Annotation"
     },
     {
-      "include": "#FrontMatter"
+      "include": "#Dialogue"
     },
     {
-      "include": "#Todo"
-    },
-    {
-      "include": "#Include"
-    },
-    {
-      "include": "#Declaration"
-    },
-    {
-      "include": "#Knot"
-    },
-    {
-      "include": "#Stitch"
-    },
-    {
-      "include": "#Divert"
-    },
-    {
-      "include": "#Logic"
-    },
-    {
-      "include": "#Display"
-    },
-    {
-      "include": "#Unknown"
+      "include": "#Other"
     }
   ],
   "repository": {
@@ -255,7 +231,7 @@
     "IncludeContent": {
       "tag": "string",
       "name": "string.include.sd",
-      "match": "(.+$)"
+      "match": "(.+?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))"
     },
     "Declaration": {
       "patterns": [
@@ -1369,7 +1345,7 @@
       }
     },
     "Knot": {
-      "begin": "^([^\\S\\n\\r]*)([=]{2,})((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)([=]{2,})",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1381,13 +1357,6 @@
         "2": {
           "tag": "definition(heading)",
           "name": "keyword.control.section.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#EndOfKey"
-            }
-          ]
         }
       },
       "patterns": [
@@ -1410,7 +1379,7 @@
       }
     },
     "Stitch": {
-      "begin": "^([^\\S\\n\\r]*)([=])((?:$|[^\\S\\n\\r]+|(?=[#]|[/][/]|[/][*])))",
+      "begin": "^([^\\S\\n\\r]*)([=])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1422,13 +1391,6 @@
         "2": {
           "tag": "definition(heading)",
           "name": "keyword.control.section.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#EndOfKey"
-            }
-          ]
         }
       },
       "patterns": [
@@ -2911,53 +2873,6 @@
       "name": "keyword.other.front-matter.field.sd",
       "match": "(.+)"
     },
-    "Display": {
-      "patterns": [
-        {
-          "include": "#Transition"
-        },
-        {
-          "include": "#Scene"
-        },
-        {
-          "include": "#Dialogue"
-        },
-        {
-          "include": "#Action"
-        }
-      ]
-    },
-    "DisplayText": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#Escape"
-        },
-        {
-          "include": "#InlineImageTag"
-        },
-        {
-          "include": "#InlineAudioTag"
-        },
-        {
-          "include": "#InlineCommandTag"
-        },
-        {
-          "include": "#ConditionalBlock"
-        },
-        {
-          "include": "#DisplayString"
-        }
-      ]
-    },
-    "DisplayString": {
-      "emit": true,
-      "patterns": [
-        {
-          "include": "#InlineText"
-        }
-      ]
-    },
     "Transition": {
       "tag": "labelName",
       "name": "keyword.control.transition.sd",
@@ -3019,7 +2934,7 @@
     },
     "Dialogue": {
       "name": "entity.dialogue.sd",
-      "begin": "^([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|.+$)(\\r\\n|\\r|\\n)?",
+      "begin": "^([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]*))($|.+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3041,13 +2956,6 @@
               "include": "#DialogueCharacter"
             }
           ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
         }
       },
       "patterns": [
@@ -3055,13 +2963,35 @@
           "include": "#Annotation"
         },
         {
-          "include": "#DialogueBox"
+          "include": "#Newline"
+        },
+        {
+          "include": "#DialogueLineParenthetical"
+        },
+        {
+          "include": "#DialogueLineText"
         }
       ],
-      "end": "^[^\\S\\n\\r]?(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))"
+      "end": "^(?=[^\\S\\n\\r]*$)|^([^\\S\\n\\r]*)([/][@].*?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DialogueTerminator"
+            }
+          ]
+        }
+      }
     },
     "DialogueCharacter": {
-      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([(][^)]*(?:$|[)]))?($|[^\\S\\n\\r]*)(\\^)?($|[^\\S\\n\\r]*)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))",
+      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([(][^)]*(?:$|[)]))?($|[^\\S\\n\\r]*)(\\^)?((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3108,13 +3038,6 @@
         "7": {
           "patterns": [
             {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
               "include": "#EndOfLine"
             }
           ]
@@ -3124,7 +3047,30 @@
     "DialogueCharacterName": {
       "tag": "typeName",
       "name": "entity.name.type.dialogue.character.name.sd",
-      "match": "(.+$)"
+      "match": "(.+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
+    },
+    "DialogueTerminator": {
+      "tag": "typeName",
+      "name": "entity.name.type.dialogue.character.name.sd",
+      "match": "(.+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#DisplayText"
+            }
+          ]
+        }
+      }
     },
     "DialogueCharacterParenthetical": {
       "tag": "escape",
@@ -3136,52 +3082,8 @@
       "name": "keyword.operator.dialogue.character.simultaneous.sd",
       "match": "(.+$)"
     },
-    "DialogueBox": {
-      "tag": "string",
-      "name": "string.dialogue.line.sd",
-      "begin": "^(?=.+$)",
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#Choice"
-        },
-        {
-          "include": "#Gather"
-        },
-        {
-          "include": "#ImageTag"
-        },
-        {
-          "include": "#AudioTag"
-        },
-        {
-          "include": "#CommandTag"
-        },
-        {
-          "include": "#DialogueLineParenthetical"
-        },
-        {
-          "include": "#BoxLineContinue"
-        },
-        {
-          "include": "#BoxLineComplete"
-        }
-      ],
-      "end": "(?=^[^\\S\\n\\r]?(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$)))|(\\r\\n|\\r|\\n)",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
     "DialogueLineParenthetical": {
-      "match": "^([^\\S\\n\\r]*)([(][^()]*[)])($|[^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
+      "match": "^([^\\S\\n\\r]*)([(][^()]*[)])((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3200,14 +3102,7 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Newline"
+              "include": "#EndOfLine"
             }
           ]
         }
@@ -3221,80 +3116,62 @@
         "1": {
           "patterns": [
             {
-              "include": "#InlineText"
+              "include": "#DisplayText"
             }
           ]
         }
       }
     },
-    "BoxLineContinue": {
-      "match": "(?:(.*[>](?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$)(?:\\r\\n|\\r|\\n)?)|(.*[<][>](?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?)",
+    "DialogueLineText": {
+      "tag": "string",
+      "name": "string.dialogue.line.sd",
+      "match": "^([^\\S\\n\\r]*)(.+$)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#Annotation"
-            },
-            {
-              "include": "#DisplayText"
+              "include": "#Indent"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#Annotation"
-            },
-            {
-              "include": "#DisplayText"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "BoxLineComplete": {
-      "match": "(.*$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Annotation"
-            },
-            {
               "include": "#DisplayText"
             }
           ]
         }
       }
     },
-    "Action": {
-      "tag": "content",
-      "name": "entity.paragraph.text.action.implicit.sd",
-      "begin": "^(?![^\\S\\n\\r]*$)([^\\S\\n\\r]*)(?=.+$)",
-      "patterns": [
-        {
-          "include": "#Annotation"
-        },
-        {
-          "include": "#ActionBox"
-        }
-      ],
-      "end": "^[^\\S\\n\\r]?(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))"
-    },
-    "ActionBox": {
-      "tag": "content",
-      "name": "markup.raw.action.line.sd",
+    "Other": {
       "begin": "(?=.+$)",
       "patterns": [
         {
           "include": "#Annotation"
+        },
+        {
+          "include": "#FrontMatter"
+        },
+        {
+          "include": "#Todo"
+        },
+        {
+          "include": "#Include"
+        },
+        {
+          "include": "#Declaration"
+        },
+        {
+          "include": "#Knot"
+        },
+        {
+          "include": "#Stitch"
+        },
+        {
+          "include": "#Divert"
+        },
+        {
+          "include": "#Logic"
         },
         {
           "include": "#Choice"
@@ -3303,31 +3180,59 @@
           "include": "#Gather"
         },
         {
+          "include": "#Transition"
+        },
+        {
+          "include": "#Scene"
+        },
+        {
           "include": "#ImageTag"
         },
         {
           "include": "#AudioTag"
         },
         {
-          "include": "#CommandTag"
+          "include": "#DisplayText"
         },
         {
-          "include": "#BoxLineContinue"
-        },
-        {
-          "include": "#BoxLineComplete"
+          "include": "#Unknown"
         }
       ],
-      "end": "(?=^[^\\S\\n\\r]?(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$)))|(\\r\\n|\\r|\\n)",
-      "endCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
+      "end": "^(?=[^\\S\\n\\r]*$)"
+    },
+    "DisplayText": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Escape"
+        },
+        {
+          "include": "#InlineImageTag"
+        },
+        {
+          "include": "#InlineAudioTag"
+        },
+        {
+          "include": "#ConditionalBlock"
+        },
+        {
+          "include": "#DisplayString"
         }
-      }
+      ]
+    },
+    "DisplayString": {
+      "emit": true,
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#InlineText"
+        }
+      ]
     },
     "ImageTag": {
       "tag": "macroName",
@@ -3735,87 +3640,11 @@
         }
       }
     },
-    "CommandTag": {
-      "tag": "macroName",
-      "name": "meta.command.sd",
-      "match": "^([^\\S\\n\\r]*)([{][{])((?:\\\\.|[^}])*?)([}][}])($|[^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.tag.sd"
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#CommandTagControl"
-            }
-          ]
-        },
-        "4": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.tag.sd"
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "6": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "InlineCommandTag": {
-      "tag": "macroName",
-      "name": "meta.command.sd",
-      "match": "([{][{])((?:\\\\.|[^}])*?)([}][}])",
-      "captures": {
-        "1": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.begin.tag.sd"
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#CommandTagControl"
-            }
-          ]
-        },
-        "3": {
-          "tag": "keyword",
-          "name": "keyword.operator.expression.end.tag.sd"
-        }
-      }
-    },
-    "CommandTagControl": {
-      "tag": "controlKeyword",
-      "name": "keyword.control.asset.control.sd",
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Expression"
-            }
-          ]
-        }
-      }
-    },
     "InlineText": {
       "patterns": [
+        {
+          "include": "#Annotation"
+        },
         {
           "include": "#Escape"
         },

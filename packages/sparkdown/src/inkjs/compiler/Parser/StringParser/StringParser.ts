@@ -2,6 +2,7 @@ import { CharacterSet } from "../CharacterSet";
 import { ParsedObject } from "../ParsedHierarchy/Object";
 import { StringParserState } from "./StringParserState";
 import { StringParserElement } from "./StringParserElement";
+import { SourceMetadata } from "../../../engine/Error";
 
 export const ParseSuccess = Symbol("ParseSuccessStruct");
 
@@ -29,11 +30,13 @@ export class StringParser {
     | ((
         message: string,
         index: number,
-        lineIndex?: number,
+        source: SourceMetadata,
         isWarning?: boolean
       ) => void) = null;
   public state: StringParserState;
   public hadError: boolean = false;
+
+  protected filename: string | null = null;
 
   constructor(str: string) {
     const strPreProc = this.PreProcessInputString(str);
@@ -50,7 +53,7 @@ export class StringParser {
 
   get currentCharacter(): string {
     if (this.index >= 0 && this.remainingLength > 0) {
-      return this._chars[this.index];
+      return this._chars[this.index]!;
     }
 
     return "0";
@@ -127,7 +130,10 @@ export class StringParser {
         butSaw = `'${lineRemainder}'`;
       }
 
-      this.Error(`Expected ${message} but saw ${butSaw}`);
+      this.ErrorWithParsedObject(
+        `Expected ${message} but saw ${butSaw}`,
+        result
+      );
 
       if (recoveryRule !== null) {
         result = recoveryRule();
@@ -137,34 +143,54 @@ export class StringParser {
     return result;
   };
 
-  public Error = (message: string, isWarning: boolean = false): void => {
-    this.ErrorOnLine(message, this.lineIndex + 1, isWarning);
-  };
-
   public readonly ErrorWithParsedObject = (
     message: string,
-    result: ParsedObject,
-    isWarning: boolean = false
+    result: ParsedObject | null
   ): void => {
-    this.ErrorOnLine(
-      message,
-      result.debugMetadata ? result.debugMetadata.startLineNumber : -1,
-      isWarning
-    );
+    this.Error(message, result?.debugMetadata);
   };
 
-  public readonly ErrorOnLine = (
+  public readonly WarningWithParsedObject = (
     message: string,
-    lineNumber: number,
-    isWarning: boolean
+    result: ParsedObject
+  ): void => {
+    this.Warning(message, result?.debugMetadata);
+  };
+
+  public Error = (message: string, source?: SourceMetadata | null): void => {
+    return this.Diagnostic(message, source, false);
+  };
+
+  public readonly Warning = (
+    message: string,
+    source?: SourceMetadata | null
+  ): void => this.Diagnostic(message, source, true);
+
+  public Diagnostic = (
+    message: string,
+    source?: SourceMetadata | null,
+    isWarning: boolean = false
   ): void => {
     if (!this.state.errorReportedAlreadyInScope) {
       const errorType = isWarning ? "Warning" : "Error";
 
       if (!this.errorHandler) {
-        throw new Error(`${errorType} on line ${lineNumber}: ${message}`);
+        const position = source ? ` on line ${source?.startLineNumber}` : "";
+        throw new Error(`${errorType}${position}: ${message}`);
       } else {
-        this.errorHandler(message, this.index, lineNumber - 1, isWarning);
+        this.errorHandler(
+          message,
+          this.index,
+          source ?? {
+            startLineNumber: this.lineIndex + 1,
+            startCharacterNumber: 0,
+            endLineNumber: this.lineIndex + 2,
+            endCharacterNumber: 0,
+            fileName: this.filename,
+            sourceName: null,
+          },
+          isWarning
+        );
       }
 
       this.state.NoteErrorReported();
@@ -174,9 +200,6 @@ export class StringParser {
       this.hadError = true;
     }
   };
-
-  public readonly Warning = (message: string): void =>
-    this.Error(message, true);
 
   get endOfInput(): boolean {
     return this.index >= this._chars.length;
@@ -477,7 +500,7 @@ export class StringParser {
       this.index += 1;
       this.characterInLineIndex += 1;
 
-      return c;
+      return c!;
     }
 
     return "0";
@@ -535,7 +558,7 @@ export class StringParser {
     let count: number = 0;
     while (
       ii < this._chars.length &&
-      charSet.set.has(this._chars[ii]) === shouldIncludeChars &&
+      charSet.set.has(this._chars[ii]!) === shouldIncludeChars &&
       count < maxCount
     ) {
       if (this._chars[ii] === "\n") {
