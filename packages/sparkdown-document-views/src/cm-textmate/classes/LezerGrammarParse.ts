@@ -23,8 +23,8 @@ import {
   GrammarState,
 } from "../../../../grammar-compiler/src/grammar";
 
-import { printTree } from "../utils/printTree";
 import LezerParseRegion from "./LezerParseRegion";
+import { printTree } from "../utils/printTree";
 
 /** Amount of characters to slice before the starting position of the parse. */
 const MARGIN_BEFORE = 32;
@@ -222,7 +222,7 @@ export default class GrammarParse implements PartialParse {
         start,
         length,
       });
-      console.log(printTree(tree, this.region.input));
+      // console.log(printTree(tree, this.region.input));
       // bit of a hack (private properties)
       // this is so that we don't need to build another tree
       const props = Object.create(null);
@@ -271,22 +271,28 @@ export default class GrammarParse implements PartialParse {
         length = 1;
       }
 
+      if (length === 0) {
+        break;
+      }
+
       this.parsedPos = this.region.compensate(pos, length);
 
       let addedChunk = false;
 
-      for (let idx = 0; idx < matchTokens!.length; idx++) {
-        const t = matchTokens![idx]!;
+      if (matchTokens) {
+        for (let idx = 0; idx < matchTokens.length; idx++) {
+          const t = matchTokens[idx]!;
 
-        if (!this.region.contiguous) {
-          const from = this.region.compensate(pos, t[1] - pos);
-          const end = this.region.compensate(pos, t[2] - pos);
-          t[1] = from;
-          t[2] = end;
-        }
+          if (!this.region.contiguous) {
+            const from = this.region.compensate(pos, t[1] - pos);
+            const end = this.region.compensate(pos, t[2] - pos);
+            t[1] = from;
+            t[2] = end;
+          }
 
-        if (this.buffer.add(t)) {
-          addedChunk = true;
+          if (this.buffer.add(t)) {
+            addedChunk = true;
+          }
         }
       }
 
