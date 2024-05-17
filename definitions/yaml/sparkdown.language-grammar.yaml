@@ -22,8 +22,6 @@ patterns:
   - { include: "#Newline" }
   - { include: "#Annotation" }
   - { include: "#Dialogue" }
-  - { include: "#FrontMatter" }
-  - { include: "#DefineDeclaration" }
   - { include: "#Other" }
 
 repository:
@@ -174,6 +172,7 @@ repository:
       - { include: "#ListDeclaration" }
       - { include: "#ConstDeclaration" }
       - { include: "#ExternalDeclaration" }
+      - { include: "#DefineDeclaration" }
 
   VarDeclaration:
     tag: meta
@@ -1736,7 +1735,7 @@ repository:
       - { include: "#Newline" }
       - { include: "#DialogueLineParenthetical" }
       - { include: "#DialogueLineText" }
-    end: ^(?={{WS}}*$)|^({{WS}}*)([/][@].*?)(?={{EOL}})
+    end: ^({{WS}}*)(?:$|([/][@].*?)(?={{EOL}}))
     endCaptures:
       1:
         patterns:
@@ -1838,6 +1837,7 @@ repository:
     begin: ^(?=.+$)
     patterns:
       - { include: "#Annotation" }
+      - { include: "#FrontMatter" }
       - { include: "#Todo" }
       - { include: "#Include" }
       - { include: "#Declaration" }

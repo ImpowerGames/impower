@@ -32,12 +32,6 @@
       "include": "#Dialogue"
     },
     {
-      "include": "#FrontMatter"
-    },
-    {
-      "include": "#DefineDeclaration"
-    },
-    {
       "include": "#Other"
     }
   ],
@@ -252,6 +246,9 @@
         },
         {
           "include": "#ExternalDeclaration"
+        },
+        {
+          "include": "#DefineDeclaration"
         }
       ]
     },
@@ -2963,7 +2960,7 @@
           "include": "#DialogueLineText"
         }
       ],
-      "end": "^(?=[^\\S\\n\\r]*$)|^([^\\S\\n\\r]*)([/][@].*?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$))",
+      "end": "^([^\\S\\n\\r]*)(?:$|([/][@].*?)(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$)))",
       "endCaptures": {
         "1": {
           "patterns": [
@@ -3139,6 +3136,9 @@
       "patterns": [
         {
           "include": "#Annotation"
+        },
+        {
+          "include": "#FrontMatter"
         },
         {
           "include": "#Todo"
