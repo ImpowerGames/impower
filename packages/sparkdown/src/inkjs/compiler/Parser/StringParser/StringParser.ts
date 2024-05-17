@@ -143,8 +143,6 @@ export class StringParser {
         sourceName: null,
       };
 
-      console.log(source);
-
       this.Error(`Expected ${message} but saw ${butSaw}`, source);
 
       if (recoveryRule !== null) {
