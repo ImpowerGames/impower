@@ -22,6 +22,8 @@ patterns:
   - { include: "#Newline" }
   - { include: "#Annotation" }
   - { include: "#Dialogue" }
+  - { include: "#FrontMatter" }
+  - { include: "#DefineDeclaration" }
   - { include: "#Other" }
 
 repository:
@@ -172,7 +174,6 @@ repository:
       - { include: "#ListDeclaration" }
       - { include: "#ConstDeclaration" }
       - { include: "#ExternalDeclaration" }
-      - { include: "#DefineDeclaration" }
 
   VarDeclaration:
     tag: meta
@@ -253,7 +254,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)($|{{WS}}+)([^:]*?)($|{{WS}}*)($|[:])($|{{WS}}*)($|(?!.+)$)
+    begin: ^({{WS}}*)(DEFINE)($|{{WS}}+)([^:]*?)($|{{WS}}*)($|[:])($|{{WS}}*$)(\r\n|\r|\n)?
     beginCaptures:
       1:
         patterns:
@@ -276,11 +277,14 @@ repository:
       7:
         patterns:
           - { include: "#Whitespace" }
+      8:
+        patterns:
+          - { include: "#Newline" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructField" }
       - { include: "#Unknown" }
-    end: (?=^{{WS}}?(?={{EOL}}))|(?=^(?!\1(?:{{WS}}{2,})))
+    end: ^(?=(?!\1{{WS}}{2,}))
 
   Assignment:
     begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
@@ -350,19 +354,22 @@ repository:
   StructField:
     emit: true
     patterns:
+      - { include: "#StructBlankProperty" }
       - { include: "#StructMapItem" }
       - { include: "#StructScalarItem" }
       - { include: "#StructMapProperty" }
       - { include: "#StructScalarProperty" }
       - { include: "#Newline" }
-      - { include: "#StructBlankProperty" }
 
   StructBlankProperty:
-    match: (\s+$)
+    match: ^({{WS}}+$)(\r\n|\r|\n)?
     captures:
       1: 
         patterns:
           - { include: "#Indent" }
+      2: 
+        patterns:
+          - { include: "#Newline" }
 
   StructMapItem:
     tag: meta
@@ -1490,7 +1497,7 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   NamespaceAccessor:
-    match: ({{IDENTIFIER}})([.]|[?][.])({{IDENTIFIER}})(?![(])
+    match: ({{IDENTIFIER}})([.]|[?][.])($|{{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns: 
@@ -1828,10 +1835,9 @@ repository:
 ########## Other ##########
 
   Other:
-    begin: (?=.+$)
+    begin: ^(?=.+$)
     patterns:
       - { include: "#Annotation" }
-      - { include: "#FrontMatter" }
       - { include: "#Todo" }
       - { include: "#Include" }
       - { include: "#Declaration" }
@@ -1846,6 +1852,7 @@ repository:
       - { include: "#ImageTag" }
       - { include: "#AudioTag" }
       - { include: "#DisplayText" }
+      - { include: "#Newline" }
       - { include: "#Unknown" }
     end: ^(?={{WS}}*$)
 
@@ -2312,25 +2319,13 @@ repository:
     tag: invalid
     name: invalid.illegal.illegal-expression.sd
     match: (.+)
-    captures:
-      1:
-        tag: content
-        name: markup.raw.unknown.sd
 
   IllegalChar:
     tag: invalid
     name: invalid.illegal.illegal-char.sd
     match: (.)
-    captures:
-      1:
-        tag: content
-        name: markup.raw.unknown.sd
 
   Unknown:
     tag: invalid
     name: invalid.illegal.unknown-statement.sd
     match: (.+$)
-    captures:
-      1:
-        tag: content
-        name: markup.raw.unknown.sd

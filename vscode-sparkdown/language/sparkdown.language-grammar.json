@@ -32,6 +32,12 @@
       "include": "#Dialogue"
     },
     {
+      "include": "#FrontMatter"
+    },
+    {
+      "include": "#DefineDeclaration"
+    },
+    {
       "include": "#Other"
     }
   ],
@@ -246,9 +252,6 @@
         },
         {
           "include": "#ExternalDeclaration"
-        },
-        {
-          "include": "#DefineDeclaration"
         }
       ]
     },
@@ -391,7 +394,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)($|[^\\S\\n\\r]+)([^:]*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*)($|(?!.+)$)",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE)($|[^\\S\\n\\r]+)([^:]*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -438,6 +441,13 @@
               "include": "#Whitespace"
             }
           ]
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#Newline"
+            }
+          ]
         }
       },
       "patterns": [
@@ -451,7 +461,7 @@
           "include": "#Unknown"
         }
       ],
-      "end": "(?=^[^\\S\\n\\r]?(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$)))|(?=^(?!\\1(?:[^\\S\\n\\r]{2,})))"
+      "end": "^(?=(?!\\1[^\\S\\n\\r]{2,}))"
     },
     "Assignment": {
       "begin": "([_\\p{L}][0-9_\\p{L}]*)([^\\S\\n\\r]*)($|[=]|(?=(?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*[#].*$|[^\\S\\n\\r]*[/][/].*$)))",
@@ -570,6 +580,9 @@
       "emit": true,
       "patterns": [
         {
+          "include": "#StructBlankProperty"
+        },
+        {
           "include": "#StructMapItem"
         },
         {
@@ -583,19 +596,23 @@
         },
         {
           "include": "#Newline"
-        },
-        {
-          "include": "#StructBlankProperty"
         }
       ]
     },
     "StructBlankProperty": {
-      "match": "(\\s+$)",
+      "match": "^([^\\S\\n\\r]+$)(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
             {
               "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Newline"
             }
           ]
         }
@@ -2566,7 +2583,7 @@
       }
     },
     "NamespaceAccessor": {
-      "match": "([_\\p{L}][0-9_\\p{L}]*)([.]|[?][.])([_\\p{L}][0-9_\\p{L}]*)(?![(])",
+      "match": "([_\\p{L}][0-9_\\p{L}]*)([.]|[?][.])($|[_\\p{L}][0-9_\\p{L}]*)(?![(])",
       "captures": {
         "1": {
           "patterns": [
@@ -3118,13 +3135,10 @@
       }
     },
     "Other": {
-      "begin": "(?=.+$)",
+      "begin": "^(?=.+$)",
       "patterns": [
         {
           "include": "#Annotation"
-        },
-        {
-          "include": "#FrontMatter"
         },
         {
           "include": "#Todo"
@@ -3167,6 +3181,9 @@
         },
         {
           "include": "#DisplayText"
+        },
+        {
+          "include": "#Newline"
         },
         {
           "include": "#Unknown"
@@ -3931,35 +3948,17 @@
     "IllegalExpression": {
       "tag": "invalid",
       "name": "invalid.illegal.illegal-expression.sd",
-      "match": "(.+)",
-      "captures": {
-        "1": {
-          "tag": "content",
-          "name": "markup.raw.unknown.sd"
-        }
-      }
+      "match": "(.+)"
     },
     "IllegalChar": {
       "tag": "invalid",
       "name": "invalid.illegal.illegal-char.sd",
-      "match": "(.)",
-      "captures": {
-        "1": {
-          "tag": "content",
-          "name": "markup.raw.unknown.sd"
-        }
-      }
+      "match": "(.)"
     },
     "Unknown": {
       "tag": "invalid",
       "name": "invalid.illegal.unknown-statement.sd",
-      "match": "(.+$)",
-      "captures": {
-        "1": {
-          "tag": "content",
-          "name": "markup.raw.unknown.sd"
-        }
-      }
+      "match": "(.+$)"
     }
   }
 }

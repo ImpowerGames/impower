@@ -214,9 +214,6 @@ export class Compiler {
         matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
         matchLength = 1;
       }
-      if (matchLength === 0) {
-        break;
-      }
       for (let idx = 0; idx < matchTokens!.length; idx++) {
         const token = matchTokens![idx]!;
         this.buffer.add(token);

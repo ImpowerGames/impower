@@ -21,6 +21,7 @@ import { GrammarToken, NodeID } from "../../../../grammar-compiler/src/core";
 import {
   Grammar,
   GrammarState,
+  Matched,
 } from "../../../../grammar-compiler/src/grammar";
 
 import LezerParseRegion from "./LezerParseRegion";
@@ -269,10 +270,6 @@ export default class GrammarParse implements PartialParse {
         // if we didn't match, we'll advance to prevent getting stuck
         matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
         length = 1;
-      }
-
-      if (length === 0) {
-        break;
       }
 
       this.parsedPos = this.region.compensate(pos, length);
