@@ -291,36 +291,39 @@ export class StoryState {
   private _currentText: string | null = null;
 
   public CleanOutputWhitespace(str: string) {
-    let sb = new StringBuilder();
+    return str;
+    // ENGINE CHANGE: DO NOT COLLAPSE WHITESPACE
+    //
+    // let sb = new StringBuilder();
 
-    let currentWhitespaceStart = -1;
-    let startOfLine = 0;
+    // let currentWhitespaceStart = -1;
+    // let startOfLine = 0;
 
-    for (let i = 0; i < str.length; i++) {
-      let c = str.charAt(i);
+    // for (let i = 0; i < str.length; i++) {
+    //   let c = str.charAt(i);
 
-      let isInlineWhitespace = c == " " || c == "\t";
+    //   let isInlineWhitespace = c == " " || c == "\t";
 
-      if (isInlineWhitespace && currentWhitespaceStart == -1)
-        currentWhitespaceStart = i;
+    //   if (isInlineWhitespace && currentWhitespaceStart == -1)
+    //     currentWhitespaceStart = i;
 
-      if (!isInlineWhitespace) {
-        if (
-          c != "\n" &&
-          currentWhitespaceStart > 0 &&
-          currentWhitespaceStart != startOfLine
-        ) {
-          sb.Append(" ");
-        }
-        currentWhitespaceStart = -1;
-      }
+    //   if (!isInlineWhitespace) {
+    //     if (
+    //       c != "\n" &&
+    //       currentWhitespaceStart > 0 &&
+    //       currentWhitespaceStart != startOfLine
+    //     ) {
+    //       sb.Append(" ");
+    //     }
+    //     currentWhitespaceStart = -1;
+    //   }
 
-      if (c == "\n") startOfLine = i + 1;
+    //   if (c == "\n") startOfLine = i + 1;
 
-      if (!isInlineWhitespace) sb.Append(c);
-    }
+    //   if (!isInlineWhitespace) sb.Append(c);
+    // }
 
-    return sb.toString();
+    // return sb.toString();
   }
 
   get currentTags() {

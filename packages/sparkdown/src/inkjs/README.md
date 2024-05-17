@@ -3,11 +3,21 @@
 
 Spark games utilize a slightly modified version of [inkjs](https://github.com/y-lohse/inkjs/) compiler -- a javascript port of inkle's [ink](https://github.com/inkle/ink) scripting language -- to compile and run sparkdown.
 
-While the inkjs engine remains untouched, the new compiler diverges from the standard inkjs compiler in a few important ways in order to more easily support sparkdown without requiring the user to do too much manual escaping or tagging.
+While the inkjs engine remains largely untouched, the new compiler diverges from the standard inkjs compiler in a few important ways in order to more easily support sparkdown without requiring the user to do too much manual escaping or tagging.
 
 Each of these changes are explained below...
 
-## 1. Whitespace is required after all choice, logic, gather, and clause operators
+## Engine Changes:
+
+### 1. Internal whitespace is no longer collapsed at runtime
+
+Since whitespace is syntactically relevant in sparkdown, the inkjs engine has been updated to no longer collapse whitespace when outputting text.
+
+This way we can continue using the number of spaces to determine things like the length of pauses between words when text is typing out.
+
+## Compiler Changes:
+
+### 1. Whitespace is now required after all choice, logic, gather, and clause operators
 
 The space following a choice, logic, gather, and clause operator is no longer optional. 
 
@@ -48,7 +58,9 @@ This allows us to utilize markdown-esque styling syntax at the start of a line w
 * **This choice text is bolded.**
 ```
 
-## 2. The `@` operator will open a text-only block
+---
+
+### 2. The `@` operator will open a text-only block
 
 Starting a line with `@` causes all lines below to be interpreted as text until the next empty line or the end of the file.
 
@@ -90,7 +102,7 @@ This allows us to do three things:
     INCLUDE ME???
     ```
 
-3. Since the engine trims away all empty lines, the empty line following a text block is included in the final compiled json as a text line starting with the special termination keyword `/@`.
+3. Since the compiler collapses consecutive newlines, the empty line following a text block is included in the final compiled json as a text line starting with the special termination keyword `/@`.
 
     This allows the runtime to detect when a block of dialogue has ended and text should no longer be associated with a character.
 
@@ -120,14 +132,15 @@ This allows us to do three things:
     You know what.
     How long since we've seen each other?
     ```
+---
 
-## 3. Front Matter can be specified by surrounding a block of text with `---`
+### 3. Front Matter can be specified by surrounding a block of text with `---`
 
 Front Matter can be used to conveniently store multiline metadata about a story.
 
-In sparkdown, this metadata is used to populate the title page when exporting the the story as a screenplay.
+In sparkdown, this metadata is used to populate the title page when exporting the story as a screenplay.
 
-The compiler will automatically convert all front matter fields to `# key: value` tags. However, unlike regular # tags, front matter cannot contain any inline logic, only plain text.
+The compiler will automatically convert all front matter fields to `# key: value` tags. However, unlike regular `#` tags, front matter cannot contain any inline logic, only plain text.
 
 ```
 ---
