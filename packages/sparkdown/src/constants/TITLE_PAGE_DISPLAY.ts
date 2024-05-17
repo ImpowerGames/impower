@@ -20,8 +20,10 @@ const TITLE_PAGE_DISPLAY: Record<
   revision: { position: "br", order: 0 },
   date: { position: "br", order: 1 },
   draft_date: { position: "br", order: 2 },
+  "draft date": { position: "br", order: 2 },
   contact: { position: "br", order: 3 },
   contact_info: { position: "br", order: 4 },
+  "contact info": { position: "br", order: 4 },
 
   watermark: { position: "hidden", order: -1 },
   font: { position: "hidden", order: -1 },

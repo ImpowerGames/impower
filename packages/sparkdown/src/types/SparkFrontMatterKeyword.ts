@@ -12,7 +12,9 @@ export type SparkFrontMatterKeyword =
   | "revision"
   | "date"
   | "draft_date"
+  | "draft date"
   | "contact"
   | "contact_info"
+  | "contact info"
   | "header"
   | "footer";

@@ -1594,7 +1594,7 @@ repository:
         patterns:
           - { include: "#Whitespace" }
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#FrontMatterField" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
@@ -1610,7 +1610,7 @@ repository:
   FrontMatterField:
     tag: meta
     name: meta.front-matter.field.sd
-    begin: ^({{IDENTIFIER}})($|{{WS}}*)($|[:])(.*$(?:\r\n|\r|\n)?)
+    begin: ^(?!{{WS}}+)([^:\r\n]+)({{WS}}*)($|[:])($|.*$(?:\r\n|\r|\n)?)
     beginCaptures:
       1:
         patterns:
@@ -1625,31 +1625,19 @@ repository:
         patterns:
           - { include: "#FrontMatterStringInline" }
     patterns:
-      - { include: "#Annotation" }
-      - { include: "#FrontMatterArrayItem" }
+      - { include: "#Comment" }
       - { include: "#FrontMatterStringBlock" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: (?=^{{IDENTIFIER}}{{WS}}*[:]|[-]{3,})
+    end: (?=^(?!{{WS}}+)[^:\r\n]+{{WS}}*(?:$|[:])|[-]{3,})
 
-  FrontMatterArrayItem:
-    match: ^({{WS}}{2,})([-])($|{{WS}}+)(.*$(?:\r\n|\r|\n)?)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: keyword
-        name: keyword.operator.expression.array.sd
-      3:
-        patterns:
-          - { include: "#Whitespace" }
-      4:
-        patterns:
-          - { include: "#FrontMatterString" }
+  FrontMatterFieldKeyword:
+    tag: keyword
+    name: keyword.other.front-matter.field.sd
+    match: (.+)
 
   FrontMatterStringInline:
-    match: ($|{{WS}}*)(.*$(?:\r\n|\r|\n)?)
+    match: ({{WS}}*)($|.+$(?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
@@ -1659,7 +1647,7 @@ repository:
           - { include: "#FrontMatterString" }
 
   FrontMatterStringBlock:
-    match: ^($|{{WS}}*)(.*$(?:\r\n|\r|\n)?)
+    match: ^({{WS}}+)(.*$(?:\r\n|\r|\n)?)
     captures:
       1:
         patterns:
@@ -1673,18 +1661,13 @@ repository:
     name: string.front-matter.string.sd
     begin: (?=.*$)
     patterns:
-      - { include: "#Annotation" }
+      - { include: "#Comment" }
       - { include: "#InlineText" }
     end: ($(?:\r\n|\r|\n)?)
     endCaptures:
       1:
         patterns:
           - { include: "#Newline" }
-
-  FrontMatterFieldKeyword:
-    tag: keyword
-    name: keyword.other.front-matter.field.sd
-    match: (.+)
 
 ########## Transition ##########
 
@@ -1876,14 +1859,13 @@ repository:
       - { include: "#Escape" }
       - { include: "#InlineImageTag" }
       - { include: "#InlineAudioTag" }
-      - { include: "#ConditionalBlock" }
       - { include: "#DisplayString" }
 
   DisplayString:
     emit: true
     patterns:
       - { include: "#Annotation" }
-      - { include: "#InlineText" }
+      - { include: "#InlineTextAndLogic" }
 
 ########## Asset Tag ##########
 
@@ -2140,11 +2122,15 @@ repository:
 
 ########## Text ##########
 
+  InlineTextAndLogic:
+    patterns:
+      - { include: "#Escape" }
+      - { include: "#ConditionalBlock" }
+      - { include: "#InlineText" }
+
   InlineText:
     patterns:
-      - { include: "#Annotation" }
       - { include: "#Escape" }
-      - { include: "#Newline" }
       - { include: "#Styling" }
       - { include: "#Emphasis" }
       - { include: "#PlainText" }
@@ -2207,7 +2193,7 @@ repository:
           - { include: "#StylingMark" }
       2:
         patterns:
-          - { include: "#InlineText" }
+          - { include: "#InlineTextAndLogic" }
       3:
         patterns:
           - { include: "#StylingMark" }
@@ -2222,7 +2208,7 @@ repository:
           - { include: "#StylingMark" }
       2:
         patterns:
-          - { include: "#InlineText" }
+          - { include: "#InlineTextAndLogic" }
       3:
         patterns:
           - { include: "#StylingMark" }
@@ -2237,7 +2223,7 @@ repository:
           - { include: "#StylingMark" }
       2:
         patterns:
-          - { include: "#InlineText" }
+          - { include: "#InlineTextAndLogic" }
       3:
         patterns:
           - { include: "#StylingMark" }
@@ -2252,7 +2238,7 @@ repository:
           - { include: "#StylingMark" }
       2:
         patterns:
-          - { include: "#InlineText" }
+          - { include: "#InlineTextAndLogic" }
       3:
         patterns:
           - { include: "#StylingMark" }
@@ -2272,7 +2258,7 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#InlineText" }
+          - { include: "#InlineTextAndLogic" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
@@ -2287,13 +2273,14 @@ repository:
         name: punctuation.definition.emphasis.sd
       2:
         patterns:
-          - { include: "#InlineText" }
+          - { include: "#InlineTextAndLogic" }
       3:
         tag: bracket
         name: punctuation.definition.emphasis.sd
 
   PlainText:
     patterns:
+      - { include: "#Newline" }
       - { include: "#Space" }
       - { include: "#Word" }
       - { include: "#EmDash" }

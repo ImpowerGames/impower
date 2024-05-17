@@ -24,7 +24,7 @@ export class Typesetter {
     const areas: Record<string, string[]> = {};
 
     Object.entries(frontMatter).forEach(([k, v]) => {
-      const position = FRONTMATTER_POSITIONS[k] || k;
+      const position = FRONTMATTER_POSITIONS[k.toLowerCase()] || k;
       areas[position] ??= [];
       areas[position]?.push(...v);
     });

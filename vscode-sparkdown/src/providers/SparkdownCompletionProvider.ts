@@ -204,7 +204,10 @@ export class SparkdownCompletionProvider
             })
           );
         }
-        if (!program?.frontMatter?.["draft_date"]) {
+        if (
+          !program?.frontMatter?.["draft_date"] &&
+          !program?.frontMatter?.["draft date"]
+        ) {
           completes.push(
             TitlePageKey({
               name: "Draft Date",
@@ -231,8 +234,9 @@ export class SparkdownCompletionProvider
           );
         }
         if (
-          !program?.frontMatter?.["contact"] ||
-          !program?.frontMatter?.["contact_info"]
+          !program?.frontMatter?.["contact"] &&
+          !program?.frontMatter?.["contact_info"] &&
+          !program?.frontMatter?.["contact info"]
         ) {
           completes.push(
             TitlePageKey({

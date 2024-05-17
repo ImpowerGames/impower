@@ -20,7 +20,15 @@ const A4: PrintProfile = {
   title_page: {
     top_start: 3.5,
     left_side: ["notes", "copyright"],
-    right_side: ["draft_date", "date", "contact", "contact_info", "revision"],
+    right_side: [
+      "draft date",
+      "draft_date",
+      "date",
+      "contact info",
+      "contact_info",
+      "contact",
+      "revision",
+    ],
   },
   settings: {
     chunk: {

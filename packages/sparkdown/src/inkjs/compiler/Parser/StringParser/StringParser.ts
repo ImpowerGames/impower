@@ -489,7 +489,7 @@ export class StringParser {
     return this.FailRule(ruleId) as any;
   };
 
-  public readonly ParseSingleCharacter = (): string => {
+  public readonly ParseSingleCharacter = (): string | null => {
     if (this.remainingLength > 0) {
       const c = this._chars[this.index];
       if (c === "\n") {
@@ -500,10 +500,12 @@ export class StringParser {
       this.index += 1;
       this.characterInLineIndex += 1;
 
-      return c!;
+      if (c !== undefined) {
+        return c;
+      }
     }
 
-    return "0";
+    return null;
   };
 
   public readonly ParseUntilCharactersFromString = (
