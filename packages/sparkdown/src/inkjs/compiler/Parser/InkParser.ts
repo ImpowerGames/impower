@@ -1028,7 +1028,12 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    result.unshift(new Tag(true));
+    const firstResult = result[0];
+    if (firstResult instanceof Tag && !firstResult.isStart) {
+      // Remove first unmatched close tag
+      result.shift();
+    }
+    // Close last tag
     result.push(new Tag(false));
 
     this.ParseObject(this.EndOfFrontMatterBlock);
@@ -3562,32 +3567,17 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    // Must end with whitespace or newline
-    const terminator = this.KeywordTerminator();
-
-    if (terminator === null) {
-      return null;
-    }
-
-    return result;
-  };
-
-  /**
-   * Whitespace, newline, or end-of-file
-   */
-  public readonly KeywordTerminator = (): ParseRuleReturn => {
-    // Must end with whitespace or newline
     const terminator = this.OneOf([
       this.Whitespace,
       this.Newline,
       this.EndOfFile,
     ]);
 
-    if (terminator === null) {
+    if (!terminator) {
       return null;
     }
 
-    return terminator;
+    return result;
   };
 
   public readonly AnyWhitespace = (): typeof ParseSuccess | null => {
