@@ -122,6 +122,9 @@ export class StringParser {
         message = rule.name;
       }
 
+      const startLineNumber = this.lineIndex + 1;
+      const startCharacterNumber = this.characterInLineIndex + 1;
+
       let butSaw: string;
       const lineRemainder: string = this.LineRemainder();
       if (lineRemainder === null || lineRemainder.length === 0) {
@@ -129,11 +132,20 @@ export class StringParser {
       } else {
         butSaw = `'${lineRemainder}'`;
       }
+      const lineRemainderLength = lineRemainder?.length ?? 0;
 
-      this.ErrorWithParsedObject(
-        `Expected ${message} but saw ${butSaw}`,
-        result
-      );
+      const source = {
+        startLineNumber,
+        startCharacterNumber,
+        endLineNumber: startLineNumber,
+        endCharacterNumber: startCharacterNumber + lineRemainderLength,
+        fileName: this.filename,
+        sourceName: null,
+      };
+
+      console.log(source);
+
+      this.Error(`Expected ${message} but saw ${butSaw}`, source);
 
       if (recoveryRule !== null) {
         result = recoveryRule();

@@ -255,14 +255,7 @@ export class InkParser extends StringParser {
       this._externalErrorHandler(
         fullMessage,
         isWarning ? ErrorType.Warning : ErrorType.Error,
-        {
-          fileName: this.filename,
-          sourceName: null,
-          startLineNumber: lineNumber,
-          startCharacterNumber: 0,
-          endLineNumber: lineNumber + 1,
-          endCharacterNumber: 0,
-        }
+        source
       );
     } else {
       throw new Error(fullMessage);
