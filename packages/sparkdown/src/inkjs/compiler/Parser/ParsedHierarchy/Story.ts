@@ -11,11 +11,15 @@ import { FlowLevel } from "./Flow/FlowLevel";
 import { IncludedFile } from "./IncludedFile";
 import { ListDefinition } from "./List/ListDefinition";
 import { ListElementDefinition } from "./List/ListElementDefinition";
+import { StructDefinition } from "./Struct/StructDefinition";
+import { StructProperty } from "./Struct/StructProperty";
 import { ParsedObject } from "./Object";
 import { Story as RuntimeStory } from "../../../engine/Story";
 import { SymbolType } from "./SymbolType";
 import { Text } from "./Text";
 import { VariableAssignment as RuntimeVariableAssignment } from "../../../engine/VariableAssignment";
+import { ListDefinition as RuntimeListDefinition } from "../../../engine/ListDefinition";
+import { StructDefinition as RuntimeStructDefinition } from "../../../engine/StructDefinition";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../engine/TypeAssertion";
 import { ClosestFlowBase } from "./Flow/ClosestFlowBase";
@@ -35,6 +39,7 @@ export class Story extends FlowBase {
       case "CONST":
       case "temp":
       case "LIST":
+      case "DEFINE":
       case "function":
         return true;
     }
@@ -47,6 +52,7 @@ export class Story extends FlowBase {
   private _hadWarning: boolean = false;
   private _dontFlattenContainers: Set<RuntimeContainer> = new Set();
   private _listDefs: Map<string, ListDefinition> = new Map();
+  private _structDefs: Map<string, StructDefinition> = new Map();
 
   get flowLevel(): FlowLevel {
     return FlowLevel.Story;
@@ -79,7 +85,7 @@ export class Story extends FlowBase {
     super(null, toplevelObjects, null, false, isInclude);
   }
 
-  get typeName(): string {
+  override get typeName(): string {
     return "Story";
   }
 
@@ -94,10 +100,12 @@ export class Story extends FlowBase {
   // knots/stiches and any other content. Insert the normal content wherever
   // the include statement was, and append the knots/stitches to the very
   // end of the main story.
-  public PreProcessTopLevelObjects(topLevelContent: ParsedObject[]): void {
+  public override PreProcessTopLevelObjects(
+    topLevelContent: ParsedObject[]
+  ): void {
     super.PreProcessTopLevelObjects(topLevelContent);
 
-    const flowsFromOtherFiles = [];
+    const flowsFromOtherFiles: ParsedObject[] = [];
 
     // Inject included files
     for (let obj of topLevelContent) {
@@ -162,7 +170,7 @@ export class Story extends FlowBase {
 
       if (existingDefinition) {
         if (!existingDefinition.Equals(constDecl.expression)) {
-          const errorMsg = `CONST '${constDecl.constantName}' has been redefined with a different value. Multiple definitions of the same CONST are valid so long as they contain the same value. Initial definition was on ${existingDefinition.debugMetadata}.`;
+          const errorMsg = `Cannot redeclare CONST '${constDecl.constantName}' with a different value. (It is already declared on ${existingDefinition.debugMetadata})`;
           this.Error(errorMsg, constDecl, false);
         }
       }
@@ -173,9 +181,18 @@ export class Story extends FlowBase {
     // List definitions are treated like constants too - they should be usable
     // from other variable declarations.
     this._listDefs = new Map();
-    for (const listDef of this.FindAll<ListDefinition>(ListDefinition)()) {
+    for (const listDef of this.FindAll(ListDefinition)()) {
       if (listDef.identifier?.name) {
         this._listDefs.set(listDef.identifier?.name, listDef);
+      }
+    }
+
+    // Struct definitions are treated like constants too - they should be usable
+    // from other variable declarations.
+    this._structDefs = new Map();
+    for (const structDef of this.FindAll(StructDefinition)()) {
+      if (structDef.identifier?.name) {
+        this._structDefs.set(structDef.identifier?.name, structDef);
       }
     }
 
@@ -196,16 +213,19 @@ export class Story extends FlowBase {
     variableInitialisation.AddContent(RuntimeControlCommand.EvalStart());
 
     // Global variables are those that are local to the story and marked as global
-    const runtimeLists = [];
+    const runtimeLists: RuntimeListDefinition[] = [];
+    const runtimeStructs: RuntimeStructDefinition[] = [];
     for (const [key, value] of this.variableDeclarations) {
       if (value.isGlobalDeclaration) {
         if (value.listDefinition) {
           this._listDefs.set(key, value.listDefinition);
+          runtimeLists.push(value.listDefinition.runtimeListDefinition);
           variableInitialisation.AddContent(
             value.listDefinition.runtimeObject!
           );
-
-          runtimeLists.push(value.listDefinition.runtimeListDefinition);
+        } else if (value.structDefinition) {
+          this._structDefs.set(key, value.structDefinition);
+          runtimeStructs.push(value.structDefinition.runtimeStructDefinition);
         } else {
           if (!value.expression) {
             throw new Error();
@@ -232,7 +252,11 @@ export class Story extends FlowBase {
     rootContainer.AddContent(RuntimeControlCommand.Done());
 
     // Replace runtimeObject with Story object instead of the Runtime.Container generated by Parsed.ContainerBase
-    const runtimeStory = new RuntimeStory(rootContainer, runtimeLists);
+    const runtimeStory = new RuntimeStory(
+      rootContainer,
+      runtimeLists,
+      runtimeStructs
+    );
 
     this.runtimeObject = runtimeStory;
 
@@ -374,7 +398,7 @@ export class Story extends FlowBase {
     }
   };
 
-  public readonly Error = (
+  public override readonly Error = (
     message: string,
     source: ParsedObject | null | undefined,
     isWarning: boolean | null | undefined
@@ -456,11 +480,10 @@ export class Story extends FlowBase {
   public readonly NameConflictError = (
     obj: ParsedObject,
     name: string,
-    existingObj: ParsedObject,
-    typeNameToPrint: string
+    existingObj: ParsedObject
   ): void => {
     obj.Error(
-      `${typeNameToPrint} '${name}': name has already been used for a ${existingObj.typeName.toLowerCase()} on ${
+      `Duplicate identifier '${name}'. A ${existingObj.typeName.toLowerCase()} named '${name}' was already declared on ${
         existingObj.debugMetadata
       }`
     );
@@ -500,12 +523,7 @@ export class Story extends FlowBase {
       knotOrFunction &&
       (knotOrFunction !== obj || symbolType === SymbolType.Arg)
     ) {
-      this.NameConflictError(
-        obj,
-        identifier?.name || "",
-        knotOrFunction,
-        typeNameToPrint
-      );
+      this.NameConflictError(obj, identifier?.name || "", knotOrFunction);
       return;
     }
 
@@ -520,7 +538,7 @@ export class Story extends FlowBase {
         obj !== value &&
         value.variableAssignment !== obj
       ) {
-        this.NameConflictError(obj, identifier?.name, value, typeNameToPrint);
+        this.NameConflictError(obj, identifier?.name, value);
       }
 
       // We don't check for conflicts between individual elements in
@@ -528,14 +546,24 @@ export class Story extends FlowBase {
       if (!(obj instanceof ListElementDefinition)) {
         for (const item of value.itemDefinitions) {
           if (identifier?.name === item.name) {
-            this.NameConflictError(
-              obj,
-              identifier?.name || "",
-              item,
-              typeNameToPrint
-            );
+            this.NameConflictError(obj, identifier?.name || "", item);
           }
         }
+      }
+    }
+
+    if (symbolType < SymbolType.List) {
+      return;
+    }
+
+    // Structs
+    for (const [key, value] of this._structDefs) {
+      if (
+        identifier?.name === key &&
+        obj !== value &&
+        value.variableAssignment !== obj
+      ) {
+        this.NameConflictError(obj, identifier?.name, value);
       }
     }
 
@@ -553,14 +581,10 @@ export class Story extends FlowBase {
       varDecl &&
       varDecl !== obj &&
       varDecl.isGlobalDeclaration &&
-      varDecl.listDefinition == null
+      varDecl.listDefinition == null &&
+      varDecl.structDefinition == null
     ) {
-      this.NameConflictError(
-        obj,
-        identifier?.name || "",
-        varDecl,
-        typeNameToPrint
-      );
+      this.NameConflictError(obj, identifier?.name || "", varDecl);
     }
 
     if (symbolType < SymbolType.SubFlowAndWeave) {
@@ -571,12 +595,7 @@ export class Story extends FlowBase {
     const path = new Path(identifier);
     const targetContent = path.ResolveFromContext(obj);
     if (targetContent && targetContent !== obj) {
-      this.NameConflictError(
-        obj,
-        identifier?.name || "",
-        targetContent,
-        typeNameToPrint
-      );
+      this.NameConflictError(obj, identifier?.name || "", targetContent);
       return;
     }
 
@@ -595,7 +614,7 @@ export class Story extends FlowBase {
         for (const arg of flow.args) {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
-              `${typeNameToPrint} '${identifier}': name has already been used for a argument to ${flow.identifier} on ${flow.debugMetadata}`
+              `Duplicate identifier '${identifier}'. An parameter named '${identifier}' has already been declared for ${flow.identifier} on ${flow.debugMetadata}`
             );
 
             return;

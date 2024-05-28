@@ -9,6 +9,7 @@ import { Conditional } from "./ParsedHierarchy/Conditional/Conditional";
 import { ConditionalSingleBranch } from "./ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { ContentList } from "./ParsedHierarchy/ContentList";
 import { ConstantDeclaration } from "./ParsedHierarchy/Declaration/ConstantDeclaration";
+import { StructDefinition } from "./ParsedHierarchy/Struct/StructDefinition";
 import { CustomFlags } from "./CustomFlags";
 import { DebugMetadata } from "../../engine/DebugMetadata";
 import { Divert } from "./ParsedHierarchy/Divert/Divert";
@@ -58,6 +59,7 @@ import { Identifier } from "./ParsedHierarchy/Identifier";
 import { NumberExpression } from "./ParsedHierarchy/Expression/NumberExpression";
 import { ErrorType } from "./ErrorType";
 import { DefaultFileHandler } from "../FileHandler/DefaultFileHandler";
+import { StructProperty } from "./ParsedHierarchy/Struct/StructProperty";
 
 export class InkParser extends StringParser {
   /**
@@ -137,7 +139,7 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    const allElements = [];
+    const allElements: ParseRuleReturn[] = [];
     allElements.push(firstElement);
 
     do {
@@ -1837,6 +1839,14 @@ export class InkParser extends StringParser {
       this.ExpressionString,
     ]) as Expression;
 
+  public readonly ValueLiteral = (): string | number | boolean | null =>
+    this.OneOf([
+      this.ValueFloat,
+      this.ValueInt,
+      this.ValueBool,
+      this.ValueString,
+    ]) as string | number | boolean | null;
+
   public readonly ExpressionDivertTarget = (): Expression | null => {
     this.Whitespace();
 
@@ -1859,6 +1869,15 @@ export class InkParser extends StringParser {
     return new NumberExpression(intOrNull, "int");
   };
 
+  public readonly ValueInt = (): number | null => {
+    const intOrNull: number = this.ParseInt() as number;
+    if (intOrNull === null) {
+      return null;
+    }
+
+    return intOrNull;
+  };
+
   public readonly ExpressionFloat = (): NumberExpression | null => {
     const floatOrNull: number = this.ParseFloat() as number;
     if (floatOrNull === null) {
@@ -1866,6 +1885,15 @@ export class InkParser extends StringParser {
     }
 
     return new NumberExpression(floatOrNull, "float");
+  };
+
+  public readonly ValueFloat = (): number | null => {
+    const floatOrNull: number = this.ParseFloat() as number;
+    if (floatOrNull === null) {
+      return null;
+    }
+
+    return floatOrNull;
   };
 
   public readonly ExpressionString = (): StringExpression | null => {
@@ -1895,12 +1923,55 @@ export class InkParser extends StringParser {
     return new StringExpression(textAndLogic);
   };
 
+  public readonly ValueString = (): string | null => {
+    const openQuote = this.ParseString('"');
+    if (openQuote === null) {
+      return null;
+    }
+
+    // Set custom parser state flag so that within the text parser,
+    // it knows to treat the quote character (") as an end character
+    this.parsingStringExpression = true;
+
+    let textAndLogic: ParsedObject[] = this.Parse(
+      this.MixedTextAndLogic
+    ) as ParsedObject[];
+
+    this.Expect(this.String('"'), "close quote for string expression");
+
+    this.parsingStringExpression = false;
+
+    if (textAndLogic === null) {
+      textAndLogic = [new Text("")];
+    } else if (textAndLogic.find((c) => c instanceof Divert)) {
+      this.Error("String expressions cannot contain diverts (->)");
+    } else if (textAndLogic.find((c) => !(c instanceof Text))) {
+      // Ensure string expressions are simple
+      this.Error("Property strings cannot contain any logic.");
+    }
+
+    const text = textAndLogic[0] as Text;
+
+    return text.text;
+  };
+
   public readonly ExpressionBool = (): NumberExpression | null => {
     const id = this.Parse(this.Identifier);
     if (id === "true") {
       return new NumberExpression(true, "bool");
     } else if (id === "false") {
       return new NumberExpression(false, "bool");
+    }
+
+    return null;
+  };
+
+  public readonly ValueBool = (): boolean | null => {
+    const id = this.Parse(this.Identifier);
+    if (id === "true") {
+      return true;
+    } else if (id === "false") {
+      return false;
     }
 
     return null;
@@ -2597,7 +2668,7 @@ export class InkParser extends StringParser {
 
       if (!check) {
         this.Error(
-          "initial value for a variable must be a number, constant, list or divert target"
+          "Initial value for a variable must be a number, string, boolean, constant, list item, defined property, or divert target"
         );
       }
 
@@ -2760,14 +2831,14 @@ export class InkParser extends StringParser {
 
     this.Expect(
       this.String("="),
-      "the '=' for an assignment of a value, e.g. '= 5' (initial values are mandatory)"
+      "'=' for the assignment of a value, e.g. '= 5' (initial values are mandatory)"
     );
 
     this.Whitespace();
 
     const expr = this.Expect(
       this.Expression,
-      "initial value for "
+      "initial value for CONST"
     ) as Expression;
 
     const check =
@@ -2776,20 +2847,189 @@ export class InkParser extends StringParser {
       expr instanceof StringExpression;
 
     if (!check) {
-      this.Error(
-        "initial value for a constant must be a number or divert target"
+      this.ErrorWithParsedObject(
+        "Initial value for a constant must be a number, string, boolean, constant, list item, defined property, or divert target",
+        expr
       );
     } else if (expr instanceof StringExpression) {
       // Ensure string expressions are simple
       const strExpr = expr as StringExpression;
       if (!strExpr.isSingleString) {
-        this.Error("Constant strings cannot contain any logic.");
+        this.ErrorWithParsedObject(
+          "Constant strings cannot contain any logic.",
+          strExpr
+        );
       }
     }
 
     const result = new ConstantDeclaration(varName, expr);
 
     return result;
+  };
+
+  public readonly DefineDeclaration = (): VariableAssignment | null => {
+    this.Whitespace();
+
+    const id = this.Parse(this.Identifier);
+    if (id !== "DEFINE") {
+      return null;
+    }
+
+    this.Whitespace();
+
+    const type = this.Identifier();
+
+    this.Whitespace();
+
+    const dot = this.ParseString(".");
+
+    this.Whitespace();
+
+    const name = dot ? this.Identifier() ?? "default" : "default";
+
+    this.Whitespace();
+
+    this.ParseString(":");
+
+    let definition = this.StructProperties();
+
+    if (definition) {
+      definition.identifier = new Identifier(type + "." + name);
+      return new VariableAssignment({
+        variableIdentifier: definition.identifier,
+        structDef: definition,
+      });
+    }
+
+    return null;
+  };
+
+  public readonly StructProperties = (): StructDefinition | null => {
+    if (this.Peek(this.EndOfFile) || this.Peek(this.UnindentedLine)) {
+      return new StructDefinition([]);
+    }
+
+    this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
+
+    let index = 0;
+
+    // Parse indent
+    let indent = this.ParseWhitespace();
+    let level = indent?.length ?? 0;
+    // Parse property
+    const firstElement = this.Parse(() =>
+      this.StructProperty(level, index)
+    ) as StructProperty;
+    if (firstElement === null) {
+      return null;
+    }
+    if (firstElement.index === null) {
+      // element is not an array item, so reset index
+      index = 0;
+    } else {
+      index += 1;
+    }
+
+    const properties: StructProperty[] = [];
+    properties.push(firstElement);
+
+    do {
+      const nextElementRuleId: number = this.BeginRule();
+      const sep = this.StructPropertySeparator();
+      if (sep === null) {
+        this.FailRule(nextElementRuleId);
+        break;
+      }
+
+      if (this.Peek(this.UnindentedLine)) {
+        this.FailRule(nextElementRuleId);
+        break;
+      }
+      // Parse indent
+      indent = this.ParseWhitespace();
+      level = indent?.length ?? 0;
+      // Parse property
+      const nextElement = this.Parse(() =>
+        this.StructProperty(level, index)
+      ) as StructProperty;
+      if (nextElement === null) {
+        this.FailRule(nextElementRuleId);
+        break;
+      }
+      if (nextElement.index === null) {
+        // element is not an array item, so reset index
+        index = 0;
+      } else {
+        index += 1;
+      }
+
+      this.SucceedRule(nextElementRuleId);
+      properties.push(nextElement);
+    } while (true);
+
+    return new StructDefinition(properties);
+  };
+
+  public readonly StructPropertySeparator = (): string | null => {
+    this.Whitespace();
+
+    if (this.ParseNewline() === null) {
+      return null;
+    }
+
+    return "\n";
+  };
+
+  public readonly StructProperty = (
+    level: number,
+    index: number
+  ): StructProperty | null => {
+    const itemDash = this.ParseString("-");
+    if (itemDash !== null) {
+      this.Whitespace();
+      let elementValue: unknown | null = {};
+      if (!this.Peek(this.EndOfLine) && !this.Peek(this.EndOfFile)) {
+        elementValue = this.Expect(
+          this.ValueLiteral,
+          "property to be initialized to a number, string, or boolean"
+        ) as unknown | null;
+      }
+      return new StructProperty(String(index), level, elementValue, index);
+    }
+
+    const identifier = this.Parse(
+      this.IdentifierWithMetadata
+    ) as Identifier | null;
+    if (identifier === null) {
+      return null;
+    }
+
+    this.Whitespace();
+
+    let elementValue: unknown | null = {};
+    if (this.ParseString("=") !== null) {
+      this.Whitespace();
+      elementValue = this.Expect(
+        this.ValueLiteral,
+        "property to be initialized to a number, string, or boolean"
+      ) as unknown | null;
+    } else if (this.ParseString(":") !== null) {
+      elementValue = {};
+    }
+
+    return new StructProperty(identifier.name, level, elementValue, null);
+  };
+
+  public readonly UnindentedLine = (): typeof ParseSuccess | null => {
+    this.ParseNewline();
+
+    const whitespace = this.ParseWhitespace();
+
+    if (whitespace === null) {
+      return ParseSuccess;
+    }
+
+    return null;
   };
 
   public readonly InlineLogicOrGlueOrStartTag = (): ParsedObject =>
@@ -3149,7 +3389,7 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    const result = [];
+    const result: ContentList[] = [];
 
     // The content and pipes won't necessarily be perfectly interleaved in the sense that
     // the content can be missing, but in that case it's intended that there's blank content.
@@ -3336,6 +3576,7 @@ export class InkParser extends StringParser {
 
       // Global variable declarations can go anywhere
       rulesAtLevel.push(this.Line(this.ListDeclaration));
+      rulesAtLevel.push(this.Line(this.DefineDeclaration));
       rulesAtLevel.push(this.Line(this.VariableDeclaration));
       rulesAtLevel.push(this.Line(this.ConstDeclaration));
       rulesAtLevel.push(this.Line(this.ExternalDeclaration));

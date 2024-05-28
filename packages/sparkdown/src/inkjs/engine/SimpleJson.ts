@@ -30,6 +30,11 @@ export namespace SimpleJson {
   // of a javascript object, which is serialised in the `toString` method.
   // See individual methods and properties for more information.
   export class Writer {
+    public InjectObject(name: string, obj: any) {
+      this._jsonObject ??= {};
+      (this._jsonObject as any)[name] = obj;
+    }
+
     public WriteObject(inner: (w: Writer) => void) {
       this.WriteObjectStart();
       inner(this);

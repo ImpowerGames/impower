@@ -146,15 +146,11 @@ export class VariableReference extends Expression {
       return;
     }
 
-    // Couldn't find this multi-part path at all, whether as a divert
-    // target or as a list item reference.
+    // Couldn't find this multi-part path at all, whether as a divert target,
+    // list item reference, or defined object property.
     if (this.path.length > 1) {
-      let errorMsg = `Could not find target for read count: ${parsedPath}`;
-      if (this.path.length <= 2) {
-        errorMsg += `, or couldn't find list item with the name ${this.path.join(
-          ","
-        )}`;
-      }
+      const pathStr = this.path.join(".");
+      let errorMsg = `Cannot find divert target, list item, or defined property named '${pathStr}'`;
 
       this.Error(errorMsg);
 
@@ -162,7 +158,7 @@ export class VariableReference extends Expression {
     }
 
     if (!context.ResolveVariableWithName(this.name, this).found) {
-      this.Error(`Unresolved variable: ${this.name}`, this);
+      this.Error(`Cannot find variable named '${this.name}'`, this);
     }
   }
 

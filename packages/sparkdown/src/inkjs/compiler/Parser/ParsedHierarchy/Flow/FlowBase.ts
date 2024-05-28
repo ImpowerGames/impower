@@ -200,11 +200,11 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       let prevDeclError = "";
       const debugMetadata = varab.debugMetadata;
       if (debugMetadata) {
-        prevDeclError = ` (${varab.debugMetadata})`;
+        prevDeclError = ` (It is already declared on ${varab.debugMetadata})`;
       }
 
       this.Error(
-        `found declaration variable '${varName}' that was already declared${prevDeclError}`,
+        `Cannot redeclare variable '${varName}'.${prevDeclError}`,
         varDecl,
         false
       );

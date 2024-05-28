@@ -13,6 +13,7 @@ export type ParseRuleReturn =
   | string
   | null
   | number
+  | boolean
   | (typeof StringParser)["ParseSuccess"];
 
 export type SpecificParseRule<T extends ParseRule> = T;

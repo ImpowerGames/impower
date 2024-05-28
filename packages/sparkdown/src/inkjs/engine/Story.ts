@@ -34,6 +34,8 @@ import { DebugMetadata } from "./DebugMetadata";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 import { ErrorHandler, ErrorType } from "./Error";
+import { SearchResult } from "./SearchResult";
+import { StructDefinition } from "./StructDefinition";
 
 export { InkList } from "./InkList";
 
@@ -116,6 +118,10 @@ export class Story extends InkObject {
     return this._listDefinitions;
   }
 
+  get structDefinitions() {
+    return this._structDefinitions;
+  }
+
   get state() {
     return this._state;
   }
@@ -144,7 +150,11 @@ export class Story extends InkObject {
     /* */
   }
 
-  constructor(contentContainer: Container, lists: ListDefinition[] | null);
+  constructor(
+    contentContainer: Container,
+    lists: ListDefinition[] | null,
+    structs: StructDefinition[] | null
+  );
   constructor(jsonString: string);
   constructor(json: Record<string, any>);
   constructor() {
@@ -153,6 +163,7 @@ export class Story extends InkObject {
     // Discrimination between constructors
     let contentContainer: Container;
     let lists: ListDefinition[] | null = null;
+    let structs: StructDefinition[] | null = null;
     let json: Record<string, any> | null = null;
 
     if (arguments[0] instanceof Container) {
@@ -160,6 +171,10 @@ export class Story extends InkObject {
 
       if (typeof arguments[1] !== "undefined") {
         lists = arguments[1] as ListDefinition[];
+      }
+
+      if (typeof arguments[2] !== "undefined") {
+        structs = arguments[2] as StructDefinition[];
       }
 
       // ------ Story (Container contentContainer, List<Runtime.ListDefinition> lists = null)
@@ -175,7 +190,18 @@ export class Story extends InkObject {
     }
 
     // ------ Story (Container contentContainer, List<Runtime.ListDefinition> lists = null)
-    if (lists != null) this._listDefinitions = new ListDefinitionsOrigin(lists);
+    if (lists != null) {
+      this._listDefinitions = new ListDefinitionsOrigin(lists);
+    }
+
+    if (structs != null) {
+      this._structDefinitions = {};
+      for (const struct of structs) {
+        const [type, name] = struct.id.split(".");
+        this._structDefinitions[type] ??= {};
+        this._structDefinitions[type][name] = struct.value;
+      }
+    }
 
     this._externals = new Map();
     // ------
@@ -248,23 +274,23 @@ export class Story extends InkObject {
     if (this._listDefinitions != null) {
       writer.WritePropertyStart("listDefs");
       writer.WriteObjectStart();
-
       for (let def of this._listDefinitions.lists) {
         writer.WritePropertyStart(def.name);
         writer.WriteObjectStart();
-
         for (let [key, value] of def.items) {
           let item = InkListItem.fromSerializedKey(key);
           let val = value;
           writer.WriteIntProperty(item.itemName, val);
         }
-
         writer.WriteObjectEnd();
         writer.WritePropertyEnd();
       }
-
       writer.WriteObjectEnd();
       writer.WritePropertyEnd();
+    }
+
+    if (this._structDefinitions != null) {
+      writer.InjectObject("structDefs", this._structDefinitions);
     }
 
     writer.WriteObjectEnd();
@@ -456,12 +482,12 @@ export class Story extends InkObject {
       if (this.onError !== null) {
         if (this.state.hasError) {
           for (let err of this.state.currentErrors!) {
-            this.onError(err, ErrorType.Error);
+            this.onError(err, ErrorType.Error, null);
           }
         }
         if (this.state.hasWarning) {
           for (let err of this.state.currentWarnings!) {
-            this.onError(err, ErrorType.Warning);
+            this.onError(err, ErrorType.Warning, null);
           }
         }
         this.ResetErrors();
@@ -621,7 +647,7 @@ export class Story extends InkObject {
 
     let pathLengthToUse = path.length;
 
-    let result = null;
+    let result: SearchResult | null = null;
     if (path.lastComponent === null) {
       return throwNullException("path.lastComponent");
     }
@@ -1489,7 +1515,7 @@ export class Story extends InkObject {
             );
           }
 
-          let generatedListValue = null;
+          let generatedListValue: ListValue | null = null;
 
           if (this.listDefinitions === null) {
             return throwNullException("this.listDefinitions");
@@ -1621,7 +1647,7 @@ export class Story extends InkObject {
     // Variable reference
     else if (contentObj instanceof VariableReference) {
       let varRef = contentObj;
-      let foundValue = null;
+      let foundValue: InkObject | null = null;
 
       // Explicit read count value
       if (varRef.pathForCount != null) {
@@ -1832,7 +1858,7 @@ export class Story extends InkObject {
       return throwNullException("funcName");
     }
     let funcDef = this._externals.get(funcName);
-    let fallbackFunctionContainer = null;
+    let fallbackFunctionContainer: Container | null = null;
 
     let foundExternal = typeof funcDef !== "undefined";
 
@@ -1890,7 +1916,7 @@ export class Story extends InkObject {
     let funcResult = funcDef!.function(args);
 
     // Convert return value (if any) to the a type that the ink engine can use
-    let returnObj = null;
+    let returnObj: InkObject | null = null;
     if (funcResult != null) {
       returnObj = Value.Create(funcResult);
       this.Assert(
@@ -1944,7 +1970,7 @@ export class Story extends InkObject {
           "External function expected " + func.length + " arguments"
         );
 
-        let coercedArgs = [];
+        let coercedArgs: any[] = [];
         for (let i = 0, l = args.length; i < l; i++) {
           coercedArgs[i] = this.TryCoerce(args[i]);
         }
@@ -2370,7 +2396,7 @@ export class Story extends InkObject {
     let randomSeed = sequenceHash + loopIndex + this.state.storySeed;
     let random = new PRNG(Math.floor(randomSeed));
 
-    let unpickedIndices = [];
+    let unpickedIndices: number[] = [];
     for (let i = 0; i < numElements; ++i) {
       unpickedIndices.push(i);
     }
@@ -2492,6 +2518,7 @@ export class Story extends InkObject {
    */
   private _mainContentContainer!: Container;
   private _listDefinitions: ListDefinitionsOrigin | null = null;
+  private _structDefinitions: Record<string, any> | null = null;
 
   private _externals: Map<string, Story.ExternalFunctionDef>;
   private _variableObservers: Map<string, Story.VariableObserver[]> | null =

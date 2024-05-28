@@ -157,3 +157,66 @@ contact:
   Solvang, CA 93463
 ---
 ```
+
+---
+
+### 4. You can define objects and arrays with `DEFINE`
+
+The new compiler supports using yaml-esque syntax to define constant objects and arrays:
+
+```
+DEFINE alison:
+  first_name = "Alison"
+  last_name = "Smith"
+  nickname = "Allie"
+
+DEFINE fears:
+  - "spiders"
+  - "heights"
+  - "darkness"
+```
+
+---
+
+### 5. You can specify an object's type with `DEFINE type.name`
+
+An object's type can be specified by prefixing its name with a type and a dot separator
+
+This will ensure that the object inherits all properties from the defined type (and overrides them if specified).
+
+```
+DEFINE character:
+  first_name = "???"
+  last_name = "???"
+  nickname = "???"
+  voice = "mid"
+  color = "#FFFFFF"
+
+DEFINE character.alison:
+  first_name = "Alison"
+  last_name = "Smith"
+  nickname = "Alice"
+  voice = "high"
+
+DEFINE character.robert:
+  first_name = "Robert"
+  last_name = "Smith"
+  nickname = "Bob"
+  voice = "low"
+```
+
+At runtime, these types are used to lookup things like `character`, `ui`, `style`, and more.
+
+Just like CONST variables, DEFINEs can't be changed at runtime and aren't saved in the save state. 
+
+So they are mostly used for configuration:
+
+```
+define style.dialogue:
+  color = "#FFFFFF"
+  background_color = "#0000FF"
+  text_wrap = "nowrap"
+  border = "1px solid #000000"
+```
+
+---
