@@ -68,11 +68,11 @@ export class Game<T extends M = {}> {
 
   protected _displaying: {
     tags: string[];
-    text: string;
+    lines: string[];
     choices: { index: number; text: string; onChoose: () => void }[];
   } = {
     tags: [],
-    text: "",
+    lines: [],
     choices: [],
   };
   public get displaying() {
@@ -319,20 +319,18 @@ export class Game<T extends M = {}> {
       const text = this._story.currentText;
       const tags = this._story.currentTags;
       if (tags) {
-        this.displaying.tags.push(...tags);
+        this._displaying.tags.push(...tags);
       }
       if (text) {
         if (this.isVisible(tags)) {
-          this.displaying.text += text;
+          this._displaying.lines.push(text);
         }
       }
       for (const choice of this._story.currentChoices) {
-        this.displaying.choices.push({
+        this._displaying.choices.push({
           index: choice.index,
           text: choice.text,
-          onChoose: () => {
-            this.choose(choice.index);
-          },
+          onChoose: () => this.choose(choice.index),
         });
       }
       if (this._story.currentChoices.length > 0 || this.shouldFlush(text)) {
@@ -444,38 +442,37 @@ export class Game<T extends M = {}> {
   }
 
   flush() {
-    const tags = this._displaying.tags;
-    const text = this._displaying.text.trim();
+    // const tags = this._displaying.tags;
+    const lines = this._displaying.lines;
     const choices = this._displaying.choices;
 
     // Build parameters
-    const params: Record<string, string> = {};
-    for (const tag of tags) {
-      if (tag) {
-        const [key, value] = this.parseTag(tag);
-        if (key) {
-          params[key] = value || "";
-        }
-      }
-    }
+    // const params: Record<string, string> = {};
+    // for (const tag of tags) {
+    //   if (tag) {
+    //     const [key, value] = this.parseTag(tag);
+    //     if (key) {
+    //       params[key] = value || "";
+    //     }
+    //   }
+    // }
 
-    // If text exists, display text box
-    const lines: string[] = [];
-    if (text) {
-      lines.push(JSON.stringify(text));
-    }
+    const output: string[] = [];
 
     // If tags exist, display tags
-    if (tags.length > 0) {
-      lines.push("#" + JSON.stringify(params, null, 2));
-    }
+    // if (tags.length > 0) {
+    //   output.push("#" + JSON.stringify(params, null, 2));
+    // }
+
+    // If text exists, display text box
+    output.push(...lines);
 
     // If choices exist, display choice menu
     for (const choice of choices) {
-      lines.push(`${choice.index}: ${JSON.stringify(choice.text)}`);
+      output.push(`${choice.index}: ${JSON.stringify(choice.text)}`);
     }
 
-    console.log(lines.join("\n"));
+    console.log(output);
 
     // const type = data.params.type;
     // const characterKey = data?.params?.characterKey || "";
@@ -619,9 +616,9 @@ export class Game<T extends M = {}> {
     //   }
     // };
 
-    this.displaying.text = "";
-    this.displaying.choices = [];
-    this.displaying.tags = [];
+    this._displaying.lines = [];
+    this._displaying.choices = [];
+    this._displaying.tags = [];
   }
 
   choose(index: number) {
@@ -636,9 +633,9 @@ export class Game<T extends M = {}> {
   }
 
   clear() {
-    this.displaying.text = "";
-    this.displaying.choices = [];
-    this.displaying.tags = [];
+    this._displaying.lines = [];
+    this._displaying.choices = [];
+    this._displaying.tags = [];
     // TODO: Clear textbox and choices
   }
 

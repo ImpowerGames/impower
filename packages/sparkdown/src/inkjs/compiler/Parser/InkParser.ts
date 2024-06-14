@@ -1325,7 +1325,7 @@ export class InkParser extends StringParser {
     // "-": possible start of divert or start of gather
     // "<": possible start of glue
     if (this._nonTextPauseCharacters === null) {
-      this._nonTextPauseCharacters = new CharacterSet("-<");
+      this._nonTextPauseCharacters = new CharacterSet("-<#");
     }
 
     // If we hit any of these characters, we stop *immediately* without bothering to even check the nonTextRule
@@ -1350,6 +1350,7 @@ export class InkParser extends StringParser {
         this.ParseThreadArrow,
         this.EndOfLine,
         this.Glue,
+        this.StartTag,
       ]);
 
     let endChars: CharacterSet | null = null;
@@ -3668,7 +3669,15 @@ export class InkParser extends StringParser {
   public readonly StartTag = (): ParsedObject | null => {
     this.Whitespace();
 
-    if (this.ParseConsecutiveKeywordString("#") === null) {
+    const multiHash = this.ParseCharactersFromString("#");
+    console.log("current", this.currentCharacter);
+    console.log("multiHash", multiHash);
+    if (!multiHash) {
+      return null;
+    }
+
+    const terminator = this.ParseKeywordTerminator();
+    if (terminator === null) {
       return null;
     }
 
@@ -3830,28 +3839,6 @@ export class InkParser extends StringParser {
    */
   public readonly KeywordTerminator = (): ParseRule => () =>
     this.ParseKeywordTerminator();
-
-  /**
-   * Requires a string to end with whitespace, newline, or end-of-file.
-   * The string may be repeated one or more times with no whitespace between.
-   */
-  public readonly ParseConsecutiveKeywordString = (
-    keyword: string
-  ): string | null => {
-    this.Whitespace();
-
-    const result = this.OneOrMore(this.String(keyword));
-    if (result === null) {
-      return null;
-    }
-
-    const terminator = this.ParseKeywordTerminator();
-    if (terminator === null) {
-      return null;
-    }
-
-    return (result as string[]).join("");
-  };
 
   /**
    * Requires string to end with whitespace, newline, or end-of-file
