@@ -77,6 +77,12 @@ export class InkParser extends StringParser {
     this._fileHandler = value;
   }
 
+  protected _parsedFiles = new Set<string>();
+
+  get parsedFiles() {
+    return Array.from(this._parsedFiles);
+  }
+
   constructor(
     str: string,
     filename: string | null = null,
@@ -118,6 +124,7 @@ export class InkParser extends StringParser {
   // Main entry point
   // NOTE: This method is named Parse() in upstream.
   public readonly ParseStory = (): Story => {
+    this._parsedFiles.clear();
     const topLevelContent: ParsedObject[] = this.StatementsAtLevel(
       StatementLevel.Top
     );
@@ -1108,7 +1115,7 @@ export class InkParser extends StringParser {
   };
 
   public readonly DialogueBlock = (): ParsedObject[] | null => {
-    const startOfBlock = this.Peek(this.String("@"));
+    const startOfBlock = this.Peek(this.KeywordString("@"));
     if (startOfBlock === null) {
       return null;
     }
@@ -1325,7 +1332,7 @@ export class InkParser extends StringParser {
     // "{" for start of logic
     // "|" for mid logic branch
     if (this._nonTextEndCharacters === null) {
-      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\#");
+      this._nonTextEndCharacters = new CharacterSet("{}|\n\r\\");
       this._notTextEndCharactersChoice = new CharacterSet(
         this._nonTextEndCharacters
       );
@@ -1910,7 +1917,7 @@ export class InkParser extends StringParser {
       this.MixedTextAndLogic
     ) as ParsedObject[];
 
-    this.Expect(this.String('"'), "close quote for string expression");
+    this.Expect(this.String('"'), "closing quote for string expression");
 
     this.parsingStringExpression = false;
 
@@ -2213,10 +2220,10 @@ export class InkParser extends StringParser {
     // Working directory should already have been set up relative to the root ink file.
     const fullFilename = this.fileHandler.ResolveInkFilename(filename);
 
+    this._parsedFiles.add(fullFilename);
+
     if (this.FilenameIsAlreadyOpen(fullFilename)) {
-      this.Error(
-        `Recursive INCLUDE detected: '${fullFilename}' is already open.`
-      );
+      this.Error(`Recursive INCLUDE detected: '${fullFilename}'`);
       this.ParseUntilCharactersFromString("\r\n");
       return new IncludedFile(null);
     } else {
@@ -2348,6 +2355,11 @@ export class InkParser extends StringParser {
       return null;
     }
 
+    const terminator = this.ParseKeywordTerminator();
+    if (terminator === null) {
+      return null;
+    }
+
     return multiEquals;
   };
 
@@ -2388,7 +2400,10 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    this.Whitespace();
+    const terminator = this.ParseKeywordTerminator();
+    if (terminator === null) {
+      return null;
+    }
 
     // Stitches aren't allowed to be functions, but we parse it anyway and report the error later
     const isFunc: boolean = this.ParseString("function") !== null;
@@ -2649,12 +2664,15 @@ export class InkParser extends StringParser {
 
     this.Expect(
       this.String("="),
-      "the '=' for an assignment of a value, e.g. '= 5' (initial values are mandatory)"
+      "the variable to be initialized (e.g. 'VAR score = 0')"
     );
 
     this.Whitespace();
 
-    const definition = this.Expect(this.Expression, "initial value for ");
+    const definition = this.Expect(
+      this.Expression,
+      "the variable to be initialized (e.g. 'VAR score = 0')"
+    );
 
     const expr = definition as Expression;
 
@@ -2668,7 +2686,7 @@ export class InkParser extends StringParser {
 
       if (!check) {
         this.Error(
-          "Initial value for a variable must be a number, string, boolean, constant, list item, defined property, or divert target"
+          "Initial value for a variable must be a number, string, boolean, constant, list item, or divert target"
         );
       }
 
@@ -2720,15 +2738,12 @@ export class InkParser extends StringParser {
 
     this.Whitespace();
 
-    const definition = this.Expect(
-      this.ListDefinition,
-      "list item names"
-    ) as ListDefinition;
+    const definition = this.ListDefinition();
 
     if (definition) {
       definition.identifier = new Identifier(varName.name);
       return new VariableAssignment({
-        variableIdentifier: varName,
+        variableIdentifier: definition.identifier,
         listDef: definition,
       });
     }
@@ -2737,11 +2752,11 @@ export class InkParser extends StringParser {
   };
 
   public readonly ListDefinition = (): ListDefinition | null => {
-    this.AnyWhitespace();
+    this.Whitespace();
 
-    const allElements = this.SeparatedList(
-      this.ListElementDefinition,
-      this.ListElementDefinitionSeparator
+    const allElements = this.Expect(
+      this.ListItems,
+      "list item names"
     ) as ListElementDefinition[];
 
     if (allElements === null) {
@@ -2749,6 +2764,13 @@ export class InkParser extends StringParser {
     }
 
     return new ListDefinition(allElements);
+  };
+
+  public readonly ListItems = (): ListElementDefinition[] | null => {
+    return this.SeparatedList(
+      this.ListElementDefinition,
+      this.ListElementDefinitionSeparator
+    ) as ListElementDefinition[];
   };
 
   public readonly ListElementDefinitionSeparator = (): string | null => {
@@ -2848,7 +2870,7 @@ export class InkParser extends StringParser {
 
     if (!check) {
       this.ErrorWithParsedObject(
-        "Initial value for a constant must be a number, string, boolean, constant, list item, defined property, or divert target",
+        "Initial value for a constant must be a number, string, boolean, constant, list item, or divert target",
         expr
       );
     } else if (expr instanceof StringExpression) {
@@ -2891,7 +2913,7 @@ export class InkParser extends StringParser {
 
     this.ParseString(":");
 
-    let definition = this.StructProperties();
+    const definition = this.StructProperties();
 
     if (definition) {
       definition.identifier = new Identifier(type + "." + name);
@@ -3646,7 +3668,7 @@ export class InkParser extends StringParser {
   public readonly StartTag = (): ParsedObject | null => {
     this.Whitespace();
 
-    if (this.ParseString("#") === null) {
+    if (this.ParseConsecutiveKeywordString("#") === null) {
       return null;
     }
 
@@ -3790,12 +3812,46 @@ export class InkParser extends StringParser {
     };
 
   /**
-   * Requires rule to end with whitespace, newline, or end-of-file
+   * Requires a string to end with whitespace, newline, or end-of-file
    */
   public readonly KeywordString =
     (keyword: string): ParseRule =>
     () =>
       this.ParseKeywordString(keyword);
+
+  /**
+   * Whitespace, newline, or end-of-file
+   */
+  public readonly ParseKeywordTerminator = () =>
+    this.OneOf([this.Whitespace, this.Newline, this.EndOfFile]);
+
+  /**
+   * Whitespace, newline, or end-of-file
+   */
+  public readonly KeywordTerminator = (): ParseRule => () =>
+    this.ParseKeywordTerminator();
+
+  /**
+   * Requires a string to end with whitespace, newline, or end-of-file.
+   * The string may be repeated one or more times with no whitespace between.
+   */
+  public readonly ParseConsecutiveKeywordString = (
+    keyword: string
+  ): string | null => {
+    this.Whitespace();
+
+    const result = this.OneOrMore(this.String(keyword));
+    if (result === null) {
+      return null;
+    }
+
+    const terminator = this.ParseKeywordTerminator();
+    if (terminator === null) {
+      return null;
+    }
+
+    return (result as string[]).join("");
+  };
 
   /**
    * Requires string to end with whitespace, newline, or end-of-file
@@ -3808,13 +3864,8 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    const terminator = this.OneOf([
-      this.Whitespace,
-      this.Newline,
-      this.EndOfFile,
-    ]);
-
-    if (!terminator) {
+    const terminator = this.ParseKeywordTerminator();
+    if (terminator === null) {
       return null;
     }
 

@@ -21,7 +21,7 @@ This way we can continue using the number of spaces to determine things like the
 
 The space following a choice, logic, gather, and clause operator is no longer optional. 
 
-That means `*`, `+`, `~`, and `-` must be followed by at least one whitespace for the compiler to recognize it as an instruction. 
+That means `*`, `+`, `~`, `-`, and `=` must be followed by at least one whitespace for the compiler to recognize it as an instruction. 
 
 ```
 * [choice]
@@ -37,6 +37,10 @@ That means `*`, `+`, `~`, and `-` must be followed by at least one whitespace fo
   - 2: clause
   - else: clause
 }
+
+== knot
+
+= stitch
 ```
 
 Space is also required between nesting operators:
@@ -220,3 +224,26 @@ define style.dialogue:
 ```
 
 ---
+
+### 6. You can access object properties and array elements
+
+Although you cannot change their value, you can read an object's properties with dot notation:
+
+```
+His name is {character.robert.first_name} {character.robert.last_name}.
+But his friends call him {character.robert.nickname}.
+```
+
+And access array elements with bracket notation:
+
+```
+I am most afraid of {fears[0]}.
+```
+
+---
+
+### 7. Compiler errors now include exact source location
+
+An additional `source` parameter has been added to the compiler's error handler. 
+
+This parameter includes an error's filename, start line, start column, end line, and end column, so we can display the error in a text editor exactly where it appears in the source file.

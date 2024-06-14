@@ -41,6 +41,7 @@ export class Story extends FlowBase {
       case "LIST":
       case "DEFINE":
       case "function":
+      case "system":
         return true;
     }
 
@@ -209,8 +210,8 @@ export class Story extends FlowBase {
 
     // Export initialisation of global variables
     // TODO: We *could* add this as a declarative block to the story itself...
-    const variableInitialisation = new RuntimeContainer();
-    variableInitialisation.AddContent(RuntimeControlCommand.EvalStart());
+    const variableInitialization = new RuntimeContainer();
+    variableInitialization.AddContent(RuntimeControlCommand.EvalStart());
 
     // Global variables are those that are local to the story and marked as global
     const runtimeLists: RuntimeListDefinition[] = [];
@@ -220,7 +221,7 @@ export class Story extends FlowBase {
         if (value.listDefinition) {
           this._listDefs.set(key, value.listDefinition);
           runtimeLists.push(value.listDefinition.runtimeListDefinition);
-          variableInitialisation.AddContent(
+          variableInitialization.AddContent(
             value.listDefinition.runtimeObject!
           );
         } else if (value.structDefinition) {
@@ -230,21 +231,25 @@ export class Story extends FlowBase {
           if (!value.expression) {
             throw new Error();
           }
-          value.expression.GenerateIntoContainer(variableInitialisation);
+          value.expression.GenerateIntoContainer(variableInitialization);
         }
 
-        const runtimeVarAss = new RuntimeVariableAssignment(key, true);
-        runtimeVarAss.isGlobal = true;
-        variableInitialisation.AddContent(runtimeVarAss);
+        // Don't initialize structs at runtime
+        // They should only be initialized at compiletime and never serialized in save state
+        if (!value.structDefinition) {
+          const runtimeVarAss = new RuntimeVariableAssignment(key, true);
+          runtimeVarAss.isGlobal = true;
+          variableInitialization.AddContent(runtimeVarAss);
+        }
       }
     }
 
-    variableInitialisation.AddContent(RuntimeControlCommand.EvalEnd());
-    variableInitialisation.AddContent(RuntimeControlCommand.End());
+    variableInitialization.AddContent(RuntimeControlCommand.EvalEnd());
+    variableInitialization.AddContent(RuntimeControlCommand.End());
 
     if (this.variableDeclarations.size > 0) {
-      variableInitialisation.name = "global decl";
-      rootContainer.AddToNamedContentOnly(variableInitialisation);
+      variableInitialization.name = "global decl";
+      rootContainer.AddToNamedContentOnly(variableInitialization);
     }
 
     // Signal that it's safe to exit without error, even if there are no choices generated
@@ -498,17 +503,19 @@ export class Story extends FlowBase {
     typeNameOverride: string = ""
   ): void => {
     const typeNameToPrint: string = typeNameOverride || obj.typeName;
-    if (Story.IsReservedKeyword(identifier?.name)) {
-      obj.Error(
-        `'${identifier}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`
-      );
-      return;
-    } else if (FunctionCall.IsBuiltIn(identifier?.name || "")) {
-      obj.Error(
-        `'${identifier}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`
-      );
+    for (const part of identifier?.name.split(".")) {
+      if (Story.IsReservedKeyword(part)) {
+        obj.Error(
+          `'${identifier}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a reserved keyword`
+        );
+        return;
+      } else if (FunctionCall.IsBuiltIn(part)) {
+        obj.Error(
+          `'${identifier}' cannot be used for the name of a ${typeNameToPrint.toLowerCase()} because it's a built in function`
+        );
 
-      return;
+        return;
+      }
     }
 
     // Top level knots
@@ -559,7 +566,7 @@ export class Story extends FlowBase {
     // Structs
     for (const [key, value] of this._structDefs) {
       if (
-        identifier?.name === key &&
+        (identifier?.name === key || identifier?.name + ".default" === key) &&
         obj !== value &&
         value.variableAssignment !== obj
       ) {
@@ -614,7 +621,8 @@ export class Story extends FlowBase {
         for (const arg of flow.args) {
           if (arg.identifier?.name === identifier?.name) {
             obj.Error(
-              `Duplicate identifier '${identifier}'. An parameter named '${identifier}' has already been declared for ${flow.identifier} on ${flow.debugMetadata}`
+              `Duplicate identifier '${identifier}'. A parameter named '${identifier}' has already been declared for ${flow.identifier} on ${flow.debugMetadata}`,
+              varDecl
             );
 
             return;

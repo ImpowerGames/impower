@@ -14,7 +14,7 @@ export class ListDefinition extends ParsedObject {
   public variableAssignment: VariableAssignment | null = null;
 
   get typeName() {
-    return "ListDefinition";
+    return "List";
   }
 
   private _elementsByName: Map<string, ListElementDefinition> | null = null;

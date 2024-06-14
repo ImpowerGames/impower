@@ -45,7 +45,7 @@ export class DebugMetadata {
 
   public toString() {
     if (this.fileName !== null) {
-      return `line ${this.startLineNumber} of ${this.fileName}`;
+      return `line ${this.startLineNumber} of '${this.fileName}'`;
     } else {
       return "line " + this.startLineNumber;
     }

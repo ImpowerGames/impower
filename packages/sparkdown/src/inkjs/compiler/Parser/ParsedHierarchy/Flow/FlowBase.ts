@@ -197,16 +197,12 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     const varName = varDecl.variableName;
     if (this.variableDeclarations.has(varName)) {
       const varab = this.variableDeclarations.get(varName)!;
-      let prevDeclError = "";
-      const debugMetadata = varab.debugMetadata;
-      if (debugMetadata) {
-        prevDeclError = ` (It is already declared on ${varab.debugMetadata})`;
-      }
 
       this.Error(
-        `Cannot redeclare variable '${varName}'.${prevDeclError}`,
-        varDecl,
-        false
+        `Duplicate identifier '${varName}'. A ${varab.typeName.toLowerCase()} named '${varName}' was already declared on ${
+          varab.debugMetadata
+        }`,
+        varDecl
       );
 
       return;

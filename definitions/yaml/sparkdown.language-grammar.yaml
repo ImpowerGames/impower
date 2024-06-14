@@ -12,16 +12,18 @@ variables:
   IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
   AFTER_KEYWORD: (?![{{IDENTIFIER_END_CHAR}}])(?:(?=\.\.\.)|(?!\.))
+  TAG_START: (?:[#]+(?:$|{{WS}}+))
   WS: '[^\S\n\r]'
   # End Of Line
-  EOL: '(?:$|{{WS}}*$|{{WS}}*[#].*$|{{WS}}*[/][/].*$)'
+  EOL: '(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$|{{WS}}*[/][/].*$)'
   # End Of Keyword
-  EOK: '(?:$|{{WS}}+|(?=[#]|[/][/]|[/][*]))'
+  EOK: '(?:$|{{WS}}+|(?={{TAG_START}}|[/][/]|[/][*]))'
 
 patterns:
   - { include: "#Newline" }
   - { include: "#Annotation" }
   - { include: "#Dialogue" }
+  - { include: "#EmptyLine" }
   - { include: "#Other" }
 
 repository:
@@ -94,7 +96,7 @@ repository:
   Tag:
     tag: docComment
     name: comment.line.sd entity.tag.sd
-    begin: ({{WS}}*)([#])
+    begin: ({{WS}}*)({{TAG_START}})
     beginCaptures:
       1: 
         patterns:
@@ -105,12 +107,12 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#TagContent" }
-    end: (?=$|[#])
+    end: (?=$|{{TAG_START}})
 
   TagContent:
     tag: definition(docComment)
     name: punctuation.definition.comment.content.sd
-    match: (.+?)(?=$|[#])
+    match: (.+?)(?=$|{{TAG_START}})
 
 ########## Todo ##########
 
@@ -190,7 +192,7 @@ repository:
           - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Assignment" }
+      - { include: "#VariableAssignment" }
     end: (?=$)
 
   ListDeclaration:
@@ -209,7 +211,7 @@ repository:
           - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Assignment" }
+      - { include: "#TypeAssignment" }
     end: (?=$)
 
   ConstDeclaration:
@@ -228,7 +230,7 @@ repository:
           - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Assignment" }
+      - { include: "#VariableAssignment" }
     end: (?=$)
 
   ExternalDeclaration:
@@ -266,7 +268,8 @@ repository:
           - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#TargetAccessPath" }
+          - { include: "#TypeName" }
+          - { include: "#VariableAccessor" }
       5:
         patterns:
           - { include: "#Whitespace" }
@@ -285,7 +288,24 @@ repository:
       - { include: "#Unknown" }
     end: ^(?=(?!\1{{WS}}{2,}))
 
-  Assignment:
+  TypeAssignment:
+    begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#TypeName" }
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Expression" }
+    end: (?=$)
+
+  VariableAssignment:
     begin: ({{IDENTIFIER}})({{WS}}*)($|[=]|(?={{EOL}}))
     beginCaptures:
       1:
@@ -539,7 +559,7 @@ repository:
   DeclarationType:
     emit: true
     patterns:
-      - { include: "#TypeIdentifier" }
+      - { include: "#TypeName" }
       - { include: "#Unknown" }
 
   DeclarationName:
@@ -641,7 +661,7 @@ repository:
   ChoiceText:
     tag: string
     name: string.choice.sd
-    match: (.+?)(?=$|[-][>]|[<][>]|[#])
+    match: (.+?)(?=$|[-][>]|[<][>]|{{TAG_START}})
     captures:
       1:
         patterns:
@@ -771,14 +791,17 @@ repository:
 ########## Knot, Stitch, Function ##########
 
   Knot:
-    begin: ^({{WS}}*)([=]{2,})
+    begin: ^({{WS}}*)([=]{2,})({{EOK}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         tag: definition(heading)
-        name: keyword.control.section.sd
+        name: keyword.control.knot.sd
+      3:
+        patterns:
+          - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionDeclaration" }
@@ -787,21 +810,28 @@ repository:
     endCaptures:
       1:
         tag: definition(heading)
-        name: keyword.control.section.sd
+        name: keyword.control.knot.sd
 
   Stitch:
-    begin: ^({{WS}}*)([=])
+    begin: ^({{WS}}*)([=])({{EOK}})
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         tag: definition(heading)
-        name: keyword.control.section.sd
+        name: keyword.control.stitch.sd
+      3:
+        patterns:
+          - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#KnotStitchDeclaration" }
-    end: (?=$)
+    end: ([=]+)|(?=$)
+    endCaptures:
+      1:
+        tag: definition(heading)
+        name: keyword.control.stitch.sd
 
   KnotStitchDeclaration:
     begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
@@ -862,7 +892,7 @@ repository:
       - { include: "#FunctionCall" }
       - { include: "#DivertPath" }
       - { include: "#TunnelArrow" }
-    end: (?=$|[}]|[)]|[|]|[-]|[#])
+    end: (?=$|[}]|[)]|[|]|[-]|{{TAG_START}})
 
   DivertArrow:
     tag: function(variableName)
@@ -1142,6 +1172,11 @@ repository:
     name: markup.raw.whitespace.indent.sd
     match: ^({{WS}}+)
 
+  EmptyLine:
+    tag: content
+    name: markup.raw.whitespace.empty-line.sd
+    match: ^({{WS}}*)$
+
   Whitespace:
     tag: content
     name: markup.raw.whitespace.sd
@@ -1299,7 +1334,6 @@ repository:
   StringLiteral:
     emit: true
     patterns:
-      - { include: "#SingleQuoteString" }
       - { include: "#DoubleQuoteString" }
 
   DoubleQuoteString:
@@ -1324,29 +1358,6 @@ repository:
     tag: string
     name: string.quoted.double.content.sd
     match: ((?:[^"\\]|\\.)*)
-
-  SingleQuoteString:
-    tag: string
-    name: string.quoted.single.sd
-    begin: (['])
-    beginCaptures:
-      1:
-        tag: string
-        name: punctuation.definition.string.begin.sd
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Color" }
-      - { include: "#SingleQuoteStringContent" }
-    end: (['])|($)
-    endCaptures:
-      1:
-        tag: string
-        name: punctuation.definition.string.end.sd
-
-  SingleQuoteStringContent:
-    tag: string
-    name: string.quoted.double.content.sd
-    match: ((?:[^'\\]|\\.)*)
 
   NumericLiteral:
     patterns:
@@ -1500,11 +1511,21 @@ repository:
     captures:
       1:
         patterns: 
-          - { include: "#TypeIdentifier" }
+          - { include: "#TypeName" }
       2:
         patterns: 
           - { include: "#PunctuationAccessor" }
       3:
+        patterns: 
+          - { include: "#VariableName" }
+
+  VariableAccessor:
+    match: ([.]|[?][.])({{IDENTIFIER}})(?![(])
+    captures:
+      1:
+        patterns: 
+          - { include: "#PunctuationAccessor" }
+      2:
         patterns: 
           - { include: "#VariableName" }
 
@@ -1528,7 +1549,7 @@ repository:
     name: variable.other.constant.sd
     match: ({{IDENTIFIER}})(?![(])
 
-  TypeIdentifier:
+  TypeName:
     tag: typeName
     name: support.type.sd
     match: ({{IDENTIFIER}})
@@ -1718,7 +1739,7 @@ repository:
 
   Dialogue:
     name: entity.dialogue.sd
-    begin: ^({{WS}}*)([@](?:$|{{WS}}*))($|.+$)
+    begin: ^({{WS}}*)([@](?:$|{{WS}}+))($|.+$)
     beginCaptures:
       1:
         patterns:
@@ -1793,8 +1814,8 @@ repository:
     match: (.+$)
 
   DialogueCharacterSimultaneous:
-    tag: definition(keyword)
-    name: keyword.operator.dialogue.character.simultaneous.sd
+    tag: definition(propertyName)
+    name: variable.other.property.dialogue.character.simultaneous.sd
     match: (.+$)
 
   DialogueLineParenthetical:
@@ -1834,7 +1855,6 @@ repository:
 ########## Other ##########
 
   Other:
-    begin: ^(?=.+$)
     patterns:
       - { include: "#Annotation" }
       - { include: "#FrontMatter" }
@@ -1854,7 +1874,6 @@ repository:
       - { include: "#DisplayText" }
       - { include: "#Newline" }
       - { include: "#Unknown" }
-    end: ^(?={{WS}}*$)
 
 
 ########## DisplayText ##########
@@ -2169,7 +2188,7 @@ repository:
       - { include: "#Centered" }
 
   StylingMark:
-    match: ([*_|]+)
+    match: (.+)
     captures:
       1:
         tag: bracket

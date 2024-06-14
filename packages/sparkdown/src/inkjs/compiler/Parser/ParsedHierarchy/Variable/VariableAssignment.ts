@@ -122,8 +122,12 @@ export class VariableAssignment extends ParsedObject {
   public ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
 
-    // List definitions are checked for conflicts separately
-    if (this.isDeclaration && this.listDefinition === null) {
+    // List and struct definitions are checked for conflicts separately
+    if (
+      this.isDeclaration &&
+      this.listDefinition === null &&
+      this.structDefinition === null
+    ) {
       context.CheckForNamingCollisions(
         this,
         this.variableIdentifier,
@@ -140,7 +144,7 @@ export class VariableAssignment extends ParsedObject {
         !variableReference.isListItemReference
       ) {
         this.Error(
-          "A VAR must be initialized to a number, string, boolean, constant, list item, defined property, or divert target."
+          "A VAR must be initialized to a number, string, boolean, constant, list item, or divert target."
         );
       }
     }

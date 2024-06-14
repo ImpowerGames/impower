@@ -8,7 +8,7 @@ import { Identifier } from "../Identifier";
 
 export class StructDefinition extends ParsedObject {
   override get typeName() {
-    return "StructDefinition";
+    return "Define";
   }
 
   public identifier: Identifier | null = null;
@@ -44,7 +44,7 @@ export class StructDefinition extends ParsedObject {
       parentStack[0]!.value = [];
     }
     for (let i = 0; i < propertyDefinitions.length; i += 1) {
-      const prop = propertyDefinitions[i];
+      const prop = propertyDefinitions[i]!;
       const nextProp = propertyDefinitions[i + 1];
       while (
         prop.level <=
@@ -103,6 +103,6 @@ export class StructDefinition extends ParsedObject {
         }
       }
     }
-    return parentStack[0].value;
+    return parentStack[0]?.value;
   }
 }

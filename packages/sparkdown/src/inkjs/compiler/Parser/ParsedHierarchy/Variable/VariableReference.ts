@@ -147,10 +147,10 @@ export class VariableReference extends Expression {
     }
 
     // Couldn't find this multi-part path at all, whether as a divert target,
-    // list item reference, or defined object property.
+    // or list item reference.
     if (this.path.length > 1) {
       const pathStr = this.path.join(".");
-      let errorMsg = `Cannot find divert target, list item, or defined property named '${pathStr}'`;
+      let errorMsg = `Cannot find list item named '${pathStr}'`;
 
       this.Error(errorMsg);
 
