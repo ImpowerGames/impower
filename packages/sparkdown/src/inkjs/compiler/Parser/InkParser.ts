@@ -3670,8 +3670,6 @@ export class InkParser extends StringParser {
     this.Whitespace();
 
     const multiHash = this.ParseCharactersFromString("#");
-    console.log("current", this.currentCharacter);
-    console.log("multiHash", multiHash);
     if (!multiHash) {
       return null;
     }
