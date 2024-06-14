@@ -1,9 +1,8 @@
-import type { CommandParams } from "../../../../logic/types/CommandParams";
+import type { CommandParams } from "../../../../../core/types/CommandParams";
 
 export interface DisplayContentItem {
   tag?: string;
   type?: string;
-  prerequisite?: string;
   instance?: number;
   button?: string;
   text?: string;

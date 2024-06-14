@@ -1,5 +1,5 @@
 import type { ElementContent } from "../../../spark-engine/src/game/modules/ui/types/ElementContent";
-import { getImportContent } from "./getImportContent";
+import { getFontContent } from "./getFontContent";
 import { getStyleContent } from "./getStyleContent";
 
 export const getElementContent = (content: ElementContent): string => {
@@ -12,8 +12,8 @@ export const getElementContent = (content: ElementContent): string => {
   if ("style" in content) {
     return getStyleContent(content.style);
   }
-  if ("import" in content) {
-    return getImportContent(content.import);
+  if ("fonts" in content) {
+    return getFontContent(content.fonts);
   }
   return "";
 };

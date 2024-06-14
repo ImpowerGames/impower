@@ -75,6 +75,8 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.definition(tags.keyword), display: "none" },
   { tag: tags.definition(tags.controlKeyword), display: "none" },
   { tag: tags.definition(tags.typeName), display: "none" },
+  { tag: tags.definition(tags.variableName), display: "none" },
+  { tag: tags.definition(tags.propertyName), display: "none" },
   { tag: tags.punctuation, display: "none" },
   { tag: tags.comment, display: "none" },
   { tag: tags.blockComment, display: "none" },
@@ -93,7 +95,12 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
 
 const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Comment",
+  "LineComment",
+  "BlockComment",
+  "Tag",
   "Logic",
+  "Knot",
+  "Stitch",
   "Declaration",
   "ImageTag",
   "AudioTag",

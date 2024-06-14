@@ -2,12 +2,12 @@ import type {
   SparkDisplayToken,
   SparkToken,
 } from "../../../../sparkdown/src/types/SparkToken";
+import type { CommandData } from "../../game/core/types/CommandData";
 import type { BranchCommandData } from "../../game/modules/logic/classes/commands/branchCommand/BranchCommandData";
 import type { ClearCommandData } from "../../game/modules/logic/classes/commands/clearCommand/ClearCommandData";
 import type { EvaluateCommandData } from "../../game/modules/logic/classes/commands/evaluateCommand/EvaluateCommandData";
 import type { JumpCommandData } from "../../game/modules/logic/classes/commands/jumpCommand/JumpCommandData";
 import type { ReturnCommandData } from "../../game/modules/logic/classes/commands/returnCommand/ReturnCommandData";
-import type { CommandData } from "../../game/modules/logic/types/CommandData";
 import type { DisplayCommandData } from "../../game/modules/writer/classes/commands/displayCommand/DisplayCommandData";
 
 const getCommandId = (parent: string, index: number): string => {

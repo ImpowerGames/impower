@@ -317,12 +317,16 @@ export default class SparkdownScriptEditor extends Component(spec) {
           }
         },
         onEdit: (e) => {
-          const { before, transaction } = e;
+          const { after, transaction } = e;
           if (transaction.docChanged) {
             if (this._textDocument) {
               const changeParams = {
                 textDocument: this._textDocument,
-                contentChanges: getServerChanges(before, transaction.changes),
+                contentChanges: [{ text: after.toString() }],
+                // TODO: Figure out how to support incremental changes without it breaking when auto-surrounding text
+                // Incremental changes aren't correctly applied when auto-surrounding text with brackets
+                // So disable incremental changes until auto-surrounding bug is fixed
+                // contentChanges: getServerChanges(before, transaction.changes),
               };
               this.emit(
                 DidChangeTextDocumentMessage.method,

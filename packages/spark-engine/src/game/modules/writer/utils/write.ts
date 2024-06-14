@@ -122,8 +122,7 @@ const getSeconds = (value: string): number | undefined => {
 
 const getArgumentTimeValue = (
   args: string[],
-  name: string,
-  context: GameContext
+  name: string
 ): number | undefined => {
   const argIndex = args.indexOf(name);
   if (argIndex < 0) {
@@ -133,38 +132,30 @@ const getArgumentTimeValue = (
   if (arg == null) {
     return undefined;
   }
-  const result = context.system.evaluate(arg);
-  if (typeof result === "number") {
-    return result;
+  const num = Number(arg);
+  if (!Number.isNaN(num)) {
+    return num;
   }
-  if (typeof result === "string") {
-    return getSeconds(result);
+  if (typeof arg === "string") {
+    return getSeconds(arg);
   }
   return getSeconds(arg);
 };
 
 const getNumberValue = <T>(
   arg: string | undefined,
-  defaultValue: T,
-  context: GameContext
+  defaultValue: T
 ): number | T => {
   const numValue = Number(arg);
   if (!Number.isNaN(numValue)) {
     return numValue;
-  }
-  if (typeof arg === "string") {
-    const result = context.system.evaluate(arg);
-    if (typeof result === "number") {
-      return result;
-    }
   }
   return defaultValue;
 };
 
 const getArgumentNumberValue = (
   args: string[],
-  name: string,
-  context: GameContext
+  name: string
 ): number | undefined => {
   const argIndex = args.indexOf(name);
   if (argIndex < 0) {
@@ -172,15 +163,14 @@ const getArgumentNumberValue = (
   }
   const arg = args[argIndex + 1];
   if (arg) {
-    return getNumberValue(arg, undefined, context);
+    return getNumberValue(arg, undefined);
   }
   return undefined;
 };
 
 const getArgumentStringValue = (
   args: string[],
-  name: string,
-  context: GameContext
+  name: string
 ): string | undefined => {
   const argIndex = args.indexOf(name);
   if (argIndex < 0) {
@@ -188,9 +178,8 @@ const getArgumentStringValue = (
   }
   const arg = args[argIndex + 1];
   if (arg) {
-    const result = context.system.evaluate(arg);
-    if (typeof result === "string") {
-      return result;
+    if (typeof arg === "string") {
+      return arg;
     }
   }
   return arg;
@@ -384,11 +373,11 @@ export const write = (
               }
               if (control) {
                 if (control === "speed" || control === "s") {
-                  speedModifier = getNumberValue(arg, 1, context);
+                  speedModifier = getNumberValue(arg, 1);
                 } else if (control === "pitch" || control === "p") {
-                  pitchModifier = getNumberValue(arg, 0, context);
+                  pitchModifier = getNumberValue(arg, 0);
                 } else if (control === "wait" || control === "w") {
-                  const waitModifier = getNumberValue(arg, 0, context);
+                  const waitModifier = getNumberValue(arg, 0);
                   phrases.push({
                     ...p,
                     chunks: [
@@ -798,19 +787,19 @@ export const write = (
             event.over = fadeDuration;
           }
           if (c.args) {
-            const withValue = getArgumentStringValue(c.args, "with", context);
+            const withValue = getArgumentStringValue(c.args, "with");
             if (withValue) {
               event.with = withValue;
             }
-            const afterValue = getArgumentTimeValue(c.args, "after", context);
+            const afterValue = getArgumentTimeValue(c.args, "after");
             if (afterValue) {
               event.after = (event.after ?? 0) + afterValue;
             }
-            const overValue = getArgumentTimeValue(c.args, "over", context);
+            const overValue = getArgumentTimeValue(c.args, "over");
             if (overValue) {
               event.over = overValue;
             }
-            const toValue = getArgumentNumberValue(c.args, "to", context);
+            const toValue = getArgumentNumberValue(c.args, "to");
             if (toValue != null) {
               event.to = toValue;
             }
@@ -837,11 +826,11 @@ export const write = (
             event.after = time;
           }
           if (c.args) {
-            const afterValue = getArgumentTimeValue(c.args, "after", context);
+            const afterValue = getArgumentTimeValue(c.args, "after");
             if (afterValue) {
               event.after = (event.after ?? 0) + afterValue;
             }
-            const overValue = getArgumentTimeValue(c.args, "over", context);
+            const overValue = getArgumentTimeValue(c.args, "over");
             if (overValue) {
               event.over = overValue;
             }
@@ -849,7 +838,7 @@ export const write = (
             if (unmuteValue) {
               event.to = 1;
             }
-            const toValue = getArgumentNumberValue(c.args, "to", context);
+            const toValue = getArgumentNumberValue(c.args, "to");
             if (toValue != null) {
               event.to = toValue;
             }

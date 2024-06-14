@@ -163,6 +163,15 @@ export default class Application {
           // const buffer = await response.arrayBuffer();
           // return buffer;
         },
+        log: (message: unknown, severity: "info" | "warning" | "error") => {
+          if (severity === "error") {
+            console.error(message);
+          } else if (severity === "warning") {
+            console.warn(message);
+          } else {
+            console.log(message);
+          }
+        },
       })
       .then(() => {
         if (!game.context.system.previewing) {

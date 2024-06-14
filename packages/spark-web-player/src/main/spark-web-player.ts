@@ -11,8 +11,8 @@ import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols
 import { WillExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { GameBuilder } from "../../../spark-engine/src/builder/classes/GameBuilder";
-import { DidExecuteMessage } from "../../../spark-engine/src/game/modules/logic/classes/messages/DidExecuteMessage";
-import { WillExecuteMessage } from "../../../spark-engine/src/game/modules/logic/classes/messages/WillExecuteMessage";
+import { DidExecuteMessage } from "../../../spark-engine/src/game/core/classes/messages/DidExecuteMessage";
+import { WillExecuteMessage } from "../../../spark-engine/src/game/core/classes/messages/WillExecuteMessage";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
 import { Component } from "../../../spec-component/src/component";
 import Application from "../app/Application";
@@ -175,7 +175,7 @@ export default class SparkWebPlayer extends Component(spec) {
       const message = e.detail;
       if (EnableGameDebugMessage.type.isRequest(message)) {
         if (this._builder) {
-          this._builder.game.module.debug.startDebugging();
+          this._builder.game.startDebugging();
         }
       }
     }
@@ -186,7 +186,7 @@ export default class SparkWebPlayer extends Component(spec) {
       const message = e.detail;
       if (DisableGameDebugMessage.type.isRequest(message)) {
         if (this._builder) {
-          this._builder.game.module.debug.stopDebugging();
+          this._builder.game.stopDebugging();
         }
       }
     }
@@ -209,7 +209,7 @@ export default class SparkWebPlayer extends Component(spec) {
     }
   };
 
-  buildGame(preview: boolean): void {
+  buildGame(previewing: boolean): void {
     if (this._options) {
       const options = this._options;
       const waypoints = options.waypoints;
@@ -221,12 +221,12 @@ export default class SparkWebPlayer extends Component(spec) {
       if (this._builder?.game) {
         this._builder.game.destroy();
       }
-      if (!this._program) {
+      if (!this._program || !this._program.compiled) {
         return;
       }
       this._builder = new GameBuilder(this._program, {
         simulation,
-        preview,
+        previewing,
       });
       this._builder.game.connection.outgoing.addListener(
         "logic/willexecute",

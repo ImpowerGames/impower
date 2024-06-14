@@ -24,8 +24,8 @@ const getHover = (
     if (hoveredOffset >= reference.from && hoveredOffset <= reference.to) {
       const name = reference.name;
       const asset =
-        program.context["image_group"]?.[name] ||
-        program.context["image"]?.[name];
+        program.compiled?.structDefs?.["image_group"]?.[name] ||
+        program.compiled?.structDefs?.["image"]?.[name];
       if (asset) {
         if (asset.src) {
           return {

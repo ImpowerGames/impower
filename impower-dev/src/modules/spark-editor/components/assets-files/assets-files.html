@@ -1,5 +1,6 @@
 <s-box p="16 0" grow>
-  <se-file-list include="*.{png,svg,mid,wav,mp3,ogg}" accept="image/*, audio/*, video/*">
+  <se-file-list exclude="*.{script,metadata,name,textSynced,textRevisionId,zipSynced,zipRevisionId}"
+    accept="image/*, audio/*, video/*, font/*">
     <se-file-list-border slot="empty">
       <s-icon name="triangle-square-circle" icon-size="3rem" m="8" stroke-width="1"></s-icon>
       <s-box text-size="sm">No Assets</s-box>

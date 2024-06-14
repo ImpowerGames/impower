@@ -4,7 +4,11 @@ import { Font } from "../types/Font";
 export const _font: Create<Font> = (obj) => ({
   $type: "font",
   src: "",
-  weight: 400,
-  style: "normal",
+  font_family: "",
+  font_weight: "",
+  font_style: "",
+  font_display: "",
+  font_stretch: "",
+  unicode_range: "",
   ...obj,
 });

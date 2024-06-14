@@ -82,9 +82,19 @@ export default class FileList extends Component(spec) {
       const excludeRegex = exclude ? globToRegex(exclude) : undefined;
       const files = await Workspace.fs.getFiles(projectId);
       const allUris = Object.keys(files);
-      return allUris.filter(
-        (uri) => includeRegex.test(uri) && !excludeRegex?.test(uri)
-      );
+      return allUris
+        .filter((uri) => includeRegex.test(uri) && !excludeRegex?.test(uri))
+        .sort((a, b) => {
+          const extA = a.split(".").at(-1) || "";
+          const extB = b.split(".").at(-1) || "";
+          if (extA < extB) {
+            return -1;
+          }
+          if (extA > extB) {
+            return 1;
+          }
+          return 0;
+        });
     }
     return [];
   }
@@ -114,6 +124,6 @@ export default class FileList extends Component(spec) {
 
 declare global {
   interface HTMLElementTagNameMap {
-    "s-file-list": FileList;
+    "se-file-list": FileList;
   }
 }

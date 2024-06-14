@@ -1,7 +1,6 @@
 import { SparkProgram } from "../../../../sparkdown/src";
-import { BlockData, Game, GameModules, RecursivePartial } from "../../game";
+import { Game, GameModules, RecursivePartial } from "../../game";
 import { GameContext } from "../../game/core/types/GameContext";
-import { ICommandRunner } from "../../game/modules/logic/types/ICommandRunner";
 import { GameBuilderOptions } from "../types/GameBuilderOptions";
 import generateBlockMap from "../utils/generateBlockMap";
 import getCommandIndexAtLine from "../utils/getCommandIndexAtLine";
@@ -37,25 +36,21 @@ export class GameBuilder<M extends GameModules = GameModules> {
     return this._startpoint;
   }
 
-  protected _commandRunnerMap: Record<string, ICommandRunner>;
-
   constructor(program: SparkProgram, options: GameBuilderOptions<M>) {
     this._program = program;
     this._startpoint = options?.simulation?.startpoint || {
       line: 0,
     };
     const game = this.build(this._program, options);
-    this._commandRunnerMap = game.module.logic.runnerMap;
     this._game = game;
   }
 
   protected build(program: SparkProgram, options: GameBuilderOptions<M>) {
+    const previewing = options?.previewing;
     const simulating = Boolean(options?.simulation);
     const startFromFile = options.simulation?.startpoint?.file ?? "";
     const startFromLine = options.simulation?.startpoint?.line ?? 0;
-    const context: RecursivePartial<GameContext> = program.context || {};
-    const stored = program.stored;
-    const blockMap: Record<string, BlockData> = {};
+    const blockMap: Record<string, any> = {};
     generateBlockMap(program.sections, blockMap);
     const startFromBlockId =
       getSectionAtLine(startFromLine, program?.sections) ?? "";
@@ -85,15 +80,12 @@ export class GameBuilder<M extends GameModules = GameModules> {
         waypoints.push(simulateFromCheckpointId);
       }
     });
-    context.system ??= {};
-    context.system!.previewing = options?.preview;
-    context.system!.stored = stored;
+    const context: RecursivePartial<GameContext> = {};
     context.config ??= {};
     context.config!["logic"] ??= {};
-    context.config!["logic"]["blockMap"] = blockMap;
     context.config!["logic"]["waypoints"] = waypoints;
     context.config!["logic"]["startpoint"] = startpoint;
-    const game = new Game(context);
+    const game = new Game(program.compiled!, { previewing });
     return game;
   }
 

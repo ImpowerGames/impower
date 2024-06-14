@@ -8,14 +8,13 @@ export type GameContext<B = any> = {
     simulating?: boolean;
     previewing?: boolean;
     debugging?: boolean;
-    stored?: string[];
-    evaluate: (expression: string) => unknown;
     uuid: () => string;
     restore: () => Promise<void>;
-    checkpoint: (id: string) => void;
+    checkpoint: () => void;
     supports: (module: string) => void;
     resolve?: (path: string) => string;
     fetch?: (url: string) => Promise<string | ArrayBuffer>;
+    log?: (message: unknown, severity: "info" | "warning" | "error") => void;
   };
   config?: Partial<Record<string, any>>;
   preferences?: Partial<Record<string, any>>;

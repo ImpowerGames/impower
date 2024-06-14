@@ -39,23 +39,25 @@ const getElementCompletions = (
   program: SparkProgram
 ): CompletionItem[] | null => {
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(program?.context?.["ui"] || {}).forEach(([, v]) => {
-    traverse(v, (fieldPath) => {
-      if (fieldPath.endsWith(".image")) {
-        const layer = fieldPath.split(".").at(-2);
-        if (layer) {
-          const completion: CompletionItem = {
-            label: layer,
-            labelDetails: { description: "element" },
-            kind: CompletionItemKind.Constructor,
-          };
-          if (completion.label && !completions.has(completion.label)) {
-            completions.set(completion.label, completion);
+  Object.entries(program?.compiled?.structDefs?.["ui"] || {}).forEach(
+    ([, v]) => {
+      traverse(v, (fieldPath) => {
+        if (fieldPath.endsWith(".image")) {
+          const layer = fieldPath.split(".").at(-2);
+          if (layer) {
+            const completion: CompletionItem = {
+              label: layer,
+              labelDetails: { description: "element" },
+              kind: CompletionItemKind.Constructor,
+            };
+            if (completion.label && !completions.has(completion.label)) {
+              completions.set(completion.label, completion);
+            }
           }
         }
-      }
-    });
-  });
+      });
+    }
+  );
   return Array.from(completions.values());
 };
 
@@ -65,53 +67,57 @@ const getImageCompletions = (
 ): CompletionItem[] | null => {
   const imageToken = getLineToken(program, line, "image_tag");
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(program?.context?.["image_group"] || {}).forEach(([, v]) => {
-    const name = v.$name;
-    if (name !== "default") {
-      const asset = v as {
-        assets: Asset[];
-        src: string;
-        data?: string;
-        mime?: string;
-      };
-      if (asset) {
-        const completion: CompletionItem = {
-          label: name,
-          labelDetails: { description: "image_group" },
-          kind: CompletionItemKind.Constructor,
+  Object.entries(program?.compiled?.structDefs?.["image_group"] || {}).forEach(
+    ([, v]) => {
+      const name = v.$name;
+      if (name !== "default") {
+        const asset = v as {
+          assets: Asset[];
+          src: string;
+          data?: string;
+          mime?: string;
         };
-        completion.documentation = {
-          kind: MarkupKind.Markdown,
-          value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
-        };
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
-        }
-      }
-    }
-  });
-  Object.entries(program?.context?.["image"] || {}).forEach(([, v]) => {
-    const name = v.$name;
-    if (name !== "default") {
-      const asset = v as Asset;
-      if (asset) {
-        const completion: CompletionItem = {
-          label: name,
-          labelDetails: { description: "image" },
-          kind: CompletionItemKind.Constructor,
-        };
-        if (asset.src) {
+        if (asset) {
+          const completion: CompletionItem = {
+            label: name,
+            labelDetails: { description: "image_group" },
+            kind: CompletionItemKind.Constructor,
+          };
           completion.documentation = {
             kind: MarkupKind.Markdown,
             value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
           };
-        }
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
+          if (completion.label && !completions.has(completion.label)) {
+            completions.set(completion.label, completion);
+          }
         }
       }
     }
-  });
+  );
+  Object.entries(program?.compiled?.structDefs?.["image"] || {}).forEach(
+    ([, v]) => {
+      const name = v.$name;
+      if (name !== "default") {
+        const asset = v as Asset;
+        if (asset) {
+          const completion: CompletionItem = {
+            label: name,
+            labelDetails: { description: "image" },
+            kind: CompletionItemKind.Constructor,
+          };
+          if (asset.src) {
+            completion.documentation = {
+              kind: MarkupKind.Markdown,
+              value: `<img src="${asset.src}" alt="${name}" width="300px" />`,
+            };
+          }
+          if (completion.label && !completions.has(completion.label)) {
+            completions.set(completion.label, completion);
+          }
+        }
+      }
+    }
+  );
   if (!imageToken?.control) {
     const controls = ["show", "hide", "fade"];
     controls.forEach((label) => {
@@ -137,21 +143,23 @@ const getImageFilterCompletions = (
   const existingTags = lineText.slice(startIndex, endIndex).split("~").slice(1);
 
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(program?.context?.["image_filter"] || {}).forEach(([, v]) => {
-    const name = v.$name;
-    if (!existingTags?.includes(name)) {
-      if (name && name !== "default") {
-        const completion: CompletionItem = {
-          label: name,
-          labelDetails: { description: "image_filter" },
-          kind: CompletionItemKind.Constructor,
-        };
-        if (completion.label && !completions.has(completion.label)) {
-          completions.set(completion.label, completion);
+  Object.entries(program?.compiled?.structDefs?.["image_filter"] || {}).forEach(
+    ([, v]) => {
+      const name = v.$name;
+      if (!existingTags?.includes(name)) {
+        if (name && name !== "default") {
+          const completion: CompletionItem = {
+            label: name,
+            labelDetails: { description: "image_filter" },
+            kind: CompletionItemKind.Constructor,
+          };
+          if (completion.label && !completions.has(completion.label)) {
+            completions.set(completion.label, completion);
+          }
         }
       }
     }
-  });
+  );
   return Array.from(completions.values());
 };
 
@@ -159,19 +167,21 @@ const getChannelCompletions = (
   program: SparkProgram
 ): CompletionItem[] | null => {
   const completions: Map<string, CompletionItem> = new Map();
-  Object.entries(program?.context?.["channel"] || {}).forEach(([, v]) => {
-    const name = v.$name;
-    if (name !== "default") {
-      const completion: CompletionItem = {
-        label: name,
-        labelDetails: { description: "channel" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
+  Object.entries(program?.compiled?.structDefs?.["channel"] || {}).forEach(
+    ([, v]) => {
+      const name = v.$name;
+      if (name !== "default") {
+        const completion: CompletionItem = {
+          label: name,
+          labelDetails: { description: "channel" },
+          kind: CompletionItemKind.Constructor,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
       }
     }
-  });
+  );
   return Array.from(completions.values());
 };
 
@@ -181,7 +191,7 @@ const getAudioCompletions = (
 ): CompletionItem[] | null => {
   const audioToken = getLineToken(program, line, "audio_tag");
   const completions: Map<string, CompletionItem> = new Map();
-  Object.values(program?.context?.["audio"] || {}).forEach((v) => {
+  Object.values(program?.compiled?.structDefs?.["audio"] || {}).forEach((v) => {
     if (v.name !== "default") {
       const completion = {
         label: v.name,
@@ -193,19 +203,21 @@ const getAudioCompletions = (
       }
     }
   });
-  Object.values(program?.context?.["audio_group"] || {}).forEach((v) => {
-    if (v.name !== "default") {
-      const completion = {
-        label: v.name,
-        labelDetails: { description: "audio_group" },
-        kind: CompletionItemKind.Constructor,
-      };
-      if (completion.label && !completions.has(completion.label)) {
-        completions.set(completion.label, completion);
+  Object.values(program?.compiled?.structDefs?.["audio_group"] || {}).forEach(
+    (v) => {
+      if (v.name !== "default") {
+        const completion = {
+          label: v.name,
+          labelDetails: { description: "audio_group" },
+          kind: CompletionItemKind.Constructor,
+        };
+        if (completion.label && !completions.has(completion.label)) {
+          completions.set(completion.label, completion);
+        }
       }
     }
-  });
-  Object.values(program?.context?.["synth"] || {}).forEach((v) => {
+  );
+  Object.values(program?.compiled?.structDefs?.["synth"] || {}).forEach((v) => {
     if (v.name !== "default") {
       const completion = {
         label: v.name,
@@ -377,8 +389,8 @@ const getStructMapPropertyNameCompletions = (
 
 const getTypeOrNameCompletions = (program: SparkProgram | undefined) => {
   const result: CompletionItem[] = [];
-  if (program?.context) {
-    Object.entries(program.context).forEach(([k, v]) => {
+  if (program?.compiled?.structDefs) {
+    Object.entries(program.compiled?.structDefs).forEach(([k, v]) => {
       if (isIdentifier(k)) {
         const description = typeof v === "object" ? undefined : typeof v;
         const sortText = typeof v !== "object" ? "0" : "1";
@@ -415,8 +427,8 @@ const getAccessPathCompletions = (
   const keyStartsWith =
     parts.length === 1 ? path : path?.endsWith(".") ? parts.at(-1) : "";
   const result: CompletionItem[] = [];
-  if (program?.context) {
-    const props = getProperty(program.context, parentPath);
+  if (program?.compiled?.structDefs) {
+    const props = getProperty(program.compiled?.structDefs, parentPath);
     if (props) {
       Object.entries(props).forEach(([k, v]) => {
         if (isIdentifier(k)) {

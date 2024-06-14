@@ -1,4 +1,4 @@
-import type { CommandData } from "../../../../logic/types/CommandData";
+import type { CommandData } from "../../../../../core/types/CommandData";
 import type { DestroyCommandParams } from "./DestroyCommandParams";
 
 export interface DestroyCommandData

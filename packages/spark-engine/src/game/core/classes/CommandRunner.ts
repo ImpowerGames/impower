@@ -1,6 +1,6 @@
-import type { Game } from "../../../../core/classes/Game";
-import type { CommandData } from "../../types/CommandData";
-import type { ICommandRunner } from "../../types/ICommandRunner";
+import type { CommandData } from "../types/CommandData";
+import type { ICommandRunner } from "../types/ICommandRunner";
+import type { Game } from "./Game";
 
 export class CommandRunner<G extends Game, D extends CommandData = CommandData>
   implements ICommandRunner<D>

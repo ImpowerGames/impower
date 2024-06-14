@@ -6,7 +6,8 @@ import {
   DidWatchFilesMessage,
   DidWatchFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import { DEFAULT_BUILTINS } from "@impower/spark-engine/src/game/modules/DEFAULT_BUILTINS";
+import { DEFAULT_MODULES } from "@impower/spark-engine/src/game/modules/DEFAULT_MODULES";
 import compile from "@impower/spark-evaluate/src/utils/compile";
 import format from "@impower/spark-evaluate/src/utils/format";
 import SparkParser from "@impower/sparkdown/src/classes/SparkParser";
@@ -110,6 +111,13 @@ export default class SparkdownTextDocuments<
     return this._onDidParse.event;
   }
 
+  /**
+   * An event that fires when a text document has been parsed
+   */
+  public get onUpdateDiagnostics() {
+    return this._onUpdateDiagnostics.event;
+  }
+
   protected _urls: Record<string, string> = {};
 
   protected _files = new Map<
@@ -133,9 +141,11 @@ export default class SparkdownTextDocuments<
 
   protected readonly _onDidParse: Emitter<SparkProgramChangeEvent<T>>;
 
-  protected readonly _game: Game = new Game();
+  protected readonly _onUpdateDiagnostics: Emitter<SparkProgramChangeEvent<T>>;
 
   protected readonly _parser: SparkParser;
+
+  protected readonly _builtins = DEFAULT_BUILTINS;
 
   protected _workspaceFolders?: WorkspaceFolder[];
 
@@ -145,13 +155,16 @@ export default class SparkdownTextDocuments<
 
   protected _audioFilePattern?: RegExp;
 
+  protected _fontFilePattern?: RegExp;
+
   public constructor(configuration: TextDocumentsConfiguration<T>) {
     super(configuration);
     this._onDidParse = new Emitter<SparkProgramChangeEvent<T>>();
+    this._onUpdateDiagnostics = new Emitter<SparkProgramChangeEvent<T>>();
     this._parser = new SparkParser({
-      builtins: this._game.builtins,
-      compiler: compile,
-      formatter: format,
+      resolveFile: (path: string) => this.resolveFile(path),
+      readFile: (uri: string) => this.readFile(uri),
+      builtins: this._builtins,
     });
   }
 
@@ -171,6 +184,10 @@ export default class SparkdownTextDocuments<
     const audioFiles = settings?.audioFiles;
     if (audioFiles) {
       this._audioFilePattern = globToRegex(audioFiles);
+    }
+    const fontFiles = settings?.fontFiles;
+    if (fontFiles) {
+      this._fontFilePattern = globToRegex(fontFiles);
     }
   }
 
@@ -209,16 +226,38 @@ export default class SparkdownTextDocuments<
           }
         }
       });
-      this.parse(true);
+      this.parse(this.getMainScriptUri(), true);
     }
   }
 
-  resolve(filename: string) {
-    return this._workspaceFolders?.[0]?.uri + "/" + filename;
+  resolveFile(path: string) {
+    const p = path.trim();
+    const suffix = p.endsWith(".script") ? "" : ".script";
+    return this._workspaceFolders?.[0]?.uri + "/" + p + suffix;
+  }
+
+  readFile(uri: string) {
+    const syncedDocument = this.__syncedDocuments.get(uri);
+    if (syncedDocument) {
+      return syncedDocument.getText();
+    }
+    const file = this._files.get(uri);
+    if (file) {
+      return file.text || "";
+    }
+    return "";
+  }
+
+  getMainScriptUri() {
+    return this.resolveFile("main.script");
   }
 
   getDirectoryUri(uri: string): string {
     return uri.split("/").slice(0, -1).join("/");
+  }
+
+  getFilenameWithExtension(uri: string): string {
+    return uri.split("/").slice(-1).join("");
   }
 
   getFileName(uri: string): string {
@@ -226,14 +265,17 @@ export default class SparkdownTextDocuments<
   }
 
   getFileType(uri: string): string {
+    if (this._scriptFilePattern?.test(uri)) {
+      return "script";
+    }
     if (this._imageFilePattern?.test(uri)) {
       return "image";
     }
     if (this._audioFilePattern?.test(uri)) {
       return "audio";
     }
-    if (this._scriptFilePattern?.test(uri)) {
-      return "script";
+    if (this._fontFilePattern?.test(uri)) {
+      return "font";
     }
     return "text";
   }
@@ -242,12 +284,12 @@ export default class SparkdownTextDocuments<
     return uri.split("/").slice(-1).join("").split(".")[1]!;
   }
 
-  debouncedParse = debounce(() => {
-    this.parse(true);
+  debouncedParse = debounce((uri: string) => {
+    this.parse(uri, true);
   }, PARSE_THROTTLE_DELAY);
 
-  throttledParse = throttle(() => {
-    this.parse();
+  throttledParse = throttle((uri: string) => {
+    this.parse(uri);
   }, PARSE_THROTTLE_DELAY);
 
   getFiles(): {
@@ -285,15 +327,14 @@ export default class SparkdownTextDocuments<
     return files;
   }
 
-  parse(force = false) {
+  parse(uri: string, force = false) {
     let docChanged = false;
-    const newParsedVersions = new Map<string, number>();
     for (let [, d] of this.__syncedDocuments) {
       const parsedVersion = this._parsedVersions.get(d.uri);
       if (d.version !== parsedVersion) {
         docChanged = true;
       }
-      newParsedVersions.set(d.uri, d.version);
+      this._parsedVersions.set(d.uri, d.version);
     }
     for (let [uri] of this.__syncedDocuments) {
       if (!this.__syncedDocuments.get(uri)) {
@@ -302,21 +343,48 @@ export default class SparkdownTextDocuments<
       }
     }
     if (force || docChanged) {
-      const mainUri = this.resolve("main.script");
-      const mainDocument = this.__syncedDocuments.get(mainUri);
+      const targetDocument = this.__syncedDocuments.get(uri);
+      const mainDocument = this.__syncedDocuments.get(this.getMainScriptUri());
+      let entryDocument = mainDocument;
       if (mainDocument) {
-        const mainScript = mainDocument.getText();
-        const program = this._parser.parse(mainScript);
-        this._parsedVersions = newParsedVersions;
+        this._program = this.parseDocument(mainDocument);
+      }
+      if (
+        targetDocument?.uri !== mainDocument?.uri &&
+        !this._program?.sourceMap?.[uri]
+      ) {
+        // Target script is not included by main,
+        // So it must be parsed on its own to report diagnostics
+        if (targetDocument) {
+          entryDocument = targetDocument;
+          this._program = this.parseDocument(targetDocument);
+        }
+      }
+      if (targetDocument && this._program) {
         this._onDidParse.fire(
           Object.freeze({
-            document: mainDocument,
-            program,
+            document: targetDocument,
+            program: this._program,
+          })
+        );
+        this._onUpdateDiagnostics.fire(
+          Object.freeze({
+            document: targetDocument,
+            program: this._program,
           })
         );
       }
     }
     return this._program;
+  }
+
+  parseDocument(document: TextDocument) {
+    const script = document.getText();
+    const program = this._parser.parse(
+      script,
+      this.getFilenameWithExtension(document.uri)
+    );
+    return program;
   }
 
   onCreatedFile(fileUri: string) {
@@ -384,7 +452,7 @@ export default class SparkdownTextDocuments<
           const type = this.getFileType(uri);
           if (type !== "script") {
             // When asset url changes, reparse all programs so that asset srcs are up-to-date.
-            this.debouncedParse();
+            this.debouncedParse(this.getMainScriptUri());
           }
         }
       )
@@ -410,7 +478,7 @@ export default class SparkdownTextDocuments<
               src,
             });
           });
-          this.debouncedParse();
+          this.debouncedParse(this.getMainScriptUri());
         }
       )
     );
@@ -426,7 +494,15 @@ export default class SparkdownTextDocuments<
         this.__syncedDocuments.set(td.uri, document);
         const toFire = Object.freeze({ document });
         this.__onDidOpen.fire(toFire);
-        this.parse();
+        this.parse(td.uri);
+        if (this._program) {
+          this._onUpdateDiagnostics.fire(
+            Object.freeze({
+              document: document,
+              program: this._program,
+            })
+          );
+        }
       })
     );
     disposables.push(
@@ -455,7 +531,7 @@ export default class SparkdownTextDocuments<
               this.__onDidChangeContent.fire(
                 Object.freeze({ document: syncedDocument })
               );
-              this.throttledParse();
+              this.throttledParse(td.uri);
             }
           }
         }

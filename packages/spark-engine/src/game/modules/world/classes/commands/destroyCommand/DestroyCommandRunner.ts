@@ -1,5 +1,5 @@
+import { CommandRunner } from "../../../../../core/classes/CommandRunner";
 import type { Game } from "../../../../../core/classes/Game";
-import { CommandRunner } from "../../../../logic/classes/commands/CommandRunner";
 import type { WorldModule } from "../../WorldModule";
 import { DestroyCommandData } from "./DestroyCommandData";
 

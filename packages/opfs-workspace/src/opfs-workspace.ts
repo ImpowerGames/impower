@@ -55,6 +55,7 @@ class State {
   > = {};
   static imageFilePattern?: RegExp;
   static audioFilePattern?: RegExp;
+  static fontFilePattern?: RegExp;
   static scriptFilePattern?: RegExp;
   static files: Record<string, FileData> = {};
 }
@@ -289,6 +290,10 @@ const loadConfiguration = (settings: any) => {
   if (audioFiles) {
     State.audioFilePattern = globToRegex(audioFiles);
   }
+  const fontFiles = settings?.fontFiles;
+  if (fontFiles) {
+    State.fontFilePattern = globToRegex(fontFiles);
+  }
 };
 
 const readDirectoryFiles = async (directoryUri: string) => {
@@ -491,14 +496,20 @@ const renameFiles = async (files: { oldUri: string; newUri: string }[]) => {
   return result;
 };
 
-const getType = (uri: string) => {
-  return State.imageFilePattern?.test(uri)
-    ? "image"
-    : State.audioFilePattern?.test(uri)
-    ? "audio"
-    : State.scriptFilePattern?.test(uri)
-    ? "script"
-    : "text";
+const getFileType = (uri: string): string => {
+  if (State.scriptFilePattern?.test(uri)) {
+    return "script";
+  }
+  if (State.imageFilePattern?.test(uri)) {
+    return "image";
+  }
+  if (State.audioFilePattern?.test(uri)) {
+    return "audio";
+  }
+  if (State.fontFilePattern?.test(uri)) {
+    return "font";
+  }
+  return "text";
 };
 
 const getMimeType = (type: string, ext: string) => {
@@ -516,7 +527,7 @@ const updateFileCache = (
   let src = existingFile?.src || "";
   const name = getName(uri);
   const ext = getFileExtension(uri);
-  const type = getType(uri);
+  const type = getFileType(uri);
   if (name) {
     if (!src || overwrite) {
       if (src) {

@@ -1,4 +1,4 @@
-import { DocumentSource } from "./DocumentSource";
+import { DocumentSource } from "../../../core/types/DocumentSource";
 
 export interface VariableData {
   source: DocumentSource;

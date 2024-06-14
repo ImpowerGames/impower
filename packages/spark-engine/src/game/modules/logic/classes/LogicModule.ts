@@ -1,5 +1,11 @@
+import { BlockState } from ".../../../core/types/CommandData";
 import type { Game } from "../../../core/classes/Game";
 import { Module } from "../../../core/classes/Module";
+import {
+  DidExecuteMessage,
+  DidExecuteMessageMap,
+} from "../../../core/classes/messages/DidExecuteMessage";
+import { ICommandRunner } from "../../../core/types/ICommandRunner";
 import type { RecursiveReadonly } from "../../../core/types/RecursiveReadonly";
 import { evaluate } from "../../../core/utils/evaluate";
 import { format } from "../../../core/utils/format";
@@ -8,17 +14,11 @@ import { shuffle } from "../../../core/utils/shuffle";
 import { LogicBuiltins, logicBuiltins } from "../logicBuiltins";
 import { logicCommands } from "../logicCommands";
 import { BlockData } from "../types/BlockData";
-import { BlockState } from "../types/BlockState";
 import { CommandData } from "../types/CommandData";
 import { DocumentSource } from "../types/DocumentSource";
 import { FlowLocation } from "../types/FlowLocation";
-import { ICommandRunner } from "../types/ICommandRunner";
 import createBlockState from "../utils/createBlockState";
 import getRelativeSectionName from "../utils/getRelativeSectionName";
-import {
-  DidExecuteMessage,
-  DidExecuteMessageMap,
-} from "./messages/DidExecuteMessage";
 import {
   WillExecuteMessage,
   WillExecuteMessageMap,

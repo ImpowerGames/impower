@@ -1,10 +1,10 @@
-import { CommandRunner } from "../../modules/logic/classes/commands/CommandRunner";
 import { GameContext } from "../types/GameContext";
 import { IMessage } from "../types/IMessage";
 import { NotificationMessage } from "../types/NotificationMessage";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
+import { CommandRunner } from "./CommandRunner";
 import type { Game } from "./Game";
 
 export abstract class Module<
@@ -65,6 +65,12 @@ export abstract class Module<
 
   /** Executed when game has finished instant simulation and should restore from current state */
   async onRestore() {}
+
+  /** Executed when game is reset to its initial state */
+  onReset() {}
+
+  /** Executed when game is restarted from its initial state */
+  onRestart() {}
 
   /** Executed before manager state is serialized */
   onSerialize() {}

@@ -91,6 +91,10 @@ try {
       },
       program: change.program,
     });
+  });
+
+  // diagnosticsProvider
+  documents.onUpdateDiagnostics((change) => {
     connection.sendDiagnostics(
       getDocumentDiagnostics(change.document, change.program)
     );
@@ -127,7 +131,7 @@ try {
   connection.onHover((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.parse();
+    const program = documents.parse(uri);
     return getHover(document, program, params.position);
   });
 
@@ -135,7 +139,7 @@ try {
   connection.onCompletion((params) => {
     const uri = params.textDocument.uri;
     const document = documents.get(uri);
-    const program = documents.parse();
+    const program = documents.parse(uri);
     const result = getCompletions(
       document,
       program,

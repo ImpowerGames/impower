@@ -1,5 +1,5 @@
-import { CommandData } from "./CommandData";
-import { DocumentSource } from "./DocumentSource";
+import { CommandData } from "../../../core/types/CommandData";
+import { DocumentSource } from "../../../core/types/DocumentSource";
 
 export interface BlockData {
   source: DocumentSource;

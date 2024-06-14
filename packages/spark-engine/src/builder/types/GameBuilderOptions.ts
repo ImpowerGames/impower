@@ -6,5 +6,5 @@ export interface GameBuilderOptions<M extends GameModules = GameModules> {
     startpoint?: { file?: string; line: number };
   };
   modules?: M;
-  preview?: boolean;
+  previewing?: boolean;
 }

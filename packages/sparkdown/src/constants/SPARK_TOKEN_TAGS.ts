@@ -23,7 +23,7 @@ const SPARK_TOKEN_TAGS: {
   Checkpoint: "checkpoint",
   CheckpointName: "checkpoint_name",
 
-  TypeIdentifier: "type_name",
+  TypeName: "type_name",
   DeclarationType: "declaration_type",
   DeclarationName: "declaration_name",
   DeclarationAssignOperator: "declaration_assign_operator",

@@ -1,8 +1,8 @@
+import { CommandRunner } from "../../../../../core/classes/CommandRunner";
 import type { Game } from "../../../../../core/classes/Game";
 import { EventMessage } from "../../../../../core/classes/messages/EventMessage";
 import { MessageCallback } from "../../../../../core/types/MessageCallback";
 import type { Phrase } from "../../../../../modules/writer/types/Phrase";
-import { CommandRunner } from "../../../../logic/classes/commands/CommandRunner";
 import type { DisplayCommandData } from "./DisplayCommandData";
 import type { DisplayContentItem } from "./DisplayCommandParams";
 
@@ -40,8 +40,7 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     data: DisplayCommandData,
     options?: { instant?: boolean; preview?: boolean },
     onStarted?: () => void,
-    onFinished?: () => void,
-    onClickButton?: (content: DisplayContentItem) => void
+    onFinished?: () => void
   ): {
     onTick?: (deltaMS: number) => void;
     displayed?: DisplayContentItem[];
@@ -63,23 +62,13 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
         targetsCharacterName = true;
         c.text = context?.["character"]?.[characterKey]?.name || c.text;
       }
-      // Only display content without prerequisites or that have truthy prerequisites
-      if (
-        !c.prerequisite ||
-        Boolean(game.module.logic.evaluate(c.prerequisite))
-      ) {
-        const r: Phrase = {
-          ...c,
-        };
-        if (r.text) {
-          // Substitute any {variables} in text
-          r.text = game.module.logic.format(r.text);
-        }
-        if (!r.target) {
-          r.target = type;
-        }
-        displayed.push(r);
+      const r: Phrase = {
+        ...c,
+      };
+      if (!r.target) {
+        r.target = type;
       }
+      displayed.push(r);
     });
 
     if (displayed.length === 0) {
@@ -130,12 +119,12 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       game.module.ui.style.update("indicator", indicatorStyle);
 
       // Process button events
-      Object.entries(sequence.button).flatMap(([target, events]) =>
-        events.forEach((e) => {
+      Object.entries(sequence.button).flatMap(([target, events], index) =>
+        events.forEach(() => {
           const handleClick = (): void => {
             clearUI();
             game.module.ui.unobserve("click", target);
-            onClickButton?.(e);
+            this.game.choose(index);
           };
           game.module.ui.observe("click", target, handleClick);
         })
@@ -217,15 +206,6 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
       },
       () => {
         this._finishedExecution = true;
-      },
-      (c) => {
-        const choiceId = data.id + "." + c.instance || "";
-        const jumpTo = c.button || "";
-        this._chosenBlockId = this.game.module.logic.choose(
-          data.parent,
-          choiceId,
-          jumpTo
-        );
       }
     );
     this._choices = displayed?.filter((c) => c.button);
@@ -263,10 +243,6 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
   override isFinished(data: DisplayCommandData) {
     const { autoAdvance } = data.params;
     const waitingForChoice = this._choices && this._choices.length > 0;
-    const blockState = this.game.module.logic.state.blocks?.[data.parent];
-    if (!blockState) {
-      return false;
-    }
     if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
     }

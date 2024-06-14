@@ -43,7 +43,7 @@ import {
   UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
 
-const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]*/gu;
+const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
 const isAsset = (obj: unknown): obj is { type: string; src: string } => {
   const asset = obj as { type: string; src: string };
   return asset && Boolean(asset.type && asset.src);
@@ -261,6 +261,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       position: "absolute",
       inset: "0",
     };
+    // TODO: Declare asset variables in style element instead?
     const images = this.context?.image;
     if (images) {
       Object.entries(images).forEach(([name, image]) => {
@@ -270,7 +271,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           "src" in image &&
           typeof image.src === "string"
         ) {
-          style[this.getImageVarName(name)] = this.getImageVarValue(image.src);
+          if (name !== "default") {
+            style[this.getImageVarName(name)] = this.getImageVarValue(
+              image.src
+            );
+          }
         }
       });
     }
@@ -283,9 +288,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           "src" in imageGroup &&
           typeof imageGroup.src === "string"
         ) {
-          style[this.getImageVarName(name)] = this.getImageVarValue(
-            imageGroup.src
-          );
+          if (name !== "default") {
+            style[this.getImageVarName(name)] = this.getImageVarValue(
+              imageGroup.src
+            );
+          }
         }
       });
     }
@@ -385,22 +392,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   loadStyles(): void {
     // Process Imports
-    const cssStructObj = this.context?.css;
-    if (cssStructObj) {
-      const properties = getAllProperties(cssStructObj);
-      this.constructStyleElement("import", {
-        import: properties,
+    const fonts = this.context?.font;
+    if (fonts) {
+      this.constructStyleElement("fonts", {
+        fonts,
       });
     }
     // Process Styles
-    const validStructNames = [...Object.keys(this.context?.style || {})];
-    validStructNames.forEach((structName) => {
-      if (structName) {
-        const styleStructObj = this.context?.style?.[structName];
-        if (styleStructObj) {
-          const properties = getAllProperties(styleStructObj, isAssetLeaf);
-          properties[".target"] ??= structName;
-          this.constructStyleElement(structName, {
+    Object.entries(this.context?.style).forEach(([name, style]) => {
+      if (name) {
+        if (style && !("target" in style)) {
+          style["target"] = name;
+        }
+        if (style) {
+          const properties = getAllProperties(style, isAssetLeaf);
+          this.constructStyleElement(name, {
             style: properties,
           });
         }

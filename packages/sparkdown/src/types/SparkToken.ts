@@ -230,7 +230,6 @@ export interface DisplayContent extends SparkRange {
   control?: string;
   target?: string;
   button?: string;
-  prerequisite?: string;
   text?: string;
   assets?: string[];
   args?: string[];
@@ -246,7 +245,6 @@ export interface SparkDisplayTextToken extends ISparkToken<"display_text"> {
 
 export interface SparkTextToken<T extends string = "text">
   extends ISparkToken<T> {
-  prerequisite?: string;
   text: string;
   target?: string;
   button?: string;

@@ -21,7 +21,6 @@ import { GrammarToken, NodeID } from "../../../../grammar-compiler/src/core";
 import {
   Grammar,
   GrammarState,
-  Matched,
 } from "../../../../grammar-compiler/src/grammar";
 
 import LezerParseRegion from "./LezerParseRegion";
