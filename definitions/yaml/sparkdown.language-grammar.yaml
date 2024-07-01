@@ -23,8 +23,20 @@ patterns:
   - { include: "#Newline" }
   - { include: "#Annotation" }
   - { include: "#Dialogue" }
-  - { include: "#EmptyLine" }
-  - { include: "#Other" }
+  - { include: "#FrontMatter" }
+  - { include: "#Todo" }
+  - { include: "#Include" }
+  - { include: "#Declaration" }
+  - { include: "#Knot" }
+  - { include: "#Stitch" }
+  - { include: "#Divert" }
+  - { include: "#Logic" }
+  - { include: "#Choice" }
+  - { include: "#Gather" }
+  - { include: "#Transition" }
+  - { include: "#Scene" }
+  - { include: "#AssetLine" }
+  - { include: "#Action" }
 
 repository:
 
@@ -53,16 +65,19 @@ repository:
   LineComment:
     tag: lineComment
     name: comment.line.sd
-    begin: ({{WS}}*)([/][/])
-    beginCaptures:
+    match: ({{WS}}*)([/][/])(.*?)$(\r\n|\r|\n)?
+    captures:
       1: 
         patterns:
           - { include: "#Whitespace" }
       2:
         name: punctuation.definition.comment.mark
-    patterns:
-      - { include: "#LineCommentContent" }
-    end: (?=$)
+      3:
+        patterns:
+          - { include: "#LineCommentContent" }
+      4:
+        patterns:
+          - { include: "#Newline" }
 
   LineCommentContent:
     tag: definition(lineComment)
@@ -96,18 +111,20 @@ repository:
   Tag:
     tag: docComment
     name: comment.line.sd entity.tag.sd
-    begin: ({{WS}}*)({{TAG_START}})
-    beginCaptures:
+    match: ({{WS}}*)({{TAG_START}})(.*?)(?:(?={{TAG_START}})|$(\r\n|\r|\n)?)
+    captures:
       1: 
         patterns:
           - { include: "#Whitespace" }
       2: 
         tag: definition(docComment)
         name: punctuation.definition.comment.sd comment.line.sd entity.tag.begin.sd
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#TagContent" }
-    end: (?=$|{{TAG_START}})
+      3:
+        patterns:
+          - { include: "#TagContent" }
+      4:
+        patterns:
+          - { include: "#Newline" }
 
   TagContent:
     tag: definition(docComment)
@@ -606,16 +623,16 @@ repository:
 ########## Chain ##########
 
   Chain:
-    tag: meta
+    tag: special(meta)
     name: meta.chain.sd
-    match: ({{WS}}*)([>])
+    match: ([\\])($|{{WS}}+)
     captures:
       1:
-        patterns:
-          - { include: "#Whitespace" }
-      2:
         tag: keyword
         name: keyword.other.chain.sd
+      2:
+        patterns:
+          - { include: "#Whitespace" }
 
 ########## Glue ##########
 
@@ -675,7 +692,7 @@ repository:
       1:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#DisplayText" }
+          - { include: "#DisplayLine" }
 
   SuppressedText:
     match: (\[)(.*?)(\])
@@ -686,7 +703,7 @@ repository:
       2:
         patterns:
           - { include: "#Annotation" }
-          - { include: "#DisplayText" }
+          - { include: "#DisplayLine" }
       3:
         tag: keyword
         name: punctuation.definition.template-expression.end.choice.suppression.sd
@@ -778,7 +795,7 @@ repository:
       - { include: "#Todo" }
       - { include: "#Logic" }
       - { include: "#Tag" }
-      - { include: "#DisplayText" }
+      - { include: "#Action" }
     end: ({{EOL}})(\r\n|\r|\n)?
     endCaptures:
       1:
@@ -805,7 +822,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#FunctionDeclaration" }
-      - { include: "#KnotStitchDeclaration" }
+      - { include: "#KnotDeclarationName" }
     end: ([=]{2,})|(?=$)
     endCaptures:
       1:
@@ -826,14 +843,31 @@ repository:
           - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#KnotStitchDeclaration" }
+      - { include: "#StitchDeclarationName" }
     end: ([=]+)|(?=$)
     endCaptures:
       1:
         tag: definition(heading)
         name: keyword.control.stitch.sd
 
-  KnotStitchDeclaration:
+  KnotDeclarationName:
+    begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        tag: definition(heading)
+        name: keyword.control.section.sd
+      3:
+        patterns:
+          - { include: "#Whitespace" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#FunctionParameters" }
+    end: (?=$|[=]|[/][/])
+
+  StitchDeclarationName:
     begin: ({{WS}}*)({{IDENTIFIER}})({{WS}}*)
     beginCaptures:
       1:
@@ -863,8 +897,8 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       4:
-        tag: function(variableName)
-        name: entity.name.function.sd
+        patterns:
+          - { include: "#FunctionDeclarationName" }
       5:
         patterns:
           - { include: "#Whitespace" }
@@ -872,6 +906,11 @@ repository:
       - { include: "#Annotation" }
       - { include: "#FunctionParameters" }
     end: (?=$|[=])
+
+  FunctionDeclarationName:
+    tag: function(variableName)
+    name: entity.name.function.sd
+    match: (.+)
 
 ########## Divert & Thread ##########
 
@@ -902,12 +941,12 @@ repository:
   End:
     tag: keyword
     name: constant.language.end.sd
-    match: (END)
+    match: \b(END)\b
 
   Done:
     tag: keyword
     name: constant.language.done.sd
-    match: (DONE)
+    match: \b(DONE)\b
 
   DivertPath:
     tag: heading
@@ -1171,11 +1210,6 @@ repository:
     tag: content
     name: markup.raw.whitespace.indent.sd
     match: ^({{WS}}+)
-
-  EmptyLine:
-    tag: content
-    name: markup.raw.whitespace.empty-line.sd
-    match: ^({{WS}}*)$
 
   Whitespace:
     tag: content
@@ -1696,48 +1730,43 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-########## Transition ##########
-
-  Transition:
-    tag: labelName
-    name: keyword.control.transition.sd
-    match: ^({{WS}}*)([%](?:$|{{WS}}+))($|.+$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: punctuation
-        name: punctuation.transition.mark.sd
-      3:
-        patterns:
-          - { include: "#Annotation" }
-          - { include: "#DisplayText" }
-
-########## Scene ##########
-
-  Scene:
-    tag: regexp
-    name: string.regexp.scene.sd
-    match: ^({{WS}}*)([$](?:$|{{WS}}+))($|.+$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: punctuation
-        name: punctuation.scene.mark.sd
-      3:
-        patterns:
-          - { include: "#Annotation" }
-          - { include: "#DisplayText" }
-
-  SceneLocationTime:
-    match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.]{{WS}}*(.*?){{WS}}+[-]{{WS}}+(.*?){{WS}}*$
-
 ########## Dialogue ##########
 
   Dialogue:
+    patterns:
+      - { include: "#InlineDialogue" }
+      - { include: "#BlockDialogue" }
+
+  InlineDialogue:
+    name: entity.dialogue.sd
+    begin: ^({{WS}}*)([@]{{WS}}+)(.*?)([:])($|{{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: definition(typeName)
+        name: entity.name.type.dialogue.character.name.sd
+      3:
+        patterns:
+          - { include: "#Annotation" }
+          - { include: "#DialogueCharacter" }
+      4:
+        tag: definition(typeName)
+        name: entity.name.type.dialogue.character.name.sd
+      5:
+        tag: definition(typeName)
+        name: entity.name.type.dialogue.character.name.sd
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#AssetLine" }
+      - { include: "#ParentheticalLine" }
+      - { include: "#DialogueLineContinue" }
+      - { include: "#DialogueLineEnd" }
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+      
+  BlockDialogue:
     name: entity.dialogue.sd
     begin: ^({{WS}}*)([@](?:$|{{WS}}+))($|.+$)
     beginCaptures:
@@ -1754,19 +1783,14 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#DialogueLineParenthetical" }
-      - { include: "#DialogueLineText" }
-    end: ^({{WS}}*)(?:$|([/][@].*?)(?={{EOL}}))
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DialogueTerminator" }
+      - { include: "#AssetLine" }
+      - { include: "#ParentheticalLine" }
+      - { include: "#DialogueLineContinue" }
+      - { include: "#DialogueLineEnd" }
+    end: (?=^{{WS}}*$)
 
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*)([(][^)]*(?:$|[)]))?($|{{WS}}*)(\^)?({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\^)?({{EOL}})
     captures:
       1:
         patterns:
@@ -1799,39 +1823,123 @@ repository:
         patterns:
           - { include: "#DisplayText" }
 
-  DialogueTerminator:
-    tag: typeName
-    name: entity.name.type.dialogue.character.name.sd
+  DialogueCharacterParenthetical:
+    tag: escape
+    name: constant.character.escape.dialogue.character.parenthetical.sd
     match: (.+$)
     captures:
       1:
         patterns:
           - { include: "#DisplayText" }
 
-  DialogueCharacterParenthetical:
-    tag: escape
-    name: constant.character.escape.dialogue.character.parenthetical.sd
-    match: (.+$)
-
   DialogueCharacterSimultaneous:
     tag: definition(propertyName)
     name: variable.other.property.dialogue.character.simultaneous.sd
     match: (.+$)
 
-  DialogueLineParenthetical:
-    match: ^({{WS}}*)([(][^()]*[)])({{EOL}})
+  DialogueLineContinue:
+    tag: string
+    name: string.dialogue.line.sd
+    match: ({{WS}}*)(.*?[\\]$)(\r\n|\r|\n)?
     captures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DialogueLineParentheticalContent" }
+          - { include: "#DisplayLine" }
+      3:
+        patterns:
+          - { include: "#Newline" }
+
+  DialogueLineEnd:
+    tag: string
+    name: string.dialogue.line.sd
+    match: ({{WS}}*)(.*?[^\\]$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#DisplayLine" }
+
+########## Transition ##########
+
+  Transition:
+    tag: labelName
+    name: keyword.control.transition.sd
+    begin: ^({{WS}}*)([%](?:$|{{WS}}+))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: punctuation
+        name: punctuation.transition.mark.sd
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#ParentheticalLine" }
+      - { include: "#LineContinue" }
+      - { include: "#LineEnd" }
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+
+########## Scene ##########
+
+  Scene:
+    tag: regexp
+    name: string.regexp.scene.sd
+    begin: ^({{WS}}*)([$](?:$|{{WS}}+))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        tag: punctuation
+        name: punctuation.transition.mark.sd
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#ParentheticalLine" }
+      - { include: "#LineContinue" }
+      - { include: "#LineEnd" }
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+
+  SceneLocationTime:
+    match: INT[.]?[\/]EXT[.]|INT[.]|EXT[.]{{WS}}*(.*?){{WS}}+[-]{{WS}}+(.*?){{WS}}*$
+
+########## Action ##########
+
+  Action:
+    begin: (?=.+)
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#AssetLine" }
+      - { include: "#ParentheticalLine" }
+      - { include: "#LineContinue" }
+      - { include: "#LineEnd" }
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=^[@]{{WS}})|(?=^[$]{{WS}})|(?=^[%]{{WS}})
+
+########## Parenthetical ##########
+
+  ParentheticalLine:
+    match: ^({{WS}}*)([(][^()]*?[)])({{EOL}})(\r\n|\r|\n)?
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ParentheticalContent" }
       3:
         patterns:
           - { include: "#EndOfLine" }
+      4:
+        patterns:
+          - { include: "#Newline" }
 
-  DialogueLineParentheticalContent:
+  ParentheticalContent:
     tag: escape
     name: constant.character.escape.sd
     match: (.+)
@@ -1840,86 +1948,91 @@ repository:
         patterns:
           - { include: "#DisplayText" }
 
-  DialogueLineText:
-    tag: string
-    name: string.dialogue.line.sd
-    match: ^({{WS}}*)(.+$)
+########## Text ##########
+
+  LineContinue:
+    match: ({{WS}}*)(.*?[\\]$)(\r\n|\r|\n)?
     captures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#DisplayText" }
-
-########## Other ##########
-
-  Other:
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#FrontMatter" }
-      - { include: "#Todo" }
-      - { include: "#Include" }
-      - { include: "#Declaration" }
-      - { include: "#Knot" }
-      - { include: "#Stitch" }
-      - { include: "#Divert" }
-      - { include: "#Logic" }
-      - { include: "#Choice" }
-      - { include: "#Gather" }
-      - { include: "#Transition" }
-      - { include: "#Scene" }
-      - { include: "#ImageTag" }
-      - { include: "#AudioTag" }
-      - { include: "#DisplayText" }
-      - { include: "#Newline" }
-      - { include: "#Unknown" }
-
-
-########## DisplayText ##########
-          
-  DisplayText:
-    emit: true
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#Escape" }
-      - { include: "#InlineImageTag" }
-      - { include: "#InlineAudioTag" }
-      - { include: "#DisplayString" }
-
-  DisplayString:
-    emit: true
-    patterns:
-      - { include: "#Annotation" }
-      - { include: "#InlineTextAndLogic" }
-
-########## Asset Tag ##########
-
-  ImageTag:
-    tag: macroName
-    name: meta.image.sd
-    match: ^({{WS}}*)(\[\[)((?:\\.|[^\]])*?)(\]\])($|{{WS}}*$)(\r\n|\r|\n)?
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: keyword
-        name: keyword.operator.expression.begin.image.sd
+          - { include: "#DisplayLine" }
       3:
-        patterns:
-          - { include: "#AssetTagContent" }
-      4:
-        tag: keyword
-        name: keyword.operator.expression.end.image.sd
-      5:
-        patterns:
-          - { include: "#Whitespace" }
-      6:
         patterns:
           - { include: "#Newline" }
 
-  InlineImageTag:
+  LineEnd:
+    match: ({{WS}}*)(.*?[^\\]$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#DisplayLine" }
+
+  DisplayLine:
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Chain" }
+      - { include: "#Chunk" }
+
+  Chunk:
+    match: (.*?)(?=$|[\\](?:$|{{WS}}))
+    captures:
+      1:
+        patterns:
+          - { include: "#ParentheticalLine" }
+          - { include: "#AssetLine" }
+          - { include: "#TextChunk" }
+
+  TextChunk:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#DisplayText" }
+
+  DisplayText:
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Chain" }
+      - { include: "#Escape" }
+      - { include: "#ImageTag" }
+      - { include: "#AudioTag" }
+      - { include: "#InlineTextAndLogic" }
+
+
+########## Asset Tag ##########
+
+  AssetLine:
+    match: ^({{WS}}*)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|{{WS}}*)+)({{EOL}})(\r\n|\r|\n)?
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#AssetLineContent" }
+      3:
+        patterns:
+          - { include: "#EndOfLine" }
+      4:
+        patterns:
+          - { include: "#Newline" }
+
+  AssetLineContent:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#ImageTag" }
+          - { include: "#AudioTag" }
+          - { include: "#Whitespace" }
+
+  ImageTag:
     tag: macroName
     name: meta.image.sd
     match: (\[\[)((?:\\.|[^\]])*?)(\]\])
@@ -1935,30 +2048,6 @@ repository:
         name: keyword.operator.expression.end.image.sd
 
   AudioTag:
-    tag: macroName
-    name: meta.audio.sd
-    match: ^({{WS}}*)([(][(])((?:\\.|[^)])*?)([)][)])($|{{WS}}*$)(\r\n|\r|\n)?
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        tag: keyword
-        name: keyword.operator.expression.begin.audio.sd
-      3:
-        patterns:
-          - { include: "#AssetTagContent" }
-      4:
-        tag: keyword
-        name: keyword.operator.expression.end.audio.sd
-      5:
-        patterns:
-          - { include: "#Whitespace" }
-      6:
-        patterns:
-          - { include: "#Newline" }
-
-  InlineAudioTag:
     tag: macroName
     name: meta.audio.sd
     match: ([(][(])((?:\\.|[^)])*?)([)][)])
@@ -2150,12 +2239,14 @@ repository:
 
   InlineTextAndLogic:
     patterns:
+      - { include: "#Chain" }
       - { include: "#Escape" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineText" }
 
   InlineText:
     patterns:
+      - { include: "#Chain" }
       - { include: "#Escape" }
       - { include: "#Styling" }
       - { include: "#Emphasis" }
@@ -2178,7 +2269,6 @@ repository:
 
   Styling:
     patterns:
-      - { include: "#Chain" }
       - { include: "#Glue" }
       - { include: "#TextTag" }
       - { include: "#Underline" }

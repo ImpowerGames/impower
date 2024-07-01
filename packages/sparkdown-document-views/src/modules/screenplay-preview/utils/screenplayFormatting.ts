@@ -17,6 +17,7 @@ import DialogueWidget, {
 import TitlePageWidget from "../classes/widgets/TitlePageWidget";
 import { MarkupContent } from "../types/MarkupContent";
 import { ReplaceSpec } from "../types/ReplaceSpec";
+import { printTree } from "../../../cm-textmate/utils/printTree";
 
 const DIALOGUE_WIDTH = "60%";
 const CHARACTER_PADDING = "16%";
@@ -71,6 +72,12 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.regexp, fontWeight: "bold" },
   { tag: tags.labelName, display: "block", textAlign: "right" },
 
+  {
+    tag: tags.special(tags.meta),
+    display: "block",
+    maxHeight: "0",
+    visibility: "hidden",
+  },
   { tag: tags.definition(tags.escape), display: "none" },
   { tag: tags.definition(tags.keyword), display: "none" },
   { tag: tags.definition(tags.controlKeyword), display: "none" },
@@ -101,7 +108,13 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "Logic",
   "Knot",
   "Stitch",
-  "Declaration",
+  "Divert",
+  "VarDeclaration",
+  "ListDeclaration",
+  "ConstDeclaration",
+  "ExternalDeclaration",
+  "DefineDeclaration",
+  "AssetLine",
   "ImageTag",
   "AudioTag",
   "TextTag",
@@ -114,7 +127,7 @@ const createDecorations = (
 ): Range<Decoration>[] => {
   if (spec.widget === DialogueWidget) {
     const dialogueSpec = spec as DialogueSpec;
-    if (!dialogueSpec.dual) {
+    if (!dialogueSpec.grid) {
       const blocks = dialogueSpec.blocks[0];
       if (blocks) {
         return blocks.map((b) =>
@@ -154,6 +167,7 @@ const decorate = (state: EditorState) => {
 
   let inDialogue = false;
   let inDualDialogue = false;
+  let inInlineDialogue = false;
   let dialoguePosition = 0;
   let dialogueFrom = 0;
   let dialogueContent: MarkupContent[] = [];
@@ -194,13 +208,13 @@ const decorate = (state: EditorState) => {
                 return c;
               }),
             ],
-            dual: true,
+            grid: true,
           };
           specs.push(spec);
           prevDialogueSpec = spec;
         } else if (prevDialogueSpec && prevDialogueSpec.blocks) {
           // right (even position)
-          prevDialogueSpec.dual = true;
+          prevDialogueSpec.grid = true;
           prevDialogueSpec.to = to - 1;
           prevDialogueSpec.blocks.push(dialogueContent);
           prevDialogueSpec.blocks.forEach((blocks) => {
@@ -214,13 +228,13 @@ const decorate = (state: EditorState) => {
       } else {
         const spec: DialogueSpec = {
           from: dialogueFrom,
-          to: to - 1,
+          to: to,
           widget: DialogueWidget,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,
           block: true,
           blocks: [dialogueContent],
-          dual: false,
+          grid: inInlineDialogue,
         };
         specs.push(spec);
         prevDialogueSpec = spec;
@@ -229,6 +243,7 @@ const decorate = (state: EditorState) => {
     }
     inDialogue = false;
     inDualDialogue = false;
+    inInlineDialogue = false;
   };
 
   tree.iterate({
@@ -302,38 +317,31 @@ const decorate = (state: EditorState) => {
         endFrontMatter(to);
         return false;
       }
-      if (name === "Dialogue_begin") {
+      if (name === "BlockDialogue_begin" || name === "InlineDialogue_begin") {
         inDialogue = true;
         inDualDialogue = false;
+        inInlineDialogue = name === "InlineDialogue_begin";
         dialogueFrom = from;
         dialogueContent = [];
         return true;
       }
-      if (name === "Dialogue_end") {
+      if (name === "BlockDialogue_end" || name === "InlineDialogue_end") {
         endDialogue(to);
         return false;
       }
-      if (name === "DialogueCharacterName") {
+      if (name === "DialogueCharacter") {
         const value = doc.sliceString(from, to).trim();
         dialogueContent.push({
           type: "character",
           from,
           to,
-          value,
+          value: "@ " + value,
+          markdown: true,
           attributes: {
             style: getDialogueLineStyle("character"),
           },
         });
-        return false;
-      }
-      if (name === "DialogueCharacterParenthetical") {
-        const value = doc.sliceString(from, to).trim();
-        const firstDialogueBlockLine = dialogueContent[0];
-        if (firstDialogueBlockLine) {
-          firstDialogueBlockLine.value += " " + value;
-          firstDialogueBlockLine.to = to;
-        }
-        return false;
+        return true;
       }
       if (name === "DialogueCharacterSimultaneous") {
         const value = doc.sliceString(from, to).trim();
@@ -349,20 +357,38 @@ const decorate = (state: EditorState) => {
         }
         return false;
       }
-      if (name === "DialogueLineParenthetical") {
+      if (name === "ParentheticalLine") {
         const value = doc.sliceString(from, to).trim();
-        dialogueContent.push({
-          type: "parenthetical",
-          from,
-          to,
-          value,
-          attributes: {
-            style: getDialogueLineStyle("parenthetical"),
-          },
-        });
+        if (inDialogue) {
+          dialogueContent.push({
+            type: "parenthetical",
+            from,
+            to,
+            value,
+            markdown: true,
+            attributes: {
+              style: getDialogueLineStyle("parenthetical"),
+            },
+          });
+        } else {
+          specs.push({
+            from,
+            to,
+            content: [
+              {
+                type: type.name,
+                from,
+                to,
+                attributes: {
+                  style: "text-align: center;",
+                },
+              },
+            ],
+          });
+        }
         return false;
       }
-      if (name === "DialogueLineText" && inDialogue) {
+      if (name === "TextChunk" && inDialogue) {
         const value = doc.sliceString(from, to).trimEnd();
         dialogueContent.push({
           type: "dialogue",

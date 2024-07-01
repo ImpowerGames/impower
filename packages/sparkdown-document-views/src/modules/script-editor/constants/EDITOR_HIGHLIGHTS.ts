@@ -29,12 +29,13 @@ const EDITOR_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.typeName, color: c.typeName },
   { tag: tags.number, color: c.number },
   { tag: tags.bool, color: c.bool },
-  { tag: tags.escape, color: c.escape },
 
   { tag: tags.contentSeparator, color: c.break },
   { tag: tags.heading, color: c.sectionNameAccessor },
   { tag: tags.regexp, color: c.scene },
   { tag: tags.labelName, color: c.transition },
+
+  { tag: tags.escape, color: c.escape },
 
   { tag: tags.keyword, color: c.keyword },
   { tag: tags.moduleKeyword, color: c.moduleKeyword },
