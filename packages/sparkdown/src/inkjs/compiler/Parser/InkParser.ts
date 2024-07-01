@@ -1115,34 +1115,26 @@ export class InkParser extends StringParser {
   };
 
   public readonly DialogueBlock = (): ParsedObject[] | null => {
-    const startOfBlock = this.Peek(this.KeywordString("@"));
-    if (startOfBlock === null) {
+    const firstLine = this.LineRemainder();
+    if (firstLine[0] !== "@" || firstLine.includes(":")) {
       return null;
     }
 
-    let result = this.Interleave<ParsedObject>(
+    let lines = this.Interleave<ParsedObject>(
       this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
       this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
       this.EndOfDialogueBlock
-    );
+    ) as Text[];
 
-    const blockTerminator = this.Peek(this.String("/@"));
+    const prefixedLines = lines
+      .slice(2)
+      .map((l) => (l.text === "\n" ? l : new Text(firstLine + ": " + l.text)));
 
-    if (blockTerminator !== "/@") {
-      // If no explicit `/@`, automatically add `/@`
-      result.push(new Text("/@"));
-      result.push(new Text("\n"));
-    }
-
-    return result;
+    return prefixedLines;
   };
 
   public readonly EndOfDialogueBlock = (): ParseRuleReturn => {
-    return this.OneOf([
-      this.EmptyLine,
-      this.EndOfFile,
-      this.KeywordString("/@"),
-    ]);
+    return this.OneOf([this.EmptyLine, this.EndOfFile]);
   };
 
   public readonly LineOfMixedTextAndLogic = (): ParsedObject[] | null => {
@@ -1301,7 +1293,12 @@ export class InkParser extends StringParser {
         if (gotEscapeChar) {
           const c = this.ParseSingleCharacter();
           if (c !== null) {
-            sb += c;
+            if (str && (c === " " || c === "\t")) {
+              // Insert newline if escaping whitespace
+              sb += "\n";
+            } else {
+              sb += c;
+            }
           }
         }
       } else {

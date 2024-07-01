@@ -64,81 +64,65 @@ This allows us to utilize markdown-esque styling syntax at the start of a line w
 
 ---
 
-### 2. The `@` operator will open a text-only block
+### 2. The `@` operator will open a dialogue block
 
-Starting a line with `@` causes all lines below to be interpreted as text until the next empty line or the end of the file.
+Starting a line with `@` causes all lines below to be interpreted as dialogue text for the specified character until the next empty line.
 
-This allows us to do three things:
+For example this:
 
-1. It makes it easier for the user to write large blocks of dialogue lines without having to repeatedly specify the character for every line.
+```
+@ HAMLET
+To be, or not to be, that is the question.
+Whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune.
+Or to take arms against a sea of troubles and by opposing, end them.
+```
 
-    ```
-    @ POLONIUS 
-    I hear him coming.
-    Let’s withdraw, my lord.
+Is syntactically equivalent to:
 
-    They withdraw.
+```
+@ HAMLET: To be, or not to be, that is the question.
+@ HAMLET: Whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune.
+@ HAMLET: Or to take arms against a sea of troubles and by opposing, end them.
+```
 
-    Hamlet enters.
+This also means that we can start dialogue lines with a syntax keyword (`*`, `+`, `-`, `~`, `==`, `=`, `VAR`, `CONST`, `LIST`, `INCLUDE`, `EXTERNAL`, etc.) without having to manually escape them.
 
-    @ HAMLET
-    To be, or not to be, that is the question:
-    Whether 'tis nobler in the mind to suffer <>
-    the slings and arrows of outrageous fortune.
-    Or to take arms against a sea of troubles <>
-    and by opposing, end them. 
-    To die -- to sleep, No more.
-    And by a sleep to say we end <>
-    the heart-ache and the thousand natural shocks <>
-    that flesh is heir to. 
-    'Tis a consummation devoutly to be wished.
-    ```
+For example, in the text block below, the dialogue line starting with `INCLUDE` does not have to be manually escaped:
 
-2. It allows the user to write lines of dialogue that start with a syntax keyword (`*`, `+`, `-`, `~`, `==`, `=`, `VAR`, `CONST`, `LIST`, `INCLUDE`, `EXTERNAL`, etc.) without having to manually escape them. 
+```
+@ THE KILLER
+And did you ever consider...
+That the list of suspects might, in fact...
+INCLUDE ME???
+```
 
-    For example, in the text block below, the dialogue line starting with `INCLUDE` does not have to be manually escaped:
-
-    ```
-    @ THE KILLER
-    And did you ever consider...
-    That the list of suspects might...
-    In fact...
-    INCLUDE ME???
-    ```
-
-3. Since the compiler collapses consecutive newlines, the empty line following a text block is included in the final compiled json as a text line starting with the special termination keyword `/@`.
-
-    This allows the runtime to detect when a block of dialogue has ended and text should no longer be associated with a character.
-
-    One side effect of this block termination logic, is that manually typing `/@` will also end a dialogue block.
-
-    ```
-    @ JAQUES
-    All the world’s a stage,
-    And all the men and women merely players.
-    /@
-    And this line is not part of the character's dialogue.
-    ```
-
-    But it is recommended to rely on empty lines instead for readability:
-
-    ```
-    @ BURNS
-    How long is it?
-
-    Hildy finishes lighting her cigarette, <>
-    takes a puff, and fans out the match.
-
-    @ HILDY
-    How long is what?
-
-    @ BURNS
-    You know what.
-    How long since we've seen each other?
-    ```
 ---
 
-### 3. Front Matter can be specified by surrounding a block of text with `---`
+### 3. Ending a line of text with a `\` backslash will cause the next line of text to display on a new line in the same textbox.
+
+```
+All the world’s a stage, \
+And all the men and women merely players.
+```
+
+This joins text together in a similar way to the `<>` glue operator, with a few key differences:
+
+  1. Unlike glue, `\` preserves a single newline between the joined text.
+  2. The next line will always be interpreted as plain text, even if it starts with a syntax keyword
+    ```
+    And now, for all the points... \
+    DEFINE DISESTABLISHMENTARIANISM.
+    ```
+
+` \ ` can also be used to insert a newline in the middle of text.
+
+```
+All the world’s a stage, \ And all the men and women merely players.
+```
+
+---
+
+### 4. Front Matter can be specified by surrounding a block of text with `---`
 
 Front Matter can be used to conveniently store multiline metadata about a story.
 
@@ -164,7 +148,7 @@ contact:
 
 ---
 
-### 4. You can define objects and arrays with `DEFINE`
+### 5. You can define objects and arrays with `DEFINE`
 
 The new compiler supports using yaml-esque syntax to define constant objects and arrays:
 
@@ -182,7 +166,7 @@ DEFINE fears:
 
 ---
 
-### 5. You can specify an object's type with `DEFINE type.name`
+### 6. You can specify an object's type with `DEFINE type.name`
 
 An object's type can be specified by prefixing its name with a type and a dot separator
 
@@ -225,7 +209,7 @@ define style.dialogue:
 
 ---
 
-### 6. You can access object properties and array elements
+### 7. You can access object properties and array elements
 
 Although you cannot change their value, you can read an object's properties with dot notation:
 
@@ -242,7 +226,7 @@ I am most afraid of {fears[0]}.
 
 ---
 
-### 7. Compiler errors now include exact source location
+### 8. Compiler errors now include exact source location
 
 An additional `source` parameter has been added to the compiler's error handler. 
 
