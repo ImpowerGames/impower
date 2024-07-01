@@ -442,7 +442,21 @@ export default class GrammarParse implements PartialParse {
     //     chunk.closes?.map((n) => this.nodeSet.types[n]?.name),
     //   ])
     // );
-    const splitAhead = right.findAheadSplitPoint(editedTo);
+
+    let posNextEmptyLineAfterEdit: undefined | number = undefined;
+    for (let i = editedTo; i < this.region.to; i += 1) {
+      if (this.region.input.read(i, i + 1) === "\n") {
+        i += 1;
+        if (this.region.input.read(i, i + 1) === "\n") {
+          posNextEmptyLineAfterEdit = i - 1;
+          break;
+        }
+      }
+    }
+    if (posNextEmptyLineAfterEdit == null) {
+      return false;
+    }
+    const splitAhead = right.findAheadSplitPoint(posNextEmptyLineAfterEdit);
     if (splitAhead.chunk && splitAhead.index != null) {
       const aheadSplitBuffer = right.split(splitAhead.index);
       this.aheadBuffer = aheadSplitBuffer.right;
