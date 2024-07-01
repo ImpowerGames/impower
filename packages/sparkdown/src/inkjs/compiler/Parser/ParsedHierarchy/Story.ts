@@ -413,7 +413,7 @@ export class Story extends FlowBase {
     let sb = "";
     if (source instanceof AuthorWarning) {
       sb += "TODO: ";
-      errorType = ErrorType.Author;
+      errorType = ErrorType.Info;
     } else if (isWarning) {
       sb += "WARNING: ";
     } else {

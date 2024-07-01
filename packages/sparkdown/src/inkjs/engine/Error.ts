@@ -16,7 +16,7 @@ export type ErrorHandler = (
 ) => void;
 
 export enum ErrorType {
-  Author,
+  Info,
   Warning,
   Error,
 }

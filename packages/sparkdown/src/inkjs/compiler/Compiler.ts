@@ -16,19 +16,19 @@ export { JsonFileHandler } from "./FileHandler/JsonFileHandler";
 export { InkList, Story } from "../engine/Story";
 
 export class Compiler {
-  private _errors: string[] = [];
-  get errors(): string[] {
+  private _errors: { message: string; source: SourceMetadata | null }[] = [];
+  get errors(): { message: string; source: SourceMetadata | null }[] {
     return this._errors;
   }
 
-  private _warnings: string[] = [];
-  get warnings(): string[] {
+  private _warnings: { message: string; source: SourceMetadata | null }[] = [];
+  get warnings(): { message: string; source: SourceMetadata | null }[] {
     return this._warnings;
   }
 
-  private _authorMessages: string[] = [];
-  get authorMessages(): string[] {
-    return this._authorMessages;
+  private _infos: { message: string; source: SourceMetadata | null }[] = [];
+  get infos(): { message: string; source: SourceMetadata | null }[] {
+    return this._infos;
   }
 
   private _inputString: string;
@@ -137,25 +137,25 @@ export class Compiler {
 
   public readonly OnError = (
     message: string,
-    errorType: ErrorType,
-    metadata: SourceMetadata | null
+    severity: ErrorType,
+    source: SourceMetadata | null
   ) => {
-    switch (errorType) {
-      case ErrorType.Author:
-        this._authorMessages.push(message);
+    switch (severity) {
+      case ErrorType.Info:
+        this._infos.push({ message, source });
         break;
 
       case ErrorType.Warning:
-        this._warnings.push(message);
+        this._warnings.push({ message, source });
         break;
 
       case ErrorType.Error:
-        this._errors.push(message);
+        this._errors.push({ message, source });
         break;
     }
 
     if (this.options.errorHandler !== null) {
-      this.options.errorHandler(message, errorType, metadata);
+      this.options.errorHandler(message, severity, source);
     }
   };
 }
