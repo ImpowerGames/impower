@@ -98,7 +98,7 @@ const SPARK_TOKEN_TAGS: {
   DialogueCharacterName: "dialogue_character_name",
   DialogueCharacterParenthetical: "dialogue_character_parenthetical",
   DialogueCharacterSimultaneous: "dialogue_character_simultaneous",
-  DialogueLineParentheticalContent: "dialogue_line_parenthetical",
+  ParentheticalContent: "parenthetical",
   Spec: "spec",
   DisplayText: "display_text",
   DisplayString: "text",

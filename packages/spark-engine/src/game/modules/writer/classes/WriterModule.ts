@@ -1,5 +1,4 @@
 import { Module } from "../../../core/classes/Module";
-import type { Phrase } from "../types/Phrase";
 import type { WriteResult } from "../types/WriteResult";
 import { WriteOptions, write } from "../utils/write";
 import { WriterBuiltins, writerBuiltins } from "../writerBuiltins";
@@ -28,7 +27,7 @@ export class WriterModule extends Module<
     return writerCommands(this._game);
   }
 
-  write(content: Phrase[], options?: WriteOptions): WriteResult {
+  write(content: string, options?: WriteOptions): WriteResult {
     return write(content, this.context, options);
   }
 }

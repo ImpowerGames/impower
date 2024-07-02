@@ -8,6 +8,7 @@ export type GameContext<B = any> = {
     simulating?: boolean;
     previewing?: boolean;
     debugging?: boolean;
+    locale?: string;
     uuid: () => string;
     restore: () => Promise<void>;
     checkpoint: () => void;

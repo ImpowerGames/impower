@@ -12,7 +12,7 @@ export interface SparkProgram {
     structDefs?: { [type: string]: { [name: string]: any } };
   };
   diagnostics?: SparkDiagnostic[];
-  sourceMap?: Record<string, { path: string }[]>;
+  sourceMap?: Record<string, string[]>;
 
   // TODO: Replace all references to these deprecated properties
   // frontMatter?: Record<string, string[]>;

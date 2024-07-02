@@ -77,8 +77,8 @@ export default class SparkParser {
         }
         if (id === "AssetLineContent" || id === "ParentheticalContent") {
           const lineText = lines[lineIndex] || "";
-          const lineTextBefore = lineText.slice(0, node.to - linePos + 1);
-          const lineTextAfter = lineText.slice(node.to - linePos + 1);
+          const lineTextBefore = lineText.slice(0, node.to - linePos);
+          const lineTextAfter = lineText.slice(node.to - linePos);
           const trimmedLineTextBefore = lineTextBefore.trimEnd();
           const trimmedLineTextAfter = lineTextAfter.trimStart();
           if (
@@ -111,7 +111,7 @@ export default class SparkParser {
       },
     });
     const transpiled = lines.join("\n");
-    // console.log(transpiled);
+    console.log(transpiled);
     // console.log(printTree(tree, script, nodeNames));
     return transpiled;
   }
@@ -196,6 +196,7 @@ export default class SparkParser {
         inkCompiler.parser.characterInLineIndex
       )
     );
+    console.log("program", program);
     return program;
   }
 

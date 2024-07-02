@@ -3,13 +3,9 @@ import type { Game } from "../../../../../core/classes/Game";
 import { EventMessage } from "../../../../../core/classes/messages/EventMessage";
 import { MessageCallback } from "../../../../../core/types/MessageCallback";
 import type { Phrase } from "../../../../../modules/writer/types/Phrase";
-import type { DisplayCommandData } from "./DisplayCommandData";
 import type { DisplayContentItem } from "./DisplayCommandParams";
 
-export class DisplayCommandRunner<G extends Game> extends CommandRunner<
-  G,
-  DisplayCommandData
-> {
+export class DisplayCommandRunner<G extends Game> extends CommandRunner<G> {
   protected _autoDelay = 0.5;
 
   protected _wasPressed = false;
@@ -28,16 +24,136 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
 
   protected _onTick?: (deltaMS: number) => void;
 
-  override isSavepoint(_data: DisplayCommandData): boolean {
+  protected _target: string = "";
+
+  protected _lines: string[] = [];
+
+  override onContinue(): boolean {
+    const currentText = this.game.currentText;
+    if (currentText) {
+      if (currentText?.startsWith("% ")) {
+        this._target = "transition";
+        this._lines.push(currentText);
+        console.log(this._lines);
+        return true;
+      }
+      if (currentText?.startsWith("$ ")) {
+        this._target = "scene";
+        this._lines.push(currentText);
+        console.log(this._lines);
+        return true;
+      }
+      if (currentText?.startsWith("@ ")) {
+        this._target = "dialogue";
+        this._lines.push(currentText);
+        console.log(this._lines);
+        return true;
+      }
+      if (this._target === "dialogue") {
+        this._lines.push(currentText);
+        console.log(this._lines);
+        return true;
+      }
+      this._target = "action";
+    }
+    return false;
+  }
+
+  override onExecute() {
+    this._wasPressed = false;
+    this._startedExecution = false;
+    this._finishedExecution = false;
+    this._timeTypedMS = -1;
+    this._elapsedMS = 0;
+    this._chosenBlockId = undefined;
+    const { onTick, displayed } = this.display(
+      this._lines,
+      {},
+      () => {
+        this._startedExecution = true;
+      },
+      () => {
+        this._finishedExecution = true;
+      }
+    );
+    this._choices = displayed?.filter((c) => c.button);
+    this._onTick = onTick;
+    this._onTick?.(0);
+
+    return super.onExecute();
+  }
+
+  override onUpdate(deltaMS: number) {
+    if (this._onTick) {
+      this._onTick(deltaMS);
+      this._elapsedMS += deltaMS;
+    }
+  }
+
+  override onInit(): void {
+    this.game.connection.incoming.addListener("event", this.onEvent);
+  }
+
+  override onDestroy() {
+    this._onTick = undefined;
+    this.game.connection.incoming.removeListener("event", this.onEvent);
+  }
+
+  onEvent: MessageCallback = (msg) => {
+    if (EventMessage.type.isNotification(msg)) {
+      const params = msg.params;
+      if (params.type === "pointerdown") {
+        this._wasPressed = true;
+      }
+    }
+  };
+
+  override isFinished() {
+    const { autoAdvance } = data.params;
+    const waitingForChoice = this._choices && this._choices.length > 0;
+    if (this._finishedExecution && this._timeTypedMS < 0) {
+      this._timeTypedMS = this._elapsedMS;
+    }
+    const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
+    if (
+      !waitingForChoice &&
+      autoAdvance &&
+      this._finishedExecution &&
+      timeMSSinceTyped / 1000 >= this._autoDelay
+    ) {
+      return true;
+    }
+    if (this._wasPressed) {
+      this._wasPressed = false;
+      if (this._finishedExecution) {
+        this._finishedExecution = false;
+        if (!waitingForChoice) {
+          return true;
+        }
+      }
+      if (this._startedExecution && !waitingForChoice) {
+        this.display(this._lines, {
+          instant: true,
+        });
+        this._finishedExecution = true;
+      }
+    }
+    if (waitingForChoice && this._chosenBlockId != null) {
+      const chosenBlockId = this._chosenBlockId;
+      this._chosenBlockId = undefined;
+
+      return chosenBlockId;
+    }
+    return false;
+  }
+
+  override onPreview() {
+    this.display(this._lines, { instant: true, preview: true });
     return true;
   }
 
-  override isChoicepoint(data: DisplayCommandData): boolean {
-    return data.params.content.some((c) => c.button);
-  }
-
   display(
-    data: DisplayCommandData,
+    lines: string[],
     options?: { instant?: boolean; preview?: boolean },
     onStarted?: () => void,
     onFinished?: () => void
@@ -191,96 +307,48 @@ export class DisplayCommandRunner<G extends Game> extends CommandRunner<
     return { onTick: handleTick, displayed };
   }
 
-  override onExecute(data: DisplayCommandData) {
-    this._wasPressed = false;
-    this._startedExecution = false;
-    this._finishedExecution = false;
-    this._timeTypedMS = -1;
-    this._elapsedMS = 0;
-    this._chosenBlockId = undefined;
-    const { onTick, displayed } = this.display(
-      data,
-      {},
-      () => {
-        this._startedExecution = true;
-      },
-      () => {
-        this._finishedExecution = true;
-      }
+  shouldFlush(text: string | null) {
+    // this needs to be handled by writer parser,
+    // so that it can also detect implicit chain indicators after
+    // @ CHARACTER_NAME (parenthetical) ^
+    // (parentheticals)
+    // [[standalone_visual_tag]]
+    // ((standalone_audio_tag))
+    return (
+      this.endsTextBlock(text) ||
+      (!this.startsTextBlock(text) && !this.endsWithChain(text))
     );
-    this._choices = displayed?.filter((c) => c.button);
-    this._onTick = onTick;
-    this._onTick?.(0);
-
-    return super.onExecute(data);
   }
 
-  override onUpdate(deltaMS: number) {
-    if (this._onTick) {
-      this._onTick(deltaMS);
-      this._elapsedMS += deltaMS;
-    }
+  startsTextBlock(text: string | null) {
+    return text?.startsWith("@");
   }
 
-  override onInit(): void {
-    this.game.connection.incoming.addListener("event", this.onEvent);
+  endsTextBlock(text: string | null) {
+    return text?.startsWith("/@");
   }
 
-  override onDestroy() {
-    this._onTick = undefined;
-    this.game.connection.incoming.removeListener("event", this.onEvent);
-  }
-
-  onEvent: MessageCallback = (msg) => {
-    if (EventMessage.type.isNotification(msg)) {
-      const params = msg.params;
-      if (params.type === "pointerdown") {
-        this._wasPressed = true;
-      }
-    }
-  };
-
-  override isFinished(data: DisplayCommandData) {
-    const { autoAdvance } = data.params;
-    const waitingForChoice = this._choices && this._choices.length > 0;
-    if (this._finishedExecution && this._timeTypedMS < 0) {
-      this._timeTypedMS = this._elapsedMS;
-    }
-    const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
-    if (
-      !waitingForChoice &&
-      autoAdvance &&
-      this._finishedExecution &&
-      timeMSSinceTyped / 1000 >= this._autoDelay
-    ) {
-      return true;
-    }
-    if (this._wasPressed) {
-      this._wasPressed = false;
-      if (this._finishedExecution) {
-        this._finishedExecution = false;
-        if (!waitingForChoice) {
-          return true;
+  endsWithChain(text: string | null) {
+    if (text) {
+      if (text.trim().endsWith(">")) {
+        // We need to make sure that the `>` at the end of the line is truly alone
+        // and is not, in fact, the close of a `<text_tag>`
+        for (let i = text.length - 1; i >= 0; i--) {
+          const c = text[i];
+          if (c) {
+            if (c === "<") {
+              // `>` is closing an open `<`
+              return false;
+            }
+            if (c === ">") {
+              // there cannot be an open `<` before this
+              return true;
+            }
+          }
         }
+        return true;
       }
-      if (this._startedExecution && !waitingForChoice) {
-        this.display(data, {
-          instant: true,
-        });
-        this._finishedExecution = true;
-      }
-    }
-    if (waitingForChoice && this._chosenBlockId != null) {
-      const chosenBlockId = this._chosenBlockId;
-      this._chosenBlockId = undefined;
-
-      return chosenBlockId;
     }
     return false;
-  }
-
-  override onPreview(data: DisplayCommandData) {
-    this.display(data, { instant: true, preview: true });
-    return true;
   }
 }

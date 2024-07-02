@@ -51,7 +51,7 @@ export class GameBuilder<M extends GameModules = GameModules> {
     const startFromFile = options.simulation?.startpoint?.file ?? "";
     const startFromLine = options.simulation?.startpoint?.line ?? 0;
     const blockMap: Record<string, any> = {};
-    generateBlockMap(program.sections, blockMap);
+    generateBlockMap(program?.sections, blockMap);
     const startFromBlockId =
       getSectionAtLine(startFromLine, program?.sections) ?? "";
     const startFromCommandIndex = getCommandIndexAtLine(
@@ -66,7 +66,7 @@ export class GameBuilder<M extends GameModules = GameModules> {
     options.simulation?.waypoints?.forEach((waypoint) => {
       const simulateFromBlockId = getSectionAtLine(
         waypoint.line,
-        program.sections
+        program?.sections
       );
       // TODO: Allow choices to be waypoints
       const simulateFromCommandIndex = getCommandIndexAtLine(

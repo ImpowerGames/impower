@@ -3,8 +3,6 @@ export * from "./classes/Module";
 export * from "./constants/EASE";
 export * from "./types/Audio";
 export * from "./types/ClockValue";
-export * from "./types/CommandData";
-export * from "./types/CommandParams";
 export * from "./types/DocumentSource";
 export * from "./types/ICommandRunner";
 export * from "./types/IMessage";

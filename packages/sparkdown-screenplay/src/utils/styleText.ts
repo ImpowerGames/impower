@@ -25,9 +25,40 @@ export const styleText = (
           escaped = true;
           continue;
         }
-        if (char === ">" && nextChar === ">") {
-          // Chain
+        if (char === "[" && nextChar === "[") {
+          let closed = false;
+          const startIndex = i;
           i += 2;
+          while (i < chars.length) {
+            if (chars[i] === "]" && chars[i + 1] === "]") {
+              closed = true;
+              i += 2;
+              break;
+            }
+            i += 1;
+          }
+          if (!closed) {
+            i = startIndex;
+            escaped = true;
+          }
+          continue;
+        }
+        if (char === "(" && nextChar === "(") {
+          let closed = false;
+          const startIndex = i;
+          i += 2;
+          while (i < chars.length) {
+            if (chars[i] === ")" && chars[i + 1] === ")") {
+              closed = true;
+              i += 2;
+              break;
+            }
+            i += 1;
+          }
+          if (!closed) {
+            i = startIndex;
+            escaped = true;
+          }
           continue;
         }
         if (char === "<" && nextChar === ">") {

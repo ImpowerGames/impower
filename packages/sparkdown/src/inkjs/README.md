@@ -85,7 +85,7 @@ Is syntactically equivalent to:
 @ HAMLET: Or to take arms against a sea of troubles and by opposing, end them.
 ```
 
-This also means that we can start dialogue lines with a syntax keyword (`*`, `+`, `-`, `~`, `==`, `=`, `VAR`, `CONST`, `LIST`, `INCLUDE`, `EXTERNAL`, etc.) without having to manually escape them.
+This also means that inside a dialogue block, we can start dialogue lines with a syntax keyword (`*`, `+`, `-`, `~`, `==`, `=`, `VAR`, `CONST`, `LIST`, `INCLUDE`, `EXTERNAL`, etc.) without having to manually escape them.
 
 For example, in the text block below, the dialogue line starting with `INCLUDE` does not have to be manually escaped:
 
@@ -105,7 +105,7 @@ All the world’s a stage, \
 And all the men and women merely players.
 ```
 
-This joins text together in a similar way to the `<>` glue operator, with a few key differences:
+The `\` backslash operator joins text together in a similar way to the `<>` glue operator, with a few key differences:
 
   1. Unlike glue, `\` preserves a single newline between the joined text.
   2. The next line will always be interpreted as plain text, even if it starts with a syntax keyword
@@ -114,7 +114,7 @@ This joins text together in a similar way to the `<>` glue operator, with a few 
     DEFINE DISESTABLISHMENTARIANISM.
     ```
 
-` \ ` can also be used to insert a newline in the middle of text.
+`\ ` can be used to insert a newline in the middle of text (NOTE: For these mid-line breaks, the backslash must be followed by at least one space).
 
 ```
 All the world’s a stage, \ And all the men and women merely players.

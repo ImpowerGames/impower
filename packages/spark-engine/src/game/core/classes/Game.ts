@@ -5,11 +5,11 @@ import { ICommandRunner } from "../types/ICommandRunner";
 import { InstanceMap } from "../types/InstanceMap";
 import { Message } from "../types/Message";
 import { NotificationMessage } from "../types/NotificationMessage";
-import { RecursivePartial } from "../types/RecursivePartial";
 import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
 import { evaluate } from "../utils/evaluate";
 import { getAllProperties } from "../utils/getAllProperties";
+import { getValidVariableName } from "../utils/getValidVariableName";
 import { setProperty } from "../utils/setProperty";
 import { uuid } from "../utils/uuid";
 import { Connection } from "./Connection";
@@ -34,7 +34,7 @@ export class Game<T extends M = {}> {
     return this._stored;
   }
 
-  protected _commands: { [key: string]: ICommandRunner } = {};
+  protected _commands = new Map<string, ICommandRunner>();
   get commands() {
     return this._commands;
   }
@@ -62,21 +62,17 @@ export class Game<T extends M = {}> {
   }
 
   protected _story: Story;
-  public get story() {
-    return this._story;
+
+  public get currentTags() {
+    return this._story.currentTags;
   }
 
-  protected _displaying: {
-    tags: string[];
-    lines: string[];
-    choices: { index: number; text: string; onChoose: () => void }[];
-  } = {
-    tags: [],
-    lines: [],
-    choices: [],
-  };
-  public get displaying() {
-    return this._displaying;
+  public get currentText() {
+    return this._story.currentText;
+  }
+
+  public get currentChoices() {
+    return this._story.currentChoices;
   }
 
   constructor(
@@ -88,7 +84,6 @@ export class Game<T extends M = {}> {
       };
     }
   ) {
-    console.log("compiled", compiled);
     const previewing = options?.previewing;
     const modules = options?.modules;
     // Create story to control flow and state
@@ -111,8 +106,9 @@ export class Game<T extends M = {}> {
     });
     // Override default modules with custom ones if specified
     const allModules = {
+      ...modules, // custom modules should be first in order
       ...DEFAULT_MODULES,
-      ...modules,
+      ...modules, // custom modules should override default modules if specified
     };
     const moduleNames = Object.keys(allModules);
     // Instantiate all modules
@@ -152,7 +148,7 @@ export class Game<T extends M = {}> {
         const moduleCommands = module.getCommands();
         if (moduleCommands) {
           for (const [k, v] of Object.entries(moduleCommands)) {
-            this._commands[k] = v;
+            this._commands.set(k, v);
           }
         }
       }
@@ -220,7 +216,7 @@ export class Game<T extends M = {}> {
     if (save) {
       this.loadSave(save);
     }
-    this.continueStory(true);
+    this.continue();
     for (const k of this._moduleNames) {
       this._modules[k]?.onStart();
     }
@@ -305,41 +301,6 @@ export class Game<T extends M = {}> {
     return undefined;
   }
 
-  startStory() {
-    // Save initial state
-    this.checkpoint();
-    // Continue story for the first time
-    this.continueStory(true);
-  }
-
-  continueStory(_firstTime: boolean = false) {
-    // Continue until we reach a point where the user must make a choice
-    while (this._story.canContinue) {
-      this._story.Continue();
-      const text = this._story.currentText;
-      const tags = this._story.currentTags;
-      if (tags) {
-        this._displaying.tags.push(...tags);
-      }
-      if (text) {
-        if (this.isVisible(tags)) {
-          this._displaying.lines.push(text);
-        }
-      }
-      for (const choice of this._story.currentChoices) {
-        this._displaying.choices.push({
-          index: choice.index,
-          text: choice.text,
-          onChoose: () => this.choose(choice.index),
-        });
-      }
-      if (this._story.currentChoices.length > 0 || this.shouldFlush(text)) {
-        this.checkpoint();
-        this.flush();
-      }
-    }
-  }
-
   reset() {
     // Reset story to its initial state
     this._story.ResetState();
@@ -352,12 +313,37 @@ export class Game<T extends M = {}> {
   restart() {
     // Reset state
     this.reset();
-    // Start story
-    this.startStory();
+    // Save initial state
+    this.checkpoint();
+    // Continue story for the first time
+    this.continue();
     // Notify modules about restart
     for (const k of this._moduleNames) {
       this._modules[k]?.onRestart();
     }
+  }
+
+  continue() {
+    while (this._story.canContinue) {
+      this._story.Continue();
+      const currentText = this._story.currentText;
+      if (currentText) {
+        console.log(
+          JSON.stringify(currentText),
+          this.module.writer.write(currentText)
+        );
+      }
+    }
+  }
+
+  choose(index: number) {
+    // TODO: Clear all displaying text and choices
+    // Tell the story where to go next
+    this._story.ChooseChoiceIndex(index);
+    // Save after every choice
+    this.checkpoint();
+    // And then continue on
+    this.continue();
   }
 
   loadSave(saveData: string) {
@@ -370,273 +356,6 @@ export class Game<T extends M = {}> {
       this.log(e, "error");
     }
     return false;
-  }
-
-  /**
-   * Parses property specified with tag
-   * # property: value
-   * e.g. title: My Game
-   */
-  parseTag(tag: string) {
-    const [key, value] = tag.split(":");
-    return [key?.trim(), value?.trim()];
-  }
-
-  isVisible(tags: string[] | null) {
-    if (tags) {
-      for (const tag of tags) {
-        if (tag) {
-          const [key] = this.parseTag(tag);
-          if (key === "@") {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }
-
-  shouldFlush(text: string | null) {
-    // this needs to be handled by writer parser,
-    // so that it can also detect implicit chain indicators after
-    // @ CHARACTER_NAME (parenthetical) ^
-    // (parentheticals)
-    // [[standalone_visual_tag]]
-    // ((standalone_audio_tag))
-    return (
-      this.endsTextBlock(text) ||
-      (!this.startsTextBlock(text) && !this.endsWithChain(text))
-    );
-  }
-
-  startsTextBlock(text: string | null) {
-    return text?.startsWith("@");
-  }
-
-  endsTextBlock(text: string | null) {
-    return text?.startsWith("/@");
-  }
-
-  endsWithChain(text: string | null) {
-    if (text) {
-      if (text.trim().endsWith(">")) {
-        // We need to make sure that the `>` at the end of the line is truly alone
-        // and is not, in fact, the close of a `<text_tag>`
-        for (let i = text.length - 1; i >= 0; i--) {
-          const c = text[i];
-          if (c) {
-            if (c === "<") {
-              // `>` is closing an open `<`
-              return false;
-            }
-            if (c === ">") {
-              // there cannot be an open `<` before this
-              return true;
-            }
-          }
-        }
-        return true;
-      }
-    }
-    return false;
-  }
-
-  flush() {
-    // const tags = this._displaying.tags;
-    const lines = this._displaying.lines;
-    const choices = this._displaying.choices;
-
-    // Build parameters
-    // const params: Record<string, string> = {};
-    // for (const tag of tags) {
-    //   if (tag) {
-    //     const [key, value] = this.parseTag(tag);
-    //     if (key) {
-    //       params[key] = value || "";
-    //     }
-    //   }
-    // }
-
-    const output: string[] = [];
-
-    // If tags exist, display tags
-    // if (tags.length > 0) {
-    //   output.push("#" + JSON.stringify(params, null, 2));
-    // }
-
-    // If text exists, display text box
-    output.push(...lines);
-
-    // If choices exist, display choice menu
-    for (const choice of choices) {
-      output.push(`${choice.index}: ${JSON.stringify(choice.text)}`);
-    }
-
-    console.log(output);
-
-    // const type = data.params.type;
-    // const characterKey = data?.params?.characterKey || "";
-    // const content = data?.params?.content;
-    // const autoAdvance = data?.params?.autoAdvance;
-
-    // const context = game.context;
-
-    // let targetsCharacterName = false;
-    // const displayed: Phrase[] = [];
-    // content.forEach((c) => {
-    //   // Override first instance of character_name with character's display name
-    //   if (!targetsCharacterName && c.target === "character_name") {
-    //     targetsCharacterName = true;
-    //     c.text = context?.["character"]?.[characterKey]?.name || c.text;
-    //   }
-    //   const r: Phrase = {
-    //     ...c,
-    //   };
-    //   if (!r.target) {
-    //     r.target = type;
-    //   }
-    //   displayed.push(r);
-    // });
-
-    // if (displayed.length === 0) {
-    //   // No events to process
-    //   return {};
-    // }
-
-    // const instant = options?.instant;
-    // const previewing = options?.preview;
-    // const debugging = context.system.debugging;
-
-    // if (!instant) {
-    //   // Stop stale sound and voice audio on new dialogue line
-    //   game.module.audio.stopChannel("sound");
-    //   game.module.audio.stopChannel("voice");
-    // }
-    // // Stop writer audio on instant reveal and new dialogue line
-    // game.module.audio.stopChannel("writer");
-
-    // const clearUI = () => {
-    //   // Clear stale text
-    //   game.module.ui.text.clearStaleContent();
-    //   // Clear stale images
-    //   game.module.ui.image.clearStaleContent();
-    // };
-
-    // // Sequence events
-    // const sequence = game.module.writer.write(displayed, {
-    //   character: characterKey,
-    //   instant,
-    //   debug: debugging,
-    // });
-
-    // const updateUI = () => {
-    //   // Clear stale content
-    //   clearUI();
-
-    //   // Display click indicator
-    //   const indicatorStyle: Record<string, string | null> = {};
-    //   if (autoAdvance) {
-    //     indicatorStyle["display"] = "none";
-    //   } else {
-    //     indicatorStyle["transition"] = "none";
-    //     indicatorStyle["opacity"] = instant ? "1" : "0";
-    //     indicatorStyle["animation-play-state"] = "paused";
-    //     indicatorStyle["display"] = null;
-    //   }
-    //   game.module.ui.style.update("indicator", indicatorStyle);
-
-    //   // Process button events
-    //   Object.entries(sequence.button).flatMap(([target, events], index) =>
-    //     events.forEach(() => {
-    //       const handleClick = (): void => {
-    //         clearUI();
-    //         game.module.ui.unobserve("click", target);
-    //         this.game.choose(index);
-    //       };
-    //       game.module.ui.observe("click", target, handleClick);
-    //     })
-    //   );
-
-    //   // Process text events
-    //   Object.entries(sequence.text).map(([target, events]) =>
-    //     game.module.ui.text.write(target, events, instant)
-    //   );
-
-    //   // Process images events
-    //   Object.entries(sequence.image).map(([target, events]) =>
-    //     game.module.ui.image.write(target, events, instant)
-    //   );
-    // };
-
-    // // Process audio
-    // const audioTriggerIds = instant
-    //   ? []
-    //   : Object.entries(sequence.audio).map(([channel, events]) =>
-    //       game.module.audio.queue(channel, events, instant)
-    //     );
-
-    // const handleFinished = (): void => {
-    //   const indicatorStyle: Record<string, string | null> = {};
-    //   indicatorStyle["transition"] = null;
-    //   indicatorStyle["opacity"] = "1";
-    //   indicatorStyle["animation-play-state"] = previewing
-    //     ? "paused"
-    //     : "running";
-    //   game.module.ui.style.update("indicator", indicatorStyle);
-    //   onFinished?.();
-    // };
-
-    // game.module.ui.showUI("stage");
-
-    // if (instant || game.context.system.simulating) {
-    //   updateUI();
-    //   handleFinished();
-    //   return { displayed };
-    // }
-
-    // let elapsedMS = 0;
-    // let ready = false;
-    // let finished = false;
-    // const totalDurationMS = (sequence.end ?? 0) * 1000;
-    // const handleTick = (deltaMS: number): void => {
-    //   if (!ready) {
-    //     if (audioTriggerIds.every((n) => game.module.audio.isReady(n))) {
-    //       ready = true;
-    //       game.module.audio.triggerAll(audioTriggerIds);
-    //       updateUI();
-    //       onStarted?.();
-    //     }
-    //   }
-    //   if (ready && !finished) {
-    //     elapsedMS += deltaMS;
-    //     if (elapsedMS >= totalDurationMS) {
-    //       finished = true;
-    //       handleFinished();
-    //     }
-    //   }
-    // };
-
-    this._displaying.lines = [];
-    this._displaying.choices = [];
-    this._displaying.tags = [];
-  }
-
-  choose(index: number) {
-    // Clear all displaying text and choices
-    this.clear();
-    // Tell the story where to go next
-    this._story.ChooseChoiceIndex(index);
-    // Save after every choice
-    this.checkpoint();
-    // And then continue on
-    this.continueStory();
-  }
-
-  clear() {
-    this._displaying.lines = [];
-    this._displaying.choices = [];
-    this._displaying.tags = [];
-    // TODO: Clear textbox and choices
   }
 
   log(message: unknown, severity: "info" | "warning" | "error" = "info") {
@@ -653,12 +372,12 @@ export class Game<T extends M = {}> {
 
   preview(checkpointId: string): void {
     this._context.system.previewing = true;
+    // TODO:
+    // this._story.ChoosePathString(closestKnot);
+    // continue() until we reach checkpoint
+    // save then load
     for (const k of this._moduleNames) {
       this._modules[k]?.onPreview(checkpointId);
     }
-    // TODO:
-    console.log("preview: ", checkpointId);
-    // this._story.ChoosePathString(closestKnotOrStitch);
-    // this.continueStory()
   }
 }

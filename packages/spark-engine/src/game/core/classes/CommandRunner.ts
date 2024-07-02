@@ -1,10 +1,7 @@
-import type { CommandData } from "../types/CommandData";
 import type { ICommandRunner } from "../types/ICommandRunner";
 import type { Game } from "./Game";
 
-export class CommandRunner<G extends Game, D extends CommandData = CommandData>
-  implements ICommandRunner<D>
-{
+export class CommandRunner<G extends Game> implements ICommandRunner {
   private _game: G;
   get game() {
     return this._game;
@@ -18,35 +15,27 @@ export class CommandRunner<G extends Game, D extends CommandData = CommandData>
     // NoOp
   }
 
-  isChoicepoint(_data: D): boolean {
-    return false;
-  }
-
-  isSavepoint(_data: D): boolean {
-    return false;
-  }
-
-  onExecute(_data: D): number[] {
-    return [];
-  }
-
   onUpdate(_deltaMS: number): void {
     // NoOp
-  }
-
-  onFinished(_data: D): void {
-    // NoOp
-  }
-
-  isFinished(_data: D): boolean | string {
-    return true;
   }
 
   onDestroy(): void {
     // NoOp
   }
 
-  onPreview(_data: D): boolean {
+  onExecute(): boolean {
+    return false;
+  }
+
+  isFinished(): boolean | string {
+    return true;
+  }
+
+  onFinished(): void {
+    // NoOp
+  }
+
+  onPreview(): boolean {
     // NoOp
     return false;
   }
