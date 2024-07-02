@@ -3198,7 +3198,7 @@
     "DialogueLineContinue": {
       "tag": "string",
       "name": "string.dialogue.line.sd",
-      "match": "([^\\S\\n\\r]*)(.*?[\\\\]$)(\\r\\n|\\r|\\n)?",
+      "match": "([^\\S\\n\\r]*)(.*?[\\\\][^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -3226,7 +3226,7 @@
     "DialogueLineEnd": {
       "tag": "string",
       "name": "string.dialogue.line.sd",
-      "match": "([^\\S\\n\\r]*)(.*?[^\\\\]$)",
+      "match": "([^\\S\\n\\r]*)(.*?[^\\\\][^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [
@@ -3388,7 +3388,7 @@
       }
     },
     "LineContinue": {
-      "match": "([^\\S\\n\\r]*)(.*?[\\\\]$)(\\r\\n|\\r|\\n)?",
+      "match": "([^\\S\\n\\r]*)(.*?[\\\\][^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -3414,7 +3414,7 @@
       }
     },
     "LineEnd": {
-      "match": "([^\\S\\n\\r]*)(.*?[^\\\\]$)",
+      "match": "([^\\S\\n\\r]*)(.*?[^\\\\][^\\S\\n\\r]*$)",
       "captures": {
         "1": {
           "patterns": [

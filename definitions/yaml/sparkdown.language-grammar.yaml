@@ -1840,7 +1840,7 @@ repository:
   DialogueLineContinue:
     tag: string
     name: string.dialogue.line.sd
-    match: ({{WS}}*)(.*?[\\]$)(\r\n|\r|\n)?
+    match: ({{WS}}*)(.*?[\\]{{WS}}*$)(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -1855,7 +1855,7 @@ repository:
   DialogueLineEnd:
     tag: string
     name: string.dialogue.line.sd
-    match: ({{WS}}*)(.*?[^\\]$)
+    match: ({{WS}}*)(.*?[^\\]{{WS}}*$)
     captures:
       1:
         patterns:
@@ -1951,7 +1951,7 @@ repository:
 ########## Text ##########
 
   LineContinue:
-    match: ({{WS}}*)(.*?[\\]$)(\r\n|\r|\n)?
+    match: ({{WS}}*)(.*?[\\]{{WS}}*$)(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -1964,7 +1964,7 @@ repository:
           - { include: "#Newline" }
 
   LineEnd:
-    match: ({{WS}}*)(.*?[^\\]$)
+    match: ({{WS}}*)(.*?[^\\]{{WS}}*$)
     captures:
       1:
         patterns:

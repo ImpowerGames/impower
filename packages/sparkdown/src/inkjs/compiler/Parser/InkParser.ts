@@ -1280,7 +1280,7 @@ export class InkParser extends StringParser {
     let sb: string | null = null;
 
     do {
-      let str = this.Parse(this.ContentTextNoEscape);
+      let str = this.Parse(this.ContentTextNoEscape) as string;
       const gotEscapeChar: boolean = this.ParseString("\\") !== null;
 
       if (gotEscapeChar || str !== null) {
@@ -1291,12 +1291,29 @@ export class InkParser extends StringParser {
         }
 
         if (gotEscapeChar) {
-          const c = this.ParseSingleCharacter();
-          if (c !== null) {
-            if (str && (c === " " || c === "\t")) {
-              // Insert newline if escaping whitespace
-              sb += "\n";
+          const escapedWhitespace = this.ParseWhitespace();
+          if (escapedWhitespace != null) {
+            // Escaped space
+            const next = this.Peek(this.ParseSingleCharacter);
+            if (next === "\n" || next === "\r") {
+              // There is no more content in this line.
+              // So escape first character of next line.
+              const c = this.ParseSingleCharacter();
+              if (c !== null) {
+                sb += c;
+              }
             } else {
+              // There is some content after escaped space.
+              if (str && str.trim()) {
+                // There is some content before escaped space.
+                // So insert newline since we are escaping space between content.
+                sb += "\n";
+              }
+            }
+          } else {
+            // Escaped non-space character
+            const c = this.ParseSingleCharacter();
+            if (c !== null) {
               sb += c;
             }
           }
