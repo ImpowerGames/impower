@@ -2035,7 +2035,7 @@ repository:
   ImageTag:
     tag: macroName
     name: meta.image.sd
-    match: (\[\[)((?:\\.|[^\]])*?)(\]\])
+    match: (\[\[)((?:\\.|[^\]])*?)(\]\])({{WS}}*)
     captures:
       1:
         tag: keyword
@@ -2046,11 +2046,14 @@ repository:
       3:
         tag: keyword
         name: keyword.operator.expression.end.image.sd
+      4:
+        patterns:
+          - { include: "#Whitespace" }
 
   AudioTag:
     tag: macroName
     name: meta.audio.sd
-    match: ([(][(])((?:\\.|[^)])*?)([)][)])
+    match: ([(][(])((?:\\.|[^)])*?)([)][)])({{WS}}*)
     captures:
       1:
         tag: keyword
@@ -2061,6 +2064,9 @@ repository:
       3:
         tag: keyword
         name: keyword.operator.expression.end.audio.sd
+      4:
+        patterns:
+          - { include: "#Whitespace" }
 
   AssetTagContent:
     match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)({{WS}}*)($|{{IDENTIFIER}}\b))?($|{{WS}}*\S*?)($|{{WS}}*\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
@@ -2163,7 +2169,7 @@ repository:
   TextTag:
     tag: macroName
     name: meta.text.sd
-    match: ([<])((?:\\.|[^>])*?)([>])
+    match: ([<])((?:\\.|[^>])*?)([>])({{WS}}*)
     captures:
       1:
         tag: keyword
@@ -2174,6 +2180,9 @@ repository:
       3:
         tag: keyword
         name: keyword.operator.expression.end.tag.sd
+      4:
+        patterns:
+          - { include: "#Whitespace" }
 
   TextTagContent:
     match: ({{WS}}*)([^ :]+)({{WS}}*)(?:([:])({{WS}}*)(.*))?

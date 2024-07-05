@@ -1,8 +1,6 @@
 export interface Chunk {
   tag?: string;
   control?: string;
-  target?: string;
-  button?: string;
   text?: string;
   assets?: string[];
   args?: string[];
@@ -11,7 +9,7 @@ export interface Chunk {
   punctuatedSyllable?: boolean;
   pitch?: number;
 
-  speed: number;
+  speed?: number;
 
   duration: number;
 
@@ -24,6 +22,6 @@ export interface Chunk {
   bolded?: number;
   italicized?: number;
   underlined?: number;
-  floating?: number;
-  trembling?: number;
+  wavy?: number;
+  shaky?: number;
 }

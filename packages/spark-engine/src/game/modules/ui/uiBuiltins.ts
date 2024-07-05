@@ -489,8 +489,8 @@ export const uiBuiltins = () => ({
       ],
       timing: {},
     }),
-    floating: _animation({
-      $name: "floating",
+    wavy: _animation({
+      $name: "wavy",
       keyframes: [
         {
           top: "0",
@@ -508,8 +508,8 @@ export const uiBuiltins = () => ({
         iterations: "infinite",
       },
     }),
-    trembling: _animation({
-      $name: "trembling",
+    shaky: _animation({
+      $name: "shaky",
       keyframes: [
         {
           left: "calc(1em / 60)",

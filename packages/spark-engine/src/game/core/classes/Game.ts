@@ -327,11 +327,22 @@ export class Game<T extends M = {}> {
     while (this._story.canContinue) {
       this._story.Continue();
       const currentText = this._story.currentText;
+      const currentChoices = this._story.currentChoices;
+      let choicesWriteDelay = 0;
       if (currentText) {
-        console.log(
-          JSON.stringify(currentText),
-          this.module.writer.write(currentText)
-        );
+        const contentEvents = this.module.writer.write(currentText);
+        choicesWriteDelay = contentEvents.end;
+        console.log(JSON.stringify(currentText), contentEvents);
+      }
+      if (currentChoices) {
+        for (let i = 0; i < currentChoices.length; i += 1) {
+          const choice = currentChoices[i]!.text;
+          const choiceEvents = this.module.writer.write(choice, {
+            target: `choice_${i}`,
+            delay: choicesWriteDelay,
+          });
+          console.log(JSON.stringify(choice), choiceEvents);
+        }
       }
     }
   }

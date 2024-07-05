@@ -3551,7 +3551,7 @@
     "ImageTag": {
       "tag": "macroName",
       "name": "meta.image.sd",
-      "match": "(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])",
+      "match": "(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -3567,13 +3567,20 @@
         "3": {
           "tag": "keyword",
           "name": "keyword.operator.expression.end.image.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
         }
       }
     },
     "AudioTag": {
       "tag": "macroName",
       "name": "meta.audio.sd",
-      "match": "([(][(])((?:\\\\.|[^)])*?)([)][)])",
+      "match": "([(][(])((?:\\\\.|[^)])*?)([)][)])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -3589,6 +3596,13 @@
         "3": {
           "tag": "keyword",
           "name": "keyword.operator.expression.end.audio.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
         }
       }
     },
@@ -3745,7 +3759,7 @@
     "TextTag": {
       "tag": "macroName",
       "name": "meta.text.sd",
-      "match": "([<])((?:\\\\.|[^>])*?)([>])",
+      "match": "([<])((?:\\\\.|[^>])*?)([>])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -3761,6 +3775,13 @@
         "3": {
           "tag": "keyword",
           "name": "keyword.operator.expression.end.tag.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
         }
       }
     },

@@ -9,10 +9,6 @@ export interface ISequenceEvent {
   withOver?: number;
 }
 
-export interface ButtonEvent extends ISequenceEvent {
-  button: string;
-}
-
 export interface TextEvent extends ISequenceEvent {
   text: string;
   style?: {
