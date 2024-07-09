@@ -5,29 +5,35 @@ export const writerBuiltins = () => ({
   writer: {
     default: _writer({
       $name: "default",
+      prefix: " ",
+    }),
+    action: _writer({
+      $name: "action",
+      prefix: "",
+      letter_pause: 0.025,
     }),
     transition: _writer({
       $name: "transition",
+      prefix: "%",
       letter_pause: 0.025,
     }),
     scene: _writer({
       $name: "scene",
-      letter_pause: 0.025,
-    }),
-    action: _writer({
-      $name: "action",
+      prefix: "$",
       letter_pause: 0.025,
     }),
     dialogue: _writer({
       $name: "dialogue",
-      skipped: "(beat)",
+      prefix: "@",
       letter_pause: 0.025,
     }),
     character_name: _writer({
       $name: "character_name",
+      prefix: " ",
     }),
     character_parenthetical: _writer({
       $name: "character_parenthetical",
+      prefix: " ",
     }),
   },
   character: {

@@ -9,7 +9,7 @@ export interface Chunk {
   punctuatedSyllable?: boolean;
   pitch?: number;
 
-  speed?: number;
+  speed: number;
 
   duration: number;
 

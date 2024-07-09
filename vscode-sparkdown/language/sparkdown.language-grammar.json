@@ -69,7 +69,7 @@
       "include": "#Scene"
     },
     {
-      "include": "#AssetLine"
+      "include": "#CommandLine"
     },
     {
       "include": "#Action"
@@ -816,8 +816,8 @@
           ]
         },
         "4": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
+          "tag": "separator",
+          "name": "meta.template.expression.colon.sd"
         },
         "5": {
           "patterns": [
@@ -1951,8 +1951,8 @@
           ]
         },
         "3": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
+          "tag": "separator",
+          "name": "meta.template.expression.colon.sd"
         }
       },
       "patterns": [
@@ -2074,8 +2074,8 @@
           ]
         },
         "7": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
+          "tag": "separator",
+          "name": "meta.template.expression.colon.sd"
         }
       },
       "patterns": [
@@ -2104,7 +2104,7 @@
           "include": "#ConditionalText"
         }
       ],
-      "end": "(?=^|[}]|[-])"
+      "end": "(?=^|[}]|[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))"
     },
     "AlternativeClause": {
       "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
@@ -2154,7 +2154,7 @@
           "include": "#ConditionalText"
         }
       ],
-      "end": "(?=^|[}]|[-])"
+      "end": "(?=^|[}]|[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))"
     },
     "SequenceKeyword": {
       "tag": "controlKeyword",
@@ -2175,7 +2175,7 @@
       "match": "(?=[|])"
     },
     "DashAhead": {
-      "match": "(?=[-])"
+      "match": "(?=[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))"
     },
     "Expression": {
       "patterns": [
@@ -2637,8 +2637,8 @@
       "end": "(?=\\])|([,])",
       "endCaptures": {
         "1": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.comma.sd"
+          "tag": "separator",
+          "name": "meta.template.expression.comma.sd"
         }
       }
     },
@@ -2901,8 +2901,8 @@
           ]
         },
         "3": {
-          "tag": "punctuation",
-          "name": "punctuation.separator.colon.sd"
+          "tag": "separator",
+          "name": "meta.template.expression.colon.sd"
         },
         "4": {
           "patterns": [
@@ -3005,7 +3005,8 @@
       ]
     },
     "InlineDialogue": {
-      "name": "entity.dialogue.sd",
+      "tag": "string",
+      "name": "string.dialogue.sd",
       "begin": "^([^\\S\\n\\r]*)([@][^\\S\\n\\r]+)(.*?)([:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
@@ -3046,22 +3047,26 @@
           "include": "#Newline"
         },
         {
-          "include": "#AssetLine"
+          "include": "#CommandLine"
         },
         {
           "include": "#ParentheticalLine"
         },
         {
-          "include": "#DialogueLineContinue"
+          "include": "#ConditionalBlock"
         },
         {
-          "include": "#DialogueLineEnd"
+          "include": "#LineContinue"
+        },
+        {
+          "include": "#LineEnd"
         }
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
     "BlockDialogue": {
-      "name": "entity.dialogue.sd",
+      "tag": "string",
+      "name": "string.dialogue.sd",
       "begin": "^([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|.+$)",
       "beginCaptures": {
         "1": {
@@ -3094,16 +3099,19 @@
           "include": "#Newline"
         },
         {
-          "include": "#AssetLine"
+          "include": "#CommandLine"
         },
         {
           "include": "#ParentheticalLine"
         },
         {
-          "include": "#DialogueLineContinue"
+          "include": "#ConditionalBlock"
         },
         {
-          "include": "#DialogueLineEnd"
+          "include": "#LineContinue"
+        },
+        {
+          "include": "#LineEnd"
         }
       ],
       "end": "(?=^[^\\S\\n\\r]*$)"
@@ -3195,55 +3203,6 @@
       "name": "variable.other.property.dialogue.character.simultaneous.sd",
       "match": "(.+$)"
     },
-    "DialogueLineContinue": {
-      "tag": "string",
-      "name": "string.dialogue.line.sd",
-      "match": "([^\\S\\n\\r]*)(.*?[\\\\][^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#DisplayLine"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#Newline"
-            }
-          ]
-        }
-      }
-    },
-    "DialogueLineEnd": {
-      "tag": "string",
-      "name": "string.dialogue.line.sd",
-      "match": "([^\\S\\n\\r]*)(.*?[^\\\\][^\\S\\n\\r]*$)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#Indent"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#DisplayLine"
-            }
-          ]
-        }
-      }
-    },
     "Transition": {
       "tag": "labelName",
       "name": "keyword.control.transition.sd",
@@ -3269,7 +3228,13 @@
           "include": "#Newline"
         },
         {
+          "include": "#CommandLine"
+        },
+        {
           "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#ConditionalBlock"
         },
         {
           "include": "#LineContinue"
@@ -3305,7 +3270,13 @@
           "include": "#Newline"
         },
         {
+          "include": "#CommandLine"
+        },
+        {
           "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#ConditionalBlock"
         },
         {
           "include": "#LineContinue"
@@ -3326,10 +3297,13 @@
           "include": "#Annotation"
         },
         {
-          "include": "#AssetLine"
+          "include": "#CommandLine"
         },
         {
           "include": "#ParentheticalLine"
+        },
+        {
+          "include": "#ConditionalBlock"
         },
         {
           "include": "#LineContinue"
@@ -3388,7 +3362,7 @@
       }
     },
     "LineContinue": {
-      "match": "([^\\S\\n\\r]*)(.*?[\\\\][^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
+      "match": "([^\\S\\n\\r]*)(.*?)([\\\\][^\\S\\n\\r]*)$(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -3405,6 +3379,13 @@
           ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#Chain"
+            }
+          ]
+        },
+        "4": {
           "patterns": [
             {
               "include": "#Newline"
@@ -3438,9 +3419,6 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Chain"
-        },
-        {
           "include": "#Chunk"
         }
       ]
@@ -3451,10 +3429,13 @@
         "1": {
           "patterns": [
             {
+              "include": "#CommandLine"
+            },
+            {
               "include": "#ParentheticalLine"
             },
             {
-              "include": "#AssetLine"
+              "include": "#ConditionalBlock"
             },
             {
               "include": "#TextChunk"
@@ -3481,24 +3462,21 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Chain"
-        },
-        {
           "include": "#Escape"
         },
         {
-          "include": "#ImageTag"
+          "include": "#ImageCommand"
         },
         {
-          "include": "#AudioTag"
+          "include": "#AudioCommand"
         },
         {
           "include": "#InlineTextAndLogic"
         }
       ]
     },
-    "AssetLine": {
-      "match": "^([^\\S\\n\\r]*)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|[^\\S\\n\\r]*)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
+    "CommandLine": {
+      "match": "^([^\\S\\n\\r]*)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|[<](?:\\\\.|[^>])*?[>]|[^\\S\\n\\r]*)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [
@@ -3510,7 +3488,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetLineContent"
+              "include": "#CommandLineContent"
             }
           ]
         },
@@ -3530,16 +3508,19 @@
         }
       }
     },
-    "AssetLineContent": {
+    "CommandLineContent": {
       "match": "(.+)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#ImageTag"
+              "include": "#ImageCommand"
             },
             {
-              "include": "#AudioTag"
+              "include": "#AudioCommand"
+            },
+            {
+              "include": "#TextCommand"
             },
             {
               "include": "#Whitespace"
@@ -3548,7 +3529,7 @@
         }
       }
     },
-    "ImageTag": {
+    "ImageCommand": {
       "tag": "macroName",
       "name": "meta.image.sd",
       "match": "(\\[\\[)((?:\\\\.|[^\\]])*?)(\\]\\])([^\\S\\n\\r]*)",
@@ -3560,7 +3541,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetTagContent"
+              "include": "#AssetCommandContent"
             }
           ]
         },
@@ -3577,7 +3558,7 @@
         }
       }
     },
-    "AudioTag": {
+    "AudioCommand": {
       "tag": "macroName",
       "name": "meta.audio.sd",
       "match": "([(][(])((?:\\\\.|[^)])*?)([)][)])([^\\S\\n\\r]*)",
@@ -3589,7 +3570,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#AssetTagContent"
+              "include": "#AssetCommandContent"
             }
           ]
         },
@@ -3606,57 +3587,57 @@
         }
       }
     },
-    "AssetTagContent": {
+    "AssetCommandContent": {
       "match": "(?:(\\b(?:show|hide|play|stop|fade|write|animate)\\b)([^\\S\\n\\r]*)($|[_\\p{L}][0-9_\\p{L}]*\\b))?($|[^\\S\\n\\r]*\\S*?)($|[^\\S\\n\\r]*\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b.*)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#AssetTagControl"
+              "include": "#AssetCommandControl"
             }
           ]
         },
         "2": {
           "patterns": [
             {
-              "include": "#AssetTagTargetSeparator"
+              "include": "#AssetCommandTargetSeparator"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#AssetTagTarget"
+              "include": "#AssetCommandTarget"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#AssetTagNames"
+              "include": "#AssetCommandNames"
             }
           ]
         },
         "5": {
           "patterns": [
             {
-              "include": "#AssetTagArguments"
+              "include": "#AssetCommandArguments"
             }
           ]
         }
       }
     },
-    "AssetTagKeyword": {
+    "AssetCommandKeyword": {
       "tag": "keyword",
       "name": "keyword.asset.arguments.keyword.sd",
       "match": "(\\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\\b)"
     },
-    "AssetTagControl": {
+    "AssetCommandControl": {
       "tag": "controlKeyword",
       "name": "keyword.control.asset.control.sd",
       "match": "(.+)"
     },
-    "AssetTagTargetSeparator": {
+    "AssetCommandTargetSeparator": {
       "tag": "typeName",
       "name": "entity.name.type.asset.target.separator.sd",
       "match": "([^\\S\\n\\r]+)",
@@ -3670,12 +3651,12 @@
         }
       }
     },
-    "AssetTagTarget": {
+    "AssetCommandTarget": {
       "tag": "typeName",
       "name": "entity.name.type.asset.target.sd",
       "match": "(.+)"
     },
-    "AssetTagNames": {
+    "AssetCommandNames": {
       "match": "(.+)",
       "captures": {
         "1": {
@@ -3684,7 +3665,7 @@
               "include": "#Whitespace"
             },
             {
-              "include": "#AssetTagName"
+              "include": "#AssetCommandName"
             },
             {
               "include": "#CombineOperator"
@@ -3693,7 +3674,7 @@
         }
       }
     },
-    "AssetTagName": {
+    "AssetCommandName": {
       "tag": "variableName",
       "name": "variable.other.constant.asset.name.sd",
       "match": "([_\\p{L}][0-9_\\p{L}]*)"
@@ -3703,19 +3684,19 @@
       "name": "variable.other.property.combine.sd",
       "match": "([~+-]+)"
     },
-    "AssetTagArguments": {
+    "AssetCommandArguments": {
       "match": "(.+)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#AssetTagArgument"
+              "include": "#AssetCommandArgument"
             }
           ]
         }
       }
     },
-    "AssetTagArgument": {
+    "AssetCommandArgument": {
       "tag": "meta",
       "name": "meta.argument.sd",
       "begin": "(?=.+$)",
@@ -3724,7 +3705,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#AssetTagKeyword"
+          "include": "#AssetCommandKeyword"
         },
         {
           "include": "#TimeValue"
@@ -3756,7 +3737,7 @@
         }
       }
     },
-    "TextTag": {
+    "TextCommand": {
       "tag": "macroName",
       "name": "meta.text.sd",
       "match": "([<])((?:\\\\.|[^>])*?)([>])([^\\S\\n\\r]*)",
@@ -3768,7 +3749,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#TextTagContent"
+              "include": "#TextCommandContent"
             }
           ]
         },
@@ -3785,7 +3766,7 @@
         }
       }
     },
-    "TextTagContent": {
+    "TextCommandContent": {
       "match": "([^\\S\\n\\r]*)([^ :]+)([^\\S\\n\\r]*)(?:([:])([^\\S\\n\\r]*)(.*))?",
       "captures": {
         "1": {
@@ -3798,7 +3779,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#TextTagControl"
+              "include": "#TextCommandControl"
             }
           ]
         },
@@ -3812,7 +3793,7 @@
         "4": {
           "patterns": [
             {
-              "include": "#TextTagColon"
+              "include": "#TextCommandColon"
             }
           ]
         },
@@ -3826,13 +3807,13 @@
         "6": {
           "patterns": [
             {
-              "include": "#TextTagArguments"
+              "include": "#TextCommandArguments"
             }
           ]
         }
       }
     },
-    "TextTagControl": {
+    "TextCommandControl": {
       "match": "(.+)",
       "captures": {
         "1": {
@@ -3841,35 +3822,35 @@
               "include": "#NumericLiteral"
             },
             {
-              "include": "#TextTagControlKeyword"
+              "include": "#TextCommandControlKeyword"
             }
           ]
         }
       }
     },
-    "TextTagControlKeyword": {
+    "TextCommandControlKeyword": {
       "tag": "keyword",
       "name": "keyword.style.control.keyword.sd",
       "match": "(.+)"
     },
-    "TextTagColon": {
+    "TextCommandColon": {
       "tag": "separator",
       "name": "meta.template.expression.colon.sd",
       "match": "([:])"
     },
-    "TextTagArguments": {
+    "TextCommandArguments": {
       "match": "(.+)",
       "captures": {
         "1": {
           "patterns": [
             {
-              "include": "#TextTagArgument"
+              "include": "#TextCommandArgument"
             }
           ]
         }
       }
     },
-    "TextTagArgument": {
+    "TextCommandArgument": {
       "tag": "meta",
       "name": "meta.argument.sd",
       "begin": "(?=.+$)",
@@ -3892,9 +3873,6 @@
     "InlineTextAndLogic": {
       "patterns": [
         {
-          "include": "#Chain"
-        },
-        {
           "include": "#Escape"
         },
         {
@@ -3907,9 +3885,6 @@
     },
     "InlineText": {
       "patterns": [
-        {
-          "include": "#Chain"
-        },
         {
           "include": "#Escape"
         },
@@ -3948,7 +3923,7 @@
           "include": "#Glue"
         },
         {
-          "include": "#TextTag"
+          "include": "#TextCommand"
         },
         {
           "include": "#Underline"

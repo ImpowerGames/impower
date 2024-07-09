@@ -52,12 +52,6 @@ const isAsset = (obj: unknown): obj is { type: string; src: string } => {
 const isAssetLeaf = (_: string, v: unknown) =>
   isAsset(v) || (Array.isArray(v) && v.every((x) => isAsset(x)));
 
-export interface UIConfig {
-  ignore?: string[];
-  style_element_name?: string;
-  ui_element_name?: string;
-}
-
 export interface UIState {
   text?: Record<string, TextState[]>;
   image?: Record<string, { layer?: ImageState; content?: ImageState }>;

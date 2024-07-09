@@ -114,7 +114,7 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "ConstDeclaration",
   "ExternalDeclaration",
   "DefineDeclaration",
-  "AssetLine",
+  "CommandLine",
   "Unknown",
 ];
 

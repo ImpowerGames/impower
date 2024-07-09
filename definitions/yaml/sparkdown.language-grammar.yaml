@@ -35,7 +35,7 @@ patterns:
   - { include: "#Gather" }
   - { include: "#Transition" }
   - { include: "#Scene" }
-  - { include: "#AssetLine" }
+  - { include: "#CommandLine" }
   - { include: "#Action" }
 
 repository:
@@ -465,8 +465,8 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       4:
-        tag: punctuation
-        name: punctuation.separator.colon.sd
+        tag: separator
+        name: meta.template.expression.colon.sd
       5:
         patterns:
           - { include: "#Whitespace" }
@@ -1078,8 +1078,8 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       3:
-        tag: punctuation
-        name: punctuation.separator.colon.sd
+        tag: separator
+        name: meta.template.expression.colon.sd
     patterns:
       - { include: "#Annotation" }
       - { include: "#CloseBraceAhead" }
@@ -1134,8 +1134,8 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       7:
-        tag: punctuation
-        name: punctuation.separator.colon.sd
+        tag: separator
+        name: meta.template.expression.colon.sd
     patterns:
       - { include: "#Annotation" }
       - { include: "#CloseBraceAhead" }
@@ -1145,7 +1145,7 @@ repository:
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }
       - { include: "#ConditionalText" }
-    end: (?=^|[}]|[-])
+    end: (?=^|[}]|[-]{{EOK}})
 
   AlternativeClause:
     begin: ^({{WS}}*)([-])({{EOK}})
@@ -1168,7 +1168,7 @@ repository:
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }
       - { include: "#ConditionalText" }
-    end: (?=^|[}]|[-])
+    end: (?=^|[}]|[-]{{EOK}})
 
   SequenceKeyword:
     tag: controlKeyword
@@ -1186,7 +1186,7 @@ repository:
     match: (?=[|])
 
   DashAhead:
-    match: (?=[-])
+    match: (?=[-]{{EOK}})
 
 ########## Expression ##########
 
@@ -1501,8 +1501,8 @@ repository:
     end: (?=\])|([,])
     endCaptures:
       1:
-        tag: punctuation
-        name: punctuation.separator.comma.sd
+        tag: separator
+        name: meta.template.expression.comma.sd
 
   PunctuationComma:
     tag: separator
@@ -1680,8 +1680,8 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       3:
-        tag: punctuation
-        name: punctuation.separator.colon.sd
+        tag: separator
+        name: meta.template.expression.colon.sd
       4:
         patterns:
           - { include: "#FrontMatterStringInline" }
@@ -1738,7 +1738,8 @@ repository:
       - { include: "#BlockDialogue" }
 
   InlineDialogue:
-    name: entity.dialogue.sd
+    tag: string
+    name: string.dialogue.sd
     begin: ^({{WS}}*)([@]{{WS}}+)(.*?)([:])($|{{WS}}*)
     beginCaptures:
       1:
@@ -1760,14 +1761,16 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#AssetLine" }
+      - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#DialogueLineContinue" }
-      - { include: "#DialogueLineEnd" }
+      - { include: "#ConditionalBlock" }
+      - { include: "#LineContinue" }
+      - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
       
   BlockDialogue:
-    name: entity.dialogue.sd
+    tag: string
+    name: string.dialogue.sd
     begin: ^({{WS}}*)([@](?:$|{{WS}}+))($|.+$)
     beginCaptures:
       1:
@@ -1783,10 +1786,11 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#AssetLine" }
+      - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#DialogueLineContinue" }
-      - { include: "#DialogueLineEnd" }
+      - { include: "#ConditionalBlock" }
+      - { include: "#LineContinue" }
+      - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)
 
   DialogueCharacter:
@@ -1837,33 +1841,6 @@ repository:
     name: variable.other.property.dialogue.character.simultaneous.sd
     match: (.+$)
 
-  DialogueLineContinue:
-    tag: string
-    name: string.dialogue.line.sd
-    match: ({{WS}}*)(.*?[\\]{{WS}}*$)(\r\n|\r|\n)?
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DisplayLine" }
-      3:
-        patterns:
-          - { include: "#Newline" }
-
-  DialogueLineEnd:
-    tag: string
-    name: string.dialogue.line.sd
-    match: ({{WS}}*)(.*?[^\\]{{WS}}*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DisplayLine" }
-
 ########## Transition ##########
 
   Transition:
@@ -1880,7 +1857,9 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
+      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
@@ -1901,7 +1880,9 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
+      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
@@ -1915,8 +1896,9 @@ repository:
     begin: (?=.+)
     patterns:
       - { include: "#Annotation" }
-      - { include: "#AssetLine" }
+      - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
+      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=^[@]{{WS}})|(?=^[$]{{WS}})|(?=^[%]{{WS}})
@@ -1951,7 +1933,7 @@ repository:
 ########## Text ##########
 
   LineContinue:
-    match: ({{WS}}*)(.*?[\\]{{WS}}*$)(\r\n|\r|\n)?
+    match: ({{WS}}*)(.*?)([\\]{{WS}}*)$(\r\n|\r|\n)?
     captures:
       1:
         patterns:
@@ -1960,6 +1942,9 @@ repository:
         patterns:
           - { include: "#DisplayLine" }
       3:
+        patterns:
+          - { include: "#Chain" }
+      4:
         patterns:
           - { include: "#Newline" }
 
@@ -1976,7 +1961,6 @@ repository:
   DisplayLine:
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Chain" }
       - { include: "#Chunk" }
 
   Chunk:
@@ -1984,8 +1968,9 @@ repository:
     captures:
       1:
         patterns:
+          - { include: "#CommandLine" }
           - { include: "#ParentheticalLine" }
-          - { include: "#AssetLine" }
+          - { include: "#ConditionalBlock" }
           - { include: "#TextChunk" }
 
   TextChunk:
@@ -1998,24 +1983,23 @@ repository:
   DisplayText:
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Chain" }
       - { include: "#Escape" }
-      - { include: "#ImageTag" }
-      - { include: "#AudioTag" }
+      - { include: "#ImageCommand" }
+      - { include: "#AudioCommand" }
       - { include: "#InlineTextAndLogic" }
 
 
-########## Asset Tag ##########
+########## Commands ##########
 
-  AssetLine:
-    match: ^({{WS}}*)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|{{WS}}*)+)({{EOL}})(\r\n|\r|\n)?
+  CommandLine:
+    match: ^({{WS}}*)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|[<](?:\\.|[^>])*?[>]|{{WS}}*)+)({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#AssetLineContent" }
+          - { include: "#CommandLineContent" }
       3:
         patterns:
           - { include: "#EndOfLine" }
@@ -2023,16 +2007,17 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  AssetLineContent:
+  CommandLineContent:
     match: (.+)
     captures:
       1:
         patterns:
-          - { include: "#ImageTag" }
-          - { include: "#AudioTag" }
+          - { include: "#ImageCommand" }
+          - { include: "#AudioCommand" }
+          - { include: "#TextCommand" }
           - { include: "#Whitespace" }
 
-  ImageTag:
+  ImageCommand:
     tag: macroName
     name: meta.image.sd
     match: (\[\[)((?:\\.|[^\]])*?)(\]\])({{WS}}*)
@@ -2042,7 +2027,7 @@ repository:
         name: keyword.operator.expression.begin.image.sd
       2:
         patterns:
-          - { include: "#AssetTagContent" }
+          - { include: "#AssetCommandContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.image.sd
@@ -2050,7 +2035,7 @@ repository:
         patterns:
           - { include: "#Whitespace" }
 
-  AudioTag:
+  AudioCommand:
     tag: macroName
     name: meta.audio.sd
     match: ([(][(])((?:\\.|[^)])*?)([)][)])({{WS}}*)
@@ -2060,7 +2045,7 @@ repository:
         name: keyword.operator.expression.begin.audio.sd
       2:
         patterns:
-          - { include: "#AssetTagContent" }
+          - { include: "#AssetCommandContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.audio.sd
@@ -2068,36 +2053,36 @@ repository:
         patterns:
           - { include: "#Whitespace" }
 
-  AssetTagContent:
+  AssetCommandContent:
     match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)({{WS}}*)($|{{IDENTIFIER}}\b))?($|{{WS}}*\S*?)($|{{WS}}*\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
     captures:
       1:
         patterns:
-          - { include: "#AssetTagControl" }
+          - { include: "#AssetCommandControl" }
       2:
         patterns:
-          - { include: "#AssetTagTargetSeparator" }
+          - { include: "#AssetCommandTargetSeparator" }
       3:
         patterns:
-          - { include: "#AssetTagTarget" }
+          - { include: "#AssetCommandTarget" }
       4:
         patterns:
-          - { include: "#AssetTagNames" }
+          - { include: "#AssetCommandNames" }
       5:
         patterns:
-          - { include: "#AssetTagArguments" }
+          - { include: "#AssetCommandArguments" }
 
-  AssetTagKeyword:
+  AssetCommandKeyword:
     tag: keyword
     name: keyword.asset.arguments.keyword.sd
     match: (\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b)
 
-  AssetTagControl:
+  AssetCommandControl:
     tag: controlKeyword
     name: keyword.control.asset.control.sd
     match: (.+)
 
-  AssetTagTargetSeparator:
+  AssetCommandTargetSeparator:
     tag: typeName
     name: entity.name.type.asset.target.separator.sd
     match: ({{WS}}+)
@@ -2106,21 +2091,21 @@ repository:
         patterns:
           - { include: "#Whitespace" }
 
-  AssetTagTarget:
+  AssetCommandTarget:
     tag: typeName
     name: entity.name.type.asset.target.sd
     match: (.+)
 
-  AssetTagNames:
+  AssetCommandNames:
     match: (.+)
     captures:
       1:
         patterns:
           - { include: "#Whitespace" }
-          - { include: "#AssetTagName" }
+          - { include: "#AssetCommandName" }
           - { include: "#CombineOperator" }
 
-  AssetTagName:
+  AssetCommandName:
     tag: variableName
     name: variable.other.constant.asset.name.sd
     match: ({{IDENTIFIER}})
@@ -2130,20 +2115,20 @@ repository:
     name: variable.other.property.combine.sd
     match: ([~+-]+)
 
-  AssetTagArguments:
+  AssetCommandArguments:
     match: (.+)
     captures:
       1:
         patterns:
-          - { include: "#AssetTagArgument" }
+          - { include: "#AssetCommandArgument" }
 
-  AssetTagArgument:
+  AssetCommandArgument:
     tag: meta
     name: meta.argument.sd
     begin: (?=.+$)
     patterns:
       - { include: "#Annotation" }
-      - { include: "#AssetTagKeyword" }
+      - { include: "#AssetCommandKeyword" }
       - { include: "#TimeValue" }
       - { include: "#Expression" }
     end: (?=$)|({{WS}})
@@ -2164,9 +2149,7 @@ repository:
         tag: number
         name: constant.numeric.time.unit.sd
 
-########## Text Tag ##########
-
-  TextTag:
+  TextCommand:
     tag: macroName
     name: meta.text.sd
     match: ([<])((?:\\.|[^>])*?)([>])({{WS}}*)
@@ -2176,7 +2159,7 @@ repository:
         name: keyword.operator.expression.begin.tag.sd
       2:
         patterns:
-          - { include: "#TextTagContent" }
+          - { include: "#TextCommandContent" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.tag.sd
@@ -2184,7 +2167,7 @@ repository:
         patterns:
           - { include: "#Whitespace" }
 
-  TextTagContent:
+  TextCommandContent:
     match: ({{WS}}*)([^ :]+)({{WS}}*)(?:([:])({{WS}}*)(.*))?
     captures:
       1:
@@ -2192,46 +2175,46 @@ repository:
           - { include: "#Whitespace" }
       2:
         patterns:
-          - { include: "#TextTagControl" }
+          - { include: "#TextCommandControl" }
       3:
         patterns:
           - { include: "#Whitespace" }
       4:
         patterns:
-          - { include: "#TextTagColon" }
+          - { include: "#TextCommandColon" }
       5:
         patterns:
           - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#TextTagArguments" }
+          - { include: "#TextCommandArguments" }
 
-  TextTagControl:
+  TextCommandControl:
     match: (.+)
     captures:
       1:
         patterns:
           - { include: "#NumericLiteral" }
-          - { include: "#TextTagControlKeyword" }
+          - { include: "#TextCommandControlKeyword" }
 
-  TextTagControlKeyword:
+  TextCommandControlKeyword:
     tag: keyword
     name: keyword.style.control.keyword.sd
     match: (.+)
 
-  TextTagColon:
+  TextCommandColon:
     tag: separator
     name: meta.template.expression.colon.sd
     match: ([:])
 
-  TextTagArguments:
+  TextCommandArguments:
     match: (.+)
     captures:
       1:
         patterns:
-          - { include: "#TextTagArgument" }
+          - { include: "#TextCommandArgument" }
 
-  TextTagArgument:
+  TextCommandArgument:
     tag: meta
     name: meta.argument.sd
     begin: (?=.+$)
@@ -2248,14 +2231,12 @@ repository:
 
   InlineTextAndLogic:
     patterns:
-      - { include: "#Chain" }
       - { include: "#Escape" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineText" }
 
   InlineText:
     patterns:
-      - { include: "#Chain" }
       - { include: "#Escape" }
       - { include: "#Styling" }
       - { include: "#Emphasis" }
@@ -2279,7 +2260,7 @@ repository:
   Styling:
     patterns:
       - { include: "#Glue" }
-      - { include: "#TextTag" }
+      - { include: "#TextCommand" }
       - { include: "#Underline" }
       - { include: "#BoldItalic" }
       - { include: "#Bold" }

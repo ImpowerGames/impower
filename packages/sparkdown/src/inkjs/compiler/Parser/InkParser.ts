@@ -83,6 +83,8 @@ export class InkParser extends StringParser {
     return Array.from(this._parsedFiles);
   }
 
+  protected _linePrefix = "";
+
   constructor(
     str: string,
     filename: string | null = null,
@@ -241,6 +243,14 @@ export class InkParser extends StringParser {
 
   set tagActive(value: boolean) {
     this.SetFlag(Number(CustomFlags.TagActive), value);
+  }
+
+  get dialogueActive(): boolean {
+    return this.GetFlag(Number(CustomFlags.DialogueActive));
+  }
+
+  set dialogueActive(value: boolean) {
+    this.SetFlag(Number(CustomFlags.DialogueActive), value);
   }
 
   public readonly OnStringParserError = (
@@ -692,6 +702,9 @@ export class InkParser extends StringParser {
       // Inline innards
       alternatives = this.InlineConditionalBranches();
     } else {
+      if (this.dialogueActive) {
+        this.Error("Cannot use multiline conditional inside of dialogue block");
+      }
       // Multiline innards
       alternatives = this.MultilineConditionalBranches();
 
@@ -1120,17 +1133,21 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    let lines = this.Interleave<ParsedObject>(
+    this.dialogueActive = true;
+    this._linePrefix = firstLine + ": ";
+
+    this.Parse(this.SkipToNextLine);
+
+    const lines = this.Interleave<ParsedObject>(
       this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
       this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
       this.EndOfDialogueBlock
-    ) as Text[];
+    ) as (Text | Tag)[];
 
-    const prefixedLines = lines
-      .slice(2)
-      .map((l) => (l.text === "\n" ? l : new Text(firstLine + ": " + l.text)));
+    this.dialogueActive = false;
+    this._linePrefix = "";
 
-    return prefixedLines;
+    return lines;
   };
 
   public readonly EndOfDialogueBlock = (): ParseRuleReturn => {
@@ -1184,7 +1201,12 @@ export class InkParser extends StringParser {
       result.push(new Text("\n"));
     }
 
+    if (this._linePrefix) {
+      result.unshift(new Text(this._linePrefix));
+    }
+
     this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
+
     return result;
   };
 
@@ -1291,16 +1313,17 @@ export class InkParser extends StringParser {
         }
 
         if (gotEscapeChar) {
-          const escapedWhitespace = this.ParseWhitespace();
-          if (escapedWhitespace != null) {
+          const escapedSpace = this.ParseWhitespace();
+          if (escapedSpace != null) {
             // Escaped space
             const next = this.Peek(this.ParseSingleCharacter);
-            if (next === "\n" || next === "\r") {
+            if (next === "\n") {
               // There is no more content in this line.
-              // So escape first character of next line.
+              // So consume newline as part of this text
               const c = this.ParseSingleCharacter();
               if (c !== null) {
                 sb += c;
+                sb += " ";
               }
             } else {
               // There is some content after escaped space.
@@ -1308,13 +1331,25 @@ export class InkParser extends StringParser {
                 // There is some content before escaped space.
                 // So insert newline since we are escaping space between content.
                 sb += "\n";
+                sb += " ";
+              } else {
+                // Include backslash before escaped indent
+                sb += "\\";
+                sb += escapedSpace;
               }
             }
           } else {
-            // Escaped non-space character
+            // Escaped newline or non-space character
             const c = this.ParseSingleCharacter();
             if (c !== null) {
+              if (c !== "\n") {
+                // Include backslash before escaped character
+                sb += "\\";
+              }
               sb += c;
+              if (c === "\n") {
+                sb += " ";
+              }
             }
           }
         }
@@ -3406,6 +3441,9 @@ export class InkParser extends StringParser {
 
     let result: ContentList[] | null = null;
     if (multiline) {
+      if (this.dialogueActive) {
+        this.Error("Cannot use multiline sequence inside of dialogue block");
+      }
       result = this.Parse(this.InnerMultilineSequenceObjects) as ContentList[];
     } else {
       result = this.Parse(this.InnerInlineSequenceObjects) as ContentList[];

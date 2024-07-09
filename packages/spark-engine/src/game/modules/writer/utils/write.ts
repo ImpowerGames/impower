@@ -14,7 +14,8 @@ const SINGLE_MARKERS = ["^", "*", "_"];
 const DOUBLE_MARKERS = ["~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
-const CHARACTER_REGEX = /^(.*?)([ \t]*)([(][^()]*?[)])?($|[ \t]*)(\^)?/;
+const CHARACTER_REGEX = /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(\^)?([ \t]*)$/;
+const PARENTHETICAL_REGEX = /^([ \t]*)([(][^()]*?[)])?([ \t]*)$/;
 const ASSET_CONTROL_KEYWORDS = [
   "show",
   "hide",
@@ -234,11 +235,11 @@ const getMinSynthDuration = (synth: {
 };
 
 const createImageChunk = (imageTagContent: string) => {
-  return createAssetChunk(imageTagContent, "image_tag", "show", "portrait");
+  return createAssetChunk(imageTagContent, "image", "show", "portrait");
 };
 
 const createAudioChunk = (audioTagContent: string) => {
-  return createAssetChunk(audioTagContent, "audio_tag", "play", "sound");
+  return createAssetChunk(audioTagContent, "audio", "play", "sound");
 };
 
 const createAssetChunk = (
@@ -278,12 +279,12 @@ const createAssetChunk = (
     assets,
     args,
     duration: 0,
-    speed: 0,
+    speed: 1,
   };
 };
 
-const getDialogueCharacterKey = (name: string) => {
-  return name
+const getCharacterKey = (characterName: string) => {
+  return characterName
     .replace(/([ ])/g, "_")
     .replace(/([.'"`])/g, "")
     .toLowerCase();
@@ -291,7 +292,6 @@ const getDialogueCharacterKey = (name: string) => {
 
 export interface WriteOptions {
   target: string;
-  autoTargetPrefixes?: Record<string, string>;
   delay?: number;
   instant?: boolean;
   debug?: boolean;
@@ -305,16 +305,21 @@ export const write = (
   const allPhrases: Phrase[] = [];
 
   const textTargetOverride = options?.target;
-  const textTargetPrefixes = options?.autoTargetPrefixes || {
-    $: "scene",
-    "%": "transition",
-    "@": "dialogue",
-    "": "action",
-  };
   const delay = options?.delay || 0;
   const instant = options?.instant;
   const debug = options?.debug;
 
+  const textTargetPrefixes: Record<string, string> = {};
+  for (const [k, v] of Object.entries(context["writer"])) {
+    if (
+      typeof v === "object" &&
+      v &&
+      "prefix" in v &&
+      typeof v.prefix === "string"
+    ) {
+      textTargetPrefixes[v.prefix] = k;
+    }
+  }
   let character = "";
   let consecutiveLettersLength = 0;
   let word = "";
@@ -700,10 +705,9 @@ export const write = (
           };
           linePhrases.push(phrase);
           allPhrases.push(phrase);
-          startNewPhrase();
         } else {
           // continue voiced phrase
-          const currentPhrase = allPhrases.at(-1);
+          const currentPhrase = linePhrases.at(-1);
           if (currentPhrase) {
             currentPhrase.text ??= "";
             currentPhrase.text += char;
@@ -754,7 +758,7 @@ export const write = (
 
   const lines = content.split("\n");
   for (let l = 0; l < lines.length; l += 1) {
-    let line = lines[l]!;
+    let line = lines[l]!?.trim();
     if (!textTargetOverride) {
       if (currentTextTarget === defaultTextTarget) {
         // Check if line starts with a target prefix symbol
@@ -774,35 +778,45 @@ export const write = (
           const characterDeclaration = line
             .slice(0, dialogueSeparatorIndex)
             .trim();
-          line = line.slice(dialogueSeparatorIndex + 1);
+          line = line.slice(dialogueSeparatorIndex + 1).trimStart();
           if (characterDeclaration) {
             const match = characterDeclaration.match(CHARACTER_REGEX);
             const characterName = match?.[1] || "";
-            // const characterParenthetical = match?.[3] || "";
+            const characterParenthetical = match?.[3] || "";
             // const characterSimultaneous = match?.[5] || "";
-            character = getDialogueCharacterKey(characterName);
+            character = getCharacterKey(characterName);
             if (characterName) {
               processLine(characterName, "character_name");
+            }
+            if (characterParenthetical) {
+              processLine(characterParenthetical, "character_parenthetical");
             }
           }
         }
         currentTextTarget = lineTextTarget;
       }
-    }
-    if (line) {
-      const linePhrases = processLine(line, currentTextTarget);
-      const lastTextPhrase = linePhrases.findLast((p) => p.text);
-      if (lastTextPhrase) {
-        lastTextPhrase.text += "\n";
-        lastTextPhrase.chunks ??= [];
-        lastTextPhrase.chunks.push({ text: "\n", duration: 0 });
+      if (line.match(PARENTHETICAL_REGEX)) {
+        // TODO: Treat parentheticals as a markup style instead of a special target
+        processLine(line, "parenthetical");
+        continue;
       }
-    } else {
-      allPhrases.push({
-        target: currentTextTarget,
-        text: "\n",
-        chunks: [{ text: "\n", duration: 0 }],
-      });
+    }
+    const linePhrases = processLine(line, currentTextTarget);
+    if (l < lines.length - 1) {
+      if (line) {
+        const lastTextPhrase = linePhrases.findLast((p) => p.text);
+        if (lastTextPhrase) {
+          lastTextPhrase.text += "\n";
+          lastTextPhrase.chunks ??= [];
+          lastTextPhrase.chunks.push({ text: "\n", duration: 0, speed: 1 });
+        }
+      } else {
+        allPhrases.push({
+          target: currentTextTarget,
+          text: "\n",
+          chunks: [{ text: "\n", duration: 0, speed: 1 }],
+        });
+      }
     }
   }
 
@@ -868,6 +882,7 @@ export const write = (
     const animationOffset = writer?.animation_offset ?? 0;
     if (phrase.chunks) {
       phrase.chunks.forEach((c) => {
+        // Text Event
         if (c.text != null) {
           const event: TextEvent = { control: "show", text: c.text };
           if (time) {
@@ -931,7 +946,8 @@ export const write = (
           result.text[target] ??= [];
           result.text[target]!.push(event);
         }
-        if (c.tag === "image_tag") {
+        // Image Event
+        if (c.tag === "image") {
           const event: ImageEvent = {
             control: c.control || "show",
             assets: c.assets,
@@ -973,7 +989,8 @@ export const write = (
           result.image[target] ??= [];
           result.image[target]!.push(event);
         }
-        if (c.tag === "audio_tag") {
+        // Audio Event
+        if (c.tag === "audio") {
           const event: AudioEvent = {
             control: c.control || "play",
             assets: c.assets,
@@ -1019,6 +1036,7 @@ export const write = (
           result.audio[target] ??= [];
           result.audio[target]!.push(event);
         }
+        // Synth Event
         if (c.duration && !instant) {
           if (c.punctuatedSyllable) {
             const synthName = getValueName(context, "synth", "writer");

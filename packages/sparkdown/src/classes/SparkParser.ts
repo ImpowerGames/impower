@@ -75,7 +75,7 @@ export default class SparkParser {
         if (id === "StitchDeclarationName") {
           this._latestStitch = script.slice(node.from, node.to).trim();
         }
-        if (id === "AssetLineContent" || id === "ParentheticalContent") {
+        if (id === "CommandLineContent" || id === "ParentheticalContent") {
           const lineText = lines[lineIndex] || "";
           const lineTextBefore = lineText.slice(0, node.to - linePos);
           const lineTextAfter = lineText.slice(node.to - linePos);
@@ -83,9 +83,10 @@ export default class SparkParser {
           const trimmedLineTextAfter = lineTextAfter.trimStart();
           if (
             !trimmedLineTextBefore.endsWith("\\") &&
-            !trimmedLineTextAfter.startsWith("\\")
+            !trimmedLineTextAfter.startsWith("\\") &&
+            lines[lineIndex + 1]?.trim()
           ) {
-            // AssetLine and ParentheticalLine should end with implicit \
+            // CommandLine and ParentheticalLine should end with implicit \
             const augmentedLine =
               trimmedLineTextBefore + "\\ " + trimmedLineTextAfter;
             lines[lineIndex] = augmentedLine.trimEnd();

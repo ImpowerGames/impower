@@ -14,6 +14,7 @@ import { setProperty } from "../utils/setProperty";
 import { uuid } from "../utils/uuid";
 import { Connection } from "./Connection";
 import { Module } from "./Module";
+import { EventMessage } from "./messages/EventMessage";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -298,6 +299,13 @@ export class Game<T extends M = {}> {
         module.onReceiveNotification(msg);
       }
     }
+    // TODO: Have DisplayCommand listen for pointerdown instead
+    if (EventMessage.type.isNotification(msg)) {
+      const params = msg.params;
+      if (params.type === "pointerdown") {
+        this.continue();
+      }
+    }
     return undefined;
   }
 
@@ -324,14 +332,14 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
-    while (this._story.canContinue) {
+    if (this._story.canContinue) {
       this._story.Continue();
       const currentText = this._story.currentText;
       const currentChoices = this._story.currentChoices;
-      let choicesWriteDelay = 0;
+      let contentWriteDuration = 0;
       if (currentText) {
         const contentEvents = this.module.writer.write(currentText);
-        choicesWriteDelay = contentEvents.end;
+        contentWriteDuration = contentEvents.end;
         console.log(JSON.stringify(currentText), contentEvents);
       }
       if (currentChoices) {
@@ -339,7 +347,7 @@ export class Game<T extends M = {}> {
           const choice = currentChoices[i]!.text;
           const choiceEvents = this.module.writer.write(choice, {
             target: `choice_${i}`,
-            delay: choicesWriteDelay,
+            delay: contentWriteDuration,
           });
           console.log(JSON.stringify(choice), choiceEvents);
         }
