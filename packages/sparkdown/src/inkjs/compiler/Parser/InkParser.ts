@@ -702,9 +702,6 @@ export class InkParser extends StringParser {
       // Inline innards
       alternatives = this.InlineConditionalBranches();
     } else {
-      if (this.dialogueActive) {
-        this.Error("Cannot use multiline conditional inside of dialogue block");
-      }
       // Multiline innards
       alternatives = this.MultilineConditionalBranches();
 
@@ -1323,6 +1320,7 @@ export class InkParser extends StringParser {
               const c = this.ParseSingleCharacter();
               if (c !== null) {
                 sb += c;
+                // Ensure any logic directly following the newline is not escaped
                 sb += " ";
               }
             } else {
@@ -1331,6 +1329,7 @@ export class InkParser extends StringParser {
                 // There is some content before escaped space.
                 // So insert newline since we are escaping space between content.
                 sb += "\n";
+                // Ensure any logic directly following the newline is not escaped
                 sb += " ";
               } else {
                 // Include backslash before escaped indent
@@ -1348,6 +1347,7 @@ export class InkParser extends StringParser {
               }
               sb += c;
               if (c === "\n") {
+                // Ensure any logic directly following the newline is not escaped
                 sb += " ";
               }
             }
@@ -3441,9 +3441,6 @@ export class InkParser extends StringParser {
 
     let result: ContentList[] | null = null;
     if (multiline) {
-      if (this.dialogueActive) {
-        this.Error("Cannot use multiline sequence inside of dialogue block");
-      }
       result = this.Parse(this.InnerMultilineSequenceObjects) as ContentList[];
     } else {
       result = this.Parse(this.InnerInlineSequenceObjects) as ContentList[];

@@ -760,6 +760,9 @@ export const write = (
   for (let l = 0; l < lines.length; l += 1) {
     let line = lines[l]!?.trim();
     if (!textTargetOverride) {
+      // Current text target can only be set once per block of lines
+      // (So after the target has been set to something other than default,
+      // all prefix symbols are just printed as plain text)
       if (currentTextTarget === defaultTextTarget) {
         // Check if line starts with a target prefix symbol
         // (prefix symbol must be followed by space or nothing)
@@ -767,33 +770,38 @@ export const write = (
           line[0] && isSpaceOrEmpty(line[1])
             ? textTargetPrefixes[line[0]]
             : undefined;
-        if (lineTextTarget) {
-          // Trim away starting prefix symbol
-          line = line.slice(1).trimStart();
-        } else {
-          lineTextTarget = defaultTextTarget;
-        }
         if (lineTextTarget === "dialogue") {
           const dialogueSeparatorIndex = line.indexOf(":");
-          const characterDeclaration = line
-            .slice(0, dialogueSeparatorIndex)
-            .trim();
-          line = line.slice(dialogueSeparatorIndex + 1).trimStart();
-          if (characterDeclaration) {
-            const match = characterDeclaration.match(CHARACTER_REGEX);
-            const characterName = match?.[1] || "";
-            const characterParenthetical = match?.[3] || "";
-            // const characterSimultaneous = match?.[5] || "";
-            character = getCharacterKey(characterName);
-            if (characterName) {
-              processLine(characterName, "character_name");
-            }
-            if (characterParenthetical) {
-              processLine(characterParenthetical, "character_parenthetical");
+          if (dialogueSeparatorIndex < 0) {
+            // Character name and dialogue content must be separated by colon,
+            // or else all text is just displayed as is
+            lineTextTarget = defaultTextTarget;
+          } else {
+            // Trim away starting prefix symbol
+            line = line.slice(1).trimStart();
+            const characterDeclaration = line
+              .slice(0, dialogueSeparatorIndex)
+              .trim();
+            line = line.slice(dialogueSeparatorIndex + 1).trimStart();
+            if (characterDeclaration) {
+              const match = characterDeclaration.match(CHARACTER_REGEX);
+              const characterName = match?.[1] || "";
+              const characterParenthetical = match?.[3] || "";
+              // const characterSimultaneous = match?.[5] || "";
+              character = getCharacterKey(characterName);
+              if (characterName) {
+                processLine(characterName, "character_name");
+              }
+              if (characterParenthetical) {
+                processLine(characterParenthetical, "character_parenthetical");
+              }
             }
           }
+        } else if (lineTextTarget) {
+          // Trim away starting prefix symbol
+          line = line.slice(1).trimStart();
         }
-        currentTextTarget = lineTextTarget;
+        currentTextTarget = lineTextTarget || defaultTextTarget;
       }
       if (line.match(PARENTHETICAL_REGEX)) {
         // TODO: Treat parentheticals as a markup style instead of a special target

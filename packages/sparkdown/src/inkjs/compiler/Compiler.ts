@@ -88,11 +88,10 @@ export class Compiler {
     );
 
     this._parsedStory = this.parser.ParseStory();
+    this.parsedStory.countAllVisits = this.options.countAllVisits;
+    this._runtimeStory = this.parsedStory.ExportRuntime(this.OnError);
 
-    if (this.errors.length === 0) {
-      this.parsedStory.countAllVisits = this.options.countAllVisits;
-      this._runtimeStory = this.parsedStory.ExportRuntime(this.OnError);
-    } else {
+    if (this.errors.length > 0) {
       this._runtimeStory = null;
     }
 

@@ -84,7 +84,7 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.definition(tags.typeName), display: "none" },
   { tag: tags.definition(tags.variableName), display: "none" },
   { tag: tags.definition(tags.propertyName), display: "none" },
-  { tag: tags.punctuation, display: "none" },
+  { tag: tags.definition(tags.punctuation), display: "none" },
   { tag: tags.comment, display: "none" },
   { tag: tags.blockComment, display: "none" },
   { tag: tags.docComment, display: "none" },
@@ -417,16 +417,23 @@ const decorate = (state: EditorState) => {
         return false;
       }
       if (HIDDEN_NODE_NAMES.includes(name)) {
-        const nextLine = to < doc.length - 1 ? doc.lineAt(to) : null;
-        const blockTo =
-          nextLine && doc.sliceString(nextLine.from, nextLine.to) === ""
-            ? nextLine.to
-            : doc.sliceString(from, to).endsWith("\n")
-            ? to - 1
-            : to;
+        const hiddenNodeEndsWithNewline = doc
+          .sliceString(from, to)
+          .endsWith("\n");
+        const nextLineAt = hiddenNodeEndsWithNewline ? to : to + 1;
+        const nextLine =
+          nextLineAt < doc.length - 1 ? doc.lineAt(nextLineAt) : null;
+        const nextLineIsBlank =
+          nextLine && doc.sliceString(nextLine.from, nextLine.to).trim() === "";
+        const hideFrom = from;
+        const hideTo = nextLineIsBlank
+          ? nextLine.to
+          : hiddenNodeEndsWithNewline
+          ? to - 1
+          : to;
         const spec = {
-          from,
-          to: blockTo,
+          from: hideFrom,
+          to: hideTo,
           block: true,
           language: LANGUAGE_SUPPORT.language,
           highlighter: LANGUAGE_HIGHLIGHTS,

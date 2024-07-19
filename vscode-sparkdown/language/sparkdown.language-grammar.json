@@ -30,9 +30,6 @@
       "include": "#Annotation"
     },
     {
-      "include": "#Dialogue"
-    },
-    {
       "include": "#FrontMatter"
     },
     {
@@ -63,13 +60,13 @@
       "include": "#Gather"
     },
     {
+      "include": "#Dialogue"
+    },
+    {
       "include": "#Transition"
     },
     {
       "include": "#Scene"
-    },
-    {
-      "include": "#CommandLine"
     },
     {
       "include": "#Action"
@@ -1384,7 +1381,7 @@
       "end": "(?=$)"
     },
     "Gather": {
-      "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)",
+      "begin": "^([^\\S\\n\\r]*)((?:[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))+)([^\\S\\n\\r]*)([(][^()]*[)])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -1400,7 +1397,14 @@
         "3": {
           "patterns": [
             {
-              "include": "#EndOfKeyword"
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Label"
             }
           ]
         }
@@ -1413,9 +1417,6 @@
           "include": "#Choice"
         },
         {
-          "include": "#Label"
-        },
-        {
           "include": "#Divert"
         },
         {
@@ -1426,6 +1427,15 @@
         },
         {
           "include": "#Tag"
+        },
+        {
+          "include": "#Dialogue"
+        },
+        {
+          "include": "#Transition"
+        },
+        {
+          "include": "#Scene"
         },
         {
           "include": "#Action"
@@ -1752,7 +1762,7 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#InlineConditionalText"
         }
       ],
       "end": "([}])",
@@ -1814,7 +1824,7 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#InlineConditionalText"
         }
       ],
       "end": "(?=[|])"
@@ -1847,7 +1857,7 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#InlineConditionalText"
         }
       ],
       "end": "(?=[}]|[|])"
@@ -1898,7 +1908,7 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#InlineConditionalText"
         }
       ],
       "end": "(?=[}])"
@@ -1925,7 +1935,7 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#InlineConditionalText"
         }
       ],
       "end": "(?=[}])"
@@ -1960,13 +1970,16 @@
           "include": "#Annotation"
         },
         {
-          "include": "#CloseBraceAhead"
+          "include": "#Newline"
         },
         {
-          "include": "#CaseClause"
+          "include": "#MultilineCloseBraceAhead"
         },
         {
-          "include": "#AlternativeClause"
+          "include": "#MultilineCaseClause"
+        },
+        {
+          "include": "#MultilineAlternativeClause"
         },
         {
           "include": "#Divert"
@@ -1984,7 +1997,7 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#MultilineConditionalText"
         }
       ],
       "end": "(?=[}])"
@@ -2005,13 +2018,16 @@
           "include": "#Annotation"
         },
         {
-          "include": "#CloseBraceAhead"
+          "include": "#Newline"
         },
         {
-          "include": "#CaseClause"
+          "include": "#MultilineCloseBraceAhead"
         },
         {
-          "include": "#AlternativeClause"
+          "include": "#MultilineCaseClause"
+        },
+        {
+          "include": "#MultilineAlternativeClause"
         },
         {
           "include": "#Divert"
@@ -2029,12 +2045,12 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#MultilineConditionalText"
         }
       ],
       "end": "(?=[}])"
     },
-    "CaseClause": {
+    "MultilineCaseClause": {
       "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(?:(else)|([^|{}:]+))([^\\S\\n\\r]*)([:])",
       "beginCaptures": {
         "1": {
@@ -2083,10 +2099,13 @@
           "include": "#Annotation"
         },
         {
-          "include": "#CloseBraceAhead"
+          "include": "#Newline"
         },
         {
-          "include": "#DashAhead"
+          "include": "#MultilineCloseBraceAhead"
+        },
+        {
+          "include": "#MultilineDashAhead"
         },
         {
           "include": "#Divert"
@@ -2101,12 +2120,12 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#MultilineConditionalText"
         }
       ],
       "end": "(?=^|[}]|[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))"
     },
-    "AlternativeClause": {
+    "MultilineAlternativeClause": {
       "begin": "^([^\\S\\n\\r]*)([-])((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "beginCaptures": {
         "1": {
@@ -2133,10 +2152,13 @@
           "include": "#Annotation"
         },
         {
-          "include": "#CloseBraceAhead"
+          "include": "#Newline"
         },
         {
-          "include": "#DashAhead"
+          "include": "#MultilineCloseBraceAhead"
+        },
+        {
+          "include": "#MultilineDashAhead"
         },
         {
           "include": "#Divert"
@@ -2151,7 +2173,7 @@
           "include": "#ConditionalBlock"
         },
         {
-          "include": "#ConditionalText"
+          "include": "#MultilineConditionalText"
         }
       ],
       "end": "(?=^|[}]|[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))"
@@ -2161,21 +2183,68 @@
       "name": "keyword.control.sequence.sd",
       "match": "\\b(stopping|shuffle|cycle|once)\\b"
     },
-    "ConditionalText": {
+    "InlineConditionalText": {
       "patterns": [
         {
           "include": "#DisplayText"
         }
       ]
     },
-    "CloseBraceAhead": {
-      "match": "(?=[}])"
+    "MultilineConditionalText": {
+      "begin": "^(?=.)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
+        },
+        {
+          "include": "#MultilineCloseBraceAhead"
+        },
+        {
+          "include": "#InlineDialogue"
+        },
+        {
+          "include": "#Transition"
+        },
+        {
+          "include": "#Scene"
+        },
+        {
+          "include": "#Action"
+        },
+        {
+          "include": "#DisplayText"
+        }
+      ],
+      "end": "(?=$)"
     },
     "PipeAhead": {
       "match": "(?=[|])"
     },
-    "DashAhead": {
-      "match": "(?=[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))"
+    "CloseBraceAhead": {
+      "match": "(?=[}])"
+    },
+    "MultilineCloseBraceAhead": {
+      "match": "^([^\\S\\n\\r]*)(?=[}])",
+      "captures": {
+        "patterns": [
+          {
+            "include": "#Indent"
+          }
+        ]
+      }
+    },
+    "MultilineDashAhead": {
+      "match": "^([^\\S\\n\\r]*)(?=[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
+      "captures": {
+        "patterns": [
+          {
+            "include": "#Indent"
+          }
+        ]
+      }
     },
     "Expression": {
       "patterns": [
@@ -2487,7 +2556,25 @@
     "DoubleQuoteStringContent": {
       "tag": "string",
       "name": "string.quoted.double.content.sd",
-      "match": "((?:[^\"\\\\]|\\\\.)*)"
+      "match": "((?:[^\"\\\\]|\\\\.)*)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Escape"
+            },
+            {
+              "include": "#ImageCommand"
+            },
+            {
+              "include": "#AudioCommand"
+            },
+            {
+              "include": "#InlineTextAndLogic"
+            }
+          ]
+        }
+      }
     },
     "NumericLiteral": {
       "patterns": [
@@ -3007,7 +3094,7 @@
     "InlineDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
-      "begin": "^([^\\S\\n\\r]*)([@][^\\S\\n\\r]+)(.*?)([:])($|[^\\S\\n\\r]*)",
+      "begin": "([^\\S\\n\\r]*)([@][^\\S\\n\\r]+)(.*?)([:])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3053,9 +3140,6 @@
           "include": "#ParentheticalLine"
         },
         {
-          "include": "#ConditionalBlock"
-        },
-        {
           "include": "#LineContinue"
         },
         {
@@ -3067,7 +3151,7 @@
     "BlockDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
-      "begin": "^([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|.+$)",
+      "begin": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|.+$)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3103,9 +3187,6 @@
         },
         {
           "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#ConditionalBlock"
         },
         {
           "include": "#LineContinue"
@@ -3206,7 +3287,7 @@
     "Transition": {
       "tag": "labelName",
       "name": "keyword.control.transition.sd",
-      "begin": "^([^\\S\\n\\r]*)([%](?:$|[^\\S\\n\\r]+))",
+      "begin": "([^\\S\\n\\r]*)([%](?:$|[^\\S\\n\\r]+))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3216,7 +3297,7 @@
           ]
         },
         "2": {
-          "tag": "punctuation",
+          "tag": "definition(punctuation)",
           "name": "punctuation.transition.mark.sd"
         }
       },
@@ -3232,9 +3313,6 @@
         },
         {
           "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#ConditionalBlock"
         },
         {
           "include": "#LineContinue"
@@ -3248,7 +3326,7 @@
     "Scene": {
       "tag": "regexp",
       "name": "string.regexp.scene.sd",
-      "begin": "^([^\\S\\n\\r]*)([$](?:$|[^\\S\\n\\r]+))",
+      "begin": "([^\\S\\n\\r]*)([$](?:$|[^\\S\\n\\r]+))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3258,7 +3336,7 @@
           ]
         },
         "2": {
-          "tag": "punctuation",
+          "tag": "definition(punctuation)",
           "name": "punctuation.transition.mark.sd"
         }
       },
@@ -3274,9 +3352,6 @@
         },
         {
           "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#ConditionalBlock"
         },
         {
           "include": "#LineContinue"
@@ -3291,19 +3366,19 @@
       "match": "INT[.]?[\\/]EXT[.]|INT[.]|EXT[.][^\\S\\n\\r]*(.*?)[^\\S\\n\\r]+[-][^\\S\\n\\r]+(.*?)[^\\S\\n\\r]*$"
     },
     "Action": {
-      "begin": "(?=.+)",
+      "begin": "(?=[^\\S\\n\\r]*\\S)",
       "patterns": [
         {
           "include": "#Annotation"
+        },
+        {
+          "include": "#Newline"
         },
         {
           "include": "#CommandLine"
         },
         {
           "include": "#ParentheticalLine"
-        },
-        {
-          "include": "#ConditionalBlock"
         },
         {
           "include": "#LineContinue"
@@ -3395,28 +3470,30 @@
       }
     },
     "LineEnd": {
-      "match": "([^\\S\\n\\r]*)(.*?[^\\\\][^\\S\\n\\r]*$)",
-      "captures": {
+      "begin": "([^\\S\\n\\r]*)(?=.+$)",
+      "beginCaptures": {
         "1": {
           "patterns": [
             {
               "include": "#Indent"
             }
           ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#DisplayLine"
-            }
-          ]
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#DisplayLine"
+        }
+      ],
+      "end": "(?=$)"
     },
     "DisplayLine": {
       "patterns": [
         {
           "include": "#Annotation"
+        },
+        {
+          "include": "#ConditionalBlock"
         },
         {
           "include": "#Chunk"
@@ -3476,7 +3553,7 @@
       ]
     },
     "CommandLine": {
-      "match": "^([^\\S\\n\\r]*)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|[<](?:\\\\.|[^>])*?[>]|[^\\S\\n\\r]*)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
+      "match": "^([^\\S\\n\\r]*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|[<](?:\\\\.|[^>])*?[>]|[^\\S\\n\\r]+)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
           "patterns": [

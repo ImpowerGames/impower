@@ -22,7 +22,6 @@ variables:
 patterns:
   - { include: "#Newline" }
   - { include: "#Annotation" }
-  - { include: "#Dialogue" }
   - { include: "#FrontMatter" }
   - { include: "#Todo" }
   - { include: "#Include" }
@@ -33,9 +32,9 @@ patterns:
   - { include: "#Logic" }
   - { include: "#Choice" }
   - { include: "#Gather" }
+  - { include: "#Dialogue" }
   - { include: "#Transition" }
   - { include: "#Scene" }
-  - { include: "#CommandLine" }
   - { include: "#Action" }
 
 repository:
@@ -776,7 +775,7 @@ repository:
 ########## Gather ##########
 
   Gather:
-    begin: ^({{WS}}*)((?:[-]{{EOK}})+)
+    begin: ^({{WS}}*)((?:[-]{{EOK}})+)({{WS}}*)([(][^()]*[)])
     beginCaptures:
       1:
         patterns:
@@ -786,15 +785,20 @@ repository:
         name: keyword.other.gather.sd
       3:
         patterns:
-          - { include: "#EndOfKeyword" }
+          - { include: "#Whitespace" }
+      4:
+        patterns:
+          - { include: "#Label" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Choice" }
-      - { include: "#Label" }
       - { include: "#Divert" }
       - { include: "#Todo" }
       - { include: "#Logic" }
       - { include: "#Tag" }
+      - { include: "#Dialogue" }
+      - { include: "#Transition" }
+      - { include: "#Scene" }
       - { include: "#Action" }
     end: ({{EOL}})(\r\n|\r|\n)?
     endCaptures:
@@ -978,7 +982,7 @@ repository:
       - { include: "#FirstAlternativeItem" }
       - { include: "#AlternativeItem" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#InlineConditionalText" }
     end: ([}])
     endCaptures:
       1:
@@ -1010,7 +1014,7 @@ repository:
       - { include: "#Tag" }
       - { include: "#ConditionalSubstitution" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#InlineConditionalText" }
     end: (?=[|])
 
   AlternativeItem:
@@ -1026,7 +1030,7 @@ repository:
       - { include: "#Literal" }
       - { include: "#Divert" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#InlineConditionalText" }
     end: (?=[}]|[|])
 
   ConditionalSubstitution:
@@ -1050,7 +1054,7 @@ repository:
       - { include: "#Divert" }
       - { include: "#InlineElseClause" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#InlineConditionalText" }
     end: (?=[}])
 
   InlineElseClause:
@@ -1064,7 +1068,7 @@ repository:
       - { include: "#CloseBraceAhead" }
       - { include: "#Divert" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#InlineConditionalText" }
     end: (?=[}])
 
   MultilineBlock:
@@ -1082,15 +1086,16 @@ repository:
         name: meta.template.expression.colon.sd
     patterns:
       - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#CaseClause" }
-      - { include: "#AlternativeClause" }
+      - { include: "#Newline" }
+      - { include: "#MultilineCloseBraceAhead" }
+      - { include: "#MultilineCaseClause" }
+      - { include: "#MultilineAlternativeClause" }
       - { include: "#Divert" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#Todo" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#MultilineConditionalText" }
     end: (?=[}])
 
   MultilineAlternative:
@@ -1101,18 +1106,19 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#CaseClause" }
-      - { include: "#AlternativeClause" }
+      - { include: "#Newline" }
+      - { include: "#MultilineCloseBraceAhead" }
+      - { include: "#MultilineCaseClause" }
+      - { include: "#MultilineAlternativeClause" }
       - { include: "#Divert" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#Todo" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#MultilineConditionalText" }
     end: (?=[}])
 
-  CaseClause:
+  MultilineCaseClause:
     begin: ^({{WS}}*)([-])({{EOK}})(?:(else)|([^|{}:]+))({{WS}}*)([:])
     beginCaptures:
       1:
@@ -1138,16 +1144,17 @@ repository:
         name: meta.template.expression.colon.sd
     patterns:
       - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#DashAhead" }
+      - { include: "#Newline" }
+      - { include: "#MultilineCloseBraceAhead" }
+      - { include: "#MultilineDashAhead" }
       - { include: "#Divert" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#MultilineConditionalText" }
     end: (?=^|[}]|[-]{{EOK}})
 
-  AlternativeClause:
+  MultilineAlternativeClause:
     begin: ^({{WS}}*)([-])({{EOK}})
     beginCaptures:
       1:
@@ -1161,13 +1168,14 @@ repository:
           - { include: "#EndOfKeyword" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#CloseBraceAhead" }
-      - { include: "#DashAhead" }
+      - { include: "#Newline" }
+      - { include: "#MultilineCloseBraceAhead" }
+      - { include: "#MultilineDashAhead" }
       - { include: "#Divert" }
       - { include: "#Logic" }
       - { include: "#Choice" }
       - { include: "#ConditionalBlock" }
-      - { include: "#ConditionalText" }
+      - { include: "#MultilineConditionalText" }
     end: (?=^|[}]|[-]{{EOK}})
 
   SequenceKeyword:
@@ -1175,18 +1183,40 @@ repository:
     name: keyword.control.sequence.sd
     match: \b(stopping|shuffle|cycle|once)\b
 
-  ConditionalText:
+  InlineConditionalText:
     patterns:
       - { include: "#DisplayText" }
 
-  CloseBraceAhead:
-    match: (?=[}])
+  MultilineConditionalText:
+    begin: ^(?=.)
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#Newline" }
+      - { include: "#MultilineCloseBraceAhead" }
+      - { include: "#InlineDialogue" }
+      - { include: "#Transition" }
+      - { include: "#Scene" }
+      - { include: "#Action" }
+      - { include: "#DisplayText" }
+    end: (?=$)
 
   PipeAhead:
     match: (?=[|])
 
-  DashAhead:
-    match: (?=[-]{{EOK}})
+  CloseBraceAhead:
+    match: (?=[}])
+
+  MultilineCloseBraceAhead:
+    match: ^({{WS}}*)(?=[}])
+    captures:
+        patterns:
+          - { include: "#Indent" }
+
+  MultilineDashAhead:
+    match: ^({{WS}}*)(?=[-]{{EOK}})
+    captures:
+        patterns:
+          - { include: "#Indent" }
 
 ########## Expression ##########
 
@@ -1392,6 +1422,13 @@ repository:
     tag: string
     name: string.quoted.double.content.sd
     match: ((?:[^"\\]|\\.)*)
+    captures:
+      1:
+        patterns:
+          - { include: "#Escape" }
+          - { include: "#ImageCommand" }
+          - { include: "#AudioCommand" }
+          - { include: "#InlineTextAndLogic" }
 
   NumericLiteral:
     patterns:
@@ -1740,7 +1777,7 @@ repository:
   InlineDialogue:
     tag: string
     name: string.dialogue.sd
-    begin: ^({{WS}}*)([@]{{WS}}+)(.*?)([:])($|{{WS}}*)
+    begin: ({{WS}}*)([@]{{WS}}+)(.*?)([:])($|{{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -1763,7 +1800,6 @@ repository:
       - { include: "#Newline" }
       - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
@@ -1771,7 +1807,7 @@ repository:
   BlockDialogue:
     tag: string
     name: string.dialogue.sd
-    begin: ^({{WS}}*)([@](?:$|{{WS}}+))($|.+$)
+    begin: ({{WS}}*)([@](?:$|{{WS}}+))($|.+$)
     beginCaptures:
       1:
         patterns:
@@ -1788,7 +1824,6 @@ repository:
       - { include: "#Newline" }
       - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)
@@ -1846,20 +1881,19 @@ repository:
   Transition:
     tag: labelName
     name: keyword.control.transition.sd
-    begin: ^({{WS}}*)([%](?:$|{{WS}}+))
+    begin: ({{WS}}*)([%](?:$|{{WS}}+))
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: punctuation
+        tag: definition(punctuation)
         name: punctuation.transition.mark.sd
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
@@ -1869,20 +1903,19 @@ repository:
   Scene:
     tag: regexp
     name: string.regexp.scene.sd
-    begin: ^({{WS}}*)([$](?:$|{{WS}}+))
+    begin: ({{WS}}*)([$](?:$|{{WS}}+))
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: punctuation
+        tag: definition(punctuation)
         name: punctuation.transition.mark.sd
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
@@ -1893,12 +1926,12 @@ repository:
 ########## Action ##########
 
   Action:
-    begin: (?=.+)
+    begin: (?={{WS}}*\S)
     patterns:
       - { include: "#Annotation" }
+      - { include: "#Newline" }
       - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
-      - { include: "#ConditionalBlock" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=^[@]{{WS}})|(?=^[$]{{WS}})|(?=^[%]{{WS}})
@@ -1949,18 +1982,19 @@ repository:
           - { include: "#Newline" }
 
   LineEnd:
-    match: ({{WS}}*)(.*?[^\\]{{WS}}*$)
-    captures:
+    begin: ({{WS}}*)(?=.+$)
+    beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
-      2:
-        patterns:
-          - { include: "#DisplayLine" }
+    patterns:
+      - { include: "#DisplayLine" }
+    end: (?=$)
 
   DisplayLine:
     patterns:
       - { include: "#Annotation" }
+      - { include: "#ConditionalBlock" }
       - { include: "#Chunk" }
 
   Chunk:
@@ -1992,7 +2026,7 @@ repository:
 ########## Commands ##########
 
   CommandLine:
-    match: ^({{WS}}*)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|[<](?:\\.|[^>])*?[>]|{{WS}}*)+)({{EOL}})(\r\n|\r|\n)?
+    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|[<](?:\\.|[^>])*?[>]|{{WS}}+)+)({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
         patterns:

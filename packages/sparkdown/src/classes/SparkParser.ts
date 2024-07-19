@@ -112,8 +112,8 @@ export default class SparkParser {
       },
     });
     const transpiled = lines.join("\n");
-    console.log(transpiled);
     // console.log(printTree(tree, script, nodeNames));
+    // console.log(transpiled);
     return transpiled;
   }
 
@@ -129,21 +129,29 @@ export default class SparkParser {
       program.sourceMap
     );
 
-    const options = new InkCompilerOptions(filename, [], false, null, {
-      ResolveInkFilename: (filename: string): string => {
-        return this._config?.resolveFile?.(filename) || filename;
+    const options = new InkCompilerOptions(
+      filename,
+      [],
+      false,
+      (message: string) => {
+        console.error(message);
       },
-      LoadInkFileContents: (filepath: string): string => {
-        this._latestKnot = undefined;
-        this._latestStitch = undefined;
-        program.sourceMap ??= {};
-        return this.transpile(
-          this._config?.readFile?.(filepath) || "",
-          filepath,
-          program.sourceMap
-        );
-      },
-    });
+      {
+        ResolveInkFilename: (filename: string): string => {
+          return this._config?.resolveFile?.(filename) || filename;
+        },
+        LoadInkFileContents: (filepath: string): string => {
+          this._latestKnot = undefined;
+          this._latestStitch = undefined;
+          program.sourceMap ??= {};
+          return this.transpile(
+            this._config?.readFile?.(filepath) || "",
+            filepath,
+            program.sourceMap
+          );
+        },
+      }
+    );
     const inkCompiler = new InkCompiler(transpiledScript, options);
     try {
       const compiledJSON = inkCompiler.Compile().ToJson();
