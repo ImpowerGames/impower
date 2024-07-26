@@ -38,8 +38,6 @@ export abstract class Module<
 
   abstract getStored(): string[];
 
-  abstract getCommands(): Record<string, CommandRunner<G>>;
-
   /** Executed when the game is initialized (after it is safe to emit game messages) */
   async onInit(): Promise<void> {}
 

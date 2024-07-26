@@ -2191,7 +2191,7 @@
       ]
     },
     "MultilineConditionalText": {
-      "begin": "^(?=.)",
+      "begin": "^(?=[^\\S\\n\\r]*\\S)",
       "patterns": [
         {
           "include": "#Annotation"
@@ -2206,6 +2206,9 @@
           "include": "#InlineDialogue"
         },
         {
+          "include": "#InlineDialogueNoContent"
+        },
+        {
           "include": "#Transition"
         },
         {
@@ -2218,7 +2221,7 @@
           "include": "#DisplayText"
         }
       ],
-      "end": "(?=$)"
+      "end": "(?=$|[^\\S\\n\\r]*[}])"
     },
     "PipeAhead": {
       "match": "(?=[|])"
@@ -3148,6 +3151,29 @@
       ],
       "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
+    "InlineDialogueNoContent": {
+      "match": "([^\\S\\n\\r]*)([@](?:$|[^\\S\\n\\r]+))($|[^:]+$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "definition(typeName)",
+          "name": "entity.name.type.dialogue.character.name.sd"
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#DialogueCharacterName"
+            }
+          ]
+        }
+      }
+    },
     "BlockDialogue": {
       "tag": "string",
       "name": "string.dialogue.sd",
@@ -3183,6 +3209,18 @@
           "include": "#Newline"
         },
         {
+          "include": "#BlockDialogueLine"
+        }
+      ],
+      "end": "(?=^[^\\S\\n\\r]*$)"
+    },
+    "BlockDialogueLine": {
+      "begin": "^(?=[^\\S\\n\\r]*\\S)",
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
           "include": "#CommandLine"
         },
         {
@@ -3195,10 +3233,10 @@
           "include": "#LineEnd"
         }
       ],
-      "end": "(?=^[^\\S\\n\\r]*$)"
+      "end": "(?=$)"
     },
     "DialogueCharacter": {
-      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\^)?((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "match": "([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([(][^()]*?[)])?($|[^\\S\\n\\r]*)(\\^|<|>)?((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3238,7 +3276,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#DialogueCharacterSimultaneous"
+              "include": "#DialogueCharacterPosition"
             }
           ]
         },
@@ -3279,9 +3317,9 @@
         }
       }
     },
-    "DialogueCharacterSimultaneous": {
-      "tag": "definition(propertyName)",
-      "name": "variable.other.property.dialogue.character.simultaneous.sd",
+    "DialogueCharacterPosition": {
+      "tag": "definition(escape)",
+      "name": "constant.character.escape.dialogue.character.position.sd",
       "match": "(.+$)"
     },
     "Transition": {
@@ -3387,10 +3425,10 @@
           "include": "#LineEnd"
         }
       ],
-      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)|(?=^[@][^\\S\\n\\r])|(?=^[$][^\\S\\n\\r])|(?=^[%][^\\S\\n\\r])"
+      "end": "(?=^[^\\S\\n\\r]*$)|(?=\\r\\n|\\r|\\n)"
     },
     "ParentheticalLine": {
-      "match": "^([^\\S\\n\\r]*)([(][^()]*?[)])((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
+      "match": "^([^\\S\\n\\r]*)([(][^()]*?[)])((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3410,13 +3448,6 @@
           "patterns": [
             {
               "include": "#EndOfLine"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Newline"
             }
           ]
         }
@@ -3553,7 +3584,7 @@
       ]
     },
     "CommandLine": {
-      "match": "^([^\\S\\n\\r]*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|[<](?:\\\\.|[^>])*?[>]|[^\\S\\n\\r]+)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
+      "match": "^([^\\S\\n\\r]*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|[<](?:\\\\.|[^>])*?[>]|[^\\S\\n\\r]+)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
           "patterns": [
@@ -3573,13 +3604,6 @@
           "patterns": [
             {
               "include": "#EndOfLine"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#Newline"
             }
           ]
         }

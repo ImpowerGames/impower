@@ -61,40 +61,51 @@ export default class SparkParser {
     sourceMap: Record<string, string[]>
   ): string {
     const nodeNames = this._grammar.nodeNames;
-    const lines = script.split(NEWLINE_REGEX);
-    const tree = this.buildTree(script);
+    // Pad script so we ensure all scopes are properly closed before the end of the file.
+    const paddedScript = script + "\n\n";
+    const lines = paddedScript.split(NEWLINE_REGEX);
+    const tree = this.buildTree(paddedScript);
     let lineIndex = 0;
-    let linePos = 0;
+    let inBlockDialogue = false;
     tree.iterate({
       enter: (node) => {
         const id = nodeNames[node.type]! as SparkdownNodeName;
+        if (id === "BlockDialogue_begin") {
+          inBlockDialogue = true;
+        }
+      },
+      leave: (node) => {
+        const id = nodeNames[node.type]! as SparkdownNodeName;
         if (id === "KnotDeclarationName" || id === "FunctionDeclarationName") {
-          this._latestKnot = script.slice(node.from, node.to).trim();
+          this._latestKnot = paddedScript.slice(node.from, node.to).trim();
           this._latestStitch = undefined;
         }
         if (id === "StitchDeclarationName") {
-          this._latestStitch = script.slice(node.from, node.to).trim();
+          this._latestStitch = paddedScript.slice(node.from, node.to).trim();
         }
-        if (id === "CommandLineContent" || id === "ParentheticalContent") {
-          const lineText = lines[lineIndex] || "";
-          const lineTextBefore = lineText.slice(0, node.to - linePos);
-          const lineTextAfter = lineText.slice(node.to - linePos);
-          const trimmedLineTextBefore = lineTextBefore.trimEnd();
-          const trimmedLineTextAfter = lineTextAfter.trimStart();
-          if (
-            !trimmedLineTextBefore.endsWith("\\") &&
-            !trimmedLineTextAfter.startsWith("\\") &&
-            lines[lineIndex + 1]?.trim()
-          ) {
-            // CommandLine and ParentheticalLine should end with implicit \
-            const augmentedLine =
-              trimmedLineTextBefore + "\\ " + trimmedLineTextAfter;
-            lines[lineIndex] = augmentedLine.trimEnd();
+        if (id === "BlockDialogue_end") {
+          inBlockDialogue = false;
+        }
+        if (id === "LineEnd") {
+          if (inBlockDialogue) {
+            const lineText = lines[lineIndex]?.trimEnd() || "";
+            if (!lineText.endsWith(" >>")) {
+              // All dialogue LineEnd should end with implicit >>
+              // (To signify that text should wait for click to continue)
+              lines[lineIndex] = lineText + " >>";
+            }
+          }
+        }
+        if (id === "BlockDialogue_begin" || id === "BlockDialogueLine") {
+          const lineText = lines[lineIndex]?.trimEnd() || "";
+          if (!lineText.endsWith("\\")) {
+            // All dialogue lines should end with implicit \
+            // (So they are grouped together at runtime)
+            lines[lineIndex] = lineText + "\\";
           }
         }
         if (id === "Newline") {
           lineIndex += 1;
-          linePos = node.to;
 
           let closestPath = "";
           if (this._latestKnot && this._latestStitch) {
@@ -113,7 +124,7 @@ export default class SparkParser {
     });
     const transpiled = lines.join("\n");
     // console.log(printTree(tree, script, nodeNames));
-    // console.log(transpiled);
+    console.log(transpiled);
     return transpiled;
   }
 

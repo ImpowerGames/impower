@@ -1,3 +1,6 @@
-import { TextEvent } from "../../../core/types/SequenceEvent";
+import { TextInstruction } from "../../../core/types/Instruction";
 
-export type TextState = Omit<TextEvent, "type" | "instance" | "enter" | "exit">;
+export type TextState = Omit<
+  TextInstruction,
+  "type" | "instance" | "enter" | "exit"
+>;

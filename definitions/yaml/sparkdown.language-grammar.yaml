@@ -1188,17 +1188,18 @@ repository:
       - { include: "#DisplayText" }
 
   MultilineConditionalText:
-    begin: ^(?=.)
+    begin: ^(?={{WS}}*\S)
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#MultilineCloseBraceAhead" }
       - { include: "#InlineDialogue" }
+      - { include: "#InlineDialogueNoContent" }
       - { include: "#Transition" }
       - { include: "#Scene" }
       - { include: "#Action" }
       - { include: "#DisplayText" }
-    end: (?=$)
+    end: (?=$|{{WS}}*[}])
 
   PipeAhead:
     match: (?=[|])
@@ -1804,6 +1805,19 @@ repository:
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
       
+  InlineDialogueNoContent:
+    match: ({{WS}}*)([@](?:$|{{WS}}+))($|[^:]+$)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        tag: definition(typeName)
+        name: entity.name.type.dialogue.character.name.sd
+      3:
+        patterns:
+          - { include: "#DialogueCharacterName" }
+
   BlockDialogue:
     tag: string
     name: string.dialogue.sd
@@ -1822,14 +1836,21 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
+      - { include: "#BlockDialogueLine" }
+    end: (?=^{{WS}}*$)
+
+  BlockDialogueLine:
+    begin: ^(?={{WS}}*\S)
+    patterns:
+      - { include: "#Annotation" }
       - { include: "#CommandLine" }
       - { include: "#ParentheticalLine" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
-    end: (?=^{{WS}}*$)
+    end: (?=$)
 
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\^)?({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\^|<|>)?({{EOL}})
     captures:
       1:
         patterns:
@@ -1848,7 +1869,7 @@ repository:
           - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#DialogueCharacterSimultaneous" }
+          - { include: "#DialogueCharacterPosition" }
       7:
         patterns:
           - { include: "#EndOfLine" }
@@ -1871,9 +1892,9 @@ repository:
         patterns:
           - { include: "#DisplayText" }
 
-  DialogueCharacterSimultaneous:
-    tag: definition(propertyName)
-    name: variable.other.property.dialogue.character.simultaneous.sd
+  DialogueCharacterPosition:
+    tag: definition(escape)
+    name: constant.character.escape.dialogue.character.position.sd
     match: (.+$)
 
 ########## Transition ##########
@@ -1934,12 +1955,12 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=^[@]{{WS}})|(?=^[$]{{WS}})|(?=^[%]{{WS}})
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
 ########## Parenthetical ##########
 
   ParentheticalLine:
-    match: ^({{WS}}*)([(][^()]*?[)])({{EOL}})(\r\n|\r|\n)?
+    match: ^({{WS}}*)([(][^()]*?[)])({{EOL}})
     captures:
       1:
         patterns:
@@ -1950,9 +1971,6 @@ repository:
       3:
         patterns:
           - { include: "#EndOfLine" }
-      4:
-        patterns:
-          - { include: "#Newline" }
 
   ParentheticalContent:
     tag: escape
@@ -2026,7 +2044,7 @@ repository:
 ########## Commands ##########
 
   CommandLine:
-    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|[<](?:\\.|[^>])*?[>]|{{WS}}+)+)({{EOL}})(\r\n|\r|\n)?
+    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|[<](?:\\.|[^>])*?[>]|{{WS}}+)+)({{EOL}})
     captures:
       1:
         patterns:
@@ -2037,9 +2055,6 @@ repository:
       3:
         patterns:
           - { include: "#EndOfLine" }
-      4:
-        patterns:
-          - { include: "#Newline" }
 
   CommandLineContent:
     match: (.+)

@@ -1,7 +1,6 @@
 import { Module } from "../../../core/classes/Module";
-import { AudioEvent } from "../../../core/types/SequenceEvent";
+import { AudioInstruction } from "../../../core/types/Instruction";
 import { AudioBuiltins, audioBuiltins } from "../audioBuiltins";
-import { audioCommands } from "../audioCommands";
 import { AudioMixerUpdate } from "../types/AudioMixerUpdate";
 import { AudioPlayerUpdate } from "../types/AudioPlayerUpdate";
 import { ChannelState } from "../types/ChannelState";
@@ -47,10 +46,6 @@ export class AudioModule extends Module<
 
   override getStored() {
     return [];
-  }
-
-  override getCommands() {
-    return audioCommands(this._game);
   }
 
   override async onRestore() {
@@ -282,7 +277,7 @@ export class AudioModule extends Module<
 
   protected process(
     channel: string,
-    event: AudioEvent,
+    event: AudioInstruction,
     data: LoadAudioPlayerParams
   ): AudioPlayerUpdate {
     const key = data?.key;
@@ -390,7 +385,11 @@ export class AudioModule extends Module<
     }
   }
 
-  queue(channel: string, sequence: AudioEvent[], autoTrigger = false): number {
+  queue(
+    channel: string,
+    sequence: AudioInstruction[],
+    autoTrigger = false
+  ): number {
     const channelDef = this.context?.channel?.[channel];
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];

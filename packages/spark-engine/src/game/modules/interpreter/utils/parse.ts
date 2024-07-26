@@ -1,20 +1,19 @@
 import { GameContext } from "../../../core/types/GameContext";
 import {
-  AudioEvent,
-  ImageEvent,
-  TextEvent,
-} from "../../../core/types/SequenceEvent";
+  AudioInstruction,
+  ImageInstruction,
+  TextInstruction,
+} from "../../../core/types/Instruction";
+import { Instructions } from "../../../core/types/Instructions";
 import { Matcher } from "../classes/helpers/Matcher";
 import { Chunk } from "../types/Chunk";
 import { Phrase } from "../types/Phrase";
-import { WriteResult } from "../types/WriteResult";
 import { stressPhrases } from "./stressPhrases";
 
 const SINGLE_MARKERS = ["^", "*", "_"];
 const DOUBLE_MARKERS = ["~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
-const CHARACTER_REGEX = /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(\^)?([ \t]*)$/;
 const PARENTHETICAL_REGEX = /^([ \t]*)([(][^()]*?[)])?([ \t]*)$/;
 const ASSET_CONTROL_KEYWORDS = [
   "show",
@@ -71,13 +70,6 @@ const isSpace = (part: string | undefined) => {
     }
   }
   return true;
-};
-
-const isSpaceOrEmpty = (part: string | undefined) => {
-  if (!part) {
-    return true;
-  }
-  return isSpace(part);
 };
 
 const isDash = (part: string) => {
@@ -283,44 +275,39 @@ const createAssetChunk = (
   };
 };
 
-const getCharacterKey = (characterName: string) => {
-  return characterName
-    .replace(/([ ])/g, "_")
-    .replace(/([.'"`])/g, "")
-    .toLowerCase();
-};
-
-export interface WriteOptions {
-  target: string;
+export interface InstructionOptions {
   delay?: number;
-  instant?: boolean;
-  debug?: boolean;
+  character?: string;
+  position?: string;
+  context?: GameContext;
 }
 
-export const write = (
+export const parse = (
   content: string,
-  context: GameContext,
-  options?: WriteOptions
-): WriteResult => {
+  target: string,
+  options?: InstructionOptions
+): Instructions => {
   const allPhrases: Phrase[] = [];
 
-  const textTargetOverride = options?.target;
+  const textTarget = target;
   const delay = options?.delay || 0;
-  const instant = options?.instant;
-  const debug = options?.debug;
+  const context = options?.context;
+  const debug = context?.system.debugging;
+  let character: string | undefined = options?.character;
 
-  const textTargetPrefixes: Record<string, string> = {};
-  for (const [k, v] of Object.entries(context["writer"])) {
+  const textTargetPrefixMap: Record<string, string> = {};
+  const textTargetPrefixKeys: string[] = [];
+  for (const [k, v] of Object.entries(context?.["writer"] || {})) {
     if (
       typeof v === "object" &&
       v &&
       "prefix" in v &&
       typeof v.prefix === "string"
     ) {
-      textTargetPrefixes[v.prefix] = k;
+      textTargetPrefixMap[v.prefix] = k;
+      textTargetPrefixKeys.push(v.prefix);
     }
   }
-  let character = "";
   let consecutiveLettersLength = 0;
   let word = "";
   let dashLength = 0;
@@ -753,63 +740,15 @@ export const write = (
     return linePhrases;
   };
 
-  const defaultTextTarget = textTargetPrefixes[""] || "";
-  let currentTextTarget = textTargetOverride || defaultTextTarget;
-
-  const lines = content.split("\n");
+  const lines = content?.trim().split("\n");
   for (let l = 0; l < lines.length; l += 1) {
-    let line = lines[l]!?.trim();
-    if (!textTargetOverride) {
-      // Current text target can only be set once per block of lines
-      // (So after the target has been set to something other than default,
-      // all prefix symbols are just printed as plain text)
-      if (currentTextTarget === defaultTextTarget) {
-        // Check if line starts with a target prefix symbol
-        // (prefix symbol must be followed by space or nothing)
-        let lineTextTarget =
-          line[0] && isSpaceOrEmpty(line[1])
-            ? textTargetPrefixes[line[0]]
-            : undefined;
-        if (lineTextTarget === "dialogue") {
-          const dialogueSeparatorIndex = line.indexOf(":");
-          if (dialogueSeparatorIndex < 0) {
-            // Character name and dialogue content must be separated by colon,
-            // or else all text is just displayed as is
-            lineTextTarget = defaultTextTarget;
-          } else {
-            // Trim away starting prefix symbol
-            line = line.slice(1).trimStart();
-            const characterDeclaration = line
-              .slice(0, dialogueSeparatorIndex)
-              .trim();
-            line = line.slice(dialogueSeparatorIndex + 1).trimStart();
-            if (characterDeclaration) {
-              const match = characterDeclaration.match(CHARACTER_REGEX);
-              const characterName = match?.[1] || "";
-              const characterParenthetical = match?.[3] || "";
-              // const characterSimultaneous = match?.[5] || "";
-              character = getCharacterKey(characterName);
-              if (characterName) {
-                processLine(characterName, "character_name");
-              }
-              if (characterParenthetical) {
-                processLine(characterParenthetical, "character_parenthetical");
-              }
-            }
-          }
-        } else if (lineTextTarget) {
-          // Trim away starting prefix symbol
-          line = line.slice(1).trimStart();
-        }
-        currentTextTarget = lineTextTarget || defaultTextTarget;
-      }
-      if (line.match(PARENTHETICAL_REGEX)) {
-        // TODO: Treat parentheticals as a markup style instead of a special target
-        processLine(line, "parenthetical");
-        continue;
-      }
+    const line = lines[l]!?.trimStart();
+    if (line.match(PARENTHETICAL_REGEX)) {
+      // TODO: Treat parentheticals as a markup style instead of a special target
+      processLine(line, "parenthetical");
+      continue;
     }
-    const linePhrases = processLine(line, currentTextTarget);
+    const linePhrases = processLine(line, textTarget);
     if (l < lines.length - 1) {
       if (line) {
         const lastTextPhrase = linePhrases.findLast((p) => p.text);
@@ -820,7 +759,7 @@ export const write = (
         }
       } else {
         allPhrases.push({
-          target: currentTextTarget,
+          target: textTarget,
           text: "\n",
           chunks: [{ text: "\n", duration: 0, speed: 1 }],
         });
@@ -867,15 +806,12 @@ export const write = (
     }
   });
 
-  if (character && !instant && !context.system?.simulating) {
+  if (character && !context?.system?.simulating) {
     stressPhrases(allPhrases, getValue(context, "character", character));
   }
 
   let time = delay;
-  const result: WriteResult = {
-    text: {},
-    image: {},
-    audio: {},
+  const result: Instructions = {
     end: 0,
   };
   const synthEvents: Record<
@@ -892,7 +828,7 @@ export const write = (
       phrase.chunks.forEach((c) => {
         // Text Event
         if (c.text != null) {
-          const event: TextEvent = { control: "show", text: c.text };
+          const event: TextInstruction = { control: "show", text: c.text };
           if (time) {
             event.after = time;
           }
@@ -956,7 +892,7 @@ export const write = (
         }
         // Image Event
         if (c.tag === "image") {
-          const event: ImageEvent = {
+          const event: ImageInstruction = {
             control: c.control || "show",
             assets: c.assets,
           };
@@ -999,7 +935,7 @@ export const write = (
         }
         // Audio Event
         if (c.tag === "audio") {
-          const event: AudioEvent = {
+          const event: AudioInstruction = {
             control: c.control || "play",
             assets: c.assets,
           };
@@ -1045,7 +981,7 @@ export const write = (
           result.audio[target]!.push(event);
         }
         // Synth Event
-        if (c.duration && !instant) {
+        if (c.duration) {
           if (c.punctuatedSyllable) {
             const synthName = getValueName(context, "synth", "writer");
             synthEvents[synthName] ??= [];

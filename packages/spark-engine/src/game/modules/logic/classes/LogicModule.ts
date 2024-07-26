@@ -12,7 +12,6 @@ import { format } from "../../../core/utils/format";
 import { randomizer } from "../../../core/utils/randomizer";
 import { shuffle } from "../../../core/utils/shuffle";
 import { LogicBuiltins, logicBuiltins } from "../logicBuiltins";
-import { logicCommands } from "../logicCommands";
 import { BlockData } from "../types/BlockData";
 import { CommandData } from "../types/CommandData";
 import { DocumentSource } from "../types/DocumentSource";
@@ -194,10 +193,6 @@ export class LogicModule extends Module<
 
   override getStored() {
     return ["visited"];
-  }
-
-  override getCommands() {
-    return logicCommands(this._game);
   }
 
   override onStart() {

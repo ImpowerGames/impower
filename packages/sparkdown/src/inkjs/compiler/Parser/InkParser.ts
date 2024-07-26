@@ -83,8 +83,6 @@ export class InkParser extends StringParser {
     return Array.from(this._parsedFiles);
   }
 
-  protected _linePrefix = "";
-
   constructor(
     str: string,
     filename: string | null = null,
@@ -243,14 +241,6 @@ export class InkParser extends StringParser {
 
   set tagActive(value: boolean) {
     this.SetFlag(Number(CustomFlags.TagActive), value);
-  }
-
-  get dialogueActive(): boolean {
-    return this.GetFlag(Number(CustomFlags.DialogueActive));
-  }
-
-  set dialogueActive(value: boolean) {
-    this.SetFlag(Number(CustomFlags.DialogueActive), value);
   }
 
   public readonly OnStringParserError = (
@@ -1037,8 +1027,7 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    let result = this.Interleave<ParsedObject>(
-      this.Optional(this.FrontMatterField),
+    let result = this.ParseRuleUntil<ParsedObject>(
       this.Optional(this.FrontMatterField),
       this.EndOfFrontMatterBlock
     );
@@ -1124,33 +1113,6 @@ export class InkParser extends StringParser {
     return this.OneOf([this.String("---"), this.EndOfFile]);
   };
 
-  public readonly DialogueBlock = (): ParsedObject[] | null => {
-    const firstLine = this.LineRemainder();
-    if (firstLine[0] !== "@" || firstLine.includes(":")) {
-      return null;
-    }
-
-    this.dialogueActive = true;
-    this._linePrefix = firstLine + ": ";
-
-    this.Parse(this.SkipToNextLine);
-
-    const lines = this.Interleave<ParsedObject>(
-      this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
-      this.Optional(this.LineOfMixedTextAndLogicNoWarnings),
-      this.EndOfDialogueBlock
-    ) as (Text | Tag)[];
-
-    this.dialogueActive = false;
-    this._linePrefix = "";
-
-    return lines;
-  };
-
-  public readonly EndOfDialogueBlock = (): ParseRuleReturn => {
-    return this.OneOf([this.EmptyLine, this.EndOfFile]);
-  };
-
   public readonly LineOfMixedTextAndLogic = (): ParsedObject[] | null => {
     // Consume any whitespace at the start of the line
     // (Except for escaped whitespace)
@@ -1196,10 +1158,6 @@ export class InkParser extends StringParser {
 
     if (!lineIsPureTag) {
       result.push(new Text("\n"));
-    }
-
-    if (this._linePrefix) {
-      result.unshift(new Text(this._linePrefix));
     }
 
     this.Expect(this.EndOfLine, "end of line", this.SkipToNextLine);
@@ -1374,7 +1332,7 @@ export class InkParser extends StringParser {
     // "-": possible start of divert or start of gather
     // "<": possible start of glue
     if (this._nonTextPauseCharacters === null) {
-      this._nonTextPauseCharacters = new CharacterSet("-<#");
+      this._nonTextPauseCharacters = new CharacterSet("-<#/");
     }
 
     // If we hit any of these characters, we stop *immediately* without bothering to even check the nonTextRule
@@ -3618,8 +3576,6 @@ export class InkParser extends StringParser {
       const level = l as number;
       const rulesAtLevel: ParseRule[] = [];
       const breakingRules: ParseRule[] = [];
-
-      rulesAtLevel.push(this.DialogueBlock);
 
       rulesAtLevel.push(this.FrontMatterBlock);
 

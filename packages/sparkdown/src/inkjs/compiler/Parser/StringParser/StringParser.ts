@@ -604,6 +604,42 @@ export class StringParser {
     return result;
   };
 
+  public readonly ParseRuleUntil = <T>(
+    rule: ParseRule,
+    untilTerminator: ParseRule | null = null,
+    flatten: boolean = true
+  ): T[] => {
+    const ruleId: number = this.BeginRule();
+    const results: T[] = [];
+
+    let lastMainResult: ParseRuleReturn | null = null;
+    do {
+      // "until" condition hit?
+      if (untilTerminator !== null && this.Peek(untilTerminator) !== null) {
+        break;
+      }
+
+      lastMainResult = this.ParseObject(rule);
+      if (lastMainResult === null) {
+        break;
+      } else {
+        this.TryAddResultToList(lastMainResult, results, flatten);
+      }
+
+      // Stop if there are no results, or if result is the placeholder "ParseSuccess" (i.e. Optional success rather than a true value)
+    } while (
+      lastMainResult !== null &&
+      (lastMainResult as any) !== StringParser.ParseSuccess &&
+      this.remainingLength > 0
+    );
+
+    if (results.length === 0) {
+      return this.FailRule(ruleId) as T[];
+    }
+
+    return this.SucceedRule(ruleId, results) as T[];
+  };
+
   public ParseUntil(
     stopRule: ParseRule,
     pauseCharacters: CharacterSet | null = null,

@@ -1,7 +1,6 @@
 import { Story } from "../../../../../sparkdown/src/inkjs/engine/Story";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { GameContext } from "../types/GameContext";
-import { ICommandRunner } from "../types/ICommandRunner";
 import { InstanceMap } from "../types/InstanceMap";
 import { Message } from "../types/Message";
 import { NotificationMessage } from "../types/NotificationMessage";
@@ -9,12 +8,11 @@ import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
 import { evaluate } from "../utils/evaluate";
 import { getAllProperties } from "../utils/getAllProperties";
-import { getValidVariableName } from "../utils/getValidVariableName";
 import { setProperty } from "../utils/setProperty";
 import { uuid } from "../utils/uuid";
 import { Connection } from "./Connection";
+import { Coordinator } from "./Coordinator";
 import { Module } from "./Module";
-import { EventMessage } from "./messages/EventMessage";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -33,11 +31,6 @@ export class Game<T extends M = {}> {
   protected _stored: string[] = [];
   public get stored() {
     return this._stored;
-  }
-
-  protected _commands = new Map<string, ICommandRunner>();
-  get commands() {
-    return this._commands;
   }
 
   protected _latestCheckpointId = "";
@@ -63,6 +56,8 @@ export class Game<T extends M = {}> {
   }
 
   protected _story: Story;
+
+  protected _coordinator: Coordinator<typeof this> | null = null;
 
   public get currentTags() {
     return this._story.currentTags;
@@ -120,7 +115,7 @@ export class Game<T extends M = {}> {
         this._modules[name] = new ctr(this);
       }
     }
-    // Register builtins and commands of all modules
+    // Register builtins of all modules
     for (const key of moduleNames) {
       const name = key as keyof typeof allModules;
       const module = this._modules[name];
@@ -145,12 +140,6 @@ export class Game<T extends M = {}> {
         const moduleStored = module.getStored();
         if (moduleStored) {
           this._stored.push(...moduleStored);
-        }
-        const moduleCommands = module.getCommands();
-        if (moduleCommands) {
-          for (const [k, v] of Object.entries(moduleCommands)) {
-            this._commands.set(k, v);
-          }
         }
       }
     }
@@ -190,8 +179,7 @@ export class Game<T extends M = {}> {
         }
       }
     }
-
-    console.log("context", this._context);
+    // console.log("context", this._context);
   }
 
   supports(name: string): boolean {
@@ -228,6 +216,9 @@ export class Game<T extends M = {}> {
       for (const k of this._moduleNames) {
         this._modules[k]?.onUpdate(deltaMS);
       }
+      if (this._coordinator) {
+        this._coordinator.onUpdate(deltaMS);
+      }
     }
   }
 
@@ -245,6 +236,7 @@ export class Game<T extends M = {}> {
     this._moduleNames = [];
     this._connection.incoming.removeAllListeners();
     this._connection.outgoing.removeAllListeners();
+    this._coordinator = null;
   }
 
   protected cache(cache: object, accessPath: string) {
@@ -279,6 +271,7 @@ export class Game<T extends M = {}> {
     }
     this._latestCheckpointId = checkpointId;
     this._latestCheckpointData = this._story.state.ToJson();
+    // console.warn(JSON.stringify(this._latestCheckpointData));
     // TODO: this._latestCheckpointData = this.serialize();
   }
 
@@ -299,12 +292,8 @@ export class Game<T extends M = {}> {
         module.onReceiveNotification(msg);
       }
     }
-    // TODO: Have DisplayCommand listen for pointerdown instead
-    if (EventMessage.type.isNotification(msg)) {
-      const params = msg.params;
-      if (params.type === "pointerdown") {
-        this.continue();
-      }
+    if (this._coordinator) {
+      this._coordinator.onMessage(msg);
     }
     return undefined;
   }
@@ -332,37 +321,27 @@ export class Game<T extends M = {}> {
   }
 
   continue() {
-    if (this._story.canContinue) {
+    this._coordinator = null;
+    if (this.module.interpreter.canFlush()) {
+      this.checkpoint();
+      const instructions = this.module.interpreter.flush();
+      if (instructions) {
+        this._coordinator = new Coordinator(this, instructions);
+      }
+    } else if (this._story.canContinue) {
       this._story.Continue();
-      const currentText = this._story.currentText;
-      const currentChoices = this._story.currentChoices;
-      let contentWriteDuration = 0;
-      if (currentText) {
-        const contentEvents = this.module.writer.write(currentText);
-        contentWriteDuration = contentEvents.end;
-        console.log(JSON.stringify(currentText), contentEvents);
-      }
-      if (currentChoices) {
-        for (let i = 0; i < currentChoices.length; i += 1) {
-          const choice = currentChoices[i]!.text;
-          const choiceEvents = this.module.writer.write(choice, {
-            target: `choice_${i}`,
-            delay: contentWriteDuration,
-          });
-          console.log(JSON.stringify(choice), choiceEvents);
-        }
-      }
+      const currentText = this._story.currentText || "";
+      const currentChoices = this._story.currentChoices.map((c) => c.text);
+      this.module.interpreter.queue(currentText, currentChoices);
+      this.continue();
     }
   }
 
   choose(index: number) {
-    // TODO: Clear all displaying text and choices
     // Tell the story where to go next
     this._story.ChooseChoiceIndex(index);
     // Save after every choice
     this.checkpoint();
-    // And then continue on
-    this.continue();
   }
 
   loadSave(saveData: string) {

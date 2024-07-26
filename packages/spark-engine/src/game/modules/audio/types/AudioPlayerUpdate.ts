@@ -1,6 +1,6 @@
-import { AudioEvent } from "../../../core/types/SequenceEvent";
+import { AudioInstruction } from "../../../core/types/Instruction";
 
-export interface AudioPlayerUpdate extends AudioEvent {
+export interface AudioPlayerUpdate extends AudioInstruction {
   control?: string;
   channel?: string;
   mixer?: string;

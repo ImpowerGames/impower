@@ -68,6 +68,8 @@
     "noloop",
     "Sparkdown",
     "Struct",
+    "textbox",
+    "textboxes",
     "unmuting"
   ],
   "files.exclude": {

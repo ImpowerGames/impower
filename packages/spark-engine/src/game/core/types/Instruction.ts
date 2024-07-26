@@ -1,4 +1,4 @@
-export interface ISequenceEvent {
+export interface IInstruction {
   control?: string;
   after?: number;
   over?: number;
@@ -9,7 +9,7 @@ export interface ISequenceEvent {
   withOver?: number;
 }
 
-export interface TextEvent extends ISequenceEvent {
+export interface TextInstruction extends IInstruction {
   text: string;
   style?: {
     position?: string;
@@ -28,7 +28,7 @@ export interface TextEvent extends ISequenceEvent {
   };
 }
 
-export interface ImageEvent extends ISequenceEvent {
+export interface ImageInstruction extends IInstruction {
   assets?: string[];
   style?: {
     position?: string;
@@ -36,12 +36,16 @@ export interface ImageEvent extends ISequenceEvent {
   };
 }
 
-export interface AudioEvent extends ISequenceEvent {
+export interface AudioInstruction extends IInstruction {
   assets?: string[];
   now?: boolean;
   loop?: boolean;
 }
 
-export interface EndEvent extends ISequenceEvent {}
+export interface EndInstruction extends IInstruction {}
 
-export type SequenceEvent = TextEvent | ImageEvent | AudioEvent | EndEvent;
+export type Instruction =
+  | TextInstruction
+  | ImageInstruction
+  | AudioInstruction
+  | EndInstruction;

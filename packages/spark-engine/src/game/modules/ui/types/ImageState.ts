@@ -1,6 +1,6 @@
-import { ImageEvent } from "../../../core/types/SequenceEvent";
+import { ImageInstruction } from "../../../core/types/Instruction";
 
 export type ImageState = Omit<
-  ImageEvent,
+  ImageInstruction,
   "type" | "instance" | "enter" | "exit"
 >;

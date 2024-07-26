@@ -340,14 +340,19 @@ const decorate = (state: EditorState) => {
         });
         return true;
       }
-      if (name === "DialogueCharacterSimultaneous") {
+      if (name === "DialogueCharacterPosition") {
         const value = doc.sliceString(from, to).trim();
         if (value) {
           inDualDialogue = true;
-          if (!dialoguePosition) {
+          if (value === "^") {
+            dialoguePosition += 1;
+          }
+          if (value === "<") {
             dialoguePosition = 1;
           }
-          dialoguePosition += 1;
+          if (value === ">") {
+            dialoguePosition = 2;
+          }
         } else {
           inDualDialogue = false;
           dialoguePosition = 0;

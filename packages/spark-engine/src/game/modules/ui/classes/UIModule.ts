@@ -4,7 +4,10 @@ import { EventMessage } from "../../../core/classes/messages/EventMessage";
 import { Event } from "../../../core/types/Event";
 import { EventMap } from "../../../core/types/EventMap";
 import { NotificationMessage } from "../../../core/types/NotificationMessage";
-import { ImageEvent, TextEvent } from "../../../core/types/SequenceEvent";
+import {
+  ImageInstruction,
+  TextInstruction,
+} from "../../../core/types/Instruction";
 import { getAllProperties } from "../../../core/utils/getAllProperties";
 import { Animation } from "../types/Animation";
 import { ElementContent } from "../types/ElementContent";
@@ -12,7 +15,6 @@ import { ElementState } from "../types/ElementState";
 import { ImageState } from "../types/ImageState";
 import { TextState } from "../types/TextState";
 import { UIBuiltins, uiBuiltins } from "../uiBuiltins";
-import { uiCommands } from "../uiCommands";
 import { Element } from "./helpers/Element";
 import {
   AnimateElementMessage,
@@ -86,10 +88,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override getStored(): string[] {
     return [];
-  }
-
-  override getCommands() {
-    return uiCommands(this._game);
   }
 
   override async onInit() {
@@ -537,7 +535,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   queueAnimationEvent(
-    event: TextEvent | ImageEvent,
+    event: TextInstruction | ImageInstruction,
     instant: boolean,
     animations: Animation[]
   ): void {
@@ -661,7 +659,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   Text = (($) => {
     class Text {
-      protected saveState(target: string, sequence: TextEvent[] | null) {
+      protected saveState(target: string, sequence: TextInstruction[] | null) {
         $._state.text ??= {};
         $._state.text[target] ??= [];
         const state = $._state.text[target]!;
@@ -702,7 +700,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected applyChanges(
         target: string,
-        sequence: TextEvent[] | null,
+        sequence: TextInstruction[] | null,
         instant: boolean
       ): void {
         const elementAnimations = new Map<Element, Animation[]>();
@@ -800,7 +798,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         });
       }
 
-      write(target: string, sequence: TextEvent[], instant = false): void {
+      write(
+        target: string,
+        sequence: TextInstruction[],
+        instant = false
+      ): void {
         this.saveState(target, sequence);
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
@@ -836,7 +838,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   Image = (($) => {
     class Image {
-      protected saveState(target: string, sequence: ImageEvent[] | null) {
+      protected saveState(target: string, sequence: ImageInstruction[] | null) {
         $._state.image ??= {};
         $._state.image[target] ??= {};
         const state = $._state.image[target]!;
@@ -891,7 +893,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       protected applyChanges(
         target: string,
-        sequence: ImageEvent[] | null,
+        sequence: ImageInstruction[] | null,
         instant: boolean
       ): void {
         const elementAnimations = new Map<Element, Animation[]>();
@@ -982,7 +984,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         });
       }
 
-      write(target: string, sequence: ImageEvent[], instant = false): void {
+      write(
+        target: string,
+        sequence: ImageInstruction[],
+        instant = false
+      ): void {
         this.saveState(target, sequence);
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);

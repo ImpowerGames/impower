@@ -1,6 +1,5 @@
 import { Module } from "../../../core/classes/Module";
 import { FlowBuiltins, flowBuiltins } from "../flowBuiltins";
-import { flowCommands } from "../flowCommands";
 import { DidExecuteMessageMap } from "./messages/DidExecuteMessage";
 import { WillExecuteMessageMap } from "./messages/WillExecuteMessage";
 
@@ -22,10 +21,6 @@ export class FlowModule extends Module<
 
   override getStored() {
     return [];
-  }
-
-  override getCommands() {
-    return flowCommands(this._game);
   }
 
   override onStart() {}

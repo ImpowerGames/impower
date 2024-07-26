@@ -6,7 +6,6 @@ import { EntityState } from "../types/EntityState";
 import { createCameraState } from "../utils/createCameraState";
 import { createEntityState } from "../utils/createEntityState";
 import { WorldBuiltins, worldBuiltins } from "../worldBuiltins";
-import { worldCommands } from "../worldCommands";
 import {
   DestroyCameraMessage,
   DestroyCameraMessageMap,
@@ -51,10 +50,6 @@ export class WorldModule extends Module<
 
   override getStored(): string[] {
     return [];
-  }
-
-  override getCommands() {
-    return worldCommands(this._game);
   }
 
   private getCameraState(cameraId?: string): CameraState | undefined {

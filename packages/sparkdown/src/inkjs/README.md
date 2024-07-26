@@ -64,41 +64,7 @@ This allows us to utilize markdown-esque styling syntax at the start of a line w
 
 ---
 
-### 2. The `@` operator will open a dialogue block
-
-Starting a line with `@` causes all lines below to be interpreted as dialogue text for the specified character until the next empty line.
-
-For example this:
-
-```
-@ HAMLET
-To be, or not to be, that is the question.
-Whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune.
-Or to take arms against a sea of troubles and by opposing, end them.
-```
-
-Is syntactically equivalent to:
-
-```
-@ HAMLET: To be, or not to be, that is the question.
-@ HAMLET: Whether 'tis nobler in the mind to suffer the slings and arrows of outrageous fortune.
-@ HAMLET: Or to take arms against a sea of troubles and by opposing, end them.
-```
-
-This also means that inside a dialogue block, we can start dialogue lines with a syntax keyword (`*`, `+`, `-`, `~`, `==`, `=`, `VAR`, `CONST`, `LIST`, `INCLUDE`, `EXTERNAL`, etc.) without having to manually escape them.
-
-For example, in the text block below, the dialogue line starting with `INCLUDE` does not have to be manually escaped:
-
-```
-@ THE KILLER
-And did you ever consider...
-That the list of suspects might, in fact...
-INCLUDE ME???
-```
-
----
-
-### 3. Ending a line of text with a `\` backslash will cause the next line of text to display on a new line in the same textbox.
+### 2. Ending a line of text with a `\` backslash will cause the next line of text to display on a new line in the same textbox.
 
 ```
 All the world’s a stage, \
@@ -113,6 +79,12 @@ The `\` backslash operator joins text together in a similar way to the `<>` glue
     And now, for all the points... \
     DEFINE DISESTABLISHMENTARIANISM.
     ```
+  3. If the next line of text is empty, `\` will do nothing.
+    ```
+    This does nothing. \
+
+    This line will appear in a new textbox.
+    ```
 
 `\ ` can be used to insert a newline in the middle of text (NOTE: For these mid-line breaks, the backslash must be followed by at least one space).
 
@@ -122,7 +94,7 @@ All the world’s a stage, \ And all the men and women merely players.
 
 ---
 
-### 4. Front Matter can be specified by surrounding a block of text with `---`
+### 3. Front Matter can be specified by surrounding a block of text with `---`
 
 Front Matter can be used to conveniently store multiline metadata about a story.
 
@@ -148,7 +120,7 @@ contact:
 
 ---
 
-### 5. You can define objects and arrays with `DEFINE`
+### 4. You can define objects and arrays with `DEFINE`
 
 The new compiler supports using yaml-esque syntax to define constant objects and arrays:
 
@@ -166,7 +138,7 @@ DEFINE fears:
 
 ---
 
-### 6. You can specify an object's type with `DEFINE type.name`
+### 5. You can specify an object's type with `DEFINE type.name`
 
 An object's type can be specified by prefixing its name with a type and a dot separator
 
@@ -209,7 +181,7 @@ define style.dialogue:
 
 ---
 
-### 7. You can access object properties and array elements
+### 6. You can access object properties and array elements
 
 Although you cannot change their value, you can read an object's properties with dot notation:
 
@@ -226,7 +198,7 @@ I am most afraid of {fears[0]}.
 
 ---
 
-### 8. Compiler errors now include exact source location
+### 7. Compiler errors now include exact source location
 
 An additional `source` parameter has been added to the compiler's error handler. 
 
