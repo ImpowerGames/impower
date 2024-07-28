@@ -24,6 +24,9 @@ export const getCSSPropertyKeyValue = (
   if (cssValue == null || cssValue === "") {
     return [cssProp, ""];
   }
+  if (cssProp === "easing") {
+    return ["animation-timing-function", String(cssValue)];
+  }
   if (cssProp === "background-image" && typeof cssValue === "string") {
     const src = cssValue.trim();
     const url = /^[ ]*url[ ]*[(]/.test(src) ? src : `url('${encodeURI(src)}')`;

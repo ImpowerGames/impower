@@ -306,6 +306,7 @@ export const uiBuiltins = () => ({
     }),
     indicator: _style({
       $name: "indicator",
+      preserve_text: true,
       width: 16,
       height: 16,
       position: "absolute",

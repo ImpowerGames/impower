@@ -390,6 +390,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         fonts,
       });
     }
+    // Process Animations
+    const animations = this.context?.animation;
+    if (fonts) {
+      this.constructStyleElement("animations", {
+        animations,
+      });
+    }
     // Process Styles
     Object.entries(this.context?.style).forEach(([name, style]) => {
       if (name) {
