@@ -5,8 +5,12 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-logic-list",
   stores: { workspace },
-  html: ({ stores }) => {
-    const panel = stores?.workspace?.current?.panes?.logic?.panel || "main";
+  reducer: ({ workspace }) =>
+    ({
+      panel: workspace?.current?.panes?.logic?.panel || "main",
+    } as const),
+  html: ({ context }) => {
+    const { panel } = context;
     return html`
       <s-router key="logic-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">

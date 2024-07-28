@@ -156,7 +156,7 @@ const decorate = (state: EditorState) => {
   const doc = state.doc;
   const input = new DocInput(doc);
   const tree = LANGUAGE_SUPPORT.language.parser.parse(input);
-  console.log(printTree(tree, input));
+  // console.log(printTree(tree, input));
 
   let inFrontMatter = false;
   let frontMatterFrom = 0;

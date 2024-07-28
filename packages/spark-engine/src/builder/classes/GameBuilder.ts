@@ -85,7 +85,7 @@ export class GameBuilder<M extends GameModules = GameModules> {
     context.config!["logic"] ??= {};
     context.config!["logic"]["waypoints"] = waypoints;
     context.config!["logic"]["startpoint"] = startpoint;
-    const game = new Game(program.compiled!, { previewing });
+    const game = new Game(program, { previewing });
     return game;
   }
 

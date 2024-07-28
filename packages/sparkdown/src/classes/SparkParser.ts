@@ -66,7 +66,9 @@ export default class SparkParser {
     const lines = paddedScript.split(NEWLINE_REGEX);
     const tree = this.buildTree(paddedScript);
     let lineIndex = 0;
+    let linePos = 0;
     let inBlockDialogue = false;
+    let prevId = "";
     tree.iterate({
       enter: (node) => {
         const id = nodeNames[node.type]! as SparkdownNodeName;
@@ -75,6 +77,8 @@ export default class SparkParser {
         }
       },
       leave: (node) => {
+        sourceMap[filepath] ??= [];
+        const fileIndex = Object.keys(sourceMap).indexOf(filepath);
         const id = nodeNames[node.type]! as SparkdownNodeName;
         if (id === "KnotDeclarationName" || id === "FunctionDeclarationName") {
           this._latestKnot = paddedScript.slice(node.from, node.to).trim();
@@ -86,27 +90,52 @@ export default class SparkParser {
         if (id === "BlockDialogue_end") {
           inBlockDialogue = false;
         }
-        if (id === "LineEnd") {
+        if (id === "BlockDialogue_begin" || id === "BlockDialogueLine_end") {
           if (inBlockDialogue) {
-            const lineText = lines[lineIndex]?.trimEnd() || "";
-            if (!lineText.endsWith(" >>")) {
-              // All dialogue LineEnd should end with implicit >>
-              // (To signify that text should wait for click to continue)
-              lines[lineIndex] = lineText + " >>";
+            const lineText = lines[lineIndex] || "";
+            const lineTextBefore = lineText.slice(0, node.to - linePos);
+            const lineTextAfter = lineText.slice(node.to - linePos);
+            const trimmedLineTextBefore = lineTextBefore.trimEnd();
+            const trimmedLineTextAfter = lineTextAfter.trimStart();
+            // All dialogue lines should end with implicit \
+            // (So they are grouped together at runtime)
+            // All dialogue LineEnd should end with implicit >>\
+            // (To signify that text should wait for click to continue)
+            const checkpoint = `+${fileIndex};${lineIndex}+ `;
+            const suffix =
+              prevId === "LineEnd" ? " " + checkpoint + `>>\\ ` : "\\ ";
+            if (
+              !trimmedLineTextBefore.endsWith("<>") &&
+              !trimmedLineTextBefore.endsWith(suffix.trim()) &&
+              !trimmedLineTextAfter.startsWith(suffix.trim())
+            ) {
+              const augmentedLine =
+                trimmedLineTextBefore + suffix + trimmedLineTextAfter;
+              lines[lineIndex] = augmentedLine.trimEnd();
             }
           }
         }
-        if (id === "BlockDialogue_begin" || id === "BlockDialogueLine") {
-          const lineText = lines[lineIndex]?.trimEnd() || "";
-          if (!lineText.endsWith("\\")) {
-            // All dialogue lines should end with implicit \
-            // (So they are grouped together at runtime)
-            lines[lineIndex] = lineText + "\\";
+        if (id === "LineEnd") {
+          if (!inBlockDialogue) {
+            const lineText = lines[lineIndex] || "";
+            const lineTextBefore = lineText.slice(0, node.to - linePos);
+            const lineTextAfter = lineText.slice(node.to - linePos);
+            const trimmedLineTextBefore = lineTextBefore.trimEnd();
+            const trimmedLineTextAfter = lineTextAfter.trimStart();
+            const checkpoint = `+${fileIndex};${lineIndex}+ `;
+            const suffix = " " + checkpoint;
+            if (
+              !trimmedLineTextBefore.endsWith("<>") &&
+              !trimmedLineTextBefore.endsWith(suffix.trim()) &&
+              !trimmedLineTextAfter.startsWith(suffix.trim())
+            ) {
+              const augmentedLine =
+                trimmedLineTextBefore + suffix + trimmedLineTextAfter;
+              lines[lineIndex] = augmentedLine.trimEnd();
+            }
           }
         }
         if (id === "Newline") {
-          lineIndex += 1;
-
           let closestPath = "";
           if (this._latestKnot && this._latestStitch) {
             closestPath = this._latestKnot + "." + this._latestStitch;
@@ -117,13 +146,16 @@ export default class SparkParser {
           if (!this._latestKnot && this._latestStitch) {
             closestPath = this._latestStitch;
           }
-          sourceMap[filepath] ??= [];
           sourceMap[filepath]![lineIndex] = closestPath;
+
+          lineIndex += 1;
+          linePos = node.to;
         }
+        prevId = id;
       },
     });
     const transpiled = lines.join("\n");
-    // console.log(printTree(tree, script, nodeNames));
+    console.log(printTree(tree, script, nodeNames));
     console.log(transpiled);
     return transpiled;
   }
@@ -152,8 +184,6 @@ export default class SparkParser {
           return this._config?.resolveFile?.(filename) || filename;
         },
         LoadInkFileContents: (filepath: string): string => {
-          this._latestKnot = undefined;
-          this._latestStitch = undefined;
           program.sourceMap ??= {};
           return this.transpile(
             this._config?.readFile?.(filepath) || "",

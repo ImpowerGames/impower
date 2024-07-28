@@ -4,7 +4,7 @@ import { MessageProtocolNotificationType } from "../MessageProtocolNotificationT
 export type DidExecuteMethod = typeof DidExecuteMessage.method;
 
 export class DidExecuteMessage {
-  static readonly method = "logic/didexecute";
+  static readonly method = "story/didexecute";
   static readonly type = new MessageProtocolNotificationType<
     DidExecuteMethod,
     ExecutionData

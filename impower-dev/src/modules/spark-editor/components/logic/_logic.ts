@@ -5,8 +5,12 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-logic",
   stores: { workspace },
-  html: ({ stores }) => {
-    const view = stores?.workspace?.current?.panes?.logic?.view || "list";
+  reducer: ({ workspace }) =>
+    ({
+      view: workspace?.current?.panes?.logic?.view || "list",
+    } as const),
+  html: ({ context }) => {
+    const { view } = context;
     return html`
       <s-router key="logic-view" active="${view}">
         <se-logic-list></se-logic-list>

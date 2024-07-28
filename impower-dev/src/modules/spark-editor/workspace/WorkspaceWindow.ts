@@ -317,42 +317,44 @@ export default class WorkspaceWindow {
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
     if (pane && panel) {
-      const activeEditor =
-        this.store?.panes?.[pane]?.panels?.[panel]?.activeEditor;
-      if (activeEditor?.open && activeEditor?.filename === filename) {
-        this.update({
-          ...this.store,
-          panes: {
-            ...this.store.panes,
-            [pane]: {
-              ...this.store.panes[pane],
-              panels: {
-                ...this.store.panes[pane].panels,
-                [panel]: {
-                  ...this.store.panes[pane].panels[panel],
-                  activeEditor: {
-                    ...this.store.panes[pane].panels[panel]?.activeEditor,
-                    visibleRange,
-                    selectedRange: select
-                      ? { ...visibleRange }
-                      : this.store.panes[pane].panels[panel]?.activeEditor
-                          ?.selectedRange,
-                  },
+      this.update({
+        ...this.store,
+        panes: {
+          ...this.store.panes,
+          [pane]: {
+            ...this.store.panes[pane],
+            view: panel === "main" ? "list" : "logic-editor",
+            panel: panel,
+            panels: {
+              ...this.store.panes[pane].panels,
+              [panel]: {
+                ...this.store.panes[pane].panels[panel],
+                activeEditor: {
+                  ...this.store.panes[pane].panels[panel]?.activeEditor,
+                  filename: filename,
+                  visibleRange,
+                  selectedRange: select
+                    ? { ...visibleRange }
+                    : this.store.panes[pane].panels[panel]?.activeEditor
+                        ?.selectedRange,
                 },
               },
             },
           },
-        });
-      }
+        },
+      });
     }
-    this.emit(
-      RevealEditorRangeMessage.method,
-      RevealEditorRangeMessage.type.request({
-        textDocument: { uri },
-        visibleRange,
-        select,
-      })
-    );
+    window.setTimeout(() => {
+      // Reveal range after opening file
+      this.emit(
+        RevealEditorRangeMessage.method,
+        RevealEditorRangeMessage.type.request({
+          textDocument: { uri },
+          visibleRange,
+          select,
+        })
+      );
+    }, 10);
   }
 
   openedPane(pane: PaneType) {

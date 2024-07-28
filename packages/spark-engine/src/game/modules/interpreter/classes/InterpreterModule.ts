@@ -108,6 +108,9 @@ export class InterpreterModule extends Module<
     if (b.end > a.end) {
       a.end = b.end;
     }
+    if (b.checkpoint) {
+      a.checkpoint = b.checkpoint;
+    }
   }
 
   /**

@@ -1,4 +1,5 @@
 import { Story } from "../../../../../sparkdown/src/inkjs/engine/Story";
+import type { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgram";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { GameContext } from "../types/GameContext";
 import { InstanceMap } from "../types/InstanceMap";
@@ -13,6 +14,8 @@ import { uuid } from "../utils/uuid";
 import { Connection } from "./Connection";
 import { Coordinator } from "./Coordinator";
 import { Module } from "./Module";
+import { DidExecuteMessage } from "./messages/DidExecuteMessage";
+import { WillExecuteMessage } from "./messages/WillExecuteMessage";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
 
@@ -59,20 +62,10 @@ export class Game<T extends M = {}> {
 
   protected _coordinator: Coordinator<typeof this> | null = null;
 
-  public get currentTags() {
-    return this._story.currentTags;
-  }
-
-  public get currentText() {
-    return this._story.currentText;
-  }
-
-  public get currentChoices() {
-    return this._story.currentChoices;
-  }
+  protected _files: string[];
 
   constructor(
-    compiled: Record<string, any>,
+    program: SparkProgram,
     options?: {
       previewing?: boolean;
       modules?: {
@@ -80,8 +73,10 @@ export class Game<T extends M = {}> {
       };
     }
   ) {
+    const compiled = program.compiled as Record<string, any>;
     const previewing = options?.previewing;
     const modules = options?.modules;
+    this._files = Object.keys(program.sourceMap || {});
     // Create story to control flow and state
     this._story = new Story(compiled);
     // Create context
@@ -326,7 +321,16 @@ export class Game<T extends M = {}> {
       this.checkpoint();
       const instructions = this.module.interpreter.flush();
       if (instructions) {
+        const checkpoint = instructions.checkpoint ?? "";
+        const [fileIndexArg, lineIndexArg] = checkpoint.split(";");
+        const fileIndex = Number(fileIndexArg);
+        const lineIndex = Number(lineIndexArg);
+        const file = this._files[fileIndex];
+        const line = lineIndex;
+        const source = { file, line };
+        this.connection.emit(WillExecuteMessage.type.notification({ source }));
         this._coordinator = new Coordinator(this, instructions);
+        this.connection.emit(DidExecuteMessage.type.notification({ source }));
       }
     } else if (this._story.canContinue) {
       this._story.Continue();

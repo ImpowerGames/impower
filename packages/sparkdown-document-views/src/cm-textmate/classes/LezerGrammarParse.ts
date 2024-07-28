@@ -87,6 +87,8 @@ export default class GrammarParse implements PartialParse {
   /** The current performance value, in milliseconds. */
   declare performance?: number;
 
+  private consecutiveEmptyMatchCount = 0;
+
   /**
    * @param language - The language containing the grammar to use.
    * @param input - The input document to parse.
@@ -268,6 +270,16 @@ export default class GrammarParse implements PartialParse {
       } else {
         // if we didn't match, we'll advance to prevent getting stuck
         matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
+        length = 1;
+      }
+
+      if (length === 0) {
+        this.consecutiveEmptyMatchCount += 1;
+      } else {
+        this.consecutiveEmptyMatchCount = 0;
+      }
+      if (this.consecutiveEmptyMatchCount > 100) {
+        console.warn("Possible infinite loop!");
         length = 1;
       }
 

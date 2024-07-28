@@ -5,10 +5,14 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-logic-scripts-editor",
   stores: { workspace },
-  html: ({ stores }) => {
-    const filename =
-      stores?.workspace?.current?.panes?.logic?.panels?.scripts?.activeEditor
-        ?.filename || "";
+  reducer: ({ workspace }) =>
+    ({
+      filename:
+        workspace?.current?.panes?.logic?.panels?.scripts?.activeEditor
+          ?.filename || "",
+    } as const),
+  html: ({ context }) => {
+    const { filename } = context;
     const displayName = filename.split(".")[0] ?? "";
     return html`
       <se-file-editor-navigation>${displayName}</se-file-editor-navigation>

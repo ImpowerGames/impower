@@ -233,7 +233,11 @@ export default class SparkdownTextDocuments<
   resolveFile(path: string) {
     const p = path.trim();
     const suffix = p.endsWith(".script") ? "" : ".script";
-    return this._workspaceFolders?.[0]?.uri + "/" + p + suffix;
+    const uri = this._workspaceFolders?.[0]?.uri + "/" + p + suffix;
+    if (!this.__syncedDocuments.get(uri)) {
+      throw new Error(`Cannot find file '${uri}'.`);
+    }
+    return uri;
   }
 
   readFile(uri: string) {

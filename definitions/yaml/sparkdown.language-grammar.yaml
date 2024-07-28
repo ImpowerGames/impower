@@ -110,7 +110,7 @@ repository:
   Tag:
     tag: docComment
     name: comment.line.sd entity.tag.sd
-    match: ({{WS}}*)({{TAG_START}})(.*?)(?:(?={{TAG_START}})|$(\r\n|\r|\n)?)
+    match: ({{WS}}*)({{TAG_START}})(.*?)(?:(?={{TAG_START}})|$)
     captures:
       1: 
         patterns:
@@ -121,9 +121,6 @@ repository:
       3:
         patterns:
           - { include: "#TagContent" }
-      4:
-        patterns:
-          - { include: "#Newline" }
 
   TagContent:
     tag: definition(docComment)
@@ -624,12 +621,15 @@ repository:
   Chain:
     tag: special(meta)
     name: meta.chain.sd
-    match: ([\\])($|{{WS}}+)
+    match: ({{WS}}*)([\\])($|{{WS}}+)
     captures:
       1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
         tag: keyword
         name: keyword.other.chain.sd
-      2:
+      3:
         patterns:
           - { include: "#Whitespace" }
 
@@ -1427,6 +1427,7 @@ repository:
       1:
         patterns:
           - { include: "#Escape" }
+          - { include: "#Checkpoint" }
           - { include: "#ImageCommand" }
           - { include: "#AudioCommand" }
           - { include: "#InlineTextAndLogic" }
@@ -1847,7 +1848,7 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
-    end: (?=$)
+    end: (?={{EOL}})
 
   DialogueCharacter:
     match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\^|<|>)?({{EOL}})
@@ -1913,8 +1914,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#CommandLine" }
-      - { include: "#ParentheticalLine" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
@@ -1935,8 +1934,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#CommandLine" }
-      - { include: "#ParentheticalLine" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
@@ -1951,35 +1948,32 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#CommandLine" }
-      - { include: "#ParentheticalLine" }
       - { include: "#LineContinue" }
       - { include: "#LineEnd" }
-    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
+    end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
 
 ########## Parenthetical ##########
 
   ParentheticalLine:
-    match: ^({{WS}}*)([(][^()]*?[)])({{EOL}})
+    tag: escape
+    name: constant.character.escape.sd
+    match: ^({{WS}}*)([(][^()]*?[)])({{WS}}*)([+][^+]*[+])?({{EOL}})
     captures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#ParentheticalContent" }
+          - { include: "#DisplayText" }
       3:
         patterns:
-          - { include: "#EndOfLine" }
-
-  ParentheticalContent:
-    tag: escape
-    name: constant.character.escape.sd
-    match: (.+)
-    captures:
-      1:
+          - { include: "#Whitespace" }
+      4:
         patterns:
-          - { include: "#DisplayText" }
+          - { include: "#Checkpoint" }
+      5:
+        patterns:
+          - { include: "#EndOfLine" }
 
 ########## Text ##########
 
@@ -2007,16 +2001,17 @@ repository:
           - { include: "#Indent" }
     patterns:
       - { include: "#DisplayLine" }
-    end: (?=$)
+    end: (?={{EOL}})
 
   DisplayLine:
     patterns:
       - { include: "#Annotation" }
       - { include: "#ConditionalBlock" }
+      - { include: "#Chain" }
       - { include: "#Chunk" }
 
   Chunk:
-    match: (.*?)(?=$|[\\](?:$|{{WS}}))
+    match: (.+?)(?=$|[\\](?:$|{{WS}})|{{EOL}})
     captures:
       1:
         patterns:
@@ -2036,6 +2031,7 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Escape" }
+      - { include: "#Checkpoint" }
       - { include: "#ImageCommand" }
       - { include: "#AudioCommand" }
       - { include: "#InlineTextAndLogic" }
@@ -2051,20 +2047,14 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#CommandLineContent" }
-      3:
-        patterns:
-          - { include: "#EndOfLine" }
-
-  CommandLineContent:
-    match: (.+)
-    captures:
-      1:
-        patterns:
+          - { include: "#Checkpoint" }
           - { include: "#ImageCommand" }
           - { include: "#AudioCommand" }
           - { include: "#TextCommand" }
           - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#EndOfLine" }
 
   ImageCommand:
     tag: macroName
@@ -2275,6 +2265,29 @@ repository:
       1:
         tag: separator
         name: meta.template.expression.comma.sd
+
+  Checkpoint:
+    tag: macroName
+    name: meta.checkpoint.sd
+    match: ([+])([^+]*?)([+])({{WS}}*)
+    captures:
+      1:
+        tag: keyword
+        name: keyword.operator.expression.begin.checkpoint.sd
+      2:
+        patterns:
+          - { include: "#CheckpointIdentifier" }
+      3:
+        tag: keyword
+        name: keyword.operator.expression.end.checkpoint.sd
+      4:
+        patterns:
+          - { include: "#Whitespace" }
+
+  CheckpointIdentifier:
+    tag: keyword
+    name: keyword.checkpoint.identifier.sd
+    match: (.+)
 
 ########## Text ##########
 

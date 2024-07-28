@@ -308,6 +308,7 @@ export const parse = (
       textTargetPrefixKeys.push(v.prefix);
     }
   }
+  let checkpoint: undefined | string = undefined;
   let consecutiveLettersLength = 0;
   let word = "";
   let dashLength = 0;
@@ -495,6 +496,34 @@ export const parse = (
                   allPhrases.push(phrase);
                   startNewPhrase();
                 }
+              }
+              // consume trailing whitespace
+              while (i < chars.length) {
+                if (!isSpace(chars[i])) {
+                  break;
+                }
+                i += 1;
+              }
+            } else {
+              i = startIndex;
+              escaped = true;
+            }
+            continue;
+          }
+          // Checkpoint Tag
+          if (char === "+") {
+            let id = "";
+            const startIndex = i;
+            i += 1;
+            while (chars[i] && chars[i] !== "+") {
+              id += chars[i];
+              i += 1;
+            }
+            const closed = chars[i] === "+";
+            if (closed) {
+              i += 1;
+              if (id) {
+                checkpoint = id;
               }
               // consume trailing whitespace
               while (i < chars.length) {
@@ -814,6 +843,9 @@ export const parse = (
   const result: Instructions = {
     end: 0,
   };
+  if (checkpoint) {
+    result.checkpoint = checkpoint;
+  }
   const synthEvents: Record<
     string,
     { time?: number; speed?: number; bend?: number }[]

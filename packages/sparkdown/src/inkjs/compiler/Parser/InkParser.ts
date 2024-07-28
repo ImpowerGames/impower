@@ -1253,9 +1253,10 @@ export class InkParser extends StringParser {
     return this.ContentTextAllowingEscapeChar();
   };
 
-  public readonly ContentTextAllowingEscapeChar = (): Text | null => {
+  public readonly ContentTextAllowingEscapeChar = (): ParsedObject[] | null => {
     let sb: string | null = null;
-
+    let tag: ParsedObject | null = null;
+    let tagText: ParsedObject | null = null;
     do {
       let str = this.Parse(this.ContentTextNoEscape) as string;
       const gotEscapeChar: boolean = this.ParseString("\\") !== null;
@@ -1270,6 +1271,13 @@ export class InkParser extends StringParser {
         if (gotEscapeChar) {
           const escapedSpace = this.ParseWhitespace();
           if (escapedSpace != null) {
+            tag = this.StartTag();
+            if (tag) {
+              const tagContent = this.ParseUntilCharactersFromString("\n\r");
+              if (tagContent) {
+                tagText = new Text(tagContent);
+              }
+            }
             // Escaped space
             const next = this.Peek(this.ParseSingleCharacter);
             if (next === "\n") {
@@ -1316,8 +1324,21 @@ export class InkParser extends StringParser {
       }
     } while (true);
 
+    const result: ParsedObject[] = [];
+
     if (sb !== null) {
-      return new Text(sb);
+      result.push(new Text(sb));
+    }
+
+    if (tag) {
+      result.push(tag);
+    }
+    if (tagText) {
+      result.push(tagText);
+    }
+
+    if (result.length > 0) {
+      return result;
     }
 
     return null;
@@ -1405,7 +1426,7 @@ export class InkParser extends StringParser {
 
     // Normal diverts and tunnels
     const arrowsAndDiverts = this.Interleave<ParsedObject>(
-      this.ParseDivertArrowOrTunnelOnwards,
+      this.Spaced(this.ParseDivertArrowOrTunnelOnwards),
       this.DivertIdentifierWithArguments
     );
 
@@ -1576,6 +1597,9 @@ export class InkParser extends StringParser {
     );
 
   public readonly ParseDivertArrowOrTunnelOnwards = (): string | null => {
+    const stateAtStart = new StringParserElement();
+    stateAtStart.CopyFrom(this.state.currentElement);
+
     let numArrows: number = 0;
     while (this.ParseString("->") !== null) {
       numArrows += 1;
@@ -1589,8 +1613,12 @@ export class InkParser extends StringParser {
       return "->->";
     }
 
+    const stateAtEnd = new StringParserElement();
+    stateAtEnd.CopyFrom(this.state.currentElement);
+
     this.Error(
-      "Unexpected number of arrows in divert. Should only have '->' or '->->'"
+      "Unexpected number of arrows in divert. Should only have '->' or '->->'",
+      this.CreateDebugMetadata(stateAtStart, stateAtEnd)
     );
 
     return "->->";
@@ -2226,7 +2254,13 @@ export class InkParser extends StringParser {
     filename = filename.replace(new RegExp(/[ \t]+$/g), "");
 
     // Working directory should already have been set up relative to the root ink file.
-    const fullFilename = this.fileHandler.ResolveInkFilename(filename);
+    let fullFilename = "";
+    try {
+      fullFilename = this.fileHandler.ResolveInkFilename(filename);
+    } catch (err) {
+      this.Error(`Cannot find '${filename}'.`);
+      return new IncludedFile(null);
+    }
 
     this._parsedFiles.add(fullFilename);
 

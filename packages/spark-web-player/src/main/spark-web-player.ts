@@ -229,7 +229,7 @@ export default class SparkWebPlayer extends Component(spec) {
         previewing,
       });
       this._builder.game.connection.outgoing.addListener(
-        "logic/willexecute",
+        "story/willexecute",
         (msg) => {
           if (WillExecuteMessage.type.isNotification(msg)) {
             const source = msg.params.source;
@@ -246,8 +246,8 @@ export default class SparkWebPlayer extends Component(spec) {
                         character: 0,
                       },
                       end: {
-                        line: source.line,
-                        character: source.to - source.from - 1,
+                        line: source.line + 1,
+                        character: 0,
                       },
                     },
                   })
@@ -258,7 +258,7 @@ export default class SparkWebPlayer extends Component(spec) {
         }
       );
       this._builder.game.connection.outgoing.addListener(
-        "logic/didexecute",
+        "story/didexecute",
         (msg) => {
           if (DidExecuteMessage.type.isNotification(msg)) {
             const source = msg.params.source;
@@ -275,8 +275,8 @@ export default class SparkWebPlayer extends Component(spec) {
                         character: 0,
                       },
                       end: {
-                        line: source.line,
-                        character: source.to - source.from - 1,
+                        line: source.line + 1,
+                        character: 0,
                       },
                     },
                   })

@@ -42,10 +42,4 @@ export interface AudioInstruction extends IInstruction {
   loop?: boolean;
 }
 
-export interface EndInstruction extends IInstruction {}
-
-export type Instruction =
-  | TextInstruction
-  | ImageInstruction
-  | AudioInstruction
-  | EndInstruction;
+export type Instruction = TextInstruction | ImageInstruction | AudioInstruction;

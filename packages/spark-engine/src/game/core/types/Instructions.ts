@@ -11,4 +11,5 @@ export interface Instructions {
   choices?: string[];
   auto?: boolean;
   end: number;
+  checkpoint?: string;
 }
