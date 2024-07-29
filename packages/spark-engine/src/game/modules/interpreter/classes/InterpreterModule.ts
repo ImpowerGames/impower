@@ -19,7 +19,8 @@ export class InterpreterModule extends Module<
   InterpreterMessageMap,
   InterpreterBuiltins
 > {
-  CHARACTER_REGEX = /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(\^|<|>)?([ \t]*)$/;
+  CHARACTER_REGEX =
+    /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)(.*?)(\]))?([ \t]*)$/;
 
   KEYWORD_TERMINATOR_CHARS = [undefined, "", " ", "\t", "\r", "\n"];
 
@@ -160,23 +161,31 @@ export class InterpreterModule extends Module<
         .trim();
       if (characterDeclaration) {
         // Character declaration can include name, parenthetical, and position.
-        // @ CHARACTER NAME (parenthetical) >
+        // @ CHARACTER NAME (parenthetical) [>]
         const match = characterDeclaration.match(this.CHARACTER_REGEX);
-        const characterName = match?.[1] || "";
-        const characterParenthetical = match?.[3] || "";
-        const characterPosition = match?.[5] || "";
+        const characterNameMatch = match?.[1] || "";
+        const characterParentheticalMatch = match?.[3] || "";
+        const characterPositionMatch = (match?.[6] || "").trim();
         const characterMap = (this.context?.["character"] as any) || {};
         const normalizedCharacterName =
-          this.getCharacterIdentifier(characterName);
+          this.getCharacterIdentifier(characterNameMatch);
         const characterObj =
-          characterMap?.[characterName] ||
+          characterMap?.[characterNameMatch] ||
           characterMap[normalizedCharacterName];
         const character = characterObj?.$name || normalizedCharacterName;
+        const characterName = characterObj?.name || characterNameMatch;
+        const characterParenthetical = characterParentheticalMatch;
+        const position =
+          characterPositionMatch === "<"
+            ? "left"
+            : characterPositionMatch === ">"
+            ? "right"
+            : characterPositionMatch;
         options.character = character;
-        options.position = characterPosition;
+        options.position = position;
         if (characterName) {
           characterNameInstructions = parse(
-            characterObj?.name || characterName,
+            characterName,
             "character_name",
             options
           );

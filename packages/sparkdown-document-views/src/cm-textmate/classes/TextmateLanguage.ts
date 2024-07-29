@@ -2,7 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at https://mozilla.org/MPL/2.0/. */
 
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import {
+  CloseBracketConfig,
+  closeBrackets,
+  closeBracketsKeymap,
+  insertBracket,
+} from "@codemirror/autocomplete";
 import {
   Language,
   LanguageDescription,
@@ -10,13 +15,20 @@ import {
   bracketMatching,
   getIndentUnit,
   indentService,
+  syntaxTree,
 } from "@codemirror/language";
-import { Prec, type Extension, type Facet } from "@codemirror/state";
+import {
+  Prec,
+  codePointAt,
+  codePointSize,
+  type Extension,
+  type Facet,
+} from "@codemirror/state";
 import { Parser } from "@lezer/common";
 
 import { GrammarDefinition } from "../../../../grammar-compiler/src";
 
-import { keymap } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import { ConfigDefinition } from "../types/ConfigDefinition";
 import { LanguageData } from "../types/LanguageData";
 import { SnippetDefinition } from "../types/SnippetDefinition";
@@ -27,6 +39,9 @@ import { surroundBrackets } from "../utils/surroundBrackets";
 import TextmateLanguageSupport from "./TextmateLanguageSupport";
 
 const INDENT_REGEX = /([ \t]*)/;
+
+const android =
+  typeof navigator == "object" && /Android\b/.test(navigator.userAgent);
 
 /**
  * Use the `load` method to get the extension needed to
@@ -135,10 +150,49 @@ export default class TextmateLanguage {
       ...convertConfigToLanguageData(configDefinition || {}),
       ...languageData,
     };
+    const closeBracketsState = (closeBrackets() as Extension[])[1]!;
     const languageExtensions = [
       bracketMatching(),
-      closeBrackets(),
       surroundBrackets(),
+      closeBracketsState,
+      // Support closeBrackets `notIn` check
+      EditorView.inputHandler.of((view, from, to, insert) => {
+        if (
+          (android ? view.composing : view.compositionStarted) ||
+          view.state.readOnly
+        ) {
+          return false;
+        }
+        let sel = view.state.selection.main;
+        if (
+          insert.length > 2 ||
+          (insert.length == 2 && codePointSize(codePointAt(insert, 0)) == 1) ||
+          from != sel.from ||
+          to != sel.to
+        ) {
+          return false;
+        }
+        const pos = view.state.selection.main.head;
+        const autoClosingPairRule = configDefinition?.autoClosingPairs?.find(
+          (v) => v.open === insert
+        );
+        if (autoClosingPairRule) {
+          let nodes = syntaxTree(view.state).resolveStack(pos);
+          for (let cur: typeof nodes | null = nodes; cur; cur = cur.next) {
+            let { node } = cur;
+            if (autoClosingPairRule?.notIn?.includes(node.type.name)) {
+              return false;
+            }
+          }
+        }
+        let tr = insertBracket(view.state, insert);
+        if (!tr) {
+          return false;
+        }
+        view.dispatch(tr);
+        return true;
+      }),
+      // Support onEnterRules
       Prec.high(
         keymap.of([
           {
@@ -148,6 +202,7 @@ export default class TextmateLanguage {
           ...closeBracketsKeymap,
         ])
       ),
+      // Support indentationRules
       indentService.of((context, pos) => {
         const beforeLine =
           pos > 0 ? context.state.doc.lineAt(pos - 1) : undefined;

@@ -340,17 +340,17 @@ const decorate = (state: EditorState) => {
         });
         return true;
       }
-      if (name === "DialogueCharacterPosition") {
+      if (name === "DialogueCharacterPositionContent") {
         const value = doc.sliceString(from, to).trim();
         if (value) {
           inDualDialogue = true;
           if (value === "^") {
             dialoguePosition += 1;
           }
-          if (value === "<") {
+          if (value === "<" || value === "left") {
             dialoguePosition = 1;
           }
-          if (value === ">") {
+          if (value === ">" || value === "right") {
             dialoguePosition = 2;
           }
         } else {

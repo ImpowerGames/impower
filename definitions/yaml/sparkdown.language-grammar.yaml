@@ -1851,7 +1851,7 @@ repository:
     end: (?={{EOL}})
 
   DialogueCharacter:
-    match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\^|<|>)?({{EOL}})
+    match: ({{WS}}*)(.*?)({{WS}}*)([(][^()]*?[)])?($|{{WS}}*)(\[.*?\])?({{EOL}})
     captures:
       1:
         patterns:
@@ -1896,6 +1896,19 @@ repository:
   DialogueCharacterPosition:
     tag: definition(escape)
     name: constant.character.escape.dialogue.character.position.sd
+    match: (\[)(.*?)(\])
+    captures:
+      1:
+        tag: bracket
+        name: punctuation.definition.position.sd
+      2:
+        patterns:
+          - { include: "#DialogueCharacterPositionContent" }
+      3:
+        tag: bracket
+        name: punctuation.definition.position.sd
+
+  DialogueCharacterPositionContent:
     match: (.+$)
 
 ########## Transition ##########

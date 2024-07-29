@@ -15,6 +15,9 @@ autoClosingPairs:
     close: "]"
   - open: "("
     close: ")"
+  - open: "<"
+    close: ">"
+    notIn: ["DialogueCharacterPosition"]
   - open: '"'
     close: '"'
 
@@ -22,13 +25,13 @@ surroundingPairs:
   - ["{", "}"]
   - ["[", "]"]
   - ["(", ")"]
+  - ["<", ">"]
   - ['"', '"']
   - ["*", "*"]
   - ["_", "_"]
   - ["~", "~"]
   - [":", ":"]
   - ["^", "^"]
-  - ["<", ">"]
 
 wordChars: _'
 
