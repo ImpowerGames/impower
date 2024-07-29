@@ -20,7 +20,7 @@ export class InterpreterModule extends Module<
   InterpreterBuiltins
 > {
   CHARACTER_REGEX =
-    /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)(.*?)(\]))?([ \t]*)$/;
+    /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)([ \t]*)(.*?)([ \t]*)(\]))?([ \t]*)$/;
 
   KEYWORD_TERMINATOR_CHARS = [undefined, "", " ", "\t", "\r", "\n"];
 
@@ -165,7 +165,7 @@ export class InterpreterModule extends Module<
         const match = characterDeclaration.match(this.CHARACTER_REGEX);
         const characterNameMatch = match?.[1] || "";
         const characterParentheticalMatch = match?.[3] || "";
-        const characterPositionMatch = (match?.[6] || "").trim();
+        const characterPositionMatch = match?.[7] || "";
         const characterMap = (this.context?.["character"] as any) || {};
         const normalizedCharacterName =
           this.getCharacterIdentifier(characterNameMatch);

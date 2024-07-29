@@ -1896,15 +1896,21 @@ repository:
   DialogueCharacterPosition:
     tag: definition(escape)
     name: constant.character.escape.dialogue.character.position.sd
-    match: (\[)(.*?)(\])
+    match: (\[)({{WS}}*)(.*?)({{WS}}*)(\])
     captures:
       1:
         tag: bracket
         name: punctuation.definition.position.sd
       2:
         patterns:
-          - { include: "#DialogueCharacterPositionContent" }
+          - { include: "#Whitespace" }
       3:
+        patterns:
+          - { include: "#DialogueCharacterPositionContent" }
+      4:
+        patterns:
+          - { include: "#Whitespace" }
+      5:
         tag: bracket
         name: punctuation.definition.position.sd
 

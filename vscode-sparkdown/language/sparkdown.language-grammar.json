@@ -3323,7 +3323,7 @@
     "DialogueCharacterPosition": {
       "tag": "definition(escape)",
       "name": "constant.character.escape.dialogue.character.position.sd",
-      "match": "(\\[)(.*?)(\\])",
+      "match": "(\\[)([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)(\\])",
       "captures": {
         "1": {
           "tag": "bracket",
@@ -3332,11 +3332,25 @@
         "2": {
           "patterns": [
             {
-              "include": "#DialogueCharacterPositionContent"
+              "include": "#Whitespace"
             }
           ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#DialogueCharacterPositionContent"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
           "tag": "bracket",
           "name": "punctuation.definition.position.sd"
         }

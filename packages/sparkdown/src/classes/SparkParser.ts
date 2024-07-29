@@ -155,8 +155,8 @@ export default class SparkParser {
       },
     });
     const transpiled = lines.join("\n");
-    console.log(printTree(tree, script, nodeNames));
-    console.log(transpiled);
+    // console.log(printTree(tree, script, nodeNames));
+    // console.log(transpiled);
     return transpiled;
   }
 
