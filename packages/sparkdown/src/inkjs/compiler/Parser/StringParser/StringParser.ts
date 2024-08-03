@@ -37,7 +37,15 @@ export class StringParser {
   public state: StringParserState;
   public hadError: boolean = false;
 
-  protected filename: string | null = null;
+  protected _fileName: string | null = null;
+  get fileName() {
+    return this._fileName;
+  }
+
+  protected _filePath: string | null = null;
+  get filePath() {
+    return this._filePath;
+  }
 
   constructor(str: string) {
     const strPreProc = this.PreProcessInputString(str);
@@ -140,8 +148,8 @@ export class StringParser {
         startCharacterNumber,
         endLineNumber: startLineNumber,
         endCharacterNumber: startCharacterNumber + lineRemainderLength,
-        fileName: this.filename,
-        sourceName: null,
+        fileName: this._fileName,
+        filePath: this._filePath,
       };
 
       this.Error(`Expected ${message} but saw ${butSaw}`, source);
@@ -197,8 +205,8 @@ export class StringParser {
             startCharacterNumber: 0,
             endLineNumber: this.lineIndex + 2,
             endCharacterNumber: 0,
-            fileName: this.filename,
-            sourceName: null,
+            fileName: this._fileName,
+            filePath: this._filePath,
           },
           isWarning
         );

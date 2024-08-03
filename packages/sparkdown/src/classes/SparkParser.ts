@@ -12,6 +12,7 @@ import {
 } from "../inkjs/compiler/Compiler";
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
+import { StringValue } from "../inkjs/engine/Value";
 import {
   DiagnosticSeverity,
   Range,
@@ -23,16 +24,14 @@ import { SparkdownNodeName } from "../types/SparkdownNodeName";
 
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 
+const SOURCE_REGEX: RegExp = /[+](.*?)[+]/g;
+
 export default class SparkParser {
   protected _config: SparkParserConfig = {};
 
   protected _grammar: Grammar;
 
   protected _grammarCompiler: GrammarCompiler;
-
-  protected _latestKnot?: string;
-
-  protected _latestStitch?: string;
 
   constructor(config: SparkParserConfig) {
     this._config = config || this._config;
@@ -58,96 +57,123 @@ export default class SparkParser {
   transpile(
     script: string,
     filepath: string,
-    sourceMap: Record<string, string[]>
+    sourceMap?: Record<string, Record<number, [number, number]>>
   ): string {
     const nodeNames = this._grammar.nodeNames;
+    const lines = script.split(NEWLINE_REGEX);
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
-    const lines = paddedScript.split(NEWLINE_REGEX);
     const tree = this.buildTree(paddedScript);
+    sourceMap ??= {};
+    sourceMap[filepath] ??= [];
+    const fileIndex = Object.keys(sourceMap).indexOf(filepath);
     let lineIndex = 0;
     let linePos = 0;
-    let inBlockDialogue = false;
     let prevId = "";
+    let prevDialogueLineWasLineEnd = false;
+    let inBlockDialogue = false;
+    let inConditionalBlock = false;
+    let blockDialoguePrefix = "";
     tree.iterate({
       enter: (node) => {
         const id = nodeNames[node.type]! as SparkdownNodeName;
         if (id === "BlockDialogue_begin") {
           inBlockDialogue = true;
         }
+        if (id === "ConditionalBlock_begin") {
+          inConditionalBlock = true;
+        }
       },
       leave: (node) => {
-        sourceMap[filepath] ??= [];
-        const fileIndex = Object.keys(sourceMap).indexOf(filepath);
         const id = nodeNames[node.type]! as SparkdownNodeName;
-        if (id === "KnotDeclarationName" || id === "FunctionDeclarationName") {
-          this._latestKnot = paddedScript.slice(node.from, node.to).trim();
-          this._latestStitch = undefined;
-        }
-        if (id === "StitchDeclarationName") {
-          this._latestStitch = paddedScript.slice(node.from, node.to).trim();
-        }
+        const source = `+${fileIndex};${lineIndex}+ `;
+        const [offsetAfter, offset] = sourceMap?.[filepath]?.[lineIndex] ?? [
+          0, 0,
+        ];
+        const nodeStartCharacter = node.from - linePos;
+        const nodeStart =
+          nodeStartCharacter > offsetAfter
+            ? offset + nodeStartCharacter
+            : nodeStartCharacter;
+        const nodeEndCharacter = node.to - linePos;
+        const nodeEnd =
+          nodeEndCharacter > offsetAfter
+            ? offset + nodeEndCharacter
+            : nodeEndCharacter;
         if (id === "BlockDialogue_end") {
           inBlockDialogue = false;
+          prevDialogueLineWasLineEnd = false;
+          blockDialoguePrefix = "";
         }
-        if (id === "BlockDialogue_begin" || id === "BlockDialogueLine_end") {
+        if (id === "ConditionalBlock_end") {
+          inConditionalBlock = false;
+        }
+        if (id === "BlockDialogue_begin") {
+          const lineText = lines[lineIndex] || "";
+          const lineTextBefore = lineText.slice(0, nodeEnd);
+          const lineTextAfter = lineText.slice(nodeEnd);
+          const markup = ": " + source + "\\";
+          lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+          if (sourceMap) {
+            sourceMap[filepath]![lineIndex] = [
+              lineTextBefore.length,
+              markup.length,
+            ];
+          }
+          blockDialoguePrefix = lineTextBefore;
+        }
+        if (id === "AssetLine" || id === "ParentheticalLineContent") {
           if (inBlockDialogue) {
             const lineText = lines[lineIndex] || "";
-            const lineTextBefore = lineText.slice(0, node.to - linePos);
-            const lineTextAfter = lineText.slice(node.to - linePos);
-            const trimmedLineTextBefore = lineTextBefore.trimEnd();
-            const trimmedLineTextAfter = lineTextAfter.trimStart();
-            // All dialogue lines should end with implicit \
-            // (So they are grouped together at runtime)
-            // All dialogue LineEnd should end with implicit >>\
-            // (To signify that text should wait for click to continue)
-            const checkpoint = `+${fileIndex};${lineIndex}+ `;
-            const suffix =
-              prevId === "LineEnd" ? " " + checkpoint + `>>\\ ` : "\\ ";
-            if (
-              !trimmedLineTextBefore.endsWith("<>") &&
-              !trimmedLineTextBefore.endsWith(suffix.trim()) &&
-              !trimmedLineTextAfter.startsWith(suffix.trim())
-            ) {
-              const augmentedLine =
-                trimmedLineTextBefore + suffix + trimmedLineTextAfter;
-              lines[lineIndex] = augmentedLine.trimEnd();
+            const lineTextBefore = lineText.slice(0, nodeEnd);
+            const lineTextAfter = lineText.slice(nodeEnd);
+            // AssetLine and ParentheticalLine should end with implicit \
+            // (So they are grouped together with following text line)
+            const suffix = ` \\`;
+            const markup = suffix;
+            lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+          }
+        }
+        if (id === "BlockDialogueLine_end") {
+          prevDialogueLineWasLineEnd = prevId === "LineEnd";
+        }
+        if (id === "BlockDialogueLine_begin") {
+          if (prevDialogueLineWasLineEnd) {
+            const lineText = lines[lineIndex] || "";
+            const lineTextBefore = lineText.slice(0, nodeStart);
+            const lineTextAfter = lineText.slice(nodeStart);
+            const prefix = blockDialoguePrefix + ": ";
+            const markup = prefix + source;
+            lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+            if (sourceMap) {
+              sourceMap[filepath]![lineIndex] = [
+                lineTextBefore.length,
+                markup.length,
+              ];
             }
           }
         }
-        if (id === "LineEnd") {
-          if (!inBlockDialogue) {
-            const lineText = lines[lineIndex] || "";
-            const lineTextBefore = lineText.slice(0, node.to - linePos);
-            const lineTextAfter = lineText.slice(node.to - linePos);
-            const trimmedLineTextBefore = lineTextBefore.trimEnd();
-            const trimmedLineTextAfter = lineTextAfter.trimStart();
-            const checkpoint = `+${fileIndex};${lineIndex}+ `;
-            const suffix = " " + checkpoint;
-            if (
-              !trimmedLineTextBefore.endsWith("<>") &&
-              !trimmedLineTextBefore.endsWith(suffix.trim()) &&
-              !trimmedLineTextAfter.startsWith(suffix.trim())
-            ) {
-              const augmentedLine =
-                trimmedLineTextBefore + suffix + trimmedLineTextAfter;
-              lines[lineIndex] = augmentedLine.trimEnd();
+        if (
+          id === "InlineDialogue_begin" ||
+          id === "Transition_begin" ||
+          id === "Scene_begin" ||
+          id === "Action_begin"
+        ) {
+          const lineText = lines[lineIndex] || "";
+          const lineTextBefore = lineText.slice(0, nodeEnd);
+          const lineTextAfter = lineText.slice(nodeEnd);
+          if (!lineTextAfter.startsWith("+")) {
+            const markup = source;
+            lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+            if (sourceMap) {
+              sourceMap[filepath]![lineIndex] = [
+                lineTextBefore.length,
+                markup.length,
+              ];
             }
           }
         }
         if (id === "Newline") {
-          let closestPath = "";
-          if (this._latestKnot && this._latestStitch) {
-            closestPath = this._latestKnot + "." + this._latestStitch;
-          }
-          if (this._latestKnot && !this._latestStitch) {
-            closestPath = this._latestKnot;
-          }
-          if (!this._latestKnot && this._latestStitch) {
-            closestPath = this._latestStitch;
-          }
-          sourceMap[filepath]![lineIndex] = closestPath;
-
           lineIndex += 1;
           linePos = node.to;
         }
@@ -156,15 +182,13 @@ export default class SparkParser {
     });
     const transpiled = lines.join("\n");
     // console.log(printTree(tree, script, nodeNames));
-    // console.log(transpiled);
+    console.log(transpiled);
     return transpiled;
   }
 
   parse(script: string, filename: string = "main.script"): SparkProgram {
     const program: SparkProgram = {};
 
-    this._latestKnot = undefined;
-    this._latestStitch = undefined;
     program.sourceMap ??= {};
     const transpiledScript = this.transpile(
       script,
@@ -191,6 +215,26 @@ export default class SparkParser {
             program.sourceMap
           );
         },
+      },
+      {
+        WriteRuntimeObject: (_, obj) => {
+          if (obj instanceof StringValue) {
+            if (!obj.isNewline && obj.value) {
+              const sourceMarkers = obj.value.match(SOURCE_REGEX);
+              if (sourceMarkers) {
+                const path = obj.path.toString();
+                for (const m of sourceMarkers) {
+                  const source = m.slice(1, -1);
+                  program.pathToSource ??= {};
+                  program.pathToSource[path] ??= source;
+                  program.sourceToPath ??= {};
+                  program.sourceToPath[source] ??= path;
+                }
+              }
+            }
+          }
+          return false;
+        },
       }
     );
     const inkCompiler = new InkCompiler(transpiledScript, options);
@@ -205,13 +249,22 @@ export default class SparkParser {
         this.populateAssets(compiled);
         program.compiled = compiled;
       }
+      program.sourceToPath ??= {};
+      program.sourceToPath = this.sortPaths(
+        Object.keys(program.sourceToPath || {}),
+        ";"
+      ).reduce((obj, key) => {
+        obj[key] = program.sourceToPath![key]!;
+        return obj;
+      }, {} as Record<string, string>);
     } catch {}
     for (const error of inkCompiler.errors) {
       program.diagnostics ??= [];
       const diagnostic = this.getDiagnostic(
         error.message,
         ErrorType.Error,
-        error.source
+        error.source,
+        program.sourceMap
       );
       if (diagnostic) {
         program.diagnostics.push(diagnostic);
@@ -222,7 +275,8 @@ export default class SparkParser {
       const diagnostic = this.getDiagnostic(
         warning.message,
         ErrorType.Warning,
-        warning.source
+        warning.source,
+        program.sourceMap
       );
       if (diagnostic) {
         program.diagnostics.push(diagnostic);
@@ -233,7 +287,8 @@ export default class SparkParser {
       const diagnostic = this.getDiagnostic(
         info.message,
         ErrorType.Info,
-        info.source
+        info.source,
+        program.sourceMap
       );
       if (diagnostic) {
         program.diagnostics.push(diagnostic);
@@ -308,21 +363,43 @@ export default class SparkParser {
   getDiagnostic(
     msg: string,
     type: ErrorType,
-    metadata?: SourceMetadata | null
+    metadata?: SourceMetadata | null,
+    sourceMap?: Record<string, Record<number, [number, number]>>
   ): SparkDiagnostic | null {
     if (metadata && metadata.fileName) {
+      const filePath = metadata?.filePath || "";
+      const startLine = metadata.startLineNumber - 1;
+      const endLine = metadata.endLineNumber - 1;
+      const [startOffsetAfter, startOffset] = sourceMap?.[filePath]?.[
+        startLine
+      ] ?? [0, 0];
+      const [endOffsetAfter, endOffset] = sourceMap?.[filePath]?.[endLine] ?? [
+        0, 0,
+      ];
+      const startCharacterOffset =
+        metadata.startCharacterNumber - 1 > startOffsetAfter ? startOffset : 0;
+      const startCharacter =
+        metadata.startCharacterNumber - 1 - startCharacterOffset;
+      const endCharacterOffset =
+        metadata.endCharacterNumber - 1 > endOffsetAfter ? endOffset : 0;
+      const endCharacter = metadata.endCharacterNumber - 1 - endCharacterOffset;
+      if (startCharacter < 0) {
+        // This error is occurring in a part of the script that was automatically added during transpilation
+        // Assume it will be properly reported elsewhere and do not report it here.
+        return null;
+      }
       // Trim away redundant filename and line number from message
       const message = msg.split(":").slice(2).join(":").trim() || msg;
       const uri =
         this._config?.resolveFile?.(metadata.fileName) || metadata.fileName;
       const range = {
         start: {
-          line: metadata.startLineNumber - 1,
-          character: metadata.startCharacterNumber - 1,
+          line: startLine,
+          character: startCharacter,
         },
         end: {
-          line: metadata.endLineNumber - 1,
-          character: metadata.endCharacterNumber - 1,
+          line: endLine,
+          character: endCharacter,
         },
       };
       const severity =
@@ -375,6 +452,33 @@ export default class SparkParser {
         lastLineIndex,
         lastCharacterInLineIndex
       );
+    });
+  }
+
+  sortPaths(data: string[], delimiter: string): string[] {
+    const compare = (
+      a: { index: number; value: number[] },
+      b: { index: number; value: number[] }
+    ) => {
+      let i = 0;
+      let l = Math.min(a.value.length, b.value.length);
+      while (i < l && a.value[i] === b.value[i]) {
+        i++;
+      }
+      if (i === l) {
+        return a.value.length - b.value.length;
+      }
+      return (a.value[i] ?? 0) - (b.value[i] ?? 0);
+    };
+    let mapped = data.map(function (el, i) {
+      return {
+        index: i,
+        value: el.split(delimiter).map((p) => Number(p ?? 0)),
+      };
+    });
+    mapped.sort(compare);
+    return mapped.map(function (el) {
+      return data[el.index]!;
     });
   }
 }

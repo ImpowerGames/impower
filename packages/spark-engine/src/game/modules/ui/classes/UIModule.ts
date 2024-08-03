@@ -128,9 +128,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return super.onUpdate(deltaMS);
   }
 
-  override onPreview(checkpointId: string) {
+  override onPreview() {
     this.reveal();
-    return super.onPreview(checkpointId);
+    return super.onPreview();
   }
 
   override onDestroy(): void {

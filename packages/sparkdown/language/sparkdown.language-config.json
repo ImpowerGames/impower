@@ -98,7 +98,43 @@
   },
   "onEnterRules": [
     {
-      "beforeText": "^\\s*(?:[-]|[_\\p{L}][_\\p{L}0-9]*[:]|(?:DEFINE)\\b.*?[:])\\s*$",
+      "beforeText": "^\\s*(?:[-])\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:[_\\p{L}][_\\p{L}0-9]*[:])\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:DEFINE\\b.*?[:])\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:[%]\\s+).*?[\\\\]\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:[$]\\s+).*?[\\\\]\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:[!]\\s+).*?[\\\\]\\s*$",
+      "action": {
+        "indent": "indent"
+      }
+    },
+    {
+      "beforeText": "^\\s*(?:[@]\\s+.*?[:]).*?[\\\\]\\s*$",
       "action": {
         "indent": "indent"
       }

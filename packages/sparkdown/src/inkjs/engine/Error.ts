@@ -2,7 +2,7 @@
 
 export interface SourceMetadata {
   fileName: string | null;
-  sourceName: string | null;
+  filePath: string | null;
   startLineNumber: number;
   endLineNumber: number;
   startCharacterNumber: number;

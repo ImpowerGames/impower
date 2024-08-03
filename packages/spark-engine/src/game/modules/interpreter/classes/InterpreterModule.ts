@@ -109,8 +109,21 @@ export class InterpreterModule extends Module<
     if (b.end > a.end) {
       a.end = b.end;
     }
-    if (b.checkpoint) {
-      a.checkpoint = b.checkpoint;
+    if (b.choices) {
+      a.choices ??= [];
+      if (prefix) {
+        a.choices.unshift(...b.choices);
+      } else {
+        a.choices.push(...b.choices);
+      }
+    }
+    if (b.sources) {
+      a.sources ??= [];
+      if (prefix) {
+        a.sources.unshift(...b.sources);
+      } else {
+        a.sources.push(...b.sources);
+      }
     }
   }
 
@@ -127,7 +140,8 @@ export class InterpreterModule extends Module<
     // Trim away indent.
     content = content.trimStart();
     // Determine the default target (if no prefix matches).
-    const defaultTarget = this._targetPrefixMap?.[""] || "";
+    const defaultTarget =
+      this._targetPrefixMap?.["!"] || this._targetPrefixMap?.[""] || "";
     // Check if content starts with a target prefix symbol.
     const targetPrefix = this._targetPrefixes.find(
       (p) => p && content.startsWith(p)
@@ -145,6 +159,7 @@ export class InterpreterModule extends Module<
     let characterNameInstructions: Instructions | undefined = undefined;
     let characterParentheticalInstructions: Instructions | undefined =
       undefined;
+    // Parse dialogue character
     if (target === "dialogue") {
       const nextColonIndex = content.indexOf(":");
       const nextNewlineIndex = content.indexOf("\n");
@@ -201,40 +216,38 @@ export class InterpreterModule extends Module<
       // Trim away character declaration
       content = content.slice(characterTerminatorIndex + 1).trimStart();
     }
-    // >> causes the following text to display in a new text box.
-    // (Each textbox requires player interaction to advance)
-    const segments = content.split(">>");
-    for (const segment of segments) {
-      const segmentInstructions = parse(
-        segment,
+    // Queue content
+    if (content) {
+      const contentInstructions = parse(
+        content,
         target || defaultTarget,
         options
       );
-      if (segmentInstructions.text) {
+      if (contentInstructions.text) {
         if (characterParentheticalInstructions) {
           // prefix each textbox with character_parenthetical, if specified.
           this.merge(
-            segmentInstructions,
+            contentInstructions,
             characterParentheticalInstructions,
             true
           );
         }
         if (characterNameInstructions) {
           // prefix each textbox with character_name, if specified.
-          this.merge(segmentInstructions, characterNameInstructions, true);
+          this.merge(contentInstructions, characterNameInstructions, true);
         }
       }
       const lastTextbox = this._state.buffer.at(-1);
       if (lastTextbox && !lastTextbox?.text) {
         // If previous textbox did not actually contain any text, fold this result into it.
-        this.merge(lastTextbox, segmentInstructions);
+        this.merge(lastTextbox, contentInstructions);
       } else {
         // Otherwise, add this result as a new textbox.
-        this._state.buffer.push(segmentInstructions);
+        this._state.buffer.push(contentInstructions);
       }
     }
+    // Show choices after last textbox is done typing.
     if (choices?.length > 0) {
-      // show choices after last textbox is done typing.
       let lastTextbox = this._state.buffer?.at(-1);
       if (!lastTextbox) {
         lastTextbox = { end: 0 };
@@ -246,6 +259,7 @@ export class InterpreterModule extends Module<
           const choiceInstructions = parse(choice, `choice_${i}`, {
             ...options,
             delay: lastTextbox.end,
+            choice: true,
           });
           this.merge(lastTextbox, choiceInstructions);
         }

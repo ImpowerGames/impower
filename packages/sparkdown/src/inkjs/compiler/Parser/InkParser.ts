@@ -92,7 +92,6 @@ export class InkParser extends StringParser {
   ) {
     super(str);
 
-    this.filename = filename;
     this.RegisterExpressionOperators();
     this.GenerateStatementLevelRules();
 
@@ -110,10 +109,12 @@ export class InkParser extends StringParser {
       this._rootParser = this;
       this._openFilenames = [];
 
-      if (this.filename !== null) {
+      this._fileName = filename;
+      if (this._fileName !== null) {
         const fullRootInkPath = this.fileHandler.ResolveInkFilename(
-          this.filename
+          this._fileName
         );
+        this._filePath = fullRootInkPath;
         this._openFilenames.push(fullRootInkPath);
       }
     } else {
@@ -184,7 +185,8 @@ export class InkParser extends StringParser {
     md.endLineNumber = stateAtEnd.lineIndex + 1;
     md.startCharacterNumber = (stateAtStart?.characterInLineIndex || 0) + 1;
     md.endCharacterNumber = stateAtEnd.characterInLineIndex + 1;
-    md.fileName = this.filename;
+    md.fileName = this._fileName;
+    md.filePath = this._filePath;
 
     return md;
   };
@@ -252,8 +254,8 @@ export class InkParser extends StringParser {
     const warningType: string = isWarning ? "WARNING:" : "ERROR:";
     let fullMessage: string = warningType;
 
-    if (this.filename !== null) {
-      fullMessage += ` '${this.filename}'`;
+    if (this._fileName !== null) {
+      fullMessage += ` '${this._fileName}'`;
     }
 
     const lineNumber = source.startLineNumber;

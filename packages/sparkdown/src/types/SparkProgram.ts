@@ -7,5 +7,7 @@ export interface SparkProgram {
     structDefs?: { [type: string]: { [name: string]: any } };
   };
   diagnostics?: SparkDiagnostic[];
-  sourceMap?: Record<string, string[]>;
+  sourceMap?: Record<string, Record<number, [number, number]>>;
+  pathToSource?: Record<string, string>;
+  sourceToPath?: Record<string, string>;
 }

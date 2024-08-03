@@ -3,6 +3,7 @@ import type { SparkProgram } from "../../../../../sparkdown/src/types/SparkProgr
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { GameContext } from "../types/GameContext";
 import { InstanceMap } from "../types/InstanceMap";
+import { Instructions } from "../types/Instructions";
 import { Message } from "../types/Message";
 import { NotificationMessage } from "../types/NotificationMessage";
 import { RequestMessage } from "../types/RequestMessage";
@@ -64,21 +65,42 @@ export class Game<T extends M = {}> {
 
   protected _files: string[];
 
+  protected _program: SparkProgram;
+
+  get program() {
+    return this._program;
+  }
+
   constructor(
     program: SparkProgram,
     options?: {
       previewing?: boolean;
+      simulation?: {
+        waypoints?: { file?: string; line: number }[];
+        startpoint?: { file?: string; line: number };
+      };
       modules?: {
         [name in keyof T]: abstract new (...args: any) => T[name];
       };
     }
   ) {
+    this._program = program;
+    this._files = Object.keys(program.sourceMap || {});
     const compiled = program.compiled as Record<string, any>;
     const previewing = options?.previewing;
     const modules = options?.modules;
-    this._files = Object.keys(program.sourceMap || {});
+    const startpoint = options?.simulation?.startpoint ?? {
+      file: this._files[0],
+      line: 0,
+    };
+
     // Create story to control flow and state
     this._story = new Story(compiled);
+    // Start story from startpoint
+    const startPath = this.getClosestPath(startpoint.file, startpoint.line);
+    if (startPath) {
+      this._story.ChoosePathString(startPath);
+    }
     // Create context
     this._context = {
       system: {
@@ -177,6 +199,68 @@ export class Game<T extends M = {}> {
     // console.log("context", this._context);
   }
 
+  parseSource(sourceId: string): [number, number] | null {
+    const [fileIndexArg, lineIndexArg] = sourceId.split(";");
+    if (fileIndexArg != null && lineIndexArg != null) {
+      const fileIndex = Number(fileIndexArg);
+      const lineIndex = Number(lineIndexArg);
+      return [fileIndex, lineIndex];
+    }
+    return null;
+  }
+
+  getSource(sourceId: string) {
+    const parsed = this.parseSource(sourceId);
+    if (parsed) {
+      const [fileIndex, lineIndex] = parsed;
+      const file = this._files[fileIndex];
+      const line = lineIndex;
+      const source = { file, line };
+      return source;
+    }
+    return null;
+  }
+
+  getClosestPath(file: string | undefined, line: number) {
+    if (file == null) {
+      return null;
+    }
+    const fileIndex = this._files.indexOf(file);
+    if (fileIndex < 0) {
+      return null;
+    }
+    const sortedSources = Object.keys(this._program.sourceToPath || {});
+    let closestIndex = sortedSources.length - 1;
+    for (let i = 0; i < sortedSources.length; i++) {
+      const id = sortedSources[i]!;
+      const currParsed = this.parseSource(id);
+      if (currParsed) {
+        const [currFileIndex, currLineIndex] = currParsed;
+        if (currFileIndex === fileIndex && currLineIndex === line) {
+          closestIndex = i;
+          break;
+        }
+        if (currFileIndex === fileIndex && currLineIndex > line) {
+          closestIndex = i - 1;
+          break;
+        }
+        if (currFileIndex > fileIndex) {
+          closestIndex = i - 1;
+          break;
+        }
+      }
+    }
+    const source = sortedSources[closestIndex];
+    if (source == null) {
+      return null;
+    }
+    const path = this._program.sourceToPath?.[source];
+    if (path == null) {
+      return null;
+    }
+    return path;
+  }
+
   supports(name: string): boolean {
     return Boolean(this._modules[name]);
   }
@@ -262,7 +346,7 @@ export class Game<T extends M = {}> {
   checkpoint(): void {
     const checkpointId = ""; // TODO: update with tag (# id:<uuid>)
     for (const k of this._moduleNames) {
-      this._modules[k]?.onCheckpoint(checkpointId);
+      this._modules[k]?.onCheckpoint();
     }
     this._latestCheckpointId = checkpointId;
     this._latestCheckpointData = this._story.state.ToJson();
@@ -321,16 +405,13 @@ export class Game<T extends M = {}> {
       this.checkpoint();
       const instructions = this.module.interpreter.flush();
       if (instructions) {
-        const checkpoint = instructions.checkpoint ?? "";
-        const [fileIndexArg, lineIndexArg] = checkpoint.split(";");
-        const fileIndex = Number(fileIndexArg);
-        const lineIndex = Number(lineIndexArg);
-        const file = this._files[fileIndex];
-        const line = lineIndex;
-        const source = { file, line };
-        this.connection.emit(WillExecuteMessage.type.notification({ source }));
+        if (!this._context.system.previewing) {
+          this.notifyWillExecute(instructions);
+        }
         this._coordinator = new Coordinator(this, instructions);
-        this.connection.emit(DidExecuteMessage.type.notification({ source }));
+        if (!this._context.system.previewing) {
+          this.notifyDidExecute(instructions);
+        }
       }
     } else if (this._story.canContinue) {
       this._story.Continue();
@@ -338,6 +419,30 @@ export class Game<T extends M = {}> {
       const currentChoices = this._story.currentChoices.map((c) => c.text);
       this.module.interpreter.queue(currentText, currentChoices);
       this.continue();
+    }
+  }
+
+  protected notifyWillExecute(instructions: Instructions) {
+    if (instructions.sources) {
+      for (const s of instructions.sources) {
+        const source = this.getSource(s);
+        if (source) {
+          this.connection.emit(
+            WillExecuteMessage.type.notification({ source })
+          );
+        }
+      }
+    }
+  }
+
+  protected notifyDidExecute(instructions: Instructions) {
+    if (instructions.sources) {
+      for (const s of instructions.sources) {
+        const source = this.getSource(s);
+        if (source) {
+          this.connection.emit(DidExecuteMessage.type.notification({ source }));
+        }
+      }
     }
   }
 
@@ -372,14 +477,17 @@ export class Game<T extends M = {}> {
     this._context.system.debugging = true;
   }
 
-  preview(checkpointId: string): void {
+  preview(file: string, line: number): void {
     this._context.system.previewing = true;
-    // TODO:
-    // this._story.ChoosePathString(closestKnot);
-    // continue() until we reach checkpoint
-    // save then load
-    for (const k of this._moduleNames) {
-      this._modules[k]?.onPreview(checkpointId);
+    const path = this.getClosestPath(file, line);
+    if (path) {
+      this._story.ResetState();
+      this._story.ChoosePathString(path);
+      this.continue();
+      for (const k of this._moduleNames) {
+        this._modules[k]?.onPreview();
+      }
+      this._coordinator = null;
     }
   }
 }

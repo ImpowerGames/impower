@@ -14,7 +14,8 @@ const SINGLE_MARKERS = ["^", "*", "_"];
 const DOUBLE_MARKERS = ["~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
-const PARENTHETICAL_REGEX = /^([ \t]*)([(][^()]*?[)])?([ \t]*)$/;
+const PARENTHETICAL_REGEX =
+  /^([ \t]*)([+].*?[+])?([ \t]*)([(][^()]*?[)])([ \t]*)([+].*?[+])?([ \t]*)$/;
 const ASSET_CONTROL_KEYWORDS = [
   "show",
   "hide",
@@ -277,6 +278,7 @@ const createAssetChunk = (
 
 export interface InstructionOptions {
   delay?: number;
+  choice?: boolean;
   character?: string;
   position?: string;
   context?: GameContext;
@@ -291,6 +293,7 @@ export const parse = (
 
   const textTarget = target;
   const delay = options?.delay || 0;
+  const choice = options?.choice;
   const context = options?.context;
   const debug = context?.system.debugging;
   let character: string | undefined = options?.character;
@@ -308,7 +311,7 @@ export const parse = (
       textTargetPrefixKeys.push(v.prefix);
     }
   }
-  let checkpoint: undefined | string = undefined;
+  let sources: string[] = [];
   let consecutiveLettersLength = 0;
   let word = "";
   let dashLength = 0;
@@ -523,7 +526,7 @@ export const parse = (
             if (closed) {
               i += 1;
               if (id) {
-                checkpoint = id;
+                sources.push(id);
               }
               // consume trailing whitespace
               while (i < chars.length) {
@@ -843,8 +846,13 @@ export const parse = (
   const result: Instructions = {
     end: 0,
   };
-  if (checkpoint) {
-    result.checkpoint = checkpoint;
+  if (sources.length > 0) {
+    result.sources ??= [];
+    result.sources = sources;
+  }
+  if (choice) {
+    result.choices ??= [];
+    result.choices.push(target);
   }
   const synthEvents: Record<
     string,

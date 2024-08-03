@@ -142,6 +142,11 @@ export class Story extends InkObject {
   public onChoosePathString: ((arg1: string, arg2: any[]) => void) | null =
     null;
 
+  public onSerializeObject?: (
+    writer: SimpleJson.Writer,
+    obj: InkObject
+  ) => boolean = undefined;
+
   // TODO: Implement Profiler
   public StartProfiling() {
     /* */
@@ -272,7 +277,12 @@ export class Story extends InkObject {
     writer.WriteIntProperty("inkVersion", Story.inkVersionCurrent);
 
     writer.WriteProperty("root", (w) =>
-      JsonSerialisation.WriteRuntimeContainer(w, this._mainContentContainer)
+      JsonSerialisation.WriteRuntimeContainer(
+        w,
+        this._mainContentContainer,
+        false,
+        this.onSerializeObject
+      )
     );
 
     if (this._listDefinitions != null) {
@@ -1070,11 +1080,11 @@ export class Story extends InkObject {
         if (
           currentDivert &&
           currentDivert.debugMetadata &&
-          currentDivert.debugMetadata.sourceName != null
+          currentDivert.debugMetadata.filePath != null
         ) {
           this.Error(
             "Divert target doesn't exist: " +
-              currentDivert.debugMetadata.sourceName
+              currentDivert.debugMetadata.filePath
           );
         } else {
           this.Error("Divert resolution failed: " + currentDivert);

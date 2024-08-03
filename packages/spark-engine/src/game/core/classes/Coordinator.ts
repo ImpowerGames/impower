@@ -24,6 +24,18 @@ export class Coordinator<G extends Game> {
   constructor(game: G, instructions: Instructions) {
     this._game = game;
     this._instructions = instructions;
+    if (game.context.system.previewing) {
+      this.onPreview();
+    } else {
+      this.onExecute();
+    }
+  }
+
+  onPreview() {
+    this.display({ instant: true, preview: true });
+  }
+
+  onExecute() {
     this._onTick = this.display();
     this._onTick?.(0);
   }
@@ -45,11 +57,6 @@ export class Coordinator<G extends Game> {
         this._interacted = true;
       }
     }
-  }
-
-  onPreview() {
-    this.display({ instant: true, preview: true });
-    return true;
   }
 
   protected shouldContinue() {

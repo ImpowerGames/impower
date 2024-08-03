@@ -85,6 +85,8 @@ const LANGUAGE_HIGHLIGHTS = HighlightStyle.define([
   { tag: tags.definition(tags.variableName), display: "none" },
   { tag: tags.definition(tags.propertyName), display: "none" },
   { tag: tags.definition(tags.punctuation), display: "none" },
+  { tag: tags.definition(tags.content), display: "none" },
+  { tag: tags.special(tags.content), display: "none" },
   { tag: tags.comment, display: "none" },
   { tag: tags.blockComment, display: "none" },
   { tag: tags.docComment, display: "none" },
@@ -114,7 +116,7 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "ConstDeclaration",
   "ExternalDeclaration",
   "DefineDeclaration",
-  "CommandLine",
+  "AssetLine",
   "Unknown",
 ];
 
@@ -359,7 +361,7 @@ const decorate = (state: EditorState) => {
         }
         return false;
       }
-      if (name === "ParentheticalLine") {
+      if (name === "ParentheticalLineContent") {
         const value = doc.sliceString(from, to).trim();
         if (inDialogue) {
           dialogueContent.push({

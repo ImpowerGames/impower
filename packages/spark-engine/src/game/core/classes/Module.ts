@@ -74,10 +74,10 @@ export abstract class Module<
   onSerialize() {}
 
   /** Executed before game is checkpointed */
-  onCheckpoint(_checkpointId: string) {}
+  onCheckpoint() {}
 
   /** Executed when game is previewed at a specific checkpoint location */
-  onPreview(_checkpointId: string) {}
+  onPreview() {}
 
   /** Executed when a relevant notification is received */
   onReceiveNotification(_msg: NotificationMessage): void {}

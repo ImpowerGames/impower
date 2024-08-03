@@ -440,7 +440,7 @@ export class Story extends FlowBase {
       const metadata = source?.debugMetadata
         ? {
             fileName: source.debugMetadata.fileName,
-            sourceName: source.debugMetadata.sourceName,
+            filePath: source.debugMetadata.filePath,
             startLineNumber: source.debugMetadata.startLineNumber,
             endLineNumber: source.debugMetadata.endLineNumber,
             startCharacterNumber: source.debugMetadata.startCharacterNumber,

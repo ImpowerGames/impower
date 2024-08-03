@@ -88,11 +88,16 @@ export class JsonSerialisation {
 
   public static WriteRuntimeObject(
     writer: SimpleJson.Writer,
-    obj: InkObject
+    obj: InkObject,
+    onSerializeObject?: (writer: SimpleJson.Writer, obj: InkObject) => boolean
   ): void {
     let container = asOrNull(obj, Container);
     if (container) {
-      this.WriteRuntimeContainer(writer, container);
+      this.WriteRuntimeContainer(writer, container, false, onSerializeObject);
+      return;
+    }
+
+    if (onSerializeObject && onSerializeObject(writer, obj)) {
       return;
     }
 
@@ -211,7 +216,7 @@ export class JsonSerialisation {
     let controlCmd = asOrNull(obj, ControlCommand);
     if (controlCmd) {
       writer.Write(
-        JsonSerialisation._controlCommandNames[controlCmd.commandType]
+        JsonSerialisation._controlCommandNames[controlCmd.commandType]!
       );
       return;
     }
@@ -505,13 +510,15 @@ export class JsonSerialisation {
   public static WriteRuntimeContainer(
     writer: SimpleJson.Writer,
     container: Container | null,
-    withoutName: boolean = false
+    withoutName: boolean = false,
+    onSerializeObject?: (writer: SimpleJson.Writer, obj: InkObject) => boolean
   ) {
     writer.WriteArrayStart();
     if (container === null) {
       return throwNullException("container");
     }
-    for (let c of container.content) this.WriteRuntimeObject(writer, c);
+    for (let c of container.content)
+      this.WriteRuntimeObject(writer, c, onSerializeObject);
 
     let namedOnlyContent = container.namedOnlyContent;
     let countFlags = container.countFlags;
@@ -528,7 +535,12 @@ export class JsonSerialisation {
         let name = key;
         let namedContainer = asOrNull(value, Container);
         writer.WritePropertyStart(name);
-        this.WriteRuntimeContainer(writer, namedContainer, true);
+        this.WriteRuntimeContainer(
+          writer,
+          namedContainer,
+          true,
+          onSerializeObject
+        );
         writer.WritePropertyEnd();
       }
     }

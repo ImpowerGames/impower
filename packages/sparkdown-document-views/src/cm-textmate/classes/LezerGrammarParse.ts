@@ -262,28 +262,28 @@ export default class GrammarParse implements PartialParse {
       const match = this.grammar.match(this.state, str, pos - start, pos, true);
 
       let matchTokens: GrammarToken[] | null = null;
-      let length = 0;
+      let matchLength = 0;
 
       if (match) {
         matchTokens = match.compile();
-        length = match.length;
+        matchLength = match.length;
       } else {
         // if we didn't match, we'll advance to prevent getting stuck
         matchTokens = [[NodeID.unrecognized, pos, pos + 1]];
-        length = 1;
+        matchLength = 1;
       }
 
-      if (length === 0) {
+      if (matchLength === 0) {
         this.consecutiveEmptyMatchCount += 1;
       } else {
         this.consecutiveEmptyMatchCount = 0;
       }
       if (this.consecutiveEmptyMatchCount > 100) {
-        console.warn("Possible infinite loop!");
-        length = 1;
+        console.warn("Possible infinite loop!", matchTokens);
+        matchLength = 1;
       }
 
-      this.parsedPos = this.region.compensate(pos, length);
+      this.parsedPos = this.region.compensate(pos, matchLength);
 
       let addedChunk = false;
 

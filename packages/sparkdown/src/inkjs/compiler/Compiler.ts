@@ -95,6 +95,11 @@ export class Compiler {
       this._runtimeStory = null;
     }
 
+    if (this._runtimeStory) {
+      this._runtimeStory.onSerializeObject =
+        this.options.serializationHandler?.WriteRuntimeObject;
+    }
+
     return this.runtimeStory;
   };
 

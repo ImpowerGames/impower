@@ -4,8 +4,8 @@ export type ConfigureGameMethod = typeof ConfigureGameMessage.method;
 
 export interface ConfigureGameParams {
   settings: {
-    waypoints?: { uri: string; line: number }[];
-    startpoint?: { uri: string; line: number };
+    waypoints?: { file: string; line: number }[];
+    startpoint?: { file: string; line: number };
   };
 }
 

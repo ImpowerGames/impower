@@ -4,13 +4,13 @@ export class DebugMetadata {
   public startCharacterNumber: number = 0;
   public endCharacterNumber: number = 0;
   public fileName: string | null = null;
-  public sourceName: string | null = null;
+  public filePath: string | null = null;
 
   public Merge(dm: DebugMetadata) {
     let newDebugMetadata = new DebugMetadata();
 
     newDebugMetadata.fileName = this.fileName;
-    newDebugMetadata.sourceName = this.sourceName;
+    newDebugMetadata.filePath = this.filePath;
 
     if (this.startLineNumber < dm.startLineNumber) {
       newDebugMetadata.startLineNumber = this.startLineNumber;

@@ -8,7 +8,7 @@ export const interpreterBuiltins = () => ({
         scene: "$",
         transition: "%",
         dialogue: "@",
-        action: "",
+        action: "!",
       },
     },
   },

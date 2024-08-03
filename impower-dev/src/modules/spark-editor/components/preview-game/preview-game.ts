@@ -4,8 +4,6 @@ import { LoadGameMessage } from "@impower/spark-editor-protocol/src/protocols/ga
 import { WillExecuteGameCommandMessage } from "@impower/spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "@impower/spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
 import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
-import getNextPreviewCommandTokenAtLine from "../../../../../../packages/spark-engine/src/builder/utils/getNextPreviewCommandTokenAtLine";
-import getPreviousPreviewCommandTokenAtLine from "../../../../../../packages/spark-engine/src/builder/utils/getPreviousPreviewCommandTokenAtLine";
 import { SparkProgram } from "../../../../../../packages/sparkdown/src/types/SparkProgram";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
@@ -120,18 +118,18 @@ export default class GamePreview extends Component(spec) {
       this._program = await Workspace.ls.getProgram();
       this._startFromFile = uri;
       this._startFromLine = startLine;
-      const waypoints: { uri: string; line: number }[] = [];
+      const waypoints: { file: string; line: number }[] = [];
       if (Workspace.window.store.project.breakpointRanges) {
         Object.entries(Workspace.window.store.project.breakpointRanges).forEach(
           ([uri, ranges]) => {
             ranges.forEach((range) =>
-              waypoints.push({ uri, line: range.start.line })
+              waypoints.push({ file: uri, line: range.start.line })
             );
           }
         );
       }
       const startpoint = {
-        uri,
+        file: uri,
         line: startLine,
       };
       this.emit(
@@ -205,18 +203,15 @@ export default class GamePreview extends Component(spec) {
       const program = this._program;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
-        const previewCommandToken = getPreviousPreviewCommandTokenAtLine(
-          program,
-          currLine
-        );
-        if (previewCommandToken) {
+        const prevSource = this.getPreviousSource(program, uri, currLine);
+        if (prevSource && prevSource.file === uri) {
           const range = {
             start: {
-              line: previewCommandToken.line,
+              line: prevSource.line,
               character: 0,
             },
             end: {
-              line: previewCommandToken.line,
+              line: prevSource.line,
               character: 0,
             },
           };
@@ -233,18 +228,15 @@ export default class GamePreview extends Component(spec) {
       const program = this._program;
       const currLine = selectedRange?.start.line ?? 0;
       if (program) {
-        const previewCommandToken = getNextPreviewCommandTokenAtLine(
-          program,
-          currLine
-        );
-        if (previewCommandToken) {
+        const nextSource = this.getNextSource(program, uri, currLine);
+        if (nextSource && nextSource.file === uri) {
           const range = {
             start: {
-              line: previewCommandToken.line,
+              line: nextSource.line,
               character: 0,
             },
             end: {
-              line: previewCommandToken.line,
+              line: nextSource.line,
               character: 0,
             },
           };
@@ -252,5 +244,98 @@ export default class GamePreview extends Component(spec) {
         }
       }
     }
+  }
+
+  getPreviousSource(
+    program: SparkProgram,
+    currentFile: string | undefined,
+    currentLine: number
+  ) {
+    return this.getOffsetSource(program, currentFile, currentLine, -1);
+  }
+
+  getNextSource(
+    program: SparkProgram,
+    currentFile: string | undefined,
+    currentLine: number
+  ) {
+    return this.getOffsetSource(program, currentFile, currentLine, 1);
+  }
+
+  getOffsetSource(
+    program: SparkProgram,
+    currentFile: string | undefined,
+    currentLine: number,
+    offset: number
+  ) {
+    const files = Object.keys(program.sourceMap || {});
+    const sources = Object.keys(program.sourceToPath || {});
+    const index = this.getClosestSourceIndex(
+      files,
+      sources,
+      currentFile,
+      currentLine
+    );
+    if (index == null) {
+      return null;
+    }
+    const sourceId = sources[index + offset];
+    if (sourceId == null) {
+      return null;
+    }
+    const source = this.parseSource(sourceId);
+    if (source == null) {
+      return null;
+    }
+    const [fileIndex, lineIndex] = source;
+    const file = files[fileIndex];
+    const line = lineIndex;
+    return { file, line };
+  }
+
+  getClosestSourceIndex(
+    allFiles: string[],
+    allSources: string[],
+    currentFile: string | undefined,
+    currentLine: number
+  ) {
+    if (currentFile == null) {
+      return null;
+    }
+    const fileIndex = allFiles.indexOf(currentFile);
+    if (fileIndex < 0) {
+      return null;
+    }
+    let closestIndex: number | null = null;
+    for (let i = 0; i < allSources.length; i++) {
+      const id = allSources[i]!;
+      const currParsed = this.parseSource(id);
+      if (currParsed) {
+        const [currFileIndex, currLineIndex] = currParsed;
+        if (currFileIndex === fileIndex && currLineIndex === currentLine) {
+          closestIndex = i;
+          break;
+        }
+        if (currFileIndex === fileIndex && currLineIndex > currentLine) {
+          closestIndex = i - 1;
+          break;
+        }
+        if (currFileIndex > fileIndex) {
+          closestIndex = null;
+          break;
+        }
+      }
+    }
+    return closestIndex;
+  }
+
+  parseSource(sourceId: string): [number, number] | null {
+    const [fileIndexArg, lineIndexArg] = sourceId.split(";");
+    if (fileIndexArg != null && lineIndexArg != null) {
+      const fileIndex = Number(fileIndexArg);
+      const lineIndex = Number(lineIndexArg);
+      return [fileIndex, lineIndex];
+    }
+    return null;
   }
 }

@@ -10,7 +10,7 @@ import { StopGameMessage } from "../../../spark-editor-protocol/src/protocols/ga
 import { UnpauseGameMessage } from "../../../spark-editor-protocol/src/protocols/game/UnpauseGameMessage";
 import { WillExecuteGameCommandMessage } from "../../../spark-editor-protocol/src/protocols/game/WillExecuteGameCommandMessage";
 import { LoadPreviewMessage } from "../../../spark-editor-protocol/src/protocols/preview/LoadPreviewMessage";
-import { GameBuilder } from "../../../spark-engine/src/builder/classes/GameBuilder";
+import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { DidExecuteMessage } from "../../../spark-engine/src/game/core/classes/messages/DidExecuteMessage";
 import { WillExecuteMessage } from "../../../spark-engine/src/game/core/classes/messages/WillExecuteMessage";
 import { SparkProgram } from "../../../sparkdown/src/types/SparkProgram";
@@ -19,7 +19,7 @@ import Application from "../app/Application";
 import spec from "./_spark-web-player";
 
 export default class SparkWebPlayer extends Component(spec) {
-  _builder?: GameBuilder;
+  _game?: Game;
 
   _app?: Application;
 
@@ -28,8 +28,8 @@ export default class SparkWebPlayer extends Component(spec) {
   _program?: SparkProgram;
 
   _options?: {
-    waypoints?: { uri: string; line: number }[];
-    startpoint?: { uri: string; line: number };
+    waypoints?: { file: string; line: number }[];
+    startpoint?: { file: string; line: number };
   };
 
   override onConnected() {
@@ -128,9 +128,9 @@ export default class SparkWebPlayer extends Component(spec) {
           this._app.destroy(true);
           this._app = undefined;
         }
-        if (this._builder) {
-          this._builder.game.destroy();
-          this._builder = undefined;
+        if (this._game) {
+          this._game.destroy();
+          this._game = undefined;
         }
       }
     }
@@ -174,8 +174,8 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (EnableGameDebugMessage.type.isRequest(message)) {
-        if (this._builder) {
-          this._builder.game.startDebugging();
+        if (this._game) {
+          this._game.startDebugging();
         }
       }
     }
@@ -185,8 +185,8 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (DisableGameDebugMessage.type.isRequest(message)) {
-        if (this._builder) {
-          this._builder.game.stopDebugging();
+        if (this._game) {
+          this._game.stopDebugging();
         }
       }
     }
@@ -196,10 +196,10 @@ export default class SparkWebPlayer extends Component(spec) {
     if (e instanceof CustomEvent) {
       const message = e.detail;
       if (LoadPreviewMessage.type.isRequest(message)) {
-        const { type, selectedRange } = message.params;
+        const { type, textDocument, selectedRange } = message.params;
         if (type === "game") {
           const line = selectedRange?.start.line ?? 0;
-          this.updatePreview(line);
+          this.updatePreview(textDocument.uri, line);
           this.emit(
             LoadPreviewMessage.method,
             LoadPreviewMessage.type.response(message.id, null)
@@ -218,81 +218,75 @@ export default class SparkWebPlayer extends Component(spec) {
         waypoints,
         startpoint,
       };
-      if (this._builder?.game) {
-        this._builder.game.destroy();
+      if (this._game) {
+        this._game.destroy();
       }
       if (!this._program || !this._program.compiled) {
         return;
       }
-      this._builder = new GameBuilder(this._program, {
+      this._game = new Game(this._program, {
         simulation,
         previewing,
       });
-      this._builder.game.connection.outgoing.addListener(
-        "story/willexecute",
-        (msg) => {
-          if (WillExecuteMessage.type.isNotification(msg)) {
-            const source = msg.params.source;
-            if (source) {
-              const uri = source.file;
-              if (uri) {
-                this.emit(
-                  WillExecuteGameCommandMessage.method,
-                  WillExecuteGameCommandMessage.type.notification({
-                    textDocument: { uri },
-                    range: {
-                      start: {
-                        line: source.line,
-                        character: 0,
-                      },
-                      end: {
-                        line: source.line + 1,
-                        character: 0,
-                      },
+      this._game.connection.outgoing.addListener("story/willexecute", (msg) => {
+        if (WillExecuteMessage.type.isNotification(msg)) {
+          const source = msg.params.source;
+          if (source) {
+            const uri = source.file;
+            if (uri) {
+              this.emit(
+                WillExecuteGameCommandMessage.method,
+                WillExecuteGameCommandMessage.type.notification({
+                  textDocument: { uri },
+                  range: {
+                    start: {
+                      line: source.line,
+                      character: 0,
                     },
-                  })
-                );
-              }
+                    end: {
+                      line: source.line + 1,
+                      character: 0,
+                    },
+                  },
+                })
+              );
             }
           }
         }
-      );
-      this._builder.game.connection.outgoing.addListener(
-        "story/didexecute",
-        (msg) => {
-          if (DidExecuteMessage.type.isNotification(msg)) {
-            const source = msg.params.source;
-            if (source) {
-              const uri = source.file;
-              if (uri) {
-                this.emit(
-                  DidExecuteGameCommandMessage.method,
-                  DidExecuteGameCommandMessage.type.notification({
-                    textDocument: { uri },
-                    range: {
-                      start: {
-                        line: source.line,
-                        character: 0,
-                      },
-                      end: {
-                        line: source.line + 1,
-                        character: 0,
-                      },
+      });
+      this._game.connection.outgoing.addListener("story/didexecute", (msg) => {
+        if (DidExecuteMessage.type.isNotification(msg)) {
+          const source = msg.params.source;
+          if (source) {
+            const uri = source.file;
+            if (uri) {
+              this.emit(
+                DidExecuteGameCommandMessage.method,
+                DidExecuteGameCommandMessage.type.notification({
+                  textDocument: { uri },
+                  range: {
+                    start: {
+                      line: source.line,
+                      character: 0,
                     },
-                  })
-                );
-              }
+                    end: {
+                      line: source.line + 1,
+                      character: 0,
+                    },
+                  },
+                })
+              );
             }
           }
         }
-      );
-      if (this._builder) {
+      });
+      if (this._game) {
         if (this._app) {
           this._app.destroy(true);
           this._app = undefined;
         }
         this._app = new Application(
-          this._builder.game,
+          this._game,
           this.ref.gameView,
           this.ref.gameOverlay
         );
@@ -301,13 +295,13 @@ export default class SparkWebPlayer extends Component(spec) {
     return undefined;
   }
 
-  updatePreview(line: number) {
-    if (!this._builder || this._builder.program !== this._program) {
+  updatePreview(file: string, line: number) {
+    if (!this._game || this._game.program !== this._program) {
       // If haven't built game yet, or programs have changed since last build, build game.
       this.buildGame(true);
     }
-    if (this._builder) {
-      this._builder.preview(line);
+    if (this._game) {
+      this._game.preview(file, line);
     }
   }
 }
