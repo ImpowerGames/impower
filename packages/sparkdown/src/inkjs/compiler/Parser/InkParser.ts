@@ -322,6 +322,13 @@ export class InkParser extends StringParser {
     // no excludes here
   );
 
+  public static readonly Latin1Supplement: CharacterRange =
+    CharacterRange.Define(
+      "\u0080",
+      "\u00FF"
+      // no excludes here
+    );
+
   public static readonly Greek: CharacterRange = CharacterRange.Define(
     "\u0370",
     "\u03FF",
@@ -384,6 +391,7 @@ export class InkParser extends StringParser {
     InkParser.LatinBasic,
     InkParser.LatinExtendedA,
     InkParser.LatinExtendedB,
+    InkParser.Latin1Supplement,
     InkParser.Arabic,
     InkParser.Armenian,
     InkParser.Cyrillic,
