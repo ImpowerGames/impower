@@ -2349,6 +2349,7 @@ repository:
   InlineTextAndLogic:
     patterns:
       - { include: "#Escape" }
+      - { include: "#Divert" }
       - { include: "#ConditionalBlock" }
       - { include: "#InlineText" }
 
