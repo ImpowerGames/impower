@@ -628,8 +628,8 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       2:
-        tag: keyword
-        name: keyword.other.chain.sd
+        tag: definition(escape)
+        name: constant.character.escape.sd
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -2390,8 +2390,8 @@ repository:
     match: (.+)
     captures:
       1:
-        tag: bracket
-        name: punctuation.definition.styling.sd
+        tag: definition(content)
+        name: markup.raw.text.sd
 
   BoldItalic:
     tag: strong
@@ -2474,34 +2474,34 @@ repository:
       - { include: "#EmphasisColon" }
 
   EmphasisTilde:
-    tag: emphasis
+    tag: quote
     name: markup.emphasis.sd
     match: ([~][~]+)((?:(?!\1).*?)+)(\1|$)
     captures:
       1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
+        patterns:
+          - { include: "#StylingMark" }
       2:
         patterns:
           - { include: "#InlineTextAndLogic" }
       3:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
+        patterns:
+          - { include: "#StylingMark" }
 
   EmphasisColon:
-    tag: emphasis
+    tag: quote
     name: markup.emphasis.sd
     match: ([:][:]+)((?:(?!\1).*?)+)(\1|$)
     captures:
       1:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
+        patterns:
+          - { include: "#StylingMark" }
       2:
         patterns:
           - { include: "#InlineTextAndLogic" }
       3:
-        tag: bracket
-        name: punctuation.definition.emphasis.sd
+        patterns:
+          - { include: "#StylingMark" }
 
   PlainText:
     patterns:
