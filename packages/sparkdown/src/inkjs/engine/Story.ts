@@ -142,7 +142,7 @@ export class Story extends InkObject {
   public onChoosePathString: ((arg1: string, arg2: any[]) => void) | null =
     null;
 
-  public onSerializeObject?: (
+  public onWriteRuntimeObject?: (
     writer: SimpleJson.Writer,
     obj: InkObject
   ) => boolean = undefined;
@@ -281,7 +281,7 @@ export class Story extends InkObject {
         w,
         this._mainContentContainer,
         false,
-        this.onSerializeObject
+        this.onWriteRuntimeObject
       )
     );
 

@@ -15,6 +15,10 @@ Since whitespace is syntactically relevant in sparkdown, the inkjs engine has be
 
 This way we can continue using the number of spaces to determine things like the length of pauses between words when text is typing out.
 
+### 2. Story now has an onWriteRuntimeObject callback
+
+This is called when an InkObject is compiled into a runtime object. It is useful for recording the runtime path of a particular script statement.
+
 ## Compiler Changes:
 
 ### 1. Whitespace is now required after all choice, logic, gather, and clause operators
@@ -86,7 +90,9 @@ The `\` backslash operator joins text together in a similar way to the `<>` glue
     This line will appear in a new textbox.
     ```
 
-`\ ` can be used to insert a newline in the middle of text (NOTE: For these mid-line breaks, the backslash must be followed by at least one space).
+### 3. `\ ` can be used to insert a newline in the middle of text
+
+(NOTE: For these mid-line breaks, the backslash must be followed by at least one space).
 
 ```
 All the world’s a stage, \ And all the men and women merely players.
@@ -94,7 +100,7 @@ All the world’s a stage, \ And all the men and women merely players.
 
 ---
 
-### 3. Front Matter can be specified by surrounding a block of text with `---`
+### 4. Front Matter can be specified by surrounding a block of text with `---`
 
 Front Matter can be used to conveniently store multiline metadata about a story.
 
@@ -120,7 +126,7 @@ contact:
 
 ---
 
-### 4. You can define objects and arrays with `DEFINE`
+### 5. You can define objects and arrays with `DEFINE`
 
 The new compiler supports using yaml-esque syntax to define constant objects and arrays:
 
@@ -138,7 +144,7 @@ DEFINE fears:
 
 ---
 
-### 5. You can specify an object's type with `DEFINE type.name`
+### 6. You can specify an object's type with `DEFINE type.name`
 
 An object's type can be specified by prefixing its name with a type and a dot separator
 
@@ -181,7 +187,7 @@ define style.dialogue:
 
 ---
 
-### 6. You can access object properties and array elements
+### 7. You can access object properties and array elements
 
 Although you cannot change their value, you can read an object's properties with dot notation:
 
@@ -198,7 +204,7 @@ I am most afraid of {fears[0]}.
 
 ---
 
-### 7. Compiler errors now include exact source location
+### 8. Compiler errors now include exact source location
 
 An additional `source` parameter has been added to the compiler's error handler. 
 
