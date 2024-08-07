@@ -36,6 +36,7 @@ patterns:
   - { include: "#Dialogue" }
   - { include: "#Transition" }
   - { include: "#Scene" }
+  - { include: "#AudioLine" }
   - { include: "#Action" }
 
 repository:
@@ -1994,6 +1995,7 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#LineContinue" }
+      - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
@@ -2001,6 +2003,7 @@ repository:
   ActionMark:
     tag: definition(content)
     name: markup.raw.text.sd
+    match: (.+)
 
 ########## Parenthetical ##########
 
@@ -2127,7 +2130,35 @@ repository:
 
 ########## Commands ##########
 
-  AssetLine:
+  ImageLine:
+    match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|{{WS}}+)+)({{EOL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#ImageCommand" }
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  AudioLine:
+    match: ^({{WS}}*)(?=\S)((?:[(][(](?:\\.|[^)])*?[)][)]|{{WS}}+)+)({{EOL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#AudioCommand" }
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  ImageAndAudioLine:
     match: ^({{WS}}*)(?=\S)((?:\[\[(?:\\.|[^\]])*?\]\]|[(][(](?:\\.|[^)])*?[)][)]|{{WS}}+)+)({{EOL}})
     captures:
       1:
@@ -2141,6 +2172,12 @@ repository:
       3:
         patterns:
           - { include: "#EndOfLine" }
+
+  AssetLine:
+    patterns:
+      - { include: "#ImageLine" }
+      - { include: "#AudioLine" }
+      - { include: "#ImageAndAudioLine" }
 
   ImageCommand:
     tag: macroName

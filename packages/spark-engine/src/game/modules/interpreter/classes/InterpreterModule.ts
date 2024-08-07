@@ -274,7 +274,11 @@ export class InterpreterModule extends Module<
    */
   canFlush(): boolean {
     // There is text to display.
-    return Boolean(this._state.buffer?.[0]?.text);
+    // Or we are in preview mode and there is an image to display
+    return Boolean(
+      this._state.buffer?.[0]?.text ||
+        (this.context.system.previewing && this._state.buffer?.[0]?.image)
+    );
   }
 
   /**

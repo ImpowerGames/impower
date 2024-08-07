@@ -109,7 +109,9 @@ const HIDDEN_NODE_NAMES: SparkdownNodeName[] = [
   "ConstDeclaration",
   "ExternalDeclaration",
   "DefineDeclaration",
-  "AssetLine",
+  "AudioLine",
+  "ImageLine",
+  "ImageAndAudioLine",
   "Unknown",
 ];
 

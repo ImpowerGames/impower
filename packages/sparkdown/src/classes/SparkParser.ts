@@ -125,7 +125,9 @@ export default class SparkParser {
           blockDialoguePrefix = lineTextBefore;
         }
         if (
-          nodeType === "AssetLine" ||
+          nodeType === "ImageLine" ||
+          nodeType === "AudioLine" ||
+          nodeType === "ImageAndAudioLine" ||
           nodeType === "ParentheticalLineContent"
         ) {
           if (inBlockDialogue) {
@@ -203,7 +205,7 @@ export default class SparkParser {
       },
     });
     const transpiled = lines.join("\n");
-    // console.log(printTree(tree, script, nodeNames));
+    console.log(printTree(tree, script, nodeNames));
     console.log(transpiled);
     return transpiled;
   }

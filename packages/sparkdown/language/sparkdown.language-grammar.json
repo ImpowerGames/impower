@@ -69,6 +69,9 @@
       "include": "#Scene"
     },
     {
+      "include": "#AudioLine"
+    },
+    {
       "include": "#Action"
     }
   ],
@@ -3493,6 +3496,9 @@
           "include": "#LineContinue"
         },
         {
+          "include": "#AssetLine"
+        },
+        {
           "include": "#ParentheticalLine"
         },
         {
@@ -3503,7 +3509,8 @@
     },
     "ActionMark": {
       "tag": "definition(content)",
-      "name": "markup.raw.text.sd"
+      "name": "markup.raw.text.sd",
+      "match": "(.+)"
     },
     "ParentheticalLine": {
       "match": "([^\\S\\n\\r]*)([+].*?[+])?([^\\S\\n\\r]*)([(][^()]*?[)])([^\\S\\n\\r]*)([+].*?[+])?([^\\S\\n\\r]*)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$)|[\\\\](?:[^\\S\\n\\r]|$))",
@@ -3730,7 +3737,65 @@
       "name": "keyword.source.identifier.sd",
       "match": "(.+)"
     },
-    "AssetLine": {
+    "ImageLine": {
+      "match": "^([^\\S\\n\\r]*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[^\\S\\n\\r]+)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#ImageCommand"
+            },
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "AudioLine": {
+      "match": "^([^\\S\\n\\r]*)(?=\\S)((?:[(][(](?:\\\\.|[^)])*?[)][)]|[^\\S\\n\\r]+)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#AudioCommand"
+            },
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "ImageAndAudioLine": {
       "match": "^([^\\S\\n\\r]*)(?=\\S)((?:\\[\\[(?:\\\\.|[^\\]])*?\\]\\]|[(][(](?:\\\\.|[^)])*?[)][)]|[^\\S\\n\\r]+)+)((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
@@ -3761,6 +3826,19 @@
           ]
         }
       }
+    },
+    "AssetLine": {
+      "patterns": [
+        {
+          "include": "#ImageLine"
+        },
+        {
+          "include": "#AudioLine"
+        },
+        {
+          "include": "#ImageAndAudioLine"
+        }
+      ]
     },
     "ImageCommand": {
       "tag": "macroName",
