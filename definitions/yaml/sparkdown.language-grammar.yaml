@@ -1978,14 +1978,18 @@ repository:
 ########## Action ##########
 
   Action:
-    begin: ({{WS}}*)([!](?:$|{{WS}}+))?(?=\S)
+    begin: ({{WS}}*)([<][>]|[!](?:$|{{WS}}+))?({{WS}}*)(?=\S)
     beginCaptures:
       1:
         patterns:
           - { include: "#Indent" }
       2:
-        tag: definition(content)
-        name: markup.raw.text.sd
+        patterns:
+          - { include: "#Glue" }
+          - { include: "#ActionMark" }
+      3:
+        patterns:
+          - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1993,6 +1997,10 @@ repository:
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)|(?=[#])
+
+  ActionMark:
+    tag: definition(content)
+    name: markup.raw.text.sd
 
 ########## Parenthetical ##########
 
