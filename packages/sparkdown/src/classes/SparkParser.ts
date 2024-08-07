@@ -170,7 +170,10 @@ export default class SparkParser {
           const lineText = lines[lineIndex] || "";
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
-          if (!lineTextAfter.startsWith("+")) {
+          if (
+            !lineTextAfter.startsWith("+") &&
+            !lineTextBefore.trim().endsWith("<>")
+          ) {
             const id = generateID();
             const flowMarker = `+${id}+ `;
             const markup = flowMarker;
