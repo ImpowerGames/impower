@@ -269,22 +269,22 @@ export default class GamePreview extends Component(spec) {
     offset: number
   ) {
     const files = Object.keys(program.sourceMap || {});
-    const sources = Object.keys(program.sourceToPath || {});
+    const uuidToSourceEntries = Object.entries(program.uuidToSource || {});
     const index = this.getClosestSourceIndex(
       files,
-      sources,
+      uuidToSourceEntries,
       currentFile,
       currentLine
     );
     if (index == null) {
       return null;
     }
-    const sourceId = sources[index + offset];
-    if (sourceId == null) {
+    const uuidToSourceEntry = uuidToSourceEntries[index + offset];
+    if (uuidToSourceEntry == null) {
       return null;
     }
-    const source = this.parseSource(sourceId);
-    if (source == null) {
+    const [uuid, source] = uuidToSourceEntry;
+    if (uuid == null) {
       return null;
     }
     const [fileIndex, lineIndex] = source;
@@ -295,7 +295,7 @@ export default class GamePreview extends Component(spec) {
 
   getClosestSourceIndex(
     allFiles: string[],
-    allSources: string[],
+    allUUIDToSourceEntries: [string, [number, number]][],
     currentFile: string | undefined,
     currentLine: number
   ) {
@@ -307,11 +307,11 @@ export default class GamePreview extends Component(spec) {
       return null;
     }
     let closestIndex: number | null = null;
-    for (let i = 0; i < allSources.length; i++) {
-      const id = allSources[i]!;
-      const currParsed = this.parseSource(id);
-      if (currParsed) {
-        const [currFileIndex, currLineIndex] = currParsed;
+    for (let i = 0; i < allUUIDToSourceEntries.length; i++) {
+      const entry = allUUIDToSourceEntries[i]!;
+      const [, source] = entry;
+      if (source) {
+        const [currFileIndex, currLineIndex] = source;
         if (currFileIndex === fileIndex && currLineIndex === currentLine) {
           closestIndex = i;
           break;

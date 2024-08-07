@@ -21,10 +21,11 @@ import {
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
+import { uuid } from "../utils/uuid";
 
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 
-const SOURCE_REGEX: RegExp = /[+](.*?)[+]/g;
+const UUID_MARKER_REGEX: RegExp = /[+](.*?)[+]/g;
 
 export default class SparkParser {
   protected _config: SparkParserConfig = {};
@@ -54,42 +55,33 @@ export default class SparkParser {
     }
   }
 
-  transpile(
-    script: string,
-    filepath: string,
-    sourceMap?: Record<string, Record<number, [number, number]>>
-  ): string {
+  transpile(script: string, filepath: string, program: SparkProgram): string {
     const nodeNames = this._grammar.nodeNames;
     const lines = script.split(NEWLINE_REGEX);
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
     const tree = this.buildTree(paddedScript);
-    sourceMap ??= {};
-    sourceMap[filepath] ??= [];
-    const fileIndex = Object.keys(sourceMap).indexOf(filepath);
+    program.sourceMap ??= {};
+    program.sourceMap[filepath] ??= [];
+    const fileIndex = Object.keys(program.sourceMap).indexOf(filepath);
     let lineIndex = 0;
     let linePos = 0;
     let prevId = "";
     let prevDialogueLineWasLineEnd = false;
     let inBlockDialogue = false;
-    let inConditionalBlock = false;
     let blockDialoguePrefix = "";
     tree.iterate({
       enter: (node) => {
-        const id = nodeNames[node.type]! as SparkdownNodeName;
-        if (id === "BlockDialogue_begin") {
+        const nodeType = nodeNames[node.type]! as SparkdownNodeName;
+        if (nodeType === "BlockDialogue_begin") {
           inBlockDialogue = true;
-        }
-        if (id === "ConditionalBlock_begin") {
-          inConditionalBlock = true;
         }
       },
       leave: (node) => {
-        const id = nodeNames[node.type]! as SparkdownNodeName;
-        const source = `+${fileIndex};${lineIndex}+ `;
-        const [offsetAfter, offset] = sourceMap?.[filepath]?.[lineIndex] ?? [
-          0, 0,
-        ];
+        const nodeType = nodeNames[node.type]! as SparkdownNodeName;
+        const [offsetAfter, offset] = program.sourceMap?.[filepath]?.[
+          lineIndex
+        ] ?? [0, 0];
         const nodeStartCharacter = node.from - linePos;
         const nodeStart =
           nodeStartCharacter > offsetAfter
@@ -100,29 +92,32 @@ export default class SparkParser {
           nodeEndCharacter > offsetAfter
             ? offset + nodeEndCharacter
             : nodeEndCharacter;
-        if (id === "BlockDialogue_end") {
+        if (nodeType === "BlockDialogue_end") {
           inBlockDialogue = false;
           prevDialogueLineWasLineEnd = false;
           blockDialoguePrefix = "";
         }
-        if (id === "ConditionalBlock_end") {
-          inConditionalBlock = false;
-        }
-        if (id === "BlockDialogue_begin") {
+        if (nodeType === "BlockDialogue_begin") {
           const lineText = lines[lineIndex] || "";
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
-          const markup = ": " + source + "\\";
+          const id = uuid();
+          const uuidMarker = `+${id}+ `;
+          const markup = ": " + uuidMarker + "\\";
           lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-          if (sourceMap) {
-            sourceMap[filepath]![lineIndex] = [
-              lineTextBefore.length,
-              markup.length,
-            ];
-          }
+          program.sourceMap ??= {};
+          program.sourceMap[filepath]![lineIndex] = [
+            lineTextBefore.length,
+            markup.length,
+          ];
+          program.uuidToSource ??= {};
+          program.uuidToSource[id] = [fileIndex, lineIndex];
           blockDialoguePrefix = lineTextBefore;
         }
-        if (id === "AssetLine" || id === "ParentheticalLineContent") {
+        if (
+          nodeType === "AssetLine" ||
+          nodeType === "ParentheticalLineContent"
+        ) {
           if (inBlockDialogue) {
             const lineText = lines[lineIndex] || "";
             const lineTextBefore = lineText.slice(0, nodeEnd);
@@ -134,50 +129,64 @@ export default class SparkParser {
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           }
         }
-        if (id === "BlockDialogueLine_end") {
+        if (nodeType === "BlockDialogueLine_end") {
           prevDialogueLineWasLineEnd = prevId === "LineEnd";
         }
-        if (id === "BlockDialogueLine_begin") {
+        if (nodeType === "BlockDialogueLine_begin") {
           if (prevDialogueLineWasLineEnd) {
             const lineText = lines[lineIndex] || "";
             const lineTextBefore = lineText.slice(0, nodeStart);
             const lineTextAfter = lineText.slice(nodeStart);
             const prefix = blockDialoguePrefix + ": ";
-            const markup = prefix + source;
+            const id = uuid();
+            const uuidMarker = `+${id}+ `;
+            const markup = prefix + uuidMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-            if (sourceMap) {
-              sourceMap[filepath]![lineIndex] = [
-                lineTextBefore.length,
-                markup.length,
-              ];
-            }
+            program.sourceMap ??= {};
+            program.sourceMap[filepath]![lineIndex] = [
+              lineTextBefore.length,
+              markup.length,
+            ];
+            program.uuidToSource ??= {};
+            program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
         if (
-          id === "InlineDialogue_begin" ||
-          id === "Transition_begin" ||
-          id === "Scene_begin" ||
-          id === "Action_begin"
+          nodeType === "InlineDialogue_begin" ||
+          nodeType === "Transition_begin" ||
+          nodeType === "Scene_begin" ||
+          nodeType === "Action_begin"
         ) {
           const lineText = lines[lineIndex] || "";
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
           if (!lineTextAfter.startsWith("+")) {
-            const markup = source;
+            const id = uuid();
+            const uuidMarker = `+${id}+ `;
+            const markup = uuidMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-            if (sourceMap) {
-              sourceMap[filepath]![lineIndex] = [
-                lineTextBefore.length,
-                markup.length,
-              ];
-            }
+            program.sourceMap ??= {};
+            program.sourceMap[filepath]![lineIndex] = [
+              lineTextBefore.length,
+              markup.length,
+            ];
+            program.uuidToSource ??= {};
+            program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
-        if (id === "Newline") {
+        if (nodeType === "UUID") {
+          const lineText = lines[lineIndex] || "";
+          const id = lineText.slice(nodeStart, nodeEnd).trim();
+          if (id) {
+            program.uuidToSource ??= {};
+            program.uuidToSource[id] = [fileIndex, lineIndex];
+          }
+        }
+        if (nodeType === "Newline") {
           lineIndex += 1;
           linePos = node.to;
         }
-        prevId = id;
+        prevId = nodeType;
       },
     });
     const transpiled = lines.join("\n");
@@ -189,11 +198,10 @@ export default class SparkParser {
   parse(script: string, filename: string = "main.script"): SparkProgram {
     const program: SparkProgram = {};
 
-    program.sourceMap ??= {};
     const transpiledScript = this.transpile(
       script,
       this._config?.resolveFile?.(filename) || "",
-      program.sourceMap
+      program
     );
 
     const options = new InkCompilerOptions(
@@ -212,7 +220,7 @@ export default class SparkParser {
           return this.transpile(
             this._config?.readFile?.(filepath) || "",
             filepath,
-            program.sourceMap
+            program
           );
         },
       },
@@ -220,15 +228,13 @@ export default class SparkParser {
         WriteRuntimeObject: (_, obj) => {
           if (obj instanceof StringValue) {
             if (!obj.isNewline && obj.value) {
-              const sourceMarkers = obj.value.match(SOURCE_REGEX);
-              if (sourceMarkers) {
+              const uuidMarkers = obj.value.match(UUID_MARKER_REGEX);
+              if (uuidMarkers) {
                 const path = obj.path.toString();
-                for (const m of sourceMarkers) {
-                  const source = m.slice(1, -1);
-                  program.pathToSource ??= {};
-                  program.pathToSource[path] ??= source;
-                  program.sourceToPath ??= {};
-                  program.sourceToPath[source] ??= path;
+                for (const m of uuidMarkers) {
+                  const uuidMarker = m.slice(1, -1);
+                  program.uuidToPath ??= {};
+                  program.uuidToPath[uuidMarker] ??= path;
                 }
               }
             }
@@ -249,14 +255,8 @@ export default class SparkParser {
         this.populateAssets(compiled);
         program.compiled = compiled;
       }
-      program.sourceToPath ??= {};
-      program.sourceToPath = this.sortPaths(
-        Object.keys(program.sourceToPath || {}),
-        ";"
-      ).reduce((obj, key) => {
-        obj[key] = program.sourceToPath![key]!;
-        return obj;
-      }, {} as Record<string, string>);
+      program.uuidToSource ??= {};
+      program.uuidToSource = this.sortSources(program.uuidToSource);
     } catch {}
     for (const error of inkCompiler.errors) {
       program.diagnostics ??= [];
@@ -455,30 +455,25 @@ export default class SparkParser {
     });
   }
 
-  sortPaths(data: string[], delimiter: string): string[] {
-    const compare = (
-      a: { index: number; value: number[] },
-      b: { index: number; value: number[] }
-    ) => {
+  sortSources<T extends number[]>(data: Record<string, T>): Record<string, T> {
+    const compare = (a: [string, T], b: [string, T]) => {
       let i = 0;
-      let l = Math.min(a.value.length, b.value.length);
-      while (i < l && a.value[i] === b.value[i]) {
+      const [, aValue] = a;
+      const [, bValue] = b;
+      let l = Math.min(aValue.length, bValue.length);
+      while (i < l && aValue[i] === bValue[i]) {
         i++;
       }
       if (i === l) {
-        return a.value.length - b.value.length;
+        return aValue.length - bValue.length;
       }
-      return (a.value[i] ?? 0) - (b.value[i] ?? 0);
+      return (aValue[i] ?? 0) - (bValue[i] ?? 0);
     };
-    let mapped = data.map(function (el, i) {
-      return {
-        index: i,
-        value: el.split(delimiter).map((p) => Number(p ?? 0)),
-      };
+    const sortedEntries = Object.entries(data).sort(compare);
+    const sorted: Record<string, T> = {};
+    sortedEntries.forEach(function ([key, value]) {
+      sorted[key] = value;
     });
-    mapped.sort(compare);
-    return mapped.map(function (el) {
-      return data[el.index]!;
-    });
+    return sorted;
   }
 }

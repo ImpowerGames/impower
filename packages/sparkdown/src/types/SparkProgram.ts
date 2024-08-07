@@ -8,6 +8,6 @@ export interface SparkProgram {
   };
   diagnostics?: SparkDiagnostic[];
   sourceMap?: Record<string, Record<number, [number, number]>>;
-  pathToSource?: Record<string, string>;
-  sourceToPath?: Record<string, string>;
+  uuidToSource?: Record<string, [number, number]>;
+  uuidToPath?: Record<string, string>;
 }

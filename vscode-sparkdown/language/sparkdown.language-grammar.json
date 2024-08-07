@@ -2244,21 +2244,25 @@
     "MultilineCloseBraceAhead": {
       "match": "^([^\\S\\n\\r]*)(?=[}])",
       "captures": {
-        "patterns": [
-          {
-            "include": "#Indent"
-          }
-        ]
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        }
       }
     },
     "MultilineDashAhead": {
       "match": "^([^\\S\\n\\r]*)(?=[-](?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))",
       "captures": {
-        "patterns": [
-          {
-            "include": "#Indent"
-          }
-        ]
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        }
       }
     },
     "Expression": {
@@ -3497,7 +3501,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#Source"
+              "include": "#UUIDMarker"
             }
           ]
         },
@@ -3525,7 +3529,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#Source"
+              "include": "#UUIDMarker"
             }
           ]
         },
@@ -3675,10 +3679,10 @@
         }
       ]
     },
-    "Source": {
+    "UUIDMarker": {
       "tag": "macroName",
       "name": "meta.source.sd",
-      "match": "([+])([^+]*?)([+])([^\\S\\n\\r]*)",
+      "match": "([+])(.*?)([+])([^\\S\\n\\r]*)",
       "captures": {
         "1": {
           "tag": "keyword",
@@ -3687,7 +3691,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#SourceIdentifier"
+              "include": "#UUID"
             }
           ]
         },
@@ -3704,7 +3708,7 @@
         }
       }
     },
-    "SourceIdentifier": {
+    "UUID": {
       "tag": "keyword",
       "name": "keyword.source.identifier.sd",
       "match": "(.+)"
@@ -4135,7 +4139,7 @@
           "include": "#Glue"
         },
         {
-          "include": "#Source"
+          "include": "#UUIDMarker"
         },
         {
           "include": "#TextCommand"

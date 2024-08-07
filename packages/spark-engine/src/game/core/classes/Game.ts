@@ -229,32 +229,33 @@ export class Game<T extends M = {}> {
     if (fileIndex < 0) {
       return null;
     }
-    const sortedSources = Object.keys(this._program.sourceToPath || {});
-    let closestIndex = sortedSources.length - 1;
-    for (let i = 0; i < sortedSources.length; i++) {
-      const id = sortedSources[i]!;
-      const currParsed = this.parseSource(id);
-      if (currParsed) {
-        const [currFileIndex, currLineIndex] = currParsed;
-        if (currFileIndex === fileIndex && currLineIndex === line) {
-          closestIndex = i;
-          break;
-        }
-        if (currFileIndex === fileIndex && currLineIndex > line) {
-          closestIndex = i - 1;
-          break;
-        }
-        if (currFileIndex > fileIndex) {
-          closestIndex = i - 1;
-          break;
-        }
-      }
-    }
-    const source = sortedSources[closestIndex];
-    if (source == null) {
+    if (!this._program.uuidToSource) {
       return null;
     }
-    const path = this._program.sourceToPath?.[source];
+    const uuidToSourceEntries = Object.entries(this._program.uuidToSource);
+    let closestIndex = uuidToSourceEntries.length - 1;
+    for (let i = 0; i < uuidToSourceEntries.length; i++) {
+      const [, source] = uuidToSourceEntries[i]!;
+      const [currFileIndex, currLineIndex] = source;
+      if (currFileIndex === fileIndex && currLineIndex === line) {
+        closestIndex = i;
+        break;
+      }
+      if (currFileIndex === fileIndex && currLineIndex > line) {
+        closestIndex = i - 1;
+        break;
+      }
+      if (currFileIndex > fileIndex) {
+        closestIndex = i - 1;
+        break;
+      }
+    }
+    const match = uuidToSourceEntries[closestIndex];
+    if (match == null) {
+      return null;
+    }
+    const [uuid] = match;
+    const path = this._program.uuidToPath?.[uuid];
     if (path == null) {
       return null;
     }

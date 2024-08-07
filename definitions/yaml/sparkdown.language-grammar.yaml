@@ -1218,12 +1218,14 @@ repository:
   MultilineCloseBraceAhead:
     match: ^({{WS}}*)(?=[}])
     captures:
+      1:
         patterns:
           - { include: "#Indent" }
 
   MultilineDashAhead:
     match: ^({{WS}}*)(?=[-]{{EOK}})
     captures:
+      1:
         patterns:
           - { include: "#Indent" }
 
@@ -2002,7 +2004,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#Source" }
+          - { include: "#UUIDMarker" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -2014,7 +2016,7 @@ repository:
           - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#Source" }
+          - { include: "#UUIDMarker" }
       7:
         patterns:
           - { include: "#Whitespace" }
@@ -2090,19 +2092,19 @@ repository:
       - { include: "#AudioCommand" }
       - { include: "#InlineTextAndLogic" }
 
-########## Source ##########
+########## UUIDMarker ##########
 
-  Source:
+  UUIDMarker:
     tag: macroName
     name: meta.source.sd
-    match: ([+])([^+]*?)([+])({{WS}}*)
+    match: ([+])(.*?)([+])({{WS}}*)
     captures:
       1:
         tag: keyword
         name: keyword.operator.expression.begin.source.sd
       2:
         patterns:
-          - { include: "#SourceIdentifier" }
+          - { include: "#UUID" }
       3:
         tag: keyword
         name: keyword.operator.expression.end.source.sd
@@ -2110,7 +2112,7 @@ repository:
         patterns:
           - { include: "#Whitespace" }
 
-  SourceIdentifier:
+  UUID:
     tag: keyword
     name: keyword.source.identifier.sd
     match: (.+)
@@ -2375,7 +2377,7 @@ repository:
   Styling:
     patterns:
       - { include: "#Glue" }
-      - { include: "#Source" }
+      - { include: "#UUIDMarker" }
       - { include: "#TextCommand" }
       - { include: "#Underline" }
       - { include: "#BoldItalic" }
