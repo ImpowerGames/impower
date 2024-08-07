@@ -2353,7 +2353,7 @@ export class InkParser extends StringParser {
   public readonly KnotDeclaration = (): FlowDecl | null => {
     this.Whitespace();
 
-    if (this.KnotTitleEquals() === null) {
+    if (this.KnotTitleEqualsBefore() === null) {
       return null;
     }
 
@@ -2387,12 +2387,12 @@ export class InkParser extends StringParser {
     this.Whitespace();
 
     // Optional equals after name
-    this.Parse(this.KnotTitleEquals);
+    this.Parse(this.KnotTitleEqualsAfter);
 
     return new FlowDecl(knotName, parameterNames, isFunc);
   };
 
-  public readonly KnotTitleEquals = (): string | null => {
+  public readonly KnotTitleEqualsBefore = (): string | null => {
     // 2+ "=" starts a knot
     const multiEquals = this.ParseCharactersFromString("=");
     if (multiEquals === null || multiEquals.length <= 1) {
@@ -2401,6 +2401,16 @@ export class InkParser extends StringParser {
 
     const terminator = this.ParseKeywordTerminator();
     if (terminator === null) {
+      return null;
+    }
+
+    return multiEquals;
+  };
+
+  public readonly KnotTitleEqualsAfter = (): string | null => {
+    // 2+ "=" starts a knot
+    const multiEquals = this.ParseCharactersFromString("=");
+    if (multiEquals === null || multiEquals.length <= 1) {
       return null;
     }
 
