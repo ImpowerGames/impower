@@ -3501,7 +3501,7 @@
         "2": {
           "patterns": [
             {
-              "include": "#UUIDMarker"
+              "include": "#FlowMarker"
             }
           ]
         },
@@ -3529,7 +3529,7 @@
         "6": {
           "patterns": [
             {
-              "include": "#UUIDMarker"
+              "include": "#FlowMarker"
             }
           ]
         },
@@ -3679,7 +3679,7 @@
         }
       ]
     },
-    "UUIDMarker": {
+    "FlowMarker": {
       "tag": "macroName",
       "name": "meta.source.sd",
       "match": "([+])(.*?)([+])([^\\S\\n\\r]*)",
@@ -4139,7 +4139,7 @@
           "include": "#Glue"
         },
         {
-          "include": "#UUIDMarker"
+          "include": "#FlowMarker"
         },
         {
           "include": "#TextCommand"

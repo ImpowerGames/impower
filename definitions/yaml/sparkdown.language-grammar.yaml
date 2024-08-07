@@ -2004,7 +2004,7 @@ repository:
           - { include: "#Indent" }
       2:
         patterns:
-          - { include: "#UUIDMarker" }
+          - { include: "#FlowMarker" }
       3:
         patterns:
           - { include: "#Whitespace" }
@@ -2016,7 +2016,7 @@ repository:
           - { include: "#Whitespace" }
       6:
         patterns:
-          - { include: "#UUIDMarker" }
+          - { include: "#FlowMarker" }
       7:
         patterns:
           - { include: "#Whitespace" }
@@ -2092,9 +2092,9 @@ repository:
       - { include: "#AudioCommand" }
       - { include: "#InlineTextAndLogic" }
 
-########## UUIDMarker ##########
+########## FlowMarker ##########
 
-  UUIDMarker:
+  FlowMarker:
     tag: macroName
     name: meta.source.sd
     match: ([+])(.*?)([+])({{WS}}*)
@@ -2377,7 +2377,7 @@ repository:
   Styling:
     patterns:
       - { include: "#Glue" }
-      - { include: "#UUIDMarker" }
+      - { include: "#FlowMarker" }
       - { include: "#TextCommand" }
       - { include: "#Underline" }
       - { include: "#BoldItalic" }

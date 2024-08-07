@@ -70,6 +70,16 @@ export default class SparkParser {
     let prevDialogueLineWasLineEnd = false;
     let inBlockDialogue = false;
     let blockDialoguePrefix = "";
+    const generateID = () => {
+      while (true) {
+        const id = uuid();
+        if (!program.uuidToSource?.[id]) {
+          program.uuidToSource ??= {};
+          program.uuidToSource[id] = [fileIndex, lineIndex];
+          return id;
+        }
+      }
+    };
     tree.iterate({
       enter: (node) => {
         const nodeType = nodeNames[node.type]! as SparkdownNodeName;
@@ -101,9 +111,9 @@ export default class SparkParser {
           const lineText = lines[lineIndex] || "";
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
-          const id = uuid();
-          const uuidMarker = `+${id}+ `;
-          const markup = ": " + uuidMarker + "\\";
+          const id = generateID();
+          const flowMarker = `+${id}+ `;
+          const markup = ": " + flowMarker + "\\";
           lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           program.sourceMap ??= {};
           program.sourceMap[filepath]![lineIndex] = [
@@ -138,9 +148,9 @@ export default class SparkParser {
             const lineTextBefore = lineText.slice(0, nodeStart);
             const lineTextAfter = lineText.slice(nodeStart);
             const prefix = blockDialoguePrefix + ": ";
-            const id = uuid();
-            const uuidMarker = `+${id}+ `;
-            const markup = prefix + uuidMarker;
+            const id = generateID();
+            const flowMarker = `+${id}+ `;
+            const markup = prefix + flowMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
             program.sourceMap[filepath]![lineIndex] = [
@@ -161,9 +171,9 @@ export default class SparkParser {
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
           if (!lineTextAfter.startsWith("+")) {
-            const id = uuid();
-            const uuidMarker = `+${id}+ `;
-            const markup = uuidMarker;
+            const id = generateID();
+            const flowMarker = `+${id}+ `;
+            const markup = flowMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
             program.sourceMap[filepath]![lineIndex] = [
@@ -228,13 +238,13 @@ export default class SparkParser {
         WriteRuntimeObject: (_, obj) => {
           if (obj instanceof StringValue) {
             if (!obj.isNewline && obj.value) {
-              const uuidMarkers = obj.value.match(UUID_MARKER_REGEX);
-              if (uuidMarkers) {
+              const flowMarkers = obj.value.match(UUID_MARKER_REGEX);
+              if (flowMarkers) {
                 const path = obj.path.toString();
-                for (const m of uuidMarkers) {
-                  const uuidMarker = m.slice(1, -1);
+                for (const m of flowMarkers) {
+                  const flowMarker = m.slice(1, -1);
                   program.uuidToPath ??= {};
-                  program.uuidToPath[uuidMarker] ??= path;
+                  program.uuidToPath[flowMarker] ??= path;
                 }
               }
             }
