@@ -445,7 +445,7 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#ValueText" }
+      - { include: "#StructFieldValue" }
     end: (?=$)
 
   StructMapProperty:
@@ -507,7 +507,7 @@ repository:
           - { include: "#Whitespace" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#ValueText" }
+      - { include: "#StructFieldValue" }
     end: (?=$)
 
   FunctionCall:
@@ -543,7 +543,7 @@ repository:
         patterns:
           - { include: "#PunctuationSemicolon" }
 
-  ValueText:
+  StructFieldValue:
     emit: true
     patterns:
       - { include: "#Expression" }
@@ -1269,7 +1269,6 @@ repository:
       - { include: "#Whitespace" }
 
   Operator:
-    emit: true
     patterns:
       - { include: "#SpreadOperator" }
       - { include: "#AssignArithmeticOperator" }
@@ -1398,7 +1397,6 @@ repository:
     match: \b(not|and|or|has|hasnt|mod)\b
 
   Literal:
-    emit: true
     patterns:
       - { include: "#StringLiteral" }
       - { include: "#NumericLiteral" }
@@ -1408,7 +1406,6 @@ repository:
       - { include: "#NumericConstantLiteral" }
 
   StringLiteral:
-    emit: true
     patterns:
       - { include: "#DoubleQuoteString" }
 
@@ -1438,9 +1435,61 @@ repository:
       1:
         patterns:
           - { include: "#Escape" }
+          - { include: "#VarString" }
+          - { include: "#UrlString" }
           - { include: "#ImageCommand" }
           - { include: "#AudioCommand" }
           - { include: "#InlineTextAndLogic" }
+
+  VarString:
+    match: (var)({{WS}}*)([(])({{WS}}*)(.*?)({{WS}}*)([)])
+    captures:
+      1:
+        tag: keyword
+        name: keyword.other.var.sd
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        tag: keyword
+        name: keyword.other.var.paren.open.sd
+      4:
+        patterns:
+          - { include: "#Whitespace" }
+      5:
+        patterns:
+          - { include: "#AccessPath" }
+      6:
+        patterns:
+          - { include: "#Whitespace" }
+      7:
+        tag: keyword
+        name: keyword.other.var.paren.close.sd
+
+  UrlString:
+    match: (url)({{WS}}*)([(])({{WS}}*)(.*?)({{WS}}*)([)])
+    captures:
+      1:
+        tag: keyword
+        name: keyword.other.url.sd
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        tag: keyword
+        name: keyword.other.url.paren.open.sd
+      4:
+        patterns:
+          - { include: "#Whitespace" }
+      5:
+        patterns:
+          - { include: "#AccessPath" }
+      6:
+        patterns:
+          - { include: "#Whitespace" }
+      7:
+        tag: keyword
+        name: keyword.other.url.paren.close.sd
 
   NumericLiteral:
     patterns:

@@ -777,7 +777,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#ValueText"
+          "include": "#StructFieldValue"
         }
       ],
       "end": "(?=$)"
@@ -902,7 +902,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#ValueText"
+          "include": "#StructFieldValue"
         }
       ],
       "end": "(?=$)"
@@ -974,7 +974,7 @@
         }
       }
     },
-    "ValueText": {
+    "StructFieldValue": {
       "emit": true,
       "patterns": [
         {
@@ -2342,7 +2342,6 @@
       ]
     },
     "Operator": {
-      "emit": true,
       "patterns": [
         {
           "include": "#SpreadOperator"
@@ -2516,7 +2515,6 @@
       "match": "\\b(not|and|or|has|hasnt|mod)\\b"
     },
     "Literal": {
-      "emit": true,
       "patterns": [
         {
           "include": "#StringLiteral"
@@ -2539,7 +2537,6 @@
       ]
     },
     "StringLiteral": {
-      "emit": true,
       "patterns": [
         {
           "include": "#DoubleQuoteString"
@@ -2586,6 +2583,12 @@
               "include": "#Escape"
             },
             {
+              "include": "#VarString"
+            },
+            {
+              "include": "#UrlString"
+            },
+            {
               "include": "#ImageCommand"
             },
             {
@@ -2595,6 +2598,96 @@
               "include": "#InlineTextAndLogic"
             }
           ]
+        }
+      }
+    },
+    "VarString": {
+      "match": "(var)([^\\S\\n\\r]*)([(])([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([)])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.var.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "keyword.other.var.paren.open.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#AccessPath"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "7": {
+          "tag": "keyword",
+          "name": "keyword.other.var.paren.close.sd"
+        }
+      }
+    },
+    "UrlString": {
+      "match": "(url)([^\\S\\n\\r]*)([(])([^\\S\\n\\r]*)(.*?)([^\\S\\n\\r]*)([)])",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.url.sd"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "3": {
+          "tag": "keyword",
+          "name": "keyword.other.url.paren.open.sd"
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#AccessPath"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "7": {
+          "tag": "keyword",
+          "name": "keyword.other.url.paren.close.sd"
         }
       }
     },
