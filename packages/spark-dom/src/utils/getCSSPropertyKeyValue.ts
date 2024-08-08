@@ -28,15 +28,14 @@ export const getCSSPropertyKeyValue = (
     return ["animation-timing-function", String(cssValue)];
   }
   if (cssProp === "src" && typeof cssValue === "string") {
-    const url = /^[ ]*url[ ]*[(]/.test(cssValue)
-      ? cssValue
-      : `url('${encodeURI(cssValue)}')`;
-    return [cssProp, url];
+    const src = cssValue.trim();
+    const urlValue = src.includes("(") ? src : `url('${encodeURI(src)}')`;
+    return [cssProp, urlValue];
   }
   if (cssProp === "background-image" && typeof cssValue === "string") {
     const src = cssValue.trim();
-    const val = /^[ ]*var[ ]*[(]/.test(src) ? src : `var(--image_${src})`;
-    return [cssProp, val];
+    const varValue = src.includes("(") ? src : `var(--image_${src})`;
+    return [cssProp, varValue];
   }
   if (
     cssProp === "background-image" &&
@@ -45,8 +44,8 @@ export const getCSSPropertyKeyValue = (
     typeof cssValue.src === "string"
   ) {
     const src = cssValue.src.trim();
-    const url = /^[ ]*url[ ]*[(]/.test(src) ? src : `url('${encodeURI(src)}')`;
-    return [cssProp, url];
+    const urlValue = src.includes("(") ? src : `url('${encodeURI(src)}')`;
+    return [cssProp, urlValue];
   }
   if (
     cssProp === "background-image" &&
@@ -66,7 +65,7 @@ export const getCSSPropertyKeyValue = (
         : ext === "jpg" || ext === "jpeg"
         ? "image/jpeg;base64"
         : `image/${ext};base64`;
-    const url = /^[ ]*url[ ]*[(]/.test(data)
+    const url = data.includes("(")
       ? data
       : `url(data:${encoding},${encodeURIComponent(data)})`;
     return [cssProp, url];
