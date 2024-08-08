@@ -9,7 +9,8 @@ export const getAnimationContent = (
     let animationContent = "";
     if (animation.keyframes) {
       for (let i = 0; i < animation.keyframes.length; i++) {
-        const percentage = `${(i / (animation.keyframes.length - 1)) * 100}%`;
+        const max = animation.keyframes.length - 1;
+        const offset = max === 0 ? "to" : `${(i / max) * 100}%`;
         const engineKeyframe = animation.keyframes[i];
         const domKeyframe: Record<string, any> = {};
         if (engineKeyframe) {
@@ -21,7 +22,7 @@ export const getAnimationContent = (
         const properties = Object.entries(domKeyframe)
           .map(([k, v]) => `${k}: ${v};`)
           .join(" ");
-        animationContent += `${percentage} { ${properties} }`;
+        animationContent += `${offset} { ${properties} }`;
         animationContent += "\n  ";
       }
     }
