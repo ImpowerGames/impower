@@ -498,7 +498,7 @@ export default class SparkdownTextDocuments<
         this.__syncedDocuments.set(td.uri, document);
         const toFire = Object.freeze({ document });
         this.__onDidOpen.fire(toFire);
-        this.parse(td.uri);
+        this.parse(td.uri, true);
         if (this._program) {
           this._onUpdateDiagnostics.fire(
             Object.freeze({
