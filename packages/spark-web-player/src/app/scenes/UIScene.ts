@@ -76,8 +76,8 @@ export default class UIScene extends Scene {
           }
         });
       }
-      const isImport = params.content && "import" in params.content;
-      const parent = isImport ? this.head : this.getElement(params.parent);
+      const isHeadElement = params.content && "fonts" in params.content;
+      const parent = isHeadElement ? this.head : this.getElement(params.parent);
       if (parent) {
         const appendedEl = parent.appendChild(el);
         if (parent === this.head) {

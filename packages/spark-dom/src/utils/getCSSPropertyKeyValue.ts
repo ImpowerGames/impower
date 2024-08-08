@@ -27,10 +27,16 @@ export const getCSSPropertyKeyValue = (
   if (cssProp === "easing") {
     return ["animation-timing-function", String(cssValue)];
   }
+  if (cssProp === "src" && typeof cssValue === "string") {
+    const url = /^[ ]*url[ ]*[(]/.test(cssValue)
+      ? cssValue
+      : `url('${encodeURI(cssValue)}')`;
+    return [cssProp, url];
+  }
   if (cssProp === "background-image" && typeof cssValue === "string") {
     const src = cssValue.trim();
-    const url = /^[ ]*url[ ]*[(]/.test(src) ? src : `url('${encodeURI(src)}')`;
-    return [cssProp, url];
+    const val = /^[ ]*var[ ]*[(]/.test(src) ? src : `var(--image_${src})`;
+    return [cssProp, val];
   }
   if (
     cssProp === "background-image" &&
