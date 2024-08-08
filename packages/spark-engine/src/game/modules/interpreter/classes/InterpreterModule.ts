@@ -117,12 +117,12 @@ export class InterpreterModule extends Module<
         a.choices.push(...b.choices);
       }
     }
-    if (b.sources) {
-      a.sources ??= [];
+    if (b.uuids) {
+      a.uuids ??= [];
       if (prefix) {
-        a.sources.unshift(...b.sources);
+        a.uuids.unshift(...b.uuids);
       } else {
-        a.sources.push(...b.sources);
+        a.uuids.push(...b.uuids);
       }
     }
   }

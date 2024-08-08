@@ -9,7 +9,7 @@ export interface Instructions {
   image?: Record<string, ImageInstruction[]>;
   audio?: Record<string, AudioInstruction[]>;
   choices?: string[];
-  sources?: string[];
+  uuids?: string[];
   auto?: boolean;
   end: number;
 }

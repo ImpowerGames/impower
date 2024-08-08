@@ -311,7 +311,7 @@ export const parse = (
       textTargetPrefixKeys.push(v.prefix);
     }
   }
-  let sources: string[] = [];
+  let uuids: string[] = [];
   let consecutiveLettersLength = 0;
   let word = "";
   let dashLength = 0;
@@ -526,7 +526,7 @@ export const parse = (
             if (closed) {
               i += 1;
               if (id) {
-                sources.push(id);
+                uuids.push(id);
               }
               // consume trailing whitespace
               while (i < chars.length) {
@@ -846,9 +846,9 @@ export const parse = (
   const result: Instructions = {
     end: 0,
   };
-  if (sources.length > 0) {
-    result.sources ??= [];
-    result.sources = sources;
+  if (uuids.length > 0) {
+    result.uuids ??= [];
+    result.uuids = uuids;
   }
   if (choice) {
     result.choices ??= [];

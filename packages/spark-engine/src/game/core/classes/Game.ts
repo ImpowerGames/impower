@@ -199,24 +199,13 @@ export class Game<T extends M = {}> {
     // console.log("context", this._context);
   }
 
-  parseSource(sourceId: string): [number, number] | null {
-    const [fileIndexArg, lineIndexArg] = sourceId.split(";");
-    if (fileIndexArg != null && lineIndexArg != null) {
-      const fileIndex = Number(fileIndexArg);
-      const lineIndex = Number(lineIndexArg);
-      return [fileIndex, lineIndex];
-    }
-    return null;
-  }
-
-  getSource(sourceId: string) {
-    const parsed = this.parseSource(sourceId);
-    if (parsed) {
-      const [fileIndex, lineIndex] = parsed;
+  getSource(uuid: string) {
+    const source = this._program.uuidToSource?.[uuid];
+    if (source) {
+      const [fileIndex, lineIndex] = source;
       const file = this._files[fileIndex];
       const line = lineIndex;
-      const source = { file, line };
-      return source;
+      return { file, line };
     }
     return null;
   }
@@ -424,8 +413,8 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyWillExecute(instructions: Instructions) {
-    if (instructions.sources) {
-      for (const s of instructions.sources) {
+    if (instructions.uuids) {
+      for (const s of instructions.uuids) {
         const source = this.getSource(s);
         if (source) {
           this.connection.emit(
@@ -437,8 +426,8 @@ export class Game<T extends M = {}> {
   }
 
   protected notifyDidExecute(instructions: Instructions) {
-    if (instructions.sources) {
-      for (const s of instructions.sources) {
+    if (instructions.uuids) {
+      for (const s of instructions.uuids) {
         const source = this.getSource(s);
         if (source) {
           this.connection.emit(DidExecuteMessage.type.notification({ source }));
