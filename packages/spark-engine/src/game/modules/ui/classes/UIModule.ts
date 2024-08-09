@@ -308,7 +308,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const style = {
       position: "absolute",
       inset: "0",
-      font_family: "Courier Prime Sans",
       font_size: "1em",
       opacity: "0",
     };

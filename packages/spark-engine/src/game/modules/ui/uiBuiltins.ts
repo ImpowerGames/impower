@@ -142,10 +142,8 @@ export const uiBuiltins = () => ({
       flex_direction: "column",
       align_items: "center",
       justify_content: "center",
-      font_size: "1rem",
-      md: {
-        font_size: "1.125rem",
-      },
+      font_size: "1.125rem",
+      md: { font_size: "1.25rem" },
     }),
     choices: _style({
       $name: "choices",
@@ -212,65 +210,64 @@ export const uiBuiltins = () => ({
       flex_direction: "column",
       align_content: "center",
       max_width: 800,
-      height: 200,
       width: "100%",
       margin: "0 auto",
-      color: "black",
+      color: "white",
       flex: 1,
       padding: 16,
-      md: { padding_left: 32, padding_right: 32, font_size: "1.125rem" },
+      height: 240,
+      md: { height: 200, padding_left: 32, padding_right: 32 },
     }),
-    box_background: _style({
-      $name: "box_background",
+    textbox_background: _style({
+      $name: "textbox_background",
       position: "absolute",
-      inset: 0,
-      background_color: "white",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      background_image:
+        "linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.5) 25%, rgba(0, 0, 0, 1) 100%)",
+      height: 280,
+      md: { height: 240 },
     }),
-    content: _style({
-      $name: "content",
+    textbox_content: _style({
+      $name: "textbox_content",
       position: "relative",
       flex: 1,
       display: "flex",
       flex_direction: "column",
-      font_size: "1rem",
+      text_stroke: 2,
+      font_size: "1.125rem",
+      md: { font_size: "1.25rem" },
     }),
-    dialogue_group: _style({
-      $name: "dialogue_group",
+    character_info: _style({
+      $name: "character_info",
       display: "flex",
-      flex_direction: "column",
+      flex_direction: "row",
+      justify_content: "center",
+      align_items: "flex-end",
+      gap: 8,
+      line_height: 1,
+      text_stroke: 3,
+      font_size: "1.5rem",
+      md: { font_size: "1.875rem" },
     }),
     character_name: _style({
       $name: "character_name",
-      display: "block",
-      text_align: "center",
-      line_height: 1,
-      font_size: "1.5rem",
-      md: { font_size: "1.75rem" },
+      padding_bottom: 4,
+      font_weight: 600,
     }),
     character_parenthetical: _style({
       $name: "character_parenthetical",
-      display: "block",
-      text_align: "center",
-      line_height: 1,
-      font_size: "1.5rem",
-      md: { font_size: "1.75rem" },
-    }),
-    dialogue_content: _style({
-      $name: "dialogue_content",
-      width: "80%",
-      margin: "0 auto",
-      md: { width: "68%" },
-    }),
-    parenthetical: _style({
-      $name: "parenthetical",
-      display: "block",
-      text_align: "center",
-      position: "relative",
-      min_height: "0.5em",
+      padding_bottom: 4,
+      font_weight: 400,
+      font_size: "0.875rem",
+      md: { font_size: "1rem" },
     }),
     dialogue: _style({
       $name: "dialogue",
-      flex: 1,
+      width: "80%",
+      margin: "0 auto",
+      md: { width: "68%" },
     }),
     action: _style({
       $name: "action",
@@ -286,6 +283,7 @@ export const uiBuiltins = () => ({
       $name: "transition",
       position: "absolute",
       inset: 0,
+      padding: "0px 24px",
       display: "flex",
       flex_direction: "column",
       justify_content: "center",
@@ -307,6 +305,7 @@ export const uiBuiltins = () => ({
     indicator: _style({
       $name: "indicator",
       preserve_text: true,
+      line_height: 1,
       width: 16,
       height: 16,
       position: "absolute",
@@ -370,35 +369,28 @@ export const uiBuiltins = () => ({
             },
           },
         },
-        textbox: {
-          box_background: {},
-        },
+        textbox_background: {},
       },
       textbox: {
-        content: {
-          dialogue_group: {
+        textbox_content: {
+          character_info: {
             character_name: {
               text: {},
             },
             character_parenthetical: {
               text: {},
             },
-            dialogue_content: {
-              parenthetical: {
-                text: {},
-              },
-              dialogue: {
-                text: {},
-              },
-            },
+          },
+          dialogue: {
+            text: {},
           },
           action: {
             text: {},
           },
-          transition: {
+          scene: {
             text: {},
           },
-          scene: {
+          transition: {
             text: {},
           },
         },
