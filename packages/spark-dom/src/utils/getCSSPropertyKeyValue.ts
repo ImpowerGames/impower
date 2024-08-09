@@ -87,6 +87,7 @@ export const getCSSPropertyKeyValue = (
     return [cssProp, String(cssValue)];
   }
   if (
+    cssProp === "gap" ||
     cssProp === "border-radius" ||
     cssProp === "padding" ||
     cssProp === "margin" ||
