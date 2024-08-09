@@ -322,6 +322,7 @@ export const parse = (
   let currChunk: Chunk | undefined = undefined;
 
   const marks: [string][] = [];
+  let alignModifier = "";
   let speedModifier = 1;
   let pitchModifier: number | undefined = undefined;
   const wavyIndexMap = new Map<[string], number>();
@@ -647,7 +648,9 @@ export const parse = (
         const yelled = isYelled ? 1 : 0;
         // centered level = number of `|`
         const centered =
-          isCentered && activeCenteredMark
+          alignModifier === "center"
+            ? 1
+            : isCentered && activeCenteredMark
             ? activeCenteredMark.length
             : isCentered
             ? 1
@@ -776,8 +779,11 @@ export const parse = (
   for (let l = 0; l < lines.length; l += 1) {
     const line = lines[l]!?.trimStart();
     if (line.match(PARENTHETICAL_REGEX)) {
-      // TODO: Treat parentheticals as a markup style instead of a special target
-      processLine(line, "parenthetical");
+      alignModifier = "center";
+      speedModifier = 0;
+      processLine(line, textTarget);
+      alignModifier = "";
+      speedModifier = 1;
       continue;
     }
     const linePhrases = processLine(line, textTarget);
