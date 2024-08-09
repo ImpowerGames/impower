@@ -235,7 +235,6 @@ export const uiBuiltins = () => ({
       flex: 1,
       display: "flex",
       flex_direction: "column",
-      text_stroke: 2,
       font_size: "1.125rem",
       md: { font_size: "1.25rem" },
     }),
