@@ -2932,7 +2932,7 @@ export class InkParser extends StringParser {
 
     if (!check) {
       this.ErrorWithParsedObject(
-        "Initial value for a constant must be a number, string, boolean, constant, list item, or divert target",
+        "Initial value for a constant must be a number, string, boolean, or divert target",
         expr
       );
     } else if (expr instanceof StringExpression) {
