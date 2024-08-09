@@ -134,11 +134,16 @@ export default class SparkParser {
             const lineText = lines[lineIndex] || "";
             const lineTextBefore = lineText.slice(0, nodeEnd);
             const lineTextAfter = lineText.slice(nodeEnd);
-            // AssetLine and ParentheticalLine should end with implicit \
-            // (So they are grouped together with following text line)
-            const suffix = ` \\`;
-            const markup = suffix;
-            lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+            if (
+              !lineTextBefore.trim().endsWith("\\") &&
+              !lineTextAfter.trim().startsWith("\\")
+            ) {
+              // AssetLine and ParentheticalLine should end with implicit \
+              // (So they are grouped together with following text line)
+              const suffix = ` \\`;
+              const markup = suffix;
+              lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+            }
           }
         }
         if (nodeType === "BlockDialogueLine_end") {
@@ -205,8 +210,8 @@ export default class SparkParser {
       },
     });
     const transpiled = lines.join("\n");
-    console.log(printTree(tree, script, nodeNames));
-    console.log(transpiled);
+    // console.log(printTree(tree, script, nodeNames));
+    // console.log(transpiled);
     return transpiled;
   }
 
