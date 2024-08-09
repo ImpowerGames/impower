@@ -7,7 +7,7 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
-  IDENTIFIER_START_CHAR:  '_\p{L}'
+  IDENTIFIER_START_CHAR:  '0-9_\p{L}'
   IDENTIFIER_END_CHAR: '0-9_\p{L}'
   IDENTIFIER: '[{{IDENTIFIER_START_CHAR}}][{{IDENTIFIER_END_CHAR}}]*'
   BEFORE_KEYWORD: (?<![{{IDENTIFIER_END_CHAR}}])(?:(?<=\.\.\.)|(?<!\.))
@@ -1639,35 +1639,53 @@ repository:
           - { include: "#PunctuationParenClose" }
 
   NamespaceAccessor:
-    match: ({{IDENTIFIER}})([.]|[?][.])($|{{IDENTIFIER}})(?![(])
+    match: ({{IDENTIFIER}})({{WS}}*)([.]|[?][.])({{WS}}*)($|{{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns: 
           - { include: "#TypeName" }
       2:
         patterns: 
-          - { include: "#PunctuationAccessor" }
+          - { include: "#Whitespace" }
       3:
+        patterns: 
+          - { include: "#PunctuationAccessor" }
+      4:
+        patterns: 
+          - { include: "#Whitespace" }
+      5:
         patterns: 
           - { include: "#VariableName" }
 
   VariableAccessor:
-    match: ([.]|[?][.])({{IDENTIFIER}})(?![(])
+    match: ({{WS}}*)([.]|[?][.])({{WS}}*)({{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns: 
-          - { include: "#PunctuationAccessor" }
+          - { include: "#Whitespace" }
       2:
+        patterns: 
+          - { include: "#PunctuationAccessor" }
+      3:
+        patterns: 
+          - { include: "#Whitespace" }
+      4:
         patterns: 
           - { include: "#VariableName" }
 
   PropertyAccessor:
-    match: ([.]|[?][.])({{IDENTIFIER}})(?![(])
+    match: ({{WS}}*)([.]|[?][.])({{WS}}*)({{IDENTIFIER}})(?![(])
     captures:
       1:
         patterns: 
-          - { include: "#PunctuationAccessor" }
+          - { include: "#Whitespace" }
       2:
+        patterns: 
+          - { include: "#PunctuationAccessor" }
+      3:
+        patterns: 
+          - { include: "#Whitespace" }
+      4:
         patterns: 
           - { include: "#PropertyName" }
 
