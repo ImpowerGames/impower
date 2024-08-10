@@ -707,7 +707,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               let wasSpace = false;
               let prevTextAlign: string | undefined = undefined;
               let consecutiveSpace = 0;
-              sequence.forEach((e, i) => {
+              sequence.forEach((e) => {
                 const text = e.text;
                 const contentEl = $.getOrCreateContentElement(targetEl, "text");
                 // Support aligning text by wrapping consecutive aligned chunks in a block div
