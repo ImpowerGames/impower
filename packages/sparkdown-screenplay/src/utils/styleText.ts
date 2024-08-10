@@ -106,7 +106,9 @@ export const styleText = (
                 currentMarker.slice(0, styleMarker.length)
             );
           if (lastMatchingMark) {
-            activeMarks.splice(activeMarks.indexOf(lastMatchingMark), 1);
+            while (activeMarks.at(-1) !== lastMatchingMark) {
+              activeMarks.pop();
+            }
             const [lastMatchingMarker] = lastMatchingMark;
             i = startIndex + lastMatchingMarker.length;
           } else {
