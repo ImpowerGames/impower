@@ -565,6 +565,7 @@ export const parse = (
               while (activeMarks.at(-1) !== lastMatchingMark) {
                 activeMarks.pop();
               }
+              activeMarks.pop();
               const [lastMatchingMarker] = lastMatchingMark;
               i = startIndex + lastMatchingMarker.length;
             } else {
