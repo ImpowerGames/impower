@@ -901,10 +901,6 @@ export const parse = (
           if (fadeDuration) {
             event.over = fadeDuration;
           }
-          if (c.text === "\n") {
-            event.style ??= {};
-            event.style["display"] = "inline";
-          }
           if (c.underlined) {
             event.style ??= {};
             event.style["text_decoration"] = "underline";

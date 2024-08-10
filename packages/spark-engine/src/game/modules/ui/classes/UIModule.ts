@@ -741,13 +741,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   ...(e.style || {}),
                 };
                 if (consecutiveSpace === 1 || text === "\n") {
-                  style["white_space"] = "pre";
+                  style["display"] = "inline";
                 }
-                // Support text-wrapping by wrapping word and space chunks in an inline-block span
-                if (text === "\n") {
+                // Support text-wrapping by wrapping each word in an inline-block span
+                if (text === "\n" || isSpace) {
                   wordWrapperEl = undefined;
                 } else if (isSpace !== wasSpace) {
-                  // this is the start of a word chunk or space chunk
+                  // this is the start of a word chunk
                   const wordWrapperStyle: Record<string, string | null> = {};
                   wordWrapperStyle["display"] = "inline-block";
                   wordWrapperEl = $.createElement(blockWrapperEl || contentEl, {
