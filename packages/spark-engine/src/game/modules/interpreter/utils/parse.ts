@@ -898,7 +898,7 @@ export const parse = (
           if (fadeDuration) {
             event.over = fadeDuration;
           }
-          if (isWhitespace(c.text)) {
+          if (c.text === "\n") {
             event.style ??= {};
             event.style["display"] = "inline";
           }

@@ -712,6 +712,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               let blockWrapper:
                 | { element: Element; style: Record<string, string | null> }
                 | undefined = undefined;
+              let consecutiveSpace = 0;
               sequence.forEach((e) => {
                 const contentEl = $.getOrCreateContentElement(targetEl, "text");
                 const textAlign = e.style?.text_align;
@@ -735,11 +736,19 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 }
                 const parentEl = blockWrapper?.element || contentEl;
                 const text = e.text;
-                const style = {
+                if (text === " " || text === "\t") {
+                  consecutiveSpace += 1;
+                } else {
+                  consecutiveSpace = 0;
+                }
+                const style: Record<string, string | null> = {
                   display: null,
                   opacity: "0",
                   ...(e.style || {}),
                 };
+                if (consecutiveSpace === 1 || text === "\n") {
+                  style["white_space"] = "pre";
+                }
                 const spanEl = $.createElement(parentEl, {
                   type: "span",
                   content: { text },
