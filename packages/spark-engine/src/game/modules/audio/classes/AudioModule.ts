@@ -167,9 +167,6 @@ export class AudioModule extends Module<
     if (!asset) {
       return null;
     }
-    if (typeof asset !== "object") {
-      return null;
-    }
     const d: LoadAudioPlayerParams = {
       channel,
       mixer: this.getMixer(channel),
@@ -178,27 +175,42 @@ export class AudioModule extends Module<
       name: "",
       volume: 1,
     };
-    if ("$type" in asset && typeof asset.$type === "string") {
-      d.type = asset.$type;
+    if (typeof asset === "string") {
+      d.type = "audio";
+      d.name = asset;
+    } else if (typeof asset === "object") {
+      if ("$type" in asset && typeof asset.$type === "string") {
+        d.type = asset.$type;
+      }
+      if ("$name" in asset && typeof asset.$name === "string") {
+        d.name = asset.$name;
+      }
     }
-    if ("$name" in asset && typeof asset.$name === "string") {
-      d.key = asset.$name + suffix;
-      d.name = asset.$name;
+    d.key = d.name + suffix;
+    const resolvedAsset = this.context?.[d.type as "audio" | "synth"]?.[d.name];
+    if (resolvedAsset) {
+      if ("src" in resolvedAsset && typeof resolvedAsset.src === "string") {
+        d.src = resolvedAsset.src;
+      }
+      if (
+        "volume" in resolvedAsset &&
+        typeof resolvedAsset.volume === "number"
+      ) {
+        d.volume = resolvedAsset.volume;
+      }
+      if (
+        "cues" in resolvedAsset &&
+        Array.isArray(resolvedAsset.cues) &&
+        resolvedAsset.cues.length > 0
+      ) {
+        d.syncedTo = `${d.type}.${d.name}`;
+        d.cues = resolvedAsset.cues;
+      }
+      if ("shape" in resolvedAsset) {
+        d.synth = resolvedAsset as Synth;
+      }
+      d.tones = this.parseTones(d.key);
     }
-    if ("src" in asset && typeof asset.src === "string") {
-      d.src = asset.src;
-    }
-    if ("volume" in asset && typeof asset.volume === "number") {
-      d.volume = asset.volume;
-    }
-    if ("cues" in asset && Array.isArray(asset.cues) && asset.cues.length > 0) {
-      d.syncedTo = `${d.type}.${d.name}`;
-      d.cues = asset.cues;
-    }
-    if ("shape" in asset) {
-      d.synth = asset as Synth;
-    }
-    d.tones = this.parseTones(d.key);
     return d;
   }
 
