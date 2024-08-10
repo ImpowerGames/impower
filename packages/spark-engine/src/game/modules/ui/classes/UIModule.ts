@@ -46,13 +46,6 @@ import {
 } from "./messages/UpdateElementMessage";
 
 const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
-const isAsset = (obj: unknown): obj is { type: string; src: string } => {
-  const asset = obj as { type: string; src: string };
-  return asset && Boolean(asset.type && asset.src);
-};
-
-const isAssetLeaf = (_: string, v: unknown) =>
-  isAsset(v) || (Array.isArray(v) && v.every((x) => isAsset(x)));
 
 export interface UIState {
   text?: Record<string, TextState[]>;
@@ -709,34 +702,35 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             let targetShown = false;
             // Enqueue text events
             if (sequence) {
-              let blockWrapper:
-                | { element: Element; style: Record<string, string | null> }
-                | undefined = undefined;
+              let blockWrapperEl: Element | undefined = undefined;
+              let wordWrapperEl: Element | undefined = undefined;
+              let wasSpace = false;
+              let prevTextAlign: string | undefined = undefined;
               let consecutiveSpace = 0;
-              sequence.forEach((e) => {
+              sequence.forEach((e, i) => {
+                const text = e.text;
                 const contentEl = $.getOrCreateContentElement(targetEl, "text");
+                // Support aligning text by wrapping consecutive aligned chunks in a block div
                 const textAlign = e.style?.text_align;
                 if (textAlign) {
                   // text_align must be applied to a parent element
-                  if (blockWrapper?.style["text_align"] !== textAlign) {
-                    // Group consecutive spans that have the same text alignment under the same block wrapper
-                    const wrapperStyle: Record<string, string | null> = {};
-                    wrapperStyle["display"] = "block";
-                    wrapperStyle["text_align"] = textAlign;
-                    blockWrapper = {
-                      element: $.createElement(contentEl, {
-                        type: "div",
-                        style: wrapperStyle,
-                      }),
-                      style: wrapperStyle,
-                    };
+                  if (prevTextAlign !== textAlign) {
+                    // group consecutive spans that have the same text alignment under the same block wrapper
+                    blockWrapperEl = $.createElement(contentEl, {
+                      type: "div",
+                      style: {
+                        display: "block",
+                        text_align: textAlign,
+                      },
+                    });
                   }
                 } else {
-                  blockWrapper = undefined;
+                  blockWrapperEl = undefined;
                 }
-                const parentEl = blockWrapper?.element || contentEl;
-                const text = e.text;
-                if (text === " " || text === "\t") {
+                prevTextAlign = textAlign;
+                // Support consecutive whitespace collapsing
+                const isSpace = text === " " || text === "\t";
+                if (isSpace) {
                   consecutiveSpace += 1;
                 } else {
                   consecutiveSpace = 0;
@@ -749,7 +743,23 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 if (consecutiveSpace === 1 || text === "\n") {
                   style["white_space"] = "pre";
                 }
-                const spanEl = $.createElement(parentEl, {
+                // Support text-wrapping by wrapping word and space chunks in inline-block span
+                if (text === "\n") {
+                  wordWrapperEl = undefined;
+                } else if (isSpace !== wasSpace) {
+                  // this is the start of a word chunk or space chunk
+                  const wordWrapperStyle: Record<string, string | null> = {};
+                  wordWrapperStyle["display"] = "inline-block";
+                  wordWrapperEl = $.createElement(blockWrapperEl || contentEl, {
+                    type: "span",
+                    style: wordWrapperStyle,
+                  });
+                }
+                wasSpace = isSpace;
+                // Append text to wordWrapper, blockWrapper, or content
+                const textParentEl =
+                  wordWrapperEl || blockWrapperEl || contentEl;
+                const spanEl = $.createElement(textParentEl, {
                   type: "span",
                   content: { text },
                   style,
