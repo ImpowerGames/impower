@@ -706,7 +706,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               let wordWrapperEl: Element | undefined = undefined;
               let wasSpace = false;
               let prevTextAlign: string | undefined = undefined;
-              let consecutiveSpace = 0;
               sequence.forEach((e) => {
                 const text = e.text;
                 const contentEl = $.getOrCreateContentElement(targetEl, "text");
@@ -729,21 +728,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 }
                 prevTextAlign = textAlign;
                 // Support consecutive whitespace collapsing
-                const isSpace = text === " " || text === "\t";
-                if (isSpace) {
-                  consecutiveSpace += 1;
-                } else {
-                  consecutiveSpace = 0;
-                }
                 const style: Record<string, string | null> = {
                   display: null,
                   opacity: "0",
                   ...(e.style || {}),
                 };
-                if (consecutiveSpace === 1 || text === "\n") {
+                if (text === "\n" || text === " " || text === "\t") {
                   style["display"] = "inline";
                 }
                 // Support text-wrapping by wrapping each word in an inline-block span
+                const isSpace = text === " " || text === "\t";
                 if (text === "\n" || isSpace) {
                   wordWrapperEl = undefined;
                 } else if (isSpace !== wasSpace) {
