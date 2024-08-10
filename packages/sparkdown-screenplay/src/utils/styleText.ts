@@ -1,8 +1,7 @@
 import { FormattedText } from "../types/FormattedText";
 import { TextOptions } from "../types/TextOptions";
 
-const SINGLE_MARKERS = ["^", "*", "_"];
-const DOUBLE_MARKERS = ["~~", "::"];
+const MARKERS = ["^", "*", "_", "~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 
@@ -13,7 +12,7 @@ export const styleText = (
   const textChunks: FormattedText[] = [];
   const chars = text.replace("\t", "    ").match(CHAR_REGEX);
   if (chars) {
-    const marks: [string][] = [];
+    const activeMarks: [string][] = [];
     let escaped = false;
     for (let i = 0; i < chars.length; ) {
       const char = chars[i] || "";
@@ -86,35 +85,48 @@ export const styleText = (
           }
           continue;
         }
-        if (
-          SINGLE_MARKERS.includes(char) ||
-          DOUBLE_MARKERS.includes(char + nextChar)
-        ) {
-          let mark = "";
-          let m = i;
-          while (chars[m] && chars[m] === char) {
-            mark += chars[m];
-            m += 1;
+        // Style Tag
+        const styleMarker = MARKERS.find(
+          (marker) => marker === chars.slice(i, i + marker.length).join("")
+        );
+        if (styleMarker) {
+          let currentMarker = "";
+          const startIndex = i;
+          while (chars[i] && chars[i] === char) {
+            currentMarker += chars[i];
+            i += 1;
           }
-          const lastMatchingMark = marks.findLast(([m]) => m === mark);
+          const lastMatchingMark =
+            activeMarks.findLast(
+              ([activeMarker]) => activeMarker === currentMarker
+            ) ||
+            activeMarks.findLast(
+              ([activeMarker]) =>
+                activeMarker.slice(0, styleMarker.length) ===
+                currentMarker.slice(0, styleMarker.length)
+            );
           if (lastMatchingMark) {
-            if (marks.at(-1) !== lastMatchingMark) {
-              marks.pop();
-            }
-            marks.pop();
+            activeMarks.splice(activeMarks.indexOf(lastMatchingMark), 1);
+            const [lastMatchingMarker] = lastMatchingMark;
+            i = startIndex + lastMatchingMarker.length;
           } else {
-            marks.push([mark]);
+            activeMarks.push([currentMarker]);
           }
-          i += mark.length;
           continue;
         }
       }
       escaped = false;
-      const activeCenteredMark = marks.findLast(([m]) => m.startsWith("^"));
-      const activeUnderlineMark = marks.findLast(([m]) => m.startsWith("_"));
-      const activeBoldItalicMark = marks.findLast(([m]) => m.startsWith("***"));
-      const activeBoldMark = marks.findLast(([m]) => m.startsWith("**"));
-      const activeItalicMark = marks.findLast(([m]) => m.startsWith("*"));
+      const activeCenteredMark = activeMarks.findLast(([m]) =>
+        m.startsWith("^")
+      );
+      const activeUnderlineMark = activeMarks.findLast(([m]) =>
+        m.startsWith("_")
+      );
+      const activeBoldItalicMark = activeMarks.findLast(([m]) =>
+        m.startsWith("***")
+      );
+      const activeBoldMark = activeMarks.findLast(([m]) => m.startsWith("**"));
+      const activeItalicMark = activeMarks.findLast(([m]) => m.startsWith("*"));
       const isCentered = Boolean(activeCenteredMark);
       const isUnderlined = Boolean(activeUnderlineMark);
       const isItalicized =
