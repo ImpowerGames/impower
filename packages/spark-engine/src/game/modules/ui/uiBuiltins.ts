@@ -71,6 +71,7 @@ export const uiBuiltins = () => ({
       white_space: "pre-line",
       "*": {
         position: "relative",
+        display: "inline-block",
       },
     }),
     image: _style({
@@ -486,13 +487,13 @@ export const uiBuiltins = () => ({
       $name: "wavy",
       keyframes: [
         {
-          top: "0",
+          transform: "translateY(0)",
         },
         {
-          top: "calc(1em / -4)",
+          transform: "translateY(-15%)",
         },
         {
-          top: "0",
+          transform: "translateY(0)",
         },
       ],
       timing: {

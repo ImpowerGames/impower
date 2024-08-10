@@ -736,9 +736,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 const parentEl = blockWrapper?.element || contentEl;
                 const text = e.text;
                 const style = {
-                  ...(e.style || {}),
                   display: null,
                   opacity: "0",
+                  ...(e.style || {}),
                 };
                 const spanEl = $.createElement(parentEl, {
                   type: "span",
