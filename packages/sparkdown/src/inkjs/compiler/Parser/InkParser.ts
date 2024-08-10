@@ -105,17 +105,19 @@ export class InkParser extends StringParser {
       this._fileHandler = fileHandler;
     }
 
+    this._fileName = filename;
+    if (this._fileName) {
+      const fullRootInkPath = this.fileHandler.ResolveInkFilename(
+        this._fileName
+      );
+      this._filePath = fullRootInkPath;
+    }
+
     if (rootParser === null) {
       this._rootParser = this;
       this._openFilenames = [];
-
-      this._fileName = filename;
-      if (this._fileName !== null) {
-        const fullRootInkPath = this.fileHandler.ResolveInkFilename(
-          this._fileName
-        );
-        this._filePath = fullRootInkPath;
-        this._openFilenames.push(fullRootInkPath);
+      if (this._filePath) {
+        this._openFilenames.push(this._filePath);
       }
     } else {
       this._rootParser = rootParser;

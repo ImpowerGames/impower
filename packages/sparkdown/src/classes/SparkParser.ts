@@ -228,8 +228,8 @@ export default class SparkParser {
       filename,
       [],
       false,
-      (message: string) => {
-        console.error(message);
+      (message: string, type, source) => {
+        console.error(message, type, source);
       },
       {
         ResolveInkFilename: (filename: string): string => {
@@ -406,6 +406,7 @@ export default class SparkParser {
       if (startCharacter < 0) {
         // This error is occurring in a part of the script that was automatically added during transpilation
         // Assume it will be properly reported elsewhere and do not report it here.
+        console.warn("HIDDEN", msg, type, metadata, sourceMap);
         return null;
       }
       // Trim away redundant filename and line number from message
@@ -446,6 +447,7 @@ export default class SparkParser {
       };
       return diagnostic;
     }
+    console.warn("HIDDEN", msg, type, metadata, sourceMap);
     return null;
   }
 
