@@ -155,6 +155,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
+    const breakpoints = this.context?.config?.ui?.breakpoints;
     const el = new Element(parent, id, type, name);
     const isRootElement = !parent;
     if (isRootElement) {
@@ -169,6 +170,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         content,
         style,
         attributes,
+        breakpoints,
       })
     );
     return el;
@@ -198,12 +200,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
+    const breakpoints = this.context?.config?.ui?.breakpoints;
     this.emit(
       UpdateElementMessage.type.request({
         element: element.id,
         content,
         style,
         attributes,
+        breakpoints,
       })
     );
   }
@@ -382,34 +386,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   loadStyles(): void {
-    // Process Imports
+    // Process Fonts
     const fonts = this.context?.font;
     if (fonts) {
-      this.constructStyleElement("fonts", {
-        fonts,
-      });
+      this.constructStyleElement("fonts", { fonts });
     }
     // Process Animations
     const animations = this.context?.animation;
-    if (fonts) {
-      this.constructStyleElement("animations", {
-        animations,
-      });
+    if (animations) {
+      this.constructStyleElement("animations", { animations });
     }
     // Process Styles
-    Object.entries(this.context?.style).forEach(([name, style]) => {
-      if (name) {
-        if (style && !("target" in style)) {
-          style["target"] = name;
-        }
-        if (style) {
-          const properties = getAllProperties(style, isAssetLeaf);
-          this.constructStyleElement(name, {
-            style: properties,
-          });
-        }
-      }
-    });
+    const styles = this.context?.style;
+    if (styles) {
+      this.constructStyleElement("styles", { styles });
+    }
   }
 
   loadUI(...structNames: string[]): void {

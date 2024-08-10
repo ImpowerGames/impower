@@ -53,7 +53,12 @@ export class StructDefinition extends ParsedObject {
         parentStack.pop();
       }
       const parent = parentStack[parentStack.length - 1];
-      if (typeof prop.value === "object") {
+      if (
+        typeof prop.value === "object" &&
+        prop.value &&
+        !("$type" in prop.value) &&
+        !("$name" in prop.value)
+      ) {
         // If first child property is an array item, this property is an array
         const isArray =
           nextProp && nextProp.level > prop.level && nextProp.index !== null;

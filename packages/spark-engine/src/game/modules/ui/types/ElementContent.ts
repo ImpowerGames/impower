@@ -11,7 +11,7 @@ export interface TextContent {
 }
 
 export interface StyleContent {
-  style: Record<string, any>;
+  styles: Record<string, any>;
 }
 
 export interface FontContent {

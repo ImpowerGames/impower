@@ -1726,11 +1726,11 @@ repository:
     match: (?:([.])|([?][.]))
     captures:
       1:
-        tag: punctuation
-        name: punctuation.accessor.sd
+        tag: separator
+        name: meta.template.expression.accessor.sd
       2:
-        tag: punctuation
-        name: punctuation.accessor.optional.sd
+        tag: separator
+        name: meta.template.expression.accessor.optional.sd
 
   Color:
     emit: true

@@ -1892,12 +1892,35 @@ export class InkParser extends StringParser {
       this.ExpressionString,
     ]) as Expression;
 
-  public readonly ValueLiteral = (): string | number | boolean | null =>
+  public readonly ValueStructReference = (): object | null => {
+    const path = this.Interleave<Identifier>(
+      this.IdentifierWithMetadata,
+      this.Exclude(this.Spaced(this.String(".")))
+    );
+
+    if (
+      path === null ||
+      Story.IsReservedKeyword(path[0]?.name) ||
+      path.length != 2
+    ) {
+      return null;
+    }
+
+    return { $type: path[0]?.name, $name: path[1]?.name };
+  };
+
+  public readonly ValueLiteral = ():
+    | string
+    | number
+    | boolean
+    | object
+    | null =>
     this.OneOf([
       this.ValueFloat,
       this.ValueInt,
       this.ValueBool,
       this.ValueString,
+      this.ValueStructReference,
     ]) as string | number | boolean | null;
 
   public readonly ExpressionDivertTarget = (): Expression | null => {

@@ -37,16 +37,6 @@ export class Game<T extends M = {}> {
     return this._stored;
   }
 
-  protected _latestCheckpointId = "";
-  get latestCheckpointId() {
-    return this._latestCheckpointId;
-  }
-
-  protected _latestCheckpointData = "";
-  get latestCheckpointData() {
-    return this._latestCheckpointData;
-  }
-
   protected _modules: Record<string, Module> = {};
   get module() {
     return this._modules as GameModules & T;
@@ -334,14 +324,11 @@ export class Game<T extends M = {}> {
   }
 
   checkpoint(): void {
-    const checkpointId = ""; // TODO: update with tag (# id:<uuid>)
     for (const k of this._moduleNames) {
       this._modules[k]?.onCheckpoint();
     }
-    this._latestCheckpointId = checkpointId;
-    this._latestCheckpointData = this._story.state.ToJson();
-    // console.warn(JSON.stringify(this._latestCheckpointData));
-    // TODO: this._latestCheckpointData = this.serialize();
+    // const storyState = this._story.state.ToJson();
+    // const moduleState = this.serialize();
   }
 
   async onReceive(

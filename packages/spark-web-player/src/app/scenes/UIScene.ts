@@ -59,7 +59,7 @@ export default class UIScene extends Scene {
         el.className = params.name;
       }
       if (params.content) {
-        el.textContent = getElementContent(params.content);
+        el.textContent = getElementContent(params.content, params.breakpoints);
       }
       if (params.style) {
         el.style.cssText = Object.entries(params.style)
@@ -102,7 +102,10 @@ export default class UIScene extends Scene {
       const element = this.getElement(params.element);
       if (element) {
         if (params.content != undefined) {
-          element.textContent = getElementContent(params.content);
+          element.textContent = getElementContent(
+            params.content,
+            params.breakpoints
+          );
         }
         if (params.attributes != undefined) {
           if (params.attributes) {
@@ -293,27 +296,5 @@ export default class UIScene extends Scene {
       }
     }
     return undefined;
-  }
-
-  override onResize(entry: ResizeObserverEntry): void {
-    if (this._breakpoints) {
-      const width = entry.contentRect?.width;
-      const keys = Object.keys(this._breakpoints);
-      let className = "";
-      for (let i = 0; i < keys.length; i += 1) {
-        const k = keys[i] || "";
-        className += `${k} `;
-        const b = this._breakpoints[k];
-        if (b !== undefined) {
-          if (b > width) {
-            break;
-          }
-        }
-      }
-      className = className.trim();
-      if (this.overlay && this.overlay.className !== className) {
-        this.overlay.className = className;
-      }
-    }
   }
 }

@@ -7,7 +7,7 @@ export const _font: Create<Font> = (obj) => ({
   font_family: "",
   font_weight: "",
   font_style: "",
-  font_display: "",
+  font_display: "block",
   font_stretch: "",
   unicode_range: "",
   ...obj,

@@ -12,7 +12,6 @@ import { IncludedFile } from "./IncludedFile";
 import { ListDefinition } from "./List/ListDefinition";
 import { ListElementDefinition } from "./List/ListElementDefinition";
 import { StructDefinition } from "./Struct/StructDefinition";
-import { StructProperty } from "./Struct/StructProperty";
 import { ParsedObject } from "./Object";
 import { Story as RuntimeStory } from "../../../engine/Story";
 import { SymbolType } from "./SymbolType";

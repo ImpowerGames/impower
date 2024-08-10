@@ -40,6 +40,19 @@ export const getCSSPropertyKeyValue = (
   if (
     cssProp === "background-image" &&
     typeof cssValue === "object" &&
+    "$type" in cssValue &&
+    typeof cssValue.$type === "string" &&
+    "$name" in cssValue &&
+    typeof cssValue.$name === "string"
+  ) {
+    const type = cssValue.$type;
+    const name = cssValue.$name;
+    const varValue = `var(--${type}_${name})`;
+    return [cssProp, varValue];
+  }
+  if (
+    cssProp === "background-image" &&
+    typeof cssValue === "object" &&
     "src" in cssValue &&
     typeof cssValue.src === "string"
   ) {
@@ -69,6 +82,15 @@ export const getCSSPropertyKeyValue = (
       ? data
       : `url(data:${encoding},${encodeURIComponent(data)})`;
     return [cssProp, url];
+  }
+  if (
+    cssProp === "font-family" &&
+    typeof cssValue === "object" &&
+    "$name" in cssValue &&
+    typeof cssValue.$name === "string"
+  ) {
+    const name = cssValue.$name;
+    return [cssProp, name];
   }
   if (cssProp === "text-stroke") {
     if (typeof cssValue === "number") {

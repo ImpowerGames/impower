@@ -3,15 +3,18 @@ import { getAnimationContent } from "./getAnimationContent";
 import { getFontContent } from "./getFontContent";
 import { getStyleContent } from "./getStyleContent";
 
-export const getElementContent = (content: ElementContent): string => {
+export const getElementContent = (
+  content: ElementContent,
+  breakpoints?: Record<string, number>
+): string => {
   if (typeof content === "string") {
     return content;
   }
   if ("text" in content) {
     return content.text;
   }
-  if ("style" in content) {
-    return getStyleContent(content.style);
+  if ("styles" in content) {
+    return getStyleContent(content.styles, breakpoints);
   }
   if ("fonts" in content) {
     return getFontContent(content.fonts);
