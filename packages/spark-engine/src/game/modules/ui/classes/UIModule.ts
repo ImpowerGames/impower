@@ -743,7 +743,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 if (consecutiveSpace === 1 || text === "\n") {
                   style["white_space"] = "pre";
                 }
-                // Support text-wrapping by wrapping word and space chunks in inline-block span
+                // Support text-wrapping by wrapping word and space chunks in an inline-block span
                 if (text === "\n") {
                   wordWrapperEl = undefined;
                 } else if (isSpace !== wasSpace) {
