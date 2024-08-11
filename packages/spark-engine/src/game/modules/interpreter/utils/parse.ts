@@ -14,7 +14,7 @@ const MARKERS = ["^", "*", "_", "~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 const PARENTHETICAL_REGEX =
-  /^([ \t]*)((?:[+].*?[+]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
+  /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
 const ASSET_CONTROL_KEYWORDS = [
   "show",
   "hide",
@@ -512,15 +512,15 @@ export const parse = (
             continue;
           }
           // Flow Tag
-          if (char === "+") {
+          if (char === "=") {
             let id = "";
             const startIndex = i;
             i += 1;
-            while (chars[i] && chars[i] !== "+") {
+            while (chars[i] && chars[i] !== "=") {
               id += chars[i];
               i += 1;
             }
-            const closed = chars[i] === "+";
+            const closed = chars[i] === "=";
             if (closed) {
               i += 1;
               if (id) {
@@ -540,8 +540,8 @@ export const parse = (
             continue;
           }
           // Break Tag
-          if (char === ">" && nextChar === ">") {
-            i += 2;
+          if (char === "+") {
+            i += 1;
             continue;
           }
           // Style Tag

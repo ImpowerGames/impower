@@ -623,7 +623,7 @@ repository:
   Break:
     tag: special(meta)
     name: meta.break.sd
-    match: ({{WS}}*)([>][>])
+    match: ({{WS}}*)([+])
     captures:
       1:
         patterns:
@@ -1933,7 +1933,7 @@ repository:
     end: (?=^{{WS}}*$)
 
   BlockDialogueLineEnd:
-    match: ({{WS}}*)(.*?)([>][>])({{EOL}})
+    match: ({{WS}}*)(.*?)([+])({{EOL}})
     captures:
       1:
         patterns:
@@ -2111,7 +2111,7 @@ repository:
 ########## Parenthetical ##########
 
   ParentheticalLine:
-    match: ({{WS}}*)((?:[+].*?[+]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)({{EOL}}|[\\](?:{{WS}}|$))
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}*)*)({{WS}}*)([(][^()]*?[)])({{WS}}*)({{EOL}}|[\\](?:{{WS}}|$))
     captures:
       1:
         patterns:
@@ -2189,7 +2189,7 @@ repository:
     begin: (?=.+)
     patterns:
       - { include: "#DisplayText" }
-    end: (?=$|[\\](?:$|{{WS}})|[<][>]|[>][>]|{{EOL}})
+    end: (?=$|[\\](?:$|{{WS}})|[<][>]|[+]|{{EOL}})
 
   DisplayText:
     patterns:
@@ -2204,7 +2204,7 @@ repository:
   FlowMarker:
     tag: macroName
     name: meta.source.sd
-    match: ([+])(.*?)([+])({{WS}}*)
+    match: ([=])(.*?)([=])({{WS}}*)
     captures:
       1:
         tag: keyword
@@ -2222,7 +2222,7 @@ repository:
   UUID:
     tag: keyword
     name: keyword.source.identifier.sd
-    match: (.+)
+    match: ([=])(.*?)([=])
 
 ########## Commands ##########
 

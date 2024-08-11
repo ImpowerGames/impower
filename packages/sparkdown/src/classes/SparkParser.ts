@@ -25,7 +25,7 @@ import { uuid } from "../utils/uuid";
 
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 
-const UUID_MARKER_REGEX: RegExp = /[+](.*?)[+]/g;
+const UUID_MARKER_REGEX = new RegExp(GRAMMAR_DEFINITION.repository.UUID.match);
 
 export default class SparkParser {
   protected _config: SparkParserConfig = {};
@@ -67,7 +67,6 @@ export default class SparkParser {
     let lineIndex = 0;
     let linePos = 0;
     let prevNodeType = "";
-    let inBlockDialogue = false;
     let blockDialoguePrefix = "";
     const generateID = () => {
       while (true) {
@@ -78,6 +77,9 @@ export default class SparkParser {
           return id;
         }
       }
+    };
+    const getFlowMarker = (id: string) => {
+      return `=${id}=`;
     };
     tree.iterate({
       enter: (node) => {
@@ -96,15 +98,12 @@ export default class SparkParser {
             ? offset + nodeEndCharacter
             : nodeEndCharacter;
         if (nodeType === "BlockDialogue_begin") {
-          inBlockDialogue = true;
-        }
-        if (nodeType === "BlockDialogue_begin") {
           const lineText = lines[lineIndex] || "";
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
           const id = generateID();
-          const flowMarker = `+${id}+ `;
-          const markup = ": " + flowMarker + "\\";
+          const flowMarker = getFlowMarker(id);
+          const markup = ": " + flowMarker + " " + "\\";
           lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           program.sourceMap ??= {};
           program.sourceMap[filepath]![lineIndex] = [
@@ -125,8 +124,8 @@ export default class SparkParser {
             const lineTextAfter = lineText.slice(nodeStart);
             const prefix = blockDialoguePrefix + ": ";
             const id = generateID();
-            const flowMarker = `+${id}+ `;
-            const markup = prefix + flowMarker;
+            const flowMarker = getFlowMarker(id);
+            const markup = prefix + flowMarker + " ";
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
             program.sourceMap[filepath]![lineIndex] = [
@@ -147,12 +146,12 @@ export default class SparkParser {
           const lineTextBefore = lineText.slice(0, nodeEnd);
           const lineTextAfter = lineText.slice(nodeEnd);
           if (
-            !lineTextAfter.startsWith("+") &&
+            !lineTextAfter.startsWith("=") &&
             !lineTextBefore.trim().endsWith("<>")
           ) {
             const id = generateID();
-            const flowMarker = `+${id}+ `;
-            const markup = flowMarker;
+            const flowMarker = getFlowMarker(id);
+            const markup = flowMarker + " ";
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
             program.sourceMap[filepath]![lineIndex] = [
@@ -189,7 +188,6 @@ export default class SparkParser {
             ? offset + nodeEndCharacter
             : nodeEndCharacter;
         if (nodeType === "BlockDialogue_end") {
-          inBlockDialogue = false;
           blockDialoguePrefix = "";
         }
         if (nodeType === "BlockDialogueLineContinue") {
@@ -252,7 +250,7 @@ export default class SparkParser {
               if (flowMarkers) {
                 const path = obj.path.toString();
                 for (const m of flowMarkers) {
-                  const flowMarker = m.slice(1, -1);
+                  const flowMarker = m.trim().slice(1, -1);
                   program.uuidToPath ??= {};
                   program.uuidToPath[flowMarker] ??= path;
                 }

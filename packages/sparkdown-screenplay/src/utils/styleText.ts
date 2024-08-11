@@ -86,8 +86,8 @@ export const styleText = (
           continue;
         }
         // Break Tag
-        if (char === ">" && nextChar === ">") {
-          i += 2;
+        if (char === "+") {
+          i += 1;
           continue;
         }
         // Style Tag

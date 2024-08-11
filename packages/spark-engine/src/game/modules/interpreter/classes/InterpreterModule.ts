@@ -218,7 +218,7 @@ export class InterpreterModule extends Module<
     }
     // Queue content
     if (content) {
-      const boxes = content.split(">>");
+      const boxes = content.split("+");
       for (const box of boxes) {
         const contentBoxInstructions = parse(
           box,
