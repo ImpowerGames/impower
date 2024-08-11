@@ -14,7 +14,7 @@ const MARKERS = ["^", "*", "_", "~~", "::"];
 const CHAR_REGEX =
   /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 const PARENTHETICAL_REGEX =
-  /^([ \t]*)([+].*?[+])?([ \t]*)([(][^()]*?[)])([ \t]*)([+].*?[+])?([ \t]*)$/;
+  /^([ \t]*)((?:[+].*?[+]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
 const ASSET_CONTROL_KEYWORDS = [
   "show",
   "hide",
@@ -498,14 +498,12 @@ export const parse = (
                   linePhrases.push(phrase);
                   allPhrases.push(phrase);
                   startNewPhrase();
+                } else if (control === "!") {
+                  // Ignore everything until the end of the line
+                  while (chars[i] && chars[i] !== "\n") {
+                    i += 1;
+                  }
                 }
-              }
-              // consume trailing whitespace
-              while (i < chars.length) {
-                if (!isSpace(chars[i])) {
-                  break;
-                }
-                i += 1;
               }
             } else {
               i = startIndex;
@@ -539,6 +537,11 @@ export const parse = (
               i = startIndex;
               escaped = true;
             }
+            continue;
+          }
+          // Break Tag
+          if (char === ">" && nextChar === ">") {
+            i += 2;
             continue;
           }
           // Style Tag

@@ -54,7 +54,9 @@ export class Coordinator<G extends Game> {
     if (EventMessage.type.isNotification(msg)) {
       const params = msg.params;
       if (params.type === "pointerdown") {
-        this._interacted = true;
+        if (params.button === 0) {
+          this._interacted = true;
+        }
       }
     }
   }

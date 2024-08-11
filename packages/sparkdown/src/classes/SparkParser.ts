@@ -66,8 +66,7 @@ export default class SparkParser {
     const fileIndex = Object.keys(program.sourceMap).indexOf(filepath);
     let lineIndex = 0;
     let linePos = 0;
-    let prevId = "";
-    let prevDialogueLineWasLineEnd = false;
+    let prevNodeType = "";
     let inBlockDialogue = false;
     let blockDialoguePrefix = "";
     const generateID = () => {
@@ -83,12 +82,6 @@ export default class SparkParser {
     tree.iterate({
       enter: (node) => {
         const nodeType = nodeNames[node.type]! as SparkdownNodeName;
-        if (nodeType === "BlockDialogue_begin") {
-          inBlockDialogue = true;
-        }
-      },
-      leave: (node) => {
-        const nodeType = nodeNames[node.type]! as SparkdownNodeName;
         const [offsetAfter, offset] = program.sourceMap?.[filepath]?.[
           lineIndex
         ] ?? [0, 0];
@@ -102,10 +95,8 @@ export default class SparkParser {
           nodeEndCharacter > offsetAfter
             ? offset + nodeEndCharacter
             : nodeEndCharacter;
-        if (nodeType === "BlockDialogue_end") {
-          inBlockDialogue = false;
-          prevDialogueLineWasLineEnd = false;
-          blockDialoguePrefix = "";
+        if (nodeType === "BlockDialogue_begin") {
+          inBlockDialogue = true;
         }
         if (nodeType === "BlockDialogue_begin") {
           const lineText = lines[lineIndex] || "";
@@ -125,32 +116,10 @@ export default class SparkParser {
           blockDialoguePrefix = lineTextBefore;
         }
         if (
-          nodeType === "ImageLine" ||
-          nodeType === "AudioLine" ||
-          nodeType === "ImageAndAudioLine" ||
-          nodeType === "ParentheticalLineContent"
+          nodeType === "BlockDialogueLineContinue" ||
+          nodeType === "BlockDialogueLineEnd"
         ) {
-          if (inBlockDialogue) {
-            const lineText = lines[lineIndex] || "";
-            const lineTextBefore = lineText.slice(0, nodeEnd);
-            const lineTextAfter = lineText.slice(nodeEnd);
-            if (
-              !lineTextBefore.trim().endsWith("\\") &&
-              !lineTextAfter.trim().startsWith("\\")
-            ) {
-              // AssetLine and ParentheticalLine should end with implicit \
-              // (So they are grouped together with following text line)
-              const suffix = ` \\`;
-              const markup = suffix;
-              lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
-            }
-          }
-        }
-        if (nodeType === "BlockDialogueLine_end") {
-          prevDialogueLineWasLineEnd = prevId === "LineEnd";
-        }
-        if (nodeType === "BlockDialogueLine_begin") {
-          if (prevDialogueLineWasLineEnd) {
+          if (prevNodeType.startsWith("BlockDialogueLineEnd")) {
             const lineText = lines[lineIndex] || "";
             const lineTextBefore = lineText.slice(0, nodeStart);
             const lineTextAfter = lineText.slice(nodeStart);
@@ -205,13 +174,44 @@ export default class SparkParser {
         if (nodeType === "Newline") {
           lineIndex += 1;
           linePos = node.to;
+        } else {
+          prevNodeType = nodeType;
         }
-        prevId = nodeType;
+      },
+      leave: (node) => {
+        const nodeType = nodeNames[node.type]! as SparkdownNodeName;
+        const [offsetAfter, offset] = program.sourceMap?.[filepath]?.[
+          lineIndex
+        ] ?? [0, 0];
+        const nodeEndCharacter = node.to - linePos;
+        const nodeEnd =
+          nodeEndCharacter > offsetAfter
+            ? offset + nodeEndCharacter
+            : nodeEndCharacter;
+        if (nodeType === "BlockDialogue_end") {
+          inBlockDialogue = false;
+          blockDialoguePrefix = "";
+        }
+        if (nodeType === "BlockDialogueLineContinue") {
+          const lineText = lines[lineIndex] || "";
+          const lineTextBefore = lineText.slice(0, nodeEnd);
+          const lineTextAfter = lineText.slice(nodeEnd);
+          if (
+            !lineTextBefore.trim().endsWith("\\") &&
+            !lineTextAfter.trim().startsWith("\\")
+          ) {
+            // AssetLine and ParentheticalLine should end with implicit \
+            // (So they are grouped together with following text line)
+            const suffix = ` \\`;
+            const markup = suffix;
+            lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
+          }
+        }
       },
     });
     const transpiled = lines.join("\n");
     // console.log(printTree(tree, script, nodeNames));
-    // console.log(transpiled);
+    console.log(transpiled);
     return transpiled;
   }
 

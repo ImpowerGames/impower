@@ -218,32 +218,35 @@ export class InterpreterModule extends Module<
     }
     // Queue content
     if (content) {
-      const contentInstructions = parse(
-        content,
-        target || defaultTarget,
-        options
-      );
-      if (contentInstructions.text) {
-        if (characterParentheticalInstructions) {
-          // prefix each textbox with character_parenthetical, if specified.
-          this.merge(
-            contentInstructions,
-            characterParentheticalInstructions,
-            true
-          );
+      const boxes = content.split(">>");
+      for (const box of boxes) {
+        const contentBoxInstructions = parse(
+          box,
+          target || defaultTarget,
+          options
+        );
+        if (contentBoxInstructions.text) {
+          if (characterParentheticalInstructions) {
+            // prefix each textbox with character_parenthetical, if specified.
+            this.merge(
+              contentBoxInstructions,
+              characterParentheticalInstructions,
+              true
+            );
+          }
+          if (characterNameInstructions) {
+            // prefix each textbox with character_name, if specified.
+            this.merge(contentBoxInstructions, characterNameInstructions, true);
+          }
         }
-        if (characterNameInstructions) {
-          // prefix each textbox with character_name, if specified.
-          this.merge(contentInstructions, characterNameInstructions, true);
+        const lastTextbox = this._state.buffer.at(-1);
+        if (lastTextbox && !lastTextbox?.text) {
+          // If previous textbox did not actually contain any text, fold this result into it.
+          this.merge(lastTextbox, contentBoxInstructions);
+        } else {
+          // Otherwise, add this result as a new textbox.
+          this._state.buffer.push(contentBoxInstructions);
         }
-      }
-      const lastTextbox = this._state.buffer.at(-1);
-      if (lastTextbox && !lastTextbox?.text) {
-        // If previous textbox did not actually contain any text, fold this result into it.
-        this.merge(lastTextbox, contentInstructions);
-      } else {
-        // Otherwise, add this result as a new textbox.
-        this._state.buffer.push(contentInstructions);
       }
     }
     // Show choices after last textbox is done typing.

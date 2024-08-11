@@ -12,7 +12,6 @@ export interface IInstruction {
 export interface TextInstruction extends IInstruction {
   text: string;
   style?: {
-    display?: string;
     position?: string;
     inset?: string;
     text_decoration?: string;
