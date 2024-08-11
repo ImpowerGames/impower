@@ -202,9 +202,9 @@ export class StringParser {
           this.index,
           source ?? {
             startLineNumber: this.lineIndex + 1,
-            startCharacterNumber: 0,
+            startCharacterNumber: 1,
             endLineNumber: this.lineIndex + 2,
-            endCharacterNumber: 0,
+            endCharacterNumber: 1,
             fileName: this._fileName,
             filePath: this._filePath,
           },
