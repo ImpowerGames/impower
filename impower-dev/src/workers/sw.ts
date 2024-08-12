@@ -27,6 +27,7 @@ const cacheThenNetwork = async (url: string) => {
 
 self.addEventListener("install", (e) => {
   const event = e as ExtendableEvent;
+  self.skipWaiting();
   event.waitUntil(
     (async () => {
       const cache = await caches.open(SW_CACHE_NAME);
