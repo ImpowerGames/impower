@@ -218,9 +218,11 @@ export class AudioModule extends Module<
     channel: string,
     key: string
   ): LoadAudioPlayerParams[] {
-    const indexOfFirstDash = key.indexOf("-");
-    const name = indexOfFirstDash >= 0 ? key.slice(0, indexOfFirstDash) : key;
-    const suffix = indexOfFirstDash >= 0 ? key.slice(indexOfFirstDash) : "";
+    const indexOfFirstSeparator = key.indexOf("~");
+    const name =
+      indexOfFirstSeparator >= 0 ? key.slice(0, indexOfFirstSeparator) : key;
+    const suffix =
+      indexOfFirstSeparator >= 0 ? key.slice(indexOfFirstSeparator) : "";
     if (!name) {
       return [];
     }
@@ -279,10 +281,11 @@ export class AudioModule extends Module<
   }
 
   protected parseTones(key: string) {
-    const indexOfFirstDash = key.indexOf("-");
-    const suffix = indexOfFirstDash >= 0 ? key.slice(indexOfFirstDash + 1) : "";
+    const indexOfFirstSeparator = key.indexOf("~");
+    const suffix =
+      indexOfFirstSeparator >= 0 ? key.slice(indexOfFirstSeparator + 1) : "";
     if (suffix) {
-      return parseTones(suffix, "-");
+      return parseTones(suffix, "~");
     }
     return [];
   }

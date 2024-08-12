@@ -1084,10 +1084,10 @@ export const parse = (
       control: "play",
       assets: [
         synthName +
-          "-" +
+          "~" +
           tones
             .map((tone) => `t${tone.time}s${tone.speed}b${tone.bend}`)
-            .join("-"),
+            .join("~"),
       ],
     });
   });
