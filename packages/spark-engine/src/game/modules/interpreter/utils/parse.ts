@@ -947,15 +947,6 @@ export const parse = (
             }
           }
           result.text ??= {};
-          if (target && letterPause === 0) {
-            const prevEvent = result.text[target]?.at(-1);
-            if (prevEvent) {
-              prevEvent.exit = time;
-              prevEvent.style ??= {};
-              prevEvent.style["position"] = "absolute";
-              prevEvent.style["inset"] = "0";
-            }
-          }
           result.text[target] ??= [];
           result.text[target]!.push(event);
         }
