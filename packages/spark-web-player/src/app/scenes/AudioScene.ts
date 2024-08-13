@@ -86,6 +86,18 @@ export default class AudioScene extends Scene {
     return audioChannel;
   }
 
+  destroyAudio(key: string, channel: string | undefined) {
+    const audioChannel = this._audioChannels.get(channel || "default");
+    if (audioChannel) {
+      const audioPlayer = audioChannel.get(key);
+      if (audioPlayer) {
+        audioPlayer.dispose();
+      }
+      audioChannel.delete(key);
+    }
+    this._audioBuffers.delete(key);
+  }
+
   async getAudioPlayer(params: LoadAudioPlayerParams): Promise<AudioPlayer> {
     const audioChannel = this.getAudioChannel(params.channel);
     if (audioChannel.get(params.key)) {
@@ -127,6 +139,12 @@ export default class AudioScene extends Scene {
         const over = update.over;
         if (update.loop != null) {
           audioPlayer.loop = update.loop;
+        }
+        if (!audioPlayer.loop) {
+          // If not looping, dispose audio buffer and player after finished playing
+          audioPlayer.addEventListener("ended", () => {
+            this.destroyAudio(update.key, update.channel);
+          });
         }
         if (update.control === "fade") {
           audioPlayer.fade(when, over, update.to);
