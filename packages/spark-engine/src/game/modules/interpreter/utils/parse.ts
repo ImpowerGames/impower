@@ -703,7 +703,8 @@ export const parse = (
         const speedShaky = activeShakyMark ? activeShakyMark[0].length - 1 : 1;
         const speed = speedModifier / speedWavy / speedShaky;
         const isPhrasePause = isPhraseBoundary;
-        const isEmDashPause = currChunk && currChunk.emDash && !emDash;
+        const isEmDashPause =
+          currChunk && currChunk.emDash && !emDash && isWhitespace(char);
         const isStressPause = Boolean(
           character &&
             spaceLength === 1 &&
