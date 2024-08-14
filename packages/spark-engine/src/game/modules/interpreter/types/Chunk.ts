@@ -15,7 +15,6 @@ export interface Chunk {
 
   voiced?: boolean;
   yelled?: number;
-  emDash?: boolean;
   tilde?: boolean;
 
   centered?: number;

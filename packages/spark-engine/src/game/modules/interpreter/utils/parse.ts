@@ -52,13 +52,6 @@ const isWhitespace = (part: string | undefined) => {
   return true;
 };
 
-const isWhitespaceOrEmpty = (part: string | undefined) => {
-  if (!part) {
-    return true;
-  }
-  return isWhitespace(part);
-};
-
 const isSpace = (part: string | undefined) => {
   if (!part) {
     return false;
@@ -72,7 +65,7 @@ const isSpace = (part: string | undefined) => {
   return true;
 };
 
-const isDash = (part: string) => {
+const isDash = (part: string | undefined) => {
   if (!part) {
     return false;
   }
@@ -654,11 +647,13 @@ export const parse = (
           Boolean(yelledMatcher?.test(word)) &&
           (Boolean(yelledMatcher?.test(nextChar)) || word.length > 1);
         const tilde = char === "~";
-        const isEmDashBoundary = dashLength > 1;
-        const emDash =
-          isEmDashBoundary ||
-          (isDash(char) && (isWhitespaceOrEmpty(nextChar) || isDash(nextChar)));
-        const isPhraseBoundary = spaceLength > 1;
+        const isEmDashBoundary =
+          i >= 3 &&
+          isSpace(chars[i - 3]) &&
+          isDash(chars[i - 2]) &&
+          isDash(chars[i - 1]) &&
+          isSpace(chars[i]);
+        const isPhraseBoundary = spaceLength > 1 || isEmDashBoundary;
 
         if (isPhraseBoundary) {
           phrasePauseLength += 1;
@@ -702,9 +697,8 @@ export const parse = (
         const speedWavy = activeWavyMark ? activeWavyMark[0].length - 1 : 1;
         const speedShaky = activeShakyMark ? activeShakyMark[0].length - 1 : 1;
         const speed = speedModifier / speedWavy / speedShaky;
+        const isEmDashPause = isEmDashBoundary;
         const isPhrasePause = isPhraseBoundary;
-        const isEmDashPause =
-          currChunk && currChunk.emDash && !emDash && isWhitespace(char);
         const isStressPause = Boolean(
           character &&
             spaceLength === 1 &&
@@ -717,10 +711,10 @@ export const parse = (
         const duration: number =
           speed === 0
             ? 0
-            : (isPhrasePause
-                ? letterPause * phrasePause
-                : isEmDashPause
+            : (isEmDashPause
                 ? letterPause * emDashPause
+                : isPhrasePause
+                ? letterPause * phrasePause
                 : isStressPause
                 ? letterPause * stressPause
                 : letterPause) / speed;
@@ -740,7 +734,6 @@ export const parse = (
             underlined,
             wavy,
             shaky,
-            emDash,
             tilde,
             pitch,
           };
@@ -784,7 +777,6 @@ export const parse = (
                 underlined,
                 wavy,
                 shaky,
-                emDash,
                 tilde,
                 pitch,
               };
