@@ -53,7 +53,7 @@ export default class AudioScene extends Scene {
       audioBuffer.copyToChannel(synthBuffer.soundBuffer, 0);
       return audioBuffer;
     }
-    return this._audioContext.createBuffer(1, 0, this._audioContext.sampleRate);
+    return this._audioContext.createBuffer(1, 1, this._audioContext.sampleRate);
   }
 
   async getAudioBuffer(params: LoadAudioPlayerParams): Promise<AudioBuffer> {

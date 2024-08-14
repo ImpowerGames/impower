@@ -19,5 +19,5 @@ export const getAudioBuffer = async (
     audioBuffer.copyToChannel(sound.soundBuffer, 0);
     return audioBuffer;
   }
-  return audioContext.createBuffer(1, 0, audioContext.sampleRate);
+  return audioContext.createBuffer(1, 1, audioContext.sampleRate);
 };
