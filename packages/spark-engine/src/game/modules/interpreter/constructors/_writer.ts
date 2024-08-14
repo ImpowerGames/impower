@@ -12,7 +12,7 @@ export const _writer: Create<Writer> = (obj) => ({
   punctuated_pause_scale: 15,
   min_syllable_length: 3,
   voiced: /([\p{L}\p{N}']+)/u.toString(),
-  yelled: /^(\p{Lu}[^\p{Ll}\r\n]*)$/u.toString(),
+  yelled: /^([\p{Lu}]{2,}[^\p{Ll}\r\n]*)$/u.toString(),
   punctuated: /(?:^|\s)(?:[.]\s*?)+(?:$|\s)/u.toString(),
   ...obj,
 });
