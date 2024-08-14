@@ -103,7 +103,7 @@ export default class SparkParser {
           const lineTextAfter = lineText.slice(nodeEnd);
           const id = generateID();
           const flowMarker = getFlowMarker(id);
-          const markup = ": " + flowMarker + " " + "\\";
+          const markup = ": " + flowMarker + "\\";
           lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           program.sourceMap ??= {};
           program.sourceMap[filepath]![lineIndex] = [
@@ -125,7 +125,7 @@ export default class SparkParser {
             const prefix = blockDialoguePrefix + ": ";
             const id = generateID();
             const flowMarker = getFlowMarker(id);
-            const markup = prefix + flowMarker + " ";
+            const markup = prefix + flowMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
             program.sourceMap[filepath]![lineIndex] = [
@@ -151,7 +151,7 @@ export default class SparkParser {
           ) {
             const id = generateID();
             const flowMarker = getFlowMarker(id);
-            const markup = flowMarker + " ";
+            const markup = flowMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
             program.sourceMap[filepath]![lineIndex] = [
@@ -209,7 +209,7 @@ export default class SparkParser {
     });
     const transpiled = lines.join("\n");
     // console.log(printTree(tree, script, nodeNames));
-    console.log(transpiled);
+    // console.log(transpiled);
     return transpiled;
   }
 
