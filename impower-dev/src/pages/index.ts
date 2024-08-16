@@ -42,6 +42,16 @@ if ("serviceWorker" in navigator) {
       console.error(`Service worker registration failed: ${error}`);
     }
   );
+  // TODO: Handle service worker refresh with Approach #4 instead of Approach #2:
+  // https://redfin.engineering/how-to-fix-the-refresh-button-when-using-service-workers-a8e27af6df68
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) {
+      return;
+    }
+    refreshing = true;
+    window.location.reload();
+  });
 } else {
   console.error("Service workers are not supported.");
 }
