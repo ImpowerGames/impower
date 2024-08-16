@@ -4387,6 +4387,9 @@
           "include": "#Escape"
         },
         {
+          "include": "#Raw"
+        },
+        {
           "include": "#Styling"
         },
         {
@@ -4449,6 +4452,34 @@
         "1": {
           "tag": "definition(content)",
           "name": "markup.raw.text.sd"
+        }
+      }
+    },
+    "Raw": {
+      "tag": "content",
+      "name": "markup.inline.raw.string.sd",
+      "match": "([`]+)(.*?)(\\1|$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#PlainText"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#StylingMark"
+            }
+          ]
         }
       }
     },

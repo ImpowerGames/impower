@@ -17,6 +17,8 @@ export interface Chunk {
   yelled?: number;
   tilde?: boolean;
 
+  raw?: boolean;
+
   centered?: number;
   bolded?: number;
   italicized?: number;

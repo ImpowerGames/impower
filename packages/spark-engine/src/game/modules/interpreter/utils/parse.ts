@@ -311,6 +311,7 @@ export const parse = (
   let phrasePauseLength = 0;
   let phraseUnpauseLength = 0;
   let escaped = false;
+  let raw = false;
   let currChunk: Chunk | undefined = undefined;
 
   const activeMarks: [string][] = [];
@@ -373,201 +374,209 @@ export const parse = (
         const char = chars[i] ?? "";
         const nextChar = chars[i + 1] ?? "";
         if (!escaped) {
-          // Escape
-          if (char === "\\") {
+          // Raw
+          if (char === "`") {
             i += 1;
-            escaped = true;
+            raw = !raw;
             continue;
           }
-          // Image Tag
-          if (char === "[" && nextChar === "[") {
-            let imageTagContent = "";
-            let closed = false;
-            const startIndex = i;
-            i += 2;
-            while (i < chars.length) {
-              if (chars[i] === "]" && chars[i + 1] === "]") {
-                closed = true;
-                const imageChunk = createImageChunk(imageTagContent);
-                const phrase = {
-                  target: imageChunk.target,
-                  chunks: [imageChunk],
-                };
-                linePhrases.push(phrase);
-                allPhrases.push(phrase);
-                startNewPhrase();
-                i += 2;
-                // consume trailing whitespace
-                while (i < chars.length) {
-                  if (!isSpace(chars[i])) {
-                    break;
-                  }
-                  i += 1;
-                }
-                break;
-              }
-              imageTagContent += chars[i];
+          if (!raw) {
+            // Escape
+            if (char === "\\") {
               i += 1;
-            }
-            if (!closed) {
-              i = startIndex;
               escaped = true;
+              continue;
             }
-            continue;
-          }
-          // Audio Tag
-          if (char === "(" && nextChar === "(") {
-            let audioTagContent = "";
-            let closed = false;
-            const startIndex = i;
-            i += 2;
-            while (i < chars.length) {
-              if (chars[i] === ")" && chars[i + 1] === ")") {
-                closed = true;
-                const audioChunk = createAudioChunk(audioTagContent);
-                const phrase = {
-                  target: audioChunk.target,
-                  chunks: [audioChunk],
-                };
-                linePhrases.push(phrase);
-                allPhrases.push(phrase);
-                startNewPhrase();
-                i += 2;
-                // consume trailing whitespace
-                while (i < chars.length) {
-                  if (!isSpace(chars[i])) {
-                    break;
-                  }
-                  i += 1;
-                }
-                break;
-              }
-              audioTagContent += chars[i];
-              i += 1;
-            }
-            if (!closed) {
-              i = startIndex;
-              escaped = true;
-            }
-            continue;
-          }
-          // Text Tag
-          if (char === "<") {
-            let control = "";
-            let arg = "";
-            const startIndex = i;
-            i += 1;
-            while (chars[i] && chars[i] !== ">" && chars[i] !== ":") {
-              control += chars[i];
-              i += 1;
-            }
-            if (chars[i] === ":") {
-              i += 1;
-              while (chars[i] && chars[i] !== ">") {
-                arg += chars[i];
-                i += 1;
-              }
-            }
-            const closed = chars[i] === ">";
-            if (closed) {
-              i += 1;
-              if (control) {
-                if (control === "speed" || control === "s") {
-                  speedModifier = getNumberValue(arg, 1);
-                } else if (control === "pitch" || control === "p") {
-                  pitchModifier = getNumberValue(arg, 0);
-                } else if (control === "wait" || control === "w") {
-                  const waitModifier = getNumberValue(arg, 0);
+            // Image Tag
+            if (char === "[" && nextChar === "[") {
+              let imageTagContent = "";
+              let closed = false;
+              const startIndex = i;
+              i += 2;
+              while (i < chars.length) {
+                if (chars[i] === "]" && chars[i + 1] === "]") {
+                  closed = true;
+                  const imageChunk = createImageChunk(imageTagContent);
                   const phrase = {
-                    target: textTarget,
-                    chunks: [
-                      {
-                        tag: "text",
-                        duration: waitModifier,
-                        speed: 1,
-                      },
-                    ],
+                    target: imageChunk.target,
+                    chunks: [imageChunk],
                   };
                   linePhrases.push(phrase);
                   allPhrases.push(phrase);
                   startNewPhrase();
-                } else if (control === "!") {
-                  // Ignore everything until the end of the line
-                  while (chars[i] && chars[i] !== "\n") {
+                  i += 2;
+                  // consume trailing whitespace
+                  while (i < chars.length) {
+                    if (!isSpace(chars[i])) {
+                      break;
+                    }
                     i += 1;
                   }
-                }
-              }
-            } else {
-              i = startIndex;
-              escaped = true;
-            }
-            continue;
-          }
-          // Flow Tag
-          if (char === "=") {
-            let id = "";
-            const startIndex = i;
-            i += 1;
-            while (chars[i] && chars[i] !== "=") {
-              id += chars[i];
-              i += 1;
-            }
-            const closed = chars[i] === "=";
-            if (closed) {
-              i += 1;
-              if (id) {
-                uuids.push(id);
-              }
-              // consume trailing whitespace
-              while (i < chars.length) {
-                if (!isSpace(chars[i])) {
                   break;
                 }
+                imageTagContent += chars[i];
                 i += 1;
               }
-            } else {
-              i = startIndex;
-              escaped = true;
-            }
-            continue;
-          }
-          // Break Tag
-          if (char === "+") {
-            i += 1;
-            continue;
-          }
-          // Style Tag
-          const styleMarker = MARKERS.find(
-            (marker) => marker === chars.slice(i, i + marker.length).join("")
-          );
-          if (styleMarker) {
-            let currentMarker = "";
-            const startIndex = i;
-            while (chars[i] && chars[i] === char) {
-              currentMarker += chars[i];
-              i += 1;
-            }
-            const lastMatchingMark =
-              activeMarks.findLast(
-                ([activeMarker]) => activeMarker === currentMarker
-              ) ||
-              activeMarks.findLast(
-                ([activeMarker]) =>
-                  activeMarker.slice(0, styleMarker.length) ===
-                  currentMarker.slice(0, styleMarker.length)
-              );
-            if (lastMatchingMark) {
-              while (activeMarks.at(-1) !== lastMatchingMark) {
-                activeMarks.pop();
+              if (!closed) {
+                i = startIndex;
+                escaped = true;
               }
-              activeMarks.pop();
-              const [lastMatchingMarker] = lastMatchingMark;
-              i = startIndex + lastMatchingMarker.length;
-            } else {
-              activeMarks.push([currentMarker]);
+              continue;
             }
-            continue;
+            // Audio Tag
+            if (char === "(" && nextChar === "(") {
+              let audioTagContent = "";
+              let closed = false;
+              const startIndex = i;
+              i += 2;
+              while (i < chars.length) {
+                if (chars[i] === ")" && chars[i + 1] === ")") {
+                  closed = true;
+                  const audioChunk = createAudioChunk(audioTagContent);
+                  const phrase = {
+                    target: audioChunk.target,
+                    chunks: [audioChunk],
+                  };
+                  linePhrases.push(phrase);
+                  allPhrases.push(phrase);
+                  startNewPhrase();
+                  i += 2;
+                  // consume trailing whitespace
+                  while (i < chars.length) {
+                    if (!isSpace(chars[i])) {
+                      break;
+                    }
+                    i += 1;
+                  }
+                  break;
+                }
+                audioTagContent += chars[i];
+                i += 1;
+              }
+              if (!closed) {
+                i = startIndex;
+                escaped = true;
+              }
+              continue;
+            }
+            // Text Tag
+            if (char === "<") {
+              let control = "";
+              let arg = "";
+              const startIndex = i;
+              i += 1;
+              while (chars[i] && chars[i] !== ">" && chars[i] !== ":") {
+                control += chars[i];
+                i += 1;
+              }
+              if (chars[i] === ":") {
+                i += 1;
+                while (chars[i] && chars[i] !== ">") {
+                  arg += chars[i];
+                  i += 1;
+                }
+              }
+              const closed = chars[i] === ">";
+              if (closed) {
+                i += 1;
+                if (control) {
+                  if (control === "speed" || control === "s") {
+                    speedModifier = getNumberValue(arg, 1);
+                  } else if (control === "pitch" || control === "p") {
+                    pitchModifier = getNumberValue(arg, 0);
+                  } else if (control === "wait" || control === "w") {
+                    const waitModifier = getNumberValue(arg, 0);
+                    const phrase = {
+                      target: textTarget,
+                      chunks: [
+                        {
+                          tag: "text",
+                          duration: waitModifier,
+                          speed: 1,
+                        },
+                      ],
+                    };
+                    linePhrases.push(phrase);
+                    allPhrases.push(phrase);
+                    startNewPhrase();
+                  } else if (control === "!") {
+                    // Ignore everything until the end of the line
+                    while (chars[i] && chars[i] !== "\n") {
+                      i += 1;
+                    }
+                  }
+                }
+              } else {
+                i = startIndex;
+                escaped = true;
+              }
+              continue;
+            }
+            // Flow Tag
+            if (char === "=") {
+              let id = "";
+              const startIndex = i;
+              i += 1;
+              while (chars[i] && chars[i] !== "=") {
+                id += chars[i];
+                i += 1;
+              }
+              const closed = chars[i] === "=";
+              if (closed) {
+                i += 1;
+                if (id) {
+                  uuids.push(id);
+                }
+                // consume trailing whitespace
+                while (i < chars.length) {
+                  if (!isSpace(chars[i])) {
+                    break;
+                  }
+                  i += 1;
+                }
+              } else {
+                i = startIndex;
+                escaped = true;
+              }
+              continue;
+            }
+            // Break Tag
+            if (char === "+") {
+              i += 1;
+              continue;
+            }
+            // Style Tag
+            const styleMarker = MARKERS.find(
+              (marker) => marker === chars.slice(i, i + marker.length).join("")
+            );
+            if (styleMarker) {
+              let currentMarker = "";
+              const startIndex = i;
+              while (chars[i] && chars[i] === char) {
+                currentMarker += chars[i];
+                i += 1;
+              }
+              const lastMatchingMark =
+                activeMarks.findLast(
+                  ([activeMarker]) => activeMarker === currentMarker
+                ) ||
+                activeMarks.findLast(
+                  ([activeMarker]) =>
+                    activeMarker.slice(0, styleMarker.length) ===
+                    currentMarker.slice(0, styleMarker.length)
+                );
+              if (lastMatchingMark) {
+                while (activeMarks.at(-1) !== lastMatchingMark) {
+                  activeMarks.pop();
+                }
+                activeMarks.pop();
+                const [lastMatchingMarker] = lastMatchingMark;
+                i = startIndex + lastMatchingMarker.length;
+              } else {
+                activeMarks.push([currentMarker]);
+              }
+              continue;
+            }
           }
         }
         escaped = false;
@@ -728,6 +737,7 @@ export const parse = (
             voicedSyllable,
             voiced,
             yelled,
+            raw,
             centered,
             bolded,
             italicized,
@@ -771,6 +781,7 @@ export const parse = (
                 voicedSyllable,
                 voiced,
                 yelled,
+                raw,
                 centered,
                 bolded,
                 italicized,
@@ -912,6 +923,10 @@ export const parse = (
           if (c.centered) {
             event.style ??= {};
             event.style["text_align"] = "center";
+          }
+          if (c.raw) {
+            event.style ??= {};
+            event.style["white_space"] = "pre";
           }
 
           // Wavy animation
