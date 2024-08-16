@@ -18,6 +18,12 @@ export const audioBuiltins = () => ({
   synth: {
     default: _synth({
       $name: "default",
+      envelope: {
+        attack: 0.007,
+        decay: 0.003,
+        sustain: 0.035,
+        release: 0.01,
+      },
     }),
     character: _synth({
       $name: "character",
@@ -25,7 +31,7 @@ export const audioBuiltins = () => ({
       envelope: {
         attack: 0.007,
         decay: 0.003,
-        sustain: 0.04,
+        sustain: 0.035,
         release: 0.01,
       },
       pitch: {

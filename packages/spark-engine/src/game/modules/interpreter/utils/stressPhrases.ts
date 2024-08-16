@@ -32,8 +32,8 @@ export const stressPhrases = (
   phrases: Phrase[],
   character: Character | undefined
 ): void => {
-  const stressLevelIncrement = 0.5;
-  const lineIncrement = 0.5;
+  const stressLevelMultiplier = 0.5;
+  const lineIncrement = 1;
   // Speaker starts at max pitch and ends at their natural speaking pitch once arriving at the point of their speech.
   let lineLevel = (phrases.length - 1) * lineIncrement;
   phrases.forEach((phrase) => {
@@ -87,7 +87,7 @@ export const stressPhrases = (
             if (chunk.voicedSyllable) {
               inflectionIndex = Math.max(0, inflectionIndex - 1);
             }
-            chunk.pitch *= stressLevelIncrement;
+            chunk.pitch *= stressLevelMultiplier;
           }
         }
 
