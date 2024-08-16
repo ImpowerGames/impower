@@ -2535,7 +2535,7 @@ repository:
   Raw:
     tag: content
     name: markup.inline.raw.string.sd
-    match: ([`]+)(.*?)(\1|$)
+    match: ([`]+)(.*?)(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
@@ -2550,7 +2550,7 @@ repository:
   BoldItalic:
     tag: strong
     name: markup.bold.sd
-    match: ([*][*]+)([*].*?(?:[*]|$))(\1|$)
+    match: ([*][*]+)([*].*?(?:[*]|$))(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
@@ -2565,7 +2565,7 @@ repository:
   Bold:
     tag: strong
     name: markup.bold.sd
-    match: ([*][*](?![*]))(.*?)(\1|$)
+    match: ([*][*](?![*]))(.*?)(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
@@ -2580,7 +2580,7 @@ repository:
   Italic:
     tag: emphasis
     name: markup.italic.sd
-    match: ([*](?![*]))(.*?)(\1|$)
+    match: ([*](?![*]))(.*?)(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
@@ -2595,7 +2595,7 @@ repository:
   Underline:
     tag: link
     name: markup.underline.sd
-    match: ([_]+)(.*?)(\1|$)
+    match: ([_]+)(.*?)(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
@@ -2610,7 +2610,7 @@ repository:
   Centered:
     tag: monospace
     name: markup.other.centered.sd
-    match: ([\^]+)(.*?)(\1|$)
+    match: ([\^]+)(.*?)(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
@@ -2630,7 +2630,7 @@ repository:
   EmphasisTilde:
     tag: quote
     name: markup.emphasis.sd
-    match: ([~][~]+)((?:(?!\1).*?)+)(\1|$)
+    match: ([~][~]+)((?:(?!\1).*?)+)(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
@@ -2645,7 +2645,7 @@ repository:
   EmphasisColon:
     tag: quote
     name: markup.emphasis.sd
-    match: ([:][:]+)((?:(?!\1).*?)+)(\1|$)
+    match: ([:][:]+)((?:(?!\1).*?)+)(\1|(?={{EOL}}))
     captures:
       1:
         patterns:
