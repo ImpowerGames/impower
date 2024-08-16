@@ -1908,7 +1908,7 @@ export class InkParser extends StringParser {
       return null;
     }
 
-    return { $type: path[0]?.name, $name: path[1]?.name };
+    return { $ref: path.map((p) => p.name).join(".") };
   };
 
   public readonly ValueLiteral = ():

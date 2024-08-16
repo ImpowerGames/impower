@@ -186,7 +186,7 @@ export class Game<T extends M = {}> {
         }
       }
     }
-    // console.log("context", this._context);
+    console.log("context", this._context);
   }
 
   getSource(uuid: string) {

@@ -40,6 +40,18 @@ export const getCSSPropertyKeyValue = (
   if (
     cssProp === "background-image" &&
     typeof cssValue === "object" &&
+    "$ref" in cssValue &&
+    typeof cssValue.$ref === "string"
+  ) {
+    const [type, name] = cssValue.$ref.split(".");
+    if (type && name) {
+      const varValue = `var(--${type}_${name})`;
+      return [cssProp, varValue];
+    }
+  }
+  if (
+    cssProp === "background-image" &&
+    typeof cssValue === "object" &&
     "$type" in cssValue &&
     typeof cssValue.$type === "string" &&
     "$name" in cssValue &&
@@ -82,6 +94,17 @@ export const getCSSPropertyKeyValue = (
       ? data
       : `url(data:${encoding},${encodeURIComponent(data)})`;
     return [cssProp, url];
+  }
+  if (
+    cssProp === "font-family" &&
+    typeof cssValue === "object" &&
+    "$ref" in cssValue &&
+    typeof cssValue.$ref === "string"
+  ) {
+    const [, name] = cssValue.$ref.split(".");
+    if (name) {
+      return [cssProp, name];
+    }
   }
   if (
     cssProp === "font-family" &&

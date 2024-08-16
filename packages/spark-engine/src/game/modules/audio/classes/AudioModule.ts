@@ -179,6 +179,15 @@ export class AudioModule extends Module<
       d.type = "audio";
       d.name = asset;
     } else if (typeof asset === "object") {
+      if ("$ref" in asset && typeof asset.$ref === "string") {
+        const [type, name] = asset.$ref.split(".");
+        if (type) {
+          d.type = type;
+        }
+        if (name) {
+          d.name = name;
+        }
+      }
       if ("$type" in asset && typeof asset.$type === "string") {
         d.type = asset.$type;
       }
@@ -186,7 +195,7 @@ export class AudioModule extends Module<
         d.name = asset.$name;
       }
     }
-    d.key = d.name + suffix;
+    d.key = d.type + "." + d.name + suffix;
     const resolvedAsset = this.context?.[d.type as "audio" | "synth"]?.[d.name];
     if (resolvedAsset) {
       if ("src" in resolvedAsset && typeof resolvedAsset.src === "string") {
