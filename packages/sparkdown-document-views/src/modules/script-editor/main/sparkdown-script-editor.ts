@@ -26,7 +26,6 @@ import {
 } from "../../../../../spark-editor-protocol/src/types";
 import { Component } from "../../../../../spec-component/src/component";
 import getBoxValues from "../../../../../spec-component/src/utils/getBoxValues";
-import { getServerChanges } from "../../../cm-language-client";
 import { FileSystemReader } from "../../../cm-language-client/types/FileSystemReader";
 import { positionToOffset } from "../../../cm-language-client/utils/positionToOffset";
 import { closestAncestor } from "../../../utils/closestAncestor";
@@ -212,12 +211,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
         const params = message.params;
         const textDocument = params.textDocument;
         const visibleRange = params.visibleRange;
+        const selectedRange = params.selectedRange;
         const breakpointRanges = params.breakpointRanges;
         const languageServerCapabilities = params.languageServerCapabilities;
         this._loadingRequest = message.id;
         SparkdownScriptEditor.languageServerCapabilities =
           languageServerCapabilities;
-        this.loadTextDocument(textDocument, visibleRange, breakpointRanges);
+        this.loadTextDocument(
+          textDocument,
+          visibleRange,
+          selectedRange,
+          breakpointRanges
+        );
       }
     }
   };
@@ -272,6 +277,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected loadTextDocument(
     textDocument: TextDocumentItem,
     visibleRange: Range | undefined,
+    selectedRange: Range | undefined,
     breakpointRanges: Range[] | undefined
   ) {
     if (this._view) {
@@ -392,10 +398,25 @@ export default class SparkdownScriptEditor extends Component(spec) {
       DidOpenTextDocumentMessage.method,
       DidOpenTextDocumentMessage.type.notification({ textDocument })
     );
+    // Scroll to visible range
     window.requestAnimationFrame(() => {
       this.scrollToRange(visibleRange);
       this._initialized = true;
     });
+    // Try to select range until we succeed
+    if (selectedRange) {
+      const timer = window.setInterval(() => {
+        if (this._view) {
+          this.focus();
+          this._view?.focus();
+          this.selectRange(selectedRange, false);
+          if (this._view.hasFocus) {
+            this._initialized = true;
+            clearInterval(timer);
+          }
+        }
+      }, 500);
+    }
   }
 
   protected cacheVisibleRange(range: Range | undefined) {

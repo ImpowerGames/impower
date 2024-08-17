@@ -49,9 +49,15 @@ export default class WorkspaceWindow {
 
   constructor() {
     const cachedProjectId = localStorage.getItem(
-      WorkspaceConstants.CURRENT_PROJECT_ID_LOOKUP
+      WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY
     );
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
+    const cachedWorkspaceState = localStorage.getItem(
+      WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id
+    );
+    if (cachedWorkspaceState) {
+      workspace.current = JSON.parse(cachedWorkspaceState);
+    }
     this.cacheProjectId(id);
     window.addEventListener(
       ScrolledEditorMessage.method,
@@ -73,6 +79,10 @@ export default class WorkspaceWindow {
 
   protected update(store: WorkspaceCache) {
     workspace.current = store;
+    localStorage.setItem(
+      WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + store.project.id,
+      JSON.stringify(store)
+    );
   }
 
   protected cacheProjectId(id: string) {
@@ -80,7 +90,7 @@ export default class WorkspaceWindow {
       ...this.store,
       project: { ...this.store.project, id },
     });
-    localStorage.setItem(WorkspaceConstants.CURRENT_PROJECT_ID_LOOKUP, id);
+    localStorage.setItem(WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY, id);
   }
 
   protected emit<T>(eventName: string, detail?: T): boolean {
