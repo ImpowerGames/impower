@@ -3100,7 +3100,7 @@ export class InkParser extends StringParser {
       if (!this.Peek(this.EndOfLine) && !this.Peek(this.EndOfFile)) {
         elementValue = this.Expect(
           this.ValueLiteral,
-          "property to be initialized to a number, string, or boolean"
+          "property to be initialized to a number, string, boolean, or reference"
         ) as unknown | null;
       }
       return new StructProperty(String(index), level, elementValue, index);

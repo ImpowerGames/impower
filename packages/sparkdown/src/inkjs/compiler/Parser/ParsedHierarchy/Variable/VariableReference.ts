@@ -150,7 +150,7 @@ export class VariableReference extends Expression {
     // or list item reference.
     if (this.path.length > 1) {
       const pathStr = this.path.join(".");
-      let errorMsg = `Cannot find list item named '${pathStr}'`;
+      let errorMsg = `Cannot find item or path named '${pathStr}'`;
 
       this.Error(errorMsg);
 
