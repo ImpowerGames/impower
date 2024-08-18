@@ -34,8 +34,7 @@ export const stressPhrases = (
 ): void => {
   const stressLevelMultiplier = 0.5;
   const lineIncrement = 1;
-  // Speaker starts at max pitch and ends at their natural speaking pitch once arriving at the point of their speech.
-  let lineLevel = (phrases.length - 1) * lineIncrement;
+  let lineLevel = 0;
   phrases.forEach((phrase) => {
     if (phrase.text?.trim()) {
       const chunks = phrase.chunks;
