@@ -13,11 +13,7 @@ import {
 import { ErrorType } from "../inkjs/compiler/Parser/ErrorType";
 import { SourceMetadata } from "../inkjs/engine/Error";
 import { StringValue } from "../inkjs/engine/Value";
-import {
-  DiagnosticSeverity,
-  Range,
-  SparkDiagnostic,
-} from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
@@ -55,8 +51,9 @@ export default class SparkParser {
     }
   }
 
-  transpile(script: string, filepath: string, program: SparkProgram): string {
+  transpile(filepath: string, program: SparkProgram): string {
     const nodeNames = this._grammar.nodeNames;
+    const script = this._config?.readFile?.(filepath) || "";
     const lines = script.split(NEWLINE_REGEX);
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
@@ -213,33 +210,23 @@ export default class SparkParser {
     return transpiled;
   }
 
-  parse(script: string, filename: string = "main.script"): SparkProgram {
+  parse(filename: string): SparkProgram {
     const program: SparkProgram = {};
 
-    const transpiledScript = this.transpile(
-      script,
-      this._config?.resolveFile?.(filename) || "",
-      program
-    );
-
     const options = new InkCompilerOptions(
-      filename,
+      "",
       [],
       false,
       (message: string, type, source) => {
         console.error(message, type, source);
       },
       {
-        ResolveInkFilename: (filename: string): string => {
-          return this._config?.resolveFile?.(filename) || filename;
+        ResolveInkFilename: (name: string): string => {
+          return this._config?.resolveFile?.(name) || name;
         },
-        LoadInkFileContents: (filepath: string): string => {
+        LoadInkFileContents: (path: string): string => {
           program.sourceMap ??= {};
-          return this.transpile(
-            this._config?.readFile?.(filepath) || "",
-            filepath,
-            program
-          );
+          return this.transpile(path, program)?.trimEnd();
         },
       },
       {
@@ -261,7 +248,8 @@ export default class SparkParser {
         },
       }
     );
-    const inkCompiler = new InkCompiler(transpiledScript, options);
+    const rootFilename = filename || "main.script";
+    const inkCompiler = new InkCompiler(`INCLUDE ${rootFilename}`, options);
     try {
       const compiledJSON = inkCompiler.Compile().ToJson();
       const compiled = compiledJSON ? JSON.parse(compiledJSON) : null;
@@ -312,13 +300,6 @@ export default class SparkParser {
         program.diagnostics.push(diagnostic);
       }
     }
-    program.diagnostics?.forEach((d) =>
-      this.clampDiagnostic(
-        d,
-        inkCompiler.parser.lineIndex,
-        inkCompiler.parser.characterInLineIndex
-      )
-    );
     console.log("program", program);
     return program;
   }
@@ -447,32 +428,6 @@ export default class SparkParser {
     }
     console.warn("HIDDEN", msg, type, metadata, sourceMap);
     return null;
-  }
-
-  clampRange(
-    range: Range,
-    lastLineIndex: number,
-    lastCharacterInLineIndex: number
-  ) {
-    if (lastLineIndex < range.end.line) {
-      range.end.line = lastLineIndex;
-      range.end.character = lastCharacterInLineIndex;
-    }
-  }
-
-  clampDiagnostic(
-    diagnostic: SparkDiagnostic,
-    lastLineIndex: number,
-    lastCharacterInLineIndex: number
-  ) {
-    this.clampRange(diagnostic.range, lastLineIndex, lastCharacterInLineIndex);
-    diagnostic.relatedInformation?.forEach((info) => {
-      this.clampRange(
-        info.location.range,
-        lastLineIndex,
-        lastCharacterInLineIndex
-      );
-    });
   }
 
   sortSources<T extends number[]>(data: Record<string, T>): Record<string, T> {

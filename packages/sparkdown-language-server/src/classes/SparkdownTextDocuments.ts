@@ -384,11 +384,8 @@ export default class SparkdownTextDocuments<
   }
 
   parseDocument(document: TextDocument) {
-    const script = document.getText();
-    const program = this._parser.parse(
-      script,
-      this.getFilenameWithExtension(document.uri)
-    );
+    const filename = this.getFilenameWithExtension(document.uri);
+    const program = this._parser.parse(filename);
     return program;
   }
 

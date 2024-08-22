@@ -303,10 +303,8 @@ export default class LanguageClientPluginValue implements PluginValue {
   };
 
   updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
-    const transaction = setDiagnostics(
-      view.state,
-      getClientDiagnostics(view.state, diagnostics)
-    );
+    const clientDiagnostics = getClientDiagnostics(view.state, diagnostics);
+    const transaction = setDiagnostics(view.state, clientDiagnostics);
     view.dispatch(transaction);
   }
 
