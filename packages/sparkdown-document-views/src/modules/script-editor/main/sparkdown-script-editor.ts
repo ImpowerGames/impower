@@ -403,8 +403,9 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this.scrollToRange(visibleRange);
       this._initialized = true;
     });
-    // Try to select range until we succeed
+    // If page is focused and should restore selectedRange...
     if (document.hasFocus() && this._view && selectedRange) {
+      // Try to select range until we succeed
       const timer = window.setInterval(() => {
         if (!this._view || this._view.hasFocus) {
           clearInterval(timer);
