@@ -404,7 +404,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       this._initialized = true;
     });
     // Try to select range until we succeed
-    if (this._view && selectedRange) {
+    if (document.hasFocus() && this._view && selectedRange) {
       const timer = window.setInterval(() => {
         if (!this._view || this._view.hasFocus) {
           clearInterval(timer);
