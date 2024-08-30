@@ -56,7 +56,10 @@ export default class WorkspaceWindow {
       WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id
     );
     if (cachedWorkspaceState) {
-      workspace.current = JSON.parse(cachedWorkspaceState);
+      const workspaceState = JSON.parse(cachedWorkspaceState) as WorkspaceCache;
+      // Reset game state
+      workspaceState.preview.modes.game = {};
+      workspace.current = workspaceState;
     }
     this.cacheProjectId(id);
     window.addEventListener(
