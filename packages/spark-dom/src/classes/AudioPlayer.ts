@@ -5,11 +5,12 @@ type AudioListener = (
   ev: AudioScheduledSourceNodeEventMap[keyof AudioScheduledSourceNodeEventMap]
 ) => any;
 
-interface AudioNode {
+interface AudioInstance {
   sourceNode: AudioBufferSourceNode;
   gainNode: GainNode;
   startedAt: number;
   pausedAt?: number;
+  willDisconnect?: boolean;
 }
 
 export default class AudioPlayer {
@@ -28,7 +29,7 @@ export default class AudioPlayer {
     return this._volumeNode;
   }
 
-  protected _nodes: AudioNode[] = [];
+  protected _instances: AudioInstance[] = [];
 
   protected _pitchBend = 0;
   public get pitchBend() {
@@ -36,8 +37,8 @@ export default class AudioPlayer {
   }
   public set pitchBend(value) {
     this._pitchBend = value;
-    this._nodes.forEach((node) => {
-      node.sourceNode.detune.value = (value ?? 0) * 100;
+    this._instances.forEach((instance) => {
+      instance.sourceNode.detune.value = (value ?? 0) * 100;
     });
   }
 
@@ -45,7 +46,7 @@ export default class AudioPlayer {
     return this._audioBuffer?.duration ?? 0;
   }
 
-  protected _destination?: GainNode | AudioNode | AudioParam;
+  protected _destination?: GainNode | AudioInstance | AudioParam;
 
   protected _loop = false;
   public get loop() {
@@ -53,8 +54,8 @@ export default class AudioPlayer {
   }
   public set loop(value) {
     this._loop = value;
-    this._nodes.forEach((node) => {
-      node.sourceNode.loop = value;
+    this._instances.forEach((instance) => {
+      instance.sourceNode.loop = value;
     });
   }
 
@@ -79,7 +80,7 @@ export default class AudioPlayer {
     audioBuffer: AudioBuffer,
     audioContext: AudioContext,
     options?: {
-      destination?: GainNode | AudioNode | AudioParam;
+      destination?: GainNode | AudioInstance | AudioParam;
       cues?: number[];
       loop?: boolean;
       volume?: number;
@@ -113,8 +114,8 @@ export default class AudioPlayer {
   ): void {
     this._events[type] ??= new Map();
     this._events[type].delete(listener);
-    this._nodes.forEach((node) => {
-      node.sourceNode.removeEventListener("ended", listener, options);
+    this._instances.forEach((instance) => {
+      instance.sourceNode.removeEventListener("ended", listener, options);
     });
   }
 
@@ -123,15 +124,15 @@ export default class AudioPlayer {
   }
 
   dispose() {
-    [...this._nodes].forEach((node) => this._disconnect(node));
+    [...this._instances].forEach((instance) => this._disconnect(instance));
   }
 
-  protected _disconnect(node: AudioNode) {
-    node.sourceNode.stop(0);
-    node.sourceNode.disconnect();
-    const nodeIndex = this._nodes.indexOf(node);
+  protected _disconnect(instance: AudioInstance) {
+    instance.sourceNode.stop(0);
+    instance.sourceNode.disconnect();
+    const nodeIndex = this._instances.indexOf(instance);
     if (nodeIndex >= 0) {
-      this._nodes.splice(nodeIndex, 1);
+      this._instances.splice(nodeIndex, 1);
     }
   }
 
@@ -140,13 +141,13 @@ export default class AudioPlayer {
     offset?: number,
     duration?: number,
     gain?: number
-  ): AudioNode {
+  ): AudioInstance {
     const gainNode = this._audioContext.createGain();
     if (gain != null) {
       gainNode.gain.value = gain;
     }
     const sourceNode = this._audioContext.createBufferSource();
-    const node: AudioNode = {
+    const instance: AudioInstance = {
       gainNode: gainNode,
       sourceNode: sourceNode,
       startedAt: when,
@@ -162,7 +163,7 @@ export default class AudioPlayer {
       () => {
         // Played source nodes cannot be played again.
         // So once they're finished playing, disconnect them
-        this._disconnect(node);
+        this._disconnect(instance);
       },
       { once: true }
     );
@@ -171,17 +172,17 @@ export default class AudioPlayer {
     });
     sourceNode.connect(gainNode);
     sourceNode.start(when, offset, duration);
-    this._nodes.push(node);
-    return node;
+    this._instances.push(instance);
+    return instance;
   }
 
   protected async _fadeAsync(
-    node: AudioNode,
+    instance: AudioInstance,
     when: number,
     value: number,
     duration?: number
   ): Promise<number> {
-    node.gainNode.gain.setTargetAtTime(
+    instance.gainNode.gain.setTargetAtTime(
       value,
       when,
       this.secondsToApproximateTimeConstant(duration)
@@ -189,8 +190,9 @@ export default class AudioPlayer {
     return new Promise<number>((resolve) => {
       let startTime = performance.now();
       if (duration) {
+        const durationMS = duration * 1000;
         const awaitFade = () => {
-          if (performance.now() < startTime + duration + 0.001) {
+          if (performance.now() < startTime + durationMS) {
             window.requestAnimationFrame(awaitFade);
           } else {
             resolve(this._audioContext.currentTime);
@@ -204,14 +206,17 @@ export default class AudioPlayer {
   }
 
   protected async _stopAsync(
-    node: AudioNode,
+    instance: AudioInstance,
     when = 0,
     fadeDuration = DEFAULT_FADE_DURATION
   ): Promise<number> {
-    const stoppedAt = await this._fadeAsync(node, when, 0, fadeDuration);
-    // Disconnect node after finished fading out so it can be garbage collected
-    this._disconnect(node);
-    return stoppedAt;
+    instance.willDisconnect = true;
+    const fadedAt = await this._fadeAsync(instance, when, 0, fadeDuration);
+    if (instance.willDisconnect) {
+      // Disconnect node after finished fading out so it can be garbage collected
+      this._disconnect(instance);
+    }
+    return fadedAt;
   }
 
   async start(
@@ -220,20 +225,24 @@ export default class AudioPlayer {
     offset?: number,
     duration?: number,
     gain?: number
-  ): Promise<AudioNode> {
+  ): Promise<AudioInstance> {
     this._gain = gain ?? 1;
     const startGain = fadeDuration > 0 ? 0 : this._gain;
     const endGain = this._gain;
-    const loopingNode = this._nodes.find((node) => node.sourceNode.loop);
-    if (loopingNode && this._loop) {
-      await this._fadeAsync(loopingNode, when, endGain, fadeDuration);
-      return loopingNode;
+    const loopingInstance = this._instances.find(
+      (instance) => instance.sourceNode.loop
+    );
+    if (loopingInstance && this._loop) {
+      loopingInstance.willDisconnect = false;
+      await this._fadeAsync(loopingInstance, when, endGain, fadeDuration);
+      return loopingInstance;
     }
-    const node = this._play(when, offset, duration, startGain);
-    node.startedAt = when;
-    node.pausedAt = 0;
-    await this._fadeAsync(node, when, endGain, fadeDuration);
-    return node;
+    const instance = this._play(when, offset, duration, startGain);
+    instance.willDisconnect = false;
+    instance.startedAt = when;
+    instance.pausedAt = 0;
+    await this._fadeAsync(instance, when, endGain, fadeDuration);
+    return instance;
   }
 
   async stop(
@@ -241,7 +250,9 @@ export default class AudioPlayer {
     fadeDuration = DEFAULT_FADE_DURATION
   ): Promise<number[]> {
     return Promise.all(
-      [...this._nodes].map((node) => this._stopAsync(node, when, fadeDuration))
+      [...this._instances].map((instance) =>
+        this._stopAsync(instance, when, fadeDuration)
+      )
     );
   }
 
@@ -254,8 +265,8 @@ export default class AudioPlayer {
       this._gain = gain;
     }
     return Promise.all(
-      this._nodes.map((node) =>
-        this._fadeAsync(node, when, this._gain, fadeDuration)
+      this._instances.map((instance) =>
+        this._fadeAsync(instance, when, this._gain, fadeDuration)
       )
     );
   }
@@ -265,10 +276,15 @@ export default class AudioPlayer {
     fadeDuration = DEFAULT_FADE_DURATION
   ): Promise<number[]> {
     return Promise.all(
-      this._nodes.map(async (node) => {
-        const fadedOutAt = await this._fadeAsync(node, when, 0, fadeDuration);
-        node.sourceNode.stop(0);
-        node.pausedAt = fadedOutAt;
+      this._instances.map(async (instance) => {
+        const fadedOutAt = await this._fadeAsync(
+          instance,
+          when,
+          0,
+          fadeDuration
+        );
+        instance.sourceNode.stop(0);
+        instance.pausedAt = fadedOutAt;
         return fadedOutAt;
       })
     );
@@ -279,13 +295,13 @@ export default class AudioPlayer {
     fadeDuration = DEFAULT_FADE_DURATION
   ): Promise<number[]> {
     return Promise.all(
-      this._nodes.map(async (node) => {
-        if (node.pausedAt != null) {
-          const offset = node.startedAt - node.pausedAt;
-          node.pausedAt = undefined;
-          node.sourceNode.start(0, offset);
+      this._instances.map(async (instance) => {
+        if (instance.pausedAt != null) {
+          const offset = instance.startedAt - instance.pausedAt;
+          instance.pausedAt = undefined;
+          instance.sourceNode.start(0, offset);
           const fadedInAt = await this._fadeAsync(
-            node,
+            instance,
             when,
             this._gain,
             fadeDuration
@@ -303,7 +319,7 @@ export default class AudioPlayer {
   }
 
   getStartedAt() {
-    return this._nodes[0]?.startedAt ?? this._audioContext.currentTime;
+    return this._instances[0]?.startedAt ?? this._audioContext.currentTime;
   }
 
   getCurrentOffset(from: number) {

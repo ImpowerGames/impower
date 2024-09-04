@@ -120,16 +120,15 @@ export class Coordinator<G extends Game> {
     // Stop writer audio on instant reveal and new dialogue line
     game.module.audio.stopChannel("writer");
 
-    const clearUI = () => {
-      // Clear stale text
-      game.module.ui.text.clearStaleContent();
-      // Clear stale images
-      game.module.ui.image.clearStaleContent();
-    };
-
     const updateUI = () => {
-      // Clear stale content
-      clearUI();
+      game.module.ui.text.clearStaleContent(
+        (target) => !game.context?.["style"]?.[target]?.["preserve_text"]
+      );
+      game.module.ui.image.clearStaleContent(
+        (target) =>
+          !game.context?.["style"]?.[target]?.["preserve_image"] &&
+          !instructions.image?.[target]
+      );
 
       // Display click indicator
       const indicatorStyle: Record<string, string | null> = {};
@@ -146,7 +145,12 @@ export class Coordinator<G extends Game> {
       // Process button events
       instructions.choices?.forEach((target, index) => {
         const handleClick = (): void => {
-          clearUI();
+          game.module.ui.text.clearStaleContent(
+            (target) => !game.context?.["style"]?.[target]?.["preserve_text"]
+          );
+          game.module.ui.image.clearStaleContent(
+            (target) => !game.context?.["style"]?.[target]?.["preserve_image"]
+          );
           game.module.ui.unobserve("click", target);
           game.choose(index);
           game.continue();

@@ -1,6 +1,6 @@
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
-const createTextShadow = (r: number, color = "black"): string => {
+const createTextShadow = (r: number, color = "black", unit = "px"): string => {
   if (r === 0) {
     return "none";
   }
@@ -8,9 +8,9 @@ const createTextShadow = (r: number, color = "black"): string => {
   let str = "";
   for (let i = 0; i < n; i += 1) {
     const theta = (2 * Math.PI * i) / n;
-    str += `${r * Math.cos(theta)}px ${r * Math.sin(theta)}px 0 ${color}${
-      i === n - 1 ? "" : ","
-    }`;
+    str += `${r * Math.cos(theta)}${unit} ${
+      r * Math.sin(theta)
+    }${unit} 0 ${color}${i === n - 1 ? "" : ","}`;
   }
   return str;
 };
@@ -116,15 +116,20 @@ export const getCSSPropertyKeyValue = (
     return [cssProp, name];
   }
   if (cssProp === "text-stroke") {
+    if (cssValue === "none" || cssValue === "0" || cssValue === 0) {
+      return ["text-shadow", "none"];
+    }
     if (typeof cssValue === "number") {
       return ["text-shadow", createTextShadow(cssValue)];
     }
     if (typeof cssValue === "string") {
       const parts = cssValue.split(" ");
-      const r = parts[0]?.replace(/[^0-9.]+/g, "") || "";
-      const num = Number.parseInt(r, 16);
+      const match = parts[0]?.match(/((?:\d*[.])?\d+)([a-z]+)/);
+      const r = match?.[0];
+      const unit = match?.[1];
+      const num = Number(r);
       if (!Number.isNaN(num)) {
-        return ["text-shadow", createTextShadow(num, parts[1])];
+        return ["text-shadow", createTextShadow(num, parts[1], unit)];
       }
     }
   }

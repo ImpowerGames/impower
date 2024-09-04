@@ -409,32 +409,6 @@ export class Story extends FlowBase {
   ) => {
     let errorType: ErrorType = isWarning ? ErrorType.Warning : ErrorType.Error;
 
-    let sb = "";
-    if (source instanceof AuthorWarning) {
-      sb += "TODO: ";
-      errorType = ErrorType.Info;
-    } else if (isWarning) {
-      sb += "WARNING: ";
-    } else {
-      sb += "ERROR: ";
-    }
-
-    if (
-      source &&
-      source.debugMetadata !== null &&
-      source.debugMetadata.startLineNumber >= 1
-    ) {
-      if (source.debugMetadata.fileName != null) {
-        sb += `'${source.debugMetadata.fileName}' `;
-      }
-
-      sb += `line ${source.debugMetadata.startLineNumber}: `;
-    }
-
-    sb += message;
-
-    message = sb;
-
     if (this._errorHandler !== null) {
       const metadata = source?.debugMetadata
         ? {
@@ -448,6 +422,31 @@ export class Story extends FlowBase {
         : null;
       this._errorHandler(message, errorType, metadata);
     } else {
+      let sb = "";
+      if (source instanceof AuthorWarning) {
+        sb += "TODO: ";
+        errorType = ErrorType.Info;
+      } else if (isWarning) {
+        sb += "WARNING: ";
+      } else {
+        sb += "ERROR: ";
+      }
+
+      if (
+        source &&
+        source.debugMetadata !== null &&
+        source.debugMetadata.startLineNumber >= 1
+      ) {
+        if (source.debugMetadata.fileName != null) {
+          sb += `'${source.debugMetadata.fileName}' `;
+        }
+
+        sb += `line ${source.debugMetadata.startLineNumber}: `;
+      }
+
+      sb += message;
+
+      message = sb;
       throw new Error(message);
     }
 

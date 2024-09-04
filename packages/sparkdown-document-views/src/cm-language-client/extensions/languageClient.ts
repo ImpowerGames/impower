@@ -14,6 +14,7 @@ import CompletionSupport from "../classes/features/CompletionSupport";
 import FoldingSupport from "../classes/features/FoldingSupport";
 import HoverSupport from "../classes/features/HoverSupport";
 import { FileSystemReader } from "../types/FileSystemReader";
+import LintSupport from "../classes/features/LintSupport";
 
 export interface LanguageClientConfig {
   textDocument: { uri: string; version: number };
@@ -46,6 +47,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
   const color = new ColorSupport();
   const completion = new CompletionSupport();
   const hover = new HoverSupport();
+  const lint = new LintSupport();
   return [
     versioning(),
     languageClientConfig.of(config),
@@ -55,6 +57,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
         color,
         completion,
         hover,
+        lint,
       });
       return plugin;
     }),
@@ -62,6 +65,7 @@ const languageClient = (config: LanguageClientConfig): Extension[] => {
     color.load(),
     completion.load(),
     hover.load(),
+    lint.load(),
   ];
 };
 

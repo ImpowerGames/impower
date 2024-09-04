@@ -119,7 +119,7 @@ const getImageCompletions = (
     }
   );
   if (!imageToken?.control) {
-    const controls = ["show", "hide", "fade"];
+    const controls = ["show", "hide", "stack", "animate"];
     controls.forEach((label) => {
       const completion = {
         label,
@@ -230,7 +230,7 @@ const getAudioCompletions = (
     }
   });
   if (!audioToken?.control) {
-    const controls = ["play", "stop", "fade"];
+    const controls = ["start", "stop", "play", "modulate"];
     controls.forEach((label) => {
       const completion = {
         label,
@@ -267,7 +267,7 @@ const getAudioArgumentCompletions = (
   const audioToken = getLineToken(program, line, "audio_tag");
   const completions: string[] = [];
   // TODO: only include completions if prior argument is not a keyword that takes an argument
-  if (audioToken?.control === "fade") {
+  if (audioToken?.control === "modulate") {
     completions.push("to");
   }
   completions.push("after", "over", "mute", "unmute", "loop", "noloop", "now");

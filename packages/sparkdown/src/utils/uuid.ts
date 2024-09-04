@@ -1,4 +1,4 @@
-export let uuid = (
+const uuid = (
   size = 8,
   alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 ) => {
@@ -9,3 +9,5 @@ export let uuid = (
   }
   return id;
 };
+
+export default uuid;

@@ -7,7 +7,7 @@ import {
   startCompletion,
 } from "@codemirror/autocomplete";
 import { Language } from "@codemirror/language";
-import { setDiagnostics } from "@codemirror/lint";
+import { Diagnostic as ClientDiagnostic } from "@codemirror/lint";
 import { EditorView, PluginValue, ViewUpdate } from "@codemirror/view";
 import { NodeType } from "@lezer/common";
 import { Tag } from "@lezer/highlight";
@@ -18,7 +18,6 @@ import { FoldingRangeMessage } from "../../../../spark-editor-protocol/src/proto
 import { HoverMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/HoverMessage";
 import { PublishDiagnosticsMessage } from "../../../../spark-editor-protocol/src/protocols/textDocument/PublishDiagnosticsMessage";
 import {
-  Diagnostic,
   Disposable,
   MarkupContent,
   MessageConnection,
@@ -42,6 +41,7 @@ import HoverSupport, {
   HoverContext,
   HoverResult,
 } from "./features/HoverSupport";
+import LintSupport from "./features/LintSupport";
 
 export default class LanguageClientPluginValue implements PluginValue {
   protected _view: EditorView;
@@ -66,6 +66,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     color: ColorSupport;
     completion: CompletionSupport;
     hover: HoverSupport;
+    lint: LintSupport;
   };
 
   protected _disposables: Disposable[] = [];
@@ -77,6 +78,7 @@ export default class LanguageClientPluginValue implements PluginValue {
       color: ColorSupport;
       completion: CompletionSupport;
       hover: HoverSupport;
+      lint: LintSupport;
     }
   ) {
     this._view = view;
@@ -110,37 +112,25 @@ export default class LanguageClientPluginValue implements PluginValue {
           if (params.uri !== this._textDocument.uri) {
             return;
           }
-          this.updateDiagnostics(this._view, params.diagnostics);
           this.updateFoldingRanges(this._view);
           this.updateDocumentColors(this._view);
         }
       )
     );
-    this._supports.completion.addCompletionSource(this.handleCompletions);
-    this._supports.hover.addHoverSource(this.handleHovers);
-    this.pullDiagnostics();
+    this._supports.completion.addSource(this.pullCompletions);
+    this._supports.hover.addSource(this.pullHovers);
+    this._supports.lint.addSource(this.pullDiagnostics);
   }
 
   unbind() {
     this._disposables.forEach((d) => d.dispose());
     this._disposables = [];
-    this._supports.completion.removeCompletionSource(this.handleCompletions);
-    this._supports.hover.removeHoverSource(this.handleHovers);
+    this._supports.completion.removeSource(this.pullCompletions);
+    this._supports.hover.removeSource(this.pullHovers);
+    this._supports.lint.removeSource(this.pullDiagnostics);
   }
 
-  async pullDiagnostics() {
-    const diagnostics = await this._serverConnection.sendRequest(
-      DocumentDiagnosticMessage.type,
-      {
-        textDocument: this._textDocument,
-      }
-    );
-    if (diagnostics.kind === "full") {
-      this.updateDiagnostics(this._view, diagnostics.items);
-    }
-  }
-
-  handleCompletions = async (
+  pullCompletions = async (
     clientContext: CompletionContext
   ): Promise<CompletionResult | null> => {
     const position = offsetToPosition(
@@ -264,7 +254,7 @@ export default class LanguageClientPluginValue implements PluginValue {
     };
   };
 
-  handleHovers = async (
+  pullHovers = async (
     clientContext: HoverContext
   ): Promise<HoverResult | null> => {
     const position = offsetToPosition(
@@ -302,24 +292,26 @@ export default class LanguageClientPluginValue implements PluginValue {
     };
   };
 
-  updateDiagnostics(view: EditorView, diagnostics: Diagnostic[]) {
-    const clientDiagnostics = getClientDiagnostics(view.state, diagnostics);
-    const transaction = setDiagnostics(view.state, clientDiagnostics);
-    view.dispatch(transaction);
-  }
+  pullDiagnostics = async (view: EditorView): Promise<ClientDiagnostic[]> => {
+    const result = await this._serverConnection.sendRequest(
+      DocumentDiagnosticMessage.type,
+      {
+        textDocument: this._textDocument,
+      }
+    );
+    if (result.kind === "full") {
+      return getClientDiagnostics(view.state, result.items);
+    }
+    return [];
+  };
 
   async updateFoldingRanges(view: EditorView) {
-    const result = await this._serverConnection.sendRequest(
-      FoldingRangeMessage.type,
-      { textDocument: this._textDocument }
-    );
-    if (result) {
-      const transaction = this._supports.folding.transaction(
-        view.state,
-        result
-      );
-      view.dispatch(transaction);
-    }
+    const result =
+      (await this._serverConnection.sendRequest(FoldingRangeMessage.type, {
+        textDocument: this._textDocument,
+      })) || [];
+    const transaction = this._supports.folding.transaction(view.state, result);
+    view.dispatch(transaction);
   }
 
   async updateDocumentColors(view: EditorView) {

@@ -16,24 +16,21 @@ const CHAR_REGEX =
 const PARENTHETICAL_REGEX =
   /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
 const ASSET_CONTROL_KEYWORDS = [
+  "set",
   "show",
   "hide",
-  "play",
-  "stop",
-  "fade",
-  "write",
   "animate",
+  "play",
+  "start",
+  "stop",
+  "modulate",
+  "write",
 ];
+const ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
+const ASSET_FLAG_ARG_KEYWORDS = ["loop", "noloop", "mute", "unmute", "now"];
 const ASSET_ARG_KEYWORDS = [
-  "to",
-  "after",
-  "with",
-  "over",
-  "now",
-  "loop",
-  "noloop",
-  "mute",
-  "unmute",
+  ...ASSET_VALUE_ARG_KEYWORDS,
+  ...ASSET_FLAG_ARG_KEYWORDS,
 ];
 
 const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
@@ -142,69 +139,29 @@ const getSeconds = (value: string): number | undefined => {
   return undefined;
 };
 
-const getArgumentTimeValue = (
-  args: string[],
-  name: string
+const getTimeValue = (
+  value: string | undefined,
+  defaultValue = undefined
 ): number | undefined => {
-  const argIndex = args.indexOf(name);
-  if (argIndex < 0) {
-    return undefined;
-  }
-  const arg = args[argIndex + 1];
-  if (arg == null) {
-    return undefined;
-  }
-  const num = Number(arg);
+  const num = Number(value);
   if (!Number.isNaN(num)) {
     return num;
   }
-  if (typeof arg === "string") {
-    return getSeconds(arg);
-  }
-  return getSeconds(arg);
-};
-
-const getNumberValue = <T>(
-  arg: string | undefined,
-  defaultValue: T
-): number | T => {
-  const numValue = Number(arg);
-  if (!Number.isNaN(numValue)) {
-    return numValue;
+  if (typeof value === "string") {
+    return getSeconds(value);
   }
   return defaultValue;
 };
 
-const getArgumentNumberValue = (
-  args: string[],
-  name: string
-): number | undefined => {
-  const argIndex = args.indexOf(name);
-  if (argIndex < 0) {
-    return undefined;
+const getNumberValue = <T>(
+  value: string | undefined,
+  defaultValue: T = undefined as T
+): number | T => {
+  const numValue = Number(value);
+  if (!Number.isNaN(numValue)) {
+    return numValue;
   }
-  const arg = args[argIndex + 1];
-  if (arg) {
-    return getNumberValue(arg, undefined);
-  }
-  return undefined;
-};
-
-const getArgumentStringValue = (
-  args: string[],
-  name: string
-): string | undefined => {
-  const argIndex = args.indexOf(name);
-  if (argIndex < 0) {
-    return undefined;
-  }
-  const arg = args[argIndex + 1];
-  if (arg) {
-    if (typeof arg === "string") {
-      return arg;
-    }
-  }
-  return arg;
+  return defaultValue;
 };
 
 const getMinSynthDuration = (synth: {
@@ -219,11 +176,11 @@ const getMinSynthDuration = (synth: {
     : 0;
 };
 
-const createImageChunk = (imageTagContent: string) => {
-  return createAssetChunk(imageTagContent, "image", "show", "portrait");
+const createImageChunk = (imageTagContent: string): Chunk => {
+  return createAssetChunk(imageTagContent, "image", "set", "portrait");
 };
 
-const createAudioChunk = (audioTagContent: string) => {
+const createAudioChunk = (audioTagContent: string): Chunk => {
   return createAssetChunk(audioTagContent, "audio", "play", "sound");
 };
 
@@ -232,7 +189,7 @@ const createAssetChunk = (
   tag: string,
   defaultControl: string,
   defaultTarget: string
-) => {
+): Chunk => {
   const parts = assetTagContent.replaceAll("\t", " ").split(" ");
   let control = defaultControl;
   let target = defaultTarget;
@@ -257,12 +214,36 @@ const createAssetChunk = (
       args.push(...parts.slice(1));
     }
   }
+  const clauses: Record<string, unknown> = {};
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i];
+    if (arg) {
+      if (ASSET_VALUE_ARG_KEYWORDS.includes(arg)) {
+        i += 1;
+        const value = args[i];
+        if (arg === "after") {
+          clauses[arg] = getTimeValue(value);
+        }
+        if (arg === "over") {
+          clauses[arg] = getTimeValue(value);
+        }
+        if (arg === "fadeto") {
+          clauses[arg] = getNumberValue(value);
+        }
+        if (arg === "with") {
+          clauses[arg] = value;
+        }
+      } else {
+        clauses[arg] = true;
+      }
+    }
+  }
   return {
     tag,
     control,
     target,
     assets,
-    args,
+    clauses,
     duration: 0,
     speed: 1,
   };
@@ -493,6 +474,7 @@ export const parse = (
                           tag: "text",
                           duration: waitModifier,
                           speed: 1,
+                          text: "",
                         },
                       ],
                     };
@@ -961,7 +943,7 @@ export const parse = (
         // Image Event
         if (c.tag === "image") {
           const event: ImageInstruction = {
-            control: c.control || "show",
+            control: c.control || "set",
             assets: c.assets,
           };
           if (time) {
@@ -970,26 +952,34 @@ export const parse = (
           if (fadeDuration) {
             event.over = fadeDuration;
           }
-          if (c.args) {
-            const withValue = getArgumentStringValue(c.args, "with");
+          if (c.clauses) {
+            const withValue = c.clauses?.with;
             if (withValue) {
               event.with = withValue;
             }
-            const afterValue = getArgumentTimeValue(c.args, "after");
+            const afterValue = c.clauses?.after;
             if (afterValue) {
               event.after = (event.after ?? 0) + afterValue;
             }
-            const overValue = getArgumentTimeValue(c.args, "over");
+            const overValue = c.clauses?.over;
             if (overValue) {
               event.over = overValue;
             }
-            const toValue = getArgumentNumberValue(c.args, "to");
+            const toValue = c.clauses?.fadeto;
             if (toValue != null) {
-              event.to = toValue;
+              event.fadeto = toValue;
+            }
+            const loopValue = c.clauses?.loop;
+            if (loopValue) {
+              event.loop = true;
+            }
+            const noloopValue = c.clauses?.noloop;
+            if (noloopValue) {
+              event.loop = false;
             }
           }
           result.image ??= {};
-          if (target && event.control === "show") {
+          if (target && event.control === "set") {
             const prevEvent = result.image[target]?.at(-1);
             if (prevEvent) {
               prevEvent.exit = time;
@@ -1010,36 +1000,36 @@ export const parse = (
           if (time) {
             event.after = time;
           }
-          if (c.args) {
-            const afterValue = getArgumentTimeValue(c.args, "after");
+          if (c.clauses) {
+            const afterValue = c.clauses?.after;
             if (afterValue) {
               event.after = (event.after ?? 0) + afterValue;
             }
-            const overValue = getArgumentTimeValue(c.args, "over");
+            const overValue = c.clauses?.over;
             if (overValue) {
               event.over = overValue;
             }
-            const unmuteValue = c.args.includes("unmute");
+            const unmuteValue = c.clauses?.unmute;
             if (unmuteValue) {
-              event.to = 1;
+              event.fadeto = 1;
             }
-            const toValue = getArgumentNumberValue(c.args, "to");
+            const toValue = c.clauses?.fadeto;
             if (toValue != null) {
-              event.to = toValue;
+              event.fadeto = toValue;
             }
-            const muteValue = c.args.includes("mute");
+            const muteValue = c.clauses?.mute;
             if (muteValue) {
-              event.to = 0;
+              event.fadeto = 0;
             }
-            const loopValue = c.args.includes("loop");
+            const loopValue = c.clauses?.loop;
             if (loopValue) {
               event.loop = true;
             }
-            const noloopValue = c.args.includes("noloop");
+            const noloopValue = c.clauses?.noloop;
             if (noloopValue) {
               event.loop = false;
             }
-            const nowValue = c.args.includes("now");
+            const nowValue = c.clauses?.now;
             if (nowValue) {
               event.now = nowValue;
             }

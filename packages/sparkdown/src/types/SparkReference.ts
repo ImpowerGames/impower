@@ -1,7 +1,7 @@
-import { SparkRange } from "./SparkRange";
+import { Range } from "./SparkDiagnostic";
 
-export interface SparkReference extends SparkRange {
-  name: string;
-
-  declaration?: boolean;
+export interface SparkReference {
+  description: string;
+  selectors: string[];
+  range: Range;
 }

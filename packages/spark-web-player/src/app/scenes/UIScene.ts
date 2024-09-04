@@ -265,7 +265,7 @@ export default class UIScene extends Scene {
           await effect.animation.finished;
           const isDisplayed =
             (effect.element as HTMLElement).offsetParent != null;
-          if (isDisplayed) {
+          if (effect.persist && isDisplayed) {
             effect.animation.commitStyles();
             effect.animation.cancel();
           }

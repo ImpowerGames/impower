@@ -49,7 +49,7 @@ const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
 
 export interface UIState {
   text?: Record<string, TextState[]>;
-  image?: Record<string, { layer?: ImageState; content?: ImageState }>;
+  image?: Record<string, ImageState[]>;
   style?: Record<string, Record<string, string | null>>;
   attributes?: Record<string, Record<string, string | null>>;
 }
@@ -205,8 +205,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected animateElement(element: Element, animations: Animation[]): void {
-    this.emit(
+  protected animateElement(element: Element, animations: Animation[]) {
+    return this.emit(
       AnimateElementMessage.type.request({
         element: element.id,
         animations,
@@ -535,8 +535,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const controlOver = instant ? 0 : event.over;
     const exitAfter = instant ? 0 : event.exit;
     if (animations) {
-      const animationEvents: { name: string; after?: number; over?: number }[] =
-        [];
+      const animationEvents: {
+        name: string;
+        after?: number;
+        over?: number;
+        loop?: boolean;
+      }[] = [];
       const controlAnimationName =
         event.control === "show"
           ? showAnimationName
@@ -562,18 +566,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           name: event.with,
           after: event.withAfter ?? controlAfter,
           over: event.withOver,
+          loop: "loop" in event ? event.loop : undefined,
         });
       }
-      animationEvents.forEach(({ name, after, over }) => {
+      animationEvents.forEach(({ name, after, over, loop }) => {
         const delayOverride = `${after ?? 0}s`;
         const durationOverride = over != null ? `${over}s` : null;
+        const loopOverride =
+          loop === true ? "infinite" : loop === false ? 1 : undefined;
         const animationName = name;
         const animation = this.context.animation?.[animationName] as Animation;
         if (animation) {
           const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
           const duration =
             durationOverride ?? animation?.timing?.duration ?? "0s";
-          const iterations = animation?.timing?.iterations ?? 1;
+          const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
           const easing = animation?.timing?.easing ?? "ease";
           const fill = animation?.timing?.fill ?? "none";
           const direction = animation?.timing?.direction ?? "normal";
@@ -693,13 +700,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[] | null,
         instant: boolean
       ): void {
-        const elementAnimations = new Map<Element, Animation[]>();
+        const replacedElements = new Map<Element, Animation[]>();
+        const newElements = new Map<Element, Animation[]>();
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
             $.updateElement(targetEl, {
               style: { display: null },
             });
-            let targetShown = false;
+            let targetRevealed = false;
             // Enqueue text events
             if (sequence) {
               let blockWrapperEl: Element | undefined = undefined;
@@ -753,27 +761,46 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 // Append text to wordWrapper, blockWrapper, or content
                 const textParentEl =
                   wordWrapperEl || blockWrapperEl || contentEl;
-                const spanEl = $.createElement(textParentEl, {
+                const prevSpanEls = [...contentEl.children];
+                const newSpanEl = $.createElement(textParentEl, {
                   type: "span",
                   content: { text },
                   style,
+                  attributes: { text },
                 });
-                if (!elementAnimations.has(spanEl)) {
-                  elementAnimations.set(spanEl, []);
+                if (!newElements.has(newSpanEl)) {
+                  newElements.set(newSpanEl, []);
                 }
-                const spanAnimations = elementAnimations.get(spanEl)!;
-                $.queueAnimationEvent(e, instant, spanAnimations);
-                if (e.control === "show" && !targetShown) {
-                  if (!elementAnimations.has(targetEl)) {
-                    elementAnimations.set(targetEl, []);
+                if (e.control === "set") {
+                  // 'set' is equivalent to calling 'hide' on all previous images on the layer,
+                  // and then calling 'show' on the new image
+                  for (const prevSpanEl of prevSpanEls) {
+                    if (!replacedElements.has(prevSpanEl)) {
+                      replacedElements.set(prevSpanEl, []);
+                    }
+                    const prevSpanAnimations =
+                      replacedElements.get(prevSpanEl)!;
+                    $.queueAnimationEvent(
+                      { control: "hide", after: e.after, over: e.over },
+                      instant,
+                      prevSpanAnimations
+                    );
                   }
-                  const targetAnimations = elementAnimations.get(targetEl)!;
+                  e.control = "show";
+                }
+                const newSpanAnimations = newElements.get(newSpanEl)!;
+                $.queueAnimationEvent(e, instant, newSpanAnimations);
+                if (e.control === "show" && !targetRevealed) {
+                  if (!newElements.has(targetEl)) {
+                    newElements.set(targetEl, []);
+                  }
+                  const targetAnimations = newElements.get(targetEl)!;
                   $.queueAnimationEvent(
                     { control: "show", after: e.after },
                     instant,
                     targetAnimations
                   );
-                  targetShown = true;
+                  targetRevealed = true;
                 }
               });
             } else {
@@ -787,10 +814,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         });
-        // Animate elements
-        elementAnimations.forEach((animations, element) => {
-          $.animateElement(element, animations);
+        // Animate out replaced elements
+        Promise.allSettled(
+          Array.from(replacedElements).map(([element, animations]) =>
+            $.animateElement(element, animations)
+          )
+        ).then(() => {
+          // Destroy replaced elements
+          Array.from(replacedElements).map(([element]) =>
+            $.destroyElement(element)
+          );
         });
+
+        // Animate new elements
+        Promise.allSettled(
+          Array.from(newElements).map(([element, animations]) =>
+            $.animateElement(element, animations)
+          )
+        );
       }
 
       clearContent(target: string): void {
@@ -800,9 +841,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      clearStaleContent(): void {
+      clearStaleContent(isStale?: (target: string) => boolean): void {
         this.getTargets().forEach((target) => {
-          if (!$.context?.style?.[target]?.["preserve_text"]) {
+          if (isStale?.(target)) {
             this.clearContent(target);
           }
         });
@@ -817,11 +858,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
-      }
-
-      set(target: string, text: string): void {
-        this.clearContent(target);
-        this.write(target, [{ text }], true);
       }
 
       getTargets(): string[] {
@@ -850,54 +886,55 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     class Image {
       protected saveState(target: string, sequence: ImageInstruction[] | null) {
         $._state.image ??= {};
-        $._state.image[target] ??= {};
-        const state = $._state.image[target]!;
+        $._state.image[target] ??= [];
+        let state = $._state.image[target];
         if (sequence) {
-          sequence.forEach((e) => {
-            if (!e.exit) {
-              const hasContent = e.assets && e.assets.length > 0;
-              if (hasContent) {
-                if (state.content) {
-                  state.content.control = e.control;
-                  state.content.with = e.with;
+          sequence.forEach((event) => {
+            if (!event.exit) {
+              const targetingLayer = !event.assets?.length;
+              if (targetingLayer) {
+                // TODO: If animate with none, clear all previous animation events
+                const changingVisibility = event.control !== "animate";
+                const latestLayerVisibilityEvent = state.findLast(
+                  (e) => !e.assets?.length && e.control !== "animate"
+                );
+                if (changingVisibility && latestLayerVisibilityEvent) {
+                  // If we are just changing visibility, no need to create a new event
+                  latestLayerVisibilityEvent.control = event.control;
+                  latestLayerVisibilityEvent.with = event.with;
                 } else {
-                  state.content = {
-                    control: e.control,
-                    assets: e.assets,
-                    with: e.with,
+                  state.push({
+                    control: event.control,
+                    with: event.with,
                     over: 0,
-                  };
+                  });
                 }
-              }
-              if (!hasContent || e.control === "show") {
-                if (state.layer) {
-                  state.layer.control = e.control;
-                  state.layer.with = e.with;
-                } else {
-                  state.layer = {
-                    control: e.control,
-                    with: e.with,
-                    over: 0,
-                  };
+              } else {
+                // TODO: If animate with none, clear all previous animation events
+                if (event.control === "set") {
+                  // Clear all previous content events
+                  state = state.filter((e) => !e.assets?.length);
+                  $._state.image ??= {};
+                  $._state.image[target] = state;
                 }
+                state.push({
+                  control: event.control,
+                  with: event.with,
+                  assets: event.assets,
+                  over: 0,
+                });
               }
             }
           });
         } else {
-          delete state.layer;
-          delete state.content;
+          delete $._state.image?.[target];
         }
       }
 
       restore(target: string) {
         const state = $._state.image?.[target];
         if (state) {
-          if (state.content) {
-            this.applyChanges(target, [state.content], true);
-          }
-          if (state.layer) {
-            this.applyChanges(target, [state.layer], true);
-          }
+          this.applyChanges(target, state, true);
         }
       }
 
@@ -906,13 +943,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[] | null,
         instant: boolean
       ): void {
-        const elementAnimations = new Map<Element, Animation[]>();
+        const replacedElements = new Map<Element, Animation[]>();
+        const newElements = new Map<Element, Animation[]>();
         $.findElements(target).forEach((targetEl) => {
           if (targetEl) {
             $.updateElement(targetEl, {
               style: { display: null },
             });
-            let targetShown = false;
+            let targetRevealed = false;
             // Enqueue image events
             if (sequence) {
               sequence.forEach((e) => {
@@ -932,33 +970,51 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     .reverse()
                     .join(", ");
                   style["background_image"] = combinedBackgroundImage;
-                  const spanEl = $.createElement(contentEl, {
+                  const prevSpanEls = [...contentEl.children];
+                  const newSpanEl = $.createElement(contentEl, {
                     type: "span",
                     style,
                   });
-                  if (!elementAnimations.has(spanEl)) {
-                    elementAnimations.set(spanEl, []);
+                  if (!newElements.has(newSpanEl)) {
+                    newElements.set(newSpanEl, []);
                   }
-                  const spanAnimations = elementAnimations.get(spanEl)!;
-                  $.queueAnimationEvent(e, instant, spanAnimations);
-                  if (e.control === "show" && !targetShown) {
-                    if (!elementAnimations.has(targetEl)) {
-                      elementAnimations.set(targetEl, []);
+                  const newSpanAnimations = newElements.get(newSpanEl)!;
+                  if (e.control === "set") {
+                    // 'set' is equivalent to calling 'hide' on all previous images on the layer,
+                    // and then calling 'show' on the new image
+                    for (const prevSpanEl of prevSpanEls) {
+                      if (!replacedElements.has(prevSpanEl)) {
+                        replacedElements.set(prevSpanEl, []);
+                      }
+                      const prevSpanAnimations =
+                        replacedElements.get(prevSpanEl)!;
+                      $.queueAnimationEvent(
+                        { control: "hide", after: e.after, over: e.over },
+                        instant,
+                        prevSpanAnimations
+                      );
                     }
-                    const targetAnimations = elementAnimations.get(targetEl)!;
+                    e.control = "show";
+                  }
+                  $.queueAnimationEvent(e, instant, newSpanAnimations);
+                  if (e.control === "show" && !targetRevealed) {
+                    if (!newElements.has(targetEl)) {
+                      newElements.set(targetEl, []);
+                    }
+                    const targetAnimations = newElements.get(targetEl)!;
                     $.queueAnimationEvent(
                       { control: "show", after: e.after },
                       instant,
                       targetAnimations
                     );
-                    targetShown = true;
+                    targetRevealed = true;
                   }
                 } else {
                   // We are affecting the image wrapper
-                  if (!elementAnimations.has(targetEl)) {
-                    elementAnimations.set(targetEl, []);
+                  if (!newElements.has(targetEl)) {
+                    newElements.set(targetEl, []);
                   }
-                  const targetAnimations = elementAnimations.get(targetEl)!;
+                  const targetAnimations = newElements.get(targetEl)!;
                   $.queueAnimationEvent(e, instant, targetAnimations);
                 }
               });
@@ -973,10 +1029,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         });
-        // Animate elements
-        elementAnimations.forEach((animations, element) => {
-          $.animateElement(element, animations);
+        // Animate out replaced elements
+        Promise.allSettled(
+          Array.from(replacedElements).map(([element, animations]) =>
+            $.animateElement(element, animations)
+          )
+        ).then(() => {
+          // Destroy replaced elements
+          Array.from(replacedElements).map(([element]) =>
+            $.destroyElement(element)
+          );
         });
+
+        // Animate new elements
+        Promise.allSettled(
+          Array.from(newElements).map(([element, animations]) =>
+            $.animateElement(element, animations)
+          )
+        );
       }
 
       clearContent(target: string): void {
@@ -986,9 +1056,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      clearStaleContent(): void {
+      clearStaleContent(isStale?: (target: string) => boolean): void {
         this.getTargets().forEach((target) => {
-          if (!$.context?.style?.[target]?.["preserve_image"]) {
+          if (isStale?.(target)) {
             this.clearContent(target);
           }
         });
@@ -1003,11 +1073,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         if ($.context?.system?.previewing || !$.context?.system?.simulating) {
           this.applyChanges(target, sequence, instant);
         }
-      }
-
-      set(target: string, image: string[]): void {
-        this.clearContent(target);
-        this.write(target, [{ control: "show", assets: image }], true);
       }
 
       getTargets(): string[] {

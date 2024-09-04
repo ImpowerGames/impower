@@ -4,12 +4,12 @@
   "description": "Web components for viewing and editing sparkdown documents. Includes a text editor and screenplay previewer.",
   "version": "0.0.1",
   "dependencies": {
-    "@codemirror/autocomplete": "^6.15.0",
+    "@codemirror/autocomplete": "^6.18.0",
     "@codemirror/collab": "^6.1.1",
-    "@codemirror/commands": "^6.3.3",
-    "@codemirror/lint": "^6.5.0",
+    "@codemirror/commands": "^6.6.1",
+    "@codemirror/lint": "^6.8.1",
     "@codemirror/search": "^6.5.6",
     "@codemirror/state": "^6.4.1",
-    "@codemirror/view": "^6.26.2"
+    "@codemirror/view": "^6.33.0"
   }
 }

@@ -17,7 +17,10 @@ import { DiagnosticSeverity, SparkDiagnostic } from "../types/SparkDiagnostic";
 import { SparkParserConfig } from "../types/SparkParserConfig";
 import { SparkProgram } from "../types/SparkProgram";
 import { SparkdownNodeName } from "../types/SparkdownNodeName";
-import { uuid } from "../utils/uuid";
+import selectProperty from "../utils/selectProperty";
+import uuid from "../utils/uuid";
+
+const LANGUAGE_NAME = GRAMMAR_DEFINITION.name.toLowerCase();
 
 const NEWLINE_REGEX: RegExp = /\r\n|\r|\n/;
 
@@ -29,6 +32,11 @@ export default class SparkParser {
   protected _grammar: Grammar;
 
   protected _grammarCompiler: GrammarCompiler;
+
+  protected _trees = new Map<string, Tree>();
+  get trees() {
+    return this._trees;
+  }
 
   constructor(config: SparkParserConfig) {
     this._config = config || this._config;
@@ -51,16 +59,18 @@ export default class SparkParser {
     }
   }
 
-  transpile(filepath: string, program: SparkProgram): string {
+  transpile(uri: string, program: SparkProgram): string {
     const nodeNames = this._grammar.nodeNames;
-    const script = this._config?.readFile?.(filepath) || "";
+    const script = this._config?.readFile?.(uri) || "";
     const lines = script.split(NEWLINE_REGEX);
     // Pad script so we ensure all scopes are properly closed before the end of the file.
     const paddedScript = script + "\n\n";
     const tree = this.buildTree(paddedScript);
+    this._trees.set(uri, tree);
+    const stack: SparkdownNodeName[] = [];
     program.sourceMap ??= {};
-    program.sourceMap[filepath] ??= [];
-    const fileIndex = Object.keys(program.sourceMap).indexOf(filepath);
+    program.sourceMap[uri] ??= [];
+    const fileIndex = Object.keys(program.sourceMap).indexOf(uri);
     let lineIndex = 0;
     let linePos = 0;
     let prevNodeType = "";
@@ -81,67 +91,77 @@ export default class SparkParser {
     tree.iterate({
       enter: (node) => {
         const nodeType = nodeNames[node.type]! as SparkdownNodeName;
-        const [offsetAfter, offset] = program.sourceMap?.[filepath]?.[
-          lineIndex
-        ] ?? [0, 0];
-        const nodeStartCharacter = node.from - linePos;
-        const nodeStart =
-          nodeStartCharacter > offsetAfter
-            ? offset + nodeStartCharacter
-            : nodeStartCharacter;
-        const nodeEndCharacter = node.to - linePos;
-        const nodeEnd =
-          nodeEndCharacter > offsetAfter
-            ? offset + nodeEndCharacter
-            : nodeEndCharacter;
+        const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
+        const after = transpilationOffset?.after ?? 0;
+        const shift = transpilationOffset?.shift ?? 0;
+        const sourceNodeStart = node.from - linePos;
+        const transpiledNodeStart =
+          sourceNodeStart > after ? shift + sourceNodeStart : sourceNodeStart;
+        const sourceNodeEnd = node.to - linePos;
+        const transpiledNodeEnd =
+          sourceNodeEnd > after ? shift + sourceNodeEnd : sourceNodeEnd;
+
+        const lineText = lines[lineIndex] || "";
+        const text = lineText.slice(transpiledNodeStart, transpiledNodeEnd);
+        const range = {
+          start: {
+            line: lineIndex,
+            character: sourceNodeStart,
+          },
+          end: {
+            line: lineIndex,
+            character: sourceNodeEnd,
+          },
+        };
+
+        // Annotate dialogue line with implicit flow marker
         if (nodeType === "BlockDialogue_begin") {
-          const lineText = lines[lineIndex] || "";
-          const lineTextBefore = lineText.slice(0, nodeEnd);
-          const lineTextAfter = lineText.slice(nodeEnd);
+          const lineTextBefore = lineText.slice(0, transpiledNodeEnd);
+          const lineTextAfter = lineText.slice(transpiledNodeEnd);
           const id = generateID();
           const flowMarker = getFlowMarker(id);
           const markup = ": " + flowMarker + "\\";
           lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           program.sourceMap ??= {};
-          program.sourceMap[filepath]![lineIndex] = [
-            lineTextBefore.length,
-            markup.length,
-          ];
+          program.sourceMap[uri]![lineIndex] = {
+            after: lineTextBefore.length,
+            shift: markup.length,
+          };
           program.uuidToSource ??= {};
           program.uuidToSource[id] = [fileIndex, lineIndex];
           blockDialoguePrefix = lineTextBefore;
         }
+        // Annotate dialogue line with implicit character name and flow marker
         if (
           nodeType === "BlockDialogueLineContinue" ||
           nodeType === "BlockDialogueLineEnd"
         ) {
           if (prevNodeType.startsWith("BlockDialogueLineEnd")) {
-            const lineText = lines[lineIndex] || "";
-            const lineTextBefore = lineText.slice(0, nodeStart);
-            const lineTextAfter = lineText.slice(nodeStart);
+            const lineTextBefore = lineText.slice(0, transpiledNodeStart);
+            const lineTextAfter = lineText.slice(transpiledNodeStart);
             const prefix = blockDialoguePrefix + ": ";
             const id = generateID();
             const flowMarker = getFlowMarker(id);
             const markup = prefix + flowMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
-            program.sourceMap[filepath]![lineIndex] = [
-              lineTextBefore.length,
-              markup.length,
-            ];
+            program.sourceMap[uri]![lineIndex] = {
+              after: lineTextBefore.length,
+              shift: markup.length,
+            };
             program.uuidToSource ??= {};
             program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
+        // Annotate line with implicit flow marker
         if (
           nodeType === "InlineDialogue_begin" ||
           nodeType === "Transition_begin" ||
           nodeType === "Scene_begin" ||
           nodeType === "Action_begin"
         ) {
-          const lineText = lines[lineIndex] || "";
-          const lineTextBefore = lineText.slice(0, nodeEnd);
-          const lineTextAfter = lineText.slice(nodeEnd);
+          const lineTextBefore = lineText.slice(0, transpiledNodeEnd);
+          const lineTextAfter = lineText.slice(transpiledNodeEnd);
           if (
             !lineTextAfter.startsWith("=") &&
             !lineTextBefore.trim().endsWith("<>")
@@ -151,21 +171,346 @@ export default class SparkParser {
             const markup = flowMarker;
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
             program.sourceMap ??= {};
-            program.sourceMap[filepath]![lineIndex] = [
-              lineTextBefore.length,
-              markup.length,
-            ];
+            program.sourceMap[uri]![lineIndex] = {
+              after: lineTextBefore.length,
+              shift: markup.length,
+            };
             program.uuidToSource ??= {};
             program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
+        // Record explicit flow marker's source location
         if (nodeType === "UUID") {
-          const lineText = lines[lineIndex] || "";
-          const id = lineText.slice(nodeStart, nodeEnd).trim();
+          const id = lineText
+            .slice(transpiledNodeStart, transpiledNodeEnd)
+            .trim();
           if (id) {
             program.uuidToSource ??= {};
             program.uuidToSource[id] = [fileIndex, lineIndex];
           }
+        }
+        // Record reference in struct field value
+        if (nodeType === "AccessPath" && stack.at(-1) === "StructFieldValue") {
+          const selectors = [text];
+          const [type, name] = text.split(".");
+          const description = `${type} named '${name}'`;
+          program.references ??= {};
+          program.references[uri] ??= {};
+          program.references[uri][lineIndex] ??= [];
+          program.references[uri][lineIndex]!.push({
+            selectors,
+            range,
+            description,
+          });
+        }
+        // Record image target reference
+        if (
+          stack.includes("ImageCommand") &&
+          nodeType === "AssetCommandTarget"
+        ) {
+          const selectors = [`ui..${text}`];
+          const description = `ui element named '${text}'`;
+          program.references ??= {};
+          program.references[uri] ??= {};
+          program.references[uri][lineIndex] ??= [];
+          program.references[uri][lineIndex]!.push({
+            selectors,
+            range,
+            description,
+          });
+        }
+        // Record audio target reference
+        if (
+          stack.includes("AudioCommand") &&
+          nodeType === "AssetCommandTarget"
+        ) {
+          const selectors = [`channel.${text}`];
+          const description = `channel named '${text}'`;
+          program.references ??= {};
+          program.references[uri] ??= {};
+          program.references[uri][lineIndex] ??= [];
+          program.references[uri][lineIndex]!.push({
+            selectors,
+            range,
+            description,
+          });
+        }
+        // Record image name or filter reference
+        if (stack.includes("ImageCommand") && nodeType === "AssetCommandName") {
+          const prevChar = lineText[transpiledNodeStart - 1];
+          const selectors =
+            prevChar === "~"
+              ? [`image_filter.${text}`]
+              : [`image.${text}`, `graphic.${text}`];
+          const description =
+            prevChar === "~"
+              ? `image_filter named '${text}'`
+              : `image or graphic named '${text}'`;
+          program.references ??= {};
+          program.references[uri] ??= {};
+          program.references[uri][lineIndex] ??= [];
+          program.references[uri][lineIndex]!.push({
+            selectors,
+            range,
+            description,
+          });
+        }
+        // Record audio name or filter reference
+        if (stack.includes("AudioCommand") && nodeType === "AssetCommandName") {
+          const prevChar = lineText[transpiledNodeStart - 1];
+          const selectors =
+            prevChar === "~"
+              ? [`audio_filter.${text}`]
+              : [`audio.${text}`, `synth.${text}`];
+          const description =
+            prevChar === "~"
+              ? `audio_filter named '${text}'`
+              : `audio or synth named '${text}'`;
+          program.references ??= {};
+          program.references[uri] ??= {};
+          program.references[uri][lineIndex] ??= [];
+          program.references[uri][lineIndex]!.push({
+            selectors,
+            range,
+            description,
+          });
+        }
+        // Report invalid image control
+        if (
+          stack.includes("ImageCommand") &&
+          nodeType === "AssetCommandControl" &&
+          text !== "set" &&
+          text !== "show" &&
+          text !== "hide" &&
+          text !== "animate"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "Invalid visual control: Visual commands only support 'set', 'show', 'hide', or 'animate'";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        // Report invalid audio control
+        if (
+          stack.includes("AudioCommand") &&
+          nodeType === "AssetCommandControl" &&
+          text !== "start" &&
+          text !== "stop" &&
+          text !== "play" &&
+          text !== "modulate"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "Invalid audio control: Audio commands only support 'play', 'start', 'stop', or 'modulate'";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("ImageCommand") &&
+          nodeType === "InvalidValue" &&
+          stack.at(-1) === "AssetCommandClauses"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "Invalid visual clause: Visual commands only support 'after', 'over', 'fadeto', 'with', 'loop', or 'noloop'";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("AudioCommand") &&
+          nodeType === "InvalidValue" &&
+          stack.at(-1) === "AssetCommandClauses"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "Invalid audio clause: Audio commands only support 'after', 'over', 'fadeto', 'with', 'loop', 'noloop', 'mute', 'unmute', or 'now'";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("AssetCommandAfterClause") &&
+          nodeType === "InvalidValue"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "'after' must be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("AssetCommandOverClause") &&
+          nodeType === "InvalidValue"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "'over' must be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("AssetCommandFadetoClause") &&
+          (nodeType === "InvalidValue" ||
+            (nodeType === "NumberValue" &&
+              (Number(text) < 0 || Number(text) > 1)))
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "'fadeto' must be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 1' or 'fadeto 0.5')";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("ImageCommand") &&
+          stack.includes("AssetCommandWithClause") &&
+          nodeType === "InvalidValue"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "'with' must be followed by the name of an animation (e.g. 'with shake')";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("ImageCommand") &&
+          stack.includes("AssetCommandWithClause") &&
+          nodeType === "NameValue"
+        ) {
+          const selectors = [`animation.${text}`];
+          const description = `animation named '${text}'`;
+          program.references ??= {};
+          program.references[uri] ??= {};
+          program.references[uri][lineIndex] ??= [];
+          program.references[uri][lineIndex]!.push({
+            selectors,
+            range,
+            description,
+          });
+        }
+        if (
+          stack.includes("AudioCommand") &&
+          stack.includes("AssetCommandWithClause") &&
+          nodeType === "InvalidValue"
+        ) {
+          const severity = DiagnosticSeverity.Error;
+          const message =
+            "'with' must be followed by the name of a modulation (e.g. 'with echo')";
+          program.diagnostics ??= [];
+          program.diagnostics.push({
+            range,
+            severity,
+            message,
+            relatedInformation: [
+              {
+                location: { uri, range },
+                message,
+              },
+            ],
+            source: LANGUAGE_NAME,
+          });
+        }
+        if (
+          stack.includes("AudioCommand") &&
+          stack.includes("AssetCommandWithClause") &&
+          nodeType === "NameValue"
+        ) {
+          const selectors = [`modulation.${text}`];
+          const description = `modulation named '${text}'`;
+          program.references ??= {};
+          program.references[uri] ??= {};
+          program.references[uri][lineIndex] ??= [];
+          program.references[uri][lineIndex]!.push({
+            selectors,
+            range,
+            description,
+          });
         }
         if (nodeType === "Newline") {
           lineIndex += 1;
@@ -173,16 +518,17 @@ export default class SparkParser {
         } else {
           prevNodeType = nodeType;
         }
+        stack.push(nodeType);
       },
       leave: (node) => {
         const nodeType = nodeNames[node.type]! as SparkdownNodeName;
-        const [offsetAfter, offset] = program.sourceMap?.[filepath]?.[
-          lineIndex
-        ] ?? [0, 0];
+        const transpilationOffset = program.sourceMap?.[uri]?.[lineIndex];
+        const after = transpilationOffset?.after ?? 0;
+        const shift = transpilationOffset?.shift ?? 0;
         const nodeEndCharacter = node.to - linePos;
         const nodeEnd =
-          nodeEndCharacter > offsetAfter
-            ? offset + nodeEndCharacter
+          nodeEndCharacter > after
+            ? shift + nodeEndCharacter
             : nodeEndCharacter;
         if (nodeType === "BlockDialogue_end") {
           blockDialoguePrefix = "";
@@ -202,6 +548,7 @@ export default class SparkParser {
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           }
         }
+        stack.pop();
       },
     });
     const transpiled = lines.join("\n");
@@ -211,7 +558,9 @@ export default class SparkParser {
   }
 
   parse(filename: string): SparkProgram {
+    this._trees.clear();
     const program: SparkProgram = {};
+    const transpiledScripts = new Map<string, string>();
 
     const options = new InkCompilerOptions(
       "",
@@ -224,9 +573,15 @@ export default class SparkParser {
         ResolveInkFilename: (name: string): string => {
           return this._config?.resolveFile?.(name) || name;
         },
-        LoadInkFileContents: (path: string): string => {
+        LoadInkFileContents: (uri: string): string => {
           program.sourceMap ??= {};
-          return this.transpile(path, program)?.trimEnd();
+          let transpiledScript = transpiledScripts.get(uri);
+          if (transpiledScript != null) {
+            return transpiledScript;
+          }
+          transpiledScript = this.transpile(uri, program)?.trimEnd();
+          transpiledScripts.set(uri, transpiledScript);
+          return transpiledScript;
         },
       },
       {
@@ -252,15 +607,10 @@ export default class SparkParser {
     const inkCompiler = new InkCompiler(`INCLUDE ${rootFilename}`, options);
     try {
       const compiledJSON = inkCompiler.Compile().ToJson();
-      const compiled = compiledJSON ? JSON.parse(compiledJSON) : null;
-      for (const filepath of inkCompiler.parser.parsedFiles) {
-        program.sourceMap ??= {};
-        program.sourceMap[filepath] ??= [];
-      }
-      if (compiled) {
-        this.populateAssets(compiled);
-        program.compiled = compiled;
-      }
+      program.compiled = compiledJSON ? JSON.parse(compiledJSON) : null;
+      this.populateBuiltins(program);
+      this.populateAssets(program);
+      this.validateReferences(program);
       program.uuidToSource ??= {};
       program.uuidToSource = this.sortSources(program.uuidToSource);
     } catch {}
@@ -270,7 +620,7 @@ export default class SparkParser {
         error.message,
         ErrorType.Error,
         error.source,
-        program.sourceMap
+        program
       );
       if (diagnostic) {
         program.diagnostics.push(diagnostic);
@@ -282,7 +632,7 @@ export default class SparkParser {
         warning.message,
         ErrorType.Warning,
         warning.source,
-        program.sourceMap
+        program
       );
       if (diagnostic) {
         program.diagnostics.push(diagnostic);
@@ -294,7 +644,7 @@ export default class SparkParser {
         info.message,
         ErrorType.Info,
         info.source,
-        program.sourceMap
+        program
       );
       if (diagnostic) {
         program.diagnostics.push(diagnostic);
@@ -323,16 +673,31 @@ export default class SparkParser {
     return tree;
   }
 
-  populateAssets(compiled: { structDefs?: any }) {
-    if (compiled) {
-      compiled.structDefs ??= {};
+  populateBuiltins(program: SparkProgram) {
+    if (program.compiled) {
+      program.compiled.structDefs ??= {};
+      const builtins = this._config.builtins;
+      if (builtins) {
+        for (const [type, objs] of Object.entries(builtins)) {
+          for (const [name, obj] of Object.entries(objs)) {
+            program.compiled.structDefs[type] ??= {};
+            program.compiled.structDefs[type][name] ??= structuredClone(obj);
+          }
+        }
+      }
+    }
+  }
+
+  populateAssets(program: SparkProgram) {
+    if (program.compiled) {
+      program.compiled.structDefs ??= {};
       const files = this._config.files;
       if (files) {
         for (const [type, assets] of Object.entries(files)) {
           for (const [name, file] of Object.entries(assets)) {
-            compiled.structDefs[type] ??= {};
-            compiled.structDefs[type][name] ??= {};
-            const definedFile = compiled.structDefs[type][name];
+            program.compiled.structDefs[type] ??= {};
+            program.compiled.structDefs[type][name] ??= structuredClone(file);
+            const definedFile = program.compiled.structDefs[type][name];
             // Infer asset src if not defined
             if (definedFile["src"] === undefined) {
               definedFile["src"] = file["src"];
@@ -359,37 +724,76 @@ export default class SparkParser {
     }
   }
 
+  validateReferences(program: SparkProgram) {
+    if (program.references && program.compiled) {
+      for (const [uri, refsLines] of Object.entries(program.references)) {
+        for (const [_line, refs] of Object.entries(refsLines)) {
+          for (const ref of refs) {
+            const selectors = ref.selectors;
+            const range = ref.range;
+            const description = ref.description;
+            const struct = selectors.find((s) => {
+              const [, foundPath] = selectProperty(
+                program.compiled?.structDefs,
+                s
+              );
+              return foundPath === s;
+            });
+            if (!struct) {
+              const severity = DiagnosticSeverity.Warning;
+              const message = `Cannot find ${description}`;
+              program.diagnostics ??= [];
+              program.diagnostics.push({
+                range,
+                severity,
+                message,
+                relatedInformation: [
+                  {
+                    location: { uri, range },
+                    message,
+                  },
+                ],
+                source: LANGUAGE_NAME,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+
   getDiagnostic(
-    msg: string,
+    message: string,
     type: ErrorType,
     metadata?: SourceMetadata | null,
-    sourceMap?: Record<string, Record<number, [number, number]>>
+    program?: SparkProgram
   ): SparkDiagnostic | null {
     if (metadata && metadata.fileName) {
       const filePath = metadata?.filePath || "";
       const startLine = metadata.startLineNumber - 1;
       const endLine = metadata.endLineNumber - 1;
-      const [startOffsetAfter, startOffset] = sourceMap?.[filePath]?.[
-        startLine
-      ] ?? [0, 0];
-      const [endOffsetAfter, endOffset] = sourceMap?.[filePath]?.[endLine] ?? [
-        0, 0,
-      ];
+      const startOffset = program?.sourceMap?.[filePath]?.[startLine];
+      const startOffsetAfter = startOffset?.after ?? 0;
+      const startOffsetShift = startOffset?.shift ?? 0;
+      const endOffset = program?.sourceMap?.[filePath]?.[endLine];
+      const endOffsetAfter = endOffset?.after ?? 0;
+      const endOffsetShift = endOffset?.shift ?? 0;
       const startCharacterOffset =
-        metadata.startCharacterNumber - 1 > startOffsetAfter ? startOffset : 0;
+        metadata.startCharacterNumber - 1 > startOffsetAfter
+          ? startOffsetShift
+          : 0;
       const startCharacter =
         metadata.startCharacterNumber - 1 - startCharacterOffset;
       const endCharacterOffset =
-        metadata.endCharacterNumber - 1 > endOffsetAfter ? endOffset : 0;
+        metadata.endCharacterNumber - 1 > endOffsetAfter ? endOffsetShift : 0;
       const endCharacter = metadata.endCharacterNumber - 1 - endCharacterOffset;
       if (startCharacter < 0) {
         // This error is occurring in a part of the script that was automatically added during transpilation
         // Assume it will be properly reported elsewhere and do not report it here.
-        console.warn("HIDDEN", msg, type, metadata, sourceMap);
+        console.warn("HIDDEN", message, type, metadata);
         return null;
       }
       // Trim away redundant filename and line number from message
-      const message = msg.split(":").slice(2).join(":").trim() || msg;
       const uri =
         this._config?.resolveFile?.(metadata.fileName) || metadata.fileName;
       const range = {
@@ -408,17 +812,14 @@ export default class SparkParser {
           : type === ErrorType.Warning
           ? DiagnosticSeverity.Warning
           : DiagnosticSeverity.Information;
-      const source = "sparkdown";
+      const source = LANGUAGE_NAME;
       const diagnostic = {
         range,
         severity,
         message,
         relatedInformation: [
           {
-            location: {
-              uri,
-              range,
-            },
+            location: { uri, range },
             message,
           },
         ],
@@ -426,7 +827,7 @@ export default class SparkParser {
       };
       return diagnostic;
     }
-    console.warn("HIDDEN", msg, type, metadata, sourceMap);
+    console.warn("HIDDEN", message, type, metadata);
     return null;
   }
 

@@ -253,24 +253,20 @@ export class InkParser extends StringParser {
     source: SourceMetadata,
     isWarning: boolean = false
   ): void => {
-    const warningType: string = isWarning ? "WARNING:" : "ERROR:";
-    let fullMessage: string = warningType;
-
-    if (this._fileName !== null) {
-      fullMessage += ` '${this._fileName}'`;
-    }
-
-    const lineNumber = source.startLineNumber;
-
-    fullMessage += ` line ${lineNumber}: ${message}`;
-
     if (this._externalErrorHandler !== null) {
       this._externalErrorHandler(
-        fullMessage,
+        message,
         isWarning ? ErrorType.Warning : ErrorType.Error,
         source
       );
     } else {
+      const warningType: string = isWarning ? "WARNING:" : "ERROR:";
+      let fullMessage: string = warningType;
+      if (this._fileName !== null) {
+        fullMessage += ` '${this._fileName}'`;
+      }
+      const lineNumber = source.startLineNumber;
+      fullMessage += ` line ${lineNumber}: ${message}`;
       throw new Error(fullMessage);
     }
   };

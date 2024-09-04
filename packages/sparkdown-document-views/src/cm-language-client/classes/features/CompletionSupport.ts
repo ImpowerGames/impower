@@ -126,16 +126,16 @@ const positionInfo = (
 };
 
 export default class CompletionSupport implements FeatureSupport {
-  completionSources: CompletionSource[] = [];
+  sources: CompletionSource[] = [];
 
-  addCompletionSource(source: CompletionSource): void {
-    this.completionSources.push(source);
+  addSource(source: CompletionSource): void {
+    this.sources.push(source);
   }
 
-  removeCompletionSource(source: CompletionSource): void {
-    this.completionSources.forEach((s, i) => {
+  removeSource(source: CompletionSource): void {
+    this.sources.forEach((s, i) => {
       if (s === source) {
-        this.completionSources[i] = () => null;
+        this.sources[i] = () => null;
       }
     });
   }
@@ -144,7 +144,7 @@ export default class CompletionSupport implements FeatureSupport {
     return [
       completionTheme,
       autocompletion({
-        override: this.completionSources,
+        override: this.sources,
         aboveCursor: true,
         positionInfo,
         filterStrict: true,

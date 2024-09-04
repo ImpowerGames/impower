@@ -140,17 +140,11 @@ export default class AudioScene extends Scene {
         if (update.loop != null) {
           audioPlayer.loop = update.loop;
         }
-        if (!audioPlayer.loop || update.control === "stop") {
-          // If playing only once or stopping, dispose the audio buffer and player after finished
-          audioPlayer.addEventListener("ended", () => {
-            this.destroyAudio(update.key, update.channel);
-          });
+        if (update.control === "modulate") {
+          audioPlayer.fade(when, over, update.fadeto);
         }
-        if (update.control === "fade") {
-          audioPlayer.fade(when, over, update.to);
-        }
-        if (update.control === "play") {
-          audioPlayer.start(when, over, undefined, undefined, update.to);
+        if (update.control === "start") {
+          audioPlayer.start(when, over, undefined, undefined, update.fadeto);
         }
         if (update.control === "stop") {
           audioPlayer.stop(when, over);

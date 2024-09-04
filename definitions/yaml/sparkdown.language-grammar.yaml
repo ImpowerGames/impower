@@ -2312,42 +2312,45 @@ repository:
           - { include: "#Whitespace" }
 
   AssetCommandContent:
-    match: (?:(\b(?:show|hide|play|stop|fade|write|animate)\b)({{WS}}*)($|{{IDENTIFIER}}\b))?($|{{WS}}*\S*?)($|{{WS}}*\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b.*)
+    match: (.*?)($|(?:after|over|fadeto|with|loop|noloop|mute|unmute|now)(?=$|{{WS}}).*)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+          - { include: "#AssetCommandInstruction" }
+      2:
+        patterns:
+          - { include: "#AssetCommandClauses" }
+
+  AssetCommandInstruction:
+    match: (?:(\b(?:set|show|hide|animate|play|start|stop|modulate|write)\b)({{WS}}*)($|\S+))?({{WS}}*)($|\S+)?({{WS}}*)(.*)
     captures:
       1:
         patterns:
           - { include: "#AssetCommandControl" }
       2:
         patterns:
-          - { include: "#AssetCommandTargetSeparator" }
+          - { include: "#Whitespace" }
       3:
         patterns:
           - { include: "#AssetCommandTarget" }
       4:
         patterns:
-          - { include: "#AssetCommandNames" }
+          - { include: "#Whitespace" }
       5:
         patterns:
-          - { include: "#AssetCommandArguments" }
-
-  AssetCommandKeyword:
-    tag: keyword
-    name: keyword.asset.arguments.keyword.sd
-    match: (\b(?:to|after|with|over|now|loop|noloop|mute|unmute)\b)
+          - { include: "#AssetCommandNames" }
+      6:
+        patterns:
+          - { include: "#Whitespace" }
+      7:
+        patterns:
+          - { include: "#InvalidValue" }
 
   AssetCommandControl:
     tag: controlKeyword
     name: keyword.control.asset.control.sd
     match: (.+)
-
-  AssetCommandTargetSeparator:
-    tag: typeName
-    name: entity.name.type.asset.target.separator.sd
-    match: ({{WS}}+)
-    captures:
-      1:
-        patterns:
-          - { include: "#Whitespace" }
 
   AssetCommandTarget:
     tag: typeName
@@ -2360,8 +2363,14 @@ repository:
       1:
         patterns:
           - { include: "#Whitespace" }
+          - { include: "#AssetCommandKeywordNone" }
           - { include: "#AssetCommandName" }
           - { include: "#CombineOperator" }
+
+  AssetCommandKeywordNone:
+    tag: keyword
+    name: keyword.asset.keyword.none.sd
+    match: (none)
 
   AssetCommandName:
     tag: variableName
@@ -2373,32 +2382,97 @@ repository:
     name: variable.other.property.combine.sd
     match: ([~+-]+)
 
-  AssetCommandArguments:
-    match: (.+)
-    captures:
-      1:
-        patterns:
-          - { include: "#AssetCommandArgument" }
-
-  AssetCommandArgument:
-    tag: meta
-    name: meta.argument.sd
+  AssetCommandClauses:
     begin: (?=.+$)
     patterns:
       - { include: "#Annotation" }
-      - { include: "#AssetCommandKeyword" }
-      - { include: "#TimeValue" }
-      - { include: "#Expression" }
-    end: (?=$)|({{WS}})
-    endCaptures:
+      - { include: "#Whitespace" }
+      - { include: "#AssetCommandAfterClause" }
+      - { include: "#AssetCommandOverClause" }
+      - { include: "#AssetCommandFadetoClause" }
+      - { include: "#AssetCommandWithClause" }
+      - { include: "#AssetCommandFlagClause" }
+      - { include: "#ConditionalBlock" }
+      - { include: "#InvalidValue" }
+    end: (?=$)
+
+  AssetCommandAfterClause:
+    tag: meta
+    name: meta.argument.sd
+    match: (after)($|{{WS}})($|\S+)
+    captures:
       1:
-        tag: separator
-        name: meta.template.expression.space.sd
+        tag: keyword
+        name: keyword.asset.arguments.keyword.after.sd
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#ConditionalBlock" }
+          - { include: "#TimeValue" }
+          - { include: "#InvalidValue" }
+
+  AssetCommandOverClause:
+    tag: meta
+    name: meta.argument.sd
+    match: (over)($|{{WS}})($|\S+)
+    captures:
+      1:
+        tag: keyword
+        name: keyword.asset.arguments.keyword.over.sd
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#ConditionalBlock" }
+          - { include: "#TimeValue" }
+          - { include: "#InvalidValue" }
+
+  AssetCommandFadetoClause:
+    tag: meta
+    name: meta.argument.sd
+    match: (fadeto)($|{{WS}})($|\S+)
+    captures:
+      1:
+        tag: keyword
+        name: keyword.asset.arguments.keyword.fadeto.sd
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#ConditionalBlock" }
+          - { include: "#NumberValue" }
+          - { include: "#InvalidValue" }
+
+  AssetCommandWithClause:
+    tag: meta
+    name: meta.argument.sd
+    match: (with)($|{{WS}})($|\S+)
+    captures:
+      1:
+        tag: keyword
+        name: keyword.asset.arguments.keyword.with.sd
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+      3:
+        patterns:
+          - { include: "#ConditionalBlock" }
+          - { include: "#NameValue" }
+          - { include: "#InvalidValue" }
+
+  AssetCommandFlagClause:
+    tag: keyword
+    name: keyword.asset.arguments.keyword.flag.sd
+    match: ((?:loop|noloop|mute|unmute|now)(?=$|{{WS}}))
 
   TimeValue:
     tag: number
     name: constant.numeric.time.sd
-    match: ((?:\d*[.])?\d+)(ms|s)
+    match: ((?:\d*[.])?\d+)(ms|s)?$
     captures:
       1:
         tag: number
@@ -2406,6 +2480,21 @@ repository:
       2:
         tag: number
         name: constant.numeric.time.unit.sd
+
+  NumberValue:
+    tag: number
+    name: constant.numeric.number.sd
+    match: ((?:\d*[.])?\d+)$
+
+  NameValue:
+    tag: variableName
+    name: variable.other.constant.sd
+    match: ({{IDENTIFIER}})$
+
+  InvalidValue:
+    tag: content
+    name: markup.raw.text.sd
+    match: (\S+)
 
   TextCommand:
     tag: macroName

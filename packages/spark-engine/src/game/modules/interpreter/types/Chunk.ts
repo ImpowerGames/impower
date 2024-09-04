@@ -1,9 +1,20 @@
 export interface Chunk {
   tag?: string;
   control?: string;
+  target?: string;
   text?: string;
   assets?: string[];
-  args?: string[];
+  clauses?: {
+    after?: number;
+    over?: number;
+    fadeto?: number;
+    with?: string;
+    loop?: boolean;
+    noloop?: boolean;
+    mute?: boolean;
+    unmute?: boolean;
+    now?: boolean;
+  };
 
   voicedSyllable?: boolean;
   punctuatedSyllable?: boolean;

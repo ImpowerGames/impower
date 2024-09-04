@@ -28,23 +28,23 @@ export type HoverSource = (
 ) => HoverResult | null | Promise<HoverResult | null>;
 
 export default class HoverSupport implements FeatureSupport {
-  hoverSources: HoverSource[] = [];
+  sources: HoverSource[] = [];
 
-  addHoverSource(source: HoverSource): void {
-    this.hoverSources.push(source);
+  addSource(source: HoverSource): void {
+    this.sources.push(source);
   }
 
-  removeHoverSource(source: HoverSource): void {
-    this.hoverSources.forEach((s, i) => {
+  removeSource(source: HoverSource): void {
+    this.sources.forEach((s, i) => {
       if (s === source) {
-        this.hoverSources[i] = () => null;
+        this.sources[i] = () => null;
       }
     });
   }
 
   protected getResult(context: HoverContext) {
-    for (let i = 0; i < this.hoverSources.length; i += 1) {
-      const hoverSource = this.hoverSources[i]!;
+    for (let i = 0; i < this.sources.length; i += 1) {
+      const hoverSource = this.sources[i]!;
       const dom = hoverSource(context);
       if (dom) {
         return dom;

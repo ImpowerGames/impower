@@ -73,13 +73,30 @@ export const uiBuiltins = () => ({
         position: "relative",
         display: "inline-block",
       },
+      // TODO: Fix overlapping text_stroke for individual letter spans
+      // "*::before": {
+      //   content: "attr(text)",
+      //   position: "absolute",
+      //   inset: 0,
+      //   color: "black",
+      //   z_index: 1,
+      // },
+      // "*::after": {
+      //   content: "attr(text)",
+      //   position: "absolute",
+      //   inset: 0,
+      //   z_index: 2,
+      //   text_stroke: "none",
+      // },
     }),
     image: _style({
       $name: "image",
       position: "absolute",
       pointer_events: "auto",
       inset: 0,
+      isolation: "isolate",
       "*": {
+        mix_blend_mode: "plus-lighter",
         position: "absolute",
         inset: "0",
         background_position: "center",
@@ -153,20 +170,25 @@ export const uiBuiltins = () => ({
       align_items: "center",
       justify_content: "center",
       width: "100%",
-      padding: 8,
-    }),
-    choice: _style({
-      $name: "choice",
-      display: "flex",
-      flex: 1,
-      background_color: "white",
-      color: "black",
-      padding: 8,
-      margin: "8px 0",
-      width: "90%",
-      max_width: 800,
-      text_align: "center",
-      opacity: "0",
+      gap: 8,
+      "> *": {
+        display: "flex",
+        flex: 1,
+        width: "90%",
+        max_width: 800,
+        background_color: "rgb(0 0 0 / 65%)",
+        padding: 8,
+        border_radius: 8,
+        opacity: "0",
+        text_align: "center",
+        align_items: "center",
+        justify_content: "center",
+        cursor: "pointer",
+      },
+      "> *:hover": {
+        background_color: "black",
+        transition: "all 0.15s linear",
+      },
     }),
     choice_0: _style({
       $name: "choice_0",
@@ -339,34 +361,22 @@ export const uiBuiltins = () => ({
         middle: {
           choices: {
             choice_0: {
-              choice: {
-                text: {},
-              },
+              text: {},
             },
             choice_1: {
-              choice: {
-                text: {},
-              },
+              text: {},
             },
             choice_2: {
-              choice: {
-                text: {},
-              },
+              text: {},
             },
             choice_3: {
-              choice: {
-                text: {},
-              },
+              text: {},
             },
             choice_4: {
-              choice: {
-                text: {},
-              },
+              text: {},
             },
             choice_5: {
-              choice: {
-                text: {},
-              },
+              text: {},
             },
           },
         },

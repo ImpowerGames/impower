@@ -3,7 +3,7 @@ export interface IInstruction {
   after?: number;
   over?: number;
   exit?: number;
-  to?: number;
+  fadeto?: number;
   with?: string;
   withAfter?: number;
   withOver?: number;
@@ -30,6 +30,7 @@ export interface TextInstruction extends IInstruction {
 
 export interface ImageInstruction extends IInstruction {
   assets?: string[];
+  loop?: boolean;
   style?: {
     position?: string;
     inset?: string;

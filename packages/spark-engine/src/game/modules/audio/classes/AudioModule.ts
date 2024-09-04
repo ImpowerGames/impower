@@ -349,7 +349,7 @@ export class AudioModule extends Module<
           name: update.name,
         };
         const restoreState = this._state.channels[channel]!.looping![key]!;
-        if (update.control === "play") {
+        if (update.control === "start") {
           restoreState.control = update.control;
         }
         if (update.after != null) {
@@ -358,8 +358,8 @@ export class AudioModule extends Module<
         if (update.over != null) {
           restoreState.over = update.over;
         }
-        if (update.to != null) {
-          restoreState.to = update.to;
+        if (update.fadeto != null) {
+          restoreState.fadeto = update.fadeto;
         }
         if (update.loop != null) {
           restoreState.loop = update.loop;
@@ -375,13 +375,13 @@ export class AudioModule extends Module<
       // We are targeting an audio channel
       if (update.control === "stop") {
         delete this._state?.channels?.[channel]?.looping;
-      } else if (update.control === "play") {
-        // `play` cannot be used on channel
-      } else if (update.control === "fade") {
-        if (update.to != null) {
+      } else if (update.control === "start") {
+        // `start` cannot be used on channel
+      } else if (update.control === "modulate") {
+        if (update.fadeto != null) {
           Object.values(this._state.channels[channel]!.looping || {}).forEach(
             (restoreState) => {
-              if (update.control === "play") {
+              if (update.control === "start") {
                 restoreState.control = update.control;
               }
               if (update.after != null) {
@@ -390,8 +390,8 @@ export class AudioModule extends Module<
               if (update.over != null) {
                 restoreState.over = update.over;
               }
-              if (update.to != null) {
-                restoreState.to = update.to;
+              if (update.fadeto != null) {
+                restoreState.fadeto = update.fadeto;
               }
               if (update.loop != null) {
                 restoreState.loop = update.loop;
@@ -414,12 +414,32 @@ export class AudioModule extends Module<
     sequence: AudioInstruction[],
     autoTrigger = false
   ): number {
-    const channelDef = this.context?.channel?.[channel];
     const audioToLoad = new Set<LoadAudioPlayerParams>();
     const updates: AudioPlayerUpdate[] = [];
     sequence.forEach((event) => {
+      if (event.control === "play") {
+        // 'play' is equivalent to calling 'stop' on all audio on the channel,
+        // and then calling 'start' on the new audio
+        const stopEvent: AudioInstruction = {
+          control: "stop",
+          after: event.after,
+          over: event.over,
+          now: event.now,
+        };
+        const playing = this._channelsPlaying[channel];
+        if (playing) {
+          Object.values(playing).forEach((d) => {
+            const update = this.process(channel, stopEvent, d);
+            this.updatePlaying(channel, update, d);
+            this.saveState(channel, update);
+            updates.push(update);
+          });
+        }
+        event.control = "start";
+      }
       if (event.assets && event.assets.length > 0) {
         this.getAllAudioData(channel, event.assets).forEach((d) => {
+          const channelDef = this.context?.channel?.[channel];
           d.loop ??= channelDef?.loop;
           audioToLoad.add(d);
           const update = this.process(channel, event, d);
@@ -439,7 +459,7 @@ export class AudioModule extends Module<
               updates.push(update);
             });
           }
-        } else if (event.control === "fade") {
+        } else if (event.control === "modulate") {
           const playing = this._channelsPlaying[channel];
           if (playing) {
             Object.values(playing).forEach((d) => {
@@ -481,9 +501,9 @@ export class AudioModule extends Module<
     );
   }
 
-  fadeChannel(
+  modulateChannel(
     channel: string,
-    to: number,
+    fadeto: number,
     after?: number,
     over?: number,
     now?: boolean
@@ -492,8 +512,8 @@ export class AudioModule extends Module<
       channel,
       [
         {
-          control: "fade",
-          to: to,
+          control: "modulate",
+          fadeto: fadeto,
           after,
           over,
           now,
