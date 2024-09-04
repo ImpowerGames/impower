@@ -216,15 +216,8 @@ export const uiBuiltins = () => ({
       display: "flex",
       flex_direction: "column",
       align_content: "center",
-      max_width: 800,
-      width: "100%",
-      margin: "0 auto",
       color: "white",
       flex: 1,
-      height: 200,
-      padding_left: 32,
-      padding_right: 32,
-      sm: { padding: 16, height: 240 },
     }),
     textbox_background: _style({
       $name: "textbox_background",
@@ -243,8 +236,14 @@ export const uiBuiltins = () => ({
       flex: 1,
       display: "flex",
       flex_direction: "column",
+      max_width: 800,
+      width: "100%",
+      margin: "0 auto",
       font_size: "1.25rem",
-      sm: { font_size: "1.125rem" },
+      min_height: 200,
+      padding_left: 32,
+      padding_right: 32,
+      sm: { font_size: "1.125rem", min_height: 240, padding: 16 },
     }),
     character_info: _style({
       $name: "character_info",
@@ -342,7 +341,9 @@ export const uiBuiltins = () => ({
         portrait: {
           image: {},
         },
-        textbox_background: {},
+        textbox: {
+          textbox_background: {},
+        },
       },
       choices: {
         choice_0: {
