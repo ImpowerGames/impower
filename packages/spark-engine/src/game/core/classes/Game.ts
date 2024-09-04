@@ -161,23 +161,39 @@ export class Game<T extends M = {}> {
           } else {
             const builtinDefaultValue = this._context[type]?.default;
             const definedDefaultValue = (structs as any)?.["default"];
-            const builtinDefaultProps = getAllProperties(builtinDefaultValue);
-            const definedDefaultProps = getAllProperties(definedDefaultValue);
             const constructed = {} as any;
             for (const [propPath, propValue] of Object.entries(
-              builtinDefaultProps
+              getAllProperties(builtinDefaultValue)
             )) {
-              setProperty(constructed, propPath, propValue);
+              if (propValue !== undefined) {
+                setProperty(
+                  constructed,
+                  propPath,
+                  JSON.parse(JSON.stringify(propValue))
+                );
+              }
             }
             for (const [propPath, propValue] of Object.entries(
-              definedDefaultProps
+              getAllProperties(definedDefaultValue)
             )) {
-              setProperty(constructed, propPath, propValue);
+              if (propValue !== undefined) {
+                setProperty(
+                  constructed,
+                  propPath,
+                  JSON.parse(JSON.stringify(propValue))
+                );
+              }
             }
             for (const [propPath, propValue] of Object.entries(
               getAllProperties(struct)
             )) {
-              setProperty(constructed, propPath, propValue);
+              if (propValue !== undefined) {
+                setProperty(
+                  constructed,
+                  propPath,
+                  JSON.parse(JSON.stringify(propValue))
+                );
+              }
             }
             constructed["$type"] = type;
             constructed["$name"] = name;

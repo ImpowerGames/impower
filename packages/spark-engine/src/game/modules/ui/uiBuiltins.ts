@@ -152,28 +152,20 @@ export const uiBuiltins = () => ({
       background_size: "auto 100%",
       background_position: "center",
     }),
-    middle: _style({
-      $name: "middle",
+    choices: _style({
+      $name: "choices",
       position: "relative",
       flex: 1,
       display: "flex",
       flex_direction: "column",
       align_items: "center",
       justify_content: "center",
-      font_size: "1.25rem",
-      sm: { font_size: "1.125rem" },
-    }),
-    choices: _style({
-      $name: "choices",
-      display: "flex",
-      flex_direction: "column",
-      align_items: "center",
-      justify_content: "center",
       width: "100%",
       gap: 8,
+      margin_bottom: 100,
+      font_size: "1.125rem",
       "> *": {
         display: "flex",
-        flex: 1,
         width: "90%",
         max_width: 800,
         background_color: "rgb(0 0 0 / 65%)",
@@ -189,6 +181,7 @@ export const uiBuiltins = () => ({
         background_color: "black",
         transition: "all 0.15s linear",
       },
+      sm: { margin_bottom: 120, font_size: "1rem" },
     }),
     choice_0: _style({
       $name: "choice_0",
@@ -213,15 +206,6 @@ export const uiBuiltins = () => ({
     choice_5: _style({
       $name: "choice_5",
       display: "flex",
-    }),
-    bottom: _style({
-      $name: "bottom",
-      position: "relative",
-      display: "flex",
-      flex_direction: "column",
-      align_content: "center",
-      max_height: 224,
-      height: "100%",
     }),
     textbox: _style({
       $name: "textbox",
@@ -358,29 +342,27 @@ export const uiBuiltins = () => ({
         portrait: {
           image: {},
         },
-        middle: {
-          choices: {
-            choice_0: {
-              text: {},
-            },
-            choice_1: {
-              text: {},
-            },
-            choice_2: {
-              text: {},
-            },
-            choice_3: {
-              text: {},
-            },
-            choice_4: {
-              text: {},
-            },
-            choice_5: {
-              text: {},
-            },
-          },
-        },
         textbox_background: {},
+      },
+      choices: {
+        choice_0: {
+          text: {},
+        },
+        choice_1: {
+          text: {},
+        },
+        choice_2: {
+          text: {},
+        },
+        choice_3: {
+          text: {},
+        },
+        choice_4: {
+          text: {},
+        },
+        choice_5: {
+          text: {},
+        },
       },
       textbox: {
         textbox_content: {
