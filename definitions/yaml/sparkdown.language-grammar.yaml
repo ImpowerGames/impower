@@ -2312,7 +2312,7 @@ repository:
           - { include: "#Whitespace" }
 
   AssetCommandContent:
-    match: (.*?)($|(?:after|over|fadeto|with|loop|noloop|mute|unmute|now)(?=$|{{WS}}).*)
+    match: (.*?)($|(?:after|over|fadeto|with|wait|nowait|loop|noloop|mute|unmute|now)(?=$|{{WS}}).*)
     captures:
       1:
         patterns:
@@ -2321,6 +2321,11 @@ repository:
       2:
         patterns:
           - { include: "#AssetCommandClauses" }
+
+  AssetCommandFlagClause:
+    tag: keyword
+    name: keyword.asset.arguments.keyword.flag.sd
+    match: ((?:wait|nowait|loop|noloop|mute|unmute|now)(?=$|{{WS}}))
 
   AssetCommandInstruction:
     match: (?:(\b(?:set|show|hide|animate|play|start|stop|modulate|write)\b)({{WS}}*)($|\S+))?({{WS}}*)($|\S+)?({{WS}}*)(.*)
@@ -2463,11 +2468,6 @@ repository:
           - { include: "#ConditionalBlock" }
           - { include: "#NameValue" }
           - { include: "#InvalidValue" }
-
-  AssetCommandFlagClause:
-    tag: keyword
-    name: keyword.asset.arguments.keyword.flag.sd
-    match: ((?:loop|noloop|mute|unmute|now)(?=$|{{WS}}))
 
   TimeValue:
     tag: number

@@ -9,6 +9,8 @@ export interface Chunk {
     over?: number;
     fadeto?: number;
     with?: string;
+    wait?: boolean;
+    nowait?: boolean;
     loop?: boolean;
     noloop?: boolean;
     mute?: boolean;

@@ -10,8 +10,8 @@ export const _animation: Create<Animation> = (obj) => ({
     duration: 0,
     easing: "ease",
     iterations: 1,
+    fill: "both",
     direction: "normal",
-    fill: "none",
     ...(obj.timing || {}),
   },
 });

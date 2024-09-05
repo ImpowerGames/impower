@@ -7,6 +7,7 @@ export interface IInstruction {
   with?: string;
   withAfter?: number;
   withOver?: number;
+  wait?: boolean;
 }
 
 export interface TextInstruction extends IInstruction {

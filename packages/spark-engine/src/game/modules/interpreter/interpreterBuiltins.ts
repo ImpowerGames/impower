@@ -10,6 +10,10 @@ export const interpreterBuiltins = () => ({
         dialogue: "@",
         action: "!",
       },
+      fallbacks: {
+        layer: "portrait",
+        channel: "sound",
+      },
     },
   },
   writer: {

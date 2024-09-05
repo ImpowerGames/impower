@@ -1,10 +1,52 @@
 import { Module } from "../../../core/classes/Module";
 import type { Instructions } from "../../../core/types/Instructions";
-import { InstructionOptions, parse } from "../utils/parse";
 import {
   WriterBuiltins as InterpreterBuiltins,
   interpreterBuiltins,
 } from "../interpreterBuiltins";
+import { Phrase } from "../types/Phrase";
+import { Chunk } from "../types/Chunk";
+import { Matcher } from "./helpers/Matcher";
+import {
+  AudioInstruction,
+  ImageInstruction,
+  TextInstruction,
+} from "../../../core/types/Instruction";
+import { stressPhrases } from "../utils/stressPhrases";
+import { InstructionOptions } from "../types/InstructionOptions";
+
+const MARKERS = ["^", "*", "_", "~~", "::"];
+const CHAR_REGEX =
+  /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
+const PARENTHETICAL_REGEX =
+  /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)$/;
+const ASSET_CONTROL_KEYWORDS = [
+  "set",
+  "show",
+  "hide",
+  "animate",
+  "play",
+  "start",
+  "stop",
+  "modulate",
+  "write",
+];
+const ASSET_VALUE_ARG_KEYWORDS = ["after", "over", "fadeto", "with"];
+const ASSET_FLAG_ARG_KEYWORDS = [
+  "wait",
+  "nowait",
+  "loop",
+  "noloop",
+  "mute",
+  "unmute",
+  "now",
+];
+const ASSET_ARG_KEYWORDS = [
+  ...ASSET_VALUE_ARG_KEYWORDS,
+  ...ASSET_FLAG_ARG_KEYWORDS,
+];
+const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
+const SECONDS_REGEX = /((?:\d*[.])?\d+)s/;
 
 export interface InterpreterConfig {}
 
@@ -136,7 +178,6 @@ export class InterpreterModule extends Module<
   queue(content: string, choices: string[]): void {
     this._state.buffer ??= [];
     const options: InstructionOptions = {};
-    options.context = this.context;
     // Trim away indent.
     content = content.trimStart();
     // Determine the default target (if no prefix matches).
@@ -199,14 +240,14 @@ export class InterpreterModule extends Module<
         options.character = character;
         options.position = position;
         if (characterName) {
-          characterNameInstructions = parse(
+          characterNameInstructions = this.parse(
             characterName,
             "character_name",
             options
           );
         }
         if (characterParenthetical) {
-          characterParentheticalInstructions = parse(
+          characterParentheticalInstructions = this.parse(
             characterParenthetical,
             "character_parenthetical",
             options
@@ -218,7 +259,7 @@ export class InterpreterModule extends Module<
     }
     // Queue content
     if (content) {
-      const contentInstructions = parse(
+      const contentInstructions = this.parse(
         content,
         target || defaultTarget,
         options
@@ -256,7 +297,7 @@ export class InterpreterModule extends Module<
       if (choices) {
         for (let i = 0; i < choices.length; i += 1) {
           const choice = choices[i]!;
-          const choiceInstructions = parse(choice, `choice_${i}`, {
+          const choiceInstructions = this.parse(choice, `choice_${i}`, {
             ...options,
             delay: lastTextbox.end,
             choice: true,
@@ -274,9 +315,11 @@ export class InterpreterModule extends Module<
    */
   canFlush(): boolean {
     // There is text to display.
+    // Or an event takes up time
     // Or we are in preview mode and there is an image to display
     return Boolean(
       this._state.buffer?.[0]?.text ||
+        Number(this._state.buffer?.[0]?.end) > 0 ||
         (this.context.system.previewing && this._state.buffer?.[0]?.image)
     );
   }
@@ -287,5 +330,1109 @@ export class InterpreterModule extends Module<
    */
   flush() {
     return this._state.buffer?.shift();
+  }
+
+  protected isWhitespace(part: string | undefined) {
+    if (!part) {
+      return false;
+    }
+    for (let i = 0; i < part.length; i += 1) {
+      const c = part[i]!;
+      if (c !== " " && c !== "\t" && c !== "\n" && c !== "\r") {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  protected isSpace(part: string | undefined) {
+    if (!part) {
+      return false;
+    }
+    for (let i = 0; i < part.length; i += 1) {
+      const c = part[i]!;
+      if (c !== " " && c !== "\t") {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  protected isDash(part: string | undefined) {
+    if (!part) {
+      return false;
+    }
+    for (let i = 0; i < part.length; i += 1) {
+      const c = part[i]!;
+      if (c !== "-") {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  protected lookupContextValue(
+    type: string,
+    name: string,
+    ...fallbacks: string[]
+  ) {
+    const value = (this.context as any)?.[type]?.[name] as any;
+    if (value) {
+      return value;
+    }
+    for (let i = 0; i < fallbacks.length; i += 1) {
+      const fallbackName = fallbacks[i] || "";
+      const fallbackValue = (this.context as any)?.[type]?.[fallbackName];
+      if (fallbackValue) {
+        return fallbackValue;
+      }
+    }
+    return (this.context as any)?.[type]?.["default"];
+  }
+
+  protected lookupContextValueName(
+    type: string,
+    name: string,
+    ...fallbacks: string[]
+  ) {
+    const value = (this.context as any)?.[type]?.[name];
+    if (value) {
+      return name;
+    }
+    for (let i = 0; i < fallbacks.length; i += 1) {
+      const fallbackName = fallbacks[i] || "";
+      const fallbackValue = (this.context as any)?.[type]?.[fallbackName];
+      if (fallbackValue) {
+        return fallbackName;
+      }
+    }
+    return "default";
+  }
+
+  protected getSeconds(value: string): number | undefined {
+    const numValue = Number(value);
+    if (!Number.isNaN(numValue)) {
+      return numValue;
+    }
+    const msMatch = value.match(MILLISECONDS_REGEX);
+    if (msMatch) {
+      const msVal = msMatch[1];
+      const msNumValue = Number(msVal);
+      if (!Number.isNaN(msNumValue)) {
+        return msNumValue / 1000;
+      }
+    }
+    const sMatch = value.match(SECONDS_REGEX);
+    if (sMatch) {
+      const sVal = sMatch[1];
+      const sNumValue = Number(sVal);
+      if (!Number.isNaN(sNumValue)) {
+        return sNumValue;
+      }
+    }
+    return undefined;
+  }
+
+  protected getTimeValue(
+    value: string | undefined,
+    defaultValue = undefined
+  ): number | undefined {
+    const num = Number(value);
+    if (!Number.isNaN(num)) {
+      return num;
+    }
+    if (typeof value === "string") {
+      return this.getSeconds(value);
+    }
+    return defaultValue;
+  }
+
+  protected getNumberValue<T>(
+    value: string | undefined,
+    defaultValue: T = undefined as T
+  ): number | T {
+    const numValue = Number(value);
+    if (!Number.isNaN(numValue)) {
+      return numValue;
+    }
+    return defaultValue;
+  }
+
+  protected getMinSynthDuration(synth: {
+    envelope: {
+      attack: number;
+      decay: number;
+      sustain: number;
+      release: number;
+    };
+  }) {
+    const synthEnvelope = synth?.envelope;
+    return synthEnvelope
+      ? (synthEnvelope.attack ?? 0) +
+          (synthEnvelope.decay ?? 0) +
+          (synthEnvelope.sustain ?? 0) +
+          (synthEnvelope.release ?? 0)
+      : 0;
+  }
+
+  protected createImageChunk(imageTagContent: string): Chunk {
+    const defaultLayer =
+      this.context?.config?.interpreter?.fallbacks?.layer || "portrait";
+    const imageChunk = this.createAssetChunk(
+      imageTagContent,
+      "image",
+      "set",
+      defaultLayer
+    );
+    // Calculate how much time this command should take up
+    const withAnimationName = imageChunk.clauses?.["with"];
+    const afterDuration = imageChunk.clauses?.["after"];
+    const overDuration = imageChunk.clauses?.["over"];
+    const controlAnimationName =
+      imageChunk.control === "show" || imageChunk.control === "set"
+        ? "show"
+        : imageChunk.control === "hide"
+        ? "hide"
+        : undefined;
+    const animationName = withAnimationName ?? controlAnimationName ?? "";
+    const animation = (this.context as any)?.["animation"]?.[animationName];
+    const isPersistentTransition =
+      animation?.timing?.fill !== "none" &&
+      animation?.timing?.iterations !== "infinite";
+    const animationDuration = this.getTimeValue(animation?.timing?.duration);
+    // Add to duration
+    if (!imageChunk.clauses?.nowait) {
+      if (imageChunk.clauses?.wait || isPersistentTransition) {
+        imageChunk.duration += afterDuration ?? 0;
+        imageChunk.duration += overDuration ?? animationDuration ?? 0;
+      }
+    }
+    return imageChunk;
+  }
+
+  protected createAudioChunk(audioTagContent: string): Chunk {
+    const defaultChannel =
+      this.context?.config?.interpreter?.fallbacks?.channel || "sound";
+    const audioChunk = this.createAssetChunk(
+      audioTagContent,
+      "audio",
+      "play",
+      defaultChannel
+    );
+    // Calculate how much time this command should take up
+    const afterDuration = audioChunk.clauses?.["after"];
+    const overDuration = audioChunk.clauses?.["over"];
+    // Add to duration
+    if (!audioChunk.clauses?.nowait) {
+      if (audioChunk.clauses?.wait) {
+        audioChunk.duration += afterDuration ?? 0;
+        audioChunk.duration += overDuration ?? 0;
+      }
+    }
+    return audioChunk;
+  }
+
+  protected createAssetChunk(
+    assetTagContent: string,
+    tag: string,
+    defaultControl: string,
+    defaultTarget: string
+  ): Chunk {
+    const parts = assetTagContent.replaceAll("\t", " ").split(" ");
+    let control = defaultControl;
+    let target = defaultTarget;
+    const assets: string[] = [];
+    const args: string[] = [];
+    if (parts[0]) {
+      if (ASSET_CONTROL_KEYWORDS.includes(parts[0])) {
+        control = parts[0];
+        if (parts[1]) {
+          target = parts[1];
+        }
+        if (parts[2]) {
+          if (ASSET_ARG_KEYWORDS.includes(parts[2])) {
+            args.push(...parts.slice(2));
+          } else {
+            assets.push(...parts[2].split("+"));
+            args.push(...parts.slice(3));
+          }
+        }
+      } else {
+        assets.push(...parts[0].split("+"));
+        args.push(...parts.slice(1));
+      }
+    }
+    const clauses: Record<string, unknown> = {};
+    for (let i = 0; i < args.length; i += 1) {
+      const arg = args[i];
+      if (arg) {
+        if (ASSET_VALUE_ARG_KEYWORDS.includes(arg)) {
+          i += 1;
+          const value = args[i];
+          if (arg === "after") {
+            clauses[arg] = this.getTimeValue(value);
+          }
+          if (arg === "over") {
+            clauses[arg] = this.getTimeValue(value);
+          }
+          if (arg === "fadeto") {
+            clauses[arg] = this.getNumberValue(value);
+          }
+          if (arg === "with") {
+            clauses[arg] = value;
+          }
+        } else {
+          clauses[arg] = true;
+        }
+      }
+    }
+    return {
+      tag,
+      control,
+      target,
+      assets,
+      clauses,
+      duration: 0,
+      speed: 1,
+    };
+  }
+
+  parse(
+    content: string,
+    target: string,
+    options?: InstructionOptions
+  ): Instructions {
+    const allPhrases: Phrase[] = [];
+
+    const textTarget = target;
+    const delay = options?.delay || 0;
+    const choice = options?.choice;
+    const character = options?.character;
+    const debug = this.context?.system.debugging;
+
+    const textTargetPrefixMap: Record<string, string> = {};
+    const textTargetPrefixKeys: string[] = [];
+    for (const [k, v] of Object.entries(this.context?.writer || {})) {
+      if (
+        typeof v === "object" &&
+        v &&
+        "prefix" in v &&
+        typeof v.prefix === "string"
+      ) {
+        textTargetPrefixMap[v.prefix] = k;
+        textTargetPrefixKeys.push(v.prefix);
+      }
+    }
+    let uuids: string[] = [];
+    let consecutiveLettersLength = 0;
+    let word = "";
+    let dashLength = 0;
+    let spaceLength = 0;
+    let phrasePauseLength = 0;
+    let phraseUnpauseLength = 0;
+    let escaped = false;
+    let raw = false;
+    let currChunk: Chunk | undefined = undefined;
+
+    const activeMarks: [string][] = [];
+    let alignModifier = "";
+    let speedModifier = 1;
+    let pitchModifier: number | undefined = undefined;
+    const wavyIndexMap = new Map<[string], number>();
+    const shakyIndexMap = new Map<[string], number>();
+
+    const startNewPhrase = () => {
+      // Reset all inter-phrase trackers
+      consecutiveLettersLength = 0;
+      word = "";
+      dashLength = 0;
+      spaceLength = 0;
+      phrasePauseLength = 0;
+      phraseUnpauseLength = 0;
+      currChunk = undefined;
+      escaped = false;
+    };
+
+    const processLine = (textLine: string, textTarget: string) => {
+      const linePhrases: Phrase[] = [];
+
+      const writer = this.lookupContextValue("writer", textTarget);
+      const writerSynth = this.lookupContextValue(
+        "synth",
+        textTarget,
+        "writer"
+      );
+      const characterSynth = character
+        ? this.lookupContextValue("synth", character, "character")
+        : undefined;
+      const synth = characterSynth ?? writerSynth;
+      const minSynthDuration = this.getMinSynthDuration(synth);
+      const letterPause = writer?.letter_pause ?? 0;
+      const phrasePause = writer?.phrase_pause_scale ?? 1;
+      const emDashPause = writer?.em_dash_pause_scale ?? 1;
+      const stressPause = writer?.stressed_pause_scale ?? 1;
+      const syllableLength = Math.max(
+        writer?.min_syllable_length || 0,
+        Math.round(minSynthDuration / letterPause)
+      );
+      const voicedMatcher = writer?.voiced
+        ? new Matcher(writer?.voiced)
+        : undefined;
+      const yelledMatcher = writer?.yelled
+        ? new Matcher(writer?.yelled)
+        : undefined;
+
+      activeMarks.length = 0;
+      consecutiveLettersLength = 0;
+      word = "";
+      dashLength = 0;
+      spaceLength = 0;
+      phrasePauseLength = 0;
+      phraseUnpauseLength = 0;
+      currChunk = undefined;
+      escaped = false;
+
+      const chars = textLine.match(CHAR_REGEX);
+      if (chars) {
+        for (let i = 0; i < chars.length; ) {
+          const char = chars[i] ?? "";
+          const nextChar = chars[i + 1] ?? "";
+          if (!escaped) {
+            // Raw
+            if (char === "`") {
+              i += 1;
+              raw = !raw;
+              continue;
+            }
+            if (!raw) {
+              // Escape
+              if (char === "\\") {
+                i += 1;
+                escaped = true;
+                continue;
+              }
+              // Image Tag
+              if (char === "[" && nextChar === "[") {
+                let imageTagContent = "";
+                let closed = false;
+                const startIndex = i;
+                i += 2;
+                while (i < chars.length) {
+                  if (chars[i] === "]" && chars[i + 1] === "]") {
+                    closed = true;
+                    const imageChunk = this.createImageChunk(imageTagContent);
+                    const phrase = {
+                      target: imageChunk.target,
+                      chunks: [imageChunk],
+                    };
+                    linePhrases.push(phrase);
+                    allPhrases.push(phrase);
+                    startNewPhrase();
+                    i += 2;
+                    // consume trailing whitespace
+                    while (i < chars.length) {
+                      if (!this.isSpace(chars[i])) {
+                        break;
+                      }
+                      i += 1;
+                    }
+                    break;
+                  }
+                  imageTagContent += chars[i];
+                  i += 1;
+                }
+                if (!closed) {
+                  i = startIndex;
+                  escaped = true;
+                }
+                continue;
+              }
+              // Audio Tag
+              if (char === "(" && nextChar === "(") {
+                let audioTagContent = "";
+                let closed = false;
+                const startIndex = i;
+                i += 2;
+                while (i < chars.length) {
+                  if (chars[i] === ")" && chars[i + 1] === ")") {
+                    closed = true;
+                    const audioChunk = this.createAudioChunk(audioTagContent);
+                    const phrase = {
+                      target: audioChunk.target,
+                      chunks: [audioChunk],
+                    };
+                    linePhrases.push(phrase);
+                    allPhrases.push(phrase);
+                    startNewPhrase();
+                    i += 2;
+                    // consume trailing whitespace
+                    while (i < chars.length) {
+                      if (!this.isSpace(chars[i])) {
+                        break;
+                      }
+                      i += 1;
+                    }
+                    break;
+                  }
+                  audioTagContent += chars[i];
+                  i += 1;
+                }
+                if (!closed) {
+                  i = startIndex;
+                  escaped = true;
+                }
+                continue;
+              }
+              // Text Tag
+              if (char === "<") {
+                let control = "";
+                let arg = "";
+                const startIndex = i;
+                i += 1;
+                while (chars[i] && chars[i] !== ">" && chars[i] !== ":") {
+                  control += chars[i];
+                  i += 1;
+                }
+                if (chars[i] === ":") {
+                  i += 1;
+                  while (chars[i] && chars[i] !== ">") {
+                    arg += chars[i];
+                    i += 1;
+                  }
+                }
+                const closed = chars[i] === ">";
+                if (closed) {
+                  i += 1;
+                  if (control) {
+                    if (control === "speed" || control === "s") {
+                      speedModifier = this.getNumberValue(arg, 1);
+                    } else if (control === "pitch" || control === "p") {
+                      pitchModifier = this.getNumberValue(arg, 0);
+                    } else if (control === "wait" || control === "w") {
+                      const waitModifier = this.getNumberValue(arg, 0);
+                      const phrase = {
+                        target: textTarget,
+                        chunks: [
+                          {
+                            tag: "text",
+                            duration: waitModifier,
+                            speed: 1,
+                          },
+                        ],
+                      };
+                      linePhrases.push(phrase);
+                      allPhrases.push(phrase);
+                      startNewPhrase();
+                    } else if (control === "!") {
+                      // Ignore everything until the end of the line
+                      while (chars[i] && chars[i] !== "\n") {
+                        i += 1;
+                      }
+                    }
+                  }
+                } else {
+                  i = startIndex;
+                  escaped = true;
+                }
+                continue;
+              }
+              // Flow Tag
+              if (char === "=") {
+                let id = "";
+                const startIndex = i;
+                i += 1;
+                while (chars[i] && chars[i] !== "=") {
+                  id += chars[i];
+                  i += 1;
+                }
+                const closed = chars[i] === "=";
+                if (closed) {
+                  i += 1;
+                  if (id) {
+                    uuids.push(id);
+                  }
+                  // consume trailing whitespace
+                  while (i < chars.length) {
+                    if (!this.isSpace(chars[i])) {
+                      break;
+                    }
+                    i += 1;
+                  }
+                } else {
+                  i = startIndex;
+                  escaped = true;
+                }
+                continue;
+              }
+              // Break Tag
+              if (char === "+") {
+                i += 1;
+                continue;
+              }
+              // Style Tag
+              const styleMarker = MARKERS.find(
+                (marker) =>
+                  marker === chars.slice(i, i + marker.length).join("")
+              );
+              if (styleMarker) {
+                let currentMarker = "";
+                const startIndex = i;
+                while (chars[i] && chars[i] === char) {
+                  currentMarker += chars[i];
+                  i += 1;
+                }
+                const lastMatchingMark =
+                  activeMarks.findLast(
+                    ([activeMarker]) => activeMarker === currentMarker
+                  ) ||
+                  activeMarks.findLast(
+                    ([activeMarker]) =>
+                      activeMarker.slice(0, styleMarker.length) ===
+                      currentMarker.slice(0, styleMarker.length)
+                  );
+                if (lastMatchingMark) {
+                  while (activeMarks.at(-1) !== lastMatchingMark) {
+                    activeMarks.pop();
+                  }
+                  activeMarks.pop();
+                  const [lastMatchingMarker] = lastMatchingMark;
+                  i = startIndex + lastMatchingMarker.length;
+                } else {
+                  activeMarks.push([currentMarker]);
+                }
+                continue;
+              }
+            }
+          }
+          escaped = false;
+
+          const activeCenteredMark = activeMarks.findLast(([m]) =>
+            m.startsWith("^")
+          );
+          const activeUnderlineMark = activeMarks.findLast(([m]) =>
+            m.startsWith("_")
+          );
+          const activeBoldItalicMark = activeMarks.findLast(([m]) =>
+            m.startsWith("***")
+          );
+          const activeBoldMark = activeMarks.findLast(([m]) => m === "**");
+          const activeItalicMark = activeMarks.findLast(([m]) => m === "*");
+          const activeWavyMark = activeMarks.findLast(([m]) =>
+            m.startsWith("~~")
+          );
+          const activeShakyMark = activeMarks.findLast(([m]) =>
+            m.startsWith("::")
+          );
+          const isCentered = Boolean(activeCenteredMark);
+          const isUnderlined = Boolean(activeUnderlineMark);
+          const isItalicized =
+            Boolean(activeBoldItalicMark) || Boolean(activeItalicMark);
+          const isBolded =
+            Boolean(activeBoldItalicMark) || Boolean(activeBoldMark);
+          const voiced = Boolean(voicedMatcher?.test(char));
+
+          // Determine offset from wavy mark
+          if (activeWavyMark) {
+            const wavyIndex = wavyIndexMap.get(activeWavyMark);
+            if (wavyIndex != null) {
+              wavyIndexMap.set(activeWavyMark, wavyIndex + 1);
+            } else {
+              wavyIndexMap.set(activeWavyMark, 1);
+            }
+          }
+          const wavy = activeWavyMark ? wavyIndexMap.get(activeWavyMark) : 0;
+
+          // Determine offset from shaky mark
+          if (activeShakyMark) {
+            const shakyIndex = shakyIndexMap.get(activeShakyMark);
+            if (shakyIndex != null) {
+              shakyIndexMap.set(activeShakyMark, shakyIndex + 1);
+            } else {
+              shakyIndexMap.set(activeShakyMark, 1);
+            }
+          }
+          const shaky = activeShakyMark
+            ? shakyIndexMap.get(activeShakyMark)
+            : 0;
+
+          if (this.isWhitespace(char)) {
+            word = "";
+            spaceLength += 1;
+            consecutiveLettersLength = 0;
+          } else {
+            word += char;
+            spaceLength = 0;
+            if (voiced) {
+              consecutiveLettersLength += 1;
+            } else {
+              consecutiveLettersLength = 0;
+            }
+          }
+
+          if (this.isDash(char)) {
+            dashLength += 1;
+          } else {
+            dashLength = 0;
+          }
+
+          const isYelled =
+            Boolean(yelledMatcher?.test(word)) &&
+            (Boolean(yelledMatcher?.test(nextChar)) || word.length > 1);
+          const tilde = char === "~";
+          const isEmDashBoundary =
+            i >= 3 &&
+            this.isSpace(chars[i - 3]) &&
+            this.isDash(chars[i - 2]) &&
+            this.isDash(chars[i - 1]) &&
+            this.isSpace(chars[i]);
+          const isPhraseBoundary = spaceLength > 1 || isEmDashBoundary;
+
+          if (isPhraseBoundary) {
+            phrasePauseLength += 1;
+            phraseUnpauseLength = 0;
+          } else {
+            phrasePauseLength = 0;
+            phraseUnpauseLength += 1;
+          }
+          // Determine beep pitch
+          const yelled = isYelled ? 1 : 0;
+          // centered level = number of `|`
+          const centered =
+            alignModifier === "center"
+              ? 1
+              : isCentered && activeCenteredMark
+              ? activeCenteredMark.length
+              : isCentered
+              ? 1
+              : 0;
+          // italicized level = number of `*`
+          const italicized = isItalicized ? 1 : 0;
+          // bolded level = number of `*`
+          const bolded =
+            isBolded && activeBoldItalicMark
+              ? activeBoldItalicMark.length
+              : isBolded
+              ? 2
+              : 0;
+          // underlined level = number of `_`
+          const underlined =
+            isUnderlined && activeUnderlineMark
+              ? activeUnderlineMark.length
+              : isUnderlined
+              ? 1
+              : 0;
+          const pitch = pitchModifier;
+
+          // Determine beep timing
+          const charIndex = phraseUnpauseLength - 1;
+          const voicedSyllable = charIndex % syllableLength === 0;
+          const speedWavy = activeWavyMark ? activeWavyMark[0].length - 1 : 1;
+          const speedShaky = activeShakyMark
+            ? activeShakyMark[0].length - 1
+            : 1;
+          const speed = speedModifier / speedWavy / speedShaky;
+          const isEmDashPause = isEmDashBoundary;
+          const isPhrasePause = isPhraseBoundary;
+          const isStressPause = Boolean(
+            character &&
+              spaceLength === 1 &&
+              currChunk &&
+              ((currChunk.bolded && !isBolded) ||
+                (currChunk.italicized && !isItalicized) ||
+                (currChunk.underlined && !isUnderlined) ||
+                (currChunk.tilde && !tilde))
+          );
+          const duration: number =
+            speed === 0
+              ? 0
+              : (isEmDashPause
+                  ? letterPause * emDashPause
+                  : isPhrasePause
+                  ? letterPause * phrasePause
+                  : isStressPause
+                  ? letterPause * stressPause
+                  : letterPause) / speed;
+
+          if (phraseUnpauseLength === 1) {
+            // start voiced phrase
+            currChunk = {
+              text: char,
+              duration,
+              speed,
+              voicedSyllable,
+              voiced,
+              yelled,
+              raw,
+              centered,
+              bolded,
+              italicized,
+              underlined,
+              wavy,
+              shaky,
+              tilde,
+              pitch,
+            };
+            const phrase = {
+              target: textTarget,
+              text: char,
+              chunks: [currChunk],
+            };
+            linePhrases.push(phrase);
+            allPhrases.push(phrase);
+          } else {
+            // continue voiced phrase
+            const currentPhrase = linePhrases.at(-1);
+            if (currentPhrase) {
+              currentPhrase.text ??= "";
+              currentPhrase.text += char;
+              if (
+                currChunk &&
+                !currChunk.duration &&
+                bolded === currChunk.bolded &&
+                italicized === currChunk.italicized &&
+                underlined === currChunk.underlined &&
+                wavy === currChunk.wavy &&
+                shaky === currChunk.shaky &&
+                speed === currChunk.speed
+              ) {
+                // No need to create new element, simply append char to previous chunk
+                currChunk.text += char;
+              } else {
+                // Create new element and chunk
+                currChunk = {
+                  text: char,
+                  duration,
+                  speed,
+                  voicedSyllable,
+                  voiced,
+                  yelled,
+                  raw,
+                  centered,
+                  bolded,
+                  italicized,
+                  underlined,
+                  wavy,
+                  shaky,
+                  tilde,
+                  pitch,
+                };
+                currentPhrase.chunks ??= [];
+                currentPhrase.chunks.push(currChunk);
+              }
+            }
+          }
+          i += 1;
+        }
+      }
+      return linePhrases;
+    };
+
+    const lines = content?.trim().split("\n");
+    for (let l = 0; l < lines.length; l += 1) {
+      const line = lines[l]!?.trimStart();
+      if (line.match(PARENTHETICAL_REGEX)) {
+        alignModifier = "center";
+        speedModifier = 0;
+        processLine(line, textTarget);
+        alignModifier = "";
+        speedModifier = 1;
+        continue;
+      }
+      const linePhrases = processLine(line, textTarget);
+      if (l < lines.length - 1) {
+        if (line) {
+          const lastTextPhrase = linePhrases.findLast((p) => p.text);
+          if (lastTextPhrase) {
+            lastTextPhrase.text += "\n";
+            lastTextPhrase.chunks ??= [];
+            lastTextPhrase.chunks.push({ text: "\n", duration: 0, speed: 1 });
+          }
+        } else {
+          allPhrases.push({
+            target: textTarget,
+            text: "\n",
+            chunks: [{ text: "\n", duration: 0, speed: 1 }],
+          });
+        }
+      }
+    }
+
+    allPhrases.forEach((phrase) => {
+      const target = phrase.target || "";
+      const writer = this.lookupContextValue("writer", target);
+      const letterPause = writer?.letter_pause ?? 0;
+      const interjectionPause = writer?.punctuated_pause_scale ?? 1;
+      const punctuatedMatcher = writer?.punctuated
+        ? new Matcher(writer?.punctuated)
+        : undefined;
+      // Erase any syllables that occur on any unvoiced chars at the end of phrases
+      // (whitespace, punctuation, etc).
+      if (phrase.chunks) {
+        for (let c = phrase.chunks.length - 1; c >= 0; c -= 1) {
+          const chunk = phrase.chunks[c]!;
+          if (!chunk.voiced) {
+            chunk.voicedSyllable = false;
+          } else {
+            break;
+          }
+        }
+        // Voice any phrases that are entirely composed of ellipsis.
+        if (phrase.text) {
+          if (punctuatedMatcher?.test(phrase.text)) {
+            const writerSynth = this.lookupContextValue(
+              "synth",
+              target,
+              "writer"
+            );
+            const minSynthDuration = this.getMinSynthDuration(writerSynth);
+            for (let c = 0; c < phrase.chunks.length; c += 1) {
+              const chunk = phrase.chunks[c]!;
+              if (chunk.text && !this.isWhitespace(chunk.text)) {
+                chunk.punctuatedSyllable = true;
+                chunk.duration = Math.max(
+                  minSynthDuration,
+                  letterPause * interjectionPause
+                );
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (character && !this.context?.system?.simulating) {
+      stressPhrases(
+        allPhrases,
+        this.lookupContextValue("character", character)
+      );
+    }
+
+    let time = delay;
+    const result: Instructions = {
+      end: 0,
+    };
+    if (uuids.length > 0) {
+      result.uuids ??= [];
+      result.uuids = uuids;
+    }
+    if (choice) {
+      result.choices ??= [];
+      result.choices.push(target);
+    }
+    const synthEvents: Record<
+      string,
+      { time?: number; speed?: number; bend?: number }[]
+    > = {};
+    allPhrases.forEach((phrase) => {
+      const target = phrase.target || "";
+      const writer = this.lookupContextValue("writer", target);
+      const fadeDuration = writer?.fade_duration ?? 0;
+      const letterPause = writer?.letter_pause ?? 0;
+      const animationOffset = writer?.animation_offset ?? 0;
+      if (phrase.chunks) {
+        phrase.chunks.forEach((c) => {
+          // Text Event
+          if (c.text != null) {
+            const event: TextInstruction = { control: "show", text: c.text };
+            if (time) {
+              event.after = time;
+            }
+            if (fadeDuration) {
+              event.over = fadeDuration;
+            }
+            if (c.underlined) {
+              event.style ??= {};
+              event.style["text_decoration"] = "underline";
+            }
+            if (c.italicized) {
+              event.style ??= {};
+              event.style["font_style"] = "italic";
+            }
+            if (c.bolded) {
+              event.style ??= {};
+              event.style["font_weight"] = "bold";
+            }
+            if (c.centered) {
+              event.style ??= {};
+              event.style["text_align"] = "center";
+            }
+            if (c.raw) {
+              event.style ??= {};
+              event.style["white_space"] = "pre";
+            }
+
+            // Wavy animation
+            if (c.wavy) {
+              event.with = "wavy";
+              event.withAfter = c.wavy * animationOffset * -1;
+            }
+            // Shaky animation
+            if (c.shaky) {
+              event.with = "shaky";
+              event.withAfter = c.shaky * animationOffset * -1;
+            }
+            // Debug colorization
+            if (debug) {
+              if (c.duration > letterPause) {
+                // color pauses (longer time = darker color)
+                event.style ??= {};
+                event.style["background_color"] = `hsla(0, 100%, 50%, ${
+                  0.5 - letterPause / c.duration
+                })`;
+              }
+              if (c.voicedSyllable) {
+                // color beeps
+                event.style ??= {};
+                event.style["background_color"] = `hsl(185, 100%, 50%)`;
+              }
+            }
+            result.text ??= {};
+            result.text[target] ??= [];
+            result.text[target]!.push(event);
+          }
+          // Image Event
+          if (c.tag === "image") {
+            const event: ImageInstruction = {
+              control: c.control || "set",
+              assets: c.assets,
+            };
+            if (time) {
+              event.after = time;
+            }
+            if (fadeDuration) {
+              event.over = fadeDuration;
+            }
+            if (c.clauses) {
+              const withValue = c.clauses?.with;
+              if (withValue) {
+                event.with = withValue;
+              }
+              const afterValue = c.clauses?.after;
+              if (afterValue) {
+                event.after = (event.after ?? 0) + afterValue;
+              }
+              const overValue = c.clauses?.over;
+              if (overValue) {
+                event.over = overValue;
+              }
+              const toValue = c.clauses?.fadeto;
+              if (toValue != null) {
+                event.fadeto = toValue;
+              }
+              const loopValue = c.clauses?.loop;
+              if (loopValue) {
+                event.loop = true;
+              }
+              const noloopValue = c.clauses?.noloop;
+              if (noloopValue) {
+                event.loop = false;
+              }
+            }
+            result.image ??= {};
+            if (target && event.control === "set") {
+              const prevEvent = result.image[target]?.at(-1);
+              if (prevEvent) {
+                prevEvent.exit = time;
+                prevEvent.style ??= {};
+                prevEvent.style["position"] = "absolute";
+                prevEvent.style["inset"] = "0";
+              }
+            }
+            result.image[target] ??= [];
+            result.image[target]!.push(event);
+          }
+          // Audio Event
+          if (c.tag === "audio") {
+            const event: AudioInstruction = {
+              control: c.control || "play",
+              assets: c.assets,
+            };
+            if (time) {
+              event.after = time;
+            }
+            if (c.clauses) {
+              const afterValue = c.clauses?.after;
+              if (afterValue) {
+                event.after = (event.after ?? 0) + afterValue;
+              }
+              const overValue = c.clauses?.over;
+              if (overValue) {
+                event.over = overValue;
+              }
+              const unmuteValue = c.clauses?.unmute;
+              if (unmuteValue) {
+                event.fadeto = 1;
+              }
+              const toValue = c.clauses?.fadeto;
+              if (toValue != null) {
+                event.fadeto = toValue;
+              }
+              const muteValue = c.clauses?.mute;
+              if (muteValue) {
+                event.fadeto = 0;
+              }
+              const loopValue = c.clauses?.loop;
+              if (loopValue) {
+                event.loop = true;
+              }
+              const noloopValue = c.clauses?.noloop;
+              if (noloopValue) {
+                event.loop = false;
+              }
+              const nowValue = c.clauses?.now;
+              if (nowValue) {
+                event.now = nowValue;
+              }
+            }
+            result.audio ??= {};
+            result.audio[target] ??= [];
+            result.audio[target]!.push(event);
+          }
+          // Synth Event
+          if (c.duration) {
+            if (c.punctuatedSyllable) {
+              const synthName = this.lookupContextValueName("synth", "writer");
+              synthEvents[synthName] ??= [];
+              synthEvents[synthName]!.push({
+                time,
+                speed: c.speed ?? 1,
+                bend: c.pitch ?? 0,
+              });
+            } else if (c.voicedSyllable) {
+              const synthName = character
+                ? this.lookupContextValueName("synth", character, "character")
+                : this.lookupContextValueName("synth", target || "", "writer");
+              synthEvents[synthName] ??= [];
+              synthEvents[synthName]!.push({
+                time,
+                speed: c.speed ?? 1,
+                bend: c.pitch ?? 0,
+              });
+            }
+          }
+
+          time += c.duration;
+        });
+      }
+    });
+
+    Object.entries(synthEvents).forEach(([synthName, tones]) => {
+      result.audio ??= {};
+      result.audio["writer"] ??= [];
+      result.audio["writer"]!.push({
+        control: "play",
+        assets: [
+          synthName +
+            "~" +
+            tones
+              .map((tone) => `t${tone.time}s${tone.speed}b${tone.bend}`)
+              .join("~"),
+        ],
+      });
+    });
+
+    result.end = time;
+
+    return result;
   }
 }

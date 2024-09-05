@@ -334,7 +334,7 @@ export default class SparkParser {
         ) {
           const severity = DiagnosticSeverity.Error;
           const message =
-            "Invalid visual clause: Visual commands only support 'after', 'over', 'fadeto', 'with', 'loop', or 'noloop'";
+            "Invalid visual clause: Visual commands only support 'after', 'over', 'fadeto', 'with', 'loop', 'noloop', 'wait', or 'nowait'";
           program.diagnostics ??= [];
           program.diagnostics.push({
             range,

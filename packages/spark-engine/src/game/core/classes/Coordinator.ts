@@ -64,26 +64,38 @@ export class Coordinator<G extends Game> {
   protected shouldContinue() {
     const game = this._game;
     const instructions = this._instructions;
+    const waitingForChoice =
+      instructions.choices && instructions.choices.length > 0;
     if (!instructions) {
       return false;
     }
-    const autoAdvance = instructions.auto;
-    const waitingForChoice =
-      instructions.choices && instructions.choices.length > 0;
-    const autoAdvanceDelay =
-      game.context.preferences?.["flow"]?.["auto_advance_delay"];
     if (this._finishedExecution && this._timeTypedMS < 0) {
       this._timeTypedMS = this._elapsedMS;
     }
-    const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
-    if (
-      autoAdvance &&
-      !waitingForChoice &&
-      this._finishedExecution &&
-      timeMSSinceTyped / 1000 >= autoAdvanceDelay
-    ) {
-      return true;
+    // No text or choices to display
+    if (!instructions.text && !waitingForChoice) {
+      // So just autoadvance when finished
+      const totalDurationMS = (instructions.end ?? 0) * 1000;
+      if (this._elapsedMS >= totalDurationMS) {
+        return true;
+      }
+      return false;
     }
+    // Should autoadvance
+    const timeMSSinceTyped = this._elapsedMS - this._timeTypedMS;
+    if (instructions.auto) {
+      // Autoadvance (after short delay) when finished typing
+      const autoAdvanceDelay =
+        game.context.preferences?.["flow"]?.["auto_advance_delay"];
+      if (
+        !waitingForChoice &&
+        this._finishedExecution &&
+        timeMSSinceTyped / 1000 >= autoAdvanceDelay
+      ) {
+        return true;
+      }
+    }
+    // Player clicked to advance
     if (this._interacted) {
       this._interacted = false;
       if (this._finishedExecution) {

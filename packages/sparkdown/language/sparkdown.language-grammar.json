@@ -4090,7 +4090,7 @@
       }
     },
     "AssetCommandContent": {
-      "match": "(.*?)($|(?:after|over|fadeto|with|loop|noloop|mute|unmute|now)(?=$|[^\\S\\n\\r]).*)",
+      "match": "(.*?)($|(?:after|over|fadeto|with|wait|nowait|loop|noloop|mute|unmute|now)(?=$|[^\\S\\n\\r]).*)",
       "captures": {
         "1": {
           "patterns": [
@@ -4110,6 +4110,11 @@
           ]
         }
       }
+    },
+    "AssetCommandFlagClause": {
+      "tag": "keyword",
+      "name": "keyword.asset.arguments.keyword.flag.sd",
+      "match": "((?:wait|nowait|loop|noloop|mute|unmute|now)(?=$|[^\\S\\n\\r]))"
     },
     "AssetCommandInstruction": {
       "match": "(?:(\\b(?:set|show|hide|animate|play|start|stop|modulate|write)\\b)([^\\S\\n\\r]*)($|\\S+))?([^\\S\\n\\r]*)($|\\S+)?([^\\S\\n\\r]*)(.*)",
@@ -4367,11 +4372,6 @@
           ]
         }
       }
-    },
-    "AssetCommandFlagClause": {
-      "tag": "keyword",
-      "name": "keyword.asset.arguments.keyword.flag.sd",
-      "match": "((?:loop|noloop|mute|unmute|now)(?=$|[^\\S\\n\\r]))"
     },
     "TimeValue": {
       "tag": "number",

@@ -404,8 +404,8 @@ export const uiBuiltins = () => ({
         duration: 0,
         easing: "ease",
         iterations: 1,
+        fill: "both",
         direction: "normal",
-        fill: "none",
       },
     }),
     show: _animation({
@@ -413,7 +413,7 @@ export const uiBuiltins = () => ({
       keyframes: [{ opacity: "1" }],
       timing: {
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
     hide: _animation({
@@ -421,7 +421,7 @@ export const uiBuiltins = () => ({
       keyframes: [{ opacity: "0" }],
       timing: {
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
     spin: _animation({
@@ -430,6 +430,7 @@ export const uiBuiltins = () => ({
       timing: {
         easing: "linear",
         iterations: "infinite",
+        fill: "none",
       },
     }),
     ping: _animation({
@@ -474,7 +475,28 @@ export const uiBuiltins = () => ({
           easing: "cubic-bezier(0.8,0,1,1)",
         },
       ],
-      timing: {},
+      timing: {
+        iterations: "infinite",
+        fill: "none",
+      },
+    }),
+    wave: _animation({
+      $name: "wave",
+      keyframes: [
+        {
+          transform: "translateY(0)",
+        },
+        {
+          transform: "translateY(-15%)",
+        },
+        {
+          transform: "translateY(0)",
+        },
+      ],
+      timing: {
+        duration: "750ms",
+        easing: "ease-in-out",
+      },
     }),
     wavy: _animation({
       $name: "wavy",
@@ -493,6 +515,7 @@ export const uiBuiltins = () => ({
         duration: "750ms",
         easing: "ease-in-out",
         iterations: "infinite",
+        fill: "none",
       },
     }),
     shaky: _animation({
@@ -547,6 +570,7 @@ export const uiBuiltins = () => ({
         duration: "300ms",
         easing: "ease-in-out",
         iterations: "infinite",
+        fill: "none",
       },
     }),
     shake: _animation({
@@ -589,6 +613,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "300ms",
         easing: "ease-in-out",
+        fill: "none",
       },
     }),
     shaking: _animation({
@@ -696,6 +721,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "300ms",
         easing: "ease-in-out",
+        fill: "none",
       },
     }),
     shivering: _animation({
@@ -739,6 +765,7 @@ export const uiBuiltins = () => ({
         duration: "300ms",
         easing: "ease-in-out",
         iterations: "infinite",
+        fill: "none",
       },
     }),
     flash: _animation({
@@ -760,6 +787,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "120ms",
         easing: "linear",
+        fill: "none",
       },
     }),
     fadeout: _animation({
@@ -773,7 +801,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "0.5s",
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
     fadein: _animation({
@@ -787,7 +815,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "0.5s",
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
     blackout: _animation({
@@ -805,7 +833,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "1s",
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
     blackin: _animation({
@@ -823,7 +851,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "1s",
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
     whiteout: _animation({
@@ -841,7 +869,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "1s",
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
     whitein: _animation({
@@ -859,7 +887,7 @@ export const uiBuiltins = () => ({
       timing: {
         duration: "1s",
         easing: "linear",
-        fill: "forwards",
+        fill: "both",
       },
     }),
   } as Record<string, ReturnType<typeof _animation>>,
