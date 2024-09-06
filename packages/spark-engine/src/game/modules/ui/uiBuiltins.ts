@@ -240,6 +240,7 @@ export const uiBuiltins = () => ({
       width: "100%",
       margin: "0 auto",
       font_size: "1.25rem",
+      text_stroke: 1,
       min_height: 200,
       padding_left: 32,
       padding_right: 32,
@@ -336,7 +337,7 @@ export const uiBuiltins = () => ({
       $name: "stage",
       background: {
         backdrop: {
-          image: {},
+          image: "black",
         },
         portrait: {
           image: {},

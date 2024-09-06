@@ -183,7 +183,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   protected clearElement(element: Element) {
-    this.updateElement(element, { content: { text: "" } });
+    this.updateElement(element, {
+      content: { text: "" },
+      attributes: { text: "" },
+    });
     element.children.forEach((child) => {
       this.destroyElement(child);
     });
@@ -240,6 +243,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   getImageVar(name: string) {
     return `var(${this.getImageVarName(name)})`;
+  }
+
+  getBackgroundImage(value: unknown) {
+    if (value != null && typeof value === "string") {
+      return !value || value === "none"
+        ? "none"
+        : value.includes("gradient(") || value.includes("url(")
+        ? value
+        : `linear-gradient(${value},${value})`;
+    }
+    if (
+      value != null &&
+      typeof value === "object" &&
+      "$ref" in value &&
+      typeof value.$ref === "string"
+    ) {
+      const [type, name] = value.$ref.split(".");
+      if (type === "image" && name) {
+        return this.getImageVar(name);
+      }
+    }
+    return undefined;
   }
 
   getOrCreateRootElement(): Element {
@@ -365,12 +390,31 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             cursor = child;
           } else {
             const isLast = i === path.length - 1;
-            const text = isLast && v && typeof v === "string" ? v : undefined;
+            const parent = path.at(-1);
+            const text =
+              isLast && parent === "text" && typeof v === "string"
+                ? v
+                : undefined;
+            const background_image =
+              isLast && parent === "image"
+                ? this.getBackgroundImage(v)
+                : undefined;
             cursor = this.createElement(cursor, {
               type: "div",
               name: part,
               content: text ? { text } : undefined,
+              attributes: text
+                ? { text }
+                : background_image
+                ? { image: background_image }
+                : undefined,
             });
+            if (background_image) {
+              cursor = this.createElement(cursor, {
+                type: "span",
+                style: background_image ? { background_image } : undefined,
+              });
+            }
           }
         }
       }
@@ -712,7 +756,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             if (sequence) {
               let blockWrapperEl: Element | undefined = undefined;
               let wordWrapperEl: Element | undefined = undefined;
-              let wasSpace = false;
+              let wasSpace: boolean | undefined = undefined;
               let prevTextAlign: string | undefined = undefined;
               sequence.forEach((e) => {
                 const text = e.text;
@@ -748,7 +792,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 const isSpace = text === " " || text === "\t";
                 if (text === "\n" || isSpace) {
                   wordWrapperEl = undefined;
-                } else if (isSpace !== wasSpace) {
+                } else if (wasSpace === undefined || isSpace !== wasSpace) {
                   // this is the start of a word chunk
                   const wordWrapperStyle: Record<string, string | null> = {};
                   wordWrapperStyle["display"] = "inline-block";
@@ -765,8 +809,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 const newSpanEl = $.createElement(textParentEl, {
                   type: "span",
                   content: { text },
-                  style,
                   attributes: { text },
+                  style,
                 });
                 if (!newElements.has(newSpanEl)) {
                   newElements.set(newSpanEl, []);
@@ -965,11 +1009,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     display: null,
                     opacity: "0",
                   };
-                  const combinedBackgroundImage = $.getImageAssetNames(e.assets)
+                  const background_image = $.getImageAssetNames(e.assets)
                     .map((n) => $.getImageVar(n))
                     .reverse()
                     .join(", ");
-                  style["background_image"] = combinedBackgroundImage;
+                  style["background_image"] = background_image;
                   const prevSpanEls = [...contentEl.children];
                   const newSpanEl = $.createElement(contentEl, {
                     type: "span",
