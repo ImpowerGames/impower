@@ -242,7 +242,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getImageVar(name: string) {
-    return `var(${this.getImageVarName(name)})`;
+    return name === "none" ? name : `var(${this.getImageVarName(name)})`;
   }
 
   getBackgroundImage(value: unknown) {
