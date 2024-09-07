@@ -23,11 +23,24 @@ export class Element {
   get name() {
     return this._name;
   }
-  constructor(parent: Element | null, id: string, type: string, name: string) {
+
+  protected _persistent: boolean;
+  get persistent() {
+    return this._persistent;
+  }
+
+  constructor(
+    parent: Element | null,
+    id: string,
+    type: string,
+    name: string,
+    persistent: boolean
+  ) {
     this._parent = parent;
     this._id = id;
     this._type = type;
     this._name = name;
+    this._persistent = persistent;
     parent?.appendChild(this);
   }
 

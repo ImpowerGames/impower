@@ -133,13 +133,9 @@ export class Coordinator<G extends Game> {
     game.module.audio.stopChannel("writer");
 
     const updateUI = () => {
-      game.module.ui.text.clearStaleContent(
-        (target) => !game.context?.["style"]?.[target]?.["preserve_text"]
-      );
-      game.module.ui.image.clearStaleContent(
-        (target) =>
-          !game.context?.["style"]?.[target]?.["preserve_image"] &&
-          !instructions.image?.[target]
+      game.module.ui.text.clearTransientLayers();
+      game.module.ui.image.clearTransientLayers((target) =>
+        Boolean(instructions.image?.[target])
       );
 
       // Display click indicator
@@ -157,12 +153,8 @@ export class Coordinator<G extends Game> {
       // Process button events
       instructions.choices?.forEach((target, index) => {
         const handleClick = (): void => {
-          game.module.ui.text.clearStaleContent(
-            (target) => !game.context?.["style"]?.[target]?.["preserve_text"]
-          );
-          game.module.ui.image.clearStaleContent(
-            (target) => !game.context?.["style"]?.[target]?.["preserve_image"]
-          );
+          game.module.ui.text.clearTransientLayers();
+          game.module.ui.image.clearTransientLayers();
           game.module.ui.unobserve("click", target);
           game.choose(index);
           game.continue();

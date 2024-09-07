@@ -145,11 +145,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const id = this.generateId();
     const name = state?.name || "";
     const type = state?.type || "div";
+    const persistent = state?.persistent ?? false;
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
     const breakpoints = this.context?.config?.ui?.breakpoints;
-    const el = new Element(parent, id, type, name);
+    const el = new Element(parent, id, type, name, persistent);
     const isRootElement = !parent;
     if (isRootElement) {
       this._root = el;
@@ -185,7 +186,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   protected clearElement(element: Element) {
     this.updateElement(element, {
       content: { text: "" },
-      attributes: { text: "" },
     });
     element.children.forEach((child) => {
       this.destroyElement(child);
@@ -403,11 +403,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               type: "div",
               name: part,
               content: text ? { text } : undefined,
-              attributes: text
-                ? { text }
-                : background_image
-                ? { image: background_image }
-                : undefined,
+              persistent: text != null || background_image != null,
             });
             if (background_image) {
               cursor = this.createElement(cursor, {
@@ -809,7 +805,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 const newSpanEl = $.createElement(textParentEl, {
                   type: "span",
                   content: { text },
-                  attributes: { text },
                   style,
                 });
                 if (!newElements.has(newSpanEl)) {
@@ -885,9 +880,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      clearStaleContent(isStale?: (target: string) => boolean): void {
-        this.getTargets().forEach((target) => {
-          if (isStale?.(target)) {
+      clearTransientLayers(shouldPreserve?: (target: string) => boolean): void {
+        this.getTransientLayers().forEach((target) => {
+          if (!shouldPreserve || !shouldPreserve(target)) {
             this.clearContent(target);
           }
         });
@@ -904,19 +899,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      getTargets(): string[] {
+      getTransientLayers(): string[] {
         const targets = new Set<string>();
-        if ($._state.text) {
-          Object.entries($._state.text).forEach(([target]) => {
-            targets.add(target);
-          });
-        }
         $.findElements("text").forEach((textEl) => {
-          const parent = textEl.parent;
-          if (parent) {
-            const mainTag = parent.name;
-            if (mainTag) {
-              targets.add(mainTag);
+          if (!textEl.persistent) {
+            const parent = textEl.parent;
+            if (parent) {
+              const target = parent.name;
+              if (target) {
+                targets.add(target);
+              }
             }
           }
         });
@@ -1100,9 +1092,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      clearStaleContent(isStale?: (target: string) => boolean): void {
-        this.getTargets().forEach((target) => {
-          if (isStale?.(target)) {
+      clearTransientLayers(shouldPreserve?: (target: string) => boolean): void {
+        this.getTransientLayers().forEach((target) => {
+          if (!shouldPreserve || !shouldPreserve(target)) {
             this.clearContent(target);
           }
         });
@@ -1119,19 +1111,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
-      getTargets(): string[] {
+      getTransientLayers(): string[] {
         const targets = new Set<string>();
-        if ($._state.image) {
-          Object.entries($._state.image).forEach(([target]) => {
-            targets.add(target);
-          });
-        }
         $.findElements("image").forEach((imageEl) => {
-          const parent = imageEl.parent;
-          if (parent) {
-            const mainTag = parent.name;
-            if (mainTag) {
-              targets.add(mainTag);
+          if (!imageEl.persistent) {
+            const parent = imageEl.parent;
+            if (parent) {
+              const target = parent.name;
+              if (target) {
+                targets.add(target);
+              }
             }
           }
         });
