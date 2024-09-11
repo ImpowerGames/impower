@@ -1891,7 +1891,8 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineContinue" }
+      - { include: "#LineBreak" }
+      - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
@@ -1928,11 +1929,11 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#BlockDialogueLineEnd" }
+      - { include: "#BlockDialogueLineBreak" }
       - { include: "#BlockDialogueLineContinue" }
     end: (?=^{{WS}}*$)
 
-  BlockDialogueLineEnd:
+  BlockDialogueLineBreak:
     match: ({{WS}}*)(.*?)([+])({{EOL}})
     captures:
       1:
@@ -2052,7 +2053,8 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineContinue" }
+      - { include: "#LineBreak" }
+      - { include: "#LineChain" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
@@ -2072,7 +2074,8 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineContinue" }
+      - { include: "#LineBreak" }
+      - { include: "#LineChain" }
       - { include: "#LineEnd" }
     end: (?=^{{WS}}*$)|(?=\r\n|\r|\n)
 
@@ -2097,7 +2100,8 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineContinue" }
+      - { include: "#LineBreak" }
+      - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
       - { include: "#LineEnd" }
@@ -2146,7 +2150,7 @@ repository:
 
 ########## Text ##########
 
-  LineContinue:
+  LineChain:
     match: ({{WS}}*)(.*?)([\\](?:$|{{WS}}+))({{EOL}})(\r\n|\r|\n)?
     captures:
       1:
@@ -2164,6 +2168,22 @@ repository:
       5:
         patterns:
           - { include: "#Newline" }
+
+  LineBreak:
+    match: ({{WS}}*)(.*?)([+])({{EOL}})
+    captures:
+      1:
+        patterns:
+          - { include: "#Indent" }
+      2:
+        patterns:
+          - { include: "#DisplayLine" }
+      3:
+        patterns:
+          - { include: "#Break" }
+      4:
+        patterns:
+          - { include: "#EndOfLine" }
 
   LineEnd:
     begin: ({{WS}}*)(?=\S+)

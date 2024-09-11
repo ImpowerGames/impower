@@ -3309,7 +3309,10 @@
           "include": "#Newline"
         },
         {
-          "include": "#LineContinue"
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
         },
         {
           "include": "#AssetLine"
@@ -3381,7 +3384,7 @@
           "include": "#Newline"
         },
         {
-          "include": "#BlockDialogueLineEnd"
+          "include": "#BlockDialogueLineBreak"
         },
         {
           "include": "#BlockDialogueLineContinue"
@@ -3389,7 +3392,7 @@
       ],
       "end": "(?=^[^\\S\\n\\r]*$)"
     },
-    "BlockDialogueLineEnd": {
+    "BlockDialogueLineBreak": {
       "match": "([^\\S\\n\\r]*)(.*?)([+])((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
       "captures": {
         "1": {
@@ -3614,7 +3617,10 @@
           "include": "#Newline"
         },
         {
-          "include": "#LineContinue"
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
         },
         {
           "include": "#LineEnd"
@@ -3647,7 +3653,10 @@
           "include": "#Newline"
         },
         {
-          "include": "#LineContinue"
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
         },
         {
           "include": "#LineEnd"
@@ -3694,7 +3703,10 @@
           "include": "#Newline"
         },
         {
-          "include": "#LineContinue"
+          "include": "#LineBreak"
+        },
+        {
+          "include": "#LineChain"
         },
         {
           "include": "#AssetLine"
@@ -3783,7 +3795,7 @@
         }
       }
     },
-    "LineContinue": {
+    "LineChain": {
       "match": "([^\\S\\n\\r]*)(.*?)([\\\\](?:$|[^\\S\\n\\r]+))((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))(\\r\\n|\\r|\\n)?",
       "captures": {
         "1": {
@@ -3818,6 +3830,39 @@
           "patterns": [
             {
               "include": "#Newline"
+            }
+          ]
+        }
+      }
+    },
+    "LineBreak": {
+      "match": "([^\\S\\n\\r]*)(.*?)([+])((?:$|[^\\S\\n\\r]*$|[^\\S\\n\\r]*(?:[#]+(?:$|[^\\S\\n\\r]+)).*$|[^\\S\\n\\r]*[/][/].*$))",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DisplayLine"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Break"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
             }
           ]
         }

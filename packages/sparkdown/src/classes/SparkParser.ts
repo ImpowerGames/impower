@@ -134,9 +134,9 @@ export default class SparkParser {
         // Annotate dialogue line with implicit character name and flow marker
         if (
           nodeType === "BlockDialogueLineContinue" ||
-          nodeType === "BlockDialogueLineEnd"
+          nodeType === "BlockDialogueLineBreak"
         ) {
-          if (prevNodeType.startsWith("BlockDialogueLineEnd")) {
+          if (prevNodeType.startsWith("BlockDialogueLineBreak")) {
             const lineTextBefore = lineText.slice(0, transpiledNodeStart);
             const lineTextAfter = lineText.slice(transpiledNodeStart);
             const prefix = blockDialoguePrefix + ": ";
