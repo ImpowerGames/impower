@@ -67,6 +67,9 @@ const Component = <
     get context() {
       return this.#context;
     }
+    set context(value) {
+      this.#context = value;
+    }
 
     #props: Props = Object.keys(CustomElement.attrs).reduce((obj, key) => {
       const propName = key as keyof this;

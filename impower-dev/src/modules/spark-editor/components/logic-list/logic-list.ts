@@ -15,6 +15,7 @@ export default class LogicList extends Component(spec) {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "logic-panel") {
         const panel = e.detail.value;
+        this.context.panel = panel;
         Workspace.window.openedPanel("logic", panel);
         if (panel === "main") {
           Workspace.window.openedFileEditor("main.script");

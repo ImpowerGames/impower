@@ -62,7 +62,6 @@ export interface EditorState {
   filename?: string;
   visibleRange?: Range;
   selectedRange?: Range;
-  breakpointRanges?: Range[];
 }
 
 export interface PanelState {

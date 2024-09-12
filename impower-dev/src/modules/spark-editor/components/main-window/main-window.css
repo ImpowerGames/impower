@@ -2,15 +2,14 @@
   display: contents;
 }
 
-:host > .scrollable {
+.scrollable {
   flex: 1;
   display: flex;
   flex-direction: column;
-  position: relative;
 }
 
 @media (min-width: 960px) {
-  :host > .scrollable {
+  .scrollable {
     overflow-y: scroll;
     overflow-x: clip;
     pointer-events: auto;

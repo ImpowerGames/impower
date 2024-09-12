@@ -29,13 +29,12 @@ import LogicScriptEditor from "./components/logic-script-editor/_logic-script-ed
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/_logic-scripts-list";
 import Logic from "./components/logic/_logic";
-import MainPanel from "./components/main-panel/_main-panel";
+import MainWindow from "./components/main-window/_main-window";
 import Notifications from "./components/notifications/_notifications";
 import OptionButton from "./components/option-button/_option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/_preview-game-toolbar";
 import PreviewGame from "./components/preview-game/_preview-game";
 import PreviewOptionsDropdown from "./components/preview-mode-toggle/_preview-mode-toggle";
-import PreviewPanel from "./components/preview-panel/_preview-panel";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/_preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/_preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/_preview-toggle-button";
@@ -101,12 +100,11 @@ const components = [
   style(Share),
   style(ShareGame),
   style(ShareScreenplay),
-  style(MainPanel),
+  style(MainWindow),
   style(EditToggleButton),
   style(PreviewToggleButton),
   style(PreviewOptionsDropdown),
   style(Preview),
-  style(PreviewPanel),
   style(Notifications),
   style(Account),
   style(HeaderSyncConflictToolbar),

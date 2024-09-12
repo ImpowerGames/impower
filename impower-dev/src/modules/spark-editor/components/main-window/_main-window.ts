@@ -1,16 +1,47 @@
 import { html, spec } from "../../../../../../packages/spec-component/src/spec";
-import css from "../../styles/shared";
+import sharedCSS from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
+import css from "./main-window.css";
 
 export default spec({
-  tag: "se-footer-navigation",
+  tag: "se-main-window",
   stores: { workspace },
   reducer: ({ workspace }) => ({
     pane: workspace?.current?.pane || "logic",
+    projectId: workspace?.current?.project?.id || "",
   }),
   html: ({ context }) => {
-    const { pane } = context;
+    const projectId = context.projectId;
+    const pane = projectId ? context.pane : "";
     return html`
+      <s-split-pane
+        id="splitPane"
+        grow
+        min-panel-width="336px"
+        resizer-color="scrollbar-track"
+        divider-offset="0"
+        divider-color="fg-06"
+        responsive="hide"
+      >
+        <div class="scrollable" slot="start">
+          <s-router key="pane" event-source="window" active="${pane}">
+            <template value="logic">
+              <se-logic></se-logic>
+            </template>
+            <template value="assets">
+              <se-assets></se-assets>
+            </template>
+            <template value="share">
+              <se-share></se-share>
+            </template>
+          </s-router>
+        </div>
+        <div class="scrollable" slot="end">
+          <s-box position="relative" bg-color="black" grow>
+            <se-preview></se-preview>
+          </s-box>
+        </div>
+      </s-split-pane>
       <se-notifications></se-notifications>
       <s-hidden
         if-below="lg"
@@ -30,12 +61,7 @@ export default spec({
           <s-box position="fixed-bottom">
             <s-box bg-color="primary-bg">
               <s-divider bg-color="fg-06"></s-divider>
-              <s-tabs
-                active="logic"
-                indicator="none"
-                height="footer-nav"
-                active="${pane}"
-              >
+              <s-tabs indicator="none" height="footer-nav" active="${pane}">
                 <s-tab
                   color="tab-active"
                   text-color="tab-inactive"
@@ -73,5 +99,5 @@ export default spec({
       </s-hidden>
     `;
   },
-  css,
+  css: [...sharedCSS, css],
 });

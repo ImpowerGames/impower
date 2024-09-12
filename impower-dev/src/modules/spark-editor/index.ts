@@ -30,13 +30,12 @@ import LogicScriptEditor from "./components/logic-script-editor/logic-script-edi
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
 import LogicScriptsList from "./components/logic-scripts-list/logic-scripts-list";
 import Logic from "./components/logic/logic";
-import MainPanel from "./components/main-panel/main-panel";
+import MainWindow from "./components/main-window/main-window";
 import Notifications from "./components/notifications/notifications";
 import OptionButton from "./components/option-button/option-button";
 import PreviewGameToolbar from "./components/preview-game-toolbar/preview-game-toolbar";
 import PreviewGame from "./components/preview-game/preview-game";
 import PreviewOptionsDropdown from "./components/preview-mode-toggle/preview-mode-toggle";
-import PreviewPanel from "./components/preview-panel/preview-panel";
 import PreviewScreenplayToolbar from "./components/preview-screenplay-toolbar/preview-screenplay-toolbar";
 import PreviewScreenplay from "./components/preview-screenplay/preview-screenplay";
 import PreviewToggleButton from "./components/preview-toggle-button/preview-toggle-button";
@@ -72,7 +71,7 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   ShareGame,
   ShareScreenplay,
   Demo,
-  MainPanel,
+  MainWindow,
   PreviewGameToolbar,
   PreviewGame,
   PreviewScreenplayToolbar,
@@ -81,7 +80,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   PreviewToggleButton,
   EditToggleButton,
   Preview,
-  PreviewPanel,
   Notifications,
   Account,
   HeaderSyncConflictToolbar,

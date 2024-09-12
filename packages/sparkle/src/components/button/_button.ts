@@ -65,7 +65,6 @@ export default spec({
   selectors: {
     input: null,
     ripple: "s-ripple",
-    badge: "s-badge",
     icon: ".icon",
     label: ".label",
     spinner: ".spinner",

@@ -16,10 +16,8 @@
   --duration: 100ms;
   --color: var(--s-color-primary-60);
   --text-color: var(--s-color-neutral-60);
-  --hover-color: var(--s-color-neutral-90);
   --padding-tb: 16px;
   --padding-lr: 20px;
-  --hover-opacity: var(--s-opacity-hover);
 }
 
 :host(:not([child-layout="row"])) {
@@ -47,7 +45,7 @@
   font-family: var(--text-font);
   font-size: var(--text-size);
   font-weight: var(--text-weight);
-  color: var(--text-color);
+  color: var(--inactive-text-color, var(--text-color));
   background-color: transparent;
   white-space: var(--text-wrap);
   transition-property: var(--transition-property);
@@ -64,7 +62,7 @@
 }
 
 :host([active]:not([disabled])) > .root {
-  color: var(--color) !important;
+  color: var(--active-text-color, var(--color)) !important;
 }
 
 :host([active]:not([disabled], [status="activating"], [status="deactivating"]))
@@ -81,11 +79,13 @@
 :host > .root > .ripple {
   position: absolute;
   inset: 0;
+  color: var(--color) !important;
 }
 
 :host > .root > .icon,
 :host > .root > .label {
   display: flex;
+  flex-direction: var(--child-layout);
   align-items: var(--child-align);
   justify-content: var(--child-justify);
   transition-duration: var(--duration);
@@ -131,7 +131,7 @@
   height: 100%;
   will-change: transform, opacity;
   transition-property: none;
-  color: var(--text-color);
+  color: var(--inactive-text-color, var(--text-color));
 }
 :host([icon]:not([active])) > .root > .icon > .inactive-icon {
   display: flex;
@@ -150,7 +150,7 @@
   height: 100%;
   will-change: transform, opacity;
   transition-property: none;
-  color: var(--color);
+  color: var(--active-text-color, var(--color));
 }
 :host([icon]:not([active])) > .root > .icon > .active-icon {
   display: none;

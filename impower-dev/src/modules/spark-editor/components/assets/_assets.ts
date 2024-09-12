@@ -5,8 +5,11 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-assets",
   stores: { workspace },
-  html: ({ stores }) => {
-    const panel = stores?.workspace?.current?.panes?.assets?.panel || "files";
+  reducer: ({ workspace }) => ({
+    panel: workspace?.current?.panes?.assets?.panel || "files",
+  }),
+  html: ({ context }) => {
+    const { panel } = context;
     return html`
       <s-router key="assets-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">

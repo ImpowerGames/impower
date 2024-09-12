@@ -5,10 +5,9 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-logic-list",
   stores: { workspace },
-  reducer: ({ workspace }) =>
-    ({
-      panel: workspace?.current?.panes?.logic?.panel || "main",
-    } as const),
+  reducer: ({ workspace }) => ({
+    panel: workspace?.current?.panes?.logic?.panel || "main",
+  }),
   html: ({ context }) => {
     const { panel } = context;
     return html`

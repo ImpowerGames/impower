@@ -1,8 +1,8 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { Workspace } from "../../workspace/Workspace";
-import spec from "./_main-panel";
+import spec from "./_main-window";
 
-export default class MainPanel extends Component(spec) {
+export default class MainWindow extends Component(spec) {
   override onConnected() {
     this.ownerDocument.addEventListener("enter", this.handleEnter);
   }
@@ -14,8 +14,9 @@ export default class MainPanel extends Component(spec) {
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "pane") {
-        const value = e.detail.value;
-        Workspace.window.openedPane(value);
+        const pane = e.detail.value;
+        this.context.pane = pane;
+        Workspace.window.openedPane(pane);
       }
     }
   };

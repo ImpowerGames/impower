@@ -18,6 +18,8 @@ const DEFAULT_TRANSFORMERS = {
   icon: (v: string) => getCssIcon(v),
   "active-icon": (v: string) => getCssIcon(v),
   "icon-size": getCssSize,
+  "active-text-color": getCssColor,
+  "inactive-text-color": getCssColor,
   "hover-color": getCssColor,
 };
 
@@ -150,6 +152,26 @@ export default class Tab
   }
   set iconSize(value) {
     this.setStringAttribute(Tab.attrs.iconSize, value);
+  }
+
+  /**
+   * The inactive text color.
+   */
+  get inactiveTextColor(): string | null {
+    return this.getStringAttribute(Tab.attrs.inactiveTextColor);
+  }
+  set inactiveTextColor(value) {
+    this.setStringAttribute(Tab.attrs.inactiveTextColor, value);
+  }
+
+  /**
+   * The active text color.
+   */
+  get activeTextColor(): string | null {
+    return this.getStringAttribute(Tab.attrs.activeTextColor);
+  }
+  set activeTextColor(value) {
+    this.setStringAttribute(Tab.attrs.activeTextColor, value);
   }
 
   /**

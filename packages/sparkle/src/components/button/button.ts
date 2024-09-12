@@ -37,7 +37,6 @@ const DEFAULT_ATTRIBUTES = {
     "type",
     "autofocus",
     "disabled",
-    "loading",
     "variant",
     "label",
     "value",
@@ -109,16 +108,6 @@ export default class Button
   }
   set key(value) {
     this.setStringAttribute(Button.attrs.key, value);
-  }
-
-  /**
-   * Whether or not the content of this button should be replaced with a loading spinner.
-   */
-  get loading(): boolean {
-    return this.getBooleanAttribute(Button.attrs.loading);
-  }
-  set loading(value) {
-    this.setStringAttribute(Button.attrs.loading, value);
   }
 
   /**
@@ -322,12 +311,6 @@ export default class Button
         ripple.hidden = newValue != null;
       }
     }
-    if (name === Button.attrs.loading) {
-      const ripple = this.ref.ripple;
-      if (ripple) {
-        ripple.hidden = newValue != null;
-      }
-    }
     if (name === Button.attrs.mask) {
       const ripple = this.ref.ripple;
       if (ripple) {
@@ -342,25 +325,6 @@ export default class Button
       const iconEl = this.ref.icon;
       if (iconEl) {
         iconEl.hidden = newValue == null;
-      }
-    }
-    if (name === Button.attrs.loading) {
-      const loading = newValue != null;
-      const ripple = this.ref.ripple;
-      const labelEl = this.ref.label;
-      const iconEl = this.ref.icon;
-      const spinnerEl = this.ref.spinner;
-      if (ripple) {
-        ripple.hidden = loading;
-      }
-      if (labelEl) {
-        labelEl.ariaHidden = loading ? "true" : null;
-      }
-      if (iconEl) {
-        iconEl.ariaHidden = loading ? "true" : null;
-      }
-      if (spinnerEl) {
-        spinnerEl.hidden = !loading;
       }
     }
     if (name === Button.attrs.label) {
@@ -435,16 +399,6 @@ export default class Button
   protected handleInputChange = (e: Event) => {
     this.propagateEvent(e);
   };
-
-  protected override onContentAssigned(children: Element[]) {
-    const nodes = children;
-    nodes.forEach((node) => {
-      if (node.nodeName.toLowerCase() === this.selectors.badge) {
-        const el = node as HTMLElement;
-        el.setAttribute("float", this.getAttribute("rtl") ? "left" : "right");
-      }
-    });
-  }
 
   emitChange(value: string | null) {
     const rect = this.root?.getBoundingClientRect();

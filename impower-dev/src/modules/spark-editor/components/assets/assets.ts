@@ -15,6 +15,7 @@ export default class Assets extends Component(spec) {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "assets-panel") {
         const panel = e.detail.value;
+        this.context.panel = panel;
         Workspace.window.openedPanel("assets", panel);
       }
     }
