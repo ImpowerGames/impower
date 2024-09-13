@@ -788,7 +788,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 const textAlign = e.style?.text_align;
                 if (textAlign) {
                   // text_align must be applied to a parent element
-                  if (prevTextAlign !== textAlign) {
+                  if (textAlign !== prevTextAlign) {
                     // group consecutive spans that have the same text alignment under the same block wrapper
                     blockWrapperEl = $.createElement(contentEl, {
                       type: "div",
@@ -801,7 +801,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 } else {
                   blockWrapperEl = undefined;
                 }
-                prevTextAlign = textAlign;
                 // Support consecutive whitespace collapsing
                 const style: Record<string, string | null> = {
                   display: null,
@@ -815,7 +814,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 const isSpace = text === " " || text === "\t";
                 if (text === "\n" || isSpace) {
                   wordWrapperEl = undefined;
-                } else if (wasSpace === undefined || isSpace !== wasSpace) {
+                } else if (
+                  wasSpace === undefined ||
+                  isSpace !== wasSpace ||
+                  textAlign !== prevTextAlign
+                ) {
                   // this is the start of a word chunk
                   const wordWrapperStyle: Record<string, string | null> = {};
                   wordWrapperStyle["display"] = "inline-block";
@@ -824,6 +827,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     style: wordWrapperStyle,
                   });
                 }
+                prevTextAlign = textAlign;
                 wasSpace = isSpace;
                 // Append text to wordWrapper, blockWrapper, or content
                 const textParentEl =
