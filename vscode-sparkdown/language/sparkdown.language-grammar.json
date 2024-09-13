@@ -437,7 +437,7 @@
     "DefineDeclaration": {
       "tag": "meta",
       "name": "meta.definition.type.sd",
-      "begin": "^([^\\S\\n\\r]*)(DEFINE)($|[^\\S\\n\\r]+)([^:]*?)($|[^\\S\\n\\r]*)($|[:])($|[^\\S\\n\\r]*$)(\\r\\n|\\r|\\n)?",
+      "begin": "^([^\\S\\n\\r]*)(DEFINE)((?:$|[^\\S\\n\\r]+|(?=(?:[#]+(?:$|[^\\S\\n\\r]+))|[/][/]|[/][*])))(.*?)([^\\S\\n\\r]*)($|[:])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -453,17 +453,14 @@
         "3": {
           "patterns": [
             {
-              "include": "#Whitespace"
+              "include": "#EndOfKeyword"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#TypeName"
-            },
-            {
-              "include": "#VariableAccessor"
+              "include": "#AccessPath"
             }
           ]
         },
@@ -478,20 +475,6 @@
           "patterns": [
             {
               "include": "#DeclarationAssignOperator"
-            }
-          ]
-        },
-        "7": {
-          "patterns": [
-            {
-              "include": "#Whitespace"
-            }
-          ]
-        },
-        "8": {
-          "patterns": [
-            {
-              "include": "#Newline"
             }
           ]
         }
@@ -4238,6 +4221,9 @@
             },
             {
               "include": "#AssetCommandName"
+            },
+            {
+              "include": "#StringLiteral"
             },
             {
               "include": "#CombineOperator"

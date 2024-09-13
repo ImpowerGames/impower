@@ -1899,7 +1899,7 @@ export class InkParser extends StringParser {
     if (
       path === null ||
       Story.IsReservedKeyword(path[0]?.name) ||
-      path.length != 2
+      path.length > 2
     ) {
       return null;
     }

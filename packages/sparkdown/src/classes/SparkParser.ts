@@ -75,6 +75,7 @@ export default class SparkParser {
     let linePos = 0;
     let prevNodeType = "";
     let blockDialoguePrefix = "";
+    let structType = "";
     const generateID = () => {
       while (true) {
         const id = uuid();
@@ -189,11 +190,37 @@ export default class SparkParser {
             program.uuidToSource[id] = [fileIndex, lineIndex];
           }
         }
+        if (
+          nodeType === "TypeName" &&
+          stack.includes("DefineDeclaration_begin")
+        ) {
+          structType = text;
+        }
         // Record reference in struct field value
         if (nodeType === "AccessPath" && stack.at(-1) === "StructFieldValue") {
           const selectors = [text];
-          const [type, name] = text.split(".");
-          const description = `${type} named '${name}'`;
+          let [type, name] = text.split(".");
+          let description = `${type} named '${name}'`;
+          if (type && !name) {
+            name = type;
+            // Infer type
+            if (
+              structType === "image_group" ||
+              structType === "ui" ||
+              structType === "style"
+            ) {
+              selectors.push(
+                `image.${name}`,
+                `image_group.${name}`,
+                `graphic.${name}`
+              );
+              description = `image, image_group, or graphic named '${name}'`;
+            }
+            if (structType === "audio_group") {
+              selectors.push(`audio.${name}`, `synth.${name}`);
+              description = `audio or synth named '${name}'`;
+            }
+          }
           program.references ??= {};
           program.references[uri] ??= {};
           program.references[uri][lineIndex] ??= [];
@@ -241,11 +268,11 @@ export default class SparkParser {
           const selectors =
             prevChar === "~"
               ? [`image_filter.${text}`]
-              : [`image.${text}`, `graphic.${text}`];
+              : [`image.${text}`, `image_group.${text}`, `graphic.${text}`];
           const description =
             prevChar === "~"
               ? `image_filter named '${text}'`
-              : `image or graphic named '${text}'`;
+              : `image, image_group, or graphic named '${text}'`;
           program.references ??= {};
           program.references[uri] ??= {};
           program.references[uri][lineIndex] ??= [];
@@ -261,11 +288,11 @@ export default class SparkParser {
           const selectors =
             prevChar === "~"
               ? [`audio_filter.${text}`]
-              : [`audio.${text}`, `synth.${text}`];
+              : [`audio.${text}`, `audio_group.${text}`, `synth.${text}`];
           const description =
             prevChar === "~"
               ? `audio_filter named '${text}'`
-              : `audio or synth named '${text}'`;
+              : `audio, audio_group, or synth named '${text}'`;
           program.references ??= {};
           program.references[uri] ??= {};
           program.references[uri][lineIndex] ??= [];
@@ -548,11 +575,14 @@ export default class SparkParser {
             lines[lineIndex] = lineTextBefore + markup + lineTextAfter;
           }
         }
+        if (nodeType === "DefineDeclaration") {
+          structType = "";
+        }
         stack.pop();
       },
     });
     const transpiled = lines.join("\n");
-    // console.log(printTree(tree, script, nodeNames));
+    console.log(printTree(tree, script, nodeNames));
     // console.log(transpiled);
     return transpiled;
   }

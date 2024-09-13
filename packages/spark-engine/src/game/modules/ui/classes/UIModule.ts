@@ -44,6 +44,7 @@ import {
   UpdateElementMessage,
   UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
+import { Image } from "../types/Image";
 
 const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
 
@@ -234,10 +235,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getImageVarName(name: string) {
-    return `--image_${name.replaceAll(INVALID_VAR_NAME_CHAR, "_")}`;
+    return `--image_${name?.replaceAll(INVALID_VAR_NAME_CHAR, "_")}`;
   }
 
-  getImageVarValue(src: string) {
+  getImageUrl(src: string) {
     return `url("${src}")`;
   }
 
@@ -245,13 +246,17 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return name === "none" ? name : `var(${this.getImageVarName(name)})`;
   }
 
-  getBackgroundImage(value: unknown) {
+  getBackgroundImageFromString(value: string) {
+    return !value || value === "none"
+      ? "none"
+      : value.includes("gradient(") || value.includes("url(")
+      ? value
+      : `linear-gradient(${value},${value})`;
+  }
+
+  getBackgroundImageFromValue(value: unknown) {
     if (value != null && typeof value === "string") {
-      return !value || value === "none"
-        ? "none"
-        : value.includes("gradient(") || value.includes("url(")
-        ? value
-        : `linear-gradient(${value},${value})`;
+      return this.getBackgroundImageFromString(value);
     }
     if (
       value != null &&
@@ -259,12 +264,28 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       "$ref" in value &&
       typeof value.$ref === "string"
     ) {
-      const [type, name] = value.$ref.split(".");
+      let [type, name] = value.$ref.split(".");
       if (type === "image" && name) {
+        return this.getImageVar(name);
+      } else if (type && !name) {
+        name = type;
         return this.getImageVar(name);
       }
     }
     return undefined;
+  }
+
+  getBackgroundImagesFromArgument(asset: string) {
+    if (asset.at(0) === '"' && asset.at(-1) === '"') {
+      const literalStringValue = asset.slice(1, -1);
+      return this.getBackgroundImageFromString(literalStringValue);
+    } else {
+      return this.getImageVar(asset);
+    }
+  }
+
+  getBackgroundImagesFromArguments(assets: string[]) {
+    return assets.map((asset) => this.getBackgroundImagesFromArgument(asset));
   }
 
   getOrCreateRootElement(): Element {
@@ -278,35 +299,26 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // TODO: Declare asset variables in style element instead?
     const images = this.context?.image;
     if (images) {
-      Object.entries(images).forEach(([name, image]) => {
-        if (
-          image &&
-          typeof image === "object" &&
-          "src" in image &&
-          typeof image.src === "string"
-        ) {
-          if (name !== "default") {
-            style[this.getImageVarName(name)] = this.getImageVarValue(
-              image.src
-            );
-          }
+      Object.entries(images).forEach(([name]) => {
+        if (name !== "default") {
+          style[this.getImageVarName(name)] = this.getImageAssets("image", name)
+            .map((asset) => this.getImageUrl(asset.src))
+            .reverse()
+            .join(", ");
         }
       });
     }
     const imageGroups = this.context?.image_group;
     if (imageGroups) {
-      Object.entries(imageGroups).forEach(([name, imageGroup]) => {
-        if (
-          imageGroup &&
-          typeof imageGroup === "object" &&
-          "src" in imageGroup &&
-          typeof imageGroup.src === "string"
-        ) {
-          if (name !== "default") {
-            style[this.getImageVarName(name)] = this.getImageVarValue(
-              imageGroup.src
-            );
-          }
+      Object.entries(imageGroups).forEach(([name]) => {
+        if (name !== "default") {
+          style[this.getImageVarName(name)] = this.getImageAssets(
+            "image_group",
+            name
+          )
+            .map((asset) => this.getImageUrl(asset.src))
+            .reverse()
+            .join(", ");
         }
       });
     }
@@ -397,7 +409,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 : undefined;
             const background_image =
               isLast && parent === "image"
-                ? this.getBackgroundImage(v)
+                ? this.getBackgroundImageFromValue(v)
                 : undefined;
             cursor = this.createElement(cursor, {
               type: "div",
@@ -545,23 +557,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     return this.findElements(target).map((c) => c.id);
   }
 
-  getImageAssetNames(assetNames: string[]) {
-    const names: string[] = [];
-    assetNames.forEach((assetName) => {
-      if (assetName) {
-        const value = (this.context?.image_group?.[assetName] ||
-          this.context?.image?.[assetName]) as
-          | { $name: string; src: string }
-          | { assets: { $name: string; src: string }[] };
-        const assets = Array.isArray(value) ? value : [value];
-        assets.forEach((asset) => {
-          if (asset) {
-            names.push(asset.$name);
-          }
-        });
+  getImageAssets(type: string, name: string) {
+    if (type === "image") {
+      const image = this.context?.image?.[name];
+      if (image) {
+        return [image];
       }
-    });
-    return names;
+    }
+    if (type === "image_group") {
+      const imageGroup = this.context?.image_group?.[name];
+      if (imageGroup) {
+        const images: Image[] = [];
+        for (const asset of imageGroup.assets) {
+          if (asset.$ref.includes(".")) {
+            let [type, name] = asset.$ref.split(".");
+            if (type === "image_group" && name) {
+              images.push(...this.getImageAssets(type, name));
+            }
+            if (type === "image" && name) {
+              const image = this.context?.image?.[name];
+              if (image) {
+                images.push(image);
+              }
+            }
+          } else {
+            images.push(...this.getImageAssets("image_group", asset.$ref));
+            images.push(...this.getImageAssets("image", asset.$ref));
+          }
+        }
+        return images;
+      }
+    }
+    return [];
   }
 
   queueAnimationEvent(
@@ -1001,8 +1028,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     display: null,
                     opacity: "0",
                   };
-                  const background_image = $.getImageAssetNames(e.assets)
-                    .map((n) => $.getImageVar(n))
+                  const background_image = $.getBackgroundImagesFromArguments(
+                    e.assets
+                  )
                     .reverse()
                     .join(", ");
                   style["background_image"] = background_image;

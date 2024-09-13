@@ -270,7 +270,7 @@ repository:
   DefineDeclaration:
     tag: meta
     name: meta.definition.type.sd
-    begin: ^({{WS}}*)(DEFINE)($|{{WS}}+)([^:]*?)($|{{WS}}*)($|[:])($|{{WS}}*$)(\r\n|\r|\n)?
+    begin: ^({{WS}}*)(DEFINE)({{EOK}})(.*?)({{WS}}*)($|[:])
     beginCaptures:
       1:
         patterns:
@@ -280,23 +280,16 @@ repository:
         name: keyword.control.definition.object.sd
       3:
         patterns:
-          - { include: "#Whitespace" }
+          - { include: "#EndOfKeyword" }
       4:
         patterns:
-          - { include: "#TypeName" }
-          - { include: "#VariableAccessor" }
+          - { include: "#AccessPath" }
       5:
         patterns:
           - { include: "#Whitespace" }
       6:
         patterns:
           - { include: "#DeclarationAssignOperator" }
-      7:
-        patterns:
-          - { include: "#Whitespace" }
-      8:
-        patterns:
-          - { include: "#Newline" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#StructField" }
@@ -2390,6 +2383,7 @@ repository:
           - { include: "#Whitespace" }
           - { include: "#AssetCommandKeywordNone" }
           - { include: "#AssetCommandName" }
+          - { include: "#StringLiteral" }
           - { include: "#CombineOperator" }
 
   AssetCommandKeywordNone:
