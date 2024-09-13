@@ -16,7 +16,6 @@ import FileListBorder from "./components/file-list-border/_file-list-border";
 import FileList from "./components/file-list/_file-list";
 import FileOptionsButton from "./components/file-options-button/_file-options-button";
 import FileUploadButton from "./components/file-upload-button/_file-upload-button";
-import FooterNavigation from "./components/footer-navigation/_footer-navigation";
 import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/_header-sync-conflict-toolbar";
@@ -113,7 +112,6 @@ const components = [
   style(HeaderTitleButton),
   style(HeaderTitleCaption),
   style(HeaderNavigation),
-  style(FooterNavigation),
   style(Main),
   style(Demo),
 ] as const;

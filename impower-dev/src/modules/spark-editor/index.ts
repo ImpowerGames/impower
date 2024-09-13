@@ -17,7 +17,6 @@ import FileListBorder from "./components/file-list-border/file-list-border";
 import FileList from "./components/file-list/file-list";
 import FileOptionsButton from "./components/file-options-button/file-options-button";
 import FileUploadButton from "./components/file-upload-button/file-upload-button";
-import FooterNavigation from "./components/footer-navigation/footer-navigation";
 import HeaderMenuButton from "./components/header-menu-button/header-menu-button";
 import HeaderNavigation from "./components/header-navigation/header-navigation";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/header-sync-conflict-toolbar";
@@ -88,7 +87,6 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   HeaderTitleButton,
   HeaderTitleCaption,
   HeaderNavigation,
-  FooterNavigation,
   Main,
 ] as const;
 
