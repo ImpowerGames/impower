@@ -1,18 +1,22 @@
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
 const createTextShadow = (r: number, color = "black", unit = "px"): string => {
+  return createShadows(r, color, unit).join(", ") || "none";
+};
+
+const createShadows = (r: number, color = "black", unit = "px"): string[] => {
   if (r === 0) {
-    return "none";
+    return [];
   }
   const n = Math.ceil(2 * Math.PI * r); /* number of shadows */
-  let str = "";
+  const shadows: string[] = [];
   for (let i = 0; i < n; i += 1) {
     const theta = (2 * Math.PI * i) / n;
-    str += `${r * Math.cos(theta)}${unit} ${
-      r * Math.sin(theta)
-    }${unit} 0 ${color}${i === n - 1 ? "" : ","}`;
+    shadows.push(
+      `${r * Math.cos(theta)}${unit} ${r * Math.sin(theta)}${unit} 0 ${color}`
+    );
   }
-  return str;
+  return shadows;
 };
 
 export const getCSSPropertyKeyValue = (
