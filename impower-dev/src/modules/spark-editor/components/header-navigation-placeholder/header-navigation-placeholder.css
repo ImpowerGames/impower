@@ -1,0 +1,9 @@
+:host > .root {
+  display: "flex";
+}
+
+@media (min-width: 960px) {
+  :host > .root {
+    display: none;
+  }
+}

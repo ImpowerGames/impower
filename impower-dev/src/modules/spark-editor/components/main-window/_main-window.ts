@@ -37,7 +37,7 @@ export default spec({
           </s-router>
         </div>
         <div class="scrollable" slot="end">
-          <s-box position="relative" bg-color="black" grow>
+          <s-box position="relative" grow>
             <se-preview></se-preview>
           </s-box>
         </div>
@@ -99,5 +99,8 @@ export default spec({
       </s-hidden>
     `;
   },
+  selectors: {
+    splitPane: "",
+  } as const,
   css: [...sharedCSS, css],
 });

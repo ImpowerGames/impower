@@ -168,24 +168,27 @@ export default spec({
       ${running ? settingsDropdown : modeButton}
     `;
     return html`
-      <s-box
-        height="panel-nav"
-        child-layout="row"
-        child-align="center"
-        bg-color="panel"
-        z="1"
-        grow
-      >
+      <s-box bg-color="panel" position="sticky-top">
+        <se-header-navigation-placeholder></se-header-navigation-placeholder>
         <s-box
-          text-size="md"
+          height="panel-nav"
           child-layout="row"
-          child-justify="center"
           child-align="center"
+          bg-color="panel"
+          z="1"
           grow
         >
-          <s-list child-layout="row" child-justify="center" grow>
-            ${loading ? loadingToolbar : readyToolbar}
-          </s-list>
+          <s-box
+            text-size="md"
+            child-layout="row"
+            child-justify="center"
+            child-align="center"
+            grow
+          >
+            <s-list child-layout="row" child-justify="center" grow>
+              ${loading ? loadingToolbar : readyToolbar}
+            </s-list>
+          </s-box>
         </s-box>
       </s-box>
     `;

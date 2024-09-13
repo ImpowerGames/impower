@@ -18,6 +18,7 @@ import FileOptionsButton from "./components/file-options-button/_file-options-bu
 import FileUploadButton from "./components/file-upload-button/_file-upload-button";
 import HeaderMenuButton from "./components/header-menu-button/_header-menu-button";
 import HeaderNavigation from "./components/header-navigation/_header-navigation";
+import HeaderNavigationPlaceholder from "./components/header-navigation-placeholder/_header-navigation-placeholder";
 import HeaderSyncConflictToolbar from "./components/header-sync-conflict-toolbar/_header-sync-conflict-toolbar";
 import HeaderSyncToolbar from "./components/header-sync-toolbar/_header-sync-toolbar";
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
@@ -112,6 +113,7 @@ const components = [
   style(HeaderTitleButton),
   style(HeaderTitleCaption),
   style(HeaderNavigation),
+  style(HeaderNavigationPlaceholder),
   style(Main),
   style(Demo),
 ] as const;

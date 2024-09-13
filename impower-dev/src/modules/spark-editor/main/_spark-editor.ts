@@ -8,7 +8,6 @@ export default spec({
   stores: { workspace },
   html,
   selectors: {
-    splitPane: "",
     interactionBlocker: "",
   } as const,
   css,

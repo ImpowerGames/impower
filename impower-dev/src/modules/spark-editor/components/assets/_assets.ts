@@ -13,14 +13,7 @@ export default spec({
     return html`
       <s-router key="assets-panel" directional active="${panel}">
         <s-box bg-color="panel" position="sticky-top" slot="header">
-          <s-box
-            bg-color="panel"
-            position="absolute"
-            i="0 0 0 0"
-            height="100vh"
-            translate-y="-100%"
-          ></s-box>
-          <s-box height="header-nav"></s-box>
+          <se-header-navigation-placeholder></se-header-navigation-placeholder>
           <s-tabs color="tab-active" height="panel-nav" active="${panel}">
             <s-tab
               color="tab-active"
