@@ -5,7 +5,7 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
 import { DidWatchFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWatchFilesMessage.js";
-import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage.js";
+import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage.js";
 import {
   ReadDirectoryFilesMessage,
   ReadDirectoryFilesParams,
@@ -27,7 +27,8 @@ import {
   WillRenameFilesMessage,
   WillRenameFilesParams,
 } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage.js";
-import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage";
+import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage.js";
+import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage";
 import {
   FileData,
@@ -138,11 +139,38 @@ export default class WorkspaceFileSystem {
       this._fileSystemWorker.postMessage(
         ConfigurationMessage.type.response(message.id, result)
       );
-    } else if (
-      DidWriteFileMessage.type.isNotification(message) ||
-      DidCreateFilesMessage.type.isNotification(message) ||
-      DidDeleteFilesMessage.type.isNotification(message)
-    ) {
+    } else if (DidWriteFilesMessage.type.isNotification(message)) {
+      message.params.files.forEach((file) => {
+        this._files ??= {};
+        this._files[file.uri] = file;
+        this.preloadFile(file);
+      });
+      this.emit(message.method, message);
+    } else if (DidCreateFilesMessage.type.isNotification(message)) {
+      const connection = await Workspace.ls.getConnection();
+      connection.sendNotification(message.method, message.params);
+      this.emit(message.method, message);
+    } else if (DidDeleteFilesMessage.type.isNotification(message)) {
+      message.params.files.forEach((file) => {
+        delete this._files?.[file.uri];
+      });
+      const connection = await Workspace.ls.getConnection();
+      connection.sendNotification(message.method, message.params);
+      this.emit(message.method, message);
+    } else if (DidRenameFilesMessage.type.isNotification(message)) {
+      message.params.files.forEach((file) => {
+        this._files ??= {};
+        const oldFile = this._files[file.oldUri];
+        if (oldFile) {
+          const newFile = { ...oldFile, uri: file.newUri };
+          this._files[file.newUri] = newFile;
+          this.preloadFile(newFile);
+          delete this._files[file.oldUri];
+          delete this._assetCache[file.oldUri];
+        }
+      });
+      const connection = await Workspace.ls.getConnection();
+      connection.sendNotification(message.method, message.params);
       this.emit(message.method, message);
     } else if (DidChangeFileUrlMessage.type.isNotification(message)) {
       const connection = await Workspace.ls.getConnection();
@@ -394,38 +422,16 @@ export default class WorkspaceFileSystem {
       params,
       params.files.map((file) => file.data)
     );
-    result.forEach((file) => {
-      this._files ??= {};
-      this._files[file.uri] = file;
-      this.preloadFile(file);
-    });
     return result;
   }
 
   async deleteFiles(params: WillDeleteFilesParams) {
     const result = await this.sendRequest(WillDeleteFilesMessage.type, params);
-    params.files.forEach((file) => {
-      if (this._files) {
-        delete this._files[file.uri];
-        delete this._assetCache[file.uri];
-      }
-    });
     return result;
   }
 
   async renameFiles(params: WillRenameFilesParams) {
     const result = await this.sendRequest(WillRenameFilesMessage.type, params);
-    params.files.forEach((file) => {
-      if (this._files) {
-        delete this._files[file.oldUri];
-        delete this._assetCache[file.oldUri];
-      }
-    });
-    result.forEach((file) => {
-      this._files ??= {};
-      this._files[file.uri] = file;
-      this.preloadFile(file);
-    });
     return result;
   }
 
@@ -436,18 +442,18 @@ export default class WorkspaceFileSystem {
     const encoder = new TextEncoder();
     const encodedText = encoder.encode(textDocument.text);
     const result = await this.sendRequest(
-      WillWriteFileMessage.type,
+      WillWriteFilesMessage.type,
       {
-        file: {
-          uri: textDocument.uri,
-          version: textDocument.version,
-          data: encodedText.buffer,
-        },
+        files: [
+          {
+            uri: textDocument.uri,
+            version: textDocument.version,
+            data: encodedText.buffer,
+          },
+        ],
       },
       [encodedText.buffer]
     );
-    this._files ??= {};
-    this._files[result.uri] = result;
     return result;
   }
 

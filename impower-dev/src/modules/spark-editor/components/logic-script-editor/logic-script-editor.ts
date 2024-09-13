@@ -1,6 +1,8 @@
 import { LoadEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/LoadEditorMessage.js";
 import { DidChangeTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
 import { DidSaveTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidSaveTextDocumentMessage";
+import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage";
+import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import { debounce } from "../../utils/debounce";
 import { Workspace } from "../../workspace/Workspace";
@@ -25,6 +27,14 @@ export default class LogicScriptEditor extends Component(spec) {
       DidSaveTextDocumentMessage.method,
       this.handleDidSaveTextDocument
     );
+    window.addEventListener(
+      DidWriteFilesMessage.method,
+      this.handleDidWriteFiles
+    );
+    window.addEventListener(
+      DidDeleteFilesMessage.method,
+      this.handleDidDeleteFiles
+    );
   }
 
   override onDisconnected() {
@@ -36,6 +46,14 @@ export default class LogicScriptEditor extends Component(spec) {
       DidSaveTextDocumentMessage.method,
       this.handleDidSaveTextDocument
     );
+    window.removeEventListener(
+      DidWriteFilesMessage.method,
+      this.handleDidWriteFiles
+    );
+    window.removeEventListener(
+      DidDeleteFilesMessage.method,
+      this.handleDidDeleteFiles
+    );
   }
 
   protected handleDidChangeTextDocument = async (e: Event) => {
@@ -46,6 +64,33 @@ export default class LogicScriptEditor extends Component(spec) {
         const textDocument = params.textDocument;
         if (this._uri != null && this._uri === textDocument.uri) {
           this._version = textDocument.version;
+        }
+      }
+    }
+  };
+
+  protected handleDidWriteFiles = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidWriteFilesMessage.type.isNotification(message)) {
+        const params = message.params;
+        const remote = params.remote;
+        const files = params.files;
+        if (remote && files.find((f) => f.uri === this._uri)) {
+          this.loadFile();
+        }
+      }
+    }
+  };
+
+  protected handleDidDeleteFiles = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidDeleteFilesMessage.type.isNotification(message)) {
+        const params = message.params;
+        const files = params.files;
+        if (files.find((f) => f.uri === this._uri)) {
+          this.loadFile();
         }
       }
     }
@@ -132,6 +177,7 @@ export default class LogicScriptEditor extends Component(spec) {
             languageServerCapabilities,
           })
         );
+      } else {
       }
     }
   }

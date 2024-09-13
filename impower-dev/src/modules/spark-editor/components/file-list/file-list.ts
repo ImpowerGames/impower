@@ -1,4 +1,3 @@
-import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage.js";
 import { Component } from "../../../../../../packages/spec-component/src/component";
 import globToRegex from "../../utils/globToRegex";
@@ -39,14 +38,7 @@ export default class FileList extends Component(spec) {
         const isRelevantChange = changes.some(
           (file) => includeRegex.test(file.uri) && !excludeRegex?.test(file.uri)
         );
-        const didCreate = changes.some(
-          (file) => file.type === FileChangeType.Created
-        );
-        const didDelete = changes.some(
-          (file) => file.type === FileChangeType.Deleted
-        );
-        const onlyRenamed = didCreate && didDelete;
-        if (isRelevantChange && !onlyRenamed) {
+        if (isRelevantChange) {
           this.loadEntries();
         }
       }

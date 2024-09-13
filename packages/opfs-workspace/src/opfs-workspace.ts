@@ -1,5 +1,7 @@
 import { ErrorCodes } from "@impower/spark-editor-protocol/src/enums/ErrorCodes";
 import { FileChangeType } from "@impower/spark-editor-protocol/src/enums/FileChangeType";
+import { ResponseMessage } from "@impower/spark-editor-protocol/src/types/base/ResponseMessage";
+import { NotificationMessage } from "@impower/spark-editor-protocol/src/types/base/NotificationMessage";
 import { ConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ConfigurationMessage.js";
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage.js";
 import { DidChangeFileUrlMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeFileUrlMessage.js";
@@ -7,14 +9,14 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { DidCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidCreateFilesMessage.js";
 import { DidDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidDeleteFilesMessage.js";
 import { DidRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidRenameFilesMessage.js";
-import { DidWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFileMessage.js";
+import { DidWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidWriteFilesMessage.js";
 import { ReadDirectoryFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadDirectoryFilesMessage.js";
 import { ReadFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ReadFileMessage.js";
 import { UnzipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/UnzipFilesMessage.js";
 import { WillCreateFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillCreateFilesMessage.js";
 import { WillDeleteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillDeleteFilesMessage.js";
 import { WillRenameFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillRenameFilesMessage.js";
-import { WillWriteFileMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFileMessage.js";
+import { WillWriteFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/WillWriteFilesMessage.js";
 import { ZipFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ZipFilesMessage.js";
 import { FileData, FileEvent } from "@impower/spark-editor-protocol/src/types";
 import { Zippable, unzipSync, zipSync } from "fflate";
@@ -50,7 +52,7 @@ class State {
       handler: (uri: string) => void;
       version: number;
       buffer: DataView | Uint8Array;
-      listeners: ((result: { data: FileData; created: boolean }) => void)[];
+      listeners: ((result: { file: FileData; created: boolean }) => void)[];
     }
   > = {};
   static imageFilePattern?: RegExp;
@@ -59,6 +61,24 @@ class State {
   static scriptFilePattern?: RegExp;
   static files: Record<string, FileData> = {};
 }
+
+const channel = new BroadcastChannel("opfs-workspace");
+channel.onmessage = (event) => {
+  postMessage(event.data);
+};
+const broadcast = (message: NotificationMessage) => {
+  postMessage(message);
+  const remoteMessage = structuredClone(message);
+  remoteMessage.params.remote = true;
+  channel.postMessage(remoteMessage);
+};
+const respond = (message: ResponseMessage, transfer?: Transferable[]) => {
+  if (transfer) {
+    postMessage(message, transfer);
+  } else {
+    postMessage(message);
+  }
+};
 
 const initialConfigurationMessage = ConfigurationMessage.type.request({
   items: [{ section: "sparkdown" }],
@@ -81,14 +101,18 @@ onmessage = async (e) => {
     try {
       const { directory } = message.params;
       const files = await readDirectoryFiles(directory.uri);
-      postMessage(ReadDirectoryFilesMessage.type.response(message.id, files));
+      const response = ReadDirectoryFilesMessage.type.response(
+        message.id,
+        files
+      );
+      respond(response);
     } catch (err: any) {
       console.error(err, err.stack);
       const response = ReadDirectoryFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
   if (ReadFileMessage.type.isRequest(message)) {
@@ -96,14 +120,14 @@ onmessage = async (e) => {
       const { file } = message.params;
       const buffer = await readFile(file.uri);
       const response = ReadFileMessage.type.response(message.id, buffer);
-      postMessage(response, [buffer]);
+      respond(response, [buffer]);
     } catch (err: any) {
       console.error(err, err.stack);
       const response = ReadFileMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
   if (ZipFilesMessage.type.isRequest(message)) {
@@ -111,14 +135,14 @@ onmessage = async (e) => {
     try {
       const buffer = await zipFiles(files);
       const response = ZipFilesMessage.type.response(message.id, buffer);
-      postMessage(response, [buffer]);
+      respond(response, [buffer]);
     } catch (err: any) {
       console.error(err, err.stack);
       const response = ZipFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
   if (UnzipFilesMessage.type.isRequest(message)) {
@@ -126,7 +150,7 @@ onmessage = async (e) => {
       const { data } = message.params;
       const files = await unzipFiles(data);
       const response = UnzipFilesMessage.type.response(message.id, files);
-      postMessage(
+      respond(
         response,
         files.map(({ data }) => data)
       );
@@ -136,66 +160,70 @@ onmessage = async (e) => {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
-  if (WillWriteFileMessage.type.isRequest(message)) {
+  if (WillWriteFilesMessage.type.isRequest(message)) {
     try {
-      const { file } = message.params;
-      const { uri, version, data } = file;
-      const buffer = new DataView(data);
-      const fileData = await writeFile(uri, version, buffer);
-      postMessage(WillWriteFileMessage.type.response(message.id, fileData));
-      postMessage(DidWriteFileMessage.type.notification({ file: fileData }));
-      postMessage(
+      const { files } = message.params;
+      const result = await writeFiles(files);
+      const response = WillWriteFilesMessage.type.response(
+        message.id,
+        result.map((r) => r.file)
+      );
+      respond(response);
+      broadcast(
+        DidWriteFilesMessage.type.notification({
+          files: result.map((r) => r.file),
+          remote: false,
+        })
+      );
+      broadcast(
         DidChangeWatchedFilesMessage.type.notification({
-          changes: [
-            {
-              uri: fileData.uri,
-              type: FileChangeType.Changed,
-            },
-          ],
+          changes: result.map((r) => ({
+            uri: r.file.uri,
+            type: FileChangeType.Changed,
+          })),
         })
       );
     } catch (err: any) {
       console.error(err, err.stack);
-      const response = WillWriteFileMessage.type.error(message.id, {
+      const response = WillWriteFilesMessage.type.error(message.id, {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
   if (WillCreateFilesMessage.type.isRequest(message)) {
     try {
       const { files } = message.params;
       const result = await createFiles(files);
-      const fileDataArray = result.map((r) => r.data);
-      postMessage(
-        WillCreateFilesMessage.type.response(message.id, fileDataArray)
+      const response = WillCreateFilesMessage.type.response(
+        message.id,
+        result.map((r) => r.file)
+      );
+      respond(response);
+      broadcast(
+        DidWriteFilesMessage.type.notification({
+          files: result.map((r) => r.file),
+          remote: false,
+        })
       );
       const createdResult = result.filter((r) => r.created);
-      const changedResult = result.filter((r) => !r.created);
       if (createdResult.length > 0) {
-        postMessage(
+        broadcast(
           DidCreateFilesMessage.type.notification({
             files: createdResult.map((r) => ({
-              uri: r.data.uri,
+              uri: r.file.uri,
             })),
           })
         );
       }
-      if (changedResult.length > 0) {
-        changedResult.forEach((change) => {
-          postMessage(
-            DidWriteFileMessage.type.notification({ file: change.data })
-          );
-        });
-      }
-      postMessage(
+      broadcast(
         DidChangeWatchedFilesMessage.type.notification({
           changes: result.map((r) => ({
-            uri: r.data.uri,
+            uri: r.file.uri,
             type: r.created ? FileChangeType.Created : FileChangeType.Changed,
           })),
         })
@@ -206,21 +234,24 @@ onmessage = async (e) => {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
   if (WillDeleteFilesMessage.type.isRequest(message)) {
     try {
       const { files } = message.params;
       const deletedFiles = await deleteFiles(files);
-      postMessage(
-        WillDeleteFilesMessage.type.response(
-          message.id,
-          deletedFiles.filter((d): d is FileData => d != null)
-        )
+      const response = WillDeleteFilesMessage.type.response(
+        message.id,
+        deletedFiles.filter((d): d is FileData => d != null)
       );
-      postMessage(DidDeleteFilesMessage.type.notification({ files }));
-      postMessage(
+      respond(response);
+      broadcast(
+        DidDeleteFilesMessage.type.notification({
+          files,
+        })
+      );
+      broadcast(
         DidChangeWatchedFilesMessage.type.notification({
           changes: files.map((file) => ({
             uri: file.uri,
@@ -234,21 +265,20 @@ onmessage = async (e) => {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
   if (WillRenameFilesMessage.type.isRequest(message)) {
     try {
       const { files } = message.params;
       const renamedFiles = await renameFiles(files);
-      postMessage(
-        WillRenameFilesMessage.type.response(
-          message.id,
-          renamedFiles.map((f) => f.data)
-        )
+      const response = WillRenameFilesMessage.type.response(
+        message.id,
+        renamedFiles.map((f) => f.file)
       );
-      postMessage(DidRenameFilesMessage.type.notification({ files }));
-      postMessage(
+      respond(response);
+      broadcast(DidRenameFilesMessage.type.notification({ files }));
+      broadcast(
         DidChangeWatchedFilesMessage.type.notification({
           changes: [
             ...files.map(
@@ -272,7 +302,7 @@ onmessage = async (e) => {
         code: ErrorCodes.InternalError,
         message: err.message,
       });
-      postMessage(response);
+      respond(response);
     }
   }
 };
@@ -389,7 +419,7 @@ const enqueueWrite = async (
   version: number,
   buffer: DataView | Uint8Array
 ) => {
-  return new Promise<{ data: FileData; created: boolean }>((resolve) => {
+  return new Promise<{ file: FileData; created: boolean }>((resolve) => {
     if (!State.writeQueue[fileUri]) {
       State.writeQueue[fileUri] = {
         buffer,
@@ -405,13 +435,16 @@ const enqueueWrite = async (
   });
 };
 
-const writeFile = async (
-  uri: string,
-  version: number,
-  buffer: DataView | Uint8Array
+const writeFiles = async (
+  files: { uri: string; version: number; data: ArrayBuffer }[]
 ) => {
-  const result = await enqueueWrite(uri, version, buffer);
-  return result.data;
+  const result = await Promise.all(
+    files.map(async (file) => {
+      const buffer = new DataView(file.data);
+      return enqueueWrite(file.uri, file.version, buffer);
+    })
+  );
+  return result;
 };
 
 const write = async (fileUri: string) => {
@@ -441,9 +474,9 @@ const write = async (fileUri: string) => {
     syncAccessHandle.flush();
     syncAccessHandle.close();
     const arrayBuffer = buffer.buffer;
-    const data = updateFileCache(fileUri, arrayBuffer, true, version);
+    const file = updateFileCache(fileUri, arrayBuffer, true, version);
     listeners.forEach((l) => {
-      l({ data, created });
+      l({ file, created });
     });
     queued.listeners = [];
     console.log(MAGENTA, "WRITE", fileUri);
@@ -536,7 +569,7 @@ const updateFileCache = (
       src = URL.createObjectURL(
         new Blob([buffer], { type: getMimeType(type, ext) })
       );
-      postMessage(DidChangeFileUrlMessage.type.notification({ uri, src }));
+      broadcast(DidChangeFileUrlMessage.type.notification({ uri, src }));
     }
   }
   const text =
