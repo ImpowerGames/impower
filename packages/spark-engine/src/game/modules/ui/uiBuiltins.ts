@@ -261,12 +261,12 @@ export const uiBuiltins = () => ({
     }),
     character_name: _style({
       $name: "character_name",
-      padding_bottom: 4,
+      padding_bottom: 8,
       font_weight: 600,
     }),
     character_parenthetical: _style({
       $name: "character_parenthetical",
-      padding_bottom: 4,
+      padding_bottom: 8,
       font_weight: 400,
       font_size: "1rem",
       sm: { font_size: "0.875rem" },
