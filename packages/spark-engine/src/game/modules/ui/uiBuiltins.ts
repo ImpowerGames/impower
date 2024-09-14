@@ -629,47 +629,36 @@ export const uiBuiltins = () => ({
       $name: "shaking",
       keyframes: [
         {
-          offset: 0.0,
           transform: "translate(0.4vh, 0.2vh)",
         },
         {
-          offset: 0.1,
           transform: "translate(-0.2vh, -0.4vh)",
         },
         {
-          offset: 0.2,
           transform: "translate(-0.6vh, 0vh)",
         },
         {
-          offset: 0.3,
           transform: "translate(0vh, 0.4vh)",
         },
         {
-          offset: 0.4,
           transform: "translate(0.2vh, -0.2vh)",
         },
         {
-          offset: 0.5,
           transform: "translate(-0.2vh, 0.4vh)",
         },
         {
-          offset: 0.6,
           transform: "translate(-0.6vh, 0.2vh)",
         },
         {
-          offset: 0.7,
           transform: "translate(0.4vh, 0.2vh)",
         },
         {
-          offset: 0.8,
           transform: "translate(-0.2vh, -0.2vh)",
         },
         {
-          offset: 0.9,
           transform: "translate(0.4vh, 0.4vh)",
         },
         {
-          offset: 1.0,
           transform: "translate(0.2vh, -0.4vh)",
         },
       ],
@@ -683,47 +672,36 @@ export const uiBuiltins = () => ({
       $name: "shiver",
       keyframes: [
         {
-          offset: 0.0,
           transform: "translate(0.2vh, 0.1vh)",
         },
         {
-          offset: 0.1,
           transform: "translate(-0.1vh, -0.2vh)",
         },
         {
-          offset: 0.2,
           transform: "translate(-0.3vh, 0vh)",
         },
         {
-          offset: 0.3,
           transform: "translate(0vh, 0.2vh)",
         },
         {
-          offset: 0.4,
           transform: "translate(0.1vh, -0.1vh)",
         },
         {
-          offset: 0.5,
           transform: "translate(-0.1vh, 0.2vh)",
         },
         {
-          offset: 0.6,
           transform: "translate(-0.3vh, 0.1vh)",
         },
         {
-          offset: 0.7,
           transform: "translate(0.2vh, 0.1vh)",
         },
         {
-          offset: 0.8,
           transform: "translate(-0.1vh, -0.1vh)",
         },
         {
-          offset: 0.9,
           transform: "translate(0.2vh, 0.2vh)",
         },
         {
-          offset: 1.0,
           transform: "translate(0.1vh, -0.2vh)",
         },
       ],
