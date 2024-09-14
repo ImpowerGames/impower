@@ -356,7 +356,7 @@ export default class Application {
     const mainScene = this._scenes.get("main");
     if (mainScene) {
       if (this._renderer) {
-        this._renderer.render(mainScene, this._camera);
+        // TODO: this._renderer.render(mainScene, this._camera);
       }
     }
 
