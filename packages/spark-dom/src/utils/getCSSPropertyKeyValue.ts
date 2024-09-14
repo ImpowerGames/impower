@@ -129,8 +129,8 @@ export const getCSSPropertyKeyValue = (
     if (typeof cssValue === "string") {
       const parts = cssValue.split(" ");
       const match = parts[0]?.match(/((?:\d*[.])?\d+)([a-z]+)/);
-      const r = match?.[0];
-      const unit = match?.[1];
+      const r = match?.[1];
+      const unit = match?.[2];
       const num = Number(r);
       if (!Number.isNaN(num)) {
         return ["text-shadow", createTextShadow(num, parts[1], unit)];

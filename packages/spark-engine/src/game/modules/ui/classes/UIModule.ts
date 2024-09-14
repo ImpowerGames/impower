@@ -299,18 +299,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     // TODO: Declare asset variables in style element instead?
     const images = this.context?.image;
     if (images) {
-      Object.entries(images).forEach(([name]) => {
+      for (const [name] of Object.entries(images)) {
         if (name !== "default") {
           style[this.getImageVarName(name)] = this.getImageAssets("image", name)
             .map((asset) => this.getImageUrl(asset.src))
             .reverse()
             .join(", ");
         }
-      });
+      }
     }
     const imageGroups = this.context?.image_group;
     if (imageGroups) {
-      Object.entries(imageGroups).forEach(([name]) => {
+      for (const [name] of Object.entries(imageGroups)) {
         if (name !== "default") {
           style[this.getImageVarName(name)] = this.getImageAssets(
             "image_group",
@@ -320,7 +320,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             .reverse()
             .join(", ");
         }
-      });
+      }
     }
     return this.createElement(null, { style });
   }
@@ -537,14 +537,14 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   protected getContentElement(
     element: Element,
-    tag: "image" | "text"
+    tag: "image" | "text" | "stroke"
   ): Element | undefined {
     return element.findChild(tag);
   }
 
   protected getOrCreateContentElement(
     element: Element,
-    tag: "image" | "text"
+    tag: "image" | "text" | "stroke"
   ): Element {
     const contentChild = element.findChild(tag);
     if (contentChild) {
@@ -651,9 +651,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const easing = animation?.timing?.easing ?? "ease";
           const fill = animation?.timing?.fill ?? "none";
           const direction = animation?.timing?.direction ?? "normal";
+          const keyframes = animation?.keyframes;
+          const timing = {
+            delay,
+            duration,
+            iterations,
+            easing,
+            fill,
+            direction,
+          };
           animations.push({
-            keyframes: animation?.keyframes,
-            timing: { delay, duration, iterations, easing, fill, direction },
+            keyframes,
+            timing,
           });
         }
       });
@@ -728,7 +737,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         $._state.text[target] ??= [];
         const state = $._state.text[target]!;
         if (sequence) {
-          sequence.forEach((e) => {
+          for (const e of sequence) {
             if (!e.exit) {
               const prev = state.at(-1);
               if (
@@ -749,7 +758,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 state.push(s);
               }
             }
-          });
+          }
         } else {
           state.length = 0;
         }
@@ -762,128 +771,163 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      protected process(
+        targetEl: Element,
+        contentEl: Element,
+        sequence: TextInstruction[],
+        instant: boolean,
+        newElements: Map<Element, Animation[]>,
+        replacedElements: Map<Element, Animation[]>
+      ) {
+        let targetRevealed = false;
+        let blockWrapperEl: Element | undefined = undefined;
+        let wordWrapperEl: Element | undefined = undefined;
+        let wasSpace: boolean | undefined = undefined;
+        let prevTextAlign: string | undefined = undefined;
+        for (const e of sequence) {
+          const text = e.text;
+          // Support aligning text by wrapping consecutive aligned chunks in a block div
+          const textAlign = e.style?.text_align;
+          if (textAlign) {
+            // text_align must be applied to a parent element
+            if (textAlign !== prevTextAlign) {
+              // group consecutive spans that have the same text alignment under the same block wrapper
+              blockWrapperEl = $.createElement(contentEl, {
+                type: "div",
+                style: {
+                  display: "block",
+                  text_align: textAlign,
+                },
+              });
+            }
+          } else {
+            blockWrapperEl = undefined;
+          }
+          // Support consecutive whitespace collapsing
+          const style: Record<string, string | null> = {
+            display: null,
+            opacity: "0",
+            ...(e.style || {}),
+          };
+          if (text === "\n" || text === " " || text === "\t") {
+            style["display"] = "inline";
+          }
+          // Support text-wrapping by wrapping each word in an inline-block span
+          const isSpace = text === " " || text === "\t";
+          if (text === "\n" || isSpace) {
+            wordWrapperEl = undefined;
+          } else if (
+            wasSpace === undefined ||
+            isSpace !== wasSpace ||
+            textAlign !== prevTextAlign
+          ) {
+            // this is the start of a word chunk
+            const wordWrapperStyle: Record<string, string | null> = {};
+            wordWrapperStyle["display"] = "inline-block";
+            wordWrapperEl = $.createElement(blockWrapperEl || contentEl, {
+              type: "span",
+              style: wordWrapperStyle,
+            });
+          }
+          prevTextAlign = textAlign;
+          wasSpace = isSpace;
+          // Append text to wordWrapper, blockWrapper, or content
+          const textParentEl = wordWrapperEl || blockWrapperEl || contentEl;
+          const prevSpanEls = [...contentEl.children];
+          const newSpanEl = $.createElement(textParentEl, {
+            type: "span",
+            content: { text },
+            style,
+          });
+          if (!newElements.has(newSpanEl)) {
+            newElements.set(newSpanEl, []);
+          }
+          if (e.control === "set") {
+            // 'set' is equivalent to calling 'hide' on all previous images on the layer,
+            // and then calling 'show' on the new image
+            for (const prevSpanEl of prevSpanEls) {
+              if (!replacedElements.has(prevSpanEl)) {
+                replacedElements.set(prevSpanEl, []);
+              }
+              const prevSpanAnimations = replacedElements.get(prevSpanEl)!;
+              $.queueAnimationEvent(
+                { control: "hide", after: e.after, over: e.over },
+                instant,
+                prevSpanAnimations
+              );
+            }
+            e.control = "show";
+          }
+          const newSpanAnimations = newElements.get(newSpanEl)!;
+          $.queueAnimationEvent(e, instant, newSpanAnimations);
+          if (e.control === "show" && !targetRevealed) {
+            if (!newElements.has(targetEl)) {
+              newElements.set(targetEl, []);
+            }
+            const targetAnimations = newElements.get(targetEl)!;
+            $.queueAnimationEvent(
+              { control: "show", after: e.after },
+              instant,
+              targetAnimations
+            );
+            targetRevealed = true;
+          }
+        }
+      }
+
       protected applyChanges(
         target: string,
         sequence: TextInstruction[] | null,
         instant: boolean
       ): void {
-        const replacedElements = new Map<Element, Animation[]>();
         const newElements = new Map<Element, Animation[]>();
-        $.findElements(target).forEach((targetEl) => {
+        const replacedElements = new Map<Element, Animation[]>();
+        for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, {
               style: { display: null },
             });
-            let targetRevealed = false;
-            // Enqueue text events
             if (sequence) {
-              let blockWrapperEl: Element | undefined = undefined;
-              let wordWrapperEl: Element | undefined = undefined;
-              let wasSpace: boolean | undefined = undefined;
-              let prevTextAlign: string | undefined = undefined;
-              sequence.forEach((e) => {
-                const text = e.text;
-                const contentEl = $.getOrCreateContentElement(targetEl, "text");
-                // Support aligning text by wrapping consecutive aligned chunks in a block div
-                const textAlign = e.style?.text_align;
-                if (textAlign) {
-                  // text_align must be applied to a parent element
-                  if (textAlign !== prevTextAlign) {
-                    // group consecutive spans that have the same text alignment under the same block wrapper
-                    blockWrapperEl = $.createElement(contentEl, {
-                      type: "div",
-                      style: {
-                        display: "block",
-                        text_align: textAlign,
-                      },
-                    });
-                  }
-                } else {
-                  blockWrapperEl = undefined;
-                }
-                // Support consecutive whitespace collapsing
-                const style: Record<string, string | null> = {
-                  display: null,
-                  opacity: "0",
-                  ...(e.style || {}),
-                };
-                if (text === "\n" || text === " " || text === "\t") {
-                  style["display"] = "inline";
-                }
-                // Support text-wrapping by wrapping each word in an inline-block span
-                const isSpace = text === " " || text === "\t";
-                if (text === "\n" || isSpace) {
-                  wordWrapperEl = undefined;
-                } else if (
-                  wasSpace === undefined ||
-                  isSpace !== wasSpace ||
-                  textAlign !== prevTextAlign
-                ) {
-                  // this is the start of a word chunk
-                  const wordWrapperStyle: Record<string, string | null> = {};
-                  wordWrapperStyle["display"] = "inline-block";
-                  wordWrapperEl = $.createElement(blockWrapperEl || contentEl, {
-                    type: "span",
-                    style: wordWrapperStyle,
-                  });
-                }
-                prevTextAlign = textAlign;
-                wasSpace = isSpace;
-                // Append text to wordWrapper, blockWrapper, or content
-                const textParentEl =
-                  wordWrapperEl || blockWrapperEl || contentEl;
-                const prevSpanEls = [...contentEl.children];
-                const newSpanEl = $.createElement(textParentEl, {
-                  type: "span",
-                  content: { text },
-                  style,
-                });
-                if (!newElements.has(newSpanEl)) {
-                  newElements.set(newSpanEl, []);
-                }
-                if (e.control === "set") {
-                  // 'set' is equivalent to calling 'hide' on all previous images on the layer,
-                  // and then calling 'show' on the new image
-                  for (const prevSpanEl of prevSpanEls) {
-                    if (!replacedElements.has(prevSpanEl)) {
-                      replacedElements.set(prevSpanEl, []);
-                    }
-                    const prevSpanAnimations =
-                      replacedElements.get(prevSpanEl)!;
-                    $.queueAnimationEvent(
-                      { control: "hide", after: e.after, over: e.over },
-                      instant,
-                      prevSpanAnimations
-                    );
-                  }
-                  e.control = "show";
-                }
-                const newSpanAnimations = newElements.get(newSpanEl)!;
-                $.queueAnimationEvent(e, instant, newSpanAnimations);
-                if (e.control === "show" && !targetRevealed) {
-                  if (!newElements.has(targetEl)) {
-                    newElements.set(targetEl, []);
-                  }
-                  const targetAnimations = newElements.get(targetEl)!;
-                  $.queueAnimationEvent(
-                    { control: "show", after: e.after },
-                    instant,
-                    targetAnimations
-                  );
-                  targetRevealed = true;
-                }
-              });
-            } else {
-              const contentEl = $.getContentElement(targetEl, "text");
-              if (contentEl) {
-                $.clearElement(contentEl);
-                $.updateElement(targetEl, {
-                  style: { display: "none", opacity: "0" },
-                });
+              // Create and set text
+              const textEl = $.getOrCreateContentElement(targetEl, "text");
+              if (textEl) {
+                this.process(
+                  targetEl,
+                  textEl,
+                  sequence,
+                  instant,
+                  newElements,
+                  replacedElements
+                );
               }
+              // Set stroke (if stroke exists)
+              const strokeEl = $.getContentElement(targetEl, "stroke");
+              if (strokeEl) {
+                this.process(
+                  targetEl,
+                  strokeEl,
+                  sequence,
+                  instant,
+                  newElements,
+                  replacedElements
+                );
+              }
+            } else {
+              // Clear text and stroke
+              const textEl = $.getContentElement(targetEl, "text");
+              if (textEl) {
+                $.clearElement(textEl);
+              }
+              const strokeEl = $.getContentElement(targetEl, "stroke");
+              if (strokeEl) {
+                $.clearElement(strokeEl);
+              }
+              $.updateElement(targetEl, {
+                style: { display: "none", opacity: "0" },
+              });
             }
           }
-        });
+        }
         // Animate out replaced elements
         Promise.allSettled(
           Array.from(replacedElements).map(([element, animations]) =>
@@ -912,11 +956,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       clearTransientLayers(shouldPreserve?: (target: string) => boolean): void {
-        this.getTransientLayers().forEach((target) => {
+        for (const target of this.getTransientLayers()) {
           if (!shouldPreserve || !shouldPreserve(target)) {
             this.clearContent(target);
           }
-        });
+        }
       }
 
       write(
@@ -932,7 +976,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       getTransientLayers(): string[] {
         const targets = new Set<string>();
-        $.findElements("text").forEach((textEl) => {
+        for (const textEl of $.findElements("text")) {
           if (!textEl.persistent) {
             const parent = textEl.parent;
             if (parent) {
@@ -942,7 +986,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
           }
-        });
+        }
+        for (const textEl of $.findElements("stroke")) {
+          if (!textEl.persistent) {
+            const parent = textEl.parent;
+            if (parent) {
+              const target = parent.name;
+              if (target) {
+                targets.add(target);
+              }
+            }
+          }
+        }
         return Array.from(targets);
       }
     }
@@ -956,7 +1011,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         $._state.image[target] ??= [];
         let state = $._state.image[target];
         if (sequence) {
-          sequence.forEach((event) => {
+          for (const event of sequence) {
             if (!event.exit) {
               const targetingLayer = !event.assets?.length;
               if (targetingLayer) {
@@ -992,7 +1047,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 });
               }
             }
-          });
+          }
         } else {
           delete $._state.image?.[target];
         }
@@ -1005,98 +1060,112 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         }
       }
 
+      protected process(
+        targetEl: Element,
+        contentEl: Element,
+        sequence: ImageInstruction[],
+        instant: boolean,
+        newElements: Map<Element, Animation[]>,
+        replacedElements: Map<Element, Animation[]>
+      ) {
+        let targetRevealed = false;
+        for (const e of sequence) {
+          if (e.assets && e.assets.length > 0) {
+            // We are affecting the image
+            const style: Record<string, string | null> = {
+              ...(e.style || {}),
+              display: null,
+              opacity: "0",
+            };
+            const background_image = $.getBackgroundImagesFromArguments(
+              e.assets
+            )
+              .reverse()
+              .join(", ");
+            style["background_image"] = background_image;
+            const prevSpanEls = [...contentEl.children];
+            const newSpanEl = $.createElement(contentEl, {
+              type: "span",
+              style,
+            });
+            if (!newElements.has(newSpanEl)) {
+              newElements.set(newSpanEl, []);
+            }
+            const newSpanAnimations = newElements.get(newSpanEl)!;
+            if (e.control === "set") {
+              // 'set' is equivalent to calling 'hide' on all previous images on the layer,
+              // and then calling 'show' on the new image
+              for (const prevSpanEl of prevSpanEls) {
+                if (!replacedElements.has(prevSpanEl)) {
+                  replacedElements.set(prevSpanEl, []);
+                }
+                const prevSpanAnimations = replacedElements.get(prevSpanEl)!;
+                $.queueAnimationEvent(
+                  { control: "hide", after: e.after, over: e.over },
+                  instant,
+                  prevSpanAnimations
+                );
+              }
+              e.control = "show";
+            }
+            $.queueAnimationEvent(e, instant, newSpanAnimations);
+            if (e.control === "show" && !targetRevealed) {
+              if (!newElements.has(targetEl)) {
+                newElements.set(targetEl, []);
+              }
+              const targetAnimations = newElements.get(targetEl)!;
+              $.queueAnimationEvent(
+                { control: "show", after: e.after },
+                instant,
+                targetAnimations
+              );
+              targetRevealed = true;
+            }
+          } else {
+            // We are affecting the image wrapper
+            if (!newElements.has(targetEl)) {
+              newElements.set(targetEl, []);
+            }
+            const targetAnimations = newElements.get(targetEl)!;
+            $.queueAnimationEvent(e, instant, targetAnimations);
+          }
+        }
+      }
+
       protected applyChanges(
         target: string,
         sequence: ImageInstruction[] | null,
         instant: boolean
       ): void {
-        const replacedElements = new Map<Element, Animation[]>();
         const newElements = new Map<Element, Animation[]>();
-        $.findElements(target).forEach((targetEl) => {
+        const replacedElements = new Map<Element, Animation[]>();
+        for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, {
               style: { display: null },
             });
-            let targetRevealed = false;
             // Enqueue image events
             if (sequence) {
-              sequence.forEach((e) => {
-                if (e.assets && e.assets.length > 0) {
-                  // We are affecting the image
-                  const contentEl = $.getOrCreateContentElement(
-                    targetEl,
-                    "image"
-                  );
-                  const style: Record<string, string | null> = {
-                    ...(e.style || {}),
-                    display: null,
-                    opacity: "0",
-                  };
-                  const background_image = $.getBackgroundImagesFromArguments(
-                    e.assets
-                  )
-                    .reverse()
-                    .join(", ");
-                  style["background_image"] = background_image;
-                  const prevSpanEls = [...contentEl.children];
-                  const newSpanEl = $.createElement(contentEl, {
-                    type: "span",
-                    style,
-                  });
-                  if (!newElements.has(newSpanEl)) {
-                    newElements.set(newSpanEl, []);
-                  }
-                  const newSpanAnimations = newElements.get(newSpanEl)!;
-                  if (e.control === "set") {
-                    // 'set' is equivalent to calling 'hide' on all previous images on the layer,
-                    // and then calling 'show' on the new image
-                    for (const prevSpanEl of prevSpanEls) {
-                      if (!replacedElements.has(prevSpanEl)) {
-                        replacedElements.set(prevSpanEl, []);
-                      }
-                      const prevSpanAnimations =
-                        replacedElements.get(prevSpanEl)!;
-                      $.queueAnimationEvent(
-                        { control: "hide", after: e.after, over: e.over },
-                        instant,
-                        prevSpanAnimations
-                      );
-                    }
-                    e.control = "show";
-                  }
-                  $.queueAnimationEvent(e, instant, newSpanAnimations);
-                  if (e.control === "show" && !targetRevealed) {
-                    if (!newElements.has(targetEl)) {
-                      newElements.set(targetEl, []);
-                    }
-                    const targetAnimations = newElements.get(targetEl)!;
-                    $.queueAnimationEvent(
-                      { control: "show", after: e.after },
-                      instant,
-                      targetAnimations
-                    );
-                    targetRevealed = true;
-                  }
-                } else {
-                  // We are affecting the image wrapper
-                  if (!newElements.has(targetEl)) {
-                    newElements.set(targetEl, []);
-                  }
-                  const targetAnimations = newElements.get(targetEl)!;
-                  $.queueAnimationEvent(e, instant, targetAnimations);
-                }
-              });
+              const imageEl = $.getOrCreateContentElement(targetEl, "image");
+              this.process(
+                targetEl,
+                imageEl,
+                sequence,
+                instant,
+                newElements,
+                replacedElements
+              );
             } else {
-              const contentEl = $.getContentElement(targetEl, "image");
-              if (contentEl) {
-                $.clearElement(contentEl);
-                $.updateElement(targetEl, {
-                  style: { display: "none", opacity: "0" },
-                });
+              const imageEl = $.getContentElement(targetEl, "image");
+              if (imageEl) {
+                $.clearElement(imageEl);
               }
+              $.updateElement(targetEl, {
+                style: { display: "none", opacity: "0" },
+              });
             }
           }
-        });
+        }
         // Animate out replaced elements
         Promise.allSettled(
           Array.from(replacedElements).map(([element, animations]) =>
@@ -1125,11 +1194,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       clearTransientLayers(shouldPreserve?: (target: string) => boolean): void {
-        this.getTransientLayers().forEach((target) => {
+        for (const target of this.getTransientLayers()) {
           if (!shouldPreserve || !shouldPreserve(target)) {
             this.clearContent(target);
           }
-        });
+        }
       }
 
       write(
@@ -1145,7 +1214,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
       getTransientLayers(): string[] {
         const targets = new Set<string>();
-        $.findElements("image").forEach((imageEl) => {
+        for (const imageEl of $.findElements("image")) {
           if (!imageEl.persistent) {
             const parent = imageEl.parent;
             if (parent) {
@@ -1155,7 +1224,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               }
             }
           }
-        });
+        }
         return Array.from(targets);
       }
     }
@@ -1195,11 +1264,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         target: string,
         style: Record<string, string | null> | null
       ): void {
-        $.findElements(target).forEach((targetEl) => {
+        for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, { style });
           }
-        });
+        }
       }
 
       update(
@@ -1248,11 +1317,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         target: string,
         attributes: Record<string, string | null> | null
       ): void {
-        $.findElements(target).forEach((targetEl) => {
+        for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, { attributes });
           }
-        });
+        }
       }
 
       update(

@@ -54,40 +54,44 @@ export const uiBuiltins = () => ({
       checked: {},
       disabled: {},
     }),
-    all: _style({
-      $name: "all",
+    _is_any: _style({
+      $name: "_is_any",
       target: "*, *::before, *::after",
       box_sizing: "border-box",
     }),
-    is_hidden: _style({
-      $name: "is_hidden",
+    _is_hidden: _style({
+      $name: "_is_hidden",
       target: "[hidden]",
       display: "none",
     }),
-    text: _style({
-      $name: "text",
-      pointer_events: "auto",
+    _has_text: _style({
+      $name: "_has_text",
+      target: "*:has(> .text)",
       position: "relative",
+    }),
+    stroke: _style({
+      $name: "stroke",
+      text_stroke: 2,
+      color: "black",
+      pointer_events: "none",
+      position: "absolute",
+      inset: 0,
       white_space: "pre-line",
       "*": {
         position: "relative",
         display: "inline-block",
       },
-      // TODO: Fix overlapping text_stroke for individual letter spans
-      // "*::before": {
-      //   content: "attr(text)",
-      //   position: "absolute",
-      //   inset: 0,
-      //   color: "black",
-      //   z_index: 1,
-      // },
-      // "*::after": {
-      //   content: "attr(text)",
-      //   position: "absolute",
-      //   inset: 0,
-      //   z_index: 2,
-      //   text_stroke: "none",
-      // },
+    }),
+    text: _style({
+      $name: "text",
+      pointer_events: "auto",
+      position: "relative",
+      inset: 0,
+      white_space: "pre-line",
+      "*": {
+        position: "relative",
+        display: "inline-block",
+      },
     }),
     image: _style({
       $name: "image",
@@ -238,7 +242,6 @@ export const uiBuiltins = () => ({
       max_width: 800,
       width: "100%",
       margin: "0 auto",
-      text_stroke: 1,
       font_size: "1.25rem",
       min_height: 200,
       padding_left: 32,
@@ -253,7 +256,6 @@ export const uiBuiltins = () => ({
       align_items: "flex-end",
       gap: 8,
       line_height: 1,
-      text_stroke: 3,
       font_size: "1.875rem",
       sm: { font_size: "1.5rem" },
     }),
@@ -370,22 +372,28 @@ export const uiBuiltins = () => ({
         textbox_content: {
           character_info: {
             character_name: {
+              stroke: {},
               text: {},
             },
             character_parenthetical: {
+              stroke: {},
               text: {},
             },
           },
           dialogue: {
+            stroke: {},
             text: {},
           },
           action: {
+            stroke: {},
             text: {},
           },
           scene: {
+            stroke: {},
             text: {},
           },
           transition: {
+            stroke: {},
             text: {},
           },
         },
