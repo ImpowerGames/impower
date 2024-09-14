@@ -249,7 +249,6 @@ export default class UIScene extends Scene {
           const persist =
             convertedTiming.fill === "forwards" ||
             convertedTiming.fill === "both";
-          console.log(element, convertedKeyframes, convertedTiming);
           effects.push({
             element,
             animation: new Animation(
