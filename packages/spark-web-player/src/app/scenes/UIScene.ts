@@ -163,7 +163,7 @@ export default class UIScene extends Scene {
           animation.keyframes.forEach((keyframe) => {
             if (keyframe) {
               const convertedKeyframe: Keyframe = {};
-              Object.entries(keyframe).forEach(([prop, value]) => {
+              for (const [prop, value] of Object.entries(keyframe)) {
                 if (prop === "iterations" && value === "infinite") {
                   convertedKeyframe["iterations"] = Infinity;
                 } else if (prop === "delay") {
@@ -196,8 +196,8 @@ export default class UIScene extends Scene {
                     );
                   convertedKeyframe[camelCasedPropName] = value;
                 }
-                convertedKeyframes.push(convertedKeyframe);
-              });
+              }
+              convertedKeyframes.push(convertedKeyframe);
             }
           });
           const convertedTiming: EffectTiming = {};
@@ -249,6 +249,7 @@ export default class UIScene extends Scene {
           const persist =
             convertedTiming.fill === "forwards" ||
             convertedTiming.fill === "both";
+          console.log(element, convertedKeyframes, convertedTiming);
           effects.push({
             element,
             animation: new Animation(
