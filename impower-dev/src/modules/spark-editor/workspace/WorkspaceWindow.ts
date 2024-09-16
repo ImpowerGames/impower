@@ -1,5 +1,5 @@
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
-import { RevealEditorRangeMessage } from "@impower/spark-editor-protocol/src/protocols/editor/RevealEditorRangeMessage";
+import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
@@ -325,7 +325,7 @@ export default class WorkspaceWindow {
     return undefined;
   }
 
-  revealEditorRange(uri: string, visibleRange: Range, select: boolean) {
+  showDocument(uri: string, selection?: Range, takeFocus?: boolean) {
     const filename = Workspace.fs.getFilename(uri);
     const pane = this.getPaneType(filename);
     const panel = this.getPanelType(filename);
@@ -345,11 +345,15 @@ export default class WorkspaceWindow {
                 activeEditor: {
                   ...this.store.panes[pane].panels[panel]?.activeEditor,
                   filename: filename,
-                  visibleRange,
-                  selectedRange: select
-                    ? { ...visibleRange }
+                  visibleRange: selection
+                    ? { ...selection }
                     : this.store.panes[pane].panels[panel]?.activeEditor
-                        ?.selectedRange,
+                        ?.visibleRange,
+                  selectedRange:
+                    selection && takeFocus
+                      ? { ...selection }
+                      : this.store.panes[pane].panels[panel]?.activeEditor
+                          ?.selectedRange,
                 },
               },
             },
@@ -360,11 +364,11 @@ export default class WorkspaceWindow {
     window.setTimeout(() => {
       // Reveal range after opening file
       this.emit(
-        RevealEditorRangeMessage.method,
-        RevealEditorRangeMessage.type.request({
-          textDocument: { uri },
-          visibleRange,
-          select,
+        ShowDocumentMessage.method,
+        ShowDocumentMessage.type.request({
+          uri,
+          selection,
+          takeFocus,
         })
       );
     }, 10);

@@ -80,7 +80,7 @@ export default class GamePreview extends Component(spec) {
       const message = e.detail;
       if (WillExecuteGameCommandMessage.type.isNotification(message)) {
         const { textDocument, range } = message.params;
-        Workspace.window.revealEditorRange(
+        Workspace.window.showDocument(
           textDocument.uri,
           { start: range.start, end: range.start },
           true
@@ -215,7 +215,7 @@ export default class GamePreview extends Component(spec) {
               character: 0,
             },
           };
-          Workspace.window.revealEditorRange(uri, range, true);
+          Workspace.window.showDocument(uri, range, true);
         }
       }
     }
@@ -240,7 +240,7 @@ export default class GamePreview extends Component(spec) {
               character: 0,
             },
           };
-          Workspace.window.revealEditorRange(uri, range, true);
+          Workspace.window.showDocument(uri, range, true);
         }
       }
     }
@@ -327,15 +327,5 @@ export default class GamePreview extends Component(spec) {
       }
     }
     return closestIndex;
-  }
-
-  parseSource(sourceId: string): [number, number] | null {
-    const [fileIndexArg, lineIndexArg] = sourceId.split(";");
-    if (fileIndexArg != null && lineIndexArg != null) {
-      const fileIndex = Number(fileIndexArg);
-      const lineIndex = Number(lineIndexArg);
-      return [fileIndex, lineIndex];
-    }
-    return null;
   }
 }

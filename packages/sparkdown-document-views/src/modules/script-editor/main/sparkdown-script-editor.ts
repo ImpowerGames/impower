@@ -5,7 +5,6 @@ import { ChangedEditorBreakpointsMessage } from "../../../../../spark-editor-pro
 import { FocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/FocusedEditorMessage";
 import { HoveredOnEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/HoveredOnEditorMessage";
 import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/LoadEditorMessage";
-import { RevealEditorRangeMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/RevealEditorRangeMessage";
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { UnfocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
@@ -18,6 +17,7 @@ import { DidSaveTextDocumentMessage } from "../../../../../spark-editor-protocol
 import { WillSaveTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/WillSaveTextDocumentMessage";
 import { DidCollapsePreviewPaneMessage } from "../../../../../spark-editor-protocol/src/protocols/window/DidCollapsePreviewPaneMessage";
 import { DidExpandPreviewPaneMessage } from "../../../../../spark-editor-protocol/src/protocols/window/DidExpandPreviewPaneMessage";
+import { ShowDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import {
   MessageConnection,
   Range,
@@ -85,8 +85,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
   override onConnected() {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.addEventListener(
-      RevealEditorRangeMessage.method,
-      this.handleRevealEditorRange
+      ShowDocumentMessage.method,
+      this.handleShowDocument
     );
     window.addEventListener(
       HoveredOnPreviewMessage.method,
@@ -109,8 +109,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
   override onDisconnected() {
     window.removeEventListener(LoadEditorMessage.method, this.handleLoadEditor);
     window.removeEventListener(
-      RevealEditorRangeMessage.method,
-      this.handleRevealEditorRange
+      ShowDocumentMessage.method,
+      this.handleShowDocument
     );
     window.removeEventListener(
       HoveredOnPreviewMessage.method,
@@ -235,19 +235,21 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this.scrollToRange(this._visibleRange);
   };
 
-  protected handleRevealEditorRange = (e: Event) => {
+  protected handleShowDocument = (e: Event) => {
     if (e instanceof CustomEvent) {
       const message = e.detail;
-      if (RevealEditorRangeMessage.type.isRequest(message)) {
+      if (ShowDocumentMessage.type.isRequest(message)) {
         const params = message.params;
-        const textDocument = params.textDocument;
-        const visibleRange = params.visibleRange;
-        const select = params.select;
-        if (textDocument.uri === this._textDocument?.uri) {
-          if (select) {
-            this.selectRange(visibleRange, true);
-          } else if (visibleRange) {
-            this.scrollToRange(visibleRange);
+        const uri = params.uri;
+        const selection = params.selection;
+        const takeFocus = params.takeFocus;
+        if (uri === this._textDocument?.uri) {
+          if (selection) {
+            if (takeFocus) {
+              this.selectRange(selection, true);
+            } else if (takeFocus) {
+              this.scrollToRange(selection);
+            }
           }
         }
       }
