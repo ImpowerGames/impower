@@ -150,7 +150,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
-    const breakpoints = this.context?.config?.ui?.breakpoints;
+    const breakpoints = this.context.config?.ui?.breakpoints;
     const el = new Element(parent, id, type, name, persistent);
     const isRootElement = !parent;
     if (isRootElement) {
@@ -197,7 +197,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const content = state?.content;
     const style = state?.style;
     const attributes = state?.attributes;
-    const breakpoints = this.context?.config?.ui?.breakpoints;
+    const breakpoints = this.context.config?.ui?.breakpoints;
     this.emit(
       UpdateElementMessage.type.request({
         element: element.id,
@@ -261,16 +261,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     if (
       value != null &&
       typeof value === "object" &&
-      "$ref" in value &&
-      typeof value.$ref === "string"
+      "$name" in value &&
+      typeof value.$name === "string"
     ) {
-      let [type, name] = value.$ref.split(".");
-      if (type === "image" && name) {
-        return this.getImageVar(name);
-      } else if (type && !name) {
-        name = type;
-        return this.getImageVar(name);
-      }
+      return this.getImageVar(value.$name);
     }
     return undefined;
   }
@@ -558,6 +552,12 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getImageAssets(type: string, name: string) {
+    if (!type) {
+      const images: Image[] = [];
+      images.push(...this.getImageAssets("image_group", name));
+      images.push(...this.getImageAssets("image", name));
+      return images;
+    }
     if (type === "image") {
       const image = this.context?.image?.[name];
       if (image) {
@@ -568,21 +568,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       const imageGroup = this.context?.image_group?.[name];
       if (imageGroup) {
         const images: Image[] = [];
-        for (const asset of imageGroup.assets) {
-          if (asset.$ref.includes(".")) {
-            let [type, name] = asset.$ref.split(".");
-            if (type === "image_group" && name) {
-              images.push(...this.getImageAssets(type, name));
-            }
-            if (type === "image" && name) {
-              const image = this.context?.image?.[name];
-              if (image) {
-                images.push(image);
-              }
-            }
-          } else {
-            images.push(...this.getImageAssets("image_group", asset.$ref));
-            images.push(...this.getImageAssets("image", asset.$ref));
+        if (Array.isArray(imageGroup.assets)) {
+          for (const asset of imageGroup.assets) {
+            images.push(...this.getImageAssets(asset.$type, asset.$name));
           }
         }
         return images;
@@ -642,7 +630,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const loopOverride =
           loop === true ? "infinite" : loop === false ? 1 : undefined;
         const animationName = name;
-        const animation = this.context.animation?.[animationName] as Animation;
+        const animation = this.context?.animation?.[animationName] as Animation;
         if (animation) {
           const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
           const duration =
@@ -661,6 +649,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             direction,
           };
           animations.push({
+            $type: animation.$type,
+            $name: animation.$name,
             keyframes,
             timing,
           });

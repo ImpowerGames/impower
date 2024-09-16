@@ -1,28 +1,38 @@
-import { getProperty } from "./getProperty";
-import { setProperty } from "./setProperty";
-
-export const resolve = <T>(obj: T) => {
-  return _resolve(obj, obj);
-};
-
-export const _resolve = <T>(obj: T, root: any, fieldPath: string = "") => {
-  if (obj) {
-    Object.entries(obj).forEach(([k, v]) => {
-      const path = `${fieldPath}.${k}`;
-      if (typeof v === "object" && v) {
-        if ("$type" in v && "$name" in v) {
-          const accessor = `.${v.$type}.${v.$name}`;
-          const ref = getProperty(root, accessor);
-          if (v !== ref) {
-            setProperty(root, path, ref);
-          } else {
-            _resolve(v, root, path);
-          }
-        } else {
-          _resolve(v, root, path);
+export const resolve = <
+  T,
+  Store extends Record<string, T>,
+  Context extends Record<string, Store>,
+  TypeName extends keyof Context
+>(
+  context: Context,
+  ref: string,
+  possibleRoots: TypeName[]
+) => {
+  if (ref.includes(".")) {
+    const [type, name] = ref.split(".");
+    if (type && name) {
+      const store = context[type];
+      const resolved = store?.[ref];
+      if (resolved !== undefined) {
+        return resolved as Context[TypeName][keyof Context[TypeName]];
+      }
+    } else if (!type && name) {
+      for (const type of possibleRoots) {
+        const store = context[type];
+        const resolved = store?.[ref];
+        if (resolved !== undefined) {
+          return resolved as Context[TypeName][keyof Context[TypeName]];
         }
       }
-    });
+    }
+  } else {
+    for (const type of possibleRoots) {
+      const store = context[type];
+      const resolved = store?.[ref];
+      if (resolved !== undefined) {
+        return resolved as Context[TypeName][keyof Context[TypeName]];
+      }
+    }
   }
-  return obj;
+  return undefined;
 };

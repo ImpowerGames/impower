@@ -171,7 +171,7 @@ export class AudioModule extends Module<
       channel,
       mixer: this.getMixer(channel),
       key: "",
-      type: "",
+      type: "audio",
       name: "",
       volume: 1,
     };
@@ -179,20 +179,15 @@ export class AudioModule extends Module<
       d.type = "audio";
       d.name = asset;
     } else if (typeof asset === "object") {
-      if ("$ref" in asset && typeof asset.$ref === "string") {
-        const [type, name] = asset.$ref.split(".");
-        if (type) {
-          d.type = type;
-        }
-        if (name) {
-          d.name = name;
-        }
-      }
       if ("$type" in asset && typeof asset.$type === "string") {
-        d.type = asset.$type;
+        if (asset.$type) {
+          d.type = asset.$type;
+        }
       }
       if ("$name" in asset && typeof asset.$name === "string") {
-        d.name = asset.$name;
+        if (asset.$name) {
+          d.name = asset.$name;
+        }
       }
     }
     d.key = d.type + "." + d.name + suffix;

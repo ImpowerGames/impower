@@ -13,13 +13,7 @@ export const getStyleContent = (
     const nestedEntries: [string, any][] = [];
     Object.entries(style).forEach(([k, v]) => {
       if (!k.startsWith("$") && k !== "target") {
-        if (
-          v &&
-          typeof v === "object" &&
-          !("$ref" in v) &&
-          !("$type" in v) &&
-          !("$name" in v)
-        ) {
+        if (v && typeof v === "object" && !("$name" in v)) {
           nestedEntries.push([k, v]);
         } else {
           const [cssProp, cssValue] = getCSSPropertyKeyValue(k, v);

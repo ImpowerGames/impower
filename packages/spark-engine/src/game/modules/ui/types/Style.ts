@@ -1,3 +1,5 @@
+import { Reference } from "../../../core/types/Reference";
+
 export interface SparkStyleProperties {
   /** position */
   position: "" | "default" | "relative" | "fixed" | "absolute" | "sticky";
@@ -513,4 +515,4 @@ export interface SparkStyleProperties {
   animate: "" | "spin" | "ping" | "bounce" | "blink" | "sheen" | string;
 }
 
-export interface Style extends Record<string, any> {}
+export interface Style extends Reference<"style">, Record<string, any> {}

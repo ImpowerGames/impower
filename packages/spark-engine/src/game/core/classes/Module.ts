@@ -4,7 +4,6 @@ import { NotificationMessage } from "../types/NotificationMessage";
 import { RecursiveReadonly } from "../types/RecursiveReadonly";
 import { RequestMessage } from "../types/RequestMessage";
 import { ResponseError } from "../types/ResponseError";
-import { CommandRunner } from "./CommandRunner";
 import type { Game } from "./Game";
 
 export abstract class Module<

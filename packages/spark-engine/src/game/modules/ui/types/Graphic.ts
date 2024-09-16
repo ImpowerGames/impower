@@ -1,3 +1,4 @@
+import { Reference } from "../../../core/types/Reference";
 import { Vector3 } from "../../world/types/Vector3";
 
 export interface Shape {
@@ -19,7 +20,7 @@ export interface Tiling {
   angle: number;
 }
 
-export interface Graphic {
+export interface Graphic extends Reference<"graphic"> {
   width: number;
   height: number;
   tiling: Tiling;

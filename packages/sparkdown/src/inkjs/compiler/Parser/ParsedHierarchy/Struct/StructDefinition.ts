@@ -56,7 +56,7 @@ export class StructDefinition extends ParsedObject {
       if (
         typeof prop.value === "object" &&
         prop.value &&
-        !("$ref" in prop.value)
+        !("$name" in prop.value)
       ) {
         // If first child property is an array item, this property is an array
         const isArray =

@@ -1,4 +1,6 @@
-export interface Font {
+import { Reference } from "../../../core/types/Reference";
+
+export interface Font extends Reference<"font"> {
   src: string;
   font_family: string;
   font_weight: string;

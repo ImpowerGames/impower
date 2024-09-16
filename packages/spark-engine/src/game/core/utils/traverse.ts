@@ -7,7 +7,7 @@ export const traverse = <T>(
   if (obj) {
     Object.entries(obj).forEach(([k, v]) => {
       const path = `${fieldPath}.${k}`;
-      if (typeof v === "object" && v && !("$ref" in v)) {
+      if (typeof v === "object" && v && !("$name" in v)) {
         if (Array.isArray(v)) {
           process(path, v);
         } else if (v && Object.keys(v).length === 0) {
