@@ -406,9 +406,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
     // Scroll to visible range
     window.requestAnimationFrame(() => {
       this.scrollToRange(visibleRange);
-      if (selectedRange) {
-        this.selectRange(selectedRange, false);
-      }
       this._initialized = true;
     });
     if (document.hasFocus() && this._view && focused) {
@@ -420,6 +417,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
         }
         this.focus();
         this._view.focus();
+        if (selectedRange) {
+          // Only restore selectedRange if was focused
+          this.selectRange(selectedRange, false);
+        }
       }, 100);
     }
   }
