@@ -48,13 +48,13 @@ export const onEnterRules =
       for (let i = 0; i < onEnterRules.length; i += 1) {
         const onEnterRule = onEnterRules[i]!;
         const beforeTextRegex = onEnterRule.beforeText
-          ? new RegExp(onEnterRule.beforeText)
+          ? new RegExp(onEnterRule.beforeText, "u")
           : undefined;
         const afterTextRegex = onEnterRule.afterText
-          ? new RegExp(onEnterRule.afterText)
+          ? new RegExp(onEnterRule.afterText, "u")
           : undefined;
         const previousLineTextRegex = onEnterRule.previousLineText
-          ? new RegExp(onEnterRule.previousLineText)
+          ? new RegExp(onEnterRule.previousLineText, "u")
           : undefined;
         if (beforeTextRegex && !beforeTextRegex.test(beforeText)) {
           continue;
