@@ -194,12 +194,12 @@ export default class LogicScriptEditor extends Component(spec) {
 
   updateReadonlyState() {
     const store = this.stores.workspace.current;
-    const syncState = store?.project?.syncState;
+    const syncStatus = store?.sync?.status;
     if (
-      syncState === "syncing" ||
-      syncState === "loading" ||
-      syncState === "importing" ||
-      syncState === "exporting"
+      syncStatus === "syncing" ||
+      syncStatus === "loading" ||
+      syncStatus === "importing" ||
+      syncStatus === "exporting"
     ) {
       this.ref.sparkdownScriptEditor.setAttribute("readonly", "");
     } else {

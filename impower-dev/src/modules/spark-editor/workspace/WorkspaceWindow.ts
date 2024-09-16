@@ -23,7 +23,7 @@ import {
   PanelType,
   PreviewMode,
   Range,
-  SyncState,
+  SyncStatus,
   WorkspaceCache,
 } from "@impower/spark-editor-protocol/src/types";
 import SingletonPromise from "./SingletonPromise";
@@ -59,7 +59,11 @@ export default class WorkspaceWindow {
     );
     if (cachedWorkspaceState) {
       const workspaceState = JSON.parse(cachedWorkspaceState) as WorkspaceCache;
-      // Reset game state
+      // Reset screen state
+      workspaceState.screen = {};
+      // Reset sync state
+      workspaceState.sync = {};
+      // Reset game preview state
       workspaceState.preview.modes.game = {};
       workspace.current = workspaceState;
     }
@@ -76,6 +80,9 @@ export default class WorkspaceWindow {
       ChangedEditorBreakpointsMessage.method,
       this.handleChangedEditorBreakpoints
     );
+    const mediaQuery = window.matchMedia("(min-width: 960px)");
+    mediaQuery.addEventListener("change", this.handleScreenSizeChange);
+    this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
   }
 
   get store() {
@@ -206,10 +213,10 @@ export default class WorkspaceWindow {
                 },
               },
             },
-            project: {
-              ...this.store.project,
-              breakpointRanges: {
-                ...this.store.project.breakpointRanges,
+            debug: {
+              ...this.store.debug,
+              breakpoints: {
+                ...this.store.debug.breakpoints,
                 [uri]: breakpointRanges,
               },
             },
@@ -217,6 +224,15 @@ export default class WorkspaceWindow {
         }
       }
     }
+  };
+
+  protected handleScreenSizeChange = (query: MediaQueryListEvent) => {
+    this.update({
+      ...this.store,
+      screen: {
+        splitLayout: query.matches,
+      },
+    });
   };
 
   getPaneState(pane: PaneType) {
@@ -285,10 +301,10 @@ export default class WorkspaceWindow {
           const uri = Workspace.fs.getFileUri(projectId, filenameOrUri);
           return {
             uri,
-            focused: panelState.activeEditor.focused,
-            visibleRange: panelState.activeEditor.visibleRange,
-            selectedRange: panelState.activeEditor.selectedRange,
-            breakpointRanges: this.store.project.breakpointRanges?.[uri],
+            focused: panelState?.activeEditor?.focused,
+            visibleRange: panelState?.activeEditor?.visibleRange,
+            selectedRange: panelState?.activeEditor?.selectedRange,
+            breakpointRanges: this.store.debug?.breakpoints?.[uri],
           };
         }
       }
@@ -320,7 +336,7 @@ export default class WorkspaceWindow {
           uri,
           visibleRange: openEditor.visibleRange,
           selectedRange: openEditor.selectedRange,
-          breakpointRanges: this.store.project.breakpointRanges?.[uri],
+          breakpointRanges: this.store.debug?.breakpoints?.[uri],
         };
       }
     }
@@ -570,8 +586,8 @@ export default class WorkspaceWindow {
   startedEditingProjectName() {
     this.update({
       ...this.store,
-      project: {
-        ...this.store.project,
+      screen: {
+        ...this.store.screen,
         editingName: true,
       },
     });
@@ -584,8 +600,11 @@ export default class WorkspaceWindow {
         ...this.store,
         project: {
           ...this.store.project,
-          editingName: false,
           name,
+        },
+        screen: {
+          ...this.store.screen,
+          editingName: false,
         },
       });
       let changedName = name !== this.store.project.name;
@@ -608,8 +627,8 @@ export default class WorkspaceWindow {
   startedPickingRemoteProjectResource() {
     this.update({
       ...this.store,
-      project: {
-        ...this.store.project,
+      screen: {
+        ...this.store.screen,
         pickingResource: true,
       },
     });
@@ -618,8 +637,8 @@ export default class WorkspaceWindow {
   finishedPickingRemoteProjectResource() {
     this.update({
       ...this.store,
-      project: {
-        ...this.store.project,
+      screen: {
+        ...this.store.screen,
         pickingResource: false,
       },
     });
@@ -826,7 +845,13 @@ export default class WorkspaceWindow {
         ...this.store.project,
         id,
         name: undefined,
-        syncState: "loading",
+      },
+      sync: {
+        ...this.store.sync,
+        status: "loading",
+      },
+      screen: {
+        ...this.store.screen,
         editingName: false,
       },
     });
@@ -854,7 +879,13 @@ export default class WorkspaceWindow {
             ...this.store.project,
             id,
             name,
-            syncState: "cached",
+          },
+          sync: {
+            ...this.store.sync,
+            status: "cached",
+          },
+          screen: {
+            ...this.store.screen,
             editingName: false,
           },
         });
@@ -867,9 +898,9 @@ export default class WorkspaceWindow {
       console.error(err, err.stack);
       this.update({
         ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "load_error",
+        sync: {
+          ...this.store.sync,
+          status: "load_error",
         },
       });
     }
@@ -882,17 +913,17 @@ export default class WorkspaceWindow {
       if (id && id !== "local") {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "syncing",
+          sync: {
+            ...this.store.sync,
+            status: "syncing",
           },
         });
         const revisions = await Workspace.sync.google.getFileRevisions(id);
         if (revisions) {
           this.update({
             ...this.store,
-            project: {
-              ...this.store.project,
+            sync: {
+              ...this.store.sync,
               revisions,
             },
           });
@@ -903,19 +934,19 @@ export default class WorkspaceWindow {
             (r) => r.mimeType === "application/zip"
           );
           const remoteProjectExists = projectTextRevision || projectZipRevision;
-          const textSyncState = remoteProjectExists
+          const textSyncStatus = remoteProjectExists
             ? await this.syncText(id, projectTextRevision, pushLocalChanges)
             : "cached";
-          const zipSyncState = remoteProjectExists
+          const zipSyncStatus = remoteProjectExists
             ? await this.syncZip(id, projectZipRevision, pushLocalChanges)
             : "cached";
           const syncState =
-            textSyncState === "unsynced" || zipSyncState === "unsynced"
+            textSyncStatus === "unsynced" || zipSyncStatus === "unsynced"
               ? "unsynced"
-              : textSyncState === "sync_conflict" ||
-                zipSyncState === "sync_conflict"
+              : textSyncStatus === "sync_conflict" ||
+                zipSyncStatus === "sync_conflict"
               ? "sync_conflict"
-              : textSyncState;
+              : textSyncStatus;
           const name =
             (await Workspace.fs.readProjectMetadata(id, "name")) ||
             WorkspaceConstants.DEFAULT_PROJECT_NAME;
@@ -924,7 +955,10 @@ export default class WorkspaceWindow {
             project: {
               ...this.store.project,
               name,
-              syncState,
+            },
+            sync: {
+              ...this.store.sync,
+              status: syncState,
             },
           });
         } else {
@@ -937,7 +971,10 @@ export default class WorkspaceWindow {
             project: {
               ...this.store.project,
               name,
-              syncState: "offline",
+            },
+            sync: {
+              ...this.store.sync,
+              status: "offline",
             },
           });
         }
@@ -946,9 +983,9 @@ export default class WorkspaceWindow {
       console.error(err);
       this.update({
         ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "sync_error",
+        sync: {
+          ...this.store.sync,
+          status: "sync_error",
         },
       });
     }
@@ -960,9 +997,9 @@ export default class WorkspaceWindow {
       if (id) {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "syncing",
+          sync: {
+            ...this.store.sync,
+            status: "syncing",
           },
         });
         const revisions = await Workspace.sync.google.getFileRevisions(id);
@@ -987,7 +1024,10 @@ export default class WorkspaceWindow {
             project: {
               ...this.store.project,
               name,
-              syncState:
+            },
+            sync: {
+              ...this.store.sync,
+              status:
                 projectTextRevision && projectZipRevision ? "synced" : "cached",
             },
           });
@@ -1001,7 +1041,10 @@ export default class WorkspaceWindow {
             project: {
               ...this.store.project,
               name,
-              syncState: "offline",
+            },
+            sync: {
+              ...this.store.sync,
+              status: "offline",
             },
           });
         }
@@ -1010,9 +1053,9 @@ export default class WorkspaceWindow {
       console.error(err);
       this.update({
         ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "sync_error",
+        sync: {
+          ...this.store.sync,
+          status: "sync_error",
         },
       });
     }
@@ -1024,9 +1067,9 @@ export default class WorkspaceWindow {
       if (id) {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "syncing",
+          sync: {
+            ...this.store.sync,
+            status: "syncing",
           },
         });
         await this.pushLocalTextChanges(id);
@@ -1040,7 +1083,10 @@ export default class WorkspaceWindow {
           project: {
             ...this.store.project,
             name,
-            syncState: "synced",
+          },
+          sync: {
+            ...this.store.sync,
+            status: "synced",
           },
         });
       }
@@ -1048,9 +1094,9 @@ export default class WorkspaceWindow {
       console.error(err);
       this.update({
         ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "sync_error",
+        sync: {
+          ...this.store.sync,
+          status: "sync_error",
         },
       });
     }
@@ -1060,7 +1106,7 @@ export default class WorkspaceWindow {
     fileId: string,
     projectTextRevision: RemoteStorage.Revision | undefined,
     pushLocalChanges: boolean
-  ): Promise<SyncState> {
+  ): Promise<SyncStatus> {
     const textRevisionId = await Workspace.fs.readProjectMetadata(
       fileId,
       "textRevisionId"
@@ -1130,8 +1176,8 @@ export default class WorkspaceWindow {
     ]);
     this.update({
       ...this.store,
-      project: {
-        ...this.store.project,
+      sync: {
+        ...this.store.sync,
         textPulledAt: revision.modifiedTime,
       },
     });
@@ -1141,7 +1187,7 @@ export default class WorkspaceWindow {
     fileId: string,
     projectZipRevision: RemoteStorage.Revision | undefined,
     pushLocalChanges: boolean
-  ): Promise<SyncState> {
+  ): Promise<SyncStatus> {
     const zipRevisionId = await Workspace.fs.readProjectMetadata(
       fileId,
       "zipRevisionId"
@@ -1213,8 +1259,8 @@ export default class WorkspaceWindow {
     ]);
     this.update({
       ...this.store,
-      project: {
-        ...this.store.project,
+      sync: {
+        ...this.store.sync,
         zipPulledAt: revision.modifiedTime,
       },
     });
@@ -1226,17 +1272,17 @@ export default class WorkspaceWindow {
       if (projectId) {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "exporting",
+          sync: {
+            ...this.store.sync,
+            status: "exporting",
           },
         });
         const projectZip = await Workspace.fs.readProjectZip(projectId);
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "cached",
+          sync: {
+            ...this.store.sync,
+            status: "cached",
           },
         });
         return projectZip;
@@ -1245,9 +1291,9 @@ export default class WorkspaceWindow {
       console.error(err);
       this.update({
         ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "export_error",
+        sync: {
+          ...this.store.sync,
+          status: "export_error",
         },
       });
     }
@@ -1260,9 +1306,9 @@ export default class WorkspaceWindow {
       if (projectId) {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "importing",
+          sync: {
+            ...this.store.sync,
+            status: "importing",
           },
         });
         const extIndex = fileName.indexOf(".");
@@ -1273,9 +1319,9 @@ export default class WorkspaceWindow {
         ]);
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "cached",
+          sync: {
+            ...this.store.sync,
+            status: "cached",
           },
         });
         this.loadNewProject(projectId);
@@ -1284,9 +1330,9 @@ export default class WorkspaceWindow {
       console.error(err);
       this.update({
         ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "import_error",
+        sync: {
+          ...this.store.sync,
+          status: "import_error",
         },
       });
     }
@@ -1299,9 +1345,9 @@ export default class WorkspaceWindow {
       if (projectId) {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "exporting",
+          sync: {
+            ...this.store.sync,
+            status: "exporting",
           },
         });
         const projectName =
@@ -1357,9 +1403,9 @@ export default class WorkspaceWindow {
         } else {
           this.update({
             ...this.store,
-            project: {
-              ...this.store.project,
-              syncState: "cached",
+            sync: {
+              ...this.store.sync,
+              status: "cached",
             },
           });
         }
@@ -1368,9 +1414,9 @@ export default class WorkspaceWindow {
       console.error(err);
       this.update({
         ...this.store,
-        project: {
-          ...this.store.project,
-          syncState: "export_error",
+        sync: {
+          ...this.store.sync,
+          status: "export_error",
         },
       });
     }
@@ -1387,9 +1433,9 @@ export default class WorkspaceWindow {
       if (projectId !== "local") {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "unsynced",
+          sync: {
+            ...this.store.sync,
+            status: "unsynced",
           },
         });
       }
@@ -1407,9 +1453,9 @@ export default class WorkspaceWindow {
       if (projectId !== "local") {
         this.update({
           ...this.store,
-          project: {
-            ...this.store.project,
-            syncState: "unsynced",
+          sync: {
+            ...this.store.sync,
+            status: "unsynced",
           },
         });
       }

@@ -8,8 +8,8 @@ export default spec({
   reducer: ({ workspace }) =>
     ({
       name: workspace?.current?.project?.name || "",
-      syncState: workspace?.current?.project?.syncState || "",
-      editingName: workspace?.current?.project?.editingName || false,
+      syncState: workspace?.current?.sync?.status || "",
+      editingName: workspace?.current?.screen?.editingName || false,
     } as const),
   html: ({ context }) => {
     const { name, syncState, editingName } = context;

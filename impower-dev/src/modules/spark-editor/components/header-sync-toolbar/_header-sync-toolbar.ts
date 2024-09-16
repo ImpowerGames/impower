@@ -9,7 +9,7 @@ export default spec({
   reducer: ({ workspace }) =>
     ({
       id: workspace?.current?.project?.id || "",
-      syncState: workspace?.current?.project?.syncState || "",
+      syncState: workspace?.current?.sync?.status || "",
     } as const),
   html: ({ context }) => {
     const { id, syncState } = context;

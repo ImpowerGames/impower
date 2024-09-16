@@ -1,7 +1,7 @@
 import { WorkspaceCache } from "@impower/spark-editor-protocol/src/types";
 import Store from "../../../../../packages/spec-component/src/mixins/Store";
 
-class WorkspaceStore extends Store({
+const cache: WorkspaceCache = {
   project: { id: "" },
   pane: "logic",
   panes: {
@@ -54,7 +54,12 @@ class WorkspaceStore extends Store({
       file: {},
     },
   },
-} as WorkspaceCache) {}
+  screen: {},
+  sync: {},
+  debug: {},
+};
+
+class WorkspaceStore extends Store(cache) {}
 
 const workspace = new WorkspaceStore();
 

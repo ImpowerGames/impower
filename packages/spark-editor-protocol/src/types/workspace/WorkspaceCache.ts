@@ -13,7 +13,7 @@ export type PaneType = "logic" | "assets" | "share";
 
 export type PreviewMode = "page" | "game" | "screenplay" | "file";
 
-export type SyncState =
+export type SyncStatus =
   | "cached"
   | "unsynced"
   | "synced"
@@ -111,16 +111,29 @@ export interface Revision {
 export interface ProjectState {
   id?: string;
   name?: string;
-  editingName?: boolean;
-  pickingResource?: boolean;
-  syncState?: SyncState;
+}
+
+export interface SyncState {
+  status?: SyncStatus;
   textPulledAt?: string;
   zipPulledAt?: string;
   revisions?: Revision[];
-  breakpointRanges?: Record<string, Range[]>;
+}
+
+export interface ScreenState {
+  splitLayout?: boolean;
+  editingName?: boolean;
+  pickingResource?: boolean;
+}
+
+export interface DebugState {
+  breakpoints?: Record<string, Range[]>;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {
   project: ProjectState;
+  screen: ScreenState;
+  sync: SyncState;
+  debug: DebugState;
   preview: PreviewState;
 }

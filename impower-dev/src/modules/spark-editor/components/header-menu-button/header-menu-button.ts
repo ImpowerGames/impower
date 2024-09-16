@@ -32,7 +32,7 @@ export default class HeaderMenuButton extends Component(spec) {
 
   override onStoreUpdate() {
     const store = this.stores.workspace.current;
-    const pickingResource = store.project.pickingResource;
+    const pickingResource = store.screen.pickingResource;
     if (pickingResource !== this._pickingResource) {
       this._pickingResource = pickingResource;
       if (pickingResource) {

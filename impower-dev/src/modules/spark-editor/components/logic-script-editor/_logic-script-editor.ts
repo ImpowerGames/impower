@@ -1,7 +1,6 @@
-import { spec } from "../../../../../../packages/spec-component/src/spec";
+import { html, spec } from "../../../../../../packages/spec-component/src/spec";
 import css from "../../styles/shared";
 import workspace from "../../workspace/WorkspaceStore";
-import html from "./logic-script-editor.html";
 
 export default spec({
   tag: "se-logic-script-editor",
@@ -11,9 +10,20 @@ export default spec({
   },
   reducer: ({ workspace }) =>
     ({
-      textPulledAt: workspace?.current?.project?.textPulledAt || "",
+      textPulledAt: workspace?.current?.sync?.textPulledAt || "",
+      splitLayout: workspace?.current?.screen?.splitLayout,
     } as const),
-  html,
+  html: ({ context }) => {
+    const { splitLayout } = context;
+    return html`
+      <s-box bg-color="editor-bg" grow>
+        <sparkdown-script-editor
+          id="sparkdownScriptEditor"
+          scroll-margin="${splitLayout ? "64px 0 68px 0" : "120px 0 68px 0"}"
+        ></sparkdown-script-editor>
+      </s-box>
+    `;
+  },
   selectors: {
     sparkdownScriptEditor: "",
   } as const,

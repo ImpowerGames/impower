@@ -8,7 +8,7 @@ export default spec({
   reducer: ({ workspace }) =>
     ({
       name: workspace?.current?.project?.name || "",
-      syncState: workspace?.current?.project?.syncState || "",
+      syncState: workspace?.current?.sync?.status || "",
     } as const),
   html: ({ context }) => {
     const { name, syncState } = context;

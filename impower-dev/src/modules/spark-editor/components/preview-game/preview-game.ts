@@ -119,8 +119,8 @@ export default class GamePreview extends Component(spec) {
       this._startFromFile = uri;
       this._startFromLine = startLine;
       const waypoints: { file: string; line: number }[] = [];
-      if (Workspace.window.store.project.breakpointRanges) {
-        Object.entries(Workspace.window.store.project.breakpointRanges).forEach(
+      if (Workspace.window.store.debug?.breakpoints) {
+        Object.entries(Workspace.window.store.debug.breakpoints).forEach(
           ([uri, ranges]) => {
             ranges.forEach((range) =>
               waypoints.push({ file: uri, line: range.start.line })
