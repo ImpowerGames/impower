@@ -1,5 +1,4 @@
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
-import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
@@ -16,7 +15,10 @@ import { DidOpenFileEditorMessage } from "@impower/spark-editor-protocol/src/pro
 import { DidOpenPaneMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPaneMessage";
 import { DidOpenPanelMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenPanelMessage";
 import { DidOpenViewMessage } from "@impower/spark-editor-protocol/src/protocols/window/DidOpenViewMessage";
+import { ShowDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/window/ShowDocumentMessage";
+import { UnfocusWindowMessage } from "@impower/spark-editor-protocol/src/protocols/window/UnfocusWindowMessage";
 import {
+  EditorState,
   PaneType,
   PanelType,
   PreviewMode,
@@ -163,6 +165,7 @@ export default class WorkspaceWindow {
                     ...this.store.panes[pane].panels[panel],
                     activeEditor: {
                       ...this.store.panes[pane].panels[panel]!.activeEditor,
+                      focused: true,
                       selectedRange,
                     },
                   },
@@ -264,12 +267,10 @@ export default class WorkspaceWindow {
   }
 
   getActiveEditorForFile(filenameOrUri: string):
-    | {
+    | (EditorState & {
         uri: string;
-        visibleRange: Range | undefined;
-        selectedRange: Range | undefined;
         breakpointRanges: Range[] | undefined;
-      }
+      })
     | undefined {
     const projectId = this.store.project.id;
     if (projectId) {
@@ -283,10 +284,11 @@ export default class WorkspaceWindow {
         ) {
           const uri = Workspace.fs.getFileUri(projectId, filenameOrUri);
           return {
+            uri,
+            focused: panelState.activeEditor.focused,
             visibleRange: panelState.activeEditor.visibleRange,
             selectedRange: panelState.activeEditor.selectedRange,
             breakpointRanges: this.store.project.breakpointRanges?.[uri],
-            uri,
           };
         }
       }
@@ -345,6 +347,10 @@ export default class WorkspaceWindow {
                 activeEditor: {
                   ...this.store.panes[pane].panels[panel]?.activeEditor,
                   filename: filename,
+                  focused: takeFocus
+                    ? takeFocus
+                    : this.store.panes[pane].panels[panel]?.activeEditor
+                        ?.focused,
                   visibleRange: selection
                     ? { ...selection }
                     : this.store.panes[pane].panels[panel]?.activeEditor
@@ -372,6 +378,36 @@ export default class WorkspaceWindow {
         })
       );
     }, 10);
+  }
+
+  unfocus() {
+    const pane = this.store.pane;
+    const panel = this.getOpenedPanel(pane);
+    if (pane && panel) {
+      this.update({
+        ...this.store,
+        panes: {
+          ...this.store.panes,
+          [pane]: {
+            ...this.store.panes[pane],
+            panels: {
+              ...this.store.panes[pane].panels,
+              [panel]: {
+                ...this.store.panes[pane].panels[panel],
+                activeEditor: {
+                  ...this.store.panes[pane].panels[panel]?.activeEditor,
+                  focused: false,
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+    this.emit(
+      UnfocusWindowMessage.method,
+      UnfocusWindowMessage.type.request({})
+    );
   }
 
   openedPane(pane: PaneType) {

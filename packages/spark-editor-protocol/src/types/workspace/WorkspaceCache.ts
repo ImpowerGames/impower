@@ -58,8 +58,9 @@ export interface PreviewState {
   };
 }
 export interface EditorState {
-  open?: boolean;
   filename?: string;
+  open?: boolean;
+  focused?: boolean;
   visibleRange?: Range;
   selectedRange?: Range;
 }

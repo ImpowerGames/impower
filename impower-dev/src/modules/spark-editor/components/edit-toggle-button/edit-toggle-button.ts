@@ -1,4 +1,5 @@
 import { Component } from "../../../../../../packages/spec-component/src/component";
+import { Workspace } from "../../workspace/Workspace";
 import spec from "./_edit-toggle-button";
 
 export default class EditToggleButton extends Component(spec) {
@@ -19,7 +20,9 @@ export default class EditToggleButton extends Component(spec) {
   }
 
   handlePointerDown = (e: Event) => {
-    if (!this.ref.button.active) {
+    if (this.ref.button.active) {
+      Workspace.window.unfocus();
+    } else {
       // clicked options menu
     }
   };

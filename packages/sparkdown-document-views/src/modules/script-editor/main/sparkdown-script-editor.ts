@@ -210,6 +210,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
       if (LoadEditorMessage.type.isRequest(message)) {
         const params = message.params;
         const textDocument = params.textDocument;
+        const focused = params.focused;
         const visibleRange = params.visibleRange;
         const selectedRange = params.selectedRange;
         const breakpointRanges = params.breakpointRanges;
@@ -219,6 +220,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
           languageServerCapabilities;
         this.loadTextDocument(
           textDocument,
+          focused,
           visibleRange,
           selectedRange,
           breakpointRanges
@@ -278,6 +280,7 @@ export default class SparkdownScriptEditor extends Component(spec) {
 
   protected loadTextDocument(
     textDocument: TextDocumentItem,
+    focused: boolean | undefined,
     visibleRange: Range | undefined,
     selectedRange: Range | undefined,
     breakpointRanges: Range[] | undefined
@@ -403,11 +406,13 @@ export default class SparkdownScriptEditor extends Component(spec) {
     // Scroll to visible range
     window.requestAnimationFrame(() => {
       this.scrollToRange(visibleRange);
+      if (selectedRange) {
+        this.selectRange(selectedRange, false);
+      }
       this._initialized = true;
     });
-    // If page is focused and should restore selectedRange...
-    if (document.hasFocus() && this._view && selectedRange) {
-      // Try to select range until we succeed
+    if (document.hasFocus() && this._view && focused) {
+      // Try to restore focus
       const timer = window.setInterval(() => {
         if (!this._view || this._view.hasFocus) {
           clearInterval(timer);
@@ -415,7 +420,6 @@ export default class SparkdownScriptEditor extends Component(spec) {
         }
         this.focus();
         this._view.focus();
-        this.selectRange(selectedRange, false);
       }, 100);
     }
   }
@@ -455,20 +459,18 @@ export default class SparkdownScriptEditor extends Component(spec) {
     this.cacheVisibleRange(range);
   }
 
-  protected selectRange(range: Range | undefined, scrollIntoView: boolean) {
+  protected selectRange(range: Range, scrollIntoView: boolean) {
     const view = this._view;
     if (view) {
-      if (range) {
-        const doc = view.state.doc;
-        const anchor = positionToOffset(doc, range.start);
-        const head = positionToOffset(doc, range.end);
-        view.dispatch({
-          selection: EditorSelection.create([
-            EditorSelection.range(anchor, head),
-          ]),
-          scrollIntoView,
-        });
-      }
+      const doc = view.state.doc;
+      const anchor = positionToOffset(doc, range.start);
+      const head = positionToOffset(doc, range.end);
+      view.dispatch({
+        selection: EditorSelection.create([
+          EditorSelection.range(anchor, head),
+        ]),
+        scrollIntoView,
+      });
     }
   }
 
