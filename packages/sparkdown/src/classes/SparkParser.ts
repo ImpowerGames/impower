@@ -214,11 +214,11 @@ export default class SparkParser {
                 `image_group.${name}`,
                 `graphic.${name}`
               );
-              description = `image, image_group, or graphic named '${name}'`;
+              description = `image named '${name}'`;
             }
             if (structType === "audio_group") {
               selectors.push(`audio.${name}`, `synth.${name}`);
-              description = `audio or synth named '${name}'`;
+              description = `audio named '${name}'`;
             }
           }
           program.references ??= {};
@@ -272,7 +272,7 @@ export default class SparkParser {
           const description =
             prevChar === "~"
               ? `image_filter named '${text}'`
-              : `image, image_group, or graphic named '${text}'`;
+              : `image named '${text}'`;
           program.references ??= {};
           program.references[uri] ??= {};
           program.references[uri][lineIndex] ??= [];
@@ -292,7 +292,7 @@ export default class SparkParser {
           const description =
             prevChar === "~"
               ? `audio_filter named '${text}'`
-              : `audio, audio_group, or synth named '${text}'`;
+              : `audio named '${text}'`;
           program.references ??= {};
           program.references[uri] ??= {};
           program.references[uri][lineIndex] ??= [];
