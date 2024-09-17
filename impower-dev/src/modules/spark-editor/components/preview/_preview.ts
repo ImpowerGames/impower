@@ -5,16 +5,21 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-preview",
   stores: { workspace },
-  html: ({ stores }) => {
-    const mode = stores?.workspace?.current?.preview?.mode || "game";
-    const gameComponent = () => html`<se-preview-game></se-preview-game>`;
-    const screenplayComponent = () =>
-      html`<se-preview-screenplay></se-preview-screenplay>`;
+  reducer: ({ stores }) => ({
+    projectId: stores?.workspace?.current?.project?.id || "",
+    mode: stores?.workspace?.current?.preview?.mode || "game",
+  }),
+  html: ({ context }) => {
+    const projectId = context.projectId;
+    const mode = projectId ? context.mode : "";
     return html`
       <s-router key="preview" active="${mode}">
-        ${mode === "screenplay" ? screenplayComponent : gameComponent}
-        <template value="game">${gameComponent}</template>
-        <template value="screenplay">${screenplayComponent}</template>
+        <template value="game">
+          <se-preview-game></se-preview-game>
+        </template>
+        <template value="screenplay">
+          <se-preview-screenplay></se-preview-screenplay>
+        </template>
       </s-router>
     `;
   },

@@ -7,8 +7,8 @@ export default spec({
   tag: "se-main-window",
   stores: { workspace },
   reducer: ({ stores }) => ({
-    pane: stores?.workspace?.current?.pane || "logic",
     projectId: stores?.workspace?.current?.project?.id || "",
+    pane: stores?.workspace?.current?.pane || "logic",
   }),
   html: ({ context }) => {
     const projectId = context.projectId;

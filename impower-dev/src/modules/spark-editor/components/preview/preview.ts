@@ -14,8 +14,9 @@ export default class Preview extends Component(spec) {
   handleEnter = (e: Event) => {
     if (e instanceof CustomEvent) {
       if (e.detail.key === "preview") {
-        const value = e.detail.value;
-        Workspace.window.changedPreviewMode(value);
+        const mode = e.detail.value;
+        this.context.mode = mode;
+        Workspace.window.changedPreviewMode(mode);
       }
     }
   };
