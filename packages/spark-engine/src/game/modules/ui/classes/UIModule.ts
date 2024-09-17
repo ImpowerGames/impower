@@ -93,24 +93,24 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
 
   override async onRestore() {
     if (this._state.text) {
-      Object.entries(this._state.text).forEach(([target]) => {
+      for (const [target] of Object.entries(this._state.text)) {
         this.text.restore(target);
-      });
+      }
     }
     if (this._state.image) {
-      Object.entries(this._state.image).forEach(([target]) => {
+      for (const [target] of Object.entries(this._state.image)) {
         this.image.restore(target);
-      });
+      }
     }
     if (this._state.style) {
-      Object.entries(this._state.style).forEach(([target]) => {
+      for (const [target] of Object.entries(this._state.style)) {
         this.style.restore(target);
-      });
+      }
     }
     if (this._state.attributes) {
-      Object.entries(this._state.attributes).forEach(([target]) => {
+      for (const [target] of Object.entries(this._state.attributes)) {
         this.attributes.restore(target);
-      });
+      }
     }
   }
 
@@ -188,9 +188,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     this.updateElement(element, {
       content: { text: "" },
     });
-    element.children.forEach((child) => {
+    for (const child of element.children) {
       this.destroyElement(child);
-    });
+    }
   }
 
   protected updateElement(element: Element, state?: ElementState): void {
@@ -384,7 +384,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         flex_direction: "column",
       },
     });
-    Object.entries(properties).forEach(([k, v]) => {
+    for (const [k, v] of Object.entries(properties)) {
       const path = k.startsWith(".") ? k.split(".").slice(1) : k.split(".");
       const isValidNode = !path.at(-1)?.startsWith("$");
       if (isValidNode) {
@@ -420,7 +420,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           }
         }
       }
-    });
+    }
     return uiEl;
   }
 
@@ -447,7 +447,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     const validStructNames = targetAllStructs
       ? Object.keys(this.context?.ui || {})
       : structNames;
-    validStructNames.forEach((structName) => {
+    for (const structName of validStructNames) {
       if (structName && !this.context.config.ui.ignore.includes(structName)) {
         const structObj = this.context?.ui?.[structName];
         if (structObj) {
@@ -455,7 +455,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           this.constructUI(structName, properties);
         }
       }
-    });
+    }
   }
 
   loadTheme(): void {
@@ -470,25 +470,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   hideUI(...structNames: string[]): void {
-    structNames.forEach((structName) => {
+    for (const structName of structNames) {
       if (structName) {
         const structEl = this.getUIElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: "" } });
         }
       }
-    });
+    }
   }
 
   showUI(...structNames: string[]): void {
-    structNames.forEach((structName) => {
+    for (const structName of structNames) {
       if (structName) {
         const structEl = this.getUIElement(structName);
         if (structEl) {
           this.updateElement(structEl, { attributes: { hidden: null } });
         }
       }
-    });
+    }
   }
 
   protected findElements(target: string): Element[] {
@@ -624,7 +624,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           loop: "loop" in event ? event.loop : undefined,
         });
       }
-      animationEvents.forEach(({ name, after, over, loop }) => {
+      for (const { name, after, over, loop } of animationEvents) {
         const delayOverride = `${after ?? 0}s`;
         const durationOverride = over != null ? `${over}s` : null;
         const loopOverride =
@@ -655,7 +655,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             timing,
           });
         }
-      });
+      }
     }
   }
 
@@ -667,7 +667,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     once = false
   ): boolean {
     const targetEls = this.findElements(target);
-    targetEls.forEach((targetEl) => {
+    for (const targetEl of targetEls) {
       const style = { pointer_events: "auto" };
       this.updateElement(targetEl, { style });
       this.emit(
@@ -696,7 +696,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           })
         );
       }
-    });
+    }
     return targetEls.length > 0;
   }
 
@@ -1231,13 +1231,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         $._state.style[target] ??= {};
         const state = $._state.style[target]!;
         if (style) {
-          Object.entries(style).forEach(([k, v]) => {
+          for (const [k, v] of Object.entries(style)) {
             if (v) {
               state[k] = v;
             } else {
               delete state[k];
             }
-          });
+          }
         } else {
           $._state.style[target] = {};
         }
@@ -1284,13 +1284,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         $._state.attributes[target] ??= {};
         const state = $._state.attributes[target]!;
         if (attributes) {
-          Object.entries(attributes).forEach(([k, v]) => {
+          for (const [k, v] of Object.entries(attributes)) {
             if (v) {
               state[k] = v;
             } else {
               delete state[k];
             }
-          });
+          }
         } else {
           $._state.attributes[target] = {};
         }
