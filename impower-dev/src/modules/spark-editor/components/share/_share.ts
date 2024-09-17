@@ -6,7 +6,7 @@ export default spec({
   tag: "se-share",
   stores: { workspace },
   reducer: ({ stores }) => ({
-    panel: stores?.workspace?.current?.panes?.share?.panel || "game",
+    panel: stores?.workspace?.current?.panes?.share?.panel || "",
   }),
   html: ({ context }) => {
     const { panel } = context;

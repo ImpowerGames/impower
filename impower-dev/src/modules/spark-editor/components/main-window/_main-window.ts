@@ -7,12 +7,10 @@ export default spec({
   tag: "se-main-window",
   stores: { workspace },
   reducer: ({ stores }) => ({
-    projectId: stores?.workspace?.current?.project?.id || "",
-    pane: stores?.workspace?.current?.pane || "logic",
+    pane: stores?.workspace?.current?.pane || "",
   }),
   html: ({ context }) => {
-    const projectId = context.projectId;
-    const pane = projectId ? context.pane : "";
+    const pane = context.pane;
     return html`
       <s-split-pane
         id="splitPane"

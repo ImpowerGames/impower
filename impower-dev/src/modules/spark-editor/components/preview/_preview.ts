@@ -6,12 +6,10 @@ export default spec({
   tag: "se-preview",
   stores: { workspace },
   reducer: ({ stores }) => ({
-    projectId: stores?.workspace?.current?.project?.id || "",
-    mode: stores?.workspace?.current?.preview?.mode || "game",
+    mode: stores?.workspace?.current?.preview?.mode || "",
   }),
   html: ({ context }) => {
-    const projectId = context.projectId;
-    const mode = projectId ? context.mode : "";
+    const mode = context.mode;
     return html`
       <s-router key="preview" active="${mode}">
         <template value="game">

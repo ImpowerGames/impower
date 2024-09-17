@@ -6,7 +6,7 @@ export default spec({
   tag: "se-assets",
   stores: { workspace },
   reducer: ({ stores }) => ({
-    panel: stores?.workspace?.current?.panes?.assets?.panel || "files",
+    panel: stores?.workspace?.current?.panes?.assets?.panel || "",
   }),
   html: ({ context }) => {
     const { panel } = context;

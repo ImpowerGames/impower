@@ -6,7 +6,7 @@ export default spec({
   tag: "se-logic-list",
   stores: { workspace },
   reducer: ({ stores }) => ({
-    panel: stores?.workspace?.current?.panes?.logic?.panel || "main",
+    panel: stores?.workspace?.current?.panes?.logic?.panel || "",
   }),
   html: ({ context }) => {
     const { panel } = context;
@@ -20,11 +20,10 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="book-closed"
-              active-icon="book-closed"
               value="main"
               ${panel === "main" ? "active" : ""}
             >
+              <s-icon name="book-closed" m-r="8"></s-icon>
               Main
             </s-tab>
             <s-tab
@@ -32,20 +31,17 @@ export default spec({
               text-color="tab-inactive"
               p="20"
               child-layout="row"
-              icon="book"
-              active-icon="book"
               value="scripts"
               ${panel === "scripts" ? "active" : ""}
             >
+              <s-icon name="book" m-r="8"></s-icon>
               Scripts
             </s-tab>
           </s-tabs>
         </s-box>
-        <se-logic-script-editor filename="main.script"></se-logic-script-editor>
         <template value="main">
-          <se-logic-script-editor
-            filename="main.script"
-          ></se-logic-script-editor>
+          <se-logic-script-editor filename="main.script">
+          </se-logic-script-editor>
         </template>
         <template value="scripts">
           <se-logic-scripts-list></se-logic-scripts-list>

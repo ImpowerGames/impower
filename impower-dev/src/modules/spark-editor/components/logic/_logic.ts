@@ -7,13 +7,12 @@ export default spec({
   stores: { workspace },
   reducer: ({ stores }) =>
     ({
-      view: stores?.workspace?.current?.panes?.logic?.view || "list",
+      view: stores?.workspace?.current?.panes?.logic?.view || "",
     } as const),
   html: ({ context }) => {
     const { view } = context;
     return html`
       <s-router key="logic-view" active="${view}">
-        <se-logic-list></se-logic-list>
         <template value="list">
           <se-logic-list></se-logic-list>
         </template>
