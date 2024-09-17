@@ -67,6 +67,7 @@ export default spec({
                   icon="bolt"
                   active-icon="bolt-fill"
                   value="logic"
+                  ${pane === "logic" ? "active" : ""}
                 >
                   Logic
                 </s-tab>
@@ -77,6 +78,7 @@ export default spec({
                   icon="photo"
                   active-icon="photo-fill"
                   value="assets"
+                  ${pane === "assets" ? "active" : ""}
                 >
                   Assets
                 </s-tab>
@@ -87,6 +89,7 @@ export default spec({
                   icon="share"
                   active-icon="share-fill"
                   value="share"
+                  ${pane === "share" ? "active" : ""}
                 >
                   Share
                 </s-tab>
