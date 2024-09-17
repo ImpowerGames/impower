@@ -14,14 +14,14 @@ export interface ComponentSpec<
   tag: `${string}-${string}`;
   stores: Stores;
   graphics: Graphics;
-  reducer: (stores: Stores) => Context;
+  reducer: (args: { props: Props; stores: Stores }) => Context;
   props: Props;
   css: string[];
   html?: (args: {
-    graphics: Graphics;
+    props: Props;
     stores: Stores;
     context: Context;
-    props: Props;
+    graphics: Graphics;
   }) => string;
   selectors: Selectors;
   shadowDOM: boolean;

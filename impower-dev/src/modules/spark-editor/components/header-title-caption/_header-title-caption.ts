@@ -5,10 +5,10 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-header-title-caption",
   stores: { workspace },
-  reducer: ({ workspace }) =>
+  reducer: ({ stores }) =>
     ({
-      name: workspace?.current?.project?.name || "",
-      syncState: workspace?.current?.sync?.status || "",
+      name: stores?.workspace?.current?.project?.name || "",
+      syncState: stores?.workspace?.current?.sync?.status || "",
     } as const),
   html: ({ context }) => {
     const { name, syncState } = context;
@@ -47,9 +47,9 @@ export default spec({
           syncState === "import_error" ||
           syncState === "export_error" ||
           syncState === "sync_error"
-        ? "red"
+        ? "error"
         : syncState === "sync_conflict" || syncState === "offline"
-        ? "yellow"
+        ? "warning"
         : "fg-60";
     const stateSkeleton = () => html`
       <s-skeleton id="name-skeleton">Saved in cache</s-skeleton>

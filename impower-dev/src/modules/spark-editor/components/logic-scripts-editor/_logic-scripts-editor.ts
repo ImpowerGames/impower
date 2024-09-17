@@ -5,10 +5,10 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-logic-scripts-editor",
   stores: { workspace },
-  reducer: ({ workspace }) =>
+  reducer: ({ stores }) =>
     ({
       filename:
-        workspace?.current?.panes?.logic?.panels?.scripts?.activeEditor
+        stores?.workspace?.current?.panes?.logic?.panels?.scripts?.activeEditor
           ?.filename || "",
     } as const),
   html: ({ context }) => {

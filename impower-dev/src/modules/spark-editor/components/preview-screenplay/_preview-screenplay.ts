@@ -5,10 +5,10 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-preview-screenplay",
   stores: { workspace },
-  reducer: ({ workspace }) =>
+  reducer: ({ stores }) =>
     ({
-      textPulledAt: workspace?.current?.sync?.textPulledAt || "",
-      splitLayout: workspace?.current?.screen?.splitLayout,
+      textPulledAt: stores?.workspace?.current?.sync?.textPulledAt || "",
+      splitLayout: stores?.workspace?.current?.screen?.splitLayout,
     } as const),
   html: ({ context }) => {
     const { splitLayout } = context;

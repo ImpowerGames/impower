@@ -8,10 +8,10 @@ export default spec({
   props: {
     filename: "",
   },
-  reducer: ({ workspace }) =>
+  reducer: ({ stores }) =>
     ({
-      textPulledAt: workspace?.current?.sync?.textPulledAt || "",
-      splitLayout: workspace?.current?.screen?.splitLayout,
+      textPulledAt: stores?.workspace?.current?.sync?.textPulledAt || "",
+      splitLayout: stores?.workspace?.current?.screen?.splitLayout,
     } as const),
   html: ({ context }) => {
     const { splitLayout } = context;

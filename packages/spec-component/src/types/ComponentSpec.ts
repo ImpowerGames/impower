@@ -8,16 +8,16 @@ export interface ComponentSpec<
   Selectors extends Record<string, null | string | string[]>
 > {
   tag: `${string}-${string}`;
+  props: Props;
   stores: Stores;
   graphics: Graphics;
-  reducer: (stores: Stores) => Context;
-  props: Props;
+  reducer: (args: { props: Props; stores: Stores }) => Context;
   css: string[];
   html: (args: {
-    graphics: Graphics;
+    props: Props;
     stores: Stores;
     context: Context;
-    props: Props;
+    graphics: Graphics;
   }) => string;
   selectors: Selectors;
   shadowDOM: boolean;

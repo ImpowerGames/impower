@@ -43,14 +43,15 @@ const expandComponent = (
   const component = components[name];
 
   if (component) {
-    const graphics = component.graphics;
+    const props = {
+      ...component.props,
+      ...attrsToProps(attrs, component.props),
+    };
     const stores = component.stores;
-    const context = component.reducer(stores);
-    const state = component.state;
-    const defaultProps = component.props;
+    const context = component.reducer({ props, stores });
+    const graphics = component.graphics;
     const html = component.html;
-    const props = { ...defaultProps, ...attrsToProps(attrs, defaultProps) };
-    const content = html?.({ graphics, stores, context, props, state }) || "";
+    const content = html?.({ props, stores, context, graphics }) || "";
     return fragment(content) as Element;
   } else {
     throw new Error(`Could not find component spec for ${name}`);

@@ -5,8 +5,8 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-share",
   stores: { workspace },
-  reducer: ({ workspace }) => ({
-    panel: workspace?.current?.panes?.share?.panel || "game",
+  reducer: ({ stores }) => ({
+    panel: stores?.workspace?.current?.panes?.share?.panel || "game",
   }),
   html: ({ context }) => {
     const { panel } = context;

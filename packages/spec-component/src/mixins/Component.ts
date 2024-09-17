@@ -32,7 +32,7 @@ const Component = <
     #html = spec.html({
       graphics: spec.graphics,
       stores: spec.stores,
-      context: spec.reducer(spec.stores),
+      context: spec.reducer({ props: spec.props, stores: spec.stores }),
       props: spec.props,
     });
 
@@ -63,14 +63,6 @@ const Component = <
       return this.#ref;
     }
 
-    #context = this.reduce(this.#stores);
-    get context() {
-      return this.#context;
-    }
-    set context(value) {
-      this.#context = value;
-    }
-
     #props: Props = Object.keys(CustomElement.attrs).reduce((obj, key) => {
       const propName = key as keyof this;
       Object.defineProperty(obj, propName, {
@@ -85,6 +77,14 @@ const Component = <
     }, {} as Props);
     get props() {
       return this.#props;
+    }
+
+    #context = this.reduce({ props: this.#props, stores: this.#stores });
+    get context() {
+      return this.#context;
+    }
+    set context(value) {
+      this.#context = value;
     }
 
     /**
@@ -264,15 +264,18 @@ const Component = <
      */
     onInit() {}
 
-    reduce(stores: Stores) {
-      return spec.reducer(stores);
+    reduce(args: { props: Props; stores: Stores }) {
+      return spec.reducer(args);
     }
 
     #handleStoreUpdate = (e: Event): void => {
       if (e instanceof CustomEvent) {
         this.onStoreUpdate();
         const oldContext = this.#context;
-        const newContext = this.reduce(this.stores);
+        const newContext = this.reduce({
+          props: this.#props,
+          stores: this.#stores,
+        });
         this.#context = newContext;
         const changed = Object.entries(newContext).some(
           ([k, v]) => v !== oldContext[k]

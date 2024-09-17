@@ -5,8 +5,8 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-logic-list",
   stores: { workspace },
-  reducer: ({ workspace }) => ({
-    panel: workspace?.current?.panes?.logic?.panel || "main",
+  reducer: ({ stores }) => ({
+    panel: stores?.workspace?.current?.panes?.logic?.panel || "main",
   }),
   html: ({ context }) => {
     const { panel } = context;

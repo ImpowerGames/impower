@@ -6,10 +6,10 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-header-sync-toolbar",
   stores: { workspace },
-  reducer: ({ workspace }) =>
+  reducer: ({ stores }) =>
     ({
-      id: workspace?.current?.project?.id || "",
-      syncState: workspace?.current?.sync?.status || "",
+      id: stores?.workspace?.current?.project?.id || "",
+      syncState: stores?.workspace?.current?.sync?.status || "",
     } as const),
   html: ({ context }) => {
     const { id, syncState } = context;

@@ -5,8 +5,8 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-assets",
   stores: { workspace },
-  reducer: ({ workspace }) => ({
-    panel: workspace?.current?.panes?.assets?.panel || "files",
+  reducer: ({ stores }) => ({
+    panel: stores?.workspace?.current?.panes?.assets?.panel || "files",
   }),
   html: ({ context }) => {
     const { panel } = context;

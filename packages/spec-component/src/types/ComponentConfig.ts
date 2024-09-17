@@ -8,17 +8,17 @@ export interface ComponentConfig<
   Selectors extends Record<string, null | string | string[]>
 > {
   tag: `${string}-${string}`;
+  props?: Props;
   stores?: Stores;
   graphics?: Graphics;
-  reducer?: (stores: Stores) => Context;
-  props?: Props;
+  reducer?: (args: { props: Props; stores: Stores }) => Context;
   css?: string[] | string;
   html?:
     | ((args: {
-        graphics: Graphics;
+        props: Props;
         stores: Stores;
         context: Context;
-        props: Props;
+        graphics: Graphics;
       }) => string)
     | string;
   selectors?: Selectors;

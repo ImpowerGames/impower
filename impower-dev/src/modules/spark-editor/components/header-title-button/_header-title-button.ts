@@ -5,11 +5,11 @@ import workspace from "../../workspace/WorkspaceStore";
 export default spec({
   tag: "se-header-title-button",
   stores: { workspace },
-  reducer: ({ workspace }) =>
+  reducer: ({ stores }) =>
     ({
-      name: workspace?.current?.project?.name || "",
-      syncState: workspace?.current?.sync?.status || "",
-      editingName: workspace?.current?.screen?.editingName || false,
+      name: stores?.workspace?.current?.project?.name || "",
+      syncState: stores?.workspace?.current?.sync?.status || "",
+      editingName: stores?.workspace?.current?.screen?.editingName || false,
     } as const),
   html: ({ context }) => {
     const { name, syncState, editingName } = context;
