@@ -6,9 +6,9 @@ import css from "./main-window.css";
 export default spec({
   tag: "se-main-window",
   stores: { workspace },
-  reducer: ({ workspace }) => ({
-    pane: workspace?.current?.pane || "logic",
-    projectId: workspace?.current?.project?.id || "",
+  reducer: ({ stores }) => ({
+    pane: stores?.workspace?.current?.pane || "logic",
+    projectId: stores?.workspace?.current?.project?.id || "",
   }),
   html: ({ context }) => {
     const projectId = context.projectId;
