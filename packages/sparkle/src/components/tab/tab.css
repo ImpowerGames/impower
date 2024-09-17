@@ -53,6 +53,7 @@
   padding-block: var(--padding-tb);
   padding-inline: var(--padding-lr);
   gap: var(--child-gap);
+  line-height: 1;
   will-change: transform;
 }
 
@@ -89,10 +90,6 @@
   align-items: var(--child-align);
   justify-content: var(--child-justify);
   transition-duration: var(--duration);
-}
-
-:host([icon]) > .root > .label {
-  line-height: 1;
 }
 
 :host(:not([child-layout="row"])[icon]) > .root > .label {
