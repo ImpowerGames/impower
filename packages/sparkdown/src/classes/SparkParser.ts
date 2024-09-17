@@ -314,8 +314,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "Invalid visual control: Visual commands only support 'set', 'show', 'hide', or 'animate'";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -340,8 +341,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "Invalid audio control: Audio commands only support 'play', 'start', 'stop', or 'modulate'";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -362,8 +364,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "Invalid visual clause: Visual commands only support 'after', 'over', 'fadeto', 'with', 'loop', 'noloop', 'wait', or 'nowait'";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -384,8 +387,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "Invalid audio clause: Audio commands only support 'after', 'over', 'fadeto', 'with', 'loop', 'noloop', 'mute', 'unmute', or 'now'";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -405,8 +409,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "'after' must be followed by a time value (e.g. 'after 2' or 'after 2s' or 'after 200ms')";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -426,8 +431,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "'over' must be followed by a time value (e.g. 'over 2' or 'over 2s' or 'over 200ms')";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -449,8 +455,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "'fadeto' must be followed by a number between 0 and 1 (e.g. 'fadeto 0' or 'fadeto 1' or 'fadeto 0.5')";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -471,8 +478,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "'with' must be followed by the name of an animation (e.g. 'with shake')";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -509,8 +517,9 @@ export default class SparkParser {
           const severity = DiagnosticSeverity.Error;
           const message =
             "'with' must be followed by the name of a modulation (e.g. 'with echo')";
-          program.diagnostics ??= [];
-          program.diagnostics.push({
+          program.diagnostics ??= {};
+          program.diagnostics[uri] ??= [];
+          program.diagnostics[uri].push({
             range,
             severity,
             message,
@@ -645,7 +654,7 @@ export default class SparkParser {
       program.uuidToSource = this.sortSources(program.uuidToSource);
     } catch {}
     for (const error of inkCompiler.errors) {
-      program.diagnostics ??= [];
+      program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
         error.message,
         ErrorType.Error,
@@ -653,11 +662,19 @@ export default class SparkParser {
         program
       );
       if (diagnostic) {
-        program.diagnostics.push(diagnostic);
+        if (diagnostic.relatedInformation) {
+          for (const info of diagnostic.relatedInformation) {
+            const uri = info.location.uri;
+            if (uri) {
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push(diagnostic);
+            }
+          }
+        }
       }
     }
     for (const warning of inkCompiler.warnings) {
-      program.diagnostics ??= [];
+      program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
         warning.message,
         ErrorType.Warning,
@@ -665,19 +682,35 @@ export default class SparkParser {
         program
       );
       if (diagnostic) {
-        program.diagnostics.push(diagnostic);
+        if (diagnostic.relatedInformation) {
+          for (const info of diagnostic.relatedInformation) {
+            const uri = info.location.uri;
+            if (uri) {
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push(diagnostic);
+            }
+          }
+        }
       }
     }
     for (const info of inkCompiler.infos) {
-      program.diagnostics ??= [];
+      program.diagnostics ??= {};
       const diagnostic = this.getDiagnostic(
         info.message,
-        ErrorType.Info,
+        ErrorType.Information,
         info.source,
         program
       );
       if (diagnostic) {
-        program.diagnostics.push(diagnostic);
+        if (diagnostic.relatedInformation) {
+          for (const info of diagnostic.relatedInformation) {
+            const uri = info.location.uri;
+            if (uri) {
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push(diagnostic);
+            }
+          }
+        }
       }
     }
     console.log("program", program);
@@ -772,8 +805,9 @@ export default class SparkParser {
             if (!struct) {
               const severity = DiagnosticSeverity.Warning;
               const message = `Cannot find ${description}`;
-              program.diagnostics ??= [];
-              program.diagnostics.push({
+              program.diagnostics ??= {};
+              program.diagnostics[uri] ??= [];
+              program.diagnostics[uri].push({
                 range,
                 severity,
                 message,

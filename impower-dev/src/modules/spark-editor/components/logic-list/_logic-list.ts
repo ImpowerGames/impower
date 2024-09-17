@@ -23,8 +23,10 @@ export default spec({
               value="main"
               ${panel === "main" ? "active" : ""}
             >
-              <s-icon name="book-closed" m-r="8"></s-icon>
-              Main
+              <se-logic-diagnostics-label filename="main.script">
+                <s-icon name="book-closed" m-r="8"></s-icon>
+                Main
+              </se-logic-diagnostics-label>
             </s-tab>
             <s-tab
               color="tab-active"
@@ -34,8 +36,10 @@ export default spec({
               value="scripts"
               ${panel === "scripts" ? "active" : ""}
             >
-              <s-icon name="book" m-r="8"></s-icon>
-              Scripts
+              <se-logic-diagnostics-label>
+                <s-icon name="book" m-r="8"></s-icon>
+                Scripts
+              </se-logic-diagnostics-label>
             </s-tab>
           </s-tabs>
         </s-box>

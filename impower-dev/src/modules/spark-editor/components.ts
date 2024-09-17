@@ -24,6 +24,7 @@ import HeaderSyncToolbar from "./components/header-sync-toolbar/_header-sync-too
 import HeaderTitleButton from "./components/header-title-button/_header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/_header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/_interaction-blocker";
+import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/_logic-diagnostics-label";
 import LogicList from "./components/logic-list/_logic-list";
 import LogicScriptEditor from "./components/logic-script-editor/_logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/_logic-scripts-editor";
@@ -85,7 +86,6 @@ const components = [
   style(FileListBorder),
   style(FileList),
   style(FileDropzone),
-  style(LogicScriptEditor),
   style(PreviewGameToolbar),
   style(PreviewGame),
   style(PreviewScreenplayToolbar),
@@ -93,6 +93,8 @@ const components = [
   style(Assets),
   style(AssetsFiles),
   style(AssetsUrls),
+  style(LogicDiagnosticsLabel),
+  style(LogicScriptEditor),
   style(LogicScriptsEditor),
   style(LogicScriptsList),
   style(LogicList),

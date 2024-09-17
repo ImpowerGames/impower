@@ -1,4 +1,5 @@
-import type { Range } from "vscode-languageserver-protocol";
+import type { Range } from "../base/Range";
+import type { Diagnostic } from "../base/Diagnostic";
 
 export type PanelType =
   | "main"
@@ -128,6 +129,7 @@ export interface ScreenState {
 
 export interface DebugState {
   breakpoints?: Record<string, Range[]>;
+  diagnostics?: Record<string, Diagnostic[]>;
 }
 
 export interface WorkspaceCache extends PanesState<PaneType> {

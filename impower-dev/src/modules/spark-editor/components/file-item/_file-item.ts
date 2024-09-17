@@ -47,22 +47,24 @@ export default spec({
           child-layout="row"
           child-align="center"
         >
-          <s-box
-            position="relative"
-            height="100%"
-            child-layout="row"
-            child-align="center"
-            grow
-          >
+          <se-logic-diagnostics-label filename="${filename}">
             <s-box
-              p="0 0 0 32"
-              position="absolute"
-              width="100%"
-              text-overflow="ellipsis"
+              position="relative"
+              height="100%"
+              child-layout="row"
+              child-align="center"
+              grow
             >
-              ${renaming ? nameInputComponent : nameLabelComponent}
+              <s-box
+                p="0 0 0 32"
+                position="absolute"
+                width="100%"
+                text-overflow="ellipsis"
+              >
+                ${renaming ? nameInputComponent : nameLabelComponent}
+              </s-box>
             </s-box>
-          </s-box>
+          </se-logic-diagnostics-label>
           <se-file-options-button></se-file-options-button>
         </s-box>
       </s-button>

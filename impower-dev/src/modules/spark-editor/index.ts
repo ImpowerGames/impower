@@ -25,6 +25,7 @@ import HeaderSyncToolbar from "./components/header-sync-toolbar/header-sync-tool
 import HeaderTitleButton from "./components/header-title-button/header-title-button";
 import HeaderTitleCaption from "./components/header-title-caption/header-title-caption";
 import InteractionBlocker from "./components/interaction-blocker/interaction-blocker";
+import LogicDiagnosticsLabel from "./components/logic-diagnostics-label/logic-diagnostics-label";
 import LogicList from "./components/logic-list/logic-list";
 import LogicScriptEditor from "./components/logic-script-editor/logic-script-editor";
 import LogicScriptsEditor from "./components/logic-scripts-editor/logic-scripts-editor";
@@ -58,10 +59,11 @@ export const DEFAULT_SPARK_EDITOR_CONSTRUCTORS = [
   FileListBorder,
   FileList,
   FileDropzone,
-  LogicScriptEditor,
   Assets,
   AssetsFiles,
   AssetsUrls,
+  LogicDiagnosticsLabel,
+  LogicScriptEditor,
   LogicScriptsEditor,
   LogicScriptsList,
   LogicList,

@@ -15,7 +15,11 @@ export default spec({
     const { filename } = context;
     const displayName = filename.split(".")[0] ?? "";
     return html`
-      <se-file-editor-navigation>${displayName}</se-file-editor-navigation>
+      <se-file-editor-navigation>
+        <se-logic-diagnostics-label filename="${filename}">
+          ${displayName}
+        </se-logic-diagnostics-label>
+      </se-file-editor-navigation>
       <s-box position="relative" grow>
         <se-logic-script-editor filename="${filename}"></se-logic-script-editor>
       </s-box>

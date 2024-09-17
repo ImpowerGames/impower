@@ -543,8 +543,21 @@ export default class SparkdownTextDocuments<
       connection.onDidCloseTextDocument((event: DidCloseTextDocumentParams) => {
         let syncedDocument = this.__syncedDocuments.get(event.textDocument.uri);
         if (syncedDocument !== undefined) {
-          this.__syncedDocuments.delete(event.textDocument.uri);
           this.__onDidClose.fire(Object.freeze({ document: syncedDocument }));
+        }
+        const mainDocument = this.__syncedDocuments.get(
+          this.getMainScriptUri()
+        );
+        if (mainDocument) {
+          this.parse(mainDocument.uri, true);
+          if (this._program) {
+            this._onUpdateDiagnostics.fire(
+              Object.freeze({
+                document: mainDocument,
+                program: this._program,
+              })
+            );
+          }
         }
       })
     );

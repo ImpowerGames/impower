@@ -12,12 +12,8 @@ const getDocumentDiagnostics = (
     const lastCharacterInLineIndex = document.positionAt(
       Number.MAX_SAFE_INTEGER
     ).character;
-    const diagnostics = program.diagnostics.filter(
-      (d) =>
-        !d.relatedInformation ||
-        d.relatedInformation?.some((l) => l.location.uri === document.uri)
-    );
-    diagnostics.forEach((d) => {
+    const diagnostics = program.diagnostics[document.uri] || [];
+    for (const d of diagnostics) {
       clampRange(d.range, lastLineIndex, lastCharacterInLineIndex);
       d.relatedInformation?.forEach((info) => {
         clampRange(
@@ -26,7 +22,7 @@ const getDocumentDiagnostics = (
           lastCharacterInLineIndex
         );
       });
-    });
+    }
     return { uri: document.uri, diagnostics };
   }
   return { uri: document.uri, diagnostics: [] };

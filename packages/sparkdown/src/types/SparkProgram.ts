@@ -14,7 +14,9 @@ export interface SparkProgram {
   sourceMap?: {
     [uri: string]: { [line: number]: SparkTranspilationOffset };
   };
-  diagnostics?: SparkDiagnostic[];
+  diagnostics?: {
+    [uri: string]: SparkDiagnostic[];
+  };
   uuidToSource?: Record<string, [file: number, line: number]>;
   uuidToPath?: Record<string, string>;
 }

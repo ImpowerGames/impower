@@ -128,12 +128,12 @@ export default class SparkdownScriptEditor extends Component(spec) {
       ScrolledPreviewMessage.method,
       this.handleScrolledPreview
     );
-    if (this._editing) {
-      if (this._textDocument) {
-        SparkdownScriptEditor.languageServerConnection.sendNotification(
-          DidCloseTextDocumentMessage.type,
-          { textDocument: this._textDocument }
-        );
+    if (this._textDocument) {
+      SparkdownScriptEditor.languageServerConnection.sendNotification(
+        DidCloseTextDocumentMessage.type,
+        { textDocument: this._textDocument }
+      );
+      if (this._editing) {
         this.emit(
           UnfocusedEditorMessage.method,
           UnfocusedEditorMessage.type.notification({

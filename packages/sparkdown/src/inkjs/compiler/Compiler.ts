@@ -145,7 +145,7 @@ export class Compiler {
     source: SourceMetadata | null
   ) => {
     switch (severity) {
-      case ErrorType.Info:
+      case ErrorType.Information:
         this._infos.push({ message, source });
         break;
 

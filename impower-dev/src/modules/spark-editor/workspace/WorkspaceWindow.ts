@@ -33,6 +33,7 @@ import workspace from "./WorkspaceStore";
 import { RemoteStorage } from "./types/RemoteStorageTypes";
 import createTextFile from "./utils/createTextFile";
 import createZipFile from "./utils/createZipFile";
+import { DidParseTextDocumentMessage } from "@impower/spark-editor-protocol/src/protocols/textDocument/DidParseTextDocumentMessage";
 
 export default class WorkspaceWindow {
   protected _loadProjectRef = new SingletonPromise(
@@ -44,19 +45,7 @@ export default class WorkspaceWindow {
       WorkspaceConstants.LOADED_PROJECT_STORAGE_KEY
     );
     const id = cachedProjectId || WorkspaceConstants.LOCAL_PROJECT_ID;
-    const cachedWorkspaceState = localStorage.getItem(
-      WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id
-    );
-    if (cachedWorkspaceState) {
-      const workspaceState = JSON.parse(cachedWorkspaceState) as WorkspaceCache;
-      // Reset screen state
-      workspaceState.screen = {};
-      // Reset sync state
-      workspaceState.sync = {};
-      // Reset game preview state
-      workspaceState.preview.modes.game = {};
-      workspace.current = workspaceState;
-    }
+    this.restoreProjectWorkspace(id);
     this.cacheProjectId(id);
     window.addEventListener(
       ScrolledEditorMessage.method,
@@ -70,6 +59,10 @@ export default class WorkspaceWindow {
       ChangedEditorBreakpointsMessage.method,
       this.handleChangedEditorBreakpoints
     );
+    window.addEventListener(
+      DidParseTextDocumentMessage.method,
+      this.handleDidParseDocument
+    );
     const mediaQuery = window.matchMedia("(min-width: 960px)");
     mediaQuery.addEventListener("change", this.handleScreenSizeChange);
     this.handleScreenSizeChange(mediaQuery as any as MediaQueryListEvent);
@@ -79,12 +72,41 @@ export default class WorkspaceWindow {
     return workspace.current;
   }
 
-  protected update(store: WorkspaceCache) {
-    workspace.current = store;
+  protected getCacheableState(store: WorkspaceCache) {
+    // Reset any data that shouldn't survive past the current session
+    // (this data shouldn't be saved in localStorage)
+    const copy = structuredClone(store);
+    // Reset screen state
+    copy.screen = {};
+    // Reset sync state
+    copy.sync = {};
+    // Reset debug state
+    copy.debug = {};
+    // Reset game preview state
+    copy.preview.modes.game = {};
+    return copy;
+  }
+
+  protected cacheProjectWorkspace(store: WorkspaceCache) {
     localStorage.setItem(
       WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + store.project.id,
-      JSON.stringify(store)
+      JSON.stringify(this.getCacheableState(store))
     );
+  }
+
+  protected restoreProjectWorkspace(id: string) {
+    const cachedWorkspaceState = localStorage.getItem(
+      WorkspaceConstants.WORKSPACE_STATE_STORAGE_KEY_PREFIX + id
+    );
+    if (cachedWorkspaceState) {
+      const workspaceState = JSON.parse(cachedWorkspaceState) as WorkspaceCache;
+      workspace.current = this.getCacheableState(workspaceState);
+    }
+  }
+
+  protected update(store: WorkspaceCache) {
+    workspace.current = store;
+    this.cacheProjectWorkspace(store);
   }
 
   protected cacheProjectId(id: string) {
@@ -209,6 +231,28 @@ export default class WorkspaceWindow {
                 ...this.store.debug.breakpoints,
                 [uri]: breakpointRanges,
               },
+            },
+          });
+        }
+      }
+    }
+  };
+
+  protected handleDidParseDocument = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (DidParseTextDocumentMessage.type.isNotification(message)) {
+        const { textDocument, program } = message.params;
+        const uri = textDocument.uri;
+        const filename = uri.split("/").slice(-1).join("");
+        const pane = this.getPaneType(filename);
+        const panel = this.getPanelType(filename);
+        if (pane && panel) {
+          this.update({
+            ...this.store,
+            debug: {
+              ...this.store.debug,
+              diagnostics: program.diagnostics,
             },
           });
         }

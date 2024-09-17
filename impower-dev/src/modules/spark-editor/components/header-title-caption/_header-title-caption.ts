@@ -47,7 +47,7 @@ export default spec({
           syncState === "import_error" ||
           syncState === "export_error" ||
           syncState === "sync_error"
-        ? "error"
+        ? "danger"
         : syncState === "sync_conflict" || syncState === "offline"
         ? "warning"
         : "fg-60";
