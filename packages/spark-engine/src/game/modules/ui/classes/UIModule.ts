@@ -1044,9 +1044,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             transition && over > 0 ? transitionDuration / over : 1;
           const enterWith =
             (transition
-              ? typeof transition?.on_enter === "string"
-                ? transition?.on_enter
-                : transition?.on_enter?.$name
+              ? typeof transition?.on_show === "string"
+                ? transition?.on_show
+                : transition?.on_show?.$name
               : e.with) || "show";
           const enterAnimation = $.context?.animation?.[enterWith];
           const enterAnimationDuration =
@@ -1057,9 +1057,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             : over;
           const exitWith =
             (transition
-              ? typeof transition?.on_exit === "string"
-                ? transition?.on_exit
-                : transition?.on_exit?.$name
+              ? typeof transition?.on_hide === "string"
+                ? transition?.on_hide
+                : transition?.on_hide?.$name
               : e.with) || "hide";
           const exitAnimation = $.context?.animation?.[exitWith];
           const exitAnimationDuration =
