@@ -777,15 +777,18 @@ export class InterpreterModule extends Module<
                       pitchModifier = getNumberValue(arg, 0);
                     } else if (control === "wait" || control === "w") {
                       const waitModifier = getNumberValue(arg, 0);
+                      const waitChunk: Chunk = {
+                        duration: waitModifier,
+                        speed: 1,
+                      };
+                      if (!arg) {
+                        // No wait duration was specified, so assume we are waiting until the user clicks
+                        // (We take advantage of the fact that text chunks always require an interaction to advance.)
+                        waitChunk.text = "";
+                      }
                       const phrase = {
                         target: textTarget,
-                        chunks: [
-                          {
-                            tag: "text",
-                            duration: waitModifier,
-                            speed: 1,
-                          },
-                        ],
+                        chunks: [waitChunk],
                       };
                       linePhrases.push(phrase);
                       allPhrases.push(phrase);
