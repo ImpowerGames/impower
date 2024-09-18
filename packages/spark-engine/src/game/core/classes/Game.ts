@@ -159,11 +159,24 @@ export class Game<T extends M = {}> {
           if (Array.isArray(struct)) {
             this._context[type][name] = struct;
           } else {
-            const builtinDefaultValue = this._context[type]?.default;
+            const builtinDefaultValue = this._context[type]?.["default"];
+            const builtinInheritedValue =
+              type === "config" ? this._context[type]?.[name] : {};
             const definedDefaultValue = (structs as any)?.["default"];
             const constructed = {} as any;
             for (const [propPath, propValue] of Object.entries(
               getAllProperties(builtinDefaultValue)
+            )) {
+              if (propValue !== undefined) {
+                setProperty(
+                  constructed,
+                  propPath,
+                  JSON.parse(JSON.stringify(propValue))
+                );
+              }
+            }
+            for (const [propPath, propValue] of Object.entries(
+              getAllProperties(builtinInheritedValue)
             )) {
               if (propValue !== undefined) {
                 setProperty(
