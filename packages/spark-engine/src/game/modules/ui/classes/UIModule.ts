@@ -1019,6 +1019,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const transition = e.with
             ? $.context?.transition?.[e.with]
             : undefined;
+          // Calculate transition speed
           const transitionAnimations: Animation[] = [];
           if (transition) {
             for (const [k, v] of Object.entries(transition)) {
