@@ -436,7 +436,8 @@ export class InterpreterModule extends Module<
       defaultLayer
     );
     // Calculate how much time this command should take up
-    const withEffectName = imageChunk.clauses?.["with"] || "";
+    const withEffectName =
+      imageChunk.clauses?.["with"] || imageChunk.target || "";
     const afterDuration = imageChunk.clauses?.["after"];
     const overDuration = imageChunk.clauses?.["over"];
     const transition = (this.context as any)?.["transition"]?.[withEffectName];

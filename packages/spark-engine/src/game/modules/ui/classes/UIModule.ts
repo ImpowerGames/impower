@@ -1016,9 +1016,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       ) {
         let targetRevealed = false;
         for (const e of sequence) {
-          const transition = e.with
-            ? $.context?.transition?.[e.with]
-            : undefined;
+          const transitionWith = e.with || targetEl.name || "";
+          const transition = $.context?.transition?.[transitionWith];
           // Calculate transition speed
           const transitionAnimations: Animation[] = [];
           if (transition) {
@@ -1030,7 +1029,10 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                     transitionAnimations.push(transitionAnimation);
                   }
                 } else {
-                  transitionAnimations.push(v);
+                  const transitionAnimation = $.context?.animation?.[v?.$name];
+                  if (transitionAnimation) {
+                    transitionAnimations.push(transitionAnimation);
+                  }
                 }
               }
             }
