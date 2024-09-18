@@ -943,14 +943,14 @@ export const uiBuiltins = () => ({
       on_hide: "fadeout",
       on_show: "fadein",
     }),
-    fade: _transition({
-      $name: "fade",
+    screenfade: _transition({
+      $name: "screenfade",
       on_hide: "waitout",
       on_show: "waitin",
       screen: "blackpulse",
     }),
-    flash: _transition({
-      $name: "flash",
+    screenflash: _transition({
+      $name: "screenflash",
       on_hide: "waitout",
       on_show: "waitin",
       screen: "whitepulse",
