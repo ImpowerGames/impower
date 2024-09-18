@@ -1173,12 +1173,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               enterElements.set(targetEl, []);
             }
             const targetAnimations = enterElements.get(targetEl)!;
-            const showEvent = {
-              name: showWith,
-              after: showAfter,
-              over: showOver,
-            };
-            $.queueAnimationEvent(showEvent, instant, targetAnimations);
+            if (e.control === "hide") {
+              const hideEvent = {
+                name: hideWith,
+                after: hideAfter,
+                over: hideOver,
+              };
+              $.queueAnimationEvent(hideEvent, instant, targetAnimations);
+            } else {
+              const showEvent = {
+                name: showWith,
+                after: showAfter,
+                over: showOver,
+              };
+              $.queueAnimationEvent(showEvent, instant, targetAnimations);
+            }
           }
         }
       }
@@ -1211,9 +1220,6 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               if (imageEl) {
                 $.clearElement(imageEl);
               }
-              $.updateElement(targetEl, {
-                style: { display: "none", opacity: "0" },
-              });
             }
           }
         }
