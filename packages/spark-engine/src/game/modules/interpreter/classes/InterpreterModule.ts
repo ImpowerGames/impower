@@ -14,6 +14,8 @@ import {
 } from "../../../core/types/Instruction";
 import { stressPhrases } from "../utils/stressPhrases";
 import { InstructionOptions } from "../types/InstructionOptions";
+import { getTimeValue } from "../../../core/utils/getTimeValue";
+import { getNumberValue } from "../../../core/utils/getNumberValue";
 
 const MARKERS = ["^", "*", "_", "~~", "::"];
 const CHAR_REGEX =
@@ -45,8 +47,6 @@ const ASSET_ARG_KEYWORDS = [
   ...ASSET_VALUE_ARG_KEYWORDS,
   ...ASSET_FLAG_ARG_KEYWORDS,
 ];
-const MILLISECONDS_REGEX = /((?:\d*[.])?\d+)ms/;
-const SECONDS_REGEX = /((?:\d*[.])?\d+)s/;
 
 export interface InterpreterConfig {}
 
@@ -409,55 +409,6 @@ export class InterpreterModule extends Module<
     return "default";
   }
 
-  protected getSeconds(value: string): number | undefined {
-    const numValue = Number(value);
-    if (!Number.isNaN(numValue)) {
-      return numValue;
-    }
-    const msMatch = value.match(MILLISECONDS_REGEX);
-    if (msMatch) {
-      const msVal = msMatch[1];
-      const msNumValue = Number(msVal);
-      if (!Number.isNaN(msNumValue)) {
-        return msNumValue / 1000;
-      }
-    }
-    const sMatch = value.match(SECONDS_REGEX);
-    if (sMatch) {
-      const sVal = sMatch[1];
-      const sNumValue = Number(sVal);
-      if (!Number.isNaN(sNumValue)) {
-        return sNumValue;
-      }
-    }
-    return undefined;
-  }
-
-  protected getTimeValue(
-    value: string | undefined,
-    defaultValue = undefined
-  ): number | undefined {
-    const num = Number(value);
-    if (!Number.isNaN(num)) {
-      return num;
-    }
-    if (typeof value === "string") {
-      return this.getSeconds(value);
-    }
-    return defaultValue;
-  }
-
-  protected getNumberValue<T>(
-    value: string | undefined,
-    defaultValue: T = undefined as T
-  ): number | T {
-    const numValue = Number(value);
-    if (!Number.isNaN(numValue)) {
-      return numValue;
-    }
-    return defaultValue;
-  }
-
   protected getMinSynthDuration(synth: {
     envelope: {
       attack: number;
@@ -485,27 +436,43 @@ export class InterpreterModule extends Module<
       defaultLayer
     );
     // Calculate how much time this command should take up
-    const withAnimationName = imageChunk.clauses?.["with"];
+    const withEffectName = imageChunk.clauses?.["with"] || "";
     const afterDuration = imageChunk.clauses?.["after"];
     const overDuration = imageChunk.clauses?.["over"];
-    const controlAnimationName =
-      imageChunk.control === "show" || imageChunk.control === "set"
-        ? "show"
-        : imageChunk.control === "hide"
-        ? "hide"
-        : undefined;
-    const animationName = withAnimationName ?? controlAnimationName ?? "";
-    const animation = (this.context as any)?.["animation"]?.[animationName];
-    const isPersistentTransition =
-      animation?.timing?.fill !== "none" &&
-      animation?.timing?.iterations !== "infinite";
-    const animationDuration = this.getTimeValue(animation?.timing?.duration);
+    const transition = (this.context as any)?.["transition"]?.[withEffectName];
+    const animation = (this.context as any)?.["animation"]?.[withEffectName];
+    const animationNames: string[] = [];
+    if (transition) {
+      for (const [k, v] of Object.entries(transition)) {
+        if (!k.startsWith("$") && v) {
+          if (typeof v === "string") {
+            animationNames.push(v);
+          } else if (
+            typeof v === "object" &&
+            "$name" in v &&
+            typeof v?.$name === "string"
+          ) {
+            animationNames.push(v?.$name);
+          }
+        }
+      }
+    } else if (animation) {
+      animationNames.push(animation.$name);
+    } else if (imageChunk.control === "show" || imageChunk.control === "set") {
+      animationNames.push("show");
+    } else if (imageChunk.control === "hide") {
+      animationNames.push("hide");
+    }
+    const allAnimations = animationNames.map(
+      (name) => (this.context as any)?.["animation"]?.[name]
+    );
+    const maxAnimationDuration = Math.max(
+      ...allAnimations.map((a) => getTimeValue(a?.timing?.duration) ?? 0)
+    );
     // Add to duration
     if (!imageChunk.clauses?.nowait) {
-      if (imageChunk.clauses?.wait || isPersistentTransition) {
-        imageChunk.duration += afterDuration ?? 0;
-        imageChunk.duration += overDuration ?? animationDuration ?? 0;
-      }
+      imageChunk.duration += afterDuration ?? 0;
+      imageChunk.duration += overDuration ?? maxAnimationDuration ?? 0;
     }
     return imageChunk;
   }
@@ -570,13 +537,13 @@ export class InterpreterModule extends Module<
           i += 1;
           const value = args[i];
           if (arg === "after") {
-            clauses[arg] = this.getTimeValue(value);
+            clauses[arg] = getTimeValue(value);
           }
           if (arg === "over") {
-            clauses[arg] = this.getTimeValue(value);
+            clauses[arg] = getTimeValue(value);
           }
           if (arg === "fadeto") {
-            clauses[arg] = this.getNumberValue(value);
+            clauses[arg] = getNumberValue(value);
           }
           if (arg === "with") {
             clauses[arg] = value;
@@ -805,11 +772,11 @@ export class InterpreterModule extends Module<
                   i += 1;
                   if (control) {
                     if (control === "speed" || control === "s") {
-                      speedModifier = this.getNumberValue(arg, 1);
+                      speedModifier = getNumberValue(arg, 1);
                     } else if (control === "pitch" || control === "p") {
-                      pitchModifier = this.getNumberValue(arg, 0);
+                      pitchModifier = getNumberValue(arg, 0);
                     } else if (control === "wait" || control === "w") {
-                      const waitModifier = this.getNumberValue(arg, 0);
+                      const waitModifier = getNumberValue(arg, 0);
                       const phrase = {
                         target: textTarget,
                         chunks: [
@@ -1265,13 +1232,31 @@ export class InterpreterModule extends Module<
 
             // Wavy animation
             if (c.wavy) {
-              event.with = "wavy";
-              event.withAfter = c.wavy * animationOffset * -1;
+              event.style ??= {};
+              const animation = (this.context as any)?.animation?.["wavy"];
+              if (animation) {
+                event.style["animation_name"] = animation.$name;
+                event.style["animation_timing_function"] =
+                  animation.timing.easing;
+                event.style["animation_iteration_count"] =
+                  animation.timing.iterations;
+                event.style["animation_duration"] = animation.timing.duration;
+                event.style["animation_delay"] = c.wavy * animationOffset * -1;
+              }
             }
             // Shaky animation
             if (c.shaky) {
-              event.with = "shaky";
-              event.withAfter = c.shaky * animationOffset * -1;
+              event.style ??= {};
+              const animation = (this.context as any)?.animation?.["shaky"];
+              if (animation) {
+                event.style["animation_name"] = animation.$name;
+                event.style["animation_timing_function"] =
+                  animation.timing.easing;
+                event.style["animation_iteration_count"] =
+                  animation.timing.iterations;
+                event.style["animation_duration"] = animation.timing.duration;
+                event.style["animation_delay"] = c.shaky * animationOffset * -1;
+              }
             }
             // Debug colorization
             if (debug) {
@@ -1317,29 +1302,8 @@ export class InterpreterModule extends Module<
               if (overValue) {
                 event.over = overValue;
               }
-              const toValue = c.clauses?.fadeto;
-              if (toValue != null) {
-                event.fadeto = toValue;
-              }
-              const loopValue = c.clauses?.loop;
-              if (loopValue) {
-                event.loop = true;
-              }
-              const noloopValue = c.clauses?.noloop;
-              if (noloopValue) {
-                event.loop = false;
-              }
             }
             result.image ??= {};
-            if (target && event.control === "set") {
-              const prevEvent = result.image[target]?.at(-1);
-              if (prevEvent) {
-                prevEvent.exit = time;
-                prevEvent.style ??= {};
-                prevEvent.style["position"] = "absolute";
-                prevEvent.style["inset"] = "0";
-              }
-            }
             result.image[target] ??= [];
             result.image[target]!.push(event);
           }

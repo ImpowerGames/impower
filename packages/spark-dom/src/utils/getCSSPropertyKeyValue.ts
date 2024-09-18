@@ -24,13 +24,43 @@ export const getCSSPropertyKeyValue = (
   name: string,
   value: unknown
 ): [string, string] => {
+  if (name.startsWith("--")) {
+    return [name, String(value)];
+  }
   const cssProp = getCSSPropertyName(name);
   const cssValue = value;
   if (cssValue == null || cssValue === "") {
     return [cssProp, ""];
   }
+  if (cssProp === "animation-duration" && typeof cssValue === "number") {
+    return [cssProp, `${cssValue}s`];
+  }
+  if (cssProp === "animation-delay" && typeof cssValue === "number") {
+    return [cssProp, `${cssValue}s`];
+  }
   if (cssProp === "easing") {
     return ["animation-timing-function", String(cssValue)];
+  }
+  if (cssProp === "iterations") {
+    return ["animation-iteration-count", String(cssValue)];
+  }
+  if (cssProp === "duration") {
+    const timeValue =
+      typeof cssValue === "number"
+        ? `${cssValue}s`
+        : typeof cssValue === "string"
+        ? cssValue
+        : "0s";
+    return ["animation-duration", timeValue];
+  }
+  if (cssProp === "delay") {
+    const timeValue =
+      typeof cssValue === "number"
+        ? `${cssValue}s`
+        : typeof cssValue === "string"
+        ? cssValue
+        : "0s";
+    return ["animation-delay", timeValue];
   }
   if (cssProp === "src" && typeof cssValue === "string") {
     const src = cssValue.trim();

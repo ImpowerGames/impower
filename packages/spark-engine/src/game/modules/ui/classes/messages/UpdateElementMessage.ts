@@ -6,7 +6,7 @@ export type UpdateElementMethod = typeof UpdateElementMessage.method;
 export interface UpdateElementParams {
   element: string;
   content?: ElementContent;
-  style?: Record<string, string | null> | null;
+  style?: Record<string, string | number | null> | null;
   attributes?: Record<string, string | null> | null;
   breakpoints?: Record<string, number>;
 }

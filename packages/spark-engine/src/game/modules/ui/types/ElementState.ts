@@ -4,7 +4,7 @@ export interface ElementState {
   type?: string;
   name?: string;
   content?: ElementContent;
-  style?: Record<string, string | null> | null;
+  style?: Record<string, string | number | null> | null;
   attributes?: Record<string, string | null> | null;
   persistent?: boolean;
 }

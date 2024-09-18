@@ -17,9 +17,9 @@ import { TextState } from "../types/TextState";
 import { UIBuiltins, uiBuiltins } from "../uiBuiltins";
 import { Element } from "./helpers/Element";
 import {
-  AnimateElementMessage,
-  AnimateElementMessageMap,
-} from "./messages/AnimateElementMessage";
+  AnimateElementsMessage,
+  AnimateElementsMessageMap,
+} from "./messages/AnimateElementsMessage";
 import {
   CreateElementMessage,
   CreateElementMessageMap,
@@ -45,6 +45,7 @@ import {
   UpdateElementMessageMap,
 } from "./messages/UpdateElementMessage";
 import { Image } from "../types/Image";
+import { getTimeValue } from "../../../core/utils/getTimeValue";
 
 const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
 
@@ -55,7 +56,7 @@ export interface UIState {
   attributes?: Record<string, Record<string, string | null>>;
 }
 
-export type UIMessageMap = AnimateElementMessageMap &
+export type UIMessageMap = AnimateElementsMessageMap &
   CreateElementMessageMap &
   DestroyElementMessageMap &
   ObserveElementMessageMap &
@@ -209,11 +210,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     );
   }
 
-  protected animateElement(element: Element, animations: Animation[]) {
+  protected animateElements(
+    effects: { element: Element; animations: Animation[] }[]
+  ) {
     return this.emit(
-      AnimateElementMessage.type.request({
-        element: element.id,
-        animations,
+      AnimateElementsMessage.type.request({
+        effects: effects.map((e) => ({
+          element: e.element.id,
+          animations: e.animations,
+        })),
       })
     );
   }
@@ -580,83 +585,59 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   queueAnimationEvent(
-    event: TextInstruction | ImageInstruction,
+    event: { name: string; after?: number; over?: number },
     instant: boolean,
     animations: Animation[]
   ): void {
-    const showAnimationName = "show";
-    const hideAnimationName = "hide";
-    const controlAfter = instant ? 0 : event.after;
-    const controlOver = instant ? 0 : event.over;
-    const exitAfter = instant ? 0 : event.exit;
     if (animations) {
-      const animationEvents: {
-        name: string;
-        after?: number;
-        over?: number;
-        loop?: boolean;
-      }[] = [];
-      const controlAnimationName =
-        event.control === "show"
-          ? showAnimationName
-          : event.control === "hide"
-          ? hideAnimationName
-          : undefined;
-      if (controlAnimationName) {
-        animationEvents.push({
-          name: controlAnimationName,
-          after: controlAfter,
-          over: controlOver,
-        });
+      const eventInstance = { ...event };
+      if (instant) {
+        eventInstance.after = 0;
+        eventInstance.over = 0;
       }
-      if (event.exit) {
-        animationEvents.push({
-          name: hideAnimationName,
-          after: exitAfter,
-          over: controlOver,
-        });
-      }
-      if (event.with) {
-        animationEvents.push({
-          name: event.with,
-          after: event.withAfter ?? controlAfter,
-          over: event.withOver,
-          loop: "loop" in event ? event.loop : undefined,
-        });
-      }
-      for (const { name, after, over, loop } of animationEvents) {
-        const delayOverride = `${after ?? 0}s`;
-        const durationOverride = over != null ? `${over}s` : null;
-        const loopOverride =
-          loop === true ? "infinite" : loop === false ? 1 : undefined;
-        const animationName = name;
-        const animation = this.context?.animation?.[animationName] as Animation;
-        if (animation) {
-          const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
-          const duration =
-            durationOverride ?? animation?.timing?.duration ?? "0s";
-          const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
-          const easing = animation?.timing?.easing ?? "ease";
-          const fill = animation?.timing?.fill ?? "none";
-          const direction = animation?.timing?.direction ?? "normal";
-          const keyframes = animation?.keyframes;
-          const timing = {
-            delay,
-            duration,
-            iterations,
-            easing,
-            fill,
-            direction,
-          };
-          animations.push({
-            $type: animation.$type,
-            $name: animation.$name,
-            keyframes,
-            timing,
-          });
-        }
+      const definition = this.getAnimationDefinition(eventInstance);
+      if (definition) {
+        animations.push(definition);
       }
     }
+  }
+
+  getAnimationDefinition(event: {
+    name: string;
+    after?: number;
+    over?: number;
+    loop?: boolean;
+  }): Animation | undefined {
+    const { name, after, over, loop } = event;
+    const delayOverride = `${after ?? 0}s`;
+    const durationOverride = over != null ? `${over}s` : null;
+    const loopOverride =
+      loop === true ? "infinite" : loop === false ? 1 : undefined;
+    const animation = this.context?.animation?.[name] as Animation;
+    if (animation) {
+      const delay = delayOverride ?? animation?.timing?.delay ?? "0s";
+      const duration = durationOverride ?? animation?.timing?.duration ?? "0s";
+      const iterations = loopOverride ?? animation?.timing?.iterations ?? 1;
+      const easing = animation?.timing?.easing ?? "ease";
+      const fill = animation?.timing?.fill ?? "none";
+      const direction = animation?.timing?.direction ?? "normal";
+      const keyframes = animation?.keyframes;
+      const timing = {
+        delay,
+        duration,
+        iterations,
+        easing,
+        fill,
+        direction,
+      };
+      return {
+        $type: animation.$type,
+        $name: animation.$name,
+        keyframes,
+        timing,
+      };
+    }
+    return undefined;
   }
 
   protected setEventListener<T extends keyof EventMap>(
@@ -728,25 +709,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         const state = $._state.text[target]!;
         if (sequence) {
           for (const e of sequence) {
-            if (!e.exit) {
-              const prev = state.at(-1);
-              if (
-                prev &&
-                JSON.stringify(prev.style || {}) ===
-                  JSON.stringify(e.style || {}) &&
-                prev.with === e.with
-              ) {
-                prev.text = (prev.text ?? "") + e.text;
-              } else {
-                const s: TextState = { text: e.text };
-                if (e.with) {
-                  s.with = e.with;
-                }
-                if (e.style) {
-                  s.style = e.style;
-                }
-                state.push(s);
+            const prev = state.at(-1);
+            if (
+              prev &&
+              JSON.stringify(prev.style || {}) === JSON.stringify(e.style || {})
+            ) {
+              prev.text = (prev.text ?? "") + e.text;
+            } else {
+              const s: TextState = { text: e.text };
+              if (e.style) {
+                s.style = e.style;
               }
+              state.push(s);
             }
           }
         } else {
@@ -766,8 +740,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         contentEl: Element,
         sequence: TextInstruction[],
         instant: boolean,
-        newElements: Map<Element, Animation[]>,
-        replacedElements: Map<Element, Animation[]>
+        enterElements: Map<Element, Animation[]>,
+        _exitElements: Map<Element, Animation[]>
       ) {
         let targetRevealed = false;
         let blockWrapperEl: Element | undefined = undefined;
@@ -794,7 +768,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             blockWrapperEl = undefined;
           }
           // Support consecutive whitespace collapsing
-          const style: Record<string, string | null> = {
+          const style: Record<string, string | number | null> = {
             display: null,
             opacity: "0",
             ...(e.style || {}),
@@ -823,40 +797,27 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           wasSpace = isSpace;
           // Append text to wordWrapper, blockWrapper, or content
           const textParentEl = wordWrapperEl || blockWrapperEl || contentEl;
-          const prevSpanEls = [...contentEl.children];
           const newSpanEl = $.createElement(textParentEl, {
             type: "span",
             content: { text },
             style,
           });
-          if (!newElements.has(newSpanEl)) {
-            newElements.set(newSpanEl, []);
+          if (!enterElements.has(newSpanEl)) {
+            enterElements.set(newSpanEl, []);
           }
-          if (e.control === "set") {
-            // 'set' is equivalent to calling 'hide' on all previous images on the layer,
-            // and then calling 'show' on the new image
-            for (const prevSpanEl of prevSpanEls) {
-              if (!replacedElements.has(prevSpanEl)) {
-                replacedElements.set(prevSpanEl, []);
-              }
-              const prevSpanAnimations = replacedElements.get(prevSpanEl)!;
-              $.queueAnimationEvent(
-                { control: "hide", after: e.after, over: e.over },
-                instant,
-                prevSpanAnimations
-              );
-            }
-            e.control = "show";
-          }
-          const newSpanAnimations = newElements.get(newSpanEl)!;
-          $.queueAnimationEvent(e, instant, newSpanAnimations);
+          const newSpanAnimations = enterElements.get(newSpanEl)!;
+          $.queueAnimationEvent(
+            { name: "show", after: e.after, over: e.over },
+            instant,
+            newSpanAnimations
+          );
           if (e.control === "show" && !targetRevealed) {
-            if (!newElements.has(targetEl)) {
-              newElements.set(targetEl, []);
+            if (!enterElements.has(targetEl)) {
+              enterElements.set(targetEl, []);
             }
-            const targetAnimations = newElements.get(targetEl)!;
+            const targetAnimations = enterElements.get(targetEl)!;
             $.queueAnimationEvent(
-              { control: "show", after: e.after },
+              { name: "show", after: e.after },
               instant,
               targetAnimations
             );
@@ -870,8 +831,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[] | null,
         instant: boolean
       ): void {
-        const newElements = new Map<Element, Animation[]>();
-        const replacedElements = new Map<Element, Animation[]>();
+        const enterElements = new Map<Element, Animation[]>();
+        const exitElements = new Map<Element, Animation[]>();
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, {
@@ -886,8 +847,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   textEl,
                   sequence,
                   instant,
-                  newElements,
-                  replacedElements
+                  enterElements,
+                  exitElements
                 );
               }
               // Set stroke (if stroke exists)
@@ -898,8 +859,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   strokeEl,
                   sequence,
                   instant,
-                  newElements,
-                  replacedElements
+                  enterElements,
+                  exitElements
                 );
               }
             } else {
@@ -918,24 +879,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
-        // Animate out replaced elements
-        Promise.allSettled(
-          Array.from(replacedElements).map(([element, animations]) =>
-            $.animateElement(element, animations)
-          )
-        ).then(() => {
-          // Destroy replaced elements
-          Array.from(replacedElements).map(([element]) =>
-            $.destroyElement(element)
-          );
-        });
-
-        // Animate new elements
-        Promise.allSettled(
-          Array.from(newElements).map(([element, animations]) =>
-            $.animateElement(element, animations)
-          )
+        const enterEffects = Array.from(enterElements).map(
+          ([element, animations]) => ({ element, animations })
         );
+        const exitEffects = Array.from(exitElements).map(
+          ([element, animations]) => ({ element, animations })
+        );
+        // Animate in elements
+        $.animateElements(enterEffects);
+        // Animate out elements
+        $.animateElements(exitEffects).then(() => {
+          // Then destroy exited elements
+          for (const e of exitEffects) {
+            $.destroyElement(e.element);
+          }
+        });
       }
 
       clearContent(target: string): void {
@@ -1002,40 +960,38 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         let state = $._state.image[target];
         if (sequence) {
           for (const event of sequence) {
-            if (!event.exit) {
-              const targetingLayer = !event.assets?.length;
-              if (targetingLayer) {
-                // TODO: If animate with none, clear all previous animation events
-                const changingVisibility = event.control !== "animate";
-                const latestLayerVisibilityEvent = state.findLast(
-                  (e) => !e.assets?.length && e.control !== "animate"
-                );
-                if (changingVisibility && latestLayerVisibilityEvent) {
-                  // If we are just changing visibility, no need to create a new event
-                  latestLayerVisibilityEvent.control = event.control;
-                  latestLayerVisibilityEvent.with = event.with;
-                } else {
-                  state.push({
-                    control: event.control,
-                    with: event.with,
-                    over: 0,
-                  });
-                }
+            const targetingLayer = !event.assets?.length;
+            if (targetingLayer) {
+              // TODO: If animate with none, clear all previous animation events
+              const changingVisibility = event.control !== "animate";
+              const latestLayerVisibilityEvent = state.findLast(
+                (e) => !e.assets?.length && e.control !== "animate"
+              );
+              if (changingVisibility && latestLayerVisibilityEvent) {
+                // If we are just changing visibility, no need to create a new event
+                latestLayerVisibilityEvent.control = event.control;
+                latestLayerVisibilityEvent.with = event.with;
               } else {
-                // TODO: If animate with none, clear all previous animation events
-                if (event.control === "set") {
-                  // Clear all previous content events
-                  state = state.filter((e) => !e.assets?.length);
-                  $._state.image ??= {};
-                  $._state.image[target] = state;
-                }
                 state.push({
                   control: event.control,
                   with: event.with,
-                  assets: event.assets,
                   over: 0,
                 });
               }
+            } else {
+              // TODO: If animate with none, clear all previous animation events
+              if (event.control === "set") {
+                // Clear all previous content events
+                state = state.filter((e) => !e.assets?.length);
+                $._state.image ??= {};
+                $._state.image[target] = state;
+              }
+              state.push({
+                control: event.control,
+                with: event.with,
+                assets: event.assets,
+                over: 0,
+              });
             }
           }
         } else {
@@ -1055,11 +1011,85 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         contentEl: Element,
         sequence: ImageInstruction[],
         instant: boolean,
-        newElements: Map<Element, Animation[]>,
-        replacedElements: Map<Element, Animation[]>
+        enterElements: Map<Element, Animation[]>,
+        exitElements: Map<Element, Animation[]>
       ) {
         let targetRevealed = false;
         for (const e of sequence) {
+          const transition = e.with
+            ? $.context?.transition?.[e.with]
+            : undefined;
+          const transitionAnimations: Animation[] = [];
+          if (transition) {
+            for (const [k, v] of Object.entries(transition)) {
+              if (!k.startsWith("$") && v) {
+                if (typeof v === "string") {
+                  const transitionAnimation = $.context?.animation?.[v];
+                  if (transitionAnimation) {
+                    transitionAnimations.push(transitionAnimation);
+                  }
+                } else {
+                  transitionAnimations.push(v);
+                }
+              }
+            }
+          }
+          const transitionDuration = Math.max(
+            ...transitionAnimations.map(
+              (a) => getTimeValue(a.timing.duration) ?? 0
+            )
+          );
+          const over = e.over ?? 0;
+          const transitionSpeed =
+            transition && over > 0 ? transitionDuration / over : 1;
+          const enterWith =
+            (transition
+              ? typeof transition?.on_enter === "string"
+                ? transition?.on_enter
+                : transition?.on_enter?.$name
+              : e.with) || "show";
+          const enterAnimation = $.context?.animation?.[enterWith];
+          const enterAnimationDuration =
+            getTimeValue(enterAnimation?.timing?.duration) ?? 0;
+          const enterAfter = e.after;
+          const enterOver = transition
+            ? enterAnimationDuration / transitionSpeed
+            : over;
+          const exitWith =
+            (transition
+              ? typeof transition?.on_exit === "string"
+                ? transition?.on_exit
+                : transition?.on_exit?.$name
+              : e.with) || "hide";
+          const exitAnimation = $.context?.animation?.[exitWith];
+          const exitAnimationDuration =
+            getTimeValue(exitAnimation?.timing?.duration) ?? 0;
+          const exitAfter = e.after;
+          const exitOver = transition
+            ? exitAnimationDuration / transitionSpeed
+            : over;
+          if (transition) {
+            // Animate any other elements affected by the transition
+            for (const [k, v] of Object.entries(transition)) {
+              if (!k.startsWith("$") && !k.startsWith("on_")) {
+                const animateWith = typeof v === "string" ? v : v?.$name;
+                if (animateWith) {
+                  for (const el of $.findElements(k)) {
+                    if (!enterElements.has(el)) {
+                      enterElements.set(el, []);
+                    }
+                    const elAnimations = enterElements.get(el)!;
+                    const animateEvent = {
+                      name: animateWith,
+                      after: e.after,
+                      over: e.over,
+                    };
+                    $.queueAnimationEvent(animateEvent, instant, elAnimations);
+                  }
+                }
+              }
+            }
+          }
           if (e.assets && e.assets.length > 0) {
             // We are affecting the image
             const style: Record<string, string | null> = {
@@ -1078,34 +1108,57 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
               type: "span",
               style,
             });
-            if (!newElements.has(newSpanEl)) {
-              newElements.set(newSpanEl, []);
+            if (!enterElements.has(newSpanEl)) {
+              enterElements.set(newSpanEl, []);
             }
-            const newSpanAnimations = newElements.get(newSpanEl)!;
+            // 'set' is equivalent to calling 'hide' on all previous elements on the layer,
+            // before calling 'show' on the new element
             if (e.control === "set") {
-              // 'set' is equivalent to calling 'hide' on all previous images on the layer,
-              // and then calling 'show' on the new image
+              // Hide previous elements
               for (const prevSpanEl of prevSpanEls) {
-                if (!replacedElements.has(prevSpanEl)) {
-                  replacedElements.set(prevSpanEl, []);
+                if (!exitElements.has(prevSpanEl)) {
+                  exitElements.set(prevSpanEl, []);
                 }
-                const prevSpanAnimations = replacedElements.get(prevSpanEl)!;
-                $.queueAnimationEvent(
-                  { control: "hide", after: e.after, over: e.over },
-                  instant,
-                  prevSpanAnimations
-                );
+                const hideEvent = {
+                  name: exitWith,
+                  after: exitAfter,
+                  over: exitOver,
+                };
+                const prevSpanAnimations = exitElements.get(prevSpanEl)!;
+                $.queueAnimationEvent(hideEvent, instant, prevSpanAnimations);
               }
-              e.control = "show";
+              // Show new elements
+              const showEvent = {
+                name: enterWith,
+                after: enterAfter,
+                over: enterOver,
+              };
+              const newSpanAnimations = enterElements.get(newSpanEl)!;
+              $.queueAnimationEvent(showEvent, instant, newSpanAnimations);
+            } else if (e.control === "hide") {
+              const hideEvent = {
+                name: exitWith,
+                after: exitAfter,
+                over: exitOver,
+              };
+              const newSpanAnimations = enterElements.get(newSpanEl)!;
+              $.queueAnimationEvent(hideEvent, instant, newSpanAnimations);
+            } else if (e.control === "show" || e.control === "animate") {
+              const showEvent = {
+                name: enterWith,
+                after: enterAfter,
+                over: enterOver,
+              };
+              const newSpanAnimations = enterElements.get(newSpanEl)!;
+              $.queueAnimationEvent(showEvent, instant, newSpanAnimations);
             }
-            $.queueAnimationEvent(e, instant, newSpanAnimations);
             if (e.control === "show" && !targetRevealed) {
-              if (!newElements.has(targetEl)) {
-                newElements.set(targetEl, []);
+              if (!enterElements.has(targetEl)) {
+                enterElements.set(targetEl, []);
               }
-              const targetAnimations = newElements.get(targetEl)!;
+              const targetAnimations = enterElements.get(targetEl)!;
               $.queueAnimationEvent(
-                { control: "show", after: e.after },
+                { name: "show", after: e.after },
                 instant,
                 targetAnimations
               );
@@ -1113,11 +1166,16 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           } else {
             // We are affecting the image wrapper
-            if (!newElements.has(targetEl)) {
-              newElements.set(targetEl, []);
+            if (!enterElements.has(targetEl)) {
+              enterElements.set(targetEl, []);
             }
-            const targetAnimations = newElements.get(targetEl)!;
-            $.queueAnimationEvent(e, instant, targetAnimations);
+            const targetAnimations = enterElements.get(targetEl)!;
+            const showEvent = {
+              name: enterWith,
+              after: enterAfter,
+              over: enterOver,
+            };
+            $.queueAnimationEvent(showEvent, instant, targetAnimations);
           }
         }
       }
@@ -1127,8 +1185,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: ImageInstruction[] | null,
         instant: boolean
       ): void {
-        const newElements = new Map<Element, Animation[]>();
-        const replacedElements = new Map<Element, Animation[]>();
+        const enterElements = new Map<Element, Animation[]>();
+        const exitElements = new Map<Element, Animation[]>();
         for (const targetEl of $.findElements(target)) {
           if (targetEl) {
             $.updateElement(targetEl, {
@@ -1142,8 +1200,8 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                 imageEl,
                 sequence,
                 instant,
-                newElements,
-                replacedElements
+                enterElements,
+                exitElements
               );
             } else {
               const imageEl = $.getContentElement(targetEl, "image");
@@ -1156,24 +1214,21 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
           }
         }
-        // Animate out replaced elements
-        Promise.allSettled(
-          Array.from(replacedElements).map(([element, animations]) =>
-            $.animateElement(element, animations)
-          )
-        ).then(() => {
-          // Destroy replaced elements
-          Array.from(replacedElements).map(([element]) =>
-            $.destroyElement(element)
-          );
-        });
-
-        // Animate new elements
-        Promise.allSettled(
-          Array.from(newElements).map(([element, animations]) =>
-            $.animateElement(element, animations)
-          )
+        const enterEffects = Array.from(enterElements).map(
+          ([element, animations]) => ({ element, animations })
         );
+        const exitEffects = Array.from(exitElements).map(
+          ([element, animations]) => ({ element, animations })
+        );
+        // Animate in elements
+        $.animateElements(enterEffects);
+        // Animate out elements
+        $.animateElements(exitEffects).then(() => {
+          // Then destroy exited elements
+          for (const e of exitEffects) {
+            $.destroyElement(e.element);
+          }
+        });
       }
 
       clearContent(target: string): void {

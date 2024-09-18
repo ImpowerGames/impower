@@ -8,6 +8,7 @@ import { _imageFilter } from "./constructors/_imageFilter";
 import { _imageGroup } from "./constructors/_imageGroup";
 import { _shadow } from "./constructors/_shadow";
 import { _style } from "./constructors/_style";
+import { _transition } from "./constructors/_transition";
 import { _ui } from "./constructors/_ui";
 
 export const uiBuiltins = () => ({
@@ -421,6 +422,7 @@ export const uiBuiltins = () => ({
       $name: "show",
       keyframes: [{ opacity: "1" }],
       timing: {
+        duration: 0,
         easing: "linear",
         fill: "both",
       },
@@ -429,6 +431,7 @@ export const uiBuiltins = () => ({
       $name: "hide",
       keyframes: [{ opacity: "0" }],
       timing: {
+        duration: 0,
         easing: "linear",
         fill: "both",
       },
@@ -454,16 +457,6 @@ export const uiBuiltins = () => ({
           offset: 1.0,
           transform: "scale(2)",
           opacity: "0",
-        },
-      ],
-      timing: {},
-    }),
-    pulse: _animation({
-      $name: "pulse",
-      keyframes: [
-        {
-          offset: 0.5,
-          opacity: "0.5",
         },
       ],
       timing: {},
@@ -755,33 +748,36 @@ export const uiBuiltins = () => ({
         fill: "none",
       },
     }),
-    flash: _animation({
-      $name: "flash",
+    waitout: _animation({
+      $name: "waitout",
       keyframes: [
         {
-          background_color: "#999999",
-          opacity: "0",
-        },
-        {
-          background_color: "#999999",
-          opacity: "1",
-        },
-        {
-          background_color: "#999999",
           opacity: "0",
         },
       ],
       timing: {
-        duration: "120ms",
-        easing: "linear",
-        fill: "none",
+        duration: "0.5s",
+        easing: "step-end",
+        fill: "both",
+      },
+    }),
+    waitin: _animation({
+      $name: "waitin",
+      keyframes: [
+        {
+          opacity: "1",
+        },
+      ],
+      timing: {
+        duration: "0.5s",
+        easing: "step-end",
+        fill: "both",
       },
     }),
     fadeout: _animation({
       $name: "fadeout",
       keyframes: [
         {
-          background_color: "black",
           opacity: "0",
         },
       ],
@@ -795,12 +791,30 @@ export const uiBuiltins = () => ({
       $name: "fadein",
       keyframes: [
         {
-          background_color: "black",
           opacity: "1",
         },
       ],
       timing: {
         duration: "0.5s",
+        easing: "linear",
+        fill: "both",
+      },
+    }),
+    pulse: _animation({
+      $name: "pulse",
+      keyframes: [
+        {
+          opacity: "0",
+        },
+        {
+          opacity: "1",
+        },
+        {
+          opacity: "0",
+        },
+      ],
+      timing: {
+        duration: "1s",
         easing: "linear",
         fill: "both",
       },
@@ -818,7 +832,7 @@ export const uiBuiltins = () => ({
         },
       ],
       timing: {
-        duration: "1s",
+        duration: "0.5s",
         easing: "linear",
         fill: "both",
       },
@@ -826,6 +840,28 @@ export const uiBuiltins = () => ({
     blackin: _animation({
       $name: "blackin",
       keyframes: [
+        {
+          background_color: "black",
+          opacity: "1",
+        },
+        {
+          background_color: "black",
+          opacity: "0",
+        },
+      ],
+      timing: {
+        duration: "0.5s",
+        easing: "linear",
+        fill: "both",
+      },
+    }),
+    blackpulse: _animation({
+      $name: "blackpulse",
+      keyframes: [
+        {
+          background_color: "black",
+          opacity: "0",
+        },
         {
           background_color: "black",
           opacity: "1",
@@ -854,7 +890,7 @@ export const uiBuiltins = () => ({
         },
       ],
       timing: {
-        duration: "1s",
+        duration: "0.5s",
         easing: "linear",
         fill: "both",
       },
@@ -872,12 +908,54 @@ export const uiBuiltins = () => ({
         },
       ],
       timing: {
+        duration: "0.5s",
+        easing: "linear",
+        fill: "both",
+      },
+    }),
+    whitepulse: _animation({
+      $name: "whitepulse",
+      keyframes: [
+        {
+          background_color: "white",
+          opacity: "0",
+        },
+        {
+          background_color: "white",
+          opacity: "1",
+        },
+        {
+          background_color: "white",
+          opacity: "0",
+        },
+      ],
+      timing: {
         duration: "1s",
         easing: "linear",
         fill: "both",
       },
     }),
   } as Record<string, ReturnType<typeof _animation>>,
+  transition: {
+    default: _transition({ $name: "default" }),
+    dissolve: _transition({
+      $name: "dissolve",
+      on_exit: "fadeout",
+      on_enter: "fadein",
+    }),
+    fade: _transition({
+      $name: "fade",
+      on_exit: "waitout",
+      on_enter: "waitin",
+      screen: "blackpulse",
+    }),
+    flash: _transition({
+      $name: "flash",
+      on_exit: "waitout",
+      on_enter: "waitin",
+      screen: "whitepulse",
+    }),
+  } as Record<string, ReturnType<typeof _transition>>,
   font: {
     default: _font({ $name: "default" }),
   } as Record<string, ReturnType<typeof _font>>,

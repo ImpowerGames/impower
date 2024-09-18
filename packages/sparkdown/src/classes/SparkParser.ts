@@ -498,8 +498,8 @@ export default class SparkParser {
           stack.includes("AssetCommandWithClause") &&
           nodeType === "NameValue"
         ) {
-          const selectors = [`animation.${text}`];
-          const description = `animation named '${text}'`;
+          const selectors = [`transition.${text}`, `animation.${text}`];
+          const description = `transition or animation named '${text}'`;
           program.references ??= {};
           program.references[uri] ??= {};
           program.references[uri][lineIndex] ??= [];
