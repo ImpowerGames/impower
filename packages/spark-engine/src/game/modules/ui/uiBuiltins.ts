@@ -938,8 +938,8 @@ export const uiBuiltins = () => ({
   } as Record<string, ReturnType<typeof _animation>>,
   transition: {
     default: _transition({ $name: "default" }),
-    dissolve: _transition({
-      $name: "dissolve",
+    fade: _transition({
+      $name: "fade",
       on_hide: "fadeout",
       on_show: "fadein",
     }),
