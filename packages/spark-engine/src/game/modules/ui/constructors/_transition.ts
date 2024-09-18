@@ -3,7 +3,7 @@ import { Transition } from "../types/Transition";
 
 export const _transition: Create<Transition> = (obj) => ({
   $type: "transition",
-  on_hide: "fadeout",
-  on_show: "fadein",
+  on_hide: "hide",
+  on_show: "show",
   ...obj,
 });
