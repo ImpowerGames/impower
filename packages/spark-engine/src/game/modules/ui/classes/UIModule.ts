@@ -1042,34 +1042,36 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
           const over = e.over ?? 0;
           const transitionSpeed =
             transition && over > 0 ? transitionDuration / over : 1;
-          const enterWith =
+          // Calculate show settings
+          const showWith =
             (transition
               ? typeof transition?.on_show === "string"
                 ? transition?.on_show
                 : transition?.on_show?.$name
               : e.with) || "show";
-          const enterAnimation = $.context?.animation?.[enterWith];
-          const enterAnimationDuration =
-            getTimeValue(enterAnimation?.timing?.duration) ?? 0;
-          const enterAfter = e.after;
-          const enterOver = transition
-            ? enterAnimationDuration / transitionSpeed
+          const showAnimation = $.context?.animation?.[showWith];
+          const showAnimationDuration =
+            getTimeValue(showAnimation?.timing?.duration) ?? 0;
+          const showAfter = e.after;
+          const showOver = transition
+            ? showAnimationDuration / transitionSpeed
             : over;
-          const exitWith =
+          // Calculate hide settings
+          const hideWith =
             (transition
               ? typeof transition?.on_hide === "string"
                 ? transition?.on_hide
                 : transition?.on_hide?.$name
               : e.with) || "hide";
-          const exitAnimation = $.context?.animation?.[exitWith];
-          const exitAnimationDuration =
-            getTimeValue(exitAnimation?.timing?.duration) ?? 0;
-          const exitAfter = e.after;
-          const exitOver = transition
-            ? exitAnimationDuration / transitionSpeed
+          const hideAnimation = $.context?.animation?.[hideWith];
+          const hideAnimationDuration =
+            getTimeValue(hideAnimation?.timing?.duration) ?? 0;
+          const hideAfter = e.after;
+          const hideOver = transition
+            ? hideAnimationDuration / transitionSpeed
             : over;
+          // Animate any other elements affected by the transition
           if (transition) {
-            // Animate any other elements affected by the transition
             for (const [k, v] of Object.entries(transition)) {
               if (!k.startsWith("$") && !k.startsWith("on_")) {
                 const animateWith = typeof v === "string" ? v : v?.$name;
@@ -1120,34 +1122,34 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
                   exitElements.set(prevSpanEl, []);
                 }
                 const hideEvent = {
-                  name: exitWith,
-                  after: exitAfter,
-                  over: exitOver,
+                  name: hideWith,
+                  after: hideAfter,
+                  over: hideOver,
                 };
                 const prevSpanAnimations = exitElements.get(prevSpanEl)!;
                 $.queueAnimationEvent(hideEvent, instant, prevSpanAnimations);
               }
               // Show new elements
               const showEvent = {
-                name: enterWith,
-                after: enterAfter,
-                over: enterOver,
+                name: showWith,
+                after: showAfter,
+                over: showOver,
               };
               const newSpanAnimations = enterElements.get(newSpanEl)!;
               $.queueAnimationEvent(showEvent, instant, newSpanAnimations);
             } else if (e.control === "hide") {
               const hideEvent = {
-                name: exitWith,
-                after: exitAfter,
-                over: exitOver,
+                name: hideWith,
+                after: hideAfter,
+                over: hideOver,
               };
               const newSpanAnimations = enterElements.get(newSpanEl)!;
               $.queueAnimationEvent(hideEvent, instant, newSpanAnimations);
             } else if (e.control === "show" || e.control === "animate") {
               const showEvent = {
-                name: enterWith,
-                after: enterAfter,
-                over: enterOver,
+                name: showWith,
+                after: showAfter,
+                over: showOver,
               };
               const newSpanAnimations = enterElements.get(newSpanEl)!;
               $.queueAnimationEvent(showEvent, instant, newSpanAnimations);
@@ -1171,9 +1173,9 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             }
             const targetAnimations = enterElements.get(targetEl)!;
             const showEvent = {
-              name: enterWith,
-              after: enterAfter,
-              over: enterOver,
+              name: showWith,
+              after: showAfter,
+              over: showOver,
             };
             $.queueAnimationEvent(showEvent, instant, targetAnimations);
           }
