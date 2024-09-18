@@ -215,10 +215,14 @@ export default class SparkParser {
                 `graphic.${name}`
               );
               description = `image named '${name}'`;
-            }
-            if (structType === "audio_group") {
+            } else if (structType === "audio_group") {
               selectors.push(`audio.${name}`, `synth.${name}`);
               description = `audio named '${name}'`;
+            } else if (structType === "transition") {
+              selectors.push(`animation.${name}`);
+              description = `animation named '${name}'`;
+            } else {
+              description = `'${name}'`;
             }
           }
           program.references ??= {};
