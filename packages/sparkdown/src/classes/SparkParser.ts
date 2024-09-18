@@ -210,8 +210,8 @@ export default class SparkParser {
               structType === "style"
             ) {
               selectors.push(
-                `image.${name}`,
                 `image_group.${name}`,
+                `image.${name}`,
                 `graphic.${name}`
               );
               description = `image named '${name}'`;
@@ -268,7 +268,7 @@ export default class SparkParser {
           const selectors =
             prevChar === "~"
               ? [`image_filter.${text}`]
-              : [`image.${text}`, `image_group.${text}`, `graphic.${text}`];
+              : [`image_group.${text}`, `image.${text}`, `graphic.${text}`];
           const description =
             prevChar === "~"
               ? `image_filter named '${text}'`
@@ -288,7 +288,7 @@ export default class SparkParser {
           const selectors =
             prevChar === "~"
               ? [`audio_filter.${text}`]
-              : [`audio.${text}`, `audio_group.${text}`, `synth.${text}`];
+              : [`audio_group.${text}`, `audio.${text}`, `synth.${text}`];
           const description =
             prevChar === "~"
               ? `audio_filter named '${text}'`
@@ -363,7 +363,7 @@ export default class SparkParser {
         ) {
           const severity = DiagnosticSeverity.Error;
           const message =
-            "Invalid visual clause: Visual commands only support 'after', 'over', 'fadeto', 'with', 'loop', 'noloop', 'wait', or 'nowait'";
+            "Invalid visual clause: Visual commands only support 'after', 'over', 'with', 'wait', or 'nowait'";
           program.diagnostics ??= {};
           program.diagnostics[uri] ??= [];
           program.diagnostics[uri].push({
@@ -386,7 +386,7 @@ export default class SparkParser {
         ) {
           const severity = DiagnosticSeverity.Error;
           const message =
-            "Invalid audio clause: Audio commands only support 'after', 'over', 'fadeto', 'with', 'loop', 'noloop', 'mute', 'unmute', or 'now'";
+            "Invalid audio clause: Audio commands only support 'after', 'over', 'fadeto', 'loop', 'noloop', 'mute', 'unmute', or 'now'";
           program.diagnostics ??= {};
           program.diagnostics[uri] ??= [];
           program.diagnostics[uri].push({
@@ -477,7 +477,7 @@ export default class SparkParser {
         ) {
           const severity = DiagnosticSeverity.Error;
           const message =
-            "'with' must be followed by the name of an animation (e.g. 'with shake')";
+            "'with' must be followed by the name of a transition or animation (e.g. 'with shake')";
           program.diagnostics ??= {};
           program.diagnostics[uri] ??= [];
           program.diagnostics[uri].push({
