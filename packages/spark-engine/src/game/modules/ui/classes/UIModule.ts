@@ -240,7 +240,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
   }
 
   getImageVarName(name: string) {
-    return `--image_${name?.replaceAll(INVALID_VAR_NAME_CHAR, "_")}`;
+    return `--image-${name?.replaceAll(INVALID_VAR_NAME_CHAR, "-")}`;
   }
 
   getImageUrl(src: string) {

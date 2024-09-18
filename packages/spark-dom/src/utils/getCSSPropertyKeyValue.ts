@@ -1,5 +1,11 @@
 import { getCSSPropertyName } from "./getCSSPropertyName";
 
+const INVALID_VAR_NAME_CHAR = /[^_\p{L}0-9]+/gu;
+
+const getImageVarName = (name: string) => {
+  return `--image-${name?.replaceAll(INVALID_VAR_NAME_CHAR, "-")}`;
+};
+
 const createTextShadow = (r: number, color = "black", unit = "px"): string => {
   return createShadows(r, color, unit).join(", ") || "none";
 };
@@ -67,65 +73,14 @@ export const getCSSPropertyKeyValue = (
     const urlValue = src.includes("(") ? src : `url('${encodeURI(src)}')`;
     return [cssProp, urlValue];
   }
-  if (cssProp === "background-image" && typeof cssValue === "string") {
-    const src = cssValue.trim();
-    const varValue = src.includes("(") ? src : `var(--image_${src})`;
-    return [cssProp, varValue];
-  }
   if (
     cssProp === "background-image" &&
     typeof cssValue === "object" &&
     "$name" in cssValue &&
     typeof cssValue.$name === "string"
   ) {
-    const varValue = `var(--image_${cssValue.$name})`;
+    const varValue = `var(${getImageVarName(cssValue.$name)})`;
     return [cssProp, varValue];
-  }
-  if (
-    cssProp === "background-image" &&
-    typeof cssValue === "object" &&
-    "$type" in cssValue &&
-    typeof cssValue.$type === "string" &&
-    "$name" in cssValue &&
-    typeof cssValue.$name === "string"
-  ) {
-    const type = cssValue.$type;
-    const name = cssValue.$name;
-    const varValue = `var(--${type}_${name})`;
-    return [cssProp, varValue];
-  }
-  if (
-    cssProp === "background-image" &&
-    typeof cssValue === "object" &&
-    "src" in cssValue &&
-    typeof cssValue.src === "string"
-  ) {
-    const src = cssValue.src.trim();
-    const urlValue = src.includes("(") ? src : `url('${encodeURI(src)}')`;
-    return [cssProp, urlValue];
-  }
-  if (
-    cssProp === "background-image" &&
-    typeof cssValue === "object" &&
-    "data" in cssValue &&
-    typeof cssValue.data === "string" &&
-    "ext" in cssValue &&
-    typeof cssValue.ext === "string"
-  ) {
-    const data = cssValue.data.trim();
-    const ext = cssValue.ext;
-    const encoding =
-      ext === "svg"
-        ? "image/svg+xml;utf8"
-        : ext === "png"
-        ? "image/png;base64"
-        : ext === "jpg" || ext === "jpeg"
-        ? "image/jpeg;base64"
-        : `image/${ext};base64`;
-    const url = data.includes("(")
-      ? data
-      : `url(data:${encoding},${encodeURIComponent(data)})`;
-    return [cssProp, url];
   }
   if (
     cssProp === "font-family" &&
