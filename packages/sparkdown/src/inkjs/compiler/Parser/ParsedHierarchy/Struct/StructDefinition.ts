@@ -40,7 +40,7 @@ export class StructDefinition extends ParsedObject {
     ];
     const firstProp = propertyDefinitions[0];
     if (firstProp && firstProp.index !== null) {
-      // Is defining array
+      // Is defining array struct
       parentStack[0]!.value = [];
     }
     for (let i = 0; i < propertyDefinitions.length; i += 1) {
@@ -61,7 +61,7 @@ export class StructDefinition extends ParsedObject {
         // If first child property is an array item, this property is an array
         const isArray =
           nextProp && nextProp.level > prop.level && nextProp.index !== null;
-        const value = isArray ? [] : {};
+        const value = isArray ? [] : prop.value;
         if (parent) {
           if (parent.value[prop.name] === undefined) {
             if (

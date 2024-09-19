@@ -685,7 +685,7 @@
     "StructMapItem": {
       "tag": "meta",
       "name": "meta.definition.struct.item.map.sd",
-      "begin": "^([^\\S\\n\\r]*)([-])($|[^\\S\\n\\r]+$)",
+      "begin": "^([^\\S\\n\\r]*)([-])(?:($|[^\\S\\n\\r]+$)|(?=[^\\S\\n\\r]*[0-9_\\p{L}][0-9_\\p{L}]*[^\\S\\n\\r]*[=]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -702,6 +702,45 @@
           "patterns": [
             {
               "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#DeclarationProperty"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "7": {
+          "tag": "updateOperator",
+          "name": "keyword.operator.assignment.sd"
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "9": {
+          "patterns": [
+            {
+              "include": "#StructFieldValue"
             }
           ]
         }
@@ -721,6 +760,9 @@
         },
         {
           "include": "#StructScalarProperty"
+        },
+        {
+          "include": "#AfterDashStructScalarProperty"
         },
         {
           "include": "#Newline"
@@ -834,7 +876,7 @@
     "StructScalarProperty": {
       "tag": "meta",
       "name": "meta.definition.struct.property.scalar.sd",
-      "begin": "^([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*)(?:($|[=])($|[^\\S\\n\\r]*)|($|[:])($|[^\\S\\n\\r]*)(?=.*\\S.*$))",
+      "begin": "^([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*)($|[=])($|[^\\S\\n\\r]*)",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -867,12 +909,49 @@
               "include": "#Whitespace"
             }
           ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
         },
-        "6": {
+        {
+          "include": "#StructFieldValue"
+        }
+      ],
+      "end": "(?=$)"
+    },
+    "AfterDashStructScalarProperty": {
+      "tag": "meta",
+      "name": "meta.definition.struct.property.scalar.sd",
+      "begin": "([^\\S\\n\\r]*)([0-9_\\p{L}][0-9_\\p{L}]*)($|[^\\S\\n\\r]*)($|[=])($|[^\\S\\n\\r]*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Indent"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DeclarationProperty"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "4": {
           "tag": "updateOperator",
           "name": "keyword.operator.assignment.sd"
         },
-        "7": {
+        "5": {
           "patterns": [
             {
               "include": "#Whitespace"

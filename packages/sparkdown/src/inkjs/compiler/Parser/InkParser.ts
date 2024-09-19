@@ -3097,7 +3097,18 @@ export class InkParser extends StringParser {
     if (itemDash !== null) {
       this.Whitespace();
       let elementValue: unknown | null = {};
-      if (!this.Peek(this.EndOfLine) && !this.Peek(this.EndOfFile)) {
+      const assignedIdentifier = this.AssignedIdentifier();
+      if (assignedIdentifier) {
+        this.Whitespace();
+        const mapValue = this.Expect(
+          this.ValueLiteral,
+          "property to be initialized to a number, string, boolean, or reference"
+        ) as unknown | null;
+        (elementValue as any)[assignedIdentifier.name] = mapValue;
+        return new StructProperty(String(index), level, elementValue, index);
+      }
+      if (!this.Peek(this.EndOfLine)) {
+        this.Whitespace();
         elementValue = this.Expect(
           this.ValueLiteral,
           "property to be initialized to a number, string, boolean, or reference"
@@ -3127,6 +3138,21 @@ export class InkParser extends StringParser {
     }
 
     return new StructProperty(identifier.name, level, elementValue, null);
+  };
+
+  public readonly AssignedIdentifier = (): Identifier | null => {
+    const identifier = this.Parse(
+      this.IdentifierWithMetadata
+    ) as Identifier | null;
+    if (!identifier) {
+      return null;
+    }
+    this.Whitespace();
+    const assignmentOperator = this.ParseString("=");
+    if (!assignmentOperator) {
+      return null;
+    }
+    return identifier;
   };
 
   public readonly UnindentedLine = (): typeof ParseSuccess | null => {
