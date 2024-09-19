@@ -1,14 +1,17 @@
 const EDITOR_COLORS = {
+  white: "#FFFFFF",
   foreground: "#CCCCCC",
   lineNumber: "#2B83B7",
   lineMark: "#66c7ff",
 
   bracket: "#FFD700",
 
-  tooltip: "#1f1f1f",
+  panel: "#1f1f1f",
   match: "#18A3FF",
   selected: "#323232",
-  border: "#FFFFFF21",
+  border: "#FFFFFF1A",
+  hover: "#FFFFFF14",
+  focus: "#0078D4",
 
   invalid: "#F44747",
   constant: "#FFFF00",

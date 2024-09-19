@@ -112,6 +112,7 @@ export interface Revision {
 export interface ProjectState {
   id?: string;
   name?: string;
+  directory?: string;
 }
 
 export interface SyncState {

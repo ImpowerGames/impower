@@ -1,6 +1,7 @@
 import { ChangedEditorBreakpointsMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ChangedEditorBreakpointsMessage";
 import { ScrolledEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
+import { SearchEditorMessage } from "@impower/spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
 import { DisableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-editor-protocol/src/protocols/game/EnableGameDebugMessage";
 import { PauseGameMessage } from "@impower/spark-editor-protocol/src/protocols/game/PauseGameMessage";
@@ -286,6 +287,10 @@ export default class WorkspaceWindow {
     return panelState;
   }
 
+  getOpenedPane() {
+    return this.store.pane;
+  }
+
   getOpenedPanel(pane: PaneType) {
     const paneState = this.getPaneState(pane);
     return paneState.panel;
@@ -377,6 +382,18 @@ export default class WorkspaceWindow {
     return undefined;
   }
 
+  getOpenedDocumentUri() {
+    const openedPane = this.getOpenedPane();
+    const activeEditor = this.getActiveEditorForPane(openedPane);
+    if (activeEditor) {
+      const uri = activeEditor.uri;
+      if (uri) {
+        return uri;
+      }
+    }
+    return undefined;
+  }
+
   showDocument(uri: string, selection?: Range, takeFocus?: boolean) {
     const filename = Workspace.fs.getFilename(uri);
     const pane = this.getPaneType(filename);
@@ -457,6 +474,13 @@ export default class WorkspaceWindow {
     this.emit(
       UnfocusWindowMessage.method,
       UnfocusWindowMessage.type.request({})
+    );
+  }
+
+  search(uri: string) {
+    this.emit(
+      SearchEditorMessage.method,
+      SearchEditorMessage.type.request({ textDocument: { uri } })
     );
   }
 
@@ -827,6 +851,7 @@ export default class WorkspaceWindow {
       project: {
         ...this.store.project,
         id,
+        directory: Workspace.fs.getDirectoryUri(id),
         name: undefined,
       },
       sync: {
@@ -861,6 +886,7 @@ export default class WorkspaceWindow {
           project: {
             ...this.store.project,
             id,
+            directory: Workspace.fs.getDirectoryUri(id),
             name,
           },
           sync: {

@@ -8,6 +8,7 @@ import { LoadEditorMessage } from "../../../../../spark-editor-protocol/src/prot
 import { ScrolledEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/ScrolledEditorMessage";
 import { SelectedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SelectedEditorMessage";
 import { UnfocusedEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/UnfocusedEditorMessage";
+import { SearchEditorMessage } from "../../../../../spark-editor-protocol/src/protocols/editor/SearchEditorMessage";
 import { HoveredOnPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/HoveredOnPreviewMessage";
 import { ScrolledPreviewMessage } from "../../../../../spark-editor-protocol/src/protocols/preview/ScrolledPreviewMessage";
 import { DidChangeTextDocumentMessage } from "../../../../../spark-editor-protocol/src/protocols/textDocument/DidChangeTextDocumentMessage";
@@ -38,6 +39,7 @@ import createEditorView, {
   readOnly,
 } from "../utils/createEditorView";
 import spec from "./_sparkdown-script-editor";
+import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
 
 export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
@@ -67,6 +69,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
   protected _domClientY = 0;
 
   protected _userInitiatedScroll = false;
+
+  protected _searching = false;
+
+  protected _searchInputFocused = false;
 
   protected _breakpoints: number[] = [];
 
@@ -104,6 +110,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
       ScrolledPreviewMessage.method,
       this.handleScrolledPreview
     );
+    window.addEventListener(
+      SearchEditorMessage.method,
+      this.handleSearchEditor
+    );
   }
 
   override onDisconnected() {
@@ -127,6 +137,10 @@ export default class SparkdownScriptEditor extends Component(spec) {
     window.removeEventListener(
       ScrolledPreviewMessage.method,
       this.handleScrolledPreview
+    );
+    window.removeEventListener(
+      SearchEditorMessage.method,
+      this.handleSearchEditor
     );
     if (this._textDocument) {
       SparkdownScriptEditor.languageServerConnection.sendNotification(
@@ -278,6 +292,39 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
   };
 
+  protected handleSearchEditor = (e: Event) => {
+    if (e instanceof CustomEvent) {
+      const message = e.detail;
+      if (SearchEditorMessage.type.isRequest(message)) {
+        const params = message.params;
+        const textDocument = params.textDocument;
+        if (textDocument.uri === this._textDocument?.uri) {
+          this.openSearchPanel();
+        }
+      }
+    }
+  };
+
+  protected handleFocusFindInput = () => {
+    this.emit("input/focused");
+    this._searchInputFocused = true;
+  };
+
+  protected handleBlurFindInput = () => {
+    this.emit("input/unfocused");
+    this._searchInputFocused = false;
+  };
+
+  protected handleFocusReplaceInput = () => {
+    this.emit("input/focused");
+    this._searchInputFocused = true;
+  };
+
+  protected handleBlurReplaceInput = () => {
+    this.emit("input/unfocused");
+    this._searchInputFocused = false;
+  };
+
   protected loadTextDocument(
     textDocument: TextDocumentItem,
     focused: boolean | undefined,
@@ -293,6 +340,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
     }
     this._initialized = false;
     this._loaded = false;
+    this._searching = false;
+    this._searchInputFocused = false;
     this._textDocument = textDocument;
     const root = this.root;
     if (root) {
@@ -319,12 +368,15 @@ export default class SparkdownScriptEditor extends Component(spec) {
         onBlur: () => {
           this._editing = false;
           if (this._textDocument) {
-            this.emit(
-              UnfocusedEditorMessage.method,
-              UnfocusedEditorMessage.type.notification({
-                textDocument: this._textDocument,
-              })
-            );
+            if (!this._searchInputFocused) {
+              // Editor is still considered focused if focus was moved to search input
+              this.emit(
+                UnfocusedEditorMessage.method,
+                UnfocusedEditorMessage.type.notification({
+                  textDocument: this._textDocument,
+                })
+              );
+            }
           }
         },
         onEdit: (e) => {
@@ -390,6 +442,38 @@ export default class SparkdownScriptEditor extends Component(spec) {
                 breakpointRanges,
               })
             );
+          }
+        },
+        onViewUpdate: (u) => {
+          if (searchPanelOpen(u.state)) {
+            if (!this._searching) {
+              // Opened panel
+              const findInput = u.view.dom.querySelector(
+                ".cm-search input[name='search']"
+              );
+              if (findInput) {
+                findInput.addEventListener("focus", this.handleFocusFindInput);
+                findInput.addEventListener("blur", this.handleBlurFindInput);
+                // findInput starts focused
+                this.handleFocusFindInput();
+              }
+              const replaceInput = u.view.dom.querySelector(
+                ".cm-search input[name='replace']"
+              );
+              if (replaceInput) {
+                replaceInput.addEventListener(
+                  "focus",
+                  this.handleFocusReplaceInput
+                );
+                replaceInput.addEventListener(
+                  "blur",
+                  this.handleBlurReplaceInput
+                );
+              }
+            }
+            this._searching = true;
+          } else {
+            this._searching = false;
           }
         },
       });
@@ -472,6 +556,13 @@ export default class SparkdownScriptEditor extends Component(spec) {
         ]),
         scrollIntoView,
       });
+    }
+  }
+
+  protected openSearchPanel() {
+    const view = this._view;
+    if (view) {
+      openSearchPanel(view);
     }
   }
 
