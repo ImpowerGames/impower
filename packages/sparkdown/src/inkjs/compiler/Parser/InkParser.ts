@@ -3097,15 +3097,17 @@ export class InkParser extends StringParser {
     if (itemDash !== null) {
       this.Whitespace();
       let elementValue: unknown | null = {};
-      const assignedIdentifier = this.AssignedIdentifier();
-      if (assignedIdentifier) {
-        this.Whitespace();
-        const mapValue = this.Expect(
-          this.ValueLiteral,
-          "property to be initialized to a number, string, boolean, or reference"
-        ) as unknown | null;
-        (elementValue as any)[assignedIdentifier.name] = mapValue;
-        return new StructProperty(String(index), level, elementValue, index);
+      if (this.Peek(this.AssignedIdentifier)) {
+        const assignedIdentifier = this.AssignedIdentifier();
+        if (assignedIdentifier) {
+          this.Whitespace();
+          const mapValue = this.Expect(
+            this.ValueLiteral,
+            "property to be initialized to a number, string, boolean, or reference"
+          ) as unknown | null;
+          (elementValue as any)[assignedIdentifier.name] = mapValue;
+          return new StructProperty(String(index), level, elementValue, index);
+        }
       }
       if (!this.Peek(this.EndOfLine)) {
         this.Whitespace();
