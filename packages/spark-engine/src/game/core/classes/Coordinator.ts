@@ -216,7 +216,7 @@ export class Coordinator<G extends Game> {
           game.context.system.setTimeout(() => {
             // Delay the ui update by the audio outputLatency so that audio and visuals are synced
             updateUI();
-          }, game.module.audio.outputLatency);
+          }, game.module.audio.outputLatency * 1000);
           this._startedExecution = true;
         }
       }
