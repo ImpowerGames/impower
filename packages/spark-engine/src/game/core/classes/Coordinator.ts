@@ -206,21 +206,23 @@ export class Coordinator<G extends Game> {
 
     let elapsedMS = 0;
     let ready = false;
+    let displayed = false;
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
       if (!ready) {
         if (audioTriggerIds.every((n) => game.module.audio.isReady(n))) {
           ready = true;
+          this._startedExecution = true;
           game.module.audio.triggerAll(audioTriggerIds);
           game.context.system.setTimeout(() => {
             // Delay the ui update by the audio outputLatency so that audio and visuals are synced
             updateUI();
+            displayed = true;
           }, game.module.audio.outputLatency * 1000);
-          this._startedExecution = true;
         }
       }
-      if (ready && !finished) {
+      if (ready && displayed && !finished) {
         elapsedMS += deltaMS;
         if (elapsedMS >= totalDurationMS) {
           finished = true;
