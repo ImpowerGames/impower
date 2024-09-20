@@ -40,6 +40,7 @@ import createEditorView, {
 } from "../utils/createEditorView";
 import spec from "./_sparkdown-script-editor";
 import { openSearchPanel, searchPanelOpen } from "@codemirror/search";
+import getUnitlessValue from "../../../../../spec-component/src/utils/getUnitlessValue";
 
 export default class SparkdownScriptEditor extends Component(spec) {
   static languageServerConnection: MessageConnection;
@@ -87,6 +88,8 @@ export default class SparkdownScriptEditor extends Component(spec) {
     left: 0,
     right: 0,
   };
+
+  protected _top: number = 0;
 
   override onConnected() {
     window.addEventListener(LoadEditorMessage.method, this.handleLoadEditor);
@@ -346,12 +349,14 @@ export default class SparkdownScriptEditor extends Component(spec) {
     const root = this.root;
     if (root) {
       this._scrollMargin = getBoxValues(this.scrollMargin);
+      this._top = getUnitlessValue(this.top, 0);
       [this._view, this._disposable] = createEditorView(root, {
         serverConnection: SparkdownScriptEditor.languageServerConnection,
         serverCapabilities: SparkdownScriptEditor.languageServerCapabilities,
         fileSystemReader: SparkdownScriptEditor.fileSystemReader,
         textDocument: this._textDocument,
         scrollMargin: this._scrollMargin,
+        top: this._top,
         breakpointRanges,
         onIdle: this.handleIdle,
         onFocus: () => {

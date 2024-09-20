@@ -19,7 +19,8 @@ export default spec({
       <s-box bg-color="editor-bg" grow>
         <sparkdown-script-editor
           id="sparkdownScriptEditor"
-          scroll-margin="${splitLayout ? "64px 0 68px 0" : "120px 0 68px 0"}"
+          scroll-margin="${splitLayout ? "56px 0 60px 0" : "104px 0 60px 0"}"
+          top="${splitLayout ? "48px" : "104px"}"
         ></sparkdown-script-editor>
       </s-box>
     `;

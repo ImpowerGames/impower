@@ -16,7 +16,8 @@ export default spec({
       <se-preview-screenplay-toolbar></se-preview-screenplay-toolbar>
       <s-box bg-color="black" grow>
         <sparkdown-screenplay-preview
-          scroll-margin="${splitLayout ? "64px 0 68px 0" : "120px 0 68px 0"}"
+          scroll-margin="${splitLayout ? "56px 0 60px 0" : "104px 0 60px 0"}"
+          top="${splitLayout ? "48px" : "104px"}"
         ></sparkdown-screenplay-preview>
       </s-box>
     `;

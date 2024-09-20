@@ -123,27 +123,9 @@ const EDITOR_THEME: {
     backgroundColor: EDITOR_COLORS.panel,
   },
   "& .cm-panels.cm-panels-top": {
-    // Top panels should cover up panel header
-    top: "48px !important",
-    "& .cm-panel.cm-search": {
+    "& .cm-panel": {
+      // Top panels should cover up panel header
       marginTop: "-48px",
-    },
-    "&::before": {
-      content: "''",
-      position: "absolute",
-      top: "-48px",
-      bottom: "0",
-      left: "0",
-      right: "0",
-      backgroundColor: EDITOR_COLORS.panel,
-    },
-    "&::after": {
-      content: "''",
-      position: "absolute",
-      bottom: "0",
-      left: "0",
-      right: "0",
-      borderBottom: `1px solid ${EDITOR_COLORS.separator}`,
     },
   },
   "& .cm-panel.cm-search": {

@@ -80,6 +80,7 @@ interface EditorConfig {
     left?: number;
     right?: number;
   };
+  top: number;
   defaultState?: SerializableEditorState;
   stabilizationDuration?: number;
   breakpointRanges?: SerializableRange[];
@@ -113,6 +114,7 @@ const createEditorView = (
   const serverCapabilities = config.serverCapabilities;
   const fileSystemReader = config.fileSystemReader;
   const scrollMargin = config?.scrollMargin;
+  const top = config?.top;
   const defaultState = config?.defaultState;
   const stabilizationDuration = config?.stabilizationDuration ?? 200;
   const breakpointRanges = config?.breakpointRanges;
@@ -183,6 +185,14 @@ const createEditorView = (
         return RangeSet.of(gutterMarkers, true);
       }),
       scrollMargins(scrollMargin),
+      EditorView.theme(
+        {
+          "& .cm-panels.cm-panels-top": {
+            top: `${top}px !important`,
+          },
+        },
+        { dark: true }
+      ),
       sparkdownLanguageExtension({
         textDocument,
         serverConnection,
