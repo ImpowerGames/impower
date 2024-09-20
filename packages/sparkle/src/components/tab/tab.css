@@ -63,7 +63,10 @@
 }
 
 :host([active]:not([disabled])) > .root {
-  color: var(--active-text-color, var(--color)) !important;
+  color: var(
+    --active-text-color,
+    var(--inactive-text-color, var(--text-color))
+  ) !important;
 }
 
 :host([active]:not([disabled], [status="activating"], [status="deactivating"]))
@@ -80,7 +83,6 @@
 :host > .root > .ripple {
   position: absolute;
   inset: 0;
-  color: var(--color) !important;
 }
 
 :host > .root > .icon,
@@ -147,7 +149,10 @@
   height: 100%;
   will-change: transform, opacity;
   transition-property: none;
-  color: var(--active-text-color, var(--color));
+  color: var(
+    --active-text-color,
+    var(--inactive-text-color, var(--text-color))
+  );
 }
 :host([icon]:not([active])) > .root > .icon > .active-icon {
   display: none;
