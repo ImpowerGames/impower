@@ -187,9 +187,13 @@ export default class AudioScene extends Scene {
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
       await this.onLoadAudioPlayer(msg.params);
+      const outputLatency =
+        window.AudioContext && "outputLatency" in window.AudioContext.prototype
+          ? this._audioContext.outputLatency
+          : 0;
       return LoadAudioPlayerMessage.type.result({
         ...msg.params,
-        outputLatency: this._audioContext.outputLatency,
+        outputLatency,
       });
     }
     if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
