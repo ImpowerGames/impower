@@ -398,7 +398,7 @@
 [interactable] > .root {
   pointer-events: var(--interactable, auto) !important;
 }
-[interactable="none"] {
+[interactable="none"] > .root {
   cursor: none;
 }
 [selectable] > .root {
